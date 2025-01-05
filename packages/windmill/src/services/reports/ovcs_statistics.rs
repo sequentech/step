@@ -6,7 +6,7 @@ use super::report_variables::{
     get_report_hash, ExecutionAnnotations,
 };
 use super::voters::{
-    count_voters_by_area_id, get_voters_data, EnrollmentFilters, FilterListVoters,
+    count_all_disapproved_applications, count_voters_by_area_id, get_voters_data, EnrollmentFilters, FilterListVoters
 };
 use super::{report_variables::extract_election_data, template_renderer::*};
 use crate::postgres::application::count_applications;
@@ -283,48 +283,16 @@ impl TemplateRenderer for OVCSStatisticsTemplate {
             .into_iter()
             .map(|(name, stats)| Region { name, stats })
             .collect();
-        
-        let mut filter = EnrollmentFilters {
-                status: ApplicationStatus::REJECTED,
-                verification_type: Some(ApplicationType::AUTOMATIC)
-            };
-
-        let total_disapproved = count_applications(
+                 
+        let (total_disapproved, total_ofov_disapproved, total_sbei_disapproved) = count_all_disapproved_applications(
             &hasura_transaction,
             &self.ids.tenant_id,
             &self.ids.election_event_id,
-            None,
-            Some(&filter),
+            true,
             None,
         )
         .await
-        .map_err(|err| anyhow!("Error at count total disapproved: {err}"))?;
-
-        filter.verification_type = Some(ApplicationType::MANUAL);
-      
-        let total_ofov_disapproved = count_applications(
-            &hasura_transaction,
-            &self.ids.tenant_id,
-            &self.ids.election_event_id,
-            None,
-            Some(&filter),
-            Some("ofov"),
-        )
-        .await
-        .map_err(|err| anyhow!("Error at count total ofov disapproved: {err}"))?;
-
-       let total_sbei_disapproved = count_applications(
-            &hasura_transaction,
-            &self.ids.tenant_id,
-            &self.ids.election_event_id,
-            None,
-            Some(&filter),
-            Some("sbei"),
-        )
-        .await
-        .map_err(|err| anyhow!("Error at count total sbei disapproved: {err}"))?;
-         
-        
+        .map_err(|err| anyhow!("Error at counting all disapproved applications: {err}"))?;
         
         Ok(UserData {
             execution_annotations: ExecutionAnnotations {
@@ -339,8 +307,8 @@ impl TemplateRenderer for OVCSStatisticsTemplate {
             elections: elections_data,
             regions,
             ofov_disapproved: total_ofov_disapproved,
-            sbei_disapproved: total_sbei_disapproved,   //TODO: get real data
-            system_disapproved: total_disapproved, //TODO: get real data
+            sbei_disapproved: total_sbei_disapproved,  
+            system_disapproved: total_disapproved, 
         })
     }
 

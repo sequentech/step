@@ -6,7 +6,7 @@ use super::report_variables::{
     ExecutionAnnotations,
 };
 use super::template_renderer::*;
-use super::voters::{get_voters_data, EnrollmentFilters, FilterListVoters, Voter};
+use super::voters::{count_all_disapproved_applications, get_voters_data, EnrollmentFilters, FilterListVoters, Voter};
 use crate::postgres::area::get_areas_by_election_id;
 use crate::postgres::election::get_election_by_id;
 use crate::postgres::reports::ReportType;
@@ -193,6 +193,16 @@ impl TemplateRenderer for PreEnrolledVoterTemplate {
 
             let area_name = area.clone().name.unwrap_or("-".to_string());
 
+            let (total_disapproved, total_ofov_disapproved, total_sbei_disapproved) = count_all_disapproved_applications(
+                &hasura_transaction,
+                &self.ids.tenant_id,
+                &self.ids.election_event_id,
+                false,
+                Some(&area.id)
+            )
+            .await
+            .map_err(|err| anyhow!("Error at counting all disapproved applications: {err}"))?;
+
             areas.push(UserDataArea {
                 election_title: election.name.clone(),
                 election_dates: election_dates.clone(),
@@ -201,9 +211,9 @@ impl TemplateRenderer for PreEnrolledVoterTemplate {
                 voted: voters_data.total_voted.clone(),
                 not_voted: voters_data.total_not_voted.clone(),
                 voters: voters_data.voters.clone(),
-                number_of_ovs_approved_by_system: 0, //TODO: fix mock data
-                number_of_ovs_approved_by_sbei: 0,   //TODO: fix mock data
-                number_of_ovs_approved_by_ofov: 0,   //TODO: fix mock data
+                number_of_ovs_approved_by_system: total_disapproved, 
+                number_of_ovs_approved_by_sbei: total_ofov_disapproved,  
+                number_of_ovs_approved_by_ofov: total_sbei_disapproved,
                 total: voters_data.total_voters.clone(),
             })
         }

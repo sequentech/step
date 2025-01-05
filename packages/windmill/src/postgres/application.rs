@@ -386,7 +386,6 @@ pub async fn count_applications(
         let place = current_param_place.to_string();
         // Add the dynamic role condition to the query
         query.push_str(&format!(" AND (annotations->>'verified_by_role')::jsonb @> ${place}::jsonb"));
-        // role_json = serde_json::Value::String(role_json);
         // Push the actual String, not a reference
         params.push(&role_json); // Now `role_json` is moved into `params`, not borrowed
         current_param_place += 1;
@@ -413,10 +412,6 @@ pub async fn count_applications(
         }
     }
 
-    println!("query!!!!!!: {}", query);
-    println!("param!!!: {:?}",params);
-    // Return an error after printing the query to stop the function
-    // return Err(anyhow::anyhow!("Stopping function execution after printing query {:?}",query).into());
 
     let statement = hasura_transaction
         .prepare(&query)
@@ -426,7 +421,6 @@ pub async fn count_applications(
             eprintln!("Error in query: {:?}", err);
             anyhow!("Error preparing the application query: {err}")
         })?;
-
 
       
     let row: Row = hasura_transaction
