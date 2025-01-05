@@ -948,8 +948,6 @@ async fn get_voters_per_aboard_and_sex_data_by_area(
     })
 }
 
-
-
 #[instrument(err, skip_all)]
 pub async fn count_applications_by_status_and_roles(
     hasura_transaction: &Transaction<'_>,
@@ -958,7 +956,6 @@ pub async fn count_applications_by_status_and_roles(
     is_rejected: bool,
     area_id: Option<&str>,
 ) -> Result<(i64, i64, i64)> {
-
     // Prepare the status filter based on the is_rejected boolean
     let status = if is_rejected {
         ApplicationStatus::REJECTED
@@ -996,7 +993,6 @@ pub async fn count_applications_by_status_and_roles(
     .await
     .map_err(|err| anyhow!("Error at count total ofov disapproved: {err}"))?;
 
-
     let total_sbei_disapproved = count_applications(
         hasura_transaction,
         tenant_id,
@@ -1009,5 +1005,9 @@ pub async fn count_applications_by_status_and_roles(
     .map_err(|err| anyhow!("Error at count total sbei disapproved: {err}"))?;
 
     // Return all counts as a tuple
-    Ok((total_disapproved, total_ofov_disapproved, total_sbei_disapproved))
+    Ok((
+        total_disapproved,
+        total_ofov_disapproved,
+        total_sbei_disapproved,
+    ))
 }

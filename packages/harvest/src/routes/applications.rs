@@ -15,14 +15,17 @@ use reqwest::StatusCode;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt;
-use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm, GroupInfo, KeycloakAdminClient};
+use sequent_core::services::keycloak::{
+    get_event_realm, get_tenant_realm, GroupInfo, KeycloakAdminClient,
+};
 use sequent_core::types::keycloak::User;
 use sequent_core::types::permissions::Permissions;
 use serde::Deserialize;
 use serde_json::Value;
 use tracing::instrument;
 use windmill::services::application::{
-    confirm_application, get_group_names, reject_application, verify_application, ApplicationAnnotations, ApplicationVerificationResult
+    confirm_application, get_group_names, reject_application,
+    verify_application, ApplicationAnnotations, ApplicationVerificationResult,
 };
 use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
 use windmill::tasks::send_template::send_template;
@@ -152,7 +155,7 @@ pub async fn change_application_status(
 
     info!("Changing application status: {input:?}");
     info!("claims::: {:?}", &claims);
-    
+
     let required_perm: Permissions = Permissions::APPLICATION_WRITE;
     authorize(
         &claims,
@@ -185,17 +188,17 @@ pub async fn change_application_status(
                 ErrorCode::GetTransactionFailed,
             )
         })?;
-    
+
     let user_id = &claims.hasura_claims.user_id;
     let realm = get_tenant_realm(&input.tenant_id);
-    let group_names = get_group_names(&realm, user_id).await.map_err(|e|{
+    let group_names = get_group_names(&realm, user_id).await.map_err(|e| {
         ErrorResponse::new(
             Status::InternalServerError,
-            &format!("Error getting group names: {:#?}", e), 
+            &format!("Error getting group names: {:#?}", e),
             ErrorCode::InternalServerError,
         )
     })?;
-    
+
     // Determine the action: Confirm or Reject
     let action_result = if input.rejection_reason.is_some() {
         // Rejection logic
@@ -223,7 +226,6 @@ pub async fn change_application_status(
             )
         })?;
 
-        
         // get_group_name_by_user_id()
     } else if input.rejection_reason.is_none() {
         // Confirmation logic
@@ -238,8 +240,7 @@ pub async fn change_application_status(
                 .name
                 .clone()
                 .unwrap_or_else(|| claims.hasura_claims.user_id.clone()),
-            &group_names
-
+            &group_names,
         )
         .await
         .map_err(|e| {
@@ -267,7 +268,3 @@ pub async fn change_application_status(
 
     Ok(Json("Success".to_string()))
 }
-
-
-
-

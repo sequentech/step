@@ -6,7 +6,10 @@ use super::report_variables::{
     ExecutionAnnotations,
 };
 use super::template_renderer::*;
-use super::voters::{count_applications_by_status_and_roles, get_voters_data, EnrollmentFilters, FilterListVoters, Voter};
+use super::voters::{
+    count_applications_by_status_and_roles, get_voters_data, EnrollmentFilters, FilterListVoters,
+    Voter,
+};
 use crate::postgres::area::get_areas_by_election_id;
 use crate::postgres::election::get_election_by_id;
 use crate::postgres::reports::ReportType;
@@ -193,15 +196,16 @@ impl TemplateRenderer for PreEnrolledVoterTemplate {
 
             let area_name = area.clone().name.unwrap_or("-".to_string());
 
-            let (total_approved, total_ofov_approved, total_sbei_approved) = count_applications_by_status_and_roles(
-                &hasura_transaction,
-                &self.ids.tenant_id,
-                &self.ids.election_event_id,
-                false,
-                Some(&area.id)
-            )
-            .await
-            .map_err(|err| anyhow!("Error at counting all disapproved applications: {err}"))?;
+            let (total_approved, total_ofov_approved, total_sbei_approved) =
+                count_applications_by_status_and_roles(
+                    &hasura_transaction,
+                    &self.ids.tenant_id,
+                    &self.ids.election_event_id,
+                    false,
+                    Some(&area.id),
+                )
+                .await
+                .map_err(|err| anyhow!("Error at counting all disapproved applications: {err}"))?;
 
             areas.push(UserDataArea {
                 election_title: election.name.clone(),
@@ -211,8 +215,8 @@ impl TemplateRenderer for PreEnrolledVoterTemplate {
                 voted: voters_data.total_voted.clone(),
                 not_voted: voters_data.total_not_voted.clone(),
                 voters: voters_data.voters.clone(),
-                number_of_ovs_approved_by_system: total_approved, 
-                number_of_ovs_approved_by_sbei: total_ofov_approved,  
+                number_of_ovs_approved_by_system: total_approved,
+                number_of_ovs_approved_by_sbei: total_ofov_approved,
                 number_of_ovs_approved_by_ofov: total_sbei_approved,
                 total: voters_data.total_voters.clone(),
             })

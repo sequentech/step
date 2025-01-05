@@ -14,12 +14,11 @@ use sequent_core::types::hasura::core::Application;
 use serde_json::Value;
 use tokio_postgres::row::Row;
 // use tokio_postgres::types::ToSql;
+use serde::Serialize;
+use serde_json::json;
+use tokio_postgres::types::{Json, ToSql};
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
-use tokio_postgres::types::{Json, ToSql};
-use serde_json::json;
-use serde::Serialize; 
-
 
 pub struct ApplicationWrapper(pub Application);
 
@@ -200,7 +199,8 @@ pub async fn update_application_status(
                 "jsonb_set({}, '{{rejection_message}}', to_jsonb($9::text), true)",
                 update
             );
-        }        update
+        }
+        update
     };
 
     // Finalize the query
@@ -326,12 +326,6 @@ pub async fn get_applications(
     Ok(results)
 }
 
-
-
-
-
-
-
 #[instrument(err, skip_all)]
 pub async fn count_applications(
     hasura_transaction: &Transaction<'_>,
@@ -350,7 +344,6 @@ pub async fn count_applications(
         None => "".to_string(),
     };
 
- 
     let mut query = format!(
         r#"
         SELECT COUNT(*)
@@ -373,19 +366,20 @@ pub async fn count_applications(
         let parsed_area_id = Uuid::parse_str(area_id)?;
         optional_area_id = Some(parsed_area_id); // Store the value in the variable
     }
-    
- 
-    use serde_json::Value as JsonValue; 
+
+    use serde_json::Value as JsonValue;
     let mut role_json: JsonValue = JsonValue::Array(Vec::new());
     // let role_json_value: Json<serde_json::Value>;
- 
+
     // Handle the role condition if provided
     if let Some(role) = role {
         // Create a longer-lived string by binding the formatted value to a variable
         role_json = JsonValue::Array(vec![JsonValue::String(role.to_string())]);
         let place = current_param_place.to_string();
         // Add the dynamic role condition to the query
-        query.push_str(&format!(" AND (annotations->>'verified_by_role')::jsonb @> ${place}::jsonb"));
+        query.push_str(&format!(
+            " AND (annotations->>'verified_by_role')::jsonb @> ${place}::jsonb"
+        ));
         // Push the actual String, not a reference
         params.push(&role_json); // Now `role_json` is moved into `params`, not borrowed
         current_param_place += 1;
@@ -412,17 +406,12 @@ pub async fn count_applications(
         }
     }
 
+    let statement = hasura_transaction.prepare(&query).await.map_err(|err| {
+        // Print the error before returning it
+        eprintln!("Error in query: {:?}", err);
+        anyhow!("Error preparing the application query: {err}")
+    })?;
 
-    let statement = hasura_transaction
-        .prepare(&query)
-        .await
-        .map_err(|err| {
-            // Print the error before returning it
-            eprintln!("Error in query: {:?}", err);
-            anyhow!("Error preparing the application query: {err}")
-        })?;
-
-      
     let row: Row = hasura_transaction
         .query_one(&statement, &params)
         .await

@@ -977,7 +977,6 @@ pub async fn count_keycloak_enabled_users_by_attrs(
     Ok(user_count)
 }
 
-
 // use std::error::Error;
 // use reqwest::Client;
 
@@ -986,49 +985,3 @@ struct Group {
     id: String,
     name: String,
 }
-
-// pub async fn get_groups_by_user_id(
-//     client: &PubKeycloakAdmin,
-//     realm: &str,
-//     user_id: &str,
-// ) -> Result<Vec<Group>, KeycloakError>{
-//     // Build the URL for the Keycloak API endpoint
-//     let client = KeycloakAdminClient::new();
-
-//     let mut builder = client.get(&format!(
-//         "{}/admin/realms/{}/users/{}/groups",
-//         client.url, realm, user_id
-//     ))
-//     .bearer_auth(
-//         client.token_supplier.get(&client.url).await.map_err(
-//             |error| {
-//                 error!("error obtaining token: {error:?}");
-//                 return error;
-//             },
-//         )?,
-//     );
-
-    // let url = format!(
-    //     "{}/admin/realms/{}/users/{}/groups",
-    //     client.url, realm, user_id
-    // );
-
-    // Make the HTTP GET request
-    // let client = Client::new();
-    // let response = client
-    //     .get(&url)
-    //     .bearer_auth(access_token)
-    //     .send()
-    //     .await?;
-
-    // Check for HTTP errors
-//     builder = builder.query(&[("exportClients", true)]);
-//     builder = builder.query(&[("exportGroupsAndRoles", true)]);
-//     let response = builder.send().await.map_err(|error| {
-//         error!("error sending built query: {error:?}");
-//         return error;
-//     })?;
-//     println!("response:: {:?}" ,&response);
-//     Ok(vec![])
- 
-// }

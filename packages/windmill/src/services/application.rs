@@ -1150,9 +1150,6 @@ mod tests {
             applicant_value, user_value
         );
     }
-
-    
-    
 }
 
 pub async fn get_group_names(realm: &str, user_id: &str) -> Result<Vec<String>> {
@@ -1161,12 +1158,14 @@ pub async fn get_group_names(realm: &str, user_id: &str) -> Result<Vec<String>> 
         .map_err(|err| anyhow!("Error create keycloak admin client: {err}"))?;
 
     // Fetch user groups from Keycloak
-    let _groups = client.get_user_groups(&realm, user_id)
-    .await
-    .map_err(|err| anyhow!("Error fetch group names: {err}"))?;
+    let _groups = client
+        .get_user_groups(&realm, user_id)
+        .await
+        .map_err(|err| anyhow!("Error fetch group names: {err}"))?;
 
     // Extract group names
-    let group_names: Vec<String> = _groups.into_iter()
+    let group_names: Vec<String> = _groups
+        .into_iter()
         .map(|group| group.group_name) // Assuming `group_name` is a String
         .collect();
 
