@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
@@ -23,7 +25,6 @@ use sequent_core::ballot::StringifiedPeriodDates;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::hasura::core::Election;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use tracing::instrument;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -56,23 +57,23 @@ pub struct SystemData {
 
 /// Main struct for generating Overseas Voters Report
 #[derive(Debug)]
-pub struct OVTurnoutPerAboardAndSexReport {
+pub struct NumOVNotPreEnrolledReport {
     ids: ReportOrigins,
 }
 
-impl OVTurnoutPerAboardAndSexReport {
+impl NumOVNotPreEnrolledReport {
     pub fn new(ids: ReportOrigins) -> Self {
-        OVTurnoutPerAboardAndSexReport { ids }
+        NumOVNotPreEnrolledReport { ids }
     }
 }
 
 #[async_trait]
-impl TemplateRenderer for OVTurnoutPerAboardAndSexReport {
+impl TemplateRenderer for NumOVNotPreEnrolledReport {
     type UserData = UserData;
     type SystemData = SystemData;
 
     fn get_report_type(&self) -> ReportType {
-        ReportType::OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_AND_SEX
+        ReportType::OV_NOT_YET_PRE_ENROLLED_NUMBER
     }
 
     fn get_tenant_id(&self) -> String {
@@ -96,12 +97,12 @@ impl TemplateRenderer for OVTurnoutPerAboardAndSexReport {
     }
 
     fn base_name(&self) -> String {
-        "ov_turnout_per_aboard_and_sex".to_string()
+        "ov_not_yet_pre_enrolled_number".to_string()
     }
 
     fn prefix(&self) -> String {
         format!(
-            "ov_turnout_per_aboard_and_sex_{}_{}_{}",
+            "ov_not_yet_pre_enrolled_number_{}_{}_{}",
             self.ids.tenant_id,
             self.ids.election_event_id,
             self.ids.election_id.clone().unwrap_or_default()
@@ -154,11 +155,9 @@ impl TemplateRenderer for OVTurnoutPerAboardAndSexReport {
 
         let app_hash = get_app_hash();
         let app_version = get_app_version();
-        let report_hash = get_report_hash(
-            &ReportType::OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_AND_SEX.to_string(),
-        )
-        .await
-        .unwrap_or("-".to_string());
+        let report_hash = get_report_hash(&ReportType::OV_NOT_YET_PRE_ENROLLED_NUMBER.to_string())
+            .await
+            .unwrap_or("-".to_string());
 
         let mut elections_data = vec![];
 
@@ -208,7 +207,7 @@ impl TemplateRenderer for OVTurnoutPerAboardAndSexReport {
                 &realm,
                 post_name.clone(),
                 geographical_region.clone(),
-                false,
+                true,
                 election_areas,
                 &mut overall_stats,
                 &mut region_map,
