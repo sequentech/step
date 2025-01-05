@@ -112,7 +112,7 @@ SPDX-License-Identifier: AGPL-3.0-only
                 </div>
 
                 <div id="kc-form-buttons" class="${properties.kcFormButtonsClass!}">
-                    <input class="${properties.kcButtonClass!} ${properties.kcButtonPrimaryClass!} ${properties.kcButtonBlockClass!} ${properties.kcButtonLargeClass!}" type="submit" value="${msg("doRegister")}"/>
+                    <input id="termsOfServiceText" class="${properties.kcButtonClass!} ${properties.kcButtonPrimaryClass!} ${properties.kcButtonBlockClass!} ${properties.kcButtonLargeClass!}" type="submit" value="${msg("doRegister")}"/>
                 </div>
             </div>
         </form>

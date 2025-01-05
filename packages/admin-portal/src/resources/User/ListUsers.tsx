@@ -23,6 +23,7 @@ import {
     useSidebarState,
     useUnselectAll,
     RaRecord,
+    PreferencesEditorContext,
 } from "react-admin"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import {useTenantStore} from "@/providers/TenantContextProvider"
@@ -85,6 +86,8 @@ import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider
 import {UserActionTypes} from "@/components/types"
 import {useUsersPermissions} from "./useUsersPermissions"
 import {Check, FilterAltOff} from "@mui/icons-material"
+import {useLocation} from "react-router"
+import {getPreferenceKey} from "@/lib/helpers"
 
 const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
     @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
@@ -119,10 +122,12 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const [tenantId] = useTenantStore()
     const {globalSettings} = useContext(SettingsContext)
     const [isOpenSidebar] = useSidebarState()
+    const location = useLocation()
 
     const [open, setOpen] = useState(false)
     const [openExport, setOpenExport] = useState(false)
     const [exporting, setExporting] = useState(false)
+    const [userType, setUserType] = useState<string | null>(null)
     const [exportDocumentId, setExportDocumentId] = useState<string | undefined>()
     const [openNew, setOpenNew] = useState(false)
     const [audienceSelection, setAudienceSelection] = useState<AudienceSelection>(
@@ -149,6 +154,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const [getManualVerificationPdf] = useMutation<ManualVerificationMutation>(MANUAL_VERIFICATION)
     const [deleteUsers] = useMutation<DeleteUsersMutation>(DELETE_USERS)
     const [exportUsers] = useMutation<ExportUsersMutation>(EXPORT_USERS)
+    const PHONE_NUMBER_USER_ATTRIBUTE = "sequent.read-only.mobile-number"
     const {data: userAttributes} = useQuery<GetUserProfileAttributesQuery>(
         USER_PROFILE_ATTRIBUTES,
         {
@@ -232,8 +238,10 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
      * Permissions
      */
     const {
+        canImportUsers,
         canCreateVoters,
         canEditVoters,
+        canEditVotersEmailTlf,
         canDeleteVoters,
         canImportVoters,
         canExportVoters,
@@ -306,6 +314,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         if (!electionEventId && authContext.userId === id) {
             return
         }
+
         setOpen(false)
         setOpenNew(false)
         setOpenSendTemplate(false)
@@ -411,7 +420,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         [UserActionTypes.EDIT]: {
             icon: <EditIcon className="edit-voter-icon" />,
             action: editAction,
-            showAction: () => canEditVoters,
+            showAction: () => canEditVoters || canEditVotersEmailTlf,
             label: t(`common.label.edit`),
             saveRecordAction: setUserRecord,
         },
@@ -427,6 +436,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             action: manualVerificationAction,
             showAction: () => canManuallyVerify,
             label: t(`usersAndRolesScreen.voters.manualVerification.label`),
+            saveRecordAction: setUserRecord,
         },
         [UserActionTypes.PASSWORD]: {
             icon: <PasswordIcon />,
@@ -931,9 +941,30 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             )
         })
 
-        localStorage.removeItem("RaStore.preferences.user.datagrid.availableColumns")
+        localStorage.removeItem(
+            `RaStore.preferences.${getPreferenceKey(location.pathname)}.datagrid.availableColumns`
+        )
 
         return allFields
+    }
+
+    useEffect(() => {
+        if (location.pathname.includes("user-roles")) {
+            setUserType("user")
+        } else {
+            setUserType("voter")
+        }
+    }, [location.pathname])
+
+    const checkUserEmailAndPhoneNumber = () => {
+        if (userRecord) {
+            const email = userRecord?.email as string
+            const phoneNumber = userRecord?.attributes[PHONE_NUMBER_USER_ATTRIBUTE] as string
+            if (email || phoneNumber) {
+                return true
+            }
+        }
+        return false
     }
 
     return (
@@ -941,6 +972,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             {
                 <List
                     resource="user"
+                    storeKey={`${getPreferenceKey(location.pathname)}`}
                     queryOptions={{
                         refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
                     }}
@@ -948,8 +980,15 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     actions={
                         <ListActions
                             withColumns={showVotersColumns}
+                            preferenceKey={getPreferenceKey(location.pathname)}
                             withFilter={showVotersFilters}
-                            withImport={canImportVoters}
+                            withImport={
+                                userType
+                                    ? userType === "voter"
+                                        ? canImportVoters
+                                        : canImportUsers
+                                    : false
+                            }
                             doImport={handleImport}
                             withExport={canExportVoters}
                             doExport={handleExport}
@@ -981,6 +1020,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     <ResetFilters />
                     {userAttributes?.get_user_profile_attributes && (
                         <DataGridContainerStyle
+                            preferenceKey={getPreferenceKey(location.pathname)}
                             omit={listFields.omitFields}
                             isOpenSideBar={isOpenSidebar}
                             bulkActionButtons={<BulkActions />}
@@ -1096,14 +1136,23 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             <Dialog
                 variant="warning"
                 open={openManualVerificationModal}
-                okEnabled={() => !documentId}
+                okEnabled={() => {
+                    return checkUserEmailAndPhoneNumber() && !documentId
+                }}
                 ok={t("usersAndRolesScreen.voters.manualVerification.verify")}
                 cancel={t("common.label.cancel")}
                 title={t("common.label.warning")}
+                errorMessage={
+                    checkUserEmailAndPhoneNumber()
+                        ? undefined
+                        : t(`usersAndRolesScreen.voters.manualVerification.noEmailOrPhone`)
+                }
                 handleClose={(result: boolean) => {
                     if (result) {
                         confirmManualVerificationAction()
+                        return
                     }
+                    setOpenManualVerificationModal(false)
                 }}
             >
                 {t(`usersAndRolesScreen.voters.manualVerification.body`)}

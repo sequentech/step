@@ -94,6 +94,7 @@ pub async fn create_electoral_log(
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
     let tenant_id = claims.hasura_claims.tenant_id;
     let user_id = claims.hasura_claims.user_id;
+    let username = claims.preferred_username;
     let electoral_log =
         ElectoralLog::for_admin_user(&board_name, &tenant_id, &user_id)
             .await
@@ -108,7 +109,8 @@ pub async fn create_electoral_log(
             input.election_event_id.clone(),
             input.message_type.clone(),
             input.body.clone(),
-            input.user_id.clone(),
+            Some(user_id.clone()),
+            username.clone(),
         )
         .await
         .map_err(|e| {
@@ -128,7 +130,8 @@ pub async fn create_electoral_log(
             .post_send_template(
                 Some(body),
                 input.election_event_id.clone(),
-                input.user_id,
+                Some(user_id.clone()),
+                username.clone(),
                 None,
             )
             .await
@@ -139,7 +142,8 @@ pub async fn create_electoral_log(
                 input.election_event_id.clone(),
                 input.message_type,
                 input.body,
-                input.user_id,
+                Some(user_id.clone()),
+                username.clone(),
             )
             .await
             .map_err(|e| {

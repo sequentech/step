@@ -320,16 +320,6 @@ fn automatic_verification(
     annotations: &ApplicationAnnotations,
     applicant_data: &HashMap<String, String>,
 ) -> Result<ApplicationVerificationResult> {
-    let mut matched_user: Option<User> = None;
-    let mut matched_status = ApplicationStatus::REJECTED;
-    let mut matched_type = ApplicationType::AUTOMATIC;
-    let mut verification_mismatches = None;
-    let mut verification_fields_match = None;
-    let mut verification_attributes_unset = None;
-    let mut rejection_reason: Option<ApplicationRejectReason> =
-        Some(ApplicationRejectReason::NO_VOTER);
-    let mut rejection_message: Option<String> = None;
-
     let search_attributes: String = annotations.search_attributes.clone().ok_or(anyhow!(
         "Error obtaining search_attributes from annotations"
     ))?;
@@ -338,6 +328,22 @@ fn automatic_verification(
         .unset_attributes
         .clone()
         .ok_or(anyhow!("Error obtaining unset_attributes from annotations"))?;
+
+    // Set fields match all to false for default response
+    let fields_match: HashMap<String, bool> = search_attributes
+        .split(",")
+        .map(|field| (field.trim().to_string(), false))
+        .collect();
+
+    let mut matched_user: Option<User> = None;
+    let mut matched_status = ApplicationStatus::REJECTED;
+    let mut matched_type = ApplicationType::AUTOMATIC;
+    let mut verification_mismatches = Some(fields_match.len());
+    let mut verification_fields_match = Some(fields_match);
+    let mut verification_attributes_unset = None;
+    let mut rejection_reason: Option<ApplicationRejectReason> =
+        Some(ApplicationRejectReason::NO_VOTER);
+    let mut rejection_message: Option<String> = None;
 
     for user in users {
         let (mismatches, mismatches_unset, fields_match, attributes_unset) = check_mismatches(

@@ -550,14 +550,15 @@ export const ReviewScreen: React.FC = () => {
                 )}
             </Typography>
             {contests.map((question, index) => (
-                <Question
-                    ballotStyle={ballotStyle}
-                    question={question}
-                    key={index}
-                    isReview={true}
-                    setDecodedContests={() => undefined}
-                    errorSelectionState={errorSelectionState}
-                />
+                <Box key={question.id} className={`contest-${index}`}>
+                    <Question
+                        ballotStyle={ballotStyle}
+                        question={question}
+                        isReview={true}
+                        setDecodedContests={() => undefined}
+                        errorSelectionState={errorSelectionState}
+                    />
+                </Box>
             ))}
             <ActionButtons
                 ballotStyle={ballotStyle}

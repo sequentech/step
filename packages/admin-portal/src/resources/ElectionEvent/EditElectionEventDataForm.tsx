@@ -293,9 +293,8 @@ export const EditElectionEventDataForm: React.FC = () => {
             }
         }
 
-        temp.presentation.enrollment =
-            temp?.presentation.enrollment || EElectionEventEnrollment.ENABLED
-        temp.presentation.otp = temp?.presentation.otp || EElectionEventOTP.ENABLED
+        temp.presentation.enrollment = temp?.presentation.enrollment
+        temp.presentation.otp = temp?.presentation.otp
 
         return temp
     }
@@ -1201,14 +1200,12 @@ export const EditElectionEventDataForm: React.FC = () => {
                                             )}
                                             source="presentation.enrollment"
                                             choices={enrollmentChoices()}
-                                            validate={required()}
                                             onChange={(value) => handleEnrollmentChange(value)}
                                         />
                                         <SelectInput
                                             label={t(`electionEventScreen.field.otp.policyLabel`)}
                                             source="presentation.otp"
                                             choices={otpChoices()}
-                                            validate={required()}
                                             onChange={(value) => handleOtpChange(value)}
                                         />
                                     </Box>

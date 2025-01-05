@@ -27,6 +27,7 @@ import {VotingStatusChannel} from "@/gql/graphql"
 import {Sequent_Backend_Election} from "@/gql/graphql"
 import {EInitializeReportPolicy, EVotingStatus, IElectionStatus} from "@sequentech/ui-core"
 import {UPDATE_ELECTION_INITIALIZATION_REPORT} from "@/queries/UpdateElectionInitializationReport"
+import {usePublishPermissions} from "./usePublishPermissions"
 import PublishExport from "./PublishExport"
 
 type SvgIconComponent = typeof SvgIcon
@@ -94,6 +95,16 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
     const [showDialog, setShowDialog] = useState(false)
     const [dialogText, setDialogText] = useState("")
     const [currentCallback, setCurrentCallback] = useState<any>(null)
+
+    const {
+        canPublishRegenerate,
+        canPublishStartVoting,
+        canPublishPauseVoting,
+        canPublishStopVoting,
+        canPublishChanges,
+        showPublishColumns,
+        showPublishFilters,
+    } = usePublishPermissions()
 
     const [UpdateElectionInitializationReport] = useMutation(UPDATE_ELECTION_INITIALIZATION_REPORT)
 
@@ -281,9 +292,9 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                 >
                     {type === EPublishActionsType.List ? (
                         <>
-                            <SelectColumnsButton />
-                            <FilterButton />
-                            {canChangeStatus && (
+                            {showPublishColumns ? <SelectColumnsButton /> : null}
+                            {showPublishFilters ? <FilterButton /> : null}
+                            {canChangeStatus && canPublishStartVoting && (
                                 <StatusButton
                                     onClick={handleStartVotingPeriod}
                                     label={t("publish.action.startVotingPeriod")}
@@ -302,7 +313,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                 />
                             )}
 
-                            {canChangeStatus && (
+                            {canChangeStatus && canPublishPauseVoting && (
                                 <StatusButton
                                     onClick={() =>
                                         handleEvent(
@@ -323,7 +334,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                 />
                             )}
 
-                            {canChangeStatus && (
+                            {canChangeStatus && canPublishStopVoting && (
                                 <StatusButton
                                     onClick={() =>
                                         handleEvent(
@@ -362,7 +373,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                 </StyledStatusButton>
                             )}
 
-                            {canWrite && (
+                            {canWrite && canPublishChanges && (
                                 <StatusButton
                                     Icon={Publish}
                                     onClick={handlePublish}
@@ -374,7 +385,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                         </>
                     ) : (
                         <>
-                            {canWrite && (
+                            {canWrite && canPublishRegenerate && (
                                 <div className="list-actions" style={{paddingTop: "4px"}}>
                                     <StatusButton
                                         Icon={RotateLeft}

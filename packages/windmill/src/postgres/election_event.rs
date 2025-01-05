@@ -139,6 +139,42 @@ pub async fn get_election_event_by_id(
         .ok_or(anyhow!("Election event {election_event_id} not found"))
 }
 
+pub async fn update_election_event_annotations(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    annotations: Value,
+) -> Result<()> {
+    let tenant_uuid: uuid::Uuid =
+        Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
+    let election_event_uuid: uuid::Uuid = Uuid::parse_str(election_event_id)
+        .with_context(|| "Error parsing election_event_id as UUID")?;
+
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+            UPDATE
+                "sequent_backend".election_event
+            SET
+                annotations = $3
+            WHERE
+                tenant_id = $1
+                AND id = $2;
+            "#,
+        )
+        .await?;
+
+    let _rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[&tenant_uuid, &election_event_uuid, &annotations],
+        )
+        .await
+        .with_context(|| anyhow!("Error running the update_election_event_annotations query"))?;
+
+    Ok(())
+}
+
 pub async fn update_election_event_presentation(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -321,6 +357,7 @@ pub async fn delete_election_event(
 ) -> Result<()> {
     let related_tables = vec![
         "area_contest",
+        "results_election_area",
         "results_area_contest_candidate",
         "results_area_contest",
         "election_result",

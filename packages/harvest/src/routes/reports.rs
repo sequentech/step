@@ -76,6 +76,11 @@ pub async fn generate_report(
         .clone()
         .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
 
+    let executer_username = claims
+        .preferred_username
+        .clone()
+        .unwrap_or_else(|| executer_name.clone());
+
     let document_id: String = Uuid::new_v4().to_string();
     let celery_app = get_celery_app().await;
     let report = get_report_by_id(
@@ -114,6 +119,7 @@ pub async fn generate_report(
             input.report_mode.clone(),
             false,
             Some(task_execution.clone()),
+            Some(executer_username),
         ))
         .await
         .map_err(|e| {

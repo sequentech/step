@@ -104,7 +104,7 @@ public class Utils {
   public static final String SEND_REGISTER_FAILED_SMS_I18N_KEY = "messageFailedSMS";
 
   public static final String ID_NUMBER_ATTRIBUTE = "sequent.read-only.id-card-number";
-  public static final String PHONE_NUMBER_ATTRIBUTE = "sequent.read-only.id-mobile-number";
+  public static final String PHONE_NUMBER_ATTRIBUTE = "sequent.read-only.mobile-number";
 
   public static final String ID_NUMBER = "ID_number";
   public static final String PHONE_NUMBER = "Phone_number";
@@ -720,7 +720,9 @@ public class Utils {
       case SMS:
         return obscurePhoneNumber(mobileNumber);
       case BOTH:
-        return emailAddress != null ? obscureEmail(emailAddress) : obscurePhoneNumber(mobileNumber);
+        return emailAddress != null && !emailAddress.isEmpty()
+            ? obscureEmail(emailAddress)
+            : obscurePhoneNumber(mobileNumber);
     }
     return emailAddress;
   }
@@ -794,7 +796,8 @@ public class Utils {
   public String buildAuthUrl(KeycloakSession session, String realmId, String urlType) {
     String tenantId = getTenantId(session, realmId);
     String electionEventId = getElectionEventId(session, realmId);
-    String baseUrl = session.getContext().getClient().getRootUrl();
+    String baseUrl =
+        session.getContext().getRealm().getClientByClientId("voting-portal").getRootUrl();
     if (baseUrl.endsWith("/")) {
       baseUrl = baseUrl.substring(0, baseUrl.length() - 1);
     }

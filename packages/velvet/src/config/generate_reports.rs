@@ -5,13 +5,16 @@
 use sequent_core::types::date_time::{DateFormat, TimeZone};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use std::str::FromStr;
+use std::{collections::HashMap, str::FromStr};
 use strum_macros::EnumString;
 
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct PipeConfigGenerateReports {
     pub enable_pdfs: bool,
     pub report_content_template: Option<String>,
+    pub execution_annotations: HashMap<String, String>,
+    pub system_template: String,
+    pub extra_data: Value,
 }
 
 #[derive(Serialize, Deserialize, Debug, Default, EnumString)]

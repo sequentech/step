@@ -1,0 +1,55 @@
+# SPDX-FileCopyrightText: 2023-2024 Sequent Tech <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# File is based on the example found at
+# https://www.keycloak.org/server/containers#_provide_initial_admin_credentials_when_running_in_a_container
+#
+# Newer versions may be available at 
+# https://quay.io/repository/keycloak/keycloak?tab=tags
+#
+# To add more software to the image, take a look at
+# https://www.keycloak.org/server/containers#_installing_additional_rpm_packages
+
+# Start with a Maven base image to compile the 2FA authenticator
+# FROM keycloak-dependencies AS spi-compile
+# WORKDIR /build/keycloak-extensions/
+# RUN mvn -o clean package
+
+FROM quay.io/keycloak/keycloak:24.0
+
+# Enable health and metrics support
+ENV KC_HEALTH_ENABLED=true
+ENV KC_METRICS_ENABLED=true
+
+# Configure a database vendor
+ENV KC_DB=postgres
+
+WORKDIR /opt/keycloak
+
+# for demonstration purposes only, please make sure to use proper certificates
+# in production instead
+RUN keytool \
+   -genkeypair \
+   -storepass password \
+   -storetype PKCS12 \
+   -keyalg RSA \
+   -keysize 2048 \
+   -dname "CN=server" \
+   -alias keycloak-server -ext "SAN:c=DNS:localhost,IP:127.0.0.1" \
+   -keystore conf/server.keystore
+
+# Copy the compiled 2FA authenticator SPI into the Keycloak providers directory
+# before calling `kc.sh build`
+COPY --chown=keycloak:keycloak \
+   --from=keycloak-dependencies \
+   /build/keycloak-extensions/inetum-authenticator/target/sequent.inetum-authenticator.jar \
+   /build/keycloak-extensions/message-otp-authenticator/target/sequent.message-otp-authenticator.jar \
+   /build/keycloak-extensions/security-question-authenticator/target/sequent.security-question-authenticator.jar \
+   /build/keycloak-extensions/conditional-authenticators/target/sequent.conditional-authenticators.jar \
+   /build/keycloak-extensions/dummy-email-sender-provider/target/sequent.dummy-email-sender-provider.jar \
+   /build/keycloak-extensions/aws-ses-email-sender-provider/target/sequent.aws-ses-email-sender-provider.jar \
+   /build/keycloak-extensions/sequent-theme/target/sequent.sequent-theme.jar \
+   /opt/keycloak/providers/
+
+RUN /opt/keycloak/bin/kc.sh build 
