@@ -31,6 +31,7 @@ use tracing::instrument;
 // Struct to hold user data
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
+    pub election_title: String,
     pub execution_annotations: ExecutionAnnotations,
     pub elections: Vec<UserElectionData>,
     pub regions: Vec<Region>,
@@ -283,6 +284,7 @@ impl TemplateRenderer for OVCSStatisticsTemplate {
             .collect();
 
         Ok(UserData {
+            election_title: election_event.alias.unwrap_or(election_event.name).clone(),
             execution_annotations: ExecutionAnnotations {
                 date_printed,
                 report_hash,
