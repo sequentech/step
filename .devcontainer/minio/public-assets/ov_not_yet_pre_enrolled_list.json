@@ -1,10 +1,10 @@
 {
+  "election_title": "2024 Presidential Election",
   "execution_annotations": {
     "date_printed": "2024-10-09T14:30:00-04:00",
     "report_hash": "a1b2c3d4e5",
     "app_version": "1.0.0",
     "app_hash": "z9y8x7w6v5",
-    "election_title": "National Elections",
     "executer_username": "User",
     "software_version": "1.0.0"
   },
