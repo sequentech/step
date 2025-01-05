@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
@@ -11,6 +13,7 @@ use super::voters::{
 };
 use crate::postgres::area::get_areas_by_election_id;
 use crate::postgres::election::{get_election_by_id, get_elections};
+use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::reports::ReportType;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::election_dates::get_election_dates;
@@ -23,7 +26,6 @@ use sequent_core::ballot::StringifiedPeriodDates;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::hasura::core::Election;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use tracing::instrument;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -43,9 +45,10 @@ pub struct RegionDataComputed {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
     pub execution_annotations: ExecutionAnnotations,
-    pub elections: Vec<UserElectionData>,
     pub regions: Vec<RegionDataComputed>,
     pub overall_total: VotersStatsData,
+    pub election_dates: Option<StringifiedPeriodDates>,
+    pub election_title: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -56,23 +59,23 @@ pub struct SystemData {
 
 /// Main struct for generating Overseas Voters Report
 #[derive(Debug)]
-pub struct OVTurnoutPerAboardAndSexReport {
+pub struct NumOVNotPreEnrolledReport {
     ids: ReportOrigins,
 }
 
-impl OVTurnoutPerAboardAndSexReport {
+impl NumOVNotPreEnrolledReport {
     pub fn new(ids: ReportOrigins) -> Self {
-        OVTurnoutPerAboardAndSexReport { ids }
+        NumOVNotPreEnrolledReport { ids }
     }
 }
 
 #[async_trait]
-impl TemplateRenderer for OVTurnoutPerAboardAndSexReport {
+impl TemplateRenderer for NumOVNotPreEnrolledReport {
     type UserData = UserData;
     type SystemData = SystemData;
 
     fn get_report_type(&self) -> ReportType {
-        ReportType::OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_AND_SEX
+        ReportType::OV_NOT_YET_PRE_ENROLLED_NUMBER
     }
 
     fn get_tenant_id(&self) -> String {
@@ -96,12 +99,12 @@ impl TemplateRenderer for OVTurnoutPerAboardAndSexReport {
     }
 
     fn base_name(&self) -> String {
-        "ov_turnout_per_aboard_and_sex".to_string()
+        "ov_not_yet_pre_enrolled_number".to_string()
     }
 
     fn prefix(&self) -> String {
         format!(
-            "ov_turnout_per_aboard_and_sex_{}_{}_{}",
+            "ov_not_yet_pre_enrolled_number_{}_{}_{}",
             self.ids.tenant_id,
             self.ids.election_event_id,
             self.ids.election_id.clone().unwrap_or_default()
@@ -116,6 +119,15 @@ impl TemplateRenderer for OVTurnoutPerAboardAndSexReport {
     ) -> Result<Self::UserData> {
         let realm = get_event_realm(&self.ids.tenant_id, &self.ids.election_event_id);
         let date_printed = get_date_and_time();
+
+        // Fetch election event data
+        let election_event = get_election_event_by_id(
+            hasura_transaction,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
+        )
+        .await
+        .with_context(|| "Error obtaining election event")?;
 
         let elections: Vec<Election> = match &self.ids.election_id {
             Some(election_id) => {
@@ -142,6 +154,11 @@ impl TemplateRenderer for OVTurnoutPerAboardAndSexReport {
             .map_err(|e| anyhow::anyhow!("Error in get_elections: {}", e))?,
         };
 
+        let election_title: String = election_event
+            .alias
+            .clone()
+            .unwrap_or(election_event.name.clone());
+
         let scheduled_events = find_scheduled_event_by_election_event_id(
             &hasura_transaction,
             &self.ids.tenant_id,
@@ -154,11 +171,9 @@ impl TemplateRenderer for OVTurnoutPerAboardAndSexReport {
 
         let app_hash = get_app_hash();
         let app_version = get_app_version();
-        let report_hash = get_report_hash(
-            &ReportType::OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_AND_SEX.to_string(),
-        )
-        .await
-        .unwrap_or("-".to_string());
+        let report_hash = get_report_hash(&ReportType::OV_NOT_YET_PRE_ENROLLED_NUMBER.to_string())
+            .await
+            .unwrap_or("-".to_string());
 
         let mut elections_data = vec![];
 
@@ -184,8 +199,7 @@ impl TemplateRenderer for OVTurnoutPerAboardAndSexReport {
             let election_dates = get_election_dates(&election, scheduled_events.clone())
                 .map_err(|e| anyhow::anyhow!("Error getting election dates {e}"))?;
 
-            let election_cloned = election.clone();
-            let election_name = election_cloned.alias.unwrap_or(election_cloned.name);
+            let election_name = election.alias.clone().unwrap_or(election.name.clone());
 
             let election_areas = get_areas_by_election_id(
                 &hasura_transaction,
@@ -209,7 +223,7 @@ impl TemplateRenderer for OVTurnoutPerAboardAndSexReport {
                 &realm,
                 post_name.clone(),
                 geographical_region.clone(),
-                false,
+                true,
                 election_areas,
                 &mut overall_stats,
                 &mut region_map,
@@ -231,7 +245,8 @@ impl TemplateRenderer for OVTurnoutPerAboardAndSexReport {
 
         Ok(UserData {
             regions: regions,
-            elections: elections_data,
+            election_dates: Some(elections_data[0].election_dates.clone()),
+            election_title,
             execution_annotations: ExecutionAnnotations {
                 date_printed,
                 report_hash,

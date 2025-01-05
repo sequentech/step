@@ -12,7 +12,7 @@ import InventoryIcon from "@mui/icons-material/Inventory"
 import {Divider, ListItemIcon, MenuItem, MenuList, Popover} from "@mui/material"
 import {Dialog, adminTheme} from "@sequentech/ui-essentials"
 import {DataTreeMenuType, ResourceName} from "../ElectionEvents"
-import {getNavLinkCreate, mapAddResource} from "./TreeMenu"
+import {getNavLinkCreate, mapAddResource, mapImportResource} from "./TreeMenu"
 import {useActionPermissions, useTreeMenuData} from "../use-tree-menu-hook"
 import {useTranslation} from "react-i18next"
 import styled from "@emotion/styled"
@@ -22,6 +22,7 @@ import {DeleteElectionEvent} from "@/gql/graphql"
 import {DELETE_ELECTION_EVENT} from "@/queries/DeleteElectionEvent"
 import {IPermissions} from "@/types/keycloak"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
+import {useCreateElectionEventStore} from "@/providers/CreateElectionEventContextProvider"
 
 const mapRemoveResource: Record<ResourceName, string> = {
     sequent_backend_election_event: "sideMenu.menuActions.remove.electionEvent",
@@ -32,6 +33,7 @@ const mapRemoveResource: Record<ResourceName, string> = {
 
 enum Action {
     Add,
+    Import,
     Remove,
     Archive,
     Unarchive,
@@ -286,6 +288,24 @@ export default function MenuAction({
      * ======
      */
 
+    /**
+     * Create and import ee from drawer
+     */
+    const {openCreateDrawer, openImportDrawer} = useCreateElectionEventStore()
+
+    const handleOpenCreateElectionEventForm = (e: React.MouseEvent<HTMLElement>) => {
+        setAnchorEl(null)
+        openCreateDrawer?.()
+    }
+
+    const handleOpenImportElectionEventForm = (e: React.MouseEvent<HTMLElement>) => {
+        setAnchorEl(null)
+        openImportDrawer?.()
+    }
+    /**
+     * ======
+     */
+
     return (
         <>
             <StyledIconContainer onClick={handleOpenItemActions}>
@@ -310,13 +330,17 @@ export default function MenuAction({
                             dir={i18n.dir(i18n.language)}
                             key={Action.Add}
                             className={`menu-action-add-${resourceType}`}
-                            onClick={() =>
-                                handleAction(Action.Add, {
-                                    id: resourceId,
-                                    name: resourceName,
-                                    type: resourceType,
-                                })
-                            }
+                            onClick={(e) => {
+                                if (resourceType === "sequent_backend_election_event") {
+                                    handleOpenCreateElectionEventForm(e)
+                                } else {
+                                    handleAction(Action.Add, {
+                                        id: resourceId,
+                                        name: resourceName,
+                                        type: resourceType,
+                                    })
+                                }
+                            }}
                         >
                             <ListItemIcon>
                                 <StyledAddCircleIcon />
@@ -324,6 +348,21 @@ export default function MenuAction({
                             {t(mapAddResource[resourceType])}
                         </MenuItem>
                     )}
+                    {!isArchivedTab &&
+                    canShowCreate &&
+                    resourceType === "sequent_backend_election_event" ? (
+                        <MenuItem
+                            dir={i18n.dir(i18n.language)}
+                            key={Action.Import}
+                            className={`menu-action-add-${resourceType}`}
+                            onClick={handleOpenImportElectionEventForm}
+                        >
+                            <ListItemIcon>
+                                <StyledAddCircleIcon />
+                            </ListItemIcon>
+                            {t(mapImportResource[resourceType])}
+                        </MenuItem>
+                    ) : null}
 
                     {isItemElectionEventType &&
                         !isArchivedTab &&

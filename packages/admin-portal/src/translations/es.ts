@@ -5,6 +5,11 @@ import {TranslationType} from "./en"
 
 const spanishTranslation: TranslationType = {
     translations: {
+        philippinePassport: "Pasaporte filipino",
+        seamanBook: "Libro de marinero",
+        philSysID: "Identificación PhilSys",
+        iBP: "Colegio de Abogados Integrado de Filipinas (IBP)",
+        driversLicense: "Licencia de conducir",
         loading: "Cargando...",
         loadingDataProvider: "Cargando proveedor de datos...",
         logsScreen: {
@@ -628,6 +633,8 @@ const spanishTranslation: TranslationType = {
                     label: "Verificar manualmente",
                     verify: "Verificar manualmente al votante",
                     body: "Verifique manualmente a este votante. Obtendrá un PDF con un enlace de código QR que le permite al votante iniciar sesión omitiendo el KYC en línea.",
+                    noEmailOrPhone:
+                        "Este votante no puede ser verificado manualmente porque no tiene una dirección de correo electrónico o un número de teléfono asociado a él.",
                 },
                 errors: {
                     editError: "Error editando votante",
@@ -962,7 +969,7 @@ const spanishTranslation: TranslationType = {
                 OVCS_INFORMATION: "Información de OVCS",
                 OVERSEAS_VOTERS: "Lista de Votantes en el Extranjero",
                 OV_USERS_WHO_VOTED: "Lista de Votantes en el Extranjero que Votaron",
-                OV_USERS: "Lista de Votantes en el Extranjero con Estado de Votación",
+                OV_WITH_VOTING_STATUS: "Lista de Votantes en el Extranjero con Estado de Votación",
                 OVCS_STATISTICS: "Monitoreo de Votación en el Extranjero - Estadísticas OVCS",
                 PRE_ENROLLED_OV_BUT_DISAPPROVED:
                     "Lista de Votantes en el Extranjero que se Preinscribieron pero Fueron Rechazados",
@@ -1066,6 +1073,12 @@ const spanishTranslation: TranslationType = {
             election: "Crear una Elección",
             contest: "Crear un Concurso",
             candidate: "Crear un Candidato",
+        },
+        importResource: {
+            electionEvent: "Importar un Evento Electoral",
+            election: "Importar una Elección",
+            contest: "Importar un Concurso",
+            candidate: "Importar un Candidato",
         },
         sideMenu: {
             electionEvents: "Procesos Electorales",
@@ -1775,25 +1788,21 @@ const spanishTranslation: TranslationType = {
                 OVCS_INFORMATION: "Información de OVCS",
                 OVCS_EVENTS: "Monitoreo de Votación en el Extranjero - Eventos OVCS",
                 OVCS_STATISTICS: "Monitoreo de Votación en el Extranjero - Estadísticas OVCS",
-                LIST_OF_OV_WHO_VOTED: "Usuarios OV Que Votaron",
+                OV_WHO_VOTED: "Usuarios OV Que Votaron",
                 PRE_ENROLLED_OV_BUT_DISAPPROVED:
                     "Lista de OV que se preinscribieron pero fueron rechazados",
                 LIST_OF_OVERSEAS_VOTERS: "Lista de Votantes en el Extranjero",
-                OVERSEAS_VOTERS_TURNOUT: "Participación de Votantes en el Extranjero",
-                OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_AND_SEX:
+                OV_TURNOUT_PERCENTAGE: "Participación de Votantes en el Extranjero",
+                OV_TURNOUT_PER_ABOARD_STATUS_SEX:
                     "Participación de Votantes en el Extranjero - por Estado a Bordo y Sexo",
-                OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_SEX_AND_WITH_PERCENTAGE:
+                OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE:
                     "Participación de Votantes en el Extranjero - por Estado a Bordo, Sexo y con Porcentaje",
-                LIST_OF_OV_WHO_PRE_ENROLLED_APPROVED:
-                    "Lista de OV que se Preinscribieron (Aprobados)",
+                OV_PRE_ENROLLED_APPROVED: "Lista de OV que se Preinscribieron (Aprobados)",
                 PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
                     "Lista de OV que se Preinscribieron pero requieren Validación Manual",
-                LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
-                    "Lista de OV que aún no se han Preinscrito",
-                LIST_OF_OVERSEAS_VOTERS_WITH_VOTING_STATUS:
-                    "Lista de Votantes en el Extranjero con Estado de Votación",
-                NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
-                    "Número de OV que aún no se han Preinscrito",
+                OV_NOT_YET_PRE_ENROLLED_LIST: "Lista de OV que aún no se han Preinscrito",
+                OV_WITH_VOTING_STATUS: "Lista de Votantes en el Extranjero con Estado de Votación",
+                OV_NOT_YET_PRE_ENROLLED_NUMBER: "Número de OV que aún no se han Preinscrito",
                 BALLOT_IMAGES: "Imágenes de Boletas",
             },
             method: {

@@ -130,6 +130,7 @@ export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> =
             ? {
                   documents,
                   name: contest?.name ?? "contest",
+                  class_type: "contest-area",
               }
             : null
     }, [

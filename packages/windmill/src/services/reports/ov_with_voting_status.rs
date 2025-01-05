@@ -62,7 +62,7 @@ impl TemplateRenderer for OVWithVotingStatusTemplate {
     type SystemData = SystemData;
 
     fn get_report_type(&self) -> ReportType {
-        ReportType::LIST_OF_OVERSEAS_VOTERS_WITH_VOTING_STATUS
+        ReportType::OV_WITH_VOTING_STATUS
     }
 
     fn get_tenant_id(&self) -> String {
@@ -153,7 +153,7 @@ impl TemplateRenderer for OVWithVotingStatusTemplate {
 
         let app_hash = get_app_hash();
         let app_version = get_app_version();
-        let report_hash = get_report_hash(&ReportType::LIST_OF_OV_WHO_VOTED.to_string())
+        let report_hash = get_report_hash(&ReportType::OV_WITH_VOTING_STATUS.to_string())
             .await
             .unwrap_or("-".to_string());
 

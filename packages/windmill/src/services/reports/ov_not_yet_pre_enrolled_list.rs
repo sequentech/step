@@ -67,15 +67,18 @@ impl TemplateRenderer for NotPreEnrolledListTemplate {
     type SystemData = SystemData;
 
     fn get_report_type(&self) -> ReportType {
-        ReportType::LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED
+        ReportType::OV_NOT_YET_PRE_ENROLLED_LIST
     }
 
     fn base_name(&self) -> String {
-        "not_pre_enrolled_list".to_string()
+        "ov_not_yet_pre_enrolled_list".to_string()
     }
 
     fn prefix(&self) -> String {
-        format!("not_pre_enrolled_list_{}", self.ids.election_event_id)
+        format!(
+            "ov_not_yet_pre_enrolled_list_{}",
+            self.ids.election_event_id
+        )
     }
 
     fn get_tenant_id(&self) -> String {

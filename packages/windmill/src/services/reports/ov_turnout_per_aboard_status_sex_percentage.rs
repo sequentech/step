@@ -149,7 +149,7 @@ impl TemplateRenderer for OVTurnoutPerAboardAndSexPercentageReport {
     type SystemData = SystemData;
 
     fn get_report_type(&self) -> ReportType {
-        ReportType::OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_SEX_AND_WITH_PERCENTAGE
+        ReportType::OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE
     }
 
     fn get_tenant_id(&self) -> String {
@@ -173,12 +173,12 @@ impl TemplateRenderer for OVTurnoutPerAboardAndSexPercentageReport {
     }
 
     fn base_name(&self) -> String {
-        "ov_turnout_per_aboard_and_sex_percentage".to_string()
+        "ov_turnout_per_aboard_status_sex_percentage".to_string()
     }
 
     fn prefix(&self) -> String {
         format!(
-            "ov_turnout_per_aboard_and_sex_percentage_{}_{}_{}",
+            "ov_turnout_per_aboard_status_sex_percentage_{}_{}_{}",
             self.ids.tenant_id,
             self.ids.election_event_id,
             self.ids.election_id.clone().unwrap_or_default()
@@ -231,12 +231,10 @@ impl TemplateRenderer for OVTurnoutPerAboardAndSexPercentageReport {
 
         let app_hash = get_app_hash();
         let app_version = get_app_version();
-        let report_hash = get_report_hash(
-            &ReportType::OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_SEX_AND_WITH_PERCENTAGE
-                .to_string(),
-        )
-        .await
-        .unwrap_or("-".to_string());
+        let report_hash =
+            get_report_hash(&ReportType::OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE.to_string())
+                .await
+                .unwrap_or("-".to_string());
 
         let mut elections_data = vec![];
         let mut region_map: HashMap<String, RegionData> = HashMap::new();

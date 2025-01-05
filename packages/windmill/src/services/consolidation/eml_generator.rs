@@ -387,15 +387,10 @@ impl ValidateAnnotations for core::Election {
                 )
             })?;
 
-        let registered_voters = find_miru_annotation(MIRU_REGISTERED_VOTERS, &annotations)
-            .with_context(|| {
-                format!(
-                    "Missing area annotation: '{}:{}'",
-                    MIRU_PLUGIN_PREPEND, MIRU_REGISTERED_VOTERS
-                )
-            })?
-            .parse::<i64>()
-            .with_context(|| anyhow!("Can't parse registered_voters"))?;
+        let registered_voters: i64 =
+            find_miru_annotation_opt(MIRU_REGISTERED_VOTERS, &annotations)?
+                .and_then(|val| val.parse::<i64>().ok())
+                .unwrap_or(-1); //TODO: fix
 
         Ok(MiruElectionAnnotations {
             election_id,
@@ -430,10 +425,10 @@ impl ValidateAnnotations for core::Election {
         let precinct_code =
             find_miru_annotation_opt(MIRU_PRECINCT_CODE, &annotations)?.unwrap_or("-".to_string());
 
-        let registered_voters = find_miru_annotation_opt(MIRU_REGISTERED_VOTERS, &annotations)?
-            .unwrap_or_default()
-            .parse::<i64>()
-            .with_context(|| anyhow!("Can't parse registered_voters"))?;
+        let registered_voters: i64 =
+            find_miru_annotation_opt(MIRU_REGISTERED_VOTERS, &annotations)?
+                .and_then(|val| val.parse::<i64>().ok())
+                .unwrap_or(-1); //TODO: fix
 
         Ok(MiruElectionAnnotations {
             election_id,
