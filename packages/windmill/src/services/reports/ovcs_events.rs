@@ -267,7 +267,10 @@ impl TemplateRenderer for OVCSEventsTemplate {
             .collect();
 
         Ok(UserData {
-            election_event_title: election_event.alias.clone().unwrap_or(election_event.name.clone()),
+            election_event_title: election_event
+                .alias
+                .clone()
+                .unwrap_or(election_event.name.clone()),
             execution_annotations: ExecutionAnnotations {
                 date_printed,
                 report_hash,

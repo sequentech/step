@@ -239,7 +239,10 @@ impl TemplateRenderer for OVTurnoutPerAboardAndSexReport {
             .collect();
 
         Ok(UserData {
-            election_event_title: election_event.alias.clone().unwrap_or(election_event.name.clone()),
+            election_event_title: election_event
+                .alias
+                .clone()
+                .unwrap_or(election_event.name.clone()),
             regions: regions,
             elections: elections_data,
             execution_annotations: ExecutionAnnotations {
