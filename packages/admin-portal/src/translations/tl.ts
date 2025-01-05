@@ -1880,7 +1880,7 @@ const tagalogTranslation: TranslationType = {
                 createdAt: "Nilikha Noong",
                 updatedAt: "Na-update Noong",
             },
-            approvalInformation: "Impormasyon ng Pag-apruba",
+            approvalRequest: "Kahilingan para sa Pag-apruba",
             title: "Mga Botante",
             subtitle: "Maghanap ng mga tumutugmang botante",
             approve: {
