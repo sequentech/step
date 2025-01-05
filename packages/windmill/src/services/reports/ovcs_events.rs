@@ -51,7 +51,7 @@ pub struct Region {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
     pub execution_annotations: ExecutionAnnotations,
-    pub election_title: String,
+    pub election_event_title: String,
     pub elections: Vec<UserElectionData>,
     pub ovcs_downtime: Option<i64>,
     pub regions: Vec<Region>,
@@ -267,7 +267,7 @@ impl TemplateRenderer for OVCSEventsTemplate {
             .collect();
 
         Ok(UserData {
-            election_title: election_event.alias.clone().unwrap_or(election_event.name.clone()),
+            election_event_title: election_event.alias.clone().unwrap_or(election_event.name.clone()),
             execution_annotations: ExecutionAnnotations {
                 date_printed,
                 report_hash,
