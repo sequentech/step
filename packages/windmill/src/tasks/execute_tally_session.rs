@@ -1237,6 +1237,7 @@ pub async fn execute_tally_session_wrapped(
                 &hasura_transaction,
                 &election_event,
                 &tally_session,
+                tally_type_enum.clone(),
             )
             .await?,
         )
@@ -1256,6 +1257,7 @@ pub async fn execute_tally_session_wrapped(
         tally_session_execution.clone(),
         &areas,
         &default_language,
+        tally_type_enum.clone(),
     )
     .await?;
     // map_plaintext_data also calls this but at this point the credentials

@@ -8,7 +8,8 @@ use crate::pipes::error::{Error, Result};
 use crate::pipes::pipe_inputs::{InputElectionConfig, PipeInputs};
 use crate::pipes::pipe_name::{PipeName, PipeNameOutputDir};
 use crate::pipes::Pipe;
-use sequent_core::ballot::{Candidate, Contest, StringifiedPeriodDates};
+use hex::encode;
+use sequent_core::ballot::{Candidate, CandidatesOrder, Contest, StringifiedPeriodDates};
 use sequent_core::ballot_codec::multi_ballot::DecodedBallotChoices;
 use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
 use sequent_core::services::{pdf, reports};
@@ -17,15 +18,17 @@ use sequent_core::util::date_time::get_date_and_time;
 use serde::Serialize;
 use serde_json::Map;
 use std::collections::HashMap;
-use std::fs;
 use std::fs::OpenOptions;
 use std::io::Write;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::{default, fs};
+use strand::hash::hash_sha256;
 use tracing::{info, instrument};
 use uuid::Uuid;
 
 pub const OUTPUT_FILE_PDF: &str = "mcballots_receipts.pdf";
 pub const OUTPUT_FILE_HTML: &str = "mcballots_receipts.html";
+
 pub const BALLOT_IMAGES_OUTPUT_FILE_PDF: &str = "mcballots_images.pdf";
 pub const BALLOT_IMAGES_OUTPUT_FILE_HTML: &str = "mcballots_images.html";
 
@@ -43,7 +46,7 @@ pub struct VoteReceiptsPipeData {
 // QR code = containing header of the report and voted candidates per position
 // (if no votes, the content of QR code should be header of the report and "ABSTENTION")
 pub fn qr_encode_choices(contests: &Vec<ContestData>, title: &str) -> String {
-    let is_blank = contests.iter().all(|contest| contest.is_blank());
+    let is_blank: bool = contests.iter().all(|contest| contest.is_blank());
     let mut data = vec![title.to_string()];
     if is_blank {
         data.push("ABSTENTION".to_string());
@@ -65,6 +68,61 @@ pub fn qr_encode_choices(contests: &Vec<ContestData>, title: &str) -> String {
         }
     }
     data.join(":")
+}
+
+fn sort_candidates(candidates: &mut Vec<DecodedChoice>, order_field: CandidatesOrder) {
+    match order_field {
+        CandidatesOrder::Alphabetical => candidates.sort_by(|a, b| {
+            let name_a = match &a.candidate {
+                Some(candidate) => candidate
+                    .alias
+                    .as_ref()
+                    .or(candidate.name.as_ref())
+                    .unwrap_or(&String::new())
+                    .to_lowercase(),
+                None => String::new(),
+            };
+
+            let name_b = match &b.candidate {
+                Some(candidate) => candidate
+                    .alias
+                    .as_ref()
+                    .or(candidate.name.as_ref())
+                    .unwrap_or(&String::new())
+                    .to_lowercase(),
+                None => String::new(),
+            };
+
+            name_a.cmp(&name_b)
+        }),
+        CandidatesOrder::Custom => {
+            candidates.sort_by(|a, b| {
+                let sort_order_a = match &a.candidate {
+                    Some(candidate) => candidate
+                        .presentation
+                        .as_ref()
+                        .and_then(|p| p.sort_order)
+                        .unwrap_or(-1),
+                    None => -1, // Default value when `a.candidate` is `None`
+                };
+
+                let sort_order_b = match &b.candidate {
+                    Some(candidate) => candidate
+                        .presentation
+                        .as_ref()
+                        .and_then(|p| p.sort_order)
+                        .unwrap_or(-1),
+                    None => -1, // Default value when `b.candidate` is `None`
+                };
+
+                sort_order_a.cmp(&sort_order_b)
+            })
+        }
+
+        CandidatesOrder::Random => {
+            // We don't randomize in results
+        }
+    }
 }
 
 impl MCBallotReceipts {
@@ -95,21 +153,38 @@ impl MCBallotReceipts {
             let mut cds = vec![];
             for contest_choices in ballot.choices {
                 let contest = contest_map.get(&contest_choices.contest_id).unwrap();
-                let choices = DecodedChoice::from_dvcs(&contest_choices, &contest);
+                let mut choices = DecodedChoice::from_dvcs(&contest_choices, &contest);
+
+                let candidates_order = contest
+                    .presentation
+                    .clone()
+                    .unwrap_or_default()
+                    .candidates_order
+                    .unwrap_or_default();
+
+                sort_candidates(&mut choices, candidates_order.clone());
 
                 let num_selected = choices.iter().filter(|can| can.is_selected()).count();
-                let is_undervote = (num_selected as i64) < contest.max_votes;
-                let is_overvote = (num_selected as i64) > contest.max_votes;
 
+                let undervotes = contest.max_votes - (num_selected as i64);
+                let mut overvotes = 0;
+                if (num_selected as i64) > contest.max_votes {
+                    overvotes = (num_selected as i64) - contest.max_votes;
+                }
+
+                // contest.
                 let cd: ContestData = ContestData {
                     contest: contest.clone(),
                     decoded_choices: choices,
-                    is_undervote,
-                    is_overvote,
+                    undervotes,
+                    overvotes,
                 };
 
                 cds.push(cd);
             }
+
+            cds.sort_by(|a, b| b.contest.name.cmp(&a.contest.name));
+
             let title = pipe_config.extra_data["title"]
                 .as_str()
                 .map(|val| val.to_string())
@@ -120,7 +195,6 @@ impl MCBallotReceipts {
             let bd = BallotData {
                 id: Uuid::new_v4().to_string(),
                 encoded_vote: encoded_vote,
-                // FIXME
                 is_invalid: ballot.mcballot.is_explicit_invalid,
                 is_blank: is_blank,
                 contest_choices: cds,
@@ -176,10 +250,17 @@ impl MCBallotReceipts {
                 ))
             })?;
 
+        let pdf_options = match pipe_config.pdf_options.clone() {
+            Some(options) => Some(options.to_print_to_pdf_options()),
+            None => None,
+        };
+
         let bytes_pdf = if pipe_config.enable_pdfs {
-            Some(pdf::html_to_pdf(bytes_html.clone(), None).map_err(|e| {
-                Error::UnexpectedError(format!("Error during html_to_pdf conversion: {}", e))
-            })?)
+            Some(
+                pdf::html_to_pdf(bytes_html.clone(), pdf_options).map_err(|e| {
+                    Error::UnexpectedError(format!("Error during html_to_pdf conversion: {}", e))
+                })?,
+            )
         } else {
             None
         };
@@ -217,6 +298,35 @@ fn get_pipe_data(pipe_type: VoteReceiptPipeType) -> VoteReceiptsPipeData {
             pipe_name: PipeName::MCBallotImages.as_ref().to_string(),
         },
     }
+}
+
+fn generate_hashed_filename(
+    path: &PathBuf,
+    hash_bytes: &[u8],
+    default_extension: &str,
+) -> Result<PathBuf> {
+    let path = path.as_path();
+
+    let hash_hex = hex::encode(hash_bytes);
+
+    let file_stem = path
+        .file_stem()
+        .ok_or("Invalid file name: No stem found")
+        .map_err(|e| Error::UnexpectedError(format!("Error get path file_stem: {}", e)))?
+        .to_string_lossy();
+
+    let extension = path
+        .extension()
+        .map(|ext| ext.to_string_lossy())
+        .unwrap_or_else(|| default_extension.to_string().into());
+
+    let new_filename = if extension.is_empty() {
+        format!("{file_stem}_{hash_hex}")
+    } else {
+        format!("{file_stem}_{hash_hex}.{extension}")
+    };
+
+    Ok(path.with_file_name(new_filename))
 }
 
 impl Pipe for MCBallotReceipts {
@@ -265,7 +375,30 @@ impl Pipe for MCBallotReceipts {
                     fs::create_dir_all(&path)?;
 
                     if let Some(ref some_bytes_pdf) = bytes_pdf {
-                        let file = path.join(&pipe_data.output_file_pdf);
+                        let file = match &pipe_config.pipe_type {
+                            VoteReceiptPipeType::VOTE_RECEIPT => {
+                                path.join(&pipe_data.output_file_pdf)
+                            }
+                            VoteReceiptPipeType::BALLOT_IMAGES => {
+                                let pdf_hash =
+                                    hash_sha256(some_bytes_pdf.as_slice()).map_err(|e| {
+                                        Error::UnexpectedError(format!(
+                                            "Error during hash pdf bytes: {}",
+                                            e
+                                        ))
+                                    })?;
+
+                                let file = path.join(&pipe_data.output_file_pdf);
+
+                                generate_hashed_filename(&file, &pdf_hash, "pdf").map_err(|e| {
+                                    Error::UnexpectedError(format!(
+                                        "Error during hash pdf bytes: {}",
+                                        e
+                                    ))
+                                })?
+                            }
+                        };
+
                         let mut file = OpenOptions::new()
                             .write(true)
                             .truncate(true)
@@ -318,8 +451,8 @@ pub struct BallotData {
 pub struct ContestData {
     pub contest: Contest,
     pub decoded_choices: Vec<DecodedChoice>,
-    pub is_undervote: bool,
-    pub is_overvote: bool,
+    pub undervotes: i64,
+    pub overvotes: i64,
 }
 
 impl ContestData {

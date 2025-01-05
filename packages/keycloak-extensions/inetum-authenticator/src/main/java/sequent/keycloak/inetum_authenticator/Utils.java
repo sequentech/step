@@ -103,7 +103,7 @@ public class Utils {
       "userShouldHaveUnsetAttributes";
   public static final String ERROR_USER_ATTRIBUTES_NOT_UNIQUE = "User Attributes Not Unique";
   public static final String PHONE_NUMBER = "phone_number";
-  public static final String PHONE_NUMBER_ATTRIBUTE = "sequent.read-only.id-mobile-number";
+  public static final String PHONE_NUMBER_ATTRIBUTE = "sequent.read-only.mobile-number";
   public static final String ID_NUMBER_ATTRIBUTE = "sequent.read-only.id-card-number";
   public static final String ID_NUMBER = "ID_number";
   public static final String USER_PROFILE_ATTRIBUTES = "user_profile_attributes";

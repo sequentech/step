@@ -5,7 +5,7 @@
 use crate::services::authorization::authorize;
 use crate::types::optional::OptionalId;
 use crate::types::resources::{Aggregate, DataList, TotalAggregate};
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use deadpool_postgres::Client as DbClient;
 use rocket::futures::future::join_all;
 use rocket::http::Status;
@@ -22,6 +22,7 @@ use std::collections::HashMap;
 use std::env;
 use tracing::instrument;
 use uuid::Uuid;
+use windmill::services::cast_votes::get_users_with_vote_info;
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
 use windmill::services::export::export_users::{
@@ -404,6 +405,51 @@ pub struct EditUserBody {
     temporary: Option<bool>,
 }
 
+const MOBILE_NUMBER_ATTRIBUTE: &str = "sequent.read-only.mobile-number";
+
+pub async fn check_edit_email_tlf(
+    client: &KeycloakAdminClient,
+    input: &EditUserBody,
+    realm: &str,
+    attributes: &HashMap<String, Vec<String>>,
+) -> Result<()> {
+    let user = client.get_user(realm, &input.user_id).await?;
+    let mut changes: Vec<String> = vec![];
+
+    let mut current_attributes = user.attributes.unwrap_or_default();
+    current_attributes.remove(MOBILE_NUMBER_ATTRIBUTE);
+    let mut new_attributes = attributes.clone();
+    new_attributes.remove(MOBILE_NUMBER_ATTRIBUTE);
+    if current_attributes != new_attributes {
+        changes.push("attributes".to_string());
+    }
+
+    if input.enabled != user.enabled {
+        changes.push("enabled".to_string());
+    }
+    if input.first_name != user.first_name {
+        changes.push("first_name".to_string());
+    }
+    if input.last_name != user.last_name {
+        changes.push("last_name".to_string());
+    }
+    if input.username != user.username {
+        changes.push("username".to_string());
+    }
+    if input.password.is_some() {
+        changes.push("password".to_string());
+    }
+    if input.temporary.is_some() {
+        changes.push("temporary".to_string());
+    }
+
+    if changes.len() > 0 {
+        return Err(anyhow!("Can't change user properties: {:?}", changes));
+    }
+
+    Ok(())
+}
+
 #[instrument(skip(claims), ret)]
 #[post("/edit-user", format = "json", data = "<body>")]
 pub async fn edit_user(
@@ -412,8 +458,27 @@ pub async fn edit_user(
 ) -> Result<Json<User>, (Status, String)> {
     let input = body.into_inner();
     let mut required_perms = Vec::<Permissions>::new();
+    let mut voter_voted_edit = false;
+    let mut voter_email_tlf_edit = false;
     if input.election_event_id.is_some() {
-        required_perms.push(Permissions::VOTER_WRITE)
+        voter_voted_edit = claims
+            .hasura_claims
+            .allowed_roles
+            .contains(&Permissions::VOTER_VOTED_EDIT.to_string());
+        voter_email_tlf_edit = claims
+            .hasura_claims
+            .allowed_roles
+            .contains(&Permissions::VOTER_EMAIL_TLF_EDIT.to_string());
+        let voter_write = claims
+            .hasura_claims
+            .allowed_roles
+            .contains(&Permissions::VOTER_WRITE.to_string());
+
+        if voter_write {
+            required_perms.push(Permissions::VOTER_WRITE);
+        } else {
+            required_perms.push(Permissions::VOTER_EMAIL_TLF_EDIT);
+        }
     } else {
         required_perms.push(Permissions::USER_WRITE);
         if let Some(attributes) = &input.attributes {
@@ -426,12 +491,67 @@ pub async fn edit_user(
     };
 
     authorize(&claims, true, Some(input.tenant_id.clone()), required_perms)?;
-    let realm = match input.election_event_id {
+    let realm = match input.election_event_id.clone() {
         Some(election_event_id) => {
             get_event_realm(&input.tenant_id, &election_event_id)
         }
         None => get_tenant_realm(&input.tenant_id),
     };
+
+    // check if the voter has voted
+    if !voter_voted_edit {
+        if let Some(election_event_id) = input.election_event_id.clone() {
+            let mut hasura_db_client: DbClient =
+                get_hasura_pool().await.get().await.map_err(|e| {
+                    (
+                        Status::InternalServerError,
+                        format!(
+                            "Error acquiring hasura db client from pool {:?}",
+                            e
+                        ),
+                    )
+                })?;
+
+            let hasura_transaction =
+                hasura_db_client.transaction().await.map_err(|e| {
+                    (
+                        Status::InternalServerError,
+                        format!("Error acquiring hasura transaction {:?}", e),
+                    )
+                })?;
+            let mut user = User::default();
+            user.id = Some(input.user_id.clone());
+            let voters = get_users_with_vote_info(
+                &hasura_transaction,
+                &input.tenant_id,
+                &election_event_id,
+                vec![user],
+                None, // filter_by_has_voted
+            )
+            .await
+            .map_err(|e| {
+                (
+                    Status::InternalServerError,
+                    format!("Error listing users with vote info {:?}", e),
+                )
+            })?;
+            let Some(voter) = voters.first() else {
+                return Err((
+                    Status::InternalServerError,
+                    format!("Error listing voter with vote info"),
+                ));
+            };
+            if let Some(votes_info) = voter.votes_info.clone() {
+                if votes_info.len() > 0 {
+                    return Err((
+                        Status::Unauthorized,
+                        format!("Can't edit a voter that has already cast its ballot"),
+                    ));
+                }
+            }
+        }
+    }
+
     let client = KeycloakAdminClient::new()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
@@ -444,6 +564,12 @@ pub async fn edit_user(
             Status::BadRequest,
             "Cannot change tenant-id attribute".to_string(),
         ));
+    }
+
+    if voter_email_tlf_edit {
+        /*check_edit_email_tlf(&client, &input, &realm, &new_attributes)
+        .await
+        .map_err(|e| (Status::Unauthorized, format!("{:?}", e)))?;*/
     }
 
     let user = client

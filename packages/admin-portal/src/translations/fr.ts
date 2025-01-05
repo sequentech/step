@@ -5,6 +5,11 @@ import {TranslationType} from "./en"
 
 const frenchTranslation: TranslationType = {
     translations: {
+        philippinePassport: "Passeport philippin",
+        seamanBook: "Livret de marin",
+        philSysID: "Carte d'identité PhilSys",
+        iBP: "Barreau intégré des Philippines (IBP)",
+        driversLicense: "Permis de conduire",
         loading: "Chargement...",
         loadingDataProvider: "Chargement du fournisseur de données...",
         logsScreen: {
@@ -26,6 +31,7 @@ const frenchTranslation: TranslationType = {
                 statement_timestamp: "Horodatage de déclaration",
                 message: "Message",
                 user_id: "ID utilisateur",
+                username: "Nom d'Utilisateur",
                 sender_pk: "Clé primaire de l'expéditeur",
                 log_type: "Type de journal",
                 event_type: "Type d'événement",
@@ -71,6 +77,8 @@ const frenchTranslation: TranslationType = {
                 GENERATE_REPORT: "Générer un rapport",
                 EXPORT_TRUSTEES: "Exporter les Autorités",
                 EXPORT_APPLICATION: "Exporter les Demandes",
+                EXPORT_TENANT_CONFIG: "Exporter la Configuration du Locataire",
+                IMPORT_TENANT_CONFIG: "Importer la Configuration du Locataire",
             },
             widget: {
                 taskTitle: "Tâche: {{title}}",
@@ -135,6 +143,7 @@ const frenchTranslation: TranslationType = {
                 lookAndFeel: "PERSONNALISATION DE L'APPARENCE",
                 schedules: "ÉVÉNEMENTS PROGRAMMÉS",
                 trustees: "AUTORITÉS",
+                BackupRestore: "SAUVEGARDE / RESTAURATION",
             },
         },
         trusteesSettingsScreen: {
@@ -626,6 +635,8 @@ const frenchTranslation: TranslationType = {
                     label: "Vérifier manuellement",
                     verify: "Vérifier manuellement l'électeur",
                     body: "Vérifiez manuellement cet électeur. Vous obtiendrez un PDF avec un lien de code QR qui permettra à l'électeur de se connecter en omettant le KYC en ligne.",
+                    noEmailOrPhone:
+                        "Cet électeur ne peut pas être vérifié manuellement car il n'a pas d'adresse e-mail ou de numéro de téléphone attribué",
                 },
                 errors: {
                     editError: "Erreur lors de l'édition de l'électeur",
@@ -877,9 +888,14 @@ const frenchTranslation: TranslationType = {
                 "transmition-ceremony": "Cérémonie de Transmission",
                 "admin-ip-address-view": "Voir l'adresse IP",
                 "election-approvals-tab": "Voir les Approbations de l'Élection",
+                "election-event-approvals-tab": "Voir les Approbations de l'Événement Électoral",
                 "election-ip-address-view": "Voir l'adresse IP de l'Élection",
                 "election-dashboard-tab": "Voir le Tableau de Bord de l'Élection",
+                "trustees-export": "Exporter les Fiduciaires",
                 "user-import": "Importer des Utilisateurs",
+                "voter-voted-edit": "Modifier les électeurs qui ont voté",
+                "voter-email-tlf-edit": "Modifier les champs e-mail/téléphone des électeurs",
+                "cloudflare-write": "Modifier les règles de blocage par pays dans Cloudflare",
             },
         },
         generalSettingsScreen: {
@@ -959,7 +975,8 @@ const frenchTranslation: TranslationType = {
                 OVCS_INFORMATION: "Informations OVCS",
                 OVERSEAS_VOTERS: "Liste des Électeurs Résidant à l'Étranger",
                 OV_USERS_WHO_VOTED: "Liste des Électeurs Résidant à l'Étranger ayant Voté",
-                OV_USERS: "Liste des Électeurs Résidant à l'Étranger avec Statut de Vote",
+                OV_WITH_VOTING_STATUS:
+                    "Liste des Électeurs Résidant à l'Étranger avec Statut de Vote",
                 OVCS_STATISTICS: "Suivi du Vote à l'Étranger - Statistiques OVCS",
                 PRE_ENROLLED_OV_BUT_DISAPPROVED:
                     "Liste des Électeurs Résidant à l'Étranger Pré-inscrits mais Refusés",
@@ -1063,6 +1080,12 @@ const frenchTranslation: TranslationType = {
             election: "Créer une Élection",
             contest: "Créer un Concours",
             candidate: "Créer un Candidat",
+        },
+        importResource: {
+            electionEvent: "Importer un Événement Électoral",
+            election: "Importer une Élection",
+            contest: "Importer un Concours",
+            candidate: "Importer un Candidat",
         },
         sideMenu: {
             electionEvents: "Processus Électoraux",
@@ -1526,7 +1549,7 @@ const frenchTranslation: TranslationType = {
                 history: "Historique des Changements",
             },
             action: {
-                geneateInitializationReport: "Générer le Rapport d'Initialisation",
+                generateInitializationReport: "Générer le Rapport d'Initialisation",
                 startVotingPeriod: "Commencer la période de vote",
                 stopVotingPeriod: "Arrêter la période de vote",
                 stopKioskVotingPeriod: "Arrêter le Vote au Kiosque",
@@ -1776,24 +1799,20 @@ const frenchTranslation: TranslationType = {
                 OVCS_INFORMATION: "Informations OVCS",
                 OVCS_EVENTS: "Surveillance du Vote à l'Étranger - Événements OVCS",
                 OVCS_STATISTICS: "Surveillance du Vote à l'Étranger - Statistiques OVCS",
-                LIST_OF_OV_WHO_VOTED: "Utilisateurs OV Ayant Voté",
+                OV_WHO_VOTED: "Utilisateurs OV Ayant Voté",
                 PRE_ENROLLED_OV_BUT_DISAPPROVED: "Liste des OV préinscrits mais refusés",
                 LIST_OF_OVERSEAS_VOTERS: "Liste des Électeurs Résidant à l'Étranger",
-                OVERSEAS_VOTERS_TURNOUT: "Participation des Électeurs à l'Étranger",
-                OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_AND_SEX:
+                OV_TURNOUT_PERCENTAGE: "Participation des Électeurs à l'Étranger",
+                OV_TURNOUT_PER_ABOARD_STATUS_SEX:
                     "Participation des Électeurs à l'Étranger - par Statut à Bord et Sexe",
-                OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_SEX_AND_WITH_PERCENTAGE:
+                OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE:
                     "Participation des Électeurs à l'Étranger - par Statut à Bord, Sexe et avec Pourcentage",
-                LIST_OF_OV_WHO_PRE_ENROLLED_APPROVED:
-                    "Liste des OV qui se sont Préinscrits (Approuvés)",
+                OV_PRE_ENROLLED_APPROVED: "Liste des OV qui se sont Préinscrits (Approuvés)",
                 PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
                     "Liste des OV qui se sont Préinscrits mais nécessitent une Validation Manuelle",
-                LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
-                    "Liste des OV qui ne sont pas encore Préinscrits",
-                LIST_OF_OVERSEAS_VOTERS_WITH_VOTING_STATUS:
-                    "Liste des Électeurs à l'Étranger avec Statut de Vote",
-                NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
-                    "Nombre d'OV qui ne sont pas encore Préinscrits",
+                OV_NOT_YET_PRE_ENROLLED_LIST: "Liste des OV qui ne sont pas encore Préinscrits",
+                OV_WITH_VOTING_STATUS: "Liste des Électeurs à l'Étranger avec Statut de Vote",
+                OV_NOT_YET_PRE_ENROLLED_NUMBER: "Nombre d'OV qui ne sont pas encore Préinscrits",
                 BALLOT_IMAGES: "Images des Bulletins",
             },
             method: {
@@ -1838,6 +1857,23 @@ const frenchTranslation: TranslationType = {
                     "Choisissez ci-dessous les pays depuis lesquels vous souhaitez bloquer les inscriptions.",
                 error: {
                     errorSaving: "Erreur lors de l'enregistrement de la liste des pays",
+                },
+            },
+            backupRestore: {
+                title: "Sauvegarde / Restauration de la configuration du locataire",
+                backup: {
+                    label: "Sauvegarde",
+                    subtitle: "Sauvegarde des configurations du locataire",
+                },
+                restore: {
+                    label: "Restaurer",
+                    subtitle: "Restaurer la configuration du locataire",
+                    title: "Importer les configurations du locataire",
+                    paragraph:
+                        "Importer les configurations du locataire, les configurations Keycloak, les rôles et les données de permissions à l'aide d'un dossier compressé.",
+                    tenantConfigOption: "Importer les configurations du locataire",
+                    keycloakConfigOption: "Importer les configurations Keycloak",
+                    RolesConfigOption: "Importer les configurations des rôles et des permissions",
                 },
             },
         },

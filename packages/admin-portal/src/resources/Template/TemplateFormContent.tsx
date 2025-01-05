@@ -60,7 +60,7 @@ export const TemplateFormContent: React.FC<TTemplateFormContent> = ({
         return record ?? null
     }, [record])
 
-    const [GetDefaultUserTemplate] = useMutation(GET_USER_TEMPLATE, {
+    const [GetUserTemplate] = useMutation(GET_USER_TEMPLATE, {
         context: {
             headers: {
                 "x-hasura-role": IPermissions.REPORT_READ,
@@ -89,7 +89,7 @@ export const TemplateFormContent: React.FC<TTemplateFormContent> = ({
         const fetchDefaultTemplateData = async () => {
             try {
                 const currType = selectedTemplateType?.value as ETemplateType
-                const {data: templateData, errors} = await GetDefaultUserTemplate({
+                const {data: templateData, errors} = await GetUserTemplate({
                     variables: {
                         template_type: currType.toLowerCase() as string,
                     },
@@ -123,7 +123,7 @@ export const TemplateFormContent: React.FC<TTemplateFormContent> = ({
             }
             setTemplateExtraConfig(extraConfig)
         } else {
-            console.log("GetDefaultUserTemplate")
+            console.log("Use default user template")
             fetchDefaultTemplateData()
         }
     }, [selectedTemplateType, recordMemo])

@@ -5,6 +5,11 @@ import {TranslationType} from "./en"
 
 const tagalogTranslation: TranslationType = {
     translations: {
+        philSysID: "PhilSys ID",
+        iBP: "Integrated Bar of the Philippines (IBP)",
+        philippinePassport: "Pasaporte ng Pilipinas",
+        driversLicense: "Lisensya sa Pagmamaneho",
+        seamanBook: "Libro ng Seaman",
         loading: "Naglo-load...",
         loadingDataProvider: "Naglo-load ng tagapagbigay ng datos...",
         logsScreen: {
@@ -26,6 +31,7 @@ const tagalogTranslation: TranslationType = {
                 statement_timestamp: "Tatak ng Panahon ng Pahayag",
                 message: "Mensahe",
                 user_id: "ID ng User",
+                username: "Username",
                 sender_pk: "Primary Key ng Nagpadala",
                 log_type: "Uri ng Log",
                 event_type: "Uri ng Kaganapan",
@@ -71,6 +77,8 @@ const tagalogTranslation: TranslationType = {
                 GENERATE_REPORT: "Bumuo ng ulat",
                 EXPORT_TRUSTEES: "I-export ang mga Awtoridad",
                 EXPORT_APPLICATION: "I-export ang Mga Aplikasyon",
+                EXPORT_TENANT_CONFIG: "I-export ang Configurasyon ng Tenant",
+                IMPORT_TENANT_CONFIG: "I-import ang Configurasyon ng Tenant",
             },
             widget: {
                 taskTitle: "Gawain: {{title}}",
@@ -135,6 +143,7 @@ const tagalogTranslation: TranslationType = {
                 lookAndFeel: "PAGPASADYA KAN ITSURA",
                 schedules: "NAISKEDYUL NA MGA KAGANAPAN",
                 trustees: "TAGAPANGALAGA",
+                BackupRestore: "Backup / Ibalik",
             },
         },
         trusteesSettingsScreen: {
@@ -623,6 +632,8 @@ const tagalogTranslation: TranslationType = {
                     label: "Manwal na I-verify",
                     verify: "Manu-manong i-verify ang botante",
                     body: "Manu-manong i-verify ang botante. Makakakuha ka ng PDF na may QR Code link na nagpapahintulot sa botante na mag-login na hindi dumaan sa online KYC.",
+                    noEmailOrPhone:
+                        "Ang botanteng ito ay hindi maaaring mano-manong ma-verify dahil wala silang nakatalagang email address o numero ng telepono.",
                 },
                 emptyHeader: "Wala pang mga botante.",
                 askCreate: "Gusto mo bang lumikha ng isa?",
@@ -872,9 +883,14 @@ const tagalogTranslation: TranslationType = {
                 "transmition-ceremony": "Seremonya ng Transmisyon",
                 "admin-ip-address-view": "Tingnan ang IP Address",
                 "election-approvals-tab": "Tingnan ang mga Pagmamatyag sa Halalan",
+                "election-event-approvals-tab": "Tingnan ang mga Pagmamatyag ng Kaganapang Halalan",
                 "election-ip-address-view": "Tingnan ang IP Address ng Halalan",
                 "election-dashboard-tab": "Tingnan ang Dashboard ng Halalan",
+                "trustees-export": "I-export ang mga Tagapangasiwa",
                 "user-import": "Pag-import ng Mga Tagagamit",
+                "voter-voted-edit": "I-edit ang mga botanteng bumoto",
+                "voter-email-tlf-edit": "I-edit ang mga field ng email/telepono ng mga botante",
+                "cloudflare-write": "I-edit ang mga patakaran sa pag-block ng bansa sa Cloudflare",
             },
         },
         generalSettingsScreen: {
@@ -954,7 +970,8 @@ const tagalogTranslation: TranslationType = {
                 OVCS_INFORMATION: "Impormasyon ng OVCS",
                 OVERSEAS_VOTERS: "Listahan ng mga botanteng nasa ibang bansa",
                 OV_USERS_WHO_VOTED: "Listahan ng mga Botanteng Nasa Ibang Bansa na Bumoto",
-                OV_USERS: "Listahan ng mga Botanteng Nasa Ibang Bansa na may Katayuan sa Pagboto",
+                OV_WITH_VOTING_STATUS:
+                    "Listahan ng mga Botanteng Nasa Ibang Bansa na may Katayuan sa Pagboto",
                 OVCS_STATISTICS: "Pagsubaybay ng Botohan sa Ibang Bansa - Estadistika ng OVCS",
                 PRE_ENROLLED_OV_BUT_DISAPPROVED:
                     "Listahan ng mga Botanteng Nasa Ibang Bansa na Naka-pre-enroll pero Hindi Naaprubahan",
@@ -1058,6 +1075,12 @@ const tagalogTranslation: TranslationType = {
             election: "Lumikha ng Halalan",
             contest: "Lumikha ng Paligsahan",
             candidate: "Lumikha ng Kandidato",
+        },
+        importResource: {
+            electionEvent: "Mag-import ng Kaganapan ng Halalan",
+            election: "Mag-import ng Halalan",
+            contest: "Mag-import ng Paligsahan",
+            candidate: "Mag-import ng Kandidato",
         },
         sideMenu: {
             electionEvents: "Mga Kaganapan ng Halalan",
@@ -1518,7 +1541,7 @@ const tagalogTranslation: TranslationType = {
                 history: "Kasaysayan ng Paglalathala",
             },
             action: {
-                geneateInitializationReport: "Gumawa ng Ulat sa Inisyal na Pagsisimula",
+                generateInitializationReport: "Gumawa ng Ulat sa Inisyal na Pagsisimula",
                 startVotingPeriod: "Simulan ang Pagboto",
                 stopVotingPeriod: "Itigil ang Pagboto",
                 stopKioskVotingPeriod: "Itigil ang Pagboto sa Kiosk",
@@ -1768,25 +1791,22 @@ const tagalogTranslation: TranslationType = {
                 OVCS_INFORMATION: "Impormasyon ng OVCS",
                 OVCS_EVENTS: "Pagsubaybay ng Pagboto sa Ibang Bansa - Mga Kaganapan ng OVCS",
                 OVCS_STATISTICS: "Pagsubaybay ng Pagboto sa Ibang Bansa - Mga Estadistika ng OVCS",
-                LIST_OF_OV_WHO_VOTED: "Mga Gumagamit ng OV na Bumoto",
+                OV_WHO_VOTED: "Mga Gumagamit ng OV na Bumoto",
                 PRE_ENROLLED_OV_BUT_DISAPPROVED:
                     "Listahan ng OV na Nagpaunang-enrol ngunit Hindi Naaprubahan",
                 LIST_OF_OVERSEAS_VOTERS: "Listahan ng mga botanteng nasa ibang bansa",
-                OVERSEAS_VOTERS_TURNOUT: "Turnout ng mga Botante sa Ibang Bansa",
-                OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_AND_SEX:
+                OV_TURNOUT_PERCENTAGE: "Turnout ng mga Botante sa Ibang Bansa",
+                OV_TURNOUT_PER_ABOARD_STATUS_SEX:
                     "Turnout ng mga Botante sa Ibang Bansa - ayon sa Kalagayan at Kasarian",
-                OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_SEX_AND_WITH_PERCENTAGE:
+                OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE:
                     "Turnout ng mga Botante sa Ibang Bansa - ayon sa Kalagayan, Kasarian at may Porsyento",
-                LIST_OF_OV_WHO_PRE_ENROLLED_APPROVED:
-                    "Listahan ng mga OV na Pre-enrolled (Inaprubahan)",
+                OV_PRE_ENROLLED_APPROVED: "Listahan ng mga OV na Pre-enrolled (Inaprubahan)",
                 PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
                     "Listahan ng mga OV na Pre-enrolled ngunit Kailangan ng Manwal na Pagpapatunay",
-                LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
-                    "Listahan ng mga OV na Hindi pa Pre-enrolled",
-                LIST_OF_OVERSEAS_VOTERS_WITH_VOTING_STATUS:
+                OV_NOT_YET_PRE_ENROLLED_LIST: "Listahan ng mga OV na Hindi pa Pre-enrolled",
+                OV_WITH_VOTING_STATUS:
                     "Listahan ng mga Botante sa Ibang Bansa na may Kalagayan ng Pagboto",
-                NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
-                    "Bilang ng mga OV na Hindi pa Pre-enrolled",
+                OV_NOT_YET_PRE_ENROLLED_NUMBER: "Bilang ng mga OV na Hindi pa Pre-enrolled",
                 BALLOT_IMAGES: "Mga Larawan ng Balota",
             },
             method: {
@@ -1831,6 +1851,23 @@ const tagalogTranslation: TranslationType = {
                     " Piliin sa ibaba ang mga bansang gusto mong i-block ang pag-eenroll mula sa.",
                 error: {
                     errorSaving: "Error sa pag-save ng listahan ng mga bansa",
+                },
+            },
+            backupRestore: {
+                title: "Backup / Ibalik ang Tenant config",
+                backup: {
+                    label: "Backup",
+                    subtitle: "Backup ng Tenant configurations",
+                },
+                restore: {
+                    label: "Ibalik",
+                    subtitle: "Ibalik ang Tenant config",
+                    title: "Mag-import ng Mga Konfigurasyon ng Tenant",
+                    paragraph:
+                        "Mag-import ng mga konfigurasyon ng tenant, mga konfigurasyon ng Keycloak, mga role at data ng pahintulot gamit ang zip na folder.",
+                    tenantConfigOption: "Mag-import ng Mga Konfigurasyon ng Tenant",
+                    keycloakConfigOption: "Mag-import ng Mga Konfigurasyon ng Keycloak",
+                    RolesConfigOption: "Mag-import ng Mga Role at Pahintulot na Konfigurasyon",
                 },
             },
         },

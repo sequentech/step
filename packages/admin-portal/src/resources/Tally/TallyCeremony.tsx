@@ -62,7 +62,7 @@ import {
 import {CancelButton, NextButton} from "./styles"
 import {statusColor} from "./constants"
 import {useTenantStore} from "@/providers/TenantContextProvider"
-import {ExportElectionMenu} from "@/components/tally/ExportElectionMenu"
+import {ExportElectionMenu, IResultDocumentsData} from "@/components/tally/ExportElectionMenu"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {IResultDocuments} from "@/types/results"
 import {ResultsDataLoader} from "./ResultsDataLoader"
@@ -201,6 +201,24 @@ export const TallyCeremony: React.FC = () => {
         },
     })
 
+    const {data: allTallySessions} = useGetList<Sequent_Backend_Tally_Session>(
+        "sequent_backend_tally_session",
+        {
+            pagination: {page: 1, perPage: 1},
+            sort: {field: "created_at", order: "DESC"},
+            filter: {
+                election_event_id: record?.id,
+                tenant_id: tenantId,
+            },
+        },
+        {
+            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+            refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+            refetchOnMount: false,
+        }
+    )
+
     const {data: tallySessionExecutions} = useGetList<Sequent_Backend_Tally_Session_Execution>(
         "sequent_backend_tally_session_execution",
         {
@@ -318,23 +336,32 @@ export const TallyCeremony: React.FC = () => {
 
     useEffect(() => {
         if (page === WizardSteps.Ceremony) {
-            const isTallyAllowed =
-                elections?.every((election) => {
-                    return (
-                        !(tallySession?.election_ids || []).find(
-                            (election_id) => election.id == election_id
-                        ) ||
-                        election.status?.allow_tally === EAllowTally.ALLOWED ||
-                        (election.status?.allow_tally === EAllowTally.REQUIRES_VOTING_PERIOD_END &&
-                            election.status?.voting_status === EVotingStatus.CLOSED)
-                    )
-                }) || false
+            if (tallySession?.tally_type === ETallyType.ELECTORAL_RESULTS) {
+                const isTallyAllowed =
+                    elections?.every((election) => {
+                        return (
+                            !(tallySession?.election_ids || []).find(
+                                (election_id) => election.id == election_id
+                            ) ||
+                            election.status?.allow_tally === EAllowTally.ALLOWED ||
+                            (election.status?.allow_tally ===
+                                EAllowTally.REQUIRES_VOTING_PERIOD_END &&
+                                election.status?.voting_status === EVotingStatus.CLOSED)
+                        )
+                    }) || false
 
-            let newIsButtonDisabled =
-                tally?.execution_status !== ITallyExecutionStatus.CONNECTED || !isTallyAllowed
+                let newIsButtonDisabled =
+                    tally?.execution_status !== ITallyExecutionStatus.CONNECTED || !isTallyAllowed
 
-            if (newIsButtonDisabled !== isButtonDisabled) {
-                setIsButtonDisabled(newIsButtonDisabled)
+                console.log(`Results: setIsButtonDisabled = ${newIsButtonDisabled}`)
+                if (newIsButtonDisabled !== isButtonDisabled) {
+                    setIsButtonDisabled(newIsButtonDisabled)
+                }
+            } else {
+                console.log(
+                    `init report: setIsButtonDisabled = true, tallySession?.tally_type = ${tallySession?.tally_type}`
+                )
+                setIsButtonDisabled(false)
             }
         }
 
@@ -357,17 +384,43 @@ export const TallyCeremony: React.FC = () => {
 
     useEffect(() => {
         if (isCreatingType === ETallyType.INITIALIZATION_REPORT) {
-            setIsButtonDisabled(
+            // An initialization report is considered succesfully created if:
+            // 1. It's not in CANCELLED status.
+            // 2. It's in a cancellable status or successful. Cancellable status
+            //    are: NOT_STARTED, STARTED && CONNECTED.
+            const hasInitializationReport = (electionId: string) => {
+                console.log(`executing hasInitializationReport for ${electionId}`)
+                return allTallySessions
+                    ?.filter((tallySession) => tallySession.election_ids?.includes(electionId))
+                    .some(
+                        (tallySession) =>
+                            tallySession?.tally_type === ETallyType.INITIALIZATION_REPORT &&
+                            tallySession?.execution_status &&
+                            tallySession.execution_status !== ITallyExecutionStatus.CANCELLED &&
+                            [
+                                ITallyExecutionStatus.SUCCESS,
+                                ITallyExecutionStatus.NOT_STARTED,
+                                ITallyExecutionStatus.STARTED,
+                                ITallyExecutionStatus.CONNECTED,
+                            ].includes(tallySession.execution_status as ITallyExecutionStatus)
+                    )
+            }
+
+            const newStatus =
                 selectedElections.length == 0 ||
-                    elections?.some(
+                elections
+                    ?.filter((election) => selectedElections.includes(election.id))
+                    .some(
                         (election) =>
-                            selectedElections.includes(election.id) &&
-                            election.status?.init_report == EInitReport.DISALLOWED
+                            hasInitializationReport(election.id) ||
+                            election.status?.init_report == EInitReport.DISALLOWED ||
+                            election.initialization_report_generated
                     ) ||
-                    false
-            )
+                false
+            console.log(`InitReport: setIsButtonDisabled = ${newStatus}`)
+            setIsButtonDisabled(newStatus)
         }
-    }, [selectedElections, elections])
+    }, [selectedElections, elections, allTallySessions])
 
     const handleNext = () => {
         if (page === WizardSteps.Start) {
@@ -438,15 +491,20 @@ export const TallyCeremony: React.FC = () => {
         }
     }
 
-    let documents: IResultDocuments | null = useMemo(
-        () =>
-            (!!resultsEventId &&
-                !!resultsEvent &&
-                resultsEvent?.[0]?.id === resultsEventId &&
-                (resultsEvent[0]?.documents as IResultDocuments | null)) ||
-            null,
-        [resultsEventId, resultsEvent, resultsEvent?.[0]?.id]
-    )
+    let documents: IResultDocumentsData | null = useMemo(() => {
+        let documents =
+            !!resultsEventId &&
+            !!resultsEvent &&
+            resultsEvent?.[0]?.id === resultsEventId &&
+            (resultsEvent[0]?.documents as IResultDocuments | null)
+        return documents
+            ? {
+                  documents,
+                  name: resultsEvent?.[0]?.name ?? "event",
+                  class_type: "event",
+              }
+            : null
+    }, [resultsEventId, resultsEvent, resultsEvent?.[0]?.id, resultsEvent?.[0]?.name])
     const handleSetTemplate = (event: SelectChangeEvent) => setTemplateId(event.target.value)
 
     const handleMiruExportSuccess = (e: {
@@ -628,27 +686,6 @@ export const TallyCeremony: React.FC = () => {
                                     )}
                                 </Select>
                             </FormControl>
-                            {/* 
-                        <FormControl fullWidth>
-                            <ElectionHeader
-                                title={"tally.templateTitle"}
-                                subtitle={"tally.templateSubTitle"}
-                            />
-
-                            <Select
-                                id="tally-results-template"
-                                value={templateId}
-                                label={t("tally.templateTitle")}
-                                placeholder={t("tally.templateTitle")}
-                                onChange={handleSetTemplate}
-                            >
-                                {(tallyTemplates ?? []).map((tallyTemplate) => (
-                                    <MenuItem key={tallyTemplate.id} value={tallyTemplate.id}>
-                                        {tallyTemplate.template?.name}
-                                    </MenuItem>
-                                ))}
-                            </Select>
-                        </FormControl> */}
                         </>
                     )}
 
@@ -852,7 +889,7 @@ export const TallyCeremony: React.FC = () => {
                                     <TallyStyles.StyledSpacing>
                                         {resultsEvent?.[0] && documents && canExportCeremony ? (
                                             <ExportElectionMenu
-                                                documents={documents}
+                                                documentsList={[documents]}
                                                 electionEventId={
                                                     resultsEvent?.[0].election_event_id
                                                 }

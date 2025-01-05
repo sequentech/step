@@ -5,6 +5,11 @@ import {TranslationType} from "./en"
 
 const catalanTranslation: TranslationType = {
     translations: {
+        philippinePassport: "Passaport filipí",
+        seamanBook: "Llibreta de mariner",
+        philSysID: "Identificació PhilSys",
+        iBP: "Col·legi d'Advocats Integrat de Filipines (IBP)",
+        driversLicense: "Permís de conduir",
         loading: "Carregant...",
         loadingDataProvider: "Carregant proveïdor de dades...",
         tasksScreen: {
@@ -39,6 +44,8 @@ const catalanTranslation: TranslationType = {
                 GENERATE_REPORT: "Generar informe",
                 EXPORT_TRUSTEES: "Exportar Autoritats",
                 EXPORT_APPLICATION: "Exportar Sol·licituds",
+                EXPORT_TENANT_CONFIG: "Exporta la Configuració del Llogater",
+                IMPORT_TENANT_CONFIG: "Importa la Configuració del Llogater",
             },
             widget: {
                 taskTitle: "Tasca: {{title}}",
@@ -68,6 +75,7 @@ const catalanTranslation: TranslationType = {
                 statement_timestamp: "Marca de temps de declaració",
                 message: "Missatge",
                 user_id: "ID d'usuari",
+                username: "Nom d'Usuari",
                 sender_pk: "Clau primària de l'emissor",
                 log_type: "Tipus de registre",
                 event_type: "Tipus d'esdeveniment",
@@ -135,6 +143,7 @@ const catalanTranslation: TranslationType = {
                 lookAndFeel: "PERSONALITZACIÓ D'APARENÇA",
                 schedules: "ESDEVENIMENTS PROGRAMATS",
                 trustees: "AUTORITATS",
+                BackupRestore: "SAUVEGARDE / RESTAURATION",
             },
         },
         trusteesSettingsScreen: {
@@ -625,6 +634,8 @@ const catalanTranslation: TranslationType = {
                     label: "Verificar manualment",
                     verify: "Verificar manualment al votant",
                     body: "Verifiqueu manualment a aquest votant. Obtindrà un PDF amb un enllaç de codi QR que permet al votant iniciar sessió ometent el KYC en línia.",
+                    noEmailOrPhone:
+                        "Aquest votant no pot ser verificat manualment perquè no té una adreça de correu electrònic o un número de telèfon assignat.",
                 },
                 errors: {
                     editError: "Error editant votant",
@@ -881,9 +892,14 @@ const catalanTranslation: TranslationType = {
                 "transmition-ceremony": "Cerimònia de Transmissió",
                 "admin-ip-address-view": "Veure Adreça IP",
                 "election-approvals-tab": "Veure Aprovacions d'Elecció",
+                "election-event-approvals-tab": "Veure Aprovacions de l'Esdeveniment Electoral",
                 "election-ip-address-view": "Veure Adreça IP d'Elecció",
                 "election-dashboard-tab": "Veure Panell de Monitoreig d'Elecció",
+                "trustees-export": "Exportar Fideïcomissaris",
                 "user-import": "Importar Usuaris",
+                "voter-voted-edit": "Edita els votants que han votat",
+                "voter-email-tlf-edit": "Edita els camps de correu electrònic/telèfon dels votants",
+                "cloudflare-write": "Edita les regles de bloqueig per país a Cloudflare",
             },
         },
         generalSettingsScreen: {
@@ -963,7 +979,7 @@ const catalanTranslation: TranslationType = {
                 OVCS_INFORMATION: "Informació de l'OVCS",
                 OVERSEAS_VOTERS: "Llista de Votants a l'Estranger",
                 OV_USERS_WHO_VOTED: "Llista de Votants a l'Estranger que han Votat",
-                OV_USERS: "Llista de Votants a l'Estranger amb Estat de Votació",
+                OV_WITH_VOTING_STATUS: "Llista de Votants a l'Estranger amb Estat de Votació",
                 OVCS_STATISTICS: "Seguiment del Vot a l'Estranger - Estadístiques de l'OVCS",
                 PRE_ENROLLED_OV_BUT_DISAPPROVED:
                     "Llista de Votants a l'Estranger Preinscrits però Desaprovats",
@@ -1067,6 +1083,12 @@ const catalanTranslation: TranslationType = {
             election: "Crear una Elecció",
             contest: "Crear un Concurs",
             candidate: "Crear un Candidat",
+        },
+        importResource: {
+            electionEvent: "Importar un Esdeveniment Electoral",
+            election: "Importar una Elecció",
+            contest: "Importar un Concurs",
+            candidate: "Importar un Candidat",
         },
         sideMenu: {
             electionEvents: "Processos Electorals",
@@ -1526,7 +1548,7 @@ const catalanTranslation: TranslationType = {
                 history: "Històric de Canvis",
             },
             action: {
-                geneateInitializationReport: "Genera l'Informe d'Inicialització",
+                generateInitializationReport: "Genera l'Informe d'Inicialització",
                 startVotingPeriod: "Començar el període de votació",
                 stopVotingPeriod: "Detenir el període de votació",
                 stopKioskVotingPeriod: "Aturar la Votació al Quiosc",
@@ -1776,25 +1798,21 @@ const catalanTranslation: TranslationType = {
                 OVCS_INFORMATION: "Informació OVCS",
                 OVCS_EVENTS: "Monitoratge de Vot a l'Estranger - Esdeveniments OVCS",
                 OVCS_STATISTICS: "Monitoratge de Vot a l'Estranger - Estadístiques OVCS",
-                LIST_OF_OV_WHO_VOTED: "Usuaris OV Que Han Votat",
+                OV_WHO_VOTED: "Usuaris OV Que Han Votat",
                 PRE_ENROLLED_OV_BUT_DISAPPROVED:
                     "Llista d'OV que es van preinscriure però van ser rebutjats",
                 LIST_OF_OVERSEAS_VOTERS: "Llista de Votants a l'Estranger",
-                OVERSEAS_VOTERS_TURNOUT: "Participació dels Votants a l'Estranger",
-                OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_AND_SEX:
+                OV_TURNOUT_PERCENTAGE: "Participació dels Votants a l'Estranger",
+                OV_TURNOUT_PER_ABOARD_STATUS_SEX:
                     "Participació de Votants a l'Estranger - segons Estat a Bord i Sexe",
-                OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_SEX_AND_WITH_PERCENTAGE:
+                OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE:
                     "Participació de Votants a l'Estranger - segons Estat a Bord, Sexe i amb Percentatge",
-                LIST_OF_OV_WHO_PRE_ENROLLED_APPROVED:
-                    "Llista de OV que es van Preinscriure (Aprovats)",
+                OV_PRE_ENROLLED_APPROVED: "Llista de OV que es van Preinscriure (Aprovats)",
                 PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
                     "Llista de OV que es van Preinscriure però necessiten Validació Manual",
-                LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
-                    "Llista de OV que encara no s'han Preinscrit",
-                LIST_OF_OVERSEAS_VOTERS_WITH_VOTING_STATUS:
-                    "Llista de Votants a l'Estranger amb Estat de Votació",
-                NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
-                    "Nombre de OV que encara no s'han Preinscrit",
+                OV_NOT_YET_PRE_ENROLLED_LIST: "Llista de OV que encara no s'han Preinscrit",
+                OV_WITH_VOTING_STATUS: "Llista de Votants a l'Estranger amb Estat de Votació",
+                OV_NOT_YET_PRE_ENROLLED_NUMBER: "Nombre de OV que encara no s'han Preinscrit",
                 BALLOT_IMAGES: "Imatges de Butlleta",
             },
             method: {
@@ -1839,6 +1857,23 @@ const catalanTranslation: TranslationType = {
                     "Trieu a continuació els països dels quals voleu bloquejar la preinscripció.",
                 error: {
                     errorSaving: "Error en desar la llista de països",
+                },
+            },
+            backupRestore: {
+                title: "Còpia de seguretat / Restaurar la configuració del llogater",
+                backup: {
+                    label: "còpia de seguretat",
+                    subtitle: "Còpia de seguretat de les configuracions del llogater",
+                },
+                restore: {
+                    label: "Restaurar",
+                    subtitle: "Restaura la configuració del llogater",
+                    title: "Importa les configuracions del llogater",
+                    paragraph:
+                        "Importa configuracions de llogater, configuracions de Keycloak, rols i dades de permisos utilitzant una carpeta comprimida.",
+                    tenantConfigOption: "Importa les configuracions del llogater",
+                    keycloakConfigOption: "Importa les configuracions de Keycloak",
+                    RolesConfigOption: "Importa les configuracions de rols i permisos",
                 },
             },
         },

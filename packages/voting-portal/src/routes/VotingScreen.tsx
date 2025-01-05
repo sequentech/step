@@ -233,8 +233,8 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
     return (
         <>
             {sortedContests &&
-                sortedContests.map((contest) => (
-                    <div key={contest.id}>
+                sortedContests.map((contest, index) => (
+                    <Box key={contest.id} className={`contest-${index}`}>
                         <Question
                             ballotStyle={ballotStyle}
                             question={contest}
@@ -243,7 +243,7 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
                             setDecodedContests={onSetDecodedContests(contest.id)}
                             errorSelectionState={errorSelectionState}
                         />
-                    </div>
+                    </Box>
                 ))}
             <ActionButtons
                 handleNext={handleNext}
@@ -418,14 +418,15 @@ const VotingScreen: React.FC = () => {
 
     return (
         <PageLimit maxWidth="lg" className="voting-screen screen">
-            <Box marginTop="48px">
+            <Box marginTop="48px" className="stepper-box">
                 <Stepper selected={1} />
             </Box>
-            <StyledTitle variant="h4">
+            <StyledTitle variant="h4" className="title-container">
                 <Box className="selected-election-title">
                     {translateElection(election, "name", i18n.language) ?? "-"}
                 </Box>
                 <IconButton
+                    className="title-question"
                     icon={faCircleQuestion}
                     sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
                     fontSize="16px"
@@ -442,7 +443,11 @@ const VotingScreen: React.FC = () => {
                 </Dialog>
             </StyledTitle>
             {election.description ? (
-                <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
+                <Typography
+                    className="description"
+                    variant="body2"
+                    sx={{color: theme.palette.customGrey.main}}
+                >
                     {stringToHtml(translateElection(election, "description", i18n.language) ?? "-")}
                 </Typography>
             ) : null}
