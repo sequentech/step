@@ -123,13 +123,11 @@ pub async fn verify_application(
             .as_ref()
             .and_then(|fm| fm.get("embassy"))
             .map_or(false, |&v| !v)
-            ||
-            result
-            .fields_match
-            .as_ref()
-            .and_then(|fm| fm.get("country"))
-            .map_or(false, |&v| !v)
-        )
+            || result
+                .fields_match
+                .as_ref()
+                .and_then(|fm| fm.get("country"))
+                .map_or(false, |&v| !v))
     {
         let mut modified_data = applicant_data.clone();
 
