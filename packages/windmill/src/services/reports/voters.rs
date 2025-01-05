@@ -951,7 +951,7 @@ async fn get_voters_per_aboard_and_sex_data_by_area(
 
 
 #[instrument(err, skip_all)]
-pub async fn count_all_disapproved_applications(
+pub async fn count_applications_by_status_and_roles(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,

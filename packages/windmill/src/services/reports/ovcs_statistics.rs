@@ -6,7 +6,7 @@ use super::report_variables::{
     get_report_hash, ExecutionAnnotations,
 };
 use super::voters::{
-    count_all_disapproved_applications, count_voters_by_area_id, get_voters_data, EnrollmentFilters, FilterListVoters
+    count_applications_by_status_and_roles, count_voters_by_area_id, get_voters_data, EnrollmentFilters, FilterListVoters
 };
 use super::{report_variables::extract_election_data, template_renderer::*};
 use crate::postgres::application::count_applications;
@@ -284,7 +284,7 @@ impl TemplateRenderer for OVCSStatisticsTemplate {
             .map(|(name, stats)| Region { name, stats })
             .collect();
                  
-        let (total_disapproved, total_ofov_disapproved, total_sbei_disapproved) = count_all_disapproved_applications(
+        let (total_disapproved, total_ofov_disapproved, total_sbei_disapproved) = count_applications_by_status_and_roles(
             &hasura_transaction,
             &self.ids.tenant_id,
             &self.ids.election_event_id,
