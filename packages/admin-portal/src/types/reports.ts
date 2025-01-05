@@ -249,7 +249,7 @@ export const reportTypeConfig: {
             ReportActions.GENERATE_SCHEDULED,
         ],
         templateRequired: false,
-        electionPolicy: EReportElectionPolicy.ELECTION_ALLOWED,
+        electionPolicy: EReportElectionPolicy.ELECTION_NOT_ALLOWED,
         associatedTemplateType: ETemplateType.OV_TURNOUT_PER_ABOARD_STATUS_SEX,
     },
     [EReportType.OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE]: {
@@ -261,7 +261,7 @@ export const reportTypeConfig: {
             ReportActions.GENERATE_SCHEDULED,
         ],
         templateRequired: false,
-        electionPolicy: EReportElectionPolicy.ELECTION_ALLOWED,
+        electionPolicy: EReportElectionPolicy.ELECTION_NOT_ALLOWED,
         associatedTemplateType: ETemplateType.OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE,
     },
     [EReportType.OV_PRE_ENROLLED_APPROVED]: {
