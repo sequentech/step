@@ -13,6 +13,7 @@ use super::voters::{
 };
 use crate::postgres::area::get_areas_by_election_id;
 use crate::postgres::election::{get_election_by_id, get_elections};
+use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::reports::ReportType;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::election_dates::get_election_dates;
@@ -44,9 +45,10 @@ pub struct RegionDataComputed {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
     pub execution_annotations: ExecutionAnnotations,
-    pub elections: Vec<UserElectionData>,
     pub regions: Vec<RegionDataComputed>,
     pub overall_total: VotersStatsData,
+    pub election_dates: Option<StringifiedPeriodDates>,
+    pub election_title: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -118,6 +120,15 @@ impl TemplateRenderer for NumOVNotPreEnrolledReport {
         let realm = get_event_realm(&self.ids.tenant_id, &self.ids.election_event_id);
         let date_printed = get_date_and_time();
 
+        // Fetch election event data
+        let election_event = get_election_event_by_id(
+            hasura_transaction,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
+        )
+        .await
+        .with_context(|| "Error obtaining election event")?;
+
         let elections: Vec<Election> = match &self.ids.election_id {
             Some(election_id) => {
                 match get_election_by_id(
@@ -142,6 +153,11 @@ impl TemplateRenderer for NumOVNotPreEnrolledReport {
             .await
             .map_err(|e| anyhow::anyhow!("Error in get_elections: {}", e))?,
         };
+
+        let election_title: String = election_event
+            .alias
+            .clone()
+            .unwrap_or(election_event.name.clone());
 
         let scheduled_events = find_scheduled_event_by_election_event_id(
             &hasura_transaction,
@@ -230,7 +246,8 @@ impl TemplateRenderer for NumOVNotPreEnrolledReport {
 
         Ok(UserData {
             regions: regions,
-            elections: elections_data,
+            election_dates: Some(elections_data[0].election_dates.clone()),
+            election_title,
             execution_annotations: ExecutionAnnotations {
                 date_printed,
                 report_hash,
