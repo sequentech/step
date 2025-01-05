@@ -6,6 +6,7 @@ use super::report_variables::{
     ExecutionAnnotations,
 };
 use super::template_renderer::*;
+use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::{
     area::get_areas_by_election_id,
     election::{get_election_by_id, get_elections},
@@ -50,6 +51,7 @@ pub struct Region {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
     pub execution_annotations: ExecutionAnnotations,
+    pub election_title: String,
     pub elections: Vec<UserElectionData>,
     pub ovcs_downtime: Option<i64>,
     pub regions: Vec<Region>,
@@ -147,6 +149,15 @@ impl TemplateRenderer for OVCSEventsTemplate {
             .await
             .map_err(|e| anyhow::anyhow!("Error in get_elections: {}", e))?,
         };
+
+        // Fetch election event data
+        let election_event = get_election_event_by_id(
+            hasura_transaction,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
+        )
+        .await
+        .with_context(|| "Error obtaining election event")?;
 
         let scheduled_events = find_scheduled_event_by_election_event_id(
             &hasura_transaction,
@@ -256,6 +267,7 @@ impl TemplateRenderer for OVCSEventsTemplate {
             .collect();
 
         Ok(UserData {
+            election_title: election_event.alias.clone().unwrap_or(election_event.name.clone()),
             execution_annotations: ExecutionAnnotations {
                 date_printed,
                 report_hash,
