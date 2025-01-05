@@ -26,7 +26,6 @@ use tracing::{info, instrument};
 /// Struct for User Data
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserDataArea {
-    pub election_title: String,
     pub election_dates: StringifiedPeriodDates,
     pub post: String,
     pub area_name: String,
@@ -35,6 +34,7 @@ pub struct UserDataArea {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
+    pub election_title: String,
     pub areas: Vec<UserDataArea>,
     pub execution_annotations: ExecutionAnnotations,
 }
@@ -194,7 +194,6 @@ impl TemplateRenderer for PreEnrolledManualUsersTemplate {
             let area_name = area.clone().name.unwrap_or("-".to_string());
 
             areas.push(UserDataArea {
-                election_title: election_title.clone(),
                 election_dates: election_dates.clone(),
                 post: election_general_data.post.clone(),
                 area_name,
@@ -203,6 +202,7 @@ impl TemplateRenderer for PreEnrolledManualUsersTemplate {
         }
 
         Ok(UserData {
+            election_title,
             areas,
             execution_annotations: ExecutionAnnotations {
                 date_printed,
