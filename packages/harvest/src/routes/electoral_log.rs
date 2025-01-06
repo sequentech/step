@@ -128,7 +128,6 @@ pub async fn create_electoral_log(
                 input.message_type,
                 input.body,
                 Some(user_id.clone()),
-                username.clone(),
             )
             .await
             .map_err(|e| {

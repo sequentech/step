@@ -368,6 +368,9 @@ impl ElectoralLog {
         self.post(&message).await
     }
 
+    /// Post a keycloakUserEvent entry into the electoral log.
+    /// In the case of keycloakUserEvent the username is the user_id
+    /// instead of taking it from preferred_username which is 'service-account'.
     #[instrument(skip(self))]
     pub async fn post_keycloak_event(
         &self,
@@ -375,11 +378,11 @@ impl ElectoralLog {
         event_type: String,
         error_message: String,
         user_id: Option<String>,
-        username: Option<String>,
     ) -> Result<()> {
         let event = EventIdString(event_id);
         let error_message = ErrorMessageString(error_message);
         let event_type = KeycloakEventTypeString(event_type);
+        let username = user_id.clone();
         let message = Message::keycloak_user_event(
             event,
             event_type,
