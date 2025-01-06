@@ -12,6 +12,7 @@ use crate::postgres::election::get_election_by_id;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::reports::ReportType;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
+use crate::services::cast_votes::count_ballots_by_area_id;
 use crate::services::election_dates::get_election_dates;
 use crate::services::s3::get_minio_url;
 use crate::services::temp_path::*;
@@ -216,6 +217,16 @@ impl TemplateRenderer for StatusTemplate {
             .await
             .map_err(|e| anyhow!(format!("Error generating election area votes data {e:?}")))?;
 
+            let ballots_counted = count_ballots_by_area_id(
+                &hasura_transaction,
+                &self.ids.tenant_id,
+                &self.ids.election_event_id,
+                &election_id,
+                &area.id,
+            )
+            .await
+            .map_err(|err| anyhow!("Error getting counted ballots: {err}"))?;
+
             // Create UserDataArea instance
             let area_data = UserDataArea {
                 election_title: election_title.clone(),
@@ -226,7 +237,7 @@ impl TemplateRenderer for StatusTemplate {
                 voting_center: election_general_data.voting_center.clone(),
                 precinct_code: election_general_data.precinct_code.clone(),
                 registered_voters: votes_data.registered_voters,
-                ballots_counted: votes_data.total_ballots,
+                ballots_counted: Some(ballots_counted),
                 ovcs_status: ovcs_status.clone(),
                 inspectors: area_general_data.inspectors.clone(),
             };

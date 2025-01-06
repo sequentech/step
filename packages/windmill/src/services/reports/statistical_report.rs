@@ -70,7 +70,7 @@ pub struct ReportContestData {
     pub elective_position: String,
     pub total_expected: Option<i64>,
     pub total_position: Option<i64>,
-    pub total_undevotes: Option<i64>,
+    pub total_undervotes: Option<i64>,
     pub fill_up_rate: Option<f64>,
 }
 
@@ -253,6 +253,16 @@ impl TemplateRenderer for StatisticalReportTemplate {
             .await
             .map_err(|e| anyhow!(format!("Error generating election area votes data {e:?}")))?;
 
+            let ballots_counted = count_ballots_by_area_id(
+                &hasura_transaction,
+                &self.ids.tenant_id,
+                &self.ids.election_event_id,
+                &election_id,
+                &area.id,
+            )
+            .await
+            .map_err(|err| anyhow!("Error getting counted ballots: {err}"))?;
+
             for contest in contests.clone() {
                 let results_area_contest = results_area_contests
                     .iter()
@@ -291,7 +301,7 @@ impl TemplateRenderer for StatisticalReportTemplate {
                 voting_center: election_general_data.voting_center.clone(),
                 precinct_code: election_general_data.precinct_code.clone(),
                 registered_voters: votes_data.registered_voters,
-                ballots_counted: votes_data.total_ballots,
+                ballots_counted: Some(ballots_counted),
                 voters_turnout: votes_data.voters_turnout,
                 elective_positions,
                 inspectors: area_general_data.inspectors,
@@ -371,7 +381,7 @@ pub async fn generate_contest_results_data(
                 elective_position,
                 total_expected: None,
                 total_position: None,
-                total_undevotes: None,
+                total_undervotes: None,
                 fill_up_rate: None,
             });
         }
@@ -396,7 +406,7 @@ pub async fn generate_contest_results_data(
         .and_then(|under_vote| under_vote.as_i64())
         .unwrap_or(-1);
 
-    let total_undevotes = total_expected - total_position;
+    let total_undervotes = total_expected - total_position;
 
     // Ensure total_expected and total_position are valid for fill_up_rate calculation
     let fill_up_rate = generate_fill_up_rate(&total_expected, &total_position)
@@ -412,7 +422,7 @@ pub async fn generate_contest_results_data(
         elective_position,
         total_expected: Some(total_expected),
         total_position: Some(total_position),
-        total_undevotes: Some(total_undevotes),
+        total_undervotes: Some(total_undervotes),
         fill_up_rate: Some(fill_up_rate),
     })
 }

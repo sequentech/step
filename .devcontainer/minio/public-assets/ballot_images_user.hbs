@@ -173,7 +173,7 @@
           <div class="summary-page next-page">
             <div>
               <div class="summary-title">BALLOT ID</div>
-              <p class="summary-content summary-text">{{ballot_index}}</p>
+              <p class="summary-content summary-text">{{id}}</p>
             </div>
             <div>
               <div class="summary-title">ABSTENTION</div> 
@@ -209,7 +209,9 @@
                       <div class="summary-inner-content summary-text">{{this.candidate.name}}</div>
                     {{/if}}
                   {{/each}}
+                  {{#if (gte undervotes 1)}}
                   <div class="summary-inner-content summary-text">{{undervotes}} UNDER VOTE/S</div>
+                  {{/if}}
                 {{/each}}
               </div>
             </div>
