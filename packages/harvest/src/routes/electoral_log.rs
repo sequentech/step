@@ -104,21 +104,6 @@ pub async fn create_electoral_log(
                     format!("error getting electoral log: {e:?}"),
                 )
             })?;
-    electoral_log
-        .post_keycloak_event(
-            input.election_event_id.clone(),
-            input.message_type.clone(),
-            input.body.clone(),
-            Some(user_id.clone()),
-            username.clone(),
-        )
-        .await
-        .map_err(|e| {
-            (
-                Status::InternalServerError,
-                format!("error posting registration error: {e:?}"),
-            )
-        })?;
 
     if input.body.contains(EVENT_TYPE_COMMUNICATIONS) {
         let body = input
