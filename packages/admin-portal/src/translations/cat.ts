@@ -5,6 +5,11 @@ import {TranslationType} from "./en"
 
 const catalanTranslation: TranslationType = {
     translations: {
+        philippinePassport: "Passaport filipí",
+        seamanBook: "Llibreta de mariner",
+        philSysID: "Identificació PhilSys",
+        iBP: "Col·legi d'Advocats Integrat de Filipines (IBP)",
+        driversLicense: "Permís de conduir",
         loading: "Carregant...",
         loadingDataProvider: "Carregant proveïdor de dades...",
         tasksScreen: {
@@ -1078,6 +1083,12 @@ const catalanTranslation: TranslationType = {
             election: "Crear una Elecció",
             contest: "Crear un Concurs",
             candidate: "Crear un Candidat",
+        },
+        importResource: {
+            electionEvent: "Importar un Esdeveniment Electoral",
+            election: "Importar una Elecció",
+            contest: "Importar un Concurs",
+            candidate: "Importar un Candidat",
         },
         sideMenu: {
             electionEvents: "Processos Electorals",

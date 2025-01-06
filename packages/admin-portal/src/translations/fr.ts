@@ -5,6 +5,11 @@ import {TranslationType} from "./en"
 
 const frenchTranslation: TranslationType = {
     translations: {
+        philippinePassport: "Passeport philippin",
+        seamanBook: "Livret de marin",
+        philSysID: "Carte d'identité PhilSys",
+        iBP: "Barreau intégré des Philippines (IBP)",
+        driversLicense: "Permis de conduire",
         loading: "Chargement...",
         loadingDataProvider: "Chargement du fournisseur de données...",
         logsScreen: {
@@ -1075,6 +1080,12 @@ const frenchTranslation: TranslationType = {
             election: "Créer une Élection",
             contest: "Créer un Concours",
             candidate: "Créer un Candidat",
+        },
+        importResource: {
+            electionEvent: "Importer un Événement Électoral",
+            election: "Importer une Élection",
+            contest: "Importer un Concours",
+            candidate: "Importer un Candidat",
         },
         sideMenu: {
             electionEvents: "Processus Électoraux",
