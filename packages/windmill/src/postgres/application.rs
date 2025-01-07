@@ -367,6 +367,10 @@ pub async fn count_applications(
         optional_area_id = Some(parsed_area_id); // Store the value in the variable
     }
 
+    if let Some(ref area_id) = optional_area_id {
+        params.push(area_id); // Push the reference to the vector
+    }
+
     use serde_json::Value as JsonValue;
     let mut role_json: JsonValue = JsonValue::Array(Vec::new());
     // let role_json_value: Json<serde_json::Value>;
@@ -418,7 +422,7 @@ pub async fn count_applications(
         .map_err(|err| {
             // Print the error before returning it
             eprintln!("Error in row: {:?}", err);
-            anyhow!("Error preparing the application query: {err}")
+            anyhow!("Error during query: {err}")
         })?;
 
     let count: i64 = row.get(0);
