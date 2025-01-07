@@ -68,6 +68,9 @@ import ContentCopyIcon from "@mui/icons-material/ContentCopy"
 import {useReportsPermissions} from "./useReportsPermissions"
 import {set} from "lodash"
 import {isArray} from "@sequentech/ui-core"
+import {DecryptHelp} from "@/components/election-event/export-data/PasswordDialog"
+
+export const decryptionCommand = `openssl enc -d -aes-256-cbc -in <encrypted_file> -out <decrypted_file> -pass pass:<password>  -md md5`
 
 const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
     @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
@@ -419,22 +422,6 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
         )
     }
 
-    let decryptionCommend = `openssl enc -d -aes-256-cbc -in <encrypted_file> -out <decrypted_file> -pass pass:<password>  -md md5`
-    const handleCopyPassword = () => {
-        navigator.clipboard
-            .writeText(decryptionCommend)
-            .then(() => {
-                notify(t("electionEventScreen.export.copiedSuccess"), {
-                    type: "success",
-                })
-            })
-            .catch((err) => {
-                notify(t("electionEventScreen.export.copiedError"), {
-                    type: "error",
-                })
-            })
-    }
-
     if (!elections) {
         return <CircularProgress />
     }
@@ -553,25 +540,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                 title={t("reportsScreen.messages.decryptFileTitle")}
                 ok={"Ok"}
             >
-                <Typography sx={{whiteSpace: "pre-wrap"}}>
-                    {t("reportsScreen.messages.decryptInstructions")}
-                </Typography>
-                <TextInput
-                    fullWidth
-                    value={decryptionCommend}
-                    InputProps={{
-                        readOnly: true,
-                        endAdornment: (
-                            <Tooltip
-                                title={t("electionEventScreen.import.passwordDialog.copyPassword")}
-                            >
-                                <IconButton onClick={handleCopyPassword}>
-                                    <ContentCopyIcon />
-                                </IconButton>
-                            </Tooltip>
-                        ),
-                    }}
-                />
+                <DecryptHelp decryptionCommand={decryptionCommand} />
             </Dialog>
         </>
     )

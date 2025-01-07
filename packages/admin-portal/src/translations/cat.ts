@@ -5,6 +5,11 @@ import {TranslationType} from "./en"
 
 const catalanTranslation: TranslationType = {
     translations: {
+        philippinePassport: "Passaport filipí",
+        seamanBook: "Llibreta de mariner",
+        philSysID: "Identificació PhilSys",
+        iBP: "Col·legi d'Advocats Integrat de Filipines (IBP)",
+        driversLicense: "Permís de conduir",
         loading: "Carregant...",
         loadingDataProvider: "Carregant proveïdor de dades...",
         tasksScreen: {
@@ -629,6 +634,8 @@ const catalanTranslation: TranslationType = {
                     label: "Verificar manualment",
                     verify: "Verificar manualment al votant",
                     body: "Verifiqueu manualment a aquest votant. Obtindrà un PDF amb un enllaç de codi QR que permet al votant iniciar sessió ometent el KYC en línia.",
+                    noEmailOrPhone:
+                        "Aquest votant no pot ser verificat manualment perquè no té una adreça de correu electrònic o un número de telèfon assignat.",
                 },
                 errors: {
                     editError: "Error editant votant",
@@ -1076,6 +1083,12 @@ const catalanTranslation: TranslationType = {
             election: "Crear una Elecció",
             contest: "Crear un Concurs",
             candidate: "Crear un Candidat",
+        },
+        importResource: {
+            electionEvent: "Importar un Esdeveniment Electoral",
+            election: "Importar una Elecció",
+            contest: "Importar un Concurs",
+            candidate: "Importar un Candidat",
         },
         sideMenu: {
             electionEvents: "Processos Electorals",
@@ -1873,7 +1886,7 @@ const catalanTranslation: TranslationType = {
                 createdAt: "Creat El",
                 updatedAt: "Actualitzat El",
             },
-            approvalInformation: "Informació d'aprovació",
+            approvalRequest: "Sol·licitud d'Aprovació",
             title: "Votants",
             subtitle: "Cercar votants coincidents",
             approve: {

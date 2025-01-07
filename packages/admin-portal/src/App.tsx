@@ -62,7 +62,7 @@ const StyledApp = styled(Box)<{css: string}>`
     ${({css}) => css}
 `
 
-const StyledAppAtom: React.FC<{children: React.ReactNode}> = ({children}) => {
+export const StyledAppAtom: React.FC<{children: React.ReactNode}> = ({children}) => {
     const css = useAtomValue(cssInputLookAndFeel)
     return (
         <StyledApp className="felix-ttt" css={css}>

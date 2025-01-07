@@ -7,6 +7,11 @@ import {title} from "process"
 
 const englishTranslation = {
     translations: {
+        philippinePassport: "Philippine Passport",
+        seamanBook: "Seaman's Book",
+        philSysID: "PhilSys ID",
+        iBP: "Integrated Bar of the Philippines (IBP)",
+        driversLicense: "Driver's License",
         loading: "Loading...",
         loadingDataProvider: "Loading data provider...",
         logsScreen: {
@@ -625,6 +630,8 @@ const englishTranslation = {
                     label: "Manually Verify",
                     verify: "Manually Verify this voter",
                     body: "Manually Verify this voter. You will obtain a PDF with a QR Code link that allows the voter to login skipping online KYC.",
+                    noEmailOrPhone:
+                        "This voter can not be manually verified because they do not have an email address or phone number attributed to them.",
                 },
                 emptyHeader: "No voters yet.",
                 askCreate: "Do you want to create one?",
@@ -1056,6 +1063,12 @@ const englishTranslation = {
             election: "Create an Election",
             contest: "Create a Contest",
             candidate: "Create a Candidate",
+        },
+        importResource: {
+            electionEvent: "Import an Election Event",
+            election: "Import an Election",
+            contest: "Import a Contest",
+            candidate: "Import a Candidate",
         },
         sideMenu: {
             electionEvents: "Election Events",
@@ -1848,7 +1861,7 @@ const englishTranslation = {
                 createdAt: "Created At",
                 updatedAt: "Updated At",
             },
-            approvalInformation: "Approval Information",
+            approvalRequest: "Approval Request",
             title: "Voters",
             subtitle: "Find matching voters",
             approve: {

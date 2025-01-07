@@ -183,6 +183,7 @@ impl PipeInputs {
         Ok(InputElectionConfig {
             id: election_id,
             name: election.name,
+            alias: election.alias,
             description: election.description,
             annotations: election.annotations,
             election_event_annotations: election.election_event_annotations,
@@ -272,6 +273,7 @@ impl PipeInputs {
 pub struct InputElectionConfig {
     pub id: Uuid,
     pub name: String,
+    pub alias: String,
     pub description: String,
     pub dates: Option<StringifiedPeriodDates>,
     pub annotations: HashMap<String, String>,
@@ -341,6 +343,7 @@ pub struct InputAreaConfig {
 pub struct ElectionConfig {
     pub id: Uuid,
     pub name: String,
+    pub alias: String,
     pub description: String,
     pub annotations: HashMap<String, String>,
     pub election_event_annotations: HashMap<String, String>,

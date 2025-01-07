@@ -5,6 +5,11 @@ import {TranslationType} from "./en"
 
 const frenchTranslation: TranslationType = {
     translations: {
+        philippinePassport: "Passeport philippin",
+        seamanBook: "Livret de marin",
+        philSysID: "Carte d'identité PhilSys",
+        iBP: "Barreau intégré des Philippines (IBP)",
+        driversLicense: "Permis de conduire",
         loading: "Chargement...",
         loadingDataProvider: "Chargement du fournisseur de données...",
         logsScreen: {
@@ -630,6 +635,8 @@ const frenchTranslation: TranslationType = {
                     label: "Vérifier manuellement",
                     verify: "Vérifier manuellement l'électeur",
                     body: "Vérifiez manuellement cet électeur. Vous obtiendrez un PDF avec un lien de code QR qui permettra à l'électeur de se connecter en omettant le KYC en ligne.",
+                    noEmailOrPhone:
+                        "Cet électeur ne peut pas être vérifié manuellement car il n'a pas d'adresse e-mail ou de numéro de téléphone attribué",
                 },
                 errors: {
                     editError: "Erreur lors de l'édition de l'électeur",
@@ -1073,6 +1080,12 @@ const frenchTranslation: TranslationType = {
             election: "Créer une Élection",
             contest: "Créer un Concours",
             candidate: "Créer un Candidat",
+        },
+        importResource: {
+            electionEvent: "Importer un Événement Électoral",
+            election: "Importer une Élection",
+            contest: "Importer un Concours",
+            candidate: "Importer un Candidat",
         },
         sideMenu: {
             electionEvents: "Processus Électoraux",
@@ -1873,7 +1886,7 @@ const frenchTranslation: TranslationType = {
                 createdAt: "Créé Le",
                 updatedAt: "Mis à Jour Le",
             },
-            approvalInformation: "Informations d'approbation",
+            approvalRequest: "Informations d'approbation",
             title: "Électeurs",
             subtitle: "Rechercher des électeurs correspondants",
             approve: {
