@@ -18,7 +18,7 @@ members = [
     "windmill",
     "wrap-map-err",
     "step-cli"
-]
+, "e2e/enrollment"]
 
 [patch.crates-io]
 celery = { git = "https://github.com/rusty-celery/rusty-celery.git", rev = "1a0168f4b4b521c891fcfc853c21fc30de12c2f2" }

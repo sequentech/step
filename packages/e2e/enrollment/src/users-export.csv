@@ -1,0 +1,3 @@
+id,email,email_verified,enabled,first_name,last_name,username,area_name,middleName,emailAndOrMobile,sequent.read-only.mobile-number,dateOfBirth,sequent.read-only.otp-method,embassy,country,sequent.read-only.id-card-number-validated,authorized-election-ids,sequent.read-only.id-card-number,sex,landBasedOrSeafarer,clusteredPrecinct,overseasReferences,sequent.read-only.id-card-type,termsOfService
+53045525-fa04-417e-91ef-dbbf8ebbb796,omrio@moveo.co.il,true,true,עומרי,עובדיה,omrio@moveo.co.il,-,,email,,,,Tokyo PE,Japan/Tokyo PE,VERIFIED,,204737894,,,,,philSysID,
+75aee1fa-3b12-44f1-9e86-a7557ee9462c,omri.ovadya@gmail.com,true,true,עומרי,עובדיה,omrio1,-,,email,,,,Tokyo PE,Japan/Tokyo PE,VERIFIED,,204737894,,,,,philSysID,
