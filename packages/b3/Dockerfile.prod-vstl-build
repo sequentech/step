@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-FROM b3-dependencies-build 
+FROM b3-build-dependencies
 
 COPY --from=b3-compile /app/target/release/server /usr/bin/b3
 

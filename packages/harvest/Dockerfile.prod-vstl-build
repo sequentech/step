@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-FROM harvest-dependencies-build
+FROM harvest-build-dependencies
 ENV ROCKET_ADDRESS=0.0.0.0
 ENV ROCKET_PORT=8400
 EXPOSE 8400

@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-FROM braid-dependencies-build 
+FROM braid-build-dependencies
 
 COPY --from=braid-compile /app/target/release/main /usr/bin/trustee
 COPY --from=braid-compile /app/target/release/verify /usr/bin/verify

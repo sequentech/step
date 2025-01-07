@@ -5,7 +5,7 @@
 ARG SPA_NAME
 FROM ${SPA_NAME}-compile as compile
 
-FROM ${SPA_NAME}-dependencies-build
+FROM ${SPA_NAME}-build-dependencies
 # Remove default nginx static assets
 RUN rm -rf /usr/share/nginx/html/*
 # Copy custom NGINX config

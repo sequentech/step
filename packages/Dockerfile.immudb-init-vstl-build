@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only 
 
-FROM immudb-init-dependencies-build 
+FROM immudb-init-build-dependencies
 
 COPY --from=immudb-init-compile /app/target/release/bb_helper /usr/bin
 

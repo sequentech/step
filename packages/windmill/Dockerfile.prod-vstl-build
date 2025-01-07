@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-FROM windmill-dependencies-build
+FROM windmill-build-dependencies
 
 # Copy the compiled binaries from the builder stage (beat + windmill:main)
 COPY --from=windmill-compile /app/windmill/target/release/main /usr/local/bin/main
