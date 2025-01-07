@@ -31,7 +31,7 @@ import {
     MenuItem as MMenuItem,
     Menu as MMenu,
 } from "@mui/material"
-import {Menu, useGetOne, useSidebarState} from "react-admin"
+import {Menu, useGetOne, useNotify, useSidebarState} from "react-admin"
 import {TreeMenu} from "./election-events/TreeMenu"
 import {faPlusCircle} from "@fortawesome/free-solid-svg-icons"
 import WebIcon from "@mui/icons-material/Web"
@@ -211,6 +211,7 @@ export default function ElectionEvents() {
     const [candidateId, setCandidateId] = useState<string | null>("")
 
     const {getCandidateIdFlag} = useElectionEventTallyStore()
+    const notify = useNotify()
 
     /**
      * Hooks to load data for entities
@@ -449,9 +450,15 @@ export default function ElectionEvents() {
         openImportDrawer?.()
     }
 
-    let resultData = data
+    let resultData = {...data}
+    console.log("aa datos ", electionEventTreeData)
     if (!loading && data && data.sequent_backend_election_event) {
-        resultData = filterTree({electionEvents: data?.sequent_backend_election_event}, searchInput)
+        resultData = filterTree(
+            {
+                electionEvents: [...(data.sequent_backend_election_event ?? [])],
+            },
+            searchInput
+        )
     }
 
     let finalresultData = useMemo(() => {
@@ -525,13 +532,18 @@ export default function ElectionEvents() {
             isArchivedElectionEvents={isArchivedElectionEvents}
             onArchiveElectionEventsSelect={changeArchiveSelection}
             reloadTree={() => {
-                navigate("/sequent_backend_election_event")
+                candidateTreeRefetch()
+                contestTreeRefetch()
+                electionTreeRefetch()
+                electionEventTreeRefetch()
 
                 originalRefetch()
-                electionEventTreeRefetch()
-                electionTreeRefetch()
-                contestTreeRefetch()
-                candidateTreeRefetch()
+                navigate("/sequent_backend_election_event/")
+
+                notify(t("sideMenu.menuActions.messages.notification.success.reloading"), {
+                    type: "success",
+                    autoHideDuration: 8000,
+                })
             }}
         />
     )
