@@ -28,14 +28,6 @@ use serde::{Deserialize, Serialize};
 use serde_json::value::Value;
 use tracing::instrument;
 
-// UserData struct now contains a vector of areas
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct UserData {
-    pub execution_annotations: ExecutionAnnotations,
-    pub areas: Vec<UserDataArea>,
-}
-
-// UserDataArea struct holds area-specific data
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserDataArea {
     pub election_title: String,
@@ -43,6 +35,11 @@ pub struct UserDataArea {
     pub post: String,
     pub area_name: String,
     pub voters: Vec<Voter>, // Voter list field
+}
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct UserData {
+    pub execution_annotations: ExecutionAnnotations,
+    pub areas: Vec<UserDataArea>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

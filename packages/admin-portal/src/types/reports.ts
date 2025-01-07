@@ -297,7 +297,7 @@ export const reportTypeConfig: {
             ReportActions.GENERATE_SCHEDULED,
         ],
         templateRequired: false,
-        electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
+        electionPolicy: EReportElectionPolicy.ELECTION_NOT_ALLOWED,
         associatedTemplateType: ETemplateType.OV_WITH_VOTING_STATUS,
     },
     [EReportType.OV_NOT_YET_PRE_ENROLLED_NUMBER]: {
