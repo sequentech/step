@@ -31,6 +31,7 @@ use tracing::instrument;
 // Struct to hold user data
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
+    pub election_event_title: String,
     pub execution_annotations: ExecutionAnnotations,
     pub elections: Vec<UserElectionData>,
     pub regions: Vec<Region>,
@@ -188,7 +189,6 @@ impl TemplateRenderer for OVCSStatisticsTemplate {
             let election_dates = get_election_dates(&election, scheduled_events.clone())
                 .map_err(|e| anyhow::anyhow!("Error getting election dates {e}"))?;
 
-            let election_title = election.name.clone();
             let election_general_data = extract_election_data(&election)
                 .await
                 .map_err(|err| anyhow!("Error extract election annotations {err}"))?;
@@ -262,7 +262,7 @@ impl TemplateRenderer for OVCSStatisticsTemplate {
                     pre_enrolled: enrolled_voters_data.total_voters,
                     pre_enrolled_not_voted: enrolled_voters_data.total_not_voted,
                     pre_enrolled_voted: enrolled_voters_data.total_voted,
-                    voted: enrolled_voters_data.total_voted, //TODO: what the difference between pre_enrolled_voted and voted?
+                    voted: enrolled_voters_data.total_voted,
                     password_reset_request: 0,
                     remarks: "-".to_string(),
                 };
@@ -274,7 +274,7 @@ impl TemplateRenderer for OVCSStatisticsTemplate {
             }
             elections_data.push(UserElectionData {
                 election_dates,
-                election_title,
+                election_title: election.alias.unwrap_or(election.name).clone(),
             });
         }
 
@@ -284,6 +284,7 @@ impl TemplateRenderer for OVCSStatisticsTemplate {
             .collect();
 
         Ok(UserData {
+            election_event_title: election_event.alias.unwrap_or(election_event.name).clone(),
             execution_annotations: ExecutionAnnotations {
                 date_printed,
                 report_hash,

@@ -443,7 +443,7 @@ impl GenerateReports {
                 )?;
 
                 reports.push(ReportData {
-                    election_name: election_input.name.clone(),
+                    election_name: election_input.alias.clone(),
                     election_id: election_input.id.to_string(),
                     election_description: election_input.description.clone(),
                     election_dates: election_input.dates.clone(),

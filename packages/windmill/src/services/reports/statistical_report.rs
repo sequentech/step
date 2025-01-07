@@ -15,6 +15,7 @@ use crate::postgres::reports::{ReportCronConfig, ReportType};
 use crate::postgres::results_area_contest::{get_results_area_contest, ResultsAreaContest};
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::cast_votes::count_ballots_by_area_id;
+use crate::services::s3::get_minio_url;
 use crate::services::temp_path::*;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
@@ -166,7 +167,8 @@ impl TemplateRenderer for StatisticalReportTemplate {
             None => return Err(anyhow::anyhow!("Election not found")),
         };
 
-        let election_title = election.name.clone();
+        let election_cloned = election.clone();
+        let election_title = election_cloned.alias.unwrap_or(election_cloned.name);
 
         let election_general_data = extract_election_data(&election)
             .await

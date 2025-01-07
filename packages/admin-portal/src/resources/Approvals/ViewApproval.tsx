@@ -158,7 +158,7 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
             <Accordion sx={{width: "100%"}} expanded={true}>
                 <AccordionSummary expandIcon={false}>
                     <WizardStyles.AccordionTitle>
-                        {t("approvalsScreen.approvalInformation")}
+                        {t("approvalsScreen.approvalRequest")}
                     </WizardStyles.AccordionTitle>
                 </AccordionSummary>
 

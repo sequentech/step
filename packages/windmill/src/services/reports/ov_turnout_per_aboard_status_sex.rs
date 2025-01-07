@@ -11,6 +11,7 @@ use super::voters::{
 };
 use crate::postgres::area::get_areas_by_election_id;
 use crate::postgres::election::{get_election_by_id, get_elections};
+use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::reports::ReportType;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::election_dates::get_election_dates;
@@ -42,6 +43,7 @@ pub struct RegionDataComputed {
 // Struct to hold user data
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
+    pub election_event_title: String,
     pub execution_annotations: ExecutionAnnotations,
     pub elections: Vec<UserElectionData>,
     pub regions: Vec<RegionDataComputed>,
@@ -117,6 +119,14 @@ impl TemplateRenderer for OVTurnoutPerAboardAndSexReport {
         let realm = get_event_realm(&self.ids.tenant_id, &self.ids.election_event_id);
         let date_printed = get_date_and_time();
 
+        let election_event = get_election_event_by_id(
+            &hasura_transaction,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
+        )
+        .await
+        .map_err(|e| anyhow::anyhow!("Error getting election event by id: {}", e))?;
+
         let elections: Vec<Election> = match &self.ids.election_id {
             Some(election_id) => {
                 match get_election_by_id(
@@ -136,7 +146,7 @@ impl TemplateRenderer for OVTurnoutPerAboardAndSexReport {
                 &hasura_transaction,
                 &self.ids.tenant_id,
                 &self.ids.election_event_id,
-                None,
+                Some(false),
             )
             .await
             .map_err(|e| anyhow::anyhow!("Error in get_elections: {}", e))?,
@@ -183,7 +193,8 @@ impl TemplateRenderer for OVTurnoutPerAboardAndSexReport {
             let election_dates = get_election_dates(&election, scheduled_events.clone())
                 .map_err(|e| anyhow::anyhow!("Error getting election dates {e}"))?;
 
-            let election_name = election.name.clone();
+            let election_cloned = election.clone();
+            let election_name = election_cloned.alias.unwrap_or(election_cloned.name);
 
             let election_areas = get_areas_by_election_id(
                 &hasura_transaction,
@@ -228,6 +239,10 @@ impl TemplateRenderer for OVTurnoutPerAboardAndSexReport {
             .collect();
 
         Ok(UserData {
+            election_event_title: election_event
+                .alias
+                .clone()
+                .unwrap_or(election_event.name.clone()),
             regions: regions,
             elections: elections_data,
             execution_annotations: ExecutionAnnotations {

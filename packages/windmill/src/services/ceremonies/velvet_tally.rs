@@ -231,6 +231,9 @@ pub fn create_election_configs_blocking(
         // TODO: Refactor to just extract some Election Config with no subitems
         let election_name_opt = election_opt.map(|election| election.get_name(&default_lang));
 
+        let election_alias_otp =
+            election_opt.map(|election| election.alias.clone().unwrap_or("".to_string()));
+
         let election_description = election_opt
             .map(|election| election.description.clone().unwrap_or("".to_string()))
             .unwrap_or("".to_string());
@@ -263,6 +266,7 @@ pub fn create_election_configs_blocking(
             None => ElectionConfig {
                 id: Uuid::parse_str(&election_id)?,
                 name: election_name_opt.unwrap_or("".to_string()),
+                alias: election_alias_otp.unwrap_or("".to_string()),
                 description: election_description,
                 annotations: election_annotations.clone(),
                 election_event_annotations: Default::default(),

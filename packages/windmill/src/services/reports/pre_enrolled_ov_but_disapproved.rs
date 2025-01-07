@@ -136,6 +136,8 @@ impl TemplateRenderer for PreEnrolledDisapprovedTemplate {
 
         let election_dates = get_election_dates(&election, scheduled_events)
             .map_err(|e| anyhow::anyhow!("Error getting election dates {e}"))?;
+        let election_cloned = election.clone();
+        let election_title = election_cloned.alias.unwrap_or(election_cloned.name);
 
         let date_printed = get_date_and_time();
 
@@ -188,7 +190,7 @@ impl TemplateRenderer for PreEnrolledDisapprovedTemplate {
             let area_name = area.clone().name.unwrap_or("-".to_string());
 
             areas.push(UserDataArea {
-                election_title: election.name.clone(),
+                election_title: election_title.clone(),
                 election_dates: election_dates.clone(),
                 post: election_general_data.post.clone(),
                 area_name,
