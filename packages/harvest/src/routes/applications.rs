@@ -225,8 +225,6 @@ pub async fn change_application_status(
                 ErrorCode::InternalServerError,
             )
         })?;
-
-        // get_group_name_by_user_id()
     } else if input.rejection_reason.is_none() {
         // Confirmation logic
         confirm_application(
