@@ -63,13 +63,13 @@ export const reportTypeConfig: {
     [EReportType.VOTE_RECEIPT]: {
         actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],
         templateRequired: false,
-        electionPolicy: EReportElectionPolicy.ELECTION_NOT_ALLOWED,
+        electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
         associatedTemplateType: ETemplateType.VOTE_RECEIPT,
     },
     [EReportType.BALLOT_IMAGES]: {
         actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],
         templateRequired: false,
-        electionPolicy: EReportElectionPolicy.ELECTION_NOT_ALLOWED,
+        electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
         associatedTemplateType: ETemplateType.BALLOT_IMAGES,
     },
     [EReportType.ELECTORAL_RESULTS]: {
