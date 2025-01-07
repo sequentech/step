@@ -178,18 +178,20 @@ pub async fn count_keycloak_password_reset_event_by_area(
         .prepare(
             format!(
                 r#"
-                SELECT COUNT(*)
-                FROM
-                    EVENT_ENTITY as e
-                INNER JOIN
-                    realm AS ra ON ra.id = e.realm_id
-                INNER JOIN
-                     user_attribute AS us ON us.user_id = e.user_id
-                WHERE
-                 ra.name = $1
-                AND e.type = 'SEND_RESET_PASSWORD'
-                AND us.name = $2 
-                AND us.value = $3 
+             SELECT COUNT(*)
+            FROM (
+                SELECT *
+                FROM EVENT_ENTITY as e
+                WHERE e.type = 'SEND_RESET_PASSWORD'
+            ) AS filtered_e
+            INNER JOIN
+                realm AS ra ON ra.id = filtered_e.realm_id
+            INNER JOIN
+                user_attribute AS us ON us.user_id = filtered_e.user_id
+            WHERE
+                ra.name = $1
+                AND us.name = $2
+                AND us.value = $3
                 "#
             )
             .as_str(),
