@@ -60,14 +60,20 @@ public class CustomEventListenerProvider implements EventListenerProvider {
           event.getError(),
           event.getUserId());
     }
+
+    log.infov("onEvent() event details to string: {0}", event.getDetails().toString());
+    log.infov("onEvent() event getType: {0}", event.getType().toString());
+    log.infov("onEvent() event getUserId: {0}", event.getUserId());
     String eventType = event.getDetails().get("type");
+    log.infov("onEvent() event type: {0}", eventType);
     if (Utils.EVENT_TYPE_COMMUNICATIONS.equals(eventType)) {
       handleCommunicationsEvent(event);
     } else {
+      String body = Optional.ofNullable(event.getDetails().get("msgBody")).orElse("").replace("\n", " ");
       logEvent(
           getElectionEventId(event.getRealmId()),
           event.getType(),
-          event.getError(),
+          body,
           event.getUserId());
     }
   }
@@ -140,6 +146,9 @@ public class CustomEventListenerProvider implements EventListenerProvider {
   }
 
   private void logEvent(String electionEventId, EventType eventType, String body, String userId) {
+
+    log.infov("logEvent(): user id: {0}", userId);
+    log.infov("logEvent(): body: {0}", body);
     HttpClient client = HttpClient.newHttpClient();
     String url = "http://" + this.harvestUrl + "/immudb/log-event";
     String requestBody =
