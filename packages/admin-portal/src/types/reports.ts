@@ -213,7 +213,7 @@ export const reportTypeConfig: {
             ReportActions.GENERATE_SCHEDULED,
         ],
         templateRequired: false,
-        electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
+        electionPolicy: EReportElectionPolicy.ELECTION_NOT_ALLOWED,
         associatedTemplateType: ETemplateType.PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION,
     },
     [EReportType.INITIALIZATION_REPORT]: {
