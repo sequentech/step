@@ -306,6 +306,8 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
         },
     })
 
+    // ✨ Admin Portal > Approvals: Add Approved By row #5050
+
     // Move the useGetOne hook here and handle the undefined case
     const {data: election} = useGetOne<Sequent_Backend_Election>(
         "sequent_backend_election",
