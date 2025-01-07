@@ -41,11 +41,10 @@ import {AuthContext} from "@/providers/AuthContextProvider"
 import {useTranslation} from "react-i18next"
 import {IPermissions} from "../../../types/keycloak"
 import {useTreeMenuData} from "./use-tree-menu-hook"
-import {cloneDeep, result} from "lodash"
-import {sortCandidatesInContest, sortContestList, sortElectionList} from "@sequentech/ui-core"
+import {cloneDeep} from "lodash"
 import {useUrlParams} from "@/hooks/useUrlParams"
 import {useCreateElectionEventStore} from "@/providers/CreateElectionEventContextProvider"
-import {useLazyQuery, useQuery} from "@apollo/client"
+import {useLazyQuery} from "@apollo/client"
 import {
     FETCH_CANDIDATE_TREE,
     FETCH_CONTEST_TREE,
@@ -196,7 +195,7 @@ export default function ElectionEvents() {
     const {openCreateDrawer, openImportDrawer} = useCreateElectionEventStore()
     const {election_event_id, election_id, contest_id, candidate_id} = useUrlParams()
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
-    const {data, loading} = useTreeMenuData(isArchivedElectionEvents)
+    const {data, loading, refetch: originalRefetch} = useTreeMenuData(isArchivedElectionEvents)
 
     const authContext = useContext(AuthContext)
     const showAddElectionEvent = authContext.isAuthorized(
@@ -526,9 +525,9 @@ export default function ElectionEvents() {
             isArchivedElectionEvents={isArchivedElectionEvents}
             onArchiveElectionEventsSelect={changeArchiveSelection}
             reloadTree={() => {
-                navigate("/")
+                navigate("/sequent_backend_election_event")
 
-                electionEventDataRefetch()
+                originalRefetch()
                 electionEventTreeRefetch()
                 electionTreeRefetch()
                 contestTreeRefetch()
