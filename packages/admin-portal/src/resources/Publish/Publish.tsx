@@ -255,17 +255,18 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                         votingChannel: VotingStatusChannel.Online,
                     },
                 })
-                kioskModeEnabled() && await updateStatusEvent({
-                    variables: {
-                        electionEventId,
-                        votingStatus: electionEventStatus,
-                        votingChannel: VotingStatusChannel.Kiosk,
-                    },
-                })
+                kioskModeEnabled() &&
+                    (await updateStatusEvent({
+                        variables: {
+                            electionEventId,
+                            votingStatus: electionEventStatus,
+                            votingChannel: VotingStatusChannel.Kiosk,
+                        },
+                    }))
                 handleSetPublishStatus(MAP_ELECTION_EVENT_STATUS_PUBLISH[electionEventStatus])
                 setChangingStatus(false)
                 refresh()
-                
+
                 notify(t("publish.notifications.change_status"), {
                     type: "success",
                 })

@@ -228,10 +228,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                     sessionStorage.setItem(EPublishActions.PENDING_STOP_KIOSK_ACTION, "true")
                     await reauthWithGold(baseUrl.toString())
                 } else {
-                    handleOnChange(
-                        ElectionEventStatus.Closed,
-                        VotingStatusChannel.Kiosk
-                    )
+                    handleOnChange(ElectionEventStatus.Closed, VotingStatusChannel.Kiosk)
                 }
             } catch (error) {
                 console.error("Re-authentication failed:", error)
@@ -295,13 +292,12 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                 onGenerate()
             }
 
-            const pendingStopKiosk = sessionStorage.getItem(EPublishActions.PENDING_STOP_KIOSK_ACTION)
+            const pendingStopKiosk = sessionStorage.getItem(
+                EPublishActions.PENDING_STOP_KIOSK_ACTION
+            )
             if (pendingStopKiosk) {
                 sessionStorage.removeItem(EPublishActions.PENDING_STOP_KIOSK_ACTION)
-                onChangeStatus(
-                    ElectionEventStatus.Closed,
-                    VotingStatusChannel.Kiosk
-                )
+                onChangeStatus(ElectionEventStatus.Closed, VotingStatusChannel.Kiosk)
             }
         }
 
