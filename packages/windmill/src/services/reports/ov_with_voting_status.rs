@@ -18,8 +18,8 @@ use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::StringifiedPeriodDates;
-use sequent_core::types::hasura::core::Election;
 use sequent_core::services::keycloak::get_event_realm;
+use sequent_core::types::hasura::core::Election;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
@@ -149,8 +149,8 @@ impl TemplateRenderer for OVWithVotingStatusTemplate {
         let mut areas: Vec<UserDataArea> = vec![];
         for election in elections {
             let election_general_data = extract_election_data(&election)
-            .await
-            .map_err(|err| anyhow!("Error extract election annotations {err}"))?;
+                .await
+                .map_err(|err| anyhow!("Error extract election annotations {err}"))?;
 
             let election_dates = get_election_dates(&election, scheduled_events.clone())
                 .map_err(|e| anyhow::anyhow!("Error getting election dates {e}"))?;
@@ -191,12 +191,17 @@ impl TemplateRenderer for OVWithVotingStatusTemplate {
 
                 let area_name = area.clone().name.unwrap_or("-".to_string());
 
-                let not_pre_enrolled =
-                    count_voters_by_area_id(&keycloak_transaction, &realm, &area.id, None, Some(false))
-                        .await
-                        .map_err(|err| {
-                            anyhow!("Error at count_voters_by_area_id not pre enrolled {err}")
-                        })?;
+                let not_pre_enrolled = count_voters_by_area_id(
+                    &keycloak_transaction,
+                    &realm,
+                    &area.id,
+                    None,
+                    Some(false),
+                )
+                .await
+                .map_err(|err| {
+                    anyhow!("Error at count_voters_by_area_id not pre enrolled {err}")
+                })?;
 
                 areas.push(UserDataArea {
                     election_title: election.alias.clone().unwrap_or(election.name.clone()),
