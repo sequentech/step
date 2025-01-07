@@ -256,10 +256,16 @@ impl TemplateRenderer for OVCSStatisticsTemplate {
                 )
                 .await
                 .map_err(|err| anyhow!("Error at count_voters_by_area_id by post {err}"))?;
-                
-                let total_password_reset_events =  count_keycloak_password_reset_event_by_area(&keycloak_transaction, &realm, &area.id)
+
+                let total_password_reset_events = count_keycloak_password_reset_event_by_area(
+                    &keycloak_transaction,
+                    &realm,
+                    &area.id,
+                )
                 .await
-                .map_err(|err| anyhow!("Error at count_keycloak_password_reset_event_by_area {err}"))?;
+                .map_err(|err| {
+                    anyhow!("Error at count_keycloak_password_reset_event_by_area {err}")
+                })?;
 
                 let area_stat = Stat {
                     post: election_general_data.post.clone(),

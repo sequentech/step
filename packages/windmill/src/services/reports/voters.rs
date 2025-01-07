@@ -22,7 +22,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tokio_postgres::types::ToSql;
 use tokio_postgres::Row;
-use tracing::instrument;
+use tracing::{info, instrument};
 use uuid::Uuid;
 pub const SEX_ATTR_NAME: &str = "sex";
 pub const FEMALE_VALE: &str = "F";
@@ -31,6 +31,8 @@ pub const POST_ATTR_NAME: &str = "embassy";
 pub const LANDBASED_OR_SEAFARER_ATTR_NAME: &str = "landBasedOrSeafarer";
 pub const LANDBASED_VALUE: &str = "land";
 pub const SEAFARER_VALUE: &str = "sea";
+const OFOV_ROLE: &str = "ofov";
+const SBEI_ROLE: &str = "sbei";
 enum VoterStatus {
     Voted,
     NotVoted,
@@ -980,6 +982,8 @@ pub async fn count_applications_by_status_and_roles(
     .await
     .map_err(|err| anyhow!("Error at count total disapproved: {err}"))?;
 
+    info!("total disapproved: {}", total_disapproved);
+
     filter.verification_type = Some(ApplicationType::MANUAL);
 
     let total_ofov_disapproved = count_applications(
@@ -988,7 +992,7 @@ pub async fn count_applications_by_status_and_roles(
         election_event_id,
         area_id,
         Some(&filter),
-        Some("ofov"), // Role: ofov
+        Some(OFOV_ROLE), // Role: ofov
     )
     .await
     .map_err(|err| anyhow!("Error at count total ofov disapproved: {err}"))?;
@@ -999,7 +1003,7 @@ pub async fn count_applications_by_status_and_roles(
         election_event_id,
         area_id,
         Some(&filter),
-        Some("sbei"), // Role: sbei
+        Some(SBEI_ROLE), // Role: sbei
     )
     .await
     .map_err(|err| anyhow!("Error at count total sbei disapproved: {err}"))?;

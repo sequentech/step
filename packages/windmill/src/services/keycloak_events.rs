@@ -166,14 +166,12 @@ pub async fn count_keycloak_events_by_type(
     Ok(count)
 }
 
-
 #[instrument(skip(keycloak_transaction), err)]
 pub async fn count_keycloak_password_reset_event_by_area(
     keycloak_transaction: &Transaction<'_>,
     realm: &str,
     area_id: &str,
 ) -> Result<i64> {
-
     let statement = keycloak_transaction
         .prepare(
             format!(
@@ -198,7 +196,9 @@ pub async fn count_keycloak_password_reset_event_by_area(
         )
         .await
         .map_err(|err| {
-            anyhow!("Error prepare count_keycloak_password_reset_event_by_area query statement: {err}")
+            anyhow!(
+                "Error prepare count_keycloak_password_reset_event_by_area query statement: {err}"
+            )
         })?;
 
     let params: Vec<&(dyn ToSql + Sync)> = vec![&realm, &AREA_ID_ATTR_NAME, &area_id];
@@ -206,7 +206,9 @@ pub async fn count_keycloak_password_reset_event_by_area(
     let row: Row = keycloak_transaction
         .query_one(&statement, &params.as_slice())
         .await
-        .map_err(|err| anyhow!("Error running count_keycloak_password_reset_event_by_area query: {err}"))?;
+        .map_err(|err| {
+            anyhow!("Error running count_keycloak_password_reset_event_by_area query: {err}")
+        })?;
 
     let count: i64 = row.get(0);
 

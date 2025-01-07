@@ -200,15 +200,17 @@ impl TemplateRenderer for PreEnrolledVoterTemplate {
                 let area_name = area.clone().name.unwrap_or("-".to_string());
 
                 let (total_approved, total_ofov_approved, total_sbei_approved) =
-                count_applications_by_status_and_roles(
-                    &hasura_transaction,
-                    &self.ids.tenant_id,
-                    &self.ids.election_event_id,
-                    false,
-                    Some(&area.id),
-                )
-                .await
-                .map_err(|err| anyhow!("Error at counting all disapproved applications: {err}"))?;
+                    count_applications_by_status_and_roles(
+                        &hasura_transaction,
+                        &self.ids.tenant_id,
+                        &self.ids.election_event_id,
+                        false,
+                        Some(&area.id),
+                    )
+                    .await
+                    .map_err(|err| {
+                        anyhow!("Error at counting all disapproved applications: {err}")
+                    })?;
 
                 areas.push(UserDataArea {
                     election_title: election.alias.clone().unwrap_or(election.name.clone()),
