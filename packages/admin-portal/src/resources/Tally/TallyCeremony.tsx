@@ -501,6 +501,7 @@ export const TallyCeremony: React.FC = () => {
             ? {
                   documents,
                   name: resultsEvent?.[0]?.name ?? "event",
+                  class_type: "event",
               }
             : null
     }, [resultsEventId, resultsEvent, resultsEvent?.[0]?.id, resultsEvent?.[0]?.name])

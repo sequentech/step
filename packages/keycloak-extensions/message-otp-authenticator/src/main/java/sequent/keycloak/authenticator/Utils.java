@@ -104,7 +104,7 @@ public class Utils {
   public static final String SEND_REGISTER_FAILED_SMS_I18N_KEY = "messageFailedSMS";
 
   public static final String ID_NUMBER_ATTRIBUTE = "sequent.read-only.id-card-number";
-  public static final String PHONE_NUMBER_ATTRIBUTE = "sequent.read-only.id-mobile-number";
+  public static final String PHONE_NUMBER_ATTRIBUTE = "sequent.read-only.mobile-number";
 
   public static final String ID_NUMBER = "ID_number";
   public static final String PHONE_NUMBER = "Phone_number";

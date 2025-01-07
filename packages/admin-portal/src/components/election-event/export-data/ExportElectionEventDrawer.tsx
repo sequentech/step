@@ -16,8 +16,9 @@ import {styled} from "@mui/styles"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import {ETasksExecution} from "@/types/tasksExecution"
 import {WidgetProps} from "@/components/Widget"
-import {PasswordDialog} from "./PasswordDialog"
+import {DecryptHelp, PasswordDialog} from "./PasswordDialog"
 import {generateRandomPassword} from "@/services/Password"
+import {decryptionCommand} from "@/resources/Reports/ListReports"
 
 const StyledCheckbox = styled(Checkbox)({
     size: "small",
@@ -262,7 +263,9 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
                 </>
             )}
             {openPasswordDialog && password && (
-                <PasswordDialog password={password} onClose={resetState} />
+                <PasswordDialog password={password} onClose={resetState}>
+                    <DecryptHelp decryptionCommand={decryptionCommand} />
+                </PasswordDialog>
             )}
         </>
     )
