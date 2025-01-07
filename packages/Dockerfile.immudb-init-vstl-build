@@ -2,9 +2,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only 
 
-FROM debian:bookworm
-# Some shared libraries (extra-runtime-dependencies) may need to be installed:
-RUN apt-get update && apt-get install -y --no-install-recommends libssl3 && rm -rf /var/lib/apt/lists/*
+FROM immudb-init-dependencies-build 
 
 COPY --from=immudb-init-compile /app/target/release/bb_helper /usr/bin
 
