@@ -17,6 +17,7 @@ use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::reports::ReportType;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::election_dates::get_election_dates;
+use crate::services::keycloak_events::count_keycloak_password_reset_event_by_area;
 use crate::services::s3::get_minio_url;
 use crate::services::temp_path::*;
 use crate::types::application::{ApplicationStatus, ApplicationType};
@@ -255,6 +256,10 @@ impl TemplateRenderer for OVCSStatisticsTemplate {
                 )
                 .await
                 .map_err(|err| anyhow!("Error at count_voters_by_area_id by post {err}"))?;
+                
+                let total_password_reset_events =  count_keycloak_password_reset_event_by_area(&keycloak_transaction, &realm, &area.id)
+                .await
+                .map_err(|err| anyhow!("Error at count_keycloak_password_reset_event_by_area {err}"))?;
 
                 let area_stat = Stat {
                     post: election_general_data.post.clone(),
@@ -265,7 +270,7 @@ impl TemplateRenderer for OVCSStatisticsTemplate {
                     pre_enrolled_not_voted: enrolled_voters_data.total_not_voted,
                     pre_enrolled_voted: enrolled_voters_data.total_voted,
                     voted: enrolled_voters_data.total_voted, //TODO: what the difference between pre_enrolled_voted and voted?
-                    password_reset_request: 0,
+                    password_reset_request: total_password_reset_events,
                     remarks: "-".to_string(),
                 };
 

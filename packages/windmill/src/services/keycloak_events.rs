@@ -165,3 +165,53 @@ pub async fn count_keycloak_events_by_type(
 
     Ok(count)
 }
+
+
+#[instrument(skip(keycloak_transaction), err)]
+pub async fn count_keycloak_password_reset_event_by_area(
+    keycloak_transaction: &Transaction<'_>,
+    realm: &str,
+    area_id: &str,
+) -> Result<i64> {
+
+    let statement = keycloak_transaction
+        .prepare(
+            format!(
+                r#"
+                SELECT COUNT(*)
+                FROM
+                    EVENT_ENTITY as e
+                INNER JOIN
+                    realm AS ra ON ra.id = e.realm_id
+                INNER JOIN
+                     user_attribute AS us ON us.user_id = e.user_id
+                WHERE
+                 ra.name = $1
+                AND e.type = 'SEND_RESET_PASSWORD'
+                AND us.name = $2 
+                AND us.value = $3 
+                "#
+            )
+            .as_str(),
+        )
+        .await
+        .map_err(|err| {
+            anyhow!("Error prepare list_keycloak_events_by_type query statement: {err}")
+        })?;
+
+ 
+
+        let params: Vec<&(dyn ToSql + Sync)> = vec![&realm, &AREA_ID_ATTR_NAME, &area_id];
+
+    println!("query!!!!!!!!!!!!!!!!!!!{:?}",statement);
+    println!("param!!!!!!!!!!!!!!!!!!!{:?}",params);
+
+    let row: Row = keycloak_transaction
+        .query_one(&statement, &params.as_slice())
+        .await
+        .map_err(|err| anyhow!("Error running count_keycloak_events_by_type query: {err}"))?;
+
+    let count: i64 = row.get(0);
+
+    Ok(count)
+}
