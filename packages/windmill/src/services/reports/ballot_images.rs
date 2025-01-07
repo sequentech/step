@@ -7,8 +7,8 @@ use crate::services::temp_path::*;
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
-use serde::{Deserialize, Serialize};
 use sequent_core::services::s3::get_minio_url;
+use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use velvet::pipes::vote_receipts::ComputedTemplateData;
 

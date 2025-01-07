@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::election::get_elections;
+use crate::postgres::keys_ceremony::get_keys_ceremonies;
 use crate::postgres::trustee::get_all_trustees;
 use crate::services::protocol_manager::{
     get_election_board, get_event_board, get_protocol_manager_secret_path,
@@ -11,7 +12,6 @@ use crate::services::{
     ceremonies::keys_ceremony::get_keys_ceremony_board, protocol_manager::get_b3_pgsql_client,
     temp_path::generate_temp_file,
 };
-use crate::{postgres::keys_ceremony::get_keys_ceremonies};
 use anyhow::{anyhow, Context, Result};
 use b3::client::pgsql::B3MessageRow;
 use base64::engine::general_purpose;

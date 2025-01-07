@@ -11,8 +11,8 @@ use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
 use futures::future::try_join_all;
-use sequent_core::services::s3;
 use sequent_core::services::keycloak::KeycloakAdminClient;
+use sequent_core::services::s3;
 use tracing::{event, instrument, Level};
 
 #[instrument(err)]

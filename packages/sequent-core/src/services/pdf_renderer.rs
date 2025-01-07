@@ -5,20 +5,16 @@
 use anyhow::{anyhow, Result};
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use headless_chrome::types::PrintToPdfOptions;
-use serde_json::json;
-use std::{fs, process::Command, path::PathBuf};
-use tracing::{event, instrument, Level};
 use reqwest;
+use serde_json::json;
+use std::{fs, path::PathBuf, process::Command};
+use tracing::{event, instrument, Level};
 
 use crate::services::pdf;
 
 pub enum PdfTransport {
-    AWSLambda {
-        endpoint: String,
-    },
-    OpenWhisk {
-        endpoint: String,
-    },
+    AWSLambda { endpoint: String },
+    OpenWhisk { endpoint: String },
     InPlace,
 }
 
@@ -43,9 +39,13 @@ impl PdfRenderer {
             Ok(name) => {
                 event!(Level::INFO, "Found DOC_RENDERER_BACKEND: {}", name);
                 name
-            },
+            }
             Err(e) => {
-                event!(Level::ERROR, "Failed to get DOC_RENDERER_BACKEND: {}", e);
+                event!(
+                    Level::ERROR,
+                    "Failed to get DOC_RENDERER_BACKEND: {}",
+                    e
+                );
                 return Err(anyhow!("DOC_RENDERER_BACKEND env var missing"));
             }
         };
@@ -81,7 +81,7 @@ impl PdfRenderer {
         match &self.transport {
             PdfTransport::AWSLambda { endpoint } => {
                 todo!()
-            },
+            }
             PdfTransport::OpenWhisk { endpoint } => {
                 event!(Level::INFO, "Using OpenWhisk endpoint: {}", endpoint);
                 let client = reqwest::Client::new();
@@ -90,11 +90,8 @@ impl PdfRenderer {
                     "pdf_options": pdf_options,
                 });
 
-                let response = client
-                    .post(endpoint)
-                    .json(&payload)
-                    .send()
-                    .await?;
+                let response =
+                    client.post(endpoint).json(&payload).send().await?;
 
                 if !response.status().is_success() {
                     let error = response.text().await?;
@@ -102,7 +99,8 @@ impl PdfRenderer {
                     return Err(anyhow!("OpenWhisk request failed: {}", error));
                 }
 
-                let response_json = response.json::<serde_json::Value>().await?;
+                let response_json =
+                    response.json::<serde_json::Value>().await?;
                 let pdf_base64 = response_json["pdf_base64"]
                     .as_str()
                     .ok_or_else(|| anyhow!("Missing pdf_base64 in response"))?;
@@ -111,20 +109,29 @@ impl PdfRenderer {
             }
             PdfTransport::InPlace => {
                 event!(Level::INFO, "Using InPlace backend for PDF rendering");
-                let result = pdf::html_to_pdf(html, pdf_options)
-                    .map_err(|e| {
+                let result =
+                    pdf::html_to_pdf(html, pdf_options).map_err(|e| {
                         event!(Level::ERROR, "html_to_pdf failed: {}", e);
                         anyhow!("Inplace PDF rendering failed: {}", e)
                     })?;
 
                 if !result.starts_with(b"%PDF") {
-                    event!(Level::WARN, "Result is not a valid PDF, checking fallback");
-                    let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S");
-                    let fallback_path = format!("/tmp/output/fallback_{}.pdf", timestamp);
+                    event!(
+                        Level::WARN,
+                        "Result is not a valid PDF, checking fallback"
+                    );
+                    let timestamp =
+                        chrono::Local::now().format("%Y%m%d_%H%M%S");
+                    let fallback_path =
+                        format!("/tmp/output/fallback_{}.pdf", timestamp);
 
                     if let Ok(fallback_content) = fs::read(&fallback_path) {
                         if fallback_content.starts_with(b"%PDF") {
-                            event!(Level::INFO, "Using fallback PDF from: {}", fallback_path);
+                            event!(
+                                Level::INFO,
+                                "Using fallback PDF from: {}",
+                                fallback_path
+                            );
                             return Ok(fallback_content);
                         }
                     }

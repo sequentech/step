@@ -257,11 +257,18 @@ impl MCBallotReceipts {
 
         let bytes_pdf = if pipe_config.enable_pdfs {
             let rt = tokio::runtime::Runtime::new().unwrap();
-            let bytes_pdf = rt.block_on(async {
-                pdf_renderer::PdfRenderer::render_pdf(bytes_html.clone(), pdf_options).await.map_err(|e| {
-                    Error::UnexpectedError(format!("Error during html_to_pdf conversion: {}", e))
+            let bytes_pdf = rt
+                .block_on(async {
+                    pdf_renderer::PdfRenderer::render_pdf(bytes_html.clone(), pdf_options)
+                        .await
+                        .map_err(|e| {
+                            Error::UnexpectedError(format!(
+                                "Error during html_to_pdf conversion: {}",
+                                e
+                            ))
+                        })
                 })
-            }).unwrap();
+                .unwrap();
 
             Some(bytes_pdf)
         } else {

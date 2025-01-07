@@ -17,8 +17,8 @@ use config::{Config, File, FileFormat};
 use lettre::transport::smtp::SmtpTransport;
 use lettre::transport::smtp::SmtpTransportBuilder;
 use lettre::Transport;
-use serde::Deserialize;
 use sequent_core::util::aws::get_from_env_aws_config;
+use serde::Deserialize;
 
 pub struct Attachment {
     pub filename: String,

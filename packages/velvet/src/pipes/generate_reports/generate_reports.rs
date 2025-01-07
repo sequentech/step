@@ -297,11 +297,18 @@ impl GenerateReports {
                     })?;
 
             let rt = tokio::runtime::Runtime::new().unwrap();
-            let render_pdf = rt.block_on(async move {
-                pdf_renderer::PdfRenderer::render_pdf(render_pdf, None).await.map_err(|e| {
-                    Error::UnexpectedError(format!("Error during html_to_pdf conversion: {}", e))
+            let render_pdf = rt
+                .block_on(async move {
+                    pdf_renderer::PdfRenderer::render_pdf(render_pdf, None)
+                        .await
+                        .map_err(|e| {
+                            Error::UnexpectedError(format!(
+                                "Error during html_to_pdf conversion: {}",
+                                e
+                            ))
+                        })
                 })
-            }).unwrap();
+                .unwrap();
 
             Some(render_pdf)
         } else {

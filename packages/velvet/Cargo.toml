@@ -45,4 +45,3 @@ walkdir = "2"
 [[bench]]
 name = "pdf_generation"
 harness = false
-

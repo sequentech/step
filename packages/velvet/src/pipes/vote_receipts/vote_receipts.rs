@@ -112,15 +112,21 @@ impl VoteReceipts {
             None => None,
         };
 
-
         let bytes_pdf = if pipe_config.enable_pdfs {
             let bytes_html = bytes_html.clone();
             let rt = tokio::runtime::Runtime::new().unwrap();
-            let bytes_pdf = rt.block_on(async move {
-                pdf_renderer::PdfRenderer::render_pdf(bytes_html, pdf_options).await.map_err(|e| {
-                    Error::UnexpectedError(format!("Error during html_to_pdf conversion: {}", e))
+            let bytes_pdf = rt
+                .block_on(async move {
+                    pdf_renderer::PdfRenderer::render_pdf(bytes_html, pdf_options)
+                        .await
+                        .map_err(|e| {
+                            Error::UnexpectedError(format!(
+                                "Error during html_to_pdf conversion: {}",
+                                e
+                            ))
+                        })
                 })
-            }).unwrap();
+                .unwrap();
 
             Some(bytes_pdf)
         } else {

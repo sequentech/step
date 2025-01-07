@@ -16,10 +16,10 @@ use crate::services::electoral_log::{
     list_electoral_log, ElectoralLogRow, GetElectoralLogBody, IMMUDB_ROWS_LIMIT,
 };
 
+use crate::postgres::reports::ReportType;
 use crate::services::temp_path::*;
 use crate::services::users::{list_users, ListUsersFilter};
 use crate::types::resources::{Aggregate, DataList, TotalAggregate};
-use crate::postgres::reports::ReportType;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use chrono::{DateTime, Local};

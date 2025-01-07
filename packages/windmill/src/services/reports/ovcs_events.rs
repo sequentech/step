@@ -22,9 +22,7 @@ use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
 use sequent_core::{
-    ballot::StringifiedPeriodDates,
-    services::s3::get_minio_url,
-    types::hasura::core::Election,
+    ballot::StringifiedPeriodDates, services::s3::get_minio_url, types::hasura::core::Election,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
