@@ -158,8 +158,6 @@ impl TemplateRenderer for OVTurnoutPercentageReport {
             None => return Err(anyhow::anyhow!("Election not found")),
         };
 
-        let election_title = election.name.clone();
-
         let election_general_data = extract_election_data(&election)
             .await
             .map_err(|err| anyhow!("Error extract election annotations {err}"))?;
@@ -306,7 +304,7 @@ impl TemplateRenderer for OVTurnoutPercentageReport {
             areas,
             election: UserDataElection {
                 election_dates,
-                election_title,
+                election_title: election.alias.unwrap_or(election.name).clone(),
                 post: election_general_data.post,
                 inspectors: vec![],
                 overall_total: UserDataStats {

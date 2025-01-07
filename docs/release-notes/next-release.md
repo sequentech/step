@@ -6,6 +6,37 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 # Release NEXT
 
+## ✨ Add new rights to harvest role in AWS, and PUBLIC_ASSETS_PATH env var
+
+### Apply the Infrastructure Changes
+
+Once the changes are merged and available in the various release branches of the `beyond` repository, follow these steps to apply the changes in the infrastructure:
+
+1. Navigate to the `gitops` repository.
+2. Checkout the release branch that you want to apply the changes to.
+3. Apply the changes to the environment you want to update.
+
+```bash
+$ cd us-east-1/dev/harvest
+$ terragrunt apply
+```
+
+4. Restart the Harvest service in the updated environment.
+
+```bash
+$ kubectl rollout restart -n apps deployment/harvest
+```
+
+5. Verify the changes in the Harvest service.
+
+```bash
+$ kubectl get deploy -n apps harvest -o yaml | grep -A1 'name: PUBLIC_ASSETS_PATH'
+        - name: PUBLIC_ASSETS_PATH
+          value: public-assets
+```
+
+If the `PUBLIC_ASSETS_PATH` environment variable is not present, ensure that ArgoCD is syncing the changes in the `harvest` service from the correct branch/tag in the `beyond` repository.
+
 ## ✨ Add Permissions for Buttons and Tabs
 
 

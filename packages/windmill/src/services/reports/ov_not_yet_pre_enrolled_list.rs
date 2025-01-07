@@ -32,6 +32,7 @@ use tracing::instrument;
 pub struct UserData {
     pub execution_annotations: ExecutionAnnotations,
     pub areas: Vec<UserDataArea>,
+    pub election_title: String,
 }
 
 // UserDataArea struct holds area-specific data
@@ -169,10 +170,12 @@ impl TemplateRenderer for NotPreEnrolledListTemplate {
         .map_err(|e| {
             anyhow::anyhow!("Error getting scheduled events by election event_id: {}", e)
         })?;
+        let election_cloned = election.clone();
+        let election_title = election_cloned.alias.unwrap_or(election_cloned.name);
+
         let election_dates = get_election_dates(&election, scheduled_events)
             .map_err(|e| anyhow::anyhow!("Error getting election dates {e}"))?;
         let date_printed = get_date_and_time();
-        let election_title = election_event.name.clone();
 
         let app_hash = get_app_hash();
         let app_version = get_app_version();
@@ -203,6 +206,7 @@ impl TemplateRenderer for NotPreEnrolledListTemplate {
 
         // Return the UserData with areas populated
         Ok(UserData {
+            election_title,
             areas,
             execution_annotations: ExecutionAnnotations {
                 date_printed,

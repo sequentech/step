@@ -206,7 +206,7 @@ const englishTranslation = {
             downloadButton: "Download",
             step2Title: "2. Verify your ballot",
             step2Description:
-                '<a class="link" href="{{linkToBallotVerifier}}" target="_blank">Access to the ballot verifier</a>, a new tab will open in your browser.',
+                "<VerifierLink>Access to the ballot verifier</VerifierLink>, a new tab will open in your browser.",
             step2HelpDialog: {
                 title: "Audit ballot tutorial",
                 content:

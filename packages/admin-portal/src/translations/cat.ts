@@ -1886,7 +1886,7 @@ const catalanTranslation: TranslationType = {
                 createdAt: "Creat El",
                 updatedAt: "Actualitzat El",
             },
-            approvalInformation: "Informació d'aprovació",
+            approvalRequest: "Sol·licitud d'Aprovació",
             title: "Votants",
             subtitle: "Cercar votants coincidents",
             approve: {
