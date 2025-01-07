@@ -385,6 +385,7 @@ def generate_reports_csv(reports, election_event_id):
             "Cron Config": json.dumps(report.get("cron_config", None)),
             "Encryption Policy": report["encryption_policy"],
             "Password": report["password"],
+            "Permission Labels": report["permission_label"]
         } for report in reports
     ]
 
@@ -939,12 +940,18 @@ def gen_tree(excel_data, miru_data, script_idr, multiply_factor):
         election["scheduled_events"] = election_scheduled_events
 
     for election in elections_object["elections"]:
-        election_reports = [
-            report
-            for report
-            in excel_data["reports"] 
-            if is_element_match_election(report, election)
-        ]
+        election_reports = []
+        for report in excel_data["reports"]:
+            if not is_element_match_election(report, election):
+                continue
+            permission_labels = (report["permission_label"] if report["permission_label"] else "").split("|")
+            if election["permission_label"]:
+                permission_labels.append(election["permission_label"])
+            report_clone = report.copy()
+            report_clone["permission_label"] = "|".join(permission_labels)
+
+            election_reports.append(report_clone)
+            
         election["reports"] = election_reports
     
     original_elections = copy.deepcopy(elections_object["elections"])
