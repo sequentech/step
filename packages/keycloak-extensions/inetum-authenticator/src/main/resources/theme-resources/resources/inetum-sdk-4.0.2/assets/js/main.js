@@ -509,7 +509,7 @@ let myStringsLocaleMap = {
     'secondarytoolbar_exit_button': 'Exit',
     'dob_tooltip_show_help': 'Show Help',
     'dob_tooltip_leave_process': 'Leave',
-    'dob_tootltip_take_photo': '¡Make a photo!',
+    'dob_tootltip_take_photo': 'Capture a photo!',
     // INFOBAR COMPONENT
     'card_detector_verifying': 'Verifying document...',
     'infobar_start_text': 'Configuring scanner',
