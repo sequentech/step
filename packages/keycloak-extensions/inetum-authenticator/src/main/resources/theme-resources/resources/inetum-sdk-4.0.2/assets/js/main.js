@@ -27,6 +27,8 @@ let isPassportFlow = (
   (window.DOB_DOC_ID_TYPE === 'philippinePassport') ||
   (window.DOB_DOC_ID_TYPE === 'seamanBook')
 );
+let intro_row_passport_en = window.DOB_DOC_ID_TYPE === 'seamanBook'? `Seaman's Book` : 'Passport'
+let intro_row_passport_tl = window.DOB_DOC_ID_TYPE === 'seamanBook'? `Seaman's Book` : 'Pasaporte'
 
 /*
   // Ejemplo con pasaporte (revisar tambien estilos de ejemplo en dob-style.css y descomentarlos)
@@ -260,7 +262,7 @@ let myStringsLocaleMap = {
     'intro_row_obverse': 'Front of document',
     'intro_row_reverse': 'Back of document',
     'intro_row_face': 'Face and Identity',
-    'intro_row_passport': 'Passport',
+    'intro_row_passport': `${intro_row_passport_en}`,
     'intro_row_residence_certificate': 'Residence certificate',
     // EXCEPTION VIEW
     'exception_button_text_retry': 'Retry',
@@ -681,7 +683,7 @@ let myStringsLocaleMap = {
     'intro_row_obverse': 'Harap ng dokumento',
     'intro_row_reverse': 'Likod ng dokumento',
     'intro_row_face': 'Mukha at Pagkakakilanlan',
-    'intro_row_passport': 'Pasaporte',
+    'intro_row_passport': `${intro_row_passport_tl}`,
     'intro_row_residence_certificate': 'Sertipiko ng paninirahan',
     // EXCEPTION VIEW
     'exception_button_text_retry': 'Subukan Muli',
