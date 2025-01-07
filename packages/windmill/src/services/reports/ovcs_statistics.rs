@@ -141,7 +141,7 @@ impl TemplateRenderer for OVCSStatisticsTemplate {
         )
         .await
         .map_err(|e| anyhow::anyhow!("Error getting election event by id: {}", e))?;
-        
+
         let elections: Vec<Election> = match &self.ids.election_id {
             Some(election_id) => {
                 match get_election_by_id(

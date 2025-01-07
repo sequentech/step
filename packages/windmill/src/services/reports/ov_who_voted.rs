@@ -145,12 +145,6 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
             anyhow::anyhow!("Error getting scheduled events by election event_id: {}", e)
         })?;
 
-        let app_hash = get_app_hash();
-        let app_version = get_app_version();
-        let report_hash = get_report_hash(&ReportType::OV_WHO_VOTED.to_string())
-            .await
-            .unwrap_or("-".to_string());
-
         let mut areas: Vec<UserDataArea> = vec![];
         for election in elections {
             let election_general_data = extract_election_data(&election)
@@ -209,6 +203,12 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
                 })
             }
         }
+
+        let app_hash = get_app_hash();
+        let app_version = get_app_version();
+        let report_hash = get_report_hash(&ReportType::OV_WHO_VOTED.to_string())
+            .await
+            .unwrap_or("-".to_string());
 
         let execution_annotations = ExecutionAnnotations {
             date_printed,
