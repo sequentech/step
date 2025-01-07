@@ -1861,7 +1861,7 @@ const englishTranslation = {
                 createdAt: "Created At",
                 updatedAt: "Updated At",
             },
-            approvalInformation: "Approval Information",
+            approvalRequest: "Approval Request",
             title: "Voters",
             subtitle: "Find matching voters",
             approve: {
