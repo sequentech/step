@@ -180,7 +180,10 @@ const ApprovalsList = (props: ApprovalsListProps) => {
         })
 
         localStorage.removeItem(
-            `RaStore.preferences.${getPreferenceKey(location.pathname)}.datagrid.availableColumns`
+            `RaStore.preferences.${getPreferenceKey(
+                location.pathname,
+                "approvals"
+            )}.datagrid.availableColumns`
         )
 
         return allFields
@@ -208,7 +211,7 @@ const ApprovalsList = (props: ApprovalsListProps) => {
     return (
         <div>
             <DatagridConfigurable
-                preferenceKey={getPreferenceKey(location.pathname)}
+                preferenceKey={getPreferenceKey(location.pathname, "approvals")}
                 sx={sx}
                 {...props}
                 omit={listFields.omitFields}
@@ -426,7 +429,7 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
             <List
                 actions={
                     <ListActions
-                        preferenceKey={getPreferenceKey(location.pathname)}
+                        preferenceKey={getPreferenceKey(location.pathname, "approvals")}
                         withImport={canImport}
                         withExport={canExport}
                         doImport={handleImport}
