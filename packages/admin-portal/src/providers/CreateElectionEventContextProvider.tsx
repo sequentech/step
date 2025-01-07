@@ -135,6 +135,7 @@ export const CreateElectionEventProvider = ({children}: any) => {
     })
 
     const openCreateDrawer = () => {
+        setIsLoading(false)
         toggleCreateDrawer(true)
     }
 
@@ -168,6 +169,7 @@ export const CreateElectionEventProvider = ({children}: any) => {
     }) => {
         console.log({error, isOneLoading, newElectionEvent})
         if (isNull(newId)) {
+            setIsLoading(false)
             return
         }
 

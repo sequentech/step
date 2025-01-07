@@ -193,7 +193,6 @@ export default function MenuAction({
             setElectionEventIdFlag(null)
             setElectionIdFlag(null)
             setContestIdFlag(null)
-            navigate("/sequent_backend_election_event")
             reloadTree()
         } catch (error) {
             notify(t("sideMenu.menuActions.messages.notification.error.delete"), {
@@ -217,8 +216,8 @@ export default function MenuAction({
                 {id: payload.id},
                 {
                     onSuccess: () => {
-                        refetch()
                         reloadTree()
+                        refetch()
 
                         notify(t("sideMenu.menuActions.messages.notification.success.delete"), {
                             type: "success",
@@ -362,6 +361,12 @@ export default function MenuAction({
                             {t(mapAddResource[resourceType])}
                         </MenuItem>
                     )}
+
+                    {isItemElectionEventType &&
+                        !isArchivedTab &&
+                        canShowCreate &&
+                        canShowDelete && <Divider key="divider0" />}
+
                     {!isArchivedTab &&
                     canShowCreate &&
                     resourceType === "sequent_backend_election_event" ? (

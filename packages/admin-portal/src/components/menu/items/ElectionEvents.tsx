@@ -526,6 +526,9 @@ export default function ElectionEvents() {
             isArchivedElectionEvents={isArchivedElectionEvents}
             onArchiveElectionEventsSelect={changeArchiveSelection}
             reloadTree={() => {
+                navigate("/")
+
+                electionEventDataRefetch()
                 electionEventTreeRefetch()
                 electionTreeRefetch()
                 contestTreeRefetch()
