@@ -204,6 +204,40 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
             }
         })
     }
+    /**
+     * Specific Handler for "Stop Kiosk Voting" Button:
+     * Incorporates re-authentication logic for actions that require Gold-level permissions.
+     */
+    const handleStopKioskVoting = () => {
+        const actionText = t(`publish.action.stopKioskVotingPeriod`)
+        const dialogMessage = isGoldUser()
+            ? t("publish.dialog.kioskStopInfo", {action: actionText})
+            : t("publish.dialog.confirmation", {action: actionText})
+
+        setDialogText(dialogMessage)
+        setShowDialog(true)
+        setCurrentCallback(() => async () => {
+            try {
+                if (!isGoldUser()) {
+                    const baseUrl = new URL(window.location.href)
+                    if (publishType === EPublishType.Event) {
+                        baseUrl.searchParams.set("tabIndex", "8")
+                    } else {
+                        baseUrl.searchParams.set("tabIndex", "4")
+                    }
+                    sessionStorage.setItem(EPublishActions.PENDING_STOP_KIOSK_ACTION, "true")
+                    await reauthWithGold(baseUrl.toString())
+                } else {
+                    handleOnChange(
+                        ElectionEventStatus.Closed,
+                        VotingStatusChannel.Kiosk
+                    )
+                }
+            } catch (error) {
+                console.error("Re-authentication failed:", error)
+            }
+        })
+    }
 
     /**
      * Specific Handler for "Publish Changes" Button: Incorporates
@@ -259,6 +293,15 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
             if (pendingPublish) {
                 sessionStorage.removeItem(EPublishActions.PENDING_PUBLISH_ACTION)
                 onGenerate()
+            }
+
+            const pendingStopKiosk = sessionStorage.getItem(EPublishActions.PENDING_STOP_KIOSK_ACTION)
+            if (pendingStopKiosk) {
+                sessionStorage.removeItem(EPublishActions.PENDING_STOP_KIOSK_ACTION)
+                onChangeStatus(
+                    ElectionEventStatus.Closed,
+                    VotingStatusChannel.Kiosk
+                )
             }
         }
 
@@ -356,15 +399,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
 
                             {canChangeStatus && kioskModeEnabled && (
                                 <StyledStatusButton
-                                    onClick={() =>
-                                        handleEvent(
-                                            handleOnChange(
-                                                ElectionEventStatus.Closed,
-                                                VotingStatusChannel.Kiosk
-                                            ),
-                                            t("publish.dialog.kioskStopInfo")
-                                        )
-                                    }
+                                    onClick={handleStopKioskVoting}
                                     className={"kioskMode"}
                                     label={t("publish.action.stopKioskVotingPeriod")}
                                     disabled={changingStatus || !kioskVotingStarted()}
