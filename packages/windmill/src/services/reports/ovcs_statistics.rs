@@ -34,6 +34,7 @@ use tracing::instrument;
 // Struct to hold user data
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
+    pub election_event_title: String,
     pub execution_annotations: ExecutionAnnotations,
     pub elections: Vec<UserElectionData>,
     pub regions: Vec<Region>,
@@ -191,7 +192,6 @@ impl TemplateRenderer for OVCSStatisticsTemplate {
             let election_dates = get_election_dates(&election, scheduled_events.clone())
                 .map_err(|e| anyhow::anyhow!("Error getting election dates {e}"))?;
 
-            let election_title = election.name.clone();
             let election_general_data = extract_election_data(&election)
                 .await
                 .map_err(|err| anyhow!("Error extract election annotations {err}"))?;
@@ -281,7 +281,7 @@ impl TemplateRenderer for OVCSStatisticsTemplate {
             }
             elections_data.push(UserElectionData {
                 election_dates,
-                election_title,
+                election_title: election.alias.unwrap_or(election.name).clone(),
             });
         }
 
@@ -302,6 +302,7 @@ impl TemplateRenderer for OVCSStatisticsTemplate {
             .map_err(|err| anyhow!("Error at counting all disapproved applications: {err}"))?;
 
         Ok(UserData {
+            election_event_title: election_event.alias.unwrap_or(election_event.name).clone(),
             execution_annotations: ExecutionAnnotations {
                 date_printed,
                 report_hash,

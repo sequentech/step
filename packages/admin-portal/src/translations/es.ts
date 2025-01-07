@@ -1876,7 +1876,7 @@ const spanishTranslation: TranslationType = {
                 createdAt: "Creado El",
                 updatedAt: "Actualizado El",
             },
-            approvalInformation: "Información de aprobación",
+            approvalRequest: "Solicitud de Aprobación",
             title: "Votantes",
             subtitle: "Buscar votantes coincidentes",
             approve: {

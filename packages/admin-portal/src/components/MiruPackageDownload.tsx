@@ -137,7 +137,7 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = ({
                             e.preventDefault()
                             e.stopPropagation()
                             handleClose()
-                            setFileNameWithExt(fileName + ".tar.gz")
+                            setFileNameWithExt(fileName + ".zip")
                             setDocumentToDownload(doc.document_ids.all_servers)
                             setOpenModal(true)
                         }}
