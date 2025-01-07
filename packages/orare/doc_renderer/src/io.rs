@@ -4,7 +4,7 @@ use crate::openwhisk::PrintToPdfOptions;
 
 #[derive(Debug, Deserialize)]
 pub struct Input {
-    pub html: Option<String>,
+    pub html: String,
     #[serde(default)]
     pub pdf_options: Option<PrintToPdfOptions>,
     #[serde(default)]

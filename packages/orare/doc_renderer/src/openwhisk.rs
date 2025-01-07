@@ -27,7 +27,7 @@ async fn handle_render_impl(input: Input) -> Result<impl Reply, Rejection> {
     info!("OpenWhisk: Starting PDF generation");
 
     let bytes = sequent_core::services::pdf::html_to_pdf(
-        input.html.expect("no HTML content provided"),
+        input.html,
         Some(sequent_core::services::pdf::PrintToPdfOptions::default()),
     )
     .map_err(|e| {
