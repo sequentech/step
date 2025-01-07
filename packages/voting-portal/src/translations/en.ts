@@ -206,7 +206,7 @@ const englishTranslation = {
             downloadButton: "Download",
             step2Title: "2. Verify your ballot",
             step2Description:
-                '<VerifierLink>Access to the ballot verifier</VerifierLink>, a new tab will open in your browser.',
+                "<VerifierLink>Access to the ballot verifier</VerifierLink>, a new tab will open in your browser.",
             step2HelpDialog: {
                 title: "Audit ballot tutorial",
                 content:

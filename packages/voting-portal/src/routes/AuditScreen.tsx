@@ -229,7 +229,14 @@ const AuditScreen: React.FC = () => {
                 <StyledLinkContainer>
                     <Trans
                         i18nKey="auditScreen.step2Description"
-                        components={{VerifierLink: <a target="_blank" href={`${globalSettings.BALLOT_VERIFIER_URL}tenant/${tenantId}/event/${eventId}/start${location.search}`} />}}
+                        components={{
+                            VerifierLink: (
+                                <a
+                                    target="_blank"
+                                    href={`${globalSettings.BALLOT_VERIFIER_URL}tenant/${tenantId}/event/${eventId}/start${location.search}`}
+                                />
+                            ),
+                        }}
                     />
                 </StyledLinkContainer>
             </Typography>
