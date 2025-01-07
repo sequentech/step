@@ -10,6 +10,8 @@ use std::{fs, process::Command, path::PathBuf};
 use tracing::{event, instrument, Level};
 use reqwest;
 
+use crate::services::pdf;
+
 pub enum PdfTransport {
     AWSLambda {
         endpoint: String,
@@ -17,16 +19,24 @@ pub enum PdfTransport {
     OpenWhisk {
         endpoint: String,
     },
-    Windmill,
+    InPlace,
 }
 
 pub struct PdfRenderer {
-    transport: PdfTransport,
+    pub transport: PdfTransport,
 }
 
 impl PdfRenderer {
+    #[instrument(skip(html), err)]
+    pub async fn render_pdf(
+        html: String,
+        pdf_options: Option<PrintToPdfOptions>,
+    ) -> Result<Vec<u8>> {
+        Ok(PdfRenderer::new()?.do_render_pdf(html, pdf_options).await?)
+    }
+
     #[instrument(err)]
-    pub async fn new() -> Result<Self> {
+    pub fn new() -> Result<Self> {
         event!(Level::INFO, "PdfRenderer::new() - Starting initialization");
 
         let doc_renderer_backend = match std::env::var("DOC_RENDERER_BACKEND") {
@@ -55,7 +65,7 @@ impl PdfRenderer {
                         }),
                 }
             },
-            "windmill" => PdfTransport::Windmill,
+            "inplace" => PdfTransport::InPlace,
             transport => return Err(anyhow!("Unknown Doc renderer backend: {}", transport)),
         };
 
@@ -63,7 +73,7 @@ impl PdfRenderer {
     }
 
     #[instrument(skip(self, html), err)]
-    pub async fn render_pdf(
+    pub async fn do_render_pdf(
         &self,
         html: String,
         pdf_options: Option<PrintToPdfOptions>,
@@ -99,9 +109,9 @@ impl PdfRenderer {
 
                 BASE64.decode(pdf_base64).map_err(|e| anyhow!(e))
             }
-            PdfTransport::Windmill => {
-                event!(Level::INFO, "Using Windmill backend for PDF rendering");
-                let result = sequent_core::services::pdf::html_to_pdf(html, pdf_options)
+            PdfTransport::InPlace => {
+                event!(Level::INFO, "Using InPlace backend for PDF rendering");
+                let result = pdf::html_to_pdf(html, pdf_options)
                     .map_err(|e| {
                         event!(Level::ERROR, "html_to_pdf failed: {}", e);
                         anyhow!("Inplace PDF rendering failed: {}", e)

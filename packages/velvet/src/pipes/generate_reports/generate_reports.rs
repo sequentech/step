@@ -8,7 +8,7 @@ use rayon::prelude::*;
 use sequent_core::{
     ballot::{Candidate, CandidatesOrder, Contest, StringifiedPeriodDates},
     serialization::deserialize_with_path::deserialize_str,
-    services::{pdf, reports},
+    services::{pdf_renderer, reports},
     types::to_map::ToMap,
     util::{date_time::get_date_and_time, path::list_subfolders},
 };
@@ -296,11 +296,14 @@ impl GenerateReports {
                         ))
                     })?;
 
-            todo!("ereslibre: move to lambda");
-            let bytes_pdf = pdf::html_to_pdf(render_pdf.clone(), None).map_err(|e| {
-                Error::UnexpectedError(format!("Error during html_to_pdf conversion: {}", e))
-            })?;
-            Some(bytes_pdf)
+            let rt = tokio::runtime::Runtime::new().unwrap();
+            let render_pdf = rt.block_on(async move {
+                pdf_renderer::PdfRenderer::render_pdf(render_pdf, None).await.map_err(|e| {
+                    Error::UnexpectedError(format!("Error during html_to_pdf conversion: {}", e))
+                })
+            }).unwrap();
+
+            Some(render_pdf)
         } else {
             None
         };

@@ -13,7 +13,7 @@ use crate::pipes::Pipe;
 use sequent_core::ballot::{Candidate, Contest, StringifiedPeriodDates};
 use sequent_core::ballot_codec::BigUIntCodec;
 use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
-use sequent_core::services::{pdf, reports};
+use sequent_core::services::{pdf_renderer, reports};
 use sequent_core::types::templates::VoteReceiptPipeType;
 use sequent_core::util::date_time::get_date_and_time;
 use serde::{Deserialize, Serialize};
@@ -112,13 +112,17 @@ impl VoteReceipts {
             None => None,
         };
 
+
         let bytes_pdf = if pipe_config.enable_pdfs {
-            todo!("ereslibre: move to lambda");
-            Some(
-                pdf::html_to_pdf(bytes_html.clone(), pdf_options).map_err(|e| {
+            let bytes_html = bytes_html.clone();
+            let rt = tokio::runtime::Runtime::new().unwrap();
+            let bytes_pdf = rt.block_on(async move {
+                pdf_renderer::PdfRenderer::render_pdf(bytes_html, pdf_options).await.map_err(|e| {
                     Error::UnexpectedError(format!("Error during html_to_pdf conversion: {}", e))
-                })?,
-            )
+                })
+            }).unwrap();
+
+            Some(bytes_pdf)
         } else {
             None
         };
@@ -161,6 +165,8 @@ fn get_pipe_data(pipe_type: VoteReceiptPipeType) -> VoteReceiptsPipeData {
 impl Pipe for VoteReceipts {
     #[instrument(skip_all, name = "VoteReceipts::exec")]
     fn exec(&self) -> Result<()> {
+        let rt = tokio::runtime::Runtime::new().unwrap();
+
         let input_dir = self
             .pipe_inputs
             .cli

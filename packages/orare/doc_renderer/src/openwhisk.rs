@@ -26,10 +26,14 @@ impl warp::reject::Reject for CustomError {}
 async fn handle_render_impl(input: Input) -> Result<impl Reply, Rejection> {
     info!("OpenWhisk: Starting PDF generation");
 
-    let bytes = sequent_core::services::pdf::html_to_pdf(
+    let pdf_renderer = sequent_core::services::pdf_renderer::PdfRenderer{
+        transport: sequent_core::services::pdf_renderer::PdfTransport::InPlace,
+    };
+    let bytes = pdf_renderer.do_render_pdf(
         input.html,
         Some(sequent_core::services::pdf::PrintToPdfOptions::default()),
     )
+    .await
     .map_err(|e| {
         info!("OpenWhisk: PDF generation failed: {}", e);
         warp::reject::custom(CustomError(e.to_string()))

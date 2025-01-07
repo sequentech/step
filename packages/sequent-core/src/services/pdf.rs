@@ -53,7 +53,7 @@ fn print_to_pdf(
 }
 
 #[instrument(skip_all, err)]
-pub fn html_to_pdf(
+pub(crate) fn html_to_pdf(
     html: String,
     options: Option<PrintToPdfOptions>,
 ) -> Result<Vec<u8>> {
