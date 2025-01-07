@@ -326,14 +326,20 @@ def generate_election_event(excel_data, base_context, miru_data):
                 new_user = copy.deepcopy(base_user)
                 new_user["username"] = get_username(user)
                 sbei_users.append(new_user)
+                is_trustee = get_username == get_trustee_username
+                add_perm_label = "OFOV" if is_trustee else "SBEI"
+                perm_labels_list = (election_permission_label if election_permission_label else "").split()
+                perm_labels_list.append(add_perm_label)
+                perm_labels = "|".join(perm_labels_list)
+
                 sbei_users_with_permission_labels.append({
-                    "permission_label": election_permission_label,
+                    "permission_label": perm_labels,
                     "username": new_user["username"],
                     "miru_id": user["ID"],
                     "miru_role": user["ROLE"],
                     "miru_name": user["NAME"],
                     "miru_election_id": miru_election_id,
-                    "trustee": "trustee" if get_username == get_trustee_username else ""
+                    "trustee": "trustee" if is_trustee else ""
                 })
 
     sbei_users_str = json.dumps(sbei_users)
