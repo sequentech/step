@@ -5,6 +5,11 @@ import {TranslationType} from "./en"
 
 const tagalogTranslation: TranslationType = {
     translations: {
+        philSysID: "PhilSys ID",
+        iBP: "Integrated Bar of the Philippines (IBP)",
+        philippinePassport: "Pasaporte ng Pilipinas",
+        driversLicense: "Lisensya sa Pagmamaneho",
+        seamanBook: "Libro ng Seaman",
         loading: "Naglo-load...",
         loadingDataProvider: "Naglo-load ng tagapagbigay ng datos...",
         logsScreen: {
@@ -1071,6 +1076,12 @@ const tagalogTranslation: TranslationType = {
             contest: "Lumikha ng Paligsahan",
             candidate: "Lumikha ng Kandidato",
         },
+        importResource: {
+            electionEvent: "Mag-import ng Kaganapan ng Halalan",
+            election: "Mag-import ng Halalan",
+            contest: "Mag-import ng Paligsahan",
+            candidate: "Mag-import ng Kandidato",
+        },
         sideMenu: {
             electionEvents: "Mga Kaganapan ng Halalan",
             search: "Maghanap",
@@ -1869,7 +1880,7 @@ const tagalogTranslation: TranslationType = {
                 createdAt: "Nilikha Noong",
                 updatedAt: "Na-update Noong",
             },
-            approvalInformation: "Impormasyon ng Pag-apruba",
+            approvalRequest: "Kahilingan para sa Pag-apruba",
             title: "Mga Botante",
             subtitle: "Maghanap ng mga tumutugmang botante",
             approve: {

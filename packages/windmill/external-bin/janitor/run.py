@@ -326,14 +326,20 @@ def generate_election_event(excel_data, base_context, miru_data):
                 new_user = copy.deepcopy(base_user)
                 new_user["username"] = get_username(user)
                 sbei_users.append(new_user)
+                is_trustee = get_username == get_trustee_username
+                add_perm_label = "OFOV" if is_trustee else "SBEI"
+                perm_labels_list = (election_permission_label if election_permission_label else "").split()
+                perm_labels_list.append(add_perm_label)
+                perm_labels = "|".join(perm_labels_list)
+
                 sbei_users_with_permission_labels.append({
-                    "permission_label": election_permission_label,
+                    "permission_label": perm_labels,
                     "username": new_user["username"],
                     "miru_id": user["ID"],
                     "miru_role": user["ROLE"],
                     "miru_name": user["NAME"],
                     "miru_election_id": miru_election_id,
-                    "trustee": "trustee" if get_username == get_trustee_username else ""
+                    "trustee": "trustee" if is_trustee else ""
                 })
 
     sbei_users_str = json.dumps(sbei_users)
@@ -385,6 +391,7 @@ def generate_reports_csv(reports, election_event_id):
             "Cron Config": json.dumps(report.get("cron_config", None)),
             "Encryption Policy": report["encryption_policy"],
             "Password": report["password"],
+            "Permission Labels": report["permission_label"]
         } for report in reports
     ]
 
@@ -939,12 +946,18 @@ def gen_tree(excel_data, miru_data, script_idr, multiply_factor):
         election["scheduled_events"] = election_scheduled_events
 
     for election in elections_object["elections"]:
-        election_reports = [
-            report
-            for report
-            in excel_data["reports"] 
-            if is_element_match_election(report, election)
-        ]
+        election_reports = []
+        for report in excel_data["reports"]:
+            if not is_element_match_election(report, election):
+                continue
+            permission_labels = (report["permission_label"] if report["permission_label"] else "").split("|")
+            if election["permission_label"]:
+                permission_labels.append(election["permission_label"])
+            report_clone = report.copy()
+            report_clone["permission_label"] = "|".join(permission_labels)
+
+            election_reports.append(report_clone)
+            
         election["reports"] = election_reports
     
     original_elections = copy.deepcopy(elections_object["elections"])

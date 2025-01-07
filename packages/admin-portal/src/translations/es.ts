@@ -5,6 +5,11 @@ import {TranslationType} from "./en"
 
 const spanishTranslation: TranslationType = {
     translations: {
+        philippinePassport: "Pasaporte filipino",
+        seamanBook: "Libro de marinero",
+        philSysID: "Identificación PhilSys",
+        iBP: "Colegio de Abogados Integrado de Filipinas (IBP)",
+        driversLicense: "Licencia de conducir",
         loading: "Cargando...",
         loadingDataProvider: "Cargando proveedor de datos...",
         logsScreen: {
@@ -1069,6 +1074,12 @@ const spanishTranslation: TranslationType = {
             contest: "Crear un Concurso",
             candidate: "Crear un Candidato",
         },
+        importResource: {
+            electionEvent: "Importar un Evento Electoral",
+            election: "Importar una Elección",
+            contest: "Importar un Concurso",
+            candidate: "Importar un Candidato",
+        },
         sideMenu: {
             electionEvents: "Procesos Electorales",
             search: "Buscar",
@@ -1865,7 +1876,7 @@ const spanishTranslation: TranslationType = {
                 createdAt: "Creado El",
                 updatedAt: "Actualizado El",
             },
-            approvalInformation: "Información de aprobación",
+            approvalRequest: "Solicitud de Aprobación",
             title: "Votantes",
             subtitle: "Buscar votantes coincidentes",
             approve: {

@@ -7,6 +7,11 @@ import {title} from "process"
 
 const englishTranslation = {
     translations: {
+        philippinePassport: "Philippine Passport",
+        seamanBook: "Seaman's Book",
+        philSysID: "PhilSys ID",
+        iBP: "Integrated Bar of the Philippines (IBP)",
+        driversLicense: "Driver's License",
         loading: "Loading...",
         loadingDataProvider: "Loading data provider...",
         logsScreen: {
@@ -1059,6 +1064,12 @@ const englishTranslation = {
             contest: "Create a Contest",
             candidate: "Create a Candidate",
         },
+        importResource: {
+            electionEvent: "Import an Election Event",
+            election: "Import an Election",
+            contest: "Import a Contest",
+            candidate: "Import a Candidate",
+        },
         sideMenu: {
             electionEvents: "Election Events",
             search: "Search",
@@ -1850,7 +1861,7 @@ const englishTranslation = {
                 createdAt: "Created At",
                 updatedAt: "Updated At",
             },
-            approvalInformation: "Approval Information",
+            approvalRequest: "Approval Request",
             title: "Voters",
             subtitle: "Find matching voters",
             approve: {
