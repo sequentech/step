@@ -428,8 +428,6 @@ impl KeycloakAdminClient {
         replace_ids: bool,
         display_name: Option<String>,
         election_event_id: Option<String>,
-        // localization_texts: Option<HashMap<String, HashMap<String, String,
-        // RandomState>, RandomState>>,
     ) -> Result<()> {
         let real_get_result = self.client.realm_get(board_name).await;
         let replaced_ids_config = if replace_ids {
@@ -505,11 +503,6 @@ impl KeycloakAdminClient {
                 })
                 .collect(),
         );
-
-        // if let Some(texts) = localization_texts {
-        //     info!("updating realm localization_texts: {:?}", texts);
-        //     realm.localization_texts = Some(texts);
-        // }
 
         match real_get_result {
             Ok(_) => self
