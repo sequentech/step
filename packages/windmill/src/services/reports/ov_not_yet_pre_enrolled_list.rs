@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
@@ -11,6 +9,7 @@ use super::template_renderer::*;
 use super::voters::{get_not_enrolled_voters_by_area_id, Voter};
 use crate::postgres::area::get_areas_by_election_id;
 use crate::postgres::election::get_election_by_id;
+use crate::postgres::election::get_elections;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::reports::ReportType;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
@@ -23,25 +22,24 @@ use sequent_core::ballot::StringifiedPeriodDates;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::s3::get_minio_url;
-use sequent_core::{ballot::ElectionStatus, ballot::VotingStatus, types::templates::EmailConfig};
+use sequent_core::types::hasura::core::Election;
+use sequent_core::{ballot::ElectionStatus, types::templates::EmailConfig};
 use serde::{Deserialize, Serialize};
 use serde_json::value::Value;
 use tracing::instrument;
-// UserData struct now contains a vector of areas
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct UserData {
-    pub execution_annotations: ExecutionAnnotations,
-    pub areas: Vec<UserDataArea>,
-    pub election_title: String,
-}
 
-// UserDataArea struct holds area-specific data
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserDataArea {
+    pub election_title: String,
     pub election_dates: StringifiedPeriodDates,
     pub post: String,
     pub area_name: String,
     pub voters: Vec<Voter>, // Voter list field
+}
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct UserData {
+    pub execution_annotations: ExecutionAnnotations,
+    pub areas: Vec<UserDataArea>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -111,10 +109,7 @@ impl TemplateRenderer for NotPreEnrolledListTemplate {
             self.ids.tenant_id.as_str(),
             self.ids.election_event_id.as_str(),
         );
-
-        let Some(election_id) = &self.ids.election_id else {
-            return Err(anyhow!("Empty election_id"));
-        };
+        let date_printed: String = get_date_and_time();
 
         // Fetch election event data
         let election_event = get_election_event_by_id(
@@ -125,42 +120,6 @@ impl TemplateRenderer for NotPreEnrolledListTemplate {
         .await
         .with_context(|| "Error obtaining election event")?;
 
-        // Fetch election data
-        // get election instace
-        let election = match get_election_by_id(
-            &hasura_transaction,
-            &self.ids.tenant_id,
-            &self.ids.election_event_id,
-            &election_id,
-        )
-        .await
-        .with_context(|| "Error getting election by id")?
-        {
-            Some(election) => election,
-            None => return Err(anyhow::anyhow!("Election not found")),
-        };
-
-        let election_general_data = extract_election_data(&election)
-            .await
-            .map_err(|err| anyhow!("Error extract election annotations {err}"))?;
-
-        // Fetch areas associated with the election
-        let election_areas = get_areas_by_election_id(
-            &hasura_transaction,
-            &self.ids.tenant_id,
-            &self.ids.election_event_id,
-            &election_id,
-        )
-        .await
-        .map_err(|err| anyhow!("Error at get_areas_by_election_id: {err:?}"))?;
-
-        if election_areas.is_empty() {
-            return Err(anyhow!("No areas found for the given election"));
-        }
-
-        let mut areas: Vec<UserDataArea> = Vec::new();
-
-        // Fetch election event data
         let scheduled_events = find_scheduled_event_by_election_event_id(
             &hasura_transaction,
             &self.ids.tenant_id,
@@ -170,43 +129,85 @@ impl TemplateRenderer for NotPreEnrolledListTemplate {
         .map_err(|e| {
             anyhow::anyhow!("Error getting scheduled events by election event_id: {}", e)
         })?;
-        let election_cloned = election.clone();
-        let election_title = election_cloned.alias.unwrap_or(election_cloned.name);
 
-        let election_dates = get_election_dates(&election, scheduled_events)
-            .map_err(|e| anyhow::anyhow!("Error getting election dates {e}"))?;
-        let date_printed = get_date_and_time();
+        let elections: Vec<Election> = match &self.ids.election_id {
+            Some(election_id) => {
+                match get_election_by_id(
+                    &hasura_transaction,
+                    &self.ids.tenant_id,
+                    &self.ids.election_event_id,
+                    &election_id,
+                )
+                .await
+                .with_context(|| "Error getting election by id")?
+                {
+                    Some(election) => vec![election],
+                    None => vec![],
+                }
+            }
+            None => get_elections(
+                &hasura_transaction,
+                &self.ids.tenant_id,
+                &self.ids.election_event_id,
+                Some(false),
+            )
+            .await
+            .map_err(|e| anyhow::anyhow!("Error in get_elections: {}", e))?,
+        };
+
+        let mut areas: Vec<UserDataArea> = vec![];
+        for election in elections {
+            let election_general_data = extract_election_data(&election)
+                .await
+                .map_err(|err| anyhow!("Error extract election annotations {err}"))?;
+
+            let election_id = election.id.clone();
+            // Fetch areas associated with the election
+            let election_areas = get_areas_by_election_id(
+                &hasura_transaction,
+                &self.ids.tenant_id,
+                &self.ids.election_event_id,
+                &election_id,
+            )
+            .await
+            .map_err(|err| anyhow!("Error at get_areas_by_election_id: {err:?}"))?;
+
+            if election_areas.is_empty() {
+                return Err(anyhow!("No areas found for the given election"));
+            }
+
+            let election_dates = get_election_dates(&election, scheduled_events.clone())
+                .map_err(|e| anyhow::anyhow!("Error getting election dates {e}"))?;
+
+            // Loop over each area and collect data
+            for area in election_areas.iter() {
+                let area_name = area.clone().name.unwrap_or('-'.to_string());
+
+                let voters =
+                    get_not_enrolled_voters_by_area_id(&keycloak_transaction, &realm, &area.id)
+                        .await
+                        .map_err(|e| anyhow::anyhow!("Error getting election dates {e}"))?;
+
+                let area_data = UserDataArea {
+                    election_title: election.alias.clone().unwrap_or(election.name.clone()),
+                    election_dates: election_dates.clone(),
+                    area_name,
+                    post: election_general_data.post.clone(),
+                    voters,
+                };
+
+                areas.push(area_data);
+            }
+        }
 
         let app_hash = get_app_hash();
         let app_version = get_app_version();
-
         let report_hash = get_report_hash(&ReportType::STATUS.to_string())
             .await
             .unwrap_or("-".to_string());
 
-        // Loop over each area and collect data
-        for area in election_areas.iter() {
-            let area_name = area.clone().name.unwrap_or('-'.to_string());
-
-            let voters =
-                get_not_enrolled_voters_by_area_id(&keycloak_transaction, &realm, &area.id)
-                    .await
-                    .map_err(|e| anyhow::anyhow!("Error getting election dates {e}"))?;
-
-            // Create UserDataArea instance
-            let area_data = UserDataArea {
-                election_dates: election_dates.clone(),
-                area_name,
-                post: election_general_data.post.clone(),
-                voters,
-            };
-
-            areas.push(area_data);
-        }
-
         // Return the UserData with areas populated
         Ok(UserData {
-            election_title,
             areas,
             execution_annotations: ExecutionAnnotations {
                 date_printed,
