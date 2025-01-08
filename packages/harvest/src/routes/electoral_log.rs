@@ -88,7 +88,7 @@ pub async fn create_electoral_log(
     )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    info!("log event election event: {:?}", election_event);
+    debug!("log event election event: {:?}", election_event);
     let board_name = get_election_event_board(
         election_event.bulletin_board_reference.clone(),
     )
@@ -97,6 +97,10 @@ pub async fn create_electoral_log(
     let tenant_id = claims.hasura_claims.tenant_id;
     let adm_user_id = claims.hasura_claims.user_id; // id of the service-account
     let adm_username = claims.preferred_username; // service-account
+    debug!(
+        "Hasura claims user: {:?} id: {:?}",
+        adm_username, adm_user_id
+    );
     let electoral_log =
         ElectoralLog::for_admin_user(&board_name, &tenant_id, &adm_user_id)
             .await
@@ -106,6 +110,24 @@ pub async fn create_electoral_log(
                     format!("error getting electoral log: {e:?}"),
                 )
             })?;
+
+    let username = match &input.user_id {
+        Some(user_id) => {
+            // Get the username from keycloak
+            let realm = get_event_realm(&tenant_id, &input.election_event_id);
+            let client = KeycloakAdminClient::new().await.map_err(|e| {
+                (Status::InternalServerError, format!("{:?}", e))
+            })?;
+            let user = client.get_user(&realm, user_id).await.map_err(|e| {
+                (Status::InternalServerError, format!("{:?}", e))
+            })?;
+            user.username
+        }
+        None => {
+            warn!("No input user_id for log creation!");
+            None
+        }
+    };
 
     if input.body.contains(EVENT_TYPE_COMMUNICATIONS) {
         let body = input
@@ -117,32 +139,13 @@ pub async fn create_electoral_log(
             .post_send_template(
                 Some(body),
                 input.election_event_id.clone(),
-                Some(adm_user_id.clone()),
-                adm_username.clone(),
+                input.user_id,
+                username,
                 None,
             )
             .await
             .map_err(|e| anyhow!("error posting to the electoral log {e:?}"));
     } else {
-        let username = match &input.user_id {
-            Some(user_id) => {
-                // Get the username from keycloak
-                let realm =
-                    get_event_realm(&tenant_id, &input.election_event_id);
-                let client = KeycloakAdminClient::new().await.map_err(|e| {
-                    (Status::InternalServerError, format!("{:?}", e))
-                })?;
-                let user =
-                    client.get_user(&realm, user_id).await.map_err(|e| {
-                        (Status::InternalServerError, format!("{:?}", e))
-                    })?;
-                user.username
-            }
-            None => {
-                warn!("No input user_id for log creation!");
-                None
-            }
-        };
         electoral_log
             .post_keycloak_event(
                 input.election_event_id.clone(),

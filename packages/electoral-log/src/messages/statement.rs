@@ -142,10 +142,14 @@ impl StatementHead {
                 ..default_head
             },
             StatementBody::KeycloakUserEvent(error_message_string, error_message_type) => {
+                let description = match error_message_string.0.as_str() {
+                    "" | "-" | "null" => error_message_type.0.clone(),
+                    _ => format!("{}: {}", error_message_type.0, error_message_string.0),
+                };
                 StatementHead {
                     kind: StatementType::KeycloakUserEvent,
                     event_type: StatementEventType::USER,
-                    description: format!("{}: {}", error_message_type.0, error_message_string.0),
+                    description,
                     ..default_head
                 }
             }
