@@ -37,7 +37,7 @@ fn print_to_pdf(
 
     tab.navigate_to(file_path)?
         .wait_until_navigated()
-        .with_context(|| "Error navigaring to file")?;
+        .with_context(|| "Error navigating to file")?;
 
     debug!("Sleeping {wait:#?}..");
     if let Some(wait) = wait {
