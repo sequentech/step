@@ -9,9 +9,11 @@ use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt::JwtClaims;
+use sequent_core::services::keycloak::get_event_realm;
+use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
-use tracing::instrument;
+use tracing::{instrument, warn};
 use windmill::postgres::election_event::get_election_event_by_id;
 use windmill::services::database::get_hasura_pool;
 use windmill::services::election_event_board::get_election_event_board;
@@ -93,10 +95,10 @@ pub async fn create_electoral_log(
     .with_context(|| "error getting election event")
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
     let tenant_id = claims.hasura_claims.tenant_id;
-    let user_id = claims.hasura_claims.user_id;
-    let username = claims.preferred_username;
+    let adm_user_id = claims.hasura_claims.user_id; // id of the service-account
+    let adm_username = claims.preferred_username; // service-account
     let electoral_log =
-        ElectoralLog::for_admin_user(&board_name, &tenant_id, &user_id)
+        ElectoralLog::for_admin_user(&board_name, &tenant_id, &adm_user_id)
             .await
             .map_err(|e| {
                 (
@@ -115,20 +117,39 @@ pub async fn create_electoral_log(
             .post_send_template(
                 Some(body),
                 input.election_event_id.clone(),
-                Some(user_id.clone()),
-                username.clone(),
+                Some(adm_user_id.clone()),
+                adm_username.clone(),
                 None,
             )
             .await
             .map_err(|e| anyhow!("error posting to the electoral log {e:?}"));
     } else {
+        let username = match &input.user_id {
+            Some(user_id) => {
+                // Get the username from keycloak
+                let realm =
+                    get_event_realm(&tenant_id, &input.election_event_id);
+                let client = KeycloakAdminClient::new().await.map_err(|e| {
+                    (Status::InternalServerError, format!("{:?}", e))
+                })?;
+                let user =
+                    client.get_user(&realm, user_id).await.map_err(|e| {
+                        (Status::InternalServerError, format!("{:?}", e))
+                    })?;
+                user.username
+            }
+            None => {
+                warn!("No input user_id for log creation!");
+                None
+            }
+        };
         electoral_log
             .post_keycloak_event(
                 input.election_event_id.clone(),
                 input.message_type,
                 input.body,
                 input.user_id,
-                username.clone(),
+                username,
             )
             .await
             .map_err(|e| {

@@ -148,13 +148,9 @@ public class UsernamePasswordFormWithExpiry extends AbstractUsernameFormAuthenti
         context.success();
       }
     } else { 
-      log.infov("user name: {0}", user.getUsername());
-      log.infov("user ID: {0}", user.getId());
+      log.infov("validateForm(): user name: {0}", user.getUsername());
+      log.infov("validateForm(): user ID: {0}", user.getId());
     }
-    // context.setUser(user);
-    log.infov("context user name: {0}", context.getUser().getUsername());
-    log.infov("context user ID: {0}", context.getUser().getId());
-
 
     // get the user attribute name
     String passwordExpirationUserAttribute =
