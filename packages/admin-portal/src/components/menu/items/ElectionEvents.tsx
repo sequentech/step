@@ -5,7 +5,7 @@
 import React, {useContext, useEffect, useMemo, useState} from "react"
 import {useAtom} from "jotai"
 import archivedElectionEventSelection from "@/atoms/archived-election-event-selection"
-import {useLocation} from "react-router-dom"
+import {useLocation, useNavigate} from "react-router-dom"
 import styled from "@emotion/styled"
 import {IconButton, adminTheme} from "@sequentech/ui-essentials"
 import {
@@ -31,7 +31,7 @@ import {
     MenuItem as MMenuItem,
     Menu as MMenu,
 } from "@mui/material"
-import {Menu, useGetOne, useSidebarState} from "react-admin"
+import {Menu, useGetOne, useNotify, useSidebarState} from "react-admin"
 import {TreeMenu} from "./election-events/TreeMenu"
 import {faPlusCircle} from "@fortawesome/free-solid-svg-icons"
 import WebIcon from "@mui/icons-material/Web"
@@ -41,17 +41,17 @@ import {AuthContext} from "@/providers/AuthContextProvider"
 import {useTranslation} from "react-i18next"
 import {IPermissions} from "../../../types/keycloak"
 import {useTreeMenuData} from "./use-tree-menu-hook"
-import {cloneDeep, result} from "lodash"
-import {sortCandidatesInContest, sortContestList, sortElectionList} from "@sequentech/ui-core"
+import {cloneDeep} from "lodash"
 import {useUrlParams} from "@/hooks/useUrlParams"
 import {useCreateElectionEventStore} from "@/providers/CreateElectionEventContextProvider"
-import {useLazyQuery, useQuery} from "@apollo/client"
+import {useLazyQuery} from "@apollo/client"
 import {
     FETCH_CANDIDATE_TREE,
     FETCH_CONTEST_TREE,
     FETCH_ELECTION_EVENTS_TREE,
     FETCH_ELECTIONS_TREE,
 } from "@/queries/GetElectionEventsTree"
+import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 
 const MenuItem = styled(Menu.Item)`
     color: ${adminTheme.palette.brandColor};
@@ -187,6 +187,7 @@ export default function ElectionEvents() {
     const [tenantId] = useTenantStore()
     const [isOpenSidebar] = useSidebarState()
     const [searchInput, setSearchInput] = useState<string>("")
+    const navigate = useNavigate()
 
     const [isArchivedElectionEvents, setArchivedElectionEvents] = useAtom(
         archivedElectionEventSelection
@@ -194,7 +195,7 @@ export default function ElectionEvents() {
     const {openCreateDrawer, openImportDrawer} = useCreateElectionEventStore()
     const {election_event_id, election_id, contest_id, candidate_id} = useUrlParams()
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
-    const {data, loading} = useTreeMenuData(isArchivedElectionEvents)
+    const {data, loading, refetch: originalRefetch} = useTreeMenuData(isArchivedElectionEvents)
 
     const authContext = useContext(AuthContext)
     const showAddElectionEvent = authContext.isAuthorized(
@@ -204,10 +205,13 @@ export default function ElectionEvents() {
     )
     const {t, i18n} = useTranslation()
 
-    const [electionEventId, setElectionEventId] = useState("")
-    const [electionId, setElectionId] = useState("")
-    const [contestId, setContestId] = useState("")
-    const [candidateId, setCandidateId] = useState("")
+    const [electionEventId, setElectionEventId] = useState<string | null>("")
+    const [electionId, setElectionId] = useState<string | null>("")
+    const [contestId, setContestId] = useState<string | null>("")
+    const [candidateId, setCandidateId] = useState<string | null>("")
+
+    const {getCandidateIdFlag} = useElectionEventTallyStore()
+    const notify = useNotify()
 
     /**
      * Hooks to load data for entities
@@ -220,59 +224,53 @@ export default function ElectionEvents() {
                 enabled: !!election_event_id,
                 onSuccess: (data) => {
                     setElectionEventId(data.id)
-                    setElectionId("")
-                    setContestId("")
-                    setCandidateId("")
+                    // setElectionId("")
+                    // setContestId("")
+                    // setCandidateId("")
                 },
             }
         )
-    const {refetch: electionData, isLoading: electionDataLoading} =
-        useGetOne<Sequent_Backend_Election>(
-            "sequent_backend_election",
-            {id: election_id},
-            {
-                enabled: !!election_id,
-                onSuccess: (data) => {
-                    setElectionEventId(data.election_event_id)
-                    setElectionId(data.id)
-                    setContestId("")
-                    setCandidateId("")
-                },
-            }
-        )
-    const {refetch: contestData, isLoading: contestDataLoading} =
-        useGetOne<Sequent_Backend_Contest>(
-            "sequent_backend_contest",
-            {id: contest_id},
-            {
-                enabled: !!contest_id,
-                onSuccess: (data) => {
-                    setElectionId(data.election_id)
-                    setElectionEventId(data.election_event_id)
-                    setContestId(data.id)
-                    setCandidateId("")
-                },
-            }
-        )
-    const {refetch: candidateData, isLoading: candidateDataLoading} =
-        useGetOne<Sequent_Backend_Candidate>(
-            "sequent_backend_candidate",
-            {id: candidate_id},
-            {
-                enabled: !!candidate_id,
-                onSuccess: (data) => {
-                    electionData()
-                    setTimeout(() => {
-                        setContestId(data.contest_id)
-                        setElectionEventId(data.election_event_id)
-                        setCandidateId(data.id)
-                    }, 1000)
-                },
-            }
-        )
+    const {refetch: electionData} = useGetOne<Sequent_Backend_Election>(
+        "sequent_backend_election",
+        {id: election_id},
+        {
+            enabled: !!election_id,
+            onSuccess: (data) => {
+                setElectionEventId(data.election_event_id)
+                setElectionId(data.id)
+                setContestId("")
+                setCandidateId("")
+            },
+        }
+    )
+    const {refetch: contestData} = useGetOne<Sequent_Backend_Contest>(
+        "sequent_backend_contest",
+        {id: contestId || contest_id},
+        {
+            enabled: !!contest_id,
+            onSuccess: (data) => {
+                setElectionId(data.election_id)
+                setElectionEventId(data.election_event_id)
+                setContestId(data.id)
+                setCandidateId("")
+            },
+        }
+    )
+    const {refetch: candidateData} = useGetOne<Sequent_Backend_Candidate>(
+        "sequent_backend_candidate",
+        {id: candidate_id},
+        {
+            enabled: !!candidate_id,
+            onSuccess: (data) => {
+                setContestId(data.contest_id)
+                setElectionEventId(data.election_event_id)
+                setCandidateId(data.id)
+            },
+        }
+    )
 
     // Get subtrees
-    const [getElectionEventTree, {data: electionEventTreeData, loading: electionEventTreeLoading}] =
+    const [getElectionEventTree, {data: electionEventTreeData, refetch: electionEventTreeRefetch}] =
         useLazyQuery(FETCH_ELECTION_EVENTS_TREE, {
             variables: {
                 tenantId,
@@ -280,7 +278,7 @@ export default function ElectionEvents() {
             },
         })
 
-    const [getElectionTree, {data: electionTreeData, loading: electionTreeLoading}] = useLazyQuery(
+    const [getElectionTree, {data: electionTreeData, refetch: electionTreeRefetch}] = useLazyQuery(
         FETCH_ELECTIONS_TREE,
         {
             variables: {
@@ -290,7 +288,7 @@ export default function ElectionEvents() {
         }
     )
 
-    const [getContestTree, {data: contestTreeData, loading: contestTreeLoading}] = useLazyQuery(
+    const [getContestTree, {data: contestTreeData, refetch: contestTreeRefetch}] = useLazyQuery(
         FETCH_CONTEST_TREE,
         {
             variables: {
@@ -300,15 +298,13 @@ export default function ElectionEvents() {
         }
     )
 
-    const [
-        getCandidateTree,
-        {data: candidateTreeData, loading: candidateTreeLoading, refetch: candidateTreeRefetch},
-    ] = useLazyQuery(FETCH_CANDIDATE_TREE, {
-        variables: {
-            tenantId,
-            contestId,
-        },
-    })
+    const [getCandidateTree, {data: candidateTreeData, refetch: candidateTreeRefetch}] =
+        useLazyQuery(FETCH_CANDIDATE_TREE, {
+            variables: {
+                tenantId,
+                contestId,
+            },
+        })
 
     const location = useLocation()
     const isElectionEventActive = TREE_RESOURCE_NAMES.some(
@@ -322,23 +318,19 @@ export default function ElectionEvents() {
             electionEventDataRefetch()
         }
         if (callerPath === "sequent_backend_election") {
+            electionTreeRefetch()
             electionData()
         }
         if (callerPath === "sequent_backend_contest") {
+            contestTreeRefetch()
             contestData()
         }
         if (callerPath === "sequent_backend_candidate") {
-            candidateData()
+            candidateTreeRefetch()
         }
     }, [location])
 
     useEffect(() => {
-        getElectionEventTree({
-            variables: {
-                tenantId,
-                isArchived: isArchivedElectionEvents,
-            },
-        })
         getElectionTree({
             variables: {
                 tenantId,
@@ -348,30 +340,52 @@ export default function ElectionEvents() {
     }, [electionEventId])
 
     useEffect(() => {
-        getContestTree({
-            variables: {
-                tenantId,
-                electionId,
-            },
-        })
+        const hasCandidateIdFlag =
+            location.pathname.split("/").length === 3 && location.pathname.split("/")[2] !== ""
+        if (hasCandidateIdFlag) {
+            if (getCandidateIdFlag() === location.pathname.split("/")[2]) {
+                contestData()
+
+                setTimeout(() => {
+                    candidateTreeRefetch()
+                }, 800)
+            }
+        } else {
+            navigate(`/sequent_backend_election_event/${electionEventId}`)
+        }
+    }, [getCandidateIdFlag, candidate_id])
+
+    useEffect(() => {
+        if (electionId !== "") {
+            getContestTree({
+                variables: {
+                    tenantId,
+                    electionId,
+                },
+            })
+        }
     }, [electionId])
 
     useEffect(() => {
-        getCandidateTree({
-            variables: {
-                tenantId,
-                contestId,
-            },
-        })
+        if (contestId !== "") {
+            getCandidateTree({
+                variables: {
+                    tenantId,
+                    contestId,
+                },
+            })
+        }
     }, [contestId])
 
     useEffect(() => {
-        getCandidateTree({
-            variables: {
-                tenantId,
-                contestId,
-            },
-        })
+        if (contestId !== "") {
+            getCandidateTree({
+                variables: {
+                    tenantId,
+                    contestId,
+                },
+            })
+        }
     }, [candidateId])
 
     useEffect(() => {
@@ -436,9 +450,14 @@ export default function ElectionEvents() {
         openImportDrawer?.()
     }
 
-    let resultData = data
+    let resultData = {...data}
     if (!loading && data && data.sequent_backend_election_event) {
-        resultData = filterTree({electionEvents: data?.sequent_backend_election_event}, searchInput)
+        resultData = filterTree(
+            {
+                electionEvents: [...(data.sequent_backend_election_event ?? [])],
+            },
+            searchInput
+        )
     }
 
     let finalresultData = useMemo(() => {
@@ -511,6 +530,20 @@ export default function ElectionEvents() {
             treeResourceNames={TREE_RESOURCE_NAMES}
             isArchivedElectionEvents={isArchivedElectionEvents}
             onArchiveElectionEventsSelect={changeArchiveSelection}
+            reloadTree={() => {
+                candidateTreeRefetch()
+                contestTreeRefetch()
+                electionTreeRefetch()
+                electionEventTreeRefetch()
+
+                originalRefetch()
+                navigate("/sequent_backend_election_event/")
+
+                notify(t("sideMenu.menuActions.messages.notification.success.reloading"), {
+                    type: "success",
+                    autoHideDuration: 8000,
+                })
+            }}
         />
     )
 

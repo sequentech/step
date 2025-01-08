@@ -1113,6 +1113,7 @@ const englishTranslation = {
                             archive: "The item has been archived",
                             unarchive: "The item has been unarchived",
                             delete: "The item has been deleted",
+                            reloading: "Wait. The page will be reloaded in a few moments.",
                         },
                         error: {
                             archive: "Error while trying to archive this item",
