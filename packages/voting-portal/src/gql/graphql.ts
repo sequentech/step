@@ -1169,6 +1169,7 @@ export type Mutation_Root = {
   export_users?: Maybe<ExportUsersOutput>;
   generate_ballot_publication?: Maybe<PublishBallotOutput>;
   generate_report?: Maybe<GenerateReportOutput>;
+  generate_transmission_report?: Maybe<GenerateReportOutput>;
   get_ballot_publication_changes?: Maybe<GetBallotPublicationChangesOutput>;
   get_manual_verification_pdf?: Maybe<GetManualVerificationOutput>;
   /** get private key */
@@ -2280,6 +2281,13 @@ export type Mutation_RootGenerate_ReportArgs = {
   election_event_id?: InputMaybe<Scalars['String']['input']>;
   report_id: Scalars['String']['input'];
   report_mode: Scalars['String']['input'];
+  tenant_id: Scalars['String']['input'];
+};
+
+
+/** mutation root */
+export type Mutation_RootGenerate_Transmission_ReportArgs = {
+  election_event_id: Scalars['String']['input'];
   tenant_id: Scalars['String']['input'];
 };
 

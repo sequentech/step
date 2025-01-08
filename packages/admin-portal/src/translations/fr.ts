@@ -1401,6 +1401,7 @@ const frenchTranslation: TranslationType = {
                         title: "Télécharger",
                         emlTitle: "Download EML",
                         transmissionPackageTitle: "Télécharger le Paquet de Transmission",
+                        transmissionReportTitle: "Télécharger le rapport de transmission",
                         dialog: {
                             title: "Voulez-vous télécharger le Paquet de Transmission?",
                             description:

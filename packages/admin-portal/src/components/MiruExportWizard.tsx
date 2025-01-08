@@ -625,6 +625,7 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
                         <MiruPackageDownload
                             areaName={area?.name}
                             documents={selectedTallySessionData?.documents ?? []}
+                            tenantId={tenantId ?? ""}
                             electionEventId={electionEventId ?? ""}
                             eventName={eventName}
                         />

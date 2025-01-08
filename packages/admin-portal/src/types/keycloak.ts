@@ -167,6 +167,7 @@ export enum IPermissions {
     REPORT_DELETE = "report-delete",
     REPORT_GENERATE = "report-generate",
     REPORT_PREVIEW = "report-preview",
+    GENERATE_TRANSMISSION_REPORT = "generate-transmission-report",
     EE_PUBLISH_PREVIEW = "election-event-publish-preview",
     EE_PUBLISH_BACK_BUTTON = "election-event-publish-back-button",
     EE_PUBLISH_COLUMNS = "election-event-publish-columns",

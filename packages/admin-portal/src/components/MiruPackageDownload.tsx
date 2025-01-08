@@ -12,10 +12,14 @@ import {IMiruDocument} from "@/types/miru"
 import {TallyStyles} from "@/components/styles/TallyStyles"
 import DownloadIcon from "@mui/icons-material/Download"
 import {DownloadDocument} from "@/resources/User/DownloadDocument"
+import {useMutation} from "@apollo/client"
+import {IPermissions} from "@/types/keycloak"
+import {GENERATE_TRANSMISSION_REPORT} from "@/queries/GenerateTransmissionReport"
 
 interface MiruPackageDownloadProps {
     documents: IMiruDocument[] | null
     areaName: string | null | undefined
+    tenantId: string
     electionEventId: string
     eventName: string
 }
@@ -29,6 +33,7 @@ interface IDocumentData {
 export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = ({
     areaName,
     documents,
+    tenantId,
     electionEventId,
     eventName,
 }) => {
@@ -38,6 +43,14 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = ({
     const [documentToDownload, setDocumentToDownload] = useState<string | null>(null)
     const [fileNameWithExt, setFileNameWithExt] = useState<string>("all_servers.tar.gz")
     const [performDownload, setPerformDownload] = useState<boolean>(false)
+
+    const [generatTransmissionReport] = useMutation(GENERATE_TRANSMISSION_REPORT, {
+        context: {
+            headers: {
+                "x-hasura-role": IPermissions.GENERATE_TRANSMISSION_REPORT,
+            },
+        },
+    })
 
     const fileName = useMemo(() => {
         const sanitizedAreaName = sanitizeFilename(
@@ -59,6 +72,28 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = ({
 
     const handleClose = () => {
         setAnchorEl(null)
+    }
+
+    const onDownloadReport = async (e: React.MouseEvent<HTMLElement>) => {
+        e.preventDefault()
+        e.stopPropagation()
+        // TODO: add widgets to show progress
+        handleClose()
+        try {
+            let generateReportResponse = await generatTransmissionReport({
+                variables: {
+                    tenantId: tenantId,
+                    electionEventId: electionEventId,
+                },
+            })
+            setFileNameWithExt(fileName + ".zip")
+            setDocumentToDownload(
+                generateReportResponse.data?.generateTransmissionReport?.document_id
+            )
+            setPerformDownload(true)
+        } catch (e) {
+            console.log(e)
+        }
     }
 
     const emlDocumentId = documents?.[0]?.document_ids.eml
@@ -161,6 +196,19 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = ({
                         </Box>
                     </MenuItem>
                 ))}
+                <MenuItem key={"report"} onClick={onDownloadReport}>
+                    <Box
+                        sx={{
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                        }}
+                    >
+                        <span title={t("tally.transmissionPackage.actions.download.emlTitle")}>
+                            {t("tally.transmissionPackage.actions.download.emlTitle")}
+                        </span>
+                    </Box>
+                </MenuItem>
             </Menu>
             <Dialog
                 variant="info"

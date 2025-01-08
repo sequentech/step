@@ -15,7 +15,6 @@ use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumString};
 use tracing::instrument;
 use uuid::Uuid;
-use windmill::services::reports_vault::get_report_key_pair;
 use windmill::services::tasks_execution::*;
 use windmill::{
     postgres::reports::get_report_by_id,
@@ -25,6 +24,10 @@ use windmill::{
         reports::template_renderer::{EReportEncryption, GenerateReportMode},
     },
     types::tasks::ETasksExecution,
+};
+use windmill::{
+    postgres::reports::{get_report_by_type, ReportType},
+    services::reports_vault::get_report_key_pair,
 };
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -183,4 +186,105 @@ pub async fn encrypt_report_route(
     };
 
     Ok(Json(output))
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct GenerateTransmissionReportBody {
+    pub tenant_id: String,
+    pub election_event_id: String,
+}
+
+#[instrument(skip(claims))]
+#[post("/generate-transmission-report", format = "json", data = "<body>")]
+pub async fn generate_transmission_report(
+    claims: JwtClaims,
+    body: Json<GenerateTransmissionReportBody>,
+) -> Result<Json<GenerateReportResponse>, (Status, String)> {
+    let input = body.into_inner();
+    authorize(
+        &claims,
+        true,
+        Some(input.tenant_id.clone()),
+        vec![Permissions::GENERATE_TRANSMISSION_REPORT],
+    )?;
+
+    let mut hasura_db_client: DbClient =
+        get_hasura_pool().await.get().await.map_err(|e| {
+            (
+                Status::InternalServerError,
+                format!("Error obtaining keycloak transaction: {e:?}"),
+            )
+        })?;
+    let hasura_transaction =
+        hasura_db_client.transaction().await.map_err(|e| {
+            (
+                Status::InternalServerError,
+                format!("Error obtaining hasura transaction: {e:?}"),
+            )
+        })?;
+
+    let executer_name = claims
+        .name
+        .clone()
+        .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
+
+    let executer_username = claims
+        .preferred_username
+        .clone()
+        .unwrap_or_else(|| executer_name.clone());
+
+    let document_id: String = Uuid::new_v4().to_string();
+    let celery_app = get_celery_app().await;
+    let report = get_report_by_type(
+        &hasura_transaction,
+        &input.tenant_id,
+        &input.election_event_id,
+        &ReportType::TRANSMISSION_REPORT.to_string(),
+    )
+    .await
+    .map_err(|e| {
+        (
+            Status::InternalServerError,
+            format!("Error getting report by id: {e:?}"),
+        )
+    })?
+    .ok_or_else(|| (Status::NotFound, "Report not found".to_string()))?;
+
+    // Insert the task execution record
+    let task_execution = post(
+        &input.tenant_id,
+        Some(&input.election_event_id),
+        ETasksExecution::GENERATE_REPORT,
+        &executer_name,
+    )
+    .await
+    .map_err(|error| {
+        (
+            Status::InternalServerError,
+            format!("Failed to insert task execution record: {error:?}"),
+        )
+    })?;
+
+    let _task = celery_app
+        .send_task(windmill::tasks::generate_report::generate_report::new(
+            report.clone(),
+            document_id.clone(),
+            GenerateReportMode::REAL,
+            false,
+            Some(task_execution.clone()),
+            Some(executer_username),
+        ))
+        .await
+        .map_err(|e| {
+            (
+                Status::InternalServerError,
+                format!("Error generating report: {e:?}"),
+            )
+        })?;
+
+    Ok(Json(GenerateReportResponse {
+        document_id: document_id,
+        encryption_policy: report.encryption_policy,
+        task_execution: task_execution.clone(),
+    }))
 }

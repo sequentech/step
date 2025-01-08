@@ -1400,6 +1400,7 @@ const catalanTranslation: TranslationType = {
                         title: "Descarregar",
                         emlTitle: "Download EML",
                         transmissionPackageTitle: "Descarregar el Paquet de Transmissió",
+                        transmissionReportTitle: "Descarrega l'informe de transmissió",
                         dialog: {
                             title: "Vols descarregar el Paquet de Transmissió?",
                             description:

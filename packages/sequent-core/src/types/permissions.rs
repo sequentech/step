@@ -307,6 +307,8 @@ pub enum Permissions {
     REPORT_GENERATE,
     #[strum(serialize = "report-preview")]
     REPORT_PREVIEW,
+    #[strum(serialize = "generate-transmission-report")]
+    GENERATE_TRANSMISSION_REPORT,
     #[strum(serialize = "monitor-authenticated-voters")]
     MONITOR_AUTHENTICATED_VOTERS,
     #[strum(serialize = "monitor-all-approve-disapprove-voters")]

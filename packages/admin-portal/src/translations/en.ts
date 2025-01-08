@@ -1379,6 +1379,7 @@ const englishTranslation = {
                         title: "Download",
                         emlTitle: "Download EML",
                         transmissionPackageTitle: "Download Transmission Package",
+                        transmissionReportTitle: "Download Transmission Report",
                         dialog: {
                             title: "Do you want to Download the Transmission Package?",
                             description:
