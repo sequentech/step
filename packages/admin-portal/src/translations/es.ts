@@ -1875,6 +1875,7 @@ const spanishTranslation: TranslationType = {
                 verificationType: "Tipo de Verificación",
                 createdAt: "Creado El",
                 updatedAt: "Actualizado El",
+                approved_by: "Aprobado Por",
             },
             approvalRequest: "Solicitud de Aprobación",
             title: "Votantes",

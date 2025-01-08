@@ -95,6 +95,8 @@ const ApprovalsList = (props: ApprovalsListProps) => {
         const attributesFields: UserProfileAttribute[] = []
         const omitFields: string[] = []
 
+        console.log("aa data", data)
+
         props.userAttributes?.get_user_profile_attributes.forEach((attr) => {
             if (attr.name && userBasicInfo.includes(attr.name)) {
                 basicInfoFields.push(attr)
@@ -236,6 +238,11 @@ const ApprovalsList = (props: ApprovalsListProps) => {
                     render={(record: any) => (
                         <StatusApplicationChip status={record.status.toUpperCase()} />
                     )}
+                />
+                <TextField
+                    source="annotations.approved_by"
+                    label={props.t("approvalsScreen.column.approved_by")}
+                    emptyText="-"
                 />
                 {renderUserFields(listFields.basicInfoFields)}
                 {renderUserFields(listFields.attributesFields)}
