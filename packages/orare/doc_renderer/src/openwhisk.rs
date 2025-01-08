@@ -1,6 +1,6 @@
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use bytes::Bytes;
-pub use headless_chrome::types::PrintToPdfOptions;
+use sequent_core::services::pdf::PrintToPdfOptions;
 use serde::{Deserialize, Serialize};
 use std::io::Read;
 use tracing::{info, instrument};

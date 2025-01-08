@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::openwhisk::PrintToPdfOptions;
+use sequent_core::services::pdf::PrintToPdfOptions;
 
 #[derive(Debug, Deserialize)]
 pub struct Input {

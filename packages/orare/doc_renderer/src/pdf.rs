@@ -1,6 +1,6 @@
 use crate::io::{Input, Output};
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
-use headless_chrome::types::PrintToPdfOptions;
+use sequent_core::services::pdf::PrintToPdfOptions;
 use tracing::{info, instrument};
 
 pub async fn render_pdf(input: Input) -> Result<Output, String> {

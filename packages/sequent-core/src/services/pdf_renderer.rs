@@ -12,6 +12,7 @@ use tracing::{event, instrument, Level};
 
 use crate::services::pdf;
 
+#[derive(PartialEq)]
 pub enum PdfTransport {
     AWSLambda { endpoint: String },
     OpenWhisk { endpoint: String },
@@ -79,11 +80,13 @@ impl PdfRenderer {
         pdf_options: Option<PrintToPdfOptions>,
     ) -> Result<Vec<u8>> {
         match &self.transport {
-            PdfTransport::AWSLambda { endpoint } => {
-                todo!()
-            }
+            PdfTransport::AWSLambda { endpoint } |
             PdfTransport::OpenWhisk { endpoint } => {
-                event!(Level::INFO, "Using OpenWhisk endpoint: {}", endpoint);
+                if (PdfTransport::AWSLambda { endpoint: endpoint.to_string() }) == self.transport {
+                    event!(Level::INFO, "Using AWS Lambda endpoint: {}", endpoint);
+                } else  {
+                    event!(Level::INFO, "Using OpenWhisk endpoint: {}", endpoint);
+                }
                 let client = reqwest::Client::new();
                 let payload = json!({
                     "html": html,
@@ -95,8 +98,13 @@ impl PdfRenderer {
 
                 if !response.status().is_success() {
                     let error = response.text().await?;
-                    event!(Level::ERROR, "OpenWhisk request failed: {}", error);
-                    return Err(anyhow!("OpenWhisk request failed: {}", error));
+                    if (PdfTransport::AWSLambda { endpoint: endpoint.to_string() }) == self.transport {
+                        event!(Level::ERROR, "AWS Lambda request failed: {}", error);
+                        return Err(anyhow!("AWS Lambda request failed: {}", error));
+                    } else {
+                        event!(Level::ERROR, "OpenWhisk request failed: {}", error);
+                        return Err(anyhow!("OpenWhisk request failed: {}", error));
+                    }
                 }
 
                 let response_json =

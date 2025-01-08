@@ -3,12 +3,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
+use sequent_core::services::pdf::PrintToPdfOptions;
 use sequent_core::util::aws::{
     get_fetch_expiration_secs, get_s3_aws_config, get_upload_expiration_secs,
 };
 use serde::{Deserialize, Serialize};
 use tracing::{error, info};
-use headless_chrome::types::PrintToPdfOptions;
 
 mod io;
 mod openwhisk;

@@ -2617,7 +2617,6 @@ dependencies = [
  "cfg-if",
  "chrono",
  "clap 4.5.23",
- "headless_chrome",
  "lambda_runtime",
  "orare",
  "sequent-core",
