@@ -20,7 +20,7 @@ use async_trait::async_trait;
 use deadpool_postgres::Transaction;
 use sequent_core::serialization::deserialize_with_path::{deserialize_str, deserialize_value};
 use sequent_core::services::keycloak::{self, get_event_realm, KeycloakAdminClient};
-use sequent_core::services::{pdf_renderer, reports};
+use sequent_core::services::{pdf, reports};
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::templates::{
     CommunicationTemplatesExtraConfig, EmailConfig, PrintToPdfOptionsLocal, ReportExtraConfig,
@@ -456,7 +456,7 @@ pub trait TemplateRenderer: Debug {
         let extension_suffix = "pdf";
 
         // Generate PDF
-        let content_bytes = pdf_renderer::PdfRenderer::render_pdf(
+        let content_bytes = pdf::PdfRenderer::render_pdf(
             rendered_system_template.clone(),
             Some(ext_cfg.pdf_options.to_print_to_pdf_options()),
         )

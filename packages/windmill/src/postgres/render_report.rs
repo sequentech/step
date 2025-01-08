@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{anyhow, Context, Result};
 use sequent_core::services::keycloak;
-use sequent_core::services::{pdf_renderer, reports};
+use sequent_core::services::{pdf, reports};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use serde_json::{Map, Value};
@@ -57,7 +57,7 @@ pub async fn render_report_task(
         )
         .await?;
     } else {
-        let bytes = pdf_renderer::PdfRenderer::render_pdf(render, None)
+        let bytes = pdf::PdfRenderer::render_pdf(render, None)
             .await
             .with_context(|| "Error converting html to pdf format")?;
         let (_temp_path, temp_path_string, file_size) =

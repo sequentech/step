@@ -13,7 +13,7 @@ use crate::pipes::Pipe;
 use sequent_core::ballot::{Candidate, Contest, StringifiedPeriodDates};
 use sequent_core::ballot_codec::BigUIntCodec;
 use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
-use sequent_core::services::{pdf_renderer, reports};
+use sequent_core::services::{pdf, reports};
 use sequent_core::types::templates::VoteReceiptPipeType;
 use sequent_core::util::date_time::get_date_and_time;
 use serde::{Deserialize, Serialize};
@@ -117,7 +117,7 @@ impl VoteReceipts {
             let rt = tokio::runtime::Runtime::new().unwrap();
             let bytes_pdf = rt
                 .block_on(async move {
-                    pdf_renderer::PdfRenderer::render_pdf(bytes_html, pdf_options)
+                    pdf::PdfRenderer::render_pdf(bytes_html, pdf_options)
                         .await
                         .map_err(|e| {
                             Error::UnexpectedError(format!(

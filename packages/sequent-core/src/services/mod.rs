@@ -14,8 +14,6 @@ pub mod jwt;
 pub mod keycloak;
 #[cfg(feature = "reports")]
 pub mod pdf;
-#[cfg(feature = "reports")]
-pub mod pdf_renderer;
 #[cfg(feature = "probe")]
 pub mod probe;
 #[cfg(feature = "reports")]
