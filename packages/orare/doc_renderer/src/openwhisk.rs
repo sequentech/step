@@ -25,11 +25,9 @@ impl warp::reject::Reject for CustomError {}
 
 async fn handle_render_impl(input: Input) -> Result<impl Reply, Rejection> {
     info!("OpenWhisk: Starting PDF generation");
-    Ok(warp::reply::json(
-        &crate::pdf::render_pdf(input)
-            .await
-            .map_err(|e| warp::reject::custom(CustomError(e.to_string())))?,
-    ))
+    Ok(warp::reply::json(&crate::pdf::render_pdf(input).map_err(
+        |e| warp::reject::custom(CustomError(e.to_string())),
+    )?))
 }
 
 pub async fn start_server() {

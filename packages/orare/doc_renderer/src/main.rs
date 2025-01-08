@@ -24,7 +24,7 @@ cfg_if::cfg_if! {
     } else if #[cfg(feature = "aws_lambda")] {
         #[orare::lambda_runtime]
         async fn render_pdf(input: Input) -> Result<Output, String> {
-            pdf::render_pdf(input).await
+            pdf::render_pdf(input)
         }
     } else if #[cfg(feature = "openwhisk")] {
         fn main() {
