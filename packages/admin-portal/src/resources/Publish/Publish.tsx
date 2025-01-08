@@ -100,8 +100,9 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         const [generateBallotPublication] = useMutation<GenerateBallotPublicationMutation>(
             GENERATE_BALLOT_PUBLICATION
         )
-        const [updateStatusEvent, {error: updateStatusEventError}] =
-            useMutation<UpdateEventVotingStatusOutput>(UPDATE_EVENT_VOTING_STATUS)
+        const [updateStatusEvent, {error: updateStatusEventError}] = useMutation(
+            UPDATE_EVENT_VOTING_STATUS
+        )
         const [updateStatusElection] = useMutation<UpdateElectionVotingStatusOutput>(
             UPDATE_ELECTION_VOTING_STATUS
         )
@@ -248,21 +249,29 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         const onChangeElectionEventStatus = async (electionEventStatus: ElectionEventStatus) => {
             try {
                 setChangingStatus(true)
-                await updateStatusEvent({
+                const result = await updateStatusEvent({
                     variables: {
                         electionEventId,
                         votingStatus: electionEventStatus,
                         votingChannel: VotingStatusChannel.Online,
                     },
                 })
-                handleSetPublishStatus(MAP_ELECTION_EVENT_STATUS_PUBLISH[electionEventStatus])
                 setChangingStatus(false)
-                refresh()
+                if (result.data.update_event_voting_status.error_msg) {
+                    console.log({error_msg: result.data.update_event_voting_status.error_msg})
+                    notify(t("publish.dialog.error_status"), {
+                        type: "error",
+                    })
+                    return
+                }
 
+                handleSetPublishStatus(MAP_ELECTION_EVENT_STATUS_PUBLISH[electionEventStatus])
+                refresh()
                 notify(t("publish.notifications.change_status"), {
                     type: "success",
                 })
             } catch (e) {
+                console.log("errorrr")
                 setChangingStatus(false)
                 notify(t("publish.dialog.error_status"), {
                     type: "error",

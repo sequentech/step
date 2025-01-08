@@ -855,6 +855,7 @@ export type UpdateElectionVotingStatusOutput = {
 export type UpdateEventVotingStatusOutput = {
   __typename?: 'UpdateEventVotingStatusOutput';
   election_event_id?: Maybe<Scalars['uuid']['output']>;
+  error_msg?: Maybe<Scalars['String']['output']>;
 };
 
 export type UserProfileAttribute = {

@@ -26,6 +26,7 @@ pub struct UpdateEventVotingStatusInput {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UpdateEventVotingStatusOutput {
     pub election_event_id: String,
+    pub error_msg: Option<String>,
 }
 
 #[instrument(skip(claims))]
@@ -65,7 +66,7 @@ pub async fn update_event_status(
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
-    election_event_status::update_event_voting_status(
+    match election_event_status::update_event_voting_status(
         &hasura_transaction,
         tenant_id,
         Some(&user_id),
@@ -75,7 +76,15 @@ pub async fn update_event_status(
         &input.voting_channel,
     )
     .await
-    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    {
+        Ok(_) => (),
+        Err(e) => {
+            return Ok(Json(UpdateEventVotingStatusOutput {
+                election_event_id: input.election_event_id.clone(),
+                error_msg: Some(format!("initialization report must be generated before opening the elections")),
+            }));
+        }
+    }
 
     let _commit = hasura_transaction
         .commit()
@@ -84,6 +93,7 @@ pub async fn update_event_status(
 
     Ok(Json(UpdateEventVotingStatusOutput {
         election_event_id: input.election_event_id.clone(),
+        error_msg: None,
     }))
 }
 

@@ -15,6 +15,7 @@ export const UPDATE_EVENT_VOTING_STATUS = gql`
             voting_channel: $votingChannel
         ) {
             election_event_id
+            error_msg
         }
     }
 `

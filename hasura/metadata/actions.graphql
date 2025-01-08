@@ -1085,6 +1085,7 @@ type PublishBallotOutput {
 
 type UpdateEventVotingStatusOutput {
     election_event_id: uuid
+    error_msg: String
 }
 
 type UpdateElectionVotingStatusOutput {
