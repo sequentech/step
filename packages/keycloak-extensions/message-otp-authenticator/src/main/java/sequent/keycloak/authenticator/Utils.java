@@ -27,7 +27,6 @@ import java.util.stream.Collectors;
 import lombok.experimental.UtilityClass;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.authentication.AuthenticationFlowContext;
-import org.keycloak.authentication.RequiredActionContext;
 import org.keycloak.authentication.actiontoken.DefaultActionToken;
 import org.keycloak.common.util.SecretGenerator;
 import org.keycloak.common.util.Time;
@@ -112,6 +111,7 @@ public class Utils {
   public static final String AUTHENTICATOR_CLASS_NAME = "authenticator_class_name";
 
   public static final String EVENT_TYPE_COMMUNICATIONS = "communications";
+  public static final String EVENT_TYPE_MANUAL_VERIFICATION = "MANUALLY_VERIFIED";
 
   public enum MessageCourier {
     SMS,
@@ -184,7 +184,7 @@ public class Utils {
       boolean deferredUser,
       boolean isOtl,
       String[] otlAuthNotesNames,
-      Object context)
+      EventBuilder eventBuilder)
       throws IOException, EmailException {
     log.info("sendCode(): start");
     String mobileNumber = null;
@@ -247,7 +247,7 @@ public class Utils {
           smsSenderProvider.send(
               mobileNumber.trim(), smsTemplateKey, smsAttributes, realm, user, session);
       formattedMessage = maskCode(formattedMessage, code);
-      communicationsLog(context, formattedMessage);
+      communicationsLog(eventBuilder, formattedMessage);
     } else {
       log.infov("sendCode(): NOT Sending SMS to=`{0}`", mobileNumber);
     }
@@ -284,7 +284,7 @@ public class Utils {
                 deferredUser,
                 null);
         textBody = maskCode(textBody, code);
-        communicationsLog(context, textBody);
+        communicationsLog(eventBuilder, textBody);
       } catch (EmailException error) {
         log.debug("sendCode(): Exception sending email", error);
         throw error;
@@ -299,35 +299,15 @@ public class Utils {
     return content.replaceAll(code, "*".repeat(code.length()));
   }
 
-  void communicationsLog(Object context, String body) {
-    if (context instanceof AuthenticationFlowContext) {
-      logCommunications((AuthenticationFlowContext) context, body);
-    } else if (context instanceof RequiredActionContext) {
-      logCommunications((RequiredActionContext) context, body);
-    } else {
-      log.warn(
-          "Unsupported context type for communications logging: " + context.getClass().getName());
-    }
-  }
-
-  private <T> void logCommunications(T context, String body) {
-    EventBuilder event = getEvent(context);
-    if (event != null) {
-      event.detail("type", EVENT_TYPE_COMMUNICATIONS).detail("msgBody", body).success();
+  void communicationsLog(EventBuilder eventBuilder, String body) {
+    if (eventBuilder != null) {
+      eventBuilder.detail("type", EVENT_TYPE_COMMUNICATIONS).detail("msgBody", body).success();
       log.infov(
-          "logCommunications() event to string: {0}", event.getEvent().getDetails().toString());
+          "logCommunications() event to string: {0}",
+          eventBuilder.getEvent().getDetails().toString());
     } else {
       log.warn("logCommunications() event is null");
     }
-  }
-
-  private EventBuilder getEvent(Object context) {
-    if (context instanceof AuthenticationFlowContext) {
-      return ((AuthenticationFlowContext) context).getEvent();
-    } else if (context instanceof RequiredActionContext) {
-      return ((RequiredActionContext) context).getEvent();
-    }
-    return null;
   }
 
   String getMobile(AuthenticatorConfigModel config, UserModel user) {
@@ -556,7 +536,10 @@ public class Utils {
           escapeJson(address),
           escapeJson(emailTemplate.getSubject()),
           escapeJson(emailTemplate.getTextBody()),
-          escapeJson(emailTemplate.getHtmlBody() != null ? emailTemplate.getHtmlBody() : ""));
+          escapeJson(
+              emailTemplate.getHtmlBody() != null
+                  ? emailTemplate.getHtmlBody().replaceAll("\"", "")
+                  : ""));
     } catch (EmailException e) {
       throw e;
     } catch (Exception e) {
@@ -820,13 +803,12 @@ public class Utils {
       UserModel user,
       MessageCourier messageCourier,
       String mobileNumber,
-      Object context)
+      EventBuilder eventBuilder)
       throws EmailException, IOException {
     log.info("sendConfirmation(): start");
 
     String realName = realm.getName();
     // Send a confirmation email
-    EmailTemplateProvider emailTemplateProvider = session.getProvider(EmailTemplateProvider.class);
 
     // We get the username we are going to provide the user in other to login. It's
     // going to be
@@ -861,7 +843,7 @@ public class Utils {
               email.trim(),
               false,
               username);
-      communicationsLog(context, textBody);
+      communicationsLog(eventBuilder, textBody);
     }
 
     if (mobileNumber != null
@@ -878,7 +860,7 @@ public class Utils {
       String formattedText =
           smsSenderProvider.send(
               mobileNumber.trim(), SEND_SUCCESS_SMS_I18N_KEY, smsAttributes, realm, user, session);
-      communicationsLog(context, formattedText);
+      communicationsLog(eventBuilder, formattedText);
     }
   }
 
@@ -888,7 +870,7 @@ public class Utils {
       UserModel user,
       MessageCourier messageCourier,
       String mobileNumber,
-      Object context)
+      EventBuilder eventBuilder)
       throws EmailException, IOException {
     log.info("sendConfirmationDiffPost(): start");
 
@@ -932,7 +914,7 @@ public class Utils {
               email.trim(),
               false,
               username);
-      communicationsLog(context, textBody);
+      communicationsLog(eventBuilder, textBody);
     }
 
     if (mobileNumber != null
@@ -949,7 +931,7 @@ public class Utils {
       String formattedText =
           smsSenderProvider.send(
               mobileNumber.trim(), SEND_SUCCESS_SMS_I18N_KEY, smsAttributes, realm, user, session);
-      communicationsLog(context, formattedText);
+      communicationsLog(eventBuilder, formattedText);
     }
   }
 
@@ -984,7 +966,7 @@ public class Utils {
       String mobileNumber,
       String rejectReasonKey,
       HashMap<String, String> mismatchedFields,
-      Object context)
+      EventBuilder eventBuilder)
       throws EmailException, IOException {
     log.info("sendManualCommunication(): start");
 
@@ -1025,7 +1007,7 @@ public class Utils {
               email.trim(),
               true,
               username);
-      communicationsLog(context, textBody);
+      communicationsLog(eventBuilder, textBody);
     }
 
     if (mobileNumber != null
@@ -1042,7 +1024,7 @@ public class Utils {
       String formattedText =
           smsSenderProvider.send(
               mobileNumber.trim(), SEND_PENDING_SMS_I18N_KEY, smsAttributes, realm, null, session);
-      communicationsLog(context, formattedText);
+      communicationsLog(eventBuilder, formattedText);
     }
   }
 
@@ -1054,7 +1036,7 @@ public class Utils {
       String mobileNumber,
       String rejectReasonKey,
       HashMap<String, String> mismatchedFields,
-      Object context)
+      EventBuilder eventBuilder)
       throws EmailException, IOException {
     log.info("sendRejectCommunication(): start");
 
@@ -1091,7 +1073,7 @@ public class Utils {
               email.trim(),
               true,
               username);
-      communicationsLog(context, textBody);
+      communicationsLog(eventBuilder, textBody);
     }
 
     if (mobileNumber != null
@@ -1108,7 +1090,7 @@ public class Utils {
       String formattedText =
           smsSenderProvider.send(
               mobileNumber.trim(), SEND_REJECT_SMS_I18N_KEY, smsAttributes, realm, null, session);
-      communicationsLog(context, formattedText);
+      communicationsLog(eventBuilder, formattedText);
     }
   }
 

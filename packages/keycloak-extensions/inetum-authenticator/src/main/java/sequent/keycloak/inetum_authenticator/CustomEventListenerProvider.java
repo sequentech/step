@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 package sequent.keycloak.inetum_authenticator;
 
+import static sequent.keycloak.authenticator.Utils.EVENT_TYPE_MANUAL_VERIFICATION;
 import static sequent.keycloak.authenticator.Utils.sendErrorNotificationToUser;
 
 import java.io.IOException;
@@ -56,7 +57,7 @@ public class CustomEventListenerProvider implements EventListenerProvider {
     if (event.getDetails() == null) {
       logEvent(
           getElectionEventId(event.getRealmId()),
-          event.getType(),
+          event.getType().toString(),
           event.getError(),
           event.getUserId());
     }
@@ -71,7 +72,9 @@ public class CustomEventListenerProvider implements EventListenerProvider {
     } else {
       String body =
           Optional.ofNullable(event.getDetails().get("msgBody")).orElse("-").replace("\n", " ");
-      logEvent(getElectionEventId(event.getRealmId()), event.getType(), body, event.getUserId());
+      String eventTypeStr =
+          EVENT_TYPE_MANUAL_VERIFICATION.equals(eventType) ? eventType : event.getType().toString();
+      logEvent(getElectionEventId(event.getRealmId()), eventTypeStr, body, event.getUserId());
     }
   }
 
@@ -81,7 +84,11 @@ public class CustomEventListenerProvider implements EventListenerProvider {
     String body =
         String.format("%s %s", Utils.EVENT_TYPE_COMMUNICATIONS, msgBody).replace("\n", " ");
 
-    logEvent(getElectionEventId(event.getRealmId()), event.getType(), body, event.getUserId());
+    logEvent(
+        getElectionEventId(event.getRealmId()),
+        event.getType().toString(),
+        body,
+        event.getUserId());
   }
 
   public void authenticate() {
@@ -142,7 +149,7 @@ public class CustomEventListenerProvider implements EventListenerProvider {
     return null;
   }
 
-  private void logEvent(String electionEventId, EventType eventType, String body, String userId) {
+  private void logEvent(String electionEventId, String eventTypeStr, String body, String userId) {
 
     log.infov("logEvent(): user id: {0}", userId);
     log.infov("logEvent(): body: {0}", body);
@@ -152,7 +159,7 @@ public class CustomEventListenerProvider implements EventListenerProvider {
         String.format(
             "{\"election_event_id\": \"%s\", \"message_type\": \"%s\", \"body\" : \"%s\", \"user_id\": \"%s\"}",
             Utils.escapeJson(electionEventId),
-            Utils.escapeJson(eventType.toString()),
+            Utils.escapeJson(eventTypeStr),
             Utils.escapeJson(body),
             Utils.escapeJson(userId));
     HttpRequest request =

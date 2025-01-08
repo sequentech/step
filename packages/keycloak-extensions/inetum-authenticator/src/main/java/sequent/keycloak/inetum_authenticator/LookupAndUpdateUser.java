@@ -388,7 +388,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
               mobileNumber,
               rejectionReason,
               mismatchedFields,
-              context);
+              context.getEvent());
           return;
         }
 
@@ -423,7 +423,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
               mobileNumber,
               rejectionReason,
               mismatchedFields,
-              context);
+              context.getEvent());
           return;
         }
       } catch (Exception error) {
@@ -566,10 +566,20 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
           // Choose which confirmation function to use based on embassy match
           if (!embassyMatch) {
             sendConfirmationDiffPost(
-                context.getSession(), context.getRealm(), user, messageCourier, mobile, context);
+                context.getSession(),
+                context.getRealm(),
+                user,
+                messageCourier,
+                mobile,
+                context.getEvent());
           } else {
             sendConfirmation(
-                context.getSession(), context.getRealm(), user, messageCourier, mobile, context);
+                context.getSession(),
+                context.getRealm(),
+                user,
+                messageCourier,
+                mobile,
+                context.getEvent());
           }
         } catch (Exception error) {
           log.errorv("there was an error {0}", error);
