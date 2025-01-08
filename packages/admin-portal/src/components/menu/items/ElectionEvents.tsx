@@ -451,7 +451,6 @@ export default function ElectionEvents() {
     }
 
     let resultData = {...data}
-    console.log("aa datos ", electionEventTreeData)
     if (!loading && data && data.sequent_backend_election_event) {
         resultData = filterTree(
             {
