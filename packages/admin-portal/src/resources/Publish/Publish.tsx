@@ -259,8 +259,9 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                 setChangingStatus(false)
                 if (result.data.update_event_voting_status.error_msg) {
                     console.log({error_msg: result.data.update_event_voting_status.error_msg})
-                    notify(t("publish.dialog.error_status"), {
+                    notify(result.data.update_event_voting_status.error_msg, {
                         type: "error",
+                        timeout: 12000,
                     })
                     return
                 }
