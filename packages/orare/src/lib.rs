@@ -41,6 +41,7 @@ pub fn lambda_runtime(_attr: TokenStream, item: TokenStream) -> TokenStream {
                         .map_err(|e| anyhow::anyhow!("Failed to deserialize input: {e:?}").into());
 
                     let lambda_result = #name(input?)
+                        .await
                         .map(|result| serde_json::to_value(&result).unwrap());
 
                     match lambda_result {

@@ -3,21 +3,27 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
+use sequent_core::util::aws::{
+    get_fetch_expiration_secs, get_s3_aws_config, get_upload_expiration_secs,
+};
 use serde::{Deserialize, Serialize};
 use tracing::{error, info};
 
 mod io;
 mod openwhisk;
+mod pdf;
 
 use crate::io::{Input, Output};
 
 cfg_if::cfg_if! {
-    if #[cfg(feature = "aws_lambda")] {
+    if #[cfg(all(feature = "aws_lambda", feature = "openwhisk"))] {
+        fn main() {
+            compile_error!("Either feature \"openwhisk\" or \"aws_lambda\" has to be provided, but not both");
+        }
+    } else if #[cfg(feature = "aws_lambda")] {
         #[orare::lambda_runtime]
-        fn render_pdf(input: Input) -> Result<Output, String> {
-            Ok(Output {
-                pdf_base64: String::new(),
-            })
+        async fn render_pdf(input: Input) -> Result<Output, String> {
+            pdf::render_pdf(input).await
         }
     } else if #[cfg(feature = "openwhisk")] {
         fn main() {
@@ -41,7 +47,7 @@ cfg_if::cfg_if! {
         }
     } else {
         fn main() {
-            compile_error!("Either feature \"openwhisk\" or \"aws_lambda\"  has to be provided");
+            compile_error!("Either feature \"openwhisk\" or \"aws_lambda\" has to be provided");
         }
     }
 }
