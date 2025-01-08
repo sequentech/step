@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::postgres::election::{get_election_by_id, update_election_voting_status};
+use crate::postgres::election::{get_election_by_id, get_elections, update_election_voting_status};
 use crate::postgres::election_event::{
     get_election_event_by_id, update_election_event_status,
     update_elections_status_by_election_event,
@@ -86,9 +86,35 @@ pub async fn update_event_voting_status(
     .with_context(|| "Error updating election event status")?;
 
     let mut elections_ids: Vec<String> = Vec::new();
-    if *new_status == VotingStatus::OPEN || *new_status == VotingStatus::CLOSED {
+    if *new_status == VotingStatus::OPEN {
+        let elections = get_elections(
+            hasura_transaction,
+            tenant_id,
+            election_event_id,
+            Some(false),
+        )
+        .await
+        .with_context(|| "Error getting elections")?;
+
+        for election in elections {
+            let presentation: ElectionPresentation =
+                serde_json::from_value(election.presentation.unwrap_or_default())
+                    .with_context(|| "Error deserializing presentation")?;
+
+            if presentation
+                .initialization_report_policy
+                .unwrap_or(EInitializeReportPolicy::default())
+                == EInitializeReportPolicy::REQUIRED
+                && !election.initialization_report_generated.unwrap_or(false)
+            {
+                return Err(anyhow!(
+                    "election {:?} initialization report must be generated before opening the election",
+                    election.id,
+                ));
+            }
+        }
+    } else if *new_status == VotingStatus::CLOSED {
         election_status.voting_status = new_status.clone();
-        // TODO: Check if initialization report is required
         elections_ids = update_elections_status_by_election_event(
             &hasura_transaction,
             &tenant_id,
