@@ -54,7 +54,6 @@ import eStyled from "@emotion/styled"
 import {Chip, Typography} from "@mui/material"
 import {convertToCamelCase} from "./UtilsApprovals"
 import {getAttributeLabel, getTranslationLabel} from "@/services/UserService"
-import {log} from "node:console"
 import {useLocation} from "react-router"
 import {getPreferenceKey} from "@/lib/helpers"
 
@@ -188,10 +187,6 @@ const ApprovalsList = (props: ApprovalsListProps) => {
             overflowX: "auto",
             width: "100%",
             maxWidth: isOpenSidebar ? "calc(100vw - 355px)" : "calc(100vw - 108px)",
-            // "& > div:first-of-type": {
-            //     position: "absolute",
-            //     width: "100%",
-            // },
         },
     }
 
@@ -375,7 +370,6 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
             notify(t("application.import.messages.success"), {type: "success"})
             refresh()
         } catch (err) {
-            console.log(err)
             notify("application.import.messages.error", {type: "error"})
         }
     }
@@ -413,7 +407,6 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
         } catch (err) {
             setExporting(false)
             currWidget && updateWidgetFail(currWidget.identifier)
-            console.log(err)
         }
     }
 
@@ -503,7 +496,6 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
                         electionEventId={electionEventRecord?.id || ""}
                         fileName={`export-applications.csv`}
                         onDownload={() => {
-                            console.log("onDownload called")
                             setExportDocumentId(undefined)
                             setExporting(false)
                             setOpenExport(false)
