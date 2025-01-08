@@ -18,7 +18,6 @@ use crate::postgres::reports::ReportType;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::election_dates::get_election_dates;
 use crate::services::keycloak_events::count_keycloak_password_reset_event_by_area;
-use crate::services::s3::get_minio_url;
 use crate::services::temp_path::*;
 use crate::types::application::{ApplicationStatus, ApplicationType};
 use anyhow::{anyhow, Context, Result};
