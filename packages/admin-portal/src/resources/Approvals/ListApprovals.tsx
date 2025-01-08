@@ -18,6 +18,7 @@ import {
     useRefresh,
     useSidebarState,
     useGetOne,
+    useRemoveFromStore,
 } from "react-admin"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {TFunction, useTranslation} from "react-i18next"
@@ -94,8 +95,6 @@ const ApprovalsList = (props: ApprovalsListProps) => {
         const basicInfoFields: UserProfileAttribute[] = []
         const attributesFields: UserProfileAttribute[] = []
         const omitFields: string[] = []
-
-        console.log("aa data", data)
 
         props.userAttributes?.get_user_profile_attributes.forEach((attr) => {
             if (attr.name && userBasicInfo.includes(attr.name)) {
@@ -181,25 +180,18 @@ const ApprovalsList = (props: ApprovalsListProps) => {
             }
         })
 
-        localStorage.removeItem(
-            `RaStore.preferences.${getPreferenceKey(
-                location.pathname,
-                "approvals"
-            )}.datagrid.availableColumns`
-        )
-
         return allFields
     }
 
     const sx = {
         "@media (min-width: 960px)": {
-            "overflowX": "auto",
-            "width": "100%",
-            "maxWidth": isOpenSidebar ? "calc(100vw - 355px)" : "calc(100vw - 108px)",
-            "& > div:first-of-type": {
-                position: "absolute",
-                width: "100%",
-            },
+            overflowX: "auto",
+            width: "100%",
+            maxWidth: isOpenSidebar ? "calc(100vw - 355px)" : "calc(100vw - 108px)",
+            // "& > div:first-of-type": {
+            //     position: "absolute",
+            //     width: "100%",
+            // },
         },
     }
 
@@ -210,50 +202,62 @@ const ApprovalsList = (props: ApprovalsListProps) => {
         }
     }, [filterValues?.status])
 
+    const restFields = useMemo(() => {
+        const theFields = []
+        theFields.push(...renderUserFields(listFields?.basicInfoFields ?? []))
+        theFields.push(...renderUserFields(listFields?.attributesFields ?? []))
+
+        localStorage.removeItem(
+            `RaStore.preferences.${getPreferenceKey(
+                location.pathname,
+                "approvals"
+            )}.datagrid.availableColumns`
+        )
+
+        return theFields
+    }, [listFields?.basicInfoFields, listFields?.attributesFields, location.pathname])
+
     return (
-        <div>
-            <DatagridConfigurable
-                preferenceKey={getPreferenceKey(location.pathname, "approvals")}
-                sx={sx}
-                {...props}
-                omit={listFields.omitFields}
-                bulkActionButtons={<></>}
-            >
-                <TextField source="id" />
-                <DateField showTime source="created_at" />
-                <DateField showTime source="updated_at" />
-                <FunctionField
-                    source="applicant_id"
-                    render={(record: Sequent_Backend_Applications) => {
-                        if (record.applicant_id && record.applicant_id != "null") {
-                            return record.applicant_id
-                        } else {
-                            return "-"
-                        }
-                    }}
-                />
-                <TextField source="verification_type" />
-                <FunctionField
-                    label={props.t("approvalsScreen.column.status")}
-                    render={(record: any) => (
-                        <StatusApplicationChip status={record.status.toUpperCase()} />
-                    )}
-                />
-                <TextField
-                    source="annotations.approved_by"
-                    label={props.t("approvalsScreen.column.approved_by")}
-                    emptyText="-"
-                />
-                {renderUserFields(listFields.basicInfoFields)}
-                {renderUserFields(listFields.attributesFields)}
-                <ActionsColumn actions={props.actions} label={props.t("common.label.actions")} />
-            </DatagridConfigurable>
-        </div>
+        <DatagridConfigurable
+            preferenceKey={getPreferenceKey(location.pathname, "approvals")}
+            sx={sx}
+            {...props}
+            omit={listFields?.omitFields}
+            bulkActionButtons={false}
+        >
+            <TextField source="id" />
+            <DateField showTime source="created_at" />
+            <DateField showTime source="updated_at" />
+            <FunctionField
+                source="applicant_id"
+                render={(record: Sequent_Backend_Applications) => {
+                    if (record.applicant_id && record.applicant_id !== "null") {
+                        return record.applicant_id
+                    } else {
+                        return "-"
+                    }
+                }}
+            />
+            <TextField source="verification_type" />
+            <FunctionField
+                label={props.t("approvalsScreen.column.status")}
+                render={(record: any) => (
+                    <StatusApplicationChip status={record.status.toUpperCase()} />
+                )}
+            />
+            <TextField
+                source="annotations.approved_by"
+                label={props.t("approvalsScreen.column.approved_by")}
+                emptyText="-"
+            />
+            {restFields}
+            <ActionsColumn actions={props.actions} label={props.t("common.label.actions")} />
+        </DatagridConfigurable>
     )
 }
 
-const CustomFilters = () => {
-    const {t} = useTranslation()
+const CustomFilters = (t: any) => {
+    // const {t} = useTranslation()
 
     return [
         <SelectInput
@@ -317,6 +321,15 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
     })
 
     // ✨ Admin Portal > Approvals: Add Approved By row #5050
+
+    useEffect(() => {
+        localStorage.removeItem(
+            `RaStore.preferences.${getPreferenceKey(
+                location.pathname,
+                "approvals"
+            )}.datagrid.availableColumns`
+        )
+    }, [])
 
     // Move the useGetOne hook here and handle the undefined case
     const {data: election} = useGetOne<Sequent_Backend_Election>(
@@ -412,15 +425,13 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
     ]
 
     const [tenantId] = useTenantStore()
-    const {data: userAttributes} = useQuery<GetUserProfileAttributesQuery>(
-        USER_PROFILE_ATTRIBUTES,
-        {
+    const {data: userAttributes, loading: userAttributesLoading} =
+        useQuery<GetUserProfileAttributesQuery>(USER_PROFILE_ATTRIBUTES, {
             variables: {
                 tenantId: tenantId,
                 electionEventId: electionEventId,
             },
-        }
-    )
+        })
 
     // Get initial status from localStorage or use "pending" as default
     const initialStatus = localStorage.getItem(STATUS_FILTER_KEY) || "pending"
@@ -430,6 +441,9 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
     const canImport = authContext.isAuthorized(true, tenantId, IPermissions.APPLICATION_IMPORT)
 
     // add election level
+    if (userAttributesLoading) {
+        return null
+    }
 
     return (
         <>
@@ -443,15 +457,14 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
                         doExport={handleExport}
                     />
                 }
-                empty={false}
+                // empty={false}
                 resource="sequent_backend_applications"
-                filters={CustomFilters()}
+                filters={CustomFilters(t)}
                 filter={listFilter}
                 sort={{field: "created_at", order: "DESC"}}
                 perPage={10}
                 filterDefaultValues={{status: initialStatus}}
                 disableSyncWithLocation
-                storeKey="approvals-list"
             >
                 <ApprovalsList
                     omit={OMIT_FIELDS}
@@ -460,6 +473,7 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
                     userAttributes={userAttributes}
                 />
             </List>
+
             <Dialog
                 variant="info"
                 open={openExport}
