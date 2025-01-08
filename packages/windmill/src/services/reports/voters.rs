@@ -5,6 +5,7 @@ use super::report_variables::{
     get_total_number_of_registered_voters_for_area_id, VALIDATE_ID_ATTR_NAME,
     VALIDATE_ID_REGISTERED_VOTER,
 };
+use crate::postgres::application::count_applications;
 use crate::services::users::{
     count_keycloak_enabled_users_by_attrs, AttributesFilterBy, AttributesFilterOption,
 };
@@ -21,7 +22,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tokio_postgres::types::ToSql;
 use tokio_postgres::Row;
-use tracing::instrument;
+use tracing::{info, instrument};
 use uuid::Uuid;
 pub const SEX_ATTR_NAME: &str = "sex";
 pub const FEMALE_VALE: &str = "F";
@@ -30,6 +31,8 @@ pub const POST_ATTR_NAME: &str = "embassy";
 pub const LANDBASED_OR_SEAFARER_ATTR_NAME: &str = "landBasedOrSeafarer";
 pub const LANDBASED_VALUE: &str = "land";
 pub const SEAFARER_VALUE: &str = "sea";
+const OFOV_ROLE: &str = "ofov";
+const SBEI_ROLE: &str = "sbei";
 enum VoterStatus {
     Voted,
     NotVoted,
@@ -945,4 +948,70 @@ async fn get_voters_per_aboard_and_sex_data_by_area(
         total_female: general.total_female,
         overall_total: general.overall_total,
     })
+}
+
+#[instrument(err, skip_all)]
+pub async fn count_applications_by_status_and_roles(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    is_rejected: bool,
+    area_id: Option<&str>,
+) -> Result<(i64, i64, i64)> {
+    // Prepare the status filter based on the is_rejected boolean
+    let status = if is_rejected {
+        ApplicationStatus::REJECTED
+    } else {
+        ApplicationStatus::ACCEPTED // You can adjust this based on your logic
+    };
+    // Prepare the filter for the total disapproved (automatic)
+    let mut filter = EnrollmentFilters {
+        status,
+        verification_type: Some(ApplicationType::AUTOMATIC),
+    };
+
+    // Count total disapproved (automatic)
+    let total_disapproved = count_applications(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        area_id,
+        Some(&filter),
+        None, // No role
+    )
+    .await
+    .map_err(|err| anyhow!("Error at count total disapproved: {err}"))?;
+
+    info!("total disapproved: {}", total_disapproved);
+
+    filter.verification_type = Some(ApplicationType::MANUAL);
+
+    let total_ofov_disapproved = count_applications(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        area_id,
+        Some(&filter),
+        Some(OFOV_ROLE), // Role: ofov
+    )
+    .await
+    .map_err(|err| anyhow!("Error at count total ofov disapproved: {err}"))?;
+
+    let total_sbei_disapproved = count_applications(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        area_id,
+        Some(&filter),
+        Some(SBEI_ROLE), // Role: sbei
+    )
+    .await
+    .map_err(|err| anyhow!("Error at count total sbei disapproved: {err}"))?;
+
+    // Return all counts as a tuple
+    Ok((
+        total_disapproved,
+        total_ofov_disapproved,
+        total_sbei_disapproved,
+    ))
 }
