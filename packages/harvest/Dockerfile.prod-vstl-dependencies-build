@@ -1,0 +1,21 @@
+# SPDX-FileCopyrightText: 2023-2024 Sequent Tech <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+FROM debian:bookworm
+ENV ROCKET_ADDRESS=0.0.0.0
+ENV ROCKET_PORT=8400
+EXPOSE 8400
+# Some shared libraries (extra-runtime-dependencies) may need to be installed:
+    # Install any necessary runtime dependencies for production
+
+RUN echo "deb http://deb.debian.org/debian/ bookworm-proposed-updates main" >> /etc/apt/sources.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends libssl3 chromium ca-certificates wget software-properties-common \
+    && rm -rf /var/lib/apt/lists/*
+RUN update-ca-certificates
+RUN wget https://download.java.net/java/GA/jdk22.0.2/c9ecb94cd31b495da20a27d4581645e8/9/GPL/openjdk-22.0.2_linux-x64_bin.tar.gz \
+    && tar xvf openjdk-22.0.2_linux-x64_bin.tar.gz \
+    && mv jdk-22.0.2  /usr/local/ \
+    && update-alternatives --install /usr/bin/java java /usr/local/jdk-22.0.2/bin/java 1 \
+    && update-alternatives --install /usr/bin/javac javac /usr/local/jdk-22.0.2/bin/javac 1

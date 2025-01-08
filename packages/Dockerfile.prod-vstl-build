@@ -5,9 +5,7 @@
 ARG SPA_NAME
 FROM ${SPA_NAME}-compile as compile
 
-FROM nginx:alpine
-# Install dependencies
-RUN apk add --no-cache jq
+FROM ${SPA_NAME}-build-dependencies
 # Remove default nginx static assets
 RUN rm -rf /usr/share/nginx/html/*
 # Copy custom NGINX config
