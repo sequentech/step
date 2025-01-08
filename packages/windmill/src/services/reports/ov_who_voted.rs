@@ -8,7 +8,7 @@ use super::report_variables::{
 use super::template_renderer::*;
 use super::voters::{get_voters_data, FilterListVoters, Voter};
 use crate::postgres::area::get_areas_by_election_id;
-use crate::postgres::election::get_election_by_id;
+use crate::postgres::election::{get_election_by_id, get_elections};
 use crate::postgres::reports::ReportType;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::election_dates::get_election_dates;
@@ -19,10 +19,10 @@ use async_trait::async_trait;
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::StringifiedPeriodDates;
 use sequent_core::services::keycloak::get_event_realm;
+use sequent_core::types::hasura::core::Election;
 use serde::{Deserialize, Serialize};
 use tracing::{info, instrument};
 
-/// Struct for User Data
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserDataArea {
     pub election_title: String,
@@ -107,28 +107,33 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
         hasura_transaction: &Transaction<'_>,
         keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
-        let Some(election_id) = &self.ids.election_id else {
-            return Err(anyhow!("Empty election_id"));
-        };
-
         let realm = get_event_realm(&self.ids.tenant_id, &self.ids.election_event_id);
+        let date_printed: String = get_date_and_time();
 
-        let election = match get_election_by_id(
-            &hasura_transaction,
-            &self.ids.tenant_id,
-            &self.ids.election_event_id,
-            &election_id,
-        )
-        .await
-        .with_context(|| "Error getting election by id")?
-        {
-            Some(election) => election,
-            None => return Err(anyhow::anyhow!("Election not found")),
-        };
-
-        let election_general_data = extract_election_data(&election)
+        let elections: Vec<Election> = match &self.ids.election_id {
+            Some(election_id) => {
+                match get_election_by_id(
+                    &hasura_transaction,
+                    &self.ids.tenant_id,
+                    &self.ids.election_event_id,
+                    &election_id,
+                )
+                .await
+                .with_context(|| "Error getting election by id")?
+                {
+                    Some(election) => vec![election],
+                    None => vec![],
+                }
+            }
+            None => get_elections(
+                &hasura_transaction,
+                &self.ids.tenant_id,
+                &self.ids.election_event_id,
+                Some(false),
+            )
             .await
-            .map_err(|err| anyhow!("Error extract election annotations {err}"))?;
+            .map_err(|e| anyhow::anyhow!("Error in get_elections: {}", e))?,
+        };
 
         let scheduled_events = find_scheduled_event_by_election_event_id(
             &hasura_transaction,
@@ -140,19 +145,64 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
             anyhow::anyhow!("Error getting scheduled events by election event_id: {}", e)
         })?;
 
-        let election_dates = get_election_dates(&election, scheduled_events)
-            .map_err(|e| anyhow::anyhow!("Error getting election dates {e}"))?;
+        let mut areas: Vec<UserDataArea> = vec![];
+        for election in elections {
+            let election_general_data = extract_election_data(&election)
+                .await
+                .map_err(|err| anyhow!("Error extract election annotations {err}"))?;
 
-        let date_printed = get_date_and_time();
+            let election_dates = get_election_dates(&election, scheduled_events.clone())
+                .map_err(|e| anyhow::anyhow!("Error getting election dates {e}"))?;
 
-        let election_areas = get_areas_by_election_id(
-            &hasura_transaction,
-            &self.ids.tenant_id,
-            &self.ids.election_event_id,
-            &election_id,
-        )
-        .await
-        .map_err(|err| anyhow!("Error at get_areas_by_election_id: {err:?}"))?;
+            let election_id = election.id.clone();
+            let election_areas = get_areas_by_election_id(
+                &hasura_transaction,
+                &self.ids.tenant_id,
+                &self.ids.election_event_id,
+                &election_id,
+            )
+            .await
+            .map_err(|err| anyhow!("Error at get_areas_by_election_id: {err:?}"))?;
+
+            for area in election_areas.iter() {
+                let voters_filters = FilterListVoters {
+                    enrolled: None,
+                    has_voted: Some(true),
+                    voters_sex: None,
+                    post: None,
+                    landbased_or_seafarer: None,
+                    verified: None,
+                };
+
+                let voters_data = get_voters_data(
+                    hasura_transaction,
+                    keycloak_transaction,
+                    &realm,
+                    &self.ids.tenant_id,
+                    &self.ids.election_event_id,
+                    &election_id,
+                    &area.id,
+                    true,
+                    voters_filters,
+                )
+                .await
+                .map_err(|e| anyhow!("Error getting voters data: {}", e))?;
+
+                let area_name = area.clone().name.unwrap_or("-".to_string());
+
+                areas.push(UserDataArea {
+                    election_title: election.alias.clone().unwrap_or(election.name.clone()),
+                    election_dates: election_dates.clone(),
+                    post: election_general_data.post.clone(),
+                    area_name,
+                    voted: voters_data.total_voted.clone(),
+                    not_voted: voters_data.total_not_voted.clone(),
+                    voters: voters_data.voters.clone(),
+                    voting_privilege_voted: 0, //TODO: fix mock data
+                    total: voters_data.total_voters.clone(),
+                })
+            }
+        }
 
         let app_hash = get_app_hash();
         let app_version = get_app_version();
@@ -160,58 +210,19 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
             .await
             .unwrap_or("-".to_string());
 
-        let mut areas: Vec<UserDataArea> = vec![];
-
-        for area in election_areas.iter() {
-            let voters_filters = FilterListVoters {
-                enrolled: None,
-                has_voted: Some(true),
-                voters_sex: None,
-                post: None,
-                landbased_or_seafarer: None,
-                verified: None,
-            };
-
-            let voters_data = get_voters_data(
-                hasura_transaction,
-                keycloak_transaction,
-                &realm,
-                &self.ids.tenant_id,
-                &self.ids.election_event_id,
-                &election_id,
-                &area.id,
-                true,
-                voters_filters,
-            )
-            .await
-            .map_err(|e| anyhow!("Error getting voters data: {}", e))?;
-
-            let area_name = area.clone().name.unwrap_or("-".to_string());
-
-            areas.push(UserDataArea {
-                election_title: election.alias.clone().unwrap_or(election.name.clone()),
-                election_dates: election_dates.clone(),
-                post: election_general_data.post.clone(),
-                area_name,
-                voted: voters_data.total_voted.clone(),
-                not_voted: voters_data.total_not_voted.clone(),
-                voters: voters_data.voters.clone(),
-                voting_privilege_voted: 0, //TODO: fix mock data
-                total: voters_data.total_voters.clone(),
-            })
-        }
+        let execution_annotations = ExecutionAnnotations {
+            date_printed,
+            report_hash,
+            software_version: app_version.clone(),
+            app_version,
+            app_hash,
+            executer_username: self.ids.executer_username.clone(),
+            results_hash: None,
+        };
 
         Ok(UserData {
             areas,
-            execution_annotations: ExecutionAnnotations {
-                date_printed,
-                report_hash,
-                software_version: app_version.clone(),
-                app_version,
-                app_hash,
-                executer_username: self.ids.executer_username.clone(),
-                results_hash: None,
-            },
+            execution_annotations,
         })
     }
 
