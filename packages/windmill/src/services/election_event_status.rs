@@ -76,16 +76,7 @@ pub async fn update_event_voting_status(
 
     status.set_status_by_channel(&channel, new_status.clone());
 
-    update_election_event_status(
-        &hasura_transaction,
-        &&tenant_id,
-        election_event_id,
-        serde_json::to_value(&status).with_context(|| "Error parsing status")?,
-    )
-    .await
-    .with_context(|| "Error updating election event status")?;
-
-    let mut elections_ids: Vec<String> = Vec::new();
+    // Check if the election event has elections that require an initialization report and throw an error if the report has not been generated
     if *new_status == VotingStatus::OPEN {
         let elections = get_elections(
             hasura_transaction,
@@ -113,7 +104,19 @@ pub async fn update_event_voting_status(
                 ));
             }
         }
-    } else if *new_status == VotingStatus::CLOSED {
+    }
+
+    update_election_event_status(
+        &hasura_transaction,
+        &&tenant_id,
+        election_event_id,
+        serde_json::to_value(&status).with_context(|| "Error parsing status")?,
+    )
+    .await
+    .with_context(|| "Error updating election event status")?;
+
+    let mut elections_ids: Vec<String> = Vec::new();
+    if *new_status == VotingStatus::OPEN || *new_status == VotingStatus::CLOSED {
         election_status.voting_status = new_status.clone();
         elections_ids = update_elections_status_by_election_event(
             &hasura_transaction,
