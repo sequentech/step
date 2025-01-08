@@ -314,10 +314,10 @@ public class Utils {
     EventBuilder event = getEvent(context);
     if (event != null) {
       event.detail("type", EVENT_TYPE_COMMUNICATIONS).detail("msgBody", body).success();
-      log.infov("logCommunications() event to string: {0}", event.getEvent().getDetails().toString());
+      log.infov(
+          "logCommunications() event to string: {0}", event.getEvent().getDetails().toString());
     } else {
-      log.warn(
-          "logCommunications() event is null");
+      log.warn("logCommunications() event is null");
     }
   }
 

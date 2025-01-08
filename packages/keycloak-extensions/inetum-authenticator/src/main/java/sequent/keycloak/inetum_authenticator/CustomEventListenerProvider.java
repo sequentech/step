@@ -69,12 +69,9 @@ public class CustomEventListenerProvider implements EventListenerProvider {
     if (Utils.EVENT_TYPE_COMMUNICATIONS.equals(eventType)) {
       handleCommunicationsEvent(event);
     } else {
-      String body = Optional.ofNullable(event.getDetails().get("msgBody")).orElse("-").replace("\n", " ");
-      logEvent(
-          getElectionEventId(event.getRealmId()),
-          event.getType(),
-          body,
-          event.getUserId());
+      String body =
+          Optional.ofNullable(event.getDetails().get("msgBody")).orElse("-").replace("\n", " ");
+      logEvent(getElectionEventId(event.getRealmId()), event.getType(), body, event.getUserId());
     }
   }
 

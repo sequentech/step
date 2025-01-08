@@ -147,7 +147,7 @@ public class UsernamePasswordFormWithExpiry extends AbstractUsernameFormAuthenti
         context.clearUser();
         context.success();
       }
-    } else { 
+    } else {
       log.infov("validateForm(): user name: {0}", user.getUsername());
       log.infov("validateForm(): user ID: {0}", user.getId());
     }
