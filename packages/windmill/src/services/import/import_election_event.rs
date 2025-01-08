@@ -62,7 +62,7 @@ use crate::postgres::area::insert_areas;
 use crate::postgres::area_contest::insert_area_contests;
 use crate::postgres::candidate::insert_candidates;
 use crate::postgres::contest::insert_contest;
-use crate::postgres::election::insert_election;
+use crate::postgres::election::insert_elections;
 use crate::postgres::election_event::insert_election_event;
 use crate::postgres::keys_ceremony;
 use crate::postgres::scheduled_event::insert_scheduled_event;
@@ -498,7 +498,7 @@ pub async fn process_election_event_file(
         .await?;
     }
 
-    insert_election(hasura_transaction, &data)
+    insert_elections(hasura_transaction, &data)
         .await
         .with_context(|| "Error inserting election")?;
 

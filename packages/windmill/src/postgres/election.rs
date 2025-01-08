@@ -441,7 +441,7 @@ pub async fn create_election(
 }
 
 #[instrument(err, skip_all)]
-pub async fn insert_election(
+pub async fn insert_elections(
     hasura_transaction: &Transaction<'_>,
     data: &ImportElectionEventSchema,
 ) -> Result<()> {
