@@ -32,7 +32,8 @@ pub fn lambda_runtime(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
                 #[tokio::main]
                 async fn main() -> Result<(), Error> {
-                    run(service_fn(func)).await
+                    run(service_fn(func)).await?;
+                    Ok(())
                 }
 
                 async fn func(event: LambdaEvent<Value>) -> Result<Value, Diagnostic> {
@@ -41,7 +42,6 @@ pub fn lambda_runtime(_attr: TokenStream, item: TokenStream) -> TokenStream {
                         .map_err(|e| anyhow::anyhow!("Failed to deserialize input: {e:?}").into());
 
                     let lambda_result = #name(input?)
-                        .await
                         .map(|result| serde_json::to_value(&result).unwrap());
 
                     match lambda_result {
