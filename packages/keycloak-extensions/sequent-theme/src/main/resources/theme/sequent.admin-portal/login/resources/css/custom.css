@@ -100,7 +100,7 @@ html, body {
     }
 
     #kc-header-wrapper {
-        gap: 11px;
+        justify-content: center;
     }
 
     #kc-header-wrapper .version, #kc-header-wrapper .version .title {
