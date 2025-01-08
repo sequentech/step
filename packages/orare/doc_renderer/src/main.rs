@@ -8,6 +8,7 @@ use sequent_core::util::aws::{
 };
 use serde::{Deserialize, Serialize};
 use tracing::{error, info};
+use headless_chrome::types::PrintToPdfOptions;
 
 mod io;
 mod openwhisk;

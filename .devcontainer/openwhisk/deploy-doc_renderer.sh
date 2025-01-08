@@ -18,7 +18,7 @@ wsk package create pdf-tools || \
 
 wsk action create pdf-tools/doc_renderer \
     --web no \
-    --docker $DOC_RENDERER_IMAGE ||
+    --docker $DOC_RENDERER_IMAGE || \
 wsk action update pdf-tools/doc_renderer \
     --web no \
     --docker $DOC_RENDERER_IMAGE || \
