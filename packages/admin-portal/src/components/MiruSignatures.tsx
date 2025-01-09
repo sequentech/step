@@ -39,7 +39,7 @@ export const MiruSignatures: React.FC<MiruSignaturesProps> = (props) => {
     }, [area?.annotations, area?.annotations?.["miru:area-trustee-users"]])
 
     const hasSigned = (trusteeName: string) => {
-        return !!signatures.find((signature) => signature.trustee_name === trusteeName)
+        return !!signatures.find((signature) => signature.sbei_miru_id === trusteeName)
     }
 
     return (
