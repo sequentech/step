@@ -1405,7 +1405,7 @@ const englishTranslation = {
                         "SBEIs can sign the Transmission Package. The table below shows the signing status of each of the SBEI members.",
                     status: "{{signed}} out of {{total}} Signed, {{minimum}} minimum",
                     table: {
-                        trusteeName: "Trustee Name",
+                        trusteeName: "SBEI id",
                         signed: "Has Signed",
                     },
                 },
