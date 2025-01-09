@@ -193,6 +193,9 @@ fn get_filter_from_applicant_data(
                     .get("email")
                     .and_then(|value| Some(FilterOption::IsEqualNormalized(value.to_string())));
             }
+            "embassy" => {
+                // Ignore embassy to speed up user lookup
+            }
             _ => {
                 let value = applicant_data
                     .get(attribute)
