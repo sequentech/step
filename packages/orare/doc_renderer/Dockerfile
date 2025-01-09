@@ -1,5 +1,4 @@
 ARG BASE_IMAGE=alpine:latest
-ARG DOC_RENDERER_BACKEND=openwhisk
 
 FROM rustlang/rust:nightly AS builder
 ARG FEATURES=openwhisk
@@ -21,9 +20,7 @@ RUN cd orare/doc_renderer && \
     cargo build --release --target x86_64-unknown-linux-musl --features=${FEATURES}
 
 FROM ${BASE_IMAGE}
-ARG DOC_RENDERER_BACKEND
 RUN apk add ca-certificates chromium curl
-ENV DOC_RENDERER_BACKEND=${DOC_RENDERER_BACKEND}
 ENV RUST_LOG=debug
 COPY --from=builder \
     /app/orare/doc_renderer/target/x86_64-unknown-linux-musl/release/doc_renderer \

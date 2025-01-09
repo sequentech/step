@@ -31,7 +31,7 @@ pub fn lambda_runtime(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
                 #[tokio::main]
                 async fn main() -> Result<(), Error> {
-                    tracing::init_default_subscriber();
+                    init_log(true);
 
                     run(service_fn(func)).await?;
                     Ok(())
@@ -43,12 +43,9 @@ pub fn lambda_runtime(_attr: TokenStream, item: TokenStream) -> TokenStream {
                         .map_err(|e| anyhow::anyhow!("Failed to deserialize input: {e:?}").into());
                     let input = input?;
 
-                    tokio::task::spawn_blocking(move || {
-                        #name(input)
-                            .map(|result| serde_json::to_value(&result).unwrap())
-                            .expect("Error running lambda")
-                    }).await
-                        .map_err(|e| anyhow::anyhow!("Error running lambda: {e:?}").into())
+                    #name(input)
+                      .map(|result| serde_json::to_value(&result).unwrap())
+                        .map_err(|error| anyhow::anyhow!("error running lambda: {error:?}").into())
                 }
             } else if #[cfg(any(feature = "openwhisk"))] {
                 use serde_json;

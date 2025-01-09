@@ -234,15 +234,19 @@ fn print_to_pdf(
         .devtools(false)
         .headless(true)
         // </WTF>
-        .enable_logging(true)
+        .args(vec![
+            std::ffi::OsStr::new("--disable-setuid-sandbox"),
+            std::ffi::OsStr::new("--disable-dev-shm-usage"),
+            std::ffi::OsStr::new("--single-process"),
+            std::ffi::OsStr::new("--no-zygote"),
+        ])
         .build()
         .expect("Default should not panic");
 
     let browser =
         Browser::new(options).with_context(|| "Error obtaining the browser")?;
-    let tab = browser
-        .new_tab()
-        .with_context(|| "Error obtaining the tab")?;
+
+    let tab = browser.new_tab()?;
 
     tab.navigate_to(file_path)?
         .wait_until_navigated()
