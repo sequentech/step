@@ -43,7 +43,6 @@ jobs:
       - uses: awalsh128/cache-apt-pkgs-action@latest
         with:
           packages: chromium protobuf-compiler libprotobuf-dev
-          version: 1.0
 
       - name: Run tests
         env:
