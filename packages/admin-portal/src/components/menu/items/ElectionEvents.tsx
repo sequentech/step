@@ -314,19 +314,16 @@ export default function ElectionEvents() {
     useEffect(() => {
         const callerPath = location.pathname.split("/")[1]
 
-        if (callerPath === "sequent_backend_election_event") {
-            electionEventDataRefetch()
-        }
         if (callerPath === "sequent_backend_election") {
             electionTreeRefetch()
             electionData()
-        }
-        if (callerPath === "sequent_backend_contest") {
+        } else if (callerPath === "sequent_backend_contest") {
             contestTreeRefetch()
             contestData()
-        }
-        if (callerPath === "sequent_backend_candidate") {
+        } else if (callerPath === "sequent_backend_candidate") {
             candidateTreeRefetch()
+        } else {
+            electionEventDataRefetch()
         }
     }, [location])
 
@@ -345,11 +342,11 @@ export default function ElectionEvents() {
     useEffect(() => {
         const hasCandidateIdFlag =
             location.pathname.split("/").length === 3 && location.pathname.split("/")[2] !== ""
-        const isSideBarElement =
-            location.pathname.split("/").length >= 2 &&
-            ["user-roles", "settings", "sequent_backend_template"].includes(
-                location.pathname.split("/")[1]
-            )
+        // const isSideBarElement =
+        //     location.pathname.split("/").length >= 2 &&
+        //     ["user-roles", "settings", "sequent_backend_template"].includes(
+        //         location.pathname.split("/")[1]
+        //     )
         if (hasCandidateIdFlag) {
             if (getCandidateIdFlag() === location.pathname.split("/")[2]) {
                 contestData()
@@ -358,9 +355,10 @@ export default function ElectionEvents() {
                     candidateTreeRefetch()
                 }, 800)
             }
-        } else if (!isSideBarElement) {
-            navigate(`/sequent_backend_election_event/${electionEventId}`)
         }
+        //  else if (!isSideBarElement) {
+        //     navigate(`/sequent_backend_election_event/${electionEventId}`)
+        // }
     }, [getCandidateIdFlag, candidate_id])
 
     useEffect(() => {
