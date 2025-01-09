@@ -310,6 +310,32 @@ In production environments, ensure that the `unaccent` extension is enabled for 
 ```
 CREATE EXTENSION IF NOT EXISTS unaccent;
 ```
+
+Also a new function needs to be created to normalize search values:
+```
+CREATE OR REPLACE FUNCTION normalize_text(input_text TEXT)
+RETURNS TEXT AS $$
+BEGIN
+RETURN lower(
+        regexp_replace(
+            unaccent(btrim(input_text)),
+            '[-\s]+', -- Match hyphens and whitespace
+            '',
+            'g'      -- Globally replace
+        )
+        );
+END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+```
+
+And a few index that make use of the new normalizing function
+```
+-- Normalized User entity
+CREATE INDEX idx_user_entity_first_name_normalize ON user_entity((normalize_text(first_name)));
+CREATE INDEX idx_user_entity_last_name_normalize ON user_entity((normalize_text(last_name)));
+
+-- Normalized attribute
+CREATE INDEX idx_user_attribute_name_value_normalize_text ON user_attribute(name, (normalize_text(value)));
 ```
 
 ### S3: New files to be uploaded
