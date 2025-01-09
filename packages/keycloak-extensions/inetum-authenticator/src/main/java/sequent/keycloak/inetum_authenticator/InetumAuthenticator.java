@@ -111,6 +111,10 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
               .setAttribute(Utils.FTL_TOKEN_DOB, transactionData.get(Utils.FTL_TOKEN_DOB))
               .createForm(Utils.INETUM_FORM);
       context.challenge(challenge);
+
+      //getMockStatus
+      //getMockResults
+      //context.success
     } catch (IOException error) {
       context.getEvent().error(ERROR_FAILED_TO_LOAD_INETUM_FORM);
       context.failure(AuthenticationFlowError.INTERNAL_ERROR);
@@ -681,6 +685,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
       int code = response.asJson().get("code").asInt();
       if (code != 0) {
         log.error("verifyResults: Error calling transaction/results, code = " + code);
+
         context
             .getEvent()
             .error(
@@ -1288,7 +1293,16 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
                 	"application": "sequent-keycloak",
                 	"clienteID": "${client_id}"
                 }
-                				"""));
+                				"""),
+         new ProviderConfigProperty(
+                          Utils.TEST_MODE_ATTRIBUTE,
+                          "Test Mode",
+                          "If true, the authenticator will skip the real OCR flow and mock the data.",
+                          ProviderConfigProperty.BOOLEAN_TYPE,
+                          "false"
+                      )
+                        
+                        );
   }
 
   @Override

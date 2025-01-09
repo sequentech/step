@@ -6,6 +6,7 @@ mod services;  // Tells Rust to look in `src/services/mod.rs`
 mod types;     // Tells Rust to look in `src/types/mod.rs`
 
 use rocket::fairing::AdHoc;
+use services::user::load_users;
 
 
 // Import your routes
@@ -22,16 +23,17 @@ async fn main() -> Result<(), rocket::Error> {
     // For example, if you want to load CSV before launching, do it here:
     // load_csv_into_db("voters.csv").expect("Failed to load CSV");
 
+    if let Err(e) = load_users("./voters.csv") {
+        eprintln!("Failed to load CSV: {:?}", e);
+        // Exit early if CSV loading is critical and you want to fail fast.
+        std::process::exit(1);
+    }
+
     let _rocket = rocket::build()
         .mount("/", routes![
             index,
             routes::user::users_list,
         ])
-        .attach(AdHoc::on_liftoff("Liftoff Message", |_| {
-            Box::pin(async move {
-                println!("Rocket has launched!");
-            })
-        }))
         .launch()
         .await?;
 

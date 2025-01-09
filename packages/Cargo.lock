@@ -2765,11 +2765,13 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "csv",
+ "rand 0.8.5",
  "rocket",
  "rusqlite",
  "serde",
  "serde_json",
  "tokio",
+ "uuid",
 ]
 
 [[package]]
