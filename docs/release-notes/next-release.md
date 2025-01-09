@@ -39,14 +39,6 @@ If the `PUBLIC_ASSETS_PATH` environment variable is not present, ensure that Arg
 
 ## ✨ Add Permissions for Buttons and Tabs
 
-
-
-
-
-
-
-
-
 ### Added new permissions for Election Event Localization
 
 To add the permissions manually in Keycloak the procedure followed is:
@@ -191,6 +183,7 @@ report-create
 report-delete
 report-generate
 report-preview
+generate-transmission-report
 ```
 
 As a result:
@@ -201,6 +194,7 @@ As a result:
 The file `.devcontainer/keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5.json` has been updated with the new permissions, roles, and groups
 
 ### Migration to add permissions to keycloak realm
+
     ## ✨ Admin Portal > Voters > required fields when create/edit a user
 
     ### User / Voter edit or create required fields
@@ -216,10 +210,9 @@ The file `.devcontainer/keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a09
             - user, means required for an admin portal admin
             - both
 
-    - in FE, the field for the attribute is 
-        - always required **if the keycloak attribute is required** no matter if there is defined for a user or an admin.  
+    - in FE, the field for the attribute is
+        - always required **if the keycloak attribute is required** no matter if there is defined for a user or an admin.
         - not required **if the keycloak attribute is not required**
-
 
 ### Added new permissions for Election Event Publish
 
@@ -253,7 +246,6 @@ As a result:
 - The roles are attached to the `admin` role in `Groups`
 
 The file `.devcontainer/keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5.json` has been updated with the new permissions, roles, and groups
-
 
 ### Added new permissions for Election Event Keys
 
@@ -310,6 +302,7 @@ In production environments, ensure that the `unaccent` extension is enabled for 
 ```
 CREATE EXTENSION IF NOT EXISTS unaccent;
 ```
+
 ```
 
 ### S3: New files to be uploaded
@@ -330,7 +323,7 @@ For existing environments the following files need to be uploaded to S3:
 - .devcontainer/minio/public-assets/ovcs_statistics_system.hbs
 - .devcontainer/minio/public-assets/ovcs_statistics_user.hbs
 - .devcontainer/minio/public-assets/ovcs_statistics.json
-  
+
 ## ✨ Admin Portal > Approvals: Export/Import applicants
 
 In order to be able to Import / Export applications from Admin-portal "APPROVALS" tab,
@@ -368,7 +361,9 @@ To add the permissions manually in Keycloak the procedure followed is:
 The list of new permissions is:
 
 ```
+
 user-import
+
 ```
 
 As a result:
@@ -377,3 +372,4 @@ As a result:
 - The roles are attached to the `admin` role in `Groups`
 
 The file `.devcontainer/keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5.json` has been updated with the new permissions, roles, and groups
+```
