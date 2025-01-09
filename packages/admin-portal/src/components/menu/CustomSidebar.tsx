@@ -55,7 +55,7 @@ export const SidebarClasses = {
     appBarCollapsed: `${PREFIX}-appBarCollapsed`,
 }
 
-const StyledDrawer = styled(Drawer, {
+export const StyledDrawer = styled(Drawer, {
     name: PREFIX,
     slot: "Root",
     overridesResolver: (props, styles) => styles.root,

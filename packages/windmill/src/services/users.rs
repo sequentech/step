@@ -8,7 +8,10 @@ use crate::services::cast_votes::get_users_with_vote_info;
 use crate::services::database::PgConfig;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
+use keycloak::types::GroupRepresentation;
+use keycloak::KeycloakError;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
+use sequent_core::services::keycloak::{KeycloakAdminClient, PubKeycloakAdmin};
 use sequent_core::types::keycloak::*;
 use serde::{Deserialize, Deserializer};
 use serde_json::Value;
@@ -20,6 +23,7 @@ use std::{
 use strum_macros::{Display, EnumString};
 use tokio_postgres::row::Row;
 use tokio_postgres::types::ToSql;
+use tracing::error;
 use tracing::{debug, info, instrument};
 use uuid::Uuid;
 
@@ -971,4 +975,13 @@ pub async fn count_keycloak_enabled_users_by_attrs(
 
     let user_count: i64 = row.get("total_users");
     Ok(user_count)
+}
+
+// use std::error::Error;
+// use reqwest::Client;
+
+#[derive(Debug, Deserialize)]
+struct Group {
+    id: String,
+    name: String,
 }
