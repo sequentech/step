@@ -2,11 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use std::collections::HashMap;
-use std::fmt::format;
-use std::iter::Map;
-use std::str::FromStr;
-
 use crate::services::authorization::authorize;
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use crate::types::optional::OptionalId;
@@ -23,6 +18,10 @@ use sequent_core::types::keycloak::User;
 use sequent_core::types::permissions::Permissions;
 use serde::Deserialize;
 use serde_json::Value;
+use std::collections::HashMap;
+use std::fmt::format;
+use std::iter::Map;
+use std::str::FromStr;
 use tracing::{info, instrument};
 use windmill::postgres::election_event::get_election_event_by_id;
 use windmill::services::application::{
@@ -254,7 +253,10 @@ pub async fn change_application_status(
         })?;
 
     // Determine the action: Confirm or Reject
-    let status_change: ApplicationStatusUpdateEvent = if input.rejection_reason.is_some() {
+    let status_change: ApplicationStatusUpdateEvent = if input
+        .rejection_reason
+        .is_some()
+    {
         // Rejection logic
         reject_application(
             &hasura_transaction,
@@ -282,7 +284,6 @@ pub async fn change_application_status(
             application_status: ApplicationStatus::REJECTED,
             application_type: ApplicationType::MANUAL,
         }
-
     } else if input.rejection_reason.is_none() {
         // Confirmation logic
         confirm_application(
@@ -308,7 +309,6 @@ pub async fn change_application_status(
         ApplicationStatusUpdateEvent {
             application_status: ApplicationStatus::ACCEPTED,
             application_type: ApplicationType::MANUAL,
-
         }
     } else {
         return Err(JsonError::from(ErrorResponse::new(
@@ -317,7 +317,7 @@ pub async fn change_application_status(
             ErrorCode::InternalServerError,
         )));
     };
-    
+
     info!("User id: {:?}", input.user_id);
 
     let (user_id, username) = match input.user_id.is_empty() {
