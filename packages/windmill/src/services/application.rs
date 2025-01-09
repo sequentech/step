@@ -176,22 +176,22 @@ fn get_filter_from_applicant_data(
             "firstName" => {
                 first_name = applicant_data
                     .get("firstName")
-                    .and_then(|value| Some(FilterOption::IsLikeUnaccentHyphens(value.to_string())));
+                    .and_then(|value| Some(FilterOption::IsEqualNormalized(value.to_string())));
             }
             "lastName" => {
                 last_name = applicant_data
                     .get("lastName")
-                    .and_then(|value| Some(FilterOption::IsLikeUnaccentHyphens(value.to_string())));
+                    .and_then(|value| Some(FilterOption::IsEqualNormalized(value.to_string())));
             }
             "username" => {
                 username = applicant_data
                     .get("username")
-                    .and_then(|value| Some(FilterOption::IsLikeUnaccentHyphens(value.to_string())));
+                    .and_then(|value| Some(FilterOption::IsEqualNormalized(value.to_string())));
             }
             "email" => {
                 email = applicant_data
                     .get("email")
-                    .and_then(|value| Some(FilterOption::IsLikeUnaccentHyphens(value.to_string())));
+                    .and_then(|value| Some(FilterOption::IsEqualNormalized(value.to_string())));
             }
             _ => {
                 let value = applicant_data

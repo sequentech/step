@@ -152,6 +152,8 @@ pub enum FilterOption {
     IsEqual(String),
     /// Those elements that do not match precisely the string are returned.
     IsNotEqual(String),
+    /// Equals but uses a generated normalized column and compares to normalized text.
+    IsEqualNormalized(String),
     /// When it is true, those elements that are null or empty are returned. When it is false they are discarded.
     IsEmpty(bool),
     /// Option not valid or set to null instead of an object, then it should not filter anything, display all.
@@ -187,6 +189,11 @@ impl FilterOption {
                     Some(format!("%{}%", pattern)),
                 )
             }
+            Self::IsEqualNormalized(pattern) => (
+                format!(r#"({col_name}_normalized = normalize_text(${param_number}))){operator} "#,),
+                Some(format!("%{}%", pattern)),
+            ),
+
             Self::IsNotLike(pattern) => (
                 format!(
                     r#"({col_name} IS NULL OR {col_name} NOT ILIKE ${param_number}){operator} "#,
@@ -273,6 +280,13 @@ impl<'de> Deserialize<'de> for FilterOption {
                 })?)
             }
             FilterOption::IsNotEqual(_) => {
+                FilterOption::IsNotEqual(deserialize_value(pattern_val.clone()).map_err(|e| {
+                    serde::de::Error::custom(format!(
+                        "Error parsing String value {pattern_val:?} for pattern: {e:?}"
+                    ))
+                })?)
+            }
+            FilterOption::IsEqualNormalized(_) => {
                 FilterOption::IsNotEqual(deserialize_value(pattern_val.clone()).map_err(|e| {
                     serde::de::Error::custom(format!(
                         "Error parsing String value {pattern_val:?} for pattern: {e:?}"
@@ -745,8 +759,7 @@ pub async fn lookup_users(
     if let Some(attributes) = &filter.attributes {
         for (key, value) in attributes {
             dynamic_attr_conditions.push(format!(
-                // r#"(ua.name = ${} AND UNACCENT(ua.value) ILIKE ${})::int"#,
-                r#"(ua.name = ${} AND UNACCENT(ua.value) ILIKE ${})"#,
+                r#"(ua.name = ${} AND ua.value_normalized = normalize_text(${}))"#,
                 next_param_number,
                 next_param_number + 1
             ));
@@ -769,69 +782,60 @@ pub async fn lookup_users(
 
     debug!("parameters count: {}", next_param_number - 1);
     debug!("params {:?}", params);
+
     let statement_str = format!(
         r#"
-        WITH matching_users AS (
-            WITH matching_user_attributes AS (
-                SELECT 
-                    ua.user_id,
-                    count(*) as matched_user_attributes
-                FROM user_attribute ua
-                WHERE
-                    {dynamic_attr_clause}
-                GROUP BY ua.user_id
-                ORDER BY matched_user_attributes DESC
-            )
+        WITH matched_ids AS (
+            {filters_clause}
             SELECT
-                u.id,
-                ({filters_clause}
-                COALESCE(mua.matched_user_attributes, 0)) AS match_score
-            FROM
-                user_entity u
-            LEFT JOIN 
-                matching_user_attributes mua ON u.id = mua.user_id
-            INNER JOIN 
-                realm ra ON ra.id = u.realm_id
+                ue.id, "first_name"
+            FROM user_entity ue
             WHERE
-                ra.name = $1
-                {enabled_condition}
-            ORDER BY match_score DESC
-        )
-        SELECT 
-            u.id,
-            u.email,
-            u.email_verified,
-            u.enabled,
-            u.first_name,
-            u.last_name,
-            u.realm_id,
-            u.username,
-            u.created_timestamp,
-            COALESCE(attr_json.attributes, '{{}}'::json) AS attributes
-        FROM 
-            matching_users mu
-        INNER JOIN 
-            user_entity u ON u.id = mu.id
-        INNER JOIN 
-            realm ra ON ra.id = u.realm_id
-        LEFT JOIN LATERAL (
+                ue.first_name = unaccent($first_name)
+            UNION ALL
             SELECT
-                json_object_agg(attr.name, attr.values_array) AS attributes
+                ue.id, "last_name"
+            FROM user_entity ue
+            WHERE
+                ue.last_name = unaccent($last_name)
+            UNION ALL
+            SELECT
+                ua.user_id, ua.name
+            FROM user_attribute ua
+            WHERE
+                {dynamic_attr_clause}
+        ),
+        ranked_matches AS (
+            SELECT mu.id, count(*) as match_score FROM matched_ids mu
+            GROUP BY mu.id
+        )
+        SELECT match_score, u.id, u.email, u.email_verified, u.enabled, u.first_name, u.last_name, u.realm_id, u.username, u.created_timestamp, COALESCE(
+                attr_json.attributes, '{{}}'::json
+            ) AS attributes
+        FROM
+            ranked_matches rm
+        INNER JOIN user_entity u ON u.id = rm.id
+        INNER JOIN realm ra ON ra.id = u.realm_id
+        LEFT JOIN LATERAL (
+            SELECT json_object_agg(attr.name, attr.values_array) AS attributes
             FROM (
-                SELECT
-                    ua.name,
-                    json_agg(ua.value) AS values_array
-                FROM user_attribute ua
-                WHERE ua.user_id = u.id
-                GROUP BY ua.name
-            ) attr
+                    SELECT ua.name, json_agg(ua.value) AS values_array
+                    FROM user_attribute ua
+                    WHERE
+                        ua.user_id = u.id
+                    GROUP BY
+                        ua.name
+                ) attr
         ) attr_json ON true
-        WHERE 
-            match_score > 0 AND
-            match_score = (SELECT MAX(match_score) FROM matching_users);
-    "#
+        WHERE  match_score = (
+                SELECT MAX(match_score)
+                FROM ranked_matches
+            )
+            AND ra.name = $1
+            {enabled_condition}
+        LIMIT {query_limit}
+        "#
     );
-
     debug!("statement: {}", statement_str);
 
     let statement = keycloak_transaction.prepare(statement_str.as_str()).await?;
