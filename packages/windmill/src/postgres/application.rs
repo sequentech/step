@@ -13,7 +13,10 @@ use deadpool_postgres::Transaction;
 use sequent_core::types::hasura::core::Application;
 use serde_json::Value;
 use tokio_postgres::row::Row;
-use tokio_postgres::types::ToSql;
+// use tokio_postgres::types::ToSql;
+use serde::Serialize;
+use serde_json::json;
+use tokio_postgres::types::{Json, ToSql};
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
@@ -154,6 +157,7 @@ pub async fn update_application_status(
     rejection_reason: Option<String>,
     rejection_message: Option<String>,
     admin_name: &str,
+    group_names: &Vec<String>,
 ) -> Result<Application> {
     // Base query structure
     let base_query = r#"
@@ -170,6 +174,8 @@ pub async fn update_application_status(
             election_event_id = $5
         RETURNING *;
     "#;
+    // Serialize group names to JSON string
+    let group_names_json = serde_json::to_string(&group_names).unwrap();
 
     // Build annotations update dynamically
     let annotations_update = {
@@ -178,15 +184,19 @@ pub async fn update_application_status(
             "jsonb_set({}, '{{verified_by}}', to_jsonb($6::text), true)",
             update
         );
+        update = format!(
+            "jsonb_set({}, '{{verified_by_role}}', to_jsonb($7::text), true)",
+            update
+        );
         if rejection_reason.is_some() {
             update = format!(
-                "jsonb_set({}, '{{rejection_reason}}', to_jsonb($7::text), true)",
+                "jsonb_set({}, '{{rejection_reason}}', to_jsonb($8::text), true)",
                 update
             );
         }
         if rejection_message.is_some() {
             update = format!(
-                "jsonb_set({}, '{{rejection_message}}', to_jsonb($8::text), true)",
+                "jsonb_set({}, '{{rejection_message}}', to_jsonb($9::text), true)",
                 update
             );
         }
@@ -216,6 +226,7 @@ pub async fn update_application_status(
         &parsed_tenant_id,
         &parsed_election_event_id,
         &admin_name,
+        &group_names_json,
     ];
     if let Some(reason) = &rejection_reason {
         params.push(reason);
@@ -322,6 +333,7 @@ pub async fn count_applications(
     election_event_id: &str,
     area_id: Option<&str>,
     filters: Option<&EnrollmentFilters>,
+    role: Option<&str>,
 ) -> Result<i64> {
     let mut current_param_place = 3;
     let area_clause = match area_id {
@@ -331,6 +343,7 @@ pub async fn count_applications(
         }
         None => "".to_string(),
     };
+
     let mut query = format!(
         r#"
         SELECT COUNT(*)
@@ -341,7 +354,7 @@ pub async fn count_applications(
           {area_clause}
     "#
     );
-
+    // AND WHERE annotations ->'verified_by_role' @> '["admin"]'::jsonb
     let parsed_tenant_id = Uuid::parse_str(tenant_id)?;
     let parsed_election_event_id = Uuid::parse_str(election_event_id)?;
 
@@ -358,19 +371,37 @@ pub async fn count_applications(
         params.push(area_id); // Push the reference to the vector
     }
 
+    use serde_json::Value as JsonValue;
+    let mut role_json: JsonValue = JsonValue::Array(Vec::new());
+    // let role_json_value: Json<serde_json::Value>;
+
+    // Handle the role condition if provided
+    if let Some(role) = role {
+        // Create a longer-lived string by binding the formatted value to a variable
+        role_json = JsonValue::Array(vec![JsonValue::String(role.to_string())]);
+        let place = current_param_place.to_string();
+        // Add the dynamic role condition to the query
+        query.push_str(&format!(
+            " AND (annotations->>'verified_by_role')::jsonb @> ${place}::jsonb"
+        ));
+        // Push the actual String, not a reference
+        params.push(&role_json); // Now `role_json` is moved into `params`, not borrowed
+        current_param_place += 1;
+    }
+
     // Apply filters if provided
     let status;
     let verification_type;
     if let Some(filters) = filters {
         let place = current_param_place.to_string();
-        query.push_str(&format!("AND status = ${place} "));
+        query.push_str(&format!(" AND status = ${place}"));
         status = filters.clone().status.to_string();
         params.push(&status);
         current_param_place += 1;
 
         if filters.verification_type.is_some() {
             let place = current_param_place.to_string();
-            query.push_str(&format!("AND verification_type = ${place}"));
+            query.push_str(&format!(" AND verification_type = ${place}"));
             verification_type =
                 <std::option::Option<ApplicationType> as Clone>::clone(&filters.verification_type)
                     .unwrap()
@@ -379,15 +410,20 @@ pub async fn count_applications(
         }
     }
 
-    let statement = hasura_transaction
-        .prepare(&query)
-        .await
-        .map_err(|err| anyhow!("Error preparing the application query: {err}"))?;
+    let statement = hasura_transaction.prepare(&query).await.map_err(|err| {
+        // Print the error before returning it
+        eprintln!("Error in query: {:?}", err);
+        anyhow!("Error preparing the application query: {err}")
+    })?;
 
     let row: Row = hasura_transaction
         .query_one(&statement, &params)
         .await
-        .map_err(|err| anyhow!("Error querying applications: {err}"))?;
+        .map_err(|err| {
+            // Print the error before returning it
+            eprintln!("Error in row: {:?}", err);
+            anyhow!("Error during query: {err}")
+        })?;
 
     let count: i64 = row.get(0);
 

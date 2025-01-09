@@ -438,6 +438,7 @@ pub async fn get_monitoring_approval_stats(
         &election_event_id,
         area_id,
         Some(&filter),
+        None,
     )
     .await
     .map_err(|err| anyhow!("Error at count total applocation approved: {err}"))?;
@@ -450,6 +451,7 @@ pub async fn get_monitoring_approval_stats(
         &election_event_id,
         area_id,
         Some(&filter),
+        None,
     )
     .await
     .map_err(|err| anyhow!("Error at count total manual applocation approved: {err}"))?;
@@ -462,6 +464,7 @@ pub async fn get_monitoring_approval_stats(
         &election_event_id,
         area_id,
         Some(&filter),
+        None,
     )
     .await
     .map_err(|err| anyhow!("Error at count total automated applocation approved: {err}"))?;
@@ -475,6 +478,7 @@ pub async fn get_monitoring_approval_stats(
         &election_event_id,
         area_id,
         Some(&filter),
+        None,
     )
     .await
     .map_err(|err| anyhow!("Error at count total applocation disapproved: {err}"))?;
@@ -487,6 +491,7 @@ pub async fn get_monitoring_approval_stats(
         &election_event_id,
         area_id,
         Some(&filter),
+        None,
     )
     .await
     .map_err(|err| anyhow!("Error at count total manual applocation disapproved: {err}"))?;
@@ -499,6 +504,7 @@ pub async fn get_monitoring_approval_stats(
         &election_event_id,
         area_id,
         Some(&filter),
+        None,
     )
     .await
     .map_err(|err| anyhow!("Error at count total automated applocation disapproved: {err}"))?;

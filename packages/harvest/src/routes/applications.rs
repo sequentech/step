@@ -8,11 +8,13 @@ use crate::types::optional::OptionalId;
 use anyhow::anyhow;
 use anyhow::Result;
 use deadpool_postgres::{Client as DbClient, Transaction};
+use reqwest::StatusCode;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt;
-use sequent_core::services::keycloak::KeycloakAdminClient;
-use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
+use sequent_core::services::keycloak::{
+    get_event_realm, get_tenant_realm, GroupInfo, KeycloakAdminClient,
+};
 use sequent_core::types::hasura;
 use sequent_core::types::keycloak::User;
 use sequent_core::types::permissions::Permissions;
@@ -25,8 +27,8 @@ use std::str::FromStr;
 use tracing::{info, instrument};
 use windmill::postgres::election_event::get_election_event_by_id;
 use windmill::services::application::{
-    confirm_application, reject_application, verify_application,
-    ApplicationAnnotations, ApplicationVerificationResult,
+    confirm_application, get_group_names, reject_application,
+    verify_application, ApplicationAnnotations, ApplicationVerificationResult,
 };
 use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
 use windmill::services::election_event_board::get_election_event_board;
@@ -218,6 +220,7 @@ pub async fn change_application_status(
     let input = body.into_inner();
 
     info!("Changing application status: {input:?}");
+    info!("claims::: {:?}", &claims);
 
     let required_perm: Permissions = Permissions::APPLICATION_WRITE;
     authorize(
@@ -252,6 +255,16 @@ pub async fn change_application_status(
             )
         })?;
 
+    let user_id = &claims.hasura_claims.user_id;
+    let realm = get_tenant_realm(&input.tenant_id);
+    let group_names = get_group_names(&realm, user_id).await.map_err(|e| {
+        ErrorResponse::new(
+            Status::InternalServerError,
+            &format!("Error getting group names: {:#?}", e),
+            ErrorCode::InternalServerError,
+        )
+    })?;
+
     // Determine the action: Confirm or Reject
     let status_change: ApplicationStatusUpdateEvent = if input
         .rejection_reason
@@ -271,6 +284,7 @@ pub async fn change_application_status(
                 .name
                 .clone()
                 .unwrap_or_else(|| claims.hasura_claims.user_id.clone()),
+            &group_names,
         )
         .await
         .map_err(|e| {
@@ -297,6 +311,7 @@ pub async fn change_application_status(
                 .name
                 .clone()
                 .unwrap_or_else(|| claims.hasura_claims.user_id.clone()),
+            &group_names,
         )
         .await
         .map_err(|e| {

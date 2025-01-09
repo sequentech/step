@@ -1125,6 +1125,7 @@ const tagalogTranslation: TranslationType = {
                             archive: "Ang item ay na-archive na",
                             unarchive: "Ang item ay na-unarchive na",
                             delete: "Ang item ay natanggal na",
+                            reloading: "Wait. Ang pahina ay na-reload na sa iba pang mga oras.",
                         },
                         error: {
                             archive: "Error habang sinusubukang i-archive ang item na ito",

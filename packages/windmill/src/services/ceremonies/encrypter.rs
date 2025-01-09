@@ -3,14 +3,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::reports::{Report, ReportType};
 use crate::services::consolidation::aes_256_cbc_encrypt::encrypt_file_aes_256_cbc;
-use crate::services::database::get_hasura_pool;
 use crate::services::reports::template_renderer::EReportEncryption;
 use crate::services::reports_vault::get_report_secret_key;
 use crate::services::vault;
 use anyhow::{anyhow, Context, Result};
-use deadpool_postgres::Client as DbClient;
-use deadpool_postgres::Transaction;
-use sequent_core::types::ceremonies::TallyType;
+use regex::Regex;
 use std::fs::{self, File};
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -54,6 +51,8 @@ pub async fn traversal_encrypt_files(
     }
 
     let entries = WalkDir::new(folder_path).into_iter().filter_map(|e| e.ok());
+    let election_id_regex =
+        Regex::new(r"election__[a-zA-Z0-9\s\-\_]*__([0-9a-fA-F\-]{36})").unwrap();
 
     for entry in entries {
         let path = entry.path();
@@ -63,11 +62,22 @@ pub async fn traversal_encrypt_files(
                 let report_type =
                     get_file_report_type(file_name).context("Error getting file report type")?;
 
+                // Use the regex to extract the election_id
+                let election_ids = path
+                    .to_string_lossy()
+                    .lines()
+                    .filter_map(|line| {
+                        election_id_regex
+                            .captures(line)
+                            .and_then(|cap| cap.get(1).map(|m| m.as_str().to_string()))
+                    })
+                    .collect::<Vec<String>>();
+
                 if report_type.is_some() {
                     encrypt_directory_contents(
                         tenant_id,
                         election_event_id,
-                        None,
+                        Some(election_ids),
                         report_type.unwrap(),
                         &path.to_string_lossy().to_string(),
                         all_reports,
