@@ -192,6 +192,7 @@ pub async fn encrypt_report_route(
 pub struct GenerateTransmissionReportBody {
     pub tenant_id: String,
     pub election_event_id: String,
+    pub election_id: Option<String>,
 }
 
 #[instrument(skip(claims))]
@@ -250,7 +251,7 @@ pub async fn generate_transmission_report(
         id: Uuid::new_v4().to_string(),
         election_event_id: input.election_event_id.clone(),
         tenant_id: input.tenant_id.clone(),
-        election_id: None,
+        election_id: input.election_id.clone(),
         report_type: ReportType::TRANSMISSION_REPORT.to_string(),
         template_alias: None,
         encryption_policy: EReportEncryption::Unencrypted,

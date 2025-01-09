@@ -80,8 +80,6 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
     const notify = useNotify()
     const [transmissionLoading, setTransmissionLoading] = useState<boolean>(false)
     const [regenTransmissionLoading, setRegenTransmissionLoading] = useState<boolean>(false)
-    // const [selectedTallySessionData, setSelectedTallySessionData] =
-    // 	useState<IMiruTransmissionPackageData | null>(null)
     const [uploading, setUploading] = useState<boolean>(false)
     const [errors, setErrors] = useState<String | null>(null)
     const [tally, setTally] = useState<Sequent_Backend_Tally_Session>()
@@ -627,6 +625,7 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
                             documents={selectedTallySessionData?.documents ?? []}
                             tenantId={tenantId ?? ""}
                             electionEventId={electionEventId ?? ""}
+                            electionId={selectedTallySessionData?.election_id}
                             eventName={eventName}
                         />
                     ) : null}

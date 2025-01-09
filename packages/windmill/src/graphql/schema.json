@@ -12576,6 +12576,16 @@
                 "defaultValue": null
               },
               {
+                "name": "election_id",
+                "description": null,
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                },
+                "defaultValue": null
+              },
+              {
                 "name": "tenant_id",
                 "description": null,
                 "type": {

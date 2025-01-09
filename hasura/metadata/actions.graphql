@@ -237,6 +237,7 @@ type Mutation {
     generate_transmission_report(
         tenant_id: String!
         election_event_id: String!
+        election_id: String
     ): generateReportOutput
 }
 

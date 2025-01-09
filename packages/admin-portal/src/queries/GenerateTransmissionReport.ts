@@ -5,8 +5,16 @@
 import {gql} from "@apollo/client"
 
 export const GENERATE_TRANSMISSION_REPORT = gql`
-    mutation generate_transmission_report($tenantId: String!, $electionEventId: String!) {
-        generate_transmission_report(tenant_id: $tenantId, election_event_id: $electionEventId) {
+    mutation generate_transmission_report(
+        $tenantId: String!
+        $electionEventId: String!
+        $electionId: String
+    ) {
+        generate_transmission_report(
+            tenant_id: $tenantId
+            election_event_id: $electionEventId
+            election_id: $electionId
+        ) {
             document_id
             encryption_policy
             task_execution {

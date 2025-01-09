@@ -23,6 +23,7 @@ interface MiruPackageDownloadProps {
     areaName: string | null | undefined
     tenantId: string
     electionEventId: string
+    electionId?: string
     eventName: string
 }
 
@@ -37,6 +38,7 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = ({
     documents,
     tenantId,
     electionEventId,
+    electionId,
     eventName,
 }) => {
     const {t} = useTranslation()
@@ -85,8 +87,9 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = ({
         try {
             let generateReportResponse = await generatTransmissionReport({
                 variables: {
-                    tenantId: tenantId,
-                    electionEventId: electionEventId,
+                    tenantId,
+                    electionEventId,
+                    electionId,
                 },
             })
             let taskId =
