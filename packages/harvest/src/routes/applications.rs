@@ -413,8 +413,6 @@ pub async fn post_application_update_to_electoral_log(
     user_id: Option<String>,
     username: Option<String>,
 ) -> Result<()> {
-    // TODO: Encapsulate the code below to post the status_change to be called
-    // from both endpoints.
     let election_event = get_election_event_by_id(
         hasura_transaction,
         tenant_id,

@@ -229,9 +229,9 @@ impl Message {
         sd: &SigningData,
         user_id: Option<String>,
         username: Option<String>,
-        status_change: String,
+        description: Option<String>,
     ) -> Result<Self> {
-        let body = StatementBody::ApplicationStatusUpdateEvent(status_change);
+        let body = StatementBody::ApplicationStatusUpdateEvent(description);
         Self::from_body(event, body, sd, user_id, username)
     }
 

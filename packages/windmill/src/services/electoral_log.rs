@@ -493,7 +493,7 @@ impl ElectoralLog {
         username: Option<String>,
     ) -> Result<()> {
         let event = EventIdString(event_id);
-        let status_change_str = format!(
+        let description = format!(
             "Application status: {} Procedure: {}",
             status_change.application_status.to_string(),
             status_change.application_type.to_string()
@@ -503,7 +503,7 @@ impl ElectoralLog {
             &self.sd,
             user_id,
             username,
-            status_change_str,
+            Some(description),
         )
         .map_err(|e| anyhow!("Error sending template: {e:?}"))?;
 
@@ -790,8 +790,8 @@ impl TryFrom<&Row> for ElectoralLogRow {
                 _ => return Err(anyhow!("invalid column found '{}'", column.as_str())),
             }
         }
-        let deserialized_message =
-            Message::strand_deserialize(&message).with_context(|| "Error deserializing message")?;
+        let deserialized_message = Message::strand_deserialize(&message)
+            .map_err(|err| anyhow!(format!("Error deserializing message: {err:?}")))?;
         let serialized = general_purpose::STANDARD_NO_PAD.encode(message);
         Ok(ElectoralLogRow {
             id,

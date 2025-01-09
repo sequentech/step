@@ -143,7 +143,7 @@ impl StatementHead {
             StatementBody::ApplicationStatusUpdateEvent(msg) => StatementHead {
                 kind: StatementType::ApplicationStatusUpdateEvent,
                 event_type: StatementEventType::USER,
-                description: msg.to_string(),
+                description: msg.clone().unwrap_or_default(),
                 ..default_head
             },
             StatementBody::KeycloakUserEvent(error_message_string, error_message_type) => {
@@ -234,7 +234,7 @@ pub enum StatementBody {
     SendTemplate,
     SendCommunications(Option<String>),
     /// Application status update event
-    ApplicationStatusUpdateEvent(String),
+    ApplicationStatusUpdateEvent(Option<String>),
     KeycloakUserEvent(ErrorMessageString, KeycloakEventTypeString),
     /// Represents the assertion that
     ///     within the given tenant
