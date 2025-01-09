@@ -40,8 +40,6 @@ export const CustomAppBar: React.FC = () => {
 
     useEffect(() => {
         setLogoImg(logoUrl ?? BlankLogoImg)
-        console.log("SetUp: logUrl :: ", logoUrl)
-        console.log("SetUp: logoImg :: ", logoImg)
     }, [])
 
     /*  When tenant annotations column is empty annotations.logo_url will be 
@@ -55,8 +53,6 @@ export const CustomAppBar: React.FC = () => {
         if (!isFetching) {
             setLogoImg(newLogoState ?? SequentLogo)
         }
-        console.log("StateChange: logUrl :: ", logoUrl)
-        console.log("StateChange: logoImg :: ", logoImg)
     }, [(tenant?.annotations as ITenantTheme | undefined)?.logo_url, logoUrl, isFetching])
 
     return (
