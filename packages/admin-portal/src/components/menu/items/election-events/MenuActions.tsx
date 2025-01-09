@@ -4,7 +4,7 @@
 
 import React, {RefObject} from "react"
 import {useNavigate} from "react-router-dom"
-import {useDelete, useNotify, useUpdate} from "react-admin"
+import {useDelete, useNotify, useRedirect, useUpdate} from "react-admin"
 import MoreHorizIcon from "@mui/icons-material/MoreHoriz"
 import AddCircleIcon from "@mui/icons-material/AddCircle"
 import DeleteIcon from "@mui/icons-material/Delete"
@@ -54,6 +54,7 @@ interface Props {
     menuItemRef: RefObject<HTMLDivElement | null>
     setAnchorEl: (val: HTMLParagraphElement | null) => void
     anchorEl: HTMLParagraphElement | null
+    reloadTree: () => void
 }
 
 export default function MenuAction({
@@ -65,10 +66,12 @@ export default function MenuAction({
     menuItemRef,
     setAnchorEl,
     anchorEl,
+    reloadTree,
 }: Props) {
     const {t, i18n} = useTranslation()
 
     const navigate = useNavigate()
+    const redirect = useRedirect()
 
     const [deleteOne] = useDelete()
     const [update] = useUpdate()
@@ -92,7 +95,7 @@ export default function MenuAction({
     } | null>(null)
 
     const isItemElectionEventType = resourceType === "sequent_backend_election_event"
-    const {setElectionEventIdFlag, setElectionIdFlag, setContestIdFlag} =
+    const {setElectionEventIdFlag, setElectionIdFlag, setContestIdFlag, setCandidateIdFlag} =
         useElectionEventTallyStore()
 
     function handleOpenItemActions(): void {
@@ -190,7 +193,7 @@ export default function MenuAction({
             setElectionEventIdFlag(null)
             setElectionIdFlag(null)
             setContestIdFlag(null)
-            // navigate("/")
+            reloadTree()
         } catch (error) {
             notify(t("sideMenu.menuActions.messages.notification.error.delete"), {
                 type: "error",
@@ -213,20 +216,30 @@ export default function MenuAction({
                 {id: payload.id},
                 {
                     onSuccess: () => {
-                        if (parentData?.__typename === "sequent_backend_election_event") {
-                            setContestIdFlag(null)
-                            navigate("/sequent_backend_election_event/" + parentData.id)
-                        }
-                        if (parentData?.__typename === "sequent_backend_election") {
-                            setElectionIdFlag(null)
-                            navigate("/sequent_backend_election/" + parentData.id)
-                        }
+                        reloadTree()
                         refetch()
+
                         notify(t("sideMenu.menuActions.messages.notification.success.delete"), {
                             type: "success",
                         })
+                        if (parentData?.__typename === "sequent_backend_election_event") {
+                            setElectionEventIdFlag("")
+                            setElectionIdFlag("")
+                            navigate("/sequent_backend_election_event/" + parentData.id)
+                        }
+                        if (parentData?.__typename === "sequent_backend_election") {
+                            setElectionIdFlag("")
+                            setContestIdFlag("")
+                            navigate("/sequent_backend_election/" + parentData.id)
+                        }
+                        if (parentData?.__typename === "sequent_backend_contest") {
+                            setElectionIdFlag("")
+                            setContestIdFlag("")
+                            navigate("/sequent_backend_contest/" + parentData.id)
+                        }
                     },
                     onError: () => {
+                        setOpenDeleteModal(false)
                         notify(t("sideMenu.menuActions.messages.notification.error.delete"), {
                             type: "error",
                         })
@@ -348,6 +361,12 @@ export default function MenuAction({
                             {t(mapAddResource[resourceType])}
                         </MenuItem>
                     )}
+
+                    {isItemElectionEventType &&
+                        !isArchivedTab &&
+                        canShowCreate &&
+                        canShowDelete && <Divider key="divider0" />}
+
                     {!isArchivedTab &&
                     canShowCreate &&
                     resourceType === "sequent_backend_election_event" ? (
