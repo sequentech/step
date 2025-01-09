@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumString};
 use tracing::instrument;
 use uuid::Uuid;
-use windmill::services::tasks_execution::*;
+use windmill::{postgres::reports::Report, services::tasks_execution::*};
 use windmill::{
     postgres::reports::get_report_by_id,
     services::{
@@ -233,8 +233,6 @@ pub async fn generate_transmission_report(
         .clone()
         .unwrap_or_else(|| executer_name.clone());
 
-    let document_id: String = Uuid::new_v4().to_string();
-    let celery_app = get_celery_app().await;
     let report = get_report_by_type(
         &hasura_transaction,
         &input.tenant_id,
@@ -248,7 +246,18 @@ pub async fn generate_transmission_report(
             format!("Error getting report by id: {e:?}"),
         )
     })?
-    .ok_or_else(|| (Status::NotFound, "Report not found".to_string()))?;
+    .unwrap_or(Report {
+        id: Uuid::new_v4().to_string(),
+        election_event_id: input.election_event_id.clone(),
+        tenant_id: input.tenant_id.clone(),
+        election_id: None,
+        report_type: ReportType::TRANSMISSION_REPORT.to_string(),
+        template_alias: None,
+        encryption_policy: EReportEncryption::Unencrypted,
+        cron_config: None,
+        created_at: chrono::Utc::now(),
+        permission_label: None,
+    });
 
     // Insert the task execution record
     let task_execution = post(
@@ -264,6 +273,9 @@ pub async fn generate_transmission_report(
             format!("Failed to insert task execution record: {error:?}"),
         )
     })?;
+
+    let document_id: String = Uuid::new_v4().to_string();
+    let celery_app = get_celery_app().await;
 
     let _task = celery_app
         .send_task(windmill::tasks::generate_report::generate_report::new(

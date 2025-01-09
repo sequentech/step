@@ -86,7 +86,7 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = ({
                     electionEventId: electionEventId,
                 },
             })
-            setFileNameWithExt(fileName + ".zip")
+            setFileNameWithExt("transmission_report" + ".zip")
             setDocumentToDownload(
                 generateReportResponse.data?.generateTransmissionReport?.document_id
             )
@@ -204,8 +204,14 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = ({
                             overflow: "hidden",
                         }}
                     >
-                        <span title={t("tally.transmissionPackage.actions.download.emlTitle")}>
-                            {t("tally.transmissionPackage.actions.download.emlTitle")}
+                        <span
+                            title={t(
+                                "tally.transmissionPackage.actions.download.transmissionReportTitle"
+                            )}
+                        >
+                            {t(
+                                "tally.transmissionPackage.actions.download.transmissionReportTitle"
+                            )}
                         </span>
                     </Box>
                 </MenuItem>
