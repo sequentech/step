@@ -322,6 +322,7 @@ export default function ElectionEvents() {
             contestData()
         } else if (callerPath === "sequent_backend_candidate") {
             candidateTreeRefetch()
+            electionEventDataRefetch()
         } else {
             electionEventDataRefetch()
         }
@@ -340,8 +341,12 @@ export default function ElectionEvents() {
     // because now if we want to add any other item in the sidebar, we NEED to
     // also add it here. We reallt need to find a better way to solve this.
     useEffect(() => {
+        const callerPath = location.pathname.split("/")[1]
+
         const hasCandidateIdFlag =
-            location.pathname.split("/").length === 3 && location.pathname.split("/")[2] !== ""
+            location.pathname.split("/").length === 3 &&
+            location.pathname.split("/")[2] !== "" &&
+            callerPath === "sequent_backend_candidate"
         // const isSideBarElement =
         //     location.pathname.split("/").length >= 2 &&
         //     ["user-roles", "settings", "sequent_backend_template"].includes(
@@ -353,7 +358,7 @@ export default function ElectionEvents() {
 
                 setTimeout(() => {
                     candidateTreeRefetch()
-                }, 800)
+                }, 400)
             }
         }
         //  else if (!isSideBarElement) {
