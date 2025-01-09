@@ -190,7 +190,9 @@ impl FilterOption {
                 )
             }
             Self::IsEqualNormalized(pattern) => (
-                format!(r#"({col_name}_normalized = normalize_text(${param_number}))){operator} "#,),
+                format!(
+                    r#"(normalize_text({col_name}) = normalize_text(${param_number})){operator} "#,
+                ),
                 Some(format!("%{}%", pattern)),
             ),
 
@@ -723,8 +725,8 @@ pub async fn lookup_users(
     let query_limit: i64 =
         std::cmp::min(low_sql_limit, filter.limit.unwrap_or(default_sql_limit)).into();
 
-    let mut params: Vec<&(dyn ToSql + Sync)> = vec![&filter.realm];
-    let mut next_param_number = 2;
+    let mut params: Vec<&(dyn ToSql + Sync)> = vec![&filter.realm, &query_limit];
+    let mut next_param_number = 3;
 
     let mut filters_clause = "".to_string();
     let mut filter_params: Vec<String> = vec![];
@@ -738,7 +740,17 @@ pub async fn lookup_users(
         match filter_option {
             Some(filter_obj) => {
                 let (clause, param) =
-                    filter_obj.get_sql_filter_clause(col_name, next_param_number, "::int +");
+                    filter_obj.get_sql_filter_clause(col_name, next_param_number, "");
+                let clause = format!(
+                    r#"
+                    SELECT
+                        ue.id, "{col_name}"
+                    FROM user_entity ue
+                    WHERE
+                        {clause}
+                    UNION ALL
+                    "#
+                );
                 filters_clause.push_str(&clause);
                 if let Some(param) = param {
                     next_param_number += 1;
@@ -756,15 +768,15 @@ pub async fn lookup_users(
 
     let mut dynamic_attr_conditions: Vec<String> = Vec::new();
     let mut dynamic_attr_params: Vec<Option<String>> = vec![];
+
     if let Some(attributes) = &filter.attributes {
         for (key, value) in attributes {
             dynamic_attr_conditions.push(format!(
-                r#"(ua.name = ${} AND ua.value_normalized = normalize_text(${}))"#,
+                r#"(ua.name = ${} AND normalize_text(ua.value) = normalize_text(${}))"#,
                 next_param_number,
                 next_param_number + 1
             ));
-            let value = value.replace(" ", "_"); // replace blanks by single wildcards to detect hyphens
-            let val = Some(format!("%{value}%"));
+            let val = Some(value.to_string());
             let formatted_keyy = key.trim_matches('\'').to_string();
             dynamic_attr_params.push(Some(formatted_keyy.clone()));
             dynamic_attr_params.push(val.clone());
@@ -774,10 +786,10 @@ pub async fn lookup_users(
     for value in &dynamic_attr_params {
         params.push(value);
     }
-    let dynamic_attr_clause = if !dynamic_attr_conditions.is_empty() {
-        dynamic_attr_conditions.join(" OR ")
-    } else {
-        "0=1".to_string() // Always false if no dynamic attributes are specified
+
+    let dynamic_attr_clause = match dynamic_attr_conditions.is_empty() {
+        true => "".to_string(),
+        false => dynamic_attr_conditions.join(" OR "),
     };
 
     debug!("parameters count: {}", next_param_number - 1);
@@ -788,24 +800,12 @@ pub async fn lookup_users(
         WITH matched_ids AS (
             {filters_clause}
             SELECT
-                ue.id, "first_name"
-            FROM user_entity ue
-            WHERE
-                ue.first_name = unaccent($first_name)
-            UNION ALL
-            SELECT
-                ue.id, "last_name"
-            FROM user_entity ue
-            WHERE
-                ue.last_name = unaccent($last_name)
-            UNION ALL
-            SELECT
                 ua.user_id, ua.name
             FROM user_attribute ua
             WHERE
                 {dynamic_attr_clause}
         ),
-        ranked_matches AS (
+        score_matches AS (
             SELECT mu.id, count(*) as match_score FROM matched_ids mu
             GROUP BY mu.id
         )
@@ -813,7 +813,7 @@ pub async fn lookup_users(
                 attr_json.attributes, '{{}}'::json
             ) AS attributes
         FROM
-            ranked_matches rm
+            score_matches rm
         INNER JOIN user_entity u ON u.id = rm.id
         INNER JOIN realm ra ON ra.id = u.realm_id
         LEFT JOIN LATERAL (
@@ -829,11 +829,11 @@ pub async fn lookup_users(
         ) attr_json ON true
         WHERE  match_score = (
                 SELECT MAX(match_score)
-                FROM ranked_matches
+                FROM score_matches
             )
             AND ra.name = $1
             {enabled_condition}
-        LIMIT {query_limit}
+        LIMIT $2
         "#
     );
     debug!("statement: {}", statement_str);
