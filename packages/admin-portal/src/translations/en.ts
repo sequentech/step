@@ -1276,7 +1276,7 @@ const englishTranslation = {
                         "You are about to Cancel Keys Ceremony. After performing this action, to have a succcessful Keys Ceremony you will have to Create a new one.",
                 },
                 header: {
-                    trusteeName: "Trustee Name",
+                    trusteeName: "SBEI id",
                     fragment: "Key Fragment Generated",
                     downloaded: "Private Key Fragment Downloaded",
                     checked: "Private Key Fragment Checked",

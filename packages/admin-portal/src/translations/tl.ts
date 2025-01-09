@@ -1290,7 +1290,7 @@ const tagalogTranslation: TranslationType = {
                         "Malapit mo nang ma-kansela ang Seremonya ng Mga Susi. Pagkatapos isagawa ang aksyong ito, upang magkaroon ng matagumpay na Seremonya ng Mga Susi, kailangan mong lumikha ng bago.",
                 },
                 header: {
-                    trusteeName: "Pangalan ng Trustee",
+                    trusteeName: "ID ng SBEI",
                     fragment: "Nalikha ang Piraso ng Susi",
                     downloaded: "Nai-download na Piraso ng Pribadong Susi",
                     checked: "Nasuri ang Piraso ng Pribadong Susi",
