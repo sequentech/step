@@ -18,7 +18,6 @@ import {
     useRefresh,
     useSidebarState,
     useGetOne,
-    useRemoveFromStore,
 } from "react-admin"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {TFunction, useTranslation} from "react-i18next"
@@ -51,7 +50,7 @@ import {useQuery} from "@apollo/client"
 import {USER_PROFILE_ATTRIBUTES} from "@/queries/GetUserProfileAttributes"
 import {styled} from "@mui/material/styles"
 import eStyled from "@emotion/styled"
-import {Chip, Typography} from "@mui/material"
+import {Chip} from "@mui/material"
 import {convertToCamelCase} from "./UtilsApprovals"
 import {getAttributeLabel, getTranslationLabel} from "@/services/UserService"
 import {useLocation} from "react-router"
@@ -78,13 +77,14 @@ interface ApprovalsListProps extends Omit<DatagridConfigurableProps, "children">
     actions: Action[]
     t: TFunction
     userAttributes: GetUserProfileAttributesQuery | undefined
+    defaultFilters: string | null
 }
 
 // Storage key for the status filter
 const STATUS_FILTER_KEY = "approvals_status_filter"
 
 const ApprovalsList = (props: ApprovalsListProps) => {
-    const {filterValues, data, isLoading} = useListContext()
+    const {filterValues, setFilters} = useListContext()
     const location = useLocation()
 
     const {t} = useTranslation()
@@ -108,6 +108,12 @@ const ApprovalsList = (props: ApprovalsListProps) => {
 
         return {basicInfoFields, attributesFields, omitFields}
     }, [props.userAttributes?.get_user_profile_attributes])
+
+    useEffect(() => {
+        if (props.defaultFilters) {
+            setFilters({...filterValues, status: localStorage.getItem(STATUS_FILTER_KEY)}, {})
+        }
+    }, [props.defaultFilters])
 
     const renderUserFields = (fields: UserProfileAttribute[]) => {
         const allFields = fields.map((attr) => {
@@ -190,13 +196,6 @@ const ApprovalsList = (props: ApprovalsListProps) => {
         },
     }
 
-    // Monitor and save filter changes
-    useEffect(() => {
-        if (filterValues?.status) {
-            localStorage.setItem(STATUS_FILTER_KEY, filterValues.status)
-        }
-    }, [filterValues?.status])
-
     const restFields = useMemo(() => {
         const theFields = []
         theFields.push(...renderUserFields(listFields?.basicInfoFields ?? []))
@@ -241,7 +240,7 @@ const ApprovalsList = (props: ApprovalsListProps) => {
                 )}
             />
             <TextField
-                source="annotations.approved_by"
+                source="annotations.verified_by"
                 label={props.t("approvalsScreen.column.approved_by")}
                 emptyText="-"
             />
@@ -251,7 +250,7 @@ const ApprovalsList = (props: ApprovalsListProps) => {
     )
 }
 
-const CustomFilters = (t: any) => {
+const CustomFilters = (t: any, changeFilters: any) => {
     // const {t} = useTranslation()
 
     return [
@@ -264,6 +263,13 @@ const CustomFilters = (t: any) => {
                 {id: "accepted", name: "Accepted"},
                 {id: "rejected", name: "Rejected"},
             ]}
+            defaultValue={localStorage.getItem(STATUS_FILTER_KEY)}
+            onChange={(e) => {
+                if (e.target.value) {
+                    localStorage.setItem(STATUS_FILTER_KEY, e.target.value)
+                    changeFilters(e.target.value)
+                }
+            }}
         />,
         <SelectInput
             source="verification_type"
@@ -332,19 +338,6 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
         {id: electionId || ""},
         {enabled: !!electionId} // Only fetch when electionId exists
     )
-
-    const listFilter = useMemo(() => {
-        const filter: Record<string, any> = {
-            election_event_id: electionEventId || undefined,
-            // status: initialStatus,
-        }
-
-        if (election?.permission_label) {
-            filter.permission_label = election.permission_label
-        }
-
-        return filter
-    }, [electionEventId, election?.permission_label])
 
     const handleExport = () => {
         setExporting(false)
@@ -427,13 +420,27 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
         })
 
     // Get initial status from localStorage or use "pending" as default
-    const initialStatus = localStorage.getItem(STATUS_FILTER_KEY) || "pending"
+    // const defaultFilters = localStorage.getItem(STATUS_FILTER_KEY) // || "pending"
+    const [defaultFilters, setDefaultFilters] = useState<string | null>(
+        localStorage.getItem(STATUS_FILTER_KEY) || "pending"
+    )
+
+    const listFilter = useMemo(() => {
+        const filter: Record<string, any> = {
+            election_event_id: electionEventId || undefined,
+        }
+
+        if (election?.permission_label) {
+            filter.permission_label = election.permission_label
+        }
+
+        return filter
+    }, [electionEventId, election?.permission_label, defaultFilters])
 
     const authContext = useContext(AuthContext)
     const canExport = authContext.isAuthorized(true, tenantId, IPermissions.APPLICATION_EXPORT)
     const canImport = authContext.isAuthorized(true, tenantId, IPermissions.APPLICATION_IMPORT)
 
-    // add election level
     if (userAttributesLoading) {
         return null
     }
@@ -452,11 +459,11 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
                 }
                 // empty={false}
                 resource="sequent_backend_applications"
-                filters={CustomFilters(t)}
+                filters={CustomFilters(t, setDefaultFilters)}
                 filter={listFilter}
                 sort={{field: "created_at", order: "DESC"}}
                 perPage={10}
-                filterDefaultValues={{status: initialStatus}}
+                filterDefaultValues={{status: defaultFilters}}
                 disableSyncWithLocation
             >
                 <ApprovalsList
@@ -464,6 +471,7 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
                     actions={actions}
                     t={t}
                     userAttributes={userAttributes}
+                    defaultFilters={defaultFilters}
                 />
             </List>
 
