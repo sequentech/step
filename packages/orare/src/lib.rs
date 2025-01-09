@@ -26,12 +26,13 @@ pub fn lambda_runtime(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
         cfg_if::cfg_if! {
             if #[cfg(feature = "aws_lambda")] {
-                use lambda_runtime::{run, service_fn, LambdaEvent, Diagnostic, Error};
+                use lambda_runtime::{run, service_fn, tracing, LambdaEvent, Diagnostic, Error};
                 use serde_json::{json, Value};
-                use tokio;
 
                 #[tokio::main]
                 async fn main() -> Result<(), Error> {
+                    tracing::init_default_subscriber();
+
                     run(service_fn(func)).await?;
                     Ok(())
                 }
