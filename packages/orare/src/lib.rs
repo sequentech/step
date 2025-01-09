@@ -41,14 +41,14 @@ pub fn lambda_runtime(_attr: TokenStream, item: TokenStream) -> TokenStream {
                     let (event, _context) = event.into_parts();
                     let input: Result<_, Diagnostic> = serde_json::from_value(event)
                         .map_err(|e| anyhow::anyhow!("Failed to deserialize input: {e:?}").into());
+                    let input = input?;
 
-                    let lambda_result = #name(input?)
-                        .map(|result| serde_json::to_value(&result).unwrap());
-
-                    match lambda_result {
-                        Ok(value) => Ok(value),
-                        Err(error) => Err(anyhow::anyhow!("Error running lambda: {error:?}").into()),
-                    }
+                    tokio::task::spawn_blocking(move || {
+                        #name(input)
+                            .map(|result| serde_json::to_value(&result).unwrap())
+                            .expect("Error running lambda")
+                    }).await
+                        .map_err(|e| anyhow::anyhow!("Error running lambda: {e:?}").into())
                 }
             } else if #[cfg(any(feature = "openwhisk"))] {
                 use serde_json;
