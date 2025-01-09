@@ -345,10 +345,11 @@ export default function ElectionEvents() {
     useEffect(() => {
         const hasCandidateIdFlag =
             location.pathname.split("/").length === 3 && location.pathname.split("/")[2] !== ""
-        const isSideBarElement = 
-            location.pathname.split("/").length >= 2 && [
-                "user-roles", "settings", "sequent_backend_template",
-            ].includes(location.pathname.split("/")[1])
+        const isSideBarElement =
+            location.pathname.split("/").length >= 2 &&
+            ["user-roles", "settings", "sequent_backend_template"].includes(
+                location.pathname.split("/")[1]
+            )
         if (hasCandidateIdFlag) {
             if (getCandidateIdFlag() === location.pathname.split("/")[2]) {
                 contestData()
