@@ -15,6 +15,8 @@ import {DownloadDocument} from "@/resources/User/DownloadDocument"
 import {useMutation} from "@apollo/client"
 import {IPermissions} from "@/types/keycloak"
 import {GENERATE_TRANSMISSION_REPORT} from "@/queries/GenerateTransmissionReport"
+import {useWidgetStore} from "@/providers/WidgetsContextProvider"
+import {ETasksExecution} from "@/types/tasksExecution"
 
 interface MiruPackageDownloadProps {
     documents: IMiruDocument[] | null
@@ -43,6 +45,7 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = ({
     const [documentToDownload, setDocumentToDownload] = useState<string | null>(null)
     const [fileNameWithExt, setFileNameWithExt] = useState<string>("all_servers.tar.gz")
     const [performDownload, setPerformDownload] = useState<boolean>(false)
+    const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
 
     const [generatTransmissionReport] = useMutation(GENERATE_TRANSMISSION_REPORT, {
         context: {
@@ -77,8 +80,8 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = ({
     const onDownloadReport = async (e: React.MouseEvent<HTMLElement>) => {
         e.preventDefault()
         e.stopPropagation()
-        // TODO: add widgets to show progress
         handleClose()
+        const currWidget = addWidget(ETasksExecution.GENERATE_TRANSMISSION_REPORT)
         try {
             let generateReportResponse = await generatTransmissionReport({
                 variables: {
@@ -86,13 +89,19 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = ({
                     electionEventId: electionEventId,
                 },
             })
+            let response = generateReportResponse.data?.generateTransmissionReport
+            let taskId = response?.task_execution?.id
+            let generatedDocumentId = response?.document_id
+            if (!generatedDocumentId) {
+                updateWidgetFail(currWidget.identifier)
+                return
+            }
             setFileNameWithExt("transmission_report" + ".zip")
-            setDocumentToDownload(
-                generateReportResponse.data?.generateTransmissionReport?.document_id
-            )
+            setDocumentToDownload(generatedDocumentId)
             setPerformDownload(true)
+            setWidgetTaskId(currWidget.identifier, taskId)
         } catch (e) {
-            console.log(e)
+            updateWidgetFail(currWidget.identifier)
         }
     }
 
