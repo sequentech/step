@@ -1123,6 +1123,7 @@ const spanishTranslation: TranslationType = {
                             archive: "El elemento ha sido archivado",
                             unarchive: "El elemento ha sido desarchivado",
                             delete: "El elemento ha sido eliminado",
+                            reloading: "Espere. La página se recargara en unos momentos",
                         },
                         error: {
                             archive: "Error al intentar archivar este elemento",
@@ -1876,7 +1877,7 @@ const spanishTranslation: TranslationType = {
                 createdAt: "Creado El",
                 updatedAt: "Actualizado El",
             },
-            approvalInformation: "Información de aprobación",
+            approvalRequest: "Solicitud de Aprobación",
             title: "Votantes",
             subtitle: "Buscar votantes coincidentes",
             approve: {

@@ -116,38 +116,7 @@ pub async fn verify_application(
         (None, None)
     };
 
-    // Check if we need to preserve the original embassy value
-    let final_applicant_data = if result.mismatches == Some(1)
-        && result
-            .fields_match
-            .as_ref()
-            .and_then(|fm| fm.get("embassy"))
-            .map_or(false, |&v| !v)
-    {
-        let mut modified_data = applicant_data.clone();
-
-        // Get the embassy value from the first matching user
-        if let Some(user) = users.first() {
-            if let Some(embassy_values) = user
-                .attributes
-                .as_ref()
-                .and_then(|attrs| attrs.get("embassy"))
-            {
-                if let Some(embassy) = embassy_values.first() {
-                    info!(
-                        "Preserving original embassy={embassy} from user.id={:?}",
-                        user.id
-                    );
-                    modified_data.insert("embassy".to_string(), embassy.clone());
-                }
-            }
-        }
-
-        modified_data
-    } else {
-        info!("Using original applicant data without modifications");
-        applicant_data.clone()
-    };
+    let final_applicant_data = applicant_data.clone();
 
     info!("Final applicant data: {:?}", final_applicant_data);
 
@@ -667,6 +636,7 @@ pub async fn confirm_application(
     user_id: &str,
     admin_id: &str,
     admin_name: &str,
+    group_names: &Vec<String>,
 ) -> Result<(Application, User)> {
     // Update the application to ACCEPTED
     let application = update_application_status(
@@ -679,6 +649,7 @@ pub async fn confirm_application(
         None,
         None,
         admin_name,
+        group_names,
     )
     .await
     .map_err(|err| anyhow!("Error updating application: {}", err))?;
@@ -823,6 +794,7 @@ pub async fn reject_application(
     rejection_reason: Option<String>,
     rejection_message: Option<String>,
     admin_name: &str,
+    group_names: &Vec<String>,
 ) -> Result<Application> {
     // Update the application to REJECTED
     let application = update_application_status(
@@ -835,6 +807,7 @@ pub async fn reject_application(
         rejection_reason,
         rejection_message,
         admin_name,
+        &group_names,
     )
     .await
     .map_err(|err| anyhow!("Error updating application: {}", err))?;
@@ -1146,4 +1119,25 @@ mod tests {
             applicant_value, user_value
         );
     }
+}
+
+pub async fn get_group_names(realm: &str, user_id: &str) -> Result<Vec<String>> {
+    let client = KeycloakAdminClient::new()
+        .await
+        .map_err(|err| anyhow!("Error create keycloak admin client: {err}"))?;
+
+    // Fetch user groups from Keycloak
+    let _groups = client
+        .get_user_groups(&realm, user_id)
+        .await
+        .map_err(|err| anyhow!("Error fetch group names: {err}"))?;
+
+    // Extract group names
+    let group_names: Vec<String> = _groups
+        .into_iter()
+        .map(|group| group.group_name) // Assuming `group_name` is a String
+        .collect();
+
+    // Return group names as a JSON response
+    Ok(group_names)
 }

@@ -1133,6 +1133,7 @@ const catalanTranslation: TranslationType = {
                             archive: "L'element ha estat arxivat",
                             unarchive: "L'element ha estat desarxivat",
                             delete: "L'element ha estat eliminat",
+                            reloading: "Espera. La pàgina serà recarregada en alguns moments",
                         },
                         error: {
                             archive: "Error intentant arxivar aquest element",
@@ -1886,7 +1887,7 @@ const catalanTranslation: TranslationType = {
                 createdAt: "Creat El",
                 updatedAt: "Actualitzat El",
             },
-            approvalInformation: "Informació d'aprovació",
+            approvalRequest: "Sol·licitud d'Aprovació",
             title: "Votants",
             subtitle: "Cercar votants coincidents",
             approve: {

@@ -1130,6 +1130,8 @@ const frenchTranslation: TranslationType = {
                             archive: "L'élément a été archivé",
                             unarchive: "L'élément a été désarchivé",
                             delete: "L'élément a été supprimé",
+                            reloading:
+                                "Veuillez patienter. La page va se recharger dans quelques instants.",
                         },
                         error: {
                             archive: "Erreur lors de la tentative d'archivage de cet élément",
@@ -1886,7 +1888,7 @@ const frenchTranslation: TranslationType = {
                 createdAt: "Créé Le",
                 updatedAt: "Mis à Jour Le",
             },
-            approvalInformation: "Informations d'approbation",
+            approvalRequest: "Informations d'approbation",
             title: "Électeurs",
             subtitle: "Rechercher des électeurs correspondants",
             approve: {

@@ -1125,6 +1125,7 @@ const tagalogTranslation: TranslationType = {
                             archive: "Ang item ay na-archive na",
                             unarchive: "Ang item ay na-unarchive na",
                             delete: "Ang item ay natanggal na",
+                            reloading: "Wait. Ang pahina ay na-reload na sa iba pang mga oras.",
                         },
                         error: {
                             archive: "Error habang sinusubukang i-archive ang item na ito",
@@ -1417,7 +1418,7 @@ const tagalogTranslation: TranslationType = {
                     description:
                         "Maaaring pirmahan ng mga SBEI ang Pakete ng Transmisyon. Ipinapakita ng talahanayan sa ibaba ang katayuan ng pirma ng bawat isa sa mga miyembro ng SBEI.",
                     table: {
-                        trusteeName: "Pangalan ng Tagapagtiwala",
+                        trusteeName: "ID ng SBEI",
                         signed: "Napirmahan",
                     },
                     status: "{{signed}} sa {{total}} Napirmahan",
@@ -1880,7 +1881,7 @@ const tagalogTranslation: TranslationType = {
                 createdAt: "Nilikha Noong",
                 updatedAt: "Na-update Noong",
             },
-            approvalInformation: "Impormasyon ng Pag-apruba",
+            approvalRequest: "Kahilingan para sa Pag-apruba",
             title: "Mga Botante",
             subtitle: "Maghanap ng mga tumutugmang botante",
             approve: {

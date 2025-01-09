@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::postgres::election::{get_election_by_id, update_election_voting_status};
+use crate::postgres::election::{get_election_by_id, get_elections, update_election_voting_status};
 use crate::postgres::election_event::{
     get_election_event_by_id, update_election_event_status,
     update_elections_status_by_election_event,
@@ -40,7 +40,9 @@ pub async fn update_event_voting_status(
 
     let mut status =
         get_election_event_status(election_event.status.clone()).unwrap_or(Default::default());
-    let mut election_status = ElectionStatus::default();
+    let elections = get_elections(hasura_transaction, tenant_id, election_event_id, None)
+        .await
+        .with_context(|| "Error obtaining elections")?;
 
     let current_voting_status = status.status_by_channel(&channel).clone();
 
@@ -87,16 +89,21 @@ pub async fn update_event_voting_status(
 
     let mut elections_ids: Vec<String> = Vec::new();
     if *new_status == VotingStatus::OPEN || *new_status == VotingStatus::CLOSED {
-        election_status.voting_status = new_status.clone();
-        // TODO: Check if initialization report is required
-        elections_ids = update_elections_status_by_election_event(
-            &hasura_transaction,
-            &tenant_id,
-            &election_event_id,
-            serde_json::to_value(&election_status).with_context(|| "Error parsing status")?,
-        )
-        .await
-        .with_context(|| "Error updating election event status by election event")?;
+        for election in elections {
+            let mut election_status =
+                get_election_status(election.status.clone()).unwrap_or(Default::default());
+            election_status.set_status_by_channel(&channel, new_status.clone());
+
+            update_election_voting_status(
+                &hasura_transaction,
+                &tenant_id,
+                &election_event_id,
+                &election.id,
+                serde_json::to_value(&election_status).with_context(|| "Error parsing status")?,
+            )
+            .await
+            .with_context(|| "Error updating election voting status")?;
+        }
     }
 
     update_board_on_status_change(
