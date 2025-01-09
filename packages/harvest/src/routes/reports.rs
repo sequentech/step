@@ -205,7 +205,7 @@ pub async fn generate_transmission_report(
         &claims,
         true,
         Some(input.tenant_id.clone()),
-        vec![Permissions::GENERATE_TRANSMISSION_REPORT],
+        vec![Permissions::TRANSMISSION_REPORT_GENERATE],
     )?;
 
     let mut hasura_db_client: DbClient =

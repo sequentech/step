@@ -47,7 +47,7 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = ({
     const [generatTransmissionReport] = useMutation(GENERATE_TRANSMISSION_REPORT, {
         context: {
             headers: {
-                "x-hasura-role": IPermissions.GENERATE_TRANSMISSION_REPORT,
+                "x-hasura-role": IPermissions.TRANSMISSION_REPORT_GENERATE,
             },
         },
     })

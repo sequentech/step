@@ -49,8 +49,8 @@
   "roles": {
     "realm": [
       {
-        "id": "545b57a0-ad5d-41c3-be67-bbbe0887ea66",
-        "name": "admin-ceremony",
+        "id": "48c2cfea-0ba6-4f07-b38f-29cc23684970",
+        "name": "user-write",
         "description": "",
         "composite": false,
         "clientRole": false,
@@ -58,8 +58,8 @@
         "attributes": {}
       },
       {
-        "id": "88b59e58-d799-49d0-ba2a-c4a9e4c61dc1",
-        "name": "admin-dashboard-view",
+        "id": "6ba698f4-9a4f-4ffa-ad74-b7276e4fdefb",
+        "name": "election-event-write",
         "description": "",
         "composite": false,
         "clientRole": false,
@@ -67,8 +67,8 @@
         "attributes": {}
       },
       {
-        "id": "f34f29e7-0ce5-4051-9149-3b0e1f86f32c",
-        "name": "admin-ip-address-view",
+        "id": "5e160701-19cc-478b-8eb8-ae4e35492ced",
+        "name": "tally-sheet-create",
         "description": "",
         "composite": false,
         "clientRole": false,
@@ -76,187 +76,8 @@
         "attributes": {}
       },
       {
-        "id": "aa3384c6-83cb-4c00-b930-4c048b2114e4",
-        "name": "admin-user",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "82389208-5dbc-4ad6-988e-bef7463d6d91",
-        "name": "application-export",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "edd7b69e-4aa8-47ac-83ea-2f1a6e166fd7",
-        "name": "application-import",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "a2627085-15d1-45a3-ae72-832487dd48c7",
-        "name": "application-read",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "0f1a96dd-7f60-45c3-94f4-b32790f398c5",
-        "name": "application-write",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "aceac069-f742-4c19-88fd-5c87f1807c85",
-        "name": "area-delete",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "6555388c-43bf-4abe-b060-62237ea38113",
-        "name": "area-export",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "6b7f575a-182b-46bc-b63d-3c7c3f134a78",
-        "name": "area-import",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "cae31fe2-8a61-471e-9619-fb0a8b402f77",
-        "name": "area-read",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "bbdee70f-c9f0-4ef6-882f-7f92703ae246",
-        "name": "area-upsert",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "10a0849a-c1d1-47f5-94b5-50b481f70aec",
-        "name": "area-write",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "4b05e03f-0a55-41c4-8d6f-2bb225fff686",
-        "name": "candidate-create",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "17b83ac3-6a1d-4b93-80b2-2a4bbee349e2",
-        "name": "candidate-delete",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "e2db78b8-ca70-4b5a-9b3d-824b4e4aad65",
-        "name": "candidate-read",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "ae3ea5fe-44f7-4062-b41b-54f27280c746",
-        "name": "candidate-write",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "a6d94c05-f0e6-4ad8-b7e0-3257ea9cffc3",
-        "name": "cast-vote-read",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "562cc2ad-9e8e-4e82-b3ae-7e4e800b750b",
-        "name": "cloudflare-write",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "65f5fe64-bbd4-4125-923f-aa710fe8df0b",
-        "name": "communication-template-create",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "b6d6e9ff-0ebe-4f01-b0d1-dc1eb7bc8f8a",
-        "name": "communication-template-read",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "a98af090-0a72-40ad-89f9-75fef16c1b3f",
-        "name": "communication-template-write",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "b6886d45-ec9a-4915-bb94-0933a7657c77",
-        "name": "contest-create",
+        "id": "c55e54f6-605a-425f-b8ba-08ded4fc4717",
+        "name": "election-event-delete",
         "description": "",
         "composite": false,
         "clientRole": false,
@@ -273,8 +94,771 @@
         "attributes": {}
       },
       {
-        "id": "357cf6f1-f63f-4cc2-9636-2e0445327f16",
-        "name": "contest-read",
+        "id": "65f5fe64-bbd4-4125-923f-aa710fe8df0b",
+        "name": "communication-template-create",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "be496a85-9c56-44e2-a3e3-330a4862c339",
+        "name": "election-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "7d94c526-6030-4411-942d-3d98cf580e2f",
+        "name": "miru-download",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "824208ac-0aa1-4290-ada8-eb30b0f837fd",
+        "name": "election-data-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "bf11041c-1516-487a-989b-ef90a73b4b33",
+        "name": "election-event-publish-columns",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "54ead8b8-7944-4083-b2d0-7dcc4f21f744",
+        "name": "miru-send",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "80c8d356-238c-452f-a96a-a5780637f194",
+        "name": "uma_authorization",
+        "description": "${role_uma_authorization}",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "4b05e03f-0a55-41c4-8d6f-2bb225fff686",
+        "name": "candidate-create",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "0a33030b-5e8a-4912-b201-7b1b91eb2df8",
+        "name": "election-event-tasks-filters",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "ce63cae8-da32-4841-a479-2ed1d3f7e4f3",
+        "name": "election-event-create",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "04ab39aa-7399-4291-932a-51ddf6020ae1",
+        "name": "election-create",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "81ff4801-d4bb-4c3e-8d46-f525443c21d1",
+        "name": "miru-create",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "0f1a96dd-7f60-45c3-94f4-b32790f398c5",
+        "name": "application-write",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "10a0849a-c1d1-47f5-94b5-50b481f70aec",
+        "name": "area-write",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "e7365747-6fca-4fbb-94d2-8cca148a6979",
+        "name": "election-event-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "6c856461-90a0-4c51-a98d-cb810bc6a5f6",
+        "name": "offline_access",
+        "description": "${role_offline-access}",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "6b7f575a-182b-46bc-b63d-3c7c3f134a78",
+        "name": "area-import",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "33153a64-1a18-477b-8fdd-280cb49f79f1",
+        "name": "user-permission-create",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "70df8925-5f5c-449f-b3a6-0a02d58779ee",
+        "name": "voter-export",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "663c4840-b5d3-4fbf-96f1-89037b80582a",
+        "name": "election-event-keys-columns",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "efbf6526-f6d3-4fda-9ea8-b52fe8e97a5f",
+        "name": "publish-export",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "aad9400d-7f3e-49a5-a8d3-d2cf60bba5ae",
+        "name": "tally-sheet-view",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "b0ad7f25-9e22-4c13-87c7-f32a5486d306",
+        "name": "voting-channel-write",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "ae8f569e-8474-45d8-8809-bea9cd0e18fc",
+        "name": "task-export",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "62e04181-bbc4-4b50-a54e-d66c5d5fd97c",
+        "name": "election-events-logs-filters",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "0cd39cd8-ec8f-486a-ae0c-b13226e920bd",
+        "name": "trustees-export",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "e78688ab-f270-4360-94cb-257bdf6140a7",
+        "name": "election-event-areas-columns",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "22319b67-294c-4278-974d-b7858bff5349",
+        "name": "publish-stop-voting",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "cbcf402d-2573-4e1f-8e36-41d8a14dd6b2",
+        "name": "resource-write",
+        "description": "resource-write",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "b6d6e9ff-0ebe-4f01-b0d1-dc1eb7bc8f8a",
+        "name": "communication-template-read",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "21d35029-c277-4de0-a567-1f4dd3c9c697",
+        "name": "create-ceremony",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "944c29e0-abfd-442c-bc1b-e4dd07da7dcf",
+        "name": "tenant-write",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "27d756e1-1a9f-405e-8c25-de6e99fd2124",
+        "name": "settings-look-feel-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "94db4877-19c4-42c0-b7c6-6a8f40578882",
+        "name": "election-event-logs-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "4134de6a-f322-43ed-b424-f8419fda98a1",
+        "name": "document-download",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "014d7e28-16da-41eb-b541-56d8918306fe",
+        "name": "election-event-areas-filters",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "ba82fd1f-a7cb-48e1-b034-4bb816b152d2",
+        "name": "settings-localization-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "d06a4937-2452-4c6d-b36e-24bde27f5442",
+        "name": "voter-voted-edit",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "6f8d874f-da4c-4726-a2f7-8341efc0e0ad",
+        "name": "trustee-write",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "562cc2ad-9e8e-4e82-b3ae-7e4e800b750b",
+        "name": "cloudflare-write",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "c33bdf25-fe49-4528-a0de-0d7c14e4a6ce",
+        "name": "notification-send",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "c5e49c55-8492-4355-97ca-e6b4e6a90892",
+        "name": "report-generate",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "17b83ac3-6a1d-4b93-80b2-2a4bbee349e2",
+        "name": "candidate-delete",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "5ecd8c48-f512-4d65-925b-ab1ed0e13da0",
+        "name": "election-state-write",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "7ef05f77-f17a-4529-8e12-4ef81bafb8cb",
+        "name": "role-create",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "a0da31bf-de53-4e39-bd23-92ee2ad32af2",
+        "name": "election-type-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "8181d1d1-8e71-4702-81bf-13124a60f21e",
+        "name": "election-publish-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "82b81c7e-6b5e-4179-b687-4f19ecdcf9d4",
+        "name": "monitor-manually-approve-disapprove-voters",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "73529ace-ecb4-4e9a-a76f-f2e80863b885",
+        "name": "report-create",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "417aa9f1-e9f5-449b-aac6-9ebaaa9f0ac4",
+        "name": "role-assign",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "a436c088-97b3-4995-abba-9af07359b9ae",
+        "name": "scheduled-event-create",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "6106c8f2-e277-47bc-8b89-d66af04d6d00",
+        "name": "election-event-localization-selector",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "ffc03920-c5ed-45f8-9dca-c8145e5a7cb6",
+        "name": "monitor-posts-already-opened-voting",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "ed56c0d1-9ef0-46ec-95e4-604216baadb9",
+        "name": "tally-sheet-publish",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "00df8884-790f-4824-9f0f-c6910c165935",
+        "name": "monitor-authenticated-voters",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "fc7714ab-ce45-4078-9272-1b4f48bd8fbd",
+        "name": "notification-write",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "7ee58771-e6c3-4fb0-8822-444240fe7457",
+        "name": "election-approvals-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "327f2d16-a745-43ad-b685-122d186faf84",
+        "name": "permission-label-write",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "3edaf58a-d406-4005-909b-0b941dae9107",
+        "name": "notification-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "f344edea-0c57-49d6-92f8-82f99c1cb5cf",
+        "name": "transmition-ceremony",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "7c54cb3a-6058-4cad-9c75-5980e07b6e0d",
+        "name": "ee-voters-columns",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "960148eb-e012-4fe8-9868-652664da84d6",
+        "name": "election-event-tasks-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "0a1f67b9-d233-48d8-b517-542beff0fd53",
+        "name": "election-event-voters-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "ce7b9cd4-b5f9-4cce-aadc-c678dce8a8e9",
+        "name": "monitor-posts-transmitted-results",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "730857eb-4ad0-4331-be0f-bd5075a26015",
+        "name": "publish-regenerate",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "a98af090-0a72-40ad-89f9-75fef16c1b3f",
+        "name": "communication-template-write",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "bbdee70f-c9f0-4ef6-882f-7f92703ae246",
+        "name": "area-upsert",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "a6d94c05-f0e6-4ad8-b7e0-3257ea9cffc3",
+        "name": "cast-vote-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "98f17f7e-5773-4e04-b975-d0bd3e32e918",
+        "name": "election-ip-address-view",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "7ef7a13f-5db6-469b-a79b-6e1c00b0b3a1",
+        "name": "localization-delete",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "5f36807e-a540-413a-95c4-6c43395a3d3b",
+        "name": "election-event-publish-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "cdcaef5f-83c3-468e-a16d-776d2ef2131b",
+        "name": "election-event-publish-filters",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "aa42fb6f-5b3c-4eab-a43f-1e24c827c157",
+        "name": "publish-pause-voting",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "dd0d0c53-17e7-4682-8f99-631e770295f1",
+        "name": "tenant-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "0383a7ca-9316-4992-b6c2-bc102604e5cd",
+        "name": "tally-start",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "aa3384c6-83cb-4c00-b930-4c048b2114e4",
+        "name": "admin-user",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "43585891-d7a9-4bbd-b9a9-092e07b425d8",
+        "name": "election-event-tally-back-button",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "44a52bdb-b219-4314-8eda-1ed71c0fa5cc",
+        "name": "election-event-data-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "cd1a867b-9fc7-4276-b97c-424a1363201a",
+        "name": "report-preview",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "8bdca5dd-4e68-40af-97cf-4483c69a2960",
+        "name": "scheduled-event-delete",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "bd711db0-a395-4360-be46-fa97927bc9b7",
+        "name": "election-type-write",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "fa7c33f2-8c1f-4a32-8385-f287a8708e33",
+        "name": "tasks-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "b6886d45-ec9a-4915-bb94-0933a7657c77",
+        "name": "contest-create",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "a0fa008a-c753-4254-b1a7-1ed15d357abd",
+        "name": "support-material-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "d07f0c85-7a5a-4930-ad10-8049a6a5eec1",
+        "name": "document-write",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "aee58ba7-e5d2-4850-a8f2-62263c696eb7",
+        "name": "monitor-posts-started-voting",
         "description": "",
         "composite": false,
         "clientRole": false,
@@ -291,8 +875,161 @@
         "attributes": {}
       },
       {
-        "id": "21d35029-c277-4de0-a567-1f4dd3c9c697",
-        "name": "create-ceremony",
+        "id": "f90852e6-eb51-4c21-a8ad-57c250c05500",
+        "name": "election-event-tally-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "57a42bb2-2db5-4022-a5ba-d5e8982a9e42",
+        "name": "support-material-write",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "840c84e4-e684-4615-8e01-719d66bef9d7",
+        "name": "monitoring-dashboard-view-election-event",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "7893d13f-7171-4ea5-a70d-4026af828a53",
+        "name": "templates-menu",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "d75727f7-e57b-4585-8d33-07fd1295fe60",
+        "name": "settings-election-types-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "cede609d-451a-474f-aa9a-19aadb1a3fe3",
+        "name": "miru-sign",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "edd7b69e-4aa8-47ac-83ea-2f1a6e166fd7",
+        "name": "application-import",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "124788ff-8306-4e31-968c-77e49d9d24fa",
+        "name": "trustee-ceremony",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "93fc971f-1d2e-4bff-8440-da937436f423",
+        "name": "voter-import",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "9661ddd4-ea37-49d5-953f-6ff12fdd7885",
+        "name": "monitor-posts-already-generated-election-results",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "8371b0e1-e273-4324-8762-fc199bee25ed",
+        "name": "election-event-publish-back-button",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "fef4011b-0d3a-4f24-b09a-0eae6ab6a56a",
+        "name": "ee-voters-filters",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "a6b1a311-f7ef-43e5-a953-9ff31ba99011",
+        "name": "settings-countries-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "1f8a329d-0ec6-484c-b06c-621e42b33fe1",
+        "name": "user-permission-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "50e4ca53-dd91-453f-b94b-53c952dc9700",
+        "name": "election-event-publish-preview",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "44d713dc-4c3c-44bb-b597-8d718063871a",
+        "name": "keys-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "b02ba2b3-91b3-40c3-950b-c0fa262a3564",
+        "name": "report-delete",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "5b0ea474-dbe9-4737-a431-6f17279a0531",
+        "name": "user-read",
         "description": "",
         "composite": false,
         "clientRole": false,
@@ -302,6 +1039,213 @@
       {
         "id": "aeaf0472-95f6-4306-83f7-fcfbd3497ea1",
         "name": "create-election-event",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "aea34c96-fa03-4f42-8e3b-4555dd12bf07",
+        "name": "user-import",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "6f942a03-4b37-427e-8a6e-33dcb53b0855",
+        "name": "monitor-voters-who-voted",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "ebb0f054-3e3e-42f7-b751-32207d3ab939",
+        "name": "users-menu",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "f01205f3-6d8f-49c4-b1d7-fbce85958e91",
+        "name": "monitor-automatic-approve-disapprove-voters",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "cb9ca22f-7a71-491c-b72b-529bdb53c241",
+        "name": "report-read",
+        "description": "report-read",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "aceac069-f742-4c19-88fd-5c87f1807c85",
+        "name": "area-delete",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "8c80a162-cddd-4f2f-92e3-595924da52a9",
+        "name": "election-dashboard-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "2c8e6d7b-0bc6-4aec-9a90-a97a62f2b992",
+        "name": "role-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "545b57a0-ad5d-41c3-be67-bbbe0887ea66",
+        "name": "admin-ceremony",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "2fe72e2c-6658-49cd-9727-cd8ca6693eb2",
+        "name": "election-event-tally-columns",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "10d0ca46-8aff-40e9-9169-fabb0edd1ccf",
+        "name": "voter-change-password",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "cae31fe2-8a61-471e-9619-fb0a8b402f77",
+        "name": "area-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "d7f7ef89-9c69-4539-8387-3f8cf06932ce",
+        "name": "election-event-tasks-columns",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "be6acccc-ea93-405d-8440-b4add13c3236",
+        "name": "transmission-report-generate",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "f348a7df-ba96-4fc9-b2f8-0d5e20e80d5d",
+        "name": "logs-export",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "679a90a4-068a-444b-b482-aadcb1f16cc8",
+        "name": "election-event-areas-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "9f5ed5c6-a214-46e6-bc5c-bb2c3127e637",
+        "name": "tenant-create",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "274a236f-eace-4334-afd0-52c7711baa97",
+        "name": "localization-write",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "58d12678-359f-4a61-b768-ac53b3474915",
+        "name": "settings-trustees-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "322eac05-b03e-4d2d-98c4-663b050ffe72",
+        "name": "export-ceremony",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "6555388c-43bf-4abe-b060-62237ea38113",
+        "name": "area-export",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "c475f881-3779-405e-8995-c52112a62b8b",
+        "name": "monitor-all-approve-disapprove-voters",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "1627af79-ed12-4cd5-8f41-9f37c350249b",
+        "name": "monitor-posts-already-closed-voting",
         "description": "",
         "composite": false,
         "clientRole": false,
@@ -330,8 +1274,8 @@
         "attributes": {}
       },
       {
-        "id": "4134de6a-f322-43ed-b424-f8419fda98a1",
-        "name": "document-download",
+        "id": "0048dfa4-c479-4da3-a6c6-4842efd95653",
+        "name": "localization-read",
         "description": "",
         "composite": false,
         "clientRole": false,
@@ -339,197 +1283,8 @@
         "attributes": {}
       },
       {
-        "id": "12250c04-0e34-4b76-8910-cfcc26323c18",
-        "name": "document-read",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "3faa50d7-352d-4440-9228-6bfa8fed04d4",
-        "name": "document-upload",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "d07f0c85-7a5a-4930-ad10-8049a6a5eec1",
-        "name": "document-write",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "7c54cb3a-6058-4cad-9c75-5980e07b6e0d",
-        "name": "ee-voters-columns",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "fef4011b-0d3a-4f24-b09a-0eae6ab6a56a",
-        "name": "ee-voters-filters",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "0b5870df-71b8-49f8-b6ef-fef6e38ca5da",
-        "name": "ee-voters-logs",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "7ee58771-e6c3-4fb0-8822-444240fe7457",
-        "name": "election-approvals-tab",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "04ab39aa-7399-4291-932a-51ddf6020ae1",
-        "name": "election-create",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "8c80a162-cddd-4f2f-92e3-595924da52a9",
-        "name": "election-dashboard-tab",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "824208ac-0aa1-4290-ada8-eb30b0f837fd",
-        "name": "election-data-tab",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "be406f76-39b3-4de4-9458-d4663479bab0",
-        "name": "election-delete",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "c0d88c4b-74ad-4004-9352-5ea23068a3db",
-        "name": "election-event-approvals-tab",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "ccb1700e-7c41-4de2-8f32-076b612d464f",
-        "name": "election-event-archive",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "e78688ab-f270-4360-94cb-257bdf6140a7",
-        "name": "election-event-areas-columns",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "014d7e28-16da-41eb-b541-56d8918306fe",
-        "name": "election-event-areas-filters",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "679a90a4-068a-444b-b482-aadcb1f16cc8",
-        "name": "election-event-areas-tab",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "ce63cae8-da32-4841-a479-2ed1d3f7e4f3",
-        "name": "election-event-create",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "44a52bdb-b219-4314-8eda-1ed71c0fa5cc",
-        "name": "election-event-data-tab",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "c55e54f6-605a-425f-b8ba-08ded4fc4717",
-        "name": "election-event-delete",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "663c4840-b5d3-4fbf-96f1-89037b80582a",
-        "name": "election-event-keys-columns",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "1961f7e6-7333-4863-a5d2-309858eb9436",
-        "name": "election-event-keys-tab",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "6106c8f2-e277-47bc-8b89-d66af04d6d00",
-        "name": "election-event-localization-selector",
+        "id": "88b59e58-d799-49d0-ba2a-c4a9e4c61dc1",
+        "name": "admin-dashboard-view",
         "description": "",
         "composite": false,
         "clientRole": false,
@@ -546,944 +1301,8 @@
         "attributes": {}
       },
       {
-        "id": "94db4877-19c4-42c0-b7c6-6a8f40578882",
-        "name": "election-event-logs-tab",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "8371b0e1-e273-4324-8762-fc199bee25ed",
-        "name": "election-event-publish-back-button",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "bf11041c-1516-487a-989b-ef90a73b4b33",
-        "name": "election-event-publish-columns",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "cdcaef5f-83c3-468e-a16d-776d2ef2131b",
-        "name": "election-event-publish-filters",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "50e4ca53-dd91-453f-b94b-53c952dc9700",
-        "name": "election-event-publish-preview",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "5f36807e-a540-413a-95c4-6c43395a3d3b",
-        "name": "election-event-publish-tab",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
         "id": "06656613-ceff-4189-9e08-07ef62bb4338",
         "name": "election-event-publish-view",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "e7365747-6fca-4fbb-94d2-8cca148a6979",
-        "name": "election-event-read",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "ebec653a-9849-485b-ab51-11501a29409c",
-        "name": "election-event-reports-columns",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "3418dac1-34bf-4e99-9c13-413fe48a91b6",
-        "name": "election-event-reports-tab",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "426e2ea8-c4b8-43e4-b178-94a18d1aeca0",
-        "name": "election-event-scheduled-event-columns",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "c71c6401-f5c1-4d8d-aabb-7d1ac7349975",
-        "name": "election-event-scheduled-tab",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "43585891-d7a9-4bbd-b9a9-092e07b425d8",
-        "name": "election-event-tally-back-button",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "2fe72e2c-6658-49cd-9727-cd8ca6693eb2",
-        "name": "election-event-tally-columns",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "f90852e6-eb51-4c21-a8ad-57c250c05500",
-        "name": "election-event-tally-tab",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "f1faea1e-0385-4147-9ded-ed9218caacd9",
-        "name": "election-event-tasks-back-button",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "d7f7ef89-9c69-4539-8387-3f8cf06932ce",
-        "name": "election-event-tasks-columns",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "0a33030b-5e8a-4912-b201-7b1b91eb2df8",
-        "name": "election-event-tasks-filters",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "960148eb-e012-4fe8-9868-652664da84d6",
-        "name": "election-event-tasks-tab",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "0a1f67b9-d233-48d8-b517-542beff0fd53",
-        "name": "election-event-voters-tab",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "6ba698f4-9a4f-4ffa-ad74-b7276e4fdefb",
-        "name": "election-event-write",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "62e04181-bbc4-4b50-a54e-d66c5d5fd97c",
-        "name": "election-events-logs-filters",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "98f17f7e-5773-4e04-b975-d0bd3e32e918",
-        "name": "election-ip-address-view",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "8181d1d1-8e71-4702-81bf-13124a60f21e",
-        "name": "election-publish-tab",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "be496a85-9c56-44e2-a3e3-330a4862c339",
-        "name": "election-read",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "5ecd8c48-f512-4d65-925b-ab1ed0e13da0",
-        "name": "election-state-write",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "dc06038b-81d0-49f5-8a62-7bd2f55440a1",
-        "name": "election-type-create",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "a0da31bf-de53-4e39-bd23-92ee2ad32af2",
-        "name": "election-type-read",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "bd711db0-a395-4360-be46-fa97927bc9b7",
-        "name": "election-type-write",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "0d0f2c30-a2f2-4a94-a1e8-3abd9e275568",
-        "name": "election-voters-tab",
-        "description": "election-voters-tab",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "fd58c4a2-4ba5-4563-8abe-19476a08561d",
-        "name": "election-write",
-        "description": "election-write",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "322eac05-b03e-4d2d-98c4-663b050ffe72",
-        "name": "export-ceremony",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "44d713dc-4c3c-44bb-b597-8d718063871a",
-        "name": "keys-read",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "fdc19d5e-03aa-436e-9c21-0c000efac761",
-        "name": "localization-create",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "7ef7a13f-5db6-469b-a79b-6e1c00b0b3a1",
-        "name": "localization-delete",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "0048dfa4-c479-4da3-a6c6-4842efd95653",
-        "name": "localization-read",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "274a236f-eace-4334-afd0-52c7711baa97",
-        "name": "localization-write",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "f348a7df-ba96-4fc9-b2f8-0d5e20e80d5d",
-        "name": "logs-export",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "f26aa3b9-40b6-4745-8b95-e961995ddd62",
-        "name": "logs-read",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "81ff4801-d4bb-4c3e-8d46-f525443c21d1",
-        "name": "miru-create",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "7d94c526-6030-4411-942d-3d98cf580e2f",
-        "name": "miru-download",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "54ead8b8-7944-4083-b2d0-7dcc4f21f744",
-        "name": "miru-send",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "cede609d-451a-474f-aa9a-19aadb1a3fe3",
-        "name": "miru-sign",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "c475f881-3779-405e-8995-c52112a62b8b",
-        "name": "monitor-all-approve-disapprove-voters",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "00df8884-790f-4824-9f0f-c6910c165935",
-        "name": "monitor-authenticated-voters",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "f01205f3-6d8f-49c4-b1d7-fbce85958e91",
-        "name": "monitor-automatic-approve-disapprove-voters",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "b1bb165d-bb3c-47a4-87f5-d2901051f499",
-        "name": "monitor-enrolled-overseas-voters",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "82b81c7e-6b5e-4179-b687-4f19ecdcf9d4",
-        "name": "monitor-manually-approve-disapprove-voters",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "1627af79-ed12-4cd5-8f41-9f37c350249b",
-        "name": "monitor-posts-already-closed-voting",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "9661ddd4-ea37-49d5-953f-6ff12fdd7885",
-        "name": "monitor-posts-already-generated-election-results",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "ffc03920-c5ed-45f8-9dca-c8145e5a7cb6",
-        "name": "monitor-posts-already-opened-voting",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "74c2b8b0-c54c-4d23-a4f1-2bac7a822d7e",
-        "name": "monitor-posts-already-started-counting-votes",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "66817570-e0f5-41f2-87d1-fe22b7805416",
-        "name": "monitor-posts-initialized-the-system",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "aee58ba7-e5d2-4850-a8f2-62263c696eb7",
-        "name": "monitor-posts-started-voting",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "ce7b9cd4-b5f9-4cce-aadc-c678dce8a8e9",
-        "name": "monitor-posts-transmitted-results",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "8bdc1e3e-9dfe-428e-8e3b-ca77659794e4",
-        "name": "monitor-voters-voted-test-election",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "6f942a03-4b37-427e-8a6e-33dcb53b0855",
-        "name": "monitor-voters-who-voted",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "3f9f2af5-3435-4316-a309-7f304b778d71",
-        "name": "monitoring-dashboard-view-election",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "840c84e4-e684-4615-8e01-719d66bef9d7",
-        "name": "monitoring-dashboard-view-election-event",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "3edaf58a-d406-4005-909b-0b941dae9107",
-        "name": "notification-read",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "c33bdf25-fe49-4528-a0de-0d7c14e4a6ce",
-        "name": "notification-send",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "fc7714ab-ce45-4078-9272-1b4f48bd8fbd",
-        "name": "notification-write",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "6c856461-90a0-4c51-a98d-cb810bc6a5f6",
-        "name": "offline_access",
-        "description": "${role_offline-access}",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "327f2d16-a745-43ad-b685-122d186faf84",
-        "name": "permission-label-write",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "8a156473-6cd9-47b0-a2d3-1ad8dc215488",
-        "name": "publish-changes",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "e659cb01-887a-4a05-adde-a5b5da55bbd1",
-        "name": "publish-create",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "efbf6526-f6d3-4fda-9ea8-b52fe8e97a5f",
-        "name": "publish-export",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "aa42fb6f-5b3c-4eab-a43f-1e24c827c157",
-        "name": "publish-pause-voting",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "6e40d74d-7050-4aa9-884b-aea26bf5939d",
-        "name": "publish-read",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "730857eb-4ad0-4331-be0f-bd5075a26015",
-        "name": "publish-regenerate",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "adc8aeb9-9ebf-4b80-bcd2-f56807fcda68",
-        "name": "publish-start-voting",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "22319b67-294c-4278-974d-b7858bff5349",
-        "name": "publish-stop-voting",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "11567034-d3d1-41af-87e6-8108a3d9d8d2",
-        "name": "publish-write",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "73529ace-ecb4-4e9a-a76f-f2e80863b885",
-        "name": "report-create",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "b02ba2b3-91b3-40c3-950b-c0fa262a3564",
-        "name": "report-delete",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "c5e49c55-8492-4355-97ca-e6b4e6a90892",
-        "name": "report-generate",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "cd1a867b-9fc7-4276-b97c-424a1363201a",
-        "name": "report-preview",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "cb9ca22f-7a71-491c-b72b-529bdb53c241",
-        "name": "report-read",
-        "description": "report-read",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "ec9f66a9-2c07-47ca-88a5-3a98daed2310",
-        "name": "report-write",
-        "description": "report-write",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "cbcf402d-2573-4e1f-8e36-41d8a14dd6b2",
-        "name": "resource-write",
-        "description": "resource-write",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "417aa9f1-e9f5-449b-aac6-9ebaaa9f0ac4",
-        "name": "role-assign",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "7ef05f77-f17a-4529-8e12-4ef81bafb8cb",
-        "name": "role-create",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "2c8e6d7b-0bc6-4aec-9a90-a97a62f2b992",
-        "name": "role-read",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "98836ec8-c13d-4039-b5f8-371fb2f15671",
-        "name": "role-write",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "a436c088-97b3-4995-abba-9af07359b9ae",
-        "name": "scheduled-event-create",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "8bdca5dd-4e68-40af-97cf-4483c69a2960",
-        "name": "scheduled-event-delete",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "ee4ac6a0-04d9-459a-8a89-e81de3fb038a",
-        "name": "scheduled-event-write",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "a6b1a311-f7ef-43e5-a953-9ff31ba99011",
-        "name": "settings-countries-tab",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "d75727f7-e57b-4585-8d33-07fd1295fe60",
-        "name": "settings-election-types-tab",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "7451ebb2-59c9-4e2b-a314-b7a6fecb7eb1",
-        "name": "settings-languages-tab",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "ba82fd1f-a7cb-48e1-b034-4bb816b152d2",
-        "name": "settings-localization-tab",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "27d756e1-1a9f-405e-8c25-de6e99fd2124",
-        "name": "settings-look-feel-tab",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "943a8d8c-9c1d-4d35-bf9e-287223309f86",
-        "name": "settings-menu",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "1e23db14-4b20-4f0d-bc84-185755c4587f",
-        "name": "settings-templates-tab",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "58d12678-359f-4a61-b768-ac53b3474915",
-        "name": "settings-trustees-tab",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "612c00b2-b3cc-4764-8c78-79b3478edd39",
-        "name": "settings-voting-channels-tab",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "a0fa008a-c753-4254-b1a7-1ed15d357abd",
-        "name": "support-material-read",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "57a42bb2-2db5-4022-a5ba-d5e8982a9e42",
-        "name": "support-material-write",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "19050a2f-765c-4e6f-87f0-7ed149098591",
-        "name": "tally-read",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "9e7f7126-d55c-430c-a224-a232d4915ff3",
-        "name": "tally-results-read",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "5e160701-19cc-478b-8eb8-ae4e35492ced",
-        "name": "tally-sheet-create",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "7c279e73-acd2-4b14-946e-800e99915a86",
-        "name": "tally-sheet-delete",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "ed56c0d1-9ef0-46ec-95e4-604216baadb9",
-        "name": "tally-sheet-publish",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "aad9400d-7f3e-49a5-a8d3-d2cf60bba5ae",
-        "name": "tally-sheet-view",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "0383a7ca-9316-4992-b6c2-bc102604e5cd",
-        "name": "tally-start",
         "description": "",
         "composite": false,
         "clientRole": false,
@@ -1500,150 +1319,6 @@
         "attributes": {}
       },
       {
-        "id": "ae8f569e-8474-45d8-8809-bea9cd0e18fc",
-        "name": "task-export",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "fa7c33f2-8c1f-4a32-8385-f287a8708e33",
-        "name": "tasks-read",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "7893d13f-7171-4ea5-a70d-4026af828a53",
-        "name": "templates-menu",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "9f5ed5c6-a214-46e6-bc5c-bb2c3127e637",
-        "name": "tenant-create",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "dd0d0c53-17e7-4682-8f99-631e770295f1",
-        "name": "tenant-read",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "944c29e0-abfd-442c-bc1b-e4dd07da7dcf",
-        "name": "tenant-write",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "124788ff-8306-4e31-968c-77e49d9d24fa",
-        "name": "trustee-ceremony",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "277cafc8-c4c5-4b3b-9446-d97ae45a1647",
-        "name": "trustee-create",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "e83ea1a6-dd74-4e8c-91ce-44c601d86db3",
-        "name": "trustee-read",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "6f8d874f-da4c-4726-a2f7-8341efc0e0ad",
-        "name": "trustee-write",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "0cd39cd8-ec8f-486a-ae0c-b13226e920bd",
-        "name": "trustees-export",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "80c8d356-238c-452f-a96a-a5780637f194",
-        "name": "uma_authorization",
-        "description": "${role_uma_authorization}",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "f5ed990d-fa72-4490-be14-f7edaa5566ca",
-        "name": "user-create",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "aea34c96-fa03-4f42-8e3b-4555dd12bf07",
-        "name": "user-import",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "33153a64-1a18-477b-8fdd-280cb49f79f1",
-        "name": "user-permission-create",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "1f8a329d-0ec6-484c-b06c-621e42b33fe1",
-        "name": "user-permission-read",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
         "id": "9be831cf-8a1b-43a1-80eb-d47a2c0698bf",
         "name": "user-permission-write",
         "description": "",
@@ -1653,8 +1328,8 @@
         "attributes": {}
       },
       {
-        "id": "5b0ea474-dbe9-4737-a431-6f17279a0531",
-        "name": "user-read",
+        "id": "c0d88c4b-74ad-4004-9352-5ea23068a3db",
+        "name": "election-event-approvals-tab",
         "description": "",
         "composite": false,
         "clientRole": false,
@@ -1662,8 +1337,8 @@
         "attributes": {}
       },
       {
-        "id": "48c2cfea-0ba6-4f07-b38f-29cc23684970",
-        "name": "user-write",
+        "id": "98836ec8-c13d-4039-b5f8-371fb2f15671",
+        "name": "role-write",
         "description": "",
         "composite": false,
         "clientRole": false,
@@ -1671,8 +1346,8 @@
         "attributes": {}
       },
       {
-        "id": "ebb0f054-3e3e-42f7-b751-32207d3ab939",
-        "name": "users-menu",
+        "id": "f26aa3b9-40b6-4745-8b95-e961995ddd62",
+        "name": "logs-read",
         "description": "",
         "composite": false,
         "clientRole": false,
@@ -1680,8 +1355,8 @@
         "attributes": {}
       },
       {
-        "id": "10d0ca46-8aff-40e9-9169-fabb0edd1ccf",
-        "name": "voter-change-password",
+        "id": "ae3ea5fe-44f7-4062-b41b-54f27280c746",
+        "name": "candidate-write",
         "description": "",
         "composite": false,
         "clientRole": false,
@@ -1689,53 +1364,8 @@
         "attributes": {}
       },
       {
-        "id": "c1571748-eb6a-4234-929a-0da717139e80",
-        "name": "voter-create",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "7cd6093d-da3f-4c67-8438-f28c636541ae",
-        "name": "voter-delete",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "70df8925-5f5c-449f-b3a6-0a02d58779ee",
-        "name": "voter-export",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "93fc971f-1d2e-4bff-8440-da937436f423",
-        "name": "voter-import",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "38c0dd02-c0f2-440d-85ea-6daa23fd8942",
-        "name": "voter-manually-verify",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "0c63d668-fe97-4da6-b654-ace5e4e41b24",
-        "name": "voter-read",
+        "id": "19050a2f-765c-4e6f-87f0-7ed149098591",
+        "name": "tally-read",
         "description": "",
         "composite": false,
         "clientRole": false,
@@ -1752,6 +1382,42 @@
         "attributes": {}
       },
       {
+        "id": "943a8d8c-9c1d-4d35-bf9e-287223309f86",
+        "name": "settings-menu",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "f34f29e7-0ce5-4051-9149-3b0e1f86f32c",
+        "name": "admin-ip-address-view",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "82389208-5dbc-4ad6-988e-bef7463d6d91",
+        "name": "application-export",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "b1bb165d-bb3c-47a4-87f5-d2901051f499",
+        "name": "monitor-enrolled-overseas-voters",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
         "id": "565702ca-430d-47d0-8157-ce4d9452a12f",
         "name": "voting-channel-read",
         "description": "",
@@ -1761,8 +1427,8 @@
         "attributes": {}
       },
       {
-        "id": "b0ad7f25-9e22-4c13-87c7-f32a5486d306",
-        "name": "voting-channel-write",
+        "id": "357cf6f1-f63f-4cc2-9636-2e0445327f16",
+        "name": "contest-read",
         "description": "",
         "composite": false,
         "clientRole": false,
@@ -1770,8 +1436,205 @@
         "attributes": {}
       },
       {
-        "id": "d06a4937-2452-4c6d-b36e-24bde27f5442",
-        "name": "voter-voted-edit",
+        "id": "a2627085-15d1-45a3-ae72-832487dd48c7",
+        "name": "application-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "3faa50d7-352d-4440-9228-6bfa8fed04d4",
+        "name": "document-upload",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "4c493d1f-d2cc-4800-b76f-a86b79ee86ac",
+        "name": "area-create",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "e83ea1a6-dd74-4e8c-91ce-44c601d86db3",
+        "name": "trustee-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "0d0f2c30-a2f2-4a94-a1e8-3abd9e275568",
+        "name": "election-voters-tab",
+        "description": "election-voters-tab",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "66817570-e0f5-41f2-87d1-fe22b7805416",
+        "name": "monitor-posts-initialized-the-system",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "3f9f2af5-3435-4316-a309-7f304b778d71",
+        "name": "monitoring-dashboard-view-election",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "8bdc1e3e-9dfe-428e-8e3b-ca77659794e4",
+        "name": "monitor-voters-voted-test-election",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "7cd6093d-da3f-4c67-8438-f28c636541ae",
+        "name": "voter-delete",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "12250c04-0e34-4b76-8910-cfcc26323c18",
+        "name": "document-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "74c2b8b0-c54c-4d23-a4f1-2bac7a822d7e",
+        "name": "monitor-posts-already-started-counting-votes",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "1961f7e6-7333-4863-a5d2-309858eb9436",
+        "name": "election-event-keys-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "be406f76-39b3-4de4-9458-d4663479bab0",
+        "name": "election-delete",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "277cafc8-c4c5-4b3b-9446-d97ae45a1647",
+        "name": "trustee-create",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "fd58c4a2-4ba5-4563-8abe-19476a08561d",
+        "name": "election-write",
+        "description": "election-write",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "ec9f66a9-2c07-47ca-88a5-3a98daed2310",
+        "name": "report-write",
+        "description": "report-write",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "ebec653a-9849-485b-ab51-11501a29409c",
+        "name": "election-event-reports-columns",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "612c00b2-b3cc-4764-8c78-79b3478edd39",
+        "name": "settings-voting-channels-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "9e7f7126-d55c-430c-a224-a232d4915ff3",
+        "name": "tally-results-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "ccb1700e-7c41-4de2-8f32-076b612d464f",
+        "name": "election-event-archive",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "ee4ac6a0-04d9-459a-8a89-e81de3fb038a",
+        "name": "scheduled-event-write",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "426e2ea8-c4b8-43e4-b178-94a18d1aeca0",
+        "name": "election-event-scheduled-event-columns",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "c1571748-eb6a-4234-929a-0da717139e80",
+        "name": "voter-create",
         "description": "",
         "composite": false,
         "clientRole": false,
@@ -1781,6 +1644,168 @@
       {
         "id": "cc897637-20fb-4922-9c84-534f29248390",
         "name": "voter-email-tlf-edit",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "7c279e73-acd2-4b14-946e-800e99915a86",
+        "name": "tally-sheet-delete",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "f5ed990d-fa72-4490-be14-f7edaa5566ca",
+        "name": "user-create",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "f1faea1e-0385-4147-9ded-ed9218caacd9",
+        "name": "election-event-tasks-back-button",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "7451ebb2-59c9-4e2b-a314-b7a6fecb7eb1",
+        "name": "settings-languages-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "e659cb01-887a-4a05-adde-a5b5da55bbd1",
+        "name": "publish-create",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "0c63d668-fe97-4da6-b654-ace5e4e41b24",
+        "name": "voter-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "3418dac1-34bf-4e99-9c13-413fe48a91b6",
+        "name": "election-event-reports-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "c71c6401-f5c1-4d8d-aabb-7d1ac7349975",
+        "name": "election-event-scheduled-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "adc8aeb9-9ebf-4b80-bcd2-f56807fcda68",
+        "name": "publish-start-voting",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "11567034-d3d1-41af-87e6-8108a3d9d8d2",
+        "name": "publish-write",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "fdc19d5e-03aa-436e-9c21-0c000efac761",
+        "name": "localization-create",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "8a156473-6cd9-47b0-a2d3-1ad8dc215488",
+        "name": "publish-changes",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "1e23db14-4b20-4f0d-bc84-185755c4587f",
+        "name": "settings-templates-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "e2db78b8-ca70-4b5a-9b3d-824b4e4aad65",
+        "name": "candidate-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "38c0dd02-c0f2-440d-85ea-6daa23fd8942",
+        "name": "voter-manually-verify",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "0b5870df-71b8-49f8-b6ef-fef6e38ca5da",
+        "name": "ee-voters-logs",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "dc06038b-81d0-49f5-8a62-7bd2f55440a1",
+        "name": "election-type-create",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "6e40d74d-7050-4aa9-884b-aea26bf5939d",
+        "name": "publish-read",
         "description": "",
         "composite": false,
         "clientRole": false,
@@ -2120,6 +2145,15 @@
           "attributes": {}
         },
         {
+          "id": "08555da4-cd66-426c-8fc6-0632e4b2216d",
+          "name": "application-write",
+          "description": "",
+          "composite": false,
+          "clientRole": true,
+          "containerId": "9b9a6253-b861-46f7-b9e3-ee43ad2ad216",
+          "attributes": {}
+        },
+        {
           "id": "3157ab39-8199-4657-9387-8c25a0647a33",
           "name": "view-groups",
           "description": "${role_view-groups}",
@@ -2132,6 +2166,15 @@
           "id": "c90e26e6-a14f-4abc-af24-7d3262c18e1c",
           "name": "delete-account",
           "description": "${role_delete-account}",
+          "composite": false,
+          "clientRole": true,
+          "containerId": "9b9a6253-b861-46f7-b9e3-ee43ad2ad216",
+          "attributes": {}
+        },
+        {
+          "id": "426e825b-9e54-4409-a60c-7a5a82c10371",
+          "name": "application-read",
+          "description": "",
           "composite": false,
           "clientRole": true,
           "containerId": "9b9a6253-b861-46f7-b9e3-ee43ad2ad216",
@@ -2154,24 +2197,6 @@
           "clientRole": true,
           "containerId": "9b9a6253-b861-46f7-b9e3-ee43ad2ad216",
           "attributes": {}
-        },
-        {
-          "id": "426e825b-9e54-4409-a60c-7a5a82c10371",
-          "name": "application-read",
-          "description": "",
-          "composite": false,
-          "clientRole": false,
-          "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-          "attributes": {}
-        },
-        {
-          "id": "08555da4-cd66-426c-8fc6-0632e4b2216d",
-          "name": "application-write",
-          "description": "",
-          "composite": false,
-          "clientRole": false,
-          "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-          "attributes": {}
         }
       ]
     }
@@ -2184,25 +2209,9 @@
       "subGroups": [],
       "attributes": {},
       "realmRoles": [
-        "user-import",
-        "monitoring-dashboard-view-election-event",
-        "monitoring-dashboard-view-election",
-        "monitor-authenticated-voters",
-        "monitor-all-approve-disapprove-voters",
-        "monitor-automatic-approve-disapprove-voters",
-        "monitor-manually-approve-disapprove-voters",
-        "monitor-enrolled-overseas-voters",
-        "monitor-posts-already-closed-voting",
-        "monitor-posts-already-generated-election-results",
-        "monitor-posts-already-opened-voting",
-        "monitor-posts-already-started-counting-votes",
-        "monitor-posts-initialized-the-system",
-        "monitor-posts-started-voting",
-        "monitor-posts-transmitted-results",
-        "monitor-voters-voted-test-election",
-        "monitor-voters-who-voted",
         "election-event-tally-tab",
         "support-material-write",
+        "monitoring-dashboard-view-election-event",
         "user-write",
         "election-event-write",
         "tally-sheet-create",
@@ -2214,38 +2223,84 @@
         "settings-election-types-tab",
         "miru-download",
         "election-data-tab",
+        "election-event-publish-columns",
         "miru-send",
+        "application-import",
+        "voter-import",
+        "monitor-posts-already-generated-election-results",
+        "election-event-publish-back-button",
+        "ee-voters-filters",
+        "settings-countries-tab",
         "candidate-create",
+        "election-event-tasks-filters",
         "user-permission-read",
+        "election-event-publish-preview",
         "election-event-create",
         "keys-read",
         "election-create",
+        "report-delete",
         "user-read",
         "create-election-event",
+        "user-import",
+        "monitor-voters-who-voted",
         "users-menu",
         "miru-create",
         "area-write",
+        "application-write",
         "election-event-read",
+        "area-import",
         "user-permission-create",
+        "voter-export",
+        "election-event-keys-columns",
+        "publish-export",
         "voting-channel-write",
         "tally-sheet-view",
+        "monitor-automatic-approve-disapprove-voters",
+        "task-export",
         "report-read",
+        "election-events-logs-filters",
         "role-read",
+        "area-delete",
+        "election-dashboard-tab",
         "admin-ceremony",
+        "voter-change-password",
+        "election-event-tally-columns",
         "area-read",
+        "trustees-export",
+        "election-event-areas-columns",
+        "publish-stop-voting",
+        "election-event-tasks-columns",
+        "transmission-report-generate",
+        "logs-export",
         "resource-write",
         "election-event-areas-tab",
         "tenant-create",
         "communication-template-read",
+        "localization-write",
+        "create-ceremony",
         "tenant-write",
+        "settings-look-feel-tab",
+        "settings-trustees-tab",
+        "export-ceremony",
         "election-event-logs-tab",
         "document-download",
+        "area-export",
+        "monitor-all-approve-disapprove-voters",
+        "monitor-posts-already-closed-voting",
+        "election-event-areas-filters",
         "default-roles-electoral-process",
+        "settings-localization-tab",
+        "localization-read",
+        "voter-voted-edit",
         "admin-dashboard-view",
         "tally-write",
         "trustee-write",
+        "election-event-logs-columns",
+        "election-event-publish-view",
         "notification-send",
         "user-permission-write",
+        "cloudflare-write",
+        "report-generate",
         "role-write",
         "election-event-approvals-tab",
         "candidate-delete",
@@ -2256,124 +2311,169 @@
         "election-type-read",
         "tally-read",
         "election-publish-tab",
-        "election-event-publish-tab",
+        "monitor-manually-approve-disapprove-voters",
         "voter-write",
         "settings-menu",
+        "monitor-enrolled-overseas-voters",
+        "application-export",
+        "admin-ip-address-view",
         "role-assign",
+        "report-create",
         "voting-channel-read",
+        "scheduled-event-create",
+        "monitor-posts-already-opened-voting",
         "tally-sheet-publish",
         "contest-read",
+        "election-event-localization-selector",
+        "monitor-authenticated-voters",
+        "application-read",
         "document-upload",
         "notification-write",
         "trustee-read",
+        "area-create",
         "election-voters-tab",
+        "monitor-posts-initialized-the-system",
         "election-approvals-tab",
+        "monitoring-dashboard-view-election",
+        "monitor-voters-voted-test-election",
         "permission-label-write",
+        "voter-delete",
         "document-read",
+        "monitor-posts-already-started-counting-votes",
         "notification-read",
         "election-event-keys-tab",
+        "transmition-ceremony",
         "election-delete",
         "election-event-tasks-tab",
+        "ee-voters-columns",
         "trustee-create",
         "election-event-voters-tab",
+        "monitor-posts-transmitted-results",
         "election-write",
         "report-write",
+        "publish-regenerate",
         "communication-template-write",
+        "election-event-reports-columns",
         "cast-vote-read",
+        "area-upsert",
+        "election-ip-address-view",
         "tally-results-read",
         "settings-voting-channels-tab",
+        "localization-delete",
+        "election-event-publish-tab",
+        "election-event-publish-filters",
+        "publish-pause-voting",
         "tenant-read",
         "scheduled-event-write",
         "election-event-archive",
+        "election-event-scheduled-event-columns",
         "tally-start",
         "admin-user",
+        "election-event-tally-back-button",
         "voter-create",
         "election-event-data-tab",
+        "report-preview",
+        "voter-email-tlf-edit",
         "user-create",
         "tally-sheet-delete",
+        "election-event-tasks-back-button",
+        "settings-languages-tab",
         "voter-read",
+        "publish-create",
         "election-event-reports-tab",
         "election-event-scheduled-tab",
+        "scheduled-event-delete",
+        "publish-start-voting",
         "election-type-write",
         "publish-write",
         "tasks-read",
         "support-material-read",
         "contest-create",
-        "document-write",
-        "settings-templates-tab",
-        "settings-languages-tab",
-        "settings-localization-tab",
-        "settings-look-feel-tab",
-        "settings-trustees-tab",
-        "settings-countries-tab",
-        "application-write",
-        "application-read",
-        "voter-delete",
-        "election-event-localization-selector",
         "localization-create",
-        "localization-read",
-        "localization-write",
-        "localization-delete",
-        "area-create",
-        "area-delete",
-        "area-export",
-        "area-import",
-        "area-upsert",
-        "election-event-areas-columns",
-        "election-event-areas-filters",
-        "election-event-tasks-back-button",
-        "election-event-tasks-columns",
-        "election-event-tasks-filters",
-        "task-export",
-        "logs-export",
-        "election-event-logs-columns",
-        "election-events-logs-filters",
-        "election-event-scheduled-event-columns",
-        "scheduled-event-create",
-        "scheduled-event-delete",
-        "election-event-reports-columns",
-        "report-create",
-        "report-delete",
-        "report-generate",
-        "report-preview",
+        "document-write",
+        "publish-changes",
+        "settings-templates-tab",
         "candidate-read",
+        "voter-manually-verify",
+        "monitor-posts-started-voting",
+        "ee-voters-logs",
         "contest-write",
         "election-type-create",
-        "publish-read",
-        "publish-create",
-        "publish-regenerate",
-        "publish-export",
-        "publish-start-voting",
-        "publish-pause-voting",
-        "publish-stop-voting",
-        "publish-changes",
-        "election-event-publish-preview",
-        "election-event-publish-back-button",
-        "election-event-publish-columns",
-        "election-event-publish-filters",
-        "election-event-publish-view",
-        "trustees-export",
-        "application-export",
-        "application-import",
-        "cloudflare-write",
-        "ee-voters-columns",
-        "ee-voters-filters",
-        "ee-voters-logs",
-        "voter-change-password",
-        "voter-export",
-        "voter-import",
-        "voter-manually-verify",
-        "election-event-tally-columns",
-        "election-event-tally-back-button",
-        "transmition-ceremony",
-        "admin-ip-address-view",
-        "election-ip-address-view",
-        "create-ceremony",
-        "election-event-keys-columns",
-        "export-ceremony",
-        "election-dashboard-tab",
-        "voter-voted-edit",
-        "voter-email-tlf-edit"
+        "publish-read"
+      ],
+      "clientRoles": {}
+    },
+    {
+      "id": "dbc85f9a-a33d-4b3f-9bf1-20282931130b",
+      "name": "admin-light",
+      "path": "/admin-light",
+      "subGroups": [],
+      "attributes": {},
+      "realmRoles": [
+        "admin-dashboard-view",
+        "support-material-write",
+        "tally-write",
+        "user-write",
+        "election-event-write",
+        "notification-send",
+        "user-permission-write",
+        "tally-sheet-create",
+        "role-write",
+        "election-event-delete",
+        "logs-read",
+        "communication-template-create",
+        "election-state-write",
+        "role-create",
+        "election-type-read",
+        "tally-read",
+        "uma_authorization",
+        "voter-write",
+        "role-assign",
+        "voting-channel-read",
+        "tally-sheet-publish",
+        "document-upload",
+        "user-permission-read",
+        "election-event-create",
+        "notification-write",
+        "trustee-read",
+        "keys-read",
+        "user-read",
+        "create-election-event",
+        "document-read",
+        "notification-read",
+        "area-write",
+        "trustee-create",
+        "election-event-read",
+        "offline_access",
+        "user-permission-create",
+        "communication-template-write",
+        "cast-vote-read",
+        "tally-results-read",
+        "tally-sheet-view",
+        "voting-channel-write",
+        "role-read",
+        "admin-ceremony",
+        "scheduled-event-write",
+        "area-read",
+        "tenant-read",
+        "tally-start",
+        "voter-create",
+        "tally-sheet-delete",
+        "user-create",
+        "resource-write",
+        "voter-read",
+        "tenant-create",
+        "election-type-write",
+        "publish-write",
+        "tasks-read",
+        "support-material-read",
+        "communication-template-read",
+        "document-write",
+        "tenant-write",
+        "document-download",
+        "default-roles-electoral-process",
+        "election-type-create",
+        "publish-read"
       ],
       "clientRoles": {}
     },
@@ -2399,127 +2499,53 @@
       "subGroups": [],
       "attributes": {},
       "realmRoles": [
-        "default-roles-electoral-process",
-        "election-dashboard-tab",
+        "election-event-tally-tab",
         "communication-template-write",
-        "miru-download",
-        "miru-send",
+        "election-event-keys-columns",
         "cast-vote-read",
         "notification-send",
         "tally-sheet-create",
         "tally-results-read",
         "tally-sheet-view",
         "logs-read",
+        "election-read",
         "election-state-write",
-        "election-approvals-tab",
+        "report-read",
+        "election-dashboard-tab",
+        "miru-download",
         "admin-ceremony",
         "tally-read",
+        "miru-sign",
+        "miru-send",
+        "election-publish-tab",
         "area-read",
         "trustee-ceremony",
         "tenant-read",
-        "report-read",
-        "election-event-tally-tab",
-        "election-event-reports-tab",
         "tally-start",
         "admin-user",
         "voter-write",
-        "miru-sign",
         "tally-sheet-publish",
         "document-upload",
         "voter-read",
-        "election-event-logs-tab",
+        "notification-write",
+        "election-event-reports-tab",
         "election-voters-tab",
-        "notification-write",
         "keys-read",
+        "election-approvals-tab",
         "publish-write",
-        "communication-template-read",
-        "election-publish-tab",
-        "document-read",
-        "notification-read",
-        "document-write",
-        "tenant-write",
-        "document-download",
-        "election-read",
         "tasks-read",
-        "election-event-read",
-        "publish-read",
-        "export-ceremony",
+        "communication-template-read",
+        "document-read",
         "create-ceremony",
-        "election-event-keys-columns",
-        "application-write"
-      ],
-      "clientRoles": {}
-    },
-    {
-      "id": "dbc85f9a-a33d-4b3f-9bf1-20282931130b",
-      "name": "admin-light",
-      "path": "/admin-light",
-      "subGroups": [],
-      "attributes": {},
-      "realmRoles": [
-        "default-roles-electoral-process",
-        "admin-dashboard-view",
-        "support-material-write",
-        "tally-write",
-        "user-write",
-        "election-event-write",
-        "notification-send",
-        "user-permission-write",
-        "tally-sheet-create",
-        "role-write",
-        "logs-read",
-        "communication-template-create",
-        "election-state-write",
-        "role-create",
-        "election-type-read",
-        "scheduled-event-write",
-        "tally-read",
-        "tasks-read",
-        "uma_authorization",
-        "voter-write",
-        "role-assign",
-        "voting-channel-read",
-        "tally-sheet-publish",
-        "document-upload",
-        "user-permission-read",
-        "election-event-create",
-        "notification-write",
-        "trustee-read",
-        "keys-read",
-        "election-event-delete",
-        "user-read",
-        "create-election-event",
-        "document-read",
         "notification-read",
-        "area-write",
-        "trustee-create",
-        "election-event-read",
-        "offline_access",
-        "user-permission-create",
-        "communication-template-write",
-        "cast-vote-read",
-        "tally-results-read",
-        "tally-sheet-view",
-        "voting-channel-write",
-        "role-read",
-        "admin-ceremony",
-        "area-read",
-        "tenant-read",
-        "tally-start",
-        "voter-create",
-        "tally-sheet-delete",
-        "user-create",
-        "voter-read",
-        "tenant-create",
-        "election-type-write",
-        "publish-write",
-        "support-material-read",
-        "communication-template-read",
         "document-write",
-        "resource-write",
         "tenant-write",
+        "export-ceremony",
+        "election-event-logs-tab",
         "document-download",
-        "election-type-create",
+        "application-write",
+        "default-roles-electoral-process",
+        "election-event-read",
         "publish-read"
       ],
       "clientRoles": {}
@@ -2531,21 +2557,21 @@
       "subGroups": [],
       "attributes": {},
       "realmRoles": [
-        "default-roles-electoral-process",
-        "tally-read",
-        "trustee-ceremony",
+        "election-event-tally-tab",
+        "document-upload",
         "trustee-read",
         "keys-read",
         "logs-read",
-        "admin-user",
-        "election-event-read",
-        "election-event-keys-tab",
-        "election-event-tally-tab",
         "election-read",
-        "document-write",
         "document-read",
-        "document-upload",
-        "document-download"
+        "election-event-keys-tab",
+        "tally-read",
+        "document-write",
+        "trustee-ceremony",
+        "admin-user",
+        "document-download",
+        "default-roles-electoral-process",
+        "election-event-read"
       ],
       "clientRoles": {}
     }
@@ -2619,7 +2645,6 @@
         "sequent.read-only.mobile-number": [
           "+34666000222"
         ],
-        "permission_labels": [],
         "tenant-id": [
           "90505c8a-23a9-4cdf-a26b-4e19f6a097d5"
         ]
@@ -2640,8 +2665,8 @@
       "disableableCredentialTypes": [],
       "requiredActions": [],
       "realmRoles": [
-        "permission-label-write",
-        "default-roles-electoral-process"
+        "default-roles-electoral-process",
+        "permission-label-write"
       ],
       "notBefore": 1712715173,
       "groups": [
@@ -4451,12 +4476,13 @@
           "protocolMapper": "oidc-usermodel-realm-role-mapper",
           "consentRequired": false,
           "config": {
+            "multivalued": "true",
+            "userinfo.token.claim": "false",
             "user.attribute": "foo",
             "id.token.claim": "false",
             "access.token.claim": "false",
             "claim.name": "realm_access.roles",
-            "jsonType.label": "String",
-            "multivalued": "true"
+            "jsonType.label": "String"
           }
         },
         {
@@ -4664,14 +4690,14 @@
         "subComponents": {},
         "config": {
           "allowed-protocol-mapper-types": [
-            "oidc-usermodel-attribute-mapper",
-            "saml-role-list-mapper",
-            "oidc-full-name-mapper",
             "saml-user-attribute-mapper",
+            "oidc-usermodel-attribute-mapper",
+            "oidc-full-name-mapper",
+            "oidc-sha256-pairwise-sub-mapper",
+            "saml-role-list-mapper",
             "oidc-address-mapper",
             "oidc-usermodel-property-mapper",
-            "saml-user-property-mapper",
-            "oidc-sha256-pairwise-sub-mapper"
+            "saml-user-property-mapper"
           ]
         }
       },
@@ -4742,14 +4768,14 @@
         "subComponents": {},
         "config": {
           "allowed-protocol-mapper-types": [
+            "saml-user-property-mapper",
             "oidc-address-mapper",
+            "oidc-full-name-mapper",
+            "oidc-usermodel-attribute-mapper",
             "oidc-usermodel-property-mapper",
             "saml-user-attribute-mapper",
-            "saml-user-property-mapper",
             "saml-role-list-mapper",
-            "oidc-sha256-pairwise-sub-mapper",
-            "oidc-usermodel-attribute-mapper",
-            "oidc-full-name-mapper"
+            "oidc-sha256-pairwise-sub-mapper"
           ]
         }
       }
