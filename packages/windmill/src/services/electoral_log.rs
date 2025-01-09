@@ -5,6 +5,7 @@
 use crate::services::database::PgConfig;
 use crate::services::protocol_manager::get_protocol_manager;
 use crate::services::protocol_manager::{create_named_param, get_board_client, get_immudb_client};
+use crate::types::application::{ApplicationStatus, ApplicationStatusUpdateEvent, ApplicationType};
 use crate::types::resources::{Aggregate, DataList, OrderDirection, TotalAggregate};
 use anyhow::{anyhow, Context, Result};
 use base64::engine::general_purpose;
@@ -482,6 +483,32 @@ impl ElectoralLog {
 
         let message = Message::send_template(event, election, &self.sd, user_id, username, message)
             .map_err(|e| anyhow!("Error sending template: {e:?}"))?;
+
+        self.post(&message).await
+    }
+
+    #[instrument(skip(self))]
+    pub async fn post_application_status_update(
+        &self,
+        status_change: ApplicationStatusUpdateEvent,
+        event_id: String,
+        user_id: Option<String>,
+        username: Option<String>,
+    ) -> Result<()> {
+        let event = EventIdString(event_id);
+        let status_change_str = format!(
+            "Application status: {} Procedure: {}",
+            status_change.application_status.to_string(),
+            status_change.application_type.to_string()
+        );
+        let message = Message::application_status_update_event(
+            event,
+            &self.sd,
+            user_id,
+            username,
+            status_change_str,
+        )
+        .map_err(|e| anyhow!("Error sending template: {e:?}"))?;
 
         self.post(&message).await
     }

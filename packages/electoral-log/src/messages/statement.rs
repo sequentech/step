@@ -2,12 +2,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::messages::newtypes::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use strum_macros::Display;
-
-use crate::messages::newtypes::*;
 
 #[derive(BorshSerialize, BorshDeserialize, Deserialize, Serialize, Debug)]
 pub struct Statement {
@@ -141,6 +140,12 @@ impl StatementHead {
                 description: "Communication sent to user.".to_string(),
                 ..default_head
             },
+            StatementBody::ApplicationStatusUpdateEvent(msg) => StatementHead {
+                kind: StatementType::ApplicationStatusUpdateEvent,
+                event_type: StatementEventType::USER,
+                description: msg.to_string(),
+                ..default_head
+            },
             StatementBody::KeycloakUserEvent(error_message_string, error_message_type) => {
                 let description = match error_message_string.0.as_str() {
                     "" | "-" | "null" => error_message_type.0.clone(),
@@ -228,6 +233,8 @@ pub enum StatementBody {
 
     SendTemplate,
     SendCommunications(Option<String>),
+    /// Application status update event
+    ApplicationStatusUpdateEvent(String),
     KeycloakUserEvent(ErrorMessageString, KeycloakEventTypeString),
     /// Represents the assertion that
     ///     within the given tenant
@@ -266,6 +273,7 @@ pub enum StatementType {
     TallyClose,
     SendTemplate,
     SendCommunications,
+    ApplicationStatusUpdateEvent,
     KeycloakUserEvent,
     VoterPublicKey,
     AdminPublicKey,

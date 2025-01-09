@@ -224,6 +224,17 @@ impl Message {
         Self::from_body(event, body, sd, user_id, username)
     }
 
+    pub fn application_status_update_event(
+        event: EventIdString,
+        sd: &SigningData,
+        user_id: Option<String>,
+        username: Option<String>,
+        status_change: String,
+    ) -> Result<Self> {
+        let body = StatementBody::ApplicationStatusUpdateEvent(status_change);
+        Self::from_body(event, body, sd, user_id, username)
+    }
+
     pub fn voter_public_key_message(
         tenant_id: TenantIdString,
         event: EventIdString,
