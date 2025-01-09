@@ -339,9 +339,16 @@ export default function ElectionEvents() {
         })
     }, [electionEventId])
 
+    // TODO: Let's Be really careful with this kind of redirect on useEffect,
+    // because now if we want to add any other item in the sidebar, we NEED to
+    // also add it here. We reallt need to find a better way to solve this.
     useEffect(() => {
         const hasCandidateIdFlag =
             location.pathname.split("/").length === 3 && location.pathname.split("/")[2] !== ""
+        const isSideBarElement = 
+            location.pathname.split("/").length >= 2 && [
+                "user-roles", "settings", "sequent_backend_template",
+            ].includes(location.pathname.split("/")[1])
         if (hasCandidateIdFlag) {
             if (getCandidateIdFlag() === location.pathname.split("/")[2]) {
                 contestData()
@@ -350,7 +357,7 @@ export default function ElectionEvents() {
                     candidateTreeRefetch()
                 }, 800)
             }
-        } else {
+        } else if (!isSideBarElement) {
             navigate(`/sequent_backend_election_event/${electionEventId}`)
         }
     }, [getCandidateIdFlag, candidate_id])
@@ -538,11 +545,6 @@ export default function ElectionEvents() {
 
                 originalRefetch()
                 navigate("/sequent_backend_election_event/")
-
-                notify(t("sideMenu.menuActions.messages.notification.success.reloading"), {
-                    type: "success",
-                    autoHideDuration: 8000,
-                })
             }}
         />
     )
