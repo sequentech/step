@@ -15,7 +15,6 @@ use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumString};
 use tracing::instrument;
 use uuid::Uuid;
-use windmill::{postgres::reports::Report, services::tasks_execution::*};
 use windmill::{
     postgres::reports::get_report_by_id,
     services::{
@@ -25,6 +24,7 @@ use windmill::{
     },
     types::tasks::ETasksExecution,
 };
+use windmill::{postgres::reports::Report, services::tasks_execution::*};
 use windmill::{
     postgres::reports::{get_report_by_type, ReportType},
     services::reports_vault::get_report_key_pair,

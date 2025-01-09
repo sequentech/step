@@ -1419,7 +1419,7 @@ const tagalogTranslation: TranslationType = {
                     description:
                         "Maaaring pirmahan ng mga SBEI ang Pakete ng Transmisyon. Ipinapakita ng talahanayan sa ibaba ang katayuan ng pirma ng bawat isa sa mga miyembro ng SBEI.",
                     table: {
-                        trusteeName: "Pangalan ng Tagapagtiwala",
+                        trusteeName: "ID ng SBEI",
                         signed: "Napirmahan",
                     },
                     status: "{{signed}} sa {{total}} Napirmahan",
