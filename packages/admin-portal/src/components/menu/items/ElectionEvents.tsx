@@ -312,15 +312,13 @@ export default function ElectionEvents() {
     )
 
     useEffect(() => {
-        const callerPath = location.pathname.split("/")[1]
-
-        if (callerPath === "sequent_backend_election") {
+        if (location.pathname.toLowerCase().includes("sequent_backend_election")) {
             electionTreeRefetch()
             electionData()
-        } else if (callerPath === "sequent_backend_contest") {
+        } else if (location.pathname.toLowerCase().includes("sequent_backend_contest")) {
             contestTreeRefetch()
             contestData()
-        } else if (callerPath === "sequent_backend_candidate") {
+        } else if (location.pathname.toLowerCase().includes("sequent_backend_candidate")) {
             candidateTreeRefetch()
             electionEventDataRefetch()
         } else {
@@ -337,22 +335,12 @@ export default function ElectionEvents() {
         })
     }, [electionEventId])
 
-    // TODO: Let's Be really careful with this kind of redirect on useEffect,
-    // because now if we want to add any other item in the sidebar, we NEED to
-    // also add it here. We reallt need to find a better way to solve this.
     useEffect(() => {
-        const callerPath = location.pathname.split("/")[1]
+        const hasCandidateIdFlag = location.pathname
+            .toLowerCase()
+            .includes("/sequent_backend_candidate/")
 
-        const hasCandidateIdFlag =
-            location.pathname.split("/").length === 3 &&
-            location.pathname.split("/")[2] !== "" &&
-            callerPath === "sequent_backend_candidate"
-        // const isSideBarElement =
-        //     location.pathname.split("/").length >= 2 &&
-        //     ["user-roles", "settings", "sequent_backend_template"].includes(
-        //         location.pathname.split("/")[1]
-        //     )
-        if (hasCandidateIdFlag) {
+        if (location.pathname.split("/").length > 2 && hasCandidateIdFlag) {
             if (getCandidateIdFlag() === location.pathname.split("/")[2]) {
                 contestData()
 
@@ -361,9 +349,6 @@ export default function ElectionEvents() {
                 }, 400)
             }
         }
-        //  else if (!isSideBarElement) {
-        //     navigate(`/sequent_backend_election_event/${electionEventId}`)
-        // }
     }, [getCandidateIdFlag, candidate_id])
 
     useEffect(() => {
