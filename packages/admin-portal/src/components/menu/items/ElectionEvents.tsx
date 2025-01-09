@@ -518,24 +518,30 @@ export default function ElectionEvents() {
         candidateTreeData,
     ])
 
+    console.log("aa resultData", resultData)
+
     const treeMenu = loading ? (
         <CircularProgress />
     ) : (
-        <TreeMenu
-            data={finalresultData}
-            treeResourceNames={TREE_RESOURCE_NAMES}
-            isArchivedElectionEvents={isArchivedElectionEvents}
-            onArchiveElectionEventsSelect={changeArchiveSelection}
-            reloadTree={() => {
-                candidateTreeRefetch()
-                contestTreeRefetch()
-                electionTreeRefetch()
-                electionEventTreeRefetch()
+        <>
+            {resultData?.electionEvents.length > 0 ? (
+                <TreeMenu
+                    data={finalresultData}
+                    treeResourceNames={TREE_RESOURCE_NAMES}
+                    isArchivedElectionEvents={isArchivedElectionEvents}
+                    onArchiveElectionEventsSelect={changeArchiveSelection}
+                    reloadTree={() => {
+                        candidateTreeRefetch()
+                        contestTreeRefetch()
+                        electionTreeRefetch()
+                        electionEventTreeRefetch()
 
-                originalRefetch()
-                navigate("/sequent_backend_election_event/")
-            }}
-        />
+                        originalRefetch()
+                        navigate("/sequent_backend_election_event/")
+                    }}
+                />
+            ) : null}
+        </>
     )
 
     return (

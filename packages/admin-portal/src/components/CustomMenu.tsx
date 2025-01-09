@@ -142,14 +142,14 @@ export const CustomMenu = () => {
         (route) => location.pathname.search(route) > -1
     )
 
+    /**
+     * If route in TREE_RESOURCE_NAMES is active
+     * and the user is either at the root
+     * or a path with an empty third segment,
+     * they are redirected to the root path (`/`).
+     * This might be used to enforce navigation rules during an active election event
+     */
     useEffect(() => {
-        /**
-         * If route in TREE_RESOURCE_NAMES is active
-         * and the user is either at the root
-         * or a path with an empty third segment,
-         * they are redirected to the root path (`/`).
-         * This might be used to enforce navigation rules during an active election event
-         */
         if (
             isElectionEventActive &&
             (location.pathname.split("/").length <= 2 ||
