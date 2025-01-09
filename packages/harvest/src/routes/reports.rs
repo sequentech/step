@@ -263,7 +263,7 @@ pub async fn generate_transmission_report(
     let task_execution = post(
         &input.tenant_id,
         Some(&input.election_event_id),
-        ETasksExecution::GENERATE_REPORT,
+        ETasksExecution::GENERATE_TRANSMISSION_REPORT,
         &executer_name,
     )
     .await

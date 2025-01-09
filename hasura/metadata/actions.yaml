@@ -532,7 +532,7 @@ actions:
               template_engine: Kriti
               version: 2
       permissions:
-          - role: generate-transmission-report
+          - role: transmission-report-generate
           - role: report-generate
           - role: report-preview
           - role: report-read

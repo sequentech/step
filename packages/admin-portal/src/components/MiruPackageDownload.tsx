@@ -89,14 +89,16 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = ({
                     electionEventId: electionEventId,
                 },
             })
-            let response = generateReportResponse.data?.generateTransmissionReport
-            let taskId = response?.task_execution?.id
-            let generatedDocumentId = response?.document_id
+            let taskId =
+                generateReportResponse?.data?.generate_transmission_report.task_execution?.id
+            let generatedDocumentId =
+                generateReportResponse?.data?.generate_transmission_report?.document_id
+
             if (!generatedDocumentId) {
                 updateWidgetFail(currWidget.identifier)
                 return
             }
-            setFileNameWithExt("transmission_report" + ".zip")
+            setFileNameWithExt("transmission_report" + ".pdf")
             setDocumentToDownload(generatedDocumentId)
             setPerformDownload(true)
             setWidgetTaskId(currWidget.identifier, taskId)

@@ -75,6 +75,7 @@ const spanishTranslation: TranslationType = {
                 EXPORT_BALLOT_PUBLICATION: "Exportar Publicación de Boleta",
                 EXPORT_ACTIVITY_LOGS_REPORT: "Exportar Informe de Registros de Actividad",
                 GENERATE_REPORT: "Generar Reporte",
+                GENERATE_TRANSMISSION_REPORT: "Generar Informe de Transmisión",
                 EXPORT_TRUSTEES: "Exportar Autoridades",
                 EXPORT_APPLICATION: "Exportar Solicitudes",
                 EXPORT_TENANT_CONFIG: "Exportar Configuración del Inquilino",
@@ -890,6 +891,7 @@ const spanishTranslation: TranslationType = {
                 "voter-voted-edit": "Editar a los votantes que votaron",
                 "voter-email-tlf-edit": "Editar email/teléfono de los votantes",
                 "cloudflare-write": "Editar las reglas de bloqueo por país en Cloudflare",
+                "transmission-report-generate": "Generar Informe de Transmisión",
             },
         },
         generalSettingsScreen: {

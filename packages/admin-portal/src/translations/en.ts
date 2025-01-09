@@ -77,6 +77,7 @@ const englishTranslation = {
                 EXPORT_BALLOT_PUBLICATION: "Export Ballot Publication",
                 EXPORT_ACTIVITY_LOGS_REPORT: "Export Activity Logs Report",
                 GENERATE_REPORT: "Generate Report",
+                GENERATE_TRANSMISSION_REPORT: "Generate Transmission Report",
                 EXPORT_TRUSTEES: "Export Trustees",
                 EXPORT_APPLICATION: "Export Applications",
                 EXPORT_TENANT_CONFIG: "Export Tenant Config",
@@ -881,6 +882,7 @@ const englishTranslation = {
                 "voter-voted-edit": "Edit voters who voted",
                 "voter-email-tlf-edit": "Edit voters email/phone fields",
                 "cloudflare-write": "Edit Country Blocking Rules in Cloudflare",
+                "transmission-report-generate": "Generate Transmission Report",
             },
         },
         generalSettingsScreen: {
