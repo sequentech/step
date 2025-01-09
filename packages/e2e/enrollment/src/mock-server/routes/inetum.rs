@@ -79,7 +79,7 @@ pub async fn transaction_results(
 
 
     // 5) Convert from "YYYY-MM-DD" to "dd/MM/yyyy"
-    let parsed = chrono::NaiveDate::parse_from_str(user., "%Y-%m-%d");
+    let parsed = chrono::NaiveDate::parse_from_str(user, "%Y-%m-%d");
     let inetum_dob = match parsed {
         Ok(date) => date.format("%d/%m/%Y").to_string(),
         Err(_) => "12/03/1980".to_string(),
