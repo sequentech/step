@@ -23,7 +23,7 @@ use windmill::services::electoral_log::{
 };
 use windmill::types::resources::DataList;
 
-const EVENT_TYPE_COMMUNICATIONS: &str = "communications";
+const EVENT_TYPE_COMMUNICATIONS: &str = "SEND_COMMUNICATION_TO_USER";
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct LogEventInput {
@@ -129,15 +129,10 @@ pub async fn create_electoral_log(
         }
     };
 
-    if input.body.contains(EVENT_TYPE_COMMUNICATIONS) {
-        let body = input
-            .body
-            .replace(EVENT_TYPE_COMMUNICATIONS, "")
-            .trim()
-            .to_string();
-        let _ = electoral_log
+    if input.message_type.eq(EVENT_TYPE_COMMUNICATIONS) {
+        electoral_log
             .post_send_template(
-                Some(body),
+                Some(input.body),
                 input.election_event_id.clone(),
                 input.user_id,
                 username,

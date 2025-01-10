@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 package sequent.keycloak.inetum_authenticator;
 
+import static sequent.keycloak.authenticator.Utils.EVENT_TYPE_COMMUNICATIONS;
 import static sequent.keycloak.authenticator.Utils.EVENT_TYPE_MANUAL_VERIFICATION;
 import static sequent.keycloak.authenticator.Utils.sendErrorNotificationToUser;
 
@@ -66,23 +67,23 @@ public class CustomEventListenerProvider implements EventListenerProvider {
     log.infov("onEvent() event getType: {0}", event.getType().toString());
     log.infov("onEvent() event getUserId: {0}", event.getUserId());
     String eventTypeFromDetails = event.getDetails().get("type");
+    // As we cannot define Keycloak events into the Keycloak library, we put them into the details
+    // so this CustomEventListenerProvider can pick them up.
     log.infov("onEvent() eventTypeFromDetails: {0}", eventTypeFromDetails);
 
     String msgBody =
-    Optional.ofNullable(event.getDetails().get("msgBody")).orElse("-").replace("\n", " ");
+        Optional.ofNullable(event.getDetails().get("msgBody")).orElse("-").replace("\n", " ");
 
-    if (Utils.EVENT_TYPE_COMMUNICATIONS.equals(eventTypeFromDetails)) {
-      String body =
-      String.format("%s %s", Utils.EVENT_TYPE_COMMUNICATIONS, msgBody).replace("\n", " ");
+    if (EVENT_TYPE_COMMUNICATIONS.equals(eventTypeFromDetails)
+        || EVENT_TYPE_MANUAL_VERIFICATION.equals(eventTypeFromDetails)) {
+      logEvent(
+          getElectionEventId(event.getRealmId()), eventTypeFromDetails, msgBody, event.getUserId());
+    } else { // LOGIN, LOGOUT and other Keycloak events
       logEvent(
           getElectionEventId(event.getRealmId()),
           event.getType().toString(),
-          body,
+          msgBody,
           event.getUserId());
-    } else if (EVENT_TYPE_MANUAL_VERIFICATION.equals(eventTypeFromDetails)) {
-      logEvent(getElectionEventId(event.getRealmId()), eventTypeFromDetails, msgBody, event.getUserId());
-    } else {
-      logEvent(getElectionEventId(event.getRealmId()), event.getType().toString(), msgBody, event.getUserId());
     }
   }
 

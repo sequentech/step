@@ -110,7 +110,7 @@ public class Utils {
   public static final String USER_PROFILE_ATTRIBUTES = "user_profile_attributes";
   public static final String AUTHENTICATOR_CLASS_NAME = "authenticator_class_name";
 
-  public static final String EVENT_TYPE_COMMUNICATIONS = "communications";
+  public static final String EVENT_TYPE_COMMUNICATIONS = "SEND_COMMUNICATION_TO_USER";
   public static final String EVENT_TYPE_MANUAL_VERIFICATION = "MANUALLY_VERIFIED";
 
   public enum MessageCourier {
