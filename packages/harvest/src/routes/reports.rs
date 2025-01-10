@@ -252,10 +252,15 @@ pub async fn generate_transmission_report(
     })?;
 
     if input.tally_session_id.is_none() {
-        update_fail(&task_execution, "Tally session id is required to generate transmission report").await;
+        update_fail(
+            &task_execution,
+            "Tally session id is required to generate transmission report",
+        )
+        .await;
         return Err((
             Status::BadRequest,
-            "Tally session id is required to generate transmission report".to_string(),
+            "Tally session id is required to generate transmission report"
+                .to_string(),
         ));
     };
 
