@@ -24,6 +24,6 @@ export const convertToNumber = <T>(val: T) => {
     return null
 }
 
-export const getPreferenceKey = (key: string) => {
-    return `${key.replaceAll("/", "_").replaceAll("-", "_")}`
+export const getPreferenceKey = (key: string, subkey: string) => {
+    return `${key.replaceAll("/", "_").replaceAll("-", "_")}_${subkey}`
 }
