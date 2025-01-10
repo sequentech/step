@@ -1090,6 +1090,7 @@ const spanishTranslation: TranslationType = {
             templates: "Plantillas",
             active: "Activos",
             archived: "Archivados",
+            reload: "Recargar Menu",
             addResource: {
                 electionEvent: "Crear un Evento Electoral",
                 election: "Crear una Elección",

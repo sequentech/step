@@ -1100,6 +1100,7 @@ const catalanTranslation: TranslationType = {
             templates: "Plantilles",
             active: "Actius",
             archived: "Arxivats",
+            reload: "Recarregar el menu",
             addResource: {
                 electionEvent: "Crear un Esdeveniment Electoral",
                 election: "Crear una Elecció",

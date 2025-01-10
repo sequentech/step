@@ -1097,6 +1097,7 @@ const frenchTranslation: TranslationType = {
             templates: "Modèles",
             active: "Actifs",
             archived: "Archivés",
+            reload: "Recharger Menu",
             addResource: {
                 electionEvent: "Créer un Événement Électoral",
                 election: "Créer une Élection",

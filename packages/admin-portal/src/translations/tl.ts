@@ -1092,6 +1092,7 @@ const tagalogTranslation: TranslationType = {
             templates: "Templates",
             active: "Aktibo",
             archived: "Arkilado",
+            reload: "I-reload ang Menu",
             addResource: {
                 electionEvent: "Lumikha ng Kaganapan ng Halalan",
                 election: "Lumikha ng Halalan",

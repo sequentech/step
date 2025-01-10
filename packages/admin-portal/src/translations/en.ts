@@ -1080,6 +1080,7 @@ const englishTranslation = {
             templates: "Templates",
             active: "Active",
             archived: "Archived",
+            reload: "Reload Menu",
             addResource: {
                 electionEvent: "Create an Election Event",
                 election: "Create an Election",

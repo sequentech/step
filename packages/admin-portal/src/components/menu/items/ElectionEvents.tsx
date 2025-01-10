@@ -71,6 +71,30 @@ const StyledIconButton = styled(IconButton)`
     line-height: 1.5rem;
 `
 
+const StyledButton = styled(Button)(({theme}) => ({
+    "backgroundColor": "white",
+    "color": theme.palette.brandColor,
+    "border": "none",
+    "boxShadow": "none",
+    "&:hover": {
+        color: theme.palette.brandColor,
+        backgroundColor: "rgba(0, 0, 0, 0.04)",
+        boxShadow: "none",
+    },
+    "&:active": {
+        color: theme.palette.brandColor,
+        backgroundColor: "rgba(0, 0, 0, 0.04)",
+        border: "none",
+        boxShadow: "none",
+    },
+    "&:focus": {
+        color: theme.palette.brandColor,
+        backgroundColor: "rgba(0, 0, 0, 0.04)",
+        border: "none",
+        boxShadow: "none",
+    },
+}))
+
 const Container = styled("div")<{isActive?: boolean}>`
     background-color: ${({isActive}) => (isActive ? adminTheme.palette.green.light : "initial")};
 `
@@ -596,40 +620,16 @@ export default function ElectionEvents() {
                             <SearchIcon />
                         </SideBarContainer>
 
-                        <Box>
-                            <Button
-                                fullWidth
-                                onClick={reloadTreeMenu}
-                                startIcon={<RefreshIcon />}
-                                sx={{
-                                    "backgroundColor": "white",
-                                    "color": adminTheme.palette.brandColor,
-                                    "border": "none",
-                                    "boxShadow": "none",
-                                    "&:hover": {
-                                        color: adminTheme.palette.brandColor,
-                                        backgroundColor: "rgba(0, 0, 0, 0.04)",
-                                        boxShadow: "none",
-                                    },
-                                    "&:active": {
-                                        color: adminTheme.palette.brandColor,
-                                        backgroundColor: "rgba(0, 0, 0, 0.04)",
-                                        border: "none",
-                                        boxShadow: "none",
-                                    },
-                                    "&:focus": {
-                                        color: adminTheme.palette.brandColor,
-                                        backgroundColor: "rgba(0, 0, 0, 0.04)",
-                                        border: "none",
-                                        boxShadow: "none",
-                                    },
-                                }}
-                                disableRipple
-                                variant="text"
-                            >
-                                {t("sideMenu.reload")}
-                            </Button>
-                        </Box>
+                        <StyledButton
+                            fullWidth
+                            onClick={reloadTreeMenu}
+                            startIcon={<RefreshIcon />}
+                            disableElevation
+                            disableRipple
+                            variant="text"
+                        >
+                            {t("sideMenu.reload")}
+                        </StyledButton>
 
                         {treeMenu}
                     </>
