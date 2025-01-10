@@ -4,26 +4,21 @@
 
 use crate::services::authorization::authorize;
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
-use crate::types::optional::OptionalId;
 use anyhow::anyhow;
 use anyhow::Result;
 use deadpool_postgres::{Client as DbClient, Transaction};
-use reqwest::StatusCode;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt;
 use sequent_core::services::keycloak::{
-    get_event_realm, get_tenant_realm, GroupInfo, KeycloakAdminClient,
+    get_event_realm, get_tenant_realm, KeycloakAdminClient,
 };
-use sequent_core::types::hasura;
-use sequent_core::types::keycloak::User;
+
 use sequent_core::types::permissions::Permissions;
 use serde::Deserialize;
 use serde_json::Value;
 use std::collections::HashMap;
-use std::fmt::format;
-use std::iter::Map;
-use std::str::FromStr;
+
 use tracing::{info, instrument};
 use windmill::postgres::election_event::get_election_event_by_id;
 use windmill::services::application::{
@@ -33,7 +28,6 @@ use windmill::services::application::{
 use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
 use windmill::services::election_event_board::get_election_event_board;
 use windmill::services::electoral_log::ElectoralLog;
-use windmill::tasks::send_template::send_template;
 use windmill::types::application::{
     ApplicationStatus, ApplicationStatusUpdateEvent, ApplicationType,
 };
@@ -189,7 +183,7 @@ pub async fn verify_user_application(
         )
     })?;
 
-    let _commit = hasura_transaction.commit().await.map_err(|e| {
+    hasura_transaction.commit().await.map_err(|e| {
         ErrorResponse::new(
             Status::InternalServerError,
             &format!("commit failed: {e:?}"),
@@ -425,7 +419,7 @@ pub async fn post_application_update_to_electoral_log(
         election_event.bulletin_board_reference.clone(),
     )
     .ok_or(0)
-    .map_err(|e| anyhow!("Error getting election event board"))?;
+    .map_err(|_| anyhow!("Error getting election event board"))?;
 
     let electoral_log =
         ElectoralLog::for_admin_user(&board_name, tenant_id, hasura_user_id)

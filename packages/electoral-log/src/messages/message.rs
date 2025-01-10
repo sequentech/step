@@ -294,7 +294,7 @@ impl Message {
         let bytes = statement.strand_serialize()?;
         let sender_signature: StrandSignature = sender_sk.sign(&bytes)?;
         let system_signature: StrandSignature = system_sk.sign(&bytes)?;
-        let sender_pk = StrandSignaturePk::from_sk(&sender_sk)?;
+        let sender_pk = StrandSignaturePk::from_sk(sender_sk)?;
         let sender = Sender::new(sender_name.to_string(), sender_pk);
 
         Ok(Message {
