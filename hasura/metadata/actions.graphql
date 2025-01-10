@@ -238,6 +238,7 @@ type Mutation {
         tenant_id: String!
         election_event_id: String!
         election_id: String
+        tally_session_id: String
     ): generateReportOutput
 }
 

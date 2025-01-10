@@ -24,6 +24,7 @@ interface MiruPackageDownloadProps {
     tenantId: string
     electionEventId: string
     electionId?: string
+    tallySessionId?: string
     eventName: string
 }
 
@@ -39,6 +40,7 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = ({
     tenantId,
     electionEventId,
     electionId,
+    tallySessionId,
     eventName,
 }) => {
     const {t} = useTranslation()
@@ -90,6 +92,7 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = ({
                     tenantId,
                     electionEventId,
                     electionId,
+                    tallySessionId,
                 },
             })
             let taskId =

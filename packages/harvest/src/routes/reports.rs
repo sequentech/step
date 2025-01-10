@@ -123,6 +123,7 @@ pub async fn generate_report(
             false,
             Some(task_execution.clone()),
             Some(executer_username),
+            None,
         ))
         .await
         .map_err(|e| {
@@ -193,6 +194,7 @@ pub struct GenerateTransmissionReportBody {
     pub tenant_id: String,
     pub election_event_id: String,
     pub election_id: Option<String>,
+    pub tally_session_id: Option<String>,
 }
 
 #[instrument(skip(claims))]
@@ -234,6 +236,29 @@ pub async fn generate_transmission_report(
         .clone()
         .unwrap_or_else(|| executer_name.clone());
 
+    // Insert the task execution record
+    let task_execution = post(
+        &input.tenant_id,
+        Some(&input.election_event_id),
+        ETasksExecution::GENERATE_TRANSMISSION_REPORT,
+        &executer_name,
+    )
+    .await
+    .map_err(|error| {
+        (
+            Status::InternalServerError,
+            format!("Failed to insert task execution record: {error:?}"),
+        )
+    })?;
+
+    if input.tally_session_id.is_none() {
+        update_fail(&task_execution, "Tally session id is required to generate transmission report").await;
+        return Err((
+            Status::BadRequest,
+            "Tally session id is required to generate transmission report".to_string(),
+        ));
+    };
+
     let report = get_report_by_type(
         &hasura_transaction,
         &input.tenant_id,
@@ -260,21 +285,6 @@ pub async fn generate_transmission_report(
         permission_label: None,
     });
 
-    // Insert the task execution record
-    let task_execution = post(
-        &input.tenant_id,
-        Some(&input.election_event_id),
-        ETasksExecution::GENERATE_TRANSMISSION_REPORT,
-        &executer_name,
-    )
-    .await
-    .map_err(|error| {
-        (
-            Status::InternalServerError,
-            format!("Failed to insert task execution record: {error:?}"),
-        )
-    })?;
-
     let document_id: String = Uuid::new_v4().to_string();
     let celery_app = get_celery_app().await;
 
@@ -286,6 +296,7 @@ pub async fn generate_transmission_report(
             false,
             Some(task_execution.clone()),
             Some(executer_username),
+            input.tally_session_id.clone(),
         ))
         .await
         .map_err(|e| {

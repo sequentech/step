@@ -348,6 +348,7 @@ pub async fn process_export_zip(
                 voter_id: None,
                 report_origin: ReportOriginatedFrom::ExportFunction,
                 executer_username: None,
+                tally_session_id: None,
             },
             ReportFormat::CSV, // Assuming CSV format for this export
         );

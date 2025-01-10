@@ -9,11 +9,13 @@ export const GENERATE_TRANSMISSION_REPORT = gql`
         $tenantId: String!
         $electionEventId: String!
         $electionId: String
+        $tallySessionId: String
     ) {
         generate_transmission_report(
             tenant_id: $tenantId
             election_event_id: $electionEventId
             election_id: $electionId
+            tally_session_id: $tallySessionId
         ) {
             document_id
             encryption_policy

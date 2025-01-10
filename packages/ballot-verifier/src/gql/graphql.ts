@@ -2252,6 +2252,7 @@ export type Mutation_RootGenerate_ReportArgs = {
 export type Mutation_RootGenerate_Transmission_ReportArgs = {
     election_event_id: Scalars["String"]["input"]
     election_id?: InputMaybe<Scalars["String"]["input"]>
+    tally_session_id?: InputMaybe<Scalars["String"]["input"]>
     tenant_id: Scalars["String"]["input"]
 }
 

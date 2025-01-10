@@ -626,6 +626,7 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
                             tenantId={tenantId ?? ""}
                             electionEventId={electionEventId ?? ""}
                             electionId={selectedTallySessionData?.election_id}
+                            tallySessionId={tallyId || undefined}
                             eventName={eventName}
                         />
                     ) : null}

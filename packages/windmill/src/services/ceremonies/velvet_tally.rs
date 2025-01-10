@@ -521,6 +521,7 @@ pub async fn build_vote_receipe_pipe_config(
         voter_id: None,
         report_origin: ReportOriginatedFrom::ExportFunction,
         executer_username: None,
+        tally_session_id: None,
     });
 
     let (mut tpl_pdf_options, mut tpl_email, mut tpl_sms) = (None, None, None);
@@ -576,6 +577,7 @@ pub async fn build_ballot_images_pipe_config(
         voter_id: None,
         report_origin: ReportOriginatedFrom::ExportFunction,
         executer_username: None,
+        tally_session_id: None,
     });
 
     let (mut tpl_pdf_options, mut tpl_email, mut tpl_sms) = (None, None, None);

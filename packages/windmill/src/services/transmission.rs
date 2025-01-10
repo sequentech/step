@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::{
-    postgres::tally_session::get_tally_sessions_by_election_event_id,
+    postgres::tally_session::{get_tally_session_by_id, get_tally_sessions_by_election_event_id},
     types::miru_plugin::MiruTallySessionData,
 };
 use anyhow::{anyhow, Result};
@@ -19,15 +19,28 @@ pub async fn get_transmission_data_from_tally_session_by_area(
     tenant_id: &str,
     election_event_id: &str,
     area_id: &str,
+    tally_session_id: Option<String>,
 ) -> Result<MiruTallySessionData> {
-    let tally_sessions: Vec<TallySession> = get_tally_sessions_by_election_event_id(
-        &hasura_transaction,
-        &tenant_id,
-        &election_event_id,
-        false,
-    )
-    .await
-    .map_err(|err| anyhow!("Error getting the tally sessions: {err:?}"))?;
+    let tally_sessions: Vec<TallySession> = if let Some(tally_session_id) = tally_session_id {
+        let tally_session = get_tally_session_by_id(
+            hasura_transaction,
+            tenant_id,
+            election_event_id,
+            &tally_session_id,
+        )
+        .await
+        .map_err(|err| anyhow!("Error getting the tally session: {err:?}"))?;
+        vec![tally_session.clone()]
+    } else {
+        get_tally_sessions_by_election_event_id(
+            hasura_transaction,
+            tenant_id,
+            election_event_id,
+            false,
+        )
+        .await
+        .map_err(|err| anyhow!("Error getting the tally sessions: {err:?}"))?
+    };
 
     let tally_session_data: MiruTallySessionData = {
         if let Some(tally_session) = tally_sessions
