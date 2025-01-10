@@ -361,12 +361,15 @@ def generate_election_event(excel_data, base_context, miru_data):
 
 
 # "OSAKA PCG" -> "Osaka PCG"
+# WASHINGTON D.C. PE -> Washington D.C. PE
+# NEW YORK PGC -> New York PGC
 def get_embassy(embassy):
     # Split the input string into words
-    words = embassy.split()
+    without_parentheses = re.sub(r"\(.*?\)", "", embassy)
+    words = without_parentheses.split()
     
     # Capitalize each word, and handle the last word conditionally
-    formatted_words = [word.title() for word in words[:-1]]
+    formatted_words = [word.title() if word.upper() != "DC" else word.upper()  for word in words[:-1]]
     last_word = words[-1].upper() if len(words[-1]) <= 3 else words[-1].title()
     
     # Combine the formatted words with the conditionally formatted last word
@@ -375,10 +378,8 @@ def get_embassy(embassy):
     # Join the words into a single string
     return " ".join(formatted_words)
 
-
 def get_country_from_area_embassy(area, embassy):
-    # "PEOPLES REPUBLIC OF BANGLADESH" -> "Bangladesh"
-    country = area.split()[-1].capitalize()
+    country = get_embassy(area)
     return f"{country}/{embassy}"
 
 def generate_reports_csv(reports, election_event_id):
@@ -730,18 +731,18 @@ def gen_keycloak_context(results, excel_data):
     embassy_set = set()
 
     for row in results:
-        if not row["DB_ALLMUN_AREA_NAME"]:
+        if not row["DB_ALLMUN_AREA_NAME"] or not row["allbgy_AREANAME"]:
             continue
-        country_set.add("\\\"" + row["DB_ALLMUN_AREA_NAME"] + "\\\"")
-        if not row["allbgy_AREANAME"]:
-            continue
-        embassy_set.add("\\\"" + row["DB_ALLMUN_AREA_NAME"] + "/" + row["allbgy_AREANAME"] + "\\\"")
+        country = get_embassy(row["DB_ALLMUN_AREA_NAME"])
+        embassy = get_embassy(row["allbgy_AREANAME"])
+        embassy_set.add("\\\"" + embassy + "\\\"")
+        country_set.add("\\\"" + country + "/" + embassy + "\\\"")
     
     keycloak_settings = [t for t in excel_data["parameters"] 
                          if t["type"] == "settings" and t["key"].startswith("keycloak")]
     keycloak_context = {
-    "embassy_list": "[" + ",".join(embassy_set) + "]",
-    "country_list": "[" + ",".join(country_set) + "]",
+    "embassy_list": ",".join(embassy_set),
+    "country_list": ",".join(country_set),
         }
 
     key_mappings = {
