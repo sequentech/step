@@ -65,30 +65,25 @@ public class CustomEventListenerProvider implements EventListenerProvider {
     log.infov("onEvent() event details to string: {0}", event.getDetails().toString());
     log.infov("onEvent() event getType: {0}", event.getType().toString());
     log.infov("onEvent() event getUserId: {0}", event.getUserId());
-    String eventType = event.getDetails().get("type");
-    log.infov("onEvent() event type: {0}", eventType);
-    if (Utils.EVENT_TYPE_COMMUNICATIONS.equals(eventType)) {
-      handleCommunicationsEvent(event);
-    } else {
+    String eventTypeFromDetails = event.getDetails().get("type");
+    log.infov("onEvent() eventTypeFromDetails: {0}", eventTypeFromDetails);
+
+    String msgBody =
+    Optional.ofNullable(event.getDetails().get("msgBody")).orElse("-").replace("\n", " ");
+
+    if (Utils.EVENT_TYPE_COMMUNICATIONS.equals(eventTypeFromDetails)) {
       String body =
-          Optional.ofNullable(event.getDetails().get("msgBody")).orElse("-").replace("\n", " ");
-      String eventTypeStr =
-          EVENT_TYPE_MANUAL_VERIFICATION.equals(eventType) ? eventType : event.getType().toString();
-      logEvent(getElectionEventId(event.getRealmId()), eventTypeStr, body, event.getUserId());
+      String.format("%s %s", Utils.EVENT_TYPE_COMMUNICATIONS, msgBody).replace("\n", " ");
+      logEvent(
+          getElectionEventId(event.getRealmId()),
+          event.getType().toString(),
+          body,
+          event.getUserId());
+    } else if (EVENT_TYPE_MANUAL_VERIFICATION.equals(eventTypeFromDetails)) {
+      logEvent(getElectionEventId(event.getRealmId()), eventTypeFromDetails, msgBody, event.getUserId());
+    } else {
+      logEvent(getElectionEventId(event.getRealmId()), event.getType().toString(), msgBody, event.getUserId());
     }
-  }
-
-  private void handleCommunicationsEvent(Event event) {
-    String msgBody = Optional.ofNullable(event.getDetails().get("msgBody")).orElse("");
-
-    String body =
-        String.format("%s %s", Utils.EVENT_TYPE_COMMUNICATIONS, msgBody).replace("\n", " ");
-
-    logEvent(
-        getElectionEventId(event.getRealmId()),
-        event.getType().toString(),
-        body,
-        event.getUserId());
   }
 
   public void authenticate() {
