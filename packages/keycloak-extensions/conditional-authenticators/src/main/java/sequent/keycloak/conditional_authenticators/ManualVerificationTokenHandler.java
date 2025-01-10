@@ -205,7 +205,13 @@ public class ManualVerificationTokenHandler
   private void buildEventDetails(
       ActionTokenContext<ManualVerificationToken> context, UserModel user, String className) {
 
-    context.getEvent().getEvent().setType(EventType.CLIENT_INFO);
+    context
+        .getEvent()
+        .getEvent()
+        .setType(
+            EventType.CLIENT_INFO); // This is to avoid execption at the success call (last line)
+    // Any event type will do, later it is ignored because we use EVENT_TYPE_MANUAL_VERIFICATION
+    // that is set in the details.
     AuthenticationSessionModel authSession = context.getAuthenticationSession();
     List<UPAttribute> realmsAttributesList = getRealmUserProfileAttributes(context.getSession());
     for (UPAttribute attribute : realmsAttributesList) {
