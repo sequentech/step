@@ -253,10 +253,6 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
 
     const dataProvider = useDataProvider()
 
-    interface GetOneResponse {
-        data: Sequent_Backend_Report
-    }
-
     const {data: report, refetch}: UseQueryResult<Sequent_Backend_Report, Error> = useQuery<
         GetOneResult<Sequent_Backend_Report>,
         Error,
