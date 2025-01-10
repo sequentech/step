@@ -741,8 +741,8 @@ def gen_keycloak_context(results, excel_data):
     keycloak_settings = [t for t in excel_data["parameters"] 
                          if t["type"] == "settings" and t["key"].startswith("keycloak")]
     keycloak_context = {
-    "embassy_list": "[" + ",".join(embassy_set) + "]",
-    "country_list": "[" + ",".join(country_set) + "]",
+    "embassy_list": ",".join(embassy_set),
+    "country_list": ",".join(country_set),
         }
 
     key_mappings = {
