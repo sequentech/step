@@ -950,7 +950,9 @@ def gen_tree(excel_data, miru_data, script_idr, multiply_factor):
         for report in excel_data["reports"]:
             if not is_element_match_election(report, election):
                 continue
-            permission_labels = (report["permission_label"] if report["permission_label"] else "").split("|")
+            permission_labels = []
+            if report["permission_label"]:
+                permission_labels = report["permission_label"].split("|")
             if election["permission_label"]:
                 permission_labels.append(election["permission_label"])
             report_clone = report.copy()
