@@ -52,6 +52,7 @@ import {
     FETCH_ELECTIONS_TREE,
 } from "@/queries/GetElectionEventsTree"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
+import RefreshIcon from "@mui/icons-material/Refresh"
 
 const MenuItem = styled(Menu.Item)`
     color: ${adminTheme.palette.brandColor};
@@ -530,6 +531,16 @@ export default function ElectionEvents() {
         candidateTreeData,
     ])
 
+    const reloadTreeMenu = () => {
+        candidateTreeRefetch()
+        contestTreeRefetch()
+        electionTreeRefetch()
+        electionEventTreeRefetch()
+
+        originalRefetch()
+        navigate("/sequent_backend_election_event/")
+    }
+
     const treeMenu = loading ? (
         <CircularProgress />
     ) : (
@@ -538,15 +549,7 @@ export default function ElectionEvents() {
             treeResourceNames={TREE_RESOURCE_NAMES}
             isArchivedElectionEvents={isArchivedElectionEvents}
             onArchiveElectionEventsSelect={changeArchiveSelection}
-            reloadTree={() => {
-                candidateTreeRefetch()
-                contestTreeRefetch()
-                electionTreeRefetch()
-                electionEventTreeRefetch()
-
-                originalRefetch()
-                navigate("/sequent_backend_election_event/")
-            }}
+            reloadTree={reloadTreeMenu}
         />
     )
 
@@ -592,6 +595,41 @@ export default function ElectionEvents() {
                             />
                             <SearchIcon />
                         </SideBarContainer>
+
+                        <Box>
+                            <Button
+                                fullWidth
+                                onClick={reloadTreeMenu}
+                                startIcon={<RefreshIcon />}
+                                sx={{
+                                    "backgroundColor": "white",
+                                    "color": adminTheme.palette.brandColor,
+                                    "border": "none",
+                                    "boxShadow": "none",
+                                    "&:hover": {
+                                        color: adminTheme.palette.brandColor,
+                                        backgroundColor: "rgba(0, 0, 0, 0.04)",
+                                        boxShadow: "none",
+                                    },
+                                    "&:active": {
+                                        color: adminTheme.palette.brandColor,
+                                        backgroundColor: "rgba(0, 0, 0, 0.04)",
+                                        border: "none",
+                                        boxShadow: "none",
+                                    },
+                                    "&:focus": {
+                                        color: adminTheme.palette.brandColor,
+                                        backgroundColor: "rgba(0, 0, 0, 0.04)",
+                                        border: "none",
+                                        boxShadow: "none",
+                                    },
+                                }}
+                                disableRipple
+                                variant="text"
+                            >
+                                {t("sideMenu.reload")}
+                            </Button>
+                        </Box>
 
                         {treeMenu}
                     </>
