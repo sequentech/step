@@ -19,7 +19,8 @@ import {
     useInput,
     InputProps,
     AutocompleteArrayInput,
-    choices,
+    useDataProvider,
+    GetOneResult,
 } from "react-admin"
 import SelectTemplate from "../Template/SelectTemplate"
 import {useTranslation} from "react-i18next"
@@ -37,6 +38,7 @@ import {Dialog} from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {FormStyles} from "@/components/styles/FormStyles"
+import {useQuery, UseQueryResult} from "react-query"
 
 interface CreateReportProps {
     close?: () => void
@@ -249,11 +251,30 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
     const [enabled, setEnabled] = useState<boolean>(false)
     const authContext = useContext(AuthContext)
 
-    const {data: report} = useGetOne<Sequent_Backend_Report>(
-        "sequent_backend_report",
-        {id: reportId},
-        {enabled: isEditReport}
+    const dataProvider = useDataProvider()
+
+    interface GetOneResponse {
+        data: Sequent_Backend_Report
+    }
+
+    const {data: report, refetch}: UseQueryResult<Sequent_Backend_Report, Error> = useQuery<
+        GetOneResult<Sequent_Backend_Report>,
+        Error,
+        Sequent_Backend_Report
+    >(
+        ["sequent_backend_report", reportId],
+        () => dataProvider.getOne("sequent_backend_report", {id: reportId}),
+        {
+            enabled: false,
+            select: (response: GetOneResult<Sequent_Backend_Report>) => response.data,
+        }
     )
+
+    useEffect(() => {
+        if (isEditReport) {
+            refetch()
+        }
+    }, [isEditReport])
 
     useEffect(() => {
         if (undefined === reportEncryptionPolicy && report?.encryption_policy) {
