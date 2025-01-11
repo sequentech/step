@@ -624,6 +624,7 @@ async fn build_reports_pipe_config(
     public_asset_path: String,
     report_content_template: Option<String>,
     report_system_template: String,
+    pdf_options: Option<PrintToPdfOptionsLocal>,
     tally_type: TallyType,
 ) -> Result<PipeConfigGenerateReports> {
     let extra_data = VelvetTemplateData {
@@ -665,6 +666,7 @@ async fn build_reports_pipe_config(
         report_content_template,
         execution_annotations,
         system_template: report_system_template,
+        pdf_options,
         extra_data: serde_json::to_value(extra_data)?,
     })
 }
@@ -674,6 +676,7 @@ pub async fn create_config_file(
     base_tally_path: PathBuf,
     report_content_template: Option<String>,
     report_system_template: String,
+    pdf_options: Option<PrintToPdfOptionsLocal>,
     tally_session: &TallySession,
     hasura_transaction: &Transaction<'_>,
     tally_type: TallyType,
@@ -709,6 +712,7 @@ pub async fn create_config_file(
         public_asset_path,
         report_content_template,
         report_system_template,
+        pdf_options,
         tally_type,
     )
     .await?;
@@ -802,6 +806,7 @@ pub async fn run_velvet_tally(
     tally_session: &TallySession,
     tally_type: TallyType,
 ) -> Result<State> {
+
     let basic_areas: Vec<TreeNodeArea> = areas.into_iter().map(|area| area.into()).collect();
     // map<(area_id,contest_id), tally_sheet>
     let tally_sheet_map = create_tally_sheets_map(tally_sheets);
@@ -825,6 +830,7 @@ pub async fn run_velvet_tally(
         base_tally_path.clone(),
         report_content_template,
         report_system_template,
+        pdf_options,
         tally_session,
         hasura_transaction,
         tally_type,

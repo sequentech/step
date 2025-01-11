@@ -1152,7 +1152,7 @@ async fn build_reports_template_data(
         }
         _ => get_public_asset_template(PUBLIC_ASSETS_ELECTORAL_RESULTS_TEMPLATE_SYSTEM).await?,
     };
-    Ok((report_content_template, report_system_template, None))
+    Ok((report_content_template, report_system_template, pdf_options))
 }
 
 #[instrument(err, skip(auth_headers, hasura_transaction, keycloak_transaction))]
