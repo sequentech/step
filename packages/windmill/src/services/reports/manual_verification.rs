@@ -114,18 +114,30 @@ impl TemplateRenderer for ManualVerificationTemplate {
         let public_asset_path = get_public_assets_path_env_var()?;
         let minio_endpoint_base =
             get_minio_url().with_context(|| "Error getting minio endpoint")?;
-
-        Ok(SystemData {
-            rendered_user_template,
-            file_logo: format!(
-                "{}/{}/{}",
-                minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_LOGO_IMG
-            ),
-            file_qrcode_lib: format!(
-                "{}/{}/{}",
-                minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_QRCODE_LIB
-            ),
-        })
+        if std::env::var_os("DOC_RENDERER_BACKEND") == Some("inplace".into()) {
+            Ok(SystemData {
+                rendered_user_template,
+                file_logo: format!(
+                    "{}/{}/{}",
+                    minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_LOGO_IMG
+                ),
+                file_qrcode_lib: format!(
+                    "{}/{}/{}",
+                    minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_QRCODE_LIB
+                ),
+            })
+        } else {
+            // If we are rendering with a lambda, the QRCode lib is
+            // already included in the lambda container image.
+            Ok(SystemData {
+                rendered_user_template,
+                file_logo: format!(
+                    "{}/{}/{}",
+                    minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_LOGO_IMG
+                ),
+                file_qrcode_lib: "/assets/qrcode.min.js".to_string(),
+            })
+        }
     }
 }
 

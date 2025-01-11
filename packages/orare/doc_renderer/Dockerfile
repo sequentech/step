@@ -41,6 +41,7 @@ ENV AWS_S3_PUBLIC_URI=${AWS_S3_PUBLIC_URI}
 ENV AWS_S3_BUCKET=${AWS_S3_BUCKET}
 ENV AWS_S3_PUBLIC_BUCKET=${AWS_S3_PUBLIC_BUCKET}
 RUN apk add ca-certificates chromium curl
+COPY ./orare/doc-renderer/assets /
 COPY --from=builder \
     /app/orare/doc_renderer/target/x86_64-unknown-linux-musl/release/doc_renderer \
     /doc_renderer
