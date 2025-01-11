@@ -384,6 +384,11 @@ const catalanTranslation: TranslationType = {
                 electionNumber: "Número d'Eleccions",
                 trustees: "Trustees",
                 status: "Estat",
+                tallyType: {
+                    label: "Tipus de Recompte",
+                    ELECTORAL_RESULTS: "Resultats Electorals",
+                    INITIALIZATION_REPORT: "Resultats d'Inicialització",
+                },
                 create: {
                     title: "Crear Recompte",
                     subtitle: "Crear un nou Recompte per a aquest Esdeveniment Electoral",
@@ -1400,8 +1405,8 @@ const catalanTranslation: TranslationType = {
                     },
                     download: {
                         title: "Descarregar",
-                        emlTitle: "Download EML",
-                        transmissionPackageTitle: "Descarregar el Paquet de Transmissió",
+                        emlTitle: "Download EML {{date}}",
+                        transmissionPackageTitle: "Descarregar el Paquet de Transmissió {{date}}",
                         dialog: {
                             title: "Vols descarregar el Paquet de Transmissió?",
                             description:
