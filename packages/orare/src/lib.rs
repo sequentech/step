@@ -44,6 +44,7 @@ pub fn lambda_runtime(_attr: TokenStream, item: TokenStream) -> TokenStream {
                     let input = input?;
 
                     #name(input)
+                      .await
                       .map(|result| serde_json::to_value(&result).unwrap())
                         .map_err(|error| anyhow::anyhow!("error running lambda: {error:?}").into())
                 }

@@ -25,7 +25,7 @@ cfg_if::cfg_if! {
         }
     } else if #[cfg(feature = "aws_lambda")] {
         #[orare::lambda_runtime]
-        fn render_pdf(input: Input) -> Result<Output, String> {
+        async fn render_pdf(input: Input) -> Result<Output, String> {
             let pdf = pdf::render_pdf(input.clone())?;
             let bucket = input.bucket;
             let bucket_path = input.bucket_path;
@@ -40,7 +40,7 @@ cfg_if::cfg_if! {
                     "application/pdf".to_string(),
                     bucket_path,
                     None,
-                );
+                ).await.map_err(|e| format!("error uploading PDF file to S3: {e:?}"))?;
             }
             Ok(pdf)
         }
