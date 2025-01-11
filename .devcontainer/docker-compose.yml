@@ -712,9 +712,9 @@ services:
       dockerfile: ./../packages/orare/doc_renderer/Dockerfile
       network: host
       args:
-        # headless_chrome is very brittle --especially on AWS
-        # Lambda--: alpine 3.17 contains chromium 112 that is working
-        # as expected with headless_chrome.
+        # headless_chrome is very brittle: alpine 3.17 contains
+        # chromium 112 that is working as expected with
+        # headless_chrome, rendering PDF's successfully.
         - BASE_IMAGE=alpine:3.17
         - FEATURES=openwhisk
     # This is not meant to be a running container, but rather a
