@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{anyhow, Context, Result};
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
-pub use headless_chrome::types::PrintToPdfOptions;
+pub use headless_chrome::types::{PrintToPdfOptions, TransferMode};
 use headless_chrome::{Browser, LaunchOptionsBuilder};
 use reqwest;
 use serde_json::json;
