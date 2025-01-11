@@ -806,7 +806,6 @@ pub async fn run_velvet_tally(
     tally_session: &TallySession,
     tally_type: TallyType,
 ) -> Result<State> {
-
     let basic_areas: Vec<TreeNodeArea> = areas.into_iter().map(|area| area.into()).collect();
     // map<(area_id,contest_id), tally_sheet>
     let tally_sheet_map = create_tally_sheets_map(tally_sheets);
