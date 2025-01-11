@@ -1,3 +1,13 @@
+<style>
+@media print and (max-width: 90mm), screen and (max-width: 302px) {
+  .hash {
+    word-wrap: break-word;
+    display: block;
+    max-width: 180px;
+  }
+}
+</style>
+
 <div class="report">
     <!-- MAIN section -->
     <table align="center" style="width: 100%">
@@ -336,15 +346,14 @@
         <tr class="sys-info">
           <td align="center">
             <div>
-              Report hash: {{sanitize_html (expr
-              ../../execution_annotations.report_hash)}}<br />
-              <br />
+              Report hash: <span class="hash">{{sanitize_html (expr
+              ../execution_annotations.report_hash)}}</span><br />
               Software version: {{sanitize_html (expr
-              ../../execution_annotations.app_version)}}<br />
+              ../execution_annotations.app_version)}}<br />
               OVCS version: {{sanitize_html (expr
-              ../../execution_annotations.app_version)}}<br />
-              System hash: {{sanitize_html (expr
-              ../../execution_annotations.app_hash)}}
+              ../execution_annotations.app_version)}}<br />
+              System hash: <span class="hash">{{sanitize_html (expr
+              ../execution_annotations.app_hash)}}</span>
             </div>
           </td>
         </tr>

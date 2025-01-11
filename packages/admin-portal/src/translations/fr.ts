@@ -384,6 +384,11 @@ const frenchTranslation: TranslationType = {
                 electionNumber: "Nombre d'Élections",
                 trustees: "Autorités",
                 status: "État",
+                tallyType: {
+                    label: "Type de Décompte",
+                    ELECTORAL_RESULTS: "Résultats Électoraux",
+                    INITIALIZATION_REPORT: "Résultats de l'Initialisation",
+                },
                 create: {
                     title: "Créer un Comptage",
                     subtitle: "Créer un nouveau Comptage pour cet Événement Électoral",
@@ -1130,6 +1135,8 @@ const frenchTranslation: TranslationType = {
                             archive: "L'élément a été archivé",
                             unarchive: "L'élément a été désarchivé",
                             delete: "L'élément a été supprimé",
+                            reloading:
+                                "Veuillez patienter. La page va se recharger dans quelques instants.",
                         },
                         error: {
                             archive: "Erreur lors de la tentative d'archivage de cet élément",

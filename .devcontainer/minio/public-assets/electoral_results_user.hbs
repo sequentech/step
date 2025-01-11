@@ -1,3 +1,12 @@
+<style>
+@media print and (max-width: 90mm), screen and (max-width: 302px) {
+  .hash {
+    word-wrap: break-word;
+    display: block;
+    max-width: 180px;
+  }
+}
+</style>
 
 {{let "copies" ["Copy for the Special Board of Canvassers", "Copy for the Commission", "Copy for the PPCRV", "Copy for the NAMFREL","Copy for the Dominant Majority Party", "Copy for the Dominant Minority Party", "Copy for the Ballot Box", "Copy for Posting", "Copy forthe NBOC", 10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30]}}
 <div class="report">
@@ -362,12 +371,12 @@
         <tr class="sys-info">
           <td align="center" >
             <div>
-              Results hash: {{sanitize_html (expr ../../execution_annotations.results_hash)}}<br />
-              Report hash: {{sanitize_html (expr ../../execution_annotations.report_hash)}}<br />
+              Results hash: <span class="hash">{{sanitize_html (expr ../../execution_annotations.results_hash)}}</span><br />
+              Report hash: <span class="hash">{{sanitize_html (expr ../../execution_annotations.report_hash)}}</span><br />
               <br />
               Software version: {{sanitize_html (expr ../../execution_annotations.app_version)}}<br />
               OVCS version: {{sanitize_html (expr ../../execution_annotations.app_version)}}<br />
-              System hash: {{sanitize_html (expr ../../execution_annotations.app_hash)}}
+              System hash: <span class="hash">{{sanitize_html (expr ../../execution_annotations.app_hash)}}</span>
             </div>
           </td>
         </tr>

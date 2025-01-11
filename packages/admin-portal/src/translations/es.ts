@@ -384,6 +384,11 @@ const spanishTranslation: TranslationType = {
                 electionNumber: "Número de Elecciones",
                 trustees: "Trustees",
                 status: "Estado",
+                tallyType: {
+                    label: "Tipo de Conteo",
+                    ELECTORAL_RESULTS: "Resultados Electorales",
+                    INITIALIZATION_REPORT: "Resultados de Inicialización",
+                },
                 create: {
                     title: "Crear Recuento",
                     subtitle: "Crear un nuevo Recuento para este Evento Electoral",
@@ -1123,6 +1128,7 @@ const spanishTranslation: TranslationType = {
                             archive: "El elemento ha sido archivado",
                             unarchive: "El elemento ha sido desarchivado",
                             delete: "El elemento ha sido eliminado",
+                            reloading: "Espere. La página se recargara en unos momentos",
                         },
                         error: {
                             archive: "Error al intentar archivar este elemento",

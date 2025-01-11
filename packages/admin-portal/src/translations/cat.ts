@@ -384,6 +384,11 @@ const catalanTranslation: TranslationType = {
                 electionNumber: "Número d'Eleccions",
                 trustees: "Trustees",
                 status: "Estat",
+                tallyType: {
+                    label: "Tipus de Recompte",
+                    ELECTORAL_RESULTS: "Resultats Electorals",
+                    INITIALIZATION_REPORT: "Resultats d'Inicialització",
+                },
                 create: {
                     title: "Crear Recompte",
                     subtitle: "Crear un nou Recompte per a aquest Esdeveniment Electoral",
@@ -1133,6 +1138,7 @@ const catalanTranslation: TranslationType = {
                             archive: "L'element ha estat arxivat",
                             unarchive: "L'element ha estat desarxivat",
                             delete: "L'element ha estat eliminat",
+                            reloading: "Espera. La pàgina serà recarregada en alguns moments",
                         },
                         error: {
                             archive: "Error intentant arxivar aquest element",

@@ -383,6 +383,11 @@ const tagalogTranslation: TranslationType = {
                 electionNumber: "Bilang ng mga Halalan",
                 trustees: "Mga Tagapangasiwa",
                 status: "Katayuan",
+                tallyType: {
+                    label: "Uri ng Bilang",
+                    ELECTORAL_RESULTS: "Mga Resulta ng Halalan",
+                    INITIALIZATION_REPORT: "Mga Resulta ng Inisyal",
+                },
                 create: {
                     title: "Lumikha ng Tally",
                     subtitle: "Lumikha ng bagong Tally para sa Kaganapan ng Halalan na ito",
@@ -1125,6 +1130,7 @@ const tagalogTranslation: TranslationType = {
                             archive: "Ang item ay na-archive na",
                             unarchive: "Ang item ay na-unarchive na",
                             delete: "Ang item ay natanggal na",
+                            reloading: "Wait. Ang pahina ay na-reload na sa iba pang mga oras.",
                         },
                         error: {
                             archive: "Error habang sinusubukang i-archive ang item na ito",
@@ -1417,7 +1423,7 @@ const tagalogTranslation: TranslationType = {
                     description:
                         "Maaaring pirmahan ng mga SBEI ang Pakete ng Transmisyon. Ipinapakita ng talahanayan sa ibaba ang katayuan ng pirma ng bawat isa sa mga miyembro ng SBEI.",
                     table: {
-                        trusteeName: "Pangalan ng Tagapagtiwala",
+                        trusteeName: "ID ng SBEI",
                         signed: "Napirmahan",
                     },
                     status: "{{signed}} sa {{total}} Napirmahan",

@@ -296,21 +296,15 @@ impl GenerateReports {
                         ))
                     })?;
 
-            let rt = tokio::runtime::Runtime::new().unwrap();
-            let render_pdf = rt
-                .block_on(async move {
-                    pdf::PdfRenderer::render_pdf(render_pdf, None)
-                        .await
-                        .map_err(|e| {
-                            Error::UnexpectedError(format!(
-                                "Error during html_to_pdf conversion: {}",
-                                e
-                            ))
-                        })
-                })
-                .unwrap();
+            let pdf_options = config
+                .pdf_options
+                .map(|val| Some(val.to_print_to_pdf_options()))
+                .unwrap_or_default();
 
-            Some(render_pdf)
+            let bytes_pdf = pdf::html_to_pdf(render_pdf.clone(), pdf_options).map_err(|e| {
+                Error::UnexpectedError(format!("Error during html_to_pdf conversion: {}", e))
+            })?;
+            Some(bytes_pdf)
         } else {
             None
         };
