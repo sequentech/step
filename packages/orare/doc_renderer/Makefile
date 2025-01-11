@@ -1,6 +1,6 @@
 .PHONY: docker-image-openwhisk
 docker-image-openwhisk:
-	docker build --progress=plain --network=host --build-arg FEATURES=openwhisk --build-arg BASE_IMAGE=alpine:latest -f Dockerfile -t ${REGISTRY}/doc_renderer:latest ../..
+	docker build --progress=plain --network=host --build-arg FEATURES=openwhisk --build-arg BASE_IMAGE=alpine:3.17 -f Dockerfile -t ${REGISTRY}/doc_renderer:latest ../..
 
 .PHONY: docker-image-aws-lambda
 docker-image-aws-lambda:
