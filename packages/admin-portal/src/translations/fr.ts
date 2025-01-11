@@ -384,6 +384,11 @@ const frenchTranslation: TranslationType = {
                 electionNumber: "Nombre d'Élections",
                 trustees: "Autorités",
                 status: "État",
+                tallyType: {
+                    label: "Type de Décompte",
+                    ELECTORAL_RESULTS: "Résultats Électoraux",
+                    INITIALIZATION_REPORT: "Résultats de l'Initialisation",
+                },
                 create: {
                     title: "Créer un Comptage",
                     subtitle: "Créer un nouveau Comptage pour cet Événement Électoral",

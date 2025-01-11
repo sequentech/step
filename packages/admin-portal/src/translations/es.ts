@@ -384,6 +384,11 @@ const spanishTranslation: TranslationType = {
                 electionNumber: "Número de Elecciones",
                 trustees: "Trustees",
                 status: "Estado",
+                tallyType: {
+                    label: "Tipo de Conteo",
+                    ELECTORAL_RESULTS: "Resultados Electorales",
+                    INITIALIZATION_REPORT: "Resultados de Inicialización",
+                },
                 create: {
                     title: "Crear Recuento",
                     subtitle: "Crear un nuevo Recuento para este Evento Electoral",
