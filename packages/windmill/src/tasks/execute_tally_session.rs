@@ -87,6 +87,7 @@ use sequent_core::types::hasura::core::ElectionEvent;
 use sequent_core::types::hasura::core::KeysCeremony;
 use sequent_core::types::hasura::core::TallySession;
 use sequent_core::types::hasura::core::TallySheet;
+use sequent_core::types::templates::PrintToPdfOptionsLocal;
 use sequent_core::types::templates::SendTemplateBody;
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -1064,7 +1065,7 @@ async fn build_reports_template_data(
     election_event_id: String,
     election_id: &str,
     hasura_transaction: &Transaction<'_>,
-) -> Result<(Option<String>, String)> {
+) -> Result<(Option<String>, String, Option<PrintToPdfOptionsLocal>)> {
     let report_content_template: Option<String> = match tally_type_enum {
         TallyType::INITIALIZATION_REPORT => {
             let renderer = InitializationTemplate::new(ReportOrigins {
@@ -1134,7 +1135,7 @@ async fn build_reports_template_data(
         }
         _ => get_public_asset_template(PUBLIC_ASSETS_ELECTORAL_RESULTS_TEMPLATE_SYSTEM).await?,
     };
-    Ok((report_content_template, report_system_template))
+    Ok((report_content_template, report_system_template, None))
 }
 
 #[instrument(err, skip(auth_headers, hasura_transaction, keycloak_transaction))]
@@ -1176,14 +1177,15 @@ pub async fn execute_tally_session_wrapped(
     let election_id = election_ids_default.get(0).map_or("", |v| v.as_str());
 
     // Check the report type and create renderer according the report type
-    let (report_content_template, report_system_template) = build_reports_template_data(
-        tally_type_enum.clone(),
-        tenant_id.clone(),
-        election_event_id.clone(),
-        election_id.clone(),
-        &hasura_transaction,
-    )
-    .await?;
+    let (report_content_template, report_system_template, pdf_options) =
+        build_reports_template_data(
+            tally_type_enum.clone(),
+            tenant_id.clone(),
+            election_event_id.clone(),
+            election_id.clone(),
+            &hasura_transaction,
+        )
+        .await?;
 
     let status = get_tally_ceremony_status(tally_session_execution.status.clone())?;
 
@@ -1233,6 +1235,7 @@ pub async fn execute_tally_session_wrapped(
                 &tally_sheets,
                 report_content_template,
                 report_system_template,
+                pdf_options,
                 &areas,
                 &hasura_transaction,
                 &election_event,

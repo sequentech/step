@@ -27,7 +27,9 @@ use sequent_core::services::translations::Name;
 use sequent_core::types::ceremonies::TallyType;
 use sequent_core::types::hasura::core::{Area, Election, ElectionEvent, TallySession, TallySheet};
 use sequent_core::types::scheduled_event::ScheduledEvent;
-use sequent_core::types::templates::{ReportExtraConfig, SendTemplateBody, VoteReceiptPipeType};
+use sequent_core::types::templates::{
+    PrintToPdfOptionsLocal, ReportExtraConfig, SendTemplateBody, VoteReceiptPipeType,
+};
 pub use sequent_core::util::date_time::get_date_and_time;
 use serde::Serialize;
 use std::collections::HashMap;
@@ -793,6 +795,7 @@ pub async fn run_velvet_tally(
     tally_sheets: &Vec<TallySheet>,
     report_content_template: Option<String>,
     report_system_template: String,
+    pdf_options: Option<PrintToPdfOptionsLocal>,
     areas: &Vec<Area>,
     hasura_transaction: &Transaction<'_>,
     election_event: &ElectionEvent,
