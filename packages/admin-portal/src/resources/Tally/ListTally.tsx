@@ -428,9 +428,9 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
                         <TextField source="tenant_id" />
                         <FunctionField
                             label={t("electionEventScreen.tally.tallyType.label")}
-                            render={(record: RaRecord<Identifier>) => (
+                            render={(record: RaRecord<Identifier>) =>
                                 t(`electionEventScreen.tally.tallyType.${record.tally_type}`)
-                            )}
+                            }
                         />
                         <DateField source="created_at" showTime={true} />
 
