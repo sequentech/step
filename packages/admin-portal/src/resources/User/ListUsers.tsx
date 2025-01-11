@@ -942,7 +942,10 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         })
 
         localStorage.removeItem(
-            `RaStore.preferences.${getPreferenceKey(location.pathname)}.datagrid.availableColumns`
+            `RaStore.preferences.${getPreferenceKey(
+                location.pathname,
+                "voters"
+            )}.datagrid.availableColumns`
         )
 
         return allFields
@@ -972,7 +975,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             {
                 <List
                     resource="user"
-                    storeKey={`${getPreferenceKey(location.pathname)}`}
+                    storeKey={`${getPreferenceKey(location.pathname, "voters")}`}
                     queryOptions={{
                         refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
                     }}
@@ -980,7 +983,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     actions={
                         <ListActions
                             withColumns={showVotersColumns}
-                            preferenceKey={getPreferenceKey(location.pathname)}
+                            preferenceKey={getPreferenceKey(location.pathname, "voters")}
                             withFilter={showVotersFilters}
                             withImport={
                                 userType
@@ -1020,7 +1023,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     <ResetFilters />
                     {userAttributes?.get_user_profile_attributes && (
                         <DataGridContainerStyle
-                            preferenceKey={getPreferenceKey(location.pathname)}
+                            preferenceKey={getPreferenceKey(location.pathname, "voters")}
                             omit={listFields.omitFields}
                             isOpenSideBar={isOpenSidebar}
                             bulkActionButtons={<BulkActions />}
