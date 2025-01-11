@@ -384,6 +384,11 @@ const englishTranslation = {
                 electionNumber: "Number Elections",
                 trustees: "Trustees",
                 status: "Status",
+                tallyType: {
+                    label: "Tally Type",
+                    ELECTORAL_RESULTS: "Electoral Results",
+                    INITIALIZATION_REPORT: "Initialization Results",
+                },
                 create: {
                     title: "Create Tally",
                     subtitle: "Create a new Tally for this Election Event",

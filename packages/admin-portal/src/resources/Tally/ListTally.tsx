@@ -66,10 +66,11 @@ const OMIT_FIELDS = ["id", "ballot_eml"]
 
 const Filters: Array<ReactElement> = [
     <TextInput label="Name" source="name" key={0} />,
-    <TextInput label="Description" source="description" key={1} />,
-    <TextInput label="ID" source="id" key={2} />,
-    <TextInput label="Type" source="type" key={3} />,
-    <TextInput source="election_event_id" key={3} />,
+    <TextInput label="Tally Type" source="tally_type" key={1} />,
+    <TextInput label="Description" source="description" key={2} />,
+    <TextInput label="ID" source="id" key={3} />,
+    <TextInput label="Type" source="type" key={4} />,
+    <TextInput source="election_event_id" key={5} />,
 ]
 
 const NotificationLink = styled.span`
@@ -423,9 +424,14 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
                 >
                     <ResetFilters />
                     <ElectionHeader title={"electionEventScreen.tally.title"} subtitle="" />
-
                     <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={false}>
                         <TextField source="tenant_id" />
+                        <FunctionField
+                            label={t("electionEventScreen.tally.tallyType.label")}
+                            render={(record: RaRecord<Identifier>) => (
+                                t(`electionEventScreen.tally.tallyType.${record.tally_type}`)
+                            )}
+                        />
                         <DateField source="created_at" showTime={true} />
 
                         <FunctionField
