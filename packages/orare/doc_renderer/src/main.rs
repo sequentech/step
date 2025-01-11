@@ -26,6 +26,7 @@ cfg_if::cfg_if! {
     } else if #[cfg(feature = "aws_lambda")] {
         #[orare::lambda_runtime]
         async fn render_pdf(input: Input) -> Result<Output, String> {
+            // FIXME(ereslibre): share this code with the OpenWhisk backend
             let pdf = pdf::render_pdf(input.clone())?;
             let bucket = input.bucket;
             if let Some(bucket) = bucket {
