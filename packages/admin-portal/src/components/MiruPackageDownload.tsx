@@ -28,28 +28,27 @@ interface IDocumentData {
 
 const formatDate = (date: Date): string => {
     const options: Intl.DateTimeFormatOptions = {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: false, // Use 24-hour format
-    };
-  
-    const formatter = new Intl.DateTimeFormat(undefined, options);
-    const parts = formatter.formatToParts(date);
-  
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false, // Use 24-hour format
+    }
+
+    const formatter = new Intl.DateTimeFormat(undefined, options)
+    const parts = formatter.formatToParts(date)
+
     // Extract parts to create the desired format
-    const day = parts.find(part => part.type === 'day')?.value
-    const month = parts.find(part => part.type === 'month')?.value
-    const year = parts.find(part => part.type === 'year')?.value
-    const hour = parts.find(part => part.type === 'hour')?.value
-    const minute = parts.find(part => part.type === 'minute')?.value
-  
-    return `${day}/${month}/${year} ${hour}:${minute}`;
-  }
-  
+    const day = parts.find((part) => part.type === "day")?.value
+    const month = parts.find((part) => part.type === "month")?.value
+    const year = parts.find((part) => part.type === "year")?.value
+    const hour = parts.find((part) => part.type === "hour")?.value
+    const minute = parts.find((part) => part.type === "minute")?.value
+
+    return `${day}/${month}/${year} ${hour}:${minute}`
+}
 
 export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = ({
     areaName,
@@ -100,7 +99,8 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = ({
         return newestDocument
     }, [documents])
 
-    const lastDocumentDate = lastDocument?.created_at && formatDate(new Date(lastDocument?.created_at)) || ""
+    const lastDocumentDate =
+        (lastDocument?.created_at && formatDate(new Date(lastDocument?.created_at))) || ""
 
     const emlDocumentId = lastDocument?.document_ids.eml
     return (
@@ -166,12 +166,9 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = ({
                             }}
                         >
                             <span title={t("tally.transmissionPackage.actions.download.emlTitle")}>
-                                {t(
-                                    "tally.transmissionPackage.actions.download.emlTitle",
-                                    {
-                                        date: lastDocumentDate,
-                                    }
-                                    )}
+                                {t("tally.transmissionPackage.actions.download.emlTitle", {
+                                    date: lastDocumentDate,
+                                })}
                             </span>
                         </Box>
                     </MenuItem>
@@ -197,7 +194,7 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = ({
                         >
                             <span
                                 title={t(
-                                    "tally.transmissionPackage.actions.download.transmissionPackageTitle", 
+                                    "tally.transmissionPackage.actions.download.transmissionPackageTitle",
                                     {
                                         date: lastDocumentDate,
                                     }

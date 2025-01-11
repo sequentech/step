@@ -1397,8 +1397,8 @@ const tagalogTranslation: TranslationType = {
                     },
                     download: {
                         title: "I-download",
-                        emlTitle: "I-download ang EML",
-                        transmissionPackageTitle: "I-download ang Pakete ng Transmisyon",
+                        emlTitle: "I-download ang EML {{date}}",
+                        transmissionPackageTitle: "I-download ang Pakete ng Transmisyon {{date}}",
                         dialog: {
                             title: "Gusto mo bang i-download ang Pakete ng Transmisyon?",
                             description:
