@@ -28,9 +28,8 @@ cfg_if::cfg_if! {
         async fn render_pdf(input: Input) -> Result<Output, String> {
             let pdf = pdf::render_pdf(input.clone())?;
             let bucket = input.bucket;
-            let bucket_path = input.bucket_path;
             if let Some(bucket) = bucket {
-                let bucket_path = bucket_path.ok_or_else(|| format!("missing path in bucket for PDF"))?;
+                let bucket_path = input.bucket_path.ok_or_else(|| format!("missing path in bucket for PDF"))?;
                 let raw_pdf = BASE64.decode(pdf.clone().pdf_base64)
                     .map_err(|e| format!("error deserializing PDF in base64 encoding: {e:?}"))?;
                 s3::upload_file_to_s3(
