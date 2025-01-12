@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Context, Result};
-use rand::Rng;
 use csv::ReaderBuilder;
+use rand::Rng;
 use rusqlite::{params, Connection};
 
 use crate::types::user::User;
@@ -34,27 +34,26 @@ pub fn load_users(csv_path: &str) -> Result<(), anyhow::Error> {
             id_card_number TEXT,
             id_card_type TEXT,
         );
-        "#
+        "#,
     )
     .context("Failed to create 'voters' table")?;
 
     // 6. Insert records
     for record_result in rdr.records() {
-        let record = 
-        record_result
-        .context("Failed to read record from CSV")
-        .context("Failed to read record from CSV")?;
+        let record = record_result
+            .context("Failed to read record from CSV")
+            .context("Failed to read record from CSV")?;
 
         // Extract each column by index, in the same order as your CSV
-        let id                        = record.get(0).unwrap_or_default().trim().to_string(); 
-        let first_name                = record.get(4).unwrap_or_default().trim().to_string();
-        let last_name                 = record.get(5).unwrap_or_default().trim().to_string();
-        let middleName                = record.get(8).unwrap_or_default().trim().to_string();
-        let dateOfBirth               = record.get(11).unwrap_or_default().trim().to_string();
-        let embassy                   = record.get(13).unwrap_or_default().trim().to_string();
-        let country                   = record.get(14).unwrap_or_default().trim().to_string();
-        let id_card_number            = record.get(17).unwrap_or_default().trim().to_string();
-        let id_card_type              = record.get(22).unwrap_or_default().trim().to_string();
+        let id = record.get(0).unwrap_or_default().trim().to_string();
+        let first_name = record.get(4).unwrap_or_default().trim().to_string();
+        let last_name = record.get(5).unwrap_or_default().trim().to_string();
+        let middleName = record.get(8).unwrap_or_default().trim().to_string();
+        let dateOfBirth = record.get(11).unwrap_or_default().trim().to_string();
+        let embassy = record.get(13).unwrap_or_default().trim().to_string();
+        let country = record.get(14).unwrap_or_default().trim().to_string();
+        let id_card_number = record.get(17).unwrap_or_default().trim().to_string();
+        let id_card_type = record.get(22).unwrap_or_default().trim().to_string();
 
         conn.execute(
             r#"
@@ -67,8 +66,15 @@ pub fn load_users(csv_path: &str) -> Result<(), anyhow::Error> {
             )
             "#,
             params![
-                id, first_name, last_name,middleName, dateOfBirth,
-                embassy, country, id_card_number, id_card_type
+                id,
+                first_name,
+                last_name,
+                middleName,
+                dateOfBirth,
+                embassy,
+                country,
+                id_card_number,
+                id_card_type
             ],
         )
         .with_context(|| format!("Failed to insert row for id '{}'", id))
@@ -114,16 +120,14 @@ pub fn get_users_from_db() -> anyhow::Result<Vec<User>> {
 }
 
 // Example function: returns a random user from the given country
-pub fn random_user_by_country(
-    country: &str
-) -> Result<Option<User>> {
+pub fn random_user_by_country(country: &str) -> Result<Option<User>> {
     let conn = Connection::open("voters.db")?;
     let mut stmt = conn.prepare(
         " SELECT 
            id, first_name, last_name,
             middleName, embassy, country, id_card_number, id_card_type, date_of_birth
          FROM voters
-         WHERE country = ?1"
+         WHERE country = ?1",
     )?;
 
     let rows = stmt.query_map([country], |row| {
@@ -139,7 +143,6 @@ pub fn random_user_by_country(
             date_of_birth: row.get::<_, String>(8)?,
         })
     })?;
-
 
     let users: Vec<_> = rows.filter_map(|r| r.ok()).collect();
     if users.is_empty() {

@@ -3,90 +3,102 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::Context;
+use clap::ValueEnum;
 use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_TYPE};
 use serde_json::{json, Value};
 use std::{env, error::Error, fs, thread, time::Duration};
 
 pub fn run_enrollment_test(
     election_event_id: &str,
-    voters_count: u64,
+    participants_count: u64,
+    enrollments_per_participant: u64,
     otp_code: &str,
+    test_id: Option<String>,
 ) -> Result<(), Box<dyn Error>> {
     let tenant_id =
         env::var("SUPER_ADMIN_TENANT_ID").with_context(|| "missing SUPER_ADMIN_TENANT_ID")?;
     let voting_portal_domain =
         env::var("VOTING_PORTAL_URL").with_context(|| "missing VOTING_PORTAL_DOMAIN")?;
+    let loadero_url: String =
+        env::var("LOADERO_BASE_URL").with_context(|| "missing  LOADERO_BASE_URL")?;
 
     let voting_portal_url = format!(
         "{}/tenant/{}/event/{}/enroll",
         &voting_portal_domain, &tenant_id, &election_event_id
     );
 
-    println!("voting_portal_url: {}", &voting_portal_url);
-    init_loadero_tests(
-        &election_event_id,
-        &voting_portal_url,
-        voters_count,
-        otp_code,
-    )?;
+    let test_id = match test_id {
+        Some(id) => id,
+        None => init_loadero_test(
+            &loadero_url,
+            &election_event_id,
+            &voting_portal_url,
+            participants_count,
+            enrollments_per_participant,
+            otp_code,
+        )?,
+    };
+
+    run_test(&loadero_url, &test_id)?;
+
     Ok(())
 }
 
-pub fn init_loadero_tests(
+pub fn init_loadero_test(
+    loadero_url: &str,
     election_event_id: &str,
     voting_portal_url: &str,
-    voter_count: u64,
+    participants_count: u64,
+    enrollments_per_participant: u64,
     otp_code: &str,
-) -> Result<(), Box<dyn Error>> {
-    let loadero_url = env::var("LOADERO_BASE_URL")
-        .unwrap_or("https://api.loadero.com/v2/projects/13356".to_string());
-    let participant_count = env::var("LOADERO_PARTICIPANT_COUNT").unwrap_or("1".to_string()); // Fallback is 1
-    let participant_count: u64 = participant_count.parse()?;
-    let loadero_interval_polling_sec =
-        env::var("LOADERO_INTERVAL_POLLING_TIME").unwrap_or("30".to_string()); // Fallback is 30 sec
-    let loadero_interval_polling_sec: u64 = loadero_interval_polling_sec.parse()?;
-
-    // Step 1: Create Test
+) -> Result<String, Box<dyn Error>> {
     let test_id = create_test(
         &loadero_url,
         election_event_id,
         voting_portal_url,
-        voter_count,
-        participant_count,
+        enrollments_per_participant,
         otp_code,
     )?;
 
-    //Step 1.5: Add participant to test
-    create_test_participants(&loadero_url, &test_id, participant_count)?;
+    create_test_participants(&loadero_url, &test_id, participants_count)?;
 
-    //Step 2: Launch Test
-    let run_id = launch_test(&loadero_url, &test_id)?;
+    Ok(test_id)
+}
 
-    println!("Test {} (run ID {})", test_id, run_id);
+pub fn run_test(loadero_url: &str, test_id: &str) -> Result<(), Box<dyn Error>> {
+    let loadero_interval_polling_sec =
+        env::var("LOADERO_INTERVAL_POLLING_TIME").unwrap_or("30".to_string());
+    let loadero_interval_polling_sec: u64 = loadero_interval_polling_sec.parse()?;
 
-    // Step 3: Poll for test result
-    let polling_interval = Duration::from_secs(loadero_interval_polling_sec);
-    loop {
-        println!("check status:");
-        match check_test_status(&loadero_url, &test_id, &run_id) {
-            Ok((pass, fail)) => {
-                println!(
-                    "Test {} (run ID {}): Passed {} times, Failed {} times",
-                    test_id, run_id, pass, fail
-                );
-                break; // Exit the loop when test is done
-            }
-            Err(e) => {
-                if e.to_string().contains("HTTP Status") {
-                    eprintln!("HTTP Error checking status for test {}: {}", test_id, e);
-                    break; // Exit the loop on HTTP errors
-                } else {
-                    // Wait before retrying
-                    thread::sleep(polling_interval);
-                }
-            }
-        }
-    }
+    println!("innnnnn");
+
+    // let run_id = launch_test(&loadero_url, &test_id)?;
+
+    // println!("Test {} (run ID {})", test_id, run_id);
+
+    // //Poll for test result
+    // let polling_interval = Duration::from_secs(loadero_interval_polling_sec);
+    // loop {
+    //     println!("check status:");
+    //     match check_test_status(&loadero_url, &test_id, &run_id) {
+    //         Ok((pass, fail)) => {
+    //             println!(
+    //                 "Test {} (run ID {}): Passed {} times, Failed {} times",
+    //                 test_id, run_id, pass, fail
+    //             );
+    //             break;
+    //         }
+    //         Err(e) => {
+    //             if e.to_string().contains("HTTP Status") {
+    //                 eprintln!("HTTP Error checking status for test {}: {}", test_id, e);
+    //                 break; // Exit the loop on HTTP errors
+    //             } else {
+    //                 // Wait before retrying
+    //                 thread::sleep(polling_interval);
+    //             }
+    //         }
+    //     }
+    // }
 
     Ok(())
 }
@@ -104,32 +116,36 @@ fn create_header() -> Result<HeaderMap, Box<dyn std::error::Error>> {
     Ok(headers)
 }
 
+
+pub fn get_enrollment_test_name_str(election_event_id: &str) -> String {
+    format!("Test Enrollment - Election {}", election_event_id)
+}
+
+
+fn get_test_config (election_event_id: &str,script:String) ->Value {
+    json!({
+       "increment_strategy": "constant",
+       "mode": "load",
+       "name": get_enrollment_test_name_str(&election_event_id),
+       "participant_timeout": 300,
+       "script": script,
+       "start_interval": 0
+   })
+}
+
 fn create_test(
     loadero_url: &str,
     election_event_id: &str,
     voting_portal_url: &str,
-    voter_count: u64,
-    participant_count: u64,
+    enrollments_per_participant: u64,
     otp_code: &str,
 ) -> Result<String, Box<dyn Error>> {
     let client = reqwest::blocking::Client::new();
     let headers = create_header()?;
 
-    let script = generate_script(voting_portal_url, voter_count, otp_code)?;
+    let script = generate_script(voting_portal_url, enrollments_per_participant, otp_code)?;
 
-    // let loadero_interval_sec = env::var("LOADERO_INTERVAL_TIME").unwrap_or("3.3".to_string());
-    // let loadero_interval_sec: f64 = loadero_interval_sec.parse()?;
-
-    // let start_interval_time = (participant_count as f64) * loadero_interval_sec;
-
-    let json_body = json!({
-        "increment_strategy": "linear",
-        "mode": "load",
-        "name": format!("Test Enrollment - Election {}", election_event_id),
-        "participant_timeout": 300,
-        "script": script,
-        "start_interval": 10
-    });
+    let json_body = get_test_config(&election_event_id, script);
 
     let response = client
         .post(format!("{}/tests", &loadero_url))
@@ -200,35 +216,39 @@ fn create_test_participants(
     }
 }
 
-// fn get_tests(loadero_url: &str) -> Result<Vec<String>, Box<dyn std::error::Error>> {
-//     let client = reqwest::blocking::Client::new();
-//     let headers = create_header()?;
-//     let response = client
-//         .get(format!("{}/tests", &loadero_url))
-//         .headers(headers)
-//         .send()?;
-//     if response.status().is_success() {
-//         let response_json: Value = response.json()?;
-//         let mut test_ids = Vec::new();
+pub fn get_test_by_name(test_name: String) -> Result<Option<String>, Box<dyn std::error::Error>> {
+    let loadero_url: String =
+        env::var("LOADERO_BASE_URL").with_context(|| "missing  LOADERO_BASE_URL")?;
+    let client = reqwest::blocking::Client::new();
+    let headers = create_header()?;
 
-//         if let Some(results) = response_json["results"].as_array() {
-//             for result in results {
-//                 if let Some(id) = result["id"].as_i64() {
-//                     test_ids.push(id.to_string());
-//                 }
-//             }
-//         }
+    let response = client
+        .get(format!("{}/tests", &loadero_url))
+        .headers(headers)
+        .send()?;
 
-//         Ok(test_ids)
-//     } else {
-//         let status = response.status();
-//         let error_message = response.text()?;
-//         let error = format!("HTTP Status: {}\nError Message: {}", status, error_message);
-//         Err(Box::from(error))
-//     }
-// }
+    if response.status().is_success() {
+        let response_json: Value = response.json()?;
+        if let Some(results) = response_json["results"].as_array() {
+            for result in results {
+                if let (Some(id), Some(name)) = (result["id"].as_i64(), result["name"].as_str()) {
+                    if test_name == name.to_string() {
+                        return Ok(Some(id.to_string()));
+                    }
+                }
+            }
+        }
 
-fn launch_test(loadero_url: &str, test_id: &str) -> Result<String, Box<dyn Error>> {
+        Ok(None)
+    } else {
+        let status = response.status();
+        let error_message = response.text()?;
+        let error = format!("HTTP Status: {}\nError Message: {}", status, error_message);
+        Err(Box::from(error))
+    }
+}
+
+pub fn launch_test(loadero_url: &str, test_id: &str) -> Result<String, Box<dyn Error>> {
     let client = reqwest::blocking::Client::new();
     let headers = create_header()?;
 
@@ -313,19 +333,72 @@ fn replace_placeholder(template: &str, placeholder: &str, replacement: &str) -> 
     template.replace(placeholder, replacement)
 }
 
-fn generate_script(url: &str, voter_count: u64, otp_code: &str) -> Result<String, Box<dyn Error>> {
-    // Read the template file
-
+fn generate_script(
+    url: &str,
+    enrollments_per_participant: u64,
+    otp_code: &str,
+) -> Result<String, Box<dyn Error>> {
     let template_path =
-        "/workspaces/step/packages/e2e/enrollment/src/test/resources/enrollment_test_script.txt";
+        "/workspaces/step/packages/e2e/enrollment/load_test/resources/enrollment_test_script.txt";
     let template_content = fs::read_to_string(template_path)?;
 
     // Replace placeholders with actual values
     let script = replace_placeholder(&template_content, "{url}", url);
     let script = replace_placeholder(&script, "{otpLength}", "6");
     let script = replace_placeholder(&script, "{otpCode}", otp_code);
-    // let script = replace_placeholder(&script, "{voter_count}", voter_count.to_string().as_str());
+    let script = replace_placeholder(
+        &script,
+        "{enrollmentsCount}",
+        enrollments_per_participant.to_string().as_str(),
+    );
 
     println!("script: {}", &script);
     Ok(script)
+}
+
+pub fn update_script(
+    test_id: &str,
+    election_event_id: &str,
+    enrollments_per_participant: u64,
+    otp_code: &str,
+) -> Result<(), Box<dyn Error>> {
+    let tenant_id =
+        env::var("SUPER_ADMIN_TENANT_ID").with_context(|| "missing SUPER_ADMIN_TENANT_ID")?;
+    let voting_portal_domain =
+        env::var("VOTING_PORTAL_URL").with_context(|| "missing VOTING_PORTAL_DOMAIN")?;
+    let loadero_url: String =
+        env::var("LOADERO_BASE_URL").with_context(|| "missing  LOADERO_BASE_URL")?;
+
+    let voting_portal_url = format!(
+        "{}/tenant/{}/event/{}/enroll",
+        &voting_portal_domain, &tenant_id, &election_event_id
+    );
+
+    let client = reqwest::blocking::Client::new();
+    let headers = create_header()?;
+
+    let script = generate_script(&voting_portal_url, enrollments_per_participant, otp_code)?;
+
+    let json_body = get_test_config(&election_event_id, script);
+
+    let url = format!("{}/tests/{}/script", &loadero_url, &test_id);
+    println!("url: {}", &url);
+
+    let response = client
+        .put(format!("{}/tests/{}", &loadero_url, &test_id))
+        .headers(headers)
+        .json(&json_body)
+        .send()?;
+
+    if response.status().is_success() {
+        Ok(())
+    } else {
+        let status = response.status();
+        let error_message = response.text()?;
+        let error = format!(
+            "Update Test error: HTTP Status: {}\nError Message: {}",
+            status, error_message
+        );
+        Err(Box::from(error))
+    }
 }

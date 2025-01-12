@@ -2,6 +2,16 @@
 name = "enrollment"
 version = "0.1.0"
 edition = "2021"
+default-run = "default"
+
+
+[[bin]]
+name = "default"
+path = "src/main.rs"
+
+[[bin]]
+name = "load_test"
+path = "load_test/main.rs"
 
 [dependencies]
 rocket = { version = "0.5.0", features = ["json"] }
