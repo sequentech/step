@@ -322,13 +322,13 @@ export default function ElectionEvents() {
     useEffect(() => {
         const callerPath = location.pathname.split("/")[1]
 
-        if (callerPath ===  "sequent_backend_election") {
+        if (callerPath === "sequent_backend_election") {
             electionTreeRefetch()
             refetchElectionData()
-        } else if (callerPath ===  "sequent_backend_contest") {
+        } else if (callerPath === "sequent_backend_contest") {
             contestTreeRefetch()
             refetchContestData()
-        } else if (callerPath ===  "sequent_backend_candidate") {
+        } else if (callerPath === "sequent_backend_candidate") {
             candidateTreeRefetch()
             electionEventDataRefetch()
         } else {
