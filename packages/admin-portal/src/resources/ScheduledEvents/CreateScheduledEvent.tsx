@@ -65,7 +65,7 @@ const CreateEvent: FC<CreateEventProps> = ({
     const [isLoading, setIsLoading] = useState(false)
     const refresh = useRefresh()
     const [tenantId] = useTenantStore()
-    const {data: eventList} = useGetList<Sequent_Backend_Scheduled_Event>(
+    const {data: eventList, refetch} = useGetList<Sequent_Backend_Scheduled_Event>(
         "sequent_backend_scheduled_event",
         {
             pagination: {page: 1, perPage: 1},
@@ -100,6 +100,15 @@ const CreateEvent: FC<CreateEventProps> = ({
                   EventProcessors.START_VOTING_PERIOD
             : EventProcessors.START_VOTING_PERIOD
     )
+    useEffect(() => {
+        if (isEditEvent) {
+            refetch()
+            setEventType(
+                (selectedEvent?.event_processor as EventProcessors | null) ??
+                    EventProcessors.START_VOTING_PERIOD
+            )
+        }
+    }, [isEditEvent])
     useEffect(() => {
         if (
             selectedEventId &&
@@ -186,10 +195,9 @@ const CreateEvent: FC<CreateEventProps> = ({
                     <Select
                         required
                         name="event_type"
-                        defaultValue={isEditEvent && EventProcessors.START_VOTING_PERIOD}
                         labelId="event-type-select-label"
                         label={t("eventsScreen.eventType.label")}
-                        value={eventType || ""}
+                        value={eventType}
                         onChange={(e: any) => setEventType(e.target.value)}
                         disabled={isEditEvent || isLoading}
                     >

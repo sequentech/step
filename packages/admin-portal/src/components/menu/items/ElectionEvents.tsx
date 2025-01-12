@@ -70,6 +70,30 @@ const StyledIconButton = styled(IconButton)`
     line-height: 1.5rem;
 `
 
+const StyledButton = styled(Button)(({theme}) => ({
+    "backgroundColor": "white",
+    "color": theme.palette.brandColor,
+    "border": "none",
+    "boxShadow": "none",
+    "&:hover": {
+        color: theme.palette.brandColor,
+        backgroundColor: "rgba(0, 0, 0, 0.04)",
+        boxShadow: "none",
+    },
+    "&:active": {
+        color: theme.palette.brandColor,
+        backgroundColor: "rgba(0, 0, 0, 0.04)",
+        border: "none",
+        boxShadow: "none",
+    },
+    "&:focus": {
+        color: theme.palette.brandColor,
+        backgroundColor: "rgba(0, 0, 0, 0.04)",
+        border: "none",
+        boxShadow: "none",
+    },
+}))
+
 const Container = styled("div")<{isActive?: boolean}>`
     background-color: ${({isActive}) => (isActive ? adminTheme.palette.green.light : "initial")};
 `
@@ -518,30 +542,34 @@ export default function ElectionEvents() {
         candidateTreeData,
     ])
 
-    console.log("aa resultData", resultData)
+    const reloadTreeMenu = () => {
+        candidateTreeRefetch()
+        contestTreeRefetch()
+        electionTreeRefetch()
+        electionEventTreeRefetch()
+
+        originalRefetch()
+        navigate("/sequent_backend_election_event/")
+    }
 
     const treeMenu = loading ? (
         <CircularProgress />
     ) : (
-        <>
-            {resultData?.electionEvents.length > 0 ? (
-                <TreeMenu
-                    data={finalresultData}
-                    treeResourceNames={TREE_RESOURCE_NAMES}
-                    isArchivedElectionEvents={isArchivedElectionEvents}
-                    onArchiveElectionEventsSelect={changeArchiveSelection}
-                    reloadTree={() => {
-                        candidateTreeRefetch()
-                        contestTreeRefetch()
-                        electionTreeRefetch()
-                        electionEventTreeRefetch()
+        <TreeMenu
+            data={finalresultData}
+            treeResourceNames={TREE_RESOURCE_NAMES}
+            isArchivedElectionEvents={isArchivedElectionEvents}
+            onArchiveElectionEventsSelect={changeArchiveSelection}
+            reloadTree={() => {
+                candidateTreeRefetch()
+                contestTreeRefetch()
+                electionTreeRefetch()
+                electionEventTreeRefetch()
 
-                        originalRefetch()
-                        navigate("/sequent_backend_election_event/")
-                    }}
-                />
-            ) : null}
-        </>
+                originalRefetch()
+                navigate("/sequent_backend_election_event/")
+            }}
+        />
     )
 
     return (
