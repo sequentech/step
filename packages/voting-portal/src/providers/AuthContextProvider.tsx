@@ -130,6 +130,34 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
             if (keycloak || !tenantId || !eventId) {
                 return
             }
+            /**
+             * Get the Keycloak URL. If there's a param `kiosk` in the URL, it
+             * appends `-kiosk` to the subdomain (if it exists).
+             */
+            const getKeycloakUrl: (defaultUrl: string) => string = (defaultUrl) => {
+                const searchParams = new URLSearchParams(window.location.search)
+                const isKiosk = searchParams.has("kiosk")
+
+                if (!isKiosk) {
+                    return defaultUrl
+                }
+
+                try {
+                    const url = new URL(defaultUrl)
+                    const subdomainParts = url.hostname.split(".")
+
+                    // Only modify if there is a subdomain
+                    if (subdomainParts.length > 2) {
+                        subdomainParts[0] += "-kiosk"
+                        url.hostname = subdomainParts.join(".")
+                    }
+
+                    return url.toString()
+                } catch (error) {
+                    console.error("Invalid URL provided:", defaultUrl)
+                    return defaultUrl // Fallback to the original URL if an error occurs
+                }
+            }
 
             /**
              * Get the voting client. If there's a param `kiosk` in the URL, it
@@ -159,7 +187,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
             const keycloakConfig = createKeycloakConfig(
                 tenantId,
                 eventId,
-                globalSettings.KEYCLOAK_URL,
+                getKeycloakUrl(globalSettings.KEYCLOAK_URL),
                 getClientId(globalSettings.ONLINE_VOTING_CLIENT_ID)
             )
 
