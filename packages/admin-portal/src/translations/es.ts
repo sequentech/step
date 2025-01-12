@@ -1394,8 +1394,8 @@ const spanishTranslation: TranslationType = {
                     },
                     download: {
                         title: "Descargar",
-                        emlTitle: "Download EML",
-                        transmissionPackageTitle: "Descargar el Paquete de Transmisión",
+                        emlTitle: "Download EML {{date}}",
+                        transmissionPackageTitle: "Descargar el Paquete de Transmisión {{date}}",
                         dialog: {
                             title: "¿Quieres descargar el Paquete de Transmisión?",
                             description:
