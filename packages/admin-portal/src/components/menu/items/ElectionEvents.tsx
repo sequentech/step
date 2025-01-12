@@ -70,6 +70,30 @@ const StyledIconButton = styled(IconButton)`
     line-height: 1.5rem;
 `
 
+const StyledButton = styled(Button)(({theme}) => ({
+    "backgroundColor": "white",
+    "color": theme.palette.brandColor,
+    "border": "none",
+    "boxShadow": "none",
+    "&:hover": {
+        color: theme.palette.brandColor,
+        backgroundColor: "rgba(0, 0, 0, 0.04)",
+        boxShadow: "none",
+    },
+    "&:active": {
+        color: theme.palette.brandColor,
+        backgroundColor: "rgba(0, 0, 0, 0.04)",
+        border: "none",
+        boxShadow: "none",
+    },
+    "&:focus": {
+        color: theme.palette.brandColor,
+        backgroundColor: "rgba(0, 0, 0, 0.04)",
+        border: "none",
+        boxShadow: "none",
+    },
+}))
+
 const Container = styled("div")<{isActive?: boolean}>`
     background-color: ${({isActive}) => (isActive ? adminTheme.palette.green.light : "initial")};
 `
@@ -156,8 +180,6 @@ export type DynEntityType = {
     candidates?: CandidateType[]
 }
 
-// export type DataTreeMenuType = BaseType | CandidateType | ElectionType | ElectionEventType
-
 export type DataTreeMenuType = (BaseType | CandidateType | ElectionType | ElectionEventType) & {
     active?: boolean
 }
@@ -211,7 +233,6 @@ export default function ElectionEvents() {
     const [candidateId, setCandidateId] = useState<string | null>("")
 
     const {getCandidateIdFlag} = useElectionEventTallyStore()
-    const notify = useNotify()
 
     /**
      * Hooks to load data for entities
@@ -224,13 +245,10 @@ export default function ElectionEvents() {
                 enabled: !!election_event_id,
                 onSuccess: (data) => {
                     setElectionEventId(data.id)
-                    // setElectionId("")
-                    // setContestId("")
-                    // setCandidateId("")
                 },
             }
         )
-    const {refetch: electionData} = useGetOne<Sequent_Backend_Election>(
+    const {refetch: refetchElectionData} = useGetOne<Sequent_Backend_Election>(
         "sequent_backend_election",
         {id: election_id},
         {
@@ -243,7 +261,7 @@ export default function ElectionEvents() {
             },
         }
     )
-    const {refetch: contestData} = useGetOne<Sequent_Backend_Contest>(
+    const {refetch: refetchContestData} = useGetOne<Sequent_Backend_Contest>(
         "sequent_backend_contest",
         {id: contestId || contest_id},
         {
@@ -256,27 +274,17 @@ export default function ElectionEvents() {
             },
         }
     )
-    const {refetch: candidateData} = useGetOne<Sequent_Backend_Candidate>(
-        "sequent_backend_candidate",
-        {id: candidate_id},
-        {
-            enabled: !!candidate_id,
-            onSuccess: (data) => {
-                setContestId(data.contest_id)
-                setElectionEventId(data.election_event_id)
-                setCandidateId(data.id)
-            },
-        }
-    )
 
     // Get subtrees
-    const [getElectionEventTree, {data: electionEventTreeData, refetch: electionEventTreeRefetch}] =
-        useLazyQuery(FETCH_ELECTION_EVENTS_TREE, {
-            variables: {
-                tenantId,
-                isArchived: isArchivedElectionEvents,
-            },
-        })
+    const [
+        _getElectionEventTree,
+        {data: electionEventTreeData, refetch: electionEventTreeRefetch},
+    ] = useLazyQuery(FETCH_ELECTION_EVENTS_TREE, {
+        variables: {
+            tenantId,
+            isArchived: isArchivedElectionEvents,
+        },
+    })
 
     const [getElectionTree, {data: electionTreeData, refetch: electionTreeRefetch}] = useLazyQuery(
         FETCH_ELECTIONS_TREE,
@@ -314,19 +322,17 @@ export default function ElectionEvents() {
     useEffect(() => {
         const callerPath = location.pathname.split("/")[1]
 
-        if (callerPath === "sequent_backend_election_event") {
-            electionEventDataRefetch()
-        }
         if (callerPath === "sequent_backend_election") {
             electionTreeRefetch()
-            electionData()
-        }
-        if (callerPath === "sequent_backend_contest") {
+            refetchElectionData()
+        } else if (callerPath === "sequent_backend_contest") {
             contestTreeRefetch()
-            contestData()
-        }
-        if (callerPath === "sequent_backend_candidate") {
+            refetchContestData()
+        } else if (callerPath === "sequent_backend_candidate") {
             candidateTreeRefetch()
+            electionEventDataRefetch()
+        } else {
+            electionEventDataRefetch()
         }
     }, [location])
 
@@ -339,27 +345,19 @@ export default function ElectionEvents() {
         })
     }, [electionEventId])
 
-    // TODO: Let's Be really careful with this kind of redirect on useEffect,
-    // because now if we want to add any other item in the sidebar, we NEED to
-    // also add it here. We reallt need to find a better way to solve this.
     useEffect(() => {
-        const hasCandidateIdFlag =
-            location.pathname.split("/").length === 3 && location.pathname.split("/")[2] !== ""
-        const isSideBarElement =
-            location.pathname.split("/").length >= 2 &&
-            ["user-roles", "settings", "sequent_backend_template"].includes(
-                location.pathname.split("/")[1]
-            )
-        if (hasCandidateIdFlag) {
+        const hasCandidateIdFlag = location.pathname
+            .toLowerCase()
+            .includes("/sequent_backend_candidate/")
+
+        if (location.pathname.split("/").length > 2 && hasCandidateIdFlag) {
             if (getCandidateIdFlag() === location.pathname.split("/")[2]) {
-                contestData()
+                refetchContestData()
 
                 setTimeout(() => {
                     candidateTreeRefetch()
-                }, 800)
+                }, 400)
             }
-        } else if (!isSideBarElement) {
-            navigate(`/sequent_backend_election_event/${electionEventId}`)
         }
     }, [getCandidateIdFlag, candidate_id])
 
@@ -409,41 +407,6 @@ export default function ElectionEvents() {
         setArchivedElectionEvents(val === 1)
     }
 
-    const transformElectionsForSort = (elections: ElectionType[]): IElection[] => {
-        return elections.map((election) => {
-            return {
-                ...election,
-                tenant_id: tenantId || "",
-                image_document_id: election.image_document_id ?? "",
-                contests: transformContestsForSort(election.contests),
-            }
-        })
-    }
-
-    const transformContestsForSort = (contests: ContestType[]): IContest[] => {
-        return contests.map((contest): IContest => {
-            return {
-                ...contest,
-                tenant_id: tenantId || "",
-                candidates: transformCandidatesForSort(contest),
-                max_votes: 0,
-                min_votes: 0,
-                winning_candidates_num: 0,
-                is_encrypted: false,
-            }
-        })
-    }
-
-    const transformCandidatesForSort = (contest: IContest): ICandidate[] => {
-        return contest.candidates.map((candidate: ICandidate, index) => {
-            return {
-                ...candidate,
-                id: candidate.id,
-                election_id: contest.election_id,
-                tenant_id: tenantId || "",
-            }
-        })
-    }
     const handleOpenCreateElectionEventMenu = (e: React.MouseEvent<HTMLElement>) => {
         setAnchorEl(e.currentTarget)
     }
@@ -530,6 +493,16 @@ export default function ElectionEvents() {
         candidateTreeData,
     ])
 
+    const reloadTreeMenu = () => {
+        candidateTreeRefetch()
+        contestTreeRefetch()
+        electionTreeRefetch()
+        electionEventTreeRefetch()
+
+        originalRefetch()
+        navigate("/sequent_backend_election_event/")
+    }
+
     const treeMenu = loading ? (
         <CircularProgress />
     ) : (
@@ -538,15 +511,7 @@ export default function ElectionEvents() {
             treeResourceNames={TREE_RESOURCE_NAMES}
             isArchivedElectionEvents={isArchivedElectionEvents}
             onArchiveElectionEventsSelect={changeArchiveSelection}
-            reloadTree={() => {
-                candidateTreeRefetch()
-                contestTreeRefetch()
-                electionTreeRefetch()
-                electionEventTreeRefetch()
-
-                originalRefetch()
-                navigate("/sequent_backend_election_event/")
-            }}
+            reloadTree={reloadTreeMenu}
         />
     )
 

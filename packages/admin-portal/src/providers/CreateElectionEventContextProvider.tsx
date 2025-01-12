@@ -237,12 +237,6 @@ export const CreateElectionEventProvider = ({children}: any) => {
             setIsLoading(false)
             updateWidgetFail(currWidget.identifier)
         }
-
-        refresh()
-
-        setTimeout(() => {
-            refetchTreeMenu()
-        }, globalSettings.QUERY_POLL_INTERVAL_MS)
     }
 
     const [errors, setErrors] = useState<string | null>(null)
