@@ -180,8 +180,6 @@ export type DynEntityType = {
     candidates?: CandidateType[]
 }
 
-// export type DataTreeMenuType = BaseType | CandidateType | ElectionType | ElectionEventType
-
 export type DataTreeMenuType = (BaseType | CandidateType | ElectionType | ElectionEventType) & {
     active?: boolean
 }
@@ -235,7 +233,6 @@ export default function ElectionEvents() {
     const [candidateId, setCandidateId] = useState<string | null>("")
 
     const {getCandidateIdFlag} = useElectionEventTallyStore()
-    const notify = useNotify()
 
     /**
      * Hooks to load data for entities
@@ -248,13 +245,10 @@ export default function ElectionEvents() {
                 enabled: !!election_event_id,
                 onSuccess: (data) => {
                     setElectionEventId(data.id)
-                    // setElectionId("")
-                    // setContestId("")
-                    // setCandidateId("")
                 },
             }
         )
-    const {refetch: electionData} = useGetOne<Sequent_Backend_Election>(
+    const {refetch: refetchElectionData} = useGetOne<Sequent_Backend_Election>(
         "sequent_backend_election",
         {id: election_id},
         {
@@ -267,7 +261,7 @@ export default function ElectionEvents() {
             },
         }
     )
-    const {refetch: contestData} = useGetOne<Sequent_Backend_Contest>(
+    const {refetch: refetchContestData} = useGetOne<Sequent_Backend_Contest>(
         "sequent_backend_contest",
         {id: contestId || contest_id},
         {
@@ -280,21 +274,9 @@ export default function ElectionEvents() {
             },
         }
     )
-    const {refetch: candidateData} = useGetOne<Sequent_Backend_Candidate>(
-        "sequent_backend_candidate",
-        {id: candidate_id},
-        {
-            enabled: !!candidate_id,
-            onSuccess: (data) => {
-                setContestId(data.contest_id)
-                setElectionEventId(data.election_event_id)
-                setCandidateId(data.id)
-            },
-        }
-    )
 
     // Get subtrees
-    const [getElectionEventTree, {data: electionEventTreeData, refetch: electionEventTreeRefetch}] =
+    const [_getElectionEventTree, {data: electionEventTreeData, refetch: electionEventTreeRefetch}] =
         useLazyQuery(FETCH_ELECTION_EVENTS_TREE, {
             variables: {
                 tenantId,
@@ -338,10 +320,10 @@ export default function ElectionEvents() {
     useEffect(() => {
         if (location.pathname.toLowerCase().includes("sequent_backend_election")) {
             electionTreeRefetch()
-            electionData()
+            refetchElectionData()
         } else if (location.pathname.toLowerCase().includes("sequent_backend_contest")) {
             contestTreeRefetch()
-            contestData()
+            refetchContestData()
         } else if (location.pathname.toLowerCase().includes("sequent_backend_candidate")) {
             candidateTreeRefetch()
             electionEventDataRefetch()
@@ -366,7 +348,7 @@ export default function ElectionEvents() {
 
         if (location.pathname.split("/").length > 2 && hasCandidateIdFlag) {
             if (getCandidateIdFlag() === location.pathname.split("/")[2]) {
-                contestData()
+                refetchContestData()
 
                 setTimeout(() => {
                     candidateTreeRefetch()
@@ -421,41 +403,6 @@ export default function ElectionEvents() {
         setArchivedElectionEvents(val === 1)
     }
 
-    const transformElectionsForSort = (elections: ElectionType[]): IElection[] => {
-        return elections.map((election) => {
-            return {
-                ...election,
-                tenant_id: tenantId || "",
-                image_document_id: election.image_document_id ?? "",
-                contests: transformContestsForSort(election.contests),
-            }
-        })
-    }
-
-    const transformContestsForSort = (contests: ContestType[]): IContest[] => {
-        return contests.map((contest): IContest => {
-            return {
-                ...contest,
-                tenant_id: tenantId || "",
-                candidates: transformCandidatesForSort(contest),
-                max_votes: 0,
-                min_votes: 0,
-                winning_candidates_num: 0,
-                is_encrypted: false,
-            }
-        })
-    }
-
-    const transformCandidatesForSort = (contest: IContest): ICandidate[] => {
-        return contest.candidates.map((candidate: ICandidate, index) => {
-            return {
-                ...candidate,
-                id: candidate.id,
-                election_id: contest.election_id,
-                tenant_id: tenantId || "",
-            }
-        })
-    }
     const handleOpenCreateElectionEventMenu = (e: React.MouseEvent<HTMLElement>) => {
         setAnchorEl(e.currentTarget)
     }
@@ -560,15 +507,7 @@ export default function ElectionEvents() {
             treeResourceNames={TREE_RESOURCE_NAMES}
             isArchivedElectionEvents={isArchivedElectionEvents}
             onArchiveElectionEventsSelect={changeArchiveSelection}
-            reloadTree={() => {
-                candidateTreeRefetch()
-                contestTreeRefetch()
-                electionTreeRefetch()
-                electionEventTreeRefetch()
-
-                originalRefetch()
-                navigate("/sequent_backend_election_event/")
-            }}
+            reloadTree={reloadTreeMenu}
         />
     )
 
