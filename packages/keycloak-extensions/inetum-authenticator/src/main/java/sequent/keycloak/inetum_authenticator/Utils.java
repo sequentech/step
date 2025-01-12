@@ -161,7 +161,6 @@ public class Utils {
 
     log.debug(
         "storeUserDataInAuthSessionNotes: setAuthNote(" + Utils.KEYS_USERDATA + ", " + keys + ")");
-        
     sessionModel.setAuthNote(Utils.KEYS_USERDATA, keys);
 
     formData.forEach(
