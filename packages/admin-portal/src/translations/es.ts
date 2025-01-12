@@ -202,6 +202,7 @@ const spanishTranslation: TranslationType = {
             votersByChannels: "Votantes por canales",
             voterLoginURL: "URL de inicio de sesión de votantes",
             voterEnrollURL: "URL de inscripción de votantes",
+            voterEnrollKioskURL: "Kiosk URL de inscripción de votantes",
             ipAddress: {
                 emptyState: "Aún no hay votos.",
                 title: "IP Addresses",
