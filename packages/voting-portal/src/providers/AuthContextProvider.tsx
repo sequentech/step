@@ -133,7 +133,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
 
             /**
              * Get the voting client. If there's a param `kiosk` in the URL, it
-             * append `-kiosk` to the 
+             * append `-kiosk` to the
              */
             const getClientId: (defaultClientId: string) => string = (defaultClientId) => {
                 const searchParams = new URLSearchParams(window.location.search)
