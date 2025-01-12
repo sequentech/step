@@ -2,14 +2,14 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useContext, useState} from "react"
+import React, {useContext, useEffect, useState} from "react"
 import {Menu, useSidebarState} from "react-admin"
 import {faAngleDoubleLeft, faAngleDoubleRight} from "@fortawesome/free-solid-svg-icons"
 import {IconButton, adminTheme} from "@sequentech/ui-essentials"
 import {Box, Button, MenuItem, Typography, Menu as MMenu} from "@mui/material"
 import {styled} from "@mui/material/styles"
 import SelectTenants from "./menu/items/SelectTenants"
-import ElectionEvents from "./menu/items/ElectionEvents"
+import ElectionEvents, {TREE_RESOURCE_NAMES} from "./menu/items/ElectionEvents"
 import {useTranslation} from "react-i18next"
 import GroupIcon from "@mui/icons-material/Group"
 import SettingsIcon from "@mui/icons-material/Settings"
@@ -19,6 +19,7 @@ import {TenantContext} from "@/providers/TenantContextProvider"
 import {IPermissions} from "@/types/keycloak"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
+import {useLocation, useNavigate} from "react-router"
 
 const StyledHelpItem = styled(Button)`
     margin-top: -4px;
@@ -114,6 +115,8 @@ export const CustomMenu = () => {
     const {globalSettings} = useContext(SettingsContext)
     const [open, setOpen] = useSidebarState()
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
+    const location = useLocation()
+    const navigate = useNavigate()
 
     const {t, i18n} = useTranslation()
 
@@ -134,6 +137,27 @@ export const CustomMenu = () => {
         let replacedUrl = url.replace("${PUBLIC_BUCKET_URL}", globalSettings.PUBLIC_BUCKET_URL)
         window.open(replacedUrl, "_blank", "noopener,noreferrer")
     }
+
+    const isElectionEventActive = TREE_RESOURCE_NAMES.some(
+        (route) => location.pathname.search(route) > -1
+    )
+
+    /**
+     * If route in TREE_RESOURCE_NAMES is active
+     * and the user is either at the root
+     * or a path with an empty third segment,
+     * they are redirected to the root path (`/`).
+     * This might be used to enforce navigation rules during an active election event
+     */
+    useEffect(() => {
+        if (
+            isElectionEventActive &&
+            (location.pathname.split("/").length <= 2 ||
+                (location.pathname.split("/").length > 2 && location.pathname.split("/")[2] === ""))
+        ) {
+            navigate("/")
+        }
+    }, [])
 
     return (
         <>
