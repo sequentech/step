@@ -44,6 +44,7 @@ use sequent_core::services::date::ISO8601;
 use sequent_core::types::ceremonies::Log;
 use sequent_core::types::date_time::TimeZone;
 use sequent_core::types::hasura::core::Document;
+use sequent_core::types::results::ResultDocumentType;
 use sequent_core::util::date_time::PHILIPPINO_TIMEZONE;
 use tempfile::{tempdir, NamedTempFile};
 use tracing::{info, instrument};
@@ -56,6 +57,7 @@ pub async fn download_to_file(
     tenant_id: &str,
     election_event_id: &str,
     tally_session_id: &str,
+    document_type: ResultDocumentType,
 ) -> Result<NamedTempFile> {
     let tally_session_executions = get_tally_session_executions(
         hasura_transaction,
@@ -88,7 +90,7 @@ pub async fn download_to_file(
     let document_id = results_event
         .documents
         .ok_or_else(|| anyhow!("Missing documents in results_event"))?
-        .tar_gz_original
+        .get_document_by_type(document_type)
         .ok_or_else(|| anyhow!("Missing tar_gz_original in results_event"))?;
 
     let document = get_document(
@@ -310,6 +312,7 @@ pub async fn create_transmission_package_service(
         tenant_id,
         &election_event.id,
         tally_session_id,
+        ResultDocumentType::TarGzOriginal,
     )
     .await?;
 

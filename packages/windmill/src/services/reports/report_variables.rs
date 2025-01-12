@@ -20,6 +20,7 @@ use deadpool_postgres::Transaction;
 use sequent_core::ballot::StringifiedPeriodDates;
 use sequent_core::types::hasura::core::{Area, Election, ElectionEvent};
 use sequent_core::types::keycloak::AREA_ID_ATTR_NAME;
+use sequent_core::types::results::ResultDocumentType;
 use sequent_core::types::scheduled_event::ScheduledEvent;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
@@ -344,6 +345,7 @@ pub async fn get_results_hash(
         &tenant_id,
         &election_event_id,
         &tally_session_id,
+        ResultDocumentType::Json,
     )
     .await
     .map_err(|err| anyhow!("Error getting the results file: {err:?}"))?;
