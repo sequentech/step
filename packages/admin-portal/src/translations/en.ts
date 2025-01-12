@@ -204,6 +204,7 @@ const englishTranslation = {
             votersByChannels: "Voters by channel",
             voterLoginURL: "Voter Login URL",
             voterEnrollURL: "Voter Enroll URL",
+            voterEnrollKioskURL: "Voter Enroll Kiosk URL",
             ipAddress: {
                 emptyState: "No votes yet.",
                 title: "IP Addresses",
