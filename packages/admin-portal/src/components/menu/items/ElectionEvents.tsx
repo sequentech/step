@@ -276,13 +276,15 @@ export default function ElectionEvents() {
     )
 
     // Get subtrees
-    const [_getElectionEventTree, {data: electionEventTreeData, refetch: electionEventTreeRefetch}] =
-        useLazyQuery(FETCH_ELECTION_EVENTS_TREE, {
-            variables: {
-                tenantId,
-                isArchived: isArchivedElectionEvents,
-            },
-        })
+    const [
+        _getElectionEventTree,
+        {data: electionEventTreeData, refetch: electionEventTreeRefetch},
+    ] = useLazyQuery(FETCH_ELECTION_EVENTS_TREE, {
+        variables: {
+            tenantId,
+            isArchived: isArchivedElectionEvents,
+        },
+    })
 
     const [getElectionTree, {data: electionTreeData, refetch: electionTreeRefetch}] = useLazyQuery(
         FETCH_ELECTIONS_TREE,
