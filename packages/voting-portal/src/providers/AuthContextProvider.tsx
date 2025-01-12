@@ -132,6 +132,16 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
             }
 
             /**
+             * Get the voting client. If there's a param `kiosk` in the URL, it
+             * append `-kiosk` to the
+             */
+            const getClientId: (defaultClientId: string) => string = (defaultClientId) => {
+                const searchParams = new URLSearchParams(window.location.search)
+                const isKiosk = searchParams.has("kiosk")
+                return isKiosk ? `${defaultClientId}-kiosk` : defaultClientId
+            }
+
+            /**
              * KeycloakConfig configures the connection to the Keycloak server.
              */
             const createKeycloakConfig: (
@@ -150,7 +160,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 tenantId,
                 eventId,
                 globalSettings.KEYCLOAK_URL,
-                globalSettings.ONLINE_VOTING_CLIENT_ID
+                getClientId(globalSettings.ONLINE_VOTING_CLIENT_ID)
             )
 
             // Create the Keycloak client instance
