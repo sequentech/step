@@ -78,6 +78,18 @@ async fn generic_save_documents(
     .await?;
 
     documents.json = process_and_upload_document(
+        document_paths.json.clone(),
+        MIME_JSON,
+        OUTPUT_JSON,
+        &all_reports,
+        report_type.clone(),
+        auth_headers,
+        tenant_id,
+        election_event_id,
+    )
+    .await?;
+
+    documents.vote_receipts_pdf = process_and_upload_document(
         document_paths.vote_receipts_pdf.clone(),
         MIME_JSON,
         OUTPUT_JSON,
@@ -322,7 +334,7 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
             .await?;
 
             let documents = ResultDocuments {
-                json: None,
+                json: None, // TODO: send here hashed json value
                 pdf: None,
                 html: None,
                 tar_gz: Some(document.id),
@@ -413,6 +425,7 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
             .clone();
 
         let documents = generic_save_documents(
+            //here i am saving election results documents
             auth_headers,
             document_paths,
             &contest.tenant_id.to_string(),

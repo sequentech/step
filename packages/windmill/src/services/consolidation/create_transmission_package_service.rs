@@ -17,6 +17,7 @@ use super::zip::compress_folder_to_zip;
 use crate::postgres::area::get_area_by_id;
 use crate::postgres::document::get_document;
 use crate::postgres::election::get_election_by_id;
+use crate::postgres::results_election::get_results_election_by_results_event_id;
 use crate::postgres::results_event::get_results_event_by_id;
 use crate::postgres::tally_session::{get_tally_session_by_id, update_tally_session_annotation};
 use crate::postgres::tally_session_execution::get_tally_session_executions;
@@ -44,7 +45,7 @@ use sequent_core::services::date::ISO8601;
 use sequent_core::types::ceremonies::Log;
 use sequent_core::types::date_time::TimeZone;
 use sequent_core::types::hasura::core::Document;
-use sequent_core::types::results::ResultDocumentType;
+use sequent_core::types::results::{ResultDocumentType, ResultDocuments};
 use sequent_core::util::date_time::PHILIPPINO_TIMEZONE;
 use tempfile::{tempdir, NamedTempFile};
 use tracing::{info, instrument};
@@ -56,8 +57,8 @@ pub async fn download_to_file(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
+    election_id: Option<&str>,
     tally_session_id: &str,
-    document_type: ResultDocumentType,
 ) -> Result<NamedTempFile> {
     let tally_session_executions = get_tally_session_executions(
         hasura_transaction,
@@ -78,20 +79,44 @@ pub async fn download_to_file(
         .clone()
         .ok_or_else(|| anyhow!("Missing results_event_id in tally session execution"))?;
 
-    let results_event = get_results_event_by_id(
-        hasura_transaction,
-        tenant_id,
-        election_event_id,
-        &results_event_id,
-    )
-    .await
-    .with_context(|| "Error fetching results event")?;
+    // get the document_id from the results_election for reports or results_event for the rest
+    let document_id = if let Some(election_id) = election_id {
+        let result_election = get_results_election_by_results_event_id(
+            hasura_transaction,
+            tenant_id,
+            election_id,
+            &results_event_id,
+        )
+        .await
+        .with_context(|| "Error fetching results election")?;
 
-    let document_id = results_event
-        .documents
-        .ok_or_else(|| anyhow!("Missing documents in results_event"))?
-        .get_document_by_type(document_type)
-        .ok_or_else(|| anyhow!("Missing tar_gz_original in results_event"))?;
+        let document_type = ResultDocumentType::Json;
+        let documents: Option<ResultDocuments> = result_election
+            .documents
+            .map(|value| deserialize_value(value))
+            .transpose()?;
+
+        documents
+            .ok_or_else(|| anyhow!("Missing documents in results_election"))?
+            .get_document_by_type(&document_type)
+            .ok_or_else(|| anyhow!(format!("Missing {:?} in results_election", document_type)))?
+    } else {
+        let result_event = get_results_event_by_id(
+            hasura_transaction,
+            tenant_id,
+            election_event_id,
+            &results_event_id,
+        )
+        .await
+        .with_context(|| "Error fetching results event")?;
+
+        let document_type = ResultDocumentType::TarGz;
+        result_event
+            .documents
+            .ok_or_else(|| anyhow!("Missing documents in results_event"))?
+            .get_document_by_type(&document_type)
+            .ok_or_else(|| anyhow!(format!("Missing {:?} in results_event", document_type)))?
+    };
 
     let document = get_document(
         hasura_transaction,
@@ -311,8 +336,8 @@ pub async fn create_transmission_package_service(
         &hasura_transaction,
         tenant_id,
         &election_event.id,
+        None,
         tally_session_id,
-        ResultDocumentType::TarGzOriginal,
     )
     .await?;
 

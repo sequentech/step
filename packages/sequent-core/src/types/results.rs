@@ -30,7 +30,7 @@ pub struct ResultDocuments {
 impl ResultDocuments {
     pub fn get_document_by_type(
         &self,
-        doc_type: ResultDocumentType,
+        doc_type: &ResultDocumentType,
     ) -> Option<String> {
         match doc_type {
             ResultDocumentType::Json => self.json.clone(),

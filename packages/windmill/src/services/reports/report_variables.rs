@@ -324,6 +324,7 @@ pub async fn get_results_hash(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
+    election_id: &str,
 ) -> Result<String> {
     let tally_sessions = get_tally_sessions_by_election_event_id(
         &hasura_transaction,
@@ -344,8 +345,8 @@ pub async fn get_results_hash(
         hasura_transaction,
         &tenant_id,
         &election_event_id,
+        Some(election_id),
         &tally_session_id,
-        ResultDocumentType::Json,
     )
     .await
     .map_err(|err| anyhow!("Error getting the results file: {err:?}"))?;
