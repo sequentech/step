@@ -20,6 +20,7 @@ use std::{
     io::Write,
     path::PathBuf,
 };
+use strand::hash::hash_b64;
 use tracing::{instrument, warn};
 use uuid::Uuid;
 
@@ -217,17 +218,35 @@ impl GenerateReports {
         enable_pdfs: bool,
     ) -> Result<GeneratedReportsBytes> {
         let config = self.get_config()?;
-        let execution_annotations = config.execution_annotations;
+        let mut execution_annotations = config.execution_annotations;
+
+        let template_data = TemplateData {
+            execution_annotations: execution_annotations.clone(),
+            reports: self.compute_reports(reports.clone())?,
+        };
+
+        let json_reports = serde_json::to_value(template_data)?;
+        let bytes_json = json_reports.to_string().as_bytes().to_vec();
+        // hash json reports bytes
+        let results_hash = hash_b64(&bytes_json).map_err(|err| {
+            Error::UnexpectedError(format!("Error hashing the results file: {err:?}"))
+        })?;
+        // add results_hash to execution_annotations
+        execution_annotations.insert("results_hash".to_string(), results_hash);
+
+        // render again the template with the new execution_annotations
         let template_data = TemplateData {
             execution_annotations,
-            reports: self.compute_reports(reports)?,
+            reports: self.compute_reports(reports.clone())?,
         };
         let template_vars = template_data
             .clone()
             .to_map()
             // TODO: Fix neededing to do a Map Err
             .map_err(|err| Error::UnexpectedError(format!("serialization error: {err:?}")))?;
+
         let json_reports = serde_json::to_value(template_data)?;
+        let bytes_json = json_reports.to_string().as_bytes().to_vec();
 
         let mut template_map = HashMap::new();
         let report_base_html = include_str!("../../resources/report_base_html.hbs");
@@ -312,7 +331,7 @@ impl GenerateReports {
         Ok(GeneratedReportsBytes {
             bytes_pdf: bytes_pdf,
             bytes_html: render_html.as_bytes().to_vec(),
-            bytes_json: json_reports.to_string().as_bytes().to_vec(),
+            bytes_json: bytes_json,
         })
     }
 
