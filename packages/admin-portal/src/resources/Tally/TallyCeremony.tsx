@@ -346,7 +346,8 @@ export const TallyCeremony: React.FC = () => {
                             election.status?.allow_tally === EAllowTally.ALLOWED ||
                             (election.status?.allow_tally ===
                                 EAllowTally.REQUIRES_VOTING_PERIOD_END &&
-                                election.status?.voting_status === EVotingStatus.CLOSED)
+                                election.status?.voting_status === EVotingStatus.CLOSED && 
+                                election.status?.kiosk_voting_status === EVotingStatus.CLOSED)
                         )
                     }) || false
 
