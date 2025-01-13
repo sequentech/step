@@ -141,6 +141,7 @@ export default function MenuAction({
                 },
                 {
                     onSuccess() {
+                        reloadTree()
                         refetch()
                         notify(t("sideMenu.menuActions.messages.notification.success.archive"), {
                             type: "success",
@@ -164,6 +165,7 @@ export default function MenuAction({
 
                 {
                     onSuccess() {
+                        reloadTree()
                         refetch()
                         notify(t("sideMenu.menuActions.messages.notification.success.unarchive"), {
                             type: "success",

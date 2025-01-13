@@ -41,7 +41,7 @@ import {AuthContext} from "@/providers/AuthContextProvider"
 import {useTranslation} from "react-i18next"
 import {IPermissions} from "../../../types/keycloak"
 import {useTreeMenuData} from "./use-tree-menu-hook"
-import {cloneDeep} from "lodash"
+import {cloneDeep, set} from "lodash"
 import {useUrlParams} from "@/hooks/useUrlParams"
 import {useCreateElectionEventStore} from "@/providers/CreateElectionEventContextProvider"
 import {useLazyQuery} from "@apollo/client"
@@ -395,13 +395,18 @@ export default function ElectionEvents() {
     }, [candidateId])
 
     useEffect(() => {
-        if (!electionEventData) return
+        if (!electionEventData) {
+            reloadTreeMenu()
+            return
+        }
         setArchivedElectionEvents(electionEventData?.is_archived ?? false)
     }, [electionEventData, setArchivedElectionEvents])
 
     function handleSearchChange(searchInput: string) {
         setSearchInput(searchInput)
     }
+
+    const [tabChanged, setTabChanged] = useState<number | null>(0)
 
     function changeArchiveSelection(val: number) {
         setArchivedElectionEvents(val === 1)
@@ -491,6 +496,8 @@ export default function ElectionEvents() {
         electionTreeData,
         contestTreeData,
         candidateTreeData,
+        tabChanged,
+        isArchivedElectionEvents,
     ])
 
     const reloadTreeMenu = () => {
@@ -500,6 +507,8 @@ export default function ElectionEvents() {
         electionEventTreeRefetch()
 
         originalRefetch()
+        setTabChanged((prev: number | null) => (prev === 1 ? 0 : 1))
+        setArchivedElectionEvents(!isArchivedElectionEvents)
         navigate("/sequent_backend_election_event/")
     }
 
