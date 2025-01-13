@@ -870,7 +870,7 @@ const englishTranslation = {
                 "publish-pause-voting": "Pause Voting",
                 "publish-stop-voting": "Stop Voting",
                 "publish-changes": "Publish Changes",
-                "election-event-publish-view": "View Election Event Publish",
+                "election-event-publish-view": "Election Event Publish View",
                 "election-event-keys-columns": "Election Event Keys Columns",
                 "create-ceremony": "Create Ceremony",
                 "export-ceremony": "Export Ceremony",
