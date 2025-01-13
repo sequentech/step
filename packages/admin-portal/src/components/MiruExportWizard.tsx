@@ -394,7 +394,7 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
             selectedTallySessionData?.documents[selectedTallySessionData?.documents.length - 1]
                 .servers_sent_to ?? []
 
-        return sentTo.length
+        return sentTo.filter((server) => server.status == "SUCCESS").length
     }
 
     const serversTotalCount: () => number = () => {

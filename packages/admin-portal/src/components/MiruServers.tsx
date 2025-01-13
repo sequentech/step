@@ -12,6 +12,7 @@ import TableHead from "@mui/material/TableHead"
 import TableRow from "@mui/material/TableRow"
 import Paper from "@mui/material/Paper"
 import {WizardStyles} from "@/components/styles/WizardStyles"
+import CloseIcon from "@mui/icons-material/Close"
 import {IMiruCcsServer, IMiruServersSentTo} from "@/types/miru"
 
 interface MiruServersProps {
@@ -54,8 +55,8 @@ export const MiruServers: React.FC<MiruServersProps> = (props) => {
                                         {server.name}
                                     </TableCell>
                                     <TableCell align="center">
-                                        {isSentTo(server.name) ? (
-                                            <WizardStyles.DoneIcon />
+                                        {isSentTo(server.name) ? (server.status == "SUCCESS" ? 
+                                            <WizardStyles.DoneIcon /> : <CloseIcon  style={{ color: 'red' }} /> 
                                         ) : (
                                             <HourglassEmptyIcon />
                                         )}
