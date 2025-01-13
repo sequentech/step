@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::encrypter::{encrypt_directory_contents, get_file_report_type, traversal_encrypt_files};
 use super::renamer::rename_folders;
+use crate::postgres::document::get_document;
 use crate::postgres::reports::Report;
 use crate::postgres::reports::{get_reports_by_election_event_id, ReportType};
 use crate::postgres::results_election_area::insert_results_election_area_documents;
@@ -27,9 +28,11 @@ use sequent_core::services::translations::Name;
 use sequent_core::types::ceremonies::TallyType;
 use sequent_core::{services::connection::AuthHeaders, types::results::ResultDocuments};
 use sequent_core::{services::keycloak, types::hasura::core::Area};
+use serde_json::Value;
 use std::{
     collections::HashMap,
     fs::File,
+    fs,
     path::{Path, PathBuf},
 };
 use tokio::task;
@@ -38,6 +41,7 @@ use velvet::pipes::generate_reports::{
     BasicArea, ElectionReportDataComputed, ReportDataComputed, OUTPUT_HTML, OUTPUT_JSON, OUTPUT_PDF,
 };
 use velvet::pipes::vote_receipts::VOTE_RECEIPT_OUTPUT_FILE_PDF as OUTPUT_RECEIPT_PDF;
+use strand::hash::hash_b64;
 
 pub const MIME_PDF: &str = "application/pdf";
 pub const MIME_JSON: &str = "application/json";
@@ -424,8 +428,18 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
             .contest
             .clone();
 
+        // Read the json file and hash it
+        let file_path = document_paths.json.clone().context("Missing json file path")?;
+        let content = fs::read_to_string(file_path)?;
+        let mut json: Value = serde_json::from_str(&content)?;
+        json.as_object_mut().unwrap().remove("results_hash");
+        let bytes_json = json.to_string().as_bytes().to_vec();
+        println!("bytes_json: {:?}", bytes_json);
+        // remove the rsult_hash from the json
+        let json_hash = hash_b64(&bytes_json).map_err(|err| anyhow!("Error hashing json: {err:?}"))?;
+
+        // Save election results documents to S3 and Hasura
         let documents = generic_save_documents(
-            //here i am saving election results documents
             auth_headers,
             document_paths,
             &contest.tenant_id.to_string(),
@@ -442,6 +456,7 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
             &contest.election_event_id,
             &contest.election_id,
             &documents,
+            &json_hash,
         )
         .await?;
 
