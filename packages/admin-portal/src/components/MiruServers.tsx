@@ -59,7 +59,7 @@ export const MiruServers: React.FC<MiruServersProps> = (props) => {
                                             server.status == "SUCCESS" ? (
                                                 <WizardStyles.DoneIcon />
                                             ) : (
-                                                <CloseIcon style={{color: "red"}} />
+                                                <HourglassEmptyIcon />
                                             )
                                         ) : (
                                             <HourglassEmptyIcon />
