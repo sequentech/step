@@ -361,7 +361,12 @@ export const TallyCeremony: React.FC = () => {
                 console.log(
                     `init report: setIsButtonDisabled = true, tallySession?.tally_type = ${tallySession?.tally_type}`
                 )
-                setIsButtonDisabled(false)
+                let newIsButtonDisabled =
+                    tally?.execution_status !== ITallyExecutionStatus.CONNECTED
+
+                if (newIsButtonDisabled !== isButtonDisabled) {
+                    setIsButtonDisabled(newIsButtonDisabled)
+                }
             }
         }
 

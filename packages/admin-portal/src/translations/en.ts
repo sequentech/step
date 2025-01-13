@@ -204,6 +204,7 @@ const englishTranslation = {
             votersByChannels: "Voters by channel",
             voterLoginURL: "Voter Login URL",
             voterEnrollURL: "Voter Enroll URL",
+            voterEnrollKioskURL: "Voter Enroll Kiosk URL",
             ipAddress: {
                 emptyState: "No votes yet.",
                 title: "IP Addresses",
@@ -384,6 +385,11 @@ const englishTranslation = {
                 electionNumber: "Number Elections",
                 trustees: "Trustees",
                 status: "Status",
+                tallyType: {
+                    label: "Tally Type",
+                    ELECTORAL_RESULTS: "Electoral Results",
+                    INITIALIZATION_REPORT: "Initialization Results",
+                },
                 create: {
                     title: "Create Tally",
                     subtitle: "Create a new Tally for this Election Event",
@@ -1378,8 +1384,8 @@ const englishTranslation = {
                     },
                     download: {
                         title: "Download",
-                        emlTitle: "Download EML",
-                        transmissionPackageTitle: "Download Transmission Package",
+                        emlTitle: "Download EML {{date}}",
+                        transmissionPackageTitle: "Download Transmission Package {{date}}",
                         dialog: {
                             title: "Do you want to Download the Transmission Package?",
                             description:

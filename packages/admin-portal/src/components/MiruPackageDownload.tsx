@@ -26,6 +26,30 @@ interface IDocumentData {
     name: string
 }
 
+const formatDate = (date: Date): string => {
+    const options: Intl.DateTimeFormatOptions = {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false, // Use 24-hour format
+    }
+
+    const formatter = new Intl.DateTimeFormat(undefined, options)
+    const parts = formatter.formatToParts(date)
+
+    // Extract parts to create the desired format
+    const day = parts.find((part) => part.type === "day")?.value
+    const month = parts.find((part) => part.type === "month")?.value
+    const year = parts.find((part) => part.type === "year")?.value
+    const hour = parts.find((part) => part.type === "hour")?.value
+    const minute = parts.find((part) => part.type === "minute")?.value
+
+    return `${day}/${month}/${year} ${hour}:${minute}`
+}
+
 export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = ({
     areaName,
     documents,
@@ -61,7 +85,24 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = ({
         setAnchorEl(null)
     }
 
-    const emlDocumentId = documents?.[0]?.document_ids.eml
+    const lastDocument = useMemo(() => {
+        let newestDate = new Date(0)
+        let newestDocument = null
+        for (let document of documents || []) {
+            let date = document.created_at && new Date(document.created_at)
+            if (date && date > newestDate) {
+                newestDate = date
+                newestDocument = document
+            }
+        }
+
+        return newestDocument
+    }, [documents])
+
+    const lastDocumentDate =
+        (lastDocument?.created_at && formatDate(new Date(lastDocument?.created_at))) || ""
+
+    const emlDocumentId = lastDocument?.document_ids.eml
     return (
         <Box>
             <TallyStyles.MiruToolbarButton
@@ -112,7 +153,7 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = ({
                             e.preventDefault()
                             e.stopPropagation()
                             handleClose()
-                            setFileNameWithExt(fileName + ".eml")
+                            setFileNameWithExt(fileName + lastDocumentDate + ".eml")
                             setDocumentToDownload(emlDocumentId)
                             setOpenModal(true)
                         }}
@@ -125,20 +166,22 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = ({
                             }}
                         >
                             <span title={t("tally.transmissionPackage.actions.download.emlTitle")}>
-                                {t("tally.transmissionPackage.actions.download.emlTitle")}
+                                {t("tally.transmissionPackage.actions.download.emlTitle", {
+                                    date: lastDocumentDate,
+                                })}
                             </span>
                         </Box>
                     </MenuItem>
                 ) : null}
-                {documents?.map((doc) => (
+                {lastDocument && (
                     <MenuItem
-                        key={doc.document_ids.all_servers}
+                        key={lastDocument.document_ids.all_servers}
                         onClick={(e: React.MouseEvent<HTMLElement>) => {
                             e.preventDefault()
                             e.stopPropagation()
                             handleClose()
-                            setFileNameWithExt(fileName + ".zip")
-                            setDocumentToDownload(doc.document_ids.all_servers)
+                            setFileNameWithExt(fileName + lastDocumentDate + ".zip")
+                            setDocumentToDownload(lastDocument.document_ids.all_servers)
                             setOpenModal(true)
                         }}
                     >
@@ -151,16 +194,22 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = ({
                         >
                             <span
                                 title={t(
-                                    "tally.transmissionPackage.actions.download.transmissionPackageTitle"
+                                    "tally.transmissionPackage.actions.download.transmissionPackageTitle",
+                                    {
+                                        date: lastDocumentDate,
+                                    }
                                 )}
                             >
                                 {t(
-                                    "tally.transmissionPackage.actions.download.transmissionPackageTitle"
+                                    "tally.transmissionPackage.actions.download.transmissionPackageTitle",
+                                    {
+                                        date: lastDocumentDate,
+                                    }
                                 )}
                             </span>
                         </Box>
                     </MenuItem>
-                ))}
+                )}
             </Menu>
             <Dialog
                 variant="info"
