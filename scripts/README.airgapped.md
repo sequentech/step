@@ -75,19 +75,14 @@ Assuming the VSTL process as follows:
 
 ### Team A
 
-As described in
-[beyond](https://github.com/sequentech/beyond/blob/31b9f0a3195f9aa2f7cf8b5a26bde63b63553052/infrastructure/scripts/vstl/README.md):
+First download all dependencies for build airgapped in offline mode, to do this, choose a version and launch those commands
 
 ```
-./vstl_separate.sh <tag> dependencies all
+git checkout v8.0.7
+STEP_VERSION=v8.0.7 STEP_HASH=4588af5d44 scripts/build-airgapped.sh
 ```
 
-As described in this document, they run [the
-script](#run-the-script). Some images will be pulled from the Docker
-Hub and public registries. Some other images will fail to be pulled,
-because they lack access to Amazon ECR. Still, the output artifact is
-valid, since the missing container images will be provided by Team B
-in the coming step.
+This creates a file like /step/airgapped-artifacts/YYYY-MM-DD.tar. It prints some warnings for missing images, specially those coming from 581718213778.dkr.ecr.us-east-1.amazonaws.com. This is not relevant, as they will be produced later on by Team B.
 
 ### Team B
 
@@ -96,7 +91,7 @@ in the coming step.
 0. They build the project:
 
     ```
-    ./vstl_separate.sh <tag> build all
+    sudo ./offline_trusted_build.sh 
     ```
 
 0. They retag some images:
@@ -132,10 +127,8 @@ by Team A, and the ones built by Team B from the source code, and
 retagged:
 
     ```
-    tar -cf out-final.tar out
+    tar -cvzf out-final.tar.gz out
     ```
-
-    It is highly recommended to compress this file.
 
 ### Team C
 
