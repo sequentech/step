@@ -432,6 +432,7 @@ pub async fn send_transmission_package_service(
                 new_miru_document.servers_sent_to.push(MiruServerDocument {
                     name: ccs_server.name.clone(),
                     sent_at: ISO8601::to_string(&time_now),
+                    status: "SUCCESS".to_string(),
                 });
                 record_new_log(
                     tenant_id,
@@ -445,9 +446,10 @@ pub async fn send_transmission_package_service(
                 .await?;
             }
             Err(err) => {
-                let error_str = format!("{}", err);
+                let error_str = format!("{}", err);                
+                let time_now = Local::now();
                 let new_log = error_sending_transmission_package_to_ccs_log(
-                    &Local::now(),
+                    &time_now,
                     election_id,
                     &election.name,
                     area_id,
@@ -462,6 +464,11 @@ pub async fn send_transmission_package_service(
                         .collect(),
                     &error_str,
                 );
+                new_miru_document.servers_sent_to.push(MiruServerDocument {
+                    name: ccs_server.name.clone(),
+                    sent_at: ISO8601::to_string(&time_now),
+                    status: "ERROR".to_string(),
+                });
                 record_new_log(
                     tenant_id,
                     election_id,
@@ -469,7 +476,7 @@ pub async fn send_transmission_package_service(
                     tally_session_id,
                     &election_event.id,
                     new_log,
-                    None,
+                    Some(new_miru_document.clone()),
                 )
                 .await?;
             }

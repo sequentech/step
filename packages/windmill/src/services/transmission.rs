@@ -134,7 +134,7 @@ pub async fn get_transmission_servers_data(
                 data.documents.iter().any(|doc| {
                     doc.servers_sent_to
                         .iter()
-                        .any(|server_sent| server_sent.name == server.name)
+                        .any(|server_sent| server_sent.name == server.name && server_sent.status == "SUCCESS")
                 })
             }) {
                 "Received".to_string()
@@ -147,7 +147,7 @@ pub async fn get_transmission_servers_data(
                     let server_name = server.name.clone();
                     data.documents.iter().find_map(|doc| {
                         doc.servers_sent_to.iter().find_map(|server_sent| {
-                            if server_sent.name == server_name {
+                            if server_sent.name == server_name && server_sent.status == "SUCCESS" {
                                 Some(server_sent.sent_at.clone())
                             } else {
                                 None

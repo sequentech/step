@@ -16,6 +16,7 @@ pub struct MiruSignature {
 pub struct MiruServerDocument {
     pub name: String,
     pub sent_at: String, // date using ISO8601/rfc3339
+    pub status: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
