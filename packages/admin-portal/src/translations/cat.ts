@@ -1407,14 +1407,9 @@ const catalanTranslation: TranslationType = {
                     },
                     download: {
                         title: "Descarregar",
-<<<<<<< HEAD
-                        emlTitle: "Download EML",
-                        transmissionPackageTitle: "Descarregar el Paquet de Transmissió",
-                        transmissionReportTitle: "Descarrega l'informe de transmissió",
-=======
                         emlTitle: "Download EML {{date}}",
                         transmissionPackageTitle: "Descarregar el Paquet de Transmissió {{date}}",
->>>>>>> eb7923e87c3fc2e47cbb9bfd2321d58d47623b36
+                        transmissionReportTitle: "Descarrega l'informe de transmissió",
                         dialog: {
                             title: "Vols descarregar el Paquet de Transmissió?",
                             description:
