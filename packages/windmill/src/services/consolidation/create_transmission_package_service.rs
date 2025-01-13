@@ -79,44 +79,21 @@ pub async fn download_to_file(
         .clone()
         .ok_or_else(|| anyhow!("Missing results_event_id in tally session execution"))?;
 
-    // get the document_id from the results_election for reports or results_event for the rest
-    let document_id = if let Some(election_id) = election_id {
-        let result_election = get_results_election_by_results_event_id(
-            hasura_transaction,
-            tenant_id,
-            election_id,
-            &results_event_id,
-        )
-        .await
-        .with_context(|| "Error fetching results election")?;
+    let result_event = get_results_event_by_id(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        &results_event_id,
+    )
+    .await
+    .with_context(|| "Error fetching results event")?;
 
-        let document_type = ResultDocumentType::Json;
-        let documents: Option<ResultDocuments> = result_election
-            .documents
-            .map(|value| deserialize_value(value))
-            .transpose()?;
-
-        documents
-            .ok_or_else(|| anyhow!("Missing documents in results_election"))?
-            .get_document_by_type(&document_type)
-            .ok_or_else(|| anyhow!(format!("Missing {:?} in results_election", document_type)))?
-    } else {
-        let result_event = get_results_event_by_id(
-            hasura_transaction,
-            tenant_id,
-            election_event_id,
-            &results_event_id,
-        )
-        .await
-        .with_context(|| "Error fetching results event")?;
-
-        let document_type = ResultDocumentType::TarGz;
-        result_event
-            .documents
-            .ok_or_else(|| anyhow!("Missing documents in results_event"))?
-            .get_document_by_type(&document_type)
-            .ok_or_else(|| anyhow!(format!("Missing {:?} in results_event", document_type)))?
-    };
+    let document_type = ResultDocumentType::TarGz;
+    let document_id = result_event
+        .documents
+        .ok_or_else(|| anyhow!("Missing documents in results_event"))?
+        .get_document_by_type(&document_type)
+        .ok_or_else(|| anyhow!(format!("Missing {:?} in results_event", document_type)))?;
 
     let document = get_document(
         hasura_transaction,
