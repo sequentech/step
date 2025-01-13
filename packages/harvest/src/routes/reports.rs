@@ -269,6 +269,7 @@ pub async fn generate_transmission_report(
         &input.tenant_id,
         &input.election_event_id,
         &ReportType::TRANSMISSION_REPORT.to_string(),
+        &input.election_id,
     )
     .await
     .map_err(|e| {

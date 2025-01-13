@@ -11,7 +11,10 @@ use sequent_core::types::hasura::core::{Area, TallySession};
 use serde::{Deserialize, Serialize};
 use tracing::{info, instrument};
 
-use super::consolidation::eml_generator::{MiruElectionAnnotations, ValidateAnnotations};
+use super::consolidation::{
+    eml_generator::ValidateAnnotations,
+    send_transmission_package_service::get_latest_miru_document,
+};
 
 #[instrument(err, skip_all)]
 pub async fn get_transmission_data_from_tally_session_by_area(
@@ -54,6 +57,7 @@ pub async fn get_transmission_data_from_tally_session_by_area(
             })
             .max_by_key(|session| session.created_at)
         {
+            info!("********* FOUND {area_id}");
             tally_session
                 .get_annotations_or_empty_values()
                 .map_err(|err| anyhow!("Error getting valid annotations: {err}"))?
@@ -97,18 +101,23 @@ pub async fn get_transmission_servers_data(
     let mut total_transmitted: i64 = 0;
     let mut total_not_transmitted: i64 = 0;
 
+    let tally_area = tally_session_data.iter().find(|t| t.area_id == area.id);
+
+    let document = tally_area.and_then(|ta| get_latest_miru_document(&ta.documents));
+
+    let servers_sent_to = document
+        .map(|d| d.servers_sent_to.clone())
+        .unwrap_or_else(|| vec![]);
+
     let servers: Vec<ServerData> = annotations
         .ccs_servers
         .into_iter()
         .map(|server| ServerData {
             server_code: server.tag,
-            transmitted: if tally_session_data.iter().any(|data| {
-                data.documents.iter().any(|doc| {
-                    doc.servers_sent_to
-                        .iter()
-                        .any(|server_sent| server_sent.name == server.name)
-                })
-            }) {
+            transmitted: if servers_sent_to
+                .iter()
+                .any(|server_sent| server_sent.name == server.name)
+            {
                 total_transmitted += 1;
                 "Transmitted".to_string()
             } else {
@@ -119,24 +128,24 @@ pub async fn get_transmission_servers_data(
                 .iter()
                 .find_map(|data| {
                     let server_name = server.name.clone();
-                    data.documents.iter().find_map(|doc| {
-                        doc.servers_sent_to.iter().find_map(|server_sent| {
-                            if server_sent.name == server_name {
-                                Some(server_sent.sent_at.clone())
-                            } else {
-                                None
-                            }
-                        })
+                    servers_sent_to.iter().find_map(|server_sent| {
+                        if server_sent.name == server_name {
+                            Some(server_sent.sent_at.clone())
+                        } else {
+                            None
+                        }
                     })
                 })
                 .unwrap_or_else(|| "".to_string()),
-            received: if tally_session_data.iter().any(|data| {
-                data.documents.iter().any(|doc| {
-                    doc.servers_sent_to
-                        .iter()
-                        .any(|server_sent| server_sent.name == server.name && server_sent.status == "SUCCESS")
+            received: if tally_area
+                .clone()
+                .map(|data| {
+                    servers_sent_to.iter().any(|server_sent| {
+                        server_sent.name == server.name && server_sent.status == "SUCCESS"
+                    })
                 })
-            }) {
+                .unwrap_or(false)
+            {
                 "Received".to_string()
             } else {
                 "Not Received".to_string()
@@ -145,14 +154,12 @@ pub async fn get_transmission_servers_data(
                 .iter()
                 .find_map(|data| {
                     let server_name = server.name.clone();
-                    data.documents.iter().find_map(|doc| {
-                        doc.servers_sent_to.iter().find_map(|server_sent| {
-                            if server_sent.name == server_name && server_sent.status == "SUCCESS" {
-                                Some(server_sent.sent_at.clone())
-                            } else {
-                                None
-                            }
-                        })
+                    servers_sent_to.iter().find_map(|server_sent| {
+                        if server_sent.name == server_name && server_sent.status == "SUCCESS" {
+                            Some(server_sent.sent_at.clone())
+                        } else {
+                            None
+                        }
                     })
                 })
                 .unwrap_or_else(|| "".to_string()),

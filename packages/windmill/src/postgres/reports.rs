@@ -446,11 +446,13 @@ pub async fn get_report_by_type(
     tenant_id: &str,
     election_event_id: &str,
     report_type: &str,
+    election_id: &Option<String>
 ) -> Result<Option<Report>> {
     let tenant_uuid: Uuid =
         Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
     let election_event_uuid = Uuid::parse_str(election_event_id)
         .with_context(|| "Error parsing election_event_id as UUID")?;
+    let election_uuid = election_id.as_ref().and_then(|id| Uuid::parse_str(&id).ok());
 
     let statement = hasura_transaction
         .prepare(
@@ -463,6 +465,7 @@ pub async fn get_report_by_type(
                 tenant_id = $1
                 AND election_event_id = $2
                 AND report_type = $3
+              AND ($4::uuid IS NULL OR election_id = $4::uuid)
             "#,
         )
         .await
@@ -471,7 +474,7 @@ pub async fn get_report_by_type(
     let rows: Vec<Row> = hasura_transaction
         .query(
             &statement,
-            &[&tenant_uuid, &election_event_uuid, &report_type],
+            &[&tenant_uuid, &election_event_uuid, &report_type, &election_uuid],
         )
         .await
         .map_err(|err| anyhow!("Error running find_by_id query: {err}"))?;
