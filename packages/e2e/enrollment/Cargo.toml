@@ -2,6 +2,16 @@
 name = "enrollment"
 version = "0.1.0"
 edition = "2021"
+default-run = "default"
+
+
+[[bin]]
+name = "default"
+path = "src/main.rs"
+
+[[bin]]
+name = "load_test"
+path = "load_test/main.rs"
 
 [dependencies]
 rocket = { version = "0.5.0", features = ["json"] }
@@ -13,3 +23,5 @@ tokio = { version = "1.0", features = ["macros"] }
 anyhow = "1.0"
 rand = "0.8.5"
 uuid = { version = "1.5.0", features = ["v4", "fast-rng"] }
+reqwest = { version = "0.12.5", features = ["blocking", "json"] }
+clap = { version = "4.0", features = ["derive"] }

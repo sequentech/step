@@ -17,7 +17,6 @@ use windmill::postgres::election;
 use windmill::services::database::get_hasura_pool;
 use windmill::services::import::import_election_event::upsert_b3_and_elog;
 
-
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CreateElectionInput {
     election_event_id: String,

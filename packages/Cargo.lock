@@ -2764,8 +2764,10 @@ name = "enrollment"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "clap 4.5.23",
  "csv",
  "rand 0.8.5",
+ "reqwest 0.12.7",
  "rocket",
  "rusqlite",
  "serde",

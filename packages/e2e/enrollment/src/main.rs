@@ -7,7 +7,6 @@ mod types;
 
 use services::user::load_users;
 
-
 // Import your routes
 
 #[get("/")]

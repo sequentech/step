@@ -1,10 +1,10 @@
 use rand::Rng;
 use rocket::serde::{json::Json, Deserialize, Serialize};
 use rocket::{http::Status, response::status::Custom, State};
-use tokio::time::sleep;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
+use tokio::time::sleep;
 use uuid::Uuid;
 
 use crate::services::user::random_user_by_country;
@@ -27,8 +27,7 @@ struct TransactionResponseData {
 
 // We’ll store this in Rocket’s managed state
 #[post("/transaction/new")]
-pub async fn transaction_new(
-) -> Result<Json<TransactionNewResponse>, Custom<String>> {
+pub async fn transaction_new() -> Result<Json<TransactionNewResponse>, Custom<String>> {
     let user_id = Uuid::new_v4().to_string();
     let token_dob = Uuid::new_v4().to_string();
 
@@ -57,7 +56,6 @@ pub async fn transaction_status_simple() -> Json<serde_json::Value> {
 pub async fn transaction_results(                 
     country: Option<String>,         
 ) -> Result<Json<serde_json::Value>, Custom<String>> {
-
     let delay_ms = rand::thread_rng().gen_range(50..501);
     sleep(Duration::from_millis(delay_ms)).await;
 
