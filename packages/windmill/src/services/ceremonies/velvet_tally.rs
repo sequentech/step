@@ -525,17 +525,15 @@ pub async fn build_vote_receipe_pipe_config(
         executer_username: None,
     });
 
-    let (mut tpl_pdf_options, mut tpl_email, mut tpl_sms) = (None, None, None);
-
-    // Fill extra config if needed with default data
-    let ext_cfg: ReportExtraConfig = vote_receipt_renderer
-        .fill_extra_config_with_default(tpl_pdf_options, tpl_email, tpl_sms)
+    let (user_tpl_document, ext_cfg) = vote_receipt_renderer
+        .user_tpl_and_extra_cfg_provider(hasura_transaction)
         .await
-        .map_err(|e| anyhow!("Error getting the extra config: {e:?}"))?;
-    debug!("Extra config read: {ext_cfg:?}");
+        .map_err(|e| anyhow!("Error providing the user template and extra config: {e:?}"))?;
 
-    let vote_receipt_template =
-        get_public_asset_vote_receipts_template(vote_receipt_renderer, &hasura_transaction).await?;
+    let vote_receipt_system_template = vote_receipt_renderer
+        .get_system_template()
+        .await
+        .map_err(|e| anyhow!("Error getting the system template: {e:?}"))?;
 
     let vote_receipt_extra_data = VelvetTemplateData {
         title: VELVET_VOTE_RECEIPTS_TEMPLATE_TITLE.to_string(),
@@ -549,11 +547,8 @@ pub async fn build_vote_receipe_pipe_config(
         ),
     };
 
-    let vote_receipt_system_template =
-        get_public_asset_template(PUBLIC_ASSETS_VELVET_VOTE_RECEIPTS_TEMPLATE_SYSTEM).await?;
-
     let vote_receipt_pipe_config = PipeConfigVoteReceipts {
-        template: vote_receipt_template,
+        template: user_tpl_document,
         system_template: vote_receipt_system_template,
         extra_data: serde_json::to_value(vote_receipt_extra_data)?,
         enable_pdfs: true,
@@ -580,17 +575,15 @@ pub async fn build_ballot_images_pipe_config(
         executer_username: None,
     });
 
-    let (mut tpl_pdf_options, mut tpl_email, mut tpl_sms) = (None, None, None);
-
-    let ext_cfg: ReportExtraConfig = ballot_images_renderer
-        .fill_extra_config_with_default(tpl_pdf_options, tpl_email, tpl_sms)
+    let (user_tpl_document, ext_cfg) = ballot_images_renderer
+        .user_tpl_and_extra_cfg_provider(hasura_transaction)
         .await
-        .map_err(|e| anyhow!("Error getting the extra config: {e:?}"))?;
-    debug!("Extra config read: {ext_cfg:?}");
+        .map_err(|e| anyhow!("Error providing the user template and extra config: {e:?}"))?;
 
-    let ballot_images_template =
-        get_public_asset_ballot_images_template(ballot_images_renderer, &hasura_transaction)
-            .await?;
+    let ballot_imagest_system_template = ballot_images_renderer
+        .get_system_template()
+        .await
+        .map_err(|e| anyhow!("Error getting the system template: {e:?}"))?;
 
     let ballot_images_extra_data = VelvetTemplateData {
         title: VELVET_BALLOT_IMAGES_TEMPLATE_TITLE.to_string(),
@@ -604,11 +597,8 @@ pub async fn build_ballot_images_pipe_config(
         ),
     };
 
-    let ballot_imagest_system_template =
-        get_public_asset_template(PUBLIC_ASSETS_VELVET_BALLOT_IMAGES_TEMPLATE_SYSTEM).await?;
-
     let ballot_images_pipe_config = PipeConfigVoteReceipts {
-        template: ballot_images_template,
+        template: user_tpl_document,
         system_template: ballot_imagest_system_template,
         extra_data: serde_json::to_value(ballot_images_extra_data)?,
         enable_pdfs: true,
