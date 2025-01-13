@@ -137,7 +137,24 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = ({
         }
     }
 
-    const emlDocumentId = documents?.[0]?.document_ids.eml
+    const lastDocument = useMemo(() => {
+        let newestDate = new Date(0)
+        let newestDocument = null
+        for (let document of documents || []) {
+            let date = document.created_at && new Date(document.created_at)
+            if (date && date > newestDate) {
+                newestDate = date
+                newestDocument = document
+            }
+        }
+
+        return newestDocument
+    }, [documents])
+
+    const lastDocumentDate =
+        (lastDocument?.created_at && formatDate(new Date(lastDocument?.created_at))) || ""
+
+    const emlDocumentId = lastDocument?.document_ids.eml
     return (
         <Box>
             <TallyStyles.MiruToolbarButton
