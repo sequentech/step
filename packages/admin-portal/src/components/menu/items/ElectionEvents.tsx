@@ -431,7 +431,7 @@ export default function ElectionEvents() {
         )
     }
 
-    let finalresultData = useMemo(() => {
+    let finalResultData = useMemo(() => {
         return {
             electionEvents: cloneDeep(resultData?.electionEvents ?? [])?.map(
                 (electionEvent: ElectionEventType) => {
@@ -491,6 +491,7 @@ export default function ElectionEvents() {
         electionTreeData,
         contestTreeData,
         candidateTreeData,
+        data,
     ])
 
     const reloadTreeMenu = () => {
@@ -507,7 +508,7 @@ export default function ElectionEvents() {
         <CircularProgress />
     ) : (
         <TreeMenu
-            data={finalresultData}
+            data={finalResultData}
             treeResourceNames={TREE_RESOURCE_NAMES}
             isArchivedElectionEvents={isArchivedElectionEvents}
             onArchiveElectionEventsSelect={changeArchiveSelection}
