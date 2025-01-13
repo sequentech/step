@@ -455,52 +455,6 @@ pub async fn call_velvet(base_tally_path: PathBuf) -> Result<State> {
     state_opt.ok_or_else(|| anyhow!("State unexpectedly None at the end of processing"))
 }
 
-async fn get_public_asset_vote_receipts_template(
-    renderer: VoteReceiptTemplate,
-    hasura_transaction: &Transaction<'_>,
-) -> Result<String> {
-    let template_data_opt: Option<SendTemplateBody> = renderer
-        .get_custom_user_template_data(hasura_transaction)
-        .await
-        .map_err(|e| anyhow!("Error getting vote receipt report custom user template: {e:?}"))?;
-    let template_hbs: String = match template_data_opt {
-        Some(template) => template.document.unwrap_or("".to_string()),
-        None => {
-            let default_doc = renderer.get_default_user_template()
-            .await
-            .map_err(|err| {
-                warn!("Error getting vote_receipt default user template: {err:?}. Ignoring it, using the default compiled in velvet.");
-                anyhow!("Error getting vote_receipt default user template: {err:?}")
-            })?;
-            default_doc
-        }
-    };
-    Ok(template_hbs)
-}
-
-async fn get_public_asset_ballot_images_template(
-    renderer: BallotImagesTemplate,
-    hasura_transaction: &Transaction<'_>,
-) -> Result<String> {
-    let template_data_opt: Option<SendTemplateBody> = renderer
-        .get_custom_user_template_data(hasura_transaction)
-        .await
-        .map_err(|e| anyhow!("Error getting vote ballot images custom user template: {e:?}"))?;
-    let template_hbs: String = match template_data_opt {
-        Some(template) => template.document.unwrap_or("".to_string()),
-        None => {
-            let default_doc = renderer.get_default_user_template()
-            .await
-            .map_err(|err| {
-                warn!("Error getting vote_receipt default user template: {err:?}. Ignoring it, using the default compiled in velvet.");
-                anyhow!("Error getting vote_receipt default user template: {err:?}")
-            })?;
-            default_doc
-        }
-    };
-    Ok(template_hbs)
-}
-
 #[derive(Debug, Serialize, Clone)]
 struct VelvetTemplateData {
     pub title: String,
