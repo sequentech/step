@@ -338,7 +338,7 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
             .await?;
 
             let documents = ResultDocuments {
-                json: None, // TODO: send here hashed json value
+                json: None,
                 pdf: None,
                 html: None,
                 tar_gz: Some(document.id),
@@ -438,7 +438,6 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
         // Deserialize the JSON string into a Value
         let json: Value = serde_json::from_str(&content).context("Failed to parse JSON content")?;
         // retrieve the hash value
-        println!("json: {:?}", json);
         let results_hash = json
             .get("execution_annotations")
             .and_then(|annotations| annotations.get("results_hash"))

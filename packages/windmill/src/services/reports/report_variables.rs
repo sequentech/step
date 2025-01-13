@@ -338,6 +338,19 @@ pub async fn get_results_hash(
     .await
     .map_err(|err| anyhow!("Error getting the tally sessions: {err:?}"))?;
 
+    // filter tally sessions that holds the current election_id
+    let tally_sessions = tally_sessions
+        .into_iter()
+        .filter(|tally_session| {
+            tally_session
+                .election_ids
+                .as_ref()
+                .map(|ids| ids.contains(&election_id.to_string()))
+                .unwrap_or(false)
+        })
+        .collect::<Vec<_>>();
+
+    // the first tally session is the latest one
     let tally_session_id = if !tally_sessions.is_empty() {
         &tally_sessions[0].id
     } else {
