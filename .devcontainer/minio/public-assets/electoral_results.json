@@ -208,6 +208,32 @@
             "total_count": 900000,
             "percentage_votes": 19.0,
             "winning_position": 3
+          },
+          {
+            "candidate": {
+              "id": "4",
+              "tenant_id": "1",
+              "election_event_id": "1",
+              "election_id": "",
+              "contest_id": "1",
+              "name": "Candidate D"
+            },
+            "total_count": 900000,
+            "percentage_votes": 19.0,
+            "winning_position": 3
+          },
+          {
+            "candidate": {
+              "id": "5",
+              "tenant_id": "1",
+              "election_event_id": "1",
+              "election_id": "",
+              "contest_id": "1",
+              "name": "Candidate E"
+            },
+            "total_count": 900000,
+            "percentage_votes": 19.0,
+            "winning_position": 3
           }
         ]
       },
