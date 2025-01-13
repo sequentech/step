@@ -492,7 +492,7 @@ export default function ElectionEvents() {
         contestTreeData,
         candidateTreeData,
         isArchivedElectionEvents,
-        loading
+        data
     ])
 
     const reloadTreeMenu = () => {
