@@ -31,17 +31,17 @@ use sequent_core::{services::keycloak, types::hasura::core::Area};
 use serde_json::Value;
 use std::{
     collections::HashMap,
-    fs::File,
     fs,
+    fs::File,
     path::{Path, PathBuf},
 };
+use strand::hash::hash_b64;
 use tokio::task;
 use tracing::instrument;
 use velvet::pipes::generate_reports::{
     BasicArea, ElectionReportDataComputed, ReportDataComputed, OUTPUT_HTML, OUTPUT_JSON, OUTPUT_PDF,
 };
 use velvet::pipes::vote_receipts::VOTE_RECEIPT_OUTPUT_FILE_PDF as OUTPUT_RECEIPT_PDF;
-use strand::hash::hash_b64;
 
 pub const MIME_PDF: &str = "application/pdf";
 pub const MIME_JSON: &str = "application/json";
@@ -429,14 +429,21 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
             .clone();
 
         // Read the json file and hash it
-        let file_path = document_paths.json.clone().context("Missing json file path")?;
-        let content = fs::read_to_string(file_path)?;
-        let mut json: Value = serde_json::from_str(&content)?;
-        json.as_object_mut().unwrap().remove("results_hash");
-        let bytes_json = json.to_string().as_bytes().to_vec();
-        println!("bytes_json: {:?}", bytes_json);
-        // remove the rsult_hash from the json
-        let json_hash = hash_b64(&bytes_json).map_err(|err| anyhow!("Error hashing json: {err:?}"))?;
+        let file_path = document_paths
+            .json
+            .clone()
+            .context("Missing json file path")?;
+        let content = fs::read_to_string(file_path.clone())
+            .with_context(|| format!("Failed to read the file at {}", file_path))?;
+        // Deserialize the JSON string into a Value
+        let json: Value = serde_json::from_str(&content).context("Failed to parse JSON content")?;
+        // retrieve the hash value
+        println!("json: {:?}", json);
+        let results_hash = json
+            .get("execution_annotations")
+            .and_then(|annotations| annotations.get("results_hash"))
+            .and_then(|hash| hash.as_str())
+            .unwrap_or_default();
 
         // Save election results documents to S3 and Hasura
         let documents = generic_save_documents(
@@ -456,7 +463,7 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
             &contest.election_event_id,
             &contest.election_id,
             &documents,
-            &json_hash,
+            results_hash,
         )
         .await?;
 
