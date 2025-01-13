@@ -334,23 +334,30 @@ export const TallyCeremony: React.FC = () => {
         }
     }, [selectedElections])
 
+    const isTallyAllowed = useMemo(() => {
+        return (
+            elections?.every((election) => {
+                const isVotingPeriodEnded =
+                    election.status?.voting_status === EVotingStatus.CLOSED &&
+                    // Kiosk mode disabled or kiosk voting ended
+                    (!election.voting_channels?.kiosk ||
+                        election.status?.kiosk_voting_status === EVotingStatus.CLOSED)
+
+                return (
+                    !(tallySession?.election_ids || []).find(
+                        (election_id) => election.id == election_id
+                    ) ||
+                    election.status?.allow_tally === EAllowTally.ALLOWED ||
+                    (election.status?.allow_tally === EAllowTally.REQUIRES_VOTING_PERIOD_END &&
+                        isVotingPeriodEnded)
+                )
+            }) || false
+        )
+    }, [elections, tallySession])
+
     useEffect(() => {
         if (page === WizardSteps.Ceremony) {
             if (tallySession?.tally_type === ETallyType.ELECTORAL_RESULTS) {
-                const isTallyAllowed =
-                    elections?.every((election) => {
-                        return (
-                            !(tallySession?.election_ids || []).find(
-                                (election_id) => election.id == election_id
-                            ) ||
-                            election.status?.allow_tally === EAllowTally.ALLOWED ||
-                            (election.status?.allow_tally ===
-                                EAllowTally.REQUIRES_VOTING_PERIOD_END &&
-                                election.status?.voting_status === EVotingStatus.CLOSED && 
-                                election.status?.kiosk_voting_status === EVotingStatus.CLOSED)
-                        )
-                    }) || false
-
                 let newIsButtonDisabled =
                     tally?.execution_status !== ITallyExecutionStatus.CONNECTED || !isTallyAllowed
 
@@ -378,7 +385,7 @@ export const TallyCeremony: React.FC = () => {
                 setIsButtonDisabled(newIsButtonDisabled)
             }
         }
-    }, [tally, page, elections, isButtonDisabled])
+    }, [tally, page, elections, isButtonDisabled, isTallyAllowed])
 
     useEffect(() => {
         let singleKeysCeremony = keysCeremonies?.list_keys_ceremony?.items?.[0]
