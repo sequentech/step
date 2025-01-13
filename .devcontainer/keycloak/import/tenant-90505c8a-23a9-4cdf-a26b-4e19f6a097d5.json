@@ -1167,6 +1167,15 @@
         "attributes": {}
       },
       {
+        "id": "be6acccc-ea93-405d-8440-b4add13c3236",
+        "name": "transmission-report-generate",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
         "id": "730857eb-4ad0-4331-be0f-bd5075a26015",
         "name": "publish-regenerate",
         "description": "",
@@ -2373,7 +2382,8 @@
         "export-ceremony",
         "election-dashboard-tab",
         "voter-voted-edit",
-        "voter-email-tlf-edit"
+        "voter-email-tlf-edit",
+        "transmission-report-generate"
       ],
       "clientRoles": {}
     },
