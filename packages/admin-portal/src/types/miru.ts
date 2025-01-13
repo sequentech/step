@@ -13,6 +13,7 @@ export interface IMiruSignature {
 export interface IMiruServersSentTo {
     name: string
     sent_at: string
+    status: string
 }
 
 export interface IMiruDocumentIds {
