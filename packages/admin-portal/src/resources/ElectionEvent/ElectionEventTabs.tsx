@@ -333,7 +333,11 @@ export const ElectionEventTabs: React.FC = () => {
                                               />
                                           </Suspense>
                                       ),
-                                      action: () => {
+                                      action: (index: number) => {
+                                          localStorage.setItem(
+                                              "electionEventPublishTabIndex",
+                                              index.toString()
+                                          )
                                           setShowPublishList(uuidv4())
                                       },
                                   },
