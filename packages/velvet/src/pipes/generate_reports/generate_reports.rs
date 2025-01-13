@@ -296,7 +296,12 @@ impl GenerateReports {
                         ))
                     })?;
 
-            let bytes_pdf = pdf::html_to_pdf(render_pdf.clone(), None).map_err(|e| {
+            let pdf_options = config
+                .pdf_options
+                .map(|val| Some(val.to_print_to_pdf_options()))
+                .unwrap_or_default();
+
+            let bytes_pdf = pdf::html_to_pdf(render_pdf.clone(), pdf_options).map_err(|e| {
                 Error::UnexpectedError(format!("Error during html_to_pdf conversion: {}", e))
             })?;
             Some(bytes_pdf)

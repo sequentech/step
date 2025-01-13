@@ -27,7 +27,9 @@ use sequent_core::services::translations::Name;
 use sequent_core::types::ceremonies::TallyType;
 use sequent_core::types::hasura::core::{Area, Election, ElectionEvent, TallySession, TallySheet};
 use sequent_core::types::scheduled_event::ScheduledEvent;
-use sequent_core::types::templates::{ReportExtraConfig, SendTemplateBody, VoteReceiptPipeType};
+use sequent_core::types::templates::{
+    PrintToPdfOptionsLocal, ReportExtraConfig, SendTemplateBody, VoteReceiptPipeType,
+};
 pub use sequent_core::util::date_time::get_date_and_time;
 use serde::Serialize;
 use std::collections::HashMap;
@@ -624,6 +626,7 @@ async fn build_reports_pipe_config(
     public_asset_path: String,
     report_content_template: Option<String>,
     report_system_template: String,
+    pdf_options: Option<PrintToPdfOptionsLocal>,
     tally_type: TallyType,
 ) -> Result<PipeConfigGenerateReports> {
     let extra_data = VelvetTemplateData {
@@ -665,6 +668,7 @@ async fn build_reports_pipe_config(
         report_content_template,
         execution_annotations,
         system_template: report_system_template,
+        pdf_options,
         extra_data: serde_json::to_value(extra_data)?,
     })
 }
@@ -674,6 +678,7 @@ pub async fn create_config_file(
     base_tally_path: PathBuf,
     report_content_template: Option<String>,
     report_system_template: String,
+    pdf_options: Option<PrintToPdfOptionsLocal>,
     tally_session: &TallySession,
     hasura_transaction: &Transaction<'_>,
     tally_type: TallyType,
@@ -709,6 +714,7 @@ pub async fn create_config_file(
         public_asset_path,
         report_content_template,
         report_system_template,
+        pdf_options,
         tally_type,
     )
     .await?;
@@ -795,6 +801,7 @@ pub async fn run_velvet_tally(
     tally_sheets: &Vec<TallySheet>,
     report_content_template: Option<String>,
     report_system_template: String,
+    pdf_options: Option<PrintToPdfOptionsLocal>,
     areas: &Vec<Area>,
     hasura_transaction: &Transaction<'_>,
     election_event: &ElectionEvent,
@@ -824,6 +831,7 @@ pub async fn run_velvet_tally(
         base_tally_path.clone(),
         report_content_template,
         report_system_template,
+        pdf_options,
         tally_session,
         hasura_transaction,
         tally_type,

@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {ReactElement, useContext, useEffect} from "react"
+import React, {ReactElement, useEffect, useState} from "react"
 import {
     DatagridConfigurable,
     List,
@@ -38,6 +38,8 @@ import styled from "@emotion/styled"
 import {UPSERT_AREAS} from "@/queries/UpsertAreas"
 import {ResetFilters} from "@/components/ResetFilters"
 import {useAreaPermissions} from "./useAreaPermissions"
+import {FormStyles} from "@/components/styles/FormStyles"
+import {DownloadDocument} from "../User/DownloadDocument"
 
 const ActionsBox = styled(Box)`
     display: flex;
@@ -69,14 +71,14 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
     const [tenantId] = useTenantStore()
     const [deleteOne] = useDelete()
 
-    const [open, setOpen] = React.useState(false)
-    const [openCreate, setOpenCreate] = React.useState(false)
-    const [openDeleteModal, setOpenDeleteModal] = React.useState(false)
-    const [deleteId, setDeleteId] = React.useState<Identifier | undefined>()
-    const [openDrawer, setOpenDrawer] = React.useState<boolean>(false)
-    const [recordId, setRecordId] = React.useState<Identifier | undefined>(undefined)
-    const [openImportDrawer, setOpenImportDrawer] = React.useState(false)
-    const [openUpsertDrawer, setOpenUpsertDrawer] = React.useState(false)
+    const [open, setOpen] = useState(false)
+    const [openCreate, setOpenCreate] = useState(false)
+    const [openDeleteModal, setOpenDeleteModal] = useState(false)
+    const [deleteId, setDeleteId] = useState<Identifier | undefined>()
+    const [openDrawer, setOpenDrawer] = useState<boolean>(false)
+    const [recordId, setRecordId] = useState<Identifier | undefined>(undefined)
+    const [openImportDrawer, setOpenImportDrawer] = useState(false)
+    const [openUpsertDrawer, setOpenUpsertDrawer] = useState(false)
 
     const {
         canCreateArea,
@@ -251,7 +253,7 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
                                     withFilter={showAreaFilters}
                                     withImport={canImportArea}
                                     doImport={() => setOpenImportDrawer(true)}
-                                    withExport={canExportArea}
+                                    withExport={false}
                                     open={openDrawer}
                                     setOpen={setOpenDrawer}
                                     Component={

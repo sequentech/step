@@ -23,8 +23,6 @@ import {
 } from "@/providers/CreateElectionEventContextProvider"
 import {CreateDataDrawer} from "@/components/election-event/create/CreateElectionEventDrawer"
 import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
-import {StyledDrawer} from "@/components/menu/CustomSidebar"
-import {IconAdd} from "json-edit-react"
 
 const EmptyBox = styled(Box)`
     display: flex;
@@ -59,34 +57,40 @@ export const ElectionEventListContent: React.FC<ElectionEventListProps> = ({asid
         IPermissions.ELECTION_EVENT_WRITE
     )
 
-    const {openCreateDrawer, openImportDrawer, createDrawer} = useCreateElectionEventStore()
+    const {openCreateDrawer, openImportDrawer} = useCreateElectionEventStore()
 
-    const {data, isLoading} = useGetList("sequent_backend_election_event", {
-        sort: {field: "created_at", order: "DESC"},
-        filter: {
-            tenant_id: tenantId,
-            is_archived: isArchivedElectionEvents,
+    const {data, isLoading, refetch} = useGetList(
+        "sequent_backend_election_event",
+        {
+            sort: {field: "created_at", order: "DESC"},
+            filter: {
+                tenant_id: tenantId,
+                is_archived: isArchivedElectionEvents,
+            },
         },
-    })
+        {
+            enabled: false,
+        }
+    )
 
-    // Navigate to the first election event found, if any
+    // Reload data when the path changes
+    useEffect(() => {
+        refetch()
+    }, [pathname])
+
+    // if data, we would be automatically redirected to the first election
+    // event, so we should just show a process icon in the meantime
     useEffect(() => {
         if (data && data.length > 0) {
             const electionEventId = data[0].id ?? null
             if (electionEventId) {
                 navigate("/sequent_backend_election_event/" + electionEventId)
             }
-        } else if (pathname !== "/sequent_backend_election_event/") {
-            navigate("/sequent_backend_election_event/")
+        } else {
+            navigate("/sequent_backend_election_event")
         }
-    })
+    }, [data])
 
-    const handleCreateClick = () => {
-        openCreateDrawer()
-    }
-
-    // if data, we would be automatically redirected to the first election
-    // event, so we should just show a process icon in the meantime
     return (
         <CenteredBox>
             {isLoading ? (

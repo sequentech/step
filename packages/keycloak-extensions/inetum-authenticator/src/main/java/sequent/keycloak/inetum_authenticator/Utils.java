@@ -159,14 +159,14 @@ public class Utils {
     // We store each key
     String keys = Utils.serializeUserdataKeys(formData.keySet());
 
-    log.info(
+    log.debug(
         "storeUserDataInAuthSessionNotes: setAuthNote(" + Utils.KEYS_USERDATA + ", " + keys + ")");
     sessionModel.setAuthNote(Utils.KEYS_USERDATA, keys);
 
     formData.forEach(
         (key, value) -> {
           String values = Utils.serializeUserdataKeys(formData.get(key));
-          log.info("storeUserDataInAuthSessionNotes: setAuthNote(" + key + ", " + values + ")");
+          log.debug("storeUserDataInAuthSessionNotes: setAuthNote(" + key + ", " + values + ")");
           sessionModel.setAuthNote(key, values);
         });
 

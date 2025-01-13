@@ -203,6 +203,7 @@ const spanishTranslation: TranslationType = {
             votersByChannels: "Votantes por canales",
             voterLoginURL: "URL de inicio de sesión de votantes",
             voterEnrollURL: "URL de inscripción de votantes",
+            voterEnrollKioskURL: "Kiosk URL de inscripción de votantes",
             ipAddress: {
                 emptyState: "Aún no hay votos.",
                 title: "IP Addresses",
@@ -385,6 +386,11 @@ const spanishTranslation: TranslationType = {
                 electionNumber: "Número de Elecciones",
                 trustees: "Trustees",
                 status: "Estado",
+                tallyType: {
+                    label: "Tipo de Conteo",
+                    ELECTORAL_RESULTS: "Resultados Electorales",
+                    INITIALIZATION_REPORT: "Resultados de Inicialización",
+                },
                 create: {
                     title: "Crear Recuento",
                     subtitle: "Crear un nuevo Recuento para este Evento Electoral",
@@ -1391,8 +1397,8 @@ const spanishTranslation: TranslationType = {
                     },
                     download: {
                         title: "Descargar",
-                        emlTitle: "Download EML",
-                        transmissionPackageTitle: "Descargar el Paquete de Transmisión",
+                        emlTitle: "Download EML {{date}}",
+                        transmissionPackageTitle: "Descargar el Paquete de Transmisión {{date}}",
                         transmissionReportTitle: "Descargar informe de transmisión",
                         dialog: {
                             title: "¿Quieres descargar el Paquete de Transmisión?",
