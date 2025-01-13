@@ -55,8 +55,12 @@ export const MiruServers: React.FC<MiruServersProps> = (props) => {
                                         {server.name}
                                     </TableCell>
                                     <TableCell align="center">
-                                        {isSentTo(server.name) ? (server.status == "SUCCESS" ? 
-                                            <WizardStyles.DoneIcon /> : <CloseIcon  style={{ color: 'red' }} /> 
+                                        {isSentTo(server.name) ? (
+                                            server.status == "SUCCESS" ? (
+                                                <WizardStyles.DoneIcon />
+                                            ) : (
+                                                <CloseIcon style={{color: "red"}} />
+                                            )
                                         ) : (
                                             <HourglassEmptyIcon />
                                         )}

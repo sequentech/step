@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use sequent_core::types::ceremonies::Log;
 use serde::{Deserialize, Serialize};
-use strum_macros::EnumString;
 use strum_macros::Display;
+use strum_macros::EnumString;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct MiruSignature {

@@ -140,7 +140,8 @@ pub async fn get_transmission_servers_data(
                 .clone()
                 .map(|data| {
                     servers_sent_to.iter().any(|server_sent| {
-                        server_sent.name == server.name && server_sent.status == MiruServerDocumentStatus::SUCCESS
+                        server_sent.name == server.name
+                            && server_sent.status == MiruServerDocumentStatus::SUCCESS
                     })
                 })
                 .unwrap_or(false)
@@ -154,7 +155,9 @@ pub async fn get_transmission_servers_data(
                 .find_map(|data| {
                     let server_name = server.name.clone();
                     servers_sent_to.iter().find_map(|server_sent| {
-                        if server_sent.name == server_name && server_sent.status == MiruServerDocumentStatus::SUCCESS {
+                        if server_sent.name == server_name
+                            && server_sent.status == MiruServerDocumentStatus::SUCCESS
+                        {
                             Some(server_sent.sent_at.clone())
                         } else {
                             None

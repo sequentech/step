@@ -26,7 +26,8 @@ use crate::{
         temp_path::{generate_temp_file, get_file_size},
     },
     types::miru_plugin::{
-        MiruCcsServer, MiruDocument, MiruServerDocument, MiruServerDocumentStatus, MiruTallySessionData, MiruTransmissionPackageData
+        MiruCcsServer, MiruDocument, MiruServerDocument, MiruServerDocumentStatus,
+        MiruTallySessionData, MiruTransmissionPackageData,
     },
 };
 use anyhow::{anyhow, Context, Result};
