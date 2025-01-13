@@ -1,11 +1,10 @@
 #[macro_use]
 extern crate rocket;
 
-mod routes;    // Tells Rust to look in `src/routes/mod.rs`
-mod services;  // Tells Rust to look in `src/services/mod.rs`
-mod types;     // Tells Rust to look in `src/types/mod.rs`
+mod routes;
+mod services; 
+mod types; 
 
-use rocket::fairing::AdHoc;
 use services::user::load_users;
 
 
@@ -33,6 +32,9 @@ async fn main() -> Result<(), rocket::Error> {
         .mount("/", routes![
             index,
             routes::user::users_list,
+            routes::inetum::transaction_new,
+            routes::inetum::transaction_status_simple,
+            routes::inetum::transaction_results,
         ])
         .launch()
         .await?;

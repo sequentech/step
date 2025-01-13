@@ -15,7 +15,7 @@ struct TransactionNewRequest {
 }
 
 #[derive(Debug, Serialize)]
-struct TransactionNewResponse {
+pub struct TransactionNewResponse {
     response: TransactionResponseData,
 }
 
@@ -23,17 +23,6 @@ struct TransactionNewResponse {
 struct TransactionResponseData {
     user_id: String,
     token_dob: String,
-}
-
-// This will be our "in-memory" store to keep track of userID -> tokenDob or docID -> user data
-#[derive(Default)]
-pub struct MockInetumState {
-    // userId -> tokenDob
-    pub user_tokens: HashMap<String, String>,
-    // userId -> docID (so we can link them to further results if we want)
-    pub user_docs: HashMap<String, String>,
-    // userId -> "verificationOK" or "verificationKO"
-    pub user_status: HashMap<String, String>,
 }
 
 // We’ll store this in Rocket’s managed state
@@ -53,8 +42,8 @@ pub async fn transaction_new(
     Ok(Json(resp))
 }
 
-#[get("/transaction/<user_id>/status?<t>")]
-pub async fn transaction_status_simple(user_id: String, t: String) -> Json<serde_json::Value> {
+#[get("/status")]
+pub async fn transaction_status_simple() -> Json<serde_json::Value> {
     // Return success immediately
     Json(serde_json::json!({
         "code": 0,
@@ -64,7 +53,7 @@ pub async fn transaction_status_simple(user_id: String, t: String) -> Json<serde
     }))
 }
 
-#[get("/transaction/results?<country>")]
+#[get("/results?<country>")]
 pub async fn transaction_results(                 
     country: Option<String>,         
 ) -> Result<Json<serde_json::Value>, Custom<String>> {
@@ -77,13 +66,7 @@ pub async fn transaction_results(
     let user = random_user_by_country(&chosen_country)
         .map_err(|e| Custom(Status::InternalServerError, format!("DB error: {e}")))?;
 
-
-    // 5) Convert from "YYYY-MM-DD" to "dd/MM/yyyy"
-    let parsed = chrono::NaiveDate::parse_from_str(user., "%Y-%m-%d");
-    let inetum_dob = match parsed {
-        Ok(date) => date.format("%d/%m/%Y").to_string(),
-        Err(_) => "12/03/1980".to_string(),
-    };
+    let user = user.ok_or_else(|| Custom(Status::InternalServerError, "User not found".to_string()))?;
 
 
     let response_json = serde_json::json!({
@@ -96,19 +79,19 @@ pub async fn transaction_results(
             },
             "ocr": {
                 "issuing_state_code": "PHL",
-                "given_names": dbuser.first_name,
-                "middle_name": dbuser.middle_name,
-                "surname": dbuser.last_name,
-                "personal_number": format!("{}-OCR-123", &dbuser.country[..2].to_uppercase()),
-                "date_of_birth": inetum_dob
+                "given_names": user.first_name,
+                "middle_name": user.middle_name,
+                "surname": user.last_name,
+                "personal_number": user.id_card_number,
+                "dateOfBirth": user.date_of_birth,
             },
             "mrz": {
                 "issuing_state_code": "PHL",
-                "given_names": dbuser.first_name,
-                "surname": dbuser.last_name,
-                "personal_number": format!("{}-MRZ-456", &dbuser.country[..2].to_uppercase()),
-                "document_number": format!("DOC{}", rand::thread_rng().gen_range(1000..9999)),
-                "date_of_birth": inetum_dob
+                "given_names": user.first_name,
+                "surname": user.last_name,
+                "personal_number": user.id_card_number,
+                "document_number": user.id_card_number,
+                "dateOfBirth": user.date_of_birth,
             },
             "resultData": {
                 "scoreDocumental": 75,

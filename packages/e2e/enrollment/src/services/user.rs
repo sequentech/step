@@ -27,12 +27,12 @@ pub fn load_users(csv_path: &str) -> Result<(), anyhow::Error> {
             id TEXT PRIMARY KEY,
             first_name TEXT,
             last_name TEXT,
-            middleName TEXT,
-            dateOfBirth TEXT,
+            middle_name TEXT,
+            date_of_birth TEXT,
             embassy TEXT,
             country TEXT,
             id_card_number TEXT,
-            id_card_type TEXT,
+            id_card_type TEXT
         );
         "#
     )
@@ -49,17 +49,17 @@ pub fn load_users(csv_path: &str) -> Result<(), anyhow::Error> {
         let id                        = record.get(0).unwrap_or_default().trim().to_string(); 
         let first_name                = record.get(4).unwrap_or_default().trim().to_string();
         let last_name                 = record.get(5).unwrap_or_default().trim().to_string();
-        let middleName                = record.get(8).unwrap_or_default().trim().to_string();
-        let dateOfBirth               = record.get(11).unwrap_or_default().trim().to_string();
-        let embassy                   = record.get(13).unwrap_or_default().trim().to_string();
-        let country                   = record.get(14).unwrap_or_default().trim().to_string();
-        let id_card_number            = record.get(17).unwrap_or_default().trim().to_string();
-        let id_card_type              = record.get(22).unwrap_or_default().trim().to_string();
+        let middle_ame                = record.get(9).unwrap_or_default().trim().to_string();
+        let date_of_birth             = record.get(12).unwrap_or_default().trim().to_string();
+        let embassy                   = record.get(14).unwrap_or_default().trim().to_string();
+        let country                   = record.get(15).unwrap_or_default().trim().to_string();
+        let id_card_number            = record.get(18).unwrap_or_default().trim().to_string();
+        let id_card_type              = record.get(8 ).unwrap_or_default().trim().to_string();
 
         conn.execute(
             r#"
             INSERT OR IGNORE INTO voters (
-                id, first_name, last_name, middleName, dateOfBirth,
+                id, first_name, last_name, middle_name, date_of_birth,
                 embassy, country, id_card_number, id_card_type
             ) VALUES (
                 ?1, ?2, ?3, ?4, ?5, ?6, ?7,
@@ -67,7 +67,7 @@ pub fn load_users(csv_path: &str) -> Result<(), anyhow::Error> {
             )
             "#,
             params![
-                id, first_name, last_name,middleName, dateOfBirth,
+                id, first_name, last_name,middle_ame, date_of_birth,
                 embassy, country, id_card_number, id_card_type
             ],
         )
@@ -86,7 +86,7 @@ pub fn get_users_from_db() -> anyhow::Result<Vec<User>> {
         r#"
         SELECT 
             id, first_name, last_name,
-            middleName, embassy, country, id_card_number, id_card_type, date_of_birth
+            middle_name, embassy, country, id_card_number, id_card_type, date_of_birth
         FROM voters
         "#,
     )?;
@@ -121,7 +121,7 @@ pub fn random_user_by_country(
     let mut stmt = conn.prepare(
         " SELECT 
            id, first_name, last_name,
-            middleName, embassy, country, id_card_number, id_card_type, date_of_birth
+            middle_name, embassy, country, id_card_number, id_card_type, date_of_birth
          FROM voters
          WHERE country = ?1"
     )?;

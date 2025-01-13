@@ -10,6 +10,8 @@ import com.google.auto.service.AutoService;
 import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
 import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.text.Collator;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -61,6 +63,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
       "Failed to get inetum results response";
   public static final String ERROR_INVALIDE_CODE = "Invalide Code";
   public static final String ERROR_ATTRIBUTE_VALIDATION = "Attribute Validation Error";
+  public static final String MOCK_SERVER_URL = "https://9141-46-117-134-168.ngrok-free.app";
 
   @Override
   public void authenticate(AuthenticationFlowContext context) {
@@ -98,23 +101,45 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
 
     log.info("validated is NOT TRUE, rendering the form");
     try {
-      Map<String, String> transactionData = newTransaction(configMap, context);
+      Boolean isTestMode = Boolean.parseBoolean(configMap.get(Utils.TEST_MODE_ATTRIBUTE));
+      if(!isTestMode) {
+        Map<String, String> transactionData = newTransaction(configMap, context);
 
-      // Save the transaction data into the auth session
+        // Save the transaction data into the auth session
+        AuthenticationSessionModel sessionModel = context.getAuthenticationSession();
+        sessionModel.setAuthNote(Utils.FTL_TOKEN_DOB, transactionData.get(Utils.FTL_TOKEN_DOB));
+        sessionModel.setAuthNote(Utils.FTL_USER_ID, transactionData.get(Utils.FTL_USER_ID));
+  
+        Response challenge =
+            getBaseForm(context)
+                .setAttribute(Utils.FTL_USER_ID, transactionData.get(Utils.FTL_USER_ID))
+                .setAttribute(Utils.FTL_TOKEN_DOB, transactionData.get(Utils.FTL_TOKEN_DOB))
+                .createForm(Utils.INETUM_FORM);
+        context.challenge(challenge);
+      }
+
+      //Make a new transaction request to mock server 
+      SimpleHttp.Response mockTransactionData = DoMockPost(configMap, context);
+      JsonNode responseContent = mockTransactionData.asJson().get("response");
+      log.info(responseContent);
+      String tokenDob = responseContent.get("token_dob").asText();
+      String userId = responseContent.get("user_id").asText();
+
       AuthenticationSessionModel sessionModel = context.getAuthenticationSession();
-      sessionModel.setAuthNote(Utils.FTL_TOKEN_DOB, transactionData.get(Utils.FTL_TOKEN_DOB));
-      sessionModel.setAuthNote(Utils.FTL_USER_ID, transactionData.get(Utils.FTL_USER_ID));
+      sessionModel.setAuthNote(Utils.FTL_TOKEN_DOB, tokenDob);
+      sessionModel.setAuthNote(Utils.FTL_USER_ID, userId);
 
-      Response challenge =
-          getBaseForm(context)
-              .setAttribute(Utils.FTL_USER_ID, transactionData.get(Utils.FTL_USER_ID))
-              .setAttribute(Utils.FTL_TOKEN_DOB, transactionData.get(Utils.FTL_TOKEN_DOB))
-              .createForm(Utils.INETUM_FORM);
-      context.challenge(challenge);
+      SimpleHttp.Response response = verifyResults(context, isTestMode);
+      log.info("response" + response);
+      String error = validateAttributes(context, response);
+      storeAttributes(context, response);
+      context.success();
+      //Verifying results
+      //Getting status
 
-      //getMockStatus
-      //getMockResults
-      //context.success
+      
+
+      
     } catch (IOException error) {
       context.getEvent().error(ERROR_FAILED_TO_LOAD_INETUM_FORM);
       context.failure(AuthenticationFlowError.INTERNAL_ERROR);
@@ -125,7 +150,73 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
               .setAttribute(Utils.CODE_ID, sessionId)
               .createForm(Utils.INETUM_ERROR);
       context.challenge(challenge);
+    } catch (InetumException e) {
+          // TODO Auto-generated catch block
+          e.printStackTrace();
+        }
+  }
+
+  protected SimpleHttp.Response doMockGet(
+    Map<String, String> configMap, AuthenticationFlowContext context, String uriPath)
+    throws IOException {
+  String url = configMap.get(Utils.BASE_URL_ATTRIBUTE) + uriPath;
+
+  var attempt = 0;
+  int maxRetries = Utils.parseInt(configMap.get(Utils.MAX_RETRIES), Utils.DEFAULT_MAX_RETRIES);
+  int baseRetryDelay = Utils.BASE_RETRY_DELAY;
+
+  while (attempt < maxRetries) {
+    try {
+      SimpleHttp.Response response =
+          SimpleHttp.doGet(url, context.getSession())
+              .header("Content-Type", "application/json")
+              .asResponse();
+
+      return response;
+
+    } catch (IOException e) {
+      attempt++;
+      log.warnv("doGet: Request failed (attempt {0}): {1}", attempt, e.getMessage());
+      if (attempt >= maxRetries) {
+        throw e; // Propagate the exception if max retries are reached
+      }
+
+      // Wait before retrying
+      sleep(baseRetryDelay, attempt);
     }
+  }
+  context.getEvent().error(ERROR_TO_GET_INETUM_RESPONSE + "Max retries reached");
+  throw new IOException("doGet: Failed to execute request after " + maxRetries + " attempts.");
+}
+
+  protected SimpleHttp.Response DoMockPost(Map<String, String> configMap, AuthenticationFlowContext context) throws IOException {
+    String url = MOCK_SERVER_URL + Utils.API_TRANSACTION_NEW;
+
+    var attempt = 0;
+    int maxRetries = Utils.parseInt(configMap.get(Utils.MAX_RETRIES), Utils.DEFAULT_MAX_RETRIES);
+    int baseRetryDelay = Utils.BASE_RETRY_DELAY;
+
+    while (attempt < maxRetries) {
+      try {
+        SimpleHttp.Response response =
+            SimpleHttp.doPost(url, context.getSession())
+                .header("Content-Type", "application/json")
+                .json("{}")
+                .asResponse();
+        return response;
+
+      } catch (IOException e) {
+        attempt++;
+        log.warnv("doMockPost: Request failed (attempt {0}): {1}", attempt, e.getMessage());
+        if (attempt >= maxRetries) {
+          throw e;
+        }
+
+        sleep(baseRetryDelay, attempt);
+      }
+    }
+    context.getEvent().error(ERROR_TO_CREATE_INETUM_TRANSACTION + "Max retries reached");
+    throw new IOException("doMockPost: Failed to execute request after " + maxRetries + " attempts.");
   }
 
   /** Send a POST to Inetum API */
@@ -176,9 +267,10 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
 
   /** Send a GET to Inetum API */
   protected SimpleHttp.Response doGet(
-      Map<String, String> configMap, AuthenticationFlowContext context, String uriPath)
+      Map<String, String> configMap, AuthenticationFlowContext context, String uriPath, Boolean isTestMode)
       throws IOException {
-    String url = configMap.get(Utils.BASE_URL_ATTRIBUTE) + uriPath;
+    String baseUrl = isTestMode ? MOCK_SERVER_URL : configMap.get(Utils.BASE_URL_ATTRIBUTE);
+    String url = baseUrl + uriPath;
     String authorization = "Bearer " + configMap.get(Utils.API_KEY_ATTRIBUTE);
     log.info("doGet: url=" + url);
 
@@ -337,7 +429,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
         user,
         context.getSession(),
         this.getClass().getSimpleName());
-    SimpleHttp.Response result = verifyResults(context);
+    SimpleHttp.Response result = verifyResults(context, false);
     String sessionId = context.getAuthenticationSession().getParentSession().getId();
     if (result == null) {
       // invalid
@@ -532,7 +624,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
   /*
    * Calls Inetum API results/get and verify results
    */
-  protected SimpleHttp.Response verifyResults(AuthenticationFlowContext context) {
+  protected SimpleHttp.Response verifyResults(AuthenticationFlowContext context, Boolean isTestMode) {
     log.info("verifyResults: start");
 
     // Get the transaction data from the auth session
@@ -546,7 +638,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
     AuthenticatorConfigModel config = context.getAuthenticatorConfig();
     Map<String, String> configMap = config.getConfig();
 
-    String uriPath = "/transaction/" + userId + "/status?t=" + tokenDob;
+    String uriPath = isTestMode ? "/status" : "/transaction/" + userId + "/status?t=" + tokenDob;
     SimpleHttp.Response response = null;
 
     var attempt = 0;
@@ -555,7 +647,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
 
     try {
       while (attempt < maxRetries) {
-        response = doGet(configMap, context, uriPath);
+        response = doGet(configMap, context, uriPath, isTestMode);
         int responseStatus = response.getStatus();
         int code = 0;
         String idStatus = null;
@@ -589,7 +681,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
             continue;
           }
         }
-
+        log.info("verifyResults: response = " + response.asString());
         code = response.asJson().get("code").asInt();
         if (code != 0) {
           log.errorv(
@@ -623,6 +715,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
 
         // check that vinetum has already verified the data, or else retry
         // again after a delay
+        log.info("verifyResults: response = " + response.asString());
         idStatus = response.asJson().get("response").get("idStatus").asText();
         log.infov(
             "verifyResults (attempt {0}): transaction/status, idStatus = {1}", attempt, idStatus);
@@ -663,9 +756,11 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
 
       // The status is verification OK. Now we need to retrieve the
       // information
-      uriPath = "/transaction/" + userId + "/results";
-      response = doGet(configMap, context, uriPath);
-
+      String country = context.getAuthenticationSession().getAuthNote("country");
+      String encodedCountry = URLEncoder.encode(country, StandardCharsets.UTF_8);
+      uriPath = isTestMode ? "/results?country=" + encodedCountry: "/transaction/" + userId + "/results";
+      response = doGet(configMap, context, uriPath, isTestMode);
+      log.info("results response: " + response.asString());
       if (response.getStatus() != 200) {
         log.error(
             "verifyResults: Error calling transaction/results, status = " + response.getStatus());
