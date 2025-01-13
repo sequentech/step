@@ -491,7 +491,6 @@ export default function ElectionEvents() {
         electionTreeData,
         contestTreeData,
         candidateTreeData,
-        isArchivedElectionEvents,
         data
     ])
 
