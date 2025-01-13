@@ -347,6 +347,8 @@ pub async fn get_results_hash(
                 .as_ref()
                 .map(|ids| ids.contains(&election_id.to_string()))
                 .unwrap_or(false)
+                && tally_session.tally_type.clone().unwrap_or_default()
+                    == String::from("ELECTORAL_RESULTS")
         })
         .collect::<Vec<_>>();
 
@@ -390,7 +392,7 @@ pub async fn get_results_hash(
         .and_then(|annotations| annotations.get("results_hash").cloned());
 
     let results_hash = results_hash
-        .map(|hash| hash.to_string())
+        .map(|hash| hash.to_string().replace("\"", " ").trim().to_string())
         .unwrap_or_default();
 
     Ok(results_hash)
