@@ -190,9 +190,14 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                 if (!isGoldUser()) {
                     const baseUrl = new URL(window.location.href)
                     if (publishType === EPublishType.Event) {
-                        baseUrl.searchParams.set("tabIndex", "8")
+                        const electionEventPublishTabIndex = localStorage.getItem(
+                            "electionEventPublishTabIndex"
+                        )
+                        baseUrl.searchParams.set("tabIndex", electionEventPublishTabIndex ?? "8")
                     } else {
-                        baseUrl.searchParams.set("tabIndex", "4")
+                        const electionPublishTabIndex =
+                            localStorage.getItem("electionPublishTabIndex")
+                        baseUrl.searchParams.set("tabIndex", electionPublishTabIndex ?? "4")
                     }
                     sessionStorage.setItem(EPublishActions.PENDING_START_VOTING, "true")
                     await reauthWithGold(baseUrl.toString())
@@ -221,9 +226,14 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                 if (!isGoldUser()) {
                     const baseUrl = new URL(window.location.href)
                     if (publishType === EPublishType.Event) {
-                        baseUrl.searchParams.set("tabIndex", "8")
+                        const electionEventPublishTabIndex = localStorage.getItem(
+                            "electionEventPublishTabIndex"
+                        )
+                        baseUrl.searchParams.set("tabIndex", electionEventPublishTabIndex ?? "8")
                     } else {
-                        baseUrl.searchParams.set("tabIndex", "4")
+                        const electionPublishTabIndex =
+                            localStorage.getItem("electionPublishTabIndex")
+                        baseUrl.searchParams.set("tabIndex", electionPublishTabIndex ?? "4")
                     }
                     sessionStorage.setItem(EPublishActions.PENDING_STOP_KIOSK_ACTION, "true")
                     await reauthWithGold(baseUrl.toString())
@@ -252,9 +262,14 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                 if (!isGoldUser()) {
                     const baseUrl = new URL(window.location.href)
                     if (publishType === EPublishType.Event) {
-                        baseUrl.searchParams.set("tabIndex", "8")
+                        const electionEventPublishTabIndex = localStorage.getItem(
+                            "electionEventPublishTabIndex"
+                        )
+                        baseUrl.searchParams.set("tabIndex", electionEventPublishTabIndex ?? "8")
                     } else {
-                        baseUrl.searchParams.set("tabIndex", "4")
+                        const electionPublishTabIndex =
+                            localStorage.getItem("electionPublishTabIndex")
+                        baseUrl.searchParams.set("tabIndex", electionPublishTabIndex ?? "4")
                     }
                     sessionStorage.setItem(EPublishActions.PENDING_PUBLISH_ACTION, "true")
 
