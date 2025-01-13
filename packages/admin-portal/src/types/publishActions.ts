@@ -4,6 +4,7 @@
 
 export enum EPublishActions {
     PENDING_PUBLISH_ACTION = "pendingPublishAction",
+    PENDING_STOP_KIOSK_ACTION = "pendingStopKioskAction",
     PENDING_START_VOTING = "pendingStartVotingPeriod",
     PENDING_GENERATE_INITIALIZATION_REPORT = "pendingGenerateInitializationReport",
 }

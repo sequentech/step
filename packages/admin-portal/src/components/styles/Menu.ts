@@ -60,6 +60,22 @@ export const MenuStyles = {
             isArchivedElectionEvents ? `2px solid ${adminTheme.palette.brandSuccess}` : "none"};
     `,
 
+    RefreshAction: styled("li")`
+        padding-top: 0.5rem;
+        cursor: pointer;
+        width: 100%;
+        display: inline-block;
+        float: right;
+        text-align: right;
+
+        &:hover {
+            opacity: 0.5;
+        }
+        &:active {
+            opacity: 1;
+        }
+    `,
+
     EmptyStateContainer: styled("div")`
         padding: 1rem;
         background-color: white;

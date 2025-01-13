@@ -2,8 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useCallback, useContext, useEffect, useMemo, useRef, useState} from "react"
-import {NavLink, useLocation} from "react-router-dom"
+import React, {useContext, useEffect, useMemo, useRef, useState} from "react"
+import {useLocation} from "react-router-dom"
 import {useGetOne, useSidebarState} from "react-admin"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import ChevronRightIcon from "@mui/icons-material/ChevronRight"
@@ -17,7 +17,6 @@ import {
     ContestType,
     CandidateType,
     TREE_RESOURCE_NAMES,
-    ElectionEventType,
 } from "../ElectionEvents"
 
 import {useTranslation} from "react-i18next"
@@ -31,12 +30,11 @@ import {translateElection} from "@sequentech/ui-core"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {Box, Menu, MenuItem} from "@mui/material"
 import {MenuStyles, TreeMenuItemContainer} from "@/components/styles/Menu"
-import {
-    Sequent_Backend_Document,
-    Sequent_Backend_Tasks_Execution_Update_Column,
-} from "@/gql/graphql"
+import {Sequent_Backend_Document} from "@/gql/graphql"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {useCreateElectionEventStore} from "@/providers/CreateElectionEventContextProvider"
+import {useNavigate} from "react-router-dom"
+import RefreshIcon from "@mui/icons-material/Refresh"
 
 export const mapAddResource: Record<ResourceName, string> = {
     sequent_backend_election_event: "createResource.electionEvent",
@@ -90,6 +88,7 @@ interface TreeLeavesProps {
     parentData: DataTreeMenuType
     treeResourceNames: ResourceName[]
     isArchivedElectionEvents: boolean
+    reloadTree: () => void
 }
 
 function TreeLeaves({
@@ -97,6 +96,7 @@ function TreeLeaves({
     parentData,
     treeResourceNames,
     isArchivedElectionEvents,
+    reloadTree,
 }: TreeLeavesProps) {
     const {t, i18n} = useTranslation()
     const {openCreateDrawer, openImportDrawer} = useCreateElectionEventStore()
@@ -200,6 +200,7 @@ function TreeLeaves({
                                 treeResourceNames={treeResourceNames}
                                 isArchivedElectionEvents={isArchivedElectionEvents}
                                 fullPath={fillPath(resource)}
+                                reloadTree={reloadTree}
                             />
                         )
                     }
@@ -302,6 +303,7 @@ interface TreeMenuItemProps {
     treeResourceNames: ResourceName[]
     isArchivedElectionEvents: boolean
     fullPath: string[] | null | undefined
+    reloadTree: () => void
 }
 
 function TreeMenuItem({
@@ -313,17 +315,21 @@ function TreeMenuItem({
     treeResourceNames,
     isArchivedElectionEvents,
     fullPath,
+    reloadTree,
 }: TreeMenuItemProps) {
     const [isOpenSidebar] = useSidebarState()
     const {i18n} = useTranslation()
     const {globalSettings} = useContext(SettingsContext)
 
-    const [open, setOpen] = useState(false)
+    const [open, setOpen] = useState(true)
 
     const location = useLocation()
     const {setTallyId, setTaskId, setCustomFilter} = useElectionEventTallyStore()
 
-    const onClick = () => setOpen(!open)
+    const onClick = () => {
+        setOpen(!open)
+        reloadTree()
+    }
     /**
      * control the tree menu open state
      */
@@ -390,6 +396,7 @@ function TreeMenuItem({
         item = (
             <MenuStyles.ItemContainer>
                 <img
+                    alt={name}
                     width={24}
                     height={24}
                     src={`${globalSettings.PUBLIC_BUCKET_URL}tenant-${tenantId}/document-${imageDocumentId}/${imageData?.name}`}
@@ -463,6 +470,7 @@ function TreeMenuItem({
                             menuItemRef={menuItemRef}
                             setAnchorEl={setAnchorEl}
                             anchorEl={anchorEl}
+                            reloadTree={reloadTree}
                         ></MenuActions>
                     ) : null}
                 </MenuStyles.MenuActionContainer>
@@ -475,6 +483,7 @@ function TreeMenuItem({
                             parentData={parentData}
                             treeResourceNames={subTreeResourceNames}
                             isArchivedElectionEvents={isArchivedElectionEvents}
+                            reloadTree={reloadTree}
                         />
                     )}
                 </div>
@@ -488,11 +497,13 @@ export function TreeMenu({
     treeResourceNames,
     isArchivedElectionEvents,
     onArchiveElectionEventsSelect,
+    reloadTree,
 }: {
     data: DynEntityType
     treeResourceNames: ResourceName[]
     isArchivedElectionEvents: boolean
     onArchiveElectionEventsSelect: (val: number) => void
+    reloadTree: () => void
 }) {
     const {t} = useTranslation()
     const isEmpty =
@@ -512,6 +523,10 @@ export function TreeMenu({
                 >
                     {t("sideMenu.archived")}
                 </MenuStyles.SideMenuArchiveItem>
+                {/* TODO: not working well
+                <MenuStyles.RefreshAction>
+                    <RefreshIcon onClick={reloadTree} />
+                </MenuStyles.RefreshAction>*/}
             </MenuStyles.SideMenuContainer>
             <Box sx={{paddingY: 1}}>
                 {isEmpty ? (
@@ -522,6 +537,7 @@ export function TreeMenu({
                         parentData={data as DataTreeMenuType}
                         treeResourceNames={treeResourceNames}
                         isArchivedElectionEvents={isArchivedElectionEvents}
+                        reloadTree={reloadTree}
                     />
                 )}
             </Box>
