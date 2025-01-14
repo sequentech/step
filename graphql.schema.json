@@ -16796,7 +16796,7 @@
                 "name": "voting_channel",
                 "description": null,
                 "type": {
-                  "kind": "NON_NULL",
+                  "kind": "LIST",
                   "name": null,
                   "ofType": {
                     "kind": "ENUM",
@@ -16851,7 +16851,7 @@
                 "name": "voting_channel",
                 "description": null,
                 "type": {
-                  "kind": "NON_NULL",
+                  "kind": "LIST",
                   "name": null,
                   "ofType": {
                     "kind": "ENUM",
