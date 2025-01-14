@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 use rand::Rng;
 use rocket::serde::{json::Json, Deserialize, Serialize};
 use rocket::{http::Status, response::status::Custom, State};
@@ -59,7 +63,7 @@ pub async fn transaction_results(
     let delay_ms = rand::thread_rng().gen_range(50..501);
     sleep(Duration::from_millis(delay_ms)).await;
 
-    let chosen_country = country.unwrap_or_else(|| "Philippines".to_string());
+    let chosen_country = country.unwrap_or_else(|| "".to_string());
 
     let user = random_user_by_country(&chosen_country)
         .map_err(|e| Custom(Status::InternalServerError, format!("DB error: {e}")))?;
