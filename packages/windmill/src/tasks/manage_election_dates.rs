@@ -83,7 +83,7 @@ async fn manage_election_date_wrapper(
         &election_event_id,
         &election_id,
         &status,
-        &VotingStatusChannel::ONLINE,
+        &Some(vec![VotingStatusChannel::ONLINE]),
     )
     .await;
     info!("result: {result:?}");

@@ -32,7 +32,7 @@ pub async fn update_event_voting_status(
     username: Option<&str>,
     election_event_id: &str,
     new_status: &VotingStatus,
-    channel: &VotingStatusChannel,
+    channels: &Option<Vec<VotingStatusChannel>>,
 ) -> Result<ElectionEvent> {
     let election_event = get_election_event_by_id(hasura_transaction, tenant_id, election_event_id)
         .await
@@ -44,81 +44,96 @@ pub async fn update_event_voting_status(
         .await
         .with_context(|| "Error obtaining elections")?;
 
-    let current_voting_status = status.status_by_channel(&channel).clone();
+    let channels: Vec<VotingStatusChannel> = if let Some(channel) = channels {
+        channel.clone()
+    } else if let Some(channels) = election_event.voting_channels.clone() {
+        let event_channels =
+            deserialize_value(channels).context("Failed to deserialize event voting_channels")?;
 
-    if election_event.is_archived {
-        info!("Election event is archived, skipping");
-    }
-
-    if current_voting_status == new_status.clone() {
-        info!("Current voting status is the same as the new voting status, skipping");
-        return Ok(election_event);
-    }
-
-    let expected_next_status = match current_voting_status {
-        VotingStatus::NOT_STARTED => {
-            vec![VotingStatus::OPEN]
-        }
-        VotingStatus::OPEN => {
-            vec![VotingStatus::PAUSED, VotingStatus::CLOSED]
-        }
-        VotingStatus::PAUSED => {
-            vec![VotingStatus::CLOSED, VotingStatus::OPEN]
-        }
-        VotingStatus::CLOSED => {
-            vec![VotingStatus::OPEN]
-        }
+        event_channels
+    } else {
+        // Update all if none are configured
+        vec![VotingStatusChannel::ONLINE, VotingStatusChannel::KIOSK]
     };
 
-    if !expected_next_status.contains(&new_status) {
-        return Err(anyhow!(
+    for channel in channels {
+        let current_voting_status = status.status_by_channel(&channel).clone();
+
+        if election_event.is_archived {
+            info!("Election event is archived, skipping");
+        }
+
+        if current_voting_status == new_status.clone() {
+            info!("Current voting status is the same as the new voting status, skipping");
+            return Ok(election_event);
+        }
+
+        let expected_next_status = match current_voting_status {
+            VotingStatus::NOT_STARTED => {
+                vec![VotingStatus::OPEN]
+            }
+            VotingStatus::OPEN => {
+                vec![VotingStatus::PAUSED, VotingStatus::CLOSED]
+            }
+            VotingStatus::PAUSED => {
+                vec![VotingStatus::CLOSED, VotingStatus::OPEN]
+            }
+            VotingStatus::CLOSED => {
+                vec![VotingStatus::OPEN]
+            }
+        };
+
+        if !expected_next_status.contains(&new_status) {
+            return Err(anyhow!(
             "Unexpected next status {new_status:?}, expected {expected_next_status:?}, current {current_voting_status:?}",
         ));
-    }
-
-    status.set_status_by_channel(&channel, new_status.clone());
-
-    update_election_event_status(
-        &hasura_transaction,
-        &&tenant_id,
-        election_event_id,
-        serde_json::to_value(&status).with_context(|| "Error parsing status")?,
-    )
-    .await
-    .with_context(|| "Error updating election event status")?;
-
-    let mut elections_ids: Vec<String> = Vec::new();
-    if *new_status == VotingStatus::OPEN || *new_status == VotingStatus::CLOSED {
-        for election in elections {
-            let mut election_status =
-                get_election_status(election.status.clone()).unwrap_or(Default::default());
-            election_status.set_status_by_channel(&channel, new_status.clone());
-
-            update_election_voting_status(
-                &hasura_transaction,
-                &tenant_id,
-                &election_event_id,
-                &election.id,
-                serde_json::to_value(&election_status).with_context(|| "Error parsing status")?,
-            )
-            .await
-            .with_context(|| "Error updating election voting status")?;
         }
-    }
 
-    update_board_on_status_change(
-        &tenant_id,
-        user_id,
-        username,
-        election_event.id.to_string(),
-        election_event.bulletin_board_reference.clone(),
-        new_status.clone(),
-        channel.clone(),
-        None,
-        Some(elections_ids),
-    )
-    .await
-    .with_context(|| "Error updating electoral board on status change")?;
+        status.set_status_by_channel(&channel, new_status.clone());
+
+        update_election_event_status(
+            &hasura_transaction,
+            &&tenant_id,
+            election_event_id,
+            serde_json::to_value(&status).with_context(|| "Error parsing status")?,
+        )
+        .await
+        .with_context(|| "Error updating election event status")?;
+
+        let mut elections_ids: Vec<String> = Vec::new();
+        if *new_status == VotingStatus::OPEN || *new_status == VotingStatus::CLOSED {
+            for election in &elections {
+                let mut election_status =
+                    get_election_status(election.status.clone()).unwrap_or(Default::default());
+                election_status.set_status_by_channel(&channel, new_status.clone());
+
+                update_election_voting_status(
+                    &hasura_transaction,
+                    &tenant_id,
+                    &election_event_id,
+                    &election.id,
+                    serde_json::to_value(&election_status)
+                        .with_context(|| "Error parsing status")?,
+                )
+                .await
+                .with_context(|| "Error updating election voting status")?;
+            }
+        }
+
+        update_board_on_status_change(
+            &tenant_id,
+            user_id,
+            username,
+            election_event.id.to_string(),
+            election_event.bulletin_board_reference.clone(),
+            new_status.clone(),
+            channel.clone(),
+            None,
+            Some(elections_ids),
+        )
+        .await
+        .with_context(|| "Error updating electoral board on status change")?;
+    }
 
     Ok(election_event)
 }
