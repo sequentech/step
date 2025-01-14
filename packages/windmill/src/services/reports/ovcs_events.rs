@@ -203,6 +203,7 @@ impl TemplateRenderer for OVCSEventsTemplate {
                     &self.ids.tenant_id,
                     &self.ids.election_event_id,
                     &area.id,
+                    None,
                 )
                 .await
                 .map_err(|err| {
