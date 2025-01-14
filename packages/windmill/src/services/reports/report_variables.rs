@@ -8,7 +8,6 @@ use crate::postgres::results_election::{
 };
 use crate::postgres::tally_session::get_tally_sessions_by_election_event_id;
 use crate::postgres::tally_session_execution::get_tally_session_executions;
-use crate::services::consolidation::create_transmission_package_service::download_to_file;
 use crate::services::consolidation::eml_generator::ValidateAnnotations;
 use crate::services::election_dates::get_election_dates;
 use crate::services::election_event_status::get_election_event_status;
