@@ -57,7 +57,6 @@ pub async fn download_to_file(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
-    election_id: Option<&str>,
     tally_session_id: &str,
 ) -> Result<NamedTempFile> {
     let tally_session_executions = get_tally_session_executions(
@@ -88,7 +87,7 @@ pub async fn download_to_file(
     .await
     .with_context(|| "Error fetching results event")?;
 
-    let document_type = ResultDocumentType::TarGz;
+    let document_type = ResultDocumentType::TarGzOriginal;
     let document_id = result_event
         .documents
         .ok_or_else(|| anyhow!("Missing documents in results_event"))?
@@ -313,7 +312,6 @@ pub async fn create_transmission_package_service(
         &hasura_transaction,
         tenant_id,
         &election_event.id,
-        None,
         tally_session_id,
     )
     .await?;
