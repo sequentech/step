@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech Inc <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use bytes::Bytes;
 use sequent_core::services::pdf::PrintToPdfOptions;
