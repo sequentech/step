@@ -185,7 +185,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
 
         const onChangeStatus = (
             electionEventStatus: ElectionEventStatus,
-            votingChannel?: VotingStatusChannel
+            votingChannel?: VotingStatusChannel[]
         ) => {
             let publishStatus = MAP_ELECTION_EVENT_STATUS_PUBLISH[electionEventStatus]
             let newStatus: PublishStatus = nextStatus(publishStatus)
@@ -200,7 +200,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
 
         const onChangeElectionStatus = async (
             votingStatus: ElectionEventStatus,
-            votingChannel?: VotingStatusChannel
+            votingChannel?: VotingStatusChannel[]
         ) => {
             try {
                 setChangingStatus(true)
