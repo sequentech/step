@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
@@ -43,6 +45,15 @@ pub async fn update_event_voting_status(
     let elections = get_elections(hasura_transaction, tenant_id, election_event_id, None)
         .await
         .with_context(|| "Error obtaining elections")?;
+
+    let mut elections_status = HashMap::new();
+
+    for election in &elections {
+        let mut election_status =
+            get_election_status(election.status.clone()).unwrap_or(Default::default());
+
+        elections_status.insert(election.id.clone(), election_status);
+    }
 
     let channels: Vec<VotingStatusChannel> = if let Some(channel) = channels {
         channel.clone()
@@ -101,32 +112,14 @@ pub async fn update_event_voting_status(
 
         status.set_status_by_channel(&channel, new_status.clone());
 
-        update_election_event_status(
-            &hasura_transaction,
-            &&tenant_id,
-            election_event_id,
-            serde_json::to_value(&status).with_context(|| "Error parsing status")?,
-        )
-        .await
-        .with_context(|| "Error updating election event status")?;
-
         let mut elections_ids: Vec<String> = Vec::new();
         if *new_status == VotingStatus::OPEN || *new_status == VotingStatus::CLOSED {
             for election in &elections {
-                let mut election_status =
-                    get_election_status(election.status.clone()).unwrap_or(Default::default());
-                election_status.set_status_by_channel(&channel, new_status.clone());
+                if let Some(status) = elections_status.get_mut(&election.id) {
+                    status.set_status_by_channel(&channel, new_status.clone());
+                }
 
-                update_election_voting_status(
-                    &hasura_transaction,
-                    &tenant_id,
-                    &election_event_id,
-                    &election.id,
-                    serde_json::to_value(&election_status)
-                        .with_context(|| "Error parsing status")?,
-                )
-                .await
-                .with_context(|| "Error updating election voting status")?;
+                elections_ids.push(election.id.clone());
             }
         }
 
@@ -144,6 +137,30 @@ pub async fn update_event_voting_status(
         .await
         .with_context(|| "Error updating electoral board on status change")?;
     }
+
+    for election in &elections {
+        let election_status = elections_status.get(&election.id);
+
+        update_election_voting_status(
+            &hasura_transaction,
+            &tenant_id,
+            &election_event_id,
+            &election.id,
+            serde_json::to_value(&election_status)
+                .with_context(|| "Error parsing status")?,
+        )
+        .await
+        .with_context(|| "Error updating election voting status")?;
+    }
+
+    update_election_event_status(
+        &hasura_transaction,
+        &&tenant_id,
+        election_event_id,
+        serde_json::to_value(&status).with_context(|| "Error parsing status")?,
+    )
+    .await
+    .with_context(|| "Error updating election event status")?;
 
     Ok(election_event)
 }
