@@ -146,12 +146,11 @@ impl TemplateRenderer for OverseasVotersReport {
             None => return Err(anyhow::anyhow!("Election not found")),
         };
 
-        let election_title = election.name.clone();
-
         let election_general_data = extract_election_data(&election)
             .await
             .map_err(|err| anyhow!("Error extract election annotations {err}"))?;
-
+        let election_cloned = election.clone();
+        let election_title = election_cloned.alias.unwrap_or(election_cloned.name);
         // Fetch election event data
         let scheduled_events = find_scheduled_event_by_election_event_id(
             &hasura_transaction,

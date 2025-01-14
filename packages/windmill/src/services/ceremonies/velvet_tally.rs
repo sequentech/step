@@ -27,7 +27,9 @@ use sequent_core::services::translations::Name;
 use sequent_core::types::ceremonies::TallyType;
 use sequent_core::types::hasura::core::{Area, Election, ElectionEvent, TallySession, TallySheet};
 use sequent_core::types::scheduled_event::ScheduledEvent;
-use sequent_core::types::templates::{ReportExtraConfig, SendTemplateBody, VoteReceiptPipeType};
+use sequent_core::types::templates::{
+    PrintToPdfOptionsLocal, ReportExtraConfig, SendTemplateBody, VoteReceiptPipeType,
+};
 pub use sequent_core::util::date_time::get_date_and_time;
 use serde::Serialize;
 use std::collections::HashMap;
@@ -231,6 +233,9 @@ pub fn create_election_configs_blocking(
         // TODO: Refactor to just extract some Election Config with no subitems
         let election_name_opt = election_opt.map(|election| election.get_name(&default_lang));
 
+        let election_alias_otp =
+            election_opt.map(|election| election.alias.clone().unwrap_or("".to_string()));
+
         let election_description = election_opt
             .map(|election| election.description.clone().unwrap_or("".to_string()))
             .unwrap_or("".to_string());
@@ -263,6 +268,7 @@ pub fn create_election_configs_blocking(
             None => ElectionConfig {
                 id: Uuid::parse_str(&election_id)?,
                 name: election_name_opt.unwrap_or("".to_string()),
+                alias: election_alias_otp.unwrap_or("".to_string()),
                 description: election_description,
                 annotations: election_annotations.clone(),
                 election_event_annotations: Default::default(),
@@ -517,6 +523,7 @@ pub async fn build_vote_receipe_pipe_config(
         voter_id: None,
         report_origin: ReportOriginatedFrom::ExportFunction,
         executer_username: None,
+        tally_session_id: None,
     });
 
     let (mut tpl_pdf_options, mut tpl_email, mut tpl_sms) = (None, None, None);
@@ -572,6 +579,7 @@ pub async fn build_ballot_images_pipe_config(
         voter_id: None,
         report_origin: ReportOriginatedFrom::ExportFunction,
         executer_username: None,
+        tally_session_id: None,
     });
 
     let (mut tpl_pdf_options, mut tpl_email, mut tpl_sms) = (None, None, None);
@@ -618,6 +626,7 @@ async fn build_reports_pipe_config(
     public_asset_path: String,
     report_content_template: Option<String>,
     report_system_template: String,
+    pdf_options: Option<PrintToPdfOptionsLocal>,
     tally_type: TallyType,
 ) -> Result<PipeConfigGenerateReports> {
     let extra_data = VelvetTemplateData {
@@ -659,6 +668,7 @@ async fn build_reports_pipe_config(
         report_content_template,
         execution_annotations,
         system_template: report_system_template,
+        pdf_options,
         extra_data: serde_json::to_value(extra_data)?,
     })
 }
@@ -668,6 +678,7 @@ pub async fn create_config_file(
     base_tally_path: PathBuf,
     report_content_template: Option<String>,
     report_system_template: String,
+    pdf_options: Option<PrintToPdfOptionsLocal>,
     tally_session: &TallySession,
     hasura_transaction: &Transaction<'_>,
     tally_type: TallyType,
@@ -703,6 +714,7 @@ pub async fn create_config_file(
         public_asset_path,
         report_content_template,
         report_system_template,
+        pdf_options,
         tally_type,
     )
     .await?;
@@ -789,6 +801,7 @@ pub async fn run_velvet_tally(
     tally_sheets: &Vec<TallySheet>,
     report_content_template: Option<String>,
     report_system_template: String,
+    pdf_options: Option<PrintToPdfOptionsLocal>,
     areas: &Vec<Area>,
     hasura_transaction: &Transaction<'_>,
     election_event: &ElectionEvent,
@@ -818,6 +831,7 @@ pub async fn run_velvet_tally(
         base_tally_path.clone(),
         report_content_template,
         report_system_template,
+        pdf_options,
         tally_session,
         hasura_transaction,
         tally_type,

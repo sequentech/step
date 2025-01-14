@@ -326,14 +326,20 @@ def generate_election_event(excel_data, base_context, miru_data):
                 new_user = copy.deepcopy(base_user)
                 new_user["username"] = get_username(user)
                 sbei_users.append(new_user)
+                is_trustee = get_username == get_trustee_username
+                add_perm_label = "OFOV" if is_trustee else "SBEI"
+                perm_labels_list = (election_permission_label if election_permission_label else "").split()
+                perm_labels_list.append(add_perm_label)
+                perm_labels = "|".join(perm_labels_list)
+
                 sbei_users_with_permission_labels.append({
-                    "permission_label": election_permission_label,
+                    "permission_label": perm_labels,
                     "username": new_user["username"],
                     "miru_id": user["ID"],
                     "miru_role": user["ROLE"],
                     "miru_name": user["NAME"],
                     "miru_election_id": miru_election_id,
-                    "trustee": "trustee" if get_username == get_trustee_username else ""
+                    "trustee": "trustee" if is_trustee else ""
                 })
 
     sbei_users_str = json.dumps(sbei_users)
@@ -355,12 +361,15 @@ def generate_election_event(excel_data, base_context, miru_data):
 
 
 # "OSAKA PCG" -> "Osaka PCG"
+# WASHINGTON D.C. PE -> Washington D.C. PE
+# NEW YORK PGC -> New York PGC
 def get_embassy(embassy):
     # Split the input string into words
-    words = embassy.split()
+    without_parentheses = re.sub(r"\(.*?\)", "", embassy)
+    words = without_parentheses.split()
     
     # Capitalize each word, and handle the last word conditionally
-    formatted_words = [word.title() for word in words[:-1]]
+    formatted_words = [word.title() if word.upper() != "DC" else word.upper()  for word in words[:-1]]
     last_word = words[-1].upper() if len(words[-1]) <= 3 else words[-1].title()
     
     # Combine the formatted words with the conditionally formatted last word
@@ -369,10 +378,8 @@ def get_embassy(embassy):
     # Join the words into a single string
     return " ".join(formatted_words)
 
-
 def get_country_from_area_embassy(area, embassy):
-    # "PEOPLES REPUBLIC OF BANGLADESH" -> "Bangladesh"
-    country = area.split()[-1].capitalize()
+    country = get_embassy(area)
     return f"{country}/{embassy}"
 
 def generate_reports_csv(reports, election_event_id):
@@ -385,6 +392,7 @@ def generate_reports_csv(reports, election_event_id):
             "Cron Config": json.dumps(report.get("cron_config", None)),
             "Encryption Policy": report["encryption_policy"],
             "Password": report["password"],
+            "Permission Labels": report["permission_label"]
         } for report in reports
     ]
 
@@ -723,18 +731,18 @@ def gen_keycloak_context(results, excel_data):
     embassy_set = set()
 
     for row in results:
-        if not row["DB_ALLMUN_AREA_NAME"]:
+        if not row["DB_ALLMUN_AREA_NAME"] or not row["allbgy_AREANAME"]:
             continue
-        country_set.add("\\\"" + row["DB_ALLMUN_AREA_NAME"] + "\\\"")
-        if not row["allbgy_AREANAME"]:
-            continue
-        embassy_set.add("\\\"" + row["DB_ALLMUN_AREA_NAME"] + "/" + row["allbgy_AREANAME"] + "\\\"")
+        country = get_embassy(row["DB_ALLMUN_AREA_NAME"])
+        embassy = get_embassy(row["allbgy_AREANAME"])
+        embassy_set.add("\\\"" + embassy + "\\\"")
+        country_set.add("\\\"" + country + "/" + embassy + "\\\"")
     
     keycloak_settings = [t for t in excel_data["parameters"] 
                          if t["type"] == "settings" and t["key"].startswith("keycloak")]
     keycloak_context = {
-    "embassy_list": "[" + ",".join(embassy_set) + "]",
-    "country_list": "[" + ",".join(country_set) + "]",
+    "embassy_list": ",".join(embassy_set),
+    "country_list": ",".join(country_set),
         }
 
     key_mappings = {
@@ -940,12 +948,20 @@ def gen_tree(excel_data, miru_data, script_idr, multiply_factor):
         election["scheduled_events"] = election_scheduled_events
 
     for election in elections_object["elections"]:
-        election_reports = [
-            report
-            for report
-            in excel_data["reports"] 
-            if is_element_match_election(report, election)
-        ]
+        election_reports = []
+        for report in excel_data["reports"]:
+            if not is_element_match_election(report, election):
+                continue
+            permission_labels = []
+            if report["permission_label"]:
+                permission_labels = report["permission_label"].split("|")
+            if election["permission_label"]:
+                permission_labels.append(election["permission_label"])
+            report_clone = report.copy()
+            report_clone["permission_label"] = "|".join(permission_labels)
+
+            election_reports.append(report_clone)
+            
         election["reports"] = election_reports
     
     original_elections = copy.deepcopy(elections_object["elections"])

@@ -6,13 +6,61 @@ import React from "react"
 import {useNotify} from "react-admin"
 import {useTranslation} from "react-i18next"
 import {Dialog} from "@sequentech/ui-essentials"
-import {IconButton, TextField, Tooltip} from "@mui/material"
+import {IconButton, TextField, Tooltip, Typography} from "@mui/material"
 import ContentCopyIcon from "@mui/icons-material/ContentCopy"
 
-export const PasswordDialog: React.FC<{password: string; onClose: () => void}> = ({
-    password,
-    onClose,
-}) => {
+export const DecryptHelp: React.FC<{decryptionCommand: string}> = ({decryptionCommand}) => {
+    const notify = useNotify()
+    const {t} = useTranslation()
+
+    const handleCopyPassword = () => {
+        navigator.clipboard
+            .writeText(decryptionCommand)
+            .then(() => {
+                notify(t("electionEventScreen.export.copiedSuccess"), {
+                    type: "success",
+                })
+            })
+            .catch((err) => {
+                notify(t("electionEventScreen.export.copiedError"), {
+                    type: "error",
+                })
+            })
+    }
+
+    return (
+        <>
+            <Typography sx={{whiteSpace: "pre-wrap"}}>
+                {t("reportsScreen.messages.decryptInstructions")}
+            </Typography>
+            <TextField
+                fullWidth
+                value={decryptionCommand}
+                multiline={true}
+                InputProps={{
+                    readOnly: true,
+                    endAdornment: (
+                        <Tooltip
+                            title={t("electionEventScreen.import.passwordDialog.copyPassword")}
+                        >
+                            <IconButton onClick={handleCopyPassword}>
+                                <ContentCopyIcon />
+                            </IconButton>
+                        </Tooltip>
+                    ),
+                }}
+            />
+        </>
+    )
+}
+
+export interface PasswordDialogProps {
+    password: string
+    onClose: () => void
+    children?: React.ReactNode
+}
+
+export const PasswordDialog: React.FC<PasswordDialogProps> = ({password, onClose, children}) => {
     const {t} = useTranslation()
     const notify = useNotify()
 
@@ -58,6 +106,7 @@ export const PasswordDialog: React.FC<{password: string; onClose: () => void}> =
                     ),
                 }}
             />
+            {children}
         </Dialog>
     )
 }

@@ -11,8 +11,8 @@ use rocket::futures::future::join_all;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt;
-use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
+use sequent_core::services::keycloak::{GroupInfo, KeycloakAdminClient};
 use sequent_core::types::keycloak::{
     User, UserProfileAttribute, PERMISSION_LABELS, TENANT_ID_ATTR_NAME,
 };

@@ -65,13 +65,13 @@ pub enum OfficialStatus {
 }
 
 pub trait GetMetrics {
-    fn get_metrics(&self) -> Vec<EMLCountMetric>;
+    fn get_metrics(&self, registered_voters: i64) -> Vec<EMLCountMetric>;
 }
 
 // TODO: review
 impl GetMetrics for ContestResult {
     #[instrument(skip_all, name = "ContestResult::get_metrics")]
-    fn get_metrics(&self) -> Vec<EMLCountMetric> {
+    fn get_metrics(&self, registered_voters: i64) -> Vec<EMLCountMetric> {
         let extended_metrics = self.extended_metrics.clone().unwrap_or_default();
 
         vec![
@@ -93,7 +93,7 @@ impl GetMetrics for ContestResult {
             EMLCountMetric {
                 kind: "Total Number of Registered Voters".into(),
                 id: "RV".into(),
-                datum: self.census as i64,
+                datum: registered_voters,
             },
             EMLCountMetric {
                 kind: "Total Number of Expected Votes".into(),
@@ -784,7 +784,12 @@ pub fn render_eml_contest(report: &ReportData) -> Result<EMLContest> {
         .get_annotations()
         .with_context(|| "render_eml_contest: ")?;
 
-    let count_metrics = report.contest_result.get_metrics();
+    let registered_voters: i64 =
+        find_miru_annotation_opt(MIRU_REGISTERED_VOTERS, &report.election_annotations)?
+            .and_then(|val| val.parse::<i64>().ok())
+            .unwrap_or(-1);
+
+    let count_metrics = report.contest_result.get_metrics(registered_voters);
 
     let selections: Vec<EMLSelection> = report
         .contest_result
