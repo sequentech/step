@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=alpine:latest
+ARG BASE_IMAGE=alpine:3.17
 ARG FEATURES
 ARG RUST_LOG="debug"
 # FIXME(ereslibre): identify exactly which args to forward as envvars
