@@ -16,6 +16,7 @@ use sequent_core::ballot::VotingStatus;
 use sequent_core::ballot::VotingStatusChannel;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::types::hasura::core::Election;
+use sequent_core::types::hasura::core::VotingChannels;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::info;
@@ -55,8 +56,18 @@ pub async fn update_election_status(
     let voting_channels: Vec<VotingStatusChannel> = if let Some(channel) = voting_channels {
         channel.clone()
     } else if let Some(channels) = election_event.voting_channels.clone() {
-        let election_channels =
+        let voting_channels: VotingChannels =
             deserialize_value(channels).context("Failed to deserialize event voting_channels")?;
+
+        let mut election_channels = vec![];
+
+        if VotingStatusChannel::ONLINE.channel_from(&voting_channels).unwrap_or(false) {
+            election_channels.push(VotingStatusChannel::ONLINE)
+        }
+
+        if VotingStatusChannel::KIOSK.channel_from(&voting_channels).unwrap_or(false) {
+            election_channels.push(VotingStatusChannel::KIOSK)
+        }
 
         election_channels
     } else {
