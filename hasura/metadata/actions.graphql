@@ -523,7 +523,7 @@ type Mutation {
         election_event_id: uuid!
         election_id: uuid!
         voting_status: VotingStatus!
-        voting_channel: VotingStatusChannel!
+        voting_channel: [VotingStatusChannel]
     ): UpdateElectionVotingStatusOutput
 }
 
@@ -531,7 +531,7 @@ type Mutation {
     update_event_voting_status(
         election_event_id: uuid!
         voting_status: VotingStatus!
-        voting_channel: VotingStatusChannel!
+        voting_channel: [VotingStatusChannel]
     ): UpdateEventVotingStatusOutput
 }
 
