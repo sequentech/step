@@ -50,7 +50,7 @@ pub async fn update_event_voting_status(
 
     for election in &elections {
         let election_status =
-        get_election_status(election.status.clone()).unwrap_or(Default::default());
+            get_election_status(election.status.clone()).unwrap_or(Default::default());
 
         elections_status.insert(election.id.clone(), election_status);
     }
@@ -96,7 +96,7 @@ pub async fn update_event_voting_status(
 
         if current_voting_status == new_status.clone() {
             info!("Current voting status is the same as the new voting status, skipping");
-            continue
+            continue;
         }
 
         let expected_next_status = match current_voting_status {
