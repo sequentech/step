@@ -236,7 +236,6 @@
       }
 
       .candidates thead td {
-        text-align: center;
         text-transform: uppercase;
         font-weight: bold;
         font-size: 10pt;
@@ -362,11 +361,14 @@
       @media print and (max-width: 90mm), screen and (max-width: 302px) {
         /* @media print { */
         body {
-          width: 80mm;
           margin: 0;
-          padding: 0 2mm;
           font-family: "Arial", sans-serif;
           font-size: 11pt;
+        }
+
+        @page {
+          margin-top: 0;
+          margin-bottom: 0;
         }
         
         /* Header styling */
