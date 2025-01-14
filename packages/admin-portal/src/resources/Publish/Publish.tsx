@@ -209,6 +209,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                         votingStatus,
                         electionId,
                         electionEventId,
+                        votingChannel,
                     },
                 })
                 // TODO: Right now if we are opening or pausing for online, we

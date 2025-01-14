@@ -54,23 +54,32 @@ pub async fn update_election_status(
             .with_context(|| "error getting election event")?;
 
     let voting_channels: Vec<VotingStatusChannel> = if let Some(channel) = voting_channels {
+        info!("Reading input voting channels {channel:?}");
         channel.clone()
     } else if let Some(channels) = election_event.voting_channels.clone() {
+        info!("Election voting channels {channels:?}");
         let voting_channels: VotingChannels =
             deserialize_value(channels).context("Failed to deserialize event voting_channels")?;
 
         let mut election_channels = vec![];
 
-        if VotingStatusChannel::ONLINE.channel_from(&voting_channels).unwrap_or(false) {
+        if VotingStatusChannel::ONLINE
+            .channel_from(&voting_channels)
+            .unwrap_or(false)
+        {
             election_channels.push(VotingStatusChannel::ONLINE)
         }
 
-        if VotingStatusChannel::KIOSK.channel_from(&voting_channels).unwrap_or(false) {
+        if VotingStatusChannel::KIOSK
+            .channel_from(&voting_channels)
+            .unwrap_or(false)
+        {
             election_channels.push(VotingStatusChannel::KIOSK)
         }
 
         election_channels
     } else {
+        info!("Default voting channels");
         // Update all if none are configured
         vec![VotingStatusChannel::ONLINE, VotingStatusChannel::KIOSK]
     };

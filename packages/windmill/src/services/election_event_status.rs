@@ -56,23 +56,32 @@ pub async fn update_event_voting_status(
     }
 
     let channels: Vec<VotingStatusChannel> = if let Some(channel) = channels {
+        info!("Reading input voting channels {channel:?}");
         channel.clone()
     } else if let Some(channels) = election_event.voting_channels.clone() {
+        info!("Reading Event voting channels {channels:?}");
         let voting_channels: VotingChannels =
             deserialize_value(channels).context("Failed to deserialize event voting_channels")?;
 
         let mut event_channels = vec![];
 
-        if VotingStatusChannel::ONLINE.channel_from(&voting_channels).unwrap_or(false) {
+        if VotingStatusChannel::ONLINE
+            .channel_from(&voting_channels)
+            .unwrap_or(false)
+        {
             event_channels.push(VotingStatusChannel::ONLINE)
         }
 
-        if VotingStatusChannel::KIOSK.channel_from(&voting_channels).unwrap_or(false) {
+        if VotingStatusChannel::KIOSK
+            .channel_from(&voting_channels)
+            .unwrap_or(false)
+        {
             event_channels.push(VotingStatusChannel::KIOSK)
         }
 
         event_channels
     } else {
+        info!("Default voting channels");
         // Update all if none are configured
         vec![VotingStatusChannel::ONLINE, VotingStatusChannel::KIOSK]
     };
@@ -146,8 +155,7 @@ pub async fn update_event_voting_status(
             &tenant_id,
             &election_event_id,
             &election.id,
-            serde_json::to_value(&election_status)
-                .with_context(|| "Error parsing status")?,
+            serde_json::to_value(&election_status).with_context(|| "Error parsing status")?,
         )
         .await
         .with_context(|| "Error updating election voting status")?;

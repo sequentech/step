@@ -14,7 +14,7 @@ export const UPDATE_ELECTION_VOTING_STATUS = gql`
             election_id: $electionId
             election_event_id: $electionEventId
             voting_status: $votingStatus
-            voting_channel: $votingChannel
+            voting_channels: $votingChannel
         ) {
             election_id
         }

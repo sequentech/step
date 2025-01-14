@@ -16793,7 +16793,7 @@
                 "defaultValue": null
               },
               {
-                "name": "voting_channel",
+                "name": "voting_channels",
                 "description": null,
                 "type": {
                   "kind": "LIST",
@@ -16848,7 +16848,7 @@
                 "defaultValue": null
               },
               {
-                "name": "voting_channel",
+                "name": "voting_channels",
                 "description": null,
                 "type": {
                   "kind": "LIST",
