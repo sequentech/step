@@ -49,8 +49,8 @@ pub async fn update_event_voting_status(
     let mut elections_status = HashMap::new();
 
     for election in &elections {
-        let mut election_status =
-            get_election_status(election.status.clone()).unwrap_or(Default::default());
+        let election_status =
+        get_election_status(election.status.clone()).unwrap_or(Default::default());
 
         elections_status.insert(election.id.clone(), election_status);
     }
@@ -86,16 +86,17 @@ pub async fn update_event_voting_status(
         vec![VotingStatusChannel::ONLINE, VotingStatusChannel::KIOSK]
     };
 
+    if election_event.is_archived {
+        info!("Election event is archived, skipping");
+        return Ok(election_event);
+    }
+
     for channel in channels {
         let current_voting_status = status.status_by_channel(&channel).clone();
 
-        if election_event.is_archived {
-            info!("Election event is archived, skipping");
-        }
-
         if current_voting_status == new_status.clone() {
             info!("Current voting status is the same as the new voting status, skipping");
-            return Ok(election_event);
+            continue
         }
 
         let expected_next_status = match current_voting_status {

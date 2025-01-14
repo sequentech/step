@@ -194,7 +194,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
             if (type === EPublishType.Election) {
                 onChangeElectionStatus(electionEventStatus, votingChannel)
             } else if (type === EPublishType.Event) {
-                onChangeElectionEventStatus(electionEventStatus)
+                onChangeElectionEventStatus(electionEventStatus, votingChannel)
             }
         }
 
@@ -231,13 +231,15 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
             }
         }
 
-        const onChangeElectionEventStatus = async (electionEventStatus: ElectionEventStatus) => {
+        const onChangeElectionEventStatus = async (electionEventStatus: ElectionEventStatus,
+            votingChannel?: VotingStatusChannel[]) => {
             try {
                 setChangingStatus(true)
                 await updateStatusEvent({
                     variables: {
                         electionEventId,
                         votingStatus: electionEventStatus,
+                        votingChannel,
                     },
                 })
                 handleSetPublishStatus(MAP_ELECTION_EVENT_STATUS_PUBLISH[electionEventStatus])
