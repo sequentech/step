@@ -21,7 +21,7 @@ use std::{
     path::PathBuf,
 };
 use strand::hash::hash_b64;
-use tracing::{instrument, warn};
+use tracing::{info, instrument, warn};
 use uuid::Uuid;
 
 use crate::{
@@ -44,6 +44,7 @@ use crate::{
     pipes::error::{Error, Result},
     utils::parse_file,
 };
+use std::fs::File;
 
 pub const OUTPUT_PDF: &str = "report.pdf";
 pub const OUTPUT_HTML: &str = "report.html";
@@ -221,39 +222,36 @@ impl GenerateReports {
         let config = self.get_config()?;
         let mut execution_annotations = config.execution_annotations;
 
-        // hash json reports bytes
+        let computed_reports = self.compute_reports(reports.clone())?;
+        let template_data = TemplateData {
+            execution_annotations: execution_annotations.clone(),
+            reports: computed_reports.clone(),
+        };
+
+        let json_data = serde_json::to_value(template_data)?;
+        let bytes_json = json_data.to_string().as_bytes().to_vec();
+
+        // hash json results bytes
         let results_hash = if let Some(election_hash) = election_hash {
             election_hash
         } else {
-            let template_data = TemplateData {
-                execution_annotations: execution_annotations.clone(),
-                reports: self.compute_reports(reports.clone())?,
-            };
-
-            let json_reports = serde_json::to_value(template_data)?;
-            let bytes_json = json_reports.to_string().as_bytes().to_vec();
-
             hash_b64(&bytes_json).map_err(|err| {
                 Error::UnexpectedError(format!("Error hashing the results file: {err:?}"))
             })?
         };
 
-        // add results_hash to execution_annotations
+        // insert results_hash into execution_annotations and render again the template for pdf and html
         execution_annotations.insert("results_hash".to_string(), results_hash.clone());
-
-        // render again the template with the new execution_annotations
         let template_data = TemplateData {
             execution_annotations,
-            reports: self.compute_reports(reports.clone())?,
+            reports: computed_reports,
         };
+
         let template_vars = template_data
             .clone()
             .to_map()
             // TODO: Fix neededing to do a Map Err
             .map_err(|err| Error::UnexpectedError(format!("serialization error: {err:?}")))?;
-
-        let json_reports = serde_json::to_value(template_data)?;
-        let bytes_json = json_reports.to_string().as_bytes().to_vec();
 
         let mut template_map = HashMap::new();
         let report_base_html = include_str!("../../resources/report_base_html.hbs");
@@ -918,6 +916,10 @@ impl Pipe for GenerateReports {
                     })
                     .collect();
 
+                println!(
+                    "*** contest_reports len: {:?}",
+                    contest_reports.as_ref().map(|r| r.len())
+                );
                 // write report for the current election
                 let result_hash = self.write_report(
                     &election_input.id,
@@ -930,6 +932,8 @@ impl Pipe for GenerateReports {
                     false,
                     None,
                 )?;
+
+                println!("*** result_hash: {:?}", result_hash);
 
                 // make area reports with all contests related to each area
                 let mut area_contests_map: HashMap<String, InputConfigAreaContest> = HashMap::new();

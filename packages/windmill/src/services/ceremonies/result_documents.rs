@@ -37,7 +37,7 @@ use std::{
 };
 use strand::hash::hash_b64;
 use tokio::task;
-use tracing::instrument;
+use tracing::{info, instrument};
 use velvet::pipes::generate_reports::{
     BasicArea, ElectionReportDataComputed, ReportDataComputed, OUTPUT_HTML, OUTPUT_JSON, OUTPUT_PDF,
 };
@@ -428,21 +428,14 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
             .contest
             .clone();
 
-        // Read the json file and hash it
+        // // Read the json file and hash it
         let file_path = document_paths
             .json
             .clone()
             .context("Missing json file path")?;
-        let content = fs::read_to_string(file_path.clone())
+        let content = fs::read(file_path.clone())
             .with_context(|| format!("Failed to read the file at {}", file_path))?;
-        // Deserialize the JSON string into a Value
-        let json: Value = serde_json::from_str(&content).context("Failed to parse JSON content")?;
-        // retrieve the hash value
-        let results_hash = json
-            .get("execution_annotations")
-            .and_then(|annotations| annotations.get("results_hash"))
-            .and_then(|hash| hash.as_str())
-            .unwrap_or_default();
+        let json_hash = hash_b64(&content).map_err(|err| anyhow!("Error hashing json: {err:?}"))?;
 
         // Save election results documents to S3 and Hasura
         let documents = generic_save_documents(
@@ -462,7 +455,7 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
             &contest.election_event_id,
             &contest.election_id,
             &documents,
-            results_hash,
+            &json_hash,
         )
         .await?;
 
