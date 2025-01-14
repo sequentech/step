@@ -44,7 +44,6 @@ use crate::{
     pipes::error::{Error, Result},
     utils::parse_file,
 };
-use std::fs::File;
 
 pub const OUTPUT_PDF: &str = "report.pdf";
 pub const OUTPUT_HTML: &str = "report.html";
