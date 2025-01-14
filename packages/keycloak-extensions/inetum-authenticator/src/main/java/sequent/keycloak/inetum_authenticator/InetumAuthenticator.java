@@ -119,7 +119,8 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
       }
 
       // Make a new transaction request to mock server
-      SimpleHttp.Response mockTransactionData = doPost(configMap, context, "{}", Utils.API_TRANSACTION_NEW, true);
+      SimpleHttp.Response mockTransactionData =
+          doPost(configMap, context, "{}", Utils.API_TRANSACTION_NEW, true);
       JsonNode responseContent = mockTransactionData.asJson().get("response");
       log.info(responseContent);
       String tokenDob = responseContent.get("token_dob").asText();
