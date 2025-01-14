@@ -28,16 +28,14 @@ use sequent_core::services::translations::Name;
 use sequent_core::types::ceremonies::TallyType;
 use sequent_core::{services::connection::AuthHeaders, types::results::ResultDocuments};
 use sequent_core::{services::keycloak, types::hasura::core::Area};
-use serde_json::Value;
 use std::{
     collections::HashMap,
     fs,
-    fs::File,
     path::{Path, PathBuf},
 };
 use strand::hash::hash_b64;
 use tokio::task;
-use tracing::{info, instrument};
+use tracing::instrument;
 use velvet::pipes::generate_reports::{
     BasicArea, ElectionReportDataComputed, ReportDataComputed, OUTPUT_HTML, OUTPUT_JSON, OUTPUT_PDF,
 };
@@ -428,7 +426,7 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
             .contest
             .clone();
 
-        // // Read the json file and hash it
+        // Read the json file and hash it
         let file_path = document_paths
             .json
             .clone()

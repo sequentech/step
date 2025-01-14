@@ -21,7 +21,7 @@ use std::{
     path::PathBuf,
 };
 use strand::hash::hash_b64;
-use tracing::{info, instrument, warn};
+use tracing::{instrument, warn};
 use uuid::Uuid;
 
 use crate::{
@@ -231,7 +231,7 @@ impl GenerateReports {
         let json_data = serde_json::to_value(template_data)?;
         let bytes_json = json_data.to_string().as_bytes().to_vec();
 
-        // hash json results bytes
+        // Hash the json results
         let results_hash = if let Some(election_hash) = election_hash {
             election_hash
         } else {
@@ -240,7 +240,7 @@ impl GenerateReports {
             })?
         };
 
-        // insert results_hash into execution_annotations and render again the template for pdf and html
+        // Insert the results_hash into the execution_annotations and re-render the template for both PDF and HTML
         execution_annotations.insert("results_hash".to_string(), results_hash.clone());
         let template_data = TemplateData {
             execution_annotations,
@@ -916,10 +916,6 @@ impl Pipe for GenerateReports {
                     })
                     .collect();
 
-                println!(
-                    "*** contest_reports len: {:?}",
-                    contest_reports.as_ref().map(|r| r.len())
-                );
                 // write report for the current election
                 let result_hash = self.write_report(
                     &election_input.id,
@@ -932,8 +928,6 @@ impl Pipe for GenerateReports {
                     false,
                     None,
                 )?;
-
-                println!("*** result_hash: {:?}", result_hash);
 
                 // make area reports with all contests related to each area
                 let mut area_contests_map: HashMap<String, InputConfigAreaContest> = HashMap::new();
