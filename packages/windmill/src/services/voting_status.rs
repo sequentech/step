@@ -28,6 +28,7 @@ pub struct UpdateElectionVotingStatusInput {
     pub election_event_id: String,
     pub election_id: String,
     pub voting_status: VotingStatus,
+    // TODO: Make a list and not just one
     pub voting_channel: VotingStatusChannel,
 }
 

@@ -20,6 +20,7 @@ use windmill::services::{election_event_status, voting_status};
 pub struct UpdateEventVotingStatusInput {
     pub election_event_id: String,
     pub voting_status: VotingStatus,
+    // TODO: Make a list of voting status not just one
     pub voting_channel: VotingStatusChannel,
 }
 

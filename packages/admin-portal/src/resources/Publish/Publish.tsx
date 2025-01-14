@@ -248,6 +248,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         const onChangeElectionEventStatus = async (electionEventStatus: ElectionEventStatus) => {
             try {
                 setChangingStatus(true)
+                // TODO: Make this atomic
                 await updateStatusEvent({
                     variables: {
                         electionEventId,
