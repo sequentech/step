@@ -879,7 +879,7 @@ def gen_tree(excel_data, miru_data, script_idr, multiply_factor):
                 "sort_order": row["contest_SORT_ORDER"],
                 "candidates": [],
                 "areas": []
-            }x
+            }
             election["contests"].append(contest)
 
         # Add the candidate to the contest

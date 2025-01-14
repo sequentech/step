@@ -119,7 +119,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
       }
 
       // Make a new transaction request to mock server
-      SimpleHttp.Response mockTransactionData = DoMockPost(configMap, context);
+      SimpleHttp.Response mockTransactionData = doPost(configMap, context, "{}", Utils.API_TRANSACTION_NEW, true);
       JsonNode responseContent = mockTransactionData.asJson().get("response");
       log.info(responseContent);
       String tokenDob = responseContent.get("token_dob").asText();
@@ -153,79 +153,16 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
     }
   }
 
-  protected SimpleHttp.Response doMockGet(
-      Map<String, String> configMap, AuthenticationFlowContext context, String uriPath)
-      throws IOException {
-    String url = configMap.get(Utils.BASE_URL_ATTRIBUTE) + uriPath;
-
-    var attempt = 0;
-    int maxRetries = Utils.parseInt(configMap.get(Utils.MAX_RETRIES), Utils.DEFAULT_MAX_RETRIES);
-    int baseRetryDelay = Utils.BASE_RETRY_DELAY;
-
-    while (attempt < maxRetries) {
-      try {
-        SimpleHttp.Response response =
-            SimpleHttp.doGet(url, context.getSession())
-                .header("Content-Type", "application/json")
-                .asResponse();
-
-        return response;
-
-      } catch (IOException e) {
-        attempt++;
-        log.warnv("doGet: Request failed (attempt {0}): {1}", attempt, e.getMessage());
-        if (attempt >= maxRetries) {
-          throw e; // Propagate the exception if max retries are reached
-        }
-
-        // Wait before retrying
-        sleep(baseRetryDelay, attempt);
-      }
-    }
-    context.getEvent().error(ERROR_TO_GET_INETUM_RESPONSE + "Max retries reached");
-    throw new IOException("doGet: Failed to execute request after " + maxRetries + " attempts.");
-  }
-
-  protected SimpleHttp.Response DoMockPost(
-      Map<String, String> configMap, AuthenticationFlowContext context) throws IOException {
-    String url = MOCK_SERVER_URL + Utils.API_TRANSACTION_NEW;
-
-    var attempt = 0;
-    int maxRetries = Utils.parseInt(configMap.get(Utils.MAX_RETRIES), Utils.DEFAULT_MAX_RETRIES);
-    int baseRetryDelay = Utils.BASE_RETRY_DELAY;
-
-    while (attempt < maxRetries) {
-      try {
-        SimpleHttp.Response response =
-            SimpleHttp.doPost(url, context.getSession())
-                .header("Content-Type", "application/json")
-                .json("{}")
-                .asResponse();
-        return response;
-
-      } catch (IOException e) {
-        attempt++;
-        log.warnv("doMockPost: Request failed (attempt {0}): {1}", attempt, e.getMessage());
-        if (attempt >= maxRetries) {
-          throw e;
-        }
-
-        sleep(baseRetryDelay, attempt);
-      }
-    }
-    context.getEvent().error(ERROR_TO_CREATE_INETUM_TRANSACTION + "Max retries reached");
-    throw new IOException(
-        "doMockPost: Failed to execute request after " + maxRetries + " attempts.");
-  }
-
   /** Send a POST to Inetum API */
   protected SimpleHttp.Response doPost(
       Map<String, String> configMap,
       AuthenticationFlowContext context,
       Object payload,
-      String uriPath)
+      String uriPath,
+      Boolean isTestMode)
       throws IOException {
-    String url = configMap.get(Utils.BASE_URL_ATTRIBUTE) + uriPath;
+    String baseUrl = isTestMode ? MOCK_SERVER_URL : configMap.get(Utils.BASE_URL_ATTRIBUTE);
+    String url = baseUrl + uriPath;
     String authorization = "Bearer " + configMap.get(Utils.API_KEY_ATTRIBUTE);
     log.info("doPost: url=" + url + ", payload =" + payload.toString());
 
@@ -367,7 +304,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
 
     try {
       SimpleHttp.Response response =
-          doPost(configMap, context, jsonPayload, Utils.API_TRANSACTION_NEW);
+          doPost(configMap, context, jsonPayload, Utils.API_TRANSACTION_NEW, false);
 
       if (response.getStatus() != 200) {
         log.error(
@@ -716,9 +653,8 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
           }
         }
 
-        // check that vinetum has already verified the data, or else retry
+        // check that inetum has already verified the data, or else retry
         // again after a delay
-        log.info("verifyResults: response = " + response.asString());
         idStatus = response.asJson().get("response").get("idStatus").asText();
         log.infov(
             "verifyResults (attempt {0}): transaction/status, idStatus = {1}", attempt, idStatus);
@@ -764,7 +700,6 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
       uriPath =
           isTestMode ? "/results?country=" + encodedCountry : "/transaction/" + userId + "/results";
       response = doGet(configMap, context, uriPath, isTestMode);
-      log.info("results response: " + response.asString());
       if (response.getStatus() != 200) {
         log.error(
             "verifyResults: Error calling transaction/results, status = " + response.getStatus());
