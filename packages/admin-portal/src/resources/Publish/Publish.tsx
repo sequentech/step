@@ -207,7 +207,6 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                 await updateStatusElection({
                     variables: {
                         votingStatus,
-                        votingChannel: votingChannel ?? VotingStatusChannel.Online,
                         electionId,
                         electionEventId,
                     },
@@ -216,20 +215,6 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                 // also do it for kiosk if kiosk mode is enabled. In the future,
                 // we should be able to do this individually in the UI for each
                 // channel separatedly.
-                if (
-                    (votingChannel ?? VotingStatusChannel.Online) == VotingStatusChannel.Online &&
-                    [ElectionEventStatus.Open, ElectionEventStatus.Paused].includes(votingStatus) &&
-                    kioskModeEnabled()
-                ) {
-                    await updateStatusElection({
-                        variables: {
-                            votingStatus,
-                            votingChannel: VotingStatusChannel.Kiosk,
-                            electionId,
-                            electionEventId,
-                        },
-                    })
-                }
                 handleSetPublishStatus(MAP_ELECTION_EVENT_STATUS_PUBLISH[votingStatus])
                 setChangingStatus(false)
                 refresh()
@@ -248,22 +233,12 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         const onChangeElectionEventStatus = async (electionEventStatus: ElectionEventStatus) => {
             try {
                 setChangingStatus(true)
-                // TODO: Make this atomic
                 await updateStatusEvent({
                     variables: {
                         electionEventId,
                         votingStatus: electionEventStatus,
-                        votingChannel: VotingStatusChannel.Online,
                     },
                 })
-                kioskModeEnabled() &&
-                    (await updateStatusEvent({
-                        variables: {
-                            electionEventId,
-                            votingStatus: electionEventStatus,
-                            votingChannel: VotingStatusChannel.Kiosk,
-                        },
-                    }))
                 handleSetPublishStatus(MAP_ELECTION_EVENT_STATUS_PUBLISH[electionEventStatus])
                 setChangingStatus(false)
                 refresh()
