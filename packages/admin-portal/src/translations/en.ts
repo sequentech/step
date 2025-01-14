@@ -77,6 +77,7 @@ const englishTranslation = {
                 EXPORT_BALLOT_PUBLICATION: "Export Ballot Publication",
                 EXPORT_ACTIVITY_LOGS_REPORT: "Export Activity Logs Report",
                 GENERATE_REPORT: "Generate Report",
+                GENERATE_TRANSMISSION_REPORT: "Generate Transmission Report",
                 EXPORT_TRUSTEES: "Export Trustees",
                 EXPORT_APPLICATION: "Export Applications",
                 EXPORT_TENANT_CONFIG: "Export Tenant Config",
@@ -204,6 +205,7 @@ const englishTranslation = {
             votersByChannels: "Voters by channel",
             voterLoginURL: "Voter Login URL",
             voterEnrollURL: "Voter Enroll URL",
+            voterEnrollKioskURL: "Voter Enroll Kiosk URL",
             ipAddress: {
                 emptyState: "No votes yet.",
                 title: "IP Addresses",
@@ -869,7 +871,7 @@ const englishTranslation = {
                 "publish-pause-voting": "Pause Voting",
                 "publish-stop-voting": "Stop Voting",
                 "publish-changes": "Publish Changes",
-                "election-event-publish-view": "View Election Event Publish",
+                "election-event-publish-view": "Election Event Publish View",
                 "election-event-keys-columns": "Election Event Keys Columns",
                 "create-ceremony": "Create Ceremony",
                 "export-ceremony": "Export Ceremony",
@@ -886,6 +888,7 @@ const englishTranslation = {
                 "voter-voted-edit": "Edit voters who voted",
                 "voter-email-tlf-edit": "Edit voters email/phone fields",
                 "cloudflare-write": "Edit Country Blocking Rules in Cloudflare",
+                "transmission-report-generate": "Generate Transmission Report",
             },
         },
         generalSettingsScreen: {
@@ -1383,8 +1386,9 @@ const englishTranslation = {
                     },
                     download: {
                         title: "Download",
-                        emlTitle: "Download EML",
-                        transmissionPackageTitle: "Download Transmission Package",
+                        emlTitle: "Download EML {{date}}",
+                        transmissionPackageTitle: "Download Transmission Package {{date}}",
+                        transmissionReportTitle: "Download Transmission Report",
                         dialog: {
                             title: "Do you want to Download the Transmission Package?",
                             description:

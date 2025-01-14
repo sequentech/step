@@ -73,6 +73,7 @@ const tagalogTranslation: TranslationType = {
                 EXPORT_VOTERS: "I-export ang mga botante",
                 CREATE_TRANSMISSION_PACKAGE: "Lumikha ng Transmission Package",
                 EXPORT_BALLOT_PUBLICATION: "I-export ang Paglalathala ng Balota",
+                GENERATE_TRANSMISSION_REPORT: "Bumuo ng Ulat ng Paglilipat",
                 EXPORT_ACTIVITY_LOGS_REPORT: "I-export ang Ulat ng Mga Log ng Aktibidad",
                 GENERATE_REPORT: "Bumuo ng ulat",
                 EXPORT_TRUSTEES: "I-export ang mga Awtoridad",
@@ -203,6 +204,7 @@ const tagalogTranslation: TranslationType = {
             votersByChannels: "Mga botante ayon sa channel",
             voterLoginURL: "URL para sa Pag-login ng Botante",
             voterEnrollURL: "URL para sa Pag-enroll ng Botante",
+            voterEnrollKioskURL: "Kiosk URL para sa Pag-enroll ng Botante",
             ipAddress: {
                 emptyState: "Wala pang mga boto.",
                 title: "Mga IP Address",
@@ -896,6 +898,7 @@ const tagalogTranslation: TranslationType = {
                 "voter-voted-edit": "I-edit ang mga botanteng bumoto",
                 "voter-email-tlf-edit": "I-edit ang mga field ng email/telepono ng mga botante",
                 "cloudflare-write": "I-edit ang mga patakaran sa pag-block ng bansa sa Cloudflare",
+                "transmission-report-generate": "Lumikha ng Ulat ng Transmisyon",
             },
         },
         generalSettingsScreen: {
@@ -1397,8 +1400,9 @@ const tagalogTranslation: TranslationType = {
                     },
                     download: {
                         title: "I-download",
-                        emlTitle: "I-download ang EML",
-                        transmissionPackageTitle: "I-download ang Pakete ng Transmisyon",
+                        emlTitle: "I-download ang EML {{date}}",
+                        transmissionPackageTitle: "I-download ang Pakete ng Transmisyon {{date}}",
+                        transmissionReportTitle: "I-download ang Ulat ng Transmisyon",
                         dialog: {
                             title: "Gusto mo bang i-download ang Pakete ng Transmisyon?",
                             description:

@@ -582,6 +582,7 @@ pub async fn get_monitoring_transmission_status(
             &tenant_id,
             &election_event_id,
             &area_id,
+            None,
         )
         .await
         .map_err(|err| anyhow!("{err}"))?;

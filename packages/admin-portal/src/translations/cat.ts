@@ -42,6 +42,7 @@ const catalanTranslation: TranslationType = {
                 EXPORT_BALLOT_PUBLICATION: "Exporta Publicació de Butlleta",
                 EXPORT_ACTIVITY_LOGS_REPORT: "Exportar Informe de Registres d'Activitat",
                 GENERATE_REPORT: "Generar informe",
+                GENERATE_TRANSMISSION_REPORT: "Generar informe de transmissió",
                 EXPORT_TRUSTEES: "Exportar Autoritats",
                 EXPORT_APPLICATION: "Exportar Sol·licituds",
                 EXPORT_TENANT_CONFIG: "Exporta la Configuració del Llogater",
@@ -202,6 +203,7 @@ const catalanTranslation: TranslationType = {
             votersByChannels: "Votants per canals",
             voterLoginURL: "URL d'inici de sessió dels votants",
             voterEnrollURL: "URL d'inscripció de votants",
+            voterEnrollKioskURL: "Kiosk URL d'inscripció de votants",
             ipAddress: {
                 emptyState: "Encara no hi ha vots.",
                 title: "IP Addresses",
@@ -905,6 +907,7 @@ const catalanTranslation: TranslationType = {
                 "voter-voted-edit": "Edita els votants que han votat",
                 "voter-email-tlf-edit": "Edita els camps de correu electrònic/telèfon dels votants",
                 "cloudflare-write": "Edita les regles de bloqueig per país a Cloudflare",
+                "transmission-report-generate": "Generar Informe de Transmissió",
             },
         },
         generalSettingsScreen: {
@@ -1404,8 +1407,9 @@ const catalanTranslation: TranslationType = {
                     },
                     download: {
                         title: "Descarregar",
-                        emlTitle: "Download EML",
-                        transmissionPackageTitle: "Descarregar el Paquet de Transmissió",
+                        emlTitle: "Download EML {{date}}",
+                        transmissionPackageTitle: "Descarregar el Paquet de Transmissió {{date}}",
+                        transmissionReportTitle: "Descarrega l'informe de transmissió",
                         dialog: {
                             title: "Vols descarregar el Paquet de Transmissió?",
                             description:
