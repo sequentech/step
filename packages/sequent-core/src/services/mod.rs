@@ -18,10 +18,11 @@ pub mod pdf;
 pub mod probe;
 #[cfg(feature = "reports")]
 pub mod reports;
+#[cfg(feature = "s3")]
+pub mod s3;
 
 pub mod error_checker;
 pub mod generate_urls;
-pub mod s3;
 
 #[cfg(feature = "reports")]
 pub mod translations;

@@ -48,10 +48,10 @@ impl PdfRenderer {
             Err(e) => {
                 event!(
                     Level::ERROR,
-                    "Failed to get DOC_RENDERER_BACKEND: {}",
+                    "Failed to get DOC_RENDERER_BACKEND: {}; defaulting to inplace",
                     e
                 );
-                return Err(anyhow!("DOC_RENDERER_BACKEND env var missing"));
+                "inplace".to_string()
             }
         };
 
