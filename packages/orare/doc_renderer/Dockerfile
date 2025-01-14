@@ -1,4 +1,5 @@
 ARG BASE_IMAGE=alpine:latest
+ARG FEATURES
 ARG RUST_LOG="debug"
 # FIXME(ereslibre): identify exactly which args to forward as envvars
 # are required when the openwhisk backend is used and list only
@@ -11,7 +12,7 @@ ARG AWS_S3_BUCKET=""
 ARG AWS_S3_PUBLIC_BUCKET=""
 
 FROM rustlang/rust:nightly AS builder
-ARG FEATURES=openwhisk
+ARG FEATURES
 
 RUN apt-get update && \
     apt-get install -y musl-tools

@@ -30,7 +30,7 @@ tokio = { version = "1.0", features = ["full"] }
 clap = { version = "4.5", features = ["derive"] }
 
 # for rendering we use sequent core functionality
-sequent-core = { path = "../../sequent-core", features = ["reports", "log", "areas"] }
+sequent-core = { path = "../../sequent-core", features = ["reports", "s3", "log", "areas"] }
 
 lambda_runtime = { version = "0.13", features = ["anyhow"] }
 
