@@ -26,8 +26,8 @@ use crate::{
         temp_path::{generate_temp_file, get_file_size},
     },
     types::miru_plugin::{
-        MiruCcsServer, MiruDocument, MiruServerDocument, MiruTallySessionData,
-        MiruTransmissionPackageData,
+        MiruCcsServer, MiruDocument, MiruServerDocument, MiruServerDocumentStatus,
+        MiruTallySessionData, MiruTransmissionPackageData,
     },
 };
 use anyhow::{anyhow, Context, Result};
@@ -432,6 +432,7 @@ pub async fn send_transmission_package_service(
                 new_miru_document.servers_sent_to.push(MiruServerDocument {
                     name: ccs_server.name.clone(),
                     sent_at: ISO8601::to_string(&time_now),
+                    status: MiruServerDocumentStatus::SUCCESS,
                 });
                 record_new_log(
                     tenant_id,
@@ -446,8 +447,9 @@ pub async fn send_transmission_package_service(
             }
             Err(err) => {
                 let error_str = format!("{}", err);
+                let time_now = Local::now();
                 let new_log = error_sending_transmission_package_to_ccs_log(
-                    &Local::now(),
+                    &time_now,
                     election_id,
                     &election.name,
                     area_id,
@@ -462,6 +464,11 @@ pub async fn send_transmission_package_service(
                         .collect(),
                     &error_str,
                 );
+                new_miru_document.servers_sent_to.push(MiruServerDocument {
+                    name: ccs_server.name.clone(),
+                    sent_at: ISO8601::to_string(&time_now),
+                    status: MiruServerDocumentStatus::ERROR,
+                });
                 record_new_log(
                     tenant_id,
                     election_id,
@@ -469,7 +476,7 @@ pub async fn send_transmission_package_service(
                     tally_session_id,
                     &election_event.id,
                     new_log,
-                    None,
+                    Some(new_miru_document.clone()),
                 )
                 .await?;
             }

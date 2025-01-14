@@ -55,6 +55,7 @@ pub async fn generate_report(
     is_scheduled_task: bool,
     task_execution: Option<TasksExecution>,
     executer_username: Option<String>,
+    tally_session_id: Option<String>,
 ) -> Result<(), anyhow::Error> {
     let tenant_id = report.tenant_id.clone();
     let election_event_id = report.election_event_id.clone();
@@ -71,6 +72,7 @@ pub async fn generate_report(
         voter_id: None,
         report_origin: ReportOriginatedFrom::ReportsTab, // Assuming this is visited only frrom the Reports tab
         executer_username,
+        tally_session_id,
     };
 
     let mut db_client: DbClient = match get_hasura_pool().await.get().await {
@@ -259,6 +261,7 @@ pub async fn generate_report(
     is_scheduled_task: bool,
     task_execution: Option<TasksExecution>,
     executer_username: Option<String>,
+    tally_session_id: Option<String>,
 ) -> Result<()> {
     // Spawn the task using an async block
     let handle = tokio::task::spawn_blocking({
@@ -271,6 +274,7 @@ pub async fn generate_report(
                     is_scheduled_task,
                     task_execution,
                     executer_username,
+                    tally_session_id,
                 )
                 .await
                 .map_err(|err| anyhow!("generate_report error: {:?}", err))

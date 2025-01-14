@@ -161,6 +161,12 @@ export const ElectionTabs: React.FC = () => {
                                           />
                                       </Suspense>
                                   ),
+                                  action: (index: number) => {
+                                      localStorage.setItem(
+                                          "electionPublishTabIndex",
+                                          index.toString()
+                                      )
+                                  },
                               },
                           ]
                         : []),

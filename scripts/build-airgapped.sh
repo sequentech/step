@@ -55,12 +55,10 @@ archive-image-artifact() {
         # Try to pull the image
         if ! docker pull "$image_name"; then
             echo "Error: Failed to archive image artifact $image_name after failed pulling" >&2
-            exit 1
         fi
         # Try to save the image again after pulling
         if ! (docker save "$image_name" > "$image_artifact_path"); then
             echo "Error: Failed to archive image artifact $image_name after pulling" >&2
-            exit 1
         fi
     fi
 }
