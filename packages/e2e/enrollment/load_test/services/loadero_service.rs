@@ -116,21 +116,19 @@ fn create_header() -> Result<HeaderMap, Box<dyn std::error::Error>> {
     Ok(headers)
 }
 
-
 pub fn get_enrollment_test_name_str(election_event_id: &str) -> String {
     format!("Test Enrollment - Election {}", election_event_id)
 }
 
-
-fn get_test_config (election_event_id: &str,script:String) ->Value {
+fn get_test_config(election_event_id: &str, script: String) -> Value {
     json!({
-       "increment_strategy": "constant",
-       "mode": "load",
-       "name": get_enrollment_test_name_str(&election_event_id),
-       "participant_timeout": 300,
-       "script": script,
-       "start_interval": 0
-   })
+        "increment_strategy": "constant",
+        "mode": "load",
+        "name": get_enrollment_test_name_str(&election_event_id),
+        "participant_timeout": 300,
+        "script": script,
+        "start_interval": 0
+    })
 }
 
 fn create_test(

@@ -45,15 +45,15 @@ pub fn load_users(csv_path: &str) -> Result<(), anyhow::Error> {
             .context("Failed to read record from CSV")?;
 
         // Extract each column by index, in the same order as your CSV
-        let id                        = record.get(0).unwrap_or_default().trim().to_string(); 
-        let first_name                = record.get(4).unwrap_or_default().trim().to_string();
-        let last_name                 = record.get(5).unwrap_or_default().trim().to_string();
-        let middle_ame                = record.get(9).unwrap_or_default().trim().to_string();
-        let date_of_birth             = record.get(12).unwrap_or_default().trim().to_string();
-        let embassy                   = record.get(14).unwrap_or_default().trim().to_string();
-        let country                   = record.get(15).unwrap_or_default().trim().to_string();
-        let id_card_number            = record.get(18).unwrap_or_default().trim().to_string();
-        let id_card_type              = record.get(8 ).unwrap_or_default().trim().to_string();
+        let id = record.get(0).unwrap_or_default().trim().to_string();
+        let first_name = record.get(4).unwrap_or_default().trim().to_string();
+        let last_name = record.get(5).unwrap_or_default().trim().to_string();
+        let middle_ame = record.get(9).unwrap_or_default().trim().to_string();
+        let date_of_birth = record.get(12).unwrap_or_default().trim().to_string();
+        let embassy = record.get(14).unwrap_or_default().trim().to_string();
+        let country = record.get(15).unwrap_or_default().trim().to_string();
+        let id_card_number = record.get(18).unwrap_or_default().trim().to_string();
+        let id_card_type = record.get(8).unwrap_or_default().trim().to_string();
 
         conn.execute(
             r#"
@@ -66,8 +66,15 @@ pub fn load_users(csv_path: &str) -> Result<(), anyhow::Error> {
             )
             "#,
             params![
-                id, first_name, last_name,middle_ame, date_of_birth,
-                embassy, country, id_card_number, id_card_type
+                id,
+                first_name,
+                last_name,
+                middle_ame,
+                date_of_birth,
+                embassy,
+                country,
+                id_card_number,
+                id_card_type
             ],
         )
         .with_context(|| format!("Failed to insert row for id '{}'", id))

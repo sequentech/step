@@ -2,8 +2,8 @@
 extern crate rocket;
 
 mod routes;
-mod services; 
-mod types; 
+mod services;
+mod types;
 
 use services::user::load_users;
 
@@ -28,13 +28,16 @@ async fn main() -> Result<(), rocket::Error> {
     }
 
     let _rocket = rocket::build()
-        .mount("/", routes![
-            index,
-            routes::user::users_list,
-            routes::inetum::transaction_new,
-            routes::inetum::transaction_status_simple,
-            routes::inetum::transaction_results,
-        ])
+        .mount(
+            "/",
+            routes![
+                index,
+                routes::user::users_list,
+                routes::inetum::transaction_new,
+                routes::inetum::transaction_status_simple,
+                routes::inetum::transaction_results,
+            ],
+        )
         .launch()
         .await?;
 

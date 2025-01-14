@@ -53,8 +53,8 @@ pub async fn transaction_status_simple() -> Json<serde_json::Value> {
 }
 
 #[get("/results?<country>")]
-pub async fn transaction_results(                 
-    country: Option<String>,         
+pub async fn transaction_results(
+    country: Option<String>,
 ) -> Result<Json<serde_json::Value>, Custom<String>> {
     let delay_ms = rand::thread_rng().gen_range(50..501);
     sleep(Duration::from_millis(delay_ms)).await;
@@ -64,8 +64,8 @@ pub async fn transaction_results(
     let user = random_user_by_country(&chosen_country)
         .map_err(|e| Custom(Status::InternalServerError, format!("DB error: {e}")))?;
 
-    let user = user.ok_or_else(|| Custom(Status::InternalServerError, "User not found".to_string()))?;
-
+    let user =
+        user.ok_or_else(|| Custom(Status::InternalServerError, "User not found".to_string()))?;
 
     let response_json = serde_json::json!({
         "code": 0,
