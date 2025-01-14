@@ -145,6 +145,7 @@ impl StatementHead {
                 StatementHead {
                     kind: StatementType::KeycloakUserEvent,
                     event_type: StatementEventType::USER,
+                    // TODO: Do not include error_message_string.0 if null
                     description: format!("{}: {}", error_message_type.0, error_message_string.0),
                     ..default_head
                 }
