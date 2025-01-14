@@ -113,6 +113,26 @@ pub async fn get_enrolled_voters(
                 Some(VoterStatus::DidNotPreEnrolled.to_string())
             };
 
+            let verified_by_role: Option<Vec<String>> = row
+                .annotations
+                .clone()
+                .unwrap_or_default()
+                .get("verified_by_role")
+                .and_then(|v| v.as_str())
+                .and_then(|s| serde_json::from_str::<Vec<String>>(s).ok());
+
+            let mut role: Option<String> = None;
+
+            if let Some(roles) = verified_by_role {
+                if roles.contains(&SBEI_ROLE.to_string()) {
+                    role = Some(SBEI_ROLE.to_string())
+                } else if roles.contains(&OFOV_ROLE.to_string()) {
+                    role = Some(OFOV_ROLE.to_string())
+                } else {
+                    role = Some("system".to_string())
+                }
+            }
+
             Voter {
                 id: Some(row.applicant_id),
                 middle_name,
@@ -123,12 +143,7 @@ pub async fn get_enrolled_voters(
                 date_voted: None,
                 enrollment_date: row.created_at.map(|date| date.to_rfc3339()),
                 verification_date: row.updated_at.map(|date| date.to_rfc3339()),
-                verified_by: row
-                    .annotations
-                    .clone()
-                    .unwrap_or_default()
-                    .get("verified_by")
-                    .and_then(|v| v.as_str().map(|s| s.to_string())),
+                verified_by: role,
                 disapproval_reason: row
                     .annotations
                     .clone()
