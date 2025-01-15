@@ -25,7 +25,7 @@ pub struct ImportUsersBody {
     pub election_event_id: Option<String>,
     #[serde(default = "default_is_admin")]
     pub is_admin: bool,
-    pub sha256: String,
+    pub sha256: Option<String>,
 }
 
 fn default_is_admin() -> bool {
@@ -111,25 +111,30 @@ pub async fn import_users(body: ImportUsersBody, task_execution: TasksExecution)
         };
     voters_file.rewind()?;
 
-    match integrity_check(&voters_file, body.sha256.clone()) {
-        Ok(_) => {
-            info!("Hash verified !");
-        }
-        Err(HashFileVerifyError::HashMismatch) => {
-            update_fail(&task_execution, "Hash of voters file does not match!").await?;
-            return Err(Error::String(
-                "Hash of voters file does not match!".to_string(),
-            ));
-        }
-        Err(HashFileVerifyError::IoError(str, err)) => {
-            error!("{}: {:?}", str, err);
-            update_fail(&task_execution, &str).await?;
-            return Err(err.into());
-        }
-        Err(HashFileVerifyError::HashComputingError(str, err)) => {
-            error!("{}: {:?}", str, err);
-            update_fail(&task_execution, &str).await?;
-            return Err(err.into());
+    match body.sha256.clone() {
+        Some(hash) if !hash.is_empty() => match integrity_check(&voters_file, hash) {
+            Ok(_) => {
+                info!("Hash verified !");
+            }
+            Err(HashFileVerifyError::HashMismatch) => {
+                update_fail(&task_execution, "Hash of voters file does not match!").await?;
+                return Err(Error::String(
+                    "Hash of voters file does not match!".to_string(),
+                ));
+            }
+            Err(HashFileVerifyError::IoError(str, err)) => {
+                error!("{}: {:?}", str, err);
+                update_fail(&task_execution, &str).await?;
+                return Err(err.into());
+            }
+            Err(HashFileVerifyError::HashComputingError(str, err)) => {
+                error!("{}: {:?}", str, err);
+                update_fail(&task_execution, &str).await?;
+                return Err(err.into());
+            }
+        },
+        _ => {
+            info!("No hash provided, skipping integrity check");
         }
     }
 

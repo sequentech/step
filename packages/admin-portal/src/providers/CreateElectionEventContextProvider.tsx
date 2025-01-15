@@ -254,7 +254,7 @@ export const CreateElectionEventProvider = ({children}: any) => {
 
     const handleImportElectionEvent = async (
         documentId: string,
-        sha256: string,
+        sha256: string | null,
         password?: string
     ) => {
         closeImportDrawer()
@@ -283,17 +283,21 @@ export const CreateElectionEventProvider = ({children}: any) => {
                 let errMsg = data?.import_election_event?.error
                 console.log("Login errors")
                 // setErrors(data.import_election_event.error)
-                if (errMsg.includes("HashMismatch"))
-                {
+                if (errMsg.includes("HashMismatch")) {
                     notify(t("electionEventScreen.import.ImportHashMismatch"), {type: "error"})
                 } else {
-                    notify(t("electionEventScreen.import.importElectionEventError"), {type: "error"})
+                    notify(t("electionEventScreen.import.importElectionEventError"), {
+                        type: "error",
+                    })
                 }
                 return
             }
             if (electionEventId) {
                 setNewId(electionEventId)
-                setLastCreatedResource({id: electionEventId, type: "sequent_backend_election_event"})
+                setLastCreatedResource({
+                    id: electionEventId,
+                    type: "sequent_backend_election_event",
+                })
                 notify(t("electionEventScreen.import.importElectionEventSuccess"), {type: "error"})
             }
         } catch (err) {

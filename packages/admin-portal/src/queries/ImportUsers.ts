@@ -8,7 +8,7 @@ export const IMPORT_USERS = gql`
         $tenantId: String!
         $electionEventId: String
         $documentId: String!
-        $sha256: String!
+        $sha256: String
     ) {
         import_users(
             tenant_id: $tenantId

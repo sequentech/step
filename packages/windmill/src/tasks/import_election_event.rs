@@ -20,7 +20,7 @@ pub struct ImportElectionEventBody {
     pub document_id: String,
     pub password: Option<String>,
     pub check_only: Option<bool>,
-    pub sha256: String,
+    pub sha256: Option<String>,
 }
 
 #[instrument(err)]

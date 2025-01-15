@@ -10,7 +10,7 @@ export const IMPORT_APPLICATION = gql`
         $electionEventId: String
         $electionId: String
         $documentId: String!
-        $sha256: String!
+        $sha256: String
     ) {
         import_application(
             tenant_id: $tenantId

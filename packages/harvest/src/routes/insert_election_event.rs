@@ -190,23 +190,32 @@ pub async fn import_election_event_f(
             }
         };
 
-    match integrity_check(&temp_file_path, input.sha256.clone()) {
-        Ok(_) => {
-            info!("Hash verified !");
+    match input.sha256.clone() {
+        Some(hash) if !hash.is_empty() => {
+            match integrity_check(&temp_file_path, hash) {
+                Ok(_) => {
+                    info!("Hash verified !");
+                }
+                Err(err) => {
+                    info!("Failed to verify the integrity!");
+                    update_fail(
+                        &task_execution,
+                        &format!("Failed to verify the integrity: {err:?}"),
+                    )
+                    .await;
+                    return Ok(Json(ImportElectionEventOutput {
+                        id: None,
+                        message: None,
+                        error: Some(format!(
+                            "Failed to verify the integrity: {err:?}"
+                        )),
+                        task_execution: Some(task_execution),
+                    }));
+                }
+            }
         }
-        Err(err) => {
-            info!("Failed to verify the integrity!");
-            update_fail(
-                &task_execution,
-                &format!("Failed to verify the integrity: {err:?}"),
-            )
-            .await;
-            return Ok(Json(ImportElectionEventOutput {
-                id: None,
-                message: None,
-                error: Some(format!("Failed to verify the integrity: {err:?}")),
-                task_execution: Some(task_execution),
-            }));
+        _ => {
+            info!("No hash provided, skipping integrity check");
         }
     }
 

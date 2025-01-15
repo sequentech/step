@@ -2300,7 +2300,7 @@ export type Mutation_RootImport_ApplicationArgs = {
     document_id: Scalars["String"]["input"]
     election_event_id?: InputMaybe<Scalars["String"]["input"]>
     election_id?: InputMaybe<Scalars["String"]["input"]>
-    sha256: Scalars["String"]["input"]
+    sha256?: InputMaybe<Scalars["String"]["input"]>
     tenant_id: Scalars["String"]["input"]
 }
 
@@ -2308,14 +2308,14 @@ export type Mutation_RootImport_ApplicationArgs = {
 export type Mutation_RootImport_AreasArgs = {
     document_id: Scalars["String"]["input"]
     election_event_id: Scalars["String"]["input"]
-    sha256: Scalars["String"]["input"]
+    sha256?: InputMaybe<Scalars["String"]["input"]>
 }
 
 /** mutation root */
 export type Mutation_RootImport_CandidatesArgs = {
     document_id: Scalars["String"]["input"]
     election_event_id: Scalars["String"]["input"]
-    sha256: Scalars["String"]["input"]
+    sha256?: InputMaybe<Scalars["String"]["input"]>
 }
 
 /** mutation root */
@@ -2323,7 +2323,7 @@ export type Mutation_RootImport_Election_EventArgs = {
     check_only?: InputMaybe<Scalars["Boolean"]["input"]>
     document_id: Scalars["String"]["input"]
     password?: InputMaybe<Scalars["String"]["input"]>
-    sha256: Scalars["String"]["input"]
+    sha256?: InputMaybe<Scalars["String"]["input"]>
     tenant_id: Scalars["String"]["input"]
 }
 
@@ -2344,7 +2344,7 @@ export type Mutation_RootImport_Tenant_ConfigArgs = {
 export type Mutation_RootImport_UsersArgs = {
     document_id: Scalars["String"]["input"]
     election_event_id?: InputMaybe<Scalars["String"]["input"]>
-    sha256: Scalars["String"]["input"]
+    sha256?: InputMaybe<Scalars["String"]["input"]>
     tenant_id: Scalars["String"]["input"]
 }
 

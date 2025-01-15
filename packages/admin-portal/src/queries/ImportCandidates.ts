@@ -5,7 +5,7 @@
 import {gql} from "@apollo/client"
 
 export const IMPORT_CANDIDTATES = gql`
-    mutation ImportCandidates($documentId: String!, $electionEventId: String!, $sha256: String!) {
+    mutation ImportCandidates($documentId: String!, $electionEventId: String!, $sha256: String) {
         import_candidates(
             election_event_id: $electionEventId
             document_id: $documentId
