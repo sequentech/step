@@ -6,6 +6,7 @@ use crate::services::authorization::authorize;
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use anyhow::Result;
 use deadpool_postgres::Client as DbClient;
+use rocket::form;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt::JwtClaims;
@@ -25,6 +26,7 @@ use windmill::services::import::import_election_event::{
     get_document, get_zip_entries,
 };
 use windmill::services::tasks_execution::*;
+use windmill::services::tasks_execution::{update_complete, update_fail};
 use windmill::tasks::import_election_event;
 use windmill::tasks::insert_election_event;
 use windmill::types::tasks::ETasksExecution;
@@ -153,18 +155,38 @@ pub async fn import_election_event_f(
         },
     )?;
 
+    // Insert the task execution record
+    let task_execution: TasksExecution = post(
+        &tenant_id,
+        None,
+        ETasksExecution::IMPORT_ELECTION_EVENT,
+        &executer_name,
+    )
+    .await
+    .map_err(|error| {
+        (
+            Status::InternalServerError,
+            format!("Failed to insert task execution record: {error:?}"),
+        )
+    })?;
+
     let (temp_file_path, document, document_type) =
         match get_document(&hasura_transaction, input.clone(), None).await {
             Ok((temp_file_path, document, document_type)) => {
                 (temp_file_path, document, document_type)
             }
             Err(err) => {
+                update_fail(
+                    &task_execution,
+                    &format!("Failed to get the document: {err:?}"),
+                )
+                .await;
                 return Ok(Json(ImportElectionEventOutput {
                     id: None,
                     message: None,
                     error: Some(err.to_string()),
-                    task_execution: None,
-                }))
+                    task_execution: Some(task_execution),
+                }));
             }
         };
 
@@ -174,11 +196,16 @@ pub async fn import_election_event_f(
         }
         Err(err) => {
             info!("Failed to verify the integrity!");
+            update_fail(
+                &task_execution,
+                &format!("Failed to verify the integrity: {err:?}"),
+            )
+            .await;
             return Ok(Json(ImportElectionEventOutput {
                 id: None,
                 message: None,
-                error: Some(err.to_string()),
-                task_execution: None,
+                error: Some(format!("Failed to verify the integrity: {err:?}")),
+                task_execution: Some(task_execution),
             }));
         }
     }
@@ -191,11 +218,16 @@ pub async fn import_election_event_f(
             (zip_entries, file_election_event_schema)
         }
         Err(err) => {
+            update_fail(
+                &task_execution,
+                &format!("Error checking import: {err:?}"),
+            )
+            .await;
             return Ok(Json(ImportElectionEventOutput {
                 id: None,
                 message: None,
                 error: Some(format!("Error checking import: {:?}", err)),
-                task_execution: None,
+                task_execution: Some(task_execution),
             }));
         }
     };
@@ -213,11 +245,16 @@ pub async fn import_election_event_f(
             (election_event_schema, replacement_map)
         }
         Err(err) => {
+            update_fail(
+                &task_execution,
+                &format!("Error checking import: {err:?}"),
+            )
+            .await;
             return Ok(Json(ImportElectionEventOutput {
                 id: None,
                 message: None,
                 error: Some(format!("Error checking import: {:?}", err)),
-                task_execution: None,
+                task_execution: Some(task_execution),
             }));
         }
     };
@@ -226,28 +263,14 @@ pub async fn import_election_event_f(
 
     let check_only = input.check_only.unwrap_or(false);
     if check_only {
+        update_complete(&task_execution).await;
         return Ok(Json(ImportElectionEventOutput {
             id: Some(id),
             message: Some(format!("Import document checked")),
             error: None,
-            task_execution: None,
+            task_execution: Some(task_execution),
         }));
     }
-
-    // Insert the task execution record
-    let task_execution: TasksExecution = post(
-        &tenant_id,
-        Some(&id),
-        ETasksExecution::IMPORT_ELECTION_EVENT,
-        &executer_name,
-    )
-    .await
-    .map_err(|error| {
-        (
-            Status::InternalServerError,
-            format!("Failed to insert task execution record: {error:?}"),
-        )
-    })?;
 
     let celery_app = get_celery_app().await;
     let celery_task = match celery_app
@@ -261,13 +284,18 @@ pub async fn import_election_event_f(
     {
         Ok(celery_task) => celery_task,
         Err(err) => {
+            update_fail(
+                &task_execution,
+                &format!("Error sending Import Election Event task: {err:?}"),
+            )
+            .await;
             return Ok(Json(ImportElectionEventOutput {
                 id: Some(id),
                 message: Some(format!(
                     "Error sending Import Election Event task: ${err}"
                 )),
-                error: None,
-                task_execution: Some(task_execution.clone()),
+                error: Some(format!("Failed to verify the integrity: {err:?}")),
+                task_execution: Some(task_execution),
             }));
         }
     };
@@ -278,6 +306,6 @@ pub async fn import_election_event_f(
         id: Some(id),
         message: Some(format!("Task created: import_election_event")),
         error: None,
-        task_execution: Some(task_execution.clone()),
+        task_execution: Some(task_execution),
     }))
 }

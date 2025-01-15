@@ -441,6 +441,9 @@ const catalanTranslation: TranslationType = {
                 fileUploadError: "Error pujant el fitxer",
                 importVotersSuccess: "Importació de Votants llançada en segon pla amb èxit.",
                 importVotersError: "Error Important Votants.",
+                importElectionEventSuccess: "Election event imported Successfully",
+                importElectionEventError: "Error importing election event",
+                ImportHashMismatch: "Error to validate the hash",
                 shaDialog: {
                     ok: "Sí, Importar Sense Verificació d'Integritat",
                     cancel: "Tornar",

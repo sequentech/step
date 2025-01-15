@@ -442,6 +442,9 @@ const frenchTranslation: TranslationType = {
                 importVotersSuccess:
                     "Importation des Électeurs lancée en arrière-plan avec succès.",
                 importVotersError: "Erreur lors de l'Importation des Électeurs.",
+                importElectionEventSuccess: "Election event imported Successfully",
+                importElectionEventError: "Error importing election event",
+                ImportHashMismatch: "Error to validate the hash",
                 shaDialog: {
                     ok: "Oui, Importer Sans Vérification de l'Intégrité",
                     cancel: "Retour",

@@ -249,20 +249,7 @@ export const CreateElectionEventProvider = ({children}: any) => {
 
     const uploadCallback = async (documentId: string, password: string = "", sha256: string) => {
         setErrors(null)
-        let {data: importData, errors} = await importElectionEvent({
-            variables: {
-                tenantId,
-                documentId,
-                password,
-                checkOnly: true,
-                sha256,
-            },
-        })
-
-        if (importData?.import_election_event?.error) {
-            setErrors(importData.import_election_event.error)
-            throw new Error(importData?.import_election_event?.error)
-        }
+        console.log("uploadCallback")
     }
 
     const handleImportElectionEvent = async (
@@ -274,7 +261,6 @@ export const CreateElectionEventProvider = ({children}: any) => {
         setIsLoading(false)
         setErrors(null)
 
-        const currWidget = addWidget(ETasksExecution.IMPORT_ELECTION_EVENT)
         console.log({documentId})
 
         try {
@@ -286,24 +272,33 @@ export const CreateElectionEventProvider = ({children}: any) => {
                     sha256,
                 },
             })
+
+            const task_id = data?.import_election_event?.task_execution?.id
+            let electionEventId = data?.import_election_event?.id
+            console.log(task_id)
+            console.log(electionEventId)
+            console.log(data?.import_election_event)
+
             if (data?.import_election_event?.error) {
-                setErrors(data.import_election_event.error)
-                updateWidgetFail(currWidget.identifier)
+                let errMsg = data?.import_election_event?.error
+                console.log("Login errors")
+                // setErrors(data.import_election_event.error)
+                if (errMsg.includes("HashMismatch"))
+                {
+                    notify(t("electionEventScreen.import.ImportHashMismatch"), {type: "error"})
+                } else {
+                    notify(t("electionEventScreen.import.importElectionEventError"), {type: "error"})
+                }
                 return
             }
-
-            let id = data?.import_election_event?.id
-            if (id) {
-                setWidgetTaskId(
-                    currWidget.identifier,
-                    data?.import_election_event?.task_execution?.id,
-                    () => navigate(`/sequent_backend_election_event/${id}`)
-                )
-                setNewId(id)
-                setLastCreatedResource({id, type: "sequent_backend_election_event"})
+            if (electionEventId) {
+                setNewId(electionEventId)
+                setLastCreatedResource({id: electionEventId, type: "sequent_backend_election_event"})
+                notify(t("electionEventScreen.import.importElectionEventSuccess"), {type: "error"})
             }
         } catch (err) {
-            updateWidgetFail(currWidget.identifier)
+            // setErrors("Exception importing election event")
+            notify(t("electionEventScreen.import.importElectionEventError"), {type: "error"})
         }
     }
 

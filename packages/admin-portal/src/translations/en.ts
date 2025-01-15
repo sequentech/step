@@ -440,6 +440,9 @@ const englishTranslation = {
                 fileUploadError: "Error uploading file",
                 importVotersSuccess: "Voters Import Scheduled Successfully",
                 importVotersError: "Error importing Voters",
+                importElectionEventSuccess: "Election event imported Successfully",
+                importElectionEventError: "Error importing election event",
+                ImportHashMismatch: "Error to validate the hash",
                 shaDialog: {
                     ok: "Yes, Import without Integrity Check",
                     cancel: "Go Back",

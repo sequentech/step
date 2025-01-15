@@ -90,6 +90,7 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                 await uploadFile(data.get_upload_url.url, theFile)
                 setDocumentId(data.get_upload_url.document_id)
                 if (uploadCallback) {
+                    console.log("uploadCallback call")
                     await uploadCallback?.(data.get_upload_url.document_id, password, shaField)
                 }
                 notify(t("electionEventScreen.import.fileUploadSuccess"), {type: "success"})
