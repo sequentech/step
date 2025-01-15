@@ -6,6 +6,7 @@
     REGISTRY = "localhost:5000";
     OPENWHISK_ENDPOINT = "http://127.0.0.2:3233/api/v1/namespaces/_/actions";
     OPENWHISK_BASIC_AUTH = "23bc46b1-71f6-4ed5-8c54-816aa4f8c502:123zO3xZCLrMN6v2BKK1dXYFpXlPkccOFqm12CdAsMgRU4VrNZ9lyGVCGuMDGIwP";
+    ALPINE_LAMBDA_BASE_IMAGE = "alpine:3.17@sha256:8fc3dacfb6d69da8d44e42390de777e48577085db99aa4e4af35f483eb08b989";
   };
 
   # https://devenv.sh/packages/
