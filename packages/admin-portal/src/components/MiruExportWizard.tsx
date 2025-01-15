@@ -843,7 +843,6 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
                         size="small"
                         value={passwordState}
                         onChange={(e) => setPasswordState(e.target.value)}
-                        type="password"
                     />
                 </Box>
             </Dialog>
