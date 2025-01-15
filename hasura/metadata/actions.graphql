@@ -342,7 +342,11 @@ type Mutation {
 }
 
 type Mutation {
-    import_areas(election_event_id: String!, document_id: String!, sha256: String!): OptionalId
+    import_areas(
+        election_event_id: String!
+        document_id: String!
+        sha256: String!
+    ): OptionalId
 }
 
 type Mutation {

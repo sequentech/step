@@ -350,6 +350,7 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
                     electionEventId: electionEventRecord.id,
                     electionId: electionId,
                     documentId,
+                    sha256,
                 },
             })
             notify(t("application.import.messages.success"), {type: "success"})

@@ -21,6 +21,7 @@ pub struct ImportApplicationsInput {
     election_event_id: String,
     election_id: Option<String>,
     document_id: String,
+    sha256: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
