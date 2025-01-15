@@ -218,9 +218,17 @@ pub async fn update_election_voting_status_impl(
         return Ok(());
     }
 
+    let election_presentation = election.get_presentation().unwrap_or_default();
+
+    if VotingPeriodEnd::DISALLOWED == election_presentation.voting_period_end.clone().unwrap_or_default() {
+        return Err(anyhow!(
+            "election {:?} has the voting period end disallowed",
+            election_id,
+        ));
+    }
+
     if new_status == VotingStatus::OPEN
-        && election
-            .get_presentation()
+        && election_presentation
             .initialization_report_policy
             .unwrap_or(EInitializeReportPolicy::default())
             == EInitializeReportPolicy::REQUIRED
