@@ -63,7 +63,7 @@ export type PublishActionsProps = {
     changingStatus: boolean
     onPublish?: () => void
     onGenerate: () => void
-    onChangeStatus?: (status: ElectionEventStatus, votingChannel?: VotingStatusChannel) => void
+    onChangeStatus?: (status: ElectionEventStatus, votingChannel?: VotingStatusChannel[]) => void
     type: EPublishActionsType.List | EPublishActionsType.Generate
 }
 
@@ -238,7 +238,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                     sessionStorage.setItem(EPublishActions.PENDING_STOP_KIOSK_ACTION, "true")
                     await reauthWithGold(baseUrl.toString())
                 } else {
-                    handleOnChange(ElectionEventStatus.Closed, VotingStatusChannel.Kiosk)
+                    handleOnChange(ElectionEventStatus.Closed, [VotingStatusChannel.Kiosk])
                 }
             } catch (error) {
                 console.error("Re-authentication failed:", error)
@@ -312,7 +312,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
             )
             if (pendingStopKiosk) {
                 sessionStorage.removeItem(EPublishActions.PENDING_STOP_KIOSK_ACTION)
-                onChangeStatus(ElectionEventStatus.Closed, VotingStatusChannel.Kiosk)
+                onChangeStatus(ElectionEventStatus.Closed, [VotingStatusChannel.Kiosk])
             }
         }
 
@@ -320,7 +320,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
     }, [onChangeStatus, onGenerate, record])
 
     const handleOnChange =
-        (status: ElectionEventStatus, votingChannel?: VotingStatusChannel) => () =>
+        (status: ElectionEventStatus, votingChannel?: VotingStatusChannel[]) => () =>
             onChangeStatus(status, votingChannel)
 
     const kioskVotingStarted = () => {
@@ -392,7 +392,9 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                 <StatusButton
                                     onClick={() =>
                                         handleEvent(
-                                            handleOnChange(ElectionEventStatus.Closed),
+                                            handleOnChange(ElectionEventStatus.Closed, [
+                                                VotingStatusChannel.Online,
+                                            ]),
                                             t("publish.dialog.stopInfo")
                                         )
                                     }
