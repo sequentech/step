@@ -2,7 +2,6 @@
 // SPDX-FileCopyrightText: 2024 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use serde::{Deserialize, Serialize};
 use std::fmt::Write;
 use std::io::Read;
 use strand::hash::hash_sha256;
