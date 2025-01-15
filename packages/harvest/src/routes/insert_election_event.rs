@@ -11,6 +11,9 @@ use rocket::serde::json::Json;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::permissions::Permissions;
+use sequent_core::util::integrity_check::{
+    integrity_check, HashFileVerifyError,
+};
 use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
@@ -164,6 +167,21 @@ pub async fn import_election_event_f(
                 }))
             }
         };
+
+    match integrity_check(&temp_file_path, input.sha256.clone()) {
+        Ok(_) => {
+            info!("Hash verified !");
+        }
+        Err(err) => {
+            info!("Failed to verify the integrity!");
+            return Ok(Json(ImportElectionEventOutput {
+                id: None,
+                message: None,
+                error: Some(err.to_string()),
+                task_execution: None,
+            }));
+        }
+    }
 
     let zip_entries_result =
         get_zip_entries(temp_file_path, &document_type).await;

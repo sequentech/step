@@ -6,16 +6,14 @@ use crate::postgres::document::get_document;
 use crate::services::database::get_hasura_pool;
 use crate::services::documents::get_document_as_temp_file;
 use crate::services::import::import_users::import_users_file;
-use crate::services::s3;
 use crate::services::tasks_execution::*;
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context};
 use celery::error::TaskError;
+use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
-use deadpool_postgres::{Client as DbClient, Transaction as _};
-use sequent_core::services::keycloak::get_client_credentials;
 use sequent_core::types::hasura::core::TasksExecution;
-use sequent_core::util::verify_file_hash::{verify_file_sha256, HashFileVerifyError};
+use sequent_core::util::integrity_check::{integrity_check, HashFileVerifyError};
 use serde::{Deserialize, Serialize};
 use std::io::Seek;
 use tempfile::NamedTempFile;
@@ -39,10 +37,6 @@ pub struct ImportUsersOutput {
     pub task_execution: TasksExecution,
 }
 
-fn sanitize_db_key(key: &String) -> String {
-    key.replace(".", "_").replace("-", "_")
-}
-
 impl ImportUsersBody {
     #[instrument(ret)]
     async fn get_s3_document_as_temp_file(
@@ -59,7 +53,6 @@ impl ImportUsersBody {
         .with_context(|| "Error obtaining the document")?
         .ok_or(anyhow!("document not found"))?;
 
-        let s3_bucket = s3::get_private_bucket()?;
         let document_name = document.name.clone().unwrap_or_default();
 
         // Determine file type and set the appropriate separator
@@ -81,10 +74,6 @@ impl ImportUsersBody {
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(max_retries = 2)]
 pub async fn import_users(body: ImportUsersBody, task_execution: TasksExecution) -> Result<()> {
-    let auth_headers = get_client_credentials()
-        .await
-        .with_context(|| "Error obtaining keycloak client credentials")?;
-
     let mut hasura_db_client: DbClient = match get_hasura_pool().await.get().await {
         Ok(client) => client,
         Err(err) => {
@@ -122,7 +111,7 @@ pub async fn import_users(body: ImportUsersBody, task_execution: TasksExecution)
         };
     voters_file.rewind()?;
 
-    match verify_file_sha256(&voters_file, body.sha256.clone()) {
+    match integrity_check(&voters_file, body.sha256.clone()) {
         Ok(_) => {
             info!("Hash verified !");
         }
