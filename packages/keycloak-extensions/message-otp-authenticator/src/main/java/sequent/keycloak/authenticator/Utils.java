@@ -869,7 +869,8 @@ public class Utils {
       SmsSenderProvider smsSenderProvider = session.getProvider(SmsSenderProvider.class);
       log.infov("sendCode(): Sending SMS to=`{0}`", mobileNumber.trim());
       log.infov("sendCode(): Sending SMS to=`{0}`", mobileNumber.trim());
-      List<String> smsAttributes = ImmutableList.of(realName, mobileNumber.trim());
+      String url = buildAuthUrl(session, realm.getId(), "login");
+      List<String> smsAttributes = ImmutableList.of(url, mobileNumber.trim());
 
       String formattedText =
           smsSenderProvider.send(
