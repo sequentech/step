@@ -203,16 +203,15 @@ impl MCBallotReceipts {
             ballot_data.push(bd);
         }
 
+        let execution_annotations = pipe_config.execution_annotations.clone();
+
         let td = TemplateData {
             election_name: election_input.name.clone(),
             ballot_data,
             area: area_name.to_string(),
             election_annotations: election_input.annotations.clone(),
             election_dates: election_input.dates.clone(),
-            execution_annotations: HashMap::from([(
-                "date_printed".to_string(),
-                get_date_and_time(),
-            )]),
+            execution_annotations: execution_annotations.unwrap_or_default(),
         };
 
         let mut map = Map::new();
