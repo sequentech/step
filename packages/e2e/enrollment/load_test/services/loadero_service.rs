@@ -72,33 +72,33 @@ pub fn run_test(loadero_url: &str, test_id: &str) -> Result<(), Box<dyn Error>> 
 
     println!("innnnnn");
 
-    // let run_id = launch_test(&loadero_url, &test_id)?;
+    let run_id = launch_test(&loadero_url, &test_id)?;
 
-    // println!("Test {} (run ID {})", test_id, run_id);
+    println!("Test {} (run ID {})", test_id, run_id);
 
-    // //Poll for test result
-    // let polling_interval = Duration::from_secs(loadero_interval_polling_sec);
-    // loop {
-    //     println!("check status:");
-    //     match check_test_status(&loadero_url, &test_id, &run_id) {
-    //         Ok((pass, fail)) => {
-    //             println!(
-    //                 "Test {} (run ID {}): Passed {} times, Failed {} times",
-    //                 test_id, run_id, pass, fail
-    //             );
-    //             break;
-    //         }
-    //         Err(e) => {
-    //             if e.to_string().contains("HTTP Status") {
-    //                 eprintln!("HTTP Error checking status for test {}: {}", test_id, e);
-    //                 break; // Exit the loop on HTTP errors
-    //             } else {
-    //                 // Wait before retrying
-    //                 thread::sleep(polling_interval);
-    //             }
-    //         }
-    //     }
-    // }
+    //Poll for test result
+    let polling_interval = Duration::from_secs(loadero_interval_polling_sec);
+    loop {
+        println!("check status:");
+        match check_test_status(&loadero_url, &test_id, &run_id) {
+            Ok((pass, fail)) => {
+                println!(
+                    "Test {} (run ID {}): Passed {} times, Failed {} times",
+                    test_id, run_id, pass, fail
+                );
+                break;
+            }
+            Err(e) => {
+                if e.to_string().contains("HTTP Status") {
+                    eprintln!("HTTP Error checking status for test {}: {}", test_id, e);
+                    break; // Exit the loop on HTTP errors
+                } else {
+                    // Wait before retrying
+                    thread::sleep(polling_interval);
+                }
+            }
+        }
+    }
 
     Ok(())
 }
