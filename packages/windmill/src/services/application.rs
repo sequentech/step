@@ -103,6 +103,7 @@ pub async fn verify_application(
         update_attributes: annotations.update_attributes.clone(),
         mismatches: result.mismatches,
         fields_match: result.fields_match.clone(),
+        manual_verify_reason: result.manual_verify_reason.clone(),
     };
 
     // Add a permission label only if the embassy matches the voter in db
@@ -234,6 +235,24 @@ fn get_filter_from_applicant_data(
     })
 }
 
+fn build_manual_verify_reason(fields_match: HashMap<String, bool>) -> String {
+    let mismatch_fields = fields_match
+        .iter()
+        .filter(|(_, &value)| !value)
+        .map(|(key, _)| match key.as_str() {
+            "firstName" => "First Name",
+            "middleName" => "Middle Name",
+            "lastName" => "Last Name",
+            "embassy" => "Post",
+            "dateOfBirth" => "Date Of Birth",
+            _ => key,
+        })
+        .collect::<Vec<&str>>()
+        .join(", ");
+
+    format!("Mismatch at {}", mismatch_fields)
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ApplicationAnnotations {
     session_id: Option<String>,
@@ -249,6 +268,7 @@ pub struct ApplicationAnnotations {
     update_attributes: Option<String>,
     mismatches: Option<usize>,
     fields_match: Option<HashMap<String, bool>>,
+    manual_verify_reason: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -261,6 +281,7 @@ pub struct ApplicationVerificationResult {
     pub attributes_unset: Option<HashMap<String, bool>>,
     pub rejection_reason: Option<ApplicationRejectReason>,
     pub rejection_message: Option<String>,
+    pub manual_verify_reason: Option<String>,
 }
 
 fn automatic_verification(
@@ -292,6 +313,7 @@ fn automatic_verification(
     let mut rejection_reason: Option<ApplicationRejectReason> =
         Some(ApplicationRejectReason::NO_VOTER);
     let mut rejection_message: Option<String> = None;
+    let mut mismatch_reason = None;
 
     for user in users {
         let (mismatches, mismatches_unset, fields_match, attributes_unset) = check_mismatches(
@@ -300,6 +322,10 @@ fn automatic_verification(
             search_attributes.clone(),
             unset_attributes.clone(),
         )?;
+
+        if (mismatches > 0) {
+            mismatch_reason = Some(build_manual_verify_reason(fields_match.clone()));
+        }
 
         // If there are no mismatches..
         if mismatches == 0 {
@@ -325,6 +351,7 @@ fn automatic_verification(
                     attributes_unset: Some(attributes_unset),
                     rejection_reason: None,
                     rejection_message: None,
+                    manual_verify_reason: None,
                 });
             }
         // If there was only 1 mismatch
@@ -352,6 +379,7 @@ fn automatic_verification(
                         attributes_unset: Some(attributes_unset),
                         rejection_reason: None,
                         rejection_message: None,
+                        manual_verify_reason: None,
                     });
                 }
                 matched_user = None;
@@ -405,6 +433,7 @@ fn automatic_verification(
         attributes_unset: verification_attributes_unset,
         rejection_reason,
         rejection_message,
+        manual_verify_reason: mismatch_reason,
     })
 }
 

@@ -62,6 +62,7 @@ pub struct Voter {
     pub verification_date: Option<String>, // for approval & disaproval
     pub verified_by: Option<String>,       // OFOV/SBEI/SYSTEM for approval & disaproval
     pub disapproval_reason: Option<String>, // for disapproval
+    pub manual_verify_reason: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
@@ -149,6 +150,12 @@ pub async fn get_enrolled_voters(
                     .clone()
                     .unwrap_or_default()
                     .get("rejection_reason")
+                    .and_then(|v| v.as_str().map(|s| s.to_string())),
+                manual_verify_reason: row
+                    .annotations
+                    .clone()
+                    .unwrap_or_default()
+                    .get("manual_verify_reason")
                     .and_then(|v| v.as_str().map(|s| s.to_string())),
             }
         })
@@ -250,6 +257,7 @@ pub async fn get_voters_by_area_id(
                 verification_date: None,
                 verified_by: None,
                 disapproval_reason: None,
+                manual_verify_reason: None,
             };
             user
         })
