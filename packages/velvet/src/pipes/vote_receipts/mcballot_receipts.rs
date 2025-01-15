@@ -149,8 +149,7 @@ impl MCBallotReceipts {
         let ballots = convert_ballots(election_input, mcballots)?;
 
         let mut ballot_data = vec![];
-        for (index, ballot) in ballots.into_iter().enumerate() {
-            let id: String = format!("{:07}", index + 1);
+        for ballot in ballots {
             let mut cds = vec![];
             for contest_choices in ballot.choices {
                 let contest = contest_map.get(&contest_choices.contest_id).unwrap();
@@ -194,7 +193,7 @@ impl MCBallotReceipts {
             let is_blank = cds.iter().all(|choice| choice.is_blank());
 
             let bd = BallotData {
-                id,
+                id: Uuid::new_v4().to_string(),
                 encoded_vote: encoded_vote,
                 is_invalid: ballot.mcballot.is_explicit_invalid,
                 is_blank: is_blank,
