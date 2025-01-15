@@ -2987,7 +2987,7 @@ export type Mutation_RootSet_Voter_AuthenticationArgs = {
 export type Mutation_RootUpdate_Election_Voting_StatusArgs = {
   election_event_id: Scalars['uuid']['input'];
   election_id: Scalars['uuid']['input'];
-  voting_channel: VotingStatusChannel;
+  voting_channels?: InputMaybe<Array<InputMaybe<VotingStatusChannel>>>;
   voting_status: VotingStatus;
 };
 
@@ -2995,7 +2995,7 @@ export type Mutation_RootUpdate_Election_Voting_StatusArgs = {
 /** mutation root */
 export type Mutation_RootUpdate_Event_Voting_StatusArgs = {
   election_event_id: Scalars['uuid']['input'];
-  voting_channel: VotingStatusChannel;
+  voting_channels?: InputMaybe<Array<InputMaybe<VotingStatusChannel>>>;
   voting_status: VotingStatus;
 };
 
