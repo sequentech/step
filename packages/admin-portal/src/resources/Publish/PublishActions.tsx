@@ -392,7 +392,9 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                 <StatusButton
                                     onClick={() =>
                                         handleEvent(
-                                            handleOnChange(ElectionEventStatus.Closed),
+                                            handleOnChange(ElectionEventStatus.Closed, [
+                                                VotingStatusChannel.Online,
+                                            ]),
                                             t("publish.dialog.stopInfo")
                                         )
                                     }
