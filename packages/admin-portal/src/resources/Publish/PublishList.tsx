@@ -50,7 +50,7 @@ type TPublishList = {
     changingStatus: boolean
     type: EPublishType.Election | EPublishType.Event
     onGenerate: () => void
-    onChangeStatus: (status: ElectionEventStatus, votingChannel?: VotingStatusChannel) => void
+    onChangeStatus: (status: ElectionEventStatus, votingChannel?: VotingStatusChannel[]) => void
     setBallotPublicationId: (id: string | Identifier) => void
     onPreview: (id: string | Identifier) => void
 }
