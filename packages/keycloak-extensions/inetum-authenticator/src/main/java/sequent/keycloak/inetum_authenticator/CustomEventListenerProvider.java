@@ -147,7 +147,7 @@ public class CustomEventListenerProvider implements EventListenerProvider {
             "{\"election_event_id\": \"%s\", \"message_type\": \"%s\", \"body\" : \"%s\", \"user_id\": \"%s\"}",
             Utils.escapeJson(electionEventId),
             Utils.escapeJson(eventType.toString()),
-            Utils.escapeJson(body != null ? body : ""),
+            Utils.escapeJson(body),
             Utils.escapeJson(userId));
     HttpRequest request =
         HttpRequest.newBuilder()
