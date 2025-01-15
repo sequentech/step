@@ -26,6 +26,10 @@ pub fn lambda_runtime(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
         cfg_if::cfg_if! {
             if #[cfg(feature = "aws_lambda")] {
+                use aws_lambda_events::{
+                    apigw::{ApiGatewayProxyRequest, ApiGatewayProxyResponse},
+                    http::HeaderMap,
+                };
                 use lambda_runtime::{run, service_fn, tracing, LambdaEvent, Diagnostic, Error};
                 use serde_json::{json, Value};
 
@@ -37,16 +41,28 @@ pub fn lambda_runtime(_attr: TokenStream, item: TokenStream) -> TokenStream {
                     Ok(())
                 }
 
-                async fn func(event: LambdaEvent<Value>) -> Result<Value, Diagnostic> {
-                    let (event, _context) = event.into_parts();
-                    let input: Result<_, Diagnostic> = serde_json::from_value(event)
-                        .map_err(|e| anyhow::anyhow!("Failed to deserialize input: {e:?}").into());
-                    let input = input?;
+                async fn func(lambda_event: LambdaEvent<ApiGatewayProxyRequest>) -> Result<ApiGatewayProxyResponse, Error> {
+                    let input = serde_json::from_str(
+                        &lambda_event.payload.body.unwrap(),
+                    );
+                    let input = input
+                        .expect("error reading lambda function arguments");
 
-                    #name(input)
+                    let result = #name(input)
                       .await
-                      .map(|result| serde_json::to_value(&result).unwrap())
-                        .map_err(|error| anyhow::anyhow!("error running lambda: {error:?}").into())
+                      .map(|result| serde_json::to_string(&result).unwrap())
+                        .expect("error calling lambda function");
+
+                    let mut headers = HeaderMap::new();
+                    headers.insert("content-type", "text/plain".parse().unwrap());
+
+                    Ok(ApiGatewayProxyResponse {
+                        status_code: 200,
+                        multi_value_headers: headers.clone(),
+                        is_base64_encoded: false,
+                        body: Some(result.into()),
+                        headers,
+                    })
                 }
             } else if #[cfg(any(feature = "openwhisk"))] {
                 use serde_json;
