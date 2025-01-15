@@ -3,22 +3,25 @@
   <head>
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta
+      name="viewport"
+      content="width=device-width,height=device-height,initial-scale=1"
+    />
     <title>{{title}}</title>
     <script src="{{file_qrcode_lib}}"></script>
     <style>
-      format("truetype"); } body { font-family: Arial, sans-serif; } h1, h2, h3,
-      h4 { margin-top: 48px; margin-bottom: 48px; } .report-header { width:
-      100%; display: flex; justify-content: space-between; vertical-align: top;
-      } .report-header .left img { width: 150px; } .report-header .right {
-      width: 150px; content: url("{{file_logo}}"); } .report-body { width: 100%;
-      padding: 0 50px; } .main { margin-top: 32px; } .main div { margin-top:
-      32px; } .data {} .id-content { print-color-adjust: exact; padding: 6px
-      12px; background: #ecfdf5; color: #191d23; border-radius: 4px; }
-      .timestamp-content { print-color-adjust: exact; padding: 6px 12px; color:
-      #191d23; border-radius: 4px; } .info { margin: 32px 0; } .info p { margin:
-      12px 0; } #qrcode { margin-top: 32px; display: flex; justify-content:
-      center; }
+      body { font-family: Arial, sans-serif; } .report { width: 100%; display:
+      flex; flex-direction: column; align-items: center; } .report-header {
+      width: 100%; display: flex; justify-content: space-between;
+      vertical-align: top; } .report-header .left img { width: 150px; }
+      .report-header .right { width: 150px; content: url("{{file_logo}}"); }
+      .report-body { width: 90%; } .main { margin-top: 32px; } .main div {
+      margin-top: 32px; } .data {line-height: 2.5; } .id-content {
+      print-color-adjust: exact; padding: 6px 12px; background: #ecfdf5; color:
+      #191d23; border-radius: 4px; } .timestamp-content { print-color-adjust:
+      exact; padding: 6px 12px; color: #191d23; border-radius: 4px; } .info {
+      margin: 32px 0; } #qrcode { margin-top: 32px; display: flex;
+      justify-content: center; }
     </style>
   </head>
 
