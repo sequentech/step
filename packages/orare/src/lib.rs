@@ -27,7 +27,7 @@ pub fn lambda_runtime(_attr: TokenStream, item: TokenStream) -> TokenStream {
         cfg_if::cfg_if! {
             if #[cfg(feature = "aws_lambda")] {
                 use aws_lambda_events::{
-                    apigw::{ApiGatewayProxyRequest, ApiGatewayProxyResponse},
+                    lambda_function_urls::{LambdaFunctionUrlRequest, LambdaFunctionUrlResponse},
                     http::HeaderMap,
                 };
                 use lambda_runtime::{run, service_fn, tracing, LambdaEvent, Diagnostic, Error};
@@ -41,7 +41,7 @@ pub fn lambda_runtime(_attr: TokenStream, item: TokenStream) -> TokenStream {
                     Ok(())
                 }
 
-                async fn func(lambda_event: LambdaEvent<ApiGatewayProxyRequest>) -> Result<ApiGatewayProxyResponse, Error> {
+                async fn func(lambda_event: LambdaEvent<LambdaFunctionUrlRequest>) -> Result<LambdaFunctionUrlResponse, Error> {
                     let input = serde_json::from_str(
                         &lambda_event.payload.body.unwrap(),
                     );
@@ -56,12 +56,12 @@ pub fn lambda_runtime(_attr: TokenStream, item: TokenStream) -> TokenStream {
                     let mut headers = HeaderMap::new();
                     headers.insert("content-type", "text/plain".parse().unwrap());
 
-                    Ok(ApiGatewayProxyResponse {
+                    Ok(LambdaFunctionUrlResponse {
                         status_code: 200,
-                        multi_value_headers: headers.clone(),
-                        is_base64_encoded: false,
-                        body: Some(result.into()),
                         headers,
+                        body: Some(result.into()),
+                        is_base64_encoded: false,
+                        cookies: Vec::new(),
                     })
                 }
             } else if #[cfg(any(feature = "openwhisk"))] {
