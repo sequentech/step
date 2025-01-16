@@ -123,6 +123,7 @@ export const PublishGenerate: React.FC<TPublishGenerate> = ({
                     status={status}
                     publishType={publishType}
                     electionStatus={null}
+                    electionPresentation={null}
                     kioskModeEnabled={false}
                     changingStatus={changingStatus}
                     onPublish={onPublish}
