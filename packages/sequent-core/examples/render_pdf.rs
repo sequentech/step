@@ -21,7 +21,7 @@ async fn main() -> Result<(), ()> {
                 env::set_var("AWS_LAMBDA_ENDPOINT", "https://rq5jtxuv4rxo5viu5jmxmpxuqq0oisgh.lambda-url.us-east-1.on.aws/");
             }
         } else {
-            compile_error!("Either feature inplace, openwhisk or aws_lambda has to be provided");
+            compile_error!("Either feature lambda_inplace, lambda_openwhisk or lambda_aws_lambda has to be provided");
         }
     }
 
