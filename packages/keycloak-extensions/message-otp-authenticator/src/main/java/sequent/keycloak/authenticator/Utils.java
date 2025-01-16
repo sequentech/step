@@ -40,7 +40,6 @@ import org.keycloak.events.Event;
 import org.keycloak.events.EventBuilder;
 import org.keycloak.forms.login.freemarker.model.UrlBean;
 import org.keycloak.models.AuthenticatorConfigModel;
-import org.keycloak.models.ClientModel;
 import org.keycloak.models.Constants;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakUriInfo;
@@ -816,13 +815,13 @@ public class Utils {
   public static String getClientName(Object context) {
     AuthenticationSessionModel authSession = null;
     if (context instanceof AuthenticationFlowContext) {
-     authSession = ((AuthenticationFlowContext) context).getAuthenticationSession();
-   } else if (context instanceof ActionTokenContext) {
-     authSession = ((ActionTokenContext<?>) context).getAuthenticationSession();
-   } else {
-       throw new IllegalArgumentException("Unsupported context type");
-   }
-   return authSession.getClient().getName();
+      authSession = ((AuthenticationFlowContext) context).getAuthenticationSession();
+    } else if (context instanceof ActionTokenContext) {
+      authSession = ((ActionTokenContext<?>) context).getAuthenticationSession();
+    } else {
+      throw new IllegalArgumentException("Unsupported context type");
+    }
+    return authSession.getClient().getName();
   }
 
   public static void sendConfirmation(
@@ -838,7 +837,7 @@ public class Utils {
     String realName = realm.getName();
     // Send a confirmation email
     EmailTemplateProvider emailTemplateProvider = session.getProvider(EmailTemplateProvider.class);
-   
+
     // We get the username we are going to provide the user in other to login. It's
     // going to be
     // either email or mobileNumber.
@@ -847,7 +846,7 @@ public class Utils {
     log.infov("sendConfirmation(): messageCourier {0}", messageCourier);
 
     String email = user.getEmail();
-    
+
     if (email != null
         && email.trim().length() > 0
         && (MessageCourier.EMAIL.equals(messageCourier)
@@ -885,7 +884,10 @@ public class Utils {
       log.infov("sendCode(): Sending SMS to=`{0}`", mobileNumber.trim());
       String url = buildAuthUrl(session, realm.getId(), "login");
       List<String> smsAttributes = ImmutableList.of(url, mobileNumber.trim());
-      String smsTranslationKey = getClientName(context).endsWith("-kiosk") ? SEND_SUCCESS_SMS_I18N_KEY_KIOSK : SEND_SUCCESS_SMS_I18N_KEY;
+      String smsTranslationKey =
+          getClientName(context).endsWith("-kiosk")
+              ? SEND_SUCCESS_SMS_I18N_KEY_KIOSK
+              : SEND_SUCCESS_SMS_I18N_KEY;
       String formattedText =
           smsSenderProvider.send(
               mobileNumber.trim(), smsTranslationKey, smsAttributes, realm, user, session);
@@ -957,7 +959,10 @@ public class Utils {
       log.infov("sendCode(): Sending SMS to=`{0}`", mobileNumber.trim());
       String url = buildAuthUrl(session, realm.getId(), "login");
       List<String> smsAttributes = ImmutableList.of(url, mobileNumber.trim());
-      String smsTranslationKey = getClientName(context).endsWith("-kiosk") ? SEND_SUCCESS_SMS_I18N_KEY_KIOSK : SEND_SUCCESS_SMS_I18N_KEY;
+      String smsTranslationKey =
+          getClientName(context).endsWith("-kiosk")
+              ? SEND_SUCCESS_SMS_I18N_KEY_KIOSK
+              : SEND_SUCCESS_SMS_I18N_KEY;
       String formattedText =
           smsSenderProvider.send(
               mobileNumber.trim(), smsTranslationKey, smsAttributes, realm, user, session);
