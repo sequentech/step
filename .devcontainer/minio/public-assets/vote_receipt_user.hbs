@@ -153,6 +153,16 @@
       </tr>
       <!-- END of additional sections -->
 
+      <tr>
+        <td>
+        <div class="contest-title">
+          <strong>Ballot ID</strong>
+        </div>
+        <div class="ballot-serial-number">
+          {{sanitize_html (expr id)}}
+        </div>
+      </td>
+      </tr>
       <!-- Contest section -->
       {{#each contest_choices}}
       <!-- Candidates section -->
