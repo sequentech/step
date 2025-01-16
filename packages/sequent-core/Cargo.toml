@@ -129,3 +129,7 @@ s3 = ["dep:reqwest"]
 keycloak = ["dep:openid", "dep:reqwest", "dep:reqwest-retry", "dep:reqwest-middleware", "dep:serde_urlencoded", "dep:rocket", "dep:keycloak", "dep:tracing", "dep:uuid", "dep:regex", "dep:jsonwebtoken", "dep:tokio-postgres", "dep:time"]
 log = ["dep:tracing", "dep:tracing-subscriber", "dep:tracing-tree", "dep:tracing-log"]
 probe = ["dep:tokio", "dep:warp"]
+# Lambda examples
+lambda_inplace = []
+lambda_openwhisk = []
+lambda_aws_lambda = []

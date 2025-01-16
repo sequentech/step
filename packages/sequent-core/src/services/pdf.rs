@@ -18,8 +18,13 @@ use tracing::{debug, event, info, instrument, Level};
 
 #[derive(PartialEq)]
 pub enum PdfTransport {
-    AWSLambda { endpoint: String },
-    OpenWhisk { endpoint: String },
+    AWSLambda {
+        endpoint: String,
+    },
+    OpenWhisk {
+        endpoint: String,
+        basic_auth: Option<String>,
+    },
     InPlace,
 }
 
@@ -68,6 +73,7 @@ impl PdfRenderer {
                         .unwrap_or_else(|_| {
                             "http://127.0.0.2:3233/api/v1/namespaces/_/actions/pdf-tools/doc_renderer?blocking=true&result=true".to_string()
                         }),
+                    basic_auth: std::env::var("OPENWHISK_BASIC_AUTH").ok(),
                 }
             },
             "inplace" => PdfTransport::InPlace,
@@ -83,9 +89,17 @@ impl PdfRenderer {
         html: String,
         pdf_options: Option<PrintToPdfOptions>,
     ) -> Result<Vec<u8>> {
+        let (endpoint, basic_auth) = match &self.transport {
+            PdfTransport::AWSLambda { endpoint } => (endpoint.clone(), None),
+            PdfTransport::OpenWhisk {
+                endpoint,
+                basic_auth,
+            } => (endpoint.clone(), basic_auth.clone()),
+            PdfTransport::InPlace => (String::new(), None),
+        };
+
         match &self.transport {
-            PdfTransport::AWSLambda { endpoint }
-            | PdfTransport::OpenWhisk { endpoint } => {
+            PdfTransport::AWSLambda { .. } | PdfTransport::OpenWhisk { .. } => {
                 if (PdfTransport::AWSLambda {
                     endpoint: endpoint.to_string(),
                 }) == self.transport
@@ -108,8 +122,17 @@ impl PdfRenderer {
                     "pdf_options": pdf_options,
                 });
 
-                let response =
-                    client.post(endpoint).json(&payload).send().await?;
+                let mut request_builder =
+                    client.post(endpoint.clone()).json(&payload);
+                if let Some(basic_auth) = basic_auth {
+                    let basic_auth: Vec<&str> = basic_auth.split(":").collect();
+                    if basic_auth.len() != 2 {
+                        return Err(anyhow!("Invalid basic auth provided"));
+                    }
+                    request_builder = request_builder
+                        .basic_auth(basic_auth[0], Some(basic_auth[1]))
+                }
+                let response = request_builder.send().await?;
 
                 if !response.status().is_success() {
                     let error = response.text().await?;
