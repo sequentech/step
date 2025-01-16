@@ -220,7 +220,13 @@ pub async fn update_election_voting_status_impl(
 
     let election_presentation = election.get_presentation().unwrap_or_default();
 
-    if VotingPeriodEnd::DISALLOWED == election_presentation.voting_period_end.clone().unwrap_or_default() {
+    if VotingStatus::CLOSED == new_status
+        && VotingPeriodEnd::DISALLOWED
+            == election_presentation
+                .voting_period_end
+                .clone()
+                .unwrap_or_default()
+    {
         return Err(anyhow!(
             "election {:?} has the voting period end disallowed",
             election_id,
