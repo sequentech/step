@@ -10,6 +10,11 @@ export enum ContestsOrder {
     ALPHABETICAL = "alphabetical",
 }
 
+export enum EVotingPeriodEnd {
+    ALLOWED = "allowed",
+    DISALLOWED = "disallowed",
+}
+
 export interface IScheduledEventDates {
     scheduled_at?: string
     stopped_at?: string
@@ -36,6 +41,7 @@ export interface IElectionPresentation {
     grace_period_policy?: EGracePeriodPolicy
     grace_period_secs?: number
     initialization_report_generated?: EInitializeReportPolicy
+    voting_period_end?: EVotingPeriodEnd
     // more missing
 }
 
