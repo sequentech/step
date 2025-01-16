@@ -281,9 +281,9 @@ export const CreateElectionEventProvider = ({children}: any) => {
 
             if (data?.import_election_event?.error) {
                 let errMsg = data?.import_election_event?.error
-                console.log("Login errors")
+                console.log(errMsg)
                 // setErrors(data.import_election_event.error)
-                if (errMsg.includes("HashMismatch")) {
+                if (errMsg.includes("Failed to verify the integrity")) {
                     notify(t("electionEventScreen.import.ImportHashMismatch"), {type: "error"})
                 } else {
                     notify(t("electionEventScreen.import.importElectionEventError"), {
@@ -298,7 +298,7 @@ export const CreateElectionEventProvider = ({children}: any) => {
                     id: electionEventId,
                     type: "sequent_backend_election_event",
                 })
-                notify(t("electionEventScreen.import.importElectionEventSuccess"), {type: "error"})
+                notify(t("electionEventScreen.import.importElectionEventSuccess"), {type: "success"})
             }
         } catch (err) {
             // setErrors("Exception importing election event")

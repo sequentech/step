@@ -16,7 +16,11 @@ use sequent_core::util::integrity_check::{
     integrity_check, HashFileVerifyError,
 };
 use serde::{Deserialize, Serialize};
-use tracing::{event, instrument, Level};
+use std::fmt::Write as fmt_write;
+use std::io::Read;
+use std::io::Write;
+use tempfile::NamedTempFile;
+use tracing::{event, info, instrument, Level};
 use uuid::Uuid;
 use windmill::hasura::election_event::insert_election_event::sequent_backend_election_event_insert_input as InsertElectionEventInput;
 use windmill::services;
@@ -197,18 +201,21 @@ pub async fn import_election_event_f(
                     info!("Hash verified !");
                 }
                 Err(err) => {
+                    let err_str = if let HashFileVerifyError::HashMismatch(
+                        input_hash,
+                        gen_hash,
+                    ) = err
+                    {
+                        format!("Failed to verify the integrity: Hash of voters file: {gen_hash} does not match with the input hash: {input_hash}")
+                    } else {
+                        format!("Failed to verify the integrity: {err:?}")
+                    };
                     info!("Failed to verify the integrity!");
-                    update_fail(
-                        &task_execution,
-                        &format!("Failed to verify the integrity: {err:?}"),
-                    )
-                    .await;
+                    update_fail(&task_execution, &err_str).await;
                     return Ok(Json(ImportElectionEventOutput {
                         id: None,
                         message: None,
-                        error: Some(format!(
-                            "Failed to verify the integrity: {err:?}"
-                        )),
+                        error: Some(err_str),
                         task_execution: Some(task_execution),
                     }));
                 }

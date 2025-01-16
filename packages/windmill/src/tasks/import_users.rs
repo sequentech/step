@@ -116,21 +116,16 @@ pub async fn import_users(body: ImportUsersBody, task_execution: TasksExecution)
             Ok(_) => {
                 info!("Hash verified !");
             }
-            Err(HashFileVerifyError::HashMismatch) => {
-                update_fail(&task_execution, "Hash of voters file does not match!").await?;
-                return Err(Error::String(
-                    "Hash of voters file does not match!".to_string(),
-                ));
+            Err(HashFileVerifyError::HashMismatch(input_hash, gen_hash)) => {
+                let err_str = format!("Failed to verify the integrity: Hash of voters file: {gen_hash} does not match with the input hash: {input_hash}");
+                update_fail(&task_execution, &err_str).await?;
+                return Err(Error::String(err_str));
             }
-            Err(HashFileVerifyError::IoError(str, err)) => {
-                error!("{}: {:?}", str, err);
-                update_fail(&task_execution, &str).await?;
-                return Err(err.into());
-            }
-            Err(HashFileVerifyError::HashComputingError(str, err)) => {
-                error!("{}: {:?}", str, err);
-                update_fail(&task_execution, &str).await?;
-                return Err(err.into());
+            Err(err) => {
+                let err_str = format!("Failed to verify the integrity: {err:?}");
+                error!("{err_str}");
+                update_fail(&task_execution, &err_str).await?;
+                return Err(err_str.into());
             }
         },
         _ => {

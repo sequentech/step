@@ -3,6 +3,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use std::fmt::Write;
+use std::fs::File;
 use std::io::Read;
 use strand::hash::hash_sha256;
 use strand::util::StrandError;
@@ -11,7 +12,7 @@ use tempfile::NamedTempFile;
 #[derive(Debug)]
 pub enum HashFileVerifyError {
     IoError(String, std::io::Error), // Error reading voters file
-    HashMismatch,                    // Voters file hash does not match
+    HashMismatch(String, String),    // Voters file hash does not match
     HashComputingError(String, StrandError), // Error computing the hash
 }
 
@@ -27,13 +28,19 @@ impl core::fmt::Display for HashFileVerifyError {
 impl std::error::Error for HashFileVerifyError {}
 
 pub fn integrity_check(
-    voters_file: &NamedTempFile,
+    temp_file_path: &NamedTempFile,
     sha256: String,
 ) -> Result<(), HashFileVerifyError> {
-    // convert f into bytes &[u8]
-    let mut f = voters_file.as_file();
+    let sha256 = sha256.to_lowercase();
+    let mut file = File::open(temp_file_path).map_err(|err| {
+        HashFileVerifyError::IoError(
+            "Error opening the temp file.".to_string(),
+            err,
+        )
+    })?;
+
     let mut file_buffer: Vec<u8> = vec![];
-    f.read_to_end(&mut file_buffer).map_err(|err| {
+    file.read_to_end(&mut file_buffer).map_err(|err| {
         HashFileVerifyError::IoError(
             "Error reading the temp file.".to_string(),
             err,
@@ -49,8 +56,10 @@ pub fn integrity_check(
                     let _ = write!(output, "{b:02x}");
                     output
                 });
-            if !hash_str.eq(sha256.to_lowercase().as_str()) {
-                return Err(HashFileVerifyError::HashMismatch);
+            if !hash_str.eq(sha256.as_str()) {
+                return Err(HashFileVerifyError::HashMismatch(
+                    sha256, hash_str,
+                ));
             }
         }
         Err(err) => {
