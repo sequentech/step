@@ -1,6 +1,6 @@
-<div class="report">
+<div style="display: flex">
   <!-- MAIN section -->
-  <div style="width: 100%">
+  <div class="report" style="width: 100%">
     <div class="report-header">
       <div width="23%" class="left" valign="top">
         <img
@@ -8,7 +8,7 @@
         />
       </div>
       <div width="40%" class="right" valign="top">
-        {{{logo}}}
+        <img src="{{file_logo}}" alt="Logo" />
       </div>
     </div>
 
@@ -20,18 +20,18 @@
         counted.
       </p>
       <div class="info">
-        <p>
+        <div>
           Your Ballot ID:
-          <p class="data id-content">{{ballot_id}}</p>
-        </p>
-        <p>
+          <p class="value id-content">{{ballot_id}}</p>
+        </div>
+        <div>
           Ballot tracker link:
-          <a class="data" href="{{ballot_tracker_url}}">Click here</a>
+          <a class="value" href="{{ballot_tracker_url}}">Click here</a>
         </p>
-        <p>
+        <div>
           Timestamp:
-          <span class="data" class="timestamp-content">{{timestamp}}</span>
-        </p>
+          <span class="value" class="timestamp-content">{{timestamp}}</span>
+        </div>
       </div>
 
       <div>
