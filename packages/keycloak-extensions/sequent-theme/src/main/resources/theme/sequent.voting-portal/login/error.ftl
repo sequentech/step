@@ -12,22 +12,23 @@ SPDX-License-Identifier: AGPL-3.0-only
         <div id="kc-error-message">
             <p class="instruction">${kcSanitize(message.summary)?no_esc}</p>
             <#if skipLink??>
+            <#elseif client?? && client.baseUrl?has_content>
+                <p><a id="backToApplication" href="${client.baseUrl}">
+                    ${kcSanitize(msg("backToApplication"))?no_esc}
+                </a></p>
             <#else>
-                <#if client?? && client.baseUrl?has_content>
-                    <p><a id="backToApplication" href="${client.baseUrl}">${kcSanitize(msg("backToApplication"))?no_esc}</a></p>
-                </#if>
-            </#if>
-        </div>
-        <div class="${properties.kcFormGroupClass!} ${properties.kcFormSettingClass!}">
-            <div id="kc-form-options" class="${properties.kcFormOptionsClass!}">
-                <div class="${properties.kcFormOptionsWrapperClass!}">
-                    <span>
-                        <a href="${url.loginUrl}?client_id=voting-portal">
-                            ${kcSanitize(msg("backToLogin"))?no_esc}
-                        </a>
-                    </span>
+                <div class="${properties.kcFormGroupClass!} ${properties.kcFormSettingClass!}">
+                    <div id="kc-form-options" class="${properties.kcFormOptionsClass!}">
+                        <div class="${properties.kcFormOptionsWrapperClass!}">
+                            <span>
+                                <a href="${url.loginUrl}?client_id=voting-portal">
+                                    ${kcSanitize(msg("backToLogin"))?no_esc}
+                                </a>
+                            </span>
+                        </div>
+                    </div>
                 </div>
-            </div>
+            </#if>
         </div>
     </#if>
 </@layout.registrationLayout>
