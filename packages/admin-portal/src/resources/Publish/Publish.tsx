@@ -43,6 +43,7 @@ import {useTenantStore} from "@/providers/TenantContextProvider"
 import {
     EVotingStatus,
     IElectionEventStatus,
+    IElectionPresentation,
     IElectionStatus,
     IVotingChannelsConfig,
 } from "@sequentech/ui-core"
@@ -86,6 +87,8 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
 
         // Used to show the election status
         const [electionStatus, setElectionStatus] = useState<IElectionStatus | null>(null)
+        const [electionPresentation, setElectionPresentation] =
+            useState<IElectionPresentation | null>(null)
 
         const refresh = useRefresh()
 
@@ -378,8 +381,10 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
 
         useEffect(() => {
             const status = (record?.status as IElectionStatus | null) ?? null
+            const presentation = (record?.presentation as IElectionPresentation | null) ?? null
 
             setElectionStatus(status)
+            setElectionPresentation(presentation)
         }, [record])
 
         return (
@@ -388,6 +393,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                     <PublishList
                         status={publishStatus}
                         electionStatus={electionStatus}
+                        electionPresentation={electionPresentation}
                         canRead={canRead}
                         type={type}
                         canWrite={canWrite}
