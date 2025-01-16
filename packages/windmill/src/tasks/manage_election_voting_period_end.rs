@@ -67,24 +67,27 @@ async fn manage_election_voting_period_end_wrapped(
     };
     let event_payload: ManageAllowVotingPeriodEndPayload = deserialize_value(event_payload)?;
 
-    if let Some(election_presentation) = election.presentation {
-        let election_presentation: ElectionPresentation = ElectionPresentation {
-            voting_period_end: if (event_payload.allow_voting_period_end == Some(true)) {
-                Some(VotingPeriodEnd::ALLOWED)
-            } else {
-                Some(VotingPeriodEnd::DISALLOWED)
-            },
-            ..deserialize_with_path::deserialize_value(election_presentation)?
-        };
-        update_election_presentation(
-            hasura_transaction,
-            &tenant_id,
-            &election_event_id,
-            &election_id,
-            serde_json::to_value(election_presentation)?,
-        )
-        .await?;
-    }
+    let election_presentation = election
+        .get_presentation()
+        .ok_or(anyhow!("Can't read presentation"))?;
+
+    let mut new_election_presentation = election_presentation.clone();
+    new_election_presentation.voting_period_end = if (event_payload.allow_voting_period_end
+        == Some(true)
+        || event_payload.allow_voting_period_end == None)
+    {
+        Some(VotingPeriodEnd::ALLOWED)
+    } else {
+        Some(VotingPeriodEnd::DISALLOWED)
+    };
+    update_election_presentation(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &election_id,
+        serde_json::to_value(new_election_presentation)?,
+    )
+    .await?;
 
     stop_scheduled_event(&hasura_transaction, &tenant_id, &scheduled_event.id)
         .await

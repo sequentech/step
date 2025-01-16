@@ -148,6 +148,7 @@ pub struct DecodedContestChoice(pub String);
 pub struct DecodedBallotChoices {
     pub is_explicit_invalid: bool,
     pub choices: Vec<DecodedContestChoices>,
+    pub serial_number: Option<String>,
 }
 
 impl BallotChoices {
@@ -412,7 +413,7 @@ impl BallotChoices {
         let bytes = vec::decode_array_to_vec(&bytes);
         let bigint = bigint::decode_bigint_from_bytes(&bytes)?;
 
-        Self::decode_from_bigint(&bigint, &style.contests)
+        Self::decode_from_bigint(&bigint, &style.contests, None)
     }
 
     /// Returns a decoded ballot from a BigUint
@@ -421,16 +422,18 @@ impl BallotChoices {
     pub fn decode_from_bigint(
         bigint: &BigUint,
         contests: &Vec<Contest>,
+        serial_number_counter: Option<&mut u32>,
     ) -> Result<DecodedBallotChoices, String> {
         let raw_ballot = Self::bigint_to_raw_ballot(&bigint, contests)?;
 
-        Self::decode(&raw_ballot, contests)
+        Self::decode(&raw_ballot, contests, serial_number_counter)
     }
 
     /// Decode a mixed radix representation of the ballot.
     pub fn decode(
         raw_ballot: &RawBallotContest,
         contests: &Vec<Contest>,
+        serial_number_counter: Option<&mut u32>,
     ) -> Result<DecodedBallotChoices, String> {
         let mut contest_choices: Vec<DecodedContestChoices> = vec![];
         let choices = raw_ballot.choices.clone();
@@ -473,9 +476,19 @@ impl BallotChoices {
             contest_choices.push(next);
         }
 
+        let serial_number = match serial_number_counter {
+            Some(serial_number) => {
+                let sn = Some(format!("{:09}", *serial_number));
+                *serial_number += 1;
+                sn
+            }
+            None => None,
+        };
+
         let ret = DecodedBallotChoices {
             is_explicit_invalid,
             choices: contest_choices,
+            serial_number,
         };
 
         Ok(ret)

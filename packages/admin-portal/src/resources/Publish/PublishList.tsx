@@ -29,7 +29,7 @@ import {Action, ActionsColumn} from "@/components/ActionButons"
 import {ResetFilters} from "@/components/ResetFilters"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {VotingStatusChannel} from "@/gql/graphql"
-import {IElectionStatus} from "@sequentech/ui-core"
+import {IElectionPresentation, IElectionStatus} from "@sequentech/ui-core"
 import {usePublishPermissions} from "./usePublishPermissions"
 
 const OMIT_FIELDS: string[] = []
@@ -42,6 +42,7 @@ const filters: Array<ReactElement> = [
 type TPublishList = {
     status: PublishStatus
     electionStatus: IElectionStatus | null
+    electionPresentation: IElectionPresentation | null
     electionId?: number | string
     electionEventId: number | string | undefined
     canRead: boolean
@@ -50,7 +51,7 @@ type TPublishList = {
     changingStatus: boolean
     type: EPublishType.Election | EPublishType.Event
     onGenerate: () => void
-    onChangeStatus: (status: ElectionEventStatus, votingChannel?: VotingStatusChannel) => void
+    onChangeStatus: (status: ElectionEventStatus, votingChannel?: VotingStatusChannel[]) => void
     setBallotPublicationId: (id: string | Identifier) => void
     onPreview: (id: string | Identifier) => void
 }
@@ -59,6 +60,7 @@ export const PublishList: React.FC<TPublishList> = ({
     status,
     type,
     electionStatus,
+    electionPresentation,
     electionId,
     electionEventId,
     canRead,
@@ -167,6 +169,7 @@ export const PublishList: React.FC<TPublishList> = ({
                         publishType={type}
                         status={status}
                         electionStatus={electionStatus}
+                        electionPresentation={electionPresentation}
                         changingStatus={changingStatus}
                         kioskModeEnabled={kioskModeEnabled}
                         onGenerate={onGenerate}
