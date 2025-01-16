@@ -25,7 +25,7 @@ import {useMutation} from "@apollo/client"
 import {VotingStatusChannel} from "@/gql/graphql"
 
 import {Sequent_Backend_Election} from "@/gql/graphql"
-import {EInitializeReportPolicy, EVotingStatus, IElectionPresentation, IElectionStatus} from "@sequentech/ui-core"
+import {EInitializeReportPolicy, EVotingPeriodEnd, EVotingStatus, IElectionPresentation, IElectionStatus} from "@sequentech/ui-core"
 import {UPDATE_ELECTION_INITIALIZATION_REPORT} from "@/queries/UpdateElectionInitializationReport"
 import {usePublishPermissions} from "./usePublishPermissions"
 import PublishExport from "./PublishExport"
