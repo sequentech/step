@@ -28,6 +28,7 @@ import lombok.experimental.UtilityClass;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.RequiredActionContext;
+import org.keycloak.authentication.actiontoken.ActionTokenContext;
 import org.keycloak.authentication.actiontoken.DefaultActionToken;
 import org.keycloak.common.util.SecretGenerator;
 import org.keycloak.common.util.Time;
@@ -39,6 +40,7 @@ import org.keycloak.events.Event;
 import org.keycloak.events.EventBuilder;
 import org.keycloak.forms.login.freemarker.model.UrlBean;
 import org.keycloak.models.AuthenticatorConfigModel;
+import org.keycloak.models.ClientModel;
 import org.keycloak.models.Constants;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakUriInfo;
@@ -84,6 +86,7 @@ public class Utils {
   public final String SEND_LINK_EMAIL_FTL = "send-link-email.ftl";
 
   public static final String SEND_SUCCESS_SMS_I18N_KEY = "messageSuccessSms";
+  public static final String SEND_SUCCESS_SMS_I18N_KEY_KIOSK = "messageSuccessSmsKiosk";
   public static final String SEND_SUCCESS_EMAIL_SUBJECT = "messageSuccessEmailSubject";
   public static final String SEND_SUCCESS_EMAIL_FTL = "success-email.ftl";
   public static final String SEND_PENDING_SMS_I18N_KEY = "messagePendingSms";
@@ -810,6 +813,18 @@ public class Utils {
     }
   }
 
+  public static String getClientName(Object context) {
+    AuthenticationSessionModel authSession = null;
+    if (context instanceof AuthenticationFlowContext) {
+     authSession = ((AuthenticationFlowContext) context).getAuthenticationSession();
+   } else if (context instanceof ActionTokenContext) {
+     authSession = ((ActionTokenContext<?>) context).getAuthenticationSession();
+   } else {
+       throw new IllegalArgumentException("Unsupported context type");
+   }
+   return authSession.getClient().getName();
+  }
+
   public static void sendConfirmation(
       KeycloakSession session,
       RealmModel realm,
@@ -823,7 +838,7 @@ public class Utils {
     String realName = realm.getName();
     // Send a confirmation email
     EmailTemplateProvider emailTemplateProvider = session.getProvider(EmailTemplateProvider.class);
-
+   
     // We get the username we are going to provide the user in other to login. It's
     // going to be
     // either email or mobileNumber.
@@ -832,7 +847,7 @@ public class Utils {
     log.infov("sendConfirmation(): messageCourier {0}", messageCourier);
 
     String email = user.getEmail();
-
+    
     if (email != null
         && email.trim().length() > 0
         && (MessageCourier.EMAIL.equals(messageCourier)
@@ -844,7 +859,7 @@ public class Utils {
       messageAttributes.put("username", username);
       messageAttributes.put("enrollmentUrl", buildAuthUrl(session, realm.getId(), "enroll"));
       messageAttributes.put("loginUrl", buildAuthUrl(session, realm.getId(), "login"));
-
+      messageAttributes.put("isKiosk", getClientName(context).endsWith("-kiosk"));
       String textBody =
           sendEmail(
               session,
@@ -865,16 +880,15 @@ public class Utils {
         && (MessageCourier.SMS.equals(messageCourier)
             || MessageCourier.BOTH.equals(messageCourier))) {
       log.infov("sendConfirmation(): sending sms", username);
-
       SmsSenderProvider smsSenderProvider = session.getProvider(SmsSenderProvider.class);
       log.infov("sendCode(): Sending SMS to=`{0}`", mobileNumber.trim());
       log.infov("sendCode(): Sending SMS to=`{0}`", mobileNumber.trim());
       String url = buildAuthUrl(session, realm.getId(), "login");
       List<String> smsAttributes = ImmutableList.of(url, mobileNumber.trim());
-
+      String smsTranslationKey = getClientName(context).endsWith("-kiosk") ? SEND_SUCCESS_SMS_I18N_KEY_KIOSK : SEND_SUCCESS_SMS_I18N_KEY;
       String formattedText =
           smsSenderProvider.send(
-              mobileNumber.trim(), SEND_SUCCESS_SMS_I18N_KEY, smsAttributes, realm, user, session);
+              mobileNumber.trim(), smsTranslationKey, smsAttributes, realm, user, session);
       communicationsLog(context, formattedText);
     }
   }
@@ -941,11 +955,12 @@ public class Utils {
       SmsSenderProvider smsSenderProvider = session.getProvider(SmsSenderProvider.class);
       log.infov("sendCode(): Sending SMS to=`{0}`", mobileNumber.trim());
       log.infov("sendCode(): Sending SMS to=`{0}`", mobileNumber.trim());
-      List<String> smsAttributes = ImmutableList.of(realName, username);
-
+      String url = buildAuthUrl(session, realm.getId(), "login");
+      List<String> smsAttributes = ImmutableList.of(url, mobileNumber.trim());
+      String smsTranslationKey = getClientName(context).endsWith("-kiosk") ? SEND_SUCCESS_SMS_I18N_KEY_KIOSK : SEND_SUCCESS_SMS_I18N_KEY;
       String formattedText =
           smsSenderProvider.send(
-              mobileNumber.trim(), SEND_SUCCESS_SMS_I18N_KEY, smsAttributes, realm, user, session);
+              mobileNumber.trim(), smsTranslationKey, smsAttributes, realm, user, session);
       communicationsLog(context, formattedText);
     }
   }
