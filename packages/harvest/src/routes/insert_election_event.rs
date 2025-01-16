@@ -3,10 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::authorization::authorize;
-use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use anyhow::Result;
 use deadpool_postgres::Client as DbClient;
-use rocket::form;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt::JwtClaims;
@@ -16,11 +14,7 @@ use sequent_core::util::integrity_check::{
     integrity_check, HashFileVerifyError,
 };
 use serde::{Deserialize, Serialize};
-use std::fmt::Write as fmt_write;
-use std::io::Read;
-use std::io::Write;
-use tempfile::NamedTempFile;
-use tracing::{event, info, instrument, Level};
+use tracing::{info, instrument};
 use uuid::Uuid;
 use windmill::hasura::election_event::insert_election_event::sequent_backend_election_event_insert_input as InsertElectionEventInput;
 use windmill::services;
@@ -89,7 +83,7 @@ pub async fn insert_election_event_f(
         }
     };
 
-    let celery_task = match celery_app
+    let _celery_task = match celery_app
         .send_task(insert_election_event::insert_election_event_t::new(
             object,
             id.clone(),
@@ -174,13 +168,13 @@ pub async fn import_election_event_f(
         )
     })?;
 
-    let (temp_file_path, document, document_type) =
+    let (temp_file_path, _document, document_type) =
         match get_document(&hasura_transaction, input.clone(), None).await {
             Ok((temp_file_path, document, document_type)) => {
                 (temp_file_path, document, document_type)
             }
             Err(err) => {
-                update_fail(
+                let _res = update_fail(
                     &task_execution,
                     &format!("Failed to get the document: {err:?}"),
                 )
@@ -211,7 +205,7 @@ pub async fn import_election_event_f(
                         format!("Failed to verify the integrity: {err:?}")
                     };
                     info!("Failed to verify the integrity!");
-                    update_fail(&task_execution, &err_str).await;
+                    let _res = update_fail(&task_execution, &err_str).await;
                     return Ok(Json(ImportElectionEventOutput {
                         id: None,
                         message: None,
@@ -229,12 +223,12 @@ pub async fn import_election_event_f(
     let zip_entries_result =
         get_zip_entries(temp_file_path, &document_type).await;
 
-    let (zip_entries, file_election_event_schema) = match zip_entries_result {
+    let (_zip_entries, file_election_event_schema) = match zip_entries_result {
         Ok((zip_entries, file_election_event_schema)) => {
             (zip_entries, file_election_event_schema)
         }
         Err(err) => {
-            update_fail(
+            let _res = update_fail(
                 &task_execution,
                 &format!("Error checking import: {err:?}"),
             )
@@ -256,12 +250,12 @@ pub async fn import_election_event_f(
         )
         .await;
 
-    let (election_event_schema, replacement_map) = match document_result {
+    let (election_event_schema, _replacement_map) = match document_result {
         Ok((election_event_schema, replacement_map)) => {
             (election_event_schema, replacement_map)
         }
         Err(err) => {
-            update_fail(
+            let _res = update_fail(
                 &task_execution,
                 &format!("Error checking import: {err:?}"),
             )
@@ -279,17 +273,17 @@ pub async fn import_election_event_f(
 
     let check_only = input.check_only.unwrap_or(false);
     if check_only {
-        update_complete(&task_execution).await;
+        let _res = update_complete(&task_execution).await;
         return Ok(Json(ImportElectionEventOutput {
             id: Some(id),
-            message: Some(format!("Import document checked")),
+            message: Some("Import document checked".to_string()),
             error: None,
             task_execution: Some(task_execution),
         }));
     }
 
     let celery_app = get_celery_app().await;
-    let celery_task = match celery_app
+    let _celery_task = match celery_app
         .send_task(import_election_event::import_election_event::new(
             input.clone(),
             id.clone(),
@@ -300,7 +294,7 @@ pub async fn import_election_event_f(
     {
         Ok(celery_task) => celery_task,
         Err(err) => {
-            update_fail(
+            let _res = update_fail(
                 &task_execution,
                 &format!("Error sending Import Election Event task: {err:?}"),
             )
@@ -320,7 +314,7 @@ pub async fn import_election_event_f(
 
     Ok(Json(ImportElectionEventOutput {
         id: Some(id),
-        message: Some(format!("Task created: import_election_event")),
+        message: Some("Task created: import_election_event".to_string()),
         error: None,
         task_execution: Some(task_execution),
     }))

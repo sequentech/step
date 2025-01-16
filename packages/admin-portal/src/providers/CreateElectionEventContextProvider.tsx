@@ -298,7 +298,9 @@ export const CreateElectionEventProvider = ({children}: any) => {
                     id: electionEventId,
                     type: "sequent_backend_election_event",
                 })
-                notify(t("electionEventScreen.import.importElectionEventSuccess"), {type: "success"})
+                notify(t("electionEventScreen.import.importElectionEventSuccess"), {
+                    type: "success",
+                })
             }
         } catch (err) {
             // setErrors("Exception importing election event")
