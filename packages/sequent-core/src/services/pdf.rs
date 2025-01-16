@@ -59,7 +59,7 @@ impl PdfRenderer {
             "aws_lambda" => {
                 PdfTransport::AWSLambda {
                     endpoint: std::env::var("AWS_LAMBDA_ENDPOINT")
-                        .unwrap_or_else(|_| "lambda.us-east-1.amazonaws.com".to_string())
+                        .map_err(|_| anyhow!("Please, set AWS_LAMBDA_ENDPOINT pointing to the doc-renderer AWS lambda endpoint"))?
                 }
             },
             "openwhisk" => {
