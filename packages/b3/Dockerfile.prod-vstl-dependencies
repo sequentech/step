@@ -43,7 +43,7 @@ RUN mkdir ./immudb-rs/src \
     && echo "// dummy file" > ./immudb-rs/src/lib.rs
 RUN mkdir ./windmill/src \
     && echo "// dummy file" > ./windmill/src/lib.rs
-RUN mkdir ./velvet/src \
+RUN mkdir ./velvet/src ./velvet/benches \
     && echo "// dummy file" > ./velvet/src/lib.rs \
     && echo "// dummy file" > ./velvet/benches/pdf_generation.rs
 RUN mkdir ./strand/src \
