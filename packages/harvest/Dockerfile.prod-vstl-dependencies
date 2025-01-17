@@ -31,6 +31,7 @@ COPY ./windmill/Cargo.toml ./windmill/Cargo.toml
 COPY ./wrap-map-err/Cargo.toml ./wrap-map-err/Cargo.toml
 COPY ./velvet/Cargo.toml ./velvet/Cargo.toml
 COPY ./Cargo.lock ./Cargo.lock
+COPY ./Cargo.toml ./Cargo.toml
 RUN mkdir ./harvest/src \
     && echo "// dummy file" > ./harvest/src/lib.rs
 RUN mkdir ./immu-board/src \

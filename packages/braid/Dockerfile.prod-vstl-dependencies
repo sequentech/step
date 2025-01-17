@@ -19,7 +19,8 @@ RUN rustup toolchain install nightly-2024-09-01 \
 # copy projects
 #TODO: Copy only necessary files
 WORKDIR /app
-COPY ./braid/scripts/Cargo.toml ./Cargo.toml
+COPY ./braid/scripts/Cargo.toml ./braid/scripts/Cargo.toml
+COPY ./Cargo.toml ./Cargo.toml
 COPY ./braid/Cargo.toml ./braid/Cargo.toml
 COPY ./b3/Cargo.toml ./b3/Cargo.toml
 COPY ./electoral-log/Cargo.toml ./electoral-log/Cargo.toml
