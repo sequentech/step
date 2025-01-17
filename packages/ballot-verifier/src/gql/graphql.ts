@@ -2330,6 +2330,7 @@ export type Mutation_RootImport_Election_EventArgs = {
 /** mutation root */
 export type Mutation_RootImport_TemplatesArgs = {
     document_id: Scalars["String"]["input"]
+    sha256?: InputMaybe<Scalars["String"]["input"]>
     tenant_id: Scalars["String"]["input"]
 }
 
@@ -2337,6 +2338,7 @@ export type Mutation_RootImport_TemplatesArgs = {
 export type Mutation_RootImport_Tenant_ConfigArgs = {
     document_id: Scalars["String"]["input"]
     import_configurations?: InputMaybe<ImportOptions>
+    sha256?: InputMaybe<Scalars["String"]["input"]>
     tenant_id: Scalars["String"]["input"]
 }
 

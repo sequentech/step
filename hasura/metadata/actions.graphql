@@ -368,7 +368,11 @@ type Mutation {
 }
 
 type Mutation {
-    import_templates(tenant_id: String!, document_id: String!): templateOutput
+    import_templates(
+        tenant_id: String!
+        document_id: String!
+        sha256: String
+    ): templateOutput
 }
 
 type Mutation {
@@ -376,6 +380,7 @@ type Mutation {
         tenant_id: String!
         document_id: String!
         import_configurations: ImportOptions
+        sha256: String
     ): ImportTenantOutput
 }
 

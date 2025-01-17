@@ -164,6 +164,7 @@ export const TemplateList: React.FC = () => {
                 variables: {
                     tenantId,
                     documentId,
+                    sha256,
                 },
             })
             notify("Templates imported successfully", {type: "success"})
