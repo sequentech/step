@@ -461,7 +461,6 @@ pub trait TemplateRenderer: Debug {
             rendered_system_template.clone(),
             Some(ext_cfg.pdf_options.to_print_to_pdf_options()),
         )
-        .await
         .map_err(|err| anyhow!("Error rendering report to {extension_suffix:?}: {err:?}"))?;
 
         let base_name = self.base_name();
