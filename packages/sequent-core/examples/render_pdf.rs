@@ -1,4 +1,5 @@
-// SPDX-FileCopyrightText: 2025 Rafael Fernández López <rafael.fernandez@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Rafael Fernández López
+// <rafael.fernandez@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -40,7 +41,7 @@ async fn main() -> Result<(), Error> {
         Ok(_) => {
             println!("PDF correctly generated. Lambda is working as expected.");
             Ok(())
-        },
-        Err(err) => Err(anyhow!("Error generating PDF: {err:?}"))
+        }
+        Err(err) => Err(anyhow!("Error generating PDF: {err:?}")),
     }
 }
