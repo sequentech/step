@@ -22,6 +22,7 @@ use windmill::{
 pub struct ImportTemplatesInput {
     tenant_id: String,
     document_id: String,
+    sha256: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -49,8 +50,13 @@ pub async fn import_templates_route(
         let document_id = body.document_id.clone();
         Box::pin(async move {
             // Your async code here
-            import_templates_task(hasura_transaction, tenant_id, document_id)
-                .await
+            import_templates_task(
+                hasura_transaction,
+                tenant_id,
+                document_id,
+                body.sha256.clone(),
+            )
+            .await
         })
     })
     .await

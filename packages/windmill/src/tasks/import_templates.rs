@@ -2,21 +2,14 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::postgres::area_contest::insert_area_contests;
-use crate::postgres::contest::export_contests;
 use crate::postgres::template::insert_templates;
-use crate::{
-    postgres::document::get_document,
-    services::{database::get_hasura_pool, documents::get_document_as_temp_file},
-};
+use crate::{postgres::document::get_document, services::documents::get_document_as_temp_file};
 use anyhow::{anyhow, Context, Result};
-use csv::StringRecord;
-use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
-use sequent_core::serialization::deserialize_with_path;
-use sequent_core::types::hasura::core::AreaContest;
-use sequent_core::types::hasura::core::{Area, Template};
+use sequent_core::types::hasura::core::Template;
+use sequent_core::util::integrity_check::{integrity_check, HashFileVerifyError};
 use std::io::Seek;
+use tracing::info;
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -25,6 +18,7 @@ pub async fn import_templates_task(
     hasura_transaction: &Transaction<'_>,
     tenant_id: String,
     document_id: String,
+    sha256: Option<String>,
 ) -> Result<()> {
     let document = get_document(&hasura_transaction, &tenant_id, None, &document_id)
         .await
@@ -33,6 +27,25 @@ pub async fn import_templates_task(
 
     let mut temp_file = get_document_as_temp_file(&tenant_id, &document).await?;
     temp_file.rewind()?;
+
+    match sha256 {
+        Some(hash) if !hash.is_empty() => match integrity_check(&temp_file, hash) {
+            Ok(_) => {
+                info!("Hash verified !");
+            }
+            Err(HashFileVerifyError::HashMismatch(input_hash, gen_hash)) => {
+                let err_str = format!("Failed to verify the integrity: Hash of voters file: {gen_hash} does not match with the input hash: {input_hash}");
+                return Err(anyhow!(err_str));
+            }
+            Err(err) => {
+                let err_str = format!("Failed to verify the integrity: {err:?}");
+                return Err(anyhow!(err_str));
+            }
+        },
+        _ => {
+            info!("No hash provided, skipping integrity check");
+        }
+    }
 
     let mut rdr = csv::ReaderBuilder::new()
         .delimiter(b',')

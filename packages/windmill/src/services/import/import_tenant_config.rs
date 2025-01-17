@@ -9,25 +9,26 @@ use crate::services::import::import_tenant::upsert_tenant;
 use crate::services::keycloak::read_roles_config_file;
 use crate::tasks::import_tenant_config::ImportOptions;
 use crate::types::documents::EDocuments;
-use crate::types::error::Result;
-use anyhow::{anyhow, Context};
-use deadpool_postgres::{Client as DbClient, Transaction};
+// use crate::types::error::Result;
+use anyhow::{anyhow, Context, Result};
+use deadpool_postgres::Client as DbClient;
 use keycloak::types::RealmRepresentation;
-use rocket::local;
 use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::services::keycloak::get_tenant_realm;
 use sequent_core::services::keycloak::KeycloakAdminClient;
+use sequent_core::util::integrity_check::{integrity_check, HashFileVerifyError};
 use std::fs::File;
 use std::io;
 use std::io::{Cursor, Read, Seek};
 use tempfile::NamedTempFile;
-use tracing::{event, info, instrument, Level};
+use tracing::{info, instrument};
 use zip::read::ZipArchive;
 
 pub async fn import_tenant_config_zip(
     import_options: ImportOptions,
     tenant_id: &str,
     document_id: &str,
+    sha256: Option<String>,
 ) -> Result<()> {
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
@@ -41,17 +42,36 @@ pub async fn import_tenant_config_zip(
         .map_err(|err| anyhow!("Error starting hasura transaction: {err}"))?;
 
     let document =
-        postgres::document::get_document(&hasura_transaction, &tenant_id, None, &document_id)
+        postgres::document::get_document(&hasura_transaction, tenant_id, None, document_id)
             .await?
             .ok_or(anyhow!(
                 "Error trying to get document id {}: not found",
                 &document_id
             ))?;
 
-    let temp_zip_file = documents::get_document_as_temp_file(&tenant_id, &document)
+    let temp_zip_file = documents::get_document_as_temp_file(tenant_id, &document)
         .await
         .map_err(|err| anyhow!("Error trying to get document as temporary file {err}"))
         .unwrap();
+
+    match sha256 {
+        Some(hash) if !hash.is_empty() => match integrity_check(&temp_zip_file, hash) {
+            Ok(_) => {
+                info!("Hash verified !");
+            }
+            Err(HashFileVerifyError::HashMismatch(input_hash, gen_hash)) => {
+                let err_str = format!("Failed to verify the integrity: Hash of voters file: {gen_hash} does not match with the input hash: {input_hash}");
+                return Err(anyhow!(err_str));
+            }
+            Err(err) => {
+                let err_str = format!("Failed to verify the integrity: {err:?}");
+                return Err(anyhow!(err_str));
+            }
+        },
+        _ => {
+            info!("No hash provided, skipping integrity check");
+        }
+    }
 
     // Iterate over zip files
     let zip_entries = get_zip_entries(temp_zip_file)
@@ -59,7 +79,7 @@ pub async fn import_tenant_config_zip(
         .context("Failed to get zip entries")?;
 
     // Fetching realm
-    let realm_name = get_tenant_realm(&tenant_id);
+    let realm_name = get_tenant_realm(tenant_id);
     let keycloak_client = KeycloakAdminClient::new().await?;
     let other_client = KeycloakAdminClient::pub_new().await?;
     let mut realm = keycloak_client
@@ -74,23 +94,21 @@ pub async fn import_tenant_config_zip(
         let mut cursor = Cursor::new(&mut file_contents[..]);
 
         // Process and import tenant configurations
-        if file_name.contains(&format!("{}", EDocuments::TENANT_CONFIG.to_file_name()))
+        if file_name.contains(&EDocuments::TENANT_CONFIG.to_file_name())
             && import_options.include_tenant == Some(true)
         {
             let temp_file = read_into_tmp_file(&mut cursor)
                 .await
                 .map_err(|e| anyhow!("Failed create tenant temp file: {e}"))?;
 
-            upsert_tenant(&hasura_transaction, &tenant_id, temp_file)
+            upsert_tenant(&hasura_transaction, tenant_id, temp_file)
                 .await
                 .with_context(|| "Failed to upsert tenant")?;
         }
 
         // Process and import roles & permissions configurations
-        if file_name.contains(&format!(
-            "{}",
-            EDocuments::ROLES_PERMISSIONS_CONFIG.to_file_name()
-        )) && import_options.include_roles == Some(true)
+        if file_name.contains(&EDocuments::ROLES_PERMISSIONS_CONFIG.to_file_name())
+            && import_options.include_roles == Some(true)
         {
             let temp_file = read_into_tmp_file(&mut cursor)
                 .await
@@ -98,7 +116,7 @@ pub async fn import_tenant_config_zip(
 
             read_roles_config_file(temp_file, &realm, tenant_id).await?;
         }
-        if file_name.contains(&format!("{}", EDocuments::KEYCLOAK_CONFIG.to_file_name()))
+        if file_name.contains(&EDocuments::KEYCLOAK_CONFIG.to_file_name())
             && import_options.include_keycloak.unwrap_or(false)
         {
             info!("Starting Keycloak config import from file: {}", file_name);

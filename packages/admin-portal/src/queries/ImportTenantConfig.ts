@@ -8,11 +8,13 @@ export const IMPORT_TENANT_CONFIG = gql`
         $tenantId: String!
         $documentId: String!
         $importConfigurations: ImportOptions
+        $sha256: String
     ) {
         import_tenant_config(
             tenant_id: $tenantId
             document_id: $documentId
             import_configurations: $importConfigurations
+            sha256: $sha256
         ) {
             message
             error
