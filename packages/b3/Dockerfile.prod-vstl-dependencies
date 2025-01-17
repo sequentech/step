@@ -23,10 +23,14 @@ RUN rustup toolchain install nightly-2024-09-01 \
 COPY ./braid/Cargo.toml ./braid/Cargo.toml
 COPY ./b3/Cargo.toml ./b3/Cargo.toml
 COPY ./electoral-log/Cargo.toml ./electoral-log/Cargo.toml
-COPY ./sequent-core/Cargo.toml ./sequent-core/Cargo.toml
+COPY ./harvest/Cargo.toml ./harvest/Cargo.toml
+COPY ./strand/Cargo.toml ./strand/Cargo.toml
 COPY ./immu-board/Cargo.toml ./immu-board/Cargo.toml
 COPY ./immudb-rs/Cargo.toml ./immudb-rs/Cargo.toml
-COPY ./strand/Cargo.toml ./strand/Cargo.toml
+COPY ./sequent-core/Cargo.toml ./sequent-core/Cargo.toml
+COPY ./velvet/Cargo.toml ./velvet/Cargo.toml
+COPY ./windmill/Cargo.toml ./windmill/Cargo.toml
+COPY ./step-cli/Cargo.toml ./step-cli/Cargo.toml
 COPY ./wrap-map-err/Cargo.toml ./wrap-map-err/Cargo.toml
 COPY ./braid/scripts/Cargo.toml ./braid/scripts/Cargo.toml
 COPY ./Cargo.toml ./Cargo.toml
