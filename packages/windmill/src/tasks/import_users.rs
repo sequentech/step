@@ -123,7 +123,6 @@ pub async fn import_users(body: ImportUsersBody, task_execution: TasksExecution)
             }
             Err(err) => {
                 let err_str = format!("Failed to verify the integrity: {err:?}");
-                error!("{err_str}");
                 update_fail(&task_execution, &err_str).await?;
                 return Err(err_str.into());
             }

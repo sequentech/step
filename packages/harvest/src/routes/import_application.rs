@@ -54,6 +54,7 @@ pub async fn import_application_route(
                 tenant_id,
                 election_event_id,
                 document_id,
+                body.sha256.clone(),
             )
             .await
         })

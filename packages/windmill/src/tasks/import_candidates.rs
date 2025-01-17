@@ -5,7 +5,6 @@
 use crate::postgres::candidate::insert_candidates;
 use crate::postgres::contest::export_contests;
 use crate::services::tasks_execution::*;
-use crate::types::error::Error;
 use crate::{
     postgres::document::get_document,
     services::{database::get_hasura_pool, documents::get_document_as_temp_file},
@@ -19,10 +18,9 @@ use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::types::hasura::core::Contest;
 use sequent_core::types::hasura::core::{Candidate, TasksExecution};
 use sequent_core::util::integrity_check::{integrity_check, HashFileVerifyError};
-use std::fs::File;
 use std::io::BufReader;
 use std::io::Seek;
-use tracing::{error, event, info, instrument, Level};
+use tracing::{event, info, instrument, Level};
 use uuid::Uuid;
 
 #[instrument(ret)]
@@ -355,7 +353,6 @@ pub async fn import_candidates_task(
             }
             Err(err) => {
                 let err_str = format!("Failed to verify the integrity: {err:?}");
-                error!("{err_str}");
                 update_fail(&task_execution, &err_str).await?;
                 return Err(anyhow!(err_str));
             }
