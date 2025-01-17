@@ -9,8 +9,6 @@ use tracing_subscriber::{filter, reload};
 use tracing_subscriber::{layer::SubscriberExt, registry::Registry};
 use tracing_tree::HierarchicalLayer;
 
-// TODO: remove unwraps and return a Result, and handle it in the required
-// places
 pub fn init_log(set_global: bool) -> Handle<LevelFilter, Registry> {
     let layer = HierarchicalLayer::default()
         .with_writer(std::io::stdout)

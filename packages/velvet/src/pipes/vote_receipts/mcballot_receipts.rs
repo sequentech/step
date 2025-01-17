@@ -262,7 +262,7 @@ impl MCBallotReceipts {
                         .await
                         .map_err(|e| {
                             Error::UnexpectedError(format!(
-                                "Error during html_to_pdf conversion: {}",
+                                "Error during PDF rendering: {}",
                                 e
                             ))
                         })
