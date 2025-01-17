@@ -21,7 +21,7 @@ use windmill::{
 pub struct ImportCandidatesInput {
     election_event_id: String,
     document_id: String,
-    pub sha256: Option<String>,
+    sha256: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -72,6 +72,7 @@ pub async fn import_candidates_route(
         election_event_id,
         body.document_id.clone(),
         task_execution.clone(),
+        body.sha256.clone(),
     )
     .await
     {
