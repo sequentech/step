@@ -23,5 +23,5 @@ RUN cp /app/windmill/external-bin/ecies-tool.jar /usr/local/bin/
 
 WORKDIR /app/harvest
 #RUN cargo vendor
-RUN cargo build --release --offline
+RUN cargo build --release --locked --frozen --offline
 

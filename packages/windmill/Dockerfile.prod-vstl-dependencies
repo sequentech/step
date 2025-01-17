@@ -52,4 +52,4 @@ RUN mkdir ./wrap-map-err/src \
 RUN mkdir ./velvet/src \
     && echo "// dummy file" > ./velvet/src/lib.rs
 WORKDIR /app/windmill
-RUN cargo fetch
+RUN cargo fetch --locked
