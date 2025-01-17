@@ -51,4 +51,4 @@ RUN mkdir ./wrap-map-err/src \
 RUN mkdir ./braid/src \
     && echo "// dummy file" > ./braid/src/lib.rs
 WORKDIR /app/b3
-RUN cargo fetch
+RUN cargo fetch --locked

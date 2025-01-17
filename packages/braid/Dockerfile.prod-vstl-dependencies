@@ -47,4 +47,4 @@ RUN mkdir ./wrap-map-err/src \
 # build projects
 
 WORKDIR /app/braid
-RUN cargo fetch
+RUN cargo fetch --locked

@@ -17,4 +17,4 @@ COPY ./wrap-map-err ./wrap-map-err
 # build projects
 
 WORKDIR /app/braid
-RUN cargo build --release --offline
+RUN cargo build --release --locked --frozen --offline
