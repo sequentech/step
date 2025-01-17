@@ -117,11 +117,9 @@ impl VoteReceipts {
             let rt = tokio::runtime::Runtime::new().unwrap();
             let bytes_pdf = rt
                 .block_on(async move {
-                    pdf::PdfRenderer::render_pdf(bytes_html, pdf_options)
-                        .await
-                        .map_err(|e| {
-                            Error::UnexpectedError(format!("Error during PDF rendering: {}", e))
-                        })
+                    pdf::PdfRenderer::render_pdf(bytes_html, pdf_options).map_err(|e| {
+                        Error::UnexpectedError(format!("Error during PDF rendering: {}", e))
+                    })
                 })
                 .unwrap();
 

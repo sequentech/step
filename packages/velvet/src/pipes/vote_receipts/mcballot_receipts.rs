@@ -255,18 +255,11 @@ impl MCBallotReceipts {
         };
 
         let bytes_pdf = if pipe_config.enable_pdfs {
-            let rt = tokio::runtime::Runtime::new().unwrap();
-            let bytes_pdf = rt
-                .block_on(async {
-                    pdf::PdfRenderer::render_pdf(bytes_html.clone(), pdf_options)
-                        .await
-                        .map_err(|e| {
-                            Error::UnexpectedError(format!("Error during PDF rendering: {}", e))
-                        })
-                })
-                .unwrap();
-
-            Some(bytes_pdf)
+            Some(
+                pdf::PdfRenderer::render_pdf(bytes_html.clone(), pdf_options).map_err(|e| {
+                    Error::UnexpectedError(format!("Error during PDF rendering: {}", e))
+                })?,
+            )
         } else {
             None
         };
