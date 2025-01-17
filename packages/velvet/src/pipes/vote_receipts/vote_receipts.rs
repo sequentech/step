@@ -120,10 +120,7 @@ impl VoteReceipts {
                     pdf::PdfRenderer::render_pdf(bytes_html, pdf_options)
                         .await
                         .map_err(|e| {
-                            Error::UnexpectedError(format!(
-                                "Error during PDF rendering: {}",
-                                e
-                            ))
+                            Error::UnexpectedError(format!("Error during PDF rendering: {}", e))
                         })
                 })
                 .unwrap();
