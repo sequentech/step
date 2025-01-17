@@ -19,22 +19,26 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Install the specific nightly toolchain
 RUN rustup toolchain install nightly-2024-09-01 \
     && rustup default nightly-2024-09-01
-
-COPY ./immu-board ./immu-board
-COPY ./immudb-rs ./immudb-rs
-COPY ./strand ./strand
+COPY ./braid ./braid
 COPY ./b3 ./b3
 COPY ./electoral-log ./electoral-log
+COPY ./harvest ./harvest
+COPY ./strand ./strand
+COPY ./immu-board ./immu-board
+COPY ./immudb-rs ./immudb-rs
 COPY ./sequent-core ./sequent-core
-COPY ./windmill ./windmill
-COPY ./wrap-map-err ./wrap-map-err
 COPY ./velvet ./velvet
+COPY ./windmill ./windmill
+COPY ./step-cli ./step-cli
+COPY ./wrap-map-err ./wrap-map-err
+COPY ./braid/scripts ./braid/scripts
+COPY ./Cargo.toml ./Cargo.toml
 COPY ./Cargo.lock ./Cargo.lock
 
 RUN cp /app/windmill/external-bin/ecies-tool.jar /usr/local/bin/
 
 WORKDIR /app/windmill
-RUN cargo build --release
+RUN cargo build --release --locked
 
 
 
