@@ -50,7 +50,8 @@ RUN mkdir ./strand/src \
 RUN mkdir ./strand/benches \
     && echo "// dummy file" > ./strand/benches/encrypt.rs \
     && echo "// dummy file" > ./strand/benches/shuffle.rs \
-    && echo "// dummy file" > ./strand/benches/verify_ballot.rs
+    && echo "// dummy file" > ./strand/benches/verify_ballot.rs \
+    && echo "// dummy file" > ./strand/benches/pdf_generation.rs
 RUN mkdir ./b3/src \
     && echo "// dummy file" > ./b3/src/lib.rs
 RUN mkdir ./electoral-log/src \
