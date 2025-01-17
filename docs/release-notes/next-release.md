@@ -47,6 +47,40 @@ that was chosen will need to be configured on multiple services, as
 the renderer decision that reads the `DOC_RENDERER_BACKEND` is inside
 `sequent-core`.**
 
+### Lambda input
+
+The input to the Lambda, is a JSON file of the form:
+
+```
+{
+  "html": "raw html with escaped quotes",
+  "pdf_options": {
+    "landscape": <bool>,
+    "displayHeaderFooter": <bool>,
+    "printBackground": <bool>,
+    "scale": <float>,
+    "paperWidth": <float>,
+    "paperHeight": <float>,
+    "marginTop": <float>,
+    "marginBottom": <float>,
+    "marginLeft": <float>,
+    "marginRight": <float>,
+    "pageRanges": <string>,
+    "ignoreInvalidPageRanges": <bool>,
+    "headerTemplate": <string>,
+    "footerTemplate": <string>,
+    "preferCssPageSize": <bool>,
+    "transferMode": {
+      "mode": <string>
+    }
+  },
+  "bucket": <string>,
+  "bucket_path": <string>
+}
+```
+
+**All keys are optional, except for `html`.**
+
 ### Backends
 
 #### `aws_lambda`
@@ -54,6 +88,11 @@ the renderer decision that reads the `DOC_RENDERER_BACKEND` is inside
 The environment variable that ponits to the AWS Lambda endpoint is
 `AWS_LAMBDA_ENDPOINT`. It has not a default value, so that the PDF
 generation will fail if it is missing.
+
+**In the AWS Lambda mode, if the Lambda is provided with a bucket, it
+will try to upload the generated PDF to S3 at the provided path and S3
+bucket. If the upload to S3 fails, the generation of the PDF as a
+whole will return failure, as if it was never generated.**
 
 #### Test
 
@@ -71,6 +110,16 @@ PDF correctly generated. Lambda is working as expected.
 
 If you see the message `PDF correctly generated. Lambda is working as
 expected.`, the Lambda is accessible and reporting a valid response.
+
+##### Testing lambda with curl
+
+You can also test the lambda manually with curl, like so:
+
+```
+$ curl -H 'Content-Type: application/json' \
+    -d '{ "html": "Hello, world" }' \
+    https://rq5jtxuv4rxo5viu5jmxmpxuqq0oisgh.lambda-url.us-east-1.on.aws/ | jq
+```
 
 #### `inplace`
 
@@ -98,3 +147,24 @@ Environment variables to add, in production:
   issued by `sequent-core` to the Lamdba **are not IAM authenticated
   at this time**. It is of the form
   `https://rq5jtxuv4rxo5viu5jmxmpxuqq0oisgh.lambda-url.us-east-1.on.aws/`
+  (**DO NOT USE THIS ONE IN PARTICULAR, AS IT WILL PROBABLY NOT
+  EXIST.**)
+- `AWS_S3_PRIVATE_URI`
+- `AWS_S3_PUBLIC_URI`
+- `AWS_S3_BUCKET`
+- `AWS_S3_PUBLIC_BUCKET`
+- `AWS_REGION`
+- `AWS_S3_ACCESS_KEY`
+- `AWS_S3_ACCESS_SECRET`
+- `AWS_S3_MAX_UPLOAD_BYTES`
+- `AWS_S3_UPLOAD_EXPIRATION_SECS`
+- `AWS_S3_FETCH_EXPIRATION_SECS`
+
+Impacted services:
+
+- `windmill`
+- `harvest`
+
+As a rule of thumb, **anything** that calls to `render_pdf` from
+`packages/sequent-core/src/services/pdf.rs` will have this
+behavior. This **applies transitively** across dependencies.
