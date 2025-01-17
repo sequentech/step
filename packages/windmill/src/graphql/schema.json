@@ -16793,10 +16793,10 @@
                 "defaultValue": null
               },
               {
-                "name": "voting_channel",
+                "name": "voting_channels",
                 "description": null,
                 "type": {
-                  "kind": "NON_NULL",
+                  "kind": "LIST",
                   "name": null,
                   "ofType": {
                     "kind": "ENUM",
@@ -16848,10 +16848,10 @@
                 "defaultValue": null
               },
               {
-                "name": "voting_channel",
+                "name": "voting_channels",
                 "description": null,
                 "type": {
-                  "kind": "NON_NULL",
+                  "kind": "LIST",
                   "name": null,
                   "ofType": {
                     "kind": "ENUM",

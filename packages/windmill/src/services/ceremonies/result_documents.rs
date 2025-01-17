@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::encrypter::{encrypt_directory_contents, get_file_report_type, traversal_encrypt_files};
 use super::renamer::rename_folders;
+use crate::postgres::document::get_document;
 use crate::postgres::reports::Report;
 use crate::postgres::reports::{get_reports_by_election_event_id, ReportType};
 use crate::postgres::results_election_area::insert_results_election_area_documents;
@@ -27,11 +28,14 @@ use sequent_core::services::translations::Name;
 use sequent_core::types::ceremonies::TallyType;
 use sequent_core::{services::connection::AuthHeaders, types::results::ResultDocuments};
 use sequent_core::{services::keycloak, types::hasura::core::Area};
+use serde_json::Value;
 use std::{
     collections::HashMap,
+    fs,
     fs::File,
     path::{Path, PathBuf},
 };
+use strand::hash::hash_b64;
 use tokio::task;
 use tracing::instrument;
 use velvet::pipes::generate_reports::{
@@ -78,6 +82,18 @@ async fn generic_save_documents(
     .await?;
 
     documents.json = process_and_upload_document(
+        document_paths.json.clone(),
+        MIME_JSON,
+        OUTPUT_JSON,
+        &all_reports,
+        report_type.clone(),
+        auth_headers,
+        tenant_id,
+        election_event_id,
+    )
+    .await?;
+
+    documents.vote_receipts_pdf = process_and_upload_document(
         document_paths.vote_receipts_pdf.clone(),
         MIME_JSON,
         OUTPUT_JSON,
@@ -412,6 +428,23 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
             .contest
             .clone();
 
+        // Read the json file and hash it
+        let file_path = document_paths
+            .json
+            .clone()
+            .context("Missing json file path")?;
+        let content = fs::read_to_string(file_path.clone())
+            .with_context(|| format!("Failed to read the file at {}", file_path))?;
+        // Deserialize the JSON string into a Value
+        let json: Value = serde_json::from_str(&content).context("Failed to parse JSON content")?;
+        // retrieve the hash value
+        let results_hash = json
+            .get("execution_annotations")
+            .and_then(|annotations| annotations.get("results_hash"))
+            .and_then(|hash| hash.as_str())
+            .unwrap_or_default();
+
+        // Save election results documents to S3 and Hasura
         let documents = generic_save_documents(
             auth_headers,
             document_paths,
@@ -429,6 +462,7 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
             &contest.election_event_id,
             &contest.election_id,
             &documents,
+            results_hash,
         )
         .await?;
 
