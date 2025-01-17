@@ -79,6 +79,7 @@ pub async fn import_areas_route(
                 tenant_id,
                 election_event_id,
                 document_id,
+                body.sha256,
             )
             .await
         })
