@@ -58,6 +58,7 @@ pub async fn render_report_task(
         .await?;
     } else {
         let bytes = pdf::PdfRenderer::render_pdf(render, None)
+            .await
             .with_context(|| "Error converting html to pdf format")?;
         let (_temp_path, temp_path_string, file_size) =
             write_into_named_temp_file(&bytes, "reports-", ".html")
