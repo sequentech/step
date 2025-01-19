@@ -137,7 +137,7 @@ pub async fn get_results_event_by_id(
         .ok_or(anyhow!("Results event {results_event_id} not found"))
 }
 
-#[instrument(err, skip(hasura_transaction))]
+#[instrument(err, skip(hasura_transaction), ret)]
 pub async fn insert_results_event(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
