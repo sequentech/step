@@ -107,7 +107,7 @@ pub async fn get_enrolled_voters(
             let username = row
                 .applicant_data
                 .get("username")
-                .and_then(|v| v.as_str().map(|s| s.to_string())); //TODO: make sure applicant_data has the username
+                .and_then(|v| v.as_str().map(|s| s.to_string()));
             let suffix = row
                 .applicant_data
                 .get("suffix")
