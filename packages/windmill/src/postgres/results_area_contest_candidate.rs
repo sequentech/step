@@ -183,7 +183,7 @@ pub async fn insert_results_area_contest_candidates(
                 cast_votes_percent FLOAT8
             )
         )
-        INSERT INTO sequent_backend.results_contest_candidate (
+        INSERT INTO sequent_backend.results_area_contest_candidate (
             tenant_id,
             election_event_id,
             results_event_id,

@@ -334,7 +334,7 @@ pub async fn insert_results_area_contests(
                 annotations JSONB
             )
         )
-        INSERT INTO sequent_backend.results_contest (
+        INSERT INTO sequent_backend.results_area_contest (
             tenant_id,
             election_event_id,
             election_id,
