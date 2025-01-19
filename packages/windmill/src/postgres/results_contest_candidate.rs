@@ -9,6 +9,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio_postgres::row::Row;
 use tracing::{info, instrument};
+use rust_decimal::prelude::ToPrimitive;
+use rust_decimal::Decimal;
+use ordered_float::NotNan;
 use uuid::Uuid;
 
 pub struct ResultsContestCandidateWrapper(pub ResultsContestCandidate);
@@ -30,16 +33,23 @@ impl TryFrom<Row> for ResultsContestCandidateWrapper {
             contest_id: item.try_get::<_, Uuid>("contest_id")?.to_string(),
             candidate_id: item.try_get::<_, Uuid>("candidate_id")?.to_string(),
             results_event_id: item.try_get::<_, Uuid>("results_event_id")?.to_string(),
-            cast_votes: item.try_get("cast_votes")?,
-            winning_position: item.try_get("winning_position")?,
-            points: item.try_get("points")?,
+            cast_votes: item
+                .try_get::<_, Option<i32>>("cast_votes")?
+                .map(|val| val as i64),
+            winning_position: item
+                .try_get::<_, Option<i32>>("winning_position")?
+                .map(|val| val as i64),
+            points: item
+                .try_get::<_, Option<i32>>("points")?
+                .map(|val| val as i64),
             created_at: item.get("created_at"),
             last_updated_at: item.get("last_updated_at"),
             labels: item.try_get("labels")?,
             annotations: item.try_get("annotations")?,
             cast_votes_percent: item
-                .try_get::<&str, Option<f64>>("cast_votes_percent")?
-                .map(|val| val.try_into())
+                .try_get::<_, Decimal>("cast_votes_percent")?
+                .to_f64()
+                .map(NotNan::new)
                 .transpose()?,
             documents,
         }))

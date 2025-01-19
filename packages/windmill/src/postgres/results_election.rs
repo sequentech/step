@@ -10,7 +10,9 @@ use sequent_core::types::results::*;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio_postgres::row::Row;
-use tokio_postgres::types::ToSql;
+use ordered_float::NotNan;
+use rust_decimal::prelude::ToPrimitive;
+use rust_decimal::Decimal;
 use tracing::{info, instrument};
 use uuid::Uuid;
 
@@ -23,12 +25,6 @@ impl TryFrom<Row> for ResultsElectionWrapper {
         let documents_value: Option<Value> = item.try_get("documents")?;
         let documents: Option<ResultDocuments> = documents_value
             .map(|value| deserialize_value(value))
-            .transpose()?;
-
-        // Convert Option<f64> to Option<NotNan<f64>>
-        let total_voters_percent = item
-            .try_get::<&str, Option<f64>>("total_voters_percent")?
-            .map(|val| val.try_into())
             .transpose()?;
 
         Ok(ResultsElectionWrapper(ResultsElection {
@@ -48,7 +44,11 @@ impl TryFrom<Row> for ResultsElectionWrapper {
             last_updated_at: item.get("last_updated_at"),
             labels: item.try_get("labels")?,
             annotations: item.try_get("annotations")?,
-            total_voters_percent,
+            total_voters_percent: item
+                .try_get::<&str, Decimal>("total_voters_percent")?
+                .to_f64()
+                .map(NotNan::new)
+                .transpose()?,
             documents,
         }))
     }
