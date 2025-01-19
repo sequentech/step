@@ -56,6 +56,7 @@ pub struct Voter {
     pub first_name: Option<String>,
     pub last_name: Option<String>,
     pub suffix: Option<String>,
+    pub username: Option<String>,
     pub status: Option<String>,
     pub date_voted: Option<String>,
     pub enrollment_date: Option<String>,
@@ -103,6 +104,10 @@ pub async fn get_enrolled_voters(
                 .applicant_data
                 .get("lastName")
                 .and_then(|v| v.as_str().map(|s| s.to_string()));
+            let username = row
+                .applicant_data
+                .get("username")
+                .and_then(|v| v.as_str().map(|s| s.to_string())); //TODO: make sure applicant_data has the username
             let suffix = row
                 .applicant_data
                 .get("suffix")
@@ -119,6 +124,7 @@ pub async fn get_enrolled_voters(
                 first_name,
                 last_name,
                 suffix,
+                username,
                 status,
                 date_voted: None,
                 enrollment_date: row.created_at.map(|date| date.to_rfc3339()),
@@ -175,6 +181,7 @@ pub async fn get_voters_by_area_id(
             u.id, 
             u.first_name,
             u.last_name,
+            u.username,
             COALESCE(attr_json.attributes ->> 'middleName', '') AS middle_name,
             COALESCE(attr_json.attributes ->> 'suffix', '') AS suffix,
             COALESCE(attr_json.attributes ->> '{VALIDATE_ID_ATTR_NAME}', '') AS validate_id,
@@ -223,12 +230,14 @@ pub async fn get_voters_by_area_id(
                 Some(VALIDATE_ID_REGISTERED_VOTER) => None,
                 _ => Some(VoterStatus::DidNotPreEnrolled.to_string()),
             };
+            println!("**** row: {:?}", row);
             let user = Voter {
                 id: row.get("id"),
                 middle_name: row.get("middle_name"),
                 first_name: row.get("first_name"),
                 last_name: row.get("last_name"),
                 suffix: row.get("suffix"),
+                username: row.get("username"),
                 status: status,
                 date_voted: None,
                 enrollment_date: None,
