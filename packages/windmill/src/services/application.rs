@@ -401,7 +401,10 @@ fn automatic_verification(
 
     Ok(ApplicationVerificationResult {
         user_id: matched_user.clone().and_then(|user| user.id),
-        username: matched_user.clone().and_then(|user| user.username).unwrap_or_default(),
+        username: matched_user
+            .clone()
+            .and_then(|user| user.username)
+            .unwrap_or_default(),
         application_status: matched_status,
         application_type: matched_type,
         mismatches: verification_mismatches,
