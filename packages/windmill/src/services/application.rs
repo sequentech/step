@@ -116,9 +116,8 @@ pub async fn verify_application(
         (None, None)
     };
 
-    let final_applicant_data = applicant_data.clone();
-
-    info!("Final applicant data: {:?}", final_applicant_data);
+    let mut final_applicant_data = applicant_data.clone();
+    final_applicant_data.insert("username".to_string(), result.username.clone());
 
     insert_application(
         hasura_transaction,
@@ -254,6 +253,7 @@ pub struct ApplicationAnnotations {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ApplicationVerificationResult {
     pub user_id: Option<String>,
+    pub username: String,
     pub application_status: ApplicationStatus,
     pub application_type: ApplicationType,
     pub mismatches: Option<usize>,
@@ -300,6 +300,7 @@ fn automatic_verification(
             search_attributes.clone(),
             unset_attributes.clone(),
         )?;
+        let username = user.username.clone().unwrap_or_default();
 
         // If there are no mismatches..
         if mismatches == 0 {
@@ -318,6 +319,7 @@ fn automatic_verification(
             } else {
                 return Ok(ApplicationVerificationResult {
                     user_id: user.id,
+                    username,
                     application_status: ApplicationStatus::ACCEPTED,
                     application_type: ApplicationType::AUTOMATIC,
                     mismatches: Some(mismatches),
@@ -345,6 +347,7 @@ fn automatic_verification(
                 if !fields_match.get("embassy").unwrap_or(&false) {
                     return Ok(ApplicationVerificationResult {
                         user_id: user.id,
+                        username,
                         application_status: ApplicationStatus::ACCEPTED,
                         application_type: ApplicationType::AUTOMATIC,
                         mismatches: Some(mismatches),
@@ -397,7 +400,8 @@ fn automatic_verification(
     }
 
     Ok(ApplicationVerificationResult {
-        user_id: matched_user.and_then(|user| user.id),
+        user_id: matched_user.clone().and_then(|user| user.id),
+        username: matched_user.clone().and_then(|user| user.username).unwrap_or_default(),
         application_status: matched_status,
         application_type: matched_type,
         mismatches: verification_mismatches,
