@@ -56,7 +56,7 @@ import DeleteIcon from "@mui/icons-material/Delete"
 import DescriptionIcon from "@mui/icons-material/Description"
 import PreviewIcon from "@mui/icons-material/Preview"
 import {Dialog} from "@sequentech/ui-essentials"
-import {EGenerateReportMode, ReportActions, reportTypeConfig} from "@/types/reports"
+import {EGenerateReportMode, EReportType, ReportActions, reportTypeConfig} from "@/types/reports"
 import {GENERATE_REPORT} from "@/queries/GenerateReport"
 import {useMutation} from "@apollo/client"
 import {DownloadDocument} from "../User/DownloadDocument"
@@ -68,6 +68,9 @@ import ContentCopyIcon from "@mui/icons-material/ContentCopy"
 import {useReportsPermissions} from "./useReportsPermissions"
 import {set} from "lodash"
 import {isArray} from "@sequentech/ui-core"
+import {DecryptHelp} from "@/components/election-event/export-data/PasswordDialog"
+
+export const decryptionCommand = `openssl enc -d -aes-256-cbc -in <encrypted_file> -out <decrypted_file> -pass pass:<password>  -md md5`
 
 const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
     @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
@@ -419,22 +422,6 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
         )
     }
 
-    let decryptionCommend = `openssl enc -d -aes-256-cbc -in <encrypted_file> -out <decrypted_file> -pass pass:<password>  -md md5`
-    const handleCopyPassword = () => {
-        navigator.clipboard
-            .writeText(decryptionCommend)
-            .then(() => {
-                notify(t("electionEventScreen.export.copiedSuccess"), {
-                    type: "success",
-                })
-            })
-            .catch((err) => {
-                notify(t("electionEventScreen.export.copiedError"), {
-                    type: "error",
-                })
-            })
-    }
-
     if (!elections) {
         return <CircularProgress />
     }
@@ -470,14 +457,20 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                                 isEditReport={false}
                             />
                         }
-                        withComponent={canWriteReports}
+                        withComponent={canCreateReports}
                     />
                 }
                 disableSyncWithLocation
             >
                 <DataGridContainerStyle isOpenSideBar={isOpenSidebar} omit={OMIT_FIELDS}>
                     <TextField source="id" />
-                    <TextField source="report_type" label={t("reportsScreen.fields.reportType")} />
+                    <FunctionField
+                        label={t("reportsScreen.fields.reportType")}
+                        source="report_type"
+                        render={(record: {report_type: keyof typeof EReportType}) =>
+                            t("template.type." + record.report_type)
+                        }
+                    />
                     <FunctionField
                         label={t("reportsScreen.fields.template")}
                         source="template_alias"
@@ -547,25 +540,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                 title={t("reportsScreen.messages.decryptFileTitle")}
                 ok={"Ok"}
             >
-                <Typography sx={{whiteSpace: "pre-wrap"}}>
-                    {t("reportsScreen.messages.decryptInstructions")}
-                </Typography>
-                <TextInput
-                    fullWidth
-                    value={decryptionCommend}
-                    InputProps={{
-                        readOnly: true,
-                        endAdornment: (
-                            <Tooltip
-                                title={t("electionEventScreen.import.passwordDialog.copyPassword")}
-                            >
-                                <IconButton onClick={handleCopyPassword}>
-                                    <ContentCopyIcon />
-                                </IconButton>
-                            </Tooltip>
-                        ),
-                    }}
-                />
+                <DecryptHelp decryptionCommand={decryptionCommand} />
             </Dialog>
         </>
     )

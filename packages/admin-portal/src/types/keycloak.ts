@@ -167,6 +167,7 @@ export enum IPermissions {
     REPORT_DELETE = "report-delete",
     REPORT_GENERATE = "report-generate",
     REPORT_PREVIEW = "report-preview",
+    TRANSMISSION_REPORT_GENERATE = "transmission-report-generate",
     EE_PUBLISH_PREVIEW = "election-event-publish-preview",
     EE_PUBLISH_BACK_BUTTON = "election-event-publish-back-button",
     EE_PUBLISH_COLUMNS = "election-event-publish-columns",
@@ -192,4 +193,6 @@ export enum IPermissions {
     ELECTION_IP_ADDRESS_VIEW = "election-ip-address-view",
     ELECTION_DASHBOARD_TAB = "election-dashboard-tab",
     USER_IMPORT = "user-import",
+    VOTER_VOTED_EDIT = "voter-voted-edit", // permission to edit a voter that has already cast a vote
+    VOTER_EMAIL_TLF_EDIT = "voter-email-tlf-edit", // permission to edit voter fields: email and mobile number
 }

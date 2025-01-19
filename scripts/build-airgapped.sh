@@ -55,12 +55,10 @@ archive-image-artifact() {
         # Try to pull the image
         if ! docker pull "$image_name"; then
             echo "Error: Failed to archive image artifact $image_name after failed pulling" >&2
-            exit 1
         fi
         # Try to save the image again after pulling
         if ! (docker save "$image_name" > "$image_artifact_path"); then
             echo "Error: Failed to archive image artifact $image_name after pulling" >&2
-            exit 1
         fi
     fi
 }
@@ -113,6 +111,7 @@ add-keycloak-data-to-tarball() {
     tmpdir=$(mktemp -d)
     mkdir -p $tmpdir/keycloak
     cp -r $PROJECT_ROOT/.devcontainer/keycloak/import $tmpdir/keycloak
+    $PROJECT_ROOT/scripts/replacements.sh $PROJECT_ROOT/packages/windmill/external-bin/janitor/config/baseConfig.json $tmpdir/keycloak/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5.json
     tar --append -C $tmpdir --file=$DELIVERABLE_TARBALL keycloak
 }
 
@@ -127,6 +126,13 @@ add-hasura-data-to-tarball() {
     mkdir -p $tmpdir/hasura
     cp -r $PROJECT_ROOT/hasura/{metadata,migrations} $tmpdir/hasura
     tar --append -C $tmpdir --file=$DELIVERABLE_TARBALL hasura
+}
+
+add-minio-config-to-tarball() {
+    tmpdir=$(mktemp -d)
+    mkdir -p $tmpdir/minio
+    cp -r $PROJECT_ROOT/.devcontainer/minio/nginx $tmpdir/minio/nginx
+    tar --append -C $tmpdir --file=$DELIVERABLE_TARBALL minio
 }
 
 add-up-script-to-tarball() {
@@ -158,6 +164,7 @@ done
 
 add-images-to-tarball
 add-dotenv-to-tarball
+add-minio-config-to-tarball
 add-docker-compose-to-tarball
 add-keycloak-data-to-tarball
 add-trustees-data-to-tarball

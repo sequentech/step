@@ -307,6 +307,8 @@ pub enum Permissions {
     REPORT_GENERATE,
     #[strum(serialize = "report-preview")]
     REPORT_PREVIEW,
+    #[strum(serialize = "transmission-report-generate")]
+    TRANSMISSION_REPORT_GENERATE,
     #[strum(serialize = "monitor-authenticated-voters")]
     MONITOR_AUTHENTICATED_VOTERS,
     #[strum(serialize = "monitor-all-approve-disapprove-voters")]
@@ -385,6 +387,12 @@ pub enum Permissions {
     ELECTION_DASHBOARD_TAB,
     #[strum(serialize = "user-import")]
     USER_IMPORT,
+    // permission to edit a voter that has already cast a vote
+    #[strum(serialize = "voter-voted-edit")]
+    VOTER_VOTED_EDIT,
+    // permission to edit voter fields: email and mobile number
+    #[strum(serialize = "voter-email-tlf-edit")]
+    VOTER_EMAIL_TLF_EDIT,
 }
 
 #[allow(non_camel_case_types)]

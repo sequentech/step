@@ -195,6 +195,10 @@ type Mutation {
 }
 
 type Mutation {
+    export_tenant_config(tenant_id: String): documentTaskOutput
+}
+
+type Mutation {
     export_tenant_users(tenant_id: String!): ExportTenantUsersOutput
 }
 
@@ -226,6 +230,15 @@ type Mutation {
         report_mode: String!
         tenant_id: String!
         election_event_id: String
+    ): generateReportOutput
+}
+
+type Mutation {
+    generate_transmission_report(
+        tenant_id: String!
+        election_event_id: String!
+        election_id: String
+        tally_session_id: String
     ): generateReportOutput
 }
 
@@ -349,6 +362,14 @@ type Mutation {
 
 type Mutation {
     import_templates(tenant_id: String!, document_id: String!): templateOutput
+}
+
+type Mutation {
+    import_tenant_config(
+        tenant_id: String!
+        document_id: String!
+        import_configurations: ImportOptions
+    ): ImportTenantOutput
 }
 
 type Mutation {
@@ -502,7 +523,7 @@ type Mutation {
         election_event_id: uuid!
         election_id: uuid!
         voting_status: VotingStatus!
-        voting_channel: VotingStatusChannel!
+        voting_channels: [VotingStatusChannel]
     ): UpdateElectionVotingStatusOutput
 }
 
@@ -510,7 +531,7 @@ type Mutation {
     update_event_voting_status(
         election_event_id: uuid!
         voting_status: VotingStatus!
-        voting_channel: VotingStatusChannel!
+        voting_channels: [VotingStatusChannel]
     ): UpdateEventVotingStatusOutput
 }
 
@@ -837,6 +858,12 @@ input ApplicationChangeStatusBody {
 
 input ElectionStatsMonitoringInput {
     election_event_id: uuid!
+}
+
+input ImportOptions {
+    include_tenant: Boolean
+    include_keycloak: Boolean
+    include_roles: Boolean
 }
 
 type GetManualVerificationOutput {
@@ -1451,4 +1478,10 @@ type ExportTrusteesOutput {
 type SetVoterAuthenticationOutput {
     success: Boolean!
     message: String
+}
+
+type ImportTenantOutput {
+    message: String
+    error: String
+    task_execution: tasks_execution_type
 }

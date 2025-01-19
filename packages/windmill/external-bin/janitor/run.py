@@ -310,39 +310,36 @@ def generate_election_event(excel_data, base_context, miru_data):
     sbei_users = []
     sbei_users_with_permission_labels = []
 
-    root_ca = None
-
     for precinct_id in miru_data.keys():
         precinct = miru_data[precinct_id]
         miru_election_id = "1"
         election_permission_label = next((e["permission_label"] for e in excel_data["elections"] if str(e["precinct_id"]) == str(precinct_id)), None)
-        if "ROOT_CA" not in precinct:
-            raise Exception(f"Missing ROOT_CA in precinct {precinct_id}")
-        if root_ca and precinct["ROOT_CA"] != root_ca:
-            raise Exception("Unexpected: Root CA mismatch")
-        if not root_ca:
-            root_ca = precinct["ROOT_CA"]
         
         for user in precinct["USERS"]:
             base_user = {
             "miru_id": user["ID"],
             "miru_role": user["ROLE"],
             "miru_name": user["NAME"],
-            "miru_election_id": miru_election_id,
-            "miru_certificate": user["CERTIFICATE"],
+            "miru_election_id": miru_election_id
             }
             for get_username in [get_sbei_username, get_trustee_username]:
                 new_user = copy.deepcopy(base_user)
                 new_user["username"] = get_username(user)
                 sbei_users.append(new_user)
+                is_trustee = get_username == get_trustee_username
+                add_perm_label = "OFOV" if is_trustee else "SBEI"
+                perm_labels_list = (election_permission_label if election_permission_label else "").split()
+                perm_labels_list.append(add_perm_label)
+                perm_labels = "|".join(perm_labels_list)
+
                 sbei_users_with_permission_labels.append({
-                    "permission_label": election_permission_label,
+                    "permission_label": perm_labels,
                     "username": new_user["username"],
                     "miru_id": user["ID"],
                     "miru_role": user["ROLE"],
                     "miru_name": user["NAME"],
                     "miru_election_id": miru_election_id,
-                    "trustee": "trustee" if get_username == get_trustee_username else ""
+                    "trustee": "trustee" if is_trustee else ""
                 })
 
     sbei_users_str = json.dumps(sbei_users)
@@ -352,8 +349,7 @@ def generate_election_event(excel_data, base_context, miru_data):
         "miru": {
             "event_id": miru_event["EVENT_ID"],
             "event_name": miru_event["EVENT_NAME"],
-            "sbei_users": sbei_users_str,
-            "root_ca": root_ca
+            "sbei_users": sbei_users_str
         },
         **base_context,
         **excel_data["election_event"]
@@ -365,12 +361,15 @@ def generate_election_event(excel_data, base_context, miru_data):
 
 
 # "OSAKA PCG" -> "Osaka PCG"
+# WASHINGTON D.C. PE -> Washington D.C. PE
+# NEW YORK PGC -> New York PGC
 def get_embassy(embassy):
     # Split the input string into words
-    words = embassy.split()
+    without_parentheses = re.sub(r"\(.*?\)", "", embassy)
+    words = without_parentheses.split()
     
     # Capitalize each word, and handle the last word conditionally
-    formatted_words = [word.title() for word in words[:-1]]
+    formatted_words = [word.title() if word.upper() != "DC" else word.upper()  for word in words[:-1]]
     last_word = words[-1].upper() if len(words[-1]) <= 3 else words[-1].title()
     
     # Combine the formatted words with the conditionally formatted last word
@@ -379,10 +378,8 @@ def get_embassy(embassy):
     # Join the words into a single string
     return " ".join(formatted_words)
 
-
 def get_country_from_area_embassy(area, embassy):
-    # "PEOPLES REPUBLIC OF BANGLADESH" -> "Bangladesh"
-    country = area.split()[-1].capitalize()
+    country = get_embassy(area)
     return f"{country}/{embassy}"
 
 def generate_reports_csv(reports, election_event_id):
@@ -395,6 +392,7 @@ def generate_reports_csv(reports, election_event_id):
             "Cron Config": json.dumps(report.get("cron_config", None)),
             "Encryption Policy": report["encryption_policy"],
             "Password": report["password"],
+            "Permission Labels": report["permission_label"]
         } for report in reports
     ]
 
@@ -448,6 +446,86 @@ def generate_scheduled_events_csv(scheduled_events, election_event_id):
         csv_buffer.close()
 
         return csv_content
+
+def create_tenant_conigurations_csv(tenant_teamplte_str):
+    tenant_config = {
+        "id": json.dumps(tenant_teamplte_str["id"]),
+        "slug": json.dumps(tenant_teamplte_str["slug"]),
+        "created_at": json.dumps(tenant_teamplte_str["created_at"]),
+        "updated_at": json.dumps(tenant_teamplte_str["created_at"]),
+        "labels": json.dumps(tenant_teamplte_str["labels"]),
+        "annotations": json.dumps(tenant_teamplte_str["annotations"]),
+        "is_active": json.dumps(tenant_teamplte_str["is_active"]),
+        "voting_channels": json.dumps(tenant_teamplte_str["voting_channels"]),
+        "settings": json.dumps(tenant_teamplte_str["settings"]),
+        "test": json.dumps(tenant_teamplte_str["test"]),
+    }
+
+    csv_buffer = io.StringIO()
+
+    writer = csv.DictWriter(csv_buffer, fieldnames=tenant_config.keys())
+
+    writer.writeheader()
+
+    writer.writerow(tenant_config)
+
+    csv_content = csv_buffer.getvalue()
+
+    csv_buffer.close()
+
+    return csv_content
+   
+
+
+def create_tenant_files(excel_data, base_config):
+    ## Load keycloak admin template
+    keycloak_compiled = compiler.compile(keycloak_admin_template)
+    keycloak = json.loads(keycloak_compiled({}))
+    ## Load tenant configurations tamplte   
+    tenant_configuration_compiled = compiler.compile(tenant_configurations)
+    tenant_configuration_context = {
+        "UUID": base_config["tenant_id"],
+        "current_timestamp": current_timestamp
+    }
+    tenant_configurations_str = json.loads(tenant_configuration_compiled(tenant_configuration_context))
+
+    final_json = {
+        "tenant_configurations": tenant_configurations_str,
+        "keycloak_admin_realm": keycloak
+    }
+    #Patch tenant config + keycloak admin realm with excel data parameters
+    patch_json_with_excel(excel_data, final_json, "admin")
+
+    keycloak = final_json["keycloak_admin_realm"]
+    keycloak = patch_keycloak(keycloak, base_config)
+    final_json["keycloak_admin_realm"] = keycloak
+    
+    permissions = excel_data["permissions"]
+    try:
+        # Create a zip file to store the CSV files
+        zip_filename = f"output/tenants.zip"
+
+        with zipfile.ZipFile(zip_filename, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                # Create permissions csv file
+                filename = f"export_permissions.csv"
+                csv_content =  create_permissions_file(permissions)
+                zipf.writestr(filename, csv_content)
+
+                filename = f"tenant_configurations.csv"
+                csv_content = create_tenant_conigurations_csv(final_json["tenant_configurations"])
+                zipf.writestr(filename, csv_content)
+
+                json_str = json.dumps(final_json["keycloak_admin_realm"])
+                csv_buffer = io.StringIO()
+                csv_buffer.write(json_str)
+
+                filename=f"keycloak_admin.json"
+                zipf.writestr(filename, csv_buffer.getvalue())
+                csv_buffer.close()
+        
+        print(f"ZIP file '{zip_filename}' created successfully with {len(permissions)} JSON files.")
+    except Exception as e:
+        logging.exception("An error occurred while creating the tenants ZIP file.")
 
 def create_csv_files(final_json, scheduled_events, reports):
     try:
@@ -572,13 +650,12 @@ def create_permissions_file(data):
         permissions_str = "|".join(permissions)
         csv_data.append([role, permissions_str])
 
-    csv_filename = "output/permissions.csv"
-    with open(csv_filename, mode='w', newline='') as file:
-        writer = csv.writer(file)
-        writer.writerows(csv_data)
-
-    print(f"CSV file '{csv_filename}' created successfully.")
-    return csv_data
+    csv_buffer = io.StringIO()
+    writer = csv.writer(csv_buffer)
+    writer.writerows(csv_data)
+    csv_content = csv_buffer.getvalue()
+    csv_buffer.close()
+    return csv_content
 
 
 def create_admins_file(sbei_users, excel_data_users):
@@ -647,24 +724,44 @@ def create_voters_file(sqlite_output_path):
     print(f"CSV file '{csv_filename}' created successfully.")
         
 
-def gen_keycloak_context(results):
+def gen_keycloak_context(results, excel_data):
 
     print(f"generating keycloak context")
     country_set = set()
     embassy_set = set()
 
     for row in results:
-        if not row["DB_ALLMUN_AREA_NAME"]:
+        if not row["DB_ALLMUN_AREA_NAME"] or not row["allbgy_AREANAME"]:
             continue
-        country_set.add("\\\"" + row["DB_ALLMUN_AREA_NAME"] + "\\\"")
-        if not row["allbgy_AREANAME"]:
-            continue
-        embassy_set.add("\\\"" + row["DB_ALLMUN_AREA_NAME"] + "/" + row["allbgy_AREANAME"] + "\\\"")
-
+        country = get_embassy(row["DB_ALLMUN_AREA_NAME"])
+        embassy = get_embassy(row["allbgy_AREANAME"])
+        embassy_set.add("\\\"" + embassy + "\\\"")
+        country_set.add("\\\"" + country + "/" + embassy + "\\\"")
+    
+    keycloak_settings = [t for t in excel_data["parameters"] 
+                         if t["type"] == "settings" and t["key"].startswith("keycloak")]
     keycloak_context = {
-        "embassy_list": "[" + ",".join(embassy_set) + "]",
-        "country_list": "[" + ",".join(country_set) + "]"
+    "embassy_list": ",".join(embassy_set),
+    "country_list": ",".join(country_set),
+        }
+
+    key_mappings = {
+    "philis_id_inetum_min_value_documental_score": "keycloak_inetum_min_value_philis_id_documental_score",
+    "philis_id_inetum_min_value_facial_score": "keycloak_inetum_min_value_philis_id_facial_score",
+    "seaman_book_inetum_min_value_val_campos_criticos_score": "keycloak_inetum_min_value_seaman_book_val_campos_criticos_score",
+    "seaman_book_inetum_min_value_facial_score": "keycloak_inetum_min_value_seaman_book_facial_score",
+    "passport_inetum_min_value_val_campos_criticos_score": "keycloak_inetum_min_value_passport_val_campos_criticos_score",
+    "passport_inetum_min_value_facial_score": "keycloak_inetum_min_value_passport_facial_score",
+    "driver_license_inetum_min_value_val_campos_criticos_score": "keycloak_inetum_min_value_driver_license_val_campos_criticos_score",
+    "driver_license_inetum_min_value_facial_score": "keycloak_inetum_min_value_driver_license_facial_score",
+    "ibp_inetum_min_value_val_campos_criticos_score": "keycloak_inetum_min_value_ibp_val_campos_criticos_score",
+    "ibp_inetum_min_value_facial_score": "keycloak_inetum_min_value_ibp_facial_score",
     }
+
+    keycloak_settings_dict = {row["key"]: row["value"] for row in keycloak_settings}
+
+    for context_key, settings_key in key_mappings.items():
+        keycloak_context[context_key] = int(keycloak_settings_dict.get(settings_key, 50))
     return keycloak_context
 
 def gen_tree(excel_data, miru_data, script_idr, multiply_factor):
@@ -740,6 +837,7 @@ def gen_tree(excel_data, miru_data, script_idr, multiply_factor):
         if precinct_id not in miru_data:
             raise Exception(f"precinct with 'id' = {precinct_id} not found in miru acf")
         miru_precinct = miru_data[precinct_id]
+        registered_voters = miru_precinct["REGISTERED_VOTERS"]
 
         if not election:
             contest_id = row["DB_SEAT_DISTRICTCODE"]
@@ -754,8 +852,9 @@ def gen_tree(excel_data, miru_data, script_idr, multiply_factor):
                 "contests": [],
                 "scheduled_events": [],
                 "reports": [],
+                "registered_voters": registered_voters,
                 "miru": {
-                    "election_id": "1",#miru_contest["ELECTION_ID"],
+                    "election_id": "1",
                     "name": miru_contest["NAME_ABBR"],
                     "post": row_election_post,
                     "geographical_region": miru_precinct["REGION"],
@@ -848,12 +947,20 @@ def gen_tree(excel_data, miru_data, script_idr, multiply_factor):
         election["scheduled_events"] = election_scheduled_events
 
     for election in elections_object["elections"]:
-        election_reports = [
-            report
-            for report
-            in excel_data["reports"] 
-            if is_element_match_election(report, election)
-        ]
+        election_reports = []
+        for report in excel_data["reports"]:
+            if not is_element_match_election(report, election):
+                continue
+            permission_labels = []
+            if report["permission_label"]:
+                permission_labels = report["permission_label"].split("|")
+            if election["permission_label"]:
+                permission_labels.append(election["permission_label"])
+            report_clone = report.copy()
+            report_clone["permission_label"] = "|".join(permission_labels)
+
+            election_reports.append(report_clone)
+            
         election["reports"] = election_reports
     
     original_elections = copy.deepcopy(elections_object["elections"])
@@ -877,7 +984,7 @@ def gen_tree(excel_data, miru_data, script_idr, multiply_factor):
 
 def replace_placeholder_database(excel_data, election_event_id, miru_data, script_dir, multiply_factor):
     election_tree, areas_dict, results = gen_tree(excel_data, miru_data, script_dir, multiply_factor)
-    keycloak_context = gen_keycloak_context(results)
+    keycloak_context = gen_keycloak_context(results, excel_data)
 
     election_compiled = compiler.compile(election_template)
     contest_compiled = compiler.compile(contest_template)
@@ -947,7 +1054,8 @@ def replace_placeholder_database(excel_data, election_event_id, miru_data, scrip
                 "email_recipients": json.dumps((report["email_recipients"].split(",") if report["email_recipients"] else [])),
                 "report_type": report["report_type"],
                 "election_id": election_context["UUID"],
-                "password": report["password"]
+                "password": report["password"],
+                "permission_label": report["permission_label"],
             }
 
             print(f"rendering report {report_context['UUID']}")
@@ -1033,7 +1141,8 @@ def replace_placeholder_database(excel_data, election_event_id, miru_data, scrip
             "encryption_policy": report["encryption_policy"],
             "email_recipients": json.dumps((report["email_recipients"].split(",") if report["email_recipients"] else [])),
             "report_type": report["report_type"],
-            "password": report["password"]
+            "password": report["password"],
+            "permission_label": report["permission_label"],
             }
 
         print(f"rendering report {report_context['UUID']}")
@@ -1066,9 +1175,14 @@ def parse_election_event(sheet):
             "^logo_url$"
         ],
         allowed_keys=[
-            "^logo_url$"
+            "^logo_url$",
+            "^root_ca$",
+            "^intermediate_cas$",
         ]
     )
+    event = data[0]
+    event["root_ca"] = event["root_ca"].replace('\n', '\\n')
+    event["intermediate_cas"] = event["intermediate_cas"].replace('\n', '\\n')
     return data[0]
 
 def parse_users(sheet):
@@ -1118,6 +1232,7 @@ def parse_reports(sheet):
             "^cron_expression$",
             "^report_type$",
             "^password$",
+            "^permission_label$",
         ]
     )
     return data
@@ -1152,6 +1267,7 @@ def parse_permissions(sheet):
             "^admin$",
             "^sbei$",
             "^trustee$",
+            "^.*$",
         ]
     )
     print(f"parse_permissions {data}")
@@ -1247,6 +1363,13 @@ def extract_miru_zips(acf_path, script_dir):
 
     return ocf_path
 
+def patch_keycloak(keycloak, base_config):
+    css = keycloak["localizationTexts"]["en"]["loginCustomCss"]
+    for key, value in base_config["replacements"].items():
+        css = css.replace(key, value)
+    
+    keycloak["localizationTexts"]["en"]["loginCustomCss"] = css
+    return keycloak
 
 def read_miru_data(acf_path, script_dir):
     ocf_path = extract_miru_zips(acf_path, script_dir)
@@ -1260,7 +1383,6 @@ def read_miru_data(acf_path, script_dir):
         servers = index_by(server_file["SERVERS"], "ID")
         security = index_by(security_file["CERTIFICATES"], "ID")
         keystore_path = os.path.join(ocf_path, precinct_id, 'keystore.bks')
-        keystore_pass = f"KS{precinct_id}#)"
 
         users = []
         
@@ -1268,65 +1390,18 @@ def read_miru_data(acf_path, script_dir):
             print(f"Reading keys for precint {precinct_id}")
 
             for certificate in security.values():
-                if "EMS" == certificate["TYPE"]:
-                    ems_cert_id = certificate["ID"] # example: EMS_ROOT
-                    server_file = os.path.join(ocf_path, precinct_id, f"{ems_cert_id}.cer")
-                    command = f"""keytool -exportcert \
-                        -keystore {keystore_path} \
-                        -storetype BKS \
-                        -storepass '' \
-                        -alias {ems_cert_id} \
-                        -file {server_file} \
-                        -providerpath bcprov.jar \
-                        -provider org.bouncycastle.jce.provider.BouncyCastleProvider \
-                        -rfc"""
-                    run_command(command, script_dir)
-
                 if "USER" == certificate["TYPE"]:
                     full_id = certificate["ID"] # example: eb_91070001-01
                     user_data = certificate["ID"].split("-")
-                    user_id = user_data[0]
                     user_role = user_data[1]
-                    src_alias = f"eb_{full_id}"
                     if "07" == user_role:
                         continue
                     
-                    password = certificate["PKEY_PASSWORD"]
-                    command = f"""keytool -importkeystore \
-                        -srckeystore {keystore_path} \
-                        -srcstoretype BKS \
-                        -srcstorepass '' \
-                        -srckeypass '{password}' \
-                        -srcalias {src_alias} \
-                        -destkeystore output/sbei_{full_id}.p12 \
-                        -deststoretype PKCS12 \
-                        -deststorepass '{password}' \
-                        -destkeypass '{password}' \
-                        -destalias {full_id} \
-                        -providerpath bcprov.jar \
-                        -provider org.bouncycastle.jce.provider.BouncyCastleProvider"""
-                    print(command)
-                    run_command(command, script_dir)
-
-                    cer_output_file_path = os.path.join(ocf_path, precinct_id, f"{src_alias}.cer")
-                    command = f"""keytool -exportcert \
-                        -keystore {keystore_path} \
-                        -storetype BKS \
-                        -storepass '' \
-                        -alias {src_alias} \
-                        -file {cer_output_file_path} \
-                        -providerpath bcprov.jar \
-                        -provider org.bouncycastle.jce.provider.BouncyCastleProvider \
-                        -rfc"""
-                    run_command(command, script_dir)
-                    user_cert = read_text_file(cer_output_file_path)
-                    user_cert = user_cert.replace('\r', '').replace('\n', '\\n')
                     users.append({
                         "ID": full_id,
                         "NAME": certificate["NAME"],
                         "ROLE": user_role,
-                        "INPUT_NAME": True,
-                        "CERTIFICATE": user_cert
+                        "INPUT_NAME": True
                     })
         
         for server in servers.values():
@@ -1352,9 +1427,7 @@ def read_miru_data(acf_path, script_dir):
 
         election = precinct_file["ELECTIONS"][0]
         region = next((e for e in precinct_file["REGIONS"] if e["TYPE"] == "Province"), None)
-        server_file_path = os.path.join(ocf_path, precinct_id, "EMS_ROOT.cer")
-        root_ca = read_text_file(server_file_path)
-        root_ca = root_ca.replace('\r', '').replace('\n', '\\n')
+        registered_voters = precinct_file["POLLING_STATION"]["VOTER_COUNT"]
 
         precinct_data = {
             "EVENT_ID": election["EVENT_ID"],
@@ -1363,9 +1436,9 @@ def read_miru_data(acf_path, script_dir):
             "CANDIDATES": index_by(precinct_file["CANDIDATES"], "ID"),
             "REGIONS": precinct_file["REGIONS"],
             "REGION": region["NAME"],
+            "REGISTERED_VOTERS": registered_voters,
             "SERVERS": servers,
-            "USERS": users,
-            "ROOT_CA": root_ca
+            "USERS": users
         }
         data[precinct_id] = precinct_data
 
@@ -1473,6 +1546,13 @@ try:
     with open('templates/report.hbs', 'r') as file:
         reports_template = file.read()
 
+    with open('templates/tenantConfigurations.hbs') as file:
+        tenant_configurations = file.read()
+    
+    with open('templates/COMELEC/keycloakAdmin.hbs', 'r') as file:
+        keycloak_admin_template = file.read()
+    
+
     logging.info("Loaded all templates successfully.")
 except FileNotFoundError as e:
     logging.exception(f"Template file not found: {e}")
@@ -1491,10 +1571,11 @@ if args.only_voters:
 
 multiply_factor = args.multiply_elections
 election_event, election_event_id, sbei_users = generate_election_event(excel_data, base_context, miru_data)
-create_permissions_file(excel_data["permissions"])
+create_tenant_files(excel_data, base_config)
 create_admins_file(sbei_users, excel_data["users"])
 
 areas, candidates, contests, area_contests, elections, keycloak, scheduled_events, reports = replace_placeholder_database(excel_data, election_event_id, miru_data, script_dir, multiply_factor)
+keycloak = patch_keycloak(keycloak, base_config)
 
 final_json = {
     "tenant_id": base_config["tenant_id"],

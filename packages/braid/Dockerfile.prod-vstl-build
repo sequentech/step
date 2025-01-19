@@ -1,0 +1,17 @@
+# SPDX-FileCopyrightText: 2023-2024 Sequent Tech <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+FROM braid-build-dependencies
+
+COPY --from=braid-compile /app/target/release/main /usr/bin/trustee
+COPY --from=braid-compile /app/target/release/verify /usr/bin/verify
+COPY --from=braid-compile /app/target/release/gen_trustee_config /usr/bin/
+COPY --from=braid-compile /app/target/release/main /usr/bin/trustee
+COPY --from=braid-compile /app/braid/scripts/*.sh /usr/bin/
+RUN mkdir -p /opt/braid/
+
+# init index db
+RUN mkdir /tmp/cache
+
+CMD ["/usr/bin/trustee.sh"]

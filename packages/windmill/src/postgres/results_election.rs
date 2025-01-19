@@ -54,7 +54,7 @@ impl TryFrom<Row> for ResultsElectionWrapper {
     }
 }
 
-#[instrument(skip(hasura_transaction), err)]
+#[instrument(skip_all, err)]
 pub async fn update_results_election_documents(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -62,8 +62,10 @@ pub async fn update_results_election_documents(
     election_event_id: &str,
     election_id: &str,
     documents: &ResultDocuments,
+    json_hash: &str,
 ) -> Result<()> {
     let documents_value = serde_json::to_value(documents.clone())?;
+    let json_hash_value = serde_json::Value::String(json_hash.to_string()); // Convert json_hash to JSON
     let tenant_uuid: uuid::Uuid = Uuid::parse_str(&tenant_id)
         .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
     let results_event_uuid: uuid::Uuid = Uuid::parse_str(&results_event_id)
@@ -78,12 +80,13 @@ pub async fn update_results_election_documents(
                 UPDATE
                     sequent_backend.results_election
                 SET
-                    documents = $1
+                    documents = $1,
+                    annotations = jsonb_set(COALESCE(annotations, '{}'), '{results_hash}', $2)
                 WHERE
-                    tenant_id = $2 AND
-                    results_event_id = $3 AND
-                    election_event_id = $4 AND
-                    election_id = $5
+                    tenant_id = $3 AND
+                    results_event_id = $4 AND
+                    election_event_id = $5 AND
+                    election_id = $6
                 RETURNING
                     id;
             "#,
@@ -94,6 +97,7 @@ pub async fn update_results_election_documents(
             &statement,
             &[
                 &documents_value,
+                &json_hash_value,
                 &tenant_uuid,
                 &results_event_uuid,
                 &election_event_uuid,
@@ -247,4 +251,58 @@ pub async fn get_election_results(
         .collect::<Result<Vec<ResultsElection>>>()?;
 
     Ok(results)
+}
+
+#[instrument(err)]
+pub async fn get_results_election_by_results_event_id(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_id: &str,
+    results_event_id: &str,
+) -> Result<ResultsElection> {
+    let tenant_uuid: uuid::Uuid = Uuid::parse_str(tenant_id)
+        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
+    let election_uuid: uuid::Uuid = Uuid::parse_str(election_id)
+        .map_err(|err| anyhow!("Error parsing election_id as UUID: {}", err))?;
+    let results_event_uuid: uuid::Uuid = Uuid::parse_str(results_event_id)
+        .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
+
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT
+                    *
+                FROM 
+                    sequent_backend.results_election
+                WHERE
+                    tenant_id = $1 AND
+                    election_id = $2 AND
+                    results_event_id = $3
+                ORDER BY created_at DESC
+            "#,
+        )
+        .await?;
+
+    let rows = hasura_transaction
+        .query(
+            &statement,
+            &[&tenant_uuid, &election_uuid, &results_event_uuid],
+        )
+        .await
+        .map_err(|err| anyhow!("Error running the query: {}", err))?;
+
+    // Convert rows into ResultsElection objects
+    let results = rows
+        .into_iter()
+        .map(|row| {
+            row.try_into()
+                .map(|res: ResultsElectionWrapper| res.0)
+                .map_err(|err| anyhow!("Error converting row to ResultsElection: {}", err))
+        })
+        .collect::<Result<Vec<ResultsElection>>>()?;
+
+    results
+        .get(0)
+        .map(|val| val.clone())
+        .ok_or(anyhow!("Results election not found"))
 }

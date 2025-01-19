@@ -7,10 +7,11 @@ use crate::postgres::reports::Report;
 use crate::postgres::reports::ReportType;
 use crate::services::database::get_hasura_pool;
 use crate::services::database::get_keycloak_pool;
-use crate::services::reports::num_of_ov_not_yet_pre_enrolled::NumOVNotPreEnrolledReport;
-use crate::services::reports::ov_not_pre_enrolled_list::NotPreEnrolledListTemplate;
-use crate::services::reports::ov_turnout_per_aboard_and_sex::OVTurnoutPerAboardAndSexReport;
-use crate::services::reports::ov_turnout_with_percentage::OVTurnoutPercentageReport;
+use crate::services::reports::ov_not_yet_pre_enrolled_list::NotPreEnrolledListTemplate;
+use crate::services::reports::ov_not_yet_pre_enrolled_number::NumOVNotPreEnrolledReport;
+use crate::services::reports::ov_turnout_per_aboard_status_sex::OVTurnoutPerAboardAndSexReport;
+use crate::services::reports::ov_turnout_per_aboard_status_sex_percentage::OVTurnoutPerAboardAndSexPercentageReport;
+use crate::services::reports::ov_turnout_percentage::OVTurnoutPercentageReport;
 use crate::services::reports::template_renderer::{
     GenerateReportMode, ReportOriginatedFrom, ReportOrigins, TemplateRenderer,
 };
@@ -22,8 +23,8 @@ use crate::services::reports::{
     electoral_results::ElectoralResults,
     initialization::InitializationTemplate,
     manual_verification::ManualVerificationTemplate,
-    ov_users_who_voted::OVUsersWhoVotedTemplate,
-    ov_who_pre_enrolled::PreEnrolledVoterTemplate,
+    ov_pre_enrolled_approved::PreEnrolledVoterTemplate,
+    ov_who_voted::OVUsersWhoVotedTemplate,
     ov_with_voting_status::OVWithVotingStatusTemplate,
     ovcs_events::OVCSEventsTemplate,
     ovcs_information::OVCSInformationTemplate,
@@ -53,6 +54,8 @@ pub async fn generate_report(
     report_mode: GenerateReportMode,
     is_scheduled_task: bool,
     task_execution: Option<TasksExecution>,
+    executer_username: Option<String>,
+    tally_session_id: Option<String>,
 ) -> Result<(), anyhow::Error> {
     let tenant_id = report.tenant_id.clone();
     let election_event_id = report.election_event_id.clone();
@@ -68,6 +71,8 @@ pub async fn generate_report(
         template_alias,
         voter_id: None,
         report_origin: ReportOriginatedFrom::ReportsTab, // Assuming this is visited only frrom the Reports tab
+        executer_username,
+        tally_session_id,
     };
 
     let mut db_client: DbClient = match get_hasura_pool().await.get().await {
@@ -153,11 +158,11 @@ pub async fn generate_report(
             let report = ElectoralResults::new(ids);
             execute_report!(report);
         }
-        Ok(ReportType::LIST_OF_OV_WHO_VOTED) => {
+        Ok(ReportType::OV_WHO_VOTED) => {
             let report = OVUsersWhoVotedTemplate::new(ids);
             execute_report!(report);
         }
-        Ok(ReportType::LIST_OF_OVERSEAS_VOTERS_WITH_VOTING_STATUS) => {
+        Ok(ReportType::OV_WITH_VOTING_STATUS) => {
             let report = OVWithVotingStatusTemplate::new(ids);
             execute_report!(report);
         }
@@ -207,24 +212,28 @@ pub async fn generate_report(
             let report = InitializationTemplate::new(ids);
             execute_report!(report);
         }
-        Ok(ReportType::LIST_OF_OV_WHO_PRE_ENROLLED_APPROVED) => {
+        Ok(ReportType::OV_PRE_ENROLLED_APPROVED) => {
             let report = PreEnrolledVoterTemplate::new(ids);
             execute_report!(report);
         }
-        Ok(ReportType::LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED) => {
+        Ok(ReportType::OV_NOT_YET_PRE_ENROLLED_LIST) => {
             let report = NotPreEnrolledListTemplate::new(ids);
             execute_report!(report);
         }
-        Ok(ReportType::OVERSEAS_VOTERS_TURNOUT) => {
+        Ok(ReportType::OV_TURNOUT_PERCENTAGE) => {
             let report = OVTurnoutPercentageReport::new(ids);
             execute_report!(report);
         }
-        Ok(ReportType::NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED) => {
+        Ok(ReportType::OV_NOT_YET_PRE_ENROLLED_NUMBER) => {
             let report = NumOVNotPreEnrolledReport::new(ids);
             execute_report!(report);
         }
-        Ok(ReportType::OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_AND_SEX) => {
+        Ok(ReportType::OV_TURNOUT_PER_ABOARD_STATUS_SEX) => {
             let report = OVTurnoutPerAboardAndSexReport::new(ids);
+            execute_report!(report);
+        }
+        Ok(ReportType::OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE) => {
+            let report = OVTurnoutPerAboardAndSexPercentageReport::new(ids);
             execute_report!(report);
         }
         Ok(ReportType::BALLOT_IMAGES) => {
@@ -251,6 +260,8 @@ pub async fn generate_report(
     report_mode: GenerateReportMode,
     is_scheduled_task: bool,
     task_execution: Option<TasksExecution>,
+    executer_username: Option<String>,
+    tally_session_id: Option<String>,
 ) -> Result<()> {
     // Spawn the task using an async block
     let handle = tokio::task::spawn_blocking({
@@ -262,6 +273,8 @@ pub async fn generate_report(
                     report_mode,
                     is_scheduled_task,
                     task_execution,
+                    executer_username,
+                    tally_session_id,
                 )
                 .await
                 .map_err(|err| anyhow!("generate_report error: {:?}", err))

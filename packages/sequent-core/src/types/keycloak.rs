@@ -29,7 +29,9 @@ pub struct VotesInfo {
     pub last_voted_at: String,
 }
 
-#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
+#[derive(
+    Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone, Default,
+)]
 pub struct User {
     pub id: Option<String>,
     pub attributes: Option<HashMap<String, Vec<String>>>,

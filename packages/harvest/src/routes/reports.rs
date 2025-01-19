@@ -15,8 +15,6 @@ use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumString};
 use tracing::instrument;
 use uuid::Uuid;
-use windmill::services::reports_vault::get_report_key_pair;
-use windmill::services::tasks_execution::*;
 use windmill::{
     postgres::reports::get_report_by_id,
     services::{
@@ -25,6 +23,11 @@ use windmill::{
         reports::template_renderer::{EReportEncryption, GenerateReportMode},
     },
     types::tasks::ETasksExecution,
+};
+use windmill::{postgres::reports::Report, services::tasks_execution::*};
+use windmill::{
+    postgres::reports::{get_report_by_type, ReportType},
+    services::reports_vault::get_report_key_pair,
 };
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -76,6 +79,11 @@ pub async fn generate_report(
         .clone()
         .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
 
+    let executer_username = claims
+        .preferred_username
+        .clone()
+        .unwrap_or_else(|| executer_name.clone());
+
     let document_id: String = Uuid::new_v4().to_string();
     let celery_app = get_celery_app().await;
     let report = get_report_by_id(
@@ -114,6 +122,8 @@ pub async fn generate_report(
             input.report_mode.clone(),
             false,
             Some(task_execution.clone()),
+            Some(executer_username),
+            None,
         ))
         .await
         .map_err(|e| {
@@ -177,4 +187,134 @@ pub async fn encrypt_report_route(
     };
 
     Ok(Json(output))
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct GenerateTransmissionReportBody {
+    pub tenant_id: String,
+    pub election_event_id: String,
+    pub election_id: Option<String>,
+    pub tally_session_id: Option<String>,
+}
+
+#[instrument(skip(claims))]
+#[post("/generate-transmission-report", format = "json", data = "<body>")]
+pub async fn generate_transmission_report(
+    claims: JwtClaims,
+    body: Json<GenerateTransmissionReportBody>,
+) -> Result<Json<GenerateReportResponse>, (Status, String)> {
+    let input = body.into_inner();
+    authorize(
+        &claims,
+        true,
+        Some(input.tenant_id.clone()),
+        vec![Permissions::TRANSMISSION_REPORT_GENERATE],
+    )?;
+
+    let mut hasura_db_client: DbClient =
+        get_hasura_pool().await.get().await.map_err(|e| {
+            (
+                Status::InternalServerError,
+                format!("Error obtaining keycloak transaction: {e:?}"),
+            )
+        })?;
+    let hasura_transaction =
+        hasura_db_client.transaction().await.map_err(|e| {
+            (
+                Status::InternalServerError,
+                format!("Error obtaining hasura transaction: {e:?}"),
+            )
+        })?;
+
+    let executer_name = claims
+        .name
+        .clone()
+        .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
+
+    let executer_username = claims
+        .preferred_username
+        .clone()
+        .unwrap_or_else(|| executer_name.clone());
+
+    // Insert the task execution record
+    let task_execution = post(
+        &input.tenant_id,
+        Some(&input.election_event_id),
+        ETasksExecution::GENERATE_TRANSMISSION_REPORT,
+        &executer_name,
+    )
+    .await
+    .map_err(|error| {
+        (
+            Status::InternalServerError,
+            format!("Failed to insert task execution record: {error:?}"),
+        )
+    })?;
+
+    if input.tally_session_id.is_none() {
+        update_fail(
+            &task_execution,
+            "Tally session id is required to generate transmission report",
+        )
+        .await;
+        return Err((
+            Status::BadRequest,
+            "Tally session id is required to generate transmission report"
+                .to_string(),
+        ));
+    };
+
+    let report = get_report_by_type(
+        &hasura_transaction,
+        &input.tenant_id,
+        &input.election_event_id,
+        &ReportType::TRANSMISSION_REPORT.to_string(),
+        &input.election_id,
+    )
+    .await
+    .map_err(|e| {
+        (
+            Status::InternalServerError,
+            format!("Error getting report by id: {e:?}"),
+        )
+    })?
+    .unwrap_or(Report {
+        id: Uuid::new_v4().to_string(),
+        election_event_id: input.election_event_id.clone(),
+        tenant_id: input.tenant_id.clone(),
+        election_id: input.election_id.clone(),
+        report_type: ReportType::TRANSMISSION_REPORT.to_string(),
+        template_alias: None,
+        encryption_policy: EReportEncryption::Unencrypted,
+        cron_config: None,
+        created_at: chrono::Utc::now(),
+        permission_label: None,
+    });
+
+    let document_id: String = Uuid::new_v4().to_string();
+    let celery_app = get_celery_app().await;
+
+    let _task = celery_app
+        .send_task(windmill::tasks::generate_report::generate_report::new(
+            report.clone(),
+            document_id.clone(),
+            GenerateReportMode::REAL,
+            false,
+            Some(task_execution.clone()),
+            Some(executer_username),
+            input.tally_session_id.clone(),
+        ))
+        .await
+        .map_err(|e| {
+            (
+                Status::InternalServerError,
+                format!("Error generating report: {e:?}"),
+            )
+        })?;
+
+    Ok(Json(GenerateReportResponse {
+        document_id: document_id,
+        encryption_policy: report.encryption_policy,
+        task_execution: task_execution.clone(),
+    }))
 }

@@ -5,6 +5,11 @@ import {TranslationType} from "./en"
 
 const spanishTranslation: TranslationType = {
     translations: {
+        philippinePassport: "Pasaporte filipino",
+        seamanBook: "Libro de marinero",
+        philSysID: "Identificación PhilSys",
+        iBP: "Colegio de Abogados Integrado de Filipinas (IBP)",
+        driversLicense: "Licencia de conducir",
         loading: "Cargando...",
         loadingDataProvider: "Cargando proveedor de datos...",
         logsScreen: {
@@ -18,6 +23,7 @@ const spanishTranslation: TranslationType = {
                 statement_timestamp: "Marca de tiempo de declaración",
                 message: "Mensaje",
                 user_id: "ID de usuario",
+                username: "Nombre de Usuario",
                 sender_pk: "Clave primaria del remitente",
                 log_type: "Tipo de registro",
                 event_type: "Tipo de evento",
@@ -69,8 +75,11 @@ const spanishTranslation: TranslationType = {
                 EXPORT_BALLOT_PUBLICATION: "Exportar Publicación de Boleta",
                 EXPORT_ACTIVITY_LOGS_REPORT: "Exportar Informe de Registros de Actividad",
                 GENERATE_REPORT: "Generar Reporte",
+                GENERATE_TRANSMISSION_REPORT: "Generar Informe de Transmisión",
                 EXPORT_TRUSTEES: "Exportar Autoridades",
                 EXPORT_APPLICATION: "Exportar Solicitudes",
+                EXPORT_TENANT_CONFIG: "Exportar Configuración del Inquilino",
+                IMPORT_TENANT_CONFIG: "Importar Configuración del Inquilino",
             },
             widget: {
                 taskTitle: "Tarea: {{title}}",
@@ -135,6 +144,7 @@ const spanishTranslation: TranslationType = {
                 lookAndFeel: "PERSONILIZACIÓN DE APARIENCIA",
                 schedules: "EVENTOS PROGRAMADOS",
                 trustees: "AUTORIDADES",
+                BackupRestore: "COPIA DE SEGURIDAD / RESTAURAR",
             },
         },
         trusteesSettingsScreen: {
@@ -193,6 +203,7 @@ const spanishTranslation: TranslationType = {
             votersByChannels: "Votantes por canales",
             voterLoginURL: "URL de inicio de sesión de votantes",
             voterEnrollURL: "URL de inscripción de votantes",
+            voterEnrollKioskURL: "Kiosk URL de inscripción de votantes",
             ipAddress: {
                 emptyState: "Aún no hay votos.",
                 title: "IP Addresses",
@@ -375,6 +386,11 @@ const spanishTranslation: TranslationType = {
                 electionNumber: "Número de Elecciones",
                 trustees: "Trustees",
                 status: "Estado",
+                tallyType: {
+                    label: "Tipo de Conteo",
+                    ELECTORAL_RESULTS: "Resultados Electorales",
+                    INITIALIZATION_REPORT: "Resultados de Inicialización",
+                },
                 create: {
                     title: "Crear Recuento",
                     subtitle: "Crear un nuevo Recuento para este Evento Electoral",
@@ -624,6 +640,8 @@ const spanishTranslation: TranslationType = {
                     label: "Verificar manualmente",
                     verify: "Verificar manualmente al votante",
                     body: "Verifique manualmente a este votante. Obtendrá un PDF con un enlace de código QR que le permite al votante iniciar sesión omitiendo el KYC en línea.",
+                    noEmailOrPhone:
+                        "Este votante no puede ser verificado manualmente porque no tiene una dirección de correo electrónico o un número de teléfono asociado a él.",
                 },
                 errors: {
                     editError: "Error editando votante",
@@ -871,9 +889,15 @@ const spanishTranslation: TranslationType = {
                 "transmition-ceremony": "Ceremonia de Transmisión",
                 "admin-ip-address-view": "Ver Dirección IP",
                 "election-approvals-tab": "Ver Aprobaciones de la Elección",
+                "election-event-approvals-tab": "Ver Aprobaciones del Evento Electoral",
                 "election-ip-address-view": "Ver Dirección IP de la Elección",
                 "election-dashboard-tab": "Ver Dashboard de la Elección",
+                "trustees-export": "Exportar Fideicomisarios",
                 "user-import": "Importar Usuarios",
+                "voter-voted-edit": "Editar a los votantes que votaron",
+                "voter-email-tlf-edit": "Editar email/teléfono de los votantes",
+                "cloudflare-write": "Editar las reglas de bloqueo por país en Cloudflare",
+                "transmission-report-generate": "Generar Informe de Transmisión",
             },
         },
         generalSettingsScreen: {
@@ -953,7 +977,7 @@ const spanishTranslation: TranslationType = {
                 OVCS_INFORMATION: "Información de OVCS",
                 OVERSEAS_VOTERS: "Lista de Votantes en el Extranjero",
                 OV_USERS_WHO_VOTED: "Lista de Votantes en el Extranjero que Votaron",
-                OV_USERS: "Lista de Votantes en el Extranjero con Estado de Votación",
+                OV_WITH_VOTING_STATUS: "Lista de Votantes en el Extranjero con Estado de Votación",
                 OVCS_STATISTICS: "Monitoreo de Votación en el Extranjero - Estadísticas OVCS",
                 PRE_ENROLLED_OV_BUT_DISAPPROVED:
                     "Lista de Votantes en el Extranjero que se Preinscribieron pero Fueron Rechazados",
@@ -1058,6 +1082,12 @@ const spanishTranslation: TranslationType = {
             contest: "Crear un Concurso",
             candidate: "Crear un Candidato",
         },
+        importResource: {
+            electionEvent: "Importar un Evento Electoral",
+            election: "Importar una Elección",
+            contest: "Importar un Concurso",
+            candidate: "Importar un Candidato",
+        },
         sideMenu: {
             electionEvents: "Procesos Electorales",
             search: "Buscar",
@@ -1101,6 +1131,7 @@ const spanishTranslation: TranslationType = {
                             archive: "El elemento ha sido archivado",
                             unarchive: "El elemento ha sido desarchivado",
                             delete: "El elemento ha sido eliminado",
+                            reloading: "Espere. La página se recargara en unos momentos",
                         },
                         error: {
                             archive: "Error al intentar archivar este elemento",
@@ -1366,8 +1397,9 @@ const spanishTranslation: TranslationType = {
                     },
                     download: {
                         title: "Descargar",
-                        emlTitle: "Download EML",
-                        transmissionPackageTitle: "Descargar el Paquete de Transmisión",
+                        emlTitle: "Download EML {{date}}",
+                        transmissionPackageTitle: "Descargar el Paquete de Transmisión {{date}}",
+                        transmissionReportTitle: "Descargar informe de transmisión",
                         dialog: {
                             title: "¿Quieres descargar el Paquete de Transmisión?",
                             description:
@@ -1516,7 +1548,7 @@ const spanishTranslation: TranslationType = {
                 history: "Historico de Cambios",
             },
             action: {
-                geneateInitializationReport: "Generar Informe de Inicialización",
+                generateInitializationReport: "Generar Informe de Inicialización",
                 startVotingPeriod: "Comenzar el período de votación",
                 stopVotingPeriod: "Detener el período de votación",
                 stopKioskVotingPeriod: "Detener la Votación en el Quiosco",
@@ -1766,25 +1798,21 @@ const spanishTranslation: TranslationType = {
                 OVCS_INFORMATION: "Información de OVCS",
                 OVCS_EVENTS: "Monitoreo de Votación en el Extranjero - Eventos OVCS",
                 OVCS_STATISTICS: "Monitoreo de Votación en el Extranjero - Estadísticas OVCS",
-                LIST_OF_OV_WHO_VOTED: "Usuarios OV Que Votaron",
+                OV_WHO_VOTED: "Usuarios OV Que Votaron",
                 PRE_ENROLLED_OV_BUT_DISAPPROVED:
                     "Lista de OV que se preinscribieron pero fueron rechazados",
                 LIST_OF_OVERSEAS_VOTERS: "Lista de Votantes en el Extranjero",
-                OVERSEAS_VOTERS_TURNOUT: "Participación de Votantes en el Extranjero",
-                OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_AND_SEX:
+                OV_TURNOUT_PERCENTAGE: "Participación de Votantes en el Extranjero",
+                OV_TURNOUT_PER_ABOARD_STATUS_SEX:
                     "Participación de Votantes en el Extranjero - por Estado a Bordo y Sexo",
-                OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_SEX_AND_WITH_PERCENTAGE:
+                OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE:
                     "Participación de Votantes en el Extranjero - por Estado a Bordo, Sexo y con Porcentaje",
-                LIST_OF_OV_WHO_PRE_ENROLLED_APPROVED:
-                    "Lista de OV que se Preinscribieron (Aprobados)",
+                OV_PRE_ENROLLED_APPROVED: "Lista de OV que se Preinscribieron (Aprobados)",
                 PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
                     "Lista de OV que se Preinscribieron pero requieren Validación Manual",
-                LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
-                    "Lista de OV que aún no se han Preinscrito",
-                LIST_OF_OVERSEAS_VOTERS_WITH_VOTING_STATUS:
-                    "Lista de Votantes en el Extranjero con Estado de Votación",
-                NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
-                    "Número de OV que aún no se han Preinscrito",
+                OV_NOT_YET_PRE_ENROLLED_LIST: "Lista de OV que aún no se han Preinscrito",
+                OV_WITH_VOTING_STATUS: "Lista de Votantes en el Extranjero con Estado de Votación",
+                OV_NOT_YET_PRE_ENROLLED_NUMBER: "Número de OV que aún no se han Preinscrito",
                 BALLOT_IMAGES: "Imágenes de Boletas",
             },
             method: {
@@ -1831,6 +1859,23 @@ const spanishTranslation: TranslationType = {
                     errorSaving: "Error al guardar la lista de países",
                 },
             },
+            backupRestore: {
+                title: "Copia de seguridad / Restaurar configuración del inquilino",
+                backup: {
+                    label: "Respaldo",
+                    subtitle: "Copia de seguridad de las configuraciones del inquilino",
+                },
+                restore: {
+                    label: "Restaurar",
+                    subtitle: "Restaurar la configuración del inquilino",
+                    title: "Importar configuraciones del inquilino",
+                    paragraph:
+                        "Importar configuraciones del inquilino, configuraciones de Keycloak, roles y datos de permisos usando una carpeta comprimida.",
+                    tenantConfigOption: "Importar configuraciones del inquilino",
+                    keycloakConfigOption: "Importar configuraciones de Keycloak",
+                    RolesConfigOption: "Importar configuraciones de roles y permisos",
+                },
+            },
         },
         approvalsScreen: {
             column: {
@@ -1841,7 +1886,7 @@ const spanishTranslation: TranslationType = {
                 createdAt: "Creado El",
                 updatedAt: "Actualizado El",
             },
-            approvalInformation: "Información de aprobación",
+            approvalRequest: "Solicitud de Aprobación",
             title: "Votantes",
             subtitle: "Buscar votantes coincidentes",
             approve: {

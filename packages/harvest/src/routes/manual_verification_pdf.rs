@@ -39,7 +39,7 @@ pub async fn get_manual_verification_pdf(
         &claims,
         true,
         Some(claims.hasura_claims.tenant_id.clone()),
-        vec![Permissions::VOTER_WRITE],
+        vec![Permissions::VOTER_MANUALLY_VERIFY],
     )?;
 
     let input = body.into_inner();

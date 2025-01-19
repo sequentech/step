@@ -8,10 +8,12 @@ use crate::postgres::results_contest::insert_results_contests;
 use crate::postgres::results_contest_candidate::insert_results_contest_candidates;
 use crate::postgres::results_election::insert_results_elections;
 use crate::postgres::results_event::insert_results_event;
+use crate::services::ceremonies::result_documents::save_result_documents;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::services::connection;
 use sequent_core::services::keycloak;
+use sequent_core::types::ceremonies::TallyType;
 use sequent_core::types::hasura::core::Area;
 use sequent_core::types::results::*;
 use serde_json::json;
@@ -20,8 +22,6 @@ use std::path::PathBuf;
 use tracing::{event, instrument, Level};
 use velvet::cli::state::State;
 use velvet::pipes::generate_reports::ElectionReportDataComputed;
-
-use super::result_documents::save_result_documents;
 
 #[instrument(skip_all)]
 pub async fn save_results(
@@ -319,6 +319,7 @@ pub async fn populate_results_tables(
     previous_execution: GetLastTallySessionExecutionSequentBackendTallySessionExecution,
     areas: &Vec<Area>,
     default_language: &str,
+    tally_type_enum: TallyType,
 ) -> Result<Option<String>> {
     let mut auth_headers = keycloak::get_client_credentials().await?;
     let results_event_id_opt = generate_results_id_if_necessary(
@@ -350,6 +351,7 @@ pub async fn populate_results_tables(
                 base_tally_path,
                 areas,
                 default_language,
+                tally_type_enum,
             )
             .await?;
         }

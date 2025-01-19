@@ -12,7 +12,6 @@ SPDX-License-Identifier: AGPL-3.0-only
                 <span class="error-message">${msg(error)?no_esc}</span>
                 <span class="error-message">code_id: ${code_id}</span>
                 <a class="retry-link" href="#" onclick="location.reload(); return false;">${msg("linkTryAgain")?no_esc}</a>
-                <p>If the problem persist, please refer in the help desk to identificator 11421 for manual resolution.</p>
             </div>
         </div>
     </#if>

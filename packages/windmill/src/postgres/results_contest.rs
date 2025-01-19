@@ -3,15 +3,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
+use ordered_float::NotNan;
+use rust_decimal::prelude::ToPrimitive;
+use rust_decimal::Decimal;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::types::results::*;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio_postgres::row::Row;
-use tokio_postgres::types::ToSql;
 use tracing::{info, instrument};
 use uuid::Uuid;
-use bigdecimal::BigDecimal;
 
 pub struct ResultsContestWrapper(pub ResultsContest);
 
@@ -38,8 +39,9 @@ impl TryFrom<Row> for ResultsContestWrapper {
                 .try_get::<_, Option<i32>>("total_valid_votes")?
                 .map(|val| val as i64),
             total_auditable_votes_percent: item
-                .try_get::<&str, Option<BigDecimal>>("total_auditable_votes_percent")?
-                .map(|val| val.to_f64().try_into())
+                .try_get::<_, Decimal>("total_auditable_votes_percent")?
+                .to_f64()
+                .map(NotNan::new)
                 .transpose()?,
             explicit_invalid_votes: item
                 .try_get::<_, Option<i32>>("explicit_invalid_votes")?
@@ -61,31 +63,37 @@ impl TryFrom<Row> for ResultsContestWrapper {
                 .try_get::<_, Option<i32>>("total_invalid_votes")?
                 .map(|val| val as i64),
             total_invalid_votes_percent: item
-                .try_get::<&str, Option<f64>>("total_invalid_votes_percent")?
-                .map(|val| val.try_into())
+                .try_get::<&str, Decimal>("total_invalid_votes_percent")?
+                .to_f64()
+                .map(NotNan::new)
                 .transpose()?,
             total_valid_votes_percent: item
-                .try_get::<&str, Option<f64>>("total_valid_votes_percent")?
-                .map(|val| val.try_into())
+                .try_get::<&str, Decimal>("total_valid_votes_percent")?
+                .to_f64()
+                .map(NotNan::new)
                 .transpose()?,
             explicit_invalid_votes_percent: item
-                .try_get::<&str, Option<f64>>("explicit_invalid_votes_percent")?
-                .map(|val| val.try_into())
+                .try_get::<&str, Decimal>("explicit_invalid_votes_percent")?
+                .to_f64()
+                .map(NotNan::new)
                 .transpose()?,
             implicit_invalid_votes_percent: item
-                .try_get::<&str, Option<f64>>("implicit_invalid_votes_percent")?
-                .map(|val| val.try_into())
+                .try_get::<&str, Decimal>("implicit_invalid_votes_percent")?
+                .to_f64()
+                .map(NotNan::new)
                 .transpose()?,
             blank_votes_percent: item
-                .try_get::<&str, Option<f64>>("blank_votes_percent")?
-                .map(|val| val.try_into())
+                .try_get::<&str, Decimal>("blank_votes_percent")?
+                .to_f64()
+                .map(NotNan::new)
                 .transpose()?,
             total_votes: item
                 .try_get::<_, Option<i32>>("total_votes")?
                 .map(|val| val as i64),
             total_votes_percent: item
-                .try_get::<&str, Option<f64>>("total_votes_percent")?
-                .map(|val| val.try_into())
+                .try_get::<&str, Decimal>("total_votes_percent")?
+                .to_f64()
+                .map(NotNan::new)
                 .transpose()?,
             documents,
             total_auditable_votes: item

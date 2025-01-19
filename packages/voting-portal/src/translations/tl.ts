@@ -211,7 +211,7 @@ const tagalogTranslation: TranslationType = {
             downloadButton: "I-download",
             step2Title: "2. I-verify ang iyong balota",
             step2Description:
-                '<a class="link" href="{{linkToBallotVerifier}}" target="_blank">Access sa ballot verifier</a>, isang bagong tab ang magbubukas sa iyong browser.',
+                "<VerifierLink>Access sa ballot verifier</VerifierLink>, isang bagong tab ang magbubukas sa iyong browser.",
             step2HelpDialog: {
                 title: "Tutorial sa Pagsusuri ng Balota",
                 content:

@@ -1,10 +1,13 @@
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::postgres::election::get_election_by_id;
 use crate::postgres::results_area_contest::get_results_area_contest;
-use crate::postgres::results_election::get_election_results;
+use crate::postgres::results_election::{
+    get_election_results, get_results_election_by_results_event_id,
+};
 use crate::postgres::tally_session::get_tally_sessions_by_election_event_id;
-use crate::services::consolidation::create_transmission_package_service::download_to_file;
+use crate::postgres::tally_session_execution::get_tally_session_executions;
 use crate::services::consolidation::eml_generator::ValidateAnnotations;
 use crate::services::election_dates::get_election_dates;
 use crate::services::election_event_status::get_election_event_status;
@@ -21,6 +24,7 @@ use sequent_core::types::hasura::core::{Area, Election, ElectionEvent};
 use sequent_core::types::keycloak::AREA_ID_ATTR_NAME;
 use sequent_core::types::scheduled_event::ScheduledEvent;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::collections::{HashMap, HashSet};
 use std::env;
 use strand::hash::hash_b64;
@@ -42,6 +46,8 @@ pub struct ExecutionAnnotations {
     pub app_version: String,
     pub software_version: String,
     pub app_hash: String,
+    pub executer_username: Option<String>,
+    pub results_hash: Option<String>,
 }
 
 pub fn get_app_hash() -> String {
@@ -66,6 +72,18 @@ pub async fn generate_election_votes_data(
     election_event_id: &str,
     election_id: &str,
 ) -> Result<ElectionVotesData> {
+    let election = get_election_by_id(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        election_id,
+    )
+    .await?
+    .ok_or(anyhow!("Can't find election"))?;
+    let registered_voters = election
+        .get_annotations()
+        .map(|annotations| annotations.registered_voters)
+        .ok();
     // Fetch last election results created from tally session
     let election_results = get_election_results(
         hasura_transaction,
@@ -77,10 +95,9 @@ pub async fn generate_election_votes_data(
     .map_err(|e| anyhow!("Error fetching election results: {:?}", e))?;
 
     if let Some(result) = election_results.get(0) {
-        let registered_voters = result.elegible_census;
         let total_ballots = result.total_voters;
         let voters_turnout = if let (Some(registered_voters), Some(total_ballots)) =
-            (registered_voters, total_ballots)
+            (registered_voters.clone(), total_ballots)
         {
             calc_voters_turnout(total_ballots, registered_voters)?
         } else {
@@ -110,6 +127,18 @@ pub async fn generate_election_area_votes_data(
     area_id: &str,
     contest_id: Option<&str>,
 ) -> Result<ElectionVotesData> {
+    let election = get_election_by_id(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        election_id,
+    )
+    .await?
+    .ok_or(anyhow!("Can't find election"))?;
+    let registered_voters = election
+        .get_annotations()
+        .map(|annotations| annotations.registered_voters)
+        .ok();
     // Fetch last election results created from tally session
     let area_results = get_results_area_contest(
         hasura_transaction,
@@ -123,10 +152,9 @@ pub async fn generate_election_area_votes_data(
     .map_err(|e| anyhow!("Error fetching election results: {:?}", e))?;
 
     if let Some(result) = area_results {
-        let registered_voters = result.elegible_census;
         let total_ballots = result.total_votes;
         let voters_turnout = if let (Some(registered_voters), Some(total_ballots)) =
-            (registered_voters, total_ballots)
+            (registered_voters.clone(), total_ballots)
         {
             calc_voters_turnout(total_ballots, registered_voters)?
         } else {
@@ -154,7 +182,7 @@ pub fn calc_voters_turnout(total_ballots: i64, registered_voters: i64) -> Result
     }
 
     let turnout = (total_ballots as f64 / registered_voters as f64) * 100.0;
-    Ok(Some(turnout))
+    Ok(Some(turnout.clamp(0.0, 100.0)))
 }
 
 #[instrument(err, skip_all)]
@@ -201,6 +229,7 @@ pub async fn get_total_number_of_registered_voters(
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ElectionData {
+    pub registered_voters: String,
     pub geographical_region: String,
     pub voting_center: String,
     pub precinct_code: String,
@@ -213,6 +242,7 @@ pub async fn extract_election_data(election: &Election) -> Result<ElectionData> 
         election.get_annotations_or_empty_values()?;
 
     Ok(ElectionData {
+        registered_voters: annotations.registered_voters.to_string(),
         geographical_region: annotations.geographical_area.clone(),
         voting_center: annotations.post.clone(),
         precinct_code: annotations.precinct_code.clone(),
@@ -296,6 +326,7 @@ pub async fn get_results_hash(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
+    election_id: &str,
 ) -> Result<String> {
     let tally_sessions = get_tally_sessions_by_election_event_id(
         &hasura_transaction,
@@ -306,28 +337,64 @@ pub async fn get_results_hash(
     .await
     .map_err(|err| anyhow!("Error getting the tally sessions: {err:?}"))?;
 
+    // filter tally sessions that holds the current election_id
+    let tally_sessions = tally_sessions
+        .into_iter()
+        .filter(|tally_session| {
+            tally_session
+                .election_ids
+                .as_ref()
+                .map(|ids| ids.contains(&election_id.to_string()))
+                .unwrap_or(false)
+                && tally_session.tally_type.clone().unwrap_or_default()
+                    == String::from("ELECTORAL_RESULTS")
+        })
+        .collect::<Vec<_>>();
+
+    // the first tally session is the latest one
     let tally_session_id = if !tally_sessions.is_empty() {
         &tally_sessions[0].id
     } else {
         return Err(anyhow!("No tally session yet"));
     };
 
-    let mut results_temp_file = download_to_file(
+    let tally_session_executions = get_tally_session_executions(
         hasura_transaction,
-        &tenant_id,
-        &election_event_id,
-        &tally_session_id,
+        tenant_id,
+        election_event_id,
+        tally_session_id,
     )
     .await
-    .map_err(|err| anyhow!("Error getting the results file: {err:?}"))?;
+    .map_err(|err| anyhow!("Error getting the tally session executions"))?;
 
-    let file_data = read_temp_file(&mut results_temp_file)
-        .map_err(|err| anyhow!("Error reading the results file: {err:?}"))?;
+    // the first execution is the latest one
+    let tally_session_execution = tally_session_executions
+        .first()
+        .ok_or_else(|| anyhow!("No tally session executions found"))?;
 
-    let file_hash =
-        hash_b64(&file_data).map_err(|err| anyhow!("Error hashing the results file: {err:?}"))?;
+    let results_event_id = tally_session_execution
+        .results_event_id
+        .clone()
+        .ok_or_else(|| anyhow!("Missing results_event_id in tally session execution"))?; // here im failing
 
-    Ok(file_hash)
+    let result_election = get_results_election_by_results_event_id(
+        hasura_transaction,
+        tenant_id,
+        election_id,
+        &results_event_id,
+    )
+    .await
+    .map_err(|err| anyhow!("Error getting the results election: {err:?}"))?;
+
+    let results_hash = result_election
+        .annotations
+        .and_then(|annotations| annotations.get("results_hash").cloned());
+
+    let results_hash = results_hash
+        .map(|hash| hash.to_string().replace("\"", " ").trim().to_string())
+        .unwrap_or_default();
+
+    Ok(results_hash)
 }
 
 #[instrument(err, skip_all)]

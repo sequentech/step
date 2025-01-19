@@ -4,7 +4,7 @@
 use super::report_variables::{
     extract_area_data, extract_election_data, extract_election_event_annotations,
     generate_election_area_votes_data, get_app_hash, get_app_version, get_date_and_time,
-    get_report_hash, get_results_hash, InspectorData,
+    get_report_hash, get_results_hash, ExecutionAnnotations, InspectorData,
 };
 use super::template_renderer::*;
 use crate::postgres::area::get_areas_by_election_id;
@@ -27,12 +27,12 @@ use tracing::{info, instrument};
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
     pub areas: Vec<UserDataArea>,
+    pub execution_annotations: ExecutionAnnotations,
 }
 
 /// Struct for Transition Report Data
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserDataArea {
-    pub date_printed: String,
     pub election_date: String,
     pub election_title: String,
     pub voting_period_start: String,
@@ -45,11 +45,6 @@ pub struct UserDataArea {
     pub registered_voters: Option<i64>,
     pub ballots_counted: Option<i64>,
     pub voters_turnout: Option<f64>,
-    pub report_hash: String,
-    pub software_version: String,
-    pub ovcs_version: String,
-    pub system_hash: String,
-    pub results_hash: String,
     pub servers: Vec<ServerData>,
     pub inspectors: Vec<InspectorData>,
 }
@@ -208,6 +203,7 @@ impl TemplateRenderer for TransmissionReport {
             &hasura_transaction,
             &self.ids.tenant_id,
             &self.ids.election_event_id,
+            &election_id,
         )
         .await
         .unwrap_or("-".to_string());
@@ -241,6 +237,7 @@ impl TemplateRenderer for TransmissionReport {
                 &self.ids.tenant_id,
                 &self.ids.election_event_id,
                 &area.id,
+                self.ids.tally_session_id.clone(),
             )
             .await
             .map_err(|err| {
@@ -252,7 +249,6 @@ impl TemplateRenderer for TransmissionReport {
                 .map_err(|err| anyhow!("Error get_transmission_servers_data: {err:?}"))?;
 
             let area_data = UserDataArea {
-                date_printed: date_printed.clone(),
                 election_title: election_title.clone(),
                 election_date: election_date.clone(),
                 voting_period_start: voting_period_start_date.clone(),
@@ -265,11 +261,6 @@ impl TemplateRenderer for TransmissionReport {
                 registered_voters: votes_data.registered_voters,
                 ballots_counted: votes_data.total_ballots,
                 voters_turnout: votes_data.voters_turnout,
-                report_hash: report_hash.clone(),
-                software_version: app_version.clone(),
-                ovcs_version: app_version.clone(),
-                system_hash: app_hash.clone(),
-                results_hash: results_hash.clone(),
                 servers: transmission_data.servers,
                 inspectors: area_general_data.inspectors.clone(),
             };
@@ -277,7 +268,18 @@ impl TemplateRenderer for TransmissionReport {
             areas.push(area_data);
         }
 
-        Ok(UserData { areas })
+        Ok(UserData {
+            areas,
+            execution_annotations: ExecutionAnnotations {
+                date_printed,
+                report_hash,
+                app_version: app_version.clone(),
+                software_version: app_version.clone(),
+                app_hash,
+                executer_username: self.ids.executer_username.clone(),
+                results_hash: Some(results_hash),
+            },
+        })
     }
 
     #[instrument]

@@ -3,8 +3,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
     extract_election_data, get_app_hash, get_app_version, get_date_and_time, get_report_hash,
+    ExecutionAnnotations,
 };
 use super::template_renderer::*;
+use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::{
     area::get_areas_by_election_id,
     election::{get_election_by_id, get_elections},
@@ -49,24 +51,16 @@ pub struct Region {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
     pub execution_annotations: ExecutionAnnotations,
+    pub election_event_title: String,
     pub elections: Vec<UserElectionData>,
     pub ovcs_downtime: Option<i64>,
     pub regions: Vec<Region>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ExecutionAnnotations {
-    pub date_printed: String,
-    pub report_hash: String,
-    pub app_version: String,
-    pub software_version: String,
-    pub app_hash: String,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserElectionData {
     pub election_dates: StringifiedPeriodDates,
-    pub election_title: String,
+    pub election_name: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -156,6 +150,15 @@ impl TemplateRenderer for OVCSEventsTemplate {
             .map_err(|e| anyhow::anyhow!("Error in get_elections: {}", e))?,
         };
 
+        // Fetch election event data
+        let election_event = get_election_event_by_id(
+            hasura_transaction,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
+        )
+        .await
+        .with_context(|| "Error obtaining election event")?;
+
         let scheduled_events = find_scheduled_event_by_election_event_id(
             &hasura_transaction,
             &self.ids.tenant_id,
@@ -177,8 +180,9 @@ impl TemplateRenderer for OVCSEventsTemplate {
         for election in elections {
             let election_dates = get_election_dates(&election, scheduled_events.clone())
                 .map_err(|e| anyhow::anyhow!("Error getting election dates {e}"))?;
+            let election_cloned = election.clone();
+            let election_title = election_cloned.alias.unwrap_or(election_cloned.name);
 
-            let election_title = election.name.clone();
             let election_general_data = extract_election_data(&election)
                 .await
                 .map_err(|err| anyhow!("Error extract election annotations {err}"))?;
@@ -199,6 +203,7 @@ impl TemplateRenderer for OVCSEventsTemplate {
                     &self.ids.tenant_id,
                     &self.ids.election_event_id,
                     &area.id,
+                    None,
                 )
                 .await
                 .map_err(|err| {
@@ -253,7 +258,7 @@ impl TemplateRenderer for OVCSEventsTemplate {
 
             elections_data.push(UserElectionData {
                 election_dates,
-                election_title,
+                election_name: election_title,
             });
         }
 
@@ -263,12 +268,18 @@ impl TemplateRenderer for OVCSEventsTemplate {
             .collect();
 
         Ok(UserData {
+            election_event_title: election_event
+                .alias
+                .clone()
+                .unwrap_or(election_event.name.clone()),
             execution_annotations: ExecutionAnnotations {
                 date_printed,
                 report_hash,
                 app_version: app_version.clone(),
                 software_version: app_version.clone(),
                 app_hash,
+                executer_username: self.ids.executer_username.clone(),
+                results_hash: None,
             },
             elections: elections_data,
             ovcs_downtime: None,

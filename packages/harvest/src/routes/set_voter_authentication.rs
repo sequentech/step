@@ -14,7 +14,9 @@ use serde::{Deserialize, Serialize};
 use tracing::{error, info, instrument};
 use windmill::postgres::election_event::get_election_event_by_id;
 use windmill::services::database::get_hasura_pool;
-use windmill::tasks::manage_election_event_enrollment::update_keycloak_enrollment;
+use windmill::tasks::manage_election_event_enrollment::{
+    update_keycloak_enrollment, update_keycloak_otp,
+};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SetVoterAuthentication {
@@ -94,7 +96,8 @@ pub async fn set_voter_authentication(
         );
 
     // Update enrollment if it has changed
-    if prev_enrollment != body.enrollment {
+    if !body.enrollment.trim().is_empty() && prev_enrollment != body.enrollment
+    {
         let enable_enrollment =
             body.enrollment.eq(&Enrollment::ENABLED.to_string());
         info!("Updating enrollment to: {}", enable_enrollment);
@@ -114,7 +117,29 @@ pub async fn set_voter_authentication(
         })?;
     }
 
-    // TODO: Add OTP update logic
+    if !body.otp.trim().is_empty() && prev_otp != body.otp {
+        let new_otp_state = if body.otp == Otp::ENABLED.to_string() {
+            "REQUIRED".to_string()
+        } else {
+            "DISABLED".to_string()
+        };
+
+        info!("Updating OTP to: {}", new_otp_state);
+
+        update_keycloak_otp(
+            Some(claims.hasura_claims.tenant_id.clone()),
+            Some(body.election_event_id.clone()),
+            new_otp_state,
+        )
+        .await
+        .map_err(|error| {
+            error!("Failed to update OTP: {:?}", error);
+            (
+                Status::InternalServerError,
+                format!("Error updating OTP: {error:?}"),
+            )
+        })?;
+    }
 
     // Commit transaction
     hasura_transaction.commit().await.map_err(|e| {
