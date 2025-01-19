@@ -45,7 +45,9 @@ impl TryFrom<Row> for ResultsAreaContestWrapper {
             implicit_invalid_votes: item
                 .try_get::<_, Option<i32>>("implicit_invalid_votes")?
                 .map(|val| val as i64),
-            blank_votes: item.try_get("blank_votes")?,
+            blank_votes: item
+                .try_get::<_, Option<i32>>("blank_votes")?
+                .map(|val| val as i64),
             created_at: item.get("created_at"),
             last_updated_at: item.get("last_updated_at"),
             labels: item.try_get("labels")?,

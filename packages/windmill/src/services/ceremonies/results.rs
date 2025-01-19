@@ -17,6 +17,7 @@ use sequent_core::types::ceremonies::TallyType;
 use sequent_core::types::hasura::core::Area;
 use sequent_core::types::results::*;
 use serde_json::json;
+use uuid::Uuid;
 use std::cmp;
 use std::path::PathBuf;
 use tracing::{event, instrument, Level};
@@ -40,7 +41,7 @@ pub async fn save_results(
         let total_voters_percent: f64 =
             (election.total_votes as f64) / (cmp::max(election.census, 1) as f64);
         results_elections.push(ResultsElection {
-            id: "".into(),
+            id: Uuid::new_v4().into(),
             tenant_id: tenant_id.into(),
             election_event_id: election_event_id.into(),
             election_id: election.election_id.clone(),
@@ -84,7 +85,7 @@ pub async fn save_results(
 
             if let Some(area) = &contest.area {
                 results_area_contests.push(ResultsAreaContest {
-                    id: "".into(),
+                    id: Uuid::new_v4().into(),
                     tenant_id: tenant_id.into(),
                     election_event_id: election_event_id.into(),
                     election_id: election.election_id.clone(),
@@ -139,7 +140,7 @@ pub async fn save_results(
                 for candidate in &contest.candidate_result {
                     let cast_votes_percent: f64 = (candidate.total_count as f64) / votes_base;
                     results_area_contest_candidates.push(ResultsAreaContestCandidate {
-                        id: "".into(),
+                        id: Uuid::new_v4().into(),
                         tenant_id: tenant_id.into(),
                         election_event_id: election_event_id.into(),
                         election_id: election.election_id.clone(),
@@ -160,7 +161,7 @@ pub async fn save_results(
                 }
             } else {
                 results_contests.push(ResultsContest {
-                    id: "".into(),
+                    id: Uuid::new_v4().into(),
                     tenant_id: tenant_id.into(),
                     election_event_id: election_event_id.into(),
                     election_id: election.election_id.clone(),
@@ -217,7 +218,7 @@ pub async fn save_results(
                 for candidate in &contest.candidate_result {
                     let cast_votes_percent: f64 = (candidate.total_count as f64) / votes_base;
                     results_contest_candidates.push(ResultsContestCandidate {
-                        id: "".into(),
+                        id: Uuid::new_v4().into(),
                         tenant_id: tenant_id.into(),
                         election_event_id: election_event_id.into(),
                         election_id: election.election_id.clone(),
