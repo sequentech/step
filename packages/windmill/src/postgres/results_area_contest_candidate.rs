@@ -4,14 +4,14 @@
 use anyhow::{anyhow, Result};
 use chrono::{DateTime, Local};
 use deadpool_postgres::Transaction;
+use ordered_float::NotNan;
+use rust_decimal::prelude::ToPrimitive;
+use rust_decimal::Decimal;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::types::results::*;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio_postgres::row::Row;
-use rust_decimal::prelude::ToPrimitive;
-use rust_decimal::Decimal;
-use ordered_float::NotNan;
 use tracing::{info, instrument};
 use uuid::Uuid;
 
@@ -123,7 +123,7 @@ pub async fn get_results_area_contest_candidates(
     Ok(results_area_contest_candidate.get(0).cloned())
 }
 
-#[instrument(err, skip(hasura_transaction))]
+#[instrument(err, skip(hasura_transaction, contest_candidates))]
 pub async fn insert_results_area_contest_candidates(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,

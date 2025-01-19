@@ -17,10 +17,10 @@ use sequent_core::types::ceremonies::TallyType;
 use sequent_core::types::hasura::core::Area;
 use sequent_core::types::results::*;
 use serde_json::json;
-use uuid::Uuid;
 use std::cmp;
 use std::path::PathBuf;
 use tracing::{event, instrument, Level};
+use uuid::Uuid;
 use velvet::cli::state::State;
 use velvet::pipes::generate_reports::ElectionReportDataComputed;
 

@@ -4,15 +4,15 @@
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Local};
 use deadpool_postgres::Transaction;
+use ordered_float::NotNan;
+use rust_decimal::prelude::ToPrimitive;
+use rust_decimal::Decimal;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::types::results::ResultDocuments;
 use sequent_core::types::results::*;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio_postgres::row::Row;
-use ordered_float::NotNan;
-use rust_decimal::prelude::ToPrimitive;
-use rust_decimal::Decimal;
 use tracing::{info, instrument};
 use uuid::Uuid;
 
@@ -119,7 +119,7 @@ pub async fn update_results_election_documents(
     }
 }
 
-#[instrument(err, skip(hasura_transaction))]
+#[instrument(err, skip(hasura_transaction, elections))]
 pub async fn insert_results_elections(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -153,7 +153,7 @@ pub async fn insert_results_elections(
                 tenant_id: tenant_uuid,
                 election_event_id: election_event_uuid,
                 results_event_id: results_event_uuid,
-                election_id: Uuid::parse_str(&election.id)?,
+                election_id: Uuid::parse_str(&election.election_id)?,
                 name: election.name.clone(),
                 elegible_census: election.elegible_census,
                 total_voters: election.total_voters,

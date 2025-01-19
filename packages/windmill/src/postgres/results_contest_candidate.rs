@@ -3,15 +3,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Transaction;
+use ordered_float::NotNan;
+use rust_decimal::prelude::ToPrimitive;
+use rust_decimal::Decimal;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::types::results::*;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio_postgres::row::Row;
 use tracing::{info, instrument};
-use rust_decimal::prelude::ToPrimitive;
-use rust_decimal::Decimal;
-use ordered_float::NotNan;
 use uuid::Uuid;
 
 pub struct ResultsContestCandidateWrapper(pub ResultsContestCandidate);
@@ -56,7 +56,7 @@ impl TryFrom<Row> for ResultsContestCandidateWrapper {
     }
 }
 
-#[instrument(err, skip(hasura_transaction))]
+#[instrument(err, skip(hasura_transaction, contest_candidates))]
 pub async fn insert_results_contest_candidates(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,

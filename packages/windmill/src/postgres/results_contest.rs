@@ -227,7 +227,7 @@ pub async fn get_results_contest(
     }
 }
 
-#[instrument(err, skip(hasura_transaction))]
+#[instrument(err, skip(hasura_transaction, contests))]
 pub async fn insert_results_contests(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
