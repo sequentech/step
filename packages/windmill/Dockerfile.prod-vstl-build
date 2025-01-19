@@ -5,8 +5,8 @@
 FROM windmill-build-dependencies
 
 # Copy the compiled binaries from the builder stage (beat + windmill:main)
-COPY --from=windmill-compile /app/windmill/target/release/main /usr/local/bin/main
-COPY --from=windmill-compile /app/windmill/target/release/beat /usr/local/bin/beat
+COPY --from=windmill-compile /app/target/release/main /usr/local/bin/main
+COPY --from=windmill-compile /app/target/release/beat /usr/local/bin/beat
 COPY --from=windmill-compile /usr/local/bin/ecies-tool.jar /usr/local/bin/ecies-tool.jar
 VOLUME /import
 WORKDIR /usr/local/bin
