@@ -27,7 +27,7 @@ pub struct ImportTemplatesInput {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ImportTemplatesOutput {
-    error_msg: String,
+    error_msg: Option<String>,
     document_id: String,
 }
 
@@ -45,7 +45,7 @@ pub async fn import_templates_route(
         vec![Permissions::TEMPLATE_WRITE],
     )?;
 
-    provide_hasura_transaction(|hasura_transaction| {
+    match provide_hasura_transaction(|hasura_transaction| {
         let tenant_id = claims.hasura_claims.tenant_id.clone();
         let document_id = body.document_id.clone();
         Box::pin(async move {
@@ -60,15 +60,14 @@ pub async fn import_templates_route(
         })
     })
     .await
-    .map_err(|error| {
-        (
-            Status::InternalServerError,
-            format!("Error importing areas: {error:?}"),
-        )
-    })?;
-
-    Ok(Json(ImportTemplatesOutput {
-        error_msg: String::new(),
-        document_id: body.document_id,
-    }))
+    {
+        Ok(_) => Ok(Json(ImportTemplatesOutput {
+            error_msg: None,
+            document_id: body.document_id,
+        })),
+        Err(err) => Ok(Json(ImportTemplatesOutput {
+            error_msg: Some(format!("{err:?}")),
+            document_id: body.document_id,
+        })),
+    }
 }

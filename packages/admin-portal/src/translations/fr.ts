@@ -444,7 +444,6 @@ const frenchTranslation: TranslationType = {
                 importVotersError: "Erreur lors de l'Importation des Électeurs.",
                 importElectionEventSuccess: "Election event imported Successfully",
                 importElectionEventError: "Error importing election event",
-                ImportHashMismatch: "Error to validate the hash",
                 shaDialog: {
                     ok: "Oui, Importer Sans Vérification de l'Intégrité",
                     cancel: "Retour",
@@ -1097,6 +1096,7 @@ const frenchTranslation: TranslationType = {
             election: "Importer une Élection",
             contest: "Importer un Concours",
             candidate: "Importer un Candidat",
+            ImportHashMismatch: "Hashes don't match. Integrity check failure.",
         },
         sideMenu: {
             electionEvents: "Processus Électoraux",

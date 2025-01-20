@@ -443,7 +443,6 @@ const catalanTranslation: TranslationType = {
                 importVotersError: "Error Important Votants.",
                 importElectionEventSuccess: "Election event imported Successfully",
                 importElectionEventError: "Error importing election event",
-                ImportHashMismatch: "Error to validate the hash",
                 shaDialog: {
                     ok: "Sí, Importar Sense Verificació d'Integritat",
                     cancel: "Tornar",
@@ -1100,6 +1099,7 @@ const catalanTranslation: TranslationType = {
             election: "Importar una Elecció",
             contest: "Importar un Concurs",
             candidate: "Importar un Candidat",
+            ImportHashMismatch: "Hashes don't match. Integrity check failure.",
         },
         sideMenu: {
             electionEvents: "Processos Electorals",

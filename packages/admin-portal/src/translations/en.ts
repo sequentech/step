@@ -442,7 +442,6 @@ const englishTranslation = {
                 importVotersError: "Error importing Voters",
                 importElectionEventSuccess: "Election event imported Successfully",
                 importElectionEventError: "Error importing election event",
-                ImportHashMismatch: "Error to validate the hash",
                 shaDialog: {
                     ok: "Yes, Import without Integrity Check",
                     cancel: "Go Back",
@@ -1080,6 +1079,7 @@ const englishTranslation = {
             election: "Import an Election",
             contest: "Import a Contest",
             candidate: "Import a Candidate",
+            ImportHashMismatch: "Hashes don't match. Integrity check failure.",
         },
         sideMenu: {
             electionEvents: "Election Events",

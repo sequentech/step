@@ -25,6 +25,7 @@ use crate::tasks::export_tenant_config::export_tenant_config;
 use crate::tasks::export_trustees::export_trustees_task;
 use crate::tasks::export_users::export_users;
 use crate::tasks::generate_report::generate_report;
+use crate::tasks::import_application::import_applications;
 use crate::tasks::import_election_event::import_election_event;
 use crate::tasks::import_tenant_config::import_tenant_config;
 use crate::tasks::import_users::import_users;
@@ -170,6 +171,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             export_templates,
             export_ballot_publication,
             export_application,
+            import_applications,
             export_trustees_task,
             export_tenant_config,
             import_tenant_config,
@@ -213,6 +215,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             delete_election_event_t::NAME => Queue::Short.as_ref(),
             export_ballot_publication::NAME => Queue::ImportExport.as_ref(),
             export_application::NAME => Queue::ImportExport.as_ref(),
+            import_applications::NAME => Queue::ImportExport.as_ref(),
 
         ],
         prefetch_count = prefetch_count,

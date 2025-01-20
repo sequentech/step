@@ -896,6 +896,7 @@ export type ApplicationOutput = {
     __typename?: "applicationOutput"
     document_id?: Maybe<Scalars["String"]["output"]>
     error_msg?: Maybe<Scalars["String"]["output"]>
+    task_execution?: Maybe<Tasks_Execution_Type>
 }
 
 /** Boolean expression to compare columns of type "bytea". All fields are combined with logical 'AND'. */

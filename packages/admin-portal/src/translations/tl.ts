@@ -442,7 +442,6 @@ const tagalogTranslation: TranslationType = {
                 importVotersError: "Error sa pag-import ng mga Botante",
                 importElectionEventSuccess: "Election event imported Successfully",
                 importElectionEventError: "Error importing election event",
-                ImportHashMismatch: "Error to validate the hash",
                 shaDialog: {
                     ok: "Oo, Mag-import nang walang Pag-check ng Integridad",
                     cancel: "Bumalik",
@@ -1092,6 +1091,7 @@ const tagalogTranslation: TranslationType = {
             election: "Mag-import ng Halalan",
             contest: "Mag-import ng Paligsahan",
             candidate: "Mag-import ng Kandidato",
+            ImportHashMismatch: "Hashes don't match. Integrity check failure.",
         },
         sideMenu: {
             electionEvents: "Mga Kaganapan ng Halalan",

@@ -1480,6 +1480,7 @@ type ExportApplicationOutput {
 type applicationOutput {
     error_msg: String
     document_id: String
+    task_execution: tasks_execution_type
 }
 
 type ExportTrusteesOutput {

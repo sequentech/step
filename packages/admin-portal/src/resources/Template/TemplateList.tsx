@@ -167,6 +167,16 @@ export const TemplateList: React.FC = () => {
                     sha256,
                 },
             })
+            let errMsg = data?.import_templates?.error_msg
+            if (errMsg) {
+                console.log(errMsg)
+                if (errMsg.includes("Failed to verify the integrity")) {
+                    notify(t("importResource.ImportHashMismatch"), {type: "error"})
+                } else {
+                    notify("Error importing templates", {type: "error"})
+                }
+                return
+            }
             notify("Templates imported successfully", {type: "success"})
             refresh()
         } catch (err) {

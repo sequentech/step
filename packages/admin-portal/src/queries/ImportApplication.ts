@@ -21,6 +21,21 @@ export const IMPORT_APPLICATION = gql`
         ) {
             error_msg
             document_id
+            task_execution {
+                id
+                name
+                execution_status
+                created_at
+                start_at
+                end_at
+                logs
+                annotations
+                labels
+                executed_by_user
+                tenant_id
+                election_event_id
+                type
+            }
         }
     }
 `

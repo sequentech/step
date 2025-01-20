@@ -284,7 +284,7 @@ export const CreateElectionEventProvider = ({children}: any) => {
                 console.log(errMsg)
                 // setErrors(data.import_election_event.error)
                 if (errMsg.includes("Failed to verify the integrity")) {
-                    notify(t("electionEventScreen.import.ImportHashMismatch"), {type: "error"})
+                    notify(t("importResource.ImportHashMismatch"), {type: "error"})
                 } else {
                     notify(t("electionEventScreen.import.importElectionEventError"), {
                         type: "error",
