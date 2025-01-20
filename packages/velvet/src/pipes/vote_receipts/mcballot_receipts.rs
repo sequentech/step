@@ -21,7 +21,7 @@ use std::collections::HashMap;
 use std::fs::OpenOptions;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::{default, fs};
+use std::{default, env, fs};
 use strand::hash::hash_sha256;
 use tracing::{info, instrument};
 use uuid::Uuid;
@@ -134,24 +134,21 @@ impl MCBallotReceipts {
     #[instrument(skip_all, err)]
     fn print_vote_receipts(
         &self,
-        path: &Path,
+        ballots: &[Bridge],
         contests: &Vec<Contest>,
         election_input: &InputElectionConfig,
         pipe_config: &PipeConfigVoteReceipts,
         area_name: &str,
     ) -> Result<(Option<Vec<u8>>, Vec<u8>)> {
-        let f = fs::File::open(&path).map_err(|e| Error::FileAccess(path.to_path_buf(), e))?;
-        let mcballots: Vec<DecodedBallotChoices> = crate::utils::parse_file(f)?;
         let contest_map: HashMap<String, Contest> = contests
             .iter()
             .map(|c| (c.id.to_string(), c.clone()))
             .collect();
-        let ballots = convert_ballots(election_input, mcballots)?;
 
         let mut ballot_data = vec![];
         for ballot in ballots {
             let mut cds = vec![];
-            for contest_choices in ballot.choices {
+            for contest_choices in &ballot.choices {
                 let contest = contest_map.get(&contest_choices.contest_id).unwrap();
                 let mut choices = DecodedChoice::from_dvcs(&contest_choices, &contest);
 
@@ -193,7 +190,7 @@ impl MCBallotReceipts {
             let is_blank = cds.iter().all(|choice| choice.is_blank());
 
             let bd = BallotData {
-                id: ballot.mcballot.serial_number.unwrap_or_default(),
+                id: ballot.mcballot.serial_number.clone().unwrap_or_default(),
                 encoded_vote: encoded_vote,
                 is_invalid: ballot.mcballot.is_explicit_invalid,
                 is_blank: is_blank,
@@ -352,67 +349,89 @@ impl Pipe for MCBallotReceipts {
                 .join(OUTPUT_DECODED_BALLOTS_FILE);
 
                 if path_ballots.exists() {
-                    let (bytes_pdf, bytes_html) = self.print_vote_receipts(
-                        path_ballots.as_path(),
-                        &area_contests.contests,
-                        &election_input,
-                        &pipe_config,
-                        &area_contests.area_name,
-                    )?;
+                    let f = fs::File::open(path_ballots.as_path())
+                        .map_err(|e| Error::FileAccess(path_ballots.as_path().to_path_buf(), e))?;
+                    let mcballots: Vec<DecodedBallotChoices> = crate::utils::parse_file(f)?;
+                    let ballots = convert_ballots(election_input, mcballots)?;
 
-                    let path = PipeInputs::mcballots_path(
-                        &self
-                            .pipe_inputs
-                            .cli
-                            .output_dir
-                            .join(&pipe_data.pipe_name_output_dir)
-                            .as_path(),
-                        &election_input.id,
-                        &area_id,
-                    );
+                    let max_num_items: usize = env::var("REPORT_MAX_NUM_ITEMS")
+                        .unwrap_or_else(|_| "50000".to_string())
+                        .parse()
+                        .unwrap_or_else(|_| {
+                            eprintln!("Invalid REPORT_MAX_NUM_ITEMS value. Falling back to default of 50000.");
+                            50000
+                        });
+                    for (chunk_index, chunk) in ballots
+                        .chunks(max_num_items)
+                        .enumerate()
+                    {
+                        let (bytes_pdf, bytes_html) = self.print_vote_receipts(
+                            chunk,
+                            &area_contests.contests,
+                            &election_input,
+                            &pipe_config,
+                            &area_contests.area_name,
+                        )?;
 
-                    fs::create_dir_all(&path)?;
+                        let path = PipeInputs::mcballots_path(
+                            &self
+                                .pipe_inputs
+                                .cli
+                                .output_dir
+                                .join(&pipe_data.pipe_name_output_dir)
+                                .as_path(),
+                            &election_input.id,
+                            &area_id,
+                        );
 
-                    if let Some(ref some_bytes_pdf) = bytes_pdf {
-                        let file = match &pipe_config.pipe_type {
-                            VoteReceiptPipeType::VOTE_RECEIPT => {
-                                path.join(&pipe_data.output_file_pdf)
-                            }
-                            VoteReceiptPipeType::BALLOT_IMAGES => {
-                                let pdf_hash =
-                                    hash_sha256(some_bytes_pdf.as_slice()).map_err(|e| {
+                        fs::create_dir_all(&path)?;
+
+                        if let Some(ref some_bytes_pdf) = bytes_pdf {
+                            let file = match &pipe_config.pipe_type {
+                                VoteReceiptPipeType::VOTE_RECEIPT => {
+                                    path.join(&pipe_data.output_file_pdf)
+                                }
+                                VoteReceiptPipeType::BALLOT_IMAGES => {
+                                    let pdf_hash =
+                                        hash_sha256(some_bytes_pdf.as_slice()).map_err(|e| {
+                                            Error::UnexpectedError(format!(
+                                                "Error during hash pdf bytes: {}",
+                                                e
+                                            ))
+                                        })?;
+
+                                    let file = path.join(&pipe_data.output_file_pdf);
+
+                                    generate_hashed_filename(
+                                        &file,
+                                        &pdf_hash,
+                                        &format!("pdf-{}", chunk_index),
+                                    )
+                                    .map_err(|e| {
                                         Error::UnexpectedError(format!(
                                             "Error during hash pdf bytes: {}",
                                             e
                                         ))
-                                    })?;
+                                    })?
+                                }
+                            };
 
-                                let file = path.join(&pipe_data.output_file_pdf);
+                            let mut file = OpenOptions::new()
+                                .write(true)
+                                .truncate(true)
+                                .create(true)
+                                .open(file)?;
+                            file.write_all(&some_bytes_pdf)?;
+                        }
 
-                                generate_hashed_filename(&file, &pdf_hash, "pdf").map_err(|e| {
-                                    Error::UnexpectedError(format!(
-                                        "Error during hash pdf bytes: {}",
-                                        e
-                                    ))
-                                })?
-                            }
-                        };
-
+                        let file = path.join(&pipe_data.output_file_html);
                         let mut file = OpenOptions::new()
                             .write(true)
                             .truncate(true)
                             .create(true)
                             .open(file)?;
-                        file.write_all(&some_bytes_pdf)?;
+                        file.write_all(&bytes_html)?;
                     }
-
-                    let file = path.join(&pipe_data.output_file_html);
-                    let mut file = OpenOptions::new()
-                        .write(true)
-                        .truncate(true)
-                        .create(true)
-                        .open(file)?;
-                    file.write_all(&bytes_html)?;
                 } else {
                     println!(
                         "[{}] File not found: {} -- Not processed",
