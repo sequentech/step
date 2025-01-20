@@ -5,6 +5,11 @@ import {TranslationType} from "./en"
 
 const frenchTranslation: TranslationType = {
     translations: {
+        philippinePassport: "Passeport philippin",
+        seamanBook: "Livret de marin",
+        philSysID: "Carte d'identité PhilSys",
+        iBP: "Barreau intégré des Philippines (IBP)",
+        driversLicense: "Permis de conduire",
         loading: "Chargement...",
         loadingDataProvider: "Chargement du fournisseur de données...",
         logsScreen: {
@@ -70,6 +75,7 @@ const frenchTranslation: TranslationType = {
                 EXPORT_BALLOT_PUBLICATION: "Exporter Publication de Bulletin",
                 EXPORT_ACTIVITY_LOGS_REPORT: "Exporter le Rapport des Journaux d'Activité",
                 GENERATE_REPORT: "Générer un rapport",
+                GENERATE_TRANSMISSION_REPORT: "Générer un rapport de transmission",
                 EXPORT_TRUSTEES: "Exporter les Autorités",
                 EXPORT_APPLICATION: "Exporter les Demandes",
                 EXPORT_TENANT_CONFIG: "Exporter la Configuration du Locataire",
@@ -197,6 +203,7 @@ const frenchTranslation: TranslationType = {
             votersByChannels: "Votants par canaux",
             voterLoginURL: "URL de connexion des électeurs",
             voterEnrollURL: "URL d'inscription des électeurs",
+            voterEnrollKioskURL: "Kiosk URL d'inscription des électeurs",
             ipAddress: {
                 emptyState: "Pas encore de votes.",
                 title: "IP Addresses",
@@ -379,6 +386,11 @@ const frenchTranslation: TranslationType = {
                 electionNumber: "Nombre d'Élections",
                 trustees: "Autorités",
                 status: "État",
+                tallyType: {
+                    label: "Type de Décompte",
+                    ELECTORAL_RESULTS: "Résultats Électoraux",
+                    INITIALIZATION_REPORT: "Résultats de l'Initialisation",
+                },
                 create: {
                     title: "Créer un Comptage",
                     subtitle: "Créer un nouveau Comptage pour cet Événement Électoral",
@@ -630,6 +642,8 @@ const frenchTranslation: TranslationType = {
                     label: "Vérifier manuellement",
                     verify: "Vérifier manuellement l'électeur",
                     body: "Vérifiez manuellement cet électeur. Vous obtiendrez un PDF avec un lien de code QR qui permettra à l'électeur de se connecter en omettant le KYC en ligne.",
+                    noEmailOrPhone:
+                        "Cet électeur ne peut pas être vérifié manuellement car il n'a pas d'adresse e-mail ou de numéro de téléphone attribué",
                 },
                 errors: {
                     editError: "Erreur lors de l'édition de l'électeur",
@@ -881,9 +895,15 @@ const frenchTranslation: TranslationType = {
                 "transmition-ceremony": "Cérémonie de Transmission",
                 "admin-ip-address-view": "Voir l'adresse IP",
                 "election-approvals-tab": "Voir les Approbations de l'Élection",
+                "election-event-approvals-tab": "Voir les Approbations de l'Événement Électoral",
                 "election-ip-address-view": "Voir l'adresse IP de l'Élection",
                 "election-dashboard-tab": "Voir le Tableau de Bord de l'Élection",
+                "trustees-export": "Exporter les Fiduciaires",
                 "user-import": "Importer des Utilisateurs",
+                "voter-voted-edit": "Modifier les électeurs qui ont voté",
+                "voter-email-tlf-edit": "Modifier les champs e-mail/téléphone des électeurs",
+                "cloudflare-write": "Modifier les règles de blocage par pays dans Cloudflare",
+                "transmission-report-generate": "Générer un rapport de transmission",
             },
         },
         generalSettingsScreen: {
@@ -963,7 +983,8 @@ const frenchTranslation: TranslationType = {
                 OVCS_INFORMATION: "Informations OVCS",
                 OVERSEAS_VOTERS: "Liste des Électeurs Résidant à l'Étranger",
                 OV_USERS_WHO_VOTED: "Liste des Électeurs Résidant à l'Étranger ayant Voté",
-                OV_USERS: "Liste des Électeurs Résidant à l'Étranger avec Statut de Vote",
+                OV_WITH_VOTING_STATUS:
+                    "Liste des Électeurs Résidant à l'Étranger avec Statut de Vote",
                 OVCS_STATISTICS: "Suivi du Vote à l'Étranger - Statistiques OVCS",
                 PRE_ENROLLED_OV_BUT_DISAPPROVED:
                     "Liste des Électeurs Résidant à l'Étranger Pré-inscrits mais Refusés",
@@ -1068,6 +1089,12 @@ const frenchTranslation: TranslationType = {
             contest: "Créer un Concours",
             candidate: "Créer un Candidat",
         },
+        importResource: {
+            electionEvent: "Importer un Événement Électoral",
+            election: "Importer une Élection",
+            contest: "Importer un Concours",
+            candidate: "Importer un Candidat",
+        },
         sideMenu: {
             electionEvents: "Processus Électoraux",
             search: "Chercher",
@@ -1111,6 +1138,8 @@ const frenchTranslation: TranslationType = {
                             archive: "L'élément a été archivé",
                             unarchive: "L'élément a été désarchivé",
                             delete: "L'élément a été supprimé",
+                            reloading:
+                                "Veuillez patienter. La page va se recharger dans quelques instants.",
                         },
                         error: {
                             archive: "Erreur lors de la tentative d'archivage de cet élément",
@@ -1380,8 +1409,9 @@ const frenchTranslation: TranslationType = {
                     },
                     download: {
                         title: "Télécharger",
-                        emlTitle: "Download EML",
-                        transmissionPackageTitle: "Télécharger le Paquet de Transmission",
+                        emlTitle: "Download EML {{date}}",
+                        transmissionPackageTitle: "Télécharger le Paquet de Transmission {{date}}",
+                        transmissionReportTitle: "Télécharger le rapport de transmission",
                         dialog: {
                             title: "Voulez-vous télécharger le Paquet de Transmission?",
                             description:
@@ -1530,7 +1560,7 @@ const frenchTranslation: TranslationType = {
                 history: "Historique des Changements",
             },
             action: {
-                geneateInitializationReport: "Générer le Rapport d'Initialisation",
+                generateInitializationReport: "Générer le Rapport d'Initialisation",
                 startVotingPeriod: "Commencer la période de vote",
                 stopVotingPeriod: "Arrêter la période de vote",
                 stopKioskVotingPeriod: "Arrêter le Vote au Kiosque",
@@ -1780,24 +1810,20 @@ const frenchTranslation: TranslationType = {
                 OVCS_INFORMATION: "Informations OVCS",
                 OVCS_EVENTS: "Surveillance du Vote à l'Étranger - Événements OVCS",
                 OVCS_STATISTICS: "Surveillance du Vote à l'Étranger - Statistiques OVCS",
-                LIST_OF_OV_WHO_VOTED: "Utilisateurs OV Ayant Voté",
+                OV_WHO_VOTED: "Utilisateurs OV Ayant Voté",
                 PRE_ENROLLED_OV_BUT_DISAPPROVED: "Liste des OV préinscrits mais refusés",
                 LIST_OF_OVERSEAS_VOTERS: "Liste des Électeurs Résidant à l'Étranger",
-                OVERSEAS_VOTERS_TURNOUT: "Participation des Électeurs à l'Étranger",
-                OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_AND_SEX:
+                OV_TURNOUT_PERCENTAGE: "Participation des Électeurs à l'Étranger",
+                OV_TURNOUT_PER_ABOARD_STATUS_SEX:
                     "Participation des Électeurs à l'Étranger - par Statut à Bord et Sexe",
-                OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_SEX_AND_WITH_PERCENTAGE:
+                OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE:
                     "Participation des Électeurs à l'Étranger - par Statut à Bord, Sexe et avec Pourcentage",
-                LIST_OF_OV_WHO_PRE_ENROLLED_APPROVED:
-                    "Liste des OV qui se sont Préinscrits (Approuvés)",
+                OV_PRE_ENROLLED_APPROVED: "Liste des OV qui se sont Préinscrits (Approuvés)",
                 PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
                     "Liste des OV qui se sont Préinscrits mais nécessitent une Validation Manuelle",
-                LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
-                    "Liste des OV qui ne sont pas encore Préinscrits",
-                LIST_OF_OVERSEAS_VOTERS_WITH_VOTING_STATUS:
-                    "Liste des Électeurs à l'Étranger avec Statut de Vote",
-                NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
-                    "Nombre d'OV qui ne sont pas encore Préinscrits",
+                OV_NOT_YET_PRE_ENROLLED_LIST: "Liste des OV qui ne sont pas encore Préinscrits",
+                OV_WITH_VOTING_STATUS: "Liste des Électeurs à l'Étranger avec Statut de Vote",
+                OV_NOT_YET_PRE_ENROLLED_NUMBER: "Nombre d'OV qui ne sont pas encore Préinscrits",
                 BALLOT_IMAGES: "Images des Bulletins",
             },
             method: {
@@ -1871,7 +1897,7 @@ const frenchTranslation: TranslationType = {
                 createdAt: "Créé Le",
                 updatedAt: "Mis à Jour Le",
             },
-            approvalInformation: "Informations d'approbation",
+            approvalRequest: "Informations d'approbation",
             title: "Électeurs",
             subtitle: "Rechercher des électeurs correspondants",
             approve: {

@@ -334,10 +334,14 @@ def main():
 
     excel_data = parse_excel(args.excel_path)
     json_data = load_json(args.json_path)
-    patch_json_with_excel(excel_data, json_data, args.parameters_type)
+    final_json = {
+        "tenant_configurations": {},
+        "keycloak_admin_realm": json_data
+    }
+    patch_json_with_excel(excel_data, final_json, args.parameters_type)
 
     write_path = args.json_path if args.overwrite else args.json_path + ".new"
-    write_json(json_data, write_path)
+    write_json(final_json["keycloak_admin_realm"], write_path)
 
 
 if __name__ == "__main__":

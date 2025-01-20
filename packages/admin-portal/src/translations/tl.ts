@@ -5,6 +5,11 @@ import {TranslationType} from "./en"
 
 const tagalogTranslation: TranslationType = {
     translations: {
+        philSysID: "PhilSys ID",
+        iBP: "Integrated Bar of the Philippines (IBP)",
+        philippinePassport: "Pasaporte ng Pilipinas",
+        driversLicense: "Lisensya sa Pagmamaneho",
+        seamanBook: "Libro ng Seaman",
         loading: "Naglo-load...",
         loadingDataProvider: "Naglo-load ng tagapagbigay ng datos...",
         logsScreen: {
@@ -68,6 +73,7 @@ const tagalogTranslation: TranslationType = {
                 EXPORT_VOTERS: "I-export ang mga botante",
                 CREATE_TRANSMISSION_PACKAGE: "Lumikha ng Transmission Package",
                 EXPORT_BALLOT_PUBLICATION: "I-export ang Paglalathala ng Balota",
+                GENERATE_TRANSMISSION_REPORT: "Bumuo ng Ulat ng Paglilipat",
                 EXPORT_ACTIVITY_LOGS_REPORT: "I-export ang Ulat ng Mga Log ng Aktibidad",
                 GENERATE_REPORT: "Bumuo ng ulat",
                 EXPORT_TRUSTEES: "I-export ang mga Awtoridad",
@@ -198,6 +204,7 @@ const tagalogTranslation: TranslationType = {
             votersByChannels: "Mga botante ayon sa channel",
             voterLoginURL: "URL para sa Pag-login ng Botante",
             voterEnrollURL: "URL para sa Pag-enroll ng Botante",
+            voterEnrollKioskURL: "Kiosk URL para sa Pag-enroll ng Botante",
             ipAddress: {
                 emptyState: "Wala pang mga boto.",
                 title: "Mga IP Address",
@@ -378,6 +385,11 @@ const tagalogTranslation: TranslationType = {
                 electionNumber: "Bilang ng mga Halalan",
                 trustees: "Mga Tagapangasiwa",
                 status: "Katayuan",
+                tallyType: {
+                    label: "Uri ng Bilang",
+                    ELECTORAL_RESULTS: "Mga Resulta ng Halalan",
+                    INITIALIZATION_REPORT: "Mga Resulta ng Inisyal",
+                },
                 create: {
                     title: "Lumikha ng Tally",
                     subtitle: "Lumikha ng bagong Tally para sa Kaganapan ng Halalan na ito",
@@ -627,6 +639,8 @@ const tagalogTranslation: TranslationType = {
                     label: "Manwal na I-verify",
                     verify: "Manu-manong i-verify ang botante",
                     body: "Manu-manong i-verify ang botante. Makakakuha ka ng PDF na may QR Code link na nagpapahintulot sa botante na mag-login na hindi dumaan sa online KYC.",
+                    noEmailOrPhone:
+                        "Ang botanteng ito ay hindi maaaring mano-manong ma-verify dahil wala silang nakatalagang email address o numero ng telepono.",
                 },
                 emptyHeader: "Wala pang mga botante.",
                 askCreate: "Gusto mo bang lumikha ng isa?",
@@ -876,9 +890,15 @@ const tagalogTranslation: TranslationType = {
                 "transmition-ceremony": "Seremonya ng Transmisyon",
                 "admin-ip-address-view": "Tingnan ang IP Address",
                 "election-approvals-tab": "Tingnan ang mga Pagmamatyag sa Halalan",
+                "election-event-approvals-tab": "Tingnan ang mga Pagmamatyag ng Kaganapang Halalan",
                 "election-ip-address-view": "Tingnan ang IP Address ng Halalan",
                 "election-dashboard-tab": "Tingnan ang Dashboard ng Halalan",
+                "trustees-export": "I-export ang mga Tagapangasiwa",
                 "user-import": "Pag-import ng Mga Tagagamit",
+                "voter-voted-edit": "I-edit ang mga botanteng bumoto",
+                "voter-email-tlf-edit": "I-edit ang mga field ng email/telepono ng mga botante",
+                "cloudflare-write": "I-edit ang mga patakaran sa pag-block ng bansa sa Cloudflare",
+                "transmission-report-generate": "Lumikha ng Ulat ng Transmisyon",
             },
         },
         generalSettingsScreen: {
@@ -958,7 +978,8 @@ const tagalogTranslation: TranslationType = {
                 OVCS_INFORMATION: "Impormasyon ng OVCS",
                 OVERSEAS_VOTERS: "Listahan ng mga botanteng nasa ibang bansa",
                 OV_USERS_WHO_VOTED: "Listahan ng mga Botanteng Nasa Ibang Bansa na Bumoto",
-                OV_USERS: "Listahan ng mga Botanteng Nasa Ibang Bansa na may Katayuan sa Pagboto",
+                OV_WITH_VOTING_STATUS:
+                    "Listahan ng mga Botanteng Nasa Ibang Bansa na may Katayuan sa Pagboto",
                 OVCS_STATISTICS: "Pagsubaybay ng Botohan sa Ibang Bansa - Estadistika ng OVCS",
                 PRE_ENROLLED_OV_BUT_DISAPPROVED:
                     "Listahan ng mga Botanteng Nasa Ibang Bansa na Naka-pre-enroll pero Hindi Naaprubahan",
@@ -1063,6 +1084,12 @@ const tagalogTranslation: TranslationType = {
             contest: "Lumikha ng Paligsahan",
             candidate: "Lumikha ng Kandidato",
         },
+        importResource: {
+            electionEvent: "Mag-import ng Kaganapan ng Halalan",
+            election: "Mag-import ng Halalan",
+            contest: "Mag-import ng Paligsahan",
+            candidate: "Mag-import ng Kandidato",
+        },
         sideMenu: {
             electionEvents: "Mga Kaganapan ng Halalan",
             search: "Maghanap",
@@ -1106,6 +1133,7 @@ const tagalogTranslation: TranslationType = {
                             archive: "Ang item ay na-archive na",
                             unarchive: "Ang item ay na-unarchive na",
                             delete: "Ang item ay natanggal na",
+                            reloading: "Wait. Ang pahina ay na-reload na sa iba pang mga oras.",
                         },
                         error: {
                             archive: "Error habang sinusubukang i-archive ang item na ito",
@@ -1372,8 +1400,9 @@ const tagalogTranslation: TranslationType = {
                     },
                     download: {
                         title: "I-download",
-                        emlTitle: "I-download ang EML",
-                        transmissionPackageTitle: "I-download ang Pakete ng Transmisyon",
+                        emlTitle: "I-download ang EML {{date}}",
+                        transmissionPackageTitle: "I-download ang Pakete ng Transmisyon {{date}}",
+                        transmissionReportTitle: "I-download ang Ulat ng Transmisyon",
                         dialog: {
                             title: "Gusto mo bang i-download ang Pakete ng Transmisyon?",
                             description:
@@ -1398,7 +1427,7 @@ const tagalogTranslation: TranslationType = {
                     description:
                         "Maaaring pirmahan ng mga SBEI ang Pakete ng Transmisyon. Ipinapakita ng talahanayan sa ibaba ang katayuan ng pirma ng bawat isa sa mga miyembro ng SBEI.",
                     table: {
-                        trusteeName: "Pangalan ng Tagapagtiwala",
+                        trusteeName: "ID ng SBEI",
                         signed: "Napirmahan",
                     },
                     status: "{{signed}} sa {{total}} Napirmahan",
@@ -1522,7 +1551,7 @@ const tagalogTranslation: TranslationType = {
                 history: "Kasaysayan ng Paglalathala",
             },
             action: {
-                geneateInitializationReport: "Gumawa ng Ulat sa Inisyal na Pagsisimula",
+                generateInitializationReport: "Gumawa ng Ulat sa Inisyal na Pagsisimula",
                 startVotingPeriod: "Simulan ang Pagboto",
                 stopVotingPeriod: "Itigil ang Pagboto",
                 stopKioskVotingPeriod: "Itigil ang Pagboto sa Kiosk",
@@ -1772,25 +1801,22 @@ const tagalogTranslation: TranslationType = {
                 OVCS_INFORMATION: "Impormasyon ng OVCS",
                 OVCS_EVENTS: "Pagsubaybay ng Pagboto sa Ibang Bansa - Mga Kaganapan ng OVCS",
                 OVCS_STATISTICS: "Pagsubaybay ng Pagboto sa Ibang Bansa - Mga Estadistika ng OVCS",
-                LIST_OF_OV_WHO_VOTED: "Mga Gumagamit ng OV na Bumoto",
+                OV_WHO_VOTED: "Mga Gumagamit ng OV na Bumoto",
                 PRE_ENROLLED_OV_BUT_DISAPPROVED:
                     "Listahan ng OV na Nagpaunang-enrol ngunit Hindi Naaprubahan",
                 LIST_OF_OVERSEAS_VOTERS: "Listahan ng mga botanteng nasa ibang bansa",
-                OVERSEAS_VOTERS_TURNOUT: "Turnout ng mga Botante sa Ibang Bansa",
-                OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_AND_SEX:
+                OV_TURNOUT_PERCENTAGE: "Turnout ng mga Botante sa Ibang Bansa",
+                OV_TURNOUT_PER_ABOARD_STATUS_SEX:
                     "Turnout ng mga Botante sa Ibang Bansa - ayon sa Kalagayan at Kasarian",
-                OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_SEX_AND_WITH_PERCENTAGE:
+                OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE:
                     "Turnout ng mga Botante sa Ibang Bansa - ayon sa Kalagayan, Kasarian at may Porsyento",
-                LIST_OF_OV_WHO_PRE_ENROLLED_APPROVED:
-                    "Listahan ng mga OV na Pre-enrolled (Inaprubahan)",
+                OV_PRE_ENROLLED_APPROVED: "Listahan ng mga OV na Pre-enrolled (Inaprubahan)",
                 PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
                     "Listahan ng mga OV na Pre-enrolled ngunit Kailangan ng Manwal na Pagpapatunay",
-                LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
-                    "Listahan ng mga OV na Hindi pa Pre-enrolled",
-                LIST_OF_OVERSEAS_VOTERS_WITH_VOTING_STATUS:
+                OV_NOT_YET_PRE_ENROLLED_LIST: "Listahan ng mga OV na Hindi pa Pre-enrolled",
+                OV_WITH_VOTING_STATUS:
                     "Listahan ng mga Botante sa Ibang Bansa na may Kalagayan ng Pagboto",
-                NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
-                    "Bilang ng mga OV na Hindi pa Pre-enrolled",
+                OV_NOT_YET_PRE_ENROLLED_NUMBER: "Bilang ng mga OV na Hindi pa Pre-enrolled",
                 BALLOT_IMAGES: "Mga Larawan ng Balota",
             },
             method: {
@@ -1864,7 +1890,7 @@ const tagalogTranslation: TranslationType = {
                 createdAt: "Nilikha Noong",
                 updatedAt: "Na-update Noong",
             },
-            approvalInformation: "Impormasyon ng Pag-apruba",
+            approvalRequest: "Kahilingan para sa Pag-apruba",
             title: "Mga Botante",
             subtitle: "Maghanap ng mga tumutugmang botante",
             approve: {

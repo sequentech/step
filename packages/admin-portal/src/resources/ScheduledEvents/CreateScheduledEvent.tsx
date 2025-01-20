@@ -7,6 +7,7 @@ import {
     DateTimeInput,
     SimpleForm,
     useGetList,
+    useGetOne,
     useNotify,
     useRefresh,
     useUpdate,
@@ -65,16 +66,10 @@ const CreateEvent: FC<CreateEventProps> = ({
     const [isLoading, setIsLoading] = useState(false)
     const refresh = useRefresh()
     const [tenantId] = useTenantStore()
-    const {data: eventList} = useGetList<Sequent_Backend_Scheduled_Event>(
+    const {data: selectedEvent, refetch} = useGetOne<Sequent_Backend_Scheduled_Event>(
         "sequent_backend_scheduled_event",
-        {
-            pagination: {page: 1, perPage: 1},
-            filter: {
-                election_event_id: electionEventId,
-                tenant_id: tenantId,
-                id: selectedEventId ?? tenantId,
-            },
-        }
+        {id: selectedEventId},
+        {enabled: !!selectedEventId}
     )
     const notify = useNotify()
     const [manageElectionDates] = useMutation<ManageElectionDatesMutation>(MANAGE_ELECTION_DATES, {
@@ -84,10 +79,6 @@ const CreateEvent: FC<CreateEventProps> = ({
             },
         },
     })
-
-    const selectedEvent = useMemo(() => {
-        return eventList?.find((event) => event.id === selectedEventId)
-    }, [eventList, selectedEventId])
     const [electionId, setElectionId] = useState<string | null>(
         isEditEvent ? selectedEvent?.event_payload.election_id : null
     )
@@ -101,21 +92,24 @@ const CreateEvent: FC<CreateEventProps> = ({
             : EventProcessors.START_VOTING_PERIOD
     )
     useEffect(() => {
+        if (isEditEvent) {
+            refetch()
+            setEventType(
+                (selectedEvent?.event_processor as EventProcessors | null) ??
+                    EventProcessors.START_VOTING_PERIOD
+            )
+        }
+    }, [isEditEvent])
+    useEffect(() => {
         if (
             selectedEventId &&
-            eventList &&
             isEditEvent &&
             !electionId &&
             selectedEvent?.event_payload?.election_id
         ) {
             setElectionId(selectedEvent?.event_payload?.election_id)
         }
-    }, [
-        electionId,
-        isEditEvent,
-        eventList && selectedEvent?.event_payload?.election_id,
-        selectedEventId,
-    ])
+    }, [electionId, isEditEvent, selectedEvent?.event_payload?.election_id, selectedEventId])
     const targetsElection = (event_processor: EventProcessors) => {
         switch (event_processor) {
             case EventProcessors.ALLOW_INIT_REPORT:
@@ -186,10 +180,9 @@ const CreateEvent: FC<CreateEventProps> = ({
                     <Select
                         required
                         name="event_type"
-                        defaultValue={isEditEvent && EventProcessors.START_VOTING_PERIOD}
                         labelId="event-type-select-label"
                         label={t("eventsScreen.eventType.label")}
-                        value={eventType || ""}
+                        value={eventType}
                         onChange={(e: any) => setEventType(e.target.value)}
                         disabled={isEditEvent || isLoading}
                     >

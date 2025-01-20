@@ -3,8 +3,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::encrypter::{encrypt_directory_contents, get_file_report_type, traversal_encrypt_files};
 use super::renamer::rename_folders;
+use crate::postgres::document::get_document;
 use crate::postgres::reports::Report;
 use crate::postgres::reports::{get_reports_by_election_event_id, ReportType};
+use crate::postgres::results_election_area::insert_results_election_area_documents;
 use crate::services::ceremonies::renamer::*;
 use crate::{
     postgres::{
@@ -26,15 +28,18 @@ use sequent_core::services::translations::Name;
 use sequent_core::types::ceremonies::TallyType;
 use sequent_core::{services::connection::AuthHeaders, types::results::ResultDocuments};
 use sequent_core::{services::keycloak, types::hasura::core::Area};
+use serde_json::Value;
 use std::{
     collections::HashMap,
+    fs,
     fs::File,
     path::{Path, PathBuf},
 };
+use strand::hash::hash_b64;
 use tokio::task;
 use tracing::instrument;
 use velvet::pipes::generate_reports::{
-    ElectionReportDataComputed, ReportDataComputed, OUTPUT_HTML, OUTPUT_JSON, OUTPUT_PDF,
+    BasicArea, ElectionReportDataComputed, ReportDataComputed, OUTPUT_HTML, OUTPUT_JSON, OUTPUT_PDF,
 };
 use velvet::pipes::vote_receipts::VOTE_RECEIPT_OUTPUT_FILE_PDF as OUTPUT_RECEIPT_PDF;
 
@@ -77,6 +82,18 @@ async fn generic_save_documents(
     .await?;
 
     documents.json = process_and_upload_document(
+        document_paths.json.clone(),
+        MIME_JSON,
+        OUTPUT_JSON,
+        &all_reports,
+        report_type.clone(),
+        auth_headers,
+        tenant_id,
+        election_event_id,
+    )
+    .await?;
+
+    documents.vote_receipts_pdf = process_and_upload_document(
         document_paths.vote_receipts_pdf.clone(),
         MIME_JSON,
         OUTPUT_JSON,
@@ -104,6 +121,7 @@ async fn generic_save_documents(
 }
 
 // Helper function for processing and uploading a document
+#[instrument(err, skip(auth_headers, all_reports))]
 async fn process_and_upload_document(
     path_option: Option<String>,
     mime_type: &str,
@@ -169,6 +187,7 @@ pub trait GenerateResultDocuments {
 }
 
 impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
+    #[instrument(skip_all, name = "Vec<ElectionReportDataComputed>::get_document_paths")]
     fn get_document_paths(
         &self,
         area_id: Option<String>,
@@ -184,7 +203,11 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
         }
     }
 
-    #[instrument(skip_all, err)]
+    #[instrument(
+        skip(self, auth_headers, rename_map),
+        err,
+        name = "Vec<ElectionReportDataComputed>::save_documents"
+    )]
     async fn save_documents(
         &self,
         auth_headers: &AuthHeaders,
@@ -382,7 +405,11 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
         }
     }
 
-    #[instrument(err, skip(self, auth_headers, hasura_transaction))]
+    #[instrument(
+        err,
+        skip(self, auth_headers, hasura_transaction),
+        name = "ElectionReportDataComputed::save_documents"
+    )]
     async fn save_documents(
         &self,
         auth_headers: &AuthHeaders,
@@ -401,6 +428,23 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
             .contest
             .clone();
 
+        // Read the json file and hash it
+        let file_path = document_paths
+            .json
+            .clone()
+            .context("Missing json file path")?;
+        let content = fs::read_to_string(file_path.clone())
+            .with_context(|| format!("Failed to read the file at {}", file_path))?;
+        // Deserialize the JSON string into a Value
+        let json: Value = serde_json::from_str(&content).context("Failed to parse JSON content")?;
+        // retrieve the hash value
+        let results_hash = json
+            .get("execution_annotations")
+            .and_then(|annotations| annotations.get("results_hash"))
+            .and_then(|hash| hash.as_str())
+            .unwrap_or_default();
+
+        // Save election results documents to S3 and Hasura
         let documents = generic_save_documents(
             auth_headers,
             document_paths,
@@ -418,6 +462,7 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
             &contest.election_event_id,
             &contest.election_id,
             &documents,
+            results_hash,
         )
         .await?;
 
@@ -483,7 +528,11 @@ impl GenerateResultDocuments for ReportDataComputed {
         }
     }
 
-    #[instrument(err, skip(self, auth_headers))]
+    #[instrument(
+        err,
+        skip(self, auth_headers),
+        name = "ReportDataComputed::save_documents"
+    )]
     async fn save_documents(
         &self,
         auth_headers: &AuthHeaders,
@@ -534,7 +583,7 @@ impl GenerateResultDocuments for ReportDataComputed {
     }
 }
 
-#[instrument(skip(results), err)]
+#[instrument(skip(results, areas), err)]
 pub fn generate_ids_map(
     results: &Vec<ElectionReportDataComputed>,
     areas: &Vec<Area>,
@@ -582,7 +631,7 @@ pub fn generate_ids_map(
     Ok(rename_map)
 }
 
-#[instrument(skip(hasura_transaction, results), err)]
+#[instrument(skip(hasura_transaction, results, areas), err)]
 pub async fn save_result_documents(
     hasura_transaction: &Transaction<'_>,
     results: Vec<ElectionReportDataComputed>,
@@ -632,7 +681,13 @@ pub async fn save_result_documents(
                 tally_type_enum.clone(),
             )
             .await?;
-        for contest_report in election_report.reports {
+        let mut election_areas: HashMap<String, BasicArea> = HashMap::new();
+
+        for contest_report in election_report.reports.clone() {
+            let area = contest_report.area.clone();
+            if let Some(area) = area {
+                election_areas.insert(area.id.clone(), area);
+            }
             let contest_document_paths = contest_report.get_document_paths(
                 contest_report.area.clone().map(|value| value.id),
                 base_tally_path,
@@ -654,6 +709,107 @@ pub async fn save_result_documents(
                 )
                 .await?;
         }
+        let areas: Vec<BasicArea> = election_areas.values().cloned().collect();
+
+        let report_election_event_id = election_report.reports[0].contest.election_event_id.clone();
+        let report_tenant_id = election_report.reports[0].contest.tenant_id.clone();
+        let report_election_id: String = election_report.reports[0].contest.election_id.clone();
+
+        for area in areas {
+            let documents = get_area_document_paths(
+                area.id.clone(),
+                report_election_id.to_string(),
+                base_tally_path,
+            );
+
+            save_area_documents(
+                &auth_headers,
+                hasura_transaction,
+                &report_tenant_id,
+                &report_election_event_id,
+                &report_election_id,
+                &documents,
+                results_event_id,
+                None,
+                area,
+                tally_type_enum.clone(),
+            )
+            .await?;
+        }
     }
     Ok(())
+}
+
+fn get_area_document_paths(
+    area_id: String,
+    election_id: String,
+    base_path: &PathBuf,
+) -> ResultDocumentPaths {
+    let folder_path = base_path.join(format!(
+        "output/velvet-generate-reports/election__{}/area__{}",
+        election_id, area_id
+    ));
+
+    let json_path = folder_path.join(OUTPUT_JSON);
+    let pdf_path = folder_path.join(OUTPUT_PDF);
+    let html_path = folder_path.join(OUTPUT_HTML);
+
+    ResultDocumentPaths {
+        json: if json_path.is_file() {
+            Some(json_path.display().to_string())
+        } else {
+            None
+        },
+        pdf: if pdf_path.is_file() {
+            Some(pdf_path.display().to_string())
+        } else {
+            None
+        },
+        html: if html_path.is_file() {
+            Some(html_path.display().to_string())
+        } else {
+            None
+        },
+        tar_gz: None,
+        tar_gz_original: None,
+        vote_receipts_pdf: None,
+    }
+}
+
+#[instrument(err, skip(auth_headers))]
+async fn save_area_documents(
+    auth_headers: &AuthHeaders,
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: &str,
+    document_paths: &ResultDocumentPaths,
+    results_event_id: &str,
+    rename_map: Option<HashMap<String, String>>,
+    area: BasicArea,
+    tally_type_enum: TallyType,
+) -> Result<ResultDocuments> {
+    let documents = generic_save_documents(
+        auth_headers,
+        document_paths,
+        &tenant_id.to_string(),
+        &election_event_id.to_string(),
+        &hasura_transaction,
+        tally_type_enum.clone(),
+    )
+    .await?;
+
+    insert_results_election_area_documents(
+        &hasura_transaction,
+        &tenant_id,
+        &results_event_id,
+        &election_event_id,
+        &election_id,
+        &area.id,
+        &area.name,
+        &documents,
+    )
+    .await?;
+
+    Ok(documents)
 }

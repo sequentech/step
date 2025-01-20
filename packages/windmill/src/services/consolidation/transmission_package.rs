@@ -10,7 +10,6 @@ use super::{
     xz_compress::xz_compress,
     zip::compress_folder_to_zip,
 };
-use crate::services::temp_path::PUBLIC_ASSETS_EML_BASE_TEMPLATE;
 use crate::services::{consolidation::eml_types::ACMTrustee, temp_path::read_temp_file};
 use crate::services::{
     password::generate_random_string_with_charset,
@@ -32,6 +31,8 @@ use tempfile::tempdir;
 use tempfile::NamedTempFile;
 use tracing::{info, instrument};
 use velvet::pipes::generate_reports::ReportData;
+
+pub const PUBLIC_ASSETS_EML_BASE_TEMPLATE: &'static str = "eml_base.hbs";
 
 // returns (base_compressed_xml, eml, eml_hash)
 #[instrument(skip_all, err)]

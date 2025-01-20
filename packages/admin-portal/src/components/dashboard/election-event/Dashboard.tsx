@@ -31,6 +31,7 @@ import {IPermissions} from "@/types/keycloak"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {LIST_KEYS_CEREMONY} from "@/queries/ListKeysCeremonies"
 import {IKeysCeremonyExecutionStatus} from "@/services/KeyCeremony"
+import {ETallyType} from "@/types/ceremonies"
 
 const Container = styled(Box)`
     display: flex;
@@ -147,7 +148,9 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
                 IKeysCeremonyExecutionStatus.SUCCESS
         )
         let finishedTallySessions = tallySessions?.find(
-            (tallySession) => tallySession.is_execution_completed
+            (tallySession) =>
+                tallySession.is_execution_completed &&
+                tallySession.tally_type !== ETallyType.INITIALIZATION_REPORT
         )
         if (finishedKeysCeremonies) {
             data.push(1)
@@ -264,6 +267,14 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
                     <a href={enrollUrl ?? ""} target="_blank">
                         {t("dashboard.voterEnrollURL")}
                     </a>
+                    {record?.voting_channels?.kiosk === true && (
+                        <>
+                            <p>|</p>
+                            <a href={enrollUrl ? `${enrollUrl}?kiosk` : ""} target="_blank">
+                                {t("dashboard.voterEnrollKioskURL")}
+                            </a>
+                        </>
+                    )}
                 </Box>
             </Box>
         </>

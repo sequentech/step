@@ -55,12 +55,10 @@ archive-image-artifact() {
         # Try to pull the image
         if ! docker pull "$image_name"; then
             echo "Error: Failed to archive image artifact $image_name after failed pulling" >&2
-            exit 1
         fi
         # Try to save the image again after pulling
         if ! (docker save "$image_name" > "$image_artifact_path"); then
             echo "Error: Failed to archive image artifact $image_name after pulling" >&2
-            exit 1
         fi
     fi
 }
@@ -130,6 +128,13 @@ add-hasura-data-to-tarball() {
     tar --append -C $tmpdir --file=$DELIVERABLE_TARBALL hasura
 }
 
+add-minio-config-to-tarball() {
+    tmpdir=$(mktemp -d)
+    mkdir -p $tmpdir/minio
+    cp -r $PROJECT_ROOT/.devcontainer/minio/nginx $tmpdir/minio/nginx
+    tar --append -C $tmpdir --file=$DELIVERABLE_TARBALL minio
+}
+
 add-up-script-to-tarball() {
     tmpdir=$(mktemp -d)
     cat $PROJECT_ROOT/scripts/airgap-files/up > $tmpdir/up
@@ -146,29 +151,6 @@ clean-artifacts-root() {
     rm -rf $AIRGAPPED_ARTIFACTS_TODAY
 }
 
-replace-keycloak-data() {
-    FILE="test.json"         # JSON with replacements
-    TENANT_FILE="tenant.json" # File to modify
-
-    # Loop over each key in .replacements
-    for key in $(jq -r '.replacements | keys[]' "$FILE"); do
-    # Get the value for that key
-    val=$(jq -r ".replacements[\"$key\"]" "$FILE")
-
-    # Escape sed special characters in key and value
-    # This handles characters like /, ., *, $, ^, [, ] and & 
-    key_escaped=$(printf '%s\n' "$key" | sed -E 's/[]\/$*.^|[]/\\&/g')
-    val_escaped=$(printf '%s\n' "$val" | sed -E 's/[]\/$*.^|[]/\\&/g')
-
-    echo "Replacing all instances of: $key_escaped"
-    echo "With: $val_escaped"
-    echo
-
-    # Use '~' as delimiter in 's///' to avoid collisions with '/' in URLs
-    sed -i "s~$key_escaped~$val_escaped~g" "$TENANT_FILE"
-    done
-}
-
 mkdir -p $DELIVERABLE_PATH $IMAGE_ARTIFACTS_PATH
 tar -cf $DELIVERABLE_TARBALL -T /dev/null
 
@@ -182,6 +164,7 @@ done
 
 add-images-to-tarball
 add-dotenv-to-tarball
+add-minio-config-to-tarball
 add-docker-compose-to-tarball
 add-keycloak-data-to-tarball
 add-trustees-data-to-tarball

@@ -6,18 +6,21 @@ use super::report_variables::{
     get_report_hash, ExecutionAnnotations,
 };
 use super::voters::{
-    count_voters_by_area_id, get_voters_data, EnrollmentFilters, FilterListVoters,
+    count_applications_by_status_and_roles, count_voters_by_area_id, get_voters_data,
+    EnrollmentFilters, FilterListVoters,
 };
 use super::{report_variables::extract_election_data, template_renderer::*};
+use crate::postgres::application::count_applications;
 use crate::postgres::area::get_areas_by_election_id;
 use crate::postgres::election::{get_election_by_id, get_elections};
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::reports::ReportType;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::election_dates::get_election_dates;
+use crate::services::keycloak_events::count_keycloak_password_reset_event_by_area;
 use crate::services::s3::get_minio_url;
 use crate::services::temp_path::*;
-use crate::types::application::ApplicationStatus;
+use crate::types::application::{ApplicationStatus, ApplicationType};
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
@@ -31,6 +34,7 @@ use tracing::instrument;
 // Struct to hold user data
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
+    pub election_event_title: String,
     pub execution_annotations: ExecutionAnnotations,
     pub elections: Vec<UserElectionData>,
     pub regions: Vec<Region>,
@@ -188,7 +192,6 @@ impl TemplateRenderer for OVCSStatisticsTemplate {
             let election_dates = get_election_dates(&election, scheduled_events.clone())
                 .map_err(|e| anyhow::anyhow!("Error getting election dates {e}"))?;
 
-            let election_title = election.name.clone();
             let election_general_data = extract_election_data(&election)
                 .await
                 .map_err(|err| anyhow!("Error extract election annotations {err}"))?;
@@ -254,6 +257,16 @@ impl TemplateRenderer for OVCSStatisticsTemplate {
                 .await
                 .map_err(|err| anyhow!("Error at count_voters_by_area_id by post {err}"))?;
 
+                let total_password_reset_events = count_keycloak_password_reset_event_by_area(
+                    &keycloak_transaction,
+                    &realm,
+                    &area.id,
+                )
+                .await
+                .map_err(|err| {
+                    anyhow!("Error at count_keycloak_password_reset_event_by_area {err}")
+                })?;
+
                 let area_stat = Stat {
                     post: election_general_data.post.clone(),
                     country: area_name,
@@ -263,7 +276,7 @@ impl TemplateRenderer for OVCSStatisticsTemplate {
                     pre_enrolled_not_voted: enrolled_voters_data.total_not_voted,
                     pre_enrolled_voted: enrolled_voters_data.total_voted,
                     voted: enrolled_voters_data.total_voted, //TODO: what the difference between pre_enrolled_voted and voted?
-                    password_reset_request: 0,
+                    password_reset_request: total_password_reset_events,
                     remarks: "-".to_string(),
                 };
 
@@ -274,7 +287,7 @@ impl TemplateRenderer for OVCSStatisticsTemplate {
             }
             elections_data.push(UserElectionData {
                 election_dates,
-                election_title,
+                election_title: election.alias.unwrap_or(election.name).clone(),
             });
         }
 
@@ -283,7 +296,19 @@ impl TemplateRenderer for OVCSStatisticsTemplate {
             .map(|(name, stats)| Region { name, stats })
             .collect();
 
+        let (total_disapproved, total_ofov_disapproved, total_sbei_disapproved) =
+            count_applications_by_status_and_roles(
+                &hasura_transaction,
+                &self.ids.tenant_id,
+                &self.ids.election_event_id,
+                true,
+                None,
+            )
+            .await
+            .map_err(|err| anyhow!("Error at counting all disapproved applications: {err}"))?;
+
         Ok(UserData {
+            election_event_title: election_event.alias.unwrap_or(election_event.name).clone(),
             execution_annotations: ExecutionAnnotations {
                 date_printed,
                 report_hash,
@@ -295,9 +320,9 @@ impl TemplateRenderer for OVCSStatisticsTemplate {
             },
             elections: elections_data,
             regions,
-            ofov_disapproved: 0,   //TODO: get real data
-            sbei_disapproved: 0,   //TODO: get real data
-            system_disapproved: 0, //TODO: get real data
+            ofov_disapproved: total_ofov_disapproved,
+            sbei_disapproved: total_sbei_disapproved,
+            system_disapproved: total_disapproved,
         })
     }
 

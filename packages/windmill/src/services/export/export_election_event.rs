@@ -34,6 +34,8 @@ use std::collections::HashMap;
 use std::env;
 use std::fs::File;
 use std::io::Write;
+use std::path::PathBuf;
+use strand::hash::hash_sha256_file;
 use tempfile::NamedTempFile;
 use tracing::{event, info, instrument, Level};
 use uuid::Uuid;
@@ -171,6 +173,23 @@ pub async fn write_export_document(data: ImportElectionEventSchema) -> Result<Na
     Ok(tmp_file)
 }
 
+fn get_export_election_event_filename(
+    election_event_id: &str,
+    file_path: &PathBuf,
+    is_encrypted: bool,
+) -> Result<String> {
+    let election_event_hash: String = hash_sha256_file(file_path)
+        .with_context(|| "Error hashing the exported election_event")?
+        .iter()
+        .map(|byte| format!("{:02x}", byte))
+        .collect();
+    let extension = if is_encrypted { "ezip" } else { "zip" };
+
+    Ok(format!(
+        "election-event-{election_event_id}-export-sha256-{election_event_hash}.{extension}"
+    ))
+}
+
 #[instrument(err)]
 pub async fn process_export_zip(
     tenant_id: &str,
@@ -189,7 +208,7 @@ pub async fn process_export_zip(
         .map_err(|err| anyhow!("Error starting hasura transaction: {err}"))?;
     info!("export_config: {:?}", export_config);
     // Temporary file path for the ZIP archive
-    let zip_filename = format!("export-election-event-{}.zip", election_event_id);
+    let zip_filename = format!("export-election-event-{election_event_id}.zip");
     let zip_path = env::temp_dir().join(&zip_filename);
 
     // Create a new ZIP file
@@ -277,6 +296,7 @@ pub async fn process_export_zip(
                 "Cron Config",
                 "Encryption Policy",
                 "Password",
+                "Permission Labels",
             ])
             .map_err(|e| anyhow!("Error writing CSV header: {e:?}"))?;
             for report in reports_data {
@@ -297,6 +317,7 @@ pub async fn process_export_zip(
                         .map_err(|e| anyhow!("Error serializing cron config: {e:?}"))?,
                     report.encryption_policy.to_string(),
                     password,
+                    report.permission_label.unwrap_or_default().join("|"),
                 ])
                 .map_err(|e| anyhow!("Error writing CSV record: {e:?}"))?;
             }
@@ -327,6 +348,7 @@ pub async fn process_export_zip(
                 voter_id: None,
                 report_origin: ReportOriginatedFrom::ExportFunction,
                 executer_username: None,
+                tally_session_id: None,
             },
             ReportFormat::CSV, // Assuming CSV format for this export
         );
@@ -501,15 +523,22 @@ pub async fn process_export_zip(
         .map_err(|e| anyhow!("Error getting ZIP file metadata: {e:?}"))?
         .len();
 
+    let export_event_filename = get_export_election_event_filename(
+        election_event_id,
+        upload_path,
+        encryption_password.len() > 0,
+    )
+    .map_err(|e| anyhow!("Error generating the exported election event filename: {e:?}"))?;
+
     // Upload the ZIP file (encrypted or original) to Hasura
-    let document = upload_and_return_document_postgres(
+    let _document = upload_and_return_document_postgres(
         &hasura_transaction,
         upload_path.to_str().unwrap(),
         zip_size,
         "application/zip",
         &tenant_id.to_string(),
         Some(election_event_id.to_string()),
-        &zip_filename,
+        &export_event_filename,
         Some(document_id.to_string()),
         false,
     )

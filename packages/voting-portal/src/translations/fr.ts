@@ -211,7 +211,7 @@ const frenchTranslation: TranslationType = {
             downloadButton: "Télécharger",
             step2Title: "2. Vérifiez votre bulletin",
             step2Description:
-                "<a class=\"link\" href='{{linkToBallotVerifier}}' target='_blank'>Accédez au vérificateur de vote</a>, qui s'ouvrira dans un nouvel onglet de votre navigateur.",
+                "<VerifierLink>Accédez au vérificateur de vote</VerifierLink>, qui s'ouvrira dans un nouvel onglet de votre navigateur.",
             step2HelpDialog: {
                 title: "Tutoriel sur l'Audit du Vote",
                 content:

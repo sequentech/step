@@ -79,7 +79,7 @@ const PullChecker = <T extends RaRecord>({
 const CreateElectionEventContext = createContext<{
     createDrawer: boolean
     importDrawer: boolean
-    openCreateDrawer?: () => void
+    openCreateDrawer: () => void
     closeCreateDrawer?: () => void
     openImportDrawer: () => void
     closeImportDrawer: () => void
@@ -135,22 +135,19 @@ export const CreateElectionEventProvider = ({children}: any) => {
     })
 
     const openCreateDrawer = () => {
-        console.log("aa context open create drawer")
+        setIsLoading(false)
         toggleCreateDrawer(true)
     }
 
     const closeCreateDrawer = () => {
-        console.log("close drawer")
         toggleCreateDrawer(false)
     }
 
     const openImportDrawer = () => {
-        console.log("aa context open import drawer")
         toggleImportDrawer(true)
     }
 
     const closeImportDrawer = () => {
-        console.log("close drawer")
         toggleImportDrawer(false)
     }
 
@@ -172,6 +169,7 @@ export const CreateElectionEventProvider = ({children}: any) => {
     }) => {
         console.log({error, isOneLoading, newElectionEvent})
         if (isNull(newId)) {
+            setIsLoading(false)
             return
         }
 
@@ -239,12 +237,6 @@ export const CreateElectionEventProvider = ({children}: any) => {
             setIsLoading(false)
             updateWidgetFail(currWidget.identifier)
         }
-
-        refresh()
-
-        setTimeout(() => {
-            refetchTreeMenu()
-        }, globalSettings.QUERY_POLL_INTERVAL_MS)
     }
 
     const [errors, setErrors] = useState<string | null>(null)

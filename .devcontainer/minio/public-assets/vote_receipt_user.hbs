@@ -153,6 +153,16 @@
       </tr>
       <!-- END of additional sections -->
 
+      <tr>
+        <td>
+        <div class="contest-title">
+          <strong>Ballot ID</strong>
+        </div>
+        <div class="ballot-serial-number">
+          {{sanitize_html (expr id)}}
+        </div>
+      </td>
+      </tr>
       <!-- Contest section -->
       {{#each contest_choices}}
       <!-- Candidates section -->
@@ -182,10 +192,10 @@
               {{/each}}
             </tbody>
           </table>
-          {{#if is_overvote}}
+          {{#if  (gte this.overvotes 1)}}
           <strong>OVERVOTE</strong>
           {{/if}}
-          {{#if is_undervote}}
+          {{#if (gte this.undervotes 1)}}
           <strong>UNDERVITE</strong>
           {{/if}}
         </td>
@@ -208,8 +218,7 @@
       <!-- Left paragraph section -->
       <tr class="sys-info">
         <td align="center">
-          <div>
-            Results hash: {{sanitize_html (expr ../execution_annotations.results_hash)}}<br />
+          <div class="word-break">
             Report hash: {{sanitize_html (expr ../execution_annotations.report_hash)}}<br />
             <br />
             Software version: {{sanitize_html (expr ../execution_annotations.app_version)}}<br />

@@ -54,6 +54,7 @@ pub struct Report {
     pub encryption_policy: EReportEncryption,
     pub cron_config: Option<ReportCronConfig>,
     pub created_at: DateTime<Utc>,
+    pub permission_label: Option<Vec<String>>,
 }
 
 #[allow(non_camel_case_types)]
@@ -67,22 +68,22 @@ pub enum ReportType {
     ACTIVITY_LOGS,
     TRANSMISSION_REPORT,
     STATUS,
-    LIST_OF_OV_WHO_PRE_ENROLLED_APPROVED,
-    LIST_OF_OV_WHO_VOTED,
+    OV_PRE_ENROLLED_APPROVED,
+    OV_WHO_VOTED,
     PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION,
     PRE_ENROLLED_OV_BUT_DISAPPROVED,
     LIST_OF_OVERSEAS_VOTERS,
     OVCS_STATISTICS,
     OVCS_INFORMATION,
     OVCS_EVENTS,
-    LIST_OF_OVERSEAS_VOTERS_WITH_VOTING_STATUS,
+    OV_WITH_VOTING_STATUS,
     INITIALIZATION_REPORT,
     AUDIT_LOGS,
-    LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED,
-    NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED,
-    OVERSEAS_VOTERS_TURNOUT,
-    OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_AND_SEX,
-    OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_SEX_AND_WITH_PERCENTAGE,
+    OV_NOT_YET_PRE_ENROLLED_LIST,
+    OV_NOT_YET_PRE_ENROLLED_NUMBER,
+    OV_TURNOUT_PERCENTAGE,
+    OV_TURNOUT_PER_ABOARD_STATUS_SEX,
+    OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE,
     BALLOT_IMAGES,
 }
 
@@ -119,6 +120,7 @@ impl TryFrom<Row> for ReportWrapper {
                     value = item.get::<_, String>("encryption_policy").as_str()
                 )
             })?,
+            permission_label: item.get::<_, Option<Vec<String>>>("permission_label"),
         }))
     }
 }
@@ -391,7 +393,7 @@ pub async fn insert_reports(
         .prepare(
             r#"
             INSERT INTO "sequent_backend".report (
-                id, election_event_id, tenant_id, election_id, report_type, template_alias, cron_config, created_at, encryption_policy
+                id, election_event_id, tenant_id, election_id, report_type, template_alias, cron_config, created_at, encryption_policy, permission_label
             ) VALUES (
                 $1,
                 $2,
@@ -401,7 +403,8 @@ pub async fn insert_reports(
                 $6,
                 $7,
                 $8,
-                $9
+                $9,
+                $10
             )
             "#,
         )
@@ -427,6 +430,7 @@ pub async fn insert_reports(
                         .map_err(|err| anyhow!("Error parsing cron config to value: {err}, cron_config={cron_config:?}", cron_config=report.cron_config))?,
                     &report.created_at,
                     &report.encryption_policy.to_string(),
+                    &report.permission_label
                 ],
             )
             .await
@@ -442,11 +446,15 @@ pub async fn get_report_by_type(
     tenant_id: &str,
     election_event_id: &str,
     report_type: &str,
+    election_id: &Option<String>,
 ) -> Result<Option<Report>> {
     let tenant_uuid: Uuid =
         Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
     let election_event_uuid = Uuid::parse_str(election_event_id)
         .with_context(|| "Error parsing election_event_id as UUID")?;
+    let election_uuid = election_id
+        .as_ref()
+        .and_then(|id| Uuid::parse_str(&id).ok());
 
     let statement = hasura_transaction
         .prepare(
@@ -459,6 +467,7 @@ pub async fn get_report_by_type(
                 tenant_id = $1
                 AND election_event_id = $2
                 AND report_type = $3
+              AND ($4::uuid IS NULL OR election_id = $4::uuid)
             "#,
         )
         .await
@@ -467,7 +476,12 @@ pub async fn get_report_by_type(
     let rows: Vec<Row> = hasura_transaction
         .query(
             &statement,
-            &[&tenant_uuid, &election_event_uuid, &report_type],
+            &[
+                &tenant_uuid,
+                &election_event_uuid,
+                &report_type,
+                &election_uuid,
+            ],
         )
         .await
         .map_err(|err| anyhow!("Error running find_by_id query: {err}"))?;

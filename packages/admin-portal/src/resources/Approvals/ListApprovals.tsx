@@ -54,6 +54,8 @@ import {Chip, Typography} from "@mui/material"
 import {convertToCamelCase} from "./UtilsApprovals"
 import {getAttributeLabel, getTranslationLabel} from "@/services/UserService"
 import {log} from "node:console"
+import {useLocation} from "react-router"
+import {getPreferenceKey} from "@/lib/helpers"
 
 const StyledChip = styled(Chip)`
     margin: 4px;
@@ -83,6 +85,7 @@ const STATUS_FILTER_KEY = "approvals_status_filter"
 
 const ApprovalsList = (props: ApprovalsListProps) => {
     const {filterValues, data, isLoading} = useListContext()
+    const location = useLocation()
 
     const {t} = useTranslation()
     const [isOpenSidebar] = useSidebarState()
@@ -177,8 +180,12 @@ const ApprovalsList = (props: ApprovalsListProps) => {
         })
 
         localStorage.removeItem(
-            "RaStore.preferences.sequent_backend_applications.datagrid.availableColumns"
+            `RaStore.preferences.${getPreferenceKey(
+                location.pathname,
+                "approvals"
+            )}.datagrid.availableColumns`
         )
+
         return allFields
     }
 
@@ -204,6 +211,7 @@ const ApprovalsList = (props: ApprovalsListProps) => {
     return (
         <div>
             <DatagridConfigurable
+                preferenceKey={getPreferenceKey(location.pathname, "approvals")}
                 sx={sx}
                 {...props}
                 omit={listFields.omitFields}
@@ -276,6 +284,8 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
     electionEventRecord,
 }) => {
     const {t} = useTranslation()
+    const location = useLocation()
+
     const OMIT_FIELDS: string[] = []
     const [openExport, setOpenExport] = useState(false)
     const [exporting, setExporting] = useState(false)
@@ -298,6 +308,8 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
             },
         },
     })
+
+    // ✨ Admin Portal > Approvals: Add Approved By row #5050
 
     // Move the useGetOne hook here and handle the undefined case
     const {data: election} = useGetOne<Sequent_Backend_Election>(
@@ -417,6 +429,7 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
             <List
                 actions={
                     <ListActions
+                        preferenceKey={getPreferenceKey(location.pathname, "approvals")}
                         withImport={canImport}
                         withExport={canExport}
                         doImport={handleImport}

@@ -211,7 +211,7 @@ pub async fn get_count_votes_per_day(
                 r#"
             WITH date_series AS (
                 SELECT
-                    (t.day AT TIME ZONE $5)::date AS day
+                    (t.day)::date AS day
                 FROM 
                     generate_series(
                         $3::date,

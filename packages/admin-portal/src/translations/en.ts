@@ -2,12 +2,16 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {EXPORT_TENANT_CONFIG} from "@/queries/ExportTenantConfig"
 import {en} from "intl-tel-input/i18n"
 import {title} from "process"
 
 const englishTranslation = {
     translations: {
+        philippinePassport: "Philippine Passport",
+        seamanBook: "Seaman's Book",
+        philSysID: "PhilSys ID",
+        iBP: "Integrated Bar of the Philippines (IBP)",
+        driversLicense: "Driver's License",
         loading: "Loading...",
         loadingDataProvider: "Loading data provider...",
         logsScreen: {
@@ -73,6 +77,7 @@ const englishTranslation = {
                 EXPORT_BALLOT_PUBLICATION: "Export Ballot Publication",
                 EXPORT_ACTIVITY_LOGS_REPORT: "Export Activity Logs Report",
                 GENERATE_REPORT: "Generate Report",
+                GENERATE_TRANSMISSION_REPORT: "Generate Transmission Report",
                 EXPORT_TRUSTEES: "Export Trustees",
                 EXPORT_APPLICATION: "Export Applications",
                 EXPORT_TENANT_CONFIG: "Export Tenant Config",
@@ -200,6 +205,7 @@ const englishTranslation = {
             votersByChannels: "Voters by channel",
             voterLoginURL: "Voter Login URL",
             voterEnrollURL: "Voter Enroll URL",
+            voterEnrollKioskURL: "Voter Enroll Kiosk URL",
             ipAddress: {
                 emptyState: "No votes yet.",
                 title: "IP Addresses",
@@ -380,6 +386,11 @@ const englishTranslation = {
                 electionNumber: "Number Elections",
                 trustees: "Trustees",
                 status: "Status",
+                tallyType: {
+                    label: "Tally Type",
+                    ELECTORAL_RESULTS: "Electoral Results",
+                    INITIALIZATION_REPORT: "Initialization Results",
+                },
                 create: {
                     title: "Create Tally",
                     subtitle: "Create a new Tally for this Election Event",
@@ -626,6 +637,8 @@ const englishTranslation = {
                     label: "Manually Verify",
                     verify: "Manually Verify this voter",
                     body: "Manually Verify this voter. You will obtain a PDF with a QR Code link that allows the voter to login skipping online KYC.",
+                    noEmailOrPhone:
+                        "This voter can not be manually verified because they do not have an email address or phone number attributed to them.",
                 },
                 emptyHeader: "No voters yet.",
                 askCreate: "Do you want to create one?",
@@ -858,7 +871,7 @@ const englishTranslation = {
                 "publish-pause-voting": "Pause Voting",
                 "publish-stop-voting": "Stop Voting",
                 "publish-changes": "Publish Changes",
-                "election-event-publish-view": "View Election Event Publish",
+                "election-event-publish-view": "Election Event Publish View",
                 "election-event-keys-columns": "Election Event Keys Columns",
                 "create-ceremony": "Create Ceremony",
                 "export-ceremony": "Export Ceremony",
@@ -867,9 +880,15 @@ const englishTranslation = {
                 "transmition-ceremony": "Transmission Ceremony",
                 "admin-ip-address-view": "View IP Address",
                 "election-approvals-tab": "View Election Approvals",
+                "election-event-approvals-tab": "View Election Event Approvals",
                 "election-ip-address-view": "View Election IP Address",
                 "election-dashboard-tab": "View Election Dashboard",
+                "trustees-export": "Export Trustees",
                 "user-import": "Import Users",
+                "voter-voted-edit": "Edit voters who voted",
+                "voter-email-tlf-edit": "Edit voters email/phone fields",
+                "cloudflare-write": "Edit Country Blocking Rules in Cloudflare",
+                "transmission-report-generate": "Generate Transmission Report",
             },
         },
         generalSettingsScreen: {
@@ -948,7 +967,7 @@ const englishTranslation = {
                 OVCS_INFORMATION: "OVCS Information",
                 OVERSEAS_VOTERS: "List of overseas voters",
                 OV_USERS_WHO_VOTED: "List of Overseas Voters who Voted",
-                OV_USERS: "List of Overseas Voters with Voting Status",
+                OV_WITH_VOTING_STATUS: "List of Overseas Voters with Voting Status",
                 OVCS_STATISTICS: "Overseas Voting Monitoring - OVCS Statistics",
                 PRE_ENROLLED_OV_BUT_DISAPPROVED: "List of OV who Pre-enrolled but Disapproved",
                 PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
@@ -1053,6 +1072,12 @@ const englishTranslation = {
             contest: "Create a Contest",
             candidate: "Create a Candidate",
         },
+        importResource: {
+            electionEvent: "Import an Election Event",
+            election: "Import an Election",
+            contest: "Import a Contest",
+            candidate: "Import a Candidate",
+        },
         sideMenu: {
             electionEvents: "Election Events",
             search: "Search",
@@ -1096,6 +1121,7 @@ const englishTranslation = {
                             archive: "The item has been archived",
                             unarchive: "The item has been unarchived",
                             delete: "The item has been deleted",
+                            reloading: "Wait. The page will be reloaded in a few moments.",
                         },
                         error: {
                             archive: "Error while trying to archive this item",
@@ -1360,8 +1386,9 @@ const englishTranslation = {
                     },
                     download: {
                         title: "Download",
-                        emlTitle: "Download EML",
-                        transmissionPackageTitle: "Download Transmission Package",
+                        emlTitle: "Download EML {{date}}",
+                        transmissionPackageTitle: "Download Transmission Package {{date}}",
+                        transmissionReportTitle: "Download Transmission Report",
                         dialog: {
                             title: "Do you want to Download the Transmission Package?",
                             description:
@@ -1387,7 +1414,7 @@ const englishTranslation = {
                         "SBEIs can sign the Transmission Package. The table below shows the signing status of each of the SBEI members.",
                     status: "{{signed}} out of {{total}} Signed, {{minimum}} minimum",
                     table: {
-                        trusteeName: "Trustee Name",
+                        trusteeName: "SBEI id",
                         signed: "Has Signed",
                     },
                 },
@@ -1396,7 +1423,7 @@ const englishTranslation = {
             uploadTransmissionPackage: "Sign Transmission Package",
             uploadTransmissionPackageDesc:
                 "Upload your Signature to sign the Transmission Package. This is an optional operation.",
-            exportElectionArea: "Send Transmission Package for Area '{{name}}'",
+            exportElectionArea: "Generate Transmission Package for Area '{{name}}'",
             templateTitle: "Results Template",
             templateSubTitle: "Optionally overwrite the results template.",
             keysCeremonyTitle: "Keys Ceremony",
@@ -1509,7 +1536,7 @@ const englishTranslation = {
                 history: "Publish History",
             },
             action: {
-                geneateInitializationReport: "Generate Initialization Report",
+                generateInitializationReport: "Generate Initialization Report",
                 startVotingPeriod: "Start Voting",
                 stopVotingPeriod: "Stop Voting",
                 stopKioskVotingPeriod: "Stop Kiosk Voting",
@@ -1758,23 +1785,20 @@ const englishTranslation = {
                 OVCS_INFORMATION: "OVCS Information",
                 OVCS_EVENTS: "Overseas Voting Monitoring - OVCS Events",
                 OVCS_STATISTICS: "Overseas Voting Monitoring - OVCS Statistics",
-                LIST_OF_OV_WHO_VOTED: "OV Users Who Voted",
+                OV_WHO_VOTED: "OV Users Who Voted",
                 PRE_ENROLLED_OV_BUT_DISAPPROVED: "List of OV who Pre-enrolled but Disapproved",
                 LIST_OF_OVERSEAS_VOTERS: "List of Overseas Voters",
-                OVERSEAS_VOTERS_TURNOUT: "Overseas Voters Turnout",
-                OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_AND_SEX:
+                OV_TURNOUT_PERCENTAGE: "Overseas Voters Turnout",
+                OV_TURNOUT_PER_ABOARD_STATUS_SEX:
                     "Overseas Voters’ Turnout - per Aboard Status and Sex",
-                OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_SEX_AND_WITH_PERCENTAGE:
+                OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE:
                     "Overseas Voters’ Turnout - per Aboard Status, Sex and with Percentage",
-                LIST_OF_OV_WHO_PRE_ENROLLED_APPROVED: "List of OV who Pre-enrolled (Approved)",
+                OV_PRE_ENROLLED_APPROVED: "List of OV who Pre-enrolled (Approved)",
                 PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
                     "List of OV who Pre-enrolled but subject for Manual Validation",
-                LIST_OF_OVERSEAS_VOTERS_WITH_VOTING_STATUS:
-                    "List of Overseas Voters with Voting Status",
-                LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
-                    "List of OV who have not yet Pre-enrolled",
-                NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
-                    "No. of OV who have not yet Pre-enrolled",
+                OV_WITH_VOTING_STATUS: "List of Overseas Voters with Voting Status",
+                OV_NOT_YET_PRE_ENROLLED_LIST: "List of OV who have not yet Pre-enrolled",
+                OV_NOT_YET_PRE_ENROLLED_NUMBER: "No. of OV who have not yet Pre-enrolled",
                 BALLOT_IMAGES: "Ballot Images",
             },
             method: {
@@ -1847,7 +1871,7 @@ const englishTranslation = {
                 createdAt: "Created At",
                 updatedAt: "Updated At",
             },
-            approvalInformation: "Approval Information",
+            approvalRequest: "Approval Request",
             title: "Voters",
             subtitle: "Find matching voters",
             approve: {

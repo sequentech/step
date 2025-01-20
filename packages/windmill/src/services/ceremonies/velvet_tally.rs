@@ -3,11 +3,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::hasura::tally_session_execution::get_last_tally_session_execution::GetLastTallySessionExecutionSequentBackendTallySessionContest;
 use crate::postgres::election::export_elections;
+use crate::postgres::reports::ReportType;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::cast_votes::ElectionCastVotes;
 use crate::services::database::get_hasura_pool;
 use crate::services::election_dates::get_election_dates;
 use crate::services::reports::ballot_images::BallotImagesTemplate;
+use crate::services::reports::report_variables::{get_app_hash, get_app_version, get_report_hash};
 use crate::services::reports::template_renderer::{
     ReportOriginatedFrom, ReportOrigins, TemplateRenderer,
 };
@@ -23,16 +25,20 @@ use sequent_core::ballot_codec::PlaintextCodec;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::area_tree::TreeNodeArea;
 use sequent_core::services::translations::Name;
+use sequent_core::types::ceremonies::TallyType;
 use sequent_core::types::hasura::core::{Area, Election, ElectionEvent, TallySession, TallySheet};
 use sequent_core::types::scheduled_event::ScheduledEvent;
-use sequent_core::types::templates::{SendTemplateBody, VoteReceiptPipeType};
+use sequent_core::types::templates::{
+    PrintToPdfOptionsLocal, ReportExtraConfig, SendTemplateBody, VoteReceiptPipeType,
+};
+pub use sequent_core::util::date_time::get_date_and_time;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
 use std::path::PathBuf;
 use strand::{backend::ristretto::RistrettoCtx, context::Ctx};
-use tracing::{event, instrument, warn, Level};
+use tracing::{debug, event, instrument, warn, Level};
 use uuid::Uuid;
 use velvet::cli::state::State;
 use velvet::cli::CliRun;
@@ -228,6 +234,9 @@ pub fn create_election_configs_blocking(
         // TODO: Refactor to just extract some Election Config with no subitems
         let election_name_opt = election_opt.map(|election| election.get_name(&default_lang));
 
+        let election_alias_otp =
+            election_opt.map(|election| election.alias.clone().unwrap_or("".to_string()));
+
         let election_description = election_opt
             .map(|election| election.description.clone().unwrap_or("".to_string()))
             .unwrap_or("".to_string());
@@ -260,6 +269,7 @@ pub fn create_election_configs_blocking(
             None => ElectionConfig {
                 id: Uuid::parse_str(&election_id)?,
                 name: election_name_opt.unwrap_or("".to_string()),
+                alias: election_alias_otp.unwrap_or("".to_string()),
                 description: election_description,
                 annotations: election_annotations.clone(),
                 election_event_annotations: Default::default(),
@@ -514,7 +524,17 @@ pub async fn build_vote_receipe_pipe_config(
         voter_id: None,
         report_origin: ReportOriginatedFrom::ExportFunction,
         executer_username: None,
+        tally_session_id: None,
     });
+
+    let (mut tpl_pdf_options, mut tpl_email, mut tpl_sms) = (None, None, None);
+
+    // Fill extra config if needed with default data
+    let ext_cfg: ReportExtraConfig = vote_receipt_renderer
+        .fill_extra_config_with_default(tpl_pdf_options, tpl_email, tpl_sms)
+        .await
+        .map_err(|e| anyhow!("Error getting the extra config: {e:?}"))?;
+    debug!("Extra config read: {ext_cfg:?}");
 
     let vote_receipt_template =
         get_public_asset_vote_receipts_template(vote_receipt_renderer, &hasura_transaction).await?;
@@ -534,12 +554,23 @@ pub async fn build_vote_receipe_pipe_config(
     let vote_receipt_system_template =
         get_public_asset_template(PUBLIC_ASSETS_VELVET_VOTE_RECEIPTS_TEMPLATE_SYSTEM).await?;
 
+    let report_hash = get_report_hash(&ReportType::VOTE_RECEIPT.to_string()).await?;
+
+    let execution_annotations = HashMap::from([
+        ("date_printed".to_string(), get_date_and_time()),
+        ("app_hash".to_string(), get_app_hash()),
+        ("app_version".to_string(), get_app_version()),
+        ("report_hash".to_string(), report_hash),
+    ]);
+
     let vote_receipt_pipe_config = PipeConfigVoteReceipts {
         template: vote_receipt_template,
         system_template: vote_receipt_system_template,
         extra_data: serde_json::to_value(vote_receipt_extra_data)?,
         enable_pdfs: true,
         pipe_type: VoteReceiptPipeType::VOTE_RECEIPT,
+        pdf_options: Some(ext_cfg.pdf_options),
+        execution_annotations: Some(execution_annotations),
     };
     Ok(vote_receipt_pipe_config)
 }
@@ -559,7 +590,16 @@ pub async fn build_ballot_images_pipe_config(
         voter_id: None,
         report_origin: ReportOriginatedFrom::ExportFunction,
         executer_username: None,
+        tally_session_id: None,
     });
+
+    let (mut tpl_pdf_options, mut tpl_email, mut tpl_sms) = (None, None, None);
+
+    let ext_cfg: ReportExtraConfig = ballot_images_renderer
+        .fill_extra_config_with_default(tpl_pdf_options, tpl_email, tpl_sms)
+        .await
+        .map_err(|e| anyhow!("Error getting the extra config: {e:?}"))?;
+    debug!("Extra config read: {ext_cfg:?}");
 
     let ballot_images_template =
         get_public_asset_ballot_images_template(ballot_images_renderer, &hasura_transaction)
@@ -586,17 +626,20 @@ pub async fn build_ballot_images_pipe_config(
         extra_data: serde_json::to_value(ballot_images_extra_data)?,
         enable_pdfs: true,
         pipe_type: VoteReceiptPipeType::BALLOT_IMAGES,
+        pdf_options: Some(ext_cfg.pdf_options),
+        execution_annotations: None,
     };
     Ok(ballot_images_pipe_config)
 }
 
-#[instrument(skip_all, err)]
 async fn build_reports_pipe_config(
     tally_session: &TallySession,
     minio_endpoint_base: String,
     public_asset_path: String,
     report_content_template: Option<String>,
     report_system_template: String,
+    pdf_options: Option<PrintToPdfOptionsLocal>,
+    tally_type: TallyType,
 ) -> Result<PipeConfigGenerateReports> {
     let extra_data = VelvetTemplateData {
         title: String::new(),
@@ -622,11 +665,22 @@ async fn build_reports_pipe_config(
         .cloned()
         .unwrap_or(String::new());
 
+    let report_hash = get_report_hash(&tally_type.to_string()).await?;
+
+    let execution_annotations = HashMap::from([
+        ("date_printed".to_string(), get_date_and_time()),
+        ("app_hash".to_string(), get_app_hash()),
+        ("app_version".to_string(), get_app_version()),
+        ("report_hash".to_string(), report_hash),
+        ("executer_username".to_string(), tally_executer_username),
+    ]);
+
     Ok(PipeConfigGenerateReports {
         enable_pdfs: true,
         report_content_template,
+        execution_annotations,
         system_template: report_system_template,
-        executer_username: tally_executer_username,
+        pdf_options,
         extra_data: serde_json::to_value(extra_data)?,
     })
 }
@@ -636,8 +690,10 @@ pub async fn create_config_file(
     base_tally_path: PathBuf,
     report_content_template: Option<String>,
     report_system_template: String,
+    pdf_options: Option<PrintToPdfOptionsLocal>,
     tally_session: &TallySession,
     hasura_transaction: &Transaction<'_>,
+    tally_type: TallyType,
 ) -> Result<()> {
     let contest_encryption_policy = tally_session
         .configuration
@@ -646,7 +702,7 @@ pub async fn create_config_file(
         .get_contest_encryption_policy();
     let public_asset_path = get_public_assets_path_env_var()?;
 
-    let minio_endpoint_base = s3::get_minio_public_url()?;
+    let minio_endpoint_base = s3::get_minio_url()?;
 
     let vote_receipt_pipe_config: PipeConfigVoteReceipts = build_vote_receipe_pipe_config(
         &tally_session,
@@ -670,6 +726,8 @@ pub async fn create_config_file(
         public_asset_path,
         report_content_template,
         report_system_template,
+        pdf_options,
+        tally_type,
     )
     .await?;
 
@@ -747,7 +805,7 @@ pub async fn create_config_file(
     Ok(())
 }
 
-#[instrument(skip(area_contests), err)]
+#[instrument(skip_all, err)]
 pub async fn run_velvet_tally(
     base_tally_path: PathBuf,
     area_contests: &Vec<AreaContestDataType>,
@@ -755,10 +813,12 @@ pub async fn run_velvet_tally(
     tally_sheets: &Vec<TallySheet>,
     report_content_template: Option<String>,
     report_system_template: String,
+    pdf_options: Option<PrintToPdfOptionsLocal>,
     areas: &Vec<Area>,
     hasura_transaction: &Transaction<'_>,
     election_event: &ElectionEvent,
     tally_session: &TallySession,
+    tally_type: TallyType,
 ) -> Result<State> {
     let basic_areas: Vec<TreeNodeArea> = areas.into_iter().map(|area| area.into()).collect();
     // map<(area_id,contest_id), tally_sheet>
@@ -783,8 +843,10 @@ pub async fn run_velvet_tally(
         base_tally_path.clone(),
         report_content_template,
         report_system_template,
+        pdf_options,
         tally_session,
         hasura_transaction,
+        tally_type,
     )
     .await?;
     call_velvet(base_tally_path.clone()).await

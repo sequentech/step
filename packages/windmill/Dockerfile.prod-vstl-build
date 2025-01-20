@@ -2,21 +2,11 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-FROM debian:bookworm
-# Install any necessary runtime dependencies for production
-RUN echo "deb http://deb.debian.org/debian/ bookworm-proposed-updates main" >> /etc/apt/sources.list \
-    && apt-get update \
-    && apt-get install -y --no-install-recommends libssl3 chromium ca-certificates wget software-properties-common \
-    && rm -rf /var/lib/apt/lists/*
-RUN update-ca-certificates
-RUN wget https://download.java.net/java/GA/jdk22.0.2/c9ecb94cd31b495da20a27d4581645e8/9/GPL/openjdk-22.0.2_linux-x64_bin.tar.gz \
-    && tar xvf openjdk-22.0.2_linux-x64_bin.tar.gz \
-    && mv jdk-22.0.2  /usr/local/ \
-    && update-alternatives --install /usr/bin/java java /usr/local/jdk-22.0.2/bin/java 1 \
-    && update-alternatives --install /usr/bin/javac javac /usr/local/jdk-22.0.2/bin/javac 1
+FROM windmill-build-dependencies
+
 # Copy the compiled binaries from the builder stage (beat + windmill:main)
-COPY --from=windmill-compile /app/windmill/target/release/main /usr/local/bin/main
-COPY --from=windmill-compile /app/windmill/target/release/beat /usr/local/bin/beat
+COPY --from=windmill-compile /app/target/release/main /usr/local/bin/main
+COPY --from=windmill-compile /app/target/release/beat /usr/local/bin/beat
 COPY --from=windmill-compile /usr/local/bin/ecies-tool.jar /usr/local/bin/ecies-tool.jar
 VOLUME /import
 WORKDIR /usr/local/bin

@@ -234,6 +234,15 @@ type Mutation {
     ): generateReportOutput
 }
 
+type Mutation {
+    generate_transmission_report(
+        tenant_id: String!
+        election_event_id: String!
+        election_id: String
+        tally_session_id: String
+    ): generateReportOutput
+}
+
 type Query {
     getElectionEventStats(
         object: ElectionEventStatsInput!
@@ -361,7 +370,7 @@ type Mutation {
         tenant_id: String!
         document_id: String!
         import_configurations: ImportOptions
-    ): OptionalImportEvent
+    ): ImportTenantOutput
 }
 
 type Mutation {
@@ -515,7 +524,7 @@ type Mutation {
         election_event_id: uuid!
         election_id: uuid!
         voting_status: VotingStatus!
-        voting_channel: VotingStatusChannel!
+        voting_channels: [VotingStatusChannel]
     ): UpdateElectionVotingStatusOutput
 }
 
@@ -523,7 +532,7 @@ type Mutation {
     update_event_voting_status(
         election_event_id: uuid!
         voting_status: VotingStatus!
-        voting_channel: VotingStatusChannel!
+        voting_channels: [VotingStatusChannel]
     ): UpdateEventVotingStatusOutput
 }
 
@@ -1470,4 +1479,10 @@ type ExportTrusteesOutput {
 type SetVoterAuthenticationOutput {
     success: Boolean!
     message: String
+}
+
+type ImportTenantOutput {
+    message: String
+    error: String
+    task_execution: tasks_execution_type
 }
