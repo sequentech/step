@@ -262,7 +262,7 @@ export const CreateElectionEventProvider = ({children}: any) => {
         setErrors(null)
 
         console.log({documentId})
-
+        const currWidget = addWidget(ETasksExecution.IMPORT_ELECTION_EVENT)
         try {
             let {data, errors} = await importElectionEvent({
                 variables: {
@@ -278,8 +278,9 @@ export const CreateElectionEventProvider = ({children}: any) => {
             console.log(task_id)
             console.log(electionEventId)
             console.log(data?.import_election_event)
-
+            setWidgetTaskId(currWidget.identifier, task_id)
             if (data?.import_election_event?.error) {
+                updateWidgetFail(currWidget.identifier)
                 let errMsg = data?.import_election_event?.error
                 console.log(errMsg)
                 // setErrors(data.import_election_event.error)
@@ -304,6 +305,7 @@ export const CreateElectionEventProvider = ({children}: any) => {
             }
         } catch (err) {
             // setErrors("Exception importing election event")
+            updateWidgetFail(currWidget.identifier)
             notify(t("electionEventScreen.import.importElectionEventError"), {type: "error"})
         }
     }

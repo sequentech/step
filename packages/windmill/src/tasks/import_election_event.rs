@@ -32,42 +32,35 @@ pub async fn import_election_event(
     tenant_id: String,
     task_execution: TasksExecution,
 ) -> Result<()> {
-    let task_execution_clone = task_execution.clone();
-
     let result = provide_hasura_transaction(|hasura_transaction| {
         let object = object.clone();
         let tenant_id = tenant_id.clone();
         let election_event_id = election_event_id.clone();
-        let task_execution = task_execution_clone.clone();
 
         Box::pin(async move {
-            match import_election_event_service::process_document(
+            import_election_event_service::process_document(
                 hasura_transaction,
                 object,
                 election_event_id,
                 tenant_id,
             )
             .await
-            {
-                Ok(_) => Ok(()),
-                Err(err) => {
-                    update_fail(&task_execution, &format!("{:?}", err)).await?;
-                    Err(anyhow!("Error process election event document: {:?}", err))
-                }
-            }
         })
     })
     .await;
-    match result {
+
+    match &result {
         Ok(_) => {
-            update_complete(&task_execution)
-                .await
-                .context("Failed to update task execution status to COMPLETED")?;
+            let _ = update_complete(&task_execution).await;
+            Ok(())
         }
         Err(error) => {
-            update_fail(&task_execution, &format!("{}", error)).await?;
+            let err_str = format!(
+                "Error process election event document: {}",
+                error.to_string()
+            );
+            let _ = update_fail(&task_execution, &err_str).await;
+            Err(err_str.into())
         }
     }
-
-    Ok(())
 }
