@@ -1,7 +1,6 @@
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::postgres::template::get_templates_by_tenant_id;
 use crate::services::database::get_hasura_pool;
 use crate::services::{
     documents::upload_and_return_document_postgres, temp_path::write_into_named_temp_file,
@@ -10,10 +9,11 @@ use anyhow::{anyhow, Result};
 use csv::Writer;
 use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::serialization::deserialize_with_path;
-use sequent_core::types::hasura::core::Template;
-use sequent_core::{services::keycloak::get_event_realm, types::hasura::core::Document};
+use sequent_core::types::hasura::core::Document;
+use sequent_core::types::hasura::core::{BallotPublication, Template};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
+use tempfile::TempPath;
 use tracing::{event, info, instrument, Level};
 
 #[instrument(err, skip(transaction))]
@@ -66,25 +66,31 @@ pub async fn write_export_document(
     document_id: &str,
     election_event_id: &str,
     tenant_id: &str,
-) -> Result<Document> {
-    let name = format!("export-{}.csv", document_id);
+    to_upload: bool,
+) -> Result<TempPath> {
+    let document_name = format!("export-{}.csv", document_id);
 
     let (_temp_path, temp_path_string, file_size) =
-        write_into_named_temp_file(&data, &name, ".csv")
+        write_into_named_temp_file(&data, &document_name, ".csv")
             .map_err(|e| anyhow!("Error writing into named temp file: {e:?}"))?;
 
-    upload_and_return_document_postgres(
-        transaction,
-        &temp_path_string,
-        file_size,
-        "text/csv",
-        tenant_id,
-        None,
-        &name,
-        Some(document_id.to_string()),
-        false,
-    )
-    .await
+    if to_upload {
+        upload_and_return_document_postgres(
+            transaction,
+            &temp_path_string,
+            file_size,
+            "text/csv",
+            tenant_id,
+            None,
+            &document_name,
+            Some(document_id.to_string()),
+            false,
+        )
+        .await
+        .map_err(|e| anyhow!("Error uploading and returning document to postgres: {e:?}"))?;
+    }
+
+    Ok(_temp_path)
 }
 
 #[instrument(err)]
@@ -119,6 +125,7 @@ pub async fn process_export_json_to_csv(
         document_id,
         election_event_id,
         tenant_id,
+        true,
     )
     .await?;
     info!(
@@ -132,4 +139,72 @@ pub async fn process_export_json_to_csv(
         .map_err(|e| anyhow!("Commit failed: {e}"))?;
 
     Ok(())
+}
+
+#[instrument(err, skip(hasura_transaction))]
+pub async fn write_export_document_csv(
+    data: Vec<BallotPublication>,
+    hasura_transaction: &Transaction<'_>,
+    document_id: &str,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<(TempPath)> {
+    let headers = if let Some(example_event) = data.get(0) {
+        serde_json::to_value(example_event)?
+            .as_object()
+            .ok_or_else(|| {
+                anyhow!("Failed to convert Ballots Publication to JSON object for headers")
+            })?
+            .keys()
+            .cloned()
+            .collect::<Vec<String>>()
+    } else {
+        vec![
+            "id".to_string(),
+            "tenant_id".to_string(),
+            "election_event_id".to_string(),
+            "labels".to_string(),
+            "annotations".to_string(),
+            "created_at".to_string(),
+            "deleted_at".to_string(),
+            "created_by_user".to_string(),
+            "is_generated".to_string(),
+            "election_ids".to_string(),
+            "published_at".to_string(),
+            "election_id".to_string(),
+        ]
+    };
+
+    let name = format!("ballot-publications-{}", election_event_id);
+
+    let mut writer = Writer::from_writer(vec![]);
+    writer.write_record(&headers)?;
+
+    for ballot_publication in data.clone() {
+        let values: Vec<String> = serde_json::to_value(ballot_publication)?
+            .as_object()
+            .ok_or_else(|| anyhow!("Failed to convert ballot publication to JSON object"))?
+            .values()
+            .map(|value| value.to_string())
+            .collect();
+
+        writer.write_record(&values)?;
+    }
+
+    let data_bytes = writer
+        .into_inner()
+        .map_err(|e| anyhow!("Error converting writer into inner: {e:?}"))?;
+
+    let temp_path = write_export_document(
+        &hasura_transaction,
+        data_bytes,
+        document_id,
+        election_event_id,
+        tenant_id,
+        false,
+    )
+    .await
+    .map_err(|e| anyhow!("Error writing export document: {e:?}"))?;
+
+    Ok(temp_path)
 }
