@@ -81,12 +81,14 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
         setOpenExport(false)
         const currWidget: WidgetProps = addWidget(ETasksExecution.EXPORT_ELECTION_EVENT)
         setLoadingExport(true)
+        const isEncrypted = encryptWithPassword || bulletinBoard || reports || applications
 
         try {
             const {data: exportElectionEventData, errors} = await exportElectionEvent({
                 variables: {
                     electionEventId,
                     exportConfigurations: {
+                        is_encrypted: isEncrypted,
                         include_voters: includeVoters,
                         activity_logs: activityLogs,
                         bulletin_board: bulletinBoard,

@@ -397,7 +397,9 @@ impl KeycloakAdminClient {
         self.client
             .realm_users_post(realm, new_user_keycloak.clone())
             .await
-            .map_err(|err| anyhow!("Failed to create user in keycloak: {:?}", err))?;
+            .map_err(|err| {
+                anyhow!("Failed to create user in keycloak: {:?}", err)
+            })?;
         let found_users = self
             .client
             .realm_users_get(
@@ -418,7 +420,9 @@ impl KeycloakAdminClient {
                 user.username.clone(),
             )
             .await
-            .map_err(|err| anyhow!("Failed to find user in keycloak: {:?}", err))?;
+            .map_err(|err| {
+                anyhow!("Failed to find user in keycloak: {:?}", err)
+            })?;
 
         match found_users.first() {
             Some(found_user) => Ok(found_user.clone().into()),

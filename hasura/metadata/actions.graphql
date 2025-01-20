@@ -825,6 +825,8 @@ input GetTopCastVotesByIpInput {
 }
 
 input ExportOptions {
+    password: String
+    is_encrypted: Boolean
     include_voters: Boolean
     activity_logs: Boolean
     bulletin_board: Boolean

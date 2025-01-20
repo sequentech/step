@@ -321,6 +321,8 @@ export type ExportOptions = {
     applications?: InputMaybe<Scalars["Boolean"]["input"]>
     bulletin_board?: InputMaybe<Scalars["Boolean"]["input"]>
     include_voters?: InputMaybe<Scalars["Boolean"]["input"]>
+    is_encrypted?: InputMaybe<Scalars["Boolean"]["input"]>
+    password?: InputMaybe<Scalars["String"]["input"]>
     publications?: InputMaybe<Scalars["Boolean"]["input"]>
     reports?: InputMaybe<Scalars["Boolean"]["input"]>
     s3_files?: InputMaybe<Scalars["Boolean"]["input"]>
