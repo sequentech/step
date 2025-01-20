@@ -303,6 +303,13 @@ export type ExportBallotPublicationOutput = {
     task_execution?: Maybe<Tasks_Execution_Type>
 }
 
+export type ExportElectionEventOutput = {
+    __typename?: "ExportElectionEventOutput"
+    document_id: Scalars["String"]["output"]
+    password?: Maybe<Scalars["String"]["output"]>
+    task_execution: Tasks_Execution_Type
+}
+
 export type ExportLogsOutput = {
     __typename?: "ExportLogsOutput"
     document_id: Scalars["String"]["output"]
@@ -314,7 +321,6 @@ export type ExportOptions = {
     applications?: InputMaybe<Scalars["Boolean"]["input"]>
     bulletin_board?: InputMaybe<Scalars["Boolean"]["input"]>
     include_voters?: InputMaybe<Scalars["Boolean"]["input"]>
-    password: Scalars["String"]["input"]
     publications?: InputMaybe<Scalars["Boolean"]["input"]>
     reports?: InputMaybe<Scalars["Boolean"]["input"]>
     s3_files?: InputMaybe<Scalars["Boolean"]["input"]>
@@ -1161,7 +1167,7 @@ export type Mutation_Root = {
     exportTrustees?: Maybe<ExportTrusteesOutput>
     export_application?: Maybe<ExportApplicationOutput>
     export_ballot_publication?: Maybe<ExportBallotPublicationOutput>
-    export_election_event?: Maybe<DocumentTaskOutput>
+    export_election_event?: Maybe<ExportElectionEventOutput>
     export_election_event_logs?: Maybe<ExportLogsOutput>
     export_election_event_tasks?: Maybe<ExportTasksOutput>
     export_tasks_execution?: Maybe<ExportTasksExecutionOutput>

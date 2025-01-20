@@ -5,7 +5,6 @@ use crate::postgres::ballot_style::get_ballot_styles_by_ballot_publication_by_id
 use crate::postgres::ballot_publication::get_ballot_publication_by_id;
 use crate::services::database::get_hasura_pool;
 use crate::services::export::export_ballot_publication::process_export_json_to_csv;
-use crate::services::export::export_election_event::process_export_zip;
 use crate::services::tasks_execution::*;
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context};

@@ -17,7 +17,6 @@ import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import {ETasksExecution} from "@/types/tasksExecution"
 import {WidgetProps} from "@/components/Widget"
 import {DecryptHelp, PasswordDialog} from "./PasswordDialog"
-import {generateRandomPassword} from "@/services/Password"
 import {decryptionCommand} from "@/resources/Reports/ListReports"
 
 const StyledCheckbox = styled(Checkbox)({
@@ -83,15 +82,11 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
         const currWidget: WidgetProps = addWidget(ETasksExecution.EXPORT_ELECTION_EVENT)
         setLoadingExport(true)
 
-        const generatedPassword = encryptWithPassword ? generateRandomPassword() : password
-        generatedPassword && setPassword(generatedPassword)
-
         try {
             const {data: exportElectionEventData, errors} = await exportElectionEvent({
                 variables: {
                     electionEventId,
                     exportConfigurations: {
-                        password: generatedPassword,
                         include_voters: includeVoters,
                         activity_logs: activityLogs,
                         bulletin_board: bulletinBoard,
@@ -104,10 +99,12 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
                 },
             })
 
-            const documentId = exportElectionEventData?.export_election_event?.document_id
-
+            const generatedPassword = exportElectionEventData?.export_election_event?.password
+            generatedPassword && setPassword(generatedPassword)
             //if encrypt with password false reset state immediately otherwise wait until after password dialog is closed
             !encryptWithPassword && resetState()
+
+            const documentId = exportElectionEventData?.export_election_event?.document_id
 
             if (errors || !documentId) {
                 updateWidgetFail(currWidget.identifier)
