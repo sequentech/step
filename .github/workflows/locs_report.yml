@@ -37,7 +37,7 @@ jobs:
         cat locs_report/locs_report.md >> "$GITHUB_STEP_SUMMARY"
 
     - name: Upload build artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: locs_report
         path: locs_report/

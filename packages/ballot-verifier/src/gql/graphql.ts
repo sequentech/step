@@ -1172,6 +1172,7 @@ export type Mutation_Root = {
     export_users?: Maybe<ExportUsersOutput>
     generate_ballot_publication?: Maybe<PublishBallotOutput>
     generate_report?: Maybe<GenerateReportOutput>
+    generate_transmission_report?: Maybe<GenerateReportOutput>
     get_ballot_publication_changes?: Maybe<GetBallotPublicationChangesOutput>
     get_manual_verification_pdf?: Maybe<GetManualVerificationOutput>
     /** get private key */
@@ -2249,6 +2250,14 @@ export type Mutation_RootGenerate_ReportArgs = {
 }
 
 /** mutation root */
+export type Mutation_RootGenerate_Transmission_ReportArgs = {
+    election_event_id: Scalars["String"]["input"]
+    election_id?: InputMaybe<Scalars["String"]["input"]>
+    tally_session_id?: InputMaybe<Scalars["String"]["input"]>
+    tenant_id: Scalars["String"]["input"]
+}
+
+/** mutation root */
 export type Mutation_RootGet_Ballot_Publication_ChangesArgs = {
     ballot_publication_id: Scalars["uuid"]["input"]
     election_event_id: Scalars["uuid"]["input"]
@@ -2845,14 +2854,14 @@ export type Mutation_RootSet_Voter_AuthenticationArgs = {
 export type Mutation_RootUpdate_Election_Voting_StatusArgs = {
     election_event_id: Scalars["uuid"]["input"]
     election_id: Scalars["uuid"]["input"]
-    voting_channel: VotingStatusChannel
+    voting_channels?: InputMaybe<Array<InputMaybe<VotingStatusChannel>>>
     voting_status: VotingStatus
 }
 
 /** mutation root */
 export type Mutation_RootUpdate_Event_Voting_StatusArgs = {
     election_event_id: Scalars["uuid"]["input"]
-    voting_channel: VotingStatusChannel
+    voting_channels?: InputMaybe<Array<InputMaybe<VotingStatusChannel>>>
     voting_status: VotingStatus
 }
 

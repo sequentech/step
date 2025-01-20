@@ -303,7 +303,7 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
                             withColumns={showKeysColumns}
                             withFilter={false}
                             withImport={false}
-                            withExport={canExportCeremony}
+                            withExport={false}
                             actionLabel="common.label.add"
                             doAction={() => setShowCeremony(true)}
                             withAction={canCreateCeremony}

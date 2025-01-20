@@ -886,13 +886,12 @@ pub struct ElectionPresentation {
 }
 
 impl core::Election {
-    pub fn get_presentation(&self) -> ElectionPresentation {
-        let election_presentation: ElectionPresentation = self
+    pub fn get_presentation(&self) -> Option<ElectionPresentation> {
+        let election_presentation: Option<ElectionPresentation> = self
             .presentation
             .clone()
             .map(|value| deserialize_value(value).ok())
-            .flatten()
-            .unwrap_or(Default::default());
+            .flatten();
 
         election_presentation
     }

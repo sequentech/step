@@ -77,6 +77,7 @@ const englishTranslation = {
                 EXPORT_BALLOT_PUBLICATION: "Export Ballot Publication",
                 EXPORT_ACTIVITY_LOGS_REPORT: "Export Activity Logs Report",
                 GENERATE_REPORT: "Generate Report",
+                GENERATE_TRANSMISSION_REPORT: "Generate Transmission Report",
                 EXPORT_TRUSTEES: "Export Trustees",
                 EXPORT_APPLICATION: "Export Applications",
                 EXPORT_TENANT_CONFIG: "Export Tenant Config",
@@ -204,6 +205,7 @@ const englishTranslation = {
             votersByChannels: "Voters by channel",
             voterLoginURL: "Voter Login URL",
             voterEnrollURL: "Voter Enroll URL",
+            voterEnrollKioskURL: "Voter Enroll Kiosk URL",
             ipAddress: {
                 emptyState: "No votes yet.",
                 title: "IP Addresses",
@@ -384,6 +386,11 @@ const englishTranslation = {
                 electionNumber: "Number Elections",
                 trustees: "Trustees",
                 status: "Status",
+                tallyType: {
+                    label: "Tally Type",
+                    ELECTORAL_RESULTS: "Electoral Results",
+                    INITIALIZATION_REPORT: "Initialization Results",
+                },
                 create: {
                     title: "Create Tally",
                     subtitle: "Create a new Tally for this Election Event",
@@ -864,7 +871,7 @@ const englishTranslation = {
                 "publish-pause-voting": "Pause Voting",
                 "publish-stop-voting": "Stop Voting",
                 "publish-changes": "Publish Changes",
-                "election-event-publish-view": "View Election Event Publish",
+                "election-event-publish-view": "Election Event Publish View",
                 "election-event-keys-columns": "Election Event Keys Columns",
                 "create-ceremony": "Create Ceremony",
                 "export-ceremony": "Export Ceremony",
@@ -881,6 +888,7 @@ const englishTranslation = {
                 "voter-voted-edit": "Edit voters who voted",
                 "voter-email-tlf-edit": "Edit voters email/phone fields",
                 "cloudflare-write": "Edit Country Blocking Rules in Cloudflare",
+                "transmission-report-generate": "Generate Transmission Report",
             },
         },
         generalSettingsScreen: {
@@ -1113,6 +1121,7 @@ const englishTranslation = {
                             archive: "The item has been archived",
                             unarchive: "The item has been unarchived",
                             delete: "The item has been deleted",
+                            reloading: "Wait. The page will be reloaded in a few moments.",
                         },
                         error: {
                             archive: "Error while trying to archive this item",
@@ -1377,8 +1386,9 @@ const englishTranslation = {
                     },
                     download: {
                         title: "Download",
-                        emlTitle: "Download EML",
-                        transmissionPackageTitle: "Download Transmission Package",
+                        emlTitle: "Download EML {{date}}",
+                        transmissionPackageTitle: "Download Transmission Package {{date}}",
+                        transmissionReportTitle: "Download Transmission Report",
                         dialog: {
                             title: "Do you want to Download the Transmission Package?",
                             description:
@@ -1404,7 +1414,7 @@ const englishTranslation = {
                         "SBEIs can sign the Transmission Package. The table below shows the signing status of each of the SBEI members.",
                     status: "{{signed}} out of {{total}} Signed, {{minimum}} minimum",
                     table: {
-                        trusteeName: "Trustee Name",
+                        trusteeName: "SBEI id",
                         signed: "Has Signed",
                     },
                 },
@@ -1413,7 +1423,7 @@ const englishTranslation = {
             uploadTransmissionPackage: "Sign Transmission Package",
             uploadTransmissionPackageDesc:
                 "Upload your Signature to sign the Transmission Package. This is an optional operation.",
-            exportElectionArea: "Send Transmission Package for Area '{{name}}'",
+            exportElectionArea: "Generate Transmission Package for Area '{{name}}'",
             templateTitle: "Results Template",
             templateSubTitle: "Optionally overwrite the results template.",
             keysCeremonyTitle: "Keys Ceremony",

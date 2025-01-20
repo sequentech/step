@@ -5,7 +5,7 @@ import {ILog} from "./ceremonies"
 
 // MiruSignature interface
 export interface IMiruSignature {
-    trustee_name: string
+    sbei_miru_id: string
     pub_key: string
     signature: string
 }
@@ -13,6 +13,7 @@ export interface IMiruSignature {
 export interface IMiruServersSentTo {
     name: string
     sent_at: string
+    status: string
 }
 
 export interface IMiruDocumentIds {
