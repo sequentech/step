@@ -691,21 +691,23 @@ services:
       - .env
 
   registry:
-    profiles: ["full"]
+    profiles: ["full", "lambdas"]
     container_name: registry
     image: registry:2
     network_mode: host
 
   openwhisk:
-    profiles: ["full"]
+    profiles: ["full", "lambdas"]
     container_name: openwhisk
     image: openwhisk/standalone:nightly
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
+    - type: bind
+      source: /var/run/docker.sock
+      target: /var/run/docker.sock
     network_mode: host
 
   doc_renderer_lambda_build:
-    profiles: ["full"]
+    profiles: ["full", "lambdas"]
     container_name: doc_renderer_lambda_build
     image: ${REGISTRY}/doc_renderer:latest
     build:
@@ -723,7 +725,7 @@ services:
       - .env
 
   doc_renderer_lambda_publish_locally:
-    profiles: ["full"]
+    profiles: ["full", "lambdas"]
     image: docker:latest
     command: |
       push ${REGISTRY}/doc_renderer:latest
@@ -736,7 +738,7 @@ services:
       target: /var/run/docker.sock
 
   doc_renderer:
-    profiles: ["full"]
+    profiles: ["full", "lambdas"]
     container_name: doc_renderer
     image: openwhisk/standalone:nightly
     network_mode: host
