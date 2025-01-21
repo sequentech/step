@@ -20,6 +20,7 @@
 	"remoteEnv": {
 		"LOCAL_WORKSPACE_FOLDER": "${localWorkspaceFolder}"
 	},
+  "containerUser": "vscode",
 
 	"workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
 
