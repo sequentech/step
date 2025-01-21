@@ -1,16 +1,13 @@
-use crate::postgres::ballot_style::get_ballot_styles_by_ballot_publication_by_id;
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::postgres::ballot_publication::get_ballot_publication_by_id;
 use crate::services::database::get_hasura_pool;
-use crate::services::export::export_ballot_publication::process_export_json_to_csv;
+use crate::services::export::export_ballot_publication::process_export_ballot_publication;
 use crate::services::tasks_execution::*;
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context};
 use celery::error::TaskError;
 use deadpool_postgres::{Client as DbClient, Transaction};
-use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::types::hasura::core::TasksExecution;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -44,84 +41,8 @@ pub async fn export_ballot_publication(
         }
     };
 
-    let ballot_publication = match get_ballot_publication_by_id(
-        &hasura_transaction,
-        &tenant_id,
-        &election_event_id,
-        &ballot_publication_id,
-    )
-    .await
-    {
-        Ok(Some(ballot_publication)) => ballot_publication,
-        Ok(None) => {
-            update_fail(
-                &task_execution,
-                &format!("Ballot Publication not found by id={ballot_publication_id:?}"),
-            )
-            .await?;
-            return Err(Error::String(format!(
-                "Ballot Publication not found by id={ballot_publication_id:?}"
-            )));
-        }
-        Err(err) => {
-            update_fail(
-                &task_execution,
-                &format!("Error obtaining ballot by id: {err:?}"),
-            )
-            .await?;
-            return Err(Error::String(format!(
-                "Error obtaining ballot by id: {err:?}"
-            )));
-        }
-    };
-
-    let ballot_styles = match get_ballot_styles_by_ballot_publication_by_id(
-        &hasura_transaction,
-        &tenant_id,
-        &election_event_id,
-        &ballot_publication_id,
-    )
-    .await
-    {
-        Ok(ballot_styles) => ballot_styles,
-        Err(err) => {
-            update_fail(
-                &task_execution,
-                &format!("Error obtaining ballot styles: {err:?}"),
-            )
-            .await?;
-            return Err(Error::String(format!(
-                "Error obtaining ballot styles: {err:?}"
-            )));
-        }
-    };
-
-    let ballot_emls = match ballot_styles
-        .into_iter()
-        .filter_map(|val| val.ballot_eml.as_ref().map(|eml| Ok(deserialize_str(eml)?)))
-        .collect::<Result<Vec<Value>>>()
-    {
-        Ok(ballot_emls) => ballot_emls,
-        Err(err) => {
-            update_fail(
-                &task_execution,
-                &format!("Error deserializing ballot eml: {err:?}"),
-            )
-            .await?;
-            return Err(Error::String(format!(
-                "Error deserializing ballot eml: {err:?}"
-            )));
-        }
-    };
-
-    let ballot_design = json!({
-        "ballot_publication_id": &ballot_publication_id,
-        "ballot_styles": ballot_emls,
-    })
-    .to_string();
-
     // Process the export
-    match process_export_json_to_csv(&tenant_id, &election_event_id, &document_id, &ballot_design)
+    match process_export_ballot_publication(&hasura_transaction, &tenant_id, &election_event_id, &document_id, &ballot_publication_id)
         .await
     {
         Ok(_) => (),

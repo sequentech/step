@@ -1,10 +1,12 @@
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::services::database::get_hasura_pool;
 use crate::services::{
     documents::upload_and_return_document_postgres, temp_path::write_into_named_temp_file,
 };
+use crate::postgres::ballot_publication::get_ballot_publication_by_id;
+use crate::postgres::ballot_style::get_ballot_styles_by_ballot_publication_by_id;
+use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use anyhow::{anyhow, Result};
 use csv::Writer;
 use deadpool_postgres::{Client as DbClient, Transaction};
@@ -94,30 +96,68 @@ pub async fn write_export_document(
 }
 
 #[instrument(err)]
-pub async fn process_export_json_to_csv(
+pub async fn process_export_ballot_publication(
+    hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
     document_id: &str,
-    ballot_design: &str,
+    ballot_publication_id: &str,
 ) -> Result<()> {
-    let mut hasura_db_client: DbClient = get_hasura_pool()
-        .await
-        .get()
-        .await
-        .map_err(|err| anyhow!("Error getting hasura db pool: {err}"))?;
+    let ballot_publication = match get_ballot_publication_by_id(
+        &hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &ballot_publication_id,
+    )
+    .await
+    {
+        Ok(Some(ballot_publication)) => ballot_publication,
+        Ok(None) => {
+            return Err(anyhow!("Ballot publication not found for id: {ballot_publication_id}"));
+        }
+        Err(err) => {
+            return Err(anyhow!("Error obtaining ballot publication: {err:?}"));
+        }
+    };
 
-    let hasura_transaction = hasura_db_client
-        .transaction()
-        .await
-        .map_err(|err| anyhow!("Error starting hasura transaction: {err}"))?;
+    let ballot_styles = match get_ballot_styles_by_ballot_publication_by_id(
+        &hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &ballot_publication_id,
+    )
+    .await
+    {
+        Ok(ballot_styles) => ballot_styles,
+        Err(err) => {
+            return Err(anyhow!("Error obtaining ballot styles: {err:?}"));
+        }
+    };
+
+    let ballot_emls = match ballot_styles
+        .into_iter()
+        .filter_map(|val| val.ballot_eml.as_ref().map(|eml| Ok(deserialize_str(eml)?)))
+        .collect::<Result<Vec<Value>>>()
+    {
+        Ok(ballot_emls) => ballot_emls,
+        Err(err) => {
+            return Err(anyhow!("Error deserializing ballot emls: {err:?}"));
+        }
+    };
+
+    let ballot_design = json!({
+        "ballot_publication_id": &ballot_publication_id,
+        "ballot_styles": ballot_emls,
+    })
+    .to_string();
 
     let csv_data = read_export_data(
         &hasura_transaction,
         election_event_id,
         tenant_id,
-        ballot_design,
+        &ballot_design,
     )
-    .await?;
+    .await.map_err(|e| anyhow!("Error reading export data: {e:?}"))?;
 
     write_export_document(
         &hasura_transaction,
@@ -132,11 +172,6 @@ pub async fn process_export_json_to_csv(
         "CSV data exported successfully for document_id: {}",
         document_id
     );
-
-    hasura_transaction
-        .commit()
-        .await
-        .map_err(|e| anyhow!("Commit failed: {e}"))?;
 
     Ok(())
 }
