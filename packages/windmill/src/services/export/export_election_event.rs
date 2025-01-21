@@ -4,7 +4,6 @@ use crate::postgres::application::get_applications_by_election;
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::area::get_event_areas;
 use crate::postgres::area_contest::export_area_contests;
-use crate::postgres::ballot_publication;
 use crate::postgres::candidate::export_candidates;
 use crate::postgres::contest::export_contests;
 use crate::postgres::election::export_elections;
@@ -441,42 +440,42 @@ pub async fn process_export_zip(
     }
 
     // Add Publications data file to the ZIP archive
-    if export_config.publications {
-        let publications_filename = format!(
-            "{}-{}.csv",
-            EDocuments::PUBLICATIONS.to_file_name(),
-            election_event_id
-        );
-        let ballot_publications_data = ballot_publication::get_ballot_publication(
-            &hasura_transaction,
-            tenant_id,
-            election_event_id,
-        )
-        .await
-        .map_err(|e| anyhow!("Error reading ballot publications data: {e:?}"))?;
+    // if export_config.publications {
+    //     let publications_filename = format!(
+    //         "{}-{}.csv",
+    //         EDocuments::PUBLICATIONS.to_file_name(),
+    //         election_event_id
+    //     );
+    //     let ballot_publications_data = ballot_publication::get_ballot_publication(
+    //         &hasura_transaction,
+    //         tenant_id,
+    //         election_event_id,
+    //     )
+    //     .await
+    //     .map_err(|e| anyhow!("Error reading ballot publications data: {e:?}"))?;
 
-        zip_writer
-            .start_file(&publications_filename, options)
-            .map_err(|e| anyhow!("Error starting ballot publications file in ZIP: {e:?}"))?;
+    //     zip_writer
+    //         .start_file(&publications_filename, options)
+    //         .map_err(|e| anyhow!("Error starting ballot publications file in ZIP: {e:?}"))?;
 
-        let temp_path = export_ballot_publication::write_export_document_csv(
-            ballot_publications_data,
-            &hasura_transaction,
-            document_id,
-            tenant_id,
-            election_event_id,
-        )
-        .await
-        .map_err(|err| anyhow!("Error exporting ballot publications: {err}"))?;
+    //     let temp_path = export_ballot_publication::write_export_document_csv(
+    //         ballot_publications_data,
+    //         &hasura_transaction,
+    //         document_id,
+    //         tenant_id,
+    //         election_event_id,
+    //     )
+    //     .await
+    //     .map_err(|err| anyhow!("Error exporting ballot publications: {err}"))?;
 
-        let mut ballot_publication_file = File::open(temp_path)
-            .map_err(|e| anyhow!("Error opening temporary scheduled events file: {e:?}"))?;
-        std::io::copy(&mut ballot_publication_file, &mut zip_writer)
-            .map_err(|e| anyhow!("Error copying scheduled events file to ZIP: {e:?}"))?;
-    }
+    //     let mut ballot_publication_file = File::open(temp_path)
+    //         .map_err(|e| anyhow!("Error opening temporary scheduled events file: {e:?}"))?;
+    //     std::io::copy(&mut ballot_publication_file, &mut zip_writer)
+    //         .map_err(|e| anyhow!("Error copying scheduled events file to ZIP: {e:?}"))?;
+    // }
 
     // add protocol manager secrets
-    if export_config.bulletin_board || export_config.activity_logs {
+    if export_config.bulletin_board || export_config.activity_logs || export_config.publications {
         // read protocol manager keys (one per board)
         let protocol_manager_keys_filename = format!(
             "{}-{}.csv",

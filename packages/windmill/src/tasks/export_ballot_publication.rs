@@ -1,3 +1,4 @@
+use crate::postgres::ballot_publication::get_ballot_publication_by_id;
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
@@ -41,8 +42,39 @@ pub async fn export_ballot_publication(
         }
     };
 
+    let ballot_publication = match get_ballot_publication_by_id(
+        &hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &ballot_publication_id,
+    )
+    .await
+    {
+        Ok(Some(ballot_publication)) => ballot_publication,
+        Ok(None) => {
+            update_fail(
+                &task_execution,
+                &format!("Ballot Publication not found by id={ballot_publication_id:?}"),
+            )
+            .await?;
+            return Err(Error::String(format!(
+                "Ballot Publication not found by id={ballot_publication_id:?}"
+            )));
+        }
+        Err(err) => {
+            update_fail(
+                &task_execution,
+                &format!("Error obtaining ballot by id: {err:?}"),
+            )
+            .await?;
+            return Err(Error::String(format!(
+                "Error obtaining ballot by id: {err:?}"
+            )));
+        }
+    };
+
     // Process the export
-    match process_export_ballot_publication(&hasura_transaction, &tenant_id, &election_event_id, &document_id, &ballot_publication_id)
+    match process_export_ballot_publication(&hasura_transaction, &tenant_id, &election_event_id, &document_id, &ballot_publication)
         .await
     {
         Ok(_) => (),

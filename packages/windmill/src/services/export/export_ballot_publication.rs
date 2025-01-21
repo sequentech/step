@@ -4,13 +4,13 @@
 use crate::services::{
     documents::upload_and_return_document_postgres, temp_path::write_into_named_temp_file,
 };
-use crate::postgres::ballot_publication::get_ballot_publication_by_id;
 use crate::postgres::ballot_style::get_ballot_styles_by_ballot_publication_by_id;
 use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use anyhow::{anyhow, Result};
 use csv::Writer;
 use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::serialization::deserialize_with_path;
+use crate::postgres::ballot_publication::get_ballot_publication;
 use sequent_core::types::hasura::core::Document;
 use sequent_core::types::hasura::core::{BallotPublication, Template};
 use serde::{Deserialize, Serialize};
@@ -101,30 +101,13 @@ pub async fn process_export_ballot_publication(
     tenant_id: &str,
     election_event_id: &str,
     document_id: &str,
-    ballot_publication_id: &str,
+    ballot_publication: &BallotPublication,
 ) -> Result<()> {
-    let ballot_publication = match get_ballot_publication_by_id(
-        &hasura_transaction,
-        &tenant_id,
-        &election_event_id,
-        &ballot_publication_id,
-    )
-    .await
-    {
-        Ok(Some(ballot_publication)) => ballot_publication,
-        Ok(None) => {
-            return Err(anyhow!("Ballot publication not found for id: {ballot_publication_id}"));
-        }
-        Err(err) => {
-            return Err(anyhow!("Error obtaining ballot publication: {err:?}"));
-        }
-    };
-
     let ballot_styles = match get_ballot_styles_by_ballot_publication_by_id(
         &hasura_transaction,
         &tenant_id,
         &election_event_id,
-        &ballot_publication_id,
+        &ballot_publication.id,
     )
     .await
     {
@@ -146,7 +129,7 @@ pub async fn process_export_ballot_publication(
     };
 
     let ballot_design = json!({
-        "ballot_publication_id": &ballot_publication_id,
+        "ballot_publication_id": &ballot_publication.id,
         "ballot_styles": ballot_emls,
     })
     .to_string();
@@ -173,6 +156,36 @@ pub async fn process_export_ballot_publication(
         document_id
     );
 
+    Ok(())
+}
+
+#[instrument(err)]
+pub async fn export_ballot_publications(
+    hasura_transaction: &Transaction<'_>,
+    document_id: &str,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<()>{
+    let ballot_publications_data = get_ballot_publication(
+        &hasura_transaction,
+        tenant_id,
+        election_event_id,
+    )
+    .await
+    .map_err(|e| anyhow!("Error reading ballot publications data: {e:?}"))?;
+
+    for ballot_publication in ballot_publications_data {
+        process_export_ballot_publication(
+            &hasura_transaction,
+            &tenant_id,
+            &election_event_id,
+            &document_id,
+            &ballot_publication,
+        )
+        .await.map_err(|e| anyhow!("Error processing export ballot publication: {e:?}"))?;
+    };
+
+    // TODO: needs to return temp path
     Ok(())
 }
 
