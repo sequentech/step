@@ -353,18 +353,15 @@ impl Pipe for MCBallotReceipts {
                         .map_err(|e| Error::FileAccess(path_ballots.as_path().to_path_buf(), e))?;
                     let mcballots: Vec<DecodedBallotChoices> = crate::utils::parse_file(f)?;
                     let ballots = convert_ballots(election_input, mcballots)?;
-
-                    let max_num_items: usize = env::var("REPORT_MAX_NUM_ITEMS")
-                        .unwrap_or_else(|_| "50000".to_string())
-                        .parse()
-                        .unwrap_or_else(|_| {
-                            eprintln!("Invalid REPORT_MAX_NUM_ITEMS value. Falling back to default of 50000.");
+                    let max_num_items = env::var("REPORT_MAX_NUM_ITEMS")
+                        .ok()
+                        .and_then(|val| val.parse::<usize>().ok())
+                        .unwrap_or_else(|| {
+                            eprintln!("Invalid or missing REPORT_MAX_NUM_ITEMS value. Falling back to default of 50000.");
                             50000
                         });
-                    for (chunk_index, chunk) in ballots
-                        .chunks(max_num_items)
-                        .enumerate()
-                    {
+
+                    for (chunk_index, chunk) in ballots.chunks(max_num_items).enumerate() {
                         let (bytes_pdf, bytes_html) = self.print_vote_receipts(
                             chunk,
                             &area_contests.contests,
@@ -387,33 +384,28 @@ impl Pipe for MCBallotReceipts {
                         fs::create_dir_all(&path)?;
 
                         if let Some(ref some_bytes_pdf) = bytes_pdf {
-                            let file = match &pipe_config.pipe_type {
-                                VoteReceiptPipeType::VOTE_RECEIPT => {
-                                    path.join(&pipe_data.output_file_pdf)
-                                }
-                                VoteReceiptPipeType::BALLOT_IMAGES => {
-                                    let pdf_hash =
-                                        hash_sha256(some_bytes_pdf.as_slice()).map_err(|e| {
-                                            Error::UnexpectedError(format!(
-                                                "Error during hash pdf bytes: {}",
-                                                e
-                                            ))
-                                        })?;
-
-                                    let file = path.join(&pipe_data.output_file_pdf);
-
-                                    generate_hashed_filename(
-                                        &file,
-                                        &pdf_hash,
-                                        &format!("pdf-{}", chunk_index),
-                                    )
-                                    .map_err(|e| {
+                            let file = {
+                                let pdf_hash =
+                                    hash_sha256(some_bytes_pdf.as_slice()).map_err(|e| {
                                         Error::UnexpectedError(format!(
                                             "Error during hash pdf bytes: {}",
                                             e
                                         ))
-                                    })?
-                                }
+                                    })?;
+
+                                let file = path.join(&pipe_data.output_file_pdf);
+
+                                generate_hashed_filename(
+                                    &file,
+                                    &pdf_hash,
+                                    &format!("pdf-{}", chunk_index),
+                                )
+                                .map_err(|e| {
+                                    Error::UnexpectedError(format!(
+                                        "Error during hash pdf bytes: {}",
+                                        e
+                                    ))
+                                })?
                             };
 
                             let mut file = OpenOptions::new()

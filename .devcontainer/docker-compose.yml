@@ -794,6 +794,9 @@ services:
       B3_PG_USER: ${B3_PG_USER}
       B3_PG_PASSWORD: ${B3_PG_PASSWORD}
       B3_PG_DATABASE: ${B3_PG_DATABASE}
+      
+      # Admin portal
+      REPORT_MAX_NUM_ITEMS: ${REPORT_MAX_NUM_ITEMS}
 
   beat:
     profiles: ["full"]
