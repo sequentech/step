@@ -27,7 +27,6 @@ services:
       PG_DATABASE_URL: ${HASURA_PG_DATABASE_URL}
     ports:
     - "8000:8000"
-    - "8400:8400"
     - "6379:6379"
     - "3000:3000"
     - "3002:3002"
