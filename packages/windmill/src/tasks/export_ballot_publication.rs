@@ -1,7 +1,7 @@
-use crate::postgres::ballot_publication::get_ballot_publication_by_id;
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::postgres::ballot_publication::get_ballot_publication_by_id;
 use crate::services::database::get_hasura_pool;
 use crate::services::export::export_ballot_publication::process_export_ballot_publication;
 use crate::services::tasks_execution::*;
@@ -74,8 +74,15 @@ pub async fn export_ballot_publication(
     };
 
     // Process the export
-    match process_export_ballot_publication(&hasura_transaction, &tenant_id, &election_event_id, &document_id, &ballot_publication)
-        .await
+    match process_export_ballot_publication(
+        &hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &document_id,
+        &vec![ballot_publication],
+        true,
+    )
+    .await
     {
         Ok(_) => (),
         Err(err) => {
