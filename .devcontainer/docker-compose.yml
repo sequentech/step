@@ -748,7 +748,6 @@ services:
     volumes_from:
       - devcontainer
     depends_on:
-      - devcontainer
       - openwhisk
       - registry
       - doc_renderer_lambda_publish_locally
