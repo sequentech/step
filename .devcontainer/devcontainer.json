@@ -22,6 +22,10 @@
 	},
   "containerUser": "vscode",
 
+  "portsAttributes": {
+    "requireLocalPort": false
+  },
+
 	"workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
 
 	"userEnvProbe": "loginShell",
