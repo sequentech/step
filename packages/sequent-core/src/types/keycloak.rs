@@ -15,7 +15,6 @@ pub const MOBILE_PHONE_ATTR_NAME: &str = "sequent.read-only.mobile-number";
 pub const FIRST_NAME: &str = "firstName";
 pub const LAST_NAME: &str = "lastName";
 pub const PERMISSION_LABELS: &str = "permission_labels";
-pub const ANNOTATIONS: &str = "annotations";
 
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct UserArea {
