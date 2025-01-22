@@ -26,18 +26,6 @@ const CustomDateField = ({
     }
 
     try {
-        // TODO: ask which date format is better
-        // native
-        // const [year, month, day] = dateValue[0].split("-")
-        // const date = new Date(Date.UTC(+year, +month - 1, +day))
-        // if (isNaN(date.getTime())) {
-        //     throw new Error("Invalid date")
-        // }
-
-        // const isoString = date.toISOString().split("T")[0].split("-").reverse().join("/")
-
-        // return <span>{isoString}</span>
-
         // using date-fns
         return <span>{format(parseISO(dateValue[0]), "PP")}</span>
     } catch {
