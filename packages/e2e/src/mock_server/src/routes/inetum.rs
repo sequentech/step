@@ -3,20 +3,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use rand::Rng;
-use rocket::serde::{json::Json, Deserialize, Serialize};
-use rocket::{http::Status, response::status::Custom, State};
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use rocket::serde::{json::Json, Serialize};
+use rocket::{http::Status, response::status::Custom};
 use std::time::Duration;
 use tokio::time::sleep;
 use uuid::Uuid;
 
 use crate::services::user::random_user_by_country;
 
-#[derive(Debug, Deserialize)]
-struct TransactionNewRequest {
-    doc_id: Option<String>,
-}
 
 #[derive(Debug, Serialize)]
 pub struct TransactionNewResponse {

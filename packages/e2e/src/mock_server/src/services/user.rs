@@ -28,7 +28,7 @@ pub fn load_users(csv_path: &str) -> Result<(), anyhow::Error> {
     conn.execute_batch(
         r#"
         CREATE TABLE IF NOT EXISTS voters (
-            id TEXT PRIMARY KEY,
+            id TEXT PRIMARY KEY,f
             first_name TEXT,
             last_name TEXT,
             middle_name TEXT,

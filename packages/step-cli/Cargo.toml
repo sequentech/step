@@ -21,4 +21,4 @@ windmill = { path="../windmill" }
 
 [[bin]]
 name = "seq"
-path = "src/main.rs"
+path = "src/main.rs"    
