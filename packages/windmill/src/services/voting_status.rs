@@ -84,7 +84,11 @@ pub async fn update_election_status(
         vec![VotingStatusChannel::ONLINE, VotingStatusChannel::KIOSK]
     };
 
+    let mut election_event_status: ElectionEventStatus =
+        get_election_event_status(election_event.status.clone()).unwrap_or(Default::default());
+
     for voting_channel in &voting_channels {
+        // Updates Election voting status
         election_event_status::update_election_voting_status_impl(
             tenant_id.clone(),
             user_id,
@@ -96,11 +100,11 @@ pub async fn update_election_status(
             election_event.bulletin_board_reference.clone(),
             &hasura_transaction,
         )
-        .await?;
-        let mut election_event_status: ElectionEventStatus =
-            get_election_event_status(election_event.status.clone()).unwrap_or(Default::default());
-        let current_event_status = election_event_status.status_by_channel(voting_channel);
+        .await
+        .with_context(|| "error updating election voting status")?;
 
+        // Updates Election Event status using the current updated status
+        let current_event_status = election_event_status.status_by_channel(voting_channel);
         info!("current_voting_status={current_event_status:?} next_voting_status={voting_status:?}, voting_channel={voting_channel:?}");
 
         if voting_status.clone() == VotingStatus::OPEN
@@ -113,7 +117,7 @@ pub async fn update_election_status(
                 &hasura_transaction,
                 &tenant_id,
                 &election_event_id,
-                serde_json::to_value(election_event_status)?,
+                serde_json::to_value(&election_event_status)?,
             )
             .await?;
             update_board_on_status_change(
