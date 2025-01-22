@@ -76,12 +76,25 @@ pub mod sync {
                     }
                 },
                 "openwhisk" => {
-                    let openwhisk_api_host = std::env::var("OPENWHISK_API_HOST")
-                        .map_err(|_| anyhow!("Please, set OPENWHISK_API_HOST pointing to the OpenWhisk API host and port (http://<ip>:<port>)"))?;
+                    let mut openwhisk_endpoint = std::env::var("OPENWHISK_DOC_RENDERER_ENDPOINT");
+                    if !openwhisk_endpoint.is_ok() {
+                        let openwhisk_api_host = std::env::var("OPENWHISK_API_HOST");
+                        if let Ok(openwhisk_api_host) = openwhisk_api_host {
+                            openwhisk_endpoint = Ok(
+                                format!(
+                                    "{openwhisk_api_host}/api/v1/namespaces/_/actions/pdf-tools/doc_renderer?blocking=true&result=true"
+                                )
+                            );
+                        } else {
+                            return Err(
+                                anyhow!("Please, set OPENWHISK_API_HOST pointing to the OpenWhisk API host and port (http://<ip>:<port>)")
+                            )
+                        }
+
+                    }
 
                     PdfTransport::OpenWhisk {
-                        endpoint: std::env::var("OPENWHISK_DOC_RENDERER_ENDPOINT")
-                            .unwrap_or(openwhisk_api_host),
+                        endpoint: openwhisk_endpoint?,
                         basic_auth: std::env::var("OPENWHISK_BASIC_AUTH").ok(),
                     }
                 },
@@ -259,12 +272,25 @@ impl PdfRenderer {
                 }
             },
             "openwhisk" => {
-                let openwhisk_api_host = std::env::var("OPENWHISK_API_HOST")
-                    .map_err(|_| anyhow!("Please, set OPENWHISK_API_HOST pointing to the OpenWhisk API host and port (http://<ip>:<port>)"))?;
+                let mut openwhisk_endpoint = std::env::var("OPENWHISK_DOC_RENDERER_ENDPOINT");
+                if !openwhisk_endpoint.is_ok() {
+                    let openwhisk_api_host = std::env::var("OPENWHISK_API_HOST");
+                    if let Ok(openwhisk_api_host) = openwhisk_api_host {
+                        openwhisk_endpoint = Ok(
+                            format!(
+                                "{openwhisk_api_host}/api/v1/namespaces/_/actions/pdf-tools/doc_renderer?blocking=true&result=true"
+                            )
+                        );
+                    } else {
+                        return Err(
+                            anyhow!("Please, set OPENWHISK_API_HOST pointing to the OpenWhisk API host and port (http://<ip>:<port>)")
+                        )
+                    }
+
+                }
 
                 PdfTransport::OpenWhisk {
-                    endpoint: std::env::var("OPENWHISK_DOC_RENDERER_ENDPOINT")
-                        .unwrap_or(openwhisk_api_host),
+                    endpoint: openwhisk_endpoint?,
                     basic_auth: std::env::var("OPENWHISK_BASIC_AUTH").ok(),
                 }
             },
