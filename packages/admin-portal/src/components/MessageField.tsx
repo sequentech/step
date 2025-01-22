@@ -59,7 +59,16 @@ export const MessageField: React.FC<MessageFieldProps> = ({initialLength = 256})
 
     return (
         <Box sx={{width: "100%"}}>
-            <Box sx={{overflowWrap: "anywhere"}}>{more ? data : data.slice(0, initialLength)}</Box>
+            <Box sx={{overflowWrap: "anywhere"}}>
+                {more ? (
+                    <span>{data}</span>
+                ) : (
+                    <>
+                        <span>{data.slice(0, initialLength)}</span>
+                        <span>{data.length > initialLength ? "..." : ""}</span>
+                    </>
+                )}
+            </Box>
             <Box sx={{display: "flex", justifyContent: "flex-end"}}>
                 <LinkButton disableRipple onClick={() => setMore(!more)}>
                     {more
