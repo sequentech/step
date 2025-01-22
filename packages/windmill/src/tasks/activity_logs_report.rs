@@ -10,7 +10,7 @@ use crate::{
             activity_log::{ActivityLogsTemplate, ReportFormat},
             template_renderer::{
                 GenerateReportMode, ReportOriginatedFrom, ReportOrigins, TemplateRenderer,
-            },
+            }, utils::get_report_max_num_items,
         },
     },
     types::error::Result,
@@ -51,7 +51,7 @@ pub async fn generate_activity_logs_report(
         .transaction()
         .await
         .with_context(|| "Error starting Keycloak transaction")?;
-
+        
     let report = ActivityLogsTemplate::new(
         ReportOrigins {
             tenant_id: tenant_id.clone(),
@@ -64,6 +64,7 @@ pub async fn generate_activity_logs_report(
             tally_session_id: None,
         },
         format,
+        Some(get_report_max_num_items()),
     );
 
     let _ = report

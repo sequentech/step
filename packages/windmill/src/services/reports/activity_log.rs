@@ -63,11 +63,12 @@ pub struct SystemData {
 pub struct ActivityLogsTemplate {
     ids: ReportOrigins,
     report_format: ReportFormat,
+    max_reports_per_pdf: Option<usize>,
 }
 
 impl ActivityLogsTemplate {
-    pub fn new(ids: ReportOrigins, report_format: ReportFormat) -> Self {
-        ActivityLogsTemplate { ids, report_format }
+    pub fn new(ids: ReportOrigins, report_format: ReportFormat, max_reports_per_pdf: Option<usize>) -> Self {
+        ActivityLogsTemplate { ids, report_format, max_reports_per_pdf }
     }
 }
 
@@ -122,6 +123,10 @@ impl TemplateRenderer for ActivityLogsTemplate {
     type UserData = UserData;
     type SystemData = SystemData;
 
+    fn get_max_reports_per_pdf(&self) -> Option<usize> {
+        self.max_reports_per_pdf
+    }
+    
     fn get_report_type(&self) -> ReportType {
         ReportType::ACTIVITY_LOGS
     }

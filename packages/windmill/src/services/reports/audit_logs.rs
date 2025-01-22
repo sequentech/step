@@ -70,11 +70,12 @@ pub struct SystemData {
 #[derive(Debug)]
 pub struct AuditLogsTemplate {
     ids: ReportOrigins,
+    max_reports_per_pdf: Option<usize>,
 }
 
 impl AuditLogsTemplate {
-    pub fn new(ids: ReportOrigins) -> Self {
-        AuditLogsTemplate { ids }
+    pub fn new(ids: ReportOrigins, max_reports_per_pdf: Option<usize>) -> Self {
+        AuditLogsTemplate { ids, max_reports_per_pdf }
     }
 }
 
@@ -82,6 +83,10 @@ impl AuditLogsTemplate {
 impl TemplateRenderer for AuditLogsTemplate {
     type UserData = UserData;
     type SystemData = SystemData;
+
+    fn get_max_reports_per_pdf(&self) -> Option<usize> {
+        self.max_reports_per_pdf
+    }
 
     fn get_report_type(&self) -> ReportType {
         ReportType::AUDIT_LOGS

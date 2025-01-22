@@ -351,6 +351,7 @@ pub async fn process_export_zip(
                 tally_session_id: None,
             },
             ReportFormat::CSV, // Assuming CSV format for this export
+            None,
         );
 
         // Prepare user data
