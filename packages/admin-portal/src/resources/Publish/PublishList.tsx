@@ -202,7 +202,7 @@ export const PublishList: React.FC<TPublishList> = ({
                     <BooleanField source="is_generated" />
                     <TextField source="published_at" />
                     <TextField source="created_at" />
-                    <WrapperField label="Actions">
+                    <WrapperField label={t("common.label.actions")}>
                         <ActionsColumn actions={actions} />
                     </WrapperField>
                 </DatagridConfigurable>
