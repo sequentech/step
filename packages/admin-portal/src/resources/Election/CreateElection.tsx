@@ -27,7 +27,11 @@ import {useTranslation} from "react-i18next"
 import {NewResourceContext} from "@/providers/NewResourceProvider"
 import {Sequent_Backend_Election_Extended} from "./ElectionDataForm"
 import {addDefaultTranslationsToElement} from "@/services/i18n"
-import {IElectionPresentation, ITenantSettings} from "@sequentech/ui-core"
+import {
+    IElectionPresentation,
+    ITenantSettings,
+    IElectionEventPresentation,
+} from "@sequentech/ui-core"
 import {useMutation} from "@apollo/client"
 import {CREATE_ELECTION} from "@/queries/CreateElection"
 import {CreateElectionMutation} from "@/gql/graphql"
@@ -74,6 +78,7 @@ export const CreateElection: React.FC = () => {
             enabled_language_codes: settings?.languages ?? ["en"],
             default_language_code: "en",
         }
+
         tenantLangConf.default_language_code = tenantLangConf.default_language_code ?? "en"
         let presentation: IElectionPresentation = {
             ...(data.presentation as IElectionPresentation),
@@ -97,12 +102,16 @@ export const CreateElection: React.FC = () => {
             enabled_language_codes: settings?.languages ?? ["en"],
             default_language_code: "en",
         }
-        tenantLangConf.default_language_code = tenantLangConf.default_language_code ?? "en"
 
+        tenantLangConf.default_language_code = tenantLangConf.default_language_code ?? "en"
+        // Set the lang conf to the same as the event, if not fallback to the tenant
+        let parentLangConf =
+            (electionEvent?.presentation as IElectionEventPresentation | undefined)
+                ?.language_conf ?? tenantLangConf
         let presentation: IElectionPresentation = {
             ...(input0.presentation as IElectionPresentation),
             i18n,
-            language_conf: tenantLangConf,
+            language_conf: parentLangConf,
         }
 
         electionSubmit = {
