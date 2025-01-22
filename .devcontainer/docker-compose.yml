@@ -25,6 +25,13 @@ services:
       # this env var can be used to add the above postgres database to Hasura
       # as a data source. this can be removed/updated based on your needs
       PG_DATABASE_URL: ${HASURA_PG_DATABASE_URL}
+    ports:
+      - "8000:8000"
+      - "6379:6379"
+      - "3000:3000"
+      - "3002:3002"
+      - "3323:3323"
+      - "8888:8888"
 
   simplesaml:
     profiles: ["full"]
@@ -700,6 +707,8 @@ services:
     profiles: ["full", "lambdas"]
     container_name: openwhisk
     image: openwhisk/standalone:nightly
+    ports:
+      - "3233:3233"
     volumes:
     - type: bind
       source: /var/run/docker.sock
