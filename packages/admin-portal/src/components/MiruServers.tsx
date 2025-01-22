@@ -24,8 +24,10 @@ export const MiruServers: React.FC<MiruServersProps> = (props) => {
     const {servers, serversSentTo} = props
     const {t} = useTranslation() //translations to be applied
 
-    const isSentTo = (serverName: string) => {
-        return !!serversSentTo.find((server) => server.name === serverName)
+    const isSentTo = (serverName: string) => serversSentTo.some((server) => server.name === serverName)
+    const isSentSuccessfully = (serverName: string) =>  {
+        const server = serversSentTo.find((server) => server.name === serverName)
+        return server?.status === "SUCCESS"
     }
 
     return (
@@ -56,7 +58,7 @@ export const MiruServers: React.FC<MiruServersProps> = (props) => {
                                     </TableCell>
                                     <TableCell align="center">
                                         {isSentTo(server.name) ? (
-                                            server.status == "SUCCESS" ? (
+                                            isSentSuccessfully(server.name) ? (
                                                 <WizardStyles.DoneIcon />
                                             ) : (
                                                 <HourglassEmptyIcon />
