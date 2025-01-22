@@ -520,6 +520,23 @@ actions:
           - role: report-generate
           - role: report-write
           - role: report-read
+    - name: generate_transmission_report
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/generate-transmission-report
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: transmission-report-generate
+          - role: report-generate
+          - role: report-preview
+          - role: report-read
+          - role: report-write
     - name: getElectionEventStats
       definition:
           kind: ""

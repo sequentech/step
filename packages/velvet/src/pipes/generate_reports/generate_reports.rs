@@ -20,6 +20,7 @@ use std::{
     io::Write,
     path::PathBuf,
 };
+use strand::hash::hash_b64;
 use tracing::{instrument, warn};
 use uuid::Uuid;
 
@@ -215,19 +216,44 @@ impl GenerateReports {
         &self,
         reports: Vec<ReportData>,
         enable_pdfs: bool,
-    ) -> Result<GeneratedReportsBytes> {
+        election_hash: Option<String>,
+    ) -> Result<(GeneratedReportsBytes, String)> {
         let config = self.get_config()?;
-        let execution_annotations = config.execution_annotations;
+        let mut execution_annotations = config.execution_annotations;
+
+        // hash json reports bytes
+        let results_hash = if let Some(election_hash) = election_hash {
+            election_hash
+        } else {
+            let template_data = TemplateData {
+                execution_annotations: execution_annotations.clone(),
+                reports: self.compute_reports(reports.clone())?,
+            };
+
+            let json_reports = serde_json::to_value(template_data)?;
+            let bytes_json = json_reports.to_string().as_bytes().to_vec();
+
+            hash_b64(&bytes_json).map_err(|err| {
+                Error::UnexpectedError(format!("Error hashing the results file: {err:?}"))
+            })?
+        };
+
+        // add results_hash to execution_annotations
+        execution_annotations.insert("results_hash".to_string(), results_hash.clone());
+
+        // render again the template with the new execution_annotations
         let template_data = TemplateData {
             execution_annotations,
-            reports: self.compute_reports(reports)?,
+            reports: self.compute_reports(reports.clone())?,
         };
         let template_vars = template_data
             .clone()
             .to_map()
             // TODO: Fix neededing to do a Map Err
             .map_err(|err| Error::UnexpectedError(format!("serialization error: {err:?}")))?;
+
         let json_reports = serde_json::to_value(template_data)?;
+        let bytes_json = json_reports.to_string().as_bytes().to_vec();
 
         let mut template_map = HashMap::new();
         let report_base_html = include_str!("../../resources/report_base_html.hbs");
@@ -296,7 +322,12 @@ impl GenerateReports {
                         ))
                     })?;
 
-            let bytes_pdf = pdf::html_to_pdf(render_pdf.clone(), None).map_err(|e| {
+            let pdf_options = config
+                .pdf_options
+                .map(|val| Some(val.to_print_to_pdf_options()))
+                .unwrap_or_default();
+
+            let bytes_pdf = pdf::html_to_pdf(render_pdf.clone(), pdf_options).map_err(|e| {
                 Error::UnexpectedError(format!("Error during html_to_pdf conversion: {}", e))
             })?;
             Some(bytes_pdf)
@@ -304,11 +335,13 @@ impl GenerateReports {
             None
         };
 
-        Ok(GeneratedReportsBytes {
+        let generated_report_bytes = GeneratedReportsBytes {
             bytes_pdf: bytes_pdf,
             bytes_html: render_html.as_bytes().to_vec(),
-            bytes_json: json_reports.to_string().as_bytes().to_vec(),
-        })
+            bytes_json: bytes_json,
+        };
+
+        Ok((generated_report_bytes, results_hash))
     }
 
     #[instrument(skip(self))]
@@ -609,6 +642,7 @@ impl GenerateReports {
         tally_sheet_id: Option<String>,
         enable_pdfs: bool,
         is_write: bool,
+        election_hash: Option<String>,
     ) -> Result<ReportData> {
         let area_id = area
             .clone()
@@ -674,6 +708,7 @@ impl GenerateReports {
                 tally_sheet_id.clone(),
                 enable_pdfs,
                 false,
+                election_hash,
             )?;
         }
 
@@ -691,8 +726,9 @@ impl GenerateReports {
         tally_sheet_id: Option<String>,
         enable_pdfs: bool,
         area_based: bool,
-    ) -> Result<()> {
-        let reports = self.generate_report(reports, enable_pdfs)?;
+        election_hash: Option<String>,
+    ) -> Result<String> {
+        let (reports, result_hash) = self.generate_report(reports, enable_pdfs, election_hash)?;
 
         let mut base_path = match area_based {
             true => {
@@ -737,7 +773,7 @@ impl GenerateReports {
             .open(json_path)?;
         json_file.write_all(&reports.bytes_json)?;
 
-        Ok(())
+        Ok(result_hash)
     }
 }
 
@@ -812,6 +848,7 @@ impl Pipe for GenerateReports {
                                                 Some(tally_sheet_id),
                                                 config.enable_pdfs,
                                                 true,
+                                                None,
                                             )?;
                                         }
                                     }
@@ -837,6 +874,7 @@ impl Pipe for GenerateReports {
                                             None,
                                             config.enable_pdfs,
                                             true,
+                                            None,
                                         )?;
                                     }
                                     self.make_report(
@@ -853,6 +891,7 @@ impl Pipe for GenerateReports {
                                         None,
                                         config.enable_pdfs,
                                         true,
+                                        None,
                                     )
                                 })
                                 .collect::<Result<Vec<ReportData>>>()?;
@@ -872,6 +911,7 @@ impl Pipe for GenerateReports {
                             None,
                             config.enable_pdfs,
                             true,
+                            None,
                         )?;
 
                         Ok(contest_report)
@@ -879,7 +919,7 @@ impl Pipe for GenerateReports {
                     .collect();
 
                 // write report for the current election
-                self.write_report(
+                let result_hash = self.write_report(
                     &election_input.id,
                     None,
                     None,
@@ -888,6 +928,7 @@ impl Pipe for GenerateReports {
                     None,
                     config.enable_pdfs,
                     false,
+                    None,
                 )?;
 
                 // make area reports with all contests related to each area
@@ -930,6 +971,7 @@ impl Pipe for GenerateReports {
                                     None,
                                     config.enable_pdfs,
                                     false,
+                                    Some(result_hash.clone()),
                                 )
                             })
                             .collect::<Result<Vec<ReportData>>>()?;
@@ -945,6 +987,7 @@ impl Pipe for GenerateReports {
                         None,
                         config.enable_pdfs,
                         true,
+                        Some(result_hash.clone()),
                     )?;
                 }
 

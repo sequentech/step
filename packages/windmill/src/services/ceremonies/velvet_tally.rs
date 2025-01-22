@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::hasura::tally_session_execution::get_last_tally_session_execution::GetLastTallySessionExecutionSequentBackendTallySessionContest;
 use crate::postgres::election::export_elections;
+use crate::postgres::reports::ReportType;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::cast_votes::ElectionCastVotes;
 use crate::services::database::get_hasura_pool;
@@ -27,7 +28,9 @@ use sequent_core::services::translations::Name;
 use sequent_core::types::ceremonies::TallyType;
 use sequent_core::types::hasura::core::{Area, Election, ElectionEvent, TallySession, TallySheet};
 use sequent_core::types::scheduled_event::ScheduledEvent;
-use sequent_core::types::templates::{ReportExtraConfig, SendTemplateBody, VoteReceiptPipeType};
+use sequent_core::types::templates::{
+    PrintToPdfOptionsLocal, ReportExtraConfig, SendTemplateBody, VoteReceiptPipeType,
+};
 pub use sequent_core::util::date_time::get_date_and_time;
 use serde::Serialize;
 use std::collections::HashMap;
@@ -521,6 +524,7 @@ pub async fn build_vote_receipe_pipe_config(
         voter_id: None,
         report_origin: ReportOriginatedFrom::ExportFunction,
         executer_username: None,
+        tally_session_id: None,
     });
 
     let (mut tpl_pdf_options, mut tpl_email, mut tpl_sms) = (None, None, None);
@@ -550,6 +554,15 @@ pub async fn build_vote_receipe_pipe_config(
     let vote_receipt_system_template =
         get_public_asset_template(PUBLIC_ASSETS_VELVET_VOTE_RECEIPTS_TEMPLATE_SYSTEM).await?;
 
+    let report_hash = get_report_hash(&ReportType::VOTE_RECEIPT.to_string()).await?;
+
+    let execution_annotations = HashMap::from([
+        ("date_printed".to_string(), get_date_and_time()),
+        ("app_hash".to_string(), get_app_hash()),
+        ("app_version".to_string(), get_app_version()),
+        ("report_hash".to_string(), report_hash),
+    ]);
+
     let vote_receipt_pipe_config = PipeConfigVoteReceipts {
         template: vote_receipt_template,
         system_template: vote_receipt_system_template,
@@ -557,6 +570,7 @@ pub async fn build_vote_receipe_pipe_config(
         enable_pdfs: true,
         pipe_type: VoteReceiptPipeType::VOTE_RECEIPT,
         pdf_options: Some(ext_cfg.pdf_options),
+        execution_annotations: Some(execution_annotations),
     };
     Ok(vote_receipt_pipe_config)
 }
@@ -576,6 +590,7 @@ pub async fn build_ballot_images_pipe_config(
         voter_id: None,
         report_origin: ReportOriginatedFrom::ExportFunction,
         executer_username: None,
+        tally_session_id: None,
     });
 
     let (mut tpl_pdf_options, mut tpl_email, mut tpl_sms) = (None, None, None);
@@ -612,6 +627,7 @@ pub async fn build_ballot_images_pipe_config(
         enable_pdfs: true,
         pipe_type: VoteReceiptPipeType::BALLOT_IMAGES,
         pdf_options: Some(ext_cfg.pdf_options),
+        execution_annotations: None,
     };
     Ok(ballot_images_pipe_config)
 }
@@ -622,6 +638,7 @@ async fn build_reports_pipe_config(
     public_asset_path: String,
     report_content_template: Option<String>,
     report_system_template: String,
+    pdf_options: Option<PrintToPdfOptionsLocal>,
     tally_type: TallyType,
 ) -> Result<PipeConfigGenerateReports> {
     let extra_data = VelvetTemplateData {
@@ -663,6 +680,7 @@ async fn build_reports_pipe_config(
         report_content_template,
         execution_annotations,
         system_template: report_system_template,
+        pdf_options,
         extra_data: serde_json::to_value(extra_data)?,
     })
 }
@@ -672,6 +690,7 @@ pub async fn create_config_file(
     base_tally_path: PathBuf,
     report_content_template: Option<String>,
     report_system_template: String,
+    pdf_options: Option<PrintToPdfOptionsLocal>,
     tally_session: &TallySession,
     hasura_transaction: &Transaction<'_>,
     tally_type: TallyType,
@@ -707,6 +726,7 @@ pub async fn create_config_file(
         public_asset_path,
         report_content_template,
         report_system_template,
+        pdf_options,
         tally_type,
     )
     .await?;
@@ -793,6 +813,7 @@ pub async fn run_velvet_tally(
     tally_sheets: &Vec<TallySheet>,
     report_content_template: Option<String>,
     report_system_template: String,
+    pdf_options: Option<PrintToPdfOptionsLocal>,
     areas: &Vec<Area>,
     hasura_transaction: &Transaction<'_>,
     election_event: &ElectionEvent,
@@ -822,6 +843,7 @@ pub async fn run_velvet_tally(
         base_tally_path.clone(),
         report_content_template,
         report_system_template,
+        pdf_options,
         tally_session,
         hasura_transaction,
         tally_type,
