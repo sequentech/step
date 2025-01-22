@@ -22,7 +22,12 @@ async fn main() -> Result<(), Error> {
             }
             match env::var("OPENWHISK_DOC_RENDERER_ENDPOINT") {
                 Ok(endpoint) => println!("OpenWhisk doc renderer endpoint '{endpoint}' will be used"),
-                Err(_) => println!("Please, set envvar OPENWHISK_DOC_RENDERER_ENDPOINT and try again")
+                Err(_) => {
+                    match env::var("OPENWHISK_API_HOST") {
+                        Ok(api_host) => println!("OpenWhisk doc renderer endpoint will be defaulted from '{api_host}'"),
+                        Err(_) => println!("Please, set envvar OPENWHISK_DOC_RENDERER_ENDPOINT or OPENWHISK_API_HOST and try again")
+                    }
+                },
             }
         } else if #[cfg(feature = "lambda_aws_lambda")] {
             unsafe {
