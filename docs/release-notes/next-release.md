@@ -86,8 +86,8 @@ The input to the Lambda, is a JSON file of the form:
 #### `aws_lambda`
 
 The environment variable that ponits to the AWS Lambda endpoint is
-`AWS_LAMBDA_ENDPOINT`. It has not a default value, so that the PDF
-generation will fail if it is missing.
+`AWS_LAMBDA_DOC_RENDERER_ENDPOINT`. It has not a default value, so
+that the PDF generation will fail if it is missing.
 
 **In the AWS Lambda mode, if the Lambda is provided with a bucket, it
 will try to upload the generated PDF to S3 at the provided path and S3
@@ -104,7 +104,7 @@ In a terminal, go to `step`, run `devenv shell`. Now, `cd
 packages/sequent-core`. From this location, run:
 
 ```
-step/packages/sequent-core $ AWS_LAMBDA_ENDPOINT=https://rq5jtxuv4rxo5viu5jmxmpxuqq0oisgh.lambda-url.us-east-1.on.aws/ cargo run -q --features=reports,lambda_aws_lambda --example render_pdf
+step/packages/sequent-core $ AWS_LAMBDA_DOC_RENDERER_ENDPOINT=https://rq5jtxuv4rxo5viu5jmxmpxuqq0oisgh.lambda-url.us-east-1.on.aws/ cargo run -q --features=reports,lambda_aws_lambda --example render_pdf
 PDF correctly generated. Lambda is working as expected.
 ```
 
@@ -133,19 +133,18 @@ want to point explicitly to a specific Chrome executable.
 **This mode is not relevant in production mode.**
 
 The environment variable that points to the OpenWhisk endpoint is
-called `OPENWHISK_ENDPOINT`. If its value is not provided, it will be
-defaulted to
-`http://127.0.0.2:3233/api/v1/namespaces/_/actions/pdf-tools/doc_renderer?blocking=true&result=true`.
+called `OPENWHISK_DOC_RENDERER_ENDPOINT`. If its value is not provided, it will be
+defaulted to `http://$OPENWHISK_API_HOST:3233/api/v1/namespaces/_/actions/pdf-tools/doc_renderer?blocking=true&result=true`.
 
 ### Services to update with the new environment variables
 
 Environment variables to add, in production:
 
 - `DOC_RENDERER_BACKEND=aws_lambda`
-- `AWS_LAMBDA_ENDPOINT=<endpoint>`: this endpoint should be the
-  Function URL, with **NONE** **Auth type**. The requests that are
-  issued by `sequent-core` to the Lamdba **are not IAM authenticated
-  at this time**. It is of the form
+- `AWS_LAMBDA_DOC_RENDERER_ENDPOINT=<endpoint>`: this endpoint should
+  be the Function URL, with **NONE** **Auth type**. The requests that
+  are issued by `sequent-core` to the Lamdba **are not IAM
+  authenticated at this time**. It is of the form
   `https://rq5jtxuv4rxo5viu5jmxmpxuqq0oisgh.lambda-url.us-east-1.on.aws/`
   (**DO NOT USE THIS ONE IN PARTICULAR, AS IT WILL PROBABLY NOT
   EXIST.**)

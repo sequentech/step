@@ -20,17 +20,17 @@ async fn main() -> Result<(), Error> {
             unsafe {
                 env::set_var("DOC_RENDERER_BACKEND", "openwhisk");
             }
-            match env::var("OPENWHISK_ENDPOINT") {
-                Ok(endpoint) => println!("OpenWhisk endpoint '{endpoint}' will be used"),
-                Err(_) => println!("Please, set envvar OPENWHISK_ENDPOINT and try again")
+            match env::var("OPENWHISK_DOC_RENDERER_ENDPOINT") {
+                Ok(endpoint) => println!("OpenWhisk doc renderer endpoint '{endpoint}' will be used"),
+                Err(_) => println!("Please, set envvar OPENWHISK_DOC_RENDERER_ENDPOINT and try again")
             }
         } else if #[cfg(feature = "lambda_aws_lambda")] {
             unsafe {
                 env::set_var("DOC_RENDERER_BACKEND", "aws_lambda");
             }
-            match env::var("AWS_LAMBDA_ENDPOINT") {
-                Ok(endpoint) => println!("AWS Lambda endpoint '{endpoint}' will be used"),
-                Err(_) => println!("Please, set envvar AWS_LAMBDA_ENDPOINT and try again")
+            match env::var("AWS_LAMBDA_DOC_RENDERER_ENDPOINT") {
+                Ok(endpoint) => println!("AWS Lambda doc renderer endpoint '{endpoint}' will be used"),
+                Err(_) => println!("Please, set envvar AWS_LAMBDA_DOC_RENDERER_ENDPOINT and try again")
             }
         } else {
             compile_error!("Either feature lambda_inplace, lambda_openwhisk or lambda_aws_lambda has to be provided");

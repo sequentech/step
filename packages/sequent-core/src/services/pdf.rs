@@ -71,16 +71,17 @@ pub mod sync {
             let transport = match doc_renderer_backend.as_str() {
                 "aws_lambda" => {
                     PdfTransport::AWSLambda {
-                        endpoint: std::env::var("AWS_LAMBDA_ENDPOINT")
-                            .map_err(|_| anyhow!("Please, set AWS_LAMBDA_ENDPOINT pointing to the doc-renderer AWS lambda endpoint"))?
+                        endpoint: std::env::var("AWS_LAMBDA_DOC_RENDERER_ENDPOINT")
+                            .map_err(|_| anyhow!("Please, set AWS_LAMBDA_DOC_RENDERER_ENDPOINT pointing to the doc-renderer AWS lambda endpoint"))?
                     }
                 },
                 "openwhisk" => {
+                    let openwhisk_api_host = std::env::var("OPENWHISK_API_HOST")
+                        .map_err(|_| anyhow!("Please, set OPENWHISK_API_HOST pointing to the OpenWhisk API host and port (http://<ip>:<port>)"))?;
+
                     PdfTransport::OpenWhisk {
-                        endpoint: std::env::var("OPENWHISK_ENDPOINT")
-                            .unwrap_or_else(|_| {
-                                "http://127.0.0.2:3233/api/v1/namespaces/_/actions/pdf-tools/doc_renderer?blocking=true&result=true".to_string()
-                            }),
+                        endpoint: std::env::var("OPENWHISK_DOC_RENDERER_ENDPOINT")
+                            .unwrap_or(openwhisk_api_host),
                         basic_auth: std::env::var("OPENWHISK_BASIC_AUTH").ok(),
                     }
                 },
@@ -253,16 +254,17 @@ impl PdfRenderer {
         let transport = match doc_renderer_backend.as_str() {
             "aws_lambda" => {
                 PdfTransport::AWSLambda {
-                    endpoint: std::env::var("AWS_LAMBDA_ENDPOINT")
-                        .map_err(|_| anyhow!("Please, set AWS_LAMBDA_ENDPOINT pointing to the doc-renderer AWS lambda endpoint"))?
+                    endpoint: std::env::var("AWS_LAMBDA_DOC_RENDERER_ENDPOINT")
+                        .map_err(|_| anyhow!("Please, set AWS_LAMBDA_DOC_RENDERER_ENDPOINT pointing to the doc-renderer AWS lambda endpoint"))?
                 }
             },
             "openwhisk" => {
+                let openwhisk_api_host = std::env::var("OPENWHISK_API_HOST")
+                    .map_err(|_| anyhow!("Please, set OPENWHISK_API_HOST pointing to the OpenWhisk API host and port (http://<ip>:<port>)"))?;
+
                 PdfTransport::OpenWhisk {
-                    endpoint: std::env::var("OPENWHISK_ENDPOINT")
-                        .unwrap_or_else(|_| {
-                            "http://127.0.0.2:3233/api/v1/namespaces/_/actions/pdf-tools/doc_renderer?blocking=true&result=true".to_string()
-                        }),
+                    endpoint: std::env::var("OPENWHISK_DOC_RENDERER_ENDPOINT")
+                        .unwrap_or(openwhisk_api_host),
                     basic_auth: std::env::var("OPENWHISK_BASIC_AUTH").ok(),
                 }
             },

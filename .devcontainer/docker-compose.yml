@@ -697,7 +697,7 @@ services:
     network_mode: host
 
   openwhisk:
-    profiles: ["full", "lambdas"]
+    profiles: ["base", "full", "lambdas"]
     container_name: openwhisk
     image: openwhisk/standalone:nightly
     volumes:
