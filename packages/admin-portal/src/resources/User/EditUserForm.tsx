@@ -214,9 +214,6 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     record,
 }) => {
     const {t} = useTranslation()
-    // const [user, setUser] = useState<IUser | undefined>(
-    //     createMode ? {enabled: true} : (record && convertRecordToUser(record)) || {}
-    // )
 
     const [user, setUser] = useState<IUser | undefined>(
         createMode
