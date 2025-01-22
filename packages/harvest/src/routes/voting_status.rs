@@ -20,7 +20,7 @@ use windmill::services::{election_event_status, voting_status};
 pub struct UpdateEventVotingStatusInput {
     pub election_event_id: String,
     pub voting_status: VotingStatus,
-    pub voting_channel: VotingStatusChannel,
+    pub voting_channels: Option<Vec<VotingStatusChannel>>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -72,7 +72,7 @@ pub async fn update_event_status(
         username.as_deref(),
         &input.election_event_id,
         &input.voting_status,
-        &input.voting_channel,
+        &input.voting_channels,
     )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
@@ -127,7 +127,7 @@ pub async fn update_election_status(
         &input.election_event_id,
         &input.election_id,
         &input.voting_status,
-        &input.voting_channel,
+        &input.voting_channels,
     )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
