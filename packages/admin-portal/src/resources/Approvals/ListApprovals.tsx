@@ -56,6 +56,8 @@ import {convertToCamelCase} from "./UtilsApprovals"
 import {getAttributeLabel, getTranslationLabel} from "@/services/UserService"
 import {useLocation} from "react-router"
 import {getPreferenceKey} from "@/lib/helpers"
+import CustomDateField from "../User/CustomDateField"
+import {IUser} from "@sequentech/ui-core"
 
 const StyledChip = styled(Chip)`
     margin: 4px;
@@ -122,16 +124,15 @@ const ApprovalsList = (props: ApprovalsListProps) => {
                             record: Sequent_Backend_Applications,
                             source: string | undefined
                         ) => {
-                            const dateValue = record?.applicant_data[attrMappedName]
-                            try {
-                                const date = new Date(dateValue)
-                                if (isNaN(date.getTime())) {
-                                    throw new Error("Invalid date")
-                                }
-                                return <span>{date.toLocaleDateString()}</span>
-                            } catch {
-                                return <span>-</span>
-                            }
+                            return (
+                                <CustomDateField
+                                    key={attr.name}
+                                    base="applicant_data"
+                                    source={`${attrMappedName}`}
+                                    label={getTranslationLabel(attr.name, attr.display_name, t)}
+                                    emptyText="-"
+                                />
+                            )
                         }}
                     />
                 )
