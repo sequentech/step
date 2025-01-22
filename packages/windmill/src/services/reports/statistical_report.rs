@@ -214,6 +214,7 @@ impl TemplateRenderer for StatisticalReportTemplate {
             &hasura_transaction,
             &self.ids.tenant_id,
             &self.ids.election_event_id,
+            &election_id,
         )
         .await
         .unwrap_or("-".to_string());

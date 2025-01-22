@@ -75,6 +75,7 @@ const frenchTranslation: TranslationType = {
                 EXPORT_BALLOT_PUBLICATION: "Exporter Publication de Bulletin",
                 EXPORT_ACTIVITY_LOGS_REPORT: "Exporter le Rapport des Journaux d'Activité",
                 GENERATE_REPORT: "Générer un rapport",
+                GENERATE_TRANSMISSION_REPORT: "Générer un rapport de transmission",
                 EXPORT_TRUSTEES: "Exporter les Autorités",
                 EXPORT_APPLICATION: "Exporter les Demandes",
                 EXPORT_TENANT_CONFIG: "Exporter la Configuration du Locataire",
@@ -902,6 +903,7 @@ const frenchTranslation: TranslationType = {
                 "voter-voted-edit": "Modifier les électeurs qui ont voté",
                 "voter-email-tlf-edit": "Modifier les champs e-mail/téléphone des électeurs",
                 "cloudflare-write": "Modifier les règles de blocage par pays dans Cloudflare",
+                "transmission-report-generate": "Générer un rapport de transmission",
             },
         },
         generalSettingsScreen: {
@@ -1409,6 +1411,7 @@ const frenchTranslation: TranslationType = {
                         title: "Télécharger",
                         emlTitle: "Download EML {{date}}",
                         transmissionPackageTitle: "Télécharger le Paquet de Transmission {{date}}",
+                        transmissionReportTitle: "Télécharger le rapport de transmission",
                         dialog: {
                             title: "Voulez-vous télécharger le Paquet de Transmission?",
                             description:

@@ -16,6 +16,7 @@ use sequent_core::ballot::VotingStatus;
 use sequent_core::ballot::VotingStatusChannel;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::types::hasura::core::Election;
+use sequent_core::types::hasura::core::VotingChannels;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::info;
@@ -28,7 +29,7 @@ pub struct UpdateElectionVotingStatusInput {
     pub election_event_id: String,
     pub election_id: String,
     pub voting_status: VotingStatus,
-    pub voting_channel: VotingStatusChannel,
+    pub voting_channels: Option<Vec<VotingStatusChannel>>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -45,55 +46,89 @@ pub async fn update_election_status(
     election_event_id: &str,
     election_id: &str,
     voting_status: &VotingStatus,
-    voting_channel: &VotingStatusChannel,
+    voting_channels: &Option<Vec<VotingStatusChannel>>,
 ) -> Result<()> {
     let election_event =
         get_election_event_by_id(&hasura_transaction, &tenant_id, election_event_id)
             .await
             .with_context(|| "error getting election event")?;
-    election_event_status::update_election_voting_status_impl(
-        tenant_id.clone(),
-        user_id,
-        username,
-        election_event_id.to_string(),
-        election_id.to_string(),
-        voting_status.clone(),
-        voting_channel.clone(),
-        election_event.bulletin_board_reference.clone(),
-        &hasura_transaction,
-    )
-    .await?;
-    let mut election_event_status: ElectionEventStatus =
-        get_election_event_status(election_event.status).unwrap_or(Default::default());
-    let current_event_status = election_event_status.status_by_channel(voting_channel);
 
-    info!("current_voting_status={current_event_status:?} next_voting_status={voting_status:?}, voting_channel={voting_channel:?}");
+    let voting_channels: Vec<VotingStatusChannel> = if let Some(channel) = voting_channels {
+        info!("Reading input voting channels {channel:?}");
+        channel.clone()
+    } else if let Some(channels) = election_event.voting_channels.clone() {
+        info!("Election voting channels {channels:?}");
+        let voting_channels: VotingChannels =
+            deserialize_value(channels).context("Failed to deserialize event voting_channels")?;
 
-    if voting_status.clone() == VotingStatus::OPEN
-        && current_event_status == VotingStatus::NOT_STARTED
-    {
-        info!("Updating election event status to OPEN");
-        election_event_status.set_status_by_channel(voting_channel, VotingStatus::OPEN);
+        let mut election_channels = vec![];
 
-        update_election_event_status(
-            &hasura_transaction,
-            &tenant_id,
-            &election_event_id,
-            serde_json::to_value(election_event_status)?,
-        )
-        .await?;
-        update_board_on_status_change(
-            &tenant_id,
+        if VotingStatusChannel::ONLINE
+            .channel_from(&voting_channels)
+            .unwrap_or(false)
+        {
+            election_channels.push(VotingStatusChannel::ONLINE)
+        }
+
+        if VotingStatusChannel::KIOSK
+            .channel_from(&voting_channels)
+            .unwrap_or(false)
+        {
+            election_channels.push(VotingStatusChannel::KIOSK)
+        }
+
+        election_channels
+    } else {
+        info!("Default voting channels");
+        // Update all if none are configured
+        vec![VotingStatusChannel::ONLINE, VotingStatusChannel::KIOSK]
+    };
+
+    for voting_channel in &voting_channels {
+        election_event_status::update_election_voting_status_impl(
+            tenant_id.clone(),
             user_id,
             username,
-            election_event.id.to_string(),
-            election_event.bulletin_board_reference.clone(),
+            election_event_id.to_string(),
+            election_id.to_string(),
             voting_status.clone(),
             voting_channel.clone(),
-            None,
-            Some(vec![election_id.to_string()]),
+            election_event.bulletin_board_reference.clone(),
+            &hasura_transaction,
         )
         .await?;
+        let mut election_event_status: ElectionEventStatus =
+            get_election_event_status(election_event.status.clone()).unwrap_or(Default::default());
+        let current_event_status = election_event_status.status_by_channel(voting_channel);
+
+        info!("current_voting_status={current_event_status:?} next_voting_status={voting_status:?}, voting_channel={voting_channel:?}");
+
+        if voting_status.clone() == VotingStatus::OPEN
+            && current_event_status == VotingStatus::NOT_STARTED
+        {
+            info!("Updating election event status to OPEN");
+            election_event_status.set_status_by_channel(voting_channel, VotingStatus::OPEN);
+
+            update_election_event_status(
+                &hasura_transaction,
+                &tenant_id,
+                &election_event_id,
+                serde_json::to_value(election_event_status)?,
+            )
+            .await?;
+            update_board_on_status_change(
+                &tenant_id,
+                user_id,
+                username,
+                election_event.id.to_string(),
+                election_event.bulletin_board_reference.clone(),
+                voting_status.clone(),
+                voting_channel.clone(),
+                None,
+                Some(vec![election_id.to_string()]),
+            )
+            .await?;
+        }
     }
 
     Ok(())
