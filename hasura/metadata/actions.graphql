@@ -35,6 +35,7 @@ type Mutation {
     create_election(
         election_event_id: String!
         name: String!
+        presentation: jsonb
         description: String
     ): CreateElectionOutput
 }
@@ -523,7 +524,7 @@ type Mutation {
         election_event_id: uuid!
         election_id: uuid!
         voting_status: VotingStatus!
-        voting_channel: VotingStatusChannel!
+        voting_channels: [VotingStatusChannel]
     ): UpdateElectionVotingStatusOutput
 }
 
@@ -531,7 +532,7 @@ type Mutation {
     update_event_voting_status(
         election_event_id: uuid!
         voting_status: VotingStatus!
-        voting_channel: VotingStatusChannel!
+        voting_channels: [VotingStatusChannel]
     ): UpdateEventVotingStatusOutput
 }
 
