@@ -2,9 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::application::get_permission_label_from_post;
-use crate::postgres::area::get_areas_by_name;
 use crate::postgres::election_event::get_election_event_by_id;
-use crate::services::cast_votes::get_users_with_vote_info;
 use crate::services::celery_app::get_celery_app;
 use crate::services::providers::{email_sender::EmailSender, sms_sender::SmsSender};
 use crate::services::reports::utils::get_public_asset_template;
@@ -31,6 +29,7 @@ use sequent_core::types::templates::{EmailConfig, SendTemplateBody, SmsConfig, T
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
+use strum_macros::Display;
 use tracing::{debug, event, info, instrument, warn, Level};
 use uuid::Uuid;
 
@@ -39,6 +38,26 @@ use sequent_core::types::templates::TemplateMethod::{EMAIL, SMS};
 
 use super::users::{lookup_users, FilterOption, ListUsersFilter};
 use unicode_normalization::char::decompose_canonical;
+
+#[allow(non_camel_case_types)]
+#[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
+pub enum ECardType {
+    PHILSYS_ID,
+    SEAMANS_BOOK,
+    DRIVER_LICENSE,
+    PHILIPPINE_PASSPORT,
+}
+
+impl ECardType {
+    pub fn to_name(&self) -> &str {
+        match self {
+            ECardType::PHILSYS_ID => "PhilSys ID",
+            ECardType::SEAMANS_BOOK => "Seaman's Book",
+            ECardType::DRIVER_LICENSE => "Driver's License",
+            ECardType::PHILIPPINE_PASSPORT => "Philippine Passport",
+        }
+    }
+}
 
 /// Struct for email/sms Accepted/Rejected Communication object.
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -431,6 +450,14 @@ fn check_mismatches(
         user.id, fields_to_check, fields_to_check_unset
     );
 
+    let card_type = applicant_data
+    .get("sequent.read-only.id-card-type") // TODO: verify this is the real key
+    .ok_or(anyhow!("Error converting applicant_data to map"))?;
+
+    // In case of the card type equals to seamans_book or driver_license, we need to check check middleName together with firstName
+    let mut first_middle_name_flag = false;
+    let card_type_flag = if(card_type == ECardType::SEAMANS_BOOK.to_name() || card_type == ECardType::DRIVER_LICENSE.to_name()) { true} else { false };
+
     for field_to_check in fields_to_check.split(",") {
         let field_to_check = field_to_check.trim();
 
@@ -460,8 +487,17 @@ fn check_mismatches(
         match_result.insert(field_to_check.to_string(), is_match);
 
         if !is_match {
-            missmatches += 1;
+            // TODO: verify fields to check strings
+            if(card_type_flag && (field_to_check == "firstName" || field_to_check == "middleName")) {
+                first_middle_name_flag = true;
+            } else {
+                missmatches += 1;
+            }
         }
+    }
+    // In case of the card type equals to seamans_book or driver_license, middleName and firstName are one entity
+    if first_middle_name_flag {
+        missmatches += 1;
     }
 
     let mut unset_mismatches = 0;
