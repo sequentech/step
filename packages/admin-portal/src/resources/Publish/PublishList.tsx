@@ -63,8 +63,6 @@ export const PublishList: React.FC<TPublishList> = ({
     electionPresentation,
     electionId,
     electionEventId,
-    canRead,
-    canWrite,
     kioskModeEnabled,
     changingStatus,
     onGenerate = () => null,
