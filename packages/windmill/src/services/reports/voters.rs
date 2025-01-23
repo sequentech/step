@@ -20,6 +20,7 @@ use sequent_core::types::hasura::core::{Application, Area};
 use sequent_core::types::keycloak::AREA_ID_ATTR_NAME;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use strum_macros::Display;
 use tokio_postgres::types::ToSql;
 use tokio_postgres::Row;
 use tracing::{info, instrument};
@@ -33,20 +34,15 @@ pub const LANDBASED_VALUE: &str = "land";
 pub const SEAFARER_VALUE: &str = "sea";
 const OFOV_ROLE: &str = "ofov";
 const SBEI_ROLE: &str = "sbei";
-enum VoterStatus {
-    Voted,
-    NotVoted,
-    DidNotPreEnrolled,
-}
 
-impl VoterStatus {
-    pub fn to_string(&self) -> String {
-        match self {
-            VoterStatus::Voted => "Voted".to_string(),
-            VoterStatus::NotVoted => "Did Not Vote".to_string(),
-            VoterStatus::DidNotPreEnrolled => "Did Not Pre-enrolled".to_string(),
-        }
-    }
+#[derive(Display)]
+enum VoterStatus {
+    #[strum(to_string = "Voted")]
+    Voted,
+    #[strum(to_string = "Did Not Vote")]
+    NotVoted,
+    #[strum(to_string = "Did Not Pre-enrolled")]
+    DidNotPreEnrolled,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]

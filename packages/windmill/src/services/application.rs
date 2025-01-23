@@ -431,6 +431,12 @@ fn automatic_verification(
         }
     }
 
+    info!("matched_status: {}", matched_status.to_string());
+    info!(
+        "rejection_reason: {}",
+        rejection_reason.clone().unwrap_or_default().to_string()
+    );
+
     Ok(ApplicationVerificationResult {
         user_id: matched_user.clone().and_then(|user| user.id),
         username: matched_user
