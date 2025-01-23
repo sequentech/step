@@ -46,15 +46,17 @@ pub enum ECardType {
     SEAMANS_BOOK,
     DRIVER_LICENSE,
     PHILIPPINE_PASSPORT,
+    IBP,
 }
 
 impl ECardType {
     pub fn to_name(&self) -> &str {
         match self {
-            ECardType::PHILSYS_ID => "PhilSys ID",
-            ECardType::SEAMANS_BOOK => "Seaman's Book",
-            ECardType::DRIVER_LICENSE => "Driver's License",
-            ECardType::PHILIPPINE_PASSPORT => "Philippine Passport",
+            ECardType::PHILSYS_ID => "philSysID",
+            ECardType::SEAMANS_BOOK => "seamanBook",
+            ECardType::DRIVER_LICENSE => "driversLicense",
+            ECardType::PHILIPPINE_PASSPORT => "philippinePassport",
+            ECardType::IBP => "iBP",
         }
     }
 }
@@ -451,13 +453,13 @@ fn check_mismatches(
     );
 
     let card_type = applicant_data
-        .get("sequent.read-only.id-card-type") // TODO: verify this is the real key
+        .get("sequent.read-only.id-card-type")
         .ok_or(anyhow!("Error converting applicant_data to map"))?;
 
     // In case of the card type equals to seamans_book or driver_license, we need to check check middleName together with firstName
     let mut first_middle_name_flag = false;
-    let card_type_flag = if (card_type == ECardType::SEAMANS_BOOK.to_name()
-        || card_type == ECardType::DRIVER_LICENSE.to_name())
+    let card_type_flag = if card_type == ECardType::SEAMANS_BOOK.to_name()
+        || card_type == ECardType::DRIVER_LICENSE.to_name()
     {
         true
     } else {
@@ -493,8 +495,7 @@ fn check_mismatches(
         match_result.insert(field_to_check.to_string(), is_match);
 
         if !is_match {
-            // TODO: verify fields to check strings
-            if (card_type_flag && (field_to_check == "firstName" || field_to_check == "middleName"))
+            if card_type_flag && (field_to_check == "firstName" || field_to_check == "middleName")
             {
                 first_middle_name_flag = true;
             } else {
