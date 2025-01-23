@@ -386,7 +386,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
             setElectionStatus(status)
             setElectionPresentation(presentation)
         }, [record])
-        
+
         return (
             <Box sx={{flexGrow: 2, flexShrink: 0}}>
                 {viewMode === ViewMode.List && (
