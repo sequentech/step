@@ -1870,6 +1870,7 @@ const englishTranslation = {
                 verificationType: "Verification Type",
                 createdAt: "Created At",
                 updatedAt: "Updated At",
+                approved_by: "Approved By",
             },
             approvalRequest: "Approval Request",
             title: "Voters",
