@@ -138,6 +138,7 @@ pub async fn verify_application(
     Ok(result)
 }
 
+#[instrument(err, skip_all)]
 async fn get_permission_label_from_applicant_data(
     hasura_transaction: &Transaction<'_>,
     applicant_data: &HashMap<String, String>,
@@ -151,6 +152,7 @@ async fn get_permission_label_from_applicant_data(
     return get_permission_label_from_post(hasura_transaction, post).await;
 }
 
+#[instrument(err, skip_all)]
 fn get_filter_from_applicant_data(
     tenant_id: String,
     election_event_id: Option<String>,
@@ -234,6 +236,7 @@ fn get_filter_from_applicant_data(
     })
 }
 
+#[instrument(skip_all)]
 fn build_manual_verify_reason(fields_match: HashMap<String, bool>) -> String {
     let mismatch_fields = fields_match
         .iter()
@@ -284,6 +287,7 @@ pub struct ApplicationVerificationResult {
     pub manual_verify_reason: Option<String>,
 }
 
+#[instrument(err, skip_all)]
 fn automatic_verification(
     users: Vec<User>,
     annotations: &ApplicationAnnotations,
@@ -324,7 +328,7 @@ fn automatic_verification(
         )?;
         let username = user.username.clone().unwrap_or_default();
 
-        if (mismatches > 0) {
+        if mismatches > 0 {
             mismatch_reason = Some(build_manual_verify_reason(fields_match.clone()));
         }
 
@@ -531,7 +535,7 @@ fn check_mismatches(
 }
 
 /// Get the accepted/rejected message from the internalization object in the defaults file.
-#[instrument(err, res)]
+#[instrument(err)]
 async fn get_i18n_default_application_communication(
     lang: &str,
     app_status: ApplicationStatus,
@@ -899,6 +903,7 @@ pub async fn reject_application(
     Ok(application)
 }
 
+#[instrument(err, skip_all)]
 pub async fn send_application_communication_response(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -997,6 +1002,29 @@ pub async fn send_application_communication_response(
     Ok(())
 }
 
+#[instrument(err, skip_all)]
+pub async fn get_group_names(realm: &str, user_id: &str) -> Result<Vec<String>> {
+    let client = KeycloakAdminClient::new()
+        .await
+        .map_err(|err| anyhow!("Error create keycloak admin client: {err}"))?;
+
+    // Fetch user groups from Keycloak
+    let _groups = client
+        .get_user_groups(&realm, user_id)
+        .await
+        .map_err(|err| anyhow!("Error fetch group names: {err}"))?;
+
+    // Extract group names
+    let group_names: Vec<String> = _groups
+        .into_iter()
+        .map(|group| group.group_name) // Assuming `group_name` is a String
+        .collect();
+
+    // Return group names as a JSON response
+    Ok(group_names)
+}
+
+#[instrument(skip_all)]
 fn string_to_unaccented(word: String) -> String {
     let mut unaccented_word = String::new();
     for l in word.chars() {
@@ -1011,6 +1039,7 @@ fn string_to_unaccented(word: String) -> String {
     unaccented_word
 }
 
+#[instrument(skip_all)]
 fn to_unaccented_without_hyphen(word: Option<String>) -> Option<String> {
     let word = match word {
         Some(word) => word.replace("-", " "),
@@ -1155,25 +1184,4 @@ mod tests {
             applicant_value, user_value
         );
     }
-}
-
-pub async fn get_group_names(realm: &str, user_id: &str) -> Result<Vec<String>> {
-    let client = KeycloakAdminClient::new()
-        .await
-        .map_err(|err| anyhow!("Error create keycloak admin client: {err}"))?;
-
-    // Fetch user groups from Keycloak
-    let _groups = client
-        .get_user_groups(&realm, user_id)
-        .await
-        .map_err(|err| anyhow!("Error fetch group names: {err}"))?;
-
-    // Extract group names
-    let group_names: Vec<String> = _groups
-        .into_iter()
-        .map(|group| group.group_name) // Assuming `group_name` is a String
-        .collect();
-
-    // Return group names as a JSON response
-    Ok(group_names)
 }
