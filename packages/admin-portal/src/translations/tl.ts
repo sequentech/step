@@ -1889,6 +1889,7 @@ const tagalogTranslation: TranslationType = {
                 verificationType: "Uri ng Pag-verify",
                 createdAt: "Nilikha Noong",
                 updatedAt: "Na-update Noong",
+                approved_by: "Naaaprubahan Noong",
             },
             approvalRequest: "Kahilingan para sa Pag-apruba",
             title: "Mga Botante",

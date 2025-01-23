@@ -8685,6 +8685,16 @@
                   }
                 },
                 "defaultValue": null
+              },
+              {
+                "name": "presentation",
+                "description": null,
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "jsonb",
+                  "ofType": null
+                },
+                "defaultValue": null
               }
             ],
             "type": {
