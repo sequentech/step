@@ -10,6 +10,7 @@
     "--network=host",
   ],
 	"service": "devcontainer",
+	"forwardPorts": [9002, 9001, 9000, 8090, 8080, 8000, 8400, 8200, 8201, 6379, 3000, 3002, 3322, 3323, 3324, 3325, 5672, 15672, 8888, 8083, 50051],
 	// Fixes usage of LOCAL_WORKSPACE_FOLDER. See:
 	// https://github.com/microsoft/vscode-remote-release/issues/6844#issuecomment-1252288457
 	"initializeCommand": [
