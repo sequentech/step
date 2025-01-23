@@ -1605,6 +1605,7 @@ export type Mutation_RootCreate_ElectionArgs = {
   description?: InputMaybe<Scalars['String']['input']>;
   election_event_id: Scalars['String']['input'];
   name: Scalars['String']['input'];
+  presentation?: InputMaybe<Scalars['jsonb']['input']>;
 };
 
 

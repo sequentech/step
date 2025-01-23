@@ -1895,6 +1895,7 @@ const catalanTranslation: TranslationType = {
                 verificationType: "Tipus de Verificació",
                 createdAt: "Creat El",
                 updatedAt: "Actualitzat El",
+                approved_by: "Aprovat per",
             },
             approvalRequest: "Sol·licitud d'Aprovació",
             title: "Votants",
