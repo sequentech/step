@@ -4,10 +4,7 @@ use std::collections::HashMap;
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::election::{get_election_by_id, get_elections, update_election_voting_status};
-use crate::postgres::election_event::{
-    get_election_event_by_id, update_election_event_status,
-    update_elections_status_by_election_event,
-};
+use crate::postgres::election_event::{get_election_event_by_id, update_election_event_status};
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::*;
@@ -40,19 +37,17 @@ pub async fn update_event_voting_status(
         .await
         .with_context(|| "Error obtaining election event")?;
 
-    let mut status =
-        get_election_event_status(election_event.status.clone()).unwrap_or(Default::default());
+    let mut status = get_election_event_status(election_event.status.clone()).unwrap_or_default();
     let elections = get_elections(hasura_transaction, tenant_id, election_event_id, None)
         .await
         .with_context(|| "Error obtaining elections")?;
 
-    let mut elections_status = HashMap::new();
+    let mut elections_status_map = HashMap::new();
 
     for election in &elections {
-        let election_status =
-            get_election_status(election.status.clone()).unwrap_or(Default::default());
+        let election_status = get_election_status(election.status.clone()).unwrap_or_default();
 
-        elections_status.insert(election.id.clone(), election_status);
+        elections_status_map.insert(election.id.clone(), election_status);
     }
 
     let channels: Vec<VotingStatusChannel> = if let Some(channel) = channels {
@@ -114,7 +109,7 @@ pub async fn update_event_voting_status(
             }
         };
 
-        if !expected_next_status.contains(&new_status) {
+        if !expected_next_status.contains(new_status) {
             return Err(anyhow!(
             "Unexpected next status {new_status:?}, expected {expected_next_status:?}, current {current_voting_status:?}",
         ));
@@ -122,40 +117,40 @@ pub async fn update_event_voting_status(
 
         status.set_status_by_channel(&channel, new_status.clone());
 
-    // Check if the election event has elections that require an initialization report and throw an error if the report has not been generated
-    if *new_status == VotingStatus::OPEN {
-        let elections = get_elections(
-            hasura_transaction,
-            tenant_id,
-            election_event_id,
-            Some(false),
-        )
-        .await
-        .with_context(|| "Error getting elections")?;
+        // Check if the election event has elections that require an initialization report and throw an error if the report has not been generated
+        if *new_status == VotingStatus::OPEN {
+            let elections = get_elections(
+                hasura_transaction,
+                tenant_id,
+                election_event_id,
+                Some(false),
+            )
+            .await
+            .with_context(|| "Error getting elections")?;
 
-        for election in elections {
-            let presentation: ElectionPresentation =
-                serde_json::from_value(election.presentation.unwrap_or_default())
-                    .with_context(|| "Error deserializing presentation")?;
+            for election in elections {
+                let presentation: ElectionPresentation =
+                    serde_json::from_value(election.presentation.unwrap_or_default())
+                        .with_context(|| "Error deserializing presentation")?;
 
-            if presentation
-                .initialization_report_policy
-                .unwrap_or(EInitializeReportPolicy::default())
-                == EInitializeReportPolicy::REQUIRED
-                && !election.initialization_report_generated.unwrap_or(false)
-            {
-                return Err(anyhow!(
+                if presentation
+                    .initialization_report_policy
+                    .unwrap_or_default()
+                    == EInitializeReportPolicy::REQUIRED
+                    && !election.initialization_report_generated.unwrap_or(false)
+                {
+                    return Err(anyhow!(
                     "election {:?} initialization report must be generated before opening the election",
                     election.id,
                 ));
+                }
             }
         }
-    }
 
         let mut elections_ids: Vec<String> = Vec::new();
         if *new_status == VotingStatus::OPEN || *new_status == VotingStatus::CLOSED {
             for election in &elections {
-                if let Some(status) = elections_status.get_mut(&election.id) {
+                if let Some(status) = elections_status_map.get_mut(&election.id) {
                     status.set_status_by_channel(&channel, new_status.clone());
                 }
 
@@ -164,7 +159,7 @@ pub async fn update_event_voting_status(
         }
 
         update_board_on_status_change(
-            &tenant_id,
+            tenant_id,
             user_id,
             username,
             election_event.id.to_string(),
@@ -179,22 +174,22 @@ pub async fn update_event_voting_status(
     }
 
     for election in &elections {
-        let election_status = elections_status.get(&election.id);
+        let election_status = elections_status_map.get(&election.id);
 
         update_election_voting_status(
-            &hasura_transaction,
-            &tenant_id,
-            &election_event_id,
+            hasura_transaction,
+            tenant_id,
+            election_event_id,
             &election.id,
-            serde_json::to_value(&election_status).with_context(|| "Error parsing status")?,
+            serde_json::to_value(election_status).with_context(|| "Error parsing status")?,
         )
         .await
         .with_context(|| "Error updating election voting status")?;
     }
 
     update_election_event_status(
-        &hasura_transaction,
-        &&tenant_id,
+        hasura_transaction,
+        tenant_id,
         election_event_id,
         serde_json::to_value(&status).with_context(|| "Error parsing status")?,
     )
@@ -302,7 +297,7 @@ pub async fn update_election_voting_status_impl(
     let status_js = serde_json::to_value(&status).with_context(|| "Error parsing status")?;
 
     update_election_voting_status(
-        &hasura_transaction,
+        hasura_transaction,
         &tenant_id,
         &election_event_id,
         &election_id,
