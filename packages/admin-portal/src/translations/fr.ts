@@ -1896,6 +1896,7 @@ const frenchTranslation: TranslationType = {
                 verificationType: "Type de Vérification",
                 createdAt: "Créé Le",
                 updatedAt: "Mis à Jour Le",
+                approved_by: "Approuvé Par",
             },
             approvalRequest: "Informations d'approbation",
             title: "Électeurs",

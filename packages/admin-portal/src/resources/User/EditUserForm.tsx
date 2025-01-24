@@ -214,9 +214,16 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     record,
 }) => {
     const {t} = useTranslation()
+
     const [user, setUser] = useState<IUser | undefined>(
-        createMode ? {enabled: true} : (record && convertRecordToUser(record)) || {}
+        createMode
+            ? {
+                  enabled: true,
+                  attributes: {}, // Initialize attributes object for new users
+              }
+            : (record && convertRecordToUser(record)) || {attributes: {}}
     )
+
     const [selectedArea, setSelectedArea] = useState<string>("")
     const [selectedActedTrustee, setSelectedActedTrustee] = useState<string>("")
     const [selectedRolesOnCreate, setSelectedRolesOnCreate] = useState<string[]>([])
@@ -809,6 +816,26 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         return null
     }
 
+    // Update the area selection handler
+    const handleAreaSelection = (areaId: string) => {
+        if (createMode) {
+            setUser((prev) => ({
+                ...prev,
+                attributes: {
+                    ...(prev?.attributes || {}),
+                    "area-id": [areaId],
+                },
+            }))
+        } else {
+            setUser((prev) => ({
+                ...prev,
+                area: {
+                    id: areaId,
+                },
+            }))
+        }
+    }
+
     return (
         <PageHeaderStyles.Wrapper>
             <SimpleForm
@@ -852,8 +879,8 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                             <SelectArea
                                 tenantId={tenantId}
                                 electionEventId={electionEventId}
-                                source={createMode ? "attributes.area-id" : "area.id"}
-                                onSelectArea={setSelectedArea}
+                                source={createMode ? "attributes.area-id[0]" : "area.id"}
+                                onSelectArea={handleAreaSelection}
                                 label=""
                                 isRequired={true}
                                 disabled={

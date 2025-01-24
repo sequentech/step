@@ -273,6 +273,7 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
                             return (
                                 <CustomDateField
                                     key={attr.name}
+                                    base="attributes"
                                     source={`${attr.name}`}
                                     label={getTranslationLabel(attr.name, attr.display_name, t)}
                                     emptyText="-"

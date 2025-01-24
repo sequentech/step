@@ -891,6 +891,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                             return (
                                 <CustomDateField
                                     key={attr.name}
+                                    base="attributes"
                                     source={`${attr.name}`}
                                     label={getTranslationLabel(attr.name, attr.display_name, t)}
                                     emptyText="-"
