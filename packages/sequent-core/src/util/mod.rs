@@ -16,3 +16,6 @@ pub mod console_log;
 #[cfg(feature = "reports")]
 pub mod path;
 pub mod voting_screen;
+
+#[cfg(feature = "probe")]
+pub mod retry;
