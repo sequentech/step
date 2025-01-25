@@ -101,6 +101,7 @@ pub async fn generate_template(
 
     let _task = celery_app
         .send_task(windmill::tasks::generate_template::generate_template::new(
+            claims.hasura_claims.tenant_id.clone(),
             document_id.clone(),
             input,
             Some(task_execution.clone()),

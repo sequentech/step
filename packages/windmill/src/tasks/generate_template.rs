@@ -2,10 +2,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::postgres::results_event::get_results_event_by_id;
 use crate::postgres::tally_session::get_tally_session_by_id;
-use crate::postgres::tally_session_execution::get_last_tally_session_execution;
+use crate::services::compress::decompress_file;
+use crate::services::consolidation::create_transmission_package_service::download_tally_tar_gz_to_file;
 use crate::services::database::get_hasura_pool;
+use crate::services::documents::get_document_as_temp_file;
 use crate::services::tasks_execution::update_fail;
 use crate::types::error::Error;
 use crate::types::error::Result;
@@ -55,33 +56,17 @@ async fn generate_ballot_images(
     {
         return Err(anyhow!("Tally session is not completed"));
     }
-
-    let last_tally_session_execution = get_last_tally_session_execution(
+    let tar_gz_file = download_tally_tar_gz_to_file(
         hasura_transaction,
         tenant_id,
         election_event_id,
         tally_session_id,
     )
-    .await?
-    .ok_or(anyhow!("No tally session execution found"))?;
-
-    let results_event_id = last_tally_session_execution
-        .results_event_id
-        .ok_or(anyhow!("No results event found"))?;
-
-    let results_event = get_results_event_by_id(
-        hasura_transaction,
-        tenant_id,
-        election_event_id,
-        &results_event_id,
-    )
     .await?;
 
-    let original_tgz_document_id = results_event
-        .documents
-        .map(|document| document.tar_gz_original)
-        .flatten()
-        .ok_or(anyhow!("No tar gz document found"))?;
+    let tally_path = decompress_file(tar_gz_file.path())?;
+
+    let tally_path_path = tally_path.into_path();
 
     Ok(())
 }
