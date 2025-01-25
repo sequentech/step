@@ -2,10 +2,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::services::database::get_hasura_pool;
 use crate::services::tasks_execution::update_fail;
 use crate::types::error::Error;
 use crate::types::error::Result;
-use anyhow::{anyhow, Context};
+use anyhow::{anyhow, Context, Result as AnyhowResult};
 use celery::error::TaskError;
 use deadpool_postgres::Client as DbClient;
 use rocket::serde::json::Json;
@@ -30,13 +31,99 @@ pub enum EGenerateTemplate {
     },
 }
 
+async fn generate_ballot_images(
+    election_event_id: String,
+    election_id: String,
+    tally_session_id: String,
+) -> AnyhowResult<()> {
+    Ok(())
+}
+
+async fn generate_vote_receipts(
+    election_event_id: String,
+    election_id: String,
+    tally_session_id: String,
+) -> AnyhowResult<()> {
+    Ok(())
+}
+
+#[instrument(err)]
+async fn generate_template_block(
+    document_id: String,
+    input: EGenerateTemplate,
+    task_execution: Option<TasksExecution>,
+    executer_username: Option<String>,
+) -> AnyhowResult<()> {
+    let mut db_client: DbClient = match get_hasura_pool().await.get().await {
+        Ok(client) => client,
+        Err(err) => {
+            if let Some(ref task_exec) = task_execution {
+                let _ = update_fail(task_exec, "Failed to get Hasura DB pool").await;
+            }
+            return Err(anyhow!("Error getting Hasura DB pool: {}", err));
+        }
+    };
+
+    let hasura_transaction = match db_client.transaction().await {
+        Ok(transaction) => transaction,
+        Err(err) => {
+            if let Some(ref task_exec) = task_execution {
+                let _ = update_fail(task_exec, "Failed to get Hasura DB pool").await;
+            };
+            return Err(anyhow!("Error starting Hasura transaction: {err}"));
+        }
+    };
+
+    match input {
+        EGenerateTemplate::BallotImages {
+            election_event_id,
+            election_id,
+            tally_session_id,
+        } => {
+            generate_ballot_images(election_event_id, election_id, tally_session_id).await?;
+        }
+        EGenerateTemplate::VoteReceipts {
+            election_event_id,
+            election_id,
+            tally_session_id,
+        } => {
+            generate_vote_receipts(election_event_id, election_id, tally_session_id).await?;
+        }
+    }
+
+    hasura_transaction
+        .commit()
+        .await
+        .with_context(|| "Failed to commit Hasura transaction")?;
+
+    Ok(())
+}
+
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task]
 pub async fn generate_template(
     document_id: String,
+    input: EGenerateTemplate,
     task_execution: Option<TasksExecution>,
     executer_username: Option<String>,
 ) -> Result<()> {
+    // Spawn the task using an async block
+    let handle = tokio::task::spawn_blocking({
+        move || {
+            tokio::runtime::Handle::current().block_on(async move {
+                generate_template_block(document_id, input, task_execution, executer_username)
+                    .await
+                    .map_err(|err| anyhow!("generate_report error: {:?}", err))
+            })
+        }
+    });
+
+    // Await the result and handle JoinError explicitly
+    match handle.await {
+        Ok(inner_result) => inner_result.map_err(|err| Error::from(err.context("Task failed"))),
+        Err(join_error) => Err(Error::from(anyhow!("Task panicked: {}", join_error))),
+    }?;
+
     Ok(())
 }
