@@ -3,10 +3,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::tally_session::get_tally_session_by_id;
+use crate::services::ceremonies::velvet_tally::build_ballot_images_pipe_config;
 use crate::services::compress::decompress_file;
 use crate::services::consolidation::create_transmission_package_service::download_tally_tar_gz_to_file;
 use crate::services::database::get_hasura_pool;
-use crate::services::documents::get_document_as_temp_file;
+use crate::services::reports::utils::get_public_assets_path_env_var;
+use crate::services::s3;
 use crate::services::tasks_execution::update_fail;
 use crate::types::error::Error;
 use crate::types::error::Result;
@@ -14,12 +16,13 @@ use anyhow::{anyhow, Context, Result as AnyhowResult};
 use celery::error::TaskError;
 use deadpool_postgres::{Client as DbClient, Transaction};
 use rocket::serde::json::Json;
+use sequent_core::services::pdf;
 use sequent_core::types::ceremonies::TallyExecutionStatus;
 use sequent_core::types::hasura::core::TasksExecution;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
-use tracing::info;
-use tracing::instrument;
+use tracing::{info, instrument};
+use velvet::config::vote_receipt::PipeConfigVoteReceipts;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(tag = "type")]
@@ -56,6 +59,18 @@ async fn generate_ballot_images(
     {
         return Err(anyhow!("Tally session is not completed"));
     }
+    let public_asset_path = get_public_assets_path_env_var()?;
+
+    let minio_endpoint_base = s3::get_minio_url()?;
+
+    let ballot_images_pipe_config: PipeConfigVoteReceipts = build_ballot_images_pipe_config(
+        &tally_session,
+        &hasura_transaction,
+        minio_endpoint_base.clone(),
+        public_asset_path.clone(),
+    )
+    .await?;
+
     let tar_gz_file = download_tally_tar_gz_to_file(
         hasura_transaction,
         tenant_id,
@@ -67,6 +82,13 @@ async fn generate_ballot_images(
     let tally_path = decompress_file(tar_gz_file.path())?;
 
     let tally_path_path = tally_path.into_path();
+
+    let pdf_options = match ballot_images_pipe_config.pdf_options.clone() {
+        Some(options) => Some(options.to_print_to_pdf_options()),
+        None => None,
+    };
+
+    let bytes_pdf = pdf::html_to_pdf(bytes_html.clone(), pdf_options)?;
 
     Ok(())
 }
