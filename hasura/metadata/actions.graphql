@@ -235,6 +235,14 @@ type Mutation {
 }
 
 type Mutation {
+    generate_template(
+        election_event_id: String!
+        election_id: String!
+        tally_session_id: String!
+    ): GenerateTemplateOutput
+}
+
+type Mutation {
     generate_transmission_report(
         tenant_id: String!
         election_event_id: String!
@@ -1484,5 +1492,10 @@ type SetVoterAuthenticationOutput {
 type ImportTenantOutput {
     message: String
     error: String
+    task_execution: tasks_execution_type
+}
+
+type GenerateTemplateOutput {
+    document_id: String!
     task_execution: tasks_execution_type
 }
