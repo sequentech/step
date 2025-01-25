@@ -6,10 +6,14 @@ use crate::postgres::tally_session::get_tally_session_by_id;
 use crate::services::ceremonies::velvet_tally::build_ballot_images_pipe_config;
 use crate::services::compress::decompress_file;
 use crate::services::consolidation::create_transmission_package_service::download_tally_tar_gz_to_file;
+use crate::services::consolidation::zip::compress_folder_to_zip;
 use crate::services::database::get_hasura_pool;
+use crate::services::documents::upload_and_return_document_postgres;
 use crate::services::reports::utils::get_public_assets_path_env_var;
 use crate::services::s3;
 use crate::services::tasks_execution::update_fail;
+use crate::services::temp_path::generate_temp_file;
+use crate::services::temp_path::get_file_size;
 use crate::types::error::Error;
 use crate::types::error::Result;
 use anyhow::{anyhow, Context, Result as AnyhowResult};
@@ -51,6 +55,7 @@ async fn generate_ballot_images(
     election_event_id: &str,
     election_id: &str,
     tally_session_id: &str,
+    document_id: &str,
 ) -> AnyhowResult<()> {
     let tally_session = get_tally_session_by_id(
         hasura_transaction,
@@ -143,6 +148,26 @@ async fn generate_ballot_images(
         file.flush()?;
     }
 
+    let output_zip_tempfile = generate_temp_file("ballot-images", "zip")?;
+    let output_zip_path = output_zip_tempfile.path();
+    let output_zip_str = output_zip_path.to_string_lossy();
+
+    compress_folder_to_zip(out_temp_dir_path, output_zip_path)?;
+    let file_size = get_file_size(&output_zip_str).with_context(|| "Error obtaining file size")?;
+
+    let document = upload_and_return_document_postgres(
+        &hasura_transaction,
+        &output_zip_str,
+        file_size,
+        "applization/zip",
+        tenant_id,
+        Some(election_event_id.to_string()),
+        "ballot_images.zip",
+        Some(document_id.to_string()),
+        false,
+    )
+    .await?;
+
     Ok(())
 }
 
@@ -196,6 +221,7 @@ async fn generate_template_block(
                 &election_event_id,
                 &election_id,
                 &tally_session_id,
+                &document_id,
             )
             .await?;
         }
