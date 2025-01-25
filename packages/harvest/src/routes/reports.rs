@@ -22,6 +22,7 @@ use windmill::{
         database::get_hasura_pool,
         reports::template_renderer::{EReportEncryption, GenerateReportMode},
     },
+    tasks::generate_template::EGenerateTemplate,
     types::tasks::ETasksExecution,
 };
 use windmill::{postgres::reports::Report, services::tasks_execution::*};
@@ -30,23 +31,9 @@ use windmill::{
     services::reports_vault::get_report_key_pair,
 };
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
-#[serde(tag = "type")]
-enum GenerateTemplateBody {
-    BallotImages {
-        election_event_id: String,
-        election_id: String,
-    },
-    VoteReceipts {
-        election_event_id: String,
-        election_id: String,
-    },
-}
-
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GenerateTemplateResponse {
     pub document_id: String,
-    pub encryption_policy: EReportEncryption,
     pub task_execution: TasksExecution,
 }
 
@@ -54,7 +41,7 @@ pub struct GenerateTemplateResponse {
 #[post("/generate-template", format = "json", data = "<body>")]
 pub async fn generate_template(
     claims: JwtClaims,
-    body: Json<GenerateTemplateBody>,
+    body: Json<EGenerateTemplate>,
 ) -> Result<Json<GenerateTemplateResponse>, (Status, String)> {
     let input = body.into_inner();
     info!("Generating report: {input:?}");
@@ -93,8 +80,8 @@ pub async fn generate_template(
     let document_id: String = Uuid::new_v4().to_string();
     let celery_app = get_celery_app().await;
     let election_id: String = match input.clone() {
-        GenerateTemplateBody::BallotImages { election_id, .. } => election_id,
-        GenerateTemplateBody::VoteReceipts { election_id, .. } => election_id,
+        EGenerateTemplate::BallotImages { election_id, .. } => election_id,
+        EGenerateTemplate::VoteReceipts { election_id, .. } => election_id,
     };
 
     // Insert the task execution record
@@ -114,25 +101,21 @@ pub async fn generate_template(
 
     let _task = celery_app
         .send_task(windmill::tasks::generate_template::generate_template::new(
-            report.clone(),
             document_id.clone(),
-            input.report_mode.clone(),
-            false,
+            input,
             Some(task_execution.clone()),
             Some(executer_username),
-            None,
         ))
         .await
         .map_err(|e| {
             (
                 Status::InternalServerError,
-                format!("Error generating report: {e:?}"),
+                format!("Error generating template: {e:?}"),
             )
         })?;
 
     Ok(Json(GenerateTemplateResponse {
         document_id: document_id,
-        encryption_policy: report.encryption_policy,
         task_execution: task_execution.clone(),
     }))
 }
