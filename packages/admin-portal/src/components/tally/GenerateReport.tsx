@@ -44,6 +44,7 @@ export const GenerateReport: React.FC<GenerateReportProps> = ({electionEventId, 
                     tallySessionId: tallySessionId,
                     electionId: electionId,
                     electionEventId: electionEventId,
+                    type: reportType === ETemplateType.BALLOT_IMAGES? "BallotImages" : "VoteReceipts"
                 },
             })
             let response = data?.generate_template
