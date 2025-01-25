@@ -15,14 +15,16 @@ use crate::types::error::Result;
 use anyhow::{anyhow, Context, Result as AnyhowResult};
 use celery::error::TaskError;
 use deadpool_postgres::{Client as DbClient, Transaction};
-use rocket::serde::json::Json;
 use sequent_core::services::pdf;
 use sequent_core::types::ceremonies::TallyExecutionStatus;
 use sequent_core::types::hasura::core::TasksExecution;
+use sequent_core::util::path::get_folder_name;
+use sequent_core::util::path::list_subfolders;
 use serde::{Deserialize, Serialize};
-use std::str::FromStr;
+use std::fs;
 use tracing::{info, instrument};
 use velvet::config::vote_receipt::PipeConfigVoteReceipts;
+use velvet::pipes::vote_receipts::BALLOT_IMAGES_OUTPUT_FILE_HTML;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(tag = "type")]
@@ -83,12 +85,41 @@ async fn generate_ballot_images(
 
     let tally_path_path = tally_path.into_path();
 
-    let pdf_options = match ballot_images_pipe_config.pdf_options.clone() {
-        Some(options) => Some(options.to_print_to_pdf_options()),
-        None => None,
-    };
+    let election_path = tally_path_path.join(format!(
+        "output/velvet-mcballot-images/election__{}",
+        election_id
+    ));
 
-    let bytes_pdf = pdf::html_to_pdf(bytes_html.clone(), pdf_options)?;
+    if !election_path.exists() {
+        return Err(anyhow!("Error reading election path in zip"));
+    }
+
+    let area_folders = list_subfolders(election_path.as_path());
+
+    if area_folders.len() == 0 {
+        return Err(anyhow!("No areas for election"));
+    }
+
+    for area_folder in area_folders {
+        let html_path = area_folder.join(BALLOT_IMAGES_OUTPUT_FILE_HTML);
+        if !html_path.exists() {
+            return Err(anyhow!(
+                "Error reading html ballot image in zip: {}",
+                html_path.display()
+            ));
+        }
+
+        let bytes_html = fs::read_to_string(html_path.as_path())?;
+
+        let pdf_options = match ballot_images_pipe_config.pdf_options.clone() {
+            Some(options) => Some(options.to_print_to_pdf_options()),
+            None => None,
+        };
+        let bytes_pdf = pdf::html_to_pdf(bytes_html, pdf_options)?;
+
+        let area_name =
+            get_folder_name(html_path.as_path()).ok_or(anyhow!("Can't read folder name"))?;
+    }
 
     Ok(())
 }
