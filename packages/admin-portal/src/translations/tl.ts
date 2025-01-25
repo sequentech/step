@@ -1439,6 +1439,7 @@ const tagalogTranslation: TranslationType = {
             uploadTransmissionPackageDesc:
                 "I-upload ang iyong pirma para pirmahan ang pakete ng Resulta ng Halalan. Ang operasyong ito ay opsyonal.",
             exportElectionArea: "Ipadala ang pakete ng transmisyon para sa lugar '{{name}}'",
+            generateReport: "Bumuo ng {{name}}",
             templateTitle: "Template ng Resulta",
             templateSubTitle: "Opsyonal na palitan ang template ng mga resulta.",
             keysCeremonyTitle: "Seremonya ng mga Susi",

@@ -18,6 +18,8 @@ import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {ETallyType} from "@/types/ceremonies"
 import {notDeepEqual} from "assert"
 import {StyledAppAtom} from "@/App"
+import {ETemplateType} from "@/types/templates"
+import {GenerateReport} from "./GenerateReport"
 
 interface PerformDownloadProps {
     onDownload: () => void
@@ -279,6 +281,18 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
                             onCreateTransmissionPackage={onCreateTransmissionPackage}
                             loading={miruExportloading}
                         />
+                    ) : null}
+                    {globalSettings?.ACTIVATE_MIRU_EXPORT && electionId ? (
+                        <>
+                            <GenerateReport
+                                reportType={ETemplateType.BALLOT_IMAGES}
+                                electionId={electionId}
+                            />
+                            <GenerateReport
+                                reportType={ETemplateType.VOTE_RECEIPT}
+                                electionId={electionId}
+                            />
+                        </>
                     ) : null}
                 </StyledAppAtom>
             </Menu>
