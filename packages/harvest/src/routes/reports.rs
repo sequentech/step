@@ -30,6 +30,113 @@ use windmill::{
     services::reports_vault::get_report_key_pair,
 };
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(tag = "type")]
+enum GenerateTemplateBody {
+    BallotImages {
+        election_event_id: String,
+        election_id: String,
+    },
+    VoteReceipts {
+        election_event_id: String,
+        election_id: String,
+    },
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct GenerateTemplateResponse {
+    pub document_id: String,
+    pub encryption_policy: EReportEncryption,
+    pub task_execution: TasksExecution,
+}
+
+#[instrument(skip(claims))]
+#[post("/generate-template", format = "json", data = "<body>")]
+pub async fn generate_template(
+    claims: JwtClaims,
+    body: Json<GenerateTemplateBody>,
+) -> Result<Json<GenerateTemplateResponse>, (Status, String)> {
+    let input = body.into_inner();
+    info!("Generating report: {input:?}");
+    authorize(
+        &claims,
+        true,
+        Some(claims.hasura_claims.tenant_id.clone()),
+        vec![Permissions::REPORT_READ],
+    )?;
+
+    let mut hasura_db_client: DbClient =
+        get_hasura_pool().await.get().await.map_err(|e| {
+            (
+                Status::InternalServerError,
+                format!("Error obtaining keycloak transaction: {e:?}"),
+            )
+        })?;
+    let hasura_transaction =
+        hasura_db_client.transaction().await.map_err(|e| {
+            (
+                Status::InternalServerError,
+                format!("Error obtaining hasura transaction: {e:?}"),
+            )
+        })?;
+
+    let executer_name = claims
+        .name
+        .clone()
+        .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
+
+    let executer_username = claims
+        .preferred_username
+        .clone()
+        .unwrap_or_else(|| executer_name.clone());
+
+    let document_id: String = Uuid::new_v4().to_string();
+    let celery_app = get_celery_app().await;
+    let election_id: String = match input.clone() {
+        GenerateTemplateBody::BallotImages { election_id, .. } => election_id,
+        GenerateTemplateBody::VoteReceipts { election_id, .. } => election_id,
+    };
+
+    // Insert the task execution record
+    let task_execution = post(
+        &claims.hasura_claims.tenant_id,
+        Some(&election_id),
+        ETasksExecution::GENERATE_REPORT,
+        &executer_name,
+    )
+    .await
+    .map_err(|error| {
+        (
+            Status::InternalServerError,
+            format!("Failed to insert task execution record: {error:?}"),
+        )
+    })?;
+
+    let _task = celery_app
+        .send_task(windmill::tasks::generate_template::generate_template::new(
+            report.clone(),
+            document_id.clone(),
+            input.report_mode.clone(),
+            false,
+            Some(task_execution.clone()),
+            Some(executer_username),
+            None,
+        ))
+        .await
+        .map_err(|e| {
+            (
+                Status::InternalServerError,
+                format!("Error generating report: {e:?}"),
+            )
+        })?;
+
+    Ok(Json(GenerateTemplateResponse {
+        document_id: document_id,
+        encryption_policy: report.encryption_policy,
+        task_execution: task_execution.clone(),
+    }))
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GenerateReportBody {
     pub report_id: String,
@@ -55,7 +162,7 @@ pub async fn generate_report(
     authorize(
         &claims,
         true,
-        Some(input.tenant_id.clone()),
+        Some(claims.hasura_claims.tenant_id.clone()),
         vec![Permissions::REPORT_READ],
     )?;
 
