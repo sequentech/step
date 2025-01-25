@@ -15,6 +15,7 @@ use crate::types::error::Result;
 use anyhow::{anyhow, Context, Result as AnyhowResult};
 use celery::error::TaskError;
 use deadpool_postgres::{Client as DbClient, Transaction};
+use hex;
 use sequent_core::services::pdf;
 use sequent_core::types::ceremonies::TallyExecutionStatus;
 use sequent_core::types::hasura::core::TasksExecution;
@@ -22,6 +23,9 @@ use sequent_core::util::path::get_folder_name;
 use sequent_core::util::path::list_subfolders;
 use serde::{Deserialize, Serialize};
 use std::fs;
+use std::io::Write;
+use strand::hash::hash_sha256;
+use tempfile::tempdir;
 use tracing::{info, instrument};
 use velvet::config::vote_receipt::PipeConfigVoteReceipts;
 use velvet::pipes::vote_receipts::BALLOT_IMAGES_OUTPUT_FILE_HTML;
@@ -99,6 +103,8 @@ async fn generate_ballot_images(
     if area_folders.len() == 0 {
         return Err(anyhow!("No areas for election"));
     }
+    let out_temp_dir = tempdir().with_context(|| "Error generating temp directory")?;
+    let out_temp_dir_path = out_temp_dir.path();
 
     for area_folder in area_folders {
         let html_path = area_folder.join(BALLOT_IMAGES_OUTPUT_FILE_HTML);
@@ -119,6 +125,22 @@ async fn generate_ballot_images(
 
         let area_name =
             get_folder_name(html_path.as_path()).ok_or(anyhow!("Can't read folder name"))?;
+        let out_area_path = out_temp_dir_path.join(area_name);
+
+        fs::create_dir_all(&out_area_path)?;
+
+        let hash_bytes = hash_sha256(bytes_pdf.as_slice())?;
+        let hash_hex = hex::encode(hash_bytes);
+        let pdf_filename = format!("ballot_images_{hash_hex}.pdf");
+        let out_file_path = out_area_path.join(pdf_filename);
+
+        let mut file = fs::OpenOptions::new()
+            .write(true)
+            .truncate(true)
+            .create(true)
+            .open(out_file_path)?;
+        file.write_all(&bytes_pdf)?;
+        file.flush()?;
     }
 
     Ok(())
