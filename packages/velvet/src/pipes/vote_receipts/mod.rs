@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-pub(crate) mod mcballot_receipts;
+pub mod mcballot_receipts;
 mod vote_receipts;
 
 pub use vote_receipts::*;

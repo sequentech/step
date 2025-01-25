@@ -4,6 +4,7 @@
 
 use crate::postgres::tally_session::get_tally_session_by_id;
 use crate::services::ceremonies::velvet_tally::build_ballot_images_pipe_config;
+use crate::services::ceremonies::velvet_tally::build_vote_receipe_pipe_config;
 use crate::services::compress::decompress_file;
 use crate::services::consolidation::create_transmission_package_service::download_tally_tar_gz_to_file;
 use crate::services::consolidation::zip::compress_folder_to_zip;
@@ -32,7 +33,10 @@ use strand::hash::hash_sha256;
 use tempfile::tempdir;
 use tracing::{info, instrument};
 use velvet::config::vote_receipt::PipeConfigVoteReceipts;
-use velvet::pipes::vote_receipts::BALLOT_IMAGES_OUTPUT_FILE_HTML;
+use velvet::pipes::pipe_name::PipeNameOutputDir;
+use velvet::pipes::vote_receipts::mcballot_receipts::{
+    BALLOT_IMAGES_OUTPUT_FILE_HTML, OUTPUT_FILE_HTML,
+};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(tag = "type")]
@@ -49,19 +53,30 @@ pub enum EGenerateTemplate {
     },
 }
 
-async fn generate_ballot_images(
+async fn generate_template_document(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
-    election_event_id: &str,
-    election_id: &str,
-    tally_session_id: &str,
     document_id: &str,
+    input: &EGenerateTemplate,
 ) -> AnyhowResult<()> {
+    let (is_ballot_images, election_event_id, election_id, tally_session_id) = match input.clone() {
+        EGenerateTemplate::BallotImages {
+            election_event_id,
+            election_id,
+            tally_session_id,
+        } => (true, election_event_id, election_id, tally_session_id),
+        EGenerateTemplate::VoteReceipts {
+            election_event_id,
+            election_id,
+            tally_session_id,
+        } => (false, election_event_id, election_id, tally_session_id),
+    };
+
     let tally_session = get_tally_session_by_id(
         hasura_transaction,
         tenant_id,
-        election_event_id,
-        tally_session_id,
+        &election_event_id,
+        &tally_session_id,
     )
     .await?;
 
@@ -74,19 +89,31 @@ async fn generate_ballot_images(
 
     let minio_endpoint_base = s3::get_minio_url()?;
 
-    let ballot_images_pipe_config: PipeConfigVoteReceipts = build_ballot_images_pipe_config(
-        &tally_session,
-        &hasura_transaction,
-        minio_endpoint_base.clone(),
-        public_asset_path.clone(),
-    )
-    .await?;
+    let pipe_config_pdf_options = if is_ballot_images {
+        let pipe_config = build_ballot_images_pipe_config(
+            &tally_session,
+            &hasura_transaction,
+            minio_endpoint_base.clone(),
+            public_asset_path.clone(),
+        )
+        .await?;
+        pipe_config.pdf_options.clone()
+    } else {
+        let pipe_config = build_vote_receipe_pipe_config(
+            &tally_session,
+            &hasura_transaction,
+            minio_endpoint_base.clone(),
+            public_asset_path.clone(),
+        )
+        .await?;
+        pipe_config.pdf_options.clone()
+    };
 
     let tar_gz_file = download_tally_tar_gz_to_file(
         hasura_transaction,
         tenant_id,
-        election_event_id,
-        tally_session_id,
+        &election_event_id,
+        &tally_session_id,
     )
     .await?;
 
@@ -94,10 +121,14 @@ async fn generate_ballot_images(
 
     let tally_path_path = tally_path.into_path();
 
-    let election_path = tally_path_path.join(format!(
-        "output/velvet-mcballot-images/election__{}",
-        election_id
-    ));
+    let pipe_name = if is_ballot_images {
+        PipeNameOutputDir::MCBallotImages.as_ref().to_string()
+    } else {
+        PipeNameOutputDir::MCBallotReceipts.as_ref().to_string()
+    };
+
+    let election_path =
+        tally_path_path.join(format!("output/{pipe_name}/election__{election_id}",));
 
     if !election_path.exists() {
         return Err(anyhow!("Error reading election path in zip"));
@@ -112,7 +143,12 @@ async fn generate_ballot_images(
     let out_temp_dir_path = out_temp_dir.path();
 
     for area_folder in area_folders {
-        let html_path = area_folder.join(BALLOT_IMAGES_OUTPUT_FILE_HTML);
+        let html_name = if is_ballot_images {
+            BALLOT_IMAGES_OUTPUT_FILE_HTML
+        } else {
+            OUTPUT_FILE_HTML
+        };
+        let html_path = area_folder.join(html_name);
         if !html_path.exists() {
             return Err(anyhow!(
                 "Error reading html ballot image in zip: {}",
@@ -122,7 +158,7 @@ async fn generate_ballot_images(
 
         let bytes_html = fs::read_to_string(html_path.as_path())?;
 
-        let pdf_options = match ballot_images_pipe_config.pdf_options.clone() {
+        let pdf_options = match pipe_config_pdf_options.clone() {
             Some(options) => Some(options.to_print_to_pdf_options()),
             None => None,
         };
@@ -136,8 +172,13 @@ async fn generate_ballot_images(
 
         let hash_bytes = hash_sha256(bytes_pdf.as_slice())?;
         let hash_hex = hex::encode(hash_bytes);
-        let pdf_filename = format!("ballot_images_{hash_hex}.pdf");
-        let out_file_path = out_area_path.join(pdf_filename);
+        let pdf_filename = if is_ballot_images {
+            format!("mcballot_images_{hash_hex}.pdf")
+        } else {
+            "mcballots_receipts.pdf".to_string()
+        };
+
+        let out_file_path = out_area_path.join(&pdf_filename);
 
         let mut file = fs::OpenOptions::new()
             .write(true)
@@ -148,12 +189,18 @@ async fn generate_ballot_images(
         file.flush()?;
     }
 
-    let output_zip_tempfile = generate_temp_file("ballot-images", "zip")?;
+    let output_zip_tempfile = generate_temp_file(&pipe_name, "zip")?;
     let output_zip_path = output_zip_tempfile.path();
     let output_zip_str = output_zip_path.to_string_lossy();
 
     compress_folder_to_zip(out_temp_dir_path, output_zip_path)?;
     let file_size = get_file_size(&output_zip_str).with_context(|| "Error obtaining file size")?;
+
+    let otuput_doc_name = if is_ballot_images {
+        format!("election-{election_id}-ballot-images.zip")
+    } else {
+        format!("election-{election_id}-vote-receipts.zip")
+    };
 
     let document = upload_and_return_document_postgres(
         &hasura_transaction,
@@ -162,22 +209,12 @@ async fn generate_ballot_images(
         "applization/zip",
         tenant_id,
         Some(election_event_id.to_string()),
-        "ballot_images.zip",
+        &otuput_doc_name,
         Some(document_id.to_string()),
         false,
     )
     .await?;
 
-    Ok(())
-}
-
-async fn generate_vote_receipts(
-    hasura_transaction: &Transaction<'_>,
-    tenant_id: &str,
-    election_event_id: &str,
-    election_id: &str,
-    tally_session_id: &str,
-) -> AnyhowResult<()> {
     Ok(())
 }
 
@@ -209,37 +246,7 @@ async fn generate_template_block(
         }
     };
 
-    match input {
-        EGenerateTemplate::BallotImages {
-            election_event_id,
-            election_id,
-            tally_session_id,
-        } => {
-            generate_ballot_images(
-                &hasura_transaction,
-                &tenant_id,
-                &election_event_id,
-                &election_id,
-                &tally_session_id,
-                &document_id,
-            )
-            .await?;
-        }
-        EGenerateTemplate::VoteReceipts {
-            election_event_id,
-            election_id,
-            tally_session_id,
-        } => {
-            generate_vote_receipts(
-                &hasura_transaction,
-                &tenant_id,
-                &election_event_id,
-                &election_id,
-                &tally_session_id,
-            )
-            .await?;
-        }
-    }
+    generate_template_document(&hasura_transaction, &tenant_id, &document_id, &input).await?;
 
     hasura_transaction
         .commit()
