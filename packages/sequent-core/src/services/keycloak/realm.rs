@@ -474,6 +474,12 @@ impl KeycloakAdminClient {
                             format!("{}/*", ballot_verifier_url),
                         ]);
                     }
+                     /* Handle expired QR codes that lead to a dead page when using the 'account' client in the election event realm 
+                     (the error page is using the client base URL for redirect) */
+                    if client.client_id == Some(String::from("account")) && login_url.is_some() 
+                    {
+                        client.base_url = login_url.clone();
+                    }
                     Ok(client) // Return the modified client
                 })
                 .collect::<Result<Vec<_>>>()
