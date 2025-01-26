@@ -9,6 +9,7 @@ use anyhow::{Context, Result};
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
+use sequent_core::ballot::ElectionPresentation;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
@@ -21,6 +22,7 @@ use windmill::services::import::import_election_event::upsert_b3_and_elog;
 pub struct CreateElectionInput {
     election_event_id: String,
     name: String,
+    presentation: ElectionPresentation,
     description: Option<String>,
 }
 
@@ -58,6 +60,7 @@ pub async fn create_election(
         &claims.hasura_claims.tenant_id,
         &body.election_event_id,
         &body.name,
+        &body.presentation,
         body.description.clone(),
     )
     .await
