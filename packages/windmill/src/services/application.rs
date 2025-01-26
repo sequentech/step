@@ -74,7 +74,7 @@ struct ApplicationCommunicationChannels {
     sms: SmsConfig,
 }
 
-#[instrument(skip(hasura_transaction, keycloak_transaction), err)]
+#[instrument(skip_all, err)]
 pub async fn verify_application(
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
@@ -445,7 +445,7 @@ fn check_mismatches(
 ) -> Result<(usize, usize, HashMap<String, bool>, HashMap<String, bool>)> {
     let mut match_result = HashMap::new();
     let mut unset_result = HashMap::new();
-    let mut missmatches = 0;
+    let mut mismatches = 0;
 
     debug!(
         "Checking user with id: {:?}, fields to check: {:?}, unset to check: {:?}",
@@ -456,20 +456,65 @@ fn check_mismatches(
         .get("sequent.read-only.id-card-type")
         .ok_or(anyhow!("Error converting applicant_data to map"))?;
 
-    // In case of the card type equals to seamans_book or driver_license, we need to check check middleName together with firstName
-    let mut first_middle_name_flag = false;
-    let card_type_flag = if card_type == ECardType::SEAMANS_BOOK.to_name()
-        || card_type == ECardType::DRIVER_LICENSE.to_name()
-    {
-        true
-    } else {
-        false
-    };
+    // Check if the card type is seamans_book or driver_license
+    let card_type_flag = card_type == ECardType::SEAMANS_BOOK.to_name()
+        || card_type == ECardType::DRIVER_LICENSE.to_name();
 
     for field_to_check in fields_to_check.split(",") {
         let field_to_check = field_to_check.trim();
 
-        // Extract field from application
+        // Special handling for firstName when card_type_flag is true
+        if card_type_flag {
+            if field_to_check == "middleName" {
+                continue;
+            } else if field_to_check == "firstName" {
+                // Extract first and middle names from applicant_data
+                let applicant_first_name = applicant_data
+                    .get("firstName")
+                    .map(|value| value.to_string().to_lowercase());
+                let applicant_middle_name = applicant_data
+                    .get("middleName")
+                    .map(|value| value.to_string().to_lowercase());
+                let applicant_combined = match (applicant_first_name, applicant_middle_name) {
+                    (Some(first), Some(middle)) => {
+                        Some(format!("{} {}", first, middle).trim().to_string())
+                    }
+                    (Some(first), None) => Some(first),
+                    _ => None,
+                };
+
+                // Combine firstName and middleName for the user
+                let user_combined = match (&user.first_name, &user.attributes) {
+                    (Some(first_name), Some(attributes)) => {
+                        let middle_name = attributes
+                            .get("middleName")
+                            .and_then(|values| values.first())
+                            .map(|value| value.to_lowercase());
+                        Some(
+                            format!(
+                                "{} {}",
+                                first_name.to_lowercase(),
+                                middle_name.unwrap_or_default()
+                            )
+                            .trim()
+                            .to_string(),
+                        )
+                    }
+                    (Some(first_name), None) => Some(first_name.to_lowercase()),
+                    _ => None,
+                };
+
+                let is_match = is_fuzzy_match(applicant_combined, user_combined);
+                match_result.insert(field_to_check.to_string(), is_match);
+
+                if !is_match {
+                    mismatches += 1;
+                }
+                continue;
+            }
+        }
+
+        // Extract field from applicant_data
         let applicant_field_value = applicant_data
             .get(field_to_check)
             .map(|value| value.to_string().to_lowercase());
@@ -495,17 +540,8 @@ fn check_mismatches(
         match_result.insert(field_to_check.to_string(), is_match);
 
         if !is_match {
-            if card_type_flag && (field_to_check == "firstName" || field_to_check == "middleName")
-            {
-                first_middle_name_flag = true;
-            } else {
-                missmatches += 1;
-            }
+            mismatches += 1;
         }
-    }
-    // In case of the card type equals to seamans_book or driver_license, middleName and firstName are one entity
-    if first_middle_name_flag {
-        missmatches += 1;
     }
 
     let mut unset_mismatches = 0;
@@ -537,12 +573,12 @@ fn check_mismatches(
         }
     }
 
-    debug!("Missmatches {:?}", missmatches);
-    debug!("Missmatches Unset {:?}", unset_mismatches);
+    debug!("Mismatches {:?}", mismatches);
+    debug!("Unset Mismatches {:?}", unset_mismatches);
     debug!("Match Result {:?}", match_result);
     debug!("Unset Result {:?}", unset_result);
 
-    Ok((missmatches, unset_mismatches, match_result, unset_result))
+    Ok((mismatches, unset_mismatches, match_result, unset_result))
 }
 
 /// Get the accepted/rejected message from the internalization object in the defaults file.
@@ -591,7 +627,7 @@ async fn get_i18n_default_application_communication(
 }
 
 /// Get the accepted/rejected message from the internalization object in presentation.
-#[instrument(skip(presentation))]
+#[instrument(skip_all)]
 pub async fn get_i18n_application_communication(
     presentation: ElectionEventPresentation,
     lang: &str,
@@ -678,7 +714,7 @@ pub async fn get_application_response_communication(
     }
 }
 
-#[instrument(skip(hasura_transaction), err)]
+#[instrument(skip_all, err)]
 pub async fn confirm_application(
     hasura_transaction: &Transaction<'_>,
     id: &str,
