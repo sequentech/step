@@ -12,7 +12,7 @@ use crate::services::database::get_hasura_pool;
 use crate::services::documents::upload_and_return_document_postgres;
 use crate::services::reports::utils::get_public_assets_path_env_var;
 use crate::services::s3;
-use crate::services::tasks_execution::update_fail;
+use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::services::temp_path::generate_temp_file;
 use crate::services::temp_path::get_file_size;
 use crate::types::error::Error;
@@ -230,7 +230,7 @@ async fn generate_template_block(
         Ok(client) => client,
         Err(err) => {
             if let Some(ref task_exec) = task_execution {
-                let _ = update_fail(task_exec, "Failed to get Hasura DB pool").await;
+                update_fail(task_exec, "Failed to get Hasura DB pool").await?;
             }
             return Err(anyhow!("Error getting Hasura DB pool: {}", err));
         }
@@ -240,18 +240,37 @@ async fn generate_template_block(
         Ok(transaction) => transaction,
         Err(err) => {
             if let Some(ref task_exec) = task_execution {
-                let _ = update_fail(task_exec, "Failed to get Hasura DB pool").await;
+                update_fail(task_exec, "Failed to get Hasura DB pool").await?;
             };
             return Err(anyhow!("Error starting Hasura transaction: {err}"));
         }
     };
 
-    generate_template_document(&hasura_transaction, &tenant_id, &document_id, &input).await?;
+    match generate_template_document(&hasura_transaction, &tenant_id, &document_id, &input).await {
+        Ok(transaction) => Ok(transaction),
+        Err(err) => {
+            if let Some(ref task_exec) = task_execution {
+                let err_str = format!("{:?}", err);
+                update_fail(task_exec, &err_str).await?;
+            };
+            Err(err)
+        }
+    }?;
 
-    hasura_transaction
-        .commit()
-        .await
-        .with_context(|| "Failed to commit Hasura transaction")?;
+    match hasura_transaction.commit().await {
+        Ok(transaction) => {
+            if let Some(ref task_exec) = task_execution {
+                update_complete(task_exec).await?;
+            }
+            Ok(transaction)
+        }
+        Err(err) => {
+            if let Some(ref task_exec) = task_execution {
+                update_fail(task_exec, "Failed to commit Hasura transaction").await?;
+            };
+            Err(err)
+        }
+    }?;
 
     Ok(())
 }
