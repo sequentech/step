@@ -156,12 +156,11 @@ async fn create_config(
 }
 
 #[instrument(err, skip(hasura_transaction))]
-async fn generate_template_document2(
+async fn generate_template_document(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     document_id: &str,
     input: &EGenerateTemplate,
-    contest_encryption_policy: ContestEncryptionPolicy,
 ) -> AnyhowResult<()> {
     let (is_ballot_images, election_event_id, election_id, tally_session_id) = match input.clone() {
         EGenerateTemplate::BallotImages {
@@ -207,14 +206,24 @@ async fn generate_template_document2(
 
     let tally_path_path = tally_path.into_path();
 
-    let step_path = if is_ballot_images {
-        tally_path_path.join("output/velvet-mcballot-images")
+    let pipe_name = if is_ballot_images {
+        if contest_encryption_policy == ContestEncryptionPolicy::MULTIPLE_CONTESTS {
+            PipeNameOutputDir::MCBallotImages.as_ref().to_string()
+        } else {
+            PipeNameOutputDir::BallotImages.as_ref().to_string()
+        }
     } else {
-        tally_path_path.join("output/velvet-mcballot-receipts")
+        if contest_encryption_policy == ContestEncryptionPolicy::MULTIPLE_CONTESTS {
+            PipeNameOutputDir::MCBallotReceipts.as_ref().to_string()
+        } else {
+            PipeNameOutputDir::VoteReceipts.as_ref().to_string()
+        }
     };
 
+    let step_path = tally_path_path.join("output").join(&pipe_name);
+
     if fs::metadata(&step_path).is_ok() {
-        fs::remove_dir(&step_path)?;
+        fs::remove_dir_all(&step_path)?;
     }
 
     let first_pipe_id = create_config(
@@ -228,151 +237,13 @@ async fn generate_template_document2(
 
     call_velvet(tally_path_path.clone(), &first_pipe_id).await?;
 
-    Ok(())
-}
-
-#[instrument(err, skip(hasura_transaction))]
-async fn generate_template_document(
-    hasura_transaction: &Transaction<'_>,
-    tenant_id: &str,
-    document_id: &str,
-    input: &EGenerateTemplate,
-) -> AnyhowResult<()> {
-    let (is_ballot_images, election_event_id, election_id, tally_session_id) = match input.clone() {
-        EGenerateTemplate::BallotImages {
-            election_event_id,
-            election_id,
-            tally_session_id,
-        } => (true, election_event_id, election_id, tally_session_id),
-        EGenerateTemplate::VoteReceipts {
-            election_event_id,
-            election_id,
-            tally_session_id,
-        } => (false, election_event_id, election_id, tally_session_id),
-    };
-
-    let tally_session = get_tally_session_by_id(
-        hasura_transaction,
-        tenant_id,
-        &election_event_id,
-        &tally_session_id,
-    )
-    .await?;
-
-    if !tally_session.is_execution_completed
-        || tally_session.execution_status != Some(TallyExecutionStatus::SUCCESS.to_string())
-    {
-        return Err(anyhow!("Tally session is not completed"));
-    }
-    let public_asset_path = get_public_assets_path_env_var()?;
-
-    let minio_endpoint_base = s3::get_minio_url()?;
-
-    let pipe_config_pdf_options = if is_ballot_images {
-        let pipe_config = build_ballot_images_pipe_config(
-            &tally_session,
-            &hasura_transaction,
-            minio_endpoint_base.clone(),
-            public_asset_path.clone(),
-        )
-        .await?;
-        pipe_config.pdf_options.clone()
-    } else {
-        let pipe_config = build_vote_receipe_pipe_config(
-            &tally_session,
-            &hasura_transaction,
-            minio_endpoint_base.clone(),
-            public_asset_path.clone(),
-        )
-        .await?;
-        pipe_config.pdf_options.clone()
-    };
-
-    let tar_gz_file = download_tally_tar_gz_to_file(
-        hasura_transaction,
-        tenant_id,
-        &election_event_id,
-        &tally_session_id,
-    )
-    .await?;
-
-    let tally_path = decompress_file(tar_gz_file.path())?;
-
-    let tally_path_path = tally_path.into_path();
-
-    let pipe_name = if is_ballot_images {
-        PipeNameOutputDir::MCBallotImages.as_ref().to_string()
-    } else {
-        PipeNameOutputDir::MCBallotReceipts.as_ref().to_string()
-    };
-
-    let election_path =
-        tally_path_path.join(format!("output/{pipe_name}/election__{election_id}",));
-
-    if !election_path.exists() {
-        return Err(anyhow!("Error reading election path in zip"));
-    }
-
-    let area_folders = list_subfolders(election_path.as_path());
-
-    if area_folders.len() == 0 {
-        return Err(anyhow!("No areas for election"));
-    }
-    let out_temp_dir = tempdir().with_context(|| "Error generating temp directory")?;
-    let out_temp_dir_path = out_temp_dir.path();
-
-    for area_folder in area_folders {
-        let html_name = if is_ballot_images {
-            BALLOT_IMAGES_OUTPUT_FILE_HTML
-        } else {
-            OUTPUT_FILE_HTML
-        };
-        let html_path = area_folder.join(html_name);
-        if !html_path.exists() {
-            return Err(anyhow!(
-                "Error reading html ballot image in zip: {}",
-                html_path.display()
-            ));
-        }
-
-        let bytes_html = fs::read_to_string(html_path.as_path())?;
-
-        let pdf_options = match pipe_config_pdf_options.clone() {
-            Some(options) => Some(options.to_print_to_pdf_options()),
-            None => None,
-        };
-        let bytes_pdf = pdf::html_to_pdf(bytes_html, pdf_options)?;
-
-        let area_name =
-            get_folder_name(area_folder.as_path()).ok_or(anyhow!("Can't read folder name"))?;
-        let out_area_path = out_temp_dir_path.join(area_name);
-
-        fs::create_dir_all(&out_area_path)?;
-
-        let hash_bytes = hash_sha256(bytes_pdf.as_slice())?;
-        let hash_hex = hex::encode(hash_bytes);
-        let pdf_filename = if is_ballot_images {
-            format!("mcballot_images_{hash_hex}.pdf")
-        } else {
-            "mcballots_receipts.pdf".to_string()
-        };
-
-        let out_file_path = out_area_path.join(&pdf_filename);
-
-        let mut file = fs::OpenOptions::new()
-            .write(true)
-            .truncate(true)
-            .create(true)
-            .open(out_file_path)?;
-        file.write_all(&bytes_pdf)?;
-        file.flush()?;
-    }
+    let election_path = step_path.join(format!("election__{election_id}"));
 
     let output_zip_tempfile = generate_temp_file(&pipe_name, "zip")?;
     let output_zip_path = output_zip_tempfile.path();
     let output_zip_str = output_zip_path.to_string_lossy();
 
-    compress_folder_to_zip(out_temp_dir_path, output_zip_path)?;
+    compress_folder_to_zip(&election_path, output_zip_path)?;
     let file_size = get_file_size(&output_zip_str).with_context(|| "Error obtaining file size")?;
 
     let otuput_doc_name = if is_ballot_images {
@@ -381,7 +252,7 @@ async fn generate_template_document(
         format!("election-{election_id}-vote-receipts.zip")
     };
 
-    let document = upload_and_return_document_postgres(
+    let _document = upload_and_return_document_postgres(
         &hasura_transaction,
         &output_zip_str,
         file_size,
