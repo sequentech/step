@@ -165,7 +165,7 @@ async fn generate_template_document(
         let bytes_pdf = pdf::html_to_pdf(bytes_html, pdf_options)?;
 
         let area_name =
-            get_folder_name(html_path.as_path()).ok_or(anyhow!("Can't read folder name"))?;
+            get_folder_name(area_folder.as_path()).ok_or(anyhow!("Can't read folder name"))?;
         let out_area_path = out_temp_dir_path.join(area_name);
 
         fs::create_dir_all(&out_area_path)?;

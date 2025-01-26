@@ -138,7 +138,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
         broker = AMQPBroker { std::env::var("AMQP_ADDR").unwrap_or_else(|_| "amqp://rabbitmq:5672".into()) },
         tasks = [
             create_keys,
-            review_boards, 
+            review_boards,
             process_board,
             render_report,
             generate_report,
