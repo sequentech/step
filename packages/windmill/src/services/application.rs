@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2024 Sequent Legal <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use super::users::{lookup_users, FilterOption, ListUsersFilter};
 use crate::postgres::application::get_permission_label_from_post;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::services::celery_app::get_celery_app;
@@ -35,9 +36,15 @@ use uuid::Uuid;
 
 use sequent_core::types::templates::AudienceSelection::SELECTED;
 use sequent_core::types::templates::TemplateMethod::{EMAIL, SMS};
-
-use super::users::{lookup_users, FilterOption, ListUsersFilter};
 use unicode_normalization::char::decompose_canonical;
+
+lazy_static! {
+    pub static ref FIRST_NAME: &'static str = "firstName";
+    pub static ref MIDDLE_NAME: &'static str = "middleName";
+    pub static ref LAST_NAME: &'static str = "lastName";
+    pub static ref USERNAME: &'static str = "username";
+    pub static ref MAIL: &'static str = "email";
+}
 
 #[allow(non_camel_case_types)]
 #[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
@@ -52,11 +59,11 @@ pub enum ECardType {
 impl ECardType {
     pub fn to_name(&self) -> &str {
         match self {
-            ECardType::PHILSYS_ID => "philSysID",
-            ECardType::SEAMANS_BOOK => "seamanBook",
-            ECardType::DRIVER_LICENSE => "driversLicense",
-            ECardType::PHILIPPINE_PASSPORT => "philippinePassport",
-            ECardType::IBP => "iBP",
+            ECardType::PHILSYS_ID => "PhilSys ID",
+            ECardType::SEAMANS_BOOK => "Seaman's Book",
+            ECardType::DRIVER_LICENSE => "driversLicense", //Driver's License
+            ECardType::PHILIPPINE_PASSPORT => "philippinePassport", //Philippine Passport
+            ECardType::IBP => "iBP", //Integrated Bar of the Philippines (IBP)
         }
     }
 }

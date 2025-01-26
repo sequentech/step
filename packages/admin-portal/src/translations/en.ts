@@ -2,9 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {en} from "intl-tel-input/i18n"
-import {title} from "process"
-
 const englishTranslation = {
     translations: {
         philippinePassport: "Philippine Passport",
