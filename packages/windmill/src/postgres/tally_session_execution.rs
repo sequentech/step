@@ -145,3 +145,48 @@ pub async fn get_tally_session_executions(
 
     Ok(elements)
 }
+
+pub async fn get_last_tally_session_execution(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    tally_session_id: &str,
+) -> Result<Option<TallySessionExecution>> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT
+                    *
+                FROM
+                    sequent_backend.tally_session_execution
+                WHERE
+                    tenant_id = $1 AND
+                    election_event_id = $2 AND
+                    tally_session_id = $3
+                ORDER BY created_at DESC
+                LIMIT 1;
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(election_event_id)?,
+                &Uuid::parse_str(tally_session_id)?,
+            ],
+        )
+        .await?;
+
+    let elements: Vec<TallySessionExecution> = rows
+        .into_iter()
+        .map(|row| -> Result<TallySessionExecution> {
+            row.try_into()
+                .map(|res: TallySessionExecutionWrapper| -> TallySessionExecution { res.0 })
+        })
+        .collect::<Result<Vec<TallySessionExecution>>>()?;
+
+    Ok(elements.first().cloned())
+}
