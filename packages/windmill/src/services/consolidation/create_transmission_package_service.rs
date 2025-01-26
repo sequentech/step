@@ -318,7 +318,7 @@ pub async fn create_transmission_package_service(
 
     list_files(&tally_path_path)?;
 
-    let state = generate_initial_state(&tally_path_path)?;
+    let state = generate_initial_state(&tally_path_path, "decode-ballots")?;
 
     let results = state.get_results(true)?;
 

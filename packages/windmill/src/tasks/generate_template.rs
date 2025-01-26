@@ -5,6 +5,8 @@
 use crate::postgres::tally_session::get_tally_session_by_id;
 use crate::services::ceremonies::velvet_tally::build_ballot_images_pipe_config;
 use crate::services::ceremonies::velvet_tally::build_vote_receipe_pipe_config;
+use crate::services::ceremonies::velvet_tally::call_velvet;
+use crate::services::ceremonies::velvet_tally::generate_initial_state;
 use crate::services::compress::decompress_file;
 use crate::services::consolidation::create_transmission_package_service::download_tally_tar_gz_to_file;
 use crate::services::consolidation::zip::compress_folder_to_zip;
@@ -21,18 +23,23 @@ use anyhow::{anyhow, Context, Result as AnyhowResult};
 use celery::error::TaskError;
 use deadpool_postgres::{Client as DbClient, Transaction};
 use hex;
+use sequent_core::ballot::ContestEncryptionPolicy;
 use sequent_core::services::pdf;
 use sequent_core::types::ceremonies::TallyExecutionStatus;
+use sequent_core::types::hasura::core::TallySession;
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::util::path::get_folder_name;
 use sequent_core::util::path::list_subfolders;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
+use std::path::PathBuf;
 use strand::hash::hash_sha256;
 use tempfile::tempdir;
 use tracing::{info, instrument};
 use velvet::config::vote_receipt::PipeConfigVoteReceipts;
+use velvet::pipes::pipe_name::PipeName;
 use velvet::pipes::pipe_name::PipeNameOutputDir;
 use velvet::pipes::vote_receipts::mcballot_receipts::{
     BALLOT_IMAGES_OUTPUT_FILE_HTML, OUTPUT_FILE_HTML,
@@ -53,6 +60,178 @@ pub enum EGenerateTemplate {
     },
 }
 
+#[instrument(err, skip(hasura_transaction, tally_session))]
+async fn create_config(
+    hasura_transaction: &Transaction<'_>,
+    tally_session: &TallySession,
+    tally_path: &PathBuf,
+    is_ballot_images: bool,
+    contest_encryption_policy: &ContestEncryptionPolicy,
+) -> AnyhowResult<String> {
+    let config_path = tally_path.join("velvet-config.json");
+
+    if fs::metadata(&config_path).is_ok() {
+        fs::remove_file(&config_path)?;
+    }
+
+    let public_asset_path = get_public_assets_path_env_var()?;
+
+    let minio_endpoint_base = s3::get_minio_url()?;
+
+    let pipe_config: serde_json::Value = if is_ballot_images {
+        let ballot_images_pipe_config: PipeConfigVoteReceipts = build_ballot_images_pipe_config(
+            &tally_session,
+            &hasura_transaction,
+            minio_endpoint_base.clone(),
+            public_asset_path.clone(),
+        )
+        .await?;
+        serde_json::to_value(ballot_images_pipe_config)?
+    } else {
+        let vote_receipt_pipe_config: PipeConfigVoteReceipts = build_vote_receipe_pipe_config(
+            &tally_session,
+            &hasura_transaction,
+            minio_endpoint_base.clone(),
+            public_asset_path.clone(),
+        )
+        .await?;
+        serde_json::to_value(vote_receipt_pipe_config)?
+    };
+
+    let first_pipe_id = if is_ballot_images {
+        "ballot-images"
+    } else {
+        "vote-receipts"
+    };
+
+    let stages_def = {
+        let mut map = HashMap::new();
+        map.insert(
+            "main".to_string(),
+            velvet::config::Stage {
+                pipeline: vec![if is_ballot_images {
+                    velvet::config::PipeConfig {
+                        id: first_pipe_id.to_string(),
+                        pipe: match contest_encryption_policy {
+                            ContestEncryptionPolicy::MULTIPLE_CONTESTS => PipeName::MCBallotImages,
+                            ContestEncryptionPolicy::SINGLE_CONTEST => PipeName::BallotImages,
+                        },
+                        config: Some(pipe_config),
+                    }
+                } else {
+                    velvet::config::PipeConfig {
+                        id: first_pipe_id.to_string(),
+                        pipe: match contest_encryption_policy {
+                            ContestEncryptionPolicy::MULTIPLE_CONTESTS => {
+                                PipeName::MCBallotReceipts
+                            }
+                            ContestEncryptionPolicy::SINGLE_CONTEST => PipeName::VoteReceipts,
+                        },
+                        config: Some(pipe_config),
+                    }
+                }],
+            },
+        );
+        map
+    };
+
+    let stages = velvet::config::Stages {
+        order: vec!["main".to_string()],
+        stages_def,
+    };
+
+    let velvet_config = velvet::config::Config {
+        version: "0.0.0".to_string(),
+        stages,
+    };
+    let mut file = fs::OpenOptions::new()
+        .write(true)
+        .create(true)
+        .open(&config_path)?;
+
+    writeln!(file, "{}", serde_json::to_string(&velvet_config)?)?;
+    file.flush()?;
+
+    Ok(first_pipe_id.to_string())
+}
+
+#[instrument(err, skip(hasura_transaction))]
+async fn generate_template_document2(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    document_id: &str,
+    input: &EGenerateTemplate,
+    contest_encryption_policy: ContestEncryptionPolicy,
+) -> AnyhowResult<()> {
+    let (is_ballot_images, election_event_id, election_id, tally_session_id) = match input.clone() {
+        EGenerateTemplate::BallotImages {
+            election_event_id,
+            election_id,
+            tally_session_id,
+        } => (true, election_event_id, election_id, tally_session_id),
+        EGenerateTemplate::VoteReceipts {
+            election_event_id,
+            election_id,
+            tally_session_id,
+        } => (false, election_event_id, election_id, tally_session_id),
+    };
+
+    let tally_session = get_tally_session_by_id(
+        hasura_transaction,
+        tenant_id,
+        &election_event_id,
+        &tally_session_id,
+    )
+    .await?;
+    let contest_encryption_policy = tally_session
+        .configuration
+        .clone()
+        .unwrap_or_default()
+        .get_contest_encryption_policy();
+
+    if !tally_session.is_execution_completed
+        || tally_session.execution_status != Some(TallyExecutionStatus::SUCCESS.to_string())
+    {
+        return Err(anyhow!("Tally session is not completed"));
+    }
+
+    let tar_gz_file = download_tally_tar_gz_to_file(
+        hasura_transaction,
+        tenant_id,
+        &election_event_id,
+        &tally_session_id,
+    )
+    .await?;
+
+    let tally_path = decompress_file(tar_gz_file.path())?;
+
+    let tally_path_path = tally_path.into_path();
+
+    let step_path = if is_ballot_images {
+        tally_path_path.join("output/velvet-mcballot-images")
+    } else {
+        tally_path_path.join("output/velvet-mcballot-receipts")
+    };
+
+    if fs::metadata(&step_path).is_ok() {
+        fs::remove_dir(&step_path)?;
+    }
+
+    let first_pipe_id = create_config(
+        &hasura_transaction,
+        &tally_session,
+        &tally_path_path,
+        is_ballot_images,
+        &contest_encryption_policy,
+    )
+    .await?;
+
+    call_velvet(tally_path_path.clone(), &first_pipe_id).await?;
+
+    Ok(())
+}
+
+#[instrument(err, skip(hasura_transaction))]
 async fn generate_template_document(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
