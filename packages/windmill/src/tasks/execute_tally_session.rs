@@ -5,12 +5,9 @@ use crate::hasura;
 use crate::hasura::election_event::get_election_event_helper;
 use crate::hasura::election_event::update_election_event_status;
 use crate::hasura::keys_ceremony::get_keys_ceremonies;
-use crate::hasura::results_event::insert_results_event;
 use crate::hasura::tally_session::set_tally_session_completed;
+use crate::hasura::tally_session_execution::get_last_tally_session_execution;
 use crate::hasura::tally_session_execution::get_last_tally_session_execution::ResponseData;
-use crate::hasura::tally_session_execution::{
-    get_last_tally_session_execution, insert_tally_session_execution,
-};
 use crate::postgres::area::get_event_areas;
 use crate::postgres::contest::export_contests;
 use crate::postgres::election::set_election_initialization_report_generated;
@@ -18,7 +15,9 @@ use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::keys_ceremony::get_keys_ceremony_by_id;
 use crate::postgres::reports::get_template_alias_for_report;
 use crate::postgres::reports::ReportType;
+use crate::postgres::results_event::insert_results_event;
 use crate::postgres::tally_session::get_tally_session_by_id;
+use crate::postgres::tally_session_execution::insert_tally_session_execution;
 use crate::postgres::tally_sheet::get_published_tally_sheets_by_event;
 use crate::postgres::template::get_template_by_alias;
 use crate::services::cast_votes::{count_cast_votes_election, ElectionCastVotes};
@@ -1043,19 +1042,15 @@ async fn map_plaintext_data(
     )))
 }
 
-#[instrument(skip(auth_headers), err)]
+#[instrument(skip(hasura_transaction), err)]
 async fn create_results_event(
-    auth_headers: &connection::AuthHeaders,
+    hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<String> {
-    let results_event = &insert_results_event(auth_headers, &tenant_id, &election_event_id)
-        .await?
-        .data
-        .with_context(|| "can't find results_event")?
-        .insert_sequent_backend_results_event
-        .with_context(|| "can't find results_event")?
-        .returning[0];
+    let results_event = &insert_results_event(hasura_transaction, &tenant_id, &election_event_id)
+        .await
+        .with_context(|| "can't find results_event")?;
 
     Ok(results_event.id.clone())
 }
@@ -1286,16 +1281,20 @@ pub async fn execute_tally_session_wrapped(
     // could be expired
     let auth_headers = keycloak::get_client_credentials().await?;
 
+    let session_ids_i32: Option<Vec<i32>> = session_ids
+        .clone()
+        .map(|values| values.clone().into_iter().map(|int| int as i32).collect());
+
     // insert tally_session_execution
     insert_tally_session_execution(
-        auth_headers.clone(),
-        tenant_id.clone(),
-        election_event_id.clone(),
-        newest_message_id,
-        tally_session_id.clone(),
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        newest_message_id as i32,
+        &tally_session_id,
         Some(new_status),
         results_event_id,
-        session_ids,
+        session_ids_i32,
     )
     .await?;
 
