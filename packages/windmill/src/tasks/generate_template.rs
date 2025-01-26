@@ -243,6 +243,26 @@ async fn generate_template_document(
     let output_zip_path = output_zip_tempfile.path();
     let output_zip_str = output_zip_path.to_string_lossy();
 
+    // clear the path
+    let subfolders = list_subfolders(&election_path);
+    for subfolder in subfolders {
+        let entries = fs::read_dir(subfolder)?;
+        for entry in entries {
+            if let Ok(entry) = entry {
+                let path = entry.path();
+                if path.is_dir() {
+                    continue;
+                }
+                let Ok(name) = entry.file_name().into_string() else {
+                    continue;
+                };
+                if name.ends_with(".html") {
+                    fs::remove_file(&path)?;
+                }
+            }
+        }
+    }
+
     compress_folder_to_zip(&election_path, output_zip_path)?;
     let file_size = get_file_size(&output_zip_str).with_context(|| "Error obtaining file size")?;
 
