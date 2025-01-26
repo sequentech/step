@@ -389,10 +389,15 @@ impl ValidateAnnotations for core::Election {
                 )
             })?;
 
-        let registered_voters: i64 =
-            find_miru_annotation_opt(MIRU_REGISTERED_VOTERS, &annotations)?
-                .and_then(|val| val.parse::<i64>().ok())
-                .unwrap_or(-1); //TODO: fix
+        let registered_voters: i64 = find_miru_annotation(MIRU_REGISTERED_VOTERS, &annotations)
+            .with_context(|| {
+                format!(
+                    "Missing election annotation: '{}:{}'",
+                    MIRU_PLUGIN_PREPEND, MIRU_REGISTERED_VOTERS
+                )
+            })?
+            .parse::<i64>()
+            .with_context(|| anyhow!("Can't parse registered_voters"))?;
 
         let pollcenter_code = annotations
             .get(MIRU_POLLCENTER_CODE)

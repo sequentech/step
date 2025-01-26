@@ -429,7 +429,7 @@ impl TemplateRenderer for AuditLogsTemplate {
         .map_err(|err| anyhow!("Error extract area data {err}"))?;
 
         let ballots_counted = count_ballots_by_election(
-            &hasura_transaction,
+            hasura_transaction,
             &self.ids.tenant_id,
             &self.ids.election_event_id,
             &election_id,
