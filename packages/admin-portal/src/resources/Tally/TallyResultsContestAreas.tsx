@@ -32,7 +32,15 @@ interface TallyResultsContestAreasProps {
 }
 
 export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> = (props) => {
-    const {areas, contestId, electionId, electionEventId, tenantId, resultsEventId, tallySessionId} = props
+    const {
+        areas,
+        contestId,
+        electionId,
+        electionEventId,
+        tenantId,
+        resultsEventId,
+        tallySessionId,
+    } = props
     const {t} = reactI18next.useTranslation()
 
     const [value, setValue] = React.useState<number | null>(null)
