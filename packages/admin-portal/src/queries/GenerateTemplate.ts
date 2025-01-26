@@ -9,11 +9,13 @@ export const GENERATE_TEMPLATE = gql`
         $electionEventId: String!
         $electionId: String!
         $tallySessionId: String!
+        $type: String!
     ) {
         generate_template(
             election_event_id: $electionEventId
             election_id: $electionId
             tally_session_id: $tallySessionId
+            type: $type
         ) {
             document_id
             task_execution {

@@ -8,11 +8,11 @@ import {ETemplateType} from "@/types/templates"
 import {useMutation} from "@apollo/client"
 import {GENERATE_TEMPLATE} from "@/queries/GenerateTemplate"
 import {IPermissions} from "@/types/keycloak"
-import { GenerateTemplateMutation } from "@/gql/graphql"
-import { DownloadDocument } from "@/resources/User/DownloadDocument"
-import { useWidgetStore } from "@/providers/WidgetsContextProvider"
-import { ETasksExecution } from "@/types/tasksExecution"
-import { WidgetProps } from "../Widget"
+import {GenerateTemplateMutation} from "@/gql/graphql"
+import {DownloadDocument} from "@/resources/User/DownloadDocument"
+import {useWidgetStore} from "@/providers/WidgetsContextProvider"
+import {ETasksExecution} from "@/types/tasksExecution"
+import {WidgetProps} from "../Widget"
 
 interface GenerateReportProps {
     electionEventId: string
@@ -21,7 +21,12 @@ interface GenerateReportProps {
     reportType: ETemplateType
 }
 
-export const GenerateReport: React.FC<GenerateReportProps> = ({electionEventId, electionId, tallySessionId, reportType}) => {
+export const GenerateReport: React.FC<GenerateReportProps> = ({
+    electionEventId,
+    electionId,
+    tallySessionId,
+    reportType,
+}) => {
     const {t} = useTranslation()
     const [documentId, setDocumentId] = useState<string | null>(null)
 
@@ -37,14 +42,17 @@ export const GenerateReport: React.FC<GenerateReportProps> = ({electionEventId, 
     const onClick = async (e: React.MouseEvent<HTMLElement>) => {
         e.preventDefault()
         e.stopPropagation()
-                const currWidget: WidgetProps = addWidget(ETasksExecution.GENERATE_REPORT)
+        const currWidget: WidgetProps = addWidget(ETasksExecution.GENERATE_REPORT)
         try {
             let {data} = await generateTemplate({
                 variables: {
                     tallySessionId: tallySessionId,
                     electionId: electionId,
                     electionEventId: electionEventId,
-                    type: reportType === ETemplateType.BALLOT_IMAGES? "BallotImages" : "VoteReceipts"
+                    type:
+                        reportType === ETemplateType.BALLOT_IMAGES
+                            ? "BallotImages"
+                            : "VoteReceipts",
                 },
             })
             let response = data?.generate_template
@@ -65,9 +73,7 @@ export const GenerateReport: React.FC<GenerateReportProps> = ({electionEventId, 
     }
 
     return (
-        <MenuItem
-            onClick={onClick}
-        >
+        <MenuItem onClick={onClick}>
             <Box
                 sx={{
                     textOverflow: "ellipsis",

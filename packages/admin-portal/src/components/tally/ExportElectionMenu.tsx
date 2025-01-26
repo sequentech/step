@@ -90,6 +90,7 @@ interface ExportElectionMenuProps {
     buttonTitle?: string
     documentsList: IResultDocumentsData[] | null
     electionEventId: string
+    tallySessionId: string
     itemName: string
     tallyType?: string | null
     electionId?: string | null
@@ -101,6 +102,7 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
     const {
         itemName,
         documentsList,
+        tallySessionId,
         electionEventId,
         buttonTitle,
         tallyType,
@@ -286,11 +288,15 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
                         <>
                             <GenerateReport
                                 reportType={ETemplateType.BALLOT_IMAGES}
+                                electionEventId={electionEventId}
                                 electionId={electionId}
+                                tallySessionId={tallySessionId}
                             />
                             <GenerateReport
                                 reportType={ETemplateType.VOTE_RECEIPT}
+                                electionEventId={electionEventId}
                                 electionId={electionId}
+                                tallySessionId={tallySessionId}
                             />
                         </>
                     ) : null}

@@ -2298,6 +2298,7 @@ export type Mutation_RootGenerate_TemplateArgs = {
   election_event_id: Scalars['String']['input'];
   election_id: Scalars['String']['input'];
   tally_session_id: Scalars['String']['input'];
+  type: Scalars['String']['input'];
 };
 
 
