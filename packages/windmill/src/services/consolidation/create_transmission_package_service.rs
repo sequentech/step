@@ -20,7 +20,7 @@ use crate::postgres::election::get_election_by_id;
 use crate::postgres::results_election::get_results_election_by_results_event_id;
 use crate::postgres::results_event::get_results_event_by_id;
 use crate::postgres::tally_session::{get_tally_session_by_id, update_tally_session_annotation};
-use crate::postgres::tally_session_execution::get_tally_session_executions;
+use crate::postgres::tally_session_execution::get_last_tally_session_execution;
 use crate::services::ceremonies::velvet_tally::generate_initial_state;
 use crate::services::compress::decompress_file;
 use crate::services::consolidation::eml_types::ACMTrustee;
@@ -53,25 +53,21 @@ use uuid::Uuid;
 use velvet::pipes::generate_reports::ReportData;
 
 #[instrument(skip(hasura_transaction), err)]
-pub async fn download_to_file(
+pub async fn download_tally_tar_gz_to_file(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
     tally_session_id: &str,
 ) -> Result<NamedTempFile> {
-    let tally_session_executions = get_tally_session_executions(
+    let tally_session_execution = get_last_tally_session_execution(
         hasura_transaction,
         tenant_id,
         election_event_id,
         tally_session_id,
     )
     .await
-    .with_context(|| "Error fetching tally session executions")?;
-
-    // the first execution is the latest one
-    let tally_session_execution = tally_session_executions
-        .first()
-        .ok_or_else(|| anyhow!("No tally session executions found"))?;
+    .with_context(|| "Error fetching tally session executions")?
+    .ok_or(anyhow!("No tally session execution found"))?;
 
     let results_event_id = tally_session_execution
         .results_event_id
@@ -308,7 +304,7 @@ pub async fn create_transmission_package_service(
 
     let ccs_servers = area_annotations.ccs_servers;
 
-    let tar_gz_file = download_to_file(
+    let tar_gz_file = download_tally_tar_gz_to_file(
         &hasura_transaction,
         tenant_id,
         &election_event.id,
@@ -322,7 +318,7 @@ pub async fn create_transmission_package_service(
 
     list_files(&tally_path_path)?;
 
-    let state = generate_initial_state(&tally_path_path)?;
+    let state = generate_initial_state(&tally_path_path, "decode-ballots")?;
 
     let results = state.get_results(true)?;
 

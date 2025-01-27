@@ -15,7 +15,11 @@ pub mod init_log;
 
 #[macro_use]
 pub mod console_log;
+pub mod float;
 
 #[cfg(feature = "reports")]
 pub mod path;
 pub mod voting_screen;
+
+#[cfg(feature = "probe")]
+pub mod retry;

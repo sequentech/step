@@ -400,10 +400,10 @@ pub async fn create_election_configs(
 }
 
 #[instrument(err)]
-pub fn generate_initial_state(base_tally_path: &PathBuf) -> Result<State> {
+pub fn generate_initial_state(base_tally_path: &PathBuf, pipe_id: &str) -> Result<State> {
     let cli = CliRun {
         stage: "main".to_string(),
-        pipe_id: "decode-ballots".to_string(),
+        pipe_id: pipe_id.to_string(),
         config: base_tally_path.join("velvet-config.json"),
         input_dir: base_tally_path.join("input"),
         output_dir: base_tally_path.join("output"),
@@ -415,8 +415,8 @@ pub fn generate_initial_state(base_tally_path: &PathBuf) -> Result<State> {
 }
 
 #[instrument(err)]
-pub async fn call_velvet(base_tally_path: PathBuf) -> Result<State> {
-    let mut state_opt = Some(generate_initial_state(&base_tally_path)?);
+pub async fn call_velvet(base_tally_path: PathBuf, pipe_id: &str) -> Result<State> {
+    let mut state_opt = Some(generate_initial_state(&base_tally_path, pipe_id)?);
 
     // Use a loop to handle state processing
     loop {
@@ -849,5 +849,5 @@ pub async fn run_velvet_tally(
         tally_type,
     )
     .await?;
-    call_velvet(base_tally_path.clone()).await
+    call_velvet(base_tally_path.clone(), "decode-ballots").await
 }
