@@ -101,3 +101,38 @@ impl<'r> FromRequest<'r> for UserLocation {
         Outcome::Success(UserLocation { ip, country_code })
     }
 }
+
+#[derive(Debug)]
+pub struct DatafixClaims(pub JwtClaims);
+
+#[rocket::async_trait]
+impl<'r> FromRequest<'r> for DatafixClaims {
+    type Error = ();
+    async fn from_request(
+        request: &'r Request<'_>,
+    ) -> Outcome<Self, Self::Error> {
+        let headers = request.headers().clone();
+        match headers.get_one("authorization") {
+            Some(authorization) => {
+                let mut data = authorization.split(":");
+                let client_id = data.nth(0);
+                let client_secret = data.nth(1);
+                // .... WIP
+                // Do the DB query to get the tenant ID if it´s not directly
+                // provided from the client.
+                let access_token: &str = "access_token"; // get access_token in similar way as get_client_credentials
+                match decode_jwt(access_token) {
+                    Ok(jwt) => Outcome::Success(DatafixClaims(jwt)),
+                    Err(err) => {
+                        warn!("JwtClaims guard: decode_jwt error {err:?}");
+                        Outcome::Error((Status::Unauthorized, ()))
+                    }
+                }
+            }
+            None => {
+                warn!("DatafixClaims guard: headers: {headers:?}");
+                Outcome::Error((Status::Unauthorized, ()))
+            }
+        }
+    }
+}

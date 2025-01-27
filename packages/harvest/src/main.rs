@@ -35,6 +35,12 @@ async fn rocket() -> _ {
             ],
         )
         .mount(
+            "/api/datafix/",
+            routes![
+                routes::api_datafix::delete_voter,
+            ],
+        )
+        .mount(
             "/",
             routes![
                 routes::ballot_publication::get_ballot_publication_changes,
