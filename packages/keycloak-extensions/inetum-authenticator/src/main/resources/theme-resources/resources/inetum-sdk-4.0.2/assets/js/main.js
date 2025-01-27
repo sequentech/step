@@ -51,11 +51,11 @@ let showBackStep = true;
 
 let isPassportFlow =
     window.DOB_DOC_ID_TYPE === "philippinePassport" ||
-    window.DOB_DOC_ID_TYPE === "Seaman Book";
+    window.DOB_DOC_ID_TYPE === "seamanBook";
 let intro_row_passport_en =
-    window.DOB_DOC_ID_TYPE === "Seaman Book" ? `Seaman's Book` : "Passport";
+    window.DOB_DOC_ID_TYPE === "seamanBook" ? `Seaman's Book` : "Passport";
 let intro_row_passport_tl =
-    window.DOB_DOC_ID_TYPE === "Seaman Book" ? `Seaman's Book` : "Pasaporte";
+    window.DOB_DOC_ID_TYPE === "seamanBook" ? `Seaman's Book` : "Pasaporte";
 
 /*
   // Ejemplo con pasaporte (revisar tambien estilos de ejemplo en dob-style.css y descomentarlos)
