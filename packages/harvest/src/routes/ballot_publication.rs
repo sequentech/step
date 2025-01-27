@@ -6,6 +6,7 @@ use anyhow::Result;
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
+use sequent_core::types::hasura;
 use sequent_core::types::permissions::Permissions;
 use sequent_core::{
     ballot::{ElectionEventPresentation, LockedDown},
@@ -132,7 +133,19 @@ pub async fn publish_ballot(
     let user_id = claims.hasura_claims.user_id.clone();
     let username = claims.preferred_username.unwrap_or("-".to_string());
 
+    let mut hasura_db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    let hasura_transaction = hasura_db_client
+        .transaction()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
     update_publish_ballot(
+        &hasura_transaction,
         user_id,
         username,
         tenant_id.clone(),
@@ -141,6 +154,11 @@ pub async fn publish_ballot(
     )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    hasura_transaction
+        .commit()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
     Ok(Json(PublishBallotOutput {
         ballot_publication_id: input.ballot_publication_id.clone(),
