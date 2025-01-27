@@ -330,9 +330,8 @@ export default function ElectionEvents() {
             refetchContestData()
         } else if (callerPath === "sequent_backend_candidate") {
             candidateTreeRefetch()
-            electionEventDataRefetch()
         } else {
-            electionEventDataRefetch()
+            // do nothing electionEventDataRefetch()
         }
     }, [location])
 
@@ -396,7 +395,7 @@ export default function ElectionEvents() {
 
     useEffect(() => {
         if (!electionEventData) return
-        setArchivedElectionEvents(electionEventData?.is_archived ?? false)
+        setArchivedElectionEvents(electionEventData?.is_archived ?? isArchivedElectionEvents)
     }, [electionEventData, setArchivedElectionEvents])
 
     function handleSearchChange(searchInput: string) {
@@ -405,6 +404,7 @@ export default function ElectionEvents() {
 
     function changeArchiveSelection(val: number) {
         setArchivedElectionEvents(val === 1)
+        navigate("/sequent_backend_election_event/")
     }
 
     const handleOpenCreateElectionEventMenu = (e: React.MouseEvent<HTMLElement>) => {
