@@ -11,6 +11,7 @@ use crate::postgres::area::get_areas_by_election_id;
 use crate::postgres::election::get_election_by_id;
 use crate::postgres::reports::ReportType;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
+use crate::services::cast_votes::count_ballots_by_area_id;
 use crate::services::temp_path::*;
 use crate::services::transmission::{
     get_transmission_data_from_tally_session_by_area, get_transmission_servers_data, ServerData,
@@ -248,6 +249,16 @@ impl TemplateRenderer for TransmissionReport {
                 .await
                 .map_err(|err| anyhow!("Error get_transmission_servers_data: {err:?}"))?;
 
+            let ballots_counted = count_ballots_by_area_id(
+                &hasura_transaction,
+                &self.ids.tenant_id,
+                &self.ids.election_event_id,
+                &election_id,
+                &area.id,
+            )
+            .await
+            .map_err(|err| anyhow!("Error getting counted ballots: {err}"))?;
+
             let area_data = UserDataArea {
                 election_title: election_title.clone(),
                 election_date: election_date.clone(),
@@ -259,7 +270,7 @@ impl TemplateRenderer for TransmissionReport {
                 voting_center: election_general_data.voting_center.clone(),
                 precinct_code: election_general_data.precinct_code.clone(),
                 registered_voters: votes_data.registered_voters,
-                ballots_counted: votes_data.total_ballots,
+                ballots_counted: Some(ballots_counted),
                 voters_turnout: votes_data.voters_turnout,
                 servers: transmission_data.servers,
                 inspectors: area_general_data.inspectors.clone(),

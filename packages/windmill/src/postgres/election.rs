@@ -1,15 +1,15 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::services::import::import_election_event::ImportElectionEventSchema;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
+use sequent_core::ballot::ElectionPresentation;
 use sequent_core::types::hasura::core::Election;
 use serde_json::Value;
 use tokio_postgres::row::Row;
-use tracing::{event, info, instrument, Level};
+use tracing::{event, instrument, Level};
 use uuid::Uuid;
-
-use crate::services::import::import_election_event::ImportElectionEventSchema;
 
 pub struct ElectionWrapper(pub Election);
 
@@ -385,8 +385,12 @@ pub async fn create_election(
     tenant_id: &str,
     election_event_id: &str,
     name: &str,
+    presentation: &ElectionPresentation,
     description: Option<String>,
 ) -> Result<Election> {
+    let presentation_value = serde_json::to_value(presentation)
+        .map_err(|err| anyhow!("Error serializing election presentation: {err}"))?;
+
     let statement = hasura_transaction
         .prepare(
             r#"
@@ -397,7 +401,8 @@ pub async fn create_election(
                     created_at,
                     last_updated_at,
                     name,
-                    description
+                    description,
+					presentation
                 )
                 VALUES
                 (
@@ -406,7 +411,8 @@ pub async fn create_election(
                     NOW(),
                     NOW(),
                     $3,
-                    $4
+                    $4,
+					$5
                 )
                 RETURNING *;
             "#,
@@ -421,6 +427,7 @@ pub async fn create_election(
                 &Uuid::parse_str(&election_event_id)?,
                 &name.to_string(),
                 &description,
+                &presentation_value,
             ],
         )
         .await
