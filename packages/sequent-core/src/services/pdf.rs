@@ -35,6 +35,10 @@ pub struct PdfRenderer {
 pub mod sync {
     use super::*;
 
+    pub struct PdfRenderer {
+        pub transport: PdfTransport,
+    }
+
     impl PdfRenderer {
         pub fn render_pdf(
             html: String,
