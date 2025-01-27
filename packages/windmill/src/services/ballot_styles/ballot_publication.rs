@@ -210,9 +210,9 @@ pub async fn update_publish_ballot(
     for election_id in election_ids {
         update_election_status(
             &hasura_transaction,
+            &election_id,
             &tenant_id.clone(),
             &election_event_id.clone(),
-            &election_id,
             true,
         )
         .await

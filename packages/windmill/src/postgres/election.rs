@@ -695,7 +695,6 @@ pub async fn update_election_status(
     election_event_id: &str,
     status: bool,
 ) -> Result<Vec<Election>> {
-    // Base query structure
     let query = r#"
         UPDATE
             sequent_backend.election
