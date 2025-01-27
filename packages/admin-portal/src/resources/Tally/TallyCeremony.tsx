@@ -289,16 +289,6 @@ export const TallyCeremony: React.FC = () => {
         }
     )
 
-    // const {data: tallyTemplates} = useGetList<Sequent_Backend_Template>(
-    //     "sequent_backend_template",
-    //     {
-    //         filter: {
-    //             tenant_id: tenantId,
-    //             type: ITemplateType.TALLY_REPORT,
-    //         },
-    //     }
-    // )
-
     useEffect(() => {
         if (tallySession) {
             setTally(tallySession)
@@ -349,7 +339,20 @@ export const TallyCeremony: React.FC = () => {
                     ) ||
                     election.status?.allow_tally === EAllowTally.ALLOWED ||
                     (election.status?.allow_tally === EAllowTally.REQUIRES_VOTING_PERIOD_END &&
-                        isVotingPeriodEnded)
+                        isVotingPeriodEnded) ||
+                    election.status.is_published
+                )
+            }) || false
+        )
+    }, [elections, tallySession])
+
+    const isInitAllowed = useMemo(() => {
+        return (
+            elections?.every((election) => {
+                return (
+                    !(tallySession?.election_ids || []).find(
+                        (election_id) => election.id == election_id
+                    ) || election.status.is_published
                 )
             }) || false
         )
@@ -357,24 +360,17 @@ export const TallyCeremony: React.FC = () => {
 
     useEffect(() => {
         if (page === WizardSteps.Ceremony) {
-            if (tallySession?.tally_type === ETallyType.ELECTORAL_RESULTS) {
-                let newIsButtonDisabled =
-                    tally?.execution_status !== ITallyExecutionStatus.CONNECTED || !isTallyAllowed
-
-                console.log(`Results: setIsButtonDisabled = ${newIsButtonDisabled}`)
-                if (newIsButtonDisabled !== isButtonDisabled) {
-                    setIsButtonDisabled(newIsButtonDisabled)
-                }
-            } else {
-                console.log(
-                    `init report: setIsButtonDisabled = true, tallySession?.tally_type = ${tallySession?.tally_type}`
-                )
-                let newIsButtonDisabled =
-                    tally?.execution_status !== ITallyExecutionStatus.CONNECTED
-
-                if (newIsButtonDisabled !== isButtonDisabled) {
-                    setIsButtonDisabled(newIsButtonDisabled)
-                }
+            let isStartAllowd =
+                tallySession?.tally_type === ETallyType.ELECTORAL_RESULTS
+                    ? isTallyAllowed
+                    : isInitAllowed
+            let newIsButtonDisabled =
+                tally?.execution_status !== ITallyExecutionStatus.CONNECTED || !isStartAllowd
+            console.log(
+                `setIsButtonDisabled = ${newIsButtonDisabled}, tallySession?.tally_type = ${tallySession?.tally_type}`
+            )
+            if (newIsButtonDisabled !== isButtonDisabled) {
+                setIsButtonDisabled(newIsButtonDisabled)
             }
         }
 

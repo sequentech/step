@@ -121,7 +121,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
     const [openCancelTally, openCancelTallySet] = React.useState(false)
     const [deleteId, setDeleteId] = React.useState<Identifier | undefined>()
 
-    const isPublished = electionEventRecord?.status && electionEventRecord.status.is_published
+    const isPublished = electionEventRecord?.status && electionEventRecord.status.is_published // TODO: add here a condition according elections?
 
     const [UpdateTallyCeremonyMutation] =
         useMutation<UpdateTallyCeremonyMutation>(UPDATE_TALLY_CEREMONY)
