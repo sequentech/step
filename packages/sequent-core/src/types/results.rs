@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 #![allow(non_camel_case_types)]
 use chrono::{DateTime, Local};
+use ordered_float::NotNan;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::default::Default;
@@ -55,5 +56,128 @@ pub struct ResultsEvent {
     pub last_updated_at: Option<DateTime<Local>>,
     pub labels: Option<Value>,
     pub annotations: Option<Value>,
+    pub documents: Option<ResultDocuments>,
+}
+
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
+pub struct ResultsElection {
+    pub id: String,
+    pub tenant_id: String,
+    pub election_event_id: String,
+    pub election_id: String,
+    pub results_event_id: String,
+    pub name: Option<String>,
+    pub elegible_census: Option<i64>,
+    pub total_voters: Option<i64>,
+    pub created_at: Option<DateTime<Local>>,
+    pub last_updated_at: Option<DateTime<Local>>,
+    pub labels: Option<Value>,
+    pub annotations: Option<Value>,
+    pub total_voters_percent: Option<NotNan<f64>>,
+    pub documents: Option<ResultDocuments>,
+}
+
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
+pub struct ResultsContest {
+    pub id: String,
+    pub tenant_id: String,
+    pub election_event_id: String,
+    pub election_id: String,
+    pub contest_id: String,
+    pub results_event_id: String,
+    pub elegible_census: Option<i64>,
+    pub total_valid_votes: Option<i64>,
+    pub explicit_invalid_votes: Option<i64>,
+    pub implicit_invalid_votes: Option<i64>,
+    pub blank_votes: Option<i64>,
+    pub voting_type: Option<String>,
+    pub counting_algorithm: Option<String>,
+    pub name: Option<String>,
+    pub created_at: Option<DateTime<Local>>,
+    pub last_updated_at: Option<DateTime<Local>>,
+    pub labels: Option<Value>,
+    pub annotations: Option<Value>,
+    pub total_invalid_votes: Option<i64>,
+    pub total_invalid_votes_percent: Option<NotNan<f64>>,
+    pub total_valid_votes_percent: Option<NotNan<f64>>,
+    pub explicit_invalid_votes_percent: Option<NotNan<f64>>,
+    pub implicit_invalid_votes_percent: Option<NotNan<f64>>,
+    pub blank_votes_percent: Option<NotNan<f64>>,
+    pub total_votes: Option<i64>,
+    pub total_votes_percent: Option<NotNan<f64>>,
+    pub documents: Option<ResultDocuments>,
+    pub total_auditable_votes: Option<i64>,
+    pub total_auditable_votes_percent: Option<NotNan<f64>>,
+}
+
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
+pub struct ResultsContestCandidate {
+    pub id: String,
+    pub tenant_id: String,
+    pub election_event_id: String,
+    pub election_id: String,
+    pub contest_id: String,
+    pub candidate_id: String,
+    pub results_event_id: String,
+    pub cast_votes: Option<i64>,
+    pub winning_position: Option<i64>,
+    pub points: Option<i64>,
+    pub created_at: Option<DateTime<Local>>,
+    pub last_updated_at: Option<DateTime<Local>>,
+    pub labels: Option<Value>,
+    pub annotations: Option<Value>,
+    pub cast_votes_percent: Option<NotNan<f64>>,
+    pub documents: Option<ResultDocuments>,
+}
+
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
+pub struct ResultsAreaContest {
+    pub id: String,
+    pub tenant_id: String,
+    pub election_event_id: String,
+    pub election_id: String,
+    pub contest_id: String,
+    pub area_id: String,
+    pub results_event_id: String,
+    pub elegible_census: Option<i64>,
+    pub total_valid_votes: Option<i64>,
+    pub explicit_invalid_votes: Option<i64>,
+    pub implicit_invalid_votes: Option<i64>,
+    pub blank_votes: Option<i64>,
+    pub created_at: Option<DateTime<Local>>,
+    pub last_updated_at: Option<DateTime<Local>>,
+    pub labels: Option<Value>,
+    pub annotations: Option<Value>,
+    pub total_valid_votes_percent: Option<NotNan<f64>>,
+    pub total_invalid_votes: Option<i64>,
+    pub total_invalid_votes_percent: Option<NotNan<f64>>,
+    pub explicit_invalid_votes_percent: Option<NotNan<f64>>,
+    pub blank_votes_percent: Option<NotNan<f64>>,
+    pub implicit_invalid_votes_percent: Option<NotNan<f64>>,
+    pub total_votes: Option<i64>,
+    pub total_votes_percent: Option<NotNan<f64>>,
+    pub documents: Option<ResultDocuments>,
+    pub total_auditable_votes: Option<i64>,
+    pub total_auditable_votes_percent: Option<NotNan<f64>>,
+}
+
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
+pub struct ResultsAreaContestCandidate {
+    pub id: String,
+    pub tenant_id: String,
+    pub election_event_id: String,
+    pub election_id: String,
+    pub contest_id: String,
+    pub area_id: String,
+    pub candidate_id: String,
+    pub results_event_id: String,
+    pub cast_votes: Option<i64>,
+    pub winning_position: Option<i64>,
+    pub points: Option<i64>,
+    pub created_at: Option<DateTime<Local>>,
+    pub last_updated_at: Option<DateTime<Local>>,
+    pub labels: Option<Value>,
+    pub annotations: Option<Value>,
+    pub cast_votes_percent: Option<NotNan<f64>>,
     pub documents: Option<ResultDocuments>,
 }
