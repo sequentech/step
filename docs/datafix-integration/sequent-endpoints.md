@@ -16,10 +16,8 @@ Key requirements:
 - Full requirements: https://sequentech.atlassian.net/browse/SO-43
 ------------------------------------------------------------------------------------------
 
-#### Delete Voter
-
 <details>
- <summary><code>POST</code> <code><b>/api/datafix/delete-voter</b></code> <code>(Deletes a voter)</code></summary>
+ <summary>For all the endpoints:</summary>
 
 ##### Headers
 
@@ -31,11 +29,77 @@ Key requirements:
 > | event_id  |  required | string                  | To identify the election event. Matches Datafix ID in election event annotations  |
 
 
+</details>
+
+#### Delete Voter
+
+<details>
+ <summary><code>POST</code> <code><b>/api/datafix/delete-voter</b></code> <code>(Deletes a voter)</code></summary>
+
+
 ##### Parameters
 
 > | name      |  type     | data type               | description                                                           |
 > |-----------|-----------|-------------------------|-----------------------------------------------------------------------|
 > | voter_id  |  required | string                  | Voter username/id (unique) to be deleted                              |
+
+
+##### Responses
+
+> | http code     | content-type                      | response                                              | Asumption               |
+> |---------------|-----------------------------------|-------------------------------------------------------|-------------------------|
+> | `200`         | `application/json`                | `{"code":"200","message":"Success"}`                  | Action completed        |
+> | `401`         | `application/json`                | `{"code":"401","message":"Unauthorized"}`             | Incorrect auth headers  |
+> | `400`         | `application/json`                | `{"code":"400","message":"Bad Request"}`              | Incorrect request       |
+> | `404`         | `application/json`                | `{"code":"404","message":"Not found"}`                | Voter does not exist    |
+> | `500`         | `application/json`                | `{"code":"500","message":"InternalServerError"}`      | Internal Server Error   |
+
+</details>
+
+#### Add Voter
+
+<details>
+ <summary><code>POST</code> <code><b>/api/datafix/add-voter</b></code> <code>(Adds a new voter)</code></summary>
+ 
+
+##### Parameters
+
+> | name        |  type     | data type               | description                                                           |
+> |-------------|-----------|-------------------------|-----------------------------------------------------------------------|
+> | voter_id    |  required | string                  | Voter username/id (unique)                                            |
+> | ward        |  required | string                  | Ward (area)                                                           |
+> | schoolboard |  optional | string                  | Schoolboard (area) (Can be null or empty)                             |
+> | poll        |  optional | string                  | Poll (area) (Can be null or empty)                                    |
+> | birthdate   |  optional | date                    | Voter birthdate (Can be null or empty)                                |
+
+
+##### Responses
+
+> | http code     | content-type                      | response                                              | Asumption               |
+> |---------------|-----------------------------------|-------------------------------------------------------|-------------------------|
+> | `200`         | `application/json`                | `{"code":"200","message":"Success"}`                  | Action completed        |
+> | `401`         | `application/json`                | `{"code":"401","message":"Unauthorized"}`             | Incorrect auth headers  |
+> | `400`         | `application/json`                | `{"code":"400","message":"Bad Request"}`              | Incorrect request       |
+> | `404`         | `application/json`                | `{"code":"404","message":"Not found"}`                | Voter does not exist    |
+> | `500`         | `application/json`                | `{"code":"500","message":"InternalServerError"}`      | Internal Server Error   |
+
+</details>
+
+#### Update Voter information
+
+<details>
+ <summary><code>POST</code> <code><b>/api/datafix/update-voter-information</b></code> <code>(Updates voter information)</code></summary>
+ 
+
+##### Parameters
+
+> | name        |  type     | data type               | description                                                           |
+> |-------------|-----------|-------------------------|-----------------------------------------------------------------------|
+> | voter_id    |  required | string                  | Voter username/id (unique)                                            |
+> | ward        |  required | string                  | Ward (area)                                                           |
+> | schoolboard |  optional | string                  | Schoolboard (area) (Can be null or empty)                             |
+> | poll        |  optional | string                  | Poll (area) (Can be null or empty)                                    |
+> | birthdate   |  optional | date                    | Voter birthdate (Can be null or empty)                                |
 
 
 ##### Responses
