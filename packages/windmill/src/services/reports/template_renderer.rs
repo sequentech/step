@@ -192,7 +192,6 @@ pub trait TemplateRenderer: Debug {
                     .map_err(|e| {
                         anyhow!(format!("Error deserializing custom user template: {e:?}"))
                     })?;
-                info!("template_data: {:?}", &template_data);
                 Ok(Some(template_data))
             }
             None => {
@@ -332,10 +331,7 @@ pub trait TemplateRenderer: Debug {
 
     #[instrument(
         err,
-        skip(self),
-        hasura_transaction,
-        keycloak_transaction,
-        user_tpl_document
+        skip(self, hasura_transaction, keycloak_transaction, user_tpl_document)
     )]
     async fn generate_report(
         &self,
