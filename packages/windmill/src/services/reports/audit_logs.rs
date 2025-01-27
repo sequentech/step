@@ -11,6 +11,7 @@ use crate::postgres::area::get_areas_by_election_id;
 use crate::postgres::election::get_election_by_id;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
+use crate::services::cast_votes::count_ballots_by_election;
 use crate::services::database::PgConfig;
 use crate::services::electoral_log::{
     list_electoral_log, ElectoralLogRow, GetElectoralLogBody, IMMUDB_ROWS_LIMIT,
@@ -346,13 +347,13 @@ impl TemplateRenderer for AuditLogsTemplate {
 
             // Set default username if user_id is None
             let username = item
-                .user_id
+                .username
                 .clone()
-                .map(|username| {
-                    if username == "null" {
+                .map(|user| {
+                    if user == "null" {
                         "-".to_string()
                     } else {
-                        username
+                        user
                     }
                 })
                 .unwrap_or_else(|| "-".to_string());
@@ -427,6 +428,15 @@ impl TemplateRenderer for AuditLogsTemplate {
         .await
         .map_err(|err| anyhow!("Error extract area data {err}"))?;
 
+        let ballots_counted = count_ballots_by_election(
+            hasura_transaction,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
+            &election_id,
+        )
+        .await
+        .map_err(|err| anyhow!("Error at count_ballots_by_election: {err:?}"))?;
+
         Ok(UserData {
             election_event_date: election_event_date.to_string(),
             election_event_title: election_event.name.clone(),
@@ -437,7 +447,7 @@ impl TemplateRenderer for AuditLogsTemplate {
             voting_center,
             precinct_code,
             registered_voters: votes_data.registered_voters,
-            ballots_counted: votes_data.total_ballots,
+            ballots_counted: Some(ballots_counted),
             voters_turnout: votes_data.voters_turnout,
             sequences,
             signature_date,

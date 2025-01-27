@@ -58,7 +58,7 @@ use tracing::info;
 use tracing::{error, event, instrument, Level};
 use uuid::Uuid;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct InsertCastVoteInput {
     pub ballot_id: String,
     pub election_id: Uuid,
@@ -267,14 +267,21 @@ pub async fn try_insert_cast_vote(
 
     match result {
         Ok(inserted_cast_vote) => {
-            let electoral_log = ElectoralLog::for_voter(
+            let electoral_log_res = ElectoralLog::for_voter(
                 &electoral_log.elog_database,
                 tenant_id,
                 election_event_id,
                 voter_id,
             )
-            .await
-            .map_err(|e| CastVoteError::ElectoralLogNotFound(e.to_string()))?;
+            .await;
+
+            let electoral_log = match electoral_log_res {
+                Ok(electoral_log) => electoral_log,
+                Err(err) => {
+                    error!("Error posting to the electoral log {:?}", err);
+                    return Ok(inserted_cast_vote);
+                }
+            };
 
             let log_result = electoral_log
                 .post_cast_vote(
