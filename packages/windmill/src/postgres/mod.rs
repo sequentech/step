@@ -21,6 +21,7 @@ pub mod reports;
 pub mod results_area_contest;
 pub mod results_area_contest_candidate;
 pub mod results_contest;
+pub mod results_contest_candidate;
 pub mod results_election;
 pub mod results_election_area;
 pub mod results_event;

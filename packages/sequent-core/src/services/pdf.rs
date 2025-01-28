@@ -26,15 +26,19 @@ fn print_to_pdf(
         .headless(true)
         // </WTF>
         .enable_logging(true)
+        .idle_browser_timeout(Duration::from_secs(99999999))
         .build()
         .expect("Default should not panic");
 
+    info!("1. Opening browser");
     let browser =
         Browser::new(options).with_context(|| "Error obtaining the browser")?;
+    info!("2. Opening tab");
     let tab = browser
         .new_tab()
         .with_context(|| "Error obtaining the tab")?;
-
+    tab.set_default_timeout(Duration::from_secs(99999999));
+    info!("3. Navigating to tab");
     tab.navigate_to(file_path)?
         .wait_until_navigated()
         .with_context(|| "Error navigaring to file")?;
@@ -44,6 +48,7 @@ fn print_to_pdf(
         sleep(wait);
     }
     debug!("Awake! After {wait:#?}");
+    info!("4. printing");
 
     let bytes = tab
         .print_to_pdf(Some(pdf_options))
