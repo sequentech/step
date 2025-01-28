@@ -2,5 +2,5 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-pub mod loadero_service;
 pub mod enrollment;
+pub mod loadero_service;

@@ -1,3 +1,10 @@
+// SPDX-FileCopyrightText: 2024 Sequent Legal <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+use anyhow::Context;
+use serde_json::{from_str, json, Value};
+use std::{collections::HashMap, env, error::Error, fs, thread, time::Duration};
 
 use std::fs::File;
 use std::{env, fs};
@@ -65,17 +72,21 @@ pub fn run_enrollment_test(
     print!("running enrollment test");
     let scanrio_data = get_test_data()?;
 
-    let enrollment_election_test_name = get_enrollment_test_name_str(&scanrio_data.election_event_id);
+    let enrollment_election_test_name =
+        get_enrollment_test_name_str(&scanrio_data.election_event_id);
     let voting_portal_url = format!(
         "{}/tenant/{}/event/{}/enroll",
         &voting_portal_domain, &tenant_id, &scanrio_data.election_event_id
     );
-    let script = generate_script(
-        &voting_portal_url, &scanrio_data.otp_code
-    )?;
+    let script = generate_script(&voting_portal_url, &scanrio_data.otp_code)?;
     let test_config = get_test_config(&scanrio_data.election_event_id, script, &args.test_duration);
-    print!("running enrollment test");
-    run_scenario_test(args.participants, test_config, enrollment_election_test_name, args.update)?;
+
+    run_scenario_test(
+        args.participants,
+        test_config,
+        enrollment_election_test_name,
+        args.update,
+    )?;
 
     Ok(())
 }

@@ -8,7 +8,10 @@ use clap::Parser;
 use services::{enrollment::{run_enrollment_test}};
 
 #[derive(Parser, Debug)]
-#[command(name = "E2ELoadTestRunner", about = "A generic load-test runner for Loadero")]
+#[command(
+    name = "E2ELoadTestRunner",
+    about = "A generic load-test runner for Loadero"
+)]
 pub struct Args {
     #[arg(long, default_value = "enrollment")]
     test_type: String,
@@ -19,14 +22,17 @@ pub struct Args {
     #[arg(long, default_value_t = false)]
     update: bool,
 
-    #[arg(long,  long, default_value_t = 60)]
+    #[arg(long, long, default_value_t = 60)]
     test_duration: u64,
 }
 
 fn main() {
     let args = Args::parse();
-    let result = match args.test_type.as_str() {
-        "enrollment" => run_enrollment_test(&args),
+
+    match args.test_type.as_str() {
+        "enrollment" => {
+            run_enrollment_test(&args);
+        }
         _ => {
             eprintln!("Unknown test type: {}", args.test_type);
             std::process::exit(1);
