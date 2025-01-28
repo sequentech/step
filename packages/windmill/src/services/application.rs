@@ -512,7 +512,7 @@ fn check_mismatches(
                 };
 
                 let is_match = is_fuzzy_match(applicant_combined, user_combined);
-                match_result.insert(field_to_check.to_string(), is_match);
+                match_result.insert("firstName.middleName".to_string(), is_match);
 
                 if !is_match {
                     mismatches += 1;
