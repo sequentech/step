@@ -386,11 +386,11 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
      * @returns whether or not the user in kiosk mode
      */
     const isKiosk = () => {
-        if (!keycloak?.tokenParsed?.azp) { 
+        if (!keycloak?.tokenParsed?.azp) {
             return false
         }
 
-        return keycloak.tokenParsed.azp.endsWith("-kiosk");
+        return keycloak.tokenParsed.azp.endsWith("-kiosk")
     }
 
     const openProfileLink = async () => {
