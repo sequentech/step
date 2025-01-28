@@ -33,6 +33,7 @@ use crate::services::ceremonies::tally_ceremony::get_tally_session_by_id::{
     GetTallySessionByIdSequentBackendTallySessionContest,
 };
 use crate::services::election_event_board::get_election_event_board;
+use crate::services::election_event_status::get_election_status;
 use crate::services::electoral_log::ElectoralLog;
 use anyhow::{anyhow, Context, Result};
 use b3::messages::newtypes::BatchNumber;
@@ -318,6 +319,16 @@ pub async fn create_tally_ceremony(
     if elections.len() != election_ids.len() {
         return Err(anyhow!("Some elections were not found"));
     }
+    elections.clone()
+        .into_iter()
+        .map(|election| {
+            let status = get_election_status(election.status.clone()).unwrap_or_default();
+            if status.is_published.unwrap_or(false) {
+                return Err(anyhow!("Election {} is not published", election.id));
+            }
+            Ok(())
+        });
+
     let permission_label_filtered_elections: Vec<_> = elections
         .clone()
         .into_iter()
