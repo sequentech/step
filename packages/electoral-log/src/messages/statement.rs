@@ -8,6 +8,7 @@ use std::fmt::Debug;
 use strum_macros::Display;
 
 use crate::messages::newtypes::*;
+use tracing::info;
 
 #[derive(BorshSerialize, BorshDeserialize, Deserialize, Serialize, Debug)]
 pub struct Statement {
@@ -142,10 +143,18 @@ impl StatementHead {
                 ..default_head
             },
             StatementBody::KeycloakUserEvent(error_message_string, error_message_type) => {
+                let description = if (error_message_string.0.trim() == "null")
+                    || (error_message_string.0.trim().is_empty())
+                {
+                    format!("{}", error_message_type.0)
+                } else {
+                    format!("{}: {}", error_message_type.0, error_message_string.0)
+                };
+
                 StatementHead {
                     kind: StatementType::KeycloakUserEvent,
                     event_type: StatementEventType::USER,
-                    description: format!("{}: {}", error_message_type.0, error_message_string.0),
+                    description,
                     ..default_head
                 }
             }
