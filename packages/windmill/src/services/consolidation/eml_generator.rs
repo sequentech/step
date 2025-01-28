@@ -54,6 +54,7 @@ const OFFICIAL_STATUS_DATE_FORMAT: &str = "%Y-%m-%d";
 pub const MIRU_GEOGRAPHICAL_REGION: &str = "geographical-region";
 pub const MIRU_VOTING_CENTER: &str = "voting-center";
 pub const MIRU_PRECINCT_CODE: &str = "precinct-code";
+pub const MIRU_POLLCENTER_CODE: &str = "pollcenter_code";
 /**/
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, EnumString, Display)]
@@ -321,6 +322,7 @@ pub struct MiruElectionAnnotations {
     pub post: String,
     pub precinct_code: String,
     pub registered_voters: i64, // registered voters at a given precinct id
+    pub pollcenter_code: String,
 }
 
 impl ValidateAnnotations for core::Election {
@@ -351,7 +353,7 @@ impl ValidateAnnotations for core::Election {
         let election_id =
             find_miru_annotation(MIRU_ELECTION_ID, &annotations).with_context(|| {
                 format!(
-                    "Missing area annotation: '{}:{}'",
+                    "Missing election annotation: '{}:{}'",
                     MIRU_PLUGIN_PREPEND, MIRU_ELECTION_ID
                 )
             })?;
@@ -359,7 +361,7 @@ impl ValidateAnnotations for core::Election {
         let election_name =
             find_miru_annotation(MIRU_ELECTION_NAME, &annotations).with_context(|| {
                 format!(
-                    "Missing area annotation: '{}:{}'",
+                    "Missing election annotation: '{}:{}'",
                     MIRU_PLUGIN_PREPEND, MIRU_ELECTION_NAME
                 )
             })?;
@@ -367,14 +369,14 @@ impl ValidateAnnotations for core::Election {
         let geographical_area = find_miru_annotation(MIRU_GEOGRAPHICAL_REGION, &annotations)
             .with_context(|| {
                 format!(
-                    "Missing area annotation: '{}:{}'",
+                    "Missing election annotation: '{}:{}'",
                     MIRU_PLUGIN_PREPEND, MIRU_GEOGRAPHICAL_REGION
                 )
             })?;
 
         let post = find_miru_annotation(MIRU_VOTING_CENTER, &annotations).with_context(|| {
             format!(
-                "Missing area annotation: '{}:{}'",
+                "Missing election annotation: '{}:{}'",
                 MIRU_PLUGIN_PREPEND, MIRU_VOTING_CENTER
             )
         })?;
@@ -382,15 +384,25 @@ impl ValidateAnnotations for core::Election {
         let precinct_code =
             find_miru_annotation(MIRU_PRECINCT_CODE, &annotations).with_context(|| {
                 format!(
-                    "Missing area annotation: '{}:{}'",
+                    "Missing election annotation: '{}:{}'",
                     MIRU_PLUGIN_PREPEND, MIRU_PRECINCT_CODE
                 )
             })?;
 
-        let registered_voters: i64 =
-            find_miru_annotation_opt(MIRU_REGISTERED_VOTERS, &annotations)?
-                .and_then(|val| val.parse::<i64>().ok())
-                .unwrap_or(-1); //TODO: fix
+        let registered_voters: i64 = find_miru_annotation(MIRU_REGISTERED_VOTERS, &annotations)
+            .with_context(|| {
+                format!(
+                    "Missing election annotation: '{}:{}'",
+                    MIRU_PLUGIN_PREPEND, MIRU_REGISTERED_VOTERS
+                )
+            })?
+            .parse::<i64>()
+            .with_context(|| anyhow!("Can't parse registered_voters"))?;
+
+        let pollcenter_code = annotations
+            .get(MIRU_POLLCENTER_CODE)
+            .with_context(|| format!("Missing election annotation: {}", MIRU_POLLCENTER_CODE))
+            .cloned()?;
 
         Ok(MiruElectionAnnotations {
             election_id,
@@ -399,6 +411,7 @@ impl ValidateAnnotations for core::Election {
             post,
             precinct_code,
             registered_voters,
+            pollcenter_code,
         })
     }
 
@@ -430,6 +443,11 @@ impl ValidateAnnotations for core::Election {
                 .and_then(|val| val.parse::<i64>().ok())
                 .unwrap_or(-1); //TODO: fix
 
+        let pollcenter_code = annotations
+            .get(MIRU_POLLCENTER_CODE)
+            .cloned()
+            .unwrap_or_default();
+
         Ok(MiruElectionAnnotations {
             election_id,
             election_name,
@@ -437,6 +455,7 @@ impl ValidateAnnotations for core::Election {
             post,
             precinct_code,
             registered_voters,
+            pollcenter_code,
         })
     }
 }
