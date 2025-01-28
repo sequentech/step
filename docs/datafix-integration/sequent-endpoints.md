@@ -51,12 +51,11 @@ PIN is the same as sequent´s password and it should be configurable (by Area?),
 
  ##### Headers for all the endpoints (will be provided by Sequent):
 
-> | name      |  type     | data type               | description                                                                       |
-> |-----------|-----------|-------------------------|-----------------------------------------------------------------------------------|
-> | cli_id    |  required | string                  | Client ID for authentication                                                      |
-> | cli_sec   |  required | string                  | Client secret for authentication                                                  |
-> | tenant_id |  required | string                  | Realm id for keycloak´s endpoint                                                  |
-> | event_id  |  required | string                  | Unique for each election event. Matches Datafix ID in election event annotations  |
+> | name            |  type     | data type | description                                                                                 |
+> |-----------------|-----------|-----------|---------------------------------------------------------------------------------------------|
+> | authorization   |  required | string    | Client ID and Client secret respectively. Format e.g.: `"authorization":"123456:987654"`    |
+> | tenant_id       |  required | string    | Realm id for keycloak´s endpoint.                                                           |
+> | event_id        |  required | string    | Unique for each election event. Matches Datafix ID in election event annotations.           |
 
 
 </details>
@@ -129,7 +128,7 @@ PIN is the same as sequent´s password and it should be configurable (by Area?),
 > | ward        |  required | string                  | Ward (area)                                                           |
 > | schoolboard |  optional | string                  | Schoolboard (area) (Can be null or empty)                             |
 > | poll        |  optional | string                  | Poll (area) (Can be null or empty)                                    |
-> | birthdate   |  optional | date                    | Voter birthdate (Can be null or empty)                                |
+> | birthdate   |  optional | date                    | Voter birthdate (Can be null or empty). ISO 8601 format YYYY-MM-DD    |
 
 
 ##### Responses
