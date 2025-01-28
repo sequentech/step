@@ -38,14 +38,6 @@ use sequent_core::types::templates::AudienceSelection::SELECTED;
 use sequent_core::types::templates::TemplateMethod::{EMAIL, SMS};
 use unicode_normalization::char::decompose_canonical;
 
-lazy_static! {
-    pub static ref FIRST_NAME: &'static str = "firstName";
-    pub static ref MIDDLE_NAME: &'static str = "middleName";
-    pub static ref LAST_NAME: &'static str = "lastName";
-    pub static ref USERNAME: &'static str = "username";
-    pub static ref MAIL: &'static str = "email";
-}
-
 #[allow(non_camel_case_types)]
 #[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub enum ECardType {
@@ -59,11 +51,11 @@ pub enum ECardType {
 impl ECardType {
     pub fn to_name(&self) -> &str {
         match self {
-            ECardType::PHILSYS_ID => "PhilSys ID",
-            ECardType::SEAMANS_BOOK => "Seaman's Book",
-            ECardType::DRIVER_LICENSE => "driversLicense", //Driver's License
-            ECardType::PHILIPPINE_PASSPORT => "philippinePassport", //Philippine Passport
-            ECardType::IBP => "iBP", //Integrated Bar of the Philippines (IBP)
+            ECardType::PHILSYS_ID => "philSysID",
+            ECardType::SEAMANS_BOOK => "seamanBook",
+            ECardType::DRIVER_LICENSE => "driversLicense",
+            ECardType::PHILIPPINE_PASSPORT => "philippinePassport",
+            ECardType::IBP => "iBP",
         }
     }
 }
