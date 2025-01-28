@@ -63,7 +63,6 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
       "Failed to get inetum results response";
   public static final String ERROR_INVALIDE_CODE = "Invalide Code";
   public static final String ERROR_ATTRIBUTE_VALIDATION = "Attribute Validation Error";
-  public static final String MOCK_SERVER_URL = "https://9141-46-117-134-168.ngrok-free.app";
 
   @Override
   public void authenticate(AuthenticationFlowContext context) {
@@ -162,7 +161,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
       String uriPath,
       Boolean isTestMode)
       throws IOException {
-    String baseUrl = isTestMode ? MOCK_SERVER_URL : configMap.get(Utils.BASE_URL_ATTRIBUTE);
+    String baseUrl = isTestMode ? configMap.get(Utils.TEST_MODE_SERVER_URL) : configMap.get(Utils.BASE_URL_ATTRIBUTE);
     String url = baseUrl + uriPath;
     String authorization = "Bearer " + configMap.get(Utils.API_KEY_ATTRIBUTE);
     log.info("doPost: url=" + url + ", payload =" + payload.toString());
@@ -209,7 +208,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
       String uriPath,
       Boolean isTestMode)
       throws IOException {
-    String baseUrl = isTestMode ? MOCK_SERVER_URL : configMap.get(Utils.BASE_URL_ATTRIBUTE);
+    String baseUrl = isTestMode ? configMap.get(Utils.TEST_MODE_SERVER_URL) : configMap.get(Utils.BASE_URL_ATTRIBUTE);
     String url = baseUrl + uriPath;
     String authorization = "Bearer " + configMap.get(Utils.API_KEY_ATTRIBUTE);
     log.info("doGet: url=" + url);
@@ -1334,7 +1333,13 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
             "Test Mode",
             "If true, the authenticator will skip the real OCR flow and mock the data.",
             ProviderConfigProperty.BOOLEAN_TYPE,
-            "false"));
+            "false"),
+        new ProviderConfigProperty(
+          Utils.TEST_MODE_SERVER_URL,
+          "Test Mode Server Url",
+          "If in test mode this will be the case url of the mock server.",
+          ProviderConfigProperty.TEXT_TYPE,
+          ""));
   }
 
   @Override
