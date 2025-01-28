@@ -646,6 +646,8 @@ pub async fn list_users_with_vote_info(
         .election_event_id
         .clone()
         .ok_or(anyhow!("Election event id is empty"))?;
+    let election_id = filter.election_id.clone();
+
     let filter_by_has_voted = filter.has_voted.clone();
     let (users, users_count) = list_users(hasura_transaction, keycloak_transaction, filter)
         .await
@@ -654,6 +656,7 @@ pub async fn list_users_with_vote_info(
         hasura_transaction,
         tenant_id.as_str(),
         election_event_id.as_str(),
+        election_id,
         users,
         filter_by_has_voted,
     )
