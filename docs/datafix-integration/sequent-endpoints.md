@@ -82,7 +82,7 @@ PIN is the same as sequent´s password and it should be configurable (by Area?),
 > | `401`         | `application/json`                | `{"code":"401","message":"Unauthorized"}`             | Incorrect auth headers  |
 > | `400`         | `application/json`                | `{"code":"400","message":"Bad Request"}`              | Incorrect request       |
 > | `404`         | `application/json`                | `{"code":"404","message":"Not found"}`                | Voter does not exist    |
-> | `500`         | `application/json`                | `{"code":"500","message":"InternalServerError"}`      | Internal Server Error   |
+> | `500`         | `application/json`                | `{"code":"500","message":"Internal Server Error"}`    | Internal Server Error   |
 
 </details>
 
@@ -111,7 +111,7 @@ PIN is the same as sequent´s password and it should be configurable (by Area?),
 > | `401`         | `application/json`                | `{"code":"401","message":"Unauthorized"}`             | Incorrect auth headers  |
 > | `400`         | `application/json`                | `{"code":"400","message":"Bad Request"}`              | Incorrect request       |
 > | `404`         | `application/json`                | `{"code":"404","message":"Not found"}`                | Voter does not exist    |
-> | `500`         | `application/json`                | `{"code":"500","message":"InternalServerError"}`      | Internal Server Error   |
+> | `500`         | `application/json`                | `{"code":"500","message":"Internal Server Error"}`    | Internal Server Error   |
 
 </details>
 
@@ -140,7 +140,7 @@ PIN is the same as sequent´s password and it should be configurable (by Area?),
 > | `401`         | `application/json`                | `{"code":"401","message":"Unauthorized"}`             | Incorrect auth headers  |
 > | `400`         | `application/json`                | `{"code":"400","message":"Bad Request"}`              | Incorrect request       |
 > | `404`         | `application/json`                | `{"code":"404","message":"Not found"}`                | Voter does not exist    |
-> | `500`         | `application/json`                | `{"code":"500","message":"InternalServerError"}`      | Internal Server Error   |
+> | `500`         | `application/json`                | `{"code":"500","message":"Internal Server Error"}`    | Internal Server Error   |
 
 </details>
 
@@ -166,7 +166,7 @@ PIN is the same as sequent´s password and it should be configurable (by Area?),
 > | `401`         | `application/json`                | `{"code":"401","message":"Unauthorized"}`             | Incorrect auth headers  |
 > | `400`         | `application/json`                | `{"code":"400","message":"Bad Request"}`              | Incorrect request       |
 > | `404`         | `application/json`                | `{"code":"404","message":"Not found"}`                | Voter does not exist    |
-> | `500`         | `application/json`                | `{"code":"500","message":"InternalServerError"}`      | Internal Server Error   |
+> | `500`         | `application/json`                | `{"code":"500","message":"Internal Server Error"}`    | Internal Server Error   |
 
 </details>
 
@@ -192,7 +192,7 @@ PIN is the same as sequent´s password and it should be configurable (by Area?),
 > | `401`         | `application/json`                | `{"code":"401","message":"Unauthorized"}`             | Incorrect auth headers  |
 > | `400`         | `application/json`                | `{"code":"400","message":"Bad Request"}`              | Incorrect request       |
 > | `404`         | `application/json`                | `{"code":"404","message":"Not found"}`                | Voter does not exist    |
-> | `500`         | `application/json`                | `{"code":"500","message":"InternalServerError"}`      | Internal Server Error   |
+> | `500`         | `application/json`                | `{"code":"500","message":"Internal Server Error"}`    | Internal Server Error   |
 
 </details>
 
@@ -214,11 +214,11 @@ PIN is the same as sequent´s password and it should be configurable (by Area?),
 
 > | http code     | content-type                      | response                                              | Asumption               |
 > |---------------|-----------------------------------|-------------------------------------------------------|-------------------------|
-> | `200`         | `application/json`                | `{"code":"200","message":"Success"}`                  | Action completed        |
+> | `200`         | `application/json`                | `{"pin":"684400123987"}`                              | Action completed        |
 > | `401`         | `application/json`                | `{"code":"401","message":"Unauthorized"}`             | Incorrect auth headers  |
 > | `400`         | `application/json`                | `{"code":"400","message":"Bad Request"}`              | Incorrect request       |
 > | `404`         | `application/json`                | `{"code":"404","message":"Not found"}`                | Voter does not exist    |
-> | `500`         | `application/json`                | `{"code":"500","message":"InternalServerError"}`      | Internal Server Error   |
+> | `500`         | `application/json`                | `{"code":"500","message":"Internal Server Error"}`    | Internal Server Error   |
 
 </details>
 
