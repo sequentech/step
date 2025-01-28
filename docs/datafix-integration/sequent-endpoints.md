@@ -10,7 +10,7 @@ This document intends to define the Headers, Body and Errors of the Sequent´s e
 ------------------------------------------------------------------------------------------
 
 
- <summary>Sequent internal implementation:</summary>
+#### Sequent internal implementation:
 
 - The client will send Voter IDs to identify the voter as username in sequent´s system.
 - In Sequent´s system the Areas and sub areas are represented as a tree. At least one is required to create a new voter.
