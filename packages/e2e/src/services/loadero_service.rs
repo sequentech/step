@@ -4,12 +4,23 @@
 
 use anyhow::{anyhow, Context, Result};
 use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_TYPE};
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::{env, error::Error, thread, time::Duration};
 
+#[derive(Serialize, Deserialize, Clone)]
+pub struct TestConfig {
+    pub increment_strategy: String,
+    pub mode: String,
+    pub name: String,
+    pub participant_timeout: u64,
+    pub script: String,
+    pub start_interval: u64,
+}
+
 pub fn run_scenario_test(
     participants_count: u64,
-    test_config: Value,
+    test_config: TestConfig,
     test_name: String,
     update: bool,
 ) -> Result<()> {
@@ -18,7 +29,7 @@ pub fn run_scenario_test(
 
     let test_id = match get_test_id_by_name(test_name)? {
         Some(id) => id,
-        None => init_loadero_test(&loadero_url,&test_config, participants_count)?,
+        None => init_loadero_test(&loadero_url,&test_config)?,
     };
 
     if update {
@@ -26,26 +37,23 @@ pub fn run_scenario_test(
     }
 
     // 2) run_test
-    run_test(&loadero_url,&test_id)?;
+    run_test(&loadero_url,&test_id, participants_count)?;
 
     Ok(())
 }
 
 pub fn init_loadero_test(
     loadero_url: &str,
-    test_config: &Value,
-    participants_count: u64,
+    test_config: &TestConfig,
 ) -> Result<String> {
     let test_id = create_test(&loadero_url, test_config)
         .context("Failed to create test in Loadero")?;
 
-    create_test_participants(loadero_url,&test_id, participants_count)
-        .with_context(|| format!("Failed to create participants for test ID {}", test_id))?;
-
     Ok(test_id)
 }
 
-pub fn run_test(loadero_url: &str,test_id: &str) -> Result<()> {
+    
+    pub fn run_test(loadero_url: &str,test_id: &str, participants_count: u64) -> Result<()> {
 
     let loadero_interval_polling_sec = env::var("LOADERO_INTERVAL_POLLING_TIME")
         .unwrap_or_else(|_| "30".to_string());
@@ -53,6 +61,9 @@ pub fn run_test(loadero_url: &str,test_id: &str) -> Result<()> {
     let loadero_interval_polling_sec: u64 = loadero_interval_polling_sec
         .parse()
         .context("LOADERO_INTERVAL_POLLING_TIME must be an string")?;
+
+    create_test_participants(loadero_url,&test_id, participants_count)
+        .with_context(|| format!("Failed to create participants for test ID {}", test_id))?;
 
     let run_id = launch_test(&loadero_url, &test_id).with_context(|| format!("Failed to launch test ID {}", test_id))?;
 
@@ -102,7 +113,7 @@ fn create_header() -> Result<HeaderMap> {
 
 fn create_test(
     loadero_url: &str,
-    test_config: &Value,
+    test_config: &TestConfig,
 ) -> Result<String> {
     let client = reqwest::blocking::Client::new();
     let headers = create_header()?;
@@ -172,12 +183,6 @@ fn create_test_participants(
             ));
     }
 
-    let response_json: Value = response.json()
-        .context("Failed to parse createTestParticipants response JSON")?;
-
-    let participant_id = response_json["id"]
-        .as_i64()
-        .ok_or_else(|| anyhow!("No participant ID found in createTestParticipants response"))?;
     Ok(())
 
 }
@@ -309,7 +314,7 @@ pub fn replace_placeholder(template: &str, placeholder: &str, replacement: &str)
 
 pub fn update_script(
     test_id: &str,
-    test_config: Value,
+    test_config: TestConfig,
 ) -> Result<()> {
     let loadero_url: String =
         env::var("LOADERO_BASE_URL").with_context(|| "missing  LOADERO_BASE_URL")?;
