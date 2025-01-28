@@ -700,7 +700,7 @@ pub async fn update_election_status(
             sequent_backend.election
         SET
             last_updated_at = NOW(),
-            status = jsonb_set(status, '{is_published}', to_jsonb($4::text), true)
+            status = jsonb_set(status, '{is_published}', to_jsonb($4::bool), true)
         WHERE
             id = $1 AND
             tenant_id = $2 AND
@@ -718,7 +718,6 @@ pub async fn update_election_status(
     let parsed_id = Uuid::parse_str(id)?;
     let parsed_tenant_id = Uuid::parse_str(tenant_id)?;
     let parsed_election_event_id = Uuid::parse_str(election_event_id)?;
-    let status_str = status.to_string();
 
     // Execute the query
     let rows: Vec<Row> = hasura_transaction
@@ -728,7 +727,7 @@ pub async fn update_election_status(
                 &parsed_id,
                 &parsed_tenant_id,
                 &parsed_election_event_id,
-                &status_str,
+                &status,
             ],
         )
         .await

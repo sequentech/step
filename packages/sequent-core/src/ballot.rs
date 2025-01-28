@@ -1636,7 +1636,7 @@ pub fn format_date_opt(date: &Option<DateTime<Utc>>) -> Option<String> {
     date.map(|d| d.to_rfc3339())
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
+#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct ElectionStatus {
     pub is_published: Option<bool>,
     pub voting_status: VotingStatus,
