@@ -99,7 +99,7 @@ PIN is the same as sequent´s password and it should be configurable (by Area?),
 > | ward        |  required | string                  | Ward (area)                                                           |
 > | schoolboard |  optional | string                  | Schoolboard (area) (Can be null or empty)                             |
 > | poll        |  optional | string                  | Poll (area) (Can be null or empty)                                    |
-> | birthdate   |  optional | date                    | Voter birthdate (Can be null or empty)                                |
+> | birthdate   |  optional | date                    | Voter birthdate (Can be null or empty). ISO 8601 format YYYY-MM-DD    |
 
 
 ##### Responses
