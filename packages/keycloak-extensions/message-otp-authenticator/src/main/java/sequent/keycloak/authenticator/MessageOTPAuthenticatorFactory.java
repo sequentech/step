@@ -141,7 +141,7 @@ public class MessageOTPAuthenticatorFactory
             "Test Mode Code",
             "Will be used for test mode. code will contain only digit and with the same number of digits as Code length specify",
             ProviderConfigProperty.STRING_TYPE,
-            ""),
+            "123456"),
         messageCourier);
   }
 
