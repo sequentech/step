@@ -639,7 +639,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
           value = applicantDataMap.get(key);
         }
         log.info("getMismatchedFields(): field=" + key + ", value = " + value);
-        
+
         if (value == null) {
           value = getTranslationFromOverridesOrMessages("empty", messages, realmOverrides, "null");
         }
