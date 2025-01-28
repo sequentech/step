@@ -267,6 +267,7 @@ fn build_manual_verify_reason(fields_match: HashMap<String, bool>) -> String {
             "lastName" => "Last Name",
             "embassy" => "Post",
             "dateOfBirth" => "Date Of Birth",
+            "firstName.middleName" => "First Name + Middle Name",
             _ => key,
         })
         .collect::<Vec<&str>>()
