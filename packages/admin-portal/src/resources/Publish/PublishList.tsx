@@ -18,6 +18,7 @@ import {
     BooleanInput,
     BooleanField,
     DatagridConfigurable,
+    WrapperField,
 } from "react-admin"
 
 import {ElectionEventStatus, PublishStatus} from "./EPublishStatus"
@@ -199,7 +200,9 @@ export const PublishList: React.FC<TPublishList> = ({
                     <BooleanField source="is_generated" />
                     <TextField source="published_at" />
                     <TextField source="created_at" />
-                    <ActionsColumn actions={actions} />
+                    <WrapperField label={t("common.label.actions")}>
+                        <ActionsColumn actions={actions} />
+                    </WrapperField>
                 </DatagridConfigurable>
             </List>
         </Box>
