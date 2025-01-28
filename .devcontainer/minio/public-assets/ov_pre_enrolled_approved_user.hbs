@@ -148,7 +148,7 @@
                 {{first_name}} {{suffix}} {{middle_name}}
               </td>
               <td>
-                {{id}}
+                {{username}}
               </td>
               <td>
                 {{status}}
@@ -159,8 +159,8 @@
               <td>
                 {{datetime from_rfc3339=enrollment_date output_format="%H:%M:%S"}}
               </td>
-              <td>
-                {{verified_by}}
+              <td class="uppercase">
+                {{sanitize_html (expr verified_by)}}
               </td>
             </tr>
             {{/each}}

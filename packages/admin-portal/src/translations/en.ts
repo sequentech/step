@@ -1424,6 +1424,7 @@ const englishTranslation = {
             uploadTransmissionPackageDesc:
                 "Upload your Signature to sign the Transmission Package. This is an optional operation.",
             exportElectionArea: "Generate Transmission Package for Area '{{name}}'",
+            generateReport: "Generate {{name}}",
             templateTitle: "Results Template",
             templateSubTitle: "Optionally overwrite the results template.",
             keysCeremonyTitle: "Keys Ceremony",
@@ -1870,6 +1871,7 @@ const englishTranslation = {
                 verificationType: "Verification Type",
                 createdAt: "Created At",
                 updatedAt: "Updated At",
+                approved_by: "Approved By",
             },
             approvalRequest: "Approval Request",
             title: "Voters",
