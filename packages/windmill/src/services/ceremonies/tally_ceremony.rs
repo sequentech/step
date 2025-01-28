@@ -312,22 +312,22 @@ pub async fn create_tally_ceremony(
         .into_iter()
         .filter(|contest| election_ids.contains(&contest.election_id))
         .collect();
+
     let elections: Vec<Election> = all_elections
         .into_iter()
-        .filter(|election| election_ids.contains(&election.id))
-        .collect();
-    if elections.len() != election_ids.len() {
-        return Err(anyhow!("Some elections were not found"));
-    }
-    elections.clone()
-        .into_iter()
-        .map(|election| {
-            let status = get_election_status(election.status.clone()).unwrap_or_default();
-            if status.is_published.unwrap_or(false) {
-                return Err(anyhow!("Election {} is not published", election.id));
+        .filter(|election| {
+            if election_ids.contains(&election.id) {
+                let status = get_election_status(election.status.clone()).unwrap_or_default();
+                if let Some(is_published) = status.is_published {
+                    is_published // Include only if `is_published` is true
+                } else {
+                    false
+                }
+            } else {
+                false
             }
-            Ok(())
-        });
+        })
+        .collect();
 
     let permission_label_filtered_elections: Vec<_> = elections
         .clone()
