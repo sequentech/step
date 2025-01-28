@@ -11,7 +11,6 @@ use uuid::Uuid;
 
 use crate::services::user::random_user_by_country;
 
-
 #[derive(Debug, Serialize)]
 pub struct TransactionNewResponse {
     response: TransactionResponseData,

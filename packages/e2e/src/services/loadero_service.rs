@@ -14,11 +14,11 @@ pub fn run_scenario_test(
     update: bool,
 ) -> Result<()> {
     let loadero_url: String =
-    env::var("LOADERO_BASE_URL").with_context(|| "missing  LOADERO_BASE_URL")?;
+        env::var("LOADERO_BASE_URL").with_context(|| "missing  LOADERO_BASE_URL")?;
 
     let test_id = match get_test_id_by_name(test_name)? {
         Some(id) => id,
-        None => init_loadero_test(&loadero_url,&test_config, participants_count)?,
+        None => init_loadero_test(&loadero_url, &test_config, participants_count)?,
     };
 
     if update {
@@ -26,7 +26,7 @@ pub fn run_scenario_test(
     }
 
     // 2) run_test
-    run_test(&loadero_url,&test_id)?;
+    run_test(&loadero_url, &test_id)?;
 
     Ok(())
 }
@@ -36,25 +36,25 @@ pub fn init_loadero_test(
     test_config: &Value,
     participants_count: u64,
 ) -> Result<String> {
-    let test_id = create_test(&loadero_url, test_config)
-        .context("Failed to create test in Loadero")?;
+    let test_id =
+        create_test(&loadero_url, test_config).context("Failed to create test in Loadero")?;
 
-    create_test_participants(loadero_url,&test_id, participants_count)
+    create_test_participants(loadero_url, &test_id, participants_count)
         .with_context(|| format!("Failed to create participants for test ID {}", test_id))?;
 
     Ok(test_id)
 }
 
-pub fn run_test(loadero_url: &str,test_id: &str) -> Result<()> {
-
-    let loadero_interval_polling_sec = env::var("LOADERO_INTERVAL_POLLING_TIME")
-        .unwrap_or_else(|_| "30".to_string());
+pub fn run_test(loadero_url: &str, test_id: &str) -> Result<()> {
+    let loadero_interval_polling_sec =
+        env::var("LOADERO_INTERVAL_POLLING_TIME").unwrap_or_else(|_| "30".to_string());
 
     let loadero_interval_polling_sec: u64 = loadero_interval_polling_sec
         .parse()
         .context("LOADERO_INTERVAL_POLLING_TIME must be an string")?;
 
-    let run_id = launch_test(&loadero_url, &test_id).with_context(|| format!("Failed to launch test ID {}", test_id))?;
+    let run_id = launch_test(&loadero_url, &test_id)
+        .with_context(|| format!("Failed to launch test ID {}", test_id))?;
 
     println!("Test {} (run ID {})", test_id, run_id);
 
@@ -86,8 +86,7 @@ pub fn run_test(loadero_url: &str,test_id: &str) -> Result<()> {
 }
 
 fn create_header() -> Result<HeaderMap> {
-    let api_key = env::var("LOADERO_API_KEY")
-        .context("missing LOADERO_API_KEY")?;
+    let api_key = env::var("LOADERO_API_KEY").context("missing LOADERO_API_KEY")?;
 
     let mut headers = HeaderMap::new();
     headers.insert(
@@ -100,10 +99,7 @@ fn create_header() -> Result<HeaderMap> {
     Ok(headers)
 }
 
-fn create_test(
-    loadero_url: &str,
-    test_config: &Value,
-) -> Result<String> {
+fn create_test(loadero_url: &str, test_config: &Value) -> Result<String> {
     let client = reqwest::blocking::Client::new();
     let headers = create_header()?;
 
@@ -114,18 +110,19 @@ fn create_test(
         .send()?;
 
     if !response.status().is_success() {
-            let status = response.status();
-            let error_message = response
-                .text()
-                .unwrap_or_else(|_| "Could not read response body".to_string());
-            return Err(anyhow!(
-                "Create Test error: HTTP Status: {}\nError Message: {}",
-                status,
-                error_message
-            ));
-        }
+        let status = response.status();
+        let error_message = response
+            .text()
+            .unwrap_or_else(|_| "Could not read response body".to_string());
+        return Err(anyhow!(
+            "Create Test error: HTTP Status: {}\nError Message: {}",
+            status,
+            error_message
+        ));
+    }
 
-    let response_json: Value = response.json()
+    let response_json: Value = response
+        .json()
         .context("Failed to parse createTest response JSON")?;
 
     let run_id = response_json["id"]
@@ -161,25 +158,25 @@ fn create_test_participants(
         .send()?;
 
     if !response.status().is_success() {
-            let status = response.status();
-            let error_message = response
-                .text()
-                .unwrap_or_else(|_| "Could not read response body".to_string());
-            return Err(anyhow!(
-                "Add Participants error: HTTP Status: {}\nError Message: {}",
-                status,
-                error_message
-            ));
+        let status = response.status();
+        let error_message = response
+            .text()
+            .unwrap_or_else(|_| "Could not read response body".to_string());
+        return Err(anyhow!(
+            "Add Participants error: HTTP Status: {}\nError Message: {}",
+            status,
+            error_message
+        ));
     }
 
-    let response_json: Value = response.json()
+    let response_json: Value = response
+        .json()
         .context("Failed to parse createTestParticipants response JSON")?;
 
     let participant_id = response_json["id"]
         .as_i64()
         .ok_or_else(|| anyhow!("No participant ID found in createTestParticipants response"))?;
     Ok(())
-
 }
 
 pub fn get_test_id_by_name(test_name: String) -> Result<Option<String>> {
@@ -208,7 +205,8 @@ pub fn get_test_id_by_name(test_name: String) -> Result<Option<String>> {
         Ok(None)
     } else {
         let status = response.status();
-        let error_message = response.text()
+        let error_message = response
+            .text()
             .unwrap_or_else(|_| "Could not read response body".to_string());
         return Err(anyhow!(
             "HTTP Status: {}\nError Message: {}",
@@ -220,7 +218,7 @@ pub fn get_test_id_by_name(test_name: String) -> Result<Option<String>> {
 
 pub fn launch_test(loadero_url: &str, test_id: &str) -> Result<String> {
     let client = reqwest::blocking::Client::new();
-    let headers = create_header().context("Failed to create headers in launch_test")?;;
+    let headers = create_header().context("Failed to create headers in launch_test")?;
 
     let response = client
         .post(format!("{}/tests/{}/runs/", &loadero_url, test_id))
@@ -228,18 +226,19 @@ pub fn launch_test(loadero_url: &str, test_id: &str) -> Result<String> {
         .send()?;
 
     if !response.status().is_success() {
-            let status = response.status();
-            let error_message = response
-                .text()
-                .unwrap_or_else(|_| "Could not read response body".to_string());
-            return Err(anyhow!(
-                "Launch Test error: HTTP Status: {}\nError Message: {}",
-                status,
-                error_message
-            ));
+        let status = response.status();
+        let error_message = response
+            .text()
+            .unwrap_or_else(|_| "Could not read response body".to_string());
+        return Err(anyhow!(
+            "Launch Test error: HTTP Status: {}\nError Message: {}",
+            status,
+            error_message
+        ));
     }
 
-    let response_json: Value = response.json()
+    let response_json: Value = response
+        .json()
         .context("Failed to parse JSON in launch_test")?;
 
     let run_id = response_json["id"]
@@ -249,11 +248,7 @@ pub fn launch_test(loadero_url: &str, test_id: &str) -> Result<String> {
     Ok(run_id.to_string())
 }
 
-fn check_test_status(
-    loadero_url: &str,
-    test_id: &str,
-    run_id: &str,
-) -> Result<(usize, usize)> {
+fn check_test_status(loadero_url: &str, test_id: &str, run_id: &str) -> Result<(usize, usize)> {
     let client = reqwest::blocking::Client::new();
     let headers = create_header().context("Failed to create headers in check_test_status")?;
 
@@ -269,8 +264,8 @@ fn check_test_status(
 
     let status = response.status();
     let response_text = response
-            .text()
-            .context("Failed to read response text in check_test_status")?;
+        .text()
+        .context("Failed to read response text in check_test_status")?;
 
     if status.is_success() {
         let response_json: Value = serde_json::from_str(&response_text)
@@ -295,8 +290,8 @@ fn check_test_status(
         }
     }
 
-     // If we got here, either status isn't success or JSON didn't contain needed data
-     Err(anyhow!(
+    // If we got here, either status isn't success or JSON didn't contain needed data
+    Err(anyhow!(
         "HTTP Status: {}. Response: {}",
         status,
         response_text
@@ -307,10 +302,7 @@ pub fn replace_placeholder(template: &str, placeholder: &str, replacement: &str)
     template.replace(placeholder, replacement)
 }
 
-pub fn update_script(
-    test_id: &str,
-    test_config: Value,
-) -> Result<()> {
+pub fn update_script(test_id: &str, test_config: Value) -> Result<()> {
     let loadero_url: String =
         env::var("LOADERO_BASE_URL").with_context(|| "missing  LOADERO_BASE_URL")?;
 
