@@ -6,27 +6,57 @@ SPDX-License-Identifier: AGPL-3.0-only
 ## Sequent end-points for integration with Datafix´s VoterView
 
 This document intends to define the Headers, Body and Errors of the Sequent´s end-points for the integration with VoterView.
-Key requirements:
-- Authetication will be managed through client-id and client-secret
-- The client will send Voter IDs to identify the voter as username in sequent´s system.
-- PIN (same as sequent´s password) should be configurable (by Area?), usually 16 digits.
-- In Sequent´s system the Areas and sub areas are represented as a tree... TODO
-- DELETE voter will actually mark the voter as disabled.
-- A unique Id <code>datafix:id</code> will be stored in the annotations of the election events that belong to datafix.
-- Full requirements: https://sequentech.atlassian.net/browse/SO-43
+
 ------------------------------------------------------------------------------------------
 
-<details>
- <summary>For all the endpoints:</summary>
 
-##### Headers
+ <summary>Sequent internal implementation:</summary>
+
+- The client will send Voter IDs to identify the voter as username in sequent´s system.
+- In Sequent´s system the Areas and sub areas are represented as a tree. At least one is required to create a new voter.
+- DELETE voter will actually mark the voter as disabled.
+- Full requirements: https://sequentech.atlassian.net/browse/SO-43
+
+##### Datafix ID:
+
+- The <code>datafix:id</code> will be stored in the annotations of the election events that belong to datafix.
+- Datafix should have as many ids as election events are configured for them.
+- Datafix should set the header field <code>event_id</code> for that.
+
+
+##### Authetication:
+
+- Authetication will be managed through client-id and client-secret sent in the header´s request.
+- Then the Senquent endpoint will use these credentials to request and handle the access token to keycloak.
+- This client-id must be configured in Keycloak with it´s allowed roles, in similar fashion to service-account.
+
+##### PIN:
+
+PIN is the same as sequent´s password and it should be configurable (by Area?), usually it´s 16 numeric digits.
+
+    PIN can be generated as either ( this should be configurable):
+        - The voter password.
+        - A combination of Voter ID + password.
+        - The regular expression to generate the PIN should be configurable
+
+    If voter is disabled, do not generate a PIN
+
+
+------------------------------------------------------------------------------------------
+
+#### Headers
+
+<details>
+ <summary>Headers</summary>
+
+ ##### Headers for all the endpoints (will be provided by Sequent):
 
 > | name      |  type     | data type               | description                                                                       |
 > |-----------|-----------|-------------------------|-----------------------------------------------------------------------------------|
-> | cli_id    |  required | string                  | Client ID                                                                         |
-> | cli_sec   |  required | string                  | Client secret                                                                     |
-> | tenant_id |  required | string                  | Realm id for keycloak                                                             |
-> | event_id  |  required | string                  | To identify the election event. Matches Datafix ID in election event annotations  |
+> | cli_id    |  required | string                  | Client ID for authentication                                                      |
+> | cli_sec   |  required | string                  | Client secret for authentication                                                  |
+> | tenant_id |  required | string                  | Realm id for keycloak´s endpoint                                                  |
+> | event_id  |  required | string                  | Unique for each election event. Matches Datafix ID in election event annotations  |
 
 
 </details>
@@ -113,3 +143,82 @@ Key requirements:
 > | `500`         | `application/json`                | `{"code":"500","message":"InternalServerError"}`      | Internal Server Error   |
 
 </details>
+
+#### Mark voter as voted
+
+<details>
+ <summary><code>POST</code> <code><b>/api/datafix/mark-voted</b></code> <code>(Mark a voter as voted)</code></summary>
+ 
+
+##### Parameters
+
+> | name        |  type     | data type               | description                                                                          |
+> |-------------|-----------|-------------------------|--------------------------------------------------------------------------------------|
+> | voter_id    |  required | string                  | Voter username/id (unique)                                                           |
+> | channel     |  required | string                  | The channel through which the voter casts their vote, e.g. online, in-person, Postal |
+
+
+##### Responses
+
+> | http code     | content-type                      | response                                              | Asumption               |
+> |---------------|-----------------------------------|-------------------------------------------------------|-------------------------|
+> | `200`         | `application/json`                | `{"code":"200","message":"Success"}`                  | Action completed        |
+> | `401`         | `application/json`                | `{"code":"401","message":"Unauthorized"}`             | Incorrect auth headers  |
+> | `400`         | `application/json`                | `{"code":"400","message":"Bad Request"}`              | Incorrect request       |
+> | `404`         | `application/json`                | `{"code":"404","message":"Not found"}`                | Voter does not exist    |
+> | `500`         | `application/json`                | `{"code":"500","message":"InternalServerError"}`      | Internal Server Error   |
+
+</details>
+
+
+#### Unmark voter as voted
+
+<details>
+ <summary><code>POST</code> <code><b>/api/datafix/unmark-voted</b></code> <code>(Unmark a voter as voted)</code></summary>
+ 
+
+##### Parameters
+
+> | name        |  type     | data type               | description                                                           |
+> |-------------|-----------|-------------------------|-----------------------------------------------------------------------|
+> | voter_id    |  required | string                  | Voter username/id (unique)                                            |
+
+
+##### Responses
+
+> | http code     | content-type                      | response                                              | Asumption               |
+> |---------------|-----------------------------------|-------------------------------------------------------|-------------------------|
+> | `200`         | `application/json`                | `{"code":"200","message":"Success"}`                  | Action completed        |
+> | `401`         | `application/json`                | `{"code":"401","message":"Unauthorized"}`             | Incorrect auth headers  |
+> | `400`         | `application/json`                | `{"code":"400","message":"Bad Request"}`              | Incorrect request       |
+> | `404`         | `application/json`                | `{"code":"404","message":"Not found"}`                | Voter does not exist    |
+> | `500`         | `application/json`                | `{"code":"500","message":"InternalServerError"}`      | Internal Server Error   |
+
+</details>
+
+
+#### Replace PIN
+
+<details>
+ <summary><code>POST</code> <code><b>/api/datafix/replace-pin</b></code> <code>(Replace a voter´s existing PIN. Also used to create it for the first time)</code> </summary>
+ 
+
+##### Parameters
+
+> | name        |  type     | data type               | description                                                           |
+> |-------------|-----------|-------------------------|-----------------------------------------------------------------------|
+> | voter_id    |  required | string                  | Voter username/id (unique)                                            |
+
+
+##### Responses
+
+> | http code     | content-type                      | response                                              | Asumption               |
+> |---------------|-----------------------------------|-------------------------------------------------------|-------------------------|
+> | `200`         | `application/json`                | `{"code":"200","message":"Success"}`                  | Action completed        |
+> | `401`         | `application/json`                | `{"code":"401","message":"Unauthorized"}`             | Incorrect auth headers  |
+> | `400`         | `application/json`                | `{"code":"400","message":"Bad Request"}`              | Incorrect request       |
+> | `404`         | `application/json`                | `{"code":"404","message":"Not found"}`                | Voter does not exist    |
+> | `500`         | `application/json`                | `{"code":"500","message":"InternalServerError"}`      | Internal Server Error   |
+
+</details>
+
