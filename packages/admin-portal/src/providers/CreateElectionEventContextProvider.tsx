@@ -275,22 +275,9 @@ export const CreateElectionEventProvider = ({children}: any) => {
 
             const task_id = data?.import_election_event?.task_execution?.id
             let electionEventId = data?.import_election_event?.id
-            console.log(task_id)
-            console.log(electionEventId)
-            console.log(data?.import_election_event)
             setWidgetTaskId(currWidget.identifier, task_id)
             if (data?.import_election_event?.error) {
                 updateWidgetFail(currWidget.identifier)
-                let errMsg = data?.import_election_event?.error
-                console.log(errMsg)
-                // setErrors(data.import_election_event.error)
-                if (errMsg.includes("Failed to verify the integrity")) {
-                    notify(t("importResource.ImportHashMismatch"), {type: "error"})
-                } else {
-                    notify(t("electionEventScreen.import.importElectionEventError"), {
-                        type: "error",
-                    })
-                }
                 return
             }
             if (electionEventId) {
@@ -299,14 +286,9 @@ export const CreateElectionEventProvider = ({children}: any) => {
                     id: electionEventId,
                     type: "sequent_backend_election_event",
                 })
-                notify(t("electionEventScreen.import.importElectionEventSuccess"), {
-                    type: "success",
-                })
             }
         } catch (err) {
-            // setErrors("Exception importing election event")
             updateWidgetFail(currWidget.identifier)
-            notify(t("electionEventScreen.import.importElectionEventError"), {type: "error"})
         }
     }
 
