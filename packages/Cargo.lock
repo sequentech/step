@@ -9050,6 +9050,7 @@ dependencies = [
  "graphql_client",
  "handlebars",
  "headless_chrome",
+ "hex",
  "immudb-rs",
  "keycloak",
  "lazy_static 1.5.0",

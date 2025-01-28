@@ -292,6 +292,9 @@ commit the changes.
 Note that you can insert rows as a migration by clicking on the
 `This is a migration` option at the bottom of the `Insert Row` form.
 
+Note: if the browser doesn't load correctly at `http://localhost:9695`, try
+opening the port `9693` in VS Code.
+
 ## admin-portal
 
 ## ui-essentials

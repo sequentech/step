@@ -98,6 +98,8 @@ futures = "0.3.30"
 # for hashing passwords in import users
 sha2 = "0.10"
 ring = "0.17"
+# serializing
+hex = "0.4"
 
 walkdir = "2.3"
 headless_chrome = { version = "1.0.15"}
