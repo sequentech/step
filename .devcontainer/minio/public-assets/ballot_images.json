@@ -10,7 +10,7 @@
         },
         "ballot_data": [
             {
-                "id": "1",
+                "id": "000000001",
                 "encoded_vote": "2",
                 "is_invalid": false,
                 "is_blank": false,
@@ -157,7 +157,8 @@
             "registered_voters": "10",
             "geographical_region": "Asia/Pacific",
             "post": "Bangkok PE",
-            "clustered_precint_id": "E1"
+            "clustered_precint_id": "E1",
+            "pollcenter_code":"12345678"
         }
     }
 }

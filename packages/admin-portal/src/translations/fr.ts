@@ -1448,6 +1448,7 @@ const frenchTranslation: TranslationType = {
             uploadTransmissionPackageDesc:
                 "Téléchargez votre signature pour signer le paquet des Résultats Électoraux. Cette opération est optionnelle.",
             exportElectionArea: "Envoyer le paquet de transmission pour la zone '{{name}}'",
+            generateReport: "Générer {{name}}",
             templateTitle: "Modèle de Résultats",
             templateSubTitle: "Éventuellement écraser le modèle de résultats.",
             keysCeremonyTitle: "Cérémonie des Clés",
@@ -1896,6 +1897,7 @@ const frenchTranslation: TranslationType = {
                 verificationType: "Type de Vérification",
                 createdAt: "Créé Le",
                 updatedAt: "Mis à Jour Le",
+                approved_by: "Approuvé Par",
             },
             approvalRequest: "Informations d'approbation",
             title: "Électeurs",

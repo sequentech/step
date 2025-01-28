@@ -81,7 +81,7 @@ pub async fn generate_election_votes_data(
     .await?
     .ok_or(anyhow!("Can't find election"))?;
     let registered_voters = election
-        .get_annotations()
+        .get_annotations_or_empty_values()
         .map(|annotations| annotations.registered_voters)
         .ok();
     // Fetch last election results created from tally session
@@ -136,7 +136,7 @@ pub async fn generate_election_area_votes_data(
     .await?
     .ok_or(anyhow!("Can't find election"))?;
     let registered_voters = election
-        .get_annotations()
+        .get_annotations_or_empty_values()
         .map(|annotations| annotations.registered_voters)
         .ok();
     // Fetch last election results created from tally session

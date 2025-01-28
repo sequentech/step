@@ -136,3 +136,49 @@ pub async fn get_results_event_by_id(
         .map(|results_event| results_event.clone())
         .ok_or(anyhow!("Results event {results_event_id} not found"))
 }
+
+#[instrument(err, skip(hasura_transaction), ret)]
+pub async fn insert_results_event(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<ResultsEvent> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                INSERT INTO
+                    sequent_backend.results_event
+                (tenant_id, election_event_id)
+                VALUES(
+                    $1,
+                    $2
+                )
+                RETURNING
+                    *;
+            "#,
+        )
+        .await?;
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(election_event_id)?,
+            ],
+        )
+        .await
+        .map_err(|err| anyhow!("Error inserting row: {}", err))?;
+
+    let values: Vec<ResultsEvent> = rows
+        .into_iter()
+        .map(|row| -> Result<ResultsEvent> {
+            row.try_into()
+                .map(|res: ResultsEventWrapper| -> ResultsEvent { res.0 })
+        })
+        .collect::<Result<Vec<ResultsEvent>>>()?;
+
+    let Some(value) = values.first() else {
+        return Err(anyhow!("Error inserting row"));
+    };
+    Ok(value.clone())
+}
