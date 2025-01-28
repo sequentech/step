@@ -224,7 +224,10 @@ pub fn get_election_status_info(election: &Election) -> ElectionStatusInfo {
         Some(status) => match status.voting_status {
             VotingStatus::NOT_STARTED => total_not_opened_votes += 1,
             VotingStatus::OPEN | VotingStatus::PAUSED => total_open_votes += 1,
-            VotingStatus::CLOSED => total_closed_votes += 1,
+            VotingStatus::CLOSED => {
+                total_open_votes += 1;
+                total_closed_votes += 1;
+            }
             _ => {}
         },
         None => {}
