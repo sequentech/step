@@ -344,7 +344,7 @@ pub async fn create_tally_ceremony(
         .collect();
     if permission_label_filtered_elections.len() != election_ids.len() {
         return Err(anyhow!(
-            "Some elections have unauthorized permission labels"
+            "Some elections don't have the required permission label or are not published"
         ));
     }
     event!(Level::INFO, "contests {:?}", contests);
