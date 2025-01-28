@@ -25,6 +25,7 @@ use crate::tasks::export_tenant_config::export_tenant_config;
 use crate::tasks::export_trustees::export_trustees_task;
 use crate::tasks::export_users::export_users;
 use crate::tasks::generate_report::generate_report;
+use crate::tasks::generate_template::generate_template;
 use crate::tasks::import_election_event::import_election_event;
 use crate::tasks::import_tenant_config::import_tenant_config;
 use crate::tasks::import_users::import_users;
@@ -141,6 +142,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             process_board,
             render_report,
             generate_report,
+            generate_template,
             create_ballot_receipt,
             set_public_key,
             execute_tally_session,
@@ -183,6 +185,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             render_report::NAME => Queue::Reports.as_ref(),
             create_ballot_receipt::NAME => Queue::Reports.as_ref(),
             generate_report::NAME => Queue::Reports.as_ref(),
+            generate_template::NAME => Queue::Reports.as_ref(),
             set_public_key::NAME => Queue::Short.as_ref(),
             execute_tally_session::NAME => Queue::Tally.as_ref(),
             update_election_event_ballot_styles::NAME => Queue::Short.as_ref(),

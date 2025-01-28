@@ -123,6 +123,7 @@ pub async fn verify_application(
         update_attributes: annotations.update_attributes.clone(),
         mismatches: result.mismatches,
         fields_match: result.fields_match.clone(),
+        manual_verify_reason: result.manual_verify_reason.clone(),
     };
 
     // Add a permission label only if the embassy matches the voter in db
@@ -157,6 +158,7 @@ pub async fn verify_application(
     Ok(result)
 }
 
+#[instrument(err, skip_all)]
 async fn get_permission_label_from_applicant_data(
     hasura_transaction: &Transaction<'_>,
     applicant_data: &HashMap<String, String>,
@@ -170,6 +172,7 @@ async fn get_permission_label_from_applicant_data(
     return get_permission_label_from_post(hasura_transaction, post).await;
 }
 
+#[instrument(err, skip_all)]
 fn get_filter_from_applicant_data(
     tenant_id: String,
     election_event_id: Option<String>,
@@ -253,6 +256,25 @@ fn get_filter_from_applicant_data(
     })
 }
 
+#[instrument(skip_all)]
+fn build_manual_verify_reason(fields_match: HashMap<String, bool>) -> String {
+    let mismatch_fields = fields_match
+        .iter()
+        .filter(|(_, &value)| !value)
+        .map(|(key, _)| match key.as_str() {
+            "firstName" => "First Name",
+            "middleName" => "Middle Name",
+            "lastName" => "Last Name",
+            "embassy" => "Post",
+            "dateOfBirth" => "Date Of Birth",
+            _ => key,
+        })
+        .collect::<Vec<&str>>()
+        .join(", ");
+
+    format!("Mismatch at {}", mismatch_fields)
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ApplicationAnnotations {
     session_id: Option<String>,
@@ -268,6 +290,7 @@ pub struct ApplicationAnnotations {
     update_attributes: Option<String>,
     mismatches: Option<usize>,
     fields_match: Option<HashMap<String, bool>>,
+    manual_verify_reason: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -281,8 +304,10 @@ pub struct ApplicationVerificationResult {
     pub attributes_unset: Option<HashMap<String, bool>>,
     pub rejection_reason: Option<ApplicationRejectReason>,
     pub rejection_message: Option<String>,
+    pub manual_verify_reason: Option<String>,
 }
 
+#[instrument(err, skip_all)]
 fn automatic_verification(
     users: Vec<User>,
     annotations: &ApplicationAnnotations,
@@ -312,6 +337,7 @@ fn automatic_verification(
     let mut rejection_reason: Option<ApplicationRejectReason> =
         Some(ApplicationRejectReason::NO_VOTER);
     let mut rejection_message: Option<String> = None;
+    let mut mismatch_reason = None;
 
     for user in users {
         let (mismatches, mismatches_unset, fields_match, attributes_unset) = check_mismatches(
@@ -321,6 +347,10 @@ fn automatic_verification(
             unset_attributes.clone(),
         )?;
         let username = user.username.clone().unwrap_or_default();
+
+        if mismatches > 0 {
+            mismatch_reason = Some(build_manual_verify_reason(fields_match.clone()));
+        }
 
         // If there are no mismatches..
         if mismatches == 0 {
@@ -347,6 +377,7 @@ fn automatic_verification(
                     attributes_unset: Some(attributes_unset),
                     rejection_reason: None,
                     rejection_message: None,
+                    manual_verify_reason: None,
                 });
             }
         // If there was only 1 mismatch
@@ -375,6 +406,7 @@ fn automatic_verification(
                         attributes_unset: Some(attributes_unset),
                         rejection_reason: None,
                         rejection_message: None,
+                        manual_verify_reason: None,
                     });
                 }
                 matched_user = None;
@@ -419,6 +451,12 @@ fn automatic_verification(
         }
     }
 
+    info!("matched_status: {}", matched_status.to_string());
+    info!(
+        "rejection_reason: {}",
+        rejection_reason.clone().unwrap_or_default().to_string()
+    );
+
     Ok(ApplicationVerificationResult {
         user_id: matched_user.clone().and_then(|user| user.id),
         username: matched_user
@@ -432,6 +470,7 @@ fn automatic_verification(
         attributes_unset: verification_attributes_unset,
         rejection_reason,
         rejection_message,
+        manual_verify_reason: mismatch_reason,
     })
 }
 
@@ -581,7 +620,7 @@ fn check_mismatches(
 }
 
 /// Get the accepted/rejected message from the internalization object in the defaults file.
-#[instrument(err, res)]
+#[instrument(err)]
 async fn get_i18n_default_application_communication(
     lang: &str,
     app_status: ApplicationStatus,
@@ -949,6 +988,7 @@ pub async fn reject_application(
     Ok(application)
 }
 
+#[instrument(err, skip_all)]
 pub async fn send_application_communication_response(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -1047,6 +1087,29 @@ pub async fn send_application_communication_response(
     Ok(())
 }
 
+#[instrument(err, skip_all)]
+pub async fn get_group_names(realm: &str, user_id: &str) -> Result<Vec<String>> {
+    let client = KeycloakAdminClient::new()
+        .await
+        .map_err(|err| anyhow!("Error create keycloak admin client: {err}"))?;
+
+    // Fetch user groups from Keycloak
+    let _groups = client
+        .get_user_groups(&realm, user_id)
+        .await
+        .map_err(|err| anyhow!("Error fetch group names: {err}"))?;
+
+    // Extract group names
+    let group_names: Vec<String> = _groups
+        .into_iter()
+        .map(|group| group.group_name) // Assuming `group_name` is a String
+        .collect();
+
+    // Return group names as a JSON response
+    Ok(group_names)
+}
+
+#[instrument(skip_all)]
 fn string_to_unaccented(word: String) -> String {
     let mut unaccented_word = String::new();
     for l in word.chars() {
@@ -1061,6 +1124,7 @@ fn string_to_unaccented(word: String) -> String {
     unaccented_word
 }
 
+#[instrument(skip_all)]
 fn to_unaccented_without_hyphen(word: Option<String>) -> Option<String> {
     let word = match word {
         Some(word) => word.replace("-", " "),
@@ -1205,25 +1269,4 @@ mod tests {
             applicant_value, user_value
         );
     }
-}
-
-pub async fn get_group_names(realm: &str, user_id: &str) -> Result<Vec<String>> {
-    let client = KeycloakAdminClient::new()
-        .await
-        .map_err(|err| anyhow!("Error create keycloak admin client: {err}"))?;
-
-    // Fetch user groups from Keycloak
-    let _groups = client
-        .get_user_groups(&realm, user_id)
-        .await
-        .map_err(|err| anyhow!("Error fetch group names: {err}"))?;
-
-    // Extract group names
-    let group_names: Vec<String> = _groups
-        .into_iter()
-        .map(|group| group.group_name) // Assuming `group_name` is a String
-        .collect();
-
-    // Return group names as a JSON response
-    Ok(group_names)
 }

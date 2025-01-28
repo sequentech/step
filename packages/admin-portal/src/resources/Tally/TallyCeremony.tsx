@@ -900,9 +900,13 @@ export const TallyCeremony: React.FC = () => {
                                         {t("tally.resultsTitle")}
                                     </WizardStyles.AccordionTitle>
                                     <TallyStyles.StyledSpacing>
-                                        {resultsEvent?.[0] && documents && canExportCeremony ? (
+                                        {resultsEvent?.[0] &&
+                                        documents &&
+                                        canExportCeremony &&
+                                        tally?.id ? (
                                             <ExportElectionMenu
                                                 documentsList={[documents]}
+                                                tallySessionId={tally.id}
                                                 electionEventId={
                                                     resultsEvent?.[0].election_event_id
                                                 }

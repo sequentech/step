@@ -18,6 +18,8 @@ import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {ETallyType} from "@/types/ceremonies"
 import {notDeepEqual} from "assert"
 import {StyledAppAtom} from "@/App"
+import {ETemplateType} from "@/types/templates"
+import {GenerateReport} from "./GenerateReport"
 
 interface PerformDownloadProps {
     onDownload: () => void
@@ -88,6 +90,7 @@ interface ExportElectionMenuProps {
     buttonTitle?: string
     documentsList: IResultDocumentsData[] | null
     electionEventId: string
+    tallySessionId: string
     itemName: string
     tallyType?: string | null
     electionId?: string | null
@@ -99,6 +102,7 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
     const {
         itemName,
         documentsList,
+        tallySessionId,
         electionEventId,
         buttonTitle,
         tallyType,
@@ -279,6 +283,22 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
                             onCreateTransmissionPackage={onCreateTransmissionPackage}
                             loading={miruExportloading}
                         />
+                    ) : null}
+                    {globalSettings?.ACTIVATE_MIRU_EXPORT && electionId ? (
+                        <>
+                            <GenerateReport
+                                reportType={ETemplateType.BALLOT_IMAGES}
+                                electionEventId={electionEventId}
+                                electionId={electionId}
+                                tallySessionId={tallySessionId}
+                            />
+                            <GenerateReport
+                                reportType={ETemplateType.VOTE_RECEIPT}
+                                electionEventId={electionEventId}
+                                electionId={electionId}
+                                tallySessionId={tallySessionId}
+                            />
+                        </>
                     ) : null}
                 </StyledAppAtom>
             </Menu>
