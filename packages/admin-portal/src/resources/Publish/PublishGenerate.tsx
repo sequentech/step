@@ -138,6 +138,7 @@ export const PublishGenerate: React.FC<TPublishGenerate> = ({
                     <PublishGenerateStyled.AccordionHeaderTitle>
                         {readOnly ? t("publish.header.viewChange") : t("publish.header.change")}
                     </PublishGenerateStyled.AccordionHeaderTitle>
+                    {readOnly && <PublishExport ballotPublicationId={ballotPublicationId} />}
                 </PublishGenerateStyled.TitleWrapper>
 
                 <DiffView
