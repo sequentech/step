@@ -276,7 +276,7 @@ dob-sdk-root {
   --dob-font-regular-name: 'Dob-Font-Regular';
 
   /* TEXTS */
-  /* --dob-text-white-space: pre-wrap; */
+  --dob-text-white-space: pre-wrap;
   --dob-text-title-color: var(--dob-primary-color);
   --dob-text-subtitle-color: var(--dob-secundary-color);
   --dob-text-lead-color: #000000;
