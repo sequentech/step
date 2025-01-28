@@ -28,7 +28,7 @@
           "total_expected": 4000,
           "total_overvotes": 20,
           "total_position": 3980,
-          "total_undevotes": 100,
+          "total_undervotes": 100,
           "fill_up_rate": 95
         }
       ],
@@ -66,7 +66,7 @@
           "total_expected": 4000,
           "total_overvotes": 20,
           "total_position": 3980,
-          "total_undevotes": 100,
+          "total_undervotes": 100,
           "fill_up_rate": 95
         }
       ],

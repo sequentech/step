@@ -1449,6 +1449,7 @@ const catalanTranslation: TranslationType = {
             uploadTransmissionPackageDesc:
                 "Carrega la teva signatura per signar el paquet de Resultats Electorals. Aquesta operació és opcional.",
             exportElectionArea: "Envia paquet de transmissió per a l'àrea '{{name}}'",
+            generateReport: "Genera {{name}}",
             templateTitle: "Plantilla de Resultats",
             initializationTitle: "Eleccions per a l'informe d'inicialització",
             templateSubTitle: "Opcionalment sobreescriure la plantilla de resultats.",
@@ -1898,6 +1899,7 @@ const catalanTranslation: TranslationType = {
                 verificationType: "Tipus de Verificació",
                 createdAt: "Creat El",
                 updatedAt: "Actualitzat El",
+                approved_by: "Aprovat per",
             },
             approvalRequest: "Sol·licitud d'Aprovació",
             title: "Votants",
