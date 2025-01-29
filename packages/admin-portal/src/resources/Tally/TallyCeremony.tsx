@@ -360,12 +360,12 @@ export const TallyCeremony: React.FC = () => {
 
     useEffect(() => {
         if (page === WizardSteps.Ceremony) {
-            let isStartAllowd =
+            let isStartAllowed =
                 tallySession?.tally_type === ETallyType.ELECTORAL_RESULTS
                     ? isTallyAllowed
                     : isInitAllowed
             let newIsButtonDisabled =
-                tally?.execution_status !== ITallyExecutionStatus.CONNECTED || !isStartAllowd
+                tally?.execution_status !== ITallyExecutionStatus.CONNECTED || !isStartAllowed
             console.log(
                 `setIsButtonDisabled = ${newIsButtonDisabled}, tallySession?.tally_type = ${tallySession?.tally_type}`
             )
