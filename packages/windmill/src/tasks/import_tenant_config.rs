@@ -41,7 +41,7 @@ pub async fn import_tenant_config(
     match import_tenant_config_zip(object, &tenant_id, &document_id, sha256).await {
         Ok(_) => (),
         Err(err) => {
-            update_fail(&task_execution, &format!("{:?}", err)).await?;
+            update_fail(&task_execution, &err.to_string()).await?;
             return Err(anyhow!("Error process tenant configuration documents: {:?}", err).into());
         }
     };

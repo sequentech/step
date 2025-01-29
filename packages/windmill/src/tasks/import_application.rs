@@ -50,7 +50,7 @@ pub async fn import_applications(
         }
         Err(err) => {
             let err_str = format!("Error importing applications: {err:?}");
-            let _res = update_fail(&task_execution, &err_str).await;
+            let _res = update_fail(&task_execution, &err.to_string()).await;
             Err(err_str.into())
         }
     }
