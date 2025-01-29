@@ -196,7 +196,7 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
                             />
                         ))}
                     </Tabs>
-                    {documentsList && canExportCeremony ? (
+                    {documentsList && canExportCeremony && tally?.id ? (
                         <ExportElectionMenu
                             documentsList={documentsList}
                             electionEventId={data?.election_event_id}
@@ -205,6 +205,7 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
                             electionId={electionId}
                             onCreateTransmissionPackage={onCreateTransmissionPackage}
                             miruExportloading={loading}
+                            tallySessionId={tally.id}
                         />
                     ) : null}
                 </Box>
@@ -216,6 +217,7 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
                             electionEventId={election.election_event_id}
                             tenantId={election.tenant_id}
                             resultsEventId={resultsEventId}
+                            tallySessionId={tally?.id ?? null}
                         />
                     </CustomTabPanel>
                 ))}
