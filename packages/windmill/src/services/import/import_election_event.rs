@@ -443,6 +443,7 @@ pub async fn process_election_event_file(
                 serde_json::to_value(status)
                     .with_context(|| "Error serializing election status")?,
             );
+            clone.initialization_report_generated = Some(false);
 
             Ok(clone)
         })
