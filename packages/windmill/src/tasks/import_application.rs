@@ -2,16 +2,15 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::application::insert_applications;
-use crate::services::database::get_hasura_pool;
+use crate::services::providers::transactions_provider::provide_hasura_transaction;
 use crate::{
     postgres::document::get_document,
     services::documents::get_document_as_temp_file,
     services::tasks_execution::{update_complete, update_fail},
-    types::error::{Error, Result},
+    types::error::Result,
 };
-use anyhow::{anyhow, Context};
+use anyhow::{anyhow, Context, Result as AnyhowResult};
 use celery::error::TaskError;
-use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
 use sequent_core::types::hasura::core::Application;
 use sequent_core::types::hasura::core::TasksExecution;
@@ -30,37 +29,21 @@ pub async fn import_applications(
     sha256: Option<String>,
     task_execution: TasksExecution,
 ) -> Result<()> {
-    let mut hasura_db_client: DbClient = match get_hasura_pool().await.get().await {
-        Ok(client) => client,
-        Err(err) => {
-            update_fail(&task_execution, "Failed to get Hasura DB pool").await?;
-            return Err(Error::String(format!(
-                "Error getting Hasura DB pool: {}",
-                err
-            )));
-        }
-    };
+    let result = provide_hasura_transaction(|hasura_transaction| {
+        Box::pin(async move {
+            import_applications_task(
+                hasura_transaction,
+                tenant_id,
+                election_event_id,
+                document_id,
+                sha256,
+            )
+            .await
+        })
+    })
+    .await;
 
-    let hasura_transaction = match hasura_db_client.transaction().await {
-        Ok(transaction) => transaction,
-        Err(err) => {
-            let _res = update_fail(&task_execution, "Failed to start Hasura transaction").await;
-            return Err(Error::String(format!(
-                "Error starting Hasura transaction: {err}"
-            )));
-        }
-    };
-
-    // Process the export
-    match import_applications_task(
-        &hasura_transaction,
-        tenant_id,
-        election_event_id,
-        document_id,
-        sha256,
-    )
-    .await
-    {
+    match result {
         Ok(_) => {
             let _res = update_complete(&task_execution).await;
             Ok(())
@@ -68,7 +51,7 @@ pub async fn import_applications(
         Err(err) => {
             let err_str = format!("Error importing applications: {err:?}");
             let _res = update_fail(&task_execution, &err_str).await;
-            Err(Error::String(err_str))
+            Err(err_str.into())
         }
     }
 }
@@ -80,7 +63,7 @@ pub async fn import_applications_task(
     election_event_id: String,
     document_id: String,
     sha256: Option<String>,
-) -> Result<()> {
+) -> AnyhowResult<()> {
     let document = get_document(hasura_transaction, &tenant_id, None, &document_id)
         .await
         .with_context(|| "Error obtaining the document")?
@@ -96,11 +79,11 @@ pub async fn import_applications_task(
             }
             Err(HashFileVerifyError::HashMismatch(input_hash, gen_hash)) => {
                 let err_str = format!("Failed to verify the integrity: Hash of voters file: {gen_hash} does not match with the input hash: {input_hash}");
-                return Err(err_str.into());
+                return Err(anyhow!(err_str));
             }
             Err(err) => {
                 let err_str = format!("Failed to verify the integrity: {err:?}");
-                return Err(err_str.into());
+                return Err(anyhow!(err_str));
             }
         },
         _ => {
