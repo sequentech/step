@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::authorization::authorize;
-use anyhow::Result;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt;
@@ -56,7 +55,8 @@ pub async fn import_templates_route(
                 document_id,
                 body.sha256.clone(),
             )
-            .await
+            .await?;
+            Ok(())
         })
     })
     .await
@@ -66,7 +66,7 @@ pub async fn import_templates_route(
             document_id: body.document_id,
         })),
         Err(err) => Ok(Json(ImportTemplatesOutput {
-            error_msg: Some(format!("{err:?}")),
+            error_msg: Some(err.to_string()),
             document_id: body.document_id,
         })),
     }

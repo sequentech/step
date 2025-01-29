@@ -3,14 +3,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::template::insert_templates;
+use crate::types::error::{Error, Result};
 use crate::{postgres::document::get_document, services::documents::get_document_as_temp_file};
-use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::types::hasura::core::Template;
-use sequent_core::util::integrity_check::{integrity_check, HashFileVerifyError};
+use sequent_core::util::integrity_check::integrity_check;
 use std::io::Seek;
-use tracing::info;
-use tracing::instrument;
+use tracing::{info, instrument};
 use uuid::Uuid;
 
 #[instrument(err)]
@@ -20,10 +19,10 @@ pub async fn import_templates_task(
     document_id: String,
     sha256: Option<String>,
 ) -> Result<()> {
-    let document = get_document(&hasura_transaction, &tenant_id, None, &document_id)
+    let document = get_document(hasura_transaction, &tenant_id, None, &document_id)
         .await
-        .with_context(|| "Error obtaining the document")?
-        .ok_or(anyhow!("document not found"))?;
+        .map_err(|e| "Error obtaining the document: {:e?}")?
+        .ok_or(Error::String("document not found".to_string()))?;
 
     let mut temp_file = get_document_as_temp_file(&tenant_id, &document).await?;
     temp_file.rewind()?;
@@ -33,13 +32,8 @@ pub async fn import_templates_task(
             Ok(_) => {
                 info!("Hash verified !");
             }
-            Err(HashFileVerifyError::HashMismatch(input_hash, gen_hash)) => {
-                let err_str = format!("Failed to verify the integrity: Hash of voters file: {gen_hash} does not match with the input hash: {input_hash}");
-                return Err(anyhow!(err_str));
-            }
             Err(err) => {
-                let err_str = format!("Failed to verify the integrity: {err:?}");
-                return Err(anyhow!(err_str));
+                return Err(err.into());
             }
         },
         _ => {
@@ -55,7 +49,7 @@ pub async fn import_templates_task(
     let mut templates: Vec<Template> = vec![];
 
     for result in rdr.records() {
-        let record = result.with_context(|| "Error reading CSV record")?;
+        let record = result.map_err(|e| "Error reading CSV record: {:e?}")?;
 
         let template_alias = record.get(0).unwrap_or("");
         let tenant_id = record.get(1).unwrap_or("");
@@ -89,7 +83,7 @@ pub async fn import_templates_task(
         });
     }
 
-    insert_templates(&hasura_transaction, &templates).await?;
+    insert_templates(hasura_transaction, &templates).await?;
 
     Ok(())
 }

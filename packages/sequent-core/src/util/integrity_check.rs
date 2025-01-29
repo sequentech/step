@@ -7,22 +7,17 @@ use std::fs::File;
 use std::io::Read;
 use strand::hash::hash_sha256;
 use strand::util::StrandError;
+use strum_macros::Display;
 use tempfile::NamedTempFile;
 
-#[derive(Debug)]
+#[derive(Debug, Display)]
 pub enum HashFileVerifyError {
+    #[strum(serialize = "io-error")]
     IoError(String, std::io::Error), // Error reading voters file
-    HashMismatch(String, String),    // Voters file hash does not match
+    #[strum(serialize = "hash-mismatch")]
+    HashMismatch(String, String), // Voters file hash does not match
+    #[strum(serialize = "hash-computing-error")]
     HashComputingError(String, StrandError), // Error computing the hash
-}
-
-impl core::fmt::Display for HashFileVerifyError {
-    fn fmt(
-        &self,
-        fmt: &mut core::fmt::Formatter,
-    ) -> core::result::Result<(), core::fmt::Error> {
-        write!(fmt, "{self:?}")
-    }
 }
 
 impl std::error::Error for HashFileVerifyError {}

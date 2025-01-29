@@ -43,6 +43,7 @@ import {DownloadDocument} from "../User/DownloadDocument"
 import {ExportTemplateMutation, ImportTemplatesMutation} from "@/gql/graphql"
 import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
 import {IMPORT_TEMPLATES} from "@/queries/ImportTemplate"
+import {EIntegrityCheckError} from "@/types/templates"
 
 const TemplateEmpty = styled(Box)`
     display: flex;
@@ -169,8 +170,8 @@ export const TemplateList: React.FC = () => {
             })
             let errMsg = data?.import_templates?.error_msg
             if (errMsg) {
-                console.log(errMsg)
-                if (errMsg.includes("Failed to verify the integrity")) {
+                let errType = errMsg as EIntegrityCheckError
+                if (errType == EIntegrityCheckError.HASH_MISSMATCH) {
                     notify(t("importResource.ImportHashMismatch"), {type: "error"})
                 } else {
                     notify("Error importing templates", {type: "error"})

@@ -9,7 +9,6 @@ use crate::services::import::import_tenant::upsert_tenant;
 use crate::services::keycloak::read_roles_config_file;
 use crate::tasks::import_tenant_config::ImportOptions;
 use crate::types::documents::EDocuments;
-// use crate::types::error::Result;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Client as DbClient;
 use keycloak::types::RealmRepresentation;
