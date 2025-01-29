@@ -500,6 +500,7 @@ pub async fn edit_user(
                 &hasura_transaction,
                 &input.tenant_id,
                 &election_event_id,
+                None,
                 vec![user],
                 None, // filter_by_has_voted
             )

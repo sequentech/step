@@ -204,7 +204,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     />
                 )
             }
-            if (electionEventId && !electionId) {
+            if (electionEventId) {
                 filters.push(
                     <BooleanInput
                         key="has_voted"
@@ -972,6 +972,12 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         return false
     }
 
+    const checkIsVoted = (record: IUser) => {
+        return record?.votes_info?.length
+            ? !electionId || record.votes_info.some((vote) => vote.election_id === electionId)
+            : false
+    }
+
     return (
         <>
             {
@@ -1059,7 +1065,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                                     label={t("usersAndRolesScreen.users.fields.has_voted")}
                                     render={(record: IUser, source: string | undefined) => {
                                         let newRecord = {
-                                            has_voted: (record?.votes_info?.length ?? 0) > 0,
+                                            has_voted: checkIsVoted(record),
                                             ...record,
                                         }
                                         return <BooleanField record={newRecord} source={source} />
