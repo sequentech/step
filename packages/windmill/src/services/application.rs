@@ -41,23 +41,16 @@ use unicode_normalization::char::decompose_canonical;
 #[allow(non_camel_case_types)]
 #[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub enum ECardType {
+    #[serde(rename = "philSysID")]
     PHILSYS_ID,
+    #[serde(rename = "seamanBook")]
     SEAMANS_BOOK,
+    #[serde(rename = "driversLicense")]
     DRIVER_LICENSE,
+    #[serde(rename = "philippinePassport")]
     PHILIPPINE_PASSPORT,
+    #[serde(rename = "iBP")]
     IBP,
-}
-
-impl ECardType {
-    pub fn to_name(&self) -> &str {
-        match self {
-            ECardType::PHILSYS_ID => "philSysID",
-            ECardType::SEAMANS_BOOK => "seamanBook",
-            ECardType::DRIVER_LICENSE => "driversLicense",
-            ECardType::PHILIPPINE_PASSPORT => "philippinePassport",
-            ECardType::IBP => "iBP",
-        }
-    }
 }
 
 /// Struct for email/sms Accepted/Rejected Communication object.
@@ -496,8 +489,8 @@ fn check_mismatches(
         .ok_or(anyhow!("Error converting applicant_data to map"))?;
 
     // Check if the card type is seamans_book or driver_license
-    let card_type_flag = card_type == ECardType::SEAMANS_BOOK.to_name()
-        || card_type == ECardType::DRIVER_LICENSE.to_name();
+    let card_type_flag = *card_type == ECardType::SEAMANS_BOOK.to_string()
+        || *card_type == ECardType::DRIVER_LICENSE.to_string();
 
     for field_to_check in fields_to_check.split(",") {
         let field_to_check = field_to_check.trim();
