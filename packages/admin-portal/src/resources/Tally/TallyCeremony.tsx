@@ -338,7 +338,7 @@ export const TallyCeremony: React.FC = () => {
                     !(tallySession?.election_ids || []).find(
                         (election_id) => election.id == election_id
                     ) ||
-                    // Otherwise, Tally is allowed if is explicitly allowed OR requires the voting period to end and it has ended
+                    // Otherwise, tallying is allowed if it is explicitly permitted OR if it requires the voting period to end and it has ended
                     ((election.status?.allow_tally === EAllowTally.ALLOWED ||
                         (election.status?.allow_tally === EAllowTally.REQUIRES_VOTING_PERIOD_END &&
                             isVotingPeriodEnded)) &&
