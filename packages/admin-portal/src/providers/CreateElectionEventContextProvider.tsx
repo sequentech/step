@@ -31,6 +31,8 @@ import {addDefaultTranslationsToElement} from "@/services/i18n"
 import {ETasksExecution} from "@/types/tasksExecution"
 import {INSERT_ELECTION_EVENT} from "@/queries/InsertElectionEvent"
 import {useTenantStore} from "./TenantContextProvider"
+import {useAtom} from "jotai"
+import archivedElectionEventSelection from "@/atoms/archived-election-event-selection"
 
 interface IElectionSubmit {
     description: string
@@ -127,6 +129,10 @@ export const CreateElectionEventProvider = ({children}: any) => {
     const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
     const {setLastCreatedResource} = useContext(NewResourceContext)
     const {refetch: refetchTreeMenu} = useTreeMenuData(false)
+
+    const [isArchivedElectionEvents, setArchivedElectionEvents] = useAtom(
+        archivedElectionEventSelection
+    )
 
     const postDefaultValues = () => ({id: v4()})
 
@@ -299,6 +305,7 @@ export const CreateElectionEventProvider = ({children}: any) => {
                 )
                 setNewId(id)
                 setLastCreatedResource({id, type: "sequent_backend_election_event"})
+                setArchivedElectionEvents(false)
             }
         } catch (err) {
             updateWidgetFail(currWidget.identifier)

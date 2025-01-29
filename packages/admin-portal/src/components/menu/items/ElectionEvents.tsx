@@ -405,11 +405,6 @@ export default function ElectionEvents() {
         }
     }, [candidateId])
 
-    // useEffect(() => {
-    //     if (!electionEventData) return
-    //     setArchivedElectionEvents(electionEventData?.is_archived ?? isArchivedElectionEvents)
-    // }, [electionEventData, setArchivedElectionEvents])
-
     useEffect(() => {
         if (!electionEventData || !electionEventId) return
         if (electionEventData?.id === electionEventId && electionEventData?.is_archived) {
