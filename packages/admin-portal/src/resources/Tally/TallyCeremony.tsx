@@ -327,22 +327,25 @@ export const TallyCeremony: React.FC = () => {
     const isTallyAllowed = useMemo(() => {
         return (
             elections?.every((election) => {
+                // Check if the voting period has ended for the election AND kiosk voting has also ended or disabled
                 const isVotingPeriodEnded =
                     election.status?.voting_status === EVotingStatus.CLOSED &&
-                    // Kiosk mode disabled or kiosk voting ended
                     (!election.voting_channels?.kiosk ||
                         election.status?.kiosk_voting_status === EVotingStatus.CLOSED)
 
                 return (
+                    // If the election is not included in the current tally session, it's allowed
                     !(tallySession?.election_ids || []).find(
                         (election_id) => election.id == election_id
                     ) ||
-                    election.status?.allow_tally === EAllowTally.ALLOWED ||
-                    (election.status?.allow_tally === EAllowTally.REQUIRES_VOTING_PERIOD_END &&
-                        isVotingPeriodEnded) ||
-                    election.status.is_published
+                    // Otherwise, Tally is allowed if is explicitly allowed OR requires the voting period to end and it has ended
+                    ((election.status?.allow_tally === EAllowTally.ALLOWED ||
+                        (election.status?.allow_tally === EAllowTally.REQUIRES_VOTING_PERIOD_END &&
+                            isVotingPeriodEnded)) &&
+                        // And the election must be published
+                        election.status.is_published)
                 )
-            }) || false
+            }) || false // Return `false` if elections array is undefined or empty
         )
     }, [elections, tallySession])
 
@@ -350,11 +353,12 @@ export const TallyCeremony: React.FC = () => {
         return (
             elections?.every((election) => {
                 return (
+                    // If the election is not included in the current tally session OR the election is published, it's allowed
                     !(tallySession?.election_ids || []).find(
                         (election_id) => election.id == election_id
                     ) || election.status.is_published
                 )
-            }) || false
+            }) || false // Return `false` if elections array is undefined or empty
         )
     }, [elections, tallySession])
 
