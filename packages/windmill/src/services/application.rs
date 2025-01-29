@@ -41,14 +41,19 @@ use unicode_normalization::char::decompose_canonical;
 #[allow(non_camel_case_types)]
 #[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub enum ECardType {
+    #[strum(serialize = "philSysID")]
     #[serde(rename = "philSysID")]
     PHILSYS_ID,
+    #[strum(serialize = "seamanBook")]
     #[serde(rename = "seamanBook")]
     SEAMANS_BOOK,
+    #[strum(serialize = "driversLicense")]
     #[serde(rename = "driversLicense")]
     DRIVER_LICENSE,
+    #[strum(serialize = "philippinePassport")]
     #[serde(rename = "philippinePassport")]
     PHILIPPINE_PASSPORT,
+    #[strum(serialize = "iBP")]
     #[serde(rename = "iBP")]
     IBP,
 }
@@ -486,11 +491,12 @@ fn check_mismatches(
 
     let card_type = applicant_data
         .get("sequent.read-only.id-card-type")
+        .cloned()
         .ok_or(anyhow!("Error converting applicant_data to map"))?;
 
     // Check if the card type is seamans_book or driver_license
-    let card_type_flag = *card_type == ECardType::SEAMANS_BOOK.to_string()
-        || *card_type == ECardType::DRIVER_LICENSE.to_string();
+    let card_type_flag = card_type == ECardType::SEAMANS_BOOK.to_string()
+        || card_type == ECardType::DRIVER_LICENSE.to_string();
 
     for field_to_check in fields_to_check.split(",") {
         let field_to_check = field_to_check.trim();
