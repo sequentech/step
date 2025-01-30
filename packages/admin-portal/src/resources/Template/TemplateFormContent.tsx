@@ -191,6 +191,14 @@ export const TemplateFormContent: React.FC<TTemplateFormContent> = ({
                         onChange={selectTemplateType}
                         choices={templateTypeChoices()}
                     />
+                    <BooleanInput
+                        source={"is_communication"}
+                        label={t(`template.form.is_communication`)}
+                    />
+                    <BooleanInput
+                        source={"is_active"}
+                        label={t(`template.form.type`)}
+                    />
                 </AccordionDetails>
             </Accordion>
 
