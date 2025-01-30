@@ -396,12 +396,7 @@ impl TemplateRenderer for AuditLogsTemplate {
             &self.ids.election_event_id,
             &election_id,
         )
-        .await
-        .map_err(|err| {
-            warn!("Error getting results_hash: {err:?}");
-            anyhow!("Error getting results_hash: {err:?}")
-        })
-        .unwrap_or("-".to_string());
+        .await?;
 
         let app_hash = get_app_hash();
         let app_version = get_app_version();
@@ -459,7 +454,7 @@ impl TemplateRenderer for AuditLogsTemplate {
                 app_version,
                 app_hash,
                 executer_username: self.ids.executer_username.clone(),
-                results_hash: Some(results_hash),
+                results_hash: results_hash.clone(),
             },
         })
     }

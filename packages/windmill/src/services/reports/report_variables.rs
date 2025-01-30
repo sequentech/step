@@ -327,7 +327,7 @@ pub async fn get_results_hash(
     tenant_id: &str,
     election_event_id: &str,
     election_id: &str,
-) -> Result<String> {
+) -> Result<Option<String>> {
     let tally_sessions = get_tally_sessions_by_election_event_id(
         &hasura_transaction,
         &tenant_id,
@@ -351,31 +351,29 @@ pub async fn get_results_hash(
         })
         .collect::<Vec<_>>();
 
-    // the first tally session is the latest one
-    let tally_session_id = if !tally_sessions.is_empty() {
-        &tally_sessions[0].id
-    } else {
-        return Err(anyhow!("No tally session yet"));
+    let tally_session_id = tally_sessions.first().map(|session| &session.id);
+
+    let Some(tally_session_id) = tally_session_id else {
+        return Ok(None);
     };
 
-    let tally_session_executions = get_tally_session_executions(
+    let tally_session_execution = get_tally_session_executions(
         hasura_transaction,
         tenant_id,
         election_event_id,
         tally_session_id,
     )
     .await
-    .map_err(|err| anyhow!("Error getting the tally session executions"))?;
+    .map_err(|_| anyhow!("Error getting tally session executions"))?
+    .first()
+    .cloned();
 
-    // the first execution is the latest one
-    let tally_session_execution = tally_session_executions
-        .first()
-        .ok_or_else(|| anyhow!("No tally session executions found"))?;
-
-    let results_event_id = tally_session_execution
-        .results_event_id
-        .clone()
-        .ok_or_else(|| anyhow!("Missing results_event_id in tally session execution"))?; // here im failing
+    let Some(tally_session_execution) = tally_session_execution else {
+        return Ok(None);
+    };
+    let Some(results_event_id) = tally_session_execution.results_event_id else {
+        return Ok(None);
+    };
 
     let result_election = get_results_election_by_results_event_id(
         hasura_transaction,
@@ -384,15 +382,12 @@ pub async fn get_results_hash(
         &results_event_id,
     )
     .await
-    .map_err(|err| anyhow!("Error getting the results election: {err:?}"))?;
+    .map_err(|err| anyhow!("Error getting results election: {err:?}"))?;
 
     let results_hash = result_election
         .annotations
-        .and_then(|annotations| annotations.get("results_hash").cloned());
-
-    let results_hash = results_hash
-        .map(|hash| hash.to_string().replace("\"", " ").trim().to_string())
-        .unwrap_or_default();
+        .and_then(|annotations| annotations.get("results_hash").cloned())
+        .map(|hash| hash.to_string().replace('"', "").trim().to_string());
 
     Ok(results_hash)
 }
