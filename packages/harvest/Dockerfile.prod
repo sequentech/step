@@ -1,4 +1,8 @@
-FROM rustlang/rust:nightly-slim as builder
+# SPDX-FileCopyrightText: 2023-2024 Sequent Tech <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+FROM rust:1.82.0-slim-bookworm as builder
 
 WORKDIR /app
 

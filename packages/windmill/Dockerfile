@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-FROM rust:1.70.0
+FROM rust:1.82.0
 
 WORKDIR /app
 COPY ./immu-board ./immu-board
