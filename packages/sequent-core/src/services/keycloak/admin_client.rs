@@ -32,40 +32,42 @@ struct KeycloakLoginConfig {
     realm: String,
 }
 
+impl KeycloakLoginConfig {
+    pub fn new(
+        client_id: String,
+        client_secret: String,
+        tenant_id: String,
+    ) -> KeycloakLoginConfig {
+        let url = env::var("KEYCLOAK_URL")
+            .expect(&format!("KEYCLOAK_URL must be set"));
+        let realm = get_tenant_realm(&tenant_id);
+        Self {
+            url,
+            client_id,
+            client_secret,
+            realm,
+        }
+    }
+}
+
 fn get_keycloak_login_config() -> KeycloakLoginConfig {
-    let url =
-        env::var("KEYCLOAK_URL").expect(&format!("KEYCLOAK_URL must be set"));
     let client_id = env::var("KEYCLOAK_CLIENT_ID")
         .expect(&format!("KEYCLOAK_CLIENT_ID must be set"));
     let client_secret = env::var("KEYCLOAK_CLIENT_SECRET")
         .expect(&format!("KEYCLOAK_CLIENT_SECRET must be set"));
     let tenant_id = env::var("SUPER_ADMIN_TENANT_ID")
         .expect(&format!("SUPER_ADMIN_TENANT_ID must be set"));
-    let realm = get_tenant_realm(&tenant_id);
-    KeycloakLoginConfig {
-        url,
-        client_id,
-        client_secret,
-        realm,
-    }
+    KeycloakLoginConfig::new(client_id, client_secret, tenant_id)
 }
 
 fn get_keycloak_login_admin_config() -> KeycloakLoginConfig {
-    let url =
-        env::var("KEYCLOAK_URL").expect(&format!("KEYCLOAK_URL must be set"));
     let client_id = env::var("KEYCLOAK_ADMIN_CLIENT_ID")
         .expect(&format!("KEYCLOAK_ADMIN_CLIENT_ID must be set"));
     let client_secret = env::var("KEYCLOAK_ADMIN_CLIENT_SECRET")
         .expect(&format!("KEYCLOAK_ADMIN_CLIENT_SECRET must be set"));
     let tenant_id = env::var("SUPER_ADMIN_TENANT_ID")
         .expect(&format!("SUPER_ADMIN_TENANT_ID must be set"));
-    let realm = get_tenant_realm(&tenant_id);
-    KeycloakLoginConfig {
-        url,
-        client_id,
-        client_secret,
-        realm,
-    }
+    KeycloakLoginConfig::new(client_id, client_secret, tenant_id)
 }
 
 #[instrument(err)]
@@ -132,6 +134,26 @@ pub async fn get_client_credentials() -> Result<connection::AuthHeaders> {
 pub async fn get_auth_credentials() -> Result<TokenResponse> {
     let login_config = get_keycloak_login_config();
     let text = get_credentials_inner(login_config).await?;
+    let credentials: TokenResponse = serde_json::from_str(&text)
+        .map_err(|err| anyhow!(format!("{:?}, Response: {}", err, text)))?;
+    event!(Level::INFO, "Successfully acquired credentials");
+    Ok(credentials)
+}
+
+/// Authenticate a party client in keycloak with specific client credentials and
+/// tenant_id
+#[instrument(err)]
+pub async fn get_third_party_client_access_token(
+    client_id: String,
+    client_secret: String,
+    tenant_id: String,
+) -> Result<TokenResponse> {
+    let text = get_credentials_inner(KeycloakLoginConfig::new(
+        client_id,
+        client_secret,
+        tenant_id,
+    ))
+    .await?;
     let credentials: TokenResponse = serde_json::from_str(&text)
         .map_err(|err| anyhow!(format!("{:?}, Response: {}", err, text)))?;
     event!(Level::INFO, "Successfully acquired credentials");

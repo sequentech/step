@@ -60,17 +60,17 @@ pub async fn delete_voter(
     info!("Delete voter: {input:?}");
 
     let required_perm: Permissions = Permissions::DATAFIX_ACCOUNT; // TODO: Set up the permissions in Keycloak
-
+    info!("{claims:?}");
     authorize(
         &claims.jwt_claims,
         true,
-        Some(&claims.tenant_id.clone()),
+        Some(claims.tenant_id.clone()),
         vec![required_perm],
     )
     .map_err(|e| DatafixErrorResponse::new(Status::Unauthorized))?;
 
     // WIP - Implement delete voter
-    Err(DatafixErrorResponse::new(Status::Accepted))
+    Err(DatafixErrorResponse::new(Status::Ok))
 }
 
 #[instrument(skip(claims))]
