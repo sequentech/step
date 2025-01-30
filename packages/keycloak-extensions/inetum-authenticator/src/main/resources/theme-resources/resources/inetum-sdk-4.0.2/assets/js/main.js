@@ -1167,7 +1167,7 @@ dobSdk.addEventListener("evidence", evidence => {
   }
 });
 
-// Listen when the SDK has finished
+// Listen when the SDK has finished successfully
 dobSdk.addEventListener("success", success => {
   console.log('sdk-success: SDK-Web onSuccess()');
   document.getElementById('kc-inetum-success-form').submit();
@@ -1175,10 +1175,10 @@ dobSdk.addEventListener("success", success => {
 
 let attempt = 0;
 let maxRetries = 3;
-// Listen to failure changes
+// Listen to failure events
 dobSdk.addEventListener("failure", error => {
   const parsedFailure = error.detail;
-  console.log("***", {parsedFailure, attempt});
+  console.log("***", { parsedFailure, attempt });
   switch (parsedFailure.code) {
     case ExceptionType.notAllowedPermissionException:
     case ExceptionType.overconstraintException:
@@ -1210,12 +1210,26 @@ dobSdk.addEventListener("failure", error => {
       break;
     case ExceptionType.uploadAndCheckException:
       attempt++;
-      console.log('**** SDK-Web attachException'+ attempt);
+      console.log('**** SDK-Web attachException ' + attempt);
       if (attempt >= maxRetries) {
         console.log('**** attempt >= maxRetries');
-        if (parsedFailure.clickedButton) {
-          window.location.replace('https://comelec.gov.ph/');
-        }
+        console.log({message: parsedFailure.message, code: parsedFailure.code});
+        // Get the form element
+        const form = document.getElementById('kc-inetum-success-form');
+        let errorInput = document.createElement("input");
+        errorInput.type = "hidden";
+        errorInput.name = "error_code"; // Key to send
+        errorInput.value = parsedFailure.code; // Actual error code
+        form.appendChild(errorInput);
+        // Create a hidden input for error message
+        let errorMessageInput = document.createElement("input");
+        errorMessageInput.type = "hidden";
+        errorMessageInput.name = "error_message"; // Key to send
+        errorMessageInput.value = parsedFailure.message || "Unknown error"; // Actual error message
+        form.appendChild(errorMessageInput);
+        // Submit the form with the failure reason
+        form.submit();
+        console.log({form});
       }
   }
 });
