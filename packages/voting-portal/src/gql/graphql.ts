@@ -38,6 +38,12 @@ export type ApplicationChangeStatusBody = {
   user_id: Scalars['String']['input'];
 };
 
+export type ApplicationChangeStatusOutput = {
+  __typename?: 'ApplicationChangeStatusOutput';
+  error?: Maybe<Scalars['String']['output']>;
+  message?: Maybe<Scalars['String']['output']>;
+};
+
 export type ApplicationVerifyBody = {
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
   applicant_data?: InputMaybe<Scalars['jsonb']['input']>;
@@ -995,7 +1001,7 @@ export type Jsonb_Comparison_Exp = {
 export type Mutation_Root = {
   __typename?: 'mutation_root';
   /** Confirm voter application and correlate to a Voter */
-  ApplicationChangeStatus: Scalars['String']['output'];
+  ApplicationChangeStatus?: Maybe<ApplicationChangeStatusOutput>;
   /** Verify User Registration Application */
   VerifyApplication: Scalars['String']['output'];
   /** check private key */

@@ -1401,4 +1401,5 @@ custom_types:
         - name: SetVoterAuthenticationOutput
         - name: ImportTenantOutput
         - name: GenerateTemplateOutput
+        - name: ApplicationChangeStatusOutput
     scalars: []

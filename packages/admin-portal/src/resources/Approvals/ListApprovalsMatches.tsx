@@ -24,7 +24,7 @@ import {useTranslation} from "react-i18next"
 import {Action, ActionsColumn} from "@/components/ActionButons"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {
-    ApplicationChangeStatusBody,
+    ChangeApplicationStatusMutation,
     GetUserProfileAttributesQuery,
     Sequent_Backend_Applications,
     UserProfileAttribute,
@@ -42,6 +42,7 @@ import {CHANGE_APPLICATION_STATUS} from "@/queries/ChangeApplicationStatus"
 import {useMutation, useQuery} from "@apollo/client"
 import {PreloadedList} from "./PreloadedList"
 import {convertToSnakeCase, convertToCamelCase, convertOneToSnakeCase} from "./UtilsApprovals"
+import {ApplicationsError} from "@/types/applications"
 
 const StyledChip = styled(Chip)`
     margin: 4px;
@@ -75,7 +76,7 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
     const authContext = useContext(AuthContext)
 
     // const canEditUsers = authContext.isAuthorized(true, tenantId, IPermissions.VOTER_WRITE)
-    const [approveVoter] = useMutation<ApplicationChangeStatusBody>(CHANGE_APPLICATION_STATUS)
+    const [approveVoter] = useMutation<ChangeApplicationStatusMutation>(CHANGE_APPLICATION_STATUS)
 
     const userApprovalInfo = Object.entries(convertToSnakeCase(task.applicant_data)).map(
         ([key, value]) => key
@@ -173,7 +174,7 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
     }
 
     const confirmApproveAction = async () => {
-        const {errors} = await approveVoter({
+        const {data, errors} = await approveVoter({
             variables: {
                 tenant_id: tenantId,
                 id: task?.id,
@@ -182,9 +183,16 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
                 election_event_id: electionEventId,
             },
         })
-        if (errors) {
-            notify(t(`approvalsScreen.notifications.approveError`), {type: "error"})
-            console.log(`Error deleting user: ${errors}`)
+        if (data?.ApplicationChangeStatus?.error || errors) {
+            let errorMessage =
+                data?.ApplicationChangeStatus?.error &&
+                data?.ApplicationChangeStatus?.error === ApplicationsError.APPROVED_VOTER
+                    ? t(`approvalsScreen.notifications.VoterApprovedAlready`)
+                    : t(`approvalsScreen.notifications.approveError`)
+            notify(errorMessage, {type: "error"})
+            console.log(
+                `Error approve user: ${errors ?? ""} ${data?.ApplicationChangeStatus?.error ?? ""}`
+            )
             return
         }
         notify(t(`approvalsScreen.notifications.approveSuccess`), {type: "success"})

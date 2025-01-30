@@ -1918,6 +1918,7 @@ const tagalogTranslation: TranslationType = {
                 approveSuccess: "Inaprubahan ang botante",
                 rejectError: "Error sa pagtanggi ng botante",
                 rejectSuccess: "Tinanggihan ang botante",
+                VoterApprovedAlready: "Ang botante ay naaprubahan na.",
             },
             export: {
                 success: "Matagumpay na natapos ang pag-export ng mga aplikasyon",

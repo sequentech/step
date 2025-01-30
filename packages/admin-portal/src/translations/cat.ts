@@ -1924,6 +1924,7 @@ const catalanTranslation: TranslationType = {
                 approveSuccess: "Votant aprovat",
                 rejectError: "Error en rebutjar el votant",
                 rejectSuccess: "Votant rebutjat",
+                VoterApprovedAlready: "El votant ja està aprovat.",
             },
             export: {
                 success: "L'exportació d'aplicacions s'ha completat amb èxit",

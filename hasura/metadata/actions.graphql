@@ -1,5 +1,7 @@
 type Mutation {
-    ApplicationChangeStatus(body: ApplicationChangeStatusBody!): String
+    ApplicationChangeStatus(
+        body: ApplicationChangeStatusBody!
+    ): ApplicationChangeStatusOutput
 }
 
 type Mutation {
@@ -1499,4 +1501,9 @@ type ImportTenantOutput {
 type GenerateTemplateOutput {
     document_id: String!
     task_execution: tasks_execution_type
+}
+
+type ApplicationChangeStatusOutput {
+    message: String
+    error: String
 }
