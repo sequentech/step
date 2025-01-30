@@ -24,6 +24,7 @@ pub struct TokenResponse {
     pub scope: String,
 }
 
+#[derive(Debug)]
 struct KeycloakLoginConfig {
     url: String,
     client_id: String,
@@ -67,11 +68,10 @@ fn get_keycloak_login_admin_config() -> KeycloakLoginConfig {
     }
 }
 
-// Client Credentials OpenID Authentication flow.
-// This enables servers to authenticate, without using a browser.
 #[instrument(err)]
-pub async fn get_client_credentials() -> Result<connection::AuthHeaders> {
-    let login_config = get_keycloak_login_config();
+pub async fn get_credentials_inner(
+    login_config: KeycloakLoginConfig,
+) -> Result<String> {
     let body_string = serde_urlencoded::to_string::<[(String, String); 4]>([
         ("client_id".into(), login_config.client_id.clone()),
         ("scope".into(), "openid".into()),
@@ -110,8 +110,15 @@ pub async fn get_client_credentials() -> Result<connection::AuthHeaders> {
     }
     .await?;
 
-    let text = res.text().await?;
+    res.text().await.map_err(|e| anyhow!(e))
+}
 
+// Client Credentials OpenID Authentication flow.
+// This enables servers to authenticate, without using a browser.
+#[instrument(err)]
+pub async fn get_client_credentials() -> Result<connection::AuthHeaders> {
+    let login_config = get_keycloak_login_config();
+    let text = get_credentials_inner(login_config).await?;
     let credentials: TokenResponse = serde_json::from_str(&text)
         .map_err(|err| anyhow!(format!("{:?}, Response: {}", err, text)))?;
     event!(Level::INFO, "Successfully acquired credentials");
@@ -124,46 +131,7 @@ pub async fn get_client_credentials() -> Result<connection::AuthHeaders> {
 #[instrument(err)]
 pub async fn get_auth_credentials() -> Result<TokenResponse> {
     let login_config = get_keycloak_login_config();
-    let body_string = serde_urlencoded::to_string::<[(String, String); 4]>([
-        ("client_id".into(), login_config.client_id.clone()),
-        ("scope".into(), "openid".into()),
-        ("client_secret".into(), login_config.client_secret.clone()),
-        ("grant_type".into(), "client_credentials".into()),
-    ])
-    .unwrap();
-
-    let keycloak_endpoint = format!(
-        "{}/realms/{}/protocol/openid-connect/token",
-        login_config.url, login_config.realm
-    );
-
-    // Retry up to 3 times with increasing intervals between attempts.
-    let retry_policy = ExponentialBackoff::builder().build_with_max_retries(3);
-    let client = ClientBuilder::new(reqwest::Client::new())
-        .with(RetryTransientMiddleware::new_with_policy(retry_policy))
-        .build();
-    event!(
-        Level::INFO,
-        "Acquiring credentials to {} with {:?}",
-        keycloak_endpoint,
-        body_string
-    );
-
-    let res = async {
-        let res_future = client
-            .post(keycloak_endpoint)
-            .header("Content-Type", "application/x-www-form-urlencoded")
-            .body(body_string)
-            .send();
-        event!(Level::INFO, "Awaiting future from endpoint");
-        let res = res_future.await;
-        event!(Level::INFO, "Result from endpoint: {:?}", res);
-        res
-    }
-    .await?;
-
-    let text = res.text().await?;
-
+    let text = get_credentials_inner(login_config).await?;
     let credentials: TokenResponse = serde_json::from_str(&text)
         .map_err(|err| anyhow!(format!("{:?}, Response: {}", err, text)))?;
     event!(Level::INFO, "Successfully acquired credentials");
