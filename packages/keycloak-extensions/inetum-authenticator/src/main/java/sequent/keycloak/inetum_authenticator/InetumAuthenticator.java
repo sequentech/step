@@ -312,8 +312,6 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
     MultivaluedMap<String, String> formData = context.getHttpRequest().getDecodedFormParameters();
     String action = formData.getFirst("action");
 
-    log.infov("action(): Get action from request {0}", action);
-
     // Check if user has confirmed data
     if ("confirm".equals(action)) {
       log.info("action(): success");
@@ -330,7 +328,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
       String errorCode = formData.getFirst("error_code");
       log.errorv("Received error from form: Code={0}", errorCode);
   
-      // Handle uploadAndCheckException properly
+      // Handle uploadAndCheckException error properly
       if ("uploadAndCheckException".equals(errorCode)) {
           String sessionId = context.getAuthenticationSession().getParentSession().getId();
 
