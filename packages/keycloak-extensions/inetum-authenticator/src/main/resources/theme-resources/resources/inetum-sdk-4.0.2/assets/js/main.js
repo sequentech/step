@@ -322,7 +322,7 @@ let myStringsLocaleMap = {
       ]
     ],
     'upload_check_exception_tips': [
-      'An error occurred while verifying the document. This could be due to:',
+      'An error occurred while verifying the document. This could be due to:', //
       [
         'The image is not of sufficient quality. Remember that it must be well focused.',
         'The document is not identified as a valid type.',
@@ -1153,6 +1153,7 @@ dobSdk.addEventListener("status", status => {
 
 // Listen to evidence changes
 dobSdk.addEventListener("evidence", evidence => {
+  console.log('sdk-evidence: SDK-Web onEvidence()');
   const parsedEvidence = evidence.detail;
   // Esto simplemente es un ejemplo para imprimir la EVIDENCIA en base64 que enviamos en cada paso del SDK.
   switch (parsedEvidence.type) {
@@ -1172,9 +1173,12 @@ dobSdk.addEventListener("success", success => {
   document.getElementById('kc-inetum-success-form').submit();
 });
 
+let attempt = 0;
+let maxRetries = 3;
 // Listen to failure changes
 dobSdk.addEventListener("failure", error => {
   const parsedFailure = error.detail;
+  console.log("***", {parsedFailure, attempt});
   switch (parsedFailure.code) {
     case ExceptionType.notAllowedPermissionException:
     case ExceptionType.overconstraintException:
@@ -1204,5 +1208,14 @@ dobSdk.addEventListener("failure", error => {
       }
       */
       break;
+    case ExceptionType.uploadAndCheckException:
+      attempt++;
+      console.log('**** SDK-Web attachException'+ attempt);
+      if (attempt >= maxRetries) {
+        console.log('**** attempt >= maxRetries');
+        if (parsedFailure.clickedButton) {
+          window.location.replace('https://comelec.gov.ph/');
+        }
+      }
   }
 });
