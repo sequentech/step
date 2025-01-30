@@ -327,21 +327,22 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
       // Retrieve error details from form
       String errorCode = formData.getFirst("error_code");
       log.errorv("Received error from form: Code={0}", errorCode);
-  
+
       // Handle uploadAndCheckException error properly
       if ("uploadAndCheckException".equals(errorCode)) {
-          String sessionId = context.getAuthenticationSession().getParentSession().getId();
+        String sessionId = context.getAuthenticationSession().getParentSession().getId();
 
-          Response challenge = getBaseForm(context)
-          .setAttribute(Utils.FTL_ERROR, Utils.UPLOAD_AND_CHECK_EXCEPTION)
-          .setAttribute(Utils.CODE_ID, sessionId)
-          .createForm(Utils.INETUM_ERROR);
+        Response challenge =
+            getBaseForm(context)
+                .setAttribute(Utils.FTL_ERROR, Utils.UPLOAD_AND_CHECK_EXCEPTION)
+                .setAttribute(Utils.CODE_ID, sessionId)
+                .createForm(Utils.INETUM_ERROR);
 
-          context.challenge(challenge);
-          return;
+        context.challenge(challenge);
+        return;
       }
-  }  
-    
+    }
+
     UserModel user = context.getUser();
     Utils.buildEventDetails(
         context.getEvent(),
