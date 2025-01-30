@@ -104,10 +104,12 @@ impl<'r> FromRequest<'r> for UserLocation {
     }
 }
 
-const MOCK_ACCESS_TOKEN: &str = "eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJJYXRJRWFNd004REEyVGFWa3ZEQklxbjcxQ2plRjhLeEx5VU9MbnBjRXlJIn0.eyJleHAiOjE3MzgwNTgxMTMsImlhdCI6MTczODA1NzgxMywianRpIjoiYTVkOGJmZDEtNTRkNy00NGI4LWIxMTgtYzJkMWEyYTQzNGI0IiwiaXNzIjoiaHR0cDovLzEyNy4wLjAuMTo4MDkwL3JlYWxtcy90ZW5hbnQtOTA1MDVjOGEtMjNhOS00Y2RmLWEyNmItNGUxOWY2YTA5N2Q1IiwiYXVkIjoiYWNjb3VudCIsInN1YiI6IjQ4N2VhNDk2LTlmMDYtNDE0OC1hZDA2LTRhMTJmOWJiNjk4MCIsInR5cCI6IkJlYXJlciIsImF6cCI6InNlcnZpY2UtYWNjb3VudCIsImFjciI6InNpbHZlciIsImFsbG93ZWQtb3JpZ2lucyI6WyIvKiJdLCJyZXNvdXJjZV9hY2Nlc3MiOnsic2VydmljZS1hY2NvdW50Ijp7InJvbGVzIjpbInVtYV9wcm90ZWN0aW9uIiwic2VydmljZS1yb2xlIl19LCJhY2NvdW50Ijp7InJvbGVzIjpbIm1hbmFnZS1hY2NvdW50IiwibWFuYWdlLWFjY291bnQtbGlua3MiLCJ2aWV3LXByb2ZpbGUiXX19LCJzY29wZSI6Im9wZW5pZCBwcm9maWxlIGVtYWlsIiwiY2xpZW50SG9zdCI6IjE3Mi4xOC4wLjEiLCJlbWFpbF92ZXJpZmllZCI6ZmFsc2UsImh0dHBzOi8vaGFzdXJhLmlvL2p3dC9jbGFpbXMiOnsieC1oYXN1cmEtZGVmYXVsdC1yb2xlIjoic2VydmljZS1hY2NvdW50IiwieC1oYXN1cmEtdGVuYW50LWlkIjoiOTA1MDVjOGEtMjNhOS00Y2RmLWEyNmItNGUxOWY2YTA5N2Q1IiwieC1oYXN1cmEtdXNlci1pZCI6IjQ4N2VhNDk2LTlmMDYtNDE0OC1hZDA2LTRhMTJmOWJiNjk4MCIsIngtaGFzdXJhLWFsbG93ZWQtcm9sZXMiOlsic2VydmljZS1hY2NvdW50Il19LCJwcmVmZXJyZWRfdXNlcm5hbWUiOiJzZXJ2aWNlLWFjY291bnQtc2VydmljZS1hY2NvdW50IiwiY2xpZW50QWRkcmVzcyI6IjE3Mi4xOC4wLjEiLCJjbGllbnRfaWQiOiJzZXJ2aWNlLWFjY291bnQifQ.g_Y1WbS0C_w-6HyahoDeNDihCIwr-5f-fJ0K2HVwbC1JHCZ50SdiWnc8Mge1DZd889fHzK7zPPdY0sWtD06dIJRKipXun6p9oW54j1lSdRt6SCZR1GZZwXH-tMumZwWff9qoniKCKHGlOXVxTY1_Tr00snRI6JbpYEKNt65ZKu7wVcXYiNsbLDbr349umF1g1UH2rYq8DGc49PuwraX4xho1RBxrkOYM3bR1cqTMOEFq2fHXhH9fTTyNrN2vmyWfQs0Znez8che2ZRxCr_UQi7drnLOkmd-jU884_LojiHbkVKreiCFgXNd8Ypu8Qn9BgpwgL8mp9WUCG_rJ81hg3w";
-
 #[derive(Debug)]
-pub struct DatafixClaims(pub JwtClaims);
+pub struct DatafixClaims {
+    pub jwt_claims: JwtClaims,
+    pub tenant_id: String,
+    pub election_event_id: String,
+}
 
 #[derive(Debug)]
 struct DatafixAuth {
@@ -122,8 +124,9 @@ struct DatafixHeaders {
     authorization: DatafixAuth,
 }
 
+/// Returns None if any of the required headers are missing or is incomplete
 #[instrument]
-fn get_datafix_headers(headers: &HeaderMap) -> Option<DatafixHeaders> {
+fn parse_datafix_headers(headers: &HeaderMap) -> Option<DatafixHeaders> {
     let required_headers = ["tenant_id", "event_id", "authorization"];
     let mut missing_headers = vec![];
     for header in required_headers {
@@ -178,12 +181,18 @@ impl<'r> FromRequest<'r> for DatafixClaims {
     async fn from_request(
         request: &'r Request<'_>,
     ) -> Outcome<Self, Self::Error> {
-        let datafix_headers = match get_datafix_headers(request.headers()) {
-            Some(datafix_headers) => datafix_headers,
-            None => {
-                return Outcome::Error((Status::BadRequest, ()));
-            }
-        };
+        const MOCK_ACCESS_TOKEN: &str = "eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJJYXRJRWFNd004REEyVGFWa3ZEQklxbjcxQ2plRjhLeEx5VU9MbnBjRXlJIn0.eyJleHAiOjE3MzgwNTgxMTMsImlhdCI6MTczODA1NzgxMywianRpIjoiYTVkOGJmZDEtNTRkNy00NGI4LWIxMTgtYzJkMWEyYTQzNGI0IiwiaXNzIjoiaHR0cDovLzEyNy4wLjAuMTo4MDkwL3JlYWxtcy90ZW5hbnQtOTA1MDVjOGEtMjNhOS00Y2RmLWEyNmItNGUxOWY2YTA5N2Q1IiwiYXVkIjoiYWNjb3VudCIsInN1YiI6IjQ4N2VhNDk2LTlmMDYtNDE0OC1hZDA2LTRhMTJmOWJiNjk4MCIsInR5cCI6IkJlYXJlciIsImF6cCI6InNlcnZpY2UtYWNjb3VudCIsImFjciI6InNpbHZlciIsImFsbG93ZWQtb3JpZ2lucyI6WyIvKiJdLCJyZXNvdXJjZV9hY2Nlc3MiOnsic2VydmljZS1hY2NvdW50Ijp7InJvbGVzIjpbInVtYV9wcm90ZWN0aW9uIiwic2VydmljZS1yb2xlIl19LCJhY2NvdW50Ijp7InJvbGVzIjpbIm1hbmFnZS1hY2NvdW50IiwibWFuYWdlLWFjY291bnQtbGlua3MiLCJ2aWV3LXByb2ZpbGUiXX19LCJzY29wZSI6Im9wZW5pZCBwcm9maWxlIGVtYWlsIiwiY2xpZW50SG9zdCI6IjE3Mi4xOC4wLjEiLCJlbWFpbF92ZXJpZmllZCI6ZmFsc2UsImh0dHBzOi8vaGFzdXJhLmlvL2p3dC9jbGFpbXMiOnsieC1oYXN1cmEtZGVmYXVsdC1yb2xlIjoic2VydmljZS1hY2NvdW50IiwieC1oYXN1cmEtdGVuYW50LWlkIjoiOTA1MDVjOGEtMjNhOS00Y2RmLWEyNmItNGUxOWY2YTA5N2Q1IiwieC1oYXN1cmEtdXNlci1pZCI6IjQ4N2VhNDk2LTlmMDYtNDE0OC1hZDA2LTRhMTJmOWJiNjk4MCIsIngtaGFzdXJhLWFsbG93ZWQtcm9sZXMiOlsic2VydmljZS1hY2NvdW50Il19LCJwcmVmZXJyZWRfdXNlcm5hbWUiOiJzZXJ2aWNlLWFjY291bnQtc2VydmljZS1hY2NvdW50IiwiY2xpZW50QWRkcmVzcyI6IjE3Mi4xOC4wLjEiLCJjbGllbnRfaWQiOiJzZXJ2aWNlLWFjY291bnQifQ.g_Y1WbS0C_w-6HyahoDeNDihCIwr-5f-fJ0K2HVwbC1JHCZ50SdiWnc8Mge1DZd889fHzK7zPPdY0sWtD06dIJRKipXun6p9oW54j1lSdRt6SCZR1GZZwXH-tMumZwWff9qoniKCKHGlOXVxTY1_Tr00snRI6JbpYEKNt65ZKu7wVcXYiNsbLDbr349umF1g1UH2rYq8DGc49PuwraX4xho1RBxrkOYM3bR1cqTMOEFq2fHXhH9fTTyNrN2vmyWfQs0Znez8che2ZRxCr_UQi7drnLOkmd-jU884_LojiHbkVKreiCFgXNd8Ypu8Qn9BgpwgL8mp9WUCG_rJ81hg3w";
+        let (tenant_id, election_event_id, authorization) =
+            match parse_datafix_headers(request.headers()) {
+                Some(datafix_headers) => (
+                    datafix_headers.tenant_id,
+                    datafix_headers.event_id,
+                    datafix_headers.authorization,
+                ),
+                None => {
+                    return Outcome::Error((Status::BadRequest, ()));
+                }
+            };
 
         let access_token: &str = MOCK_ACCESS_TOKEN; // get access_token in similar way as get_client_credentials
                                                     // .... WIP
@@ -191,7 +200,11 @@ impl<'r> FromRequest<'r> for DatafixClaims {
                                                     // provided from the client.
 
         match decode_jwt(access_token) {
-            Ok(jwt) => Outcome::Success(DatafixClaims(jwt)),
+            Ok(jwt_claims) => Outcome::Success(DatafixClaims {
+                jwt_claims,
+                tenant_id,
+                election_event_id,
+            }),
             Err(err) => {
                 warn!("JwtClaims guard: decode_jwt error {err:?}");
                 Outcome::Error((Status::Unauthorized, ()))
