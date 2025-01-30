@@ -416,8 +416,11 @@ export default function ElectionEvents() {
         setSearchInput(searchInput)
     }
 
+    let resultData = {...data}
+
     function changeArchiveSelection(val: number) {
         setArchivedElectionEvents(val === 1)
+        resultData = {}
         navigate("/sequent_backend_election_event/")
     }
 
@@ -435,7 +438,6 @@ export default function ElectionEvents() {
         openImportDrawer?.()
     }
 
-    let resultData = {...data}
     if (!loading && data && data.sequent_backend_election_event) {
         resultData = filterTree(
             {

@@ -321,14 +321,16 @@ function TreeMenuItem({
     const {i18n} = useTranslation()
     const {globalSettings} = useContext(SettingsContext)
 
-    const [open, setOpen] = useState(true)
+    const [open, setOpen] = useState(false)
 
     const location = useLocation()
     const {setTallyId, setTaskId, setCustomFilter} = useElectionEventTallyStore()
 
     const onClick = () => {
+        if (!open) {
+            reloadTree()
+        }
         setOpen(!open)
-        reloadTree()
     }
     /**
      * control the tree menu open state
@@ -366,6 +368,8 @@ function TreeMenuItem({
 
     useEffect(() => {
         if (lastCreatedResource?.id === resource.id) {
+            console.log("aa IN EFFECT")
+
             setOpen(true)
             setLastCreatedResource(null)
         }
