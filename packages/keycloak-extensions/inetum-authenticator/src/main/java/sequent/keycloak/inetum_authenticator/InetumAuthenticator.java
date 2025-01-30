@@ -305,6 +305,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
   }
 
   @Override
+  // this function reads the results
   public void action(AuthenticationFlowContext context) {
     log.info("action(): start inetum-authenticator");
 
@@ -324,8 +325,25 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
 
       context.success();
       return;
-    }
+    } else if (action == null) {
+      // Retrieve error details from form
+      String errorCode = formData.getFirst("error_code");
+      log.errorv("Received error from form: Code={0}", errorCode);
+  
+      // Handle uploadAndCheckException properly
+      if ("uploadAndCheckException".equals(errorCode)) {
+          String sessionId = context.getAuthenticationSession().getParentSession().getId();
 
+          Response challenge = getBaseForm(context)
+          .setAttribute(Utils.FTL_ERROR, Utils.UPLOAD_AND_CHECK_EXCEPTION)
+          .setAttribute(Utils.CODE_ID, sessionId)
+          .createForm(Utils.INETUM_ERROR);
+
+          context.challenge(challenge);
+          return;
+      }
+  }  
+    
     UserModel user = context.getUser();
     Utils.buildEventDetails(
         context.getEvent(),
@@ -549,6 +567,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
     int maxRetries = Utils.parseInt(configMap.get(Utils.MAX_RETRIES), Utils.DEFAULT_MAX_RETRIES);
     int baseRetryDelay = Utils.BASE_RETRY_DELAY;
 
+    // first im here
     try {
       while (attempt < maxRetries) {
         response = doGet(configMap, context, uriPath);

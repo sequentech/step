@@ -1178,7 +1178,6 @@ let maxRetries = 3;
 // Listen to failure events
 dobSdk.addEventListener("failure", error => {
   const parsedFailure = error.detail;
-  console.log("***", { parsedFailure, attempt });
   switch (parsedFailure.code) {
     case ExceptionType.notAllowedPermissionException:
     case ExceptionType.overconstraintException:
@@ -1210,26 +1209,15 @@ dobSdk.addEventListener("failure", error => {
       break;
     case ExceptionType.uploadAndCheckException:
       attempt++;
-      console.log('**** SDK-Web attachException ' + attempt);
       if (attempt >= maxRetries) {
-        console.log('**** attempt >= maxRetries');
-        console.log({message: parsedFailure.message, code: parsedFailure.code});
-        // Get the form element
+        // Submit the form with the failure reason
         const form = document.getElementById('kc-inetum-success-form');
         let errorInput = document.createElement("input");
         errorInput.type = "hidden";
-        errorInput.name = "error_code"; // Key to send
-        errorInput.value = parsedFailure.code; // Actual error code
+        errorInput.name = "error_code";
+        errorInput.value = parsedFailure.code;
         form.appendChild(errorInput);
-        // Create a hidden input for error message
-        let errorMessageInput = document.createElement("input");
-        errorMessageInput.type = "hidden";
-        errorMessageInput.name = "error_message"; // Key to send
-        errorMessageInput.value = parsedFailure.message || "Unknown error"; // Actual error message
-        form.appendChild(errorMessageInput);
-        // Submit the form with the failure reason
         form.submit();
-        console.log({form});
       }
   }
 });
