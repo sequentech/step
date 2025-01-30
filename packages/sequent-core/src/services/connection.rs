@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::jwt::*;
+// use crate::services::keycloak::get
+use rocket::http::HeaderMap;
 use rocket::http::Status;
 use rocket::request::{FromRequest, Outcome, Request};
 use serde::{Deserialize, Serialize};
@@ -107,6 +109,68 @@ const MOCK_ACCESS_TOKEN: &str = "eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA
 #[derive(Debug)]
 pub struct DatafixClaims(pub JwtClaims);
 
+#[derive(Debug)]
+struct DatafixAuth {
+    client_id: String,
+    client_secret: String,
+}
+
+#[derive(Debug)]
+struct DatafixHeaders {
+    tenant_id: String,
+    event_id: String,
+    authorization: DatafixAuth,
+}
+
+#[instrument]
+fn get_datafix_headers(headers: &HeaderMap) -> Option<DatafixHeaders> {
+    let required_headers = ["tenant_id", "event_id", "authorization"];
+    let mut missing_headers = vec![];
+    for header in required_headers {
+        if !headers.contains(header) {
+            warn!("DatafixClaims guard: No {header} in headers: {headers:?}");
+            missing_headers.push(header);
+        }
+    }
+
+    if !missing_headers.is_empty() {
+        return None;
+    }
+
+    let (tenant_id, event_id, authorization) = (
+        headers.get_one("tenant_id").unwrap_or_default(),
+        headers.get_one("event_id").unwrap_or_default(),
+        headers.get_one("authorization").unwrap_or_default(),
+    );
+
+    info!(
+        "tenant_id: {:?} event_id: {:?} authorization: {:?}",
+        tenant_id, event_id, authorization
+    );
+
+    let mut auth_collection = authorization.split(":");
+    let client_id = auth_collection.nth(0); // get the first item and consumes it
+    let client_secret = auth_collection.nth(0);
+    info!("{:?}:{:?}", client_id, client_secret);
+    let (client_id, client_secret) =
+        if let (Some(client_id), Some(client_secret)) =
+            (client_id, client_secret)
+        {
+            (client_id, client_secret)
+        } else {
+            return None;
+        };
+
+    Some(DatafixHeaders {
+        tenant_id: tenant_id.to_string(),
+        event_id: event_id.to_string(),
+        authorization: DatafixAuth {
+            client_id: client_id.to_string(),
+            client_secret: client_secret.to_string(),
+        },
+    })
+}
+
 #[rocket::async_trait]
 impl<'r> FromRequest<'r> for DatafixClaims {
     type Error = ();
@@ -114,35 +178,22 @@ impl<'r> FromRequest<'r> for DatafixClaims {
     async fn from_request(
         request: &'r Request<'_>,
     ) -> Outcome<Self, Self::Error> {
-        let headers = request.headers().clone();
-        // .... WIP
-        let tenant_id = headers.get_one("tenant_id");
-        let event_id = headers.get_one("event_id");
-        info!("tenant_id: {:?} event_id: {:?}", tenant_id, event_id);
-
-        match headers.get_one("authorization") {
-            Some(authorization) => {
-                let mut auth_collection = authorization.split(":");
-                let client_id = auth_collection.nth(0);
-                let client_secret = auth_collection.nth(0);
-
-                info!("{:?}:{:?}", client_id, client_secret);
-
-                let access_token: &str = MOCK_ACCESS_TOKEN; // get access_token in similar way as get_client_credentials
-
-                // .... WIP
-                // Do the DB query to get the tenant ID if it´s not directly
-                // provided from the client.
-                match decode_jwt(access_token) {
-                    Ok(jwt) => Outcome::Success(DatafixClaims(jwt)),
-                    Err(err) => {
-                        warn!("JwtClaims guard: decode_jwt error {err:?}");
-                        Outcome::Error((Status::Unauthorized, ()))
-                    }
-                }
-            }
+        let datafix_headers = match get_datafix_headers(request.headers()) {
+            Some(datafix_headers) => datafix_headers,
             None => {
-                warn!("DatafixClaims guard: No authorization in headers: {headers:?}");
+                return Outcome::Error((Status::BadRequest, ()));
+            }
+        };
+
+        let access_token: &str = MOCK_ACCESS_TOKEN; // get access_token in similar way as get_client_credentials
+                                                    // .... WIP
+                                                    // Do the DB query to get the tenant ID if it´s not directly
+                                                    // provided from the client.
+
+        match decode_jwt(access_token) {
+            Ok(jwt) => Outcome::Success(DatafixClaims(jwt)),
+            Err(err) => {
+                warn!("JwtClaims guard: decode_jwt error {err:?}");
                 Outcome::Error((Status::Unauthorized, ()))
             }
         }
