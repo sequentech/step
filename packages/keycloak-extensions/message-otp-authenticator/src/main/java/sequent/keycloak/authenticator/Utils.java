@@ -114,6 +114,8 @@ public class Utils {
   public static final String AUTHENTICATOR_CLASS_NAME = "authenticator_class_name";
 
   public static final String EVENT_TYPE_COMMUNICATIONS = "communications";
+  public static final String TEST_MODE_ATTRIBUTE = "test-mode";
+  public static final String TEST_MODE_CODE_ATTRIBUTE = "test-mode-code";
 
   public enum MessageCourier {
     SMS,
