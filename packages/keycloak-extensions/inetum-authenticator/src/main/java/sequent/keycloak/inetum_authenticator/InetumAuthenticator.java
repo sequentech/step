@@ -305,12 +305,12 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
   }
 
   @Override
-  // this function reads the results
   public void action(AuthenticationFlowContext context) {
     log.info("action(): start inetum-authenticator");
 
     MultivaluedMap<String, String> formData = context.getHttpRequest().getDecodedFormParameters();
     String action = formData.getFirst("action");
+    log.infov("action(): Get action from request {0}", action);
 
     // Check if user has confirmed data
     if ("confirm".equals(action)) {
@@ -565,7 +565,6 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
     int maxRetries = Utils.parseInt(configMap.get(Utils.MAX_RETRIES), Utils.DEFAULT_MAX_RETRIES);
     int baseRetryDelay = Utils.BASE_RETRY_DELAY;
 
-    // first im here
     try {
       while (attempt < maxRetries) {
         response = doGet(configMap, context, uriPath);

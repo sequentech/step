@@ -322,7 +322,7 @@ let myStringsLocaleMap = {
       ]
     ],
     'upload_check_exception_tips': [
-      'An error occurred while verifying the document. This could be due to:', //
+      'An error occurred while verifying the document. This could be due to:',
       [
         'The image is not of sufficient quality. Remember that it must be well focused.',
         'The document is not identified as a valid type.',
@@ -1153,7 +1153,6 @@ dobSdk.addEventListener("status", status => {
 
 // Listen to evidence changes
 dobSdk.addEventListener("evidence", evidence => {
-  console.log('sdk-evidence: SDK-Web onEvidence()');
   const parsedEvidence = evidence.detail;
   // Esto simplemente es un ejemplo para imprimir la EVIDENCIA en base64 que enviamos en cada paso del SDK.
   switch (parsedEvidence.type) {
