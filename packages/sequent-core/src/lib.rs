@@ -5,7 +5,6 @@
 #[macro_use]
 extern crate quick_error;
 extern crate cfg_if;
-extern crate lazy_static;
 
 pub mod ballot;
 pub mod ballot_style;

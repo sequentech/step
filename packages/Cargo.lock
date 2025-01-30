@@ -6952,7 +6952,6 @@ dependencies = [
  "hex",
  "jsonwebtoken",
  "keycloak",
- "lazy_static 1.5.0",
  "num-bigint",
  "num-format",
  "num-traits",

@@ -98,8 +98,6 @@ ordered-float = { version = "4.4.0", features = ["serde"] }
 
 rand = "0.8"
 
-lazy_static = "1.4.0"
-
 [dev-dependencies]
 ptree = "0.5.0"
 
