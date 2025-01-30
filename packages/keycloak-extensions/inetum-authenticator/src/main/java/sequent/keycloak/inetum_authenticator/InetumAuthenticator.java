@@ -1151,7 +1151,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
                             "inetumDateFormat": "dd/MM/yyyy"
                         }
                     ],
-                    "Seaman Book": [
+                    "Seaman's Book": [
                         {
                             "UserAttribute": "sequent.read-only.id-card-number",
                             "inetumAttributePath": "/response/mrz/personal_number",
@@ -1210,7 +1210,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
                             "errorMsg": "attributesInetumError"
                         }
                     ],
-                    "Seaman Book": [
+                    "Seaman's Book": [
                         {
                             "type": "equalAuthnoteAttributeId",
                             "equalAuthnoteAttributeId": "sequent.read-only.id-card-number",
