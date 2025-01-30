@@ -5,7 +5,7 @@
 mod services;
 
 use clap::Parser;
-use services::{enrollment::{run_enrollment_test}};
+use services::enrollment::run_enrollment_test;
 
 #[derive(Parser, Debug)]
 #[command(
