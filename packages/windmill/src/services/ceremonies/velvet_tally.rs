@@ -527,11 +527,11 @@ pub async fn build_vote_receipe_pipe_config(
         tally_session_id: None,
     });
 
-    let (mut tpl_pdf_options, mut tpl_email, mut tpl_sms) = (None, None, None);
+    let (mut tpl_pdf_options, mut tpl_report_options, mut tpl_email, mut tpl_sms) = (None,None,None, None);
 
     // Fill extra config if needed with default data
     let ext_cfg: ReportExtraConfig = vote_receipt_renderer
-        .fill_extra_config_with_default(tpl_pdf_options, tpl_email, tpl_sms)
+        .fill_extra_config_with_default(tpl_pdf_options, tpl_report_options, tpl_email, tpl_sms)
         .await
         .map_err(|e| anyhow!("Error getting the extra config: {e:?}"))?;
     debug!("Extra config read: {ext_cfg:?}");
@@ -570,6 +570,7 @@ pub async fn build_vote_receipe_pipe_config(
         enable_pdfs: true,
         pipe_type: VoteReceiptPipeType::VOTE_RECEIPT,
         pdf_options: Some(ext_cfg.pdf_options),
+        report_options: Some(ext_cfg.report_options),
         execution_annotations: Some(execution_annotations),
     };
     Ok(vote_receipt_pipe_config)
@@ -593,10 +594,10 @@ pub async fn build_ballot_images_pipe_config(
         tally_session_id: None,
     });
 
-    let (mut tpl_pdf_options, mut tpl_email, mut tpl_sms) = (None, None, None);
+    let (mut tpl_pdf_options, tpl_report_options, mut tpl_email, mut tpl_sms) = (None, None, None, None);
 
     let ext_cfg: ReportExtraConfig = ballot_images_renderer
-        .fill_extra_config_with_default(tpl_pdf_options, tpl_email, tpl_sms)
+        .fill_extra_config_with_default(tpl_pdf_options, tpl_report_options, tpl_email, tpl_sms)
         .await
         .map_err(|e| anyhow!("Error getting the extra config: {e:?}"))?;
     debug!("Extra config read: {ext_cfg:?}");
@@ -627,6 +628,7 @@ pub async fn build_ballot_images_pipe_config(
         enable_pdfs: true,
         pipe_type: VoteReceiptPipeType::BALLOT_IMAGES,
         pdf_options: Some(ext_cfg.pdf_options),
+        report_options: Some(ext_cfg.report_options),
         execution_annotations: None,
     };
     Ok(ballot_images_pipe_config)

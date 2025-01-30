@@ -129,6 +129,7 @@ pub struct SendTemplateBody {
     pub name: Option<String>,
     pub alias: Option<String>,
     pub pdf_options: Option<PrintToPdfOptionsLocal>,
+    pub report_options: Option<ReportOptions>,
 }
 
 /// Struct for the DEFAULT extra_config JSON file.
@@ -136,6 +137,7 @@ pub struct SendTemplateBody {
 pub struct ReportExtraConfig {
     pub pdf_options: PrintToPdfOptionsLocal,
     pub communication_templates: CommunicationTemplatesExtraConfig,
+    pub report_options: ReportOptions,
 }
 
 /// Struct for DEFAULT Communication Templates in extra_config JSON file.
@@ -143,6 +145,12 @@ pub struct ReportExtraConfig {
 pub struct CommunicationTemplatesExtraConfig {
     pub email_config: EmailConfig,
     pub sms_config: SmsConfig,
+}
+
+/// Struct for DEFAULT ReportOptions in extra_config JSON file.
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct ReportOptions {
+    pub max_items_per_report: Option<u32>,
 }
 
 #[allow(non_camel_case_types)]

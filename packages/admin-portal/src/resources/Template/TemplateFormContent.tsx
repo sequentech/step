@@ -24,6 +24,7 @@ import {
     IEmail,
     ISmsConfig,
     IPdfOptions,
+    IReportOptions,
 } from "@/types/templates"
 import {useTranslation} from "react-i18next"
 import EmailEditEditor from "@/components/EmailEditEditor"
@@ -32,6 +33,7 @@ import {GET_USER_TEMPLATE} from "@/queries/GetUserTemplate"
 import {IPermissions} from "@/types/keycloak"
 import {useFormContext} from "react-hook-form"
 import {JsonEditor, UpdateFunction} from "json-edit-react"
+import { report } from "process"
 
 type TTemplateFormContent = {
     isTemplateEdit: boolean
@@ -48,6 +50,7 @@ export const TemplateFormContent: React.FC<TTemplateFormContent> = ({
     const [expandedGeneral, setExpandedGeneral] = useState(true)
     const [expandedEmail, setExpandedEmail] = useState(false)
     const [expandedSMS, setExpandedSMS] = useState(false)
+    const [expandedReportOptions, setExpandedReportOptions] = useState(false)
     const [expandedDocument, setExpandedDocument] = useState(false)
     const [expandedPdfOptions, setExpandedPdfOptions] = useState(false)
     const [templateHbsData, setTemplateHbsData] = useState<string | undefined>(undefined)
@@ -120,6 +123,7 @@ export const TemplateFormContent: React.FC<TTemplateFormContent> = ({
                     email_config: recordMemo?.template?.email,
                 },
                 pdf_options: recordMemo?.template?.pdf_options,
+                report_options: recordMemo?.template?.report_options,
             }
             setTemplateExtraConfig(extraConfig)
         } else {
@@ -137,6 +141,7 @@ export const TemplateFormContent: React.FC<TTemplateFormContent> = ({
 
     useEffect(() => {
         setValue("template.pdf_options", (templateExtraConfig?.pdf_options as IPdfOptions) || "")
+        setValue("template.report_options", (templateExtraConfig?.report_options as IReportOptions) || "")
         setValue(
             "template.email",
             (templateExtraConfig?.communication_templates?.email_config as IEmail) || ""
@@ -152,6 +157,12 @@ export const TemplateFormContent: React.FC<TTemplateFormContent> = ({
     const updatePdfOptions = ({newData}: UpdateFunctionProps) => {
         console.log("Updating PDF options...")
         setValue("template.pdf_options", (newData as IPdfOptions) || "")
+        onFormChanged?.()
+    }
+
+    const updateReportOptions = ({newData}: UpdateFunctionProps) => {
+        console.log("Updating report options...")
+        setValue("template.report_options", (newData as IReportOptions) || "")
         onFormChanged?.()
     }
 
@@ -293,6 +304,27 @@ export const TemplateFormContent: React.FC<TTemplateFormContent> = ({
                                             data={templateExtraConfig?.pdf_options as IPdfOptions}
                                             onUpdate={(data) =>
                                                 updatePdfOptions(data as UpdateFunctionProps)
+                                            }
+                                        />
+                                    </AccordionDetails>
+                                </Accordion>
+                                <Accordion
+                                    sx={{width: "100%"}}
+                                    expanded={expandedReportOptions}
+                                    onChange={() => setExpandedReportOptions(!expandedReportOptions)}
+                                >
+                                    <AccordionSummary
+                                        expandIcon={<ExpandMoreIcon id="template-report-options-id" />}
+                                    >
+                                        <ElectionHeaderStyles.AccordionTitle>
+                                            {t("template.form.reportOptions")}
+                                        </ElectionHeaderStyles.AccordionTitle>
+                                    </AccordionSummary>
+                                    <AccordionDetails>
+                                        <JsonEditor
+                                            data={templateExtraConfig?.report_options as unknown as IReportOptions}
+                                            onUpdate={(data) =>
+                                                updateReportOptions(data as UpdateFunctionProps)
                                             }
                                         />
                                     </AccordionDetails>

@@ -17,6 +17,9 @@
     "prefer_css_page_size": null,
     "transfer_mode": null
   },
+  "report_options": {
+    "max_items_per_report": null
+  },  
   "communication_templates": {
     "email_config": {
       "subject": "Sequent Online Voting - OV Users Who Voted",
