@@ -326,7 +326,10 @@ function TreeMenuItem({
     const location = useLocation()
     const {setTallyId, setTaskId, setCustomFilter} = useElectionEventTallyStore()
 
-    const onClick = () => {
+    const onClick = (isLabel: boolean) => {
+        if (isLabel && open) {
+            return
+        }
         if (!open) {
             reloadTree()
         }
@@ -432,7 +435,7 @@ function TreeMenuItem({
         <Box sx={{backgroundColor: adminTheme.palette.white}}>
             <TreeMenuItemContainer ref={menuItemRef} isClicked={isClicked}>
                 {canShowMenu ? (
-                    <MenuStyles.TreeMenuIconContaier onClick={onClick}>
+                    <MenuStyles.TreeMenuIconContaier onClick={() => onClick(false)}>
                         {resource?.active && open ? (
                             <ExpandMoreIcon className="menu-item-expanded" />
                         ) : (
@@ -452,7 +455,7 @@ function TreeMenuItem({
                 )}
                 {isOpenSidebar && (
                     <MenuStyles.StyledSideBarNavLink
-                        onClick={onClick}
+                        onClick={() => onClick(true)}
                         title={name}
                         className={({isActive}) =>
                             isActive ? `active menu-item-${treeResourceNames[0]}` : ``
