@@ -101,7 +101,27 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
     log.info("validated is NOT TRUE, rendering the form");
     try {
       Boolean isTestMode = Boolean.parseBoolean(configMap.get(Utils.TEST_MODE_ATTRIBUTE));
-      if (!isTestMode) {
+      if (isTestMode) {
+        // Make a new transaction request to mock server
+        SimpleHttp.Response mockTransactionData =
+            doPost(configMap, context, "{}", Utils.API_TRANSACTION_NEW, true);
+        JsonNode responseContent = mockTransactionData.asJson().get("response");
+        log.info(responseContent);
+        String tokenDob = responseContent.get("token_dob").asText();
+        String userId = responseContent.get("user_id").asText();
+
+        AuthenticationSessionModel sessionModel = context.getAuthenticationSession();
+        sessionModel.setAuthNote(Utils.FTL_TOKEN_DOB, tokenDob);
+        sessionModel.setAuthNote(Utils.FTL_USER_ID, userId);
+
+        // Verifying results
+        // Getting status
+        SimpleHttp.Response response = verifyResults(context, isTestMode);
+        log.info("response" + response);
+        String error = validateAttributes(context, response);
+        storeAttributes(context, response);
+        context.success();
+      } else {
         Map<String, String> transactionData = newTransaction(configMap, context);
 
         // Save the transaction data into the auth session
@@ -117,25 +137,6 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
         context.challenge(challenge);
       }
 
-      // Make a new transaction request to mock server
-      SimpleHttp.Response mockTransactionData =
-          doPost(configMap, context, "{}", Utils.API_TRANSACTION_NEW, true);
-      JsonNode responseContent = mockTransactionData.asJson().get("response");
-      log.info(responseContent);
-      String tokenDob = responseContent.get("token_dob").asText();
-      String userId = responseContent.get("user_id").asText();
-
-      AuthenticationSessionModel sessionModel = context.getAuthenticationSession();
-      sessionModel.setAuthNote(Utils.FTL_TOKEN_DOB, tokenDob);
-      sessionModel.setAuthNote(Utils.FTL_USER_ID, userId);
-
-      SimpleHttp.Response response = verifyResults(context, isTestMode);
-      log.info("response" + response);
-      String error = validateAttributes(context, response);
-      storeAttributes(context, response);
-      context.success();
-      // Verifying results
-      // Getting status
 
     } catch (IOException error) {
       context.getEvent().error(ERROR_FAILED_TO_LOAD_INETUM_FORM);
