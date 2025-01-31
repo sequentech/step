@@ -13,6 +13,7 @@ WORKDIR /app
 
 COPY ./windmill/external-bin/ecies-tool.jar /usr/local/bin/
 
+
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     m4 make chromium libssl-dev protobuf-compiler libprotobuf-dev curl pkg-config wget software-properties-common && \
@@ -26,3 +27,6 @@ RUN apt-get update && \
     # cleanups
     apt-get clean && \
     apt-get autoremove
+
+RUN rustup toolchain install nightly-2024-09-01 \
+    && rustup default nightly-2024-09-01
