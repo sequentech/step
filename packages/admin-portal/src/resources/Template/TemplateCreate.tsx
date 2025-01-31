@@ -11,6 +11,7 @@ import {useTranslation} from "react-i18next"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {INSERT_TEMPLATE} from "@/queries/InsertTemplate"
 import {TemplateFormContent} from "./TemplateFormContent"
+import {is_communication_template_type} from "@/lib/helpers"
 
 type TTemplateCreate = {
     close?: () => void
@@ -33,7 +34,7 @@ export const TemplateCreate: React.FC<TTemplateCreate> = ({close}) => {
                     type: data.type,
                     communication_method: data.communication_method,
                     is_active: data.is_active,
-                    is_communication: data.is_communication,
+                    is_communication: is_communication_template_type(data.type),
                     template: {
                         ...data.template,
                     },

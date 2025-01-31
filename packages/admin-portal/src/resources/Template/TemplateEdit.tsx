@@ -37,6 +37,7 @@ import {useTranslation} from "react-i18next"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {UPDATE_TEMPLATE} from "@/queries/UpdateTemplate"
 import {TemplateFormContent} from "./TemplateFormContent"
+import {is_communication_template_type} from "@/lib/helpers"
 
 type TTemplateEdit = {
     id?: Identifier | undefined
@@ -73,7 +74,7 @@ export const TemplateEdit: React.FC<TTemplateEdit> = (props) => {
                     type: data.type,
                     updated_at: data.updated_at,
                     is_active: data.is_active,
-                    is_communication: data.is_communication,
+                    is_communication: is_communication_template_type(data.type),
                 },
             },
         })

@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import {ETemplateType} from "@/types/templates"
+
 export const convertToNumber = <T>(val: T) => {
     if (val === null || val === undefined) {
         return null
@@ -27,3 +29,32 @@ export const convertToNumber = <T>(val: T) => {
 export const getPreferenceKey = (key: string, subkey: string) => {
     return `${key.replaceAll("/", "_").replaceAll("-", "_")}_${subkey}`
 }
+
+const is_communication_template = [
+    ETemplateType.PARTICIPATION_REPORT,
+    ETemplateType.TALLY_REPORT,
+    ETemplateType.BALLOT_RECEIPT,
+    ETemplateType.VOTE_RECEIPT,
+    ETemplateType.INITIALIZATION_REPORT,
+    ETemplateType.TRANSMISSION_REPORT,
+    ETemplateType.ACTIVITY_LOGS,
+    ETemplateType.ELECTORAL_RESULTS,
+    ETemplateType.TRANSMISSION_REPORT,
+    ETemplateType.STATISTICAL_REPORT,
+    ETemplateType.AUDIT_LOGS,
+    ETemplateType.OVCS_INFORMATION,
+    ETemplateType.OV_TURNOUT_PERCENTAGE,
+    ETemplateType.OVCS_EVENTS,
+    ETemplateType.OVCS_STATISTICS,
+    ETemplateType.OV_TURNOUT_PER_ABOARD_STATUS_SEX,
+    ETemplateType.OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE,
+    ETemplateType.LIST_OF_OVERSEAS_VOTERS,
+    ETemplateType.OV_PRE_ENROLLED_APPROVED,
+    ETemplateType.OV_NOT_YET_PRE_ENROLLED_LIST,
+    ETemplateType.OV_WITH_VOTING_STATUS,
+    ETemplateType.OV_WHO_VOTED,
+    ETemplateType.OV_NOT_YET_PRE_ENROLLED_NUMBER,
+]
+
+export const is_communication_template_type = (templateType: ETemplateType) =>
+    is_communication_template.includes(templateType)
