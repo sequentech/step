@@ -195,10 +195,7 @@ export const TemplateFormContent: React.FC<TTemplateFormContent> = ({
                         source={"is_communication"}
                         label={t(`template.form.is_communication`)}
                     />
-                    <BooleanInput
-                        source={"is_active"}
-                        label={t(`template.form.type`)}
-                    />
+                    <BooleanInput source={"is_active"} label={t(`template.form.is_active`)} />
                 </AccordionDetails>
             </Accordion>
 

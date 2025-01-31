@@ -17658,6 +17658,8 @@ export type Sequent_Backend_Template = {
   created_at: Scalars['timestamptz']['output'];
   created_by: Scalars['String']['output'];
   id: Scalars['uuid']['output'];
+  is_active?: Maybe<Scalars['Boolean']['output']>;
+  is_communication?: Maybe<Scalars['Boolean']['output']>;
   labels?: Maybe<Scalars['jsonb']['output']>;
   template: Scalars['jsonb']['output'];
   tenant_id: Scalars['uuid']['output'];
@@ -17723,6 +17725,8 @@ export type Sequent_Backend_Template_Bool_Exp = {
   created_at?: InputMaybe<Timestamptz_Comparison_Exp>;
   created_by?: InputMaybe<String_Comparison_Exp>;
   id?: InputMaybe<Uuid_Comparison_Exp>;
+  is_active?: InputMaybe<Boolean_Comparison_Exp>;
+  is_communication?: InputMaybe<Boolean_Comparison_Exp>;
   labels?: InputMaybe<Jsonb_Comparison_Exp>;
   template?: InputMaybe<Jsonb_Comparison_Exp>;
   tenant_id?: InputMaybe<Uuid_Comparison_Exp>;
@@ -17765,6 +17769,8 @@ export type Sequent_Backend_Template_Insert_Input = {
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
   created_by?: InputMaybe<Scalars['String']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
+  is_active?: InputMaybe<Scalars['Boolean']['input']>;
+  is_communication?: InputMaybe<Scalars['Boolean']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   template?: InputMaybe<Scalars['jsonb']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
@@ -17822,6 +17828,8 @@ export type Sequent_Backend_Template_Order_By = {
   created_at?: InputMaybe<Order_By>;
   created_by?: InputMaybe<Order_By>;
   id?: InputMaybe<Order_By>;
+  is_active?: InputMaybe<Order_By>;
+  is_communication?: InputMaybe<Order_By>;
   labels?: InputMaybe<Order_By>;
   template?: InputMaybe<Order_By>;
   tenant_id?: InputMaybe<Order_By>;
@@ -17857,6 +17865,10 @@ export enum Sequent_Backend_Template_Select_Column {
   /** column name */
   Id = 'id',
   /** column name */
+  IsActive = 'is_active',
+  /** column name */
+  IsCommunication = 'is_communication',
+  /** column name */
   Labels = 'labels',
   /** column name */
   Template = 'template',
@@ -17876,6 +17888,8 @@ export type Sequent_Backend_Template_Set_Input = {
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
   created_by?: InputMaybe<Scalars['String']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
+  is_active?: InputMaybe<Scalars['Boolean']['input']>;
+  is_communication?: InputMaybe<Scalars['Boolean']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   template?: InputMaybe<Scalars['jsonb']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
@@ -17899,6 +17913,8 @@ export type Sequent_Backend_Template_Stream_Cursor_Value_Input = {
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
   created_by?: InputMaybe<Scalars['String']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
+  is_active?: InputMaybe<Scalars['Boolean']['input']>;
+  is_communication?: InputMaybe<Scalars['Boolean']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   template?: InputMaybe<Scalars['jsonb']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
@@ -17920,6 +17936,10 @@ export enum Sequent_Backend_Template_Update_Column {
   CreatedBy = 'created_by',
   /** column name */
   Id = 'id',
+  /** column name */
+  IsActive = 'is_active',
+  /** column name */
+  IsCommunication = 'is_communication',
   /** column name */
   Labels = 'labels',
   /** column name */
