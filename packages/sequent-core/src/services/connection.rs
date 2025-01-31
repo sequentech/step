@@ -5,13 +5,15 @@ use crate::services::jwt::*;
 use crate::services::keycloak::{
     get_third_party_client_access_token, TokenResponse,
 };
+use anyhow::Result as AnyhowResult;
 use rocket::http::HeaderMap;
 use rocket::http::Status;
 use rocket::request::{FromRequest, Outcome, Request};
 use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
 use std::sync::RwLock;
-use std::time::Instant;
+use std::thread::sleep;
+use std::time::{Duration, Instant};
 use tracing::{info, instrument, warn};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -179,13 +181,109 @@ fn parse_datafix_headers(headers: &HeaderMap) -> Option<DatafixHeaders> {
     })
 }
 
-/// Last access token can be reused if not expired
-struct LastAccessToken {
-    tkn_resp: TokenResponse,
+/// TokenResponse, tiemstamp before sending the request and the credentials used
+#[derive(Debug, Clone)]
+struct TokenResponseExtended {
+    token_resp: TokenResponse,
     stamp: Instant,
+    client_id: String,
+    client_secret: String,
+    tenant_id: String,
 }
-static mut LAST_DATAFIX_ACCESS_TKN: RwLock<Option<LastAccessToken>> =
-    RwLock::new(None);
+
+#[derive(Debug, Clone, Default)]
+struct LastAccessToken {
+    token_ext: Option<TokenResponseExtended>,
+    is_in_request: bool,
+}
+
+/// Last access token can be reused if it´s not expired, to avoid concurrent
+/// requests to get the token
+static LAST_DATAFIX_ACCESS_TKN: RwLock<LastAccessToken> =
+    RwLock::new(LastAccessToken {
+        token_ext: None,
+        is_in_request: false,
+    });
+
+/// Reads the access token if it has been requested successfully before and it
+/// is not expired.
+#[instrument]
+async fn read_access_token(
+    client_id: &str,
+    client_secret: &str,
+    tenant_id: &str,
+) -> Option<TokenResponse> {
+    let read = LAST_DATAFIX_ACCESS_TKN.read().unwrap();
+    if read.is_in_request {
+        sleep(Duration::from_millis(10)); // Shall we use Tokio sleep?
+        return None; // TODO: Handle this from the caller to try read again.
+    }
+    if let Some(data) = read.token_ext.clone() {
+        let pre_expriration_time: i64 = data.token_resp.expires_in - 1; // Renew the token 1 second before it expires
+
+        if data.client_id.eq(client_id)
+            && data.client_secret.eq(client_secret)
+            && data.tenant_id.eq(tenant_id)
+            && pre_expriration_time.is_positive()
+            && data.stamp.elapsed()
+                < Duration::from_secs(pre_expriration_time as u64)
+        {
+            return Some(data.token_resp);
+        }
+    }
+    return None;
+}
+
+/// Request a new access token and writes it to the cache
+#[instrument(err)]
+pub async fn request_access_token(
+    client_id: String,
+    client_secret: String,
+    tenant_id: String,
+) -> AnyhowResult<TokenResponse> {
+    {
+        // Write the lock and set the flag to avoid multiple requests
+        let mut write = LAST_DATAFIX_ACCESS_TKN.write().unwrap();
+        *write = LastAccessToken {
+            token_ext: None,
+            is_in_request: true,
+        };
+    } // release the lock
+
+    let stamp: Instant = Instant::now(); // Capture the stamp before sending the request
+    let token_resp = match get_third_party_client_access_token(
+        client_id.clone(),
+        client_secret.clone(),
+        tenant_id.clone(),
+    )
+    .await
+    {
+        Ok(token_resp) => token_resp,
+        Err(err) => {
+            let mut write = LAST_DATAFIX_ACCESS_TKN.write().unwrap();
+            *write = LastAccessToken {
+                token_ext: None,
+                is_in_request: false, // Undo the flag before returning
+            };
+            // release the lock
+            return Err(err);
+        }
+    };
+
+    let mut write = LAST_DATAFIX_ACCESS_TKN.write().unwrap();
+    *write = LastAccessToken {
+        token_ext: Some(TokenResponseExtended {
+            token_resp: token_resp.clone(),
+            stamp,
+            client_id,
+            client_secret,
+            tenant_id,
+        }),
+        is_in_request: false, // Undo the flag before returning
+    };
+
+    Ok(token_resp)
+} // release the lock
 
 #[rocket::async_trait]
 impl<'r> FromRequest<'r> for DatafixClaims {
@@ -206,17 +304,28 @@ impl<'r> FromRequest<'r> for DatafixClaims {
                 }
             };
 
-        let token_resp = match get_third_party_client_access_token(
-            authorization.client_id,
-            authorization.client_secret,
-            tenant_id.clone(),
+        let token_resp = match read_access_token(
+            &authorization.client_id,
+            &authorization.client_secret,
+            &tenant_id,
         )
         .await
         {
-            Ok(token_resp) => token_resp,
-            Err(err) => {
-                warn!("JwtClaims guard: decode_jwt error {err:?}");
-                return Outcome::Error((Status::Unauthorized, ()));
+            Some(token_resp) => token_resp,
+            None => {
+                match request_access_token(
+                    authorization.client_id,
+                    authorization.client_secret,
+                    tenant_id.clone(),
+                )
+                .await
+                {
+                    Ok(token_resp) => token_resp,
+                    Err(err) => {
+                        warn!("JwtClaims guard: decode_jwt error {err:?}");
+                        return Outcome::Error((Status::Unauthorized, ()));
+                    }
+                }
             }
         };
 
