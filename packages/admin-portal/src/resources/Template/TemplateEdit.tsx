@@ -72,6 +72,8 @@ export const TemplateEdit: React.FC<TTemplateEdit> = (props) => {
                     tenant_id: data.tenant_id,
                     type: data.type,
                     updated_at: data.updated_at,
+                    is_active: data.is_active,
+                    is_communication: data.is_communication,
                 },
             },
         })

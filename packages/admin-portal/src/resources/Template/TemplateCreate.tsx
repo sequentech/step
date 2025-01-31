@@ -32,6 +32,8 @@ export const TemplateCreate: React.FC<TTemplateCreate> = ({close}) => {
                     tenant_id: tenantId,
                     type: data.type,
                     communication_method: data.communication_method,
+                    is_active: data.is_active,
+                    is_communication: data.is_communication,
                     template: {
                         ...data.template,
                     },
