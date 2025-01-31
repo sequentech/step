@@ -22,6 +22,7 @@ import {
     WrapperField,
     Button as ReactAdminButton,
     useNotify,
+    BooleanField,
 } from "react-admin"
 
 import {IPermissions} from "@/types/keycloak"
@@ -241,6 +242,8 @@ export const TemplateList: React.FC = () => {
                     <TextField source="template.alias" label="Alias" />
                     <TextField source="template.name" label="Name" />
                     <TextField source="type" />
+                    <BooleanField source="is_communication" />
+                    <BooleanField source="is_active" />
                     <WrapperField source="actions" label="Actions">
                         <ActionsColumn actions={actions} />
                     </WrapperField>

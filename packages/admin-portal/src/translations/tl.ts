@@ -1783,6 +1783,8 @@ const tagalogTranslation: TranslationType = {
                 alias: "Alias ng Template",
                 type: "Uri ng Komunikasyon",
                 communicationMethod: "Pamamaraan ng Komunikasyon",
+                is_active: "Aktibo",
+                is_communication: "Template ng komunikasyon",
             },
             type: {
                 CREDENTIALS: "Mga Kredensyal",

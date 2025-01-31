@@ -1780,6 +1780,8 @@ const spanishTranslation: TranslationType = {
                 alias: "Alias de la Plantilla",
                 type: "Tipo",
                 communicationMethod: "Método",
+                is_active: "Activo",
+                is_communication: "Plantilla de comunicación",
             },
             type: {
                 CREDENTIALS: "Credenciales",
