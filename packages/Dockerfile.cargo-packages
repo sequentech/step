@@ -27,6 +27,3 @@ RUN apt-get update && \
     # cleanups
     apt-get clean && \
     apt-get autoremove
-
-RUN rustup toolchain install nightly-2024-09-01 \
-    && rustup default nightly-2024-09-01
