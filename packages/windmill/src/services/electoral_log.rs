@@ -93,7 +93,7 @@ impl ElectoralLog {
         };
 
         Ok(ElectoralLog {
-            sd: SigningData::new(sk, "", system_sk),
+            sd: SigningData::new(sk, user_id, system_sk),
             elog_database: elog_database.to_string(),
         })
     }
