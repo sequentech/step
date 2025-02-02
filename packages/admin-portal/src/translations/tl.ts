@@ -301,6 +301,11 @@ const tagalogTranslation: TranslationType = {
                     coundownSecondsLabel: "Segundo bago mag-expire para ipakita ang countdown",
                     alertSecondsLabel: "Segundo bago mag-expire para ipakita ang Logout alert",
                 },
+                voterSigningPolicy: {
+                    "policyLabel": "Patakaran sa Pagpirma ng Botante",
+                    "no-signature": "Walang pirma",
+                    "with-signature": "May pirma",
+                },
                 enrollment: {
                     policyLabel: "Pagpaparehistro",
                     options: {
