@@ -46,15 +46,3 @@ pub async fn get_public_asset_template(filename: &str) -> Result<String> {
 
     Ok(template_hbs)
 }
-
-/// Function to get the max number of items 
-#[instrument(skip_all)]
-pub fn get_report_max_num_items() -> usize {
-    env::var("REPORT_MAX_NUM_ITEMS")
-        .ok()
-        .and_then(|val| val.parse::<usize>().ok())
-        .unwrap_or_else(|| {
-            tracing::warn!("Falling back to default of 50000 due to invalid or missing REPORT_MAX_NUM_ITEMS.");
-            50000
-        })
-}

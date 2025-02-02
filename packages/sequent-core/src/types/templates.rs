@@ -150,7 +150,7 @@ pub struct CommunicationTemplatesExtraConfig {
 /// Struct for DEFAULT ReportOptions in extra_config JSON file.
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct ReportOptions {
-    pub max_items_per_report: Option<u32>,
+    pub max_items_per_report: Option<usize>,
     pub max_threads: Option<usize>,
 }
 

@@ -8,7 +8,10 @@ use crate::pipes::error::{Error, Result};
 use crate::pipes::pipe_inputs::{InputElectionConfig, PipeInputs};
 use crate::pipes::pipe_name::{PipeName, PipeNameOutputDir};
 use crate::pipes::Pipe;
+use crate::utils::get_config_value;
 use hex::encode;
+use rayon::prelude::*;
+use rayon::ThreadPoolBuilder;
 use sequent_core::ballot::{Candidate, CandidatesOrder, Contest, StringifiedPeriodDates};
 use sequent_core::ballot_codec::multi_ballot::DecodedBallotChoices;
 use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
@@ -353,76 +356,93 @@ impl Pipe for MCBallotReceipts {
                         .map_err(|e| Error::FileAccess(path_ballots.as_path().to_path_buf(), e))?;
                     let mcballots: Vec<DecodedBallotChoices> = crate::utils::parse_file(f)?;
                     let ballots = convert_ballots(election_input, mcballots)?;
-                    let max_num_items = env::var("REPORT_MAX_NUM_ITEMS")
-                        .ok()
-                        .and_then(|val| val.parse::<usize>().ok())
-                        .unwrap_or_else(|| {
-                            eprintln!("Invalid or missing REPORT_MAX_NUM_ITEMS value. Falling back to default of 50000.");
-                            50000
-                        });
+                    let report_options = pipe_config.report_options.clone().unwrap_or_default();
+                    let max_threads =
+                        get_config_value(report_options.max_threads, "REPORT_MAX_THREADS", 4);
+                    let pool = ThreadPoolBuilder::new()
+                        .num_threads(max_threads)
+                        .build()
+                        .unwrap();
 
-                    for (chunk_index, chunk) in ballots.chunks(max_num_items).enumerate() {
-                        let (bytes_pdf, bytes_html) = self.print_vote_receipts(
-                            chunk,
-                            &area_contests.contests,
-                            &election_input,
-                            &pipe_config,
-                            &area_contests.area_name,
-                        )?;
+                    let max_items_per_report = get_config_value(
+                        report_options.max_items_per_report,
+                        "REPORT_MAX_NUM_ITEMS",
+                        50_000,
+                    );
+                    let result: Result<(), Error> = pool.install(|| {
+                        ballots
+                            .par_chunks(max_items_per_report)
+                            .enumerate()
+                            .try_for_each(|(chunk_index, chunk)| {
+                                let (bytes_pdf, bytes_html) = self.print_vote_receipts(
+                                    chunk,
+                                    &area_contests.contests,
+                                    &election_input,
+                                    &pipe_config,
+                                    &area_contests.area_name,
+                                )?;
 
-                        let path = PipeInputs::mcballots_path(
-                            &self
-                                .pipe_inputs
-                                .cli
-                                .output_dir
-                                .join(&pipe_data.pipe_name_output_dir)
-                                .as_path(),
-                            &election_input.id,
-                            &area_id,
-                        );
+                                let path = PipeInputs::mcballots_path(
+                                    &self
+                                        .pipe_inputs
+                                        .cli
+                                        .output_dir
+                                        .join(&pipe_data.pipe_name_output_dir)
+                                        .as_path(),
+                                    &election_input.id,
+                                    &area_id,
+                                );
 
-                        fs::create_dir_all(&path)?;
+                                fs::create_dir_all(&path)?;
 
-                        if let Some(ref some_bytes_pdf) = bytes_pdf {
-                            let file = {
-                                let pdf_hash =
-                                    hash_sha256(some_bytes_pdf.as_slice()).map_err(|e| {
+                                if let Some(ref some_bytes_pdf) = bytes_pdf {
+                                    let pdf_hash =
+                                        hash_sha256(some_bytes_pdf.as_slice()).map_err(|e| {
+                                            Error::UnexpectedError(format!(
+                                                "Error during hash pdf bytes: {}",
+                                                e
+                                            ))
+                                        })?;
+
+                                    let file_path = path.join(format!(
+                                        "{}-batch-{}.pdf",
+                                        pipe_data.output_file_pdf, chunk_index
+                                    ));
+
+                                    let hashed_file = generate_hashed_filename(
+                                        &file_path,
+                                        &pdf_hash,
+                                        &format!("pdf-{}", chunk_index),
+                                    )
+                                    .map_err(|e| {
                                         Error::UnexpectedError(format!(
                                             "Error during hash pdf bytes: {}",
                                             e
                                         ))
                                     })?;
 
-                                let file = path.join(&pipe_data.output_file_pdf);
-
-                                generate_hashed_filename(
-                                    &file,
-                                    &pdf_hash,
-                                    &format!("pdf-{}", chunk_index),
-                                )
-                                .map_err(|e| {
-                                    Error::UnexpectedError(format!(
-                                        "Error during hash pdf bytes: {}",
-                                        e
-                                    ))
-                                })?
-                            };
-
-                            let mut file = OpenOptions::new()
-                                .write(true)
-                                .truncate(true)
-                                .create(true)
-                                .open(file)?;
-                            file.write_all(&some_bytes_pdf)?;
-                        }
-
-                        let file = path.join(&pipe_data.output_file_html);
-                        let mut file = OpenOptions::new()
-                            .write(true)
-                            .truncate(true)
-                            .create(true)
-                            .open(file)?;
-                        file.write_all(&bytes_html)?;
+                                    let mut file = OpenOptions::new()
+                                        .write(true)
+                                        .truncate(true)
+                                        .create(true)
+                                        .open(hashed_file)?;
+                                    file.write_all(some_bytes_pdf)?;
+                                }
+                                let file_path = path.join(format!(
+                                    "{}-batch-{}.html",
+                                    pipe_data.output_file_html, chunk_index
+                                ));
+                                let mut file = OpenOptions::new()
+                                    .write(true)
+                                    .truncate(true)
+                                    .create(true)
+                                    .open(file_path)?;
+                                file.write_all(&bytes_html)?;
+                                Ok(())
+                            })
+                    });
+                    if let Err(e) = result {
+                        eprintln!("Error processing: {}", e);
                     }
                 } else {
                     println!(

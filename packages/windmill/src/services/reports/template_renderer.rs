@@ -23,7 +23,8 @@ use sequent_core::services::keycloak::{self, get_event_realm, KeycloakAdminClien
 use sequent_core::services::{pdf, reports};
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::templates::{
-    CommunicationTemplatesExtraConfig, EmailConfig, PrintToPdfOptionsLocal, ReportExtraConfig, ReportOptions, SendTemplateBody, SmsConfig
+    CommunicationTemplatesExtraConfig, EmailConfig, PrintToPdfOptionsLocal, ReportExtraConfig,
+    ReportOptions, SendTemplateBody, SmsConfig,
 };
 use sequent_core::types::to_map::ToMap;
 use serde::{Deserialize, Serialize};
@@ -88,9 +89,7 @@ pub trait TemplateRenderer: Debug {
     fn get_tenant_id(&self) -> String;
     fn get_election_event_id(&self) -> String;
     fn get_report_origin(&self) -> ReportOriginatedFrom;
-    fn get_max_reports_per_pdf(&self) -> Option<usize> {
-        None
-    }
+
     /// Can be None when a report is generated with no template assigned to it,
     /// or from other place than the reports TAB.
     fn get_initial_template_alias(&self) -> Option<String>;
@@ -210,7 +209,8 @@ pub trait TemplateRenderer: Debug {
         tpl_email_config: Option<EmailConfig>,
         tpl_sms_config: Option<SmsConfig>,
     ) -> Result<ReportExtraConfig> {
-        let (pdf_options, report_options, email_config, sms_config) = match tpl_pdf_options.is_none()
+        let (pdf_options, report_options, email_config, sms_config) = match tpl_pdf_options
+            .is_none()
             || tpl_report_options.is_none()
             || tpl_email_config.is_none()
             || tpl_sms_config.is_none()
@@ -303,13 +303,16 @@ pub trait TemplateRenderer: Debug {
                 .await
                 .map_err(|e| anyhow!("Error preparing user data: {e:?}"))?
         };
- 
+
         let user_data_map = user_data
             .to_map()
             .map_err(|e| anyhow!("Error converting user data to map: {e:?}"))?;
 
         debug!("user data in template renderer: {user_data_map:#?}");
-        info!("imri generate_report_inner user_data_map: {:?}", user_data_map);
+        info!(
+            "imri generate_report_inner user_data_map: {:?}",
+            user_data_map
+        );
         let rendered_user_template =
             reports::render_template_text(&user_tpl_document, user_data_map)
                 .map_err(|e| anyhow!("Error rendering user template: {e:?}"))?;
@@ -354,7 +357,7 @@ pub trait TemplateRenderer: Debug {
                 .await
                 .map_err(|e| anyhow!("Error preparing user data: {e:?}"))?
         };
-  
+
         let user_data_map = user_data
             .to_map()
             .map_err(|e| anyhow!("Error converting user data to map: {e:?}"))?;
@@ -407,9 +410,9 @@ pub trait TemplateRenderer: Debug {
             .get_custom_user_template_data(hasura_transaction)
             .await
             .map_err(|e| anyhow!("Error getting custom user template: {e:?}"))?;
-        info!("imri execute_report_inner template_data_opt: {:?}", template_data_opt);
         // Set the data from the user
-        let (mut tpl_pdf_options,mut tpl_report_options, mut tpl_email, mut tpl_sms) = (None, None,  None,None);
+        let (mut tpl_pdf_options, mut tpl_report_options, mut tpl_email, mut tpl_sms) =
+            (None, None, None, None);
         let user_tpl_document = match template_data_opt {
             Some(template) => {
                 tpl_pdf_options = template.pdf_options;
@@ -420,7 +423,6 @@ pub trait TemplateRenderer: Debug {
             }
             None => None,
         };
-        info!("imri execute_report_inner user_tpl_document: {:?}", user_tpl_document);
         // Fill extra config if needed with default data
         let ext_cfg: ReportExtraConfig = self
             .fill_extra_config_with_default(tpl_pdf_options, tpl_report_options, tpl_email, tpl_sms)
@@ -436,7 +438,6 @@ pub trait TemplateRenderer: Debug {
                 .map_err(|e| anyhow!("Error getting default user template: {e:?}"))?,
             Some(user_tpl_document) => user_tpl_document,
         };
-        info!("imri execute_report_inner user_tpl_document2: {:?}", user_tpl_document);
         // Generate report in html
         let rendered_system_template = match self
             .generate_report(
@@ -457,7 +458,6 @@ pub trait TemplateRenderer: Debug {
         };
 
         debug!("Report generated: {rendered_system_template}");
-        info!("imri execute_report_inner Report generated: rendered_system_template {:?}", rendered_system_template);
         let extension_suffix = "pdf";
 
         // Generate PDF

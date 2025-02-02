@@ -527,7 +527,8 @@ pub async fn build_vote_receipe_pipe_config(
         tally_session_id: None,
     });
 
-    let (mut tpl_pdf_options, mut tpl_report_options, mut tpl_email, mut tpl_sms) = (None,None,None, None);
+    let (mut tpl_pdf_options, mut tpl_report_options, mut tpl_email, mut tpl_sms) =
+        (None, None, None, None);
 
     // Fill extra config if needed with default data
     let ext_cfg: ReportExtraConfig = vote_receipt_renderer
@@ -594,7 +595,8 @@ pub async fn build_ballot_images_pipe_config(
         tally_session_id: None,
     });
 
-    let (mut tpl_pdf_options, tpl_report_options, mut tpl_email, mut tpl_sms) = (None, None, None, None);
+    let (mut tpl_pdf_options, tpl_report_options, mut tpl_email, mut tpl_sms) =
+        (None, None, None, None);
 
     let ext_cfg: ReportExtraConfig = ballot_images_renderer
         .fill_extra_config_with_default(tpl_pdf_options, tpl_report_options, tpl_email, tpl_sms)

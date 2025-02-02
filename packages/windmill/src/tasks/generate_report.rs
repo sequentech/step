@@ -55,7 +55,6 @@ pub async fn generate_report(
     task_execution: Option<TasksExecution>,
     executer_username: Option<String>,
     tally_session_id: Option<String>,
-    max_reports_per_pdf: Option<usize>,
 ) -> Result<(), anyhow::Error> {
     let tenant_id = report.tenant_id.clone();
     let election_event_id = report.election_event_id.clone();
@@ -143,7 +142,7 @@ pub async fn generate_report(
             execute_report!(report);
         }
         Ok(ReportType::AUDIT_LOGS) => {
-            let report = AuditLogsTemplate::new(ids, max_reports_per_pdf);
+            let report = AuditLogsTemplate::new(ids);
             execute_report!(report);
         }
         Ok(ReportType::OVCS_INFORMATION) => {
@@ -183,7 +182,7 @@ pub async fn generate_report(
             execute_report!(report);
         }
         Ok(ReportType::ACTIVITY_LOGS) => {
-            let report = ActivityLogsTemplate::new(ids, ReportFormat::PDF, max_reports_per_pdf);
+            let report = ActivityLogsTemplate::new(ids, ReportFormat::PDF);
             execute_report!(report);
         }
         Ok(ReportType::MANUAL_VERIFICATION) => {
@@ -262,7 +261,6 @@ pub async fn generate_report(
     task_execution: Option<TasksExecution>,
     executer_username: Option<String>,
     tally_session_id: Option<String>,
-    max_reports_per_pdf: Option<usize>,
 ) -> Result<()> {
     // Spawn the task using an async block
     let handle = tokio::task::spawn_blocking({
@@ -276,7 +274,6 @@ pub async fn generate_report(
                     task_execution,
                     executer_username,
                     tally_session_id,
-                    max_reports_per_pdf
                 )
                 .await
                 .map_err(|err| anyhow!("generate_report error: {:?}", err))

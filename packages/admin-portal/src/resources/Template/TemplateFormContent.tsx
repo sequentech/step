@@ -33,7 +33,7 @@ import {GET_USER_TEMPLATE} from "@/queries/GetUserTemplate"
 import {IPermissions} from "@/types/keycloak"
 import {useFormContext} from "react-hook-form"
 import {JsonEditor, UpdateFunction} from "json-edit-react"
-import { report } from "process"
+import {report} from "process"
 
 type TTemplateFormContent = {
     isTemplateEdit: boolean
@@ -141,7 +141,10 @@ export const TemplateFormContent: React.FC<TTemplateFormContent> = ({
 
     useEffect(() => {
         setValue("template.pdf_options", (templateExtraConfig?.pdf_options as IPdfOptions) || "")
-        setValue("template.report_options", (templateExtraConfig?.report_options as IReportOptions) || "")
+        setValue(
+            "template.report_options",
+            (templateExtraConfig?.report_options as IReportOptions) || ""
+        )
         setValue(
             "template.email",
             (templateExtraConfig?.communication_templates?.email_config as IEmail) || ""
@@ -311,10 +314,14 @@ export const TemplateFormContent: React.FC<TTemplateFormContent> = ({
                                 <Accordion
                                     sx={{width: "100%"}}
                                     expanded={expandedReportOptions}
-                                    onChange={() => setExpandedReportOptions(!expandedReportOptions)}
+                                    onChange={() =>
+                                        setExpandedReportOptions(!expandedReportOptions)
+                                    }
                                 >
                                     <AccordionSummary
-                                        expandIcon={<ExpandMoreIcon id="template-report-options-id" />}
+                                        expandIcon={
+                                            <ExpandMoreIcon id="template-report-options-id" />
+                                        }
                                     >
                                         <ElectionHeaderStyles.AccordionTitle>
                                             {t("template.form.reportOptions")}
@@ -322,7 +329,9 @@ export const TemplateFormContent: React.FC<TTemplateFormContent> = ({
                                     </AccordionSummary>
                                     <AccordionDetails>
                                         <JsonEditor
-                                            data={templateExtraConfig?.report_options as unknown as IReportOptions}
+                                            data={
+                                                templateExtraConfig?.report_options as unknown as IReportOptions
+                                            }
                                             onUpdate={(data) =>
                                                 updateReportOptions(data as UpdateFunctionProps)
                                             }

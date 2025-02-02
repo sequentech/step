@@ -1788,6 +1788,7 @@ const frenchTranslation: TranslationType = {
                 smsMessage: "Message SMS",
                 document: "Document",
                 pdfOptions: "Options PDF",
+                reportOptions: "Options de Rapport",
                 name: "Nom du Modèle",
                 alias: "Alias du Modèle",
                 type: "Type",
