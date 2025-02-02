@@ -66,7 +66,8 @@ public class Utils {
   public final String INETUM_CONFIRM = "inetum-confirmation.ftl";
   public final String ATTRIBUTES_TO_VALIDATE = "attributes-to-validate";
   public final String ATTRIBUTES_TO_STORE = "attributes-to-store";
-
+  public static final String TEST_MODE_ATTRIBUTE = "testMode";
+  public static final String TEST_MODE_SERVER_URL = "testModeServerUrl";
   public final String API_TRANSACTION_NEW = "/transaction/new";
 
   public final String CODE_ID = "code_id";
