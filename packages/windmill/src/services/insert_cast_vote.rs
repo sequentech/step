@@ -32,6 +32,7 @@ use sequent_core::ballot::ElectionEventPresentation;
 use sequent_core::ballot::ElectionEventStatus;
 use sequent_core::ballot::ElectionPresentation;
 use sequent_core::ballot::ElectionStatus;
+use sequent_core::ballot::VoterSigningPolicy;
 use sequent_core::ballot::VotingPeriodDates;
 use sequent_core::ballot::VotingStatus;
 use sequent_core::ballot::VotingStatusChannel;
@@ -217,10 +218,11 @@ pub async fn try_insert_cast_vote(
             .await
             .map_err(|e| CastVoteError::ElectionEventNotFound(e.to_string()))?;
 
-    let is_multi_contest = if let Some(presentation_value) = election_event.presentation.clone() {
-        let presentation: ElectionEventPresentation = deserialize_value(presentation_value)
-            .map_err(|e| CastVoteError::ElectionEventNotFound(e.to_string()))?;
+    let presentation_opt = election_event
+        .get_presentation()
+        .map_err(|e| CastVoteError::ElectionEventNotFound(e.to_string()))?;
 
+    let is_multi_contest = if let Some(presentation) = presentation_opt.clone() {
         presentation.contest_encryption_policy == Some(ContestEncryptionPolicy::MULTIPLE_CONTESTS)
     } else {
         false
@@ -425,19 +427,28 @@ pub async fn insert_cast_vote_and_commit<'a>(
         .with_context(|| "missing bulletin board")
         .map_err(|e| CastVoteError::BallotVoterSignatureFailed(e.to_string()))?;
 
-    let voter_signing_key = vault::get_voter_signing_key(
-        &board_name,
-        ids.tenant_id,
-        ids.election_event_id,
-        ids.voter_id,
-    )
-    .await
-    .map_err(|e| CastVoteError::BallotVoterSignatureFailed(e.to_string()))?;
+    let voter_signing_policy = election_event
+        .get_presentation()
+        .map_err(|e| CastVoteError::ElectionEventNotFound(e.to_string()))?
+        .unwrap_or_default()
+        .voter_signing_policy
+        .unwrap_or_default();
 
-    // TODO do something with this
-    let voter_ballot_signature = voter_signing_key
-        .sign(&ballot_bytes)
+    if VoterSigningPolicy::WITH_SIGNATURE == voter_signing_policy {
+        let voter_signing_key = vault::get_voter_signing_key(
+            &board_name,
+            ids.tenant_id,
+            ids.election_event_id,
+            ids.voter_id,
+        )
+        .await
         .map_err(|e| CastVoteError::BallotVoterSignatureFailed(e.to_string()))?;
+
+        // TODO do something with this
+        let voter_ballot_signature = voter_signing_key
+            .sign(&ballot_bytes)
+            .map_err(|e| CastVoteError::BallotVoterSignatureFailed(e.to_string()))?;
+    }
 
     let ballot_signature = ballot_signature.to_bytes().to_vec();
     let tenant_uuid = Uuid::parse_str(ids.tenant_id)
