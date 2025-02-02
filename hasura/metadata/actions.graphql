@@ -35,6 +35,7 @@ type Mutation {
     create_election(
         election_event_id: String!
         name: String!
+        presentation: jsonb
         description: String
     ): CreateElectionOutput
 }
@@ -231,6 +232,15 @@ type Mutation {
         tenant_id: String!
         election_event_id: String
     ): generateReportOutput
+}
+
+type Mutation {
+    generate_template(
+        election_event_id: String!
+        election_id: String!
+        tally_session_id: String!
+        type: String!
+    ): GenerateTemplateOutput
 }
 
 type Mutation {
@@ -1491,4 +1501,9 @@ type ExportElectionEventOutput {
     password: String
     task_execution: tasks_execution_type!
     document_id: String!
+}
+ 
+type GenerateTemplateOutput {
+    document_id: String!
+    task_execution: tasks_execution_type
 }

@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Transaction;
-use sequent_core::types::ceremonies::TallyExecutionStatus;
+use sequent_core::types::ceremonies::{TallyExecutionStatus, TallyType};
 use sequent_core::types::hasura::core::{Election, TallySession};
 use sequent_core::types::keycloak::AREA_ID_ATTR_NAME;
 use serde::{Deserialize, Serialize};
@@ -358,6 +358,7 @@ fn get_election_tally_execution_status_summary(
 ) -> Option<TallyExecutionStatus> {
     tally_session
         .as_ref()
+        .filter(|tally| tally.tally_type == Some(TallyType::ELECTORAL_RESULTS.to_string()))
         .and_then(|session| session.execution_status.as_ref())
         .and_then(|status_str| TallyExecutionStatus::from_str(status_str).ok())
 }

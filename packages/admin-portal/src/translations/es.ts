@@ -302,6 +302,11 @@ const spanishTranslation: TranslationType = {
                     alertSecondsLabel:
                         "tiempo en segundos antes de la expiración para mostrar la alerta de cierre de sesión",
                 },
+                voterSigningPolicy: {
+                    "policyLabel": "Política de Firma de Votantes",
+                    "no-signature": "Sin firma",
+                    "with-signature": "Con firma",
+                },
                 enrollment: {
                     policyLabel: "Inscripción",
                     options: {
@@ -1436,6 +1441,7 @@ const spanishTranslation: TranslationType = {
             uploadTransmissionPackageDesc:
                 "Sube tu firma para firmar el paquete de Resultados Electorales. Esta operación es opcional.",
             exportElectionArea: "Enviar paquete de transmisión para el área '{{name}}'",
+            generateReport: "Generar {{name}}",
             templateTitle: "Plantilla de Resultados",
             templateSubTitle: "Opcionalmente sobrescribir la plantilla de resultados.",
             keysCeremonyTitle: "Ceremonia de Llaves",
@@ -1885,6 +1891,7 @@ const spanishTranslation: TranslationType = {
                 verificationType: "Tipo de Verificación",
                 createdAt: "Creado El",
                 updatedAt: "Actualizado El",
+                approved_by: "Aprobado Por",
             },
             approvalRequest: "Solicitud de Aprobación",
             title: "Votantes",

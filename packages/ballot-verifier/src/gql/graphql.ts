@@ -373,6 +373,12 @@ export type FetchDocumentOutput = {
     url: Scalars["String"]["output"]
 }
 
+export type GenerateTemplateOutput = {
+    __typename?: "GenerateTemplateOutput"
+    document_id: Scalars["String"]["output"]
+    task_execution?: Maybe<Tasks_Execution_Type>
+}
+
 export type GetBallotPublicationChangesOutput = {
     __typename?: "GetBallotPublicationChangesOutput"
     current: BallotPublicationStyles
@@ -1179,6 +1185,7 @@ export type Mutation_Root = {
     export_users?: Maybe<ExportUsersOutput>
     generate_ballot_publication?: Maybe<PublishBallotOutput>
     generate_report?: Maybe<GenerateReportOutput>
+    generate_template?: Maybe<GenerateTemplateOutput>
     generate_transmission_report?: Maybe<GenerateReportOutput>
     get_ballot_publication_changes?: Maybe<GetBallotPublicationChangesOutput>
     get_manual_verification_pdf?: Maybe<GetManualVerificationOutput>
@@ -1674,6 +1681,7 @@ export type Mutation_RootCreate_ElectionArgs = {
     description?: InputMaybe<Scalars["String"]["input"]>
     election_event_id: Scalars["String"]["input"]
     name: Scalars["String"]["input"]
+    presentation?: InputMaybe<Scalars["jsonb"]["input"]>
 }
 
 /** mutation root */
@@ -2254,6 +2262,14 @@ export type Mutation_RootGenerate_ReportArgs = {
     report_id: Scalars["String"]["input"]
     report_mode: Scalars["String"]["input"]
     tenant_id: Scalars["String"]["input"]
+}
+
+/** mutation root */
+export type Mutation_RootGenerate_TemplateArgs = {
+    election_event_id: Scalars["String"]["input"]
+    election_id: Scalars["String"]["input"]
+    tally_session_id: Scalars["String"]["input"]
+    type: Scalars["String"]["input"]
 }
 
 /** mutation root */
