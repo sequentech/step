@@ -66,14 +66,8 @@ pub struct ActivityLogsTemplate {
 }
 
 impl ActivityLogsTemplate {
-    pub fn new(
-        ids: ReportOrigins,
-        report_format: ReportFormat,
-    ) -> Self {
-        ActivityLogsTemplate {
-            ids,
-            report_format,
-        }
+    pub fn new(ids: ReportOrigins, report_format: ReportFormat) -> Self {
+        ActivityLogsTemplate { ids, report_format }
     }
 }
 

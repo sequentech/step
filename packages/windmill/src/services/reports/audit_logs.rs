@@ -74,9 +74,7 @@ pub struct AuditLogsTemplate {
 
 impl AuditLogsTemplate {
     pub fn new(ids: ReportOrigins) -> Self {
-        AuditLogsTemplate {
-            ids,
-        }
+        AuditLogsTemplate { ids }
     }
 }
 
