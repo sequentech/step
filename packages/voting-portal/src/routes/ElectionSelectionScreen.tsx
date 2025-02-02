@@ -15,6 +15,7 @@ import {
     isUndefined,
     IElectionStatus,
 } from "@sequentech/ui-core"
+import {AuthContext} from "../providers/AuthContextProvider"
 import {faCircleQuestion} from "@fortawesome/free-solid-svg-icons"
 import {styled} from "@mui/material/styles"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
@@ -110,8 +111,8 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(electionId))
     const castVotes = useAppSelector(selectCastVotesByElectionId(String(electionId)))
     const [visitedBypassChooser, setVisitedBypassChooser] = useState(false)
-    const searchParams = new URLSearchParams(window.location.search)
-    const isKiosk = searchParams.has("kiosk")
+    const authContext = useContext(AuthContext)
+    const isKiosk = authContext.isKiosk()
 
     if (!election) {
         throw new VotingPortalError(VotingPortalErrorType.INTERNAL_ERROR)

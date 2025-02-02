@@ -10,6 +10,8 @@ import com.google.auto.service.AutoService;
 import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
 import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.text.Collator;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -98,19 +100,43 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
 
     log.info("validated is NOT TRUE, rendering the form");
     try {
-      Map<String, String> transactionData = newTransaction(configMap, context);
+      Boolean isTestMode = Boolean.parseBoolean(configMap.get(Utils.TEST_MODE_ATTRIBUTE));
+      if (isTestMode) {
+        // Make a new transaction request to mock server
+        SimpleHttp.Response mockTransactionData =
+            doPost(configMap, context, "{}", Utils.API_TRANSACTION_NEW, true);
+        JsonNode responseContent = mockTransactionData.asJson().get("response");
+        log.info(responseContent);
+        String tokenDob = responseContent.get("token_dob").asText();
+        String userId = responseContent.get("user_id").asText();
 
-      // Save the transaction data into the auth session
-      AuthenticationSessionModel sessionModel = context.getAuthenticationSession();
-      sessionModel.setAuthNote(Utils.FTL_TOKEN_DOB, transactionData.get(Utils.FTL_TOKEN_DOB));
-      sessionModel.setAuthNote(Utils.FTL_USER_ID, transactionData.get(Utils.FTL_USER_ID));
+        AuthenticationSessionModel sessionModel = context.getAuthenticationSession();
+        sessionModel.setAuthNote(Utils.FTL_TOKEN_DOB, tokenDob);
+        sessionModel.setAuthNote(Utils.FTL_USER_ID, userId);
 
-      Response challenge =
-          getBaseForm(context)
-              .setAttribute(Utils.FTL_USER_ID, transactionData.get(Utils.FTL_USER_ID))
-              .setAttribute(Utils.FTL_TOKEN_DOB, transactionData.get(Utils.FTL_TOKEN_DOB))
-              .createForm(Utils.INETUM_FORM);
-      context.challenge(challenge);
+        // Verifying results
+        // Getting status
+        SimpleHttp.Response response = verifyResults(context, isTestMode);
+        log.info("response" + response);
+        String error = validateAttributes(context, response);
+        storeAttributes(context, response);
+        context.success();
+      } else {
+        Map<String, String> transactionData = newTransaction(configMap, context);
+
+        // Save the transaction data into the auth session
+        AuthenticationSessionModel sessionModel = context.getAuthenticationSession();
+        sessionModel.setAuthNote(Utils.FTL_TOKEN_DOB, transactionData.get(Utils.FTL_TOKEN_DOB));
+        sessionModel.setAuthNote(Utils.FTL_USER_ID, transactionData.get(Utils.FTL_USER_ID));
+
+        Response challenge =
+            getBaseForm(context)
+                .setAttribute(Utils.FTL_USER_ID, transactionData.get(Utils.FTL_USER_ID))
+                .setAttribute(Utils.FTL_TOKEN_DOB, transactionData.get(Utils.FTL_TOKEN_DOB))
+                .createForm(Utils.INETUM_FORM);
+        context.challenge(challenge);
+      }
+
     } catch (IOException error) {
       context.getEvent().error(ERROR_FAILED_TO_LOAD_INETUM_FORM);
       context.failure(AuthenticationFlowError.INTERNAL_ERROR);
@@ -121,6 +147,9 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
               .setAttribute(Utils.CODE_ID, sessionId)
               .createForm(Utils.INETUM_ERROR);
       context.challenge(challenge);
+    } catch (InetumException e) {
+      // TODO Auto-generated catch block
+      e.printStackTrace();
     }
   }
 
@@ -129,9 +158,14 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
       Map<String, String> configMap,
       AuthenticationFlowContext context,
       Object payload,
-      String uriPath)
+      String uriPath,
+      Boolean isTestMode)
       throws IOException {
-    String url = configMap.get(Utils.BASE_URL_ATTRIBUTE) + uriPath;
+    String baseUrl =
+        isTestMode
+            ? configMap.get(Utils.TEST_MODE_SERVER_URL)
+            : configMap.get(Utils.BASE_URL_ATTRIBUTE);
+    String url = baseUrl + uriPath;
     String authorization = "Bearer " + configMap.get(Utils.API_KEY_ATTRIBUTE);
     log.info("doPost: url=" + url + ", payload =" + payload.toString());
 
@@ -172,9 +206,16 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
 
   /** Send a GET to Inetum API */
   protected SimpleHttp.Response doGet(
-      Map<String, String> configMap, AuthenticationFlowContext context, String uriPath)
+      Map<String, String> configMap,
+      AuthenticationFlowContext context,
+      String uriPath,
+      Boolean isTestMode)
       throws IOException {
-    String url = configMap.get(Utils.BASE_URL_ATTRIBUTE) + uriPath;
+    String baseUrl =
+        isTestMode
+            ? configMap.get(Utils.TEST_MODE_SERVER_URL)
+            : configMap.get(Utils.BASE_URL_ATTRIBUTE);
+    String url = baseUrl + uriPath;
     String authorization = "Bearer " + configMap.get(Utils.API_KEY_ATTRIBUTE);
     log.info("doGet: url=" + url);
 
@@ -269,7 +310,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
 
     try {
       SimpleHttp.Response response =
-          doPost(configMap, context, jsonPayload, Utils.API_TRANSACTION_NEW);
+          doPost(configMap, context, jsonPayload, Utils.API_TRANSACTION_NEW, false);
 
       if (response.getStatus() != 200) {
         log.error(
@@ -333,7 +374,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
         user,
         context.getSession(),
         this.getClass().getSimpleName());
-    SimpleHttp.Response result = verifyResults(context);
+    SimpleHttp.Response result = verifyResults(context, false);
     String sessionId = context.getAuthenticationSession().getParentSession().getId();
     if (result == null) {
       // invalid
@@ -528,7 +569,8 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
   /*
    * Calls Inetum API results/get and verify results
    */
-  protected SimpleHttp.Response verifyResults(AuthenticationFlowContext context) {
+  protected SimpleHttp.Response verifyResults(
+      AuthenticationFlowContext context, Boolean isTestMode) {
     log.info("verifyResults: start");
 
     // Get the transaction data from the auth session
@@ -542,7 +584,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
     AuthenticatorConfigModel config = context.getAuthenticatorConfig();
     Map<String, String> configMap = config.getConfig();
 
-    String uriPath = "/transaction/" + userId + "/status?t=" + tokenDob;
+    String uriPath = isTestMode ? "/status" : "/transaction/" + userId + "/status?t=" + tokenDob;
     SimpleHttp.Response response = null;
 
     var attempt = 0;
@@ -551,7 +593,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
 
     try {
       while (attempt < maxRetries) {
-        response = doGet(configMap, context, uriPath);
+        response = doGet(configMap, context, uriPath, isTestMode);
         int responseStatus = response.getStatus();
         int code = 0;
         String idStatus = null;
@@ -585,7 +627,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
             continue;
           }
         }
-
+        log.info("verifyResults: response = " + response.asString());
         code = response.asJson().get("code").asInt();
         if (code != 0) {
           log.errorv(
@@ -617,7 +659,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
           }
         }
 
-        // check that vinetum has already verified the data, or else retry
+        // check that inetum has already verified the data, or else retry
         // again after a delay
         idStatus = response.asJson().get("response").get("idStatus").asText();
         log.infov(
@@ -659,9 +701,11 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
 
       // The status is verification OK. Now we need to retrieve the
       // information
-      uriPath = "/transaction/" + userId + "/results";
-      response = doGet(configMap, context, uriPath);
-
+      String country = context.getAuthenticationSession().getAuthNote("country");
+      String encodedCountry = URLEncoder.encode(country, StandardCharsets.UTF_8);
+      uriPath =
+          isTestMode ? "/results?country=" + encodedCountry : "/transaction/" + userId + "/results";
+      response = doGet(configMap, context, uriPath, isTestMode);
       if (response.getStatus() != 200) {
         log.error(
             "verifyResults: Error calling transaction/results, status = " + response.getStatus());
@@ -681,6 +725,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
       int code = response.asJson().get("code").asInt();
       if (code != 0) {
         log.error("verifyResults: Error calling transaction/results, code = " + code);
+
         context
             .getEvent()
             .error(
@@ -1135,7 +1180,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
                             "inetumDateFormat": "dd/MM/yyyy"
                         }
                     ],
-                    "Seaman Book": [
+                    "Seaman's Book": [
                         {
                             "UserAttribute": "sequent.read-only.id-card-number",
                             "inetumAttributePath": "/response/mrz/personal_number",
@@ -1194,7 +1239,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
                             "errorMsg": "attributesInetumError"
                         }
                     ],
-                    "Seaman Book": [
+                    "Seaman's Book": [
                         {
                             "type": "equalAuthnoteAttributeId",
                             "equalAuthnoteAttributeId": "sequent.read-only.id-card-number",
@@ -1288,7 +1333,19 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
                 	"application": "sequent-keycloak",
                 	"clienteID": "${client_id}"
                 }
-                				"""));
+                				"""),
+        new ProviderConfigProperty(
+            Utils.TEST_MODE_ATTRIBUTE,
+            "Test Mode",
+            "If true, the authenticator will skip the real OCR flow and mock the data.",
+            ProviderConfigProperty.BOOLEAN_TYPE,
+            "false"),
+        new ProviderConfigProperty(
+            Utils.TEST_MODE_SERVER_URL,
+            "Test Mode Server Url",
+            "If in test mode this will be the case url of the mock server.",
+            ProviderConfigProperty.TEXT_TYPE,
+            ""));
   }
 
   @Override

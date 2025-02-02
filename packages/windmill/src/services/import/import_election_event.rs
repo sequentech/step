@@ -35,7 +35,7 @@ use sequent_core::types::hasura::core::AreaContest;
 use sequent_core::types::hasura::core::Document;
 use sequent_core::types::hasura::core::KeysCeremony;
 use sequent_core::types::hasura::core::TasksExecution;
-use sequent_core::util::mime::get_mime_type;
+use sequent_core::util::mime::{get_mime_types, matches_mime};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 use std::collections::HashMap;
@@ -443,6 +443,7 @@ pub async fn process_election_event_file(
                 serde_json::to_value(status)
                     .with_context(|| "Error serializing election status")?,
             );
+            clone.initialization_report_generated = Some(false);
 
             Ok(clone)
         })
@@ -700,7 +701,7 @@ pub async fn process_s3_files(
         .unwrap()
         .to_str()
         .unwrap();
-    let document_type = get_mime_type(file_suffix);
+    let document_type = get_mime_types(file_suffix)[0];
 
     // Upload the file and return the document
     let _document = upload_and_return_document_postgres(
@@ -726,7 +727,7 @@ pub async fn get_zip_entries(
     document_type: &str,
 ) -> Result<(Vec<(String, Vec<u8>)>, String)> {
     let (mut zip_entries, election_event_schema) =
-        if document_type == "application/ezip" || document_type == get_mime_type("zip") {
+        if document_type == "application/ezip" || matches_mime("zip", document_type) {
             tokio::task::spawn_blocking(move || -> Result<(Vec<(String, Vec<u8>)>, String)> {
                 let file = File::open(&temp_file_path)?;
                 let mut zip = ZipArchive::new(file)?;
@@ -815,7 +816,7 @@ pub async fn process_document(
     .map_err(|err| anyhow!("Error processing election event file: {err}"))?;
 
     // Zip file processing
-    if document_type == "application/ezip" || document_type == get_mime_type("zip") {
+    if document_type == "application/ezip" || matches_mime("zip", &document_type) {
         for (file_name, mut file_contents) in zip_entries {
             info!("Importing file: {:?}", file_name);
 
