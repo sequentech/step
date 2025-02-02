@@ -797,6 +797,7 @@ services:
       
       # Admin portal
       REPORT_MAX_NUM_ITEMS: ${REPORT_MAX_NUM_ITEMS}
+      REPORT_MAX_THREADS: ${REPORT_MAX_THREADS}
 
   beat:
     profiles: ["full"]

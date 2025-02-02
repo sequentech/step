@@ -92,6 +92,7 @@ export interface ICommTemplates {
 
 export interface IReportOptions {
     max_items_per_report: number
+    max_threads: number
 }
 
 export interface IExtraConfig {

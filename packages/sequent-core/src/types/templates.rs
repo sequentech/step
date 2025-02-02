@@ -151,6 +151,7 @@ pub struct CommunicationTemplatesExtraConfig {
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct ReportOptions {
     pub max_items_per_report: Option<u32>,
+    pub max_threads: Option<usize>,
 }
 
 #[allow(non_camel_case_types)]
