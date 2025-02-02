@@ -81,11 +81,16 @@ impl ElectoralLog {
         tenant_id: &str,
         event_id: &str,
         user_id: &str,
+        with_voter_signature: bool,
     ) -> Result<Self> {
         let protocol_manager = get_protocol_manager::<RistrettoCtx>(elog_database).await?;
         let system_sk = protocol_manager.get_signing_key().clone();
 
-        let sk = vault::get_voter_signing_key(elog_database, tenant_id, event_id, user_id).await?;
+        let sk = if with_voter_signature {
+            vault::get_voter_signing_key(elog_database, tenant_id, event_id, user_id).await?
+        } else {
+            system_sk.clone()
+        };
 
         Ok(ElectoralLog {
             sd: SigningData::new(sk, "", system_sk),

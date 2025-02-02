@@ -222,6 +222,12 @@ pub async fn try_insert_cast_vote(
         .get_presentation()
         .map_err(|e| CastVoteError::ElectionEventNotFound(e.to_string()))?;
 
+    let voter_signing_policy = presentation_opt
+        .clone()
+        .unwrap_or_default()
+        .voter_signing_policy
+        .unwrap_or_default();
+
     let is_multi_contest = if let Some(presentation) = presentation_opt.clone() {
         presentation.contest_encryption_policy == Some(ContestEncryptionPolicy::MULTIPLE_CONTESTS)
     } else {
@@ -274,6 +280,7 @@ pub async fn try_insert_cast_vote(
                 tenant_id,
                 election_event_id,
                 voter_id,
+                VoterSigningPolicy::WITH_SIGNATURE == voter_signing_policy,
             )
             .await;
 
@@ -434,6 +441,7 @@ pub async fn insert_cast_vote_and_commit<'a>(
         .voter_signing_policy
         .unwrap_or_default();
 
+    info!("voter signing policy {voter_signing_policy}");
     if VoterSigningPolicy::WITH_SIGNATURE == voter_signing_policy {
         let voter_signing_key = vault::get_voter_signing_key(
             &board_name,
