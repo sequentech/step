@@ -1419,13 +1419,15 @@ dobSdk.addEventListener("evidence", (evidence) => {
     }
 });
 
-// Listen when the SDK has finished
+// Listen when the SDK has finished successfully
 dobSdk.addEventListener("success", (success) => {
     console.log("sdk-success: SDK-Web onSuccess()");
     document.getElementById("kc-inetum-success-form").submit();
 });
 
-// Listen to failure changes
+let attempt = 0;
+let maxRetries = 3;
+// Listen to failure events
 dobSdk.addEventListener("failure", (error) => {
     const parsedFailure = error.detail;
     switch (parsedFailure.code) {
@@ -1457,5 +1459,17 @@ dobSdk.addEventListener("failure", (error) => {
       }
       */
             break;
+        case ExceptionType.uploadAndCheckException:
+            attempt++;
+            if (attempt >= maxRetries) {
+                // Submit the form with the failure reason
+                const form = document.getElementById("kc-inetum-success-form");
+                let errorInput = document.createElement("input");
+                errorInput.type = "hidden";
+                errorInput.name = "error_code";
+                errorInput.value = parsedFailure.code;
+                form.appendChild(errorInput);
+                form.submit();
+            }
     }
 });
