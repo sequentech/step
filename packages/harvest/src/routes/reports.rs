@@ -215,7 +215,6 @@ pub async fn generate_report(
             Some(task_execution.clone()),
             Some(executer_username),
             None,
-            None,
         ))
         .await
         .map_err(|e| {
