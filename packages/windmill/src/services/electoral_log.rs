@@ -222,6 +222,7 @@ impl ElectoralLog {
         voter_ip: String,
         voter_country: String,
         voter_id: String,
+        voter_username: Option<String>,
     ) -> Result<()> {
         let event = EventIdString(event_id);
         let election = ElectionIdString(election_id);
@@ -237,6 +238,7 @@ impl ElectoralLog {
             ip,
             country,
             Some(voter_id),
+            voter_username,
         )?;
 
         self.post(&message).await

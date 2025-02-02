@@ -46,6 +46,8 @@ use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::connection::AuthHeaders;
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak;
+use sequent_core::services::keycloak::get_event_realm;
+use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::types::hasura::core::{ElectionEvent, VotingChannels};
 use sequent_core::types::scheduled_event::*;
 use serde::{Deserialize, Serialize};
@@ -213,6 +215,17 @@ pub async fn try_insert_cast_vote(
     };
     let election_event_id: &str = area.election_event_id.as_str();
 
+    let realm = get_event_realm(tenant_id, election_event_id);
+
+    let client = KeycloakAdminClient::new().await.map_err(|err| {
+        CastVoteError::UnknownError(format!("Error obtaining keycloak admin client: {}", err))
+    })?;
+
+    let user = client
+        .get_user(&realm, voter_id)
+        .await
+        .map_err(|err| CastVoteError::UnknownError(format!("Error getting the user:  {}", err)))?;
+
     let election_event =
         get_election_event_by_id(&hasura_transaction, tenant_id, election_event_id)
             .await
@@ -301,6 +314,7 @@ pub async fn try_insert_cast_vote(
                     ip,
                     country,
                     voter_id.to_string(),
+                    user.username.clone(),
                 )
                 .await;
             if let Err(log_err) = log_result {

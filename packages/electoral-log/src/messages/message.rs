@@ -45,6 +45,7 @@ impl Message {
         ip: VoterIpString,
         country: VoterCountryString,
         voter_id: Option<String>,
+        voter_username: Option<String>,
     ) -> Result<Self> {
         let body = StatementBody::CastVote(election, pseudonym_h, vote_h, ip, country);
         Self::from_body(
@@ -52,7 +53,7 @@ impl Message {
             body,
             sd,
             voter_id.clone(),
-            voter_id.clone(), /* username */
+            voter_username.clone(), /* username */
         )
     }
 
