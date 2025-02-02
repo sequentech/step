@@ -395,7 +395,6 @@ pub async fn generate_transmission_report(
             Some(task_execution.clone()),
             Some(executer_username),
             input.tally_session_id.clone(),
-            None,
         ))
         .await
         .map_err(|e| {
