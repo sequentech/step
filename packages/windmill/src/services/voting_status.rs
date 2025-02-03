@@ -208,16 +208,18 @@ pub async fn update_board_on_status_change(
 
 #[derive(Debug)]
 pub struct ElectionStatusInfo {
-    pub total_not_opened_votes: i64,
+    pub total_not_started_votes: i64,
     pub total_open_votes: i64,
     pub total_closed_votes: i64,
+    pub total_started_votes: i64,
 }
 
 #[instrument(skip(election), ret)]
 pub fn get_election_status_info(election: &Election) -> ElectionStatusInfo {
-    let mut total_not_opened_votes: i64 = 0;
+    let mut total_not_started_votes: i64 = 0;
     let mut total_open_votes: i64 = 0;
     let mut total_closed_votes: i64 = 0;
+    let mut total_started_votes: i64 = 0;
 
     let election_status = election.status.clone();
     let status: Option<ElectionStatus> =
@@ -232,14 +234,20 @@ pub fn get_election_status_info(election: &Election) -> ElectionStatusInfo {
             match status.voting_status {
                 // If voting hasn't started yet, increment the count for not
                 // opened votes
-                VotingStatus::NOT_STARTED => total_not_opened_votes += 1,
-                // If voting is either open or paused, increment the count for
-                // open votes
-                VotingStatus::OPEN | VotingStatus::PAUSED => total_open_votes += 1,
+                VotingStatus::NOT_STARTED => total_not_started_votes += 1,
+                // If voting is open, increment the count for
+                //open votes and started votes
+                VotingStatus::OPEN => {
+                    total_open_votes += 1;
+                    total_started_votes += 1;
+                }
+                // If voting is paused, increment the count for started votes
+                // Consider the vote as having been open before paused
+                VotingStatus::PAUSED => total_started_votes += 1,
                 // If voting is closed:
                 VotingStatus::CLOSED => {
                     // Consider the vote as having been open before closing
-                    total_open_votes += 1;
+                    total_started_votes += 1;
                     // Check the voting channels to determine if any additional
                     // conditions apply
                     match voting_channels {
@@ -266,8 +274,9 @@ pub fn get_election_status_info(election: &Election) -> ElectionStatusInfo {
     };
 
     ElectionStatusInfo {
-        total_not_opened_votes,
+        total_not_started_votes,
         total_open_votes,
         total_closed_votes,
+        total_started_votes,
     }
 }
