@@ -48,22 +48,3 @@ pub(crate) fn get_contest_dvc_map(
 
     ret
 }
-
-// Generic function to fetch configuration values with fallbacks from environment
-pub fn get_config_value<T>(config_value: Option<T>, env_var: &str, fallback: T) -> T
-where
-    T: std::str::FromStr + std::fmt::Debug,
-{
-    config_value.unwrap_or_else(|| {
-        std::env::var(env_var)
-            .ok()
-            .and_then(|val| val.parse::<T>().ok())
-            .unwrap_or_else(|| {
-                eprintln!(
-                    "Invalid or missing {} value. Falling back to default: {:?}",
-                    env_var, fallback
-                );
-                fallback
-            })
-    })
-}
