@@ -156,7 +156,22 @@ const usePollsStats = (props: PollsStatsProps) => {
                 },
             ],
         }
-    }, [])
+    }, [
+        showTotalInitialized,
+        showPostsOpenedVoting,
+        showPostsClosedVoting,
+        showPostsStartVoting,
+        showVotersVoted,
+        votingStats,
+        eligibleVotersCount,
+        electionsCount,
+        openVotesCount,
+        notOpenedVotesCount,
+        closedVotesCount,
+        notClosedVotesCount,
+        initializeCount,
+        notInitializeCount,
+    ])
 
     return {pollsSection}
 }
