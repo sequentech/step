@@ -474,9 +474,16 @@ impl KeycloakAdminClient {
                             format!("{}/*", ballot_verifier_url),
                         ]);
                     }
-                     /* Handle expired QR codes that lead to a dead page when using the 'account' client in the election event realm 
-                     (the error page is using the client base URL for redirect) */
-                    if client.client_id == Some(String::from("account")) && login_url.is_some() 
+
+                    // When an Action Token expires, for example a Manual
+                    // Verification QR Code, the `Back to Application` link in
+                    // the resulting error page will redirect to the `base_url`.
+                    // For this reason, we ensure that base_url is linking to
+                    // the login_url if we have any.
+                    //
+                    // Related: https://github.com/sequentech/meta/issues/5063
+                    if client.client_id == Some(String::from("account"))
+                        && login_url.is_some()
                     {
                         client.base_url = login_url.clone();
                     }
