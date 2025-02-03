@@ -1,7 +1,6 @@
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-
 use std::collections::HashMap;
 use std::iter::Map;
 use std::str::FromStr;
@@ -23,7 +22,9 @@ use sequent_core::types::permissions::Permissions;
 use serde::Deserialize;
 use serde::Serialize;
 use serde_json::Value;
-use tracing::instrument;
+use tracing::{error, info, instrument};
+use windmill::postgres::election_event::get_all_tenant_election_events;
+use windmill::services::api_datafix::*;
 use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
 
 #[derive(Serialize)]
@@ -59,17 +60,62 @@ pub async fn delete_voter(
 
     info!("Delete voter: {input:?}");
 
-    let required_perm: Permissions = Permissions::DATAFIX_ACCOUNT; // TODO: Set up the permissions in Keycloak
+    let required_perm = vec![
+        Permissions::DATAFIX_ACCOUNT,
+        Permissions::VOTER_READ,
+        Permissions::VOTER_WRITE,
+    ]; // TODO: Set up the permissions in Keycloak
     info!("{claims:?}");
     authorize(
         &claims.jwt_claims,
         true,
         Some(claims.tenant_id.clone()),
-        vec![required_perm],
+        required_perm,
     )
     .map_err(|e| DatafixErrorResponse::new(Status::Unauthorized))?;
 
-    // WIP - Implement delete voter
+    let mut hasura_db_client: DbClient =
+        get_hasura_pool().await.get().await.map_err(|e| {
+            error!("Error getting hasura client {}", e);
+            (DatafixErrorResponse::new(Status::InternalServerError))
+        })?;
+    let hasura_transaction =
+        hasura_db_client.transaction().await.map_err(|e| {
+            error!("Error starting hasura transaction {}", e);
+            (DatafixErrorResponse::new(Status::InternalServerError))
+        })?;
+
+    let election_event_id = get_datafix_election_event_id(
+        &hasura_transaction,
+        &claims.tenant_id,
+        &claims.datafix_event_id,
+    )
+    .await
+    .map_err(|_e| DatafixErrorResponse::new(Status::BadRequest))?;
+
+    let realm = get_event_realm(&claims.tenant_id, &election_event_id);
+    let client = KeycloakAdminClient::new().await.map_err(|e| {
+        (DatafixErrorResponse::new(Status::InternalServerError))
+    })?;
+
+    let _user = client
+        .edit_user(
+            &realm,
+            &input.voter_id,
+            Some(false), /* Disable the voter, datafix users are not
+                          * actually deleted but just disabled */
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
+        .await
+        .map_err(|e| {
+            (DatafixErrorResponse::new(Status::InternalServerError))
+        })?;
     Err(DatafixErrorResponse::new(Status::Ok))
 }
 

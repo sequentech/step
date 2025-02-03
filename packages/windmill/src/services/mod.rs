@@ -3,6 +3,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+pub mod api_datafix;
 pub mod application;
 pub mod ballot_styles;
 pub mod cast_votes;

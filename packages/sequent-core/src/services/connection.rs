@@ -252,6 +252,7 @@ async fn request_access_token(
     lst_acc_tkn: &LastAccessToken,
 ) -> AnyhowResult<TokenResponse> {
     let stamp: Instant = Instant::now(); // Capture the stamp before sending the request
+    info!("Requesting access token");
     let token_resp = match get_third_party_client_access_token(
         client_id.clone(),
         client_secret.clone(),
