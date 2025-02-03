@@ -5,13 +5,14 @@ use std::fs::File;
 use std::{env, fs};
 use anyhow::Context;
 use anyhow::{Result};
-use super::loadero_service::{run_scenario_test};
+use super::loadero_service::{run_scenario_test, TestConfig};
 use serde_json::{from_str, json, Value};
 
 #[derive(serde::Deserialize, Debug)]
 pub struct VotingScenarioData {
     pub election_event_id: String,
     pub otp_code: Option<String>,
+    pub password: String,
 }
 
 pub fn get_voting_test_name_str(election_event_id: &str) -> String {
@@ -21,6 +22,7 @@ pub fn get_voting_test_name_str(election_event_id: &str) -> String {
 fn generate_script(
     url: &str,
     number_of_votes: &u64,
+    password: String
 ) -> Result<String> {
     let template_path =
         "/workspaces/step/packages/e2e/src/scanrios/voting/voting_test_script.js";
@@ -28,7 +30,9 @@ fn generate_script(
 
     // Replace placeholders with actual values
     let script = replace_placeholder(&template_content, "{url}", url);
-    let script = replace_placeholder(&template_content, "{numberOfVoters}", &number_of_votes.to_string());
+    let script = replace_placeholder(&script, "{password}", &password);
+    let script = replace_placeholder(&script, "{numberOfVoters}", &number_of_votes.to_string());
+
 
     // let script = replace_placeholder(&script, "{otpLength}", "6");
     // let script = replace_placeholder(&script, "{otpCode}", otp_code);
@@ -37,15 +41,15 @@ fn generate_script(
     Ok(script)
 }
 
-fn get_test_config(election_event_id: &str, script: String, test_duration: &u64) -> Value {
-    json!({
-        "increment_strategy": "linear",
-        "mode": "load",
-        "name": get_voting_test_name_str(&election_event_id),
-        "participant_timeout": 300,
-        "script": script,
-        "start_interval": test_duration
-    })
+fn get_test_config(election_event_id: &str, script: String, test_duration: &u64) -> TestConfig {
+    TestConfig {
+        increment_strategy: "linear".to_string(),
+        mode: "load".to_string(),
+        name: get_voting_test_name_str(&election_event_id),
+        participant_timeout: 600,
+        script: script,
+        start_interval: *test_duration
+    }
 }
 
 fn get_test_data() -> Result<VotingScenarioData> {
@@ -77,7 +81,8 @@ pub fn run_voting_test(
     );
     let script = generate_script(
         &voting_portal_url,
-        &args.participants
+        &args.participants,
+        scanrio_data.password
     )?;
     let test_config = get_test_config(&scanrio_data.election_event_id, script, &args.test_duration);
     print!("running voting test");

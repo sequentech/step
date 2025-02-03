@@ -7,8 +7,6 @@ use serde_json::{from_str, json, Value};
 use std::{collections::HashMap, env, error::Error, fs, thread, time::Duration};
 
 use std::fs::File;
-use std::{env, fs};
-use anyhow::Context;
 use anyhow::{Result};
 use crate::{services::loadero_service::replace_placeholder, Args};
 
