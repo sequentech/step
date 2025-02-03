@@ -188,3 +188,45 @@ pub async fn get_latest_ballot_publication(
 
     Ok(results.first().cloned())
 }
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn get_ballot_publication(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<Vec<BallotPublication>> {
+    let query = hasura_transaction
+        .prepare(
+            r#"
+            SELECT
+                *
+            FROM
+                sequent_backend.ballot_publication
+            WHERE
+                tenant_id = $1 AND
+                election_event_id = $2 AND
+                deleted_at IS NULL;
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &query,
+            &[
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(election_event_id)?,
+            ],
+        )
+        .await?;
+
+    let results: Vec<BallotPublication> = rows
+        .into_iter()
+        .map(|row| -> Result<BallotPublication> {
+            row.try_into()
+                .map(|res: BallotPublicationWrapper| -> BallotPublication { res.0 })
+        })
+        .collect::<Result<Vec<BallotPublication>>>()?;
+
+    Ok(results)
+}
