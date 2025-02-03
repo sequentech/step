@@ -302,6 +302,11 @@ const frenchTranslation: TranslationType = {
                     alertSecondsLabel:
                         "temps en secondes avant expiration pour afficher l'alerte de déconnexion",
                 },
+                voterSigningPolicy: {
+                    "policyLabel": "Politique de Signature des Électeurs",
+                    "no-signature": "Sans signature",
+                    "with-signature": "Avec signature",
+                },
                 enrollment: {
                     policyLabel: "Inscription",
                     options: {

@@ -1400,6 +1400,7 @@ custom_types:
         - name: ExportTrusteesOutput
         - name: SetVoterAuthenticationOutput
         - name: ImportTenantOutput
+        - name: ExportElectionEventOutput
         - name: GenerateTemplateOutput
         - name: ApplicationChangeStatusOutput
     scalars: []

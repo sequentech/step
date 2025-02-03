@@ -302,6 +302,11 @@ const spanishTranslation: TranslationType = {
                     alertSecondsLabel:
                         "tiempo en segundos antes de la expiración para mostrar la alerta de cierre de sesión",
                 },
+                voterSigningPolicy: {
+                    "policyLabel": "Política de Firma de Votantes",
+                    "no-signature": "Sin firma",
+                    "with-signature": "Con firma",
+                },
                 enrollment: {
                     policyLabel: "Inscripción",
                     options: {

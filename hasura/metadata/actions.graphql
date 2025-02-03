@@ -168,7 +168,7 @@ type Mutation {
     export_election_event(
         election_event_id: String
         export_configurations: ExportOptions
-    ): documentTaskOutput
+    ): ExportElectionEventOutput
 }
 
 type Mutation {
@@ -837,7 +837,8 @@ input GetTopCastVotesByIpInput {
 }
 
 input ExportOptions {
-    password: String!
+    password: String
+    is_encrypted: Boolean
     include_voters: Boolean
     activity_logs: Boolean
     bulletin_board: Boolean
@@ -1496,6 +1497,12 @@ type ImportTenantOutput {
     message: String
     error: String
     task_execution: tasks_execution_type
+}
+
+type ExportElectionEventOutput {
+    password: String
+    task_execution: tasks_execution_type!
+    document_id: String!
 }
 
 type GenerateTemplateOutput {
