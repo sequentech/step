@@ -55,25 +55,45 @@ export const TemplateEdit: React.FC<TTemplateEdit> = (props) => {
     const onSubmit: SubmitHandler<FieldValues> = async (data) => {
         const aliasValue = data.template.alias
 
+        // Call the UpdateTemplate mutation with the updated values
+        // and the original ID and tenant ID
         const {data: updated, errors} = await UpdateTemplate({
             variables: {
+                // The ID of the template to update
                 id: id,
+                // The tenant ID of the template
                 tenantId: tenantId,
+                // The fields to update and their new values
                 set: {
+                    // The alias of the template
                     alias: aliasValue,
+                    // The annotations of the template
                     annotations: data.annotations,
+                    // The communication method of the template
                     communication_method: data.communication_method,
+                    // The created at timestamp of the template
                     created_at: data.created_at,
+                    // The created by user ID of the template
                     created_by: data.created_by,
+                    // The labels of the template
                     labels: data.labels,
+                    // The template data
                     template: {
+                        // Copy the original template data
                         ...data.template,
+                        // Update the alias of the template
                         alias: aliasValue,
                     },
+                    // The tenant ID of the template
                     tenant_id: data.tenant_id,
+                    // The type of the template
                     type: data.type,
+                    // The updated at timestamp of the template
                     updated_at: data.updated_at,
+                    // The active status of the template
                     is_active: data.is_active,
+                    // Whether the template is a communication template
+                    // based on its type
                     is_communication: is_communication_template_type(data.type),
                 },
             },
@@ -101,8 +121,6 @@ export const TemplateEdit: React.FC<TTemplateEdit> = (props) => {
     }
 
     const onError = async (res: any) => {
-        console.log("onError :>> ", res)
-
         refresh()
         notify("Could not update Area", {type: "error"})
         if (close) {

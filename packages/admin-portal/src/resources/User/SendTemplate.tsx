@@ -160,6 +160,7 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
     const onSubmit: SubmitHandler<any> = async (formData: ITemplate) => {
         setErrors(null)
         setShowProgress(true)
+
         try {
             const {errors} = await createScheduledEvent({
                 variables: {
@@ -242,12 +243,9 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
     }
 
     const handleSelectAliasChange = async (e: any) => {
-        console.log("handleSelectAliasChange", e.target.value)
-
         const {value} = e.target
         var newTemplate = {...template}
         newTemplate.alias = value
-        console.log("handleSelectAliasChange newTemplate", newTemplate)
         setTemplate(newTemplate)
 
         const selectedReceipt = receipts?.filter(
@@ -258,10 +256,6 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
         )
 
         if (selectedReceipt && selectedReceipt.length > 0) {
-            console.log(
-                "selectedReceipt",
-                selectedReceipt[0]["template"][selectedMethod.toLowerCase()]
-            )
             if (selectedMethod === ITemplateMethod.EMAIL) {
                 let newEmail = selectedReceipt[0]["template"][
                     selectedMethod.toLowerCase()
@@ -279,10 +273,6 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
             }
         }
     }
-
-    useEffect(() => {
-        console.log("handleSelectAliasChange communication", template)
-    }, [template])
 
     const setEmail = async (newEmail: any, alias = "") => {
         var newTemplate = {...template, alias}
@@ -331,8 +321,6 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
         },
     })
 
-    console.log("aa receipts", receipts)
-
     useEffect(() => {
         // filter receipts by communication method and sert email by default
         const selectedReceipts = receipts
@@ -344,6 +332,7 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
 
         setSelectedList(selectedReceipts ?? null)
 
+        // Get a list of unique template types
         const uniqueTypes = Array.from(
             new Set(
                 receipts
@@ -351,6 +340,7 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
                     .map((receipt) => receipt.type as ETemplateType)
             )
         )
+        // Set the list of template types
         setTypesList(uniqueTypes)
     }, [selectedMethod, selectedType, receipts])
 

@@ -30,7 +30,13 @@ export const getPreferenceKey = (key: string, subkey: string) => {
     return `${key.replaceAll("/", "_").replaceAll("-", "_")}_${subkey}`
 }
 
-const is_communication_template = [
+/**
+ * This list contains all the template types that are used for sending
+ * automatic communication. If a template type is not in this list, it
+ * is considered a non-communication template and will not be used
+ * for sending automatic communication.
+ */
+const is_communication_template: ETemplateType[] = [
     ETemplateType.PARTICIPATION_REPORT,
     ETemplateType.TALLY_REPORT,
     ETemplateType.BALLOT_RECEIPT,
@@ -56,5 +62,11 @@ const is_communication_template = [
     ETemplateType.OV_NOT_YET_PRE_ENROLLED_NUMBER,
 ]
 
+/**
+ * This function takes a template type and returns a boolean indicating
+ * if the template type is a communication template or not.
+ * @param {ETemplateType} templateType - The template type to check.
+ * @returns {boolean} Whether the template type is a communication template or not.
+ */
 export const is_communication_template_type = (templateType: ETemplateType) =>
     is_communication_template.includes(templateType)
