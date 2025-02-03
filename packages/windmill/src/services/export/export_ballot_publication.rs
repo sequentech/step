@@ -2,11 +2,13 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::ballot_publication::get_ballot_publication;
-use crate::postgres::ballot_style::get_ballot_styles_by_ballot_publication_by_id;
+use crate::postgres::ballot_style::{
+    export_event_ballot_styles, get_ballot_styles_by_ballot_publication_by_id,
+};
 use crate::services::{
     documents::upload_and_return_document_postgres, temp_path::write_into_named_temp_file,
 };
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use csv::Writer;
 use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::serialization::deserialize_with_path::deserialize_str;
@@ -61,21 +63,17 @@ pub async fn process_export_ballot_publication(
     to_upload: bool,
 ) -> Result<TempPath> {
     let mut ballot_designs = vec![];
+    let event_styles =
+        export_event_ballot_styles(&hasura_transaction, &tenant_id, &election_event_id)
+            .await
+            .with_context(|| "Error obtaining ballot styles")?;
     for ballot_publication in ballot_publications {
         let ballot_publication_id = ballot_publication.id.clone();
-        let ballot_styles = match get_ballot_styles_by_ballot_publication_by_id(
-            &hasura_transaction,
-            &tenant_id,
-            &election_event_id,
-            &ballot_publication_id,
-        )
-        .await
-        {
-            Ok(ballot_styles) => ballot_styles,
-            Err(err) => {
-                return Err(anyhow!("Error obtaining ballot styles: {err:?}"));
-            }
-        };
+        let ballot_styles = event_styles
+            .iter()
+            .filter(|style| style.ballot_publication_id == ballot_publication_id)
+            .collect::<Vec<_>>()
+            .clone();
 
         let ballot_emls = match ballot_styles
             .into_iter()
