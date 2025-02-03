@@ -28,10 +28,19 @@ interface TallyResultsContestAreasProps {
     electionEventId: string | null
     tenantId: string | null
     resultsEventId: string | null
+    tallySessionId: string | null
 }
 
 export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> = (props) => {
-    const {areas, contestId, electionId, electionEventId, tenantId, resultsEventId} = props
+    const {
+        areas,
+        contestId,
+        electionId,
+        electionEventId,
+        tenantId,
+        resultsEventId,
+        tallySessionId,
+    } = props
     const {t} = reactI18next.useTranslation()
 
     const [value, setValue] = React.useState<number | null>(null)
@@ -173,11 +182,12 @@ export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> =
                         )
                     })}
                 </Tabs>
-                {documents && electionEventId && canExportCeremony ? (
+                {documents && electionEventId && canExportCeremony && tallySessionId ? (
                     <ExportElectionMenu
                         documentsList={[documents]}
                         electionEventId={electionEventId}
                         itemName={contest?.name ?? "contest"}
+                        tallySessionId={tallySessionId}
                     />
                 ) : null}
             </Box>
