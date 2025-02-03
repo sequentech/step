@@ -213,6 +213,7 @@ pub async fn get_results_area_contest(
                     election_id = $3 AND
                     area_id = $4
                     {contest_clause}
+                ORDER BY created_at DESC
             "#
     );
 
