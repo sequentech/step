@@ -302,6 +302,11 @@ const catalanTranslation: TranslationType = {
                     alertSecondsLabel:
                         "temps en segons abans de la caducitat per mostrar l'avís de tancament de sessió",
                 },
+                voterSigningPolicy: {
+                    "policyLabel": "Política de Signatura de Votants",
+                    "no-signature": "Sense signatura",
+                    "with-signature": "Amb signatura",
+                },
                 enrollment: {
                     policyLabel: "Inscripció",
                     options: {
