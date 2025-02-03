@@ -18,6 +18,7 @@ pub enum EDocuments {
     TENANT_CONFIG,
     KEYCLOAK_CONFIG,
     ROLES_PERMISSIONS_CONFIG,
+    PUBLICATIONS,
 }
 
 impl EDocuments {
@@ -35,6 +36,7 @@ impl EDocuments {
             EDocuments::TENANT_CONFIG => "tenant_configuration",
             EDocuments::KEYCLOAK_CONFIG => "keycloak_admin",
             EDocuments::ROLES_PERMISSIONS_CONFIG => "export_permissions",
+            EDocuments::PUBLICATIONS => "export_publications",
         }
     }
 }
