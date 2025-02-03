@@ -7,6 +7,7 @@
 extern crate rocket;
 
 use dotenv::dotenv;
+use sequent_core::services::connection::LastAccessToken;
 use sequent_core::util::init_log::init_log;
 use windmill::services::{
     celery_app::set_is_app_active,
@@ -130,4 +131,5 @@ async fn rocket() -> _ {
                 routes::set_voter_authentication::set_voter_authentication,
             ],
         )
+        .manage(LastAccessToken::init())
 }

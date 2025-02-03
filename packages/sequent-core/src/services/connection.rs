@@ -5,17 +5,17 @@ use crate::services::jwt::*;
 use crate::services::keycloak::{
     get_third_party_client_access_token, TokenResponse,
 };
-use anyhow::Result as AnyhowResult;
+use anyhow::{anyhow, Result as AnyhowResult};
 use rocket::http::HeaderMap;
 use rocket::http::Status;
+use rocket::outcome::try_outcome;
 use rocket::request::{FromRequest, Outcome, Request};
+use rocket::State;
 use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
 use std::sync::RwLock;
-use std::thread::sleep;
 use std::time::{Duration, Instant};
 use tracing::{info, instrument, warn};
-
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct AuthHeaders {
     pub key: String,
@@ -181,7 +181,8 @@ fn parse_datafix_headers(headers: &HeaderMap) -> Option<DatafixHeaders> {
     })
 }
 
-/// TokenResponse, tiemstamp before sending the request and the credentials used
+/// TokenResponse, timestamp before sending the request and the credentials to
+/// make sure the requester is the same.
 #[derive(Debug, Clone)]
 struct TokenResponseExtended {
     token_resp: TokenResponse,
@@ -191,19 +192,23 @@ struct TokenResponseExtended {
     tenant_id: String,
 }
 
-#[derive(Debug, Clone, Default)]
-struct LastAccessToken {
-    token_ext: Option<TokenResponseExtended>,
-    is_in_request: bool,
-}
+/// Last access token can be reused if it´s not expired, this is to avoid
+/// Keycloak having to hold one token per Api request which could lead quickly
+/// to many thousands of tokens.
+///
+/// Keycloak can hold multiple tokens for the same client, so we do not care
+/// about using the previous token if one thread read it and while didn´t send
+/// it yet other thread wrote it. As long as it is not expired, we can reuse it.
+/// The same goes for scalability as each container can hold a different
+/// token being all valid.
+#[derive(Debug, Default)]
+pub struct LastAccessToken(RwLock<Option<TokenResponseExtended>>);
 
-/// Last access token can be reused if it´s not expired, to avoid concurrent
-/// requests to get the token
-static LAST_DATAFIX_ACCESS_TKN: RwLock<LastAccessToken> =
-    RwLock::new(LastAccessToken {
-        token_ext: None,
-        is_in_request: false,
-    });
+impl LastAccessToken {
+    pub fn init() -> Self {
+        LastAccessToken(RwLock::new(None))
+    }
+}
 
 /// Reads the access token if it has been requested successfully before and it
 /// is not expired.
@@ -212,13 +217,17 @@ async fn read_access_token(
     client_id: &str,
     client_secret: &str,
     tenant_id: &str,
+    lst_acc_tkn: &LastAccessToken,
 ) -> Option<TokenResponse> {
-    let read = LAST_DATAFIX_ACCESS_TKN.read().unwrap();
-    if read.is_in_request {
-        sleep(Duration::from_millis(10)); // Shall we use Tokio sleep?
-        return None; // TODO: Handle this from the caller to try read again.
-    }
-    if let Some(data) = read.token_ext.clone() {
+    let token_resp_ext_opt = match lst_acc_tkn.0.read() {
+        Ok(read) => read.clone(),
+        Err(err) => {
+            warn!("Error acquiring read lock {err:?}");
+            return None;
+        }
+    };
+
+    if let Some(data) = token_resp_ext_opt {
         let pre_expriration_time: i64 = data.token_resp.expires_in - 1; // Renew the token 1 second before it expires
 
         if data.client_id.eq(client_id)
@@ -236,20 +245,12 @@ async fn read_access_token(
 
 /// Request a new access token and writes it to the cache
 #[instrument(err)]
-pub async fn request_access_token(
+async fn request_access_token(
     client_id: String,
     client_secret: String,
     tenant_id: String,
+    lst_acc_tkn: &LastAccessToken,
 ) -> AnyhowResult<TokenResponse> {
-    {
-        // Write the lock and set the flag to avoid multiple requests
-        let mut write = LAST_DATAFIX_ACCESS_TKN.write().unwrap();
-        *write = LastAccessToken {
-            token_ext: None,
-            is_in_request: true,
-        };
-    } // release the lock
-
     let stamp: Instant = Instant::now(); // Capture the stamp before sending the request
     let token_resp = match get_third_party_client_access_token(
         client_id.clone(),
@@ -260,27 +261,23 @@ pub async fn request_access_token(
     {
         Ok(token_resp) => token_resp,
         Err(err) => {
-            let mut write = LAST_DATAFIX_ACCESS_TKN.write().unwrap();
-            *write = LastAccessToken {
-                token_ext: None,
-                is_in_request: false, // Undo the flag before returning
-            };
-            // release the lock
             return Err(err);
         }
     };
 
-    let mut write = LAST_DATAFIX_ACCESS_TKN.write().unwrap();
-    *write = LastAccessToken {
-        token_ext: Some(TokenResponseExtended {
-            token_resp: token_resp.clone(),
-            stamp,
-            client_id,
-            client_secret,
-            tenant_id,
-        }),
-        is_in_request: false, // Undo the flag before returning
+    let mut write = match lst_acc_tkn.0.write() {
+        Ok(write) => write,
+        Err(err) => {
+            return Err(anyhow!("Error acquiring write lock: {err:?}"));
+        }
     };
+    *write = Some(TokenResponseExtended {
+        token_resp: token_resp.clone(),
+        stamp,
+        client_id,
+        client_secret,
+        tenant_id,
+    });
 
     Ok(token_resp)
 } // release the lock
@@ -304,10 +301,15 @@ impl<'r> FromRequest<'r> for DatafixClaims {
                 }
             };
 
+        // Try to read the access token from the cache, if it´s not there or
+        // expired request a new one and write it to the cache.
+        let lst_acc_tkn =
+            try_outcome!(request.guard::<&State<LastAccessToken>>().await);
         let token_resp = match read_access_token(
             &authorization.client_id,
             &authorization.client_secret,
             &tenant_id,
+            &lst_acc_tkn,
         )
         .await
         {
@@ -317,6 +319,7 @@ impl<'r> FromRequest<'r> for DatafixClaims {
                     authorization.client_id,
                     authorization.client_secret,
                     tenant_id.clone(),
+                    &lst_acc_tkn,
                 )
                 .await
                 {
