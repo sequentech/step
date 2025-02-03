@@ -14,8 +14,10 @@ export interface PollsStatsProps {
     eligibleVotersCount: number | string
     enrolledVotersCount: number | string
     electionsCount: number | string
+    startedVoteCount: number | string
+    notStartedVotesCount: number | string
     openVotesCount: number | string
-    notOpenedVotesCount: number | string
+    notOpenVotesCount: number | string
     closedVotesCount: number | string
     notClosedVotesCount: number | string
     initializeCount: number | string
@@ -28,8 +30,10 @@ const usePollsStats = (props: PollsStatsProps) => {
         eligibleVotersCount,
         enrolledVotersCount,
         electionsCount,
+        startedVoteCount,
+        notStartedVotesCount,
         openVotesCount,
-        notOpenedVotesCount,
+        notOpenVotesCount,
         closedVotesCount,
         notClosedVotesCount,
         initializeCount,
@@ -106,8 +110,8 @@ const usePollsStats = (props: PollsStatsProps) => {
                         },
                         {
                             icon: <CancelOutlinedIcon />,
-                            count: notOpenedVotesCount,
-                            percentage: calcPrecentage(notOpenedVotesCount, electionsCount),
+                            count: notOpenVotesCount,
+                            percentage: calcPrecentage(notOpenVotesCount, electionsCount),
                         },
                     ],
                 },
@@ -133,13 +137,13 @@ const usePollsStats = (props: PollsStatsProps) => {
                     items: [
                         {
                             icon: <CheckCircleOutlineIcon />,
-                            count: openVotesCount,
-                            percentage: calcPrecentage(openVotesCount, electionsCount),
+                            count: startedVoteCount,
+                            percentage: calcPrecentage(startedVoteCount, electionsCount),
                         },
                         {
                             icon: <CancelOutlinedIcon />,
-                            count: notOpenedVotesCount,
-                            percentage: calcPrecentage(notOpenedVotesCount, electionsCount),
+                            count: notStartedVotesCount,
+                            percentage: calcPrecentage(notStartedVotesCount, electionsCount),
                         },
                     ],
                 },
@@ -165,8 +169,10 @@ const usePollsStats = (props: PollsStatsProps) => {
         votingStats,
         eligibleVotersCount,
         electionsCount,
+        startedVoteCount,
+        notStartedVotesCount,
         openVotesCount,
-        notOpenedVotesCount,
+        notOpenVotesCount,
         closedVotesCount,
         notClosedVotesCount,
         initializeCount,
