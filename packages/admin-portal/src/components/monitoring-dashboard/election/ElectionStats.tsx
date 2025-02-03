@@ -202,7 +202,7 @@ const ElectionStats = (props: ElectionStatsProps) => {
                 },
             ],
         }
-    }, [])
+    }, [authenticationStats, enrolledVotersCount, approvalStats])
 
     const pollsSection: StatSection = useMemo(() => {
         return {
@@ -222,7 +222,7 @@ const ElectionStats = (props: ElectionStatsProps) => {
                 },
             ],
         }
-    }, [])
+    }, [votedCount, eligibleVotersCount])
 
     const statsSections: StatSection[] = useMemo(
         () => [votersSection, pollsSection],

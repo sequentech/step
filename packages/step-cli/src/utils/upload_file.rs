@@ -4,7 +4,7 @@
 
 use crate::types::config::ConfigData;
 use graphql_client::{GraphQLQuery, Response};
-use sequent_core::util::mime::get_mime_type;
+use sequent_core::util::mime::get_mime_types;
 use std::collections::HashMap;
 use std::fs::{metadata, File};
 use std::io::Read;
@@ -38,7 +38,7 @@ impl GetUploadUrl {
             .extension()
             .and_then(|ext| ext.to_str())
             .ok_or("Unable to determine file extension")?;
-        let mime_type = get_mime_type(extension);
+        let mime_type = get_mime_types(extension)[0];
 
         let variables = get_upload_url::Variables {
             name: String::from(file_name),
