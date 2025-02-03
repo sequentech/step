@@ -17,6 +17,7 @@ import {PublishActions} from "./PublishActions"
 import {EPublishActionsType, EPublishType} from "./EPublishType"
 import {PublishStatus} from "./EPublishStatus"
 import {usePublishPermissions} from "./usePublishPermissions"
+import PublishExport from "./PublishExport"
 
 const PublishGenerateStyled = {
     Container: styled.div`
