@@ -31,29 +31,14 @@ export const getPreferenceKey = (key: string, subkey: string) => {
 }
 
 const is_communication_template = [
-    ETemplateType.PARTICIPATION_REPORT,
-    ETemplateType.TALLY_REPORT,
+    ETemplateType.CREDENTIALS,
     ETemplateType.BALLOT_RECEIPT,
-    ETemplateType.VOTE_RECEIPT,
-    ETemplateType.INITIALIZATION_REPORT,
-    ETemplateType.TRANSMISSION_REPORT,
-    ETemplateType.ACTIVITY_LOGS,
+    ETemplateType.PARTICIPATION_REPORT,
     ETemplateType.ELECTORAL_RESULTS,
-    ETemplateType.TRANSMISSION_REPORT,
-    ETemplateType.STATISTICAL_REPORT,
-    ETemplateType.AUDIT_LOGS,
-    ETemplateType.OVCS_INFORMATION,
-    ETemplateType.OV_TURNOUT_PERCENTAGE,
-    ETemplateType.OVCS_EVENTS,
-    ETemplateType.OVCS_STATISTICS,
-    ETemplateType.OV_TURNOUT_PER_ABOARD_STATUS_SEX,
-    ETemplateType.OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE,
-    ETemplateType.LIST_OF_OVERSEAS_VOTERS,
-    ETemplateType.OV_PRE_ENROLLED_APPROVED,
-    ETemplateType.OV_NOT_YET_PRE_ENROLLED_LIST,
-    ETemplateType.OV_WITH_VOTING_STATUS,
-    ETemplateType.OV_WHO_VOTED,
-    ETemplateType.OV_NOT_YET_PRE_ENROLLED_NUMBER,
+    ETemplateType.OTP,
+    ETemplateType.TALLY_REPORT,
+    ETemplateType.MANUAL_VERIFICATION_VOTER,
+    ETemplateType.MANUAL_VERIFICATION_APPROVAL,
 ]
 
 export const is_communication_template_type = (templateType: ETemplateType) =>
