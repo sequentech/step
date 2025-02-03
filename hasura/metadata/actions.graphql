@@ -1,5 +1,7 @@
 type Mutation {
-    ApplicationChangeStatus(body: ApplicationChangeStatusBody!): String
+    ApplicationChangeStatus(
+        body: ApplicationChangeStatusBody!
+    ): ApplicationChangeStatusOutput
 }
 
 type Mutation {
@@ -1506,4 +1508,9 @@ type ExportElectionEventOutput {
 type GenerateTemplateOutput {
     document_id: String!
     task_execution: tasks_execution_type
+}
+
+type ApplicationChangeStatusOutput {
+    message: String
+    error: String
 }

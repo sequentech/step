@@ -1901,6 +1901,7 @@ const englishTranslation = {
                 approveSuccess: "Voter approved",
                 rejectError: "Error rejecting voter",
                 rejectSuccess: "Voter rejected",
+                VoterApprovedAlready: "Voter is already approved.",
             },
             export: {
                 success: "Applications export finished successfully",

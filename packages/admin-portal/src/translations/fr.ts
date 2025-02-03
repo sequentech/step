@@ -1930,6 +1930,7 @@ const frenchTranslation: TranslationType = {
                 approveSuccess: "Électeur approuvé",
                 rejectError: "Erreur lors du rejet de l'électeur",
                 rejectSuccess: "Électeur rejeté",
+                VoterApprovedAlready: "L'électeur est déjà approuvé.",
             },
             export: {
                 success: "L'exportation des applications a été réalisée avec succès",

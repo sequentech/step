@@ -1919,6 +1919,7 @@ const spanishTranslation: TranslationType = {
                 approveSuccess: "Votante aprobado",
                 rejectError: "Error al rechazar al votante",
                 rejectSuccess: "Votante rechazado",
+                VoterApprovedAlready: "El votante ya está aprobado.",
             },
             export: {
                 success: "La exportación de aplicaciones se completó con éxito",

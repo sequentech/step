@@ -1402,4 +1402,5 @@ custom_types:
         - name: ImportTenantOutput
         - name: ExportElectionEventOutput
         - name: GenerateTemplateOutput
+        - name: ApplicationChangeStatusOutput
     scalars: []
