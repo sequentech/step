@@ -229,7 +229,6 @@ pub fn get_election_status_info(election: &Election) -> ElectionStatusInfo {
 
     match status.clone() {
         Some(status) => {
-            info!("edulix: status={status:?}");
             match status.voting_status {
                 // If voting hasn't started yet, increment the count for not
                 // opened votes
@@ -263,9 +262,7 @@ pub fn get_election_status_info(election: &Election) -> ElectionStatusInfo {
             }
         }
         // If deserialization of the election status failed, do nothing.
-        None => {
-            info!("edulix: status is none");
-        }
+        None => {}
     };
 
     ElectionStatusInfo {
