@@ -20,10 +20,10 @@ use sequent_core::util::date_time::get_date_and_time;
 use serde::Serialize;
 use serde_json::Map;
 use std::collections::HashMap;
+use std::fs;
 use std::fs::OpenOptions;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::fs;
 use strand::hash::hash_sha256;
 use tracing::{info, instrument};
 use uuid::Uuid;
@@ -302,26 +302,29 @@ fn generate_hashed_filename(
     to_ballot: &Bridge,
 ) -> Result<PathBuf> {
     let path = path.as_path();
-    let country_code = election_input.areas
+    let country_code = election_input
+        .areas
         .iter()
         .find(|area| area.id == area_id.to_string())
-        .and_then(|area| area.annotations.as_ref()
-            .and_then(|annotations| annotations.get("miru:area-station-id"))
-            .and_then(|value| value.as_str())
-        )
+        .and_then(|area| {
+            area.annotations
+                .as_ref()
+                .and_then(|annotations| annotations.get("miru:area-station-id"))
+                .and_then(|value| value.as_str())
+        })
         .unwrap_or("");
-    let post_code = election_input.annotations
+    let post_code = election_input
+        .annotations
         .get("miru:precinct-code")
         .map(|s| s.as_str())
         .unwrap_or("");
-    let clustered_precint_id = election_input.annotations
+    let clustered_precint_id = election_input
+        .annotations
         .get("clustered_precint_id")
         .map(|s| s.as_str())
         .unwrap_or("");
-    let from_ballot_id = from_ballot.mcballot.serial_number.as_deref()
-        .unwrap_or("");
-    let to_ballot_id = to_ballot.mcballot.serial_number.as_deref()
-        .unwrap_or("");
+    let from_ballot_id = from_ballot.mcballot.serial_number.as_deref().unwrap_or("");
+    let to_ballot_id = to_ballot.mcballot.serial_number.as_deref().unwrap_or("");
     let hash_hex = hex::encode(hash_bytes);
 
     let new_filename = format!(
@@ -340,7 +343,7 @@ impl Pipe for MCBallotReceipts {
 
         for election_input in &self.pipe_inputs.election_list {
             let area_contests_map = election_input.get_area_contest_map();
-            
+
             for (area_id, area_contests) in area_contests_map {
                 let path_ballots = PipeInputs::mcballots_path(
                     &self
@@ -366,8 +369,9 @@ impl Pipe for MCBallotReceipts {
                         .build()
                         .unwrap();
 
-                    let max_items_per_report = 
-                        report_options.max_items_per_report.unwrap_or_else(|| 50_000);
+                    let max_items_per_report = report_options
+                        .max_items_per_report
+                        .unwrap_or_else(|| 50_000);
 
                     let result: Result<(), Error> = pool.install(|| {
                         ballots
@@ -429,7 +433,7 @@ impl Pipe for MCBallotReceipts {
                                 }
                                 let file = path.join(format!(
                                     "{}_batch-{}.html",
-                                    pipe_data.output_file, chunk_index, 
+                                    pipe_data.output_file, chunk_index,
                                 ));
                                 // html file creation
                                 let mut file = OpenOptions::new()

@@ -42,7 +42,6 @@ use velvet::config::vote_receipt::PipeConfigVoteReceipts;
 use velvet::pipes::pipe_name::PipeName;
 use velvet::pipes::pipe_name::PipeNameOutputDir;
 
-
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(tag = "type")]
 pub enum EGenerateTemplate {
