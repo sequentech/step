@@ -7,13 +7,14 @@ use crate::ballot_codec::PlaintextCodec;
 use crate::error::BallotError;
 use crate::serialization::base64::{Base64Deserialize, Base64Serialize};
 use crate::serialization::deserialize_with_path::deserialize_value;
-use crate::types::hasura::core;
+use crate::types::hasura::core::{self, ElectionEvent};
 use crate::types::scheduled_event::EventProcessors;
 use borsh::{BorshDeserialize, BorshSerialize};
 use chrono::DateTime;
 use chrono::Utc;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use serde_path_to_error::Error;
 use std::hash::Hash;
 use std::{collections::HashMap, default::Default};
 use strand::elgamal::Ciphertext;
@@ -648,6 +649,19 @@ pub struct ElectionEventPresentation {
     pub publish_policy: Option<Publish>,
     pub enrollment: Option<Enrollment>,
     pub otp: Option<Otp>,
+    pub voter_signing_policy: Option<VoterSigningPolicy>,
+}
+
+impl ElectionEvent {
+    pub fn get_presentation(
+        &self,
+    ) -> Result<Option<ElectionEventPresentation>, Error<serde_json::Error>>
+    {
+        self.presentation
+            .clone()
+            .map(|presentation_value| deserialize_value(presentation_value))
+            .transpose()
+    }
 }
 
 #[allow(non_camel_case_types)]
@@ -886,13 +900,12 @@ pub struct ElectionPresentation {
 }
 
 impl core::Election {
-    pub fn get_presentation(&self) -> ElectionPresentation {
-        let election_presentation: ElectionPresentation = self
+    pub fn get_presentation(&self) -> Option<ElectionPresentation> {
+        let election_presentation: Option<ElectionPresentation> = self
             .presentation
             .clone()
             .map(|value| deserialize_value(value).ok())
-            .flatten()
-            .unwrap_or(Default::default());
+            .flatten();
 
         election_presentation
     }
@@ -1196,6 +1209,31 @@ pub enum ContestEncryptionPolicy {
     #[strum(serialize = "single-contest")]
     #[serde(rename = "single-contest")]
     SINGLE_CONTEST,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Default,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    JsonSchema,
+)]
+pub enum VoterSigningPolicy {
+    #[default]
+    #[strum(serialize = "no-signature")]
+    #[serde(rename = "no-signature")]
+    NO_SIGNATURE,
+    #[strum(serialize = "with-signature")]
+    #[serde(rename = "with-signature")]
+    WITH_SIGNATURE,
 }
 
 #[allow(non_camel_case_types)]

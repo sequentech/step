@@ -48,6 +48,11 @@ export interface AuthContextValues {
      */
     hasRole: (role: string) => boolean
 
+    /**
+     * Is the user in kiosk mode
+     */
+    isKiosk: () => boolean
+
     getExpiry: () => Date | undefined
 
     /**
@@ -86,6 +91,7 @@ const defaultAuthContextValues: AuthContextValues = {
     getExpiry: () => undefined,
     setTenantEvent: (_tenantId: string, _eventId: string) => {},
     hasRole: () => false,
+    isKiosk: () => false,
     openProfileLink: () => new Promise(() => undefined),
 }
 
@@ -375,6 +381,17 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
 
         return keycloak.hasRealmRole(role)
     }
+    /**
+     * Check if the user is in kiosk mode
+     * @returns whether or not the user in kiosk mode
+     */
+    const isKiosk = () => {
+        if (!keycloak?.tokenParsed?.azp) {
+            return false
+        }
+
+        return keycloak.tokenParsed.azp.endsWith("-kiosk")
+    }
 
     const openProfileLink = async () => {
         if (!keycloak) {
@@ -403,6 +420,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 getExpiry,
                 logout,
                 hasRole,
+                isKiosk,
                 openProfileLink,
                 keycloakAccessToken,
             }}

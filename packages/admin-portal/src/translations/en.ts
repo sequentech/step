@@ -2,9 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {en} from "intl-tel-input/i18n"
-import {title} from "process"
-
 const englishTranslation = {
     translations: {
         philippinePassport: "Philippine Passport",
@@ -301,6 +298,11 @@ const englishTranslation = {
                     policyLabel: "Voting Portal Countdown policy",
                     coundownSecondsLabel: "time in seconds before expiration to show countdown",
                     alertSecondsLabel: "time in seconds before expiration to show Logout alert",
+                },
+                voterSigningPolicy: {
+                    "policyLabel": "Voter Signing Policy",
+                    "no-signature": "No signature",
+                    "with-signature": "With signature",
                 },
                 enrollment: {
                     policyLabel: "Enrollment",
@@ -1424,6 +1426,7 @@ const englishTranslation = {
             uploadTransmissionPackageDesc:
                 "Upload your Signature to sign the Transmission Package. This is an optional operation.",
             exportElectionArea: "Generate Transmission Package for Area '{{name}}'",
+            generateReport: "Generate {{name}}",
             templateTitle: "Results Template",
             templateSubTitle: "Optionally overwrite the results template.",
             keysCeremonyTitle: "Keys Ceremony",
@@ -1870,6 +1873,7 @@ const englishTranslation = {
                 verificationType: "Verification Type",
                 createdAt: "Created At",
                 updatedAt: "Updated At",
+                approved_by: "Approved By",
             },
             approvalRequest: "Approval Request",
             title: "Voters",
@@ -1897,6 +1901,7 @@ const englishTranslation = {
                 approveSuccess: "Voter approved",
                 rejectError: "Error rejecting voter",
                 rejectSuccess: "Voter rejected",
+                VoterApprovedAlready: "Voter is already approved.",
             },
             export: {
                 success: "Applications export finished successfully",

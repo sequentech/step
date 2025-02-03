@@ -39,7 +39,11 @@ impl DecodeMCBallots {
 
 impl DecodeMCBallots {
     #[instrument(skip(contests))]
-    fn decode_ballots(path: &Path, contests: &Vec<Contest>) -> Result<Vec<DecodedBallotChoices>> {
+    fn decode_ballots(
+        path: &Path,
+        contests: &Vec<Contest>,
+        serial_number_counter: &mut u32,
+    ) -> Result<Vec<DecodedBallotChoices>> {
         let file = fs::File::open(path).map_err(|e| Error::FileAccess(path.to_path_buf(), e))?;
         let reader = std::io::BufReader::new(file);
         let mut decoded_ballots: Vec<DecodedBallotChoices> = vec![];
@@ -58,8 +62,12 @@ impl DecodeMCBallots {
             let plaintext =
                 plaintext.map_err(|_| Error::UnexpectedError("Wrong ballot format".into()))?;
 
-            let decoded = BallotChoices::decode_from_bigint(&plaintext, contests)
-                .map_err(|_| Error::UnexpectedError("Wrong ballot format".into()))?;
+            let decoded = BallotChoices::decode_from_bigint(
+                &plaintext,
+                contests,
+                Some(serial_number_counter),
+            )
+            .map_err(|_| Error::UnexpectedError("Wrong ballot format".into()))?;
 
             decoded_ballots.push(decoded);
         }
@@ -95,6 +103,7 @@ impl Pipe for DecodeMCBallots {
     // FIXME This method is horrid
     #[instrument(skip_all, name = "DecodeMultiBallots::exec")]
     fn exec(&self) -> Result<()> {
+        let mut serial_number_counter = 1;
         for election_input in &self.pipe_inputs.election_list {
             let area_contest_map = election_input.get_area_contest_map();
             // contest_id -> (area_id -> dvc)
@@ -114,7 +123,11 @@ impl Pipe for DecodeMCBallots {
                 )
                 .join(BALLOTS_FILE);
 
-                let res = Self::decode_ballots(path_ballots.as_path(), &contests);
+                let res = Self::decode_ballots(
+                    path_ballots.as_path(),
+                    &contests,
+                    &mut serial_number_counter,
+                );
 
                 match res {
                     Ok(decoded_ballots) => {

@@ -27,6 +27,9 @@ use tracing::error;
 use tracing::{debug, info, instrument};
 use uuid::Uuid;
 
+pub const VALIDATE_ID_ATTR_NAME: &str = "sequent.read-only.id-card-number-validated";
+pub const VALIDATE_ID_REGISTERED_VOTER: &str = "VERIFIED";
+
 #[instrument(skip(hasura_transaction), err)]
 async fn get_area_ids(
     hasura_transaction: &Transaction<'_>,
@@ -646,6 +649,8 @@ pub async fn list_users_with_vote_info(
         .election_event_id
         .clone()
         .ok_or(anyhow!("Election event id is empty"))?;
+    let election_id = filter.election_id.clone();
+
     let filter_by_has_voted = filter.has_voted.clone();
     let (users, users_count) = list_users(hasura_transaction, keycloak_transaction, filter)
         .await
@@ -654,6 +659,7 @@ pub async fn list_users_with_vote_info(
         hasura_transaction,
         tenant_id.as_str(),
         election_event_id.as_str(),
+        election_id,
         users,
         filter_by_has_voted,
     )
@@ -984,4 +990,41 @@ pub async fn count_keycloak_enabled_users_by_attrs(
 struct Group {
     id: String,
     name: String,
+}
+
+#[instrument(skip(keycloak_transaction), err)]
+pub async fn check_is_user_verified(
+    keycloak_transaction: &Transaction<'_>,
+    realm: &str,
+    user_id: &str,
+) -> Result<bool> {
+    let statement = keycloak_transaction
+        .prepare(
+            format!(
+                r#"
+            SELECT EXISTS (
+                SELECT 1 
+                FROM user_attribute ua
+                INNER JOIN user_entity u ON ua.user_id = u.id
+                INNER JOIN realm r ON u.realm_id = r.id
+                WHERE r.name = $1 
+                AND u.id = $2
+                AND ua.name = '{VALIDATE_ID_ATTR_NAME}'
+                AND ua.value = '{VALIDATE_ID_REGISTERED_VOTER}'
+            ) AS is_verified;
+            "#
+            )
+            .as_str(),
+        )
+        .await?;
+
+    let params: Vec<&(dyn ToSql + Sync)> = vec![&realm, &user_id];
+
+    let row = keycloak_transaction
+        .query_one(&statement, &params)
+        .await
+        .map_err(|err| anyhow!("{}", err))?;
+
+    let is_verified: bool = row.get("is_verified");
+    Ok(is_verified)
 }

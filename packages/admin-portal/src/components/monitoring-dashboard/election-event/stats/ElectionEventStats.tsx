@@ -55,7 +55,7 @@ export interface ElectionEventStatsProps {
 
 export const calcPrecentage = (part: number | string, total: number | string) =>
     total === 0 || typeof total === "string" || typeof part === "string"
-        ? undefined
+        ? "0"
         : ((part / total) * 100.0).toFixed(2)
 
 const ElectionEventStats = (props: ElectionEventStatsProps) => {

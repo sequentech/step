@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::hasura::tally_session_execution::get_last_tally_session_execution::GetLastTallySessionExecutionSequentBackendTallySessionContest;
 use crate::postgres::election::export_elections;
+use crate::postgres::reports::ReportType;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::cast_votes::ElectionCastVotes;
 use crate::services::database::get_hasura_pool;
@@ -399,10 +400,10 @@ pub async fn create_election_configs(
 }
 
 #[instrument(err)]
-pub fn generate_initial_state(base_tally_path: &PathBuf) -> Result<State> {
+pub fn generate_initial_state(base_tally_path: &PathBuf, pipe_id: &str) -> Result<State> {
     let cli = CliRun {
         stage: "main".to_string(),
-        pipe_id: "decode-ballots".to_string(),
+        pipe_id: pipe_id.to_string(),
         config: base_tally_path.join("velvet-config.json"),
         input_dir: base_tally_path.join("input"),
         output_dir: base_tally_path.join("output"),
@@ -414,8 +415,8 @@ pub fn generate_initial_state(base_tally_path: &PathBuf) -> Result<State> {
 }
 
 #[instrument(err)]
-pub async fn call_velvet(base_tally_path: PathBuf) -> Result<State> {
-    let mut state_opt = Some(generate_initial_state(&base_tally_path)?);
+pub async fn call_velvet(base_tally_path: PathBuf, pipe_id: &str) -> Result<State> {
+    let mut state_opt = Some(generate_initial_state(&base_tally_path, pipe_id)?);
 
     // Use a loop to handle state processing
     loop {
@@ -553,6 +554,15 @@ pub async fn build_vote_receipe_pipe_config(
     let vote_receipt_system_template =
         get_public_asset_template(PUBLIC_ASSETS_VELVET_VOTE_RECEIPTS_TEMPLATE_SYSTEM).await?;
 
+    let report_hash = get_report_hash(&ReportType::VOTE_RECEIPT.to_string()).await?;
+
+    let execution_annotations = HashMap::from([
+        ("date_printed".to_string(), get_date_and_time()),
+        ("app_hash".to_string(), get_app_hash()),
+        ("app_version".to_string(), get_app_version()),
+        ("report_hash".to_string(), report_hash),
+    ]);
+
     let vote_receipt_pipe_config = PipeConfigVoteReceipts {
         template: vote_receipt_template,
         system_template: vote_receipt_system_template,
@@ -560,6 +570,7 @@ pub async fn build_vote_receipe_pipe_config(
         enable_pdfs: true,
         pipe_type: VoteReceiptPipeType::VOTE_RECEIPT,
         pdf_options: Some(ext_cfg.pdf_options),
+        execution_annotations: Some(execution_annotations),
     };
     Ok(vote_receipt_pipe_config)
 }
@@ -616,6 +627,7 @@ pub async fn build_ballot_images_pipe_config(
         enable_pdfs: true,
         pipe_type: VoteReceiptPipeType::BALLOT_IMAGES,
         pdf_options: Some(ext_cfg.pdf_options),
+        execution_annotations: None,
     };
     Ok(ballot_images_pipe_config)
 }
@@ -837,5 +849,5 @@ pub async fn run_velvet_tally(
         tally_type,
     )
     .await?;
-    call_velvet(base_tally_path.clone()).await
+    call_velvet(base_tally_path.clone(), "decode-ballots").await
 }
