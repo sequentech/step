@@ -56,7 +56,6 @@ export const TemplateFormContent: React.FC<TTemplateFormContent> = ({
     )
     const {record} = useEditContext<Sequent_Backend_Template>()
     const recordMemo = useMemo(() => {
-        console.log("record: ", record) // Data stored on the table
         return record ?? null
     }, [record])
 
@@ -85,7 +84,6 @@ export const TemplateFormContent: React.FC<TTemplateFormContent> = ({
     }
 
     useEffect(() => {
-        console.log("Fetch data EFFECT.")
         const fetchDefaultTemplateData = async () => {
             try {
                 const currType = selectedTemplateType?.value as ETemplateType
@@ -109,10 +107,9 @@ export const TemplateFormContent: React.FC<TTemplateFormContent> = ({
 
         if (
             isTemplateEdit &&
-            (!selectedTemplateType || selectedTemplateType?.value == recordMemo?.type)
+            (!selectedTemplateType || selectedTemplateType?.value === recordMemo?.type)
             // To behave if user clicks on Edit, switches to a different type and later switch back to the original one.
         ) {
-            console.log("Use Database template")
             setTemplateHbsData(recordMemo?.template?.document)
             const extraConfig = {
                 communication_templates: {
@@ -123,7 +120,7 @@ export const TemplateFormContent: React.FC<TTemplateFormContent> = ({
             }
             setTemplateExtraConfig(extraConfig)
         } else {
-            console.log("Use default user template")
+            // ("Use default user template")
             fetchDefaultTemplateData()
         }
     }, [selectedTemplateType, recordMemo])
@@ -150,7 +147,6 @@ export const TemplateFormContent: React.FC<TTemplateFormContent> = ({
     type UpdateFunctionProps = Parameters<UpdateFunction>[0]
 
     const updatePdfOptions = ({newData}: UpdateFunctionProps) => {
-        console.log("Updating PDF options...")
         setValue("template.pdf_options", (newData as IPdfOptions) || "")
         onFormChanged?.()
     }
@@ -191,10 +187,6 @@ export const TemplateFormContent: React.FC<TTemplateFormContent> = ({
                         onChange={selectTemplateType}
                         choices={templateTypeChoices()}
                     />
-                    {/* <BooleanInput
-                        source="is_communication"
-                        label={t(`template.form.is_communication`)}
-                    /> */}
                     <BooleanInput source="is_active" label={t(`template.form.is_active`)} />
                 </AccordionDetails>
             </Accordion>
