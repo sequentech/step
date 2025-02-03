@@ -24,6 +24,9 @@ export const CHANGE_APPLICATION_STATUS = gql`
                 rejection_reason: $rejection_reason
                 rejection_message: $rejection_message
             }
-        )
+        ) {
+            message
+            error
+        }
     }
 `

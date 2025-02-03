@@ -15,7 +15,7 @@ import {useQuery} from "@apollo/client"
 import {FETCH_DOCUMENT} from "@/queries/FetchDocument"
 import {MiruExport} from "../MiruExport"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
-import {ETallyType} from "@/types/ceremonies"
+import {ETallyType, ETallyTypeCssClass} from "@/types/ceremonies"
 import {notDeepEqual} from "assert"
 import {StyledAppAtom} from "@/App"
 import {ETemplateType} from "@/types/templates"
@@ -188,6 +188,18 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
 
         if (classSubtype) {
             classes.push(classSubtype)
+        }
+        if (tallyType) {
+            let tally_type_class = ""
+            switch (tallyType) {
+                case ETallyType.ELECTORAL_RESULTS:
+                    tally_type_class = ETallyTypeCssClass[ETallyType.ELECTORAL_RESULTS]
+                    break
+                case ETallyType.INITIALIZATION_REPORT:
+                    tally_type_class = ETallyTypeCssClass[ETallyType.INITIALIZATION_REPORT]
+                    break
+            }
+            classes.push(tally_type_class)
         }
 
         return classes.join(" ")
