@@ -30,10 +30,8 @@ use std::env;
 use strand::hash::hash_b64;
 use tracing::instrument;
 // re-export for easy refactor:
+pub use crate::services::users::{VALIDATE_ID_ATTR_NAME, VALIDATE_ID_REGISTERED_VOTER};
 pub use sequent_core::util::date_time::get_date_and_time;
-
-pub const VALIDATE_ID_ATTR_NAME: &str = "sequent.read-only.id-card-number-validated";
-pub const VALIDATE_ID_REGISTERED_VOTER: &str = "VERIFIED";
 
 pub const DEFULT_CHAIRPERSON: &str = "Chairperson";
 pub const DEFULT_POLL_CLERK: &str = "Poll Clerk";
@@ -81,7 +79,7 @@ pub async fn generate_election_votes_data(
     .await?
     .ok_or(anyhow!("Can't find election"))?;
     let registered_voters = election
-        .get_annotations()
+        .get_annotations_or_empty_values()
         .map(|annotations| annotations.registered_voters)
         .ok();
     // Fetch last election results created from tally session
@@ -136,7 +134,7 @@ pub async fn generate_election_area_votes_data(
     .await?
     .ok_or(anyhow!("Can't find election"))?;
     let registered_voters = election
-        .get_annotations()
+        .get_annotations_or_empty_values()
         .map(|annotations| annotations.registered_voters)
         .ok();
     // Fetch last election results created from tally session

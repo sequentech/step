@@ -130,6 +130,18 @@ public class MessageOTPAuthenticatorFactory
             "Time in seconds the resend code gets re activated",
             ProviderConfigProperty.STRING_TYPE,
             "60"),
+        new ProviderConfigProperty(
+            Utils.TEST_MODE_ATTRIBUTE,
+            "Test Mode",
+            "If true, the otp will accept specific code that recive from Test Mode Code field",
+            ProviderConfigProperty.BOOLEAN_TYPE,
+            "false"),
+        new ProviderConfigProperty(
+            Utils.TEST_MODE_CODE_ATTRIBUTE,
+            "Test Mode Code",
+            "Will be used for test mode. code will contain only digit and with the same number of digits as Code length specify",
+            ProviderConfigProperty.STRING_TYPE,
+            "123456"),
         messageCourier);
   }
 

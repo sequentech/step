@@ -38,6 +38,12 @@ export type ApplicationChangeStatusBody = {
   user_id: Scalars['String']['input'];
 };
 
+export type ApplicationChangeStatusOutput = {
+  __typename?: 'ApplicationChangeStatusOutput';
+  error?: Maybe<Scalars['String']['output']>;
+  message?: Maybe<Scalars['String']['output']>;
+};
+
 export type ApplicationVerifyBody = {
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
   applicant_data?: InputMaybe<Scalars['jsonb']['input']>;
@@ -301,6 +307,13 @@ export type ExportBallotPublicationOutput = {
   task_execution?: Maybe<Tasks_Execution_Type>;
 };
 
+export type ExportElectionEventOutput = {
+  __typename?: 'ExportElectionEventOutput';
+  document_id: Scalars['String']['output'];
+  password?: Maybe<Scalars['String']['output']>;
+  task_execution: Tasks_Execution_Type;
+};
+
 export type ExportLogsOutput = {
   __typename?: 'ExportLogsOutput';
   document_id: Scalars['String']['output'];
@@ -312,7 +325,8 @@ export type ExportOptions = {
   applications?: InputMaybe<Scalars['Boolean']['input']>;
   bulletin_board?: InputMaybe<Scalars['Boolean']['input']>;
   include_voters?: InputMaybe<Scalars['Boolean']['input']>;
-  password: Scalars['String']['input'];
+  is_encrypted?: InputMaybe<Scalars['Boolean']['input']>;
+  password?: InputMaybe<Scalars['String']['input']>;
   publications?: InputMaybe<Scalars['Boolean']['input']>;
   reports?: InputMaybe<Scalars['Boolean']['input']>;
   s3_files?: InputMaybe<Scalars['Boolean']['input']>;
@@ -361,6 +375,12 @@ export type ExportUsersOutput = {
 export type FetchDocumentOutput = {
   __typename?: 'FetchDocumentOutput';
   url: Scalars['String']['output'];
+};
+
+export type GenerateTemplateOutput = {
+  __typename?: 'GenerateTemplateOutput';
+  document_id: Scalars['String']['output'];
+  task_execution?: Maybe<Tasks_Execution_Type>;
 };
 
 export type GetBallotPublicationChangesOutput = {
@@ -989,7 +1009,7 @@ export type Jsonb_Comparison_Exp = {
 export type Mutation_Root = {
   __typename?: 'mutation_root';
   /** Confirm voter application and correlate to a Voter */
-  ApplicationChangeStatus: Scalars['String']['output'];
+  ApplicationChangeStatus?: Maybe<ApplicationChangeStatusOutput>;
   /** Verify User Registration Application */
   VerifyApplication: Scalars['String']['output'];
   /** check private key */
@@ -1159,7 +1179,7 @@ export type Mutation_Root = {
   exportTrustees?: Maybe<ExportTrusteesOutput>;
   export_application?: Maybe<ExportApplicationOutput>;
   export_ballot_publication?: Maybe<ExportBallotPublicationOutput>;
-  export_election_event?: Maybe<DocumentTaskOutput>;
+  export_election_event?: Maybe<ExportElectionEventOutput>;
   export_election_event_logs?: Maybe<ExportLogsOutput>;
   export_election_event_tasks?: Maybe<ExportTasksOutput>;
   export_tasks_execution?: Maybe<ExportTasksExecutionOutput>;
@@ -1169,6 +1189,7 @@ export type Mutation_Root = {
   export_users?: Maybe<ExportUsersOutput>;
   generate_ballot_publication?: Maybe<PublishBallotOutput>;
   generate_report?: Maybe<GenerateReportOutput>;
+  generate_template?: Maybe<GenerateTemplateOutput>;
   generate_transmission_report?: Maybe<GenerateReportOutput>;
   get_ballot_publication_changes?: Maybe<GetBallotPublicationChangesOutput>;
   get_manual_verification_pdf?: Maybe<GetManualVerificationOutput>;
@@ -1604,6 +1625,7 @@ export type Mutation_RootCreate_ElectionArgs = {
   description?: InputMaybe<Scalars['String']['input']>;
   election_event_id: Scalars['String']['input'];
   name: Scalars['String']['input'];
+  presentation?: InputMaybe<Scalars['jsonb']['input']>;
 };
 
 
@@ -2282,6 +2304,15 @@ export type Mutation_RootGenerate_ReportArgs = {
   report_id: Scalars['String']['input'];
   report_mode: Scalars['String']['input'];
   tenant_id: Scalars['String']['input'];
+};
+
+
+/** mutation root */
+export type Mutation_RootGenerate_TemplateArgs = {
+  election_event_id: Scalars['String']['input'];
+  election_id: Scalars['String']['input'];
+  tally_session_id: Scalars['String']['input'];
+  type: Scalars['String']['input'];
 };
 
 

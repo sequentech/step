@@ -12,8 +12,9 @@ use crate::postgres::contest::get_contest_by_election_id;
 use crate::postgres::election::get_election_by_id;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::reports::{ReportCronConfig, ReportType};
-use crate::postgres::results_area_contest::{get_results_area_contest, ResultsAreaContest};
+use crate::postgres::results_area_contest::get_results_area_contest;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
+use crate::services::cast_votes::count_ballots_by_area_id;
 use crate::services::s3::get_minio_url;
 use crate::services::temp_path::*;
 use anyhow::{anyhow, Context, Result};
@@ -21,6 +22,9 @@ use async_trait::async_trait;
 use deadpool_postgres::Transaction;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::hasura::core::Contest;
+use sequent_core::types::results::ResultsAreaContest;
+use sequent_core::types::results::*;
+use sequent_core::types::results::*;
 use sequent_core::types::scheduled_event::generate_voting_period_dates;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
@@ -69,7 +73,7 @@ pub struct ReportContestData {
     pub elective_position: String,
     pub total_expected: Option<i64>,
     pub total_position: Option<i64>,
-    pub total_undevotes: Option<i64>,
+    pub total_undervotes: Option<i64>,
     pub fill_up_rate: Option<f64>,
 }
 
@@ -231,15 +235,14 @@ impl TemplateRenderer for StatisticalReportTemplate {
                     .await
                     .map_err(|err| anyhow!("Error extract area data {err}"))?;
 
-            let (results_area_contests, contests) = get_election_contests_area_results(
+            let contests = get_contest_by_election_id(
                 &hasura_transaction,
                 &self.ids.tenant_id,
                 &self.ids.election_event_id,
                 &election_id,
-                &area.id,
             )
             .await
-            .map_err(|err| anyhow!("Error getting election contest, results: {err}"))?;
+            .map_err(|e| anyhow::anyhow!(format!("Error getting contests {e:?}")))?;
 
             let mut elective_positions: Vec<ReportContestData> = vec![];
 
@@ -254,10 +257,29 @@ impl TemplateRenderer for StatisticalReportTemplate {
             .await
             .map_err(|e| anyhow!(format!("Error generating election area votes data {e:?}")))?;
 
+            let ballots_counted = count_ballots_by_area_id(
+                &hasura_transaction,
+                &self.ids.tenant_id,
+                &self.ids.election_event_id,
+                &election_id,
+                &area.id,
+            )
+            .await
+            .map_err(|err| anyhow!("Error getting counted ballots: {err}"))?;
+
             for contest in contests.clone() {
-                let results_area_contest = results_area_contests
-                    .iter()
-                    .find(|rac| rac.contest_id == contest.id);
+                let results_area_contest = get_results_area_contest(
+                    &hasura_transaction,
+                    &self.ids.tenant_id,
+                    &self.ids.election_event_id,
+                    &election_id,
+                    Some(&contest.id.clone()),
+                    &area.id,
+                )
+                .await
+                .map_err(|e| {
+                    anyhow::anyhow!(format!("Error getting results area contest {e:?}"))
+                })?;
 
                 match results_area_contest {
                     Some(results_area_contest) => {
@@ -292,7 +314,7 @@ impl TemplateRenderer for StatisticalReportTemplate {
                 voting_center: election_general_data.voting_center.clone(),
                 precinct_code: election_general_data.precinct_code.clone(),
                 registered_voters: votes_data.registered_voters,
-                ballots_counted: votes_data.total_ballots,
+                ballots_counted: Some(ballots_counted),
                 voters_turnout: votes_data.voters_turnout,
                 elective_positions,
                 inspectors: area_general_data.inspectors,
@@ -345,15 +367,15 @@ pub async fn generate_total_number_of_expected_votes_for_contest(
 }
 
 #[instrument(err, skip_all)]
-pub async fn generate_fill_up_rate(num_of_expected_voters: &i64, total_votes: &i64) -> Result<f64> {
+pub async fn generate_fill_up_rate(num_of_expected_votes: &i64, total_votes: &i64) -> Result<f64> {
     let votes = *total_votes;
-    let expected_votes = *num_of_expected_voters;
+    let expected_votes = *num_of_expected_votes;
     let fill_up_rate: f64 = if expected_votes == 0 {
         0.0
     } else {
         (votes as f64 / expected_votes as f64) * 100.0
     };
-    Ok(fill_up_rate)
+    Ok(fill_up_rate.clamp(0.0, 100.0))
 }
 
 //generate data for specific contest
@@ -372,7 +394,7 @@ pub async fn generate_contest_results_data(
                 elective_position,
                 total_expected: None,
                 total_position: None,
-                total_undevotes: None,
+                total_undervotes: None,
                 fill_up_rate: None,
             });
         }
@@ -390,14 +412,21 @@ pub async fn generate_contest_results_data(
 
     let results_area_contest_annotations = results_area_contest.annotations.clone();
 
-    let total_position: i64 = results_area_contest_annotations
+    let results_extended_metrics = results_area_contest_annotations
         .as_ref()
-        .and_then(|annotations| annotations.get("extended_metrics"))
+        .and_then(|annotations| annotations.get("extended_metrics"));
+
+    let total_position: i64 = results_extended_metrics
+        .as_ref()
         .and_then(|extended_metric| extended_metric.get("votes_actually"))
-        .and_then(|under_vote| under_vote.as_i64())
+        .and_then(|votes_actually| votes_actually.as_i64())
         .unwrap_or(-1);
 
-    let total_undevotes = total_expected - total_position;
+    let total_undervotes = results_extended_metrics
+        .as_ref()
+        .and_then(|extended_metric| extended_metric.get("under_votes"))
+        .and_then(|under_votes| under_votes.as_i64())
+        .unwrap_or(-1);
 
     // Ensure total_expected and total_position are valid for fill_up_rate calculation
     let fill_up_rate = generate_fill_up_rate(&total_expected, &total_position)
@@ -413,46 +442,7 @@ pub async fn generate_contest_results_data(
         elective_position,
         total_expected: Some(total_expected),
         total_position: Some(total_position),
-        total_undevotes: Some(total_undevotes),
+        total_undervotes: Some(total_undervotes),
         fill_up_rate: Some(fill_up_rate),
     })
-}
-
-#[instrument(err, skip_all)]
-pub async fn get_election_contests_area_results(
-    hasura_transaction: &Transaction<'_>,
-    tenant_id: &str,
-    election_event_id: &str,
-    election_id: &str,
-    area_id: &str,
-) -> Result<(Vec<ResultsAreaContest>, Vec<Contest>)> {
-    let contests: Vec<Contest> = get_contest_by_election_id(
-        &hasura_transaction,
-        &tenant_id,
-        &election_event_id,
-        &election_id,
-    )
-    .await
-    .map_err(|e| anyhow::anyhow!(format!("Error getting results contests {e:?}")))?;
-
-    let mut results_area_contests: Vec<ResultsAreaContest> = vec![];
-    for contest in contests.clone() {
-        // fetch area contest for the contest of the election
-        let Some(results_area_contest) = get_results_area_contest(
-            &hasura_transaction,
-            &tenant_id,
-            &election_event_id,
-            &election_id,
-            Some(&contest.id.clone()),
-            &area_id,
-        )
-        .await
-        .map_err(|e| anyhow::anyhow!(format!("Error getting results area contest {e:?}")))?
-        else {
-            continue;
-        };
-
-        results_area_contests.push(results_area_contest.clone());
-    }
-    Ok((results_area_contests, contests))
 }
