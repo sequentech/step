@@ -46,6 +46,7 @@ export interface IElectionEventStatus {
 }
 
 export interface IElectionStatus {
+    is_published?: boolean
     voting_status: EVotingStatus
     kiosk_voting_status: EVotingStatus
     voting_period_dates: IPeriodDates
