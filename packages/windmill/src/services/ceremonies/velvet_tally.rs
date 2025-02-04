@@ -708,22 +708,6 @@ pub async fn create_config_file(
 
     let minio_endpoint_base = s3::get_minio_url()?;
 
-    let vote_receipt_pipe_config: PipeConfigVoteReceipts = build_vote_receipe_pipe_config(
-        &tally_session,
-        &hasura_transaction,
-        minio_endpoint_base.clone(),
-        public_asset_path.clone(),
-    )
-    .await?;
-
-    let ballot_images_pipe_config: PipeConfigVoteReceipts = build_ballot_images_pipe_config(
-        &tally_session,
-        &hasura_transaction,
-        minio_endpoint_base.clone(),
-        public_asset_path.clone(),
-    )
-    .await?;
-
     let gen_report_pipe_config = build_reports_pipe_config(
         &tally_session,
         minio_endpoint_base,
@@ -748,24 +732,6 @@ pub async fn create_config_file(
                             ContestEncryptionPolicy::SINGLE_CONTEST => PipeName::DecodeBallots,
                         },
                         config: Some(serde_json::Value::Null),
-                    },
-                    velvet::config::PipeConfig {
-                        id: "vote-receipts".to_string(),
-                        pipe: match contest_encryption_policy {
-                            ContestEncryptionPolicy::MULTIPLE_CONTESTS => {
-                                PipeName::MCBallotReceipts
-                            }
-                            ContestEncryptionPolicy::SINGLE_CONTEST => PipeName::VoteReceipts,
-                        },
-                        config: Some(serde_json::to_value(vote_receipt_pipe_config)?),
-                    },
-                    velvet::config::PipeConfig {
-                        id: "ballot-images".to_string(),
-                        pipe: match contest_encryption_policy {
-                            ContestEncryptionPolicy::MULTIPLE_CONTESTS => PipeName::MCBallotImages,
-                            ContestEncryptionPolicy::SINGLE_CONTEST => PipeName::BallotImages,
-                        },
-                        config: Some(serde_json::to_value(ballot_images_pipe_config)?),
                     },
                     velvet::config::PipeConfig {
                         id: "do-tally".to_string(),
