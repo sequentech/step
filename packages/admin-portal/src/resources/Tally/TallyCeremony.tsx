@@ -42,7 +42,7 @@ import {UPDATE_TALLY_CEREMONY} from "@/queries/UpdateTallyCeremony"
 import {CREATE_TALLY_CEREMONY} from "@/queries/CreateTallyCeremony"
 import {useMutation, useQuery} from "@apollo/client"
 import {ETallyType, ITallyExecutionStatus} from "@/types/ceremonies"
-import {EAllowTally, EInitReport, EVotingStatus} from "@sequentech/ui-core"
+import {EAllowTally, EInitializeReportPolicy, EInitReport, EVotingStatus} from "@sequentech/ui-core"
 
 import {
     CreateTallyCeremonyMutation,
@@ -289,16 +289,6 @@ export const TallyCeremony: React.FC = () => {
         }
     )
 
-    // const {data: tallyTemplates} = useGetList<Sequent_Backend_Template>(
-    //     "sequent_backend_template",
-    //     {
-    //         filter: {
-    //             tenant_id: tenantId,
-    //             type: ITemplateType.TALLY_REPORT,
-    //         },
-    //     }
-    // )
-
     useEffect(() => {
         if (tallySession) {
             setTally(tallySession)
@@ -328,53 +318,65 @@ export const TallyCeremony: React.FC = () => {
 
     useEffect(() => {
         if (page === WizardSteps.Start) {
-            setIsButtonDisabled(
-                page === WizardSteps.Start && selectedElections.length === 0 ? true : false
-            )
+            let is_published = elections?.every((election) => election.status.is_published)
+            let newIsButtonDisabled =
+                (page === WizardSteps.Start && selectedElections.length === 0 ? true : false) ||
+                !is_published
+            setIsButtonDisabled(newIsButtonDisabled)
         }
     }, [selectedElections])
 
     const isTallyAllowed = useMemo(() => {
         return (
             elections?.every((election) => {
+                // Check if the voting period has ended for the election AND kiosk voting has also ended or disabled
                 const isVotingPeriodEnded =
                     election.status?.voting_status === EVotingStatus.CLOSED &&
-                    // Kiosk mode disabled or kiosk voting ended
                     (!election.voting_channels?.kiosk ||
                         election.status?.kiosk_voting_status === EVotingStatus.CLOSED)
 
                 return (
+                    // If the election is not included in the current tally session, it's allowed
                     !(tallySession?.election_ids || []).find(
                         (election_id) => election.id == election_id
                     ) ||
-                    election.status?.allow_tally === EAllowTally.ALLOWED ||
-                    (election.status?.allow_tally === EAllowTally.REQUIRES_VOTING_PERIOD_END &&
-                        isVotingPeriodEnded)
+                    // Otherwise, tallying is allowed if it is explicitly permitted OR if it requires the voting period to end and it has ended
+                    ((election.status?.allow_tally === EAllowTally.ALLOWED ||
+                        (election.status?.allow_tally === EAllowTally.REQUIRES_VOTING_PERIOD_END &&
+                            isVotingPeriodEnded)) &&
+                        // And the election must be published
+                        election.status.is_published)
                 )
-            }) || false
+            }) || false // Return `false` if elections array is undefined or empty
+        )
+    }, [elections, tallySession])
+
+    const isInitAllowed = useMemo(() => {
+        return (
+            elections?.every((election) => {
+                return (
+                    // If the election is not included in the current tally session OR the election is published, it's allowed
+                    !(tallySession?.election_ids || []).find(
+                        (election_id) => election.id == election_id
+                    ) || election.status.is_published
+                )
+            }) || false // Return `false` if elections array is undefined or empty
         )
     }, [elections, tallySession])
 
     useEffect(() => {
         if (page === WizardSteps.Ceremony) {
-            if (tallySession?.tally_type === ETallyType.ELECTORAL_RESULTS) {
-                let newIsButtonDisabled =
-                    tally?.execution_status !== ITallyExecutionStatus.CONNECTED || !isTallyAllowed
-
-                console.log(`Results: setIsButtonDisabled = ${newIsButtonDisabled}`)
-                if (newIsButtonDisabled !== isButtonDisabled) {
-                    setIsButtonDisabled(newIsButtonDisabled)
-                }
-            } else {
-                console.log(
-                    `init report: setIsButtonDisabled = true, tallySession?.tally_type = ${tallySession?.tally_type}`
-                )
-                let newIsButtonDisabled =
-                    tally?.execution_status !== ITallyExecutionStatus.CONNECTED
-
-                if (newIsButtonDisabled !== isButtonDisabled) {
-                    setIsButtonDisabled(newIsButtonDisabled)
-                }
+            let isStartAllowed =
+                tallySession?.tally_type === ETallyType.ELECTORAL_RESULTS
+                    ? isTallyAllowed
+                    : isInitAllowed
+            let newIsButtonDisabled =
+                tally?.execution_status !== ITallyExecutionStatus.CONNECTED || !isStartAllowed
+            console.log(
+                `setIsButtonDisabled = ${newIsButtonDisabled}, tallySession?.tally_type = ${tallySession?.tally_type}`
+            )
+            if (newIsButtonDisabled !== isButtonDisabled) {
+                setIsButtonDisabled(newIsButtonDisabled)
             }
         }
 
@@ -402,7 +404,6 @@ export const TallyCeremony: React.FC = () => {
             // 2. It's in a cancellable status or successful. Cancellable status
             //    are: NOT_STARTED, STARTED && CONNECTED.
             const hasInitializationReport = (electionId: string) => {
-                console.log(`executing hasInitializationReport for ${electionId}`)
                 return allTallySessions
                     ?.filter((tallySession) => tallySession.election_ids?.includes(electionId))
                     .some(
@@ -419,14 +420,20 @@ export const TallyCeremony: React.FC = () => {
                     )
             }
 
+            // If there are no selected elections, or if there is an election that is not published,
+            // or if the initialization report is either not allowed or already generated when allowed,
+            // then `newStatus` will be `true`, and the button will be disabled.
             const newStatus =
                 selectedElections.length == 0 ||
                 elections
                     ?.filter((election) => selectedElections.includes(election.id))
                     .some(
                         (election) =>
+                            !election.status?.is_published ||
                             hasInitializationReport(election.id) ||
-                            election.status?.init_report == EInitReport.DISALLOWED ||
+                            (election.presentation?.initialization_report_policy ==
+                                EInitializeReportPolicy.REQUIRED &&
+                                election.status?.init_report == EInitReport.DISALLOWED) ||
                             election.initialization_report_generated
                     ) ||
                 false
