@@ -1675,8 +1675,9 @@ pub fn format_date_opt(date: &Option<DateTime<Utc>>) -> Option<String> {
     date.map(|d| d.to_rfc3339())
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
+#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct ElectionStatus {
+    pub is_published: Option<bool>,
     pub voting_status: VotingStatus,
     pub init_report: InitReport,
     pub kiosk_voting_status: VotingStatus,
@@ -1688,6 +1689,7 @@ pub struct ElectionStatus {
 impl Default for ElectionStatus {
     fn default() -> Self {
         ElectionStatus {
+            is_published: Some(false),
             voting_status: VotingStatus::NOT_STARTED,
             init_report: InitReport::ALLOWED,
             kiosk_voting_status: VotingStatus::NOT_STARTED,
