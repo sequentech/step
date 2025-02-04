@@ -27,24 +27,6 @@ use windmill::postgres::election_event::get_all_tenant_election_events;
 use windmill::services::api_datafix::*;
 use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
 
-#[derive(Serialize)]
-pub struct DatafixErrorResponse {
-    pub code: u16,
-    pub message: String,
-}
-
-type JsonErrorResponse = Json<DatafixErrorResponse>;
-
-impl DatafixErrorResponse {
-    #[instrument]
-    pub fn new(status: Status) -> JsonErrorResponse {
-        Json(DatafixErrorResponse {
-            code: status.code,
-            message: status.reason().unwrap_or_default().to_string(),
-        })
-    }
-}
-
 #[derive(Deserialize, Debug)]
 pub struct VoterIdBody {
     voter_id: String,
@@ -72,51 +54,26 @@ pub async fn delete_voter(
         Some(claims.tenant_id.clone()),
         required_perm,
     )
-    .map_err(|e| DatafixErrorResponse::new(Status::Unauthorized))?;
+    .map_err(|e| DatafixResponse::new(Status::Unauthorized))?;
 
     let mut hasura_db_client: DbClient =
         get_hasura_pool().await.get().await.map_err(|e| {
             error!("Error getting hasura client {}", e);
-            (DatafixErrorResponse::new(Status::InternalServerError))
+            (DatafixResponse::new(Status::InternalServerError))
         })?;
     let hasura_transaction =
         hasura_db_client.transaction().await.map_err(|e| {
             error!("Error starting hasura transaction {}", e);
-            (DatafixErrorResponse::new(Status::InternalServerError))
+            (DatafixResponse::new(Status::InternalServerError))
         })?;
 
-    let election_event_id = get_datafix_election_event_id(
+    windmill::services::api_datafix::disable_datafix_voter(
         &hasura_transaction,
         &claims.tenant_id,
         &claims.datafix_event_id,
+        &input.voter_id,
     )
     .await
-    .map_err(|_e| DatafixErrorResponse::new(Status::BadRequest))?;
-
-    let realm = get_event_realm(&claims.tenant_id, &election_event_id);
-    let client = KeycloakAdminClient::new().await.map_err(|e| {
-        (DatafixErrorResponse::new(Status::InternalServerError))
-    })?;
-
-    let _user = client
-        .edit_user(
-            &realm,
-            &input.voter_id,
-            Some(false), /* Disable the voter, datafix users are not
-                          * actually deleted but just disabled */
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-        )
-        .await
-        .map_err(|e| {
-            (DatafixErrorResponse::new(Status::InternalServerError))
-        })?;
-    Err(DatafixErrorResponse::new(Status::Ok))
 }
 
 #[instrument(skip(claims))]
@@ -127,7 +84,7 @@ pub async fn unmark_voted(
 ) -> Result<Json<String>, JsonErrorResponse> {
     // WIP
     let status = Status::Unauthorized;
-    Err(DatafixErrorResponse::new(status))
+    Err(DatafixResponse::new(status))
 }
 
 #[derive(Deserialize, Debug)]
@@ -144,7 +101,7 @@ pub async fn mark_voted(
 ) -> Result<Json<String>, JsonErrorResponse> {
     // WIP
     let status = Status::Unauthorized;
-    Err(DatafixErrorResponse::new(status))
+    Err(DatafixResponse::new(status))
 }
 
 #[derive(Serialize, Debug)]
