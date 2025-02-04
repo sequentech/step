@@ -6,6 +6,7 @@ use crate::postgres::election::export_elections;
 use crate::postgres::reports::ReportType;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::cast_votes::ElectionCastVotes;
+use crate::services::consolidation::acm_json::get_acm_key_pair;
 use crate::services::database::get_hasura_pool;
 use crate::services::election_dates::get_election_dates;
 use crate::services::reports::ballot_images::BallotImagesTemplate;
@@ -25,6 +26,7 @@ use sequent_core::ballot_codec::PlaintextCodec;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::area_tree::TreeNodeArea;
 use sequent_core::services::translations::Name;
+use sequent_core::signatures::ecies_encrypt::EciesKeyPair;
 use sequent_core::types::ceremonies::TallyType;
 use sequent_core::types::hasura::core::{Area, Election, ElectionEvent, TallySession, TallySheet};
 use sequent_core::types::scheduled_event::ScheduledEvent;
@@ -573,6 +575,7 @@ pub async fn build_vote_receipe_pipe_config(
         pdf_options: Some(ext_cfg.pdf_options),
         report_options: Some(ext_cfg.report_options),
         execution_annotations: Some(execution_annotations),
+        acm_key: None,
     };
     Ok(vote_receipt_pipe_config)
 }
@@ -623,6 +626,8 @@ pub async fn build_ballot_images_pipe_config(
     let ballot_imagest_system_template =
         get_public_asset_template(PUBLIC_ASSETS_VELVET_BALLOT_IMAGES_TEMPLATE_SYSTEM).await?;
 
+    let acm_key = get_acm_key_pair().await?;
+
     let ballot_images_pipe_config = PipeConfigVoteReceipts {
         template: ballot_images_template,
         system_template: ballot_imagest_system_template,
@@ -632,6 +637,7 @@ pub async fn build_ballot_images_pipe_config(
         pdf_options: Some(ext_cfg.pdf_options),
         report_options: Some(ext_cfg.report_options),
         execution_annotations: None,
+        acm_key: Some(acm_key),
     };
     Ok(ballot_images_pipe_config)
 }
