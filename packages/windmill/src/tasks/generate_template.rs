@@ -288,6 +288,7 @@ async fn generate_template_document(
         })
         .cloned();
 
+    // Encrypt the file if needed
     let final_zipped_file = encrypt_file(
         tenant_id,
         &election_event_id,
@@ -297,9 +298,9 @@ async fn generate_template_document(
     .await?;
 
     let (file_extension, mime_type) = if final_zipped_file.ends_with(".enc") {
-        ("enc", "application/octet-stream") // For encrypted files
+        ("enc", "application/octet-stream")
     } else {
-        ("zip", "application/zip") // For .zip files
+        ("zip", "application/zip")
     };
 
     let file_size =
