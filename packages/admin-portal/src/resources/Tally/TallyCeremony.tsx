@@ -318,9 +318,11 @@ export const TallyCeremony: React.FC = () => {
 
     useEffect(() => {
         if (page === WizardSteps.Start) {
-            setIsButtonDisabled(
-                page === WizardSteps.Start && selectedElections.length === 0 ? true : false
-            )
+            let is_published = elections?.every((election) => election.status.is_published)
+            let newIsButtonDisabled =
+                (page === WizardSteps.Start && selectedElections.length === 0 ? true : false) ||
+                !is_published
+            setIsButtonDisabled(newIsButtonDisabled)
         }
     }, [selectedElections])
 
