@@ -1,35 +1,26 @@
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use std::collections::HashMap;
-use std::iter::Map;
-use std::str::FromStr;
-
 use crate::services::authorization::authorize;
-use crate::types::optional::OptionalId;
 use anyhow::Result;
 use deadpool_postgres::Client as DbClient;
-use reqwest::StatusCode;
 use rocket::http::Status;
-use rocket::response::status::Custom;
 use rocket::serde::json::Json;
 use sequent_core::services::connection::DatafixClaims;
-use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
-use sequent_core::types::{keycloak::User, permissions::Permissions};
+
+use sequent_core::types::permissions::Permissions;
 use serde::Deserialize;
 use serde::Serialize;
-use serde_json::Value;
 use tracing::{error, info, instrument};
-use windmill::postgres::election_event::get_all_tenant_election_events;
 use windmill::services::api_datafix::*;
-use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
+use windmill::services::database::get_hasura_pool;
 
 #[instrument(skip(claims))]
 #[post("/add-voter", format = "json", data = "<body>")]
 pub async fn add_voter(
     claims: DatafixClaims,
     body: Json<VoterInformationBody>,
-) -> Result<Json<String>, JsonErrorResponse> {
+) -> Result<Json<DatafixResponse>, JsonErrorResponse> {
     let input: VoterInformationBody = body.into_inner();
 
     info!("Delete voter: {input:?}");
@@ -46,17 +37,20 @@ pub async fn add_voter(
         Some(claims.tenant_id.clone()),
         required_perm,
     )
-    .map_err(|e| DatafixResponse::new(Status::Unauthorized))?;
+    .map_err(|e| {
+        error!("Error authorizing {e:?}");
+        DatafixResponse::new(Status::Unauthorized)
+    })?;
 
     let mut hasura_db_client: DbClient =
         get_hasura_pool().await.get().await.map_err(|e| {
             error!("Error getting hasura client {}", e);
-            (DatafixResponse::new(Status::InternalServerError))
+            DatafixResponse::new(Status::InternalServerError)
         })?;
     let hasura_transaction =
         hasura_db_client.transaction().await.map_err(|e| {
             error!("Error starting hasura transaction {}", e);
-            (DatafixResponse::new(Status::InternalServerError))
+            DatafixResponse::new(Status::InternalServerError)
         })?;
 
     windmill::services::api_datafix::add_datafix_voter(
@@ -78,7 +72,7 @@ pub struct VoterIdBody {
 pub async fn delete_voter(
     claims: DatafixClaims,
     body: Json<VoterIdBody>,
-) -> Result<Json<String>, JsonErrorResponse> {
+) -> Result<Json<DatafixResponse>, JsonErrorResponse> {
     let input: VoterIdBody = body.into_inner();
 
     info!("Delete voter: {input:?}");
@@ -95,17 +89,20 @@ pub async fn delete_voter(
         Some(claims.tenant_id.clone()),
         required_perm,
     )
-    .map_err(|e| DatafixResponse::new(Status::Unauthorized))?;
+    .map_err(|e| {
+        error!("Error authorizing {e:?}");
+        DatafixResponse::new(Status::Unauthorized)
+    })?;
 
     let mut hasura_db_client: DbClient =
         get_hasura_pool().await.get().await.map_err(|e| {
             error!("Error getting hasura client {}", e);
-            (DatafixResponse::new(Status::InternalServerError))
+            DatafixResponse::new(Status::InternalServerError)
         })?;
     let hasura_transaction =
         hasura_db_client.transaction().await.map_err(|e| {
             error!("Error starting hasura transaction {}", e);
-            (DatafixResponse::new(Status::InternalServerError))
+            DatafixResponse::new(Status::InternalServerError)
         })?;
 
     windmill::services::api_datafix::disable_datafix_voter(
@@ -122,7 +119,7 @@ pub async fn delete_voter(
 pub async fn unmark_voted(
     claims: DatafixClaims,
     body: Json<VoterIdBody>,
-) -> Result<Json<String>, JsonErrorResponse> {
+) -> Result<Json<DatafixResponse>, JsonErrorResponse> {
     // WIP
     let status = Status::Unauthorized;
     Err(DatafixResponse::new(status))
@@ -139,7 +136,7 @@ pub struct MarkVotedBody {
 pub async fn mark_voted(
     claims: DatafixClaims,
     body: Json<MarkVotedBody>,
-) -> Result<Json<String>, JsonErrorResponse> {
+) -> Result<Json<DatafixResponse>, JsonErrorResponse> {
     // WIP
     let status = Status::Unauthorized;
     Err(DatafixResponse::new(status))

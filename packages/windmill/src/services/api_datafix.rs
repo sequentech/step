@@ -9,14 +9,15 @@ use crate::services::providers::transactions_provider::provide_hasura_transactio
 use crate::services::users::get_users_by_username;
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Transaction;
-use sequent_core::serialization::deserialize_with_path::deserialize_value;
-use sequent_core::types::hasura::core::ElectionEvent;
-use tracing::{info, error, warn, instrument};
 use rocket::http::Status;
 use rocket::serde::json::Json;
+use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::keycloak::KeycloakAdminClient;
+use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
+use sequent_core::types::hasura::core::ElectionEvent;
 use sequent_core::types::keycloak::{User, UserArea};
-
+use serde::{Deserialize, Serialize};
+use tracing::{error, info, instrument, warn};
 
 #[derive(Deserialize, Debug)]
 pub struct VoterInformationBody {
@@ -27,13 +28,13 @@ pub struct VoterInformationBody {
     birthdate: Option<String>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct DatafixResponse {
     pub code: u16,
     pub message: String,
 }
 
-type JsonErrorResponse = Json<DatafixResponse>;
+pub type JsonErrorResponse = Json<DatafixResponse>;
 
 impl DatafixResponse {
     #[instrument]
@@ -46,7 +47,7 @@ impl DatafixResponse {
 }
 
 /// Gets the election_event_id of the event that has the datafix id in its annotations.
-#[instrument(err, skip(hasura_transaction))]
+#[instrument(skip(hasura_transaction))]
 async fn get_datafix_election_event_id(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -57,74 +58,70 @@ async fn get_datafix_election_event_id(
         .map_err(|err| {
             error!("Error getting election events: {err}");
             DatafixResponse::new(Status::BadRequest)
-    })?;
+        })?;
 
     info!("election_events: {:?}", election_events);
     let mut election_event_id_match = None;
-    let mut itr = election_events.iter();
-    while (let Some(event) = itr.next() && election_event_id_match.is_none()) {
-        let annotations_datafix_id = event.annotations.map(|v| 
-            v.get("DATAFIX").map(|v|  
-                v.get("id").map(|v| v.to_string())
-            ).flatten()
-        ).flatten();
+    let mut itr: std::slice::Iter<'_, ElectionEvent> = election_events.iter();
+    let mut event_opt = itr.next(); // Use while let Some(event) = itr.next()... once the compiler gets updated.
+    while event_opt.is_some() && election_event_id_match.is_none() {
+        let event = event_opt.unwrap();
+        let annotations_datafix_id = event.annotations.clone().and_then(|v| {
+            v.get("DATAFIX")
+                .and_then(|v| v.get("id").map(|v| v.to_string()))
+        });
         election_event_id_match = match annotations_datafix_id {
             Some(annotations_datafix_id) if annotations_datafix_id.eq(datafix_event_id) => {
                 Some(event.id.clone())
             }
-            _ => None
+            _ => None,
         };
+        event_opt = itr.next();
     }
 
     match election_event_id_match {
         Some(election_event_id) => Ok(election_event_id),
         None => {
             warn!("Datafix event id: {datafix_event_id} not found");
-            return DatafixResponse::new(Status::BadRequest);
+            return Err(DatafixResponse::new(Status::BadRequest));
         }
     }
 }
 
-
 /// Disable the voter, datafix users are not actually deleted but just disabled.
 /// Note: voter_id in Datafix API represents the username in Keycloak/Sequent´s system.
-#[instrument(err, skip(hasura_transaction))]
+#[instrument(skip(hasura_transaction))]
 pub async fn disable_datafix_voter(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     datafix_event_id: &str,
     username: &str,
-) -> Result<Json<String>, JsonErrorResponse> {
-
-    let election_event_id = get_datafix_election_event_id(
-        hasura_transaction,
-        tenant_id,
-        datafix_event_id,
-    )
-    .await?;
+) -> Result<Json<DatafixResponse>, JsonErrorResponse> {
+    let election_event_id =
+        get_datafix_election_event_id(hasura_transaction, tenant_id, datafix_event_id).await?;
 
     let realm = get_event_realm(tenant_id, &election_event_id);
     let client = KeycloakAdminClient::new().await.map_err(|e| {
-        error!("Error getting KeycloakAdminClient: {err}");
-        (DatafixResponse::new(Status::InternalServerError))
+        error!("Error getting KeycloakAdminClient: {e:?}");
+        DatafixResponse::new(Status::InternalServerError)
     })?;
 
     let user_ids = get_users_by_username(hasura_transaction, &realm, username)
-    .await
-    .map_err(|e| {
-        error!("Error getting users by username: {err}");
-        (DatafixResponse::new(Status::InternalServerError))
-    })?;
+        .await
+        .map_err(|e| {
+            error!("Error getting users by username: {e:?}");
+            DatafixResponse::new(Status::InternalServerError)
+        })?;
 
     let user_id = match user_ids.len() {
         0 => {
             error!("Error getting users by username: Not Found");
-            return DatafixResponse::new(Status::NotFound);
+            return Err(DatafixResponse::new(Status::NotFound));
         }
         1 => user_ids[0].clone(),
         _ => {
             error!("Error getting users by username: Multiple users Found");
-            return DatafixResponse::new(Status::NotFound);
+            return Err(DatafixResponse::new(Status::NotFound));
         }
     };
 
@@ -143,31 +140,28 @@ pub async fn disable_datafix_voter(
         )
         .await
         .map_err(|e| {
-            (DatafixResponse::new(Status::InternalServerError))
+            error!("Error editing user: {e:?}");
+            DatafixResponse::new(Status::InternalServerError)
         })?;
-    Ok(Json(DatafixResponse::new(Status::Ok)))
+    Ok(DatafixResponse::new(Status::Ok))
 }
 
-
 /// Note: voter_id in Datafix API represents the username in Keycloak/Sequent´s system.
-#[instrument(err, skip(hasura_transaction))]
+#[instrument(skip(hasura_transaction))]
 pub async fn add_datafix_voter(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     datafix_event_id: &str,
     voter_info: &VoterInformationBody,
-) -> Result<Json<String>, JsonErrorResponse> {
+) -> Result<Json<DatafixResponse>, JsonErrorResponse> {
     let username = &voter_info.voter_id;
-    let election_event_id = get_datafix_election_event_id(
-        hasura_transaction,
-        tenant_id,
-        datafix_event_id,
-    )
-    .await?;
+    let election_event_id =
+        get_datafix_election_event_id(hasura_transaction, tenant_id, datafix_event_id).await?;
 
     let realm = get_event_realm(tenant_id, &election_event_id);
     let client = KeycloakAdminClient::new().await.map_err(|e| {
-        (DatafixResponse::new(Status::InternalServerError))
+        error!("Error getting KeycloakAdminClient: {e:?}");
+        DatafixResponse::new(Status::InternalServerError)
     })?;
 
     let area = Some(UserArea {
@@ -187,15 +181,14 @@ pub async fn add_datafix_voter(
         votes_info: None,
     };
     let _user = client
-        .create_user( // TODO: Check Which values are required to create an user?
-            &realm,
-            &user,
-            None,
-            None
+        .create_user(
+            // TODO: Check Which values are required to create an user?
+            &realm, &user, None, None,
         )
         .await
         .map_err(|e| {
-            (DatafixResponse::new(Status::InternalServerError))
+            error!("Error creating user: {e:?}");
+            DatafixResponse::new(Status::InternalServerError)
         })?;
-    Ok(Json(DatafixResponse::new(Status::Ok)))
+    Ok(DatafixResponse::new(Status::Ok))
 }
