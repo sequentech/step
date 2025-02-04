@@ -1130,7 +1130,7 @@ fn string_to_unaccented(word: String) -> String {
 #[instrument(skip_all)]
 fn to_unaccented_without_hyphen(word: Option<String>) -> Option<String> {
     let word = match word {
-        Some(word) => word.replace("-", " "),
+        Some(word) => word.replace("-", " ").replace(".", ""),
         None => return None,
     };
     let unaccented_word = string_to_unaccented(word);
