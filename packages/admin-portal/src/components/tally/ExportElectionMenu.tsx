@@ -300,7 +300,9 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
                             loading={miruExportloading}
                         />
                     ) : null}
-                    {globalSettings?.ACTIVATE_MIRU_EXPORT && electionId ? (
+                    {globalSettings?.ACTIVATE_MIRU_EXPORT &&
+                    tallyType !== ETallyType.INITIALIZATION_REPORT &&
+                    electionId ? (
                         <>
                             <GenerateReport
                                 handleClose={handleClose}
