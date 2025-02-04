@@ -373,6 +373,7 @@ impl Into<TreeNodeArea> for &AreaConfig {
         TreeNodeArea {
             id: self.id.to_string(),
             tenant_id: self.tenant_id.to_string(),
+            annotations: Default::default(),
             election_event_id: self.election_event_id.to_string(),
             parent_id: self.parent_id.clone().map(|val| val.to_string()),
         }

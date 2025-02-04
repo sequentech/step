@@ -1765,6 +1765,7 @@ const englishTranslation = {
                 smsMessage: "SMS Message",
                 document: "Document",
                 pdfOptions: "PDF Options",
+                reportOptions: "Report Options",
                 name: "Template Name",
                 alias: "Template Alias",
                 type: "Type",

@@ -1784,6 +1784,7 @@ const tagalogTranslation: TranslationType = {
                 smsMessage: "SMS Message",
                 document: "Dokumento",
                 pdfOptions: "Mga Opsyon sa PDF",
+                reportOptions: "Mga Pagpipilian sa Ulat",
                 name: "Pangalan ng Template",
                 alias: "Alias ng Template",
                 type: "Uri ng Komunikasyon",
