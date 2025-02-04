@@ -201,6 +201,10 @@ impl MCBallotReceipts {
                     undervotes,
                     overvotes,
                     digital_signature,
+                    page_number: match &pipe_config.pipe_type {
+                        VoteReceiptPipeType::BALLOT_IMAGES => Some(page_number),
+                        _ => None,
+                    },
                 };
 
                 page_number += 1;
@@ -514,6 +518,7 @@ pub struct ContestData {
     pub undervotes: i64,
     pub overvotes: i64,
     pub digital_signature: Option<String>,
+    pub page_number: Option<i64>,
 }
 
 impl ContestData {

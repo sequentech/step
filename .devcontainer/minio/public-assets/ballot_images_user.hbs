@@ -230,16 +230,17 @@
       const eventId = '{{expr data.ballot_data.0.contest_choices.0.contest.election_event_id}}';
       const electionId = '{{expr data.ballot_data.0.contest_choices.0.contest.election_id}}';
       const precientId = '{{expr data.election_annotations.clustered_precint_id}}';
-      const pageNumber = 1;
+
       ballotData.forEach((ballot, index) => {
+          let ballotId = `${ballot.id}`; 
           ballot.contest_choices.forEach((contest, contest_index) => {
-            pageNumber +=1;
-            let digital_signature = `${contest.digital_signature}`; 
+            let digitalSignature = `${contest.digital_signature}`; 
+            let pageNumber = `${contest.page_number}`; 
             const qrcodeDiv = document.getElementById(`qrcode-${contest_index}-${index}`);
-            let qrText =`(${eventId}):(${precientId}):(${ballot.id}):(${electionId}):(${pageNumber}):(${digital_signature})`;
-            
+            let qrText =`${eventId}:${precientId}:${ballotId}:${electionId}:${pageNumber}:${digitalSignature}`;
             let qrHeight = parseInt({{qr_height}}, 10);
             let qrWidth = qrHeight = parseInt({{qr_width}}, 10);
+
             new QRCode(qrcodeDiv, {
               text: qrText,
               width: qrWidth,
@@ -249,8 +250,6 @@
               correctLevel: QRCode.CorrectLevel.H,
             });
           });
-          //increament page for summary page
-          pageNumber +=1; 
         }
       );
   };
