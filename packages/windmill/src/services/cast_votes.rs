@@ -3,6 +3,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::database::PgConfig;
+use crate::services::electoral_log::ElectoralLog;
 use anyhow::{anyhow, Context, Result};
 use chrono::NaiveDate;
 use chrono::{DateTime, Utc};
@@ -10,8 +11,9 @@ use deadpool_postgres::Transaction;
 use sequent_core::types::keycloak::{User, VotesInfo};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 use tokio_postgres::row::Row;
-use tracing::instrument;
+use tracing::{info, instrument};
 use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
@@ -681,4 +683,31 @@ pub async fn count_cast_votes_election_event(
     let count = rows.try_get::<_, i64>("voter_count")?;
 
     Ok(count)
+}
+
+/// Returns the private signing key for the given voter.
+///
+/// The private key is generated and a log post
+/// is published with the corresponding public key
+/// (with StatementType::AdminPublicKey).
+///
+/// There is a possibility that the private key is created
+/// but the notification fails. This is logged in
+/// electorallog::post_voter_pk
+#[instrument(err)]
+pub async fn get_voter_signing_key(
+    elog_database: &str,
+    tenant_id: &str,
+    event_id: &str,
+    user_id: &str,
+) -> Result<StrandSignatureSk> {
+    info!("Generating private signing key for voter {}", user_id);
+    let sk = StrandSignatureSk::gen()?;
+    let sk_string = sk.to_der_b64_string()?;
+    let pk = StrandSignaturePk::from_sk(&sk)?;
+    let pk = pk.to_der_b64_string()?;
+
+    ElectoralLog::post_voter_pk(elog_database, tenant_id, event_id, user_id, &pk).await?;
+
+    Ok(sk)
 }

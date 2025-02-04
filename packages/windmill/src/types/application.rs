@@ -46,3 +46,13 @@ pub enum ApplicationRejectReason {
     #[strum(to_string = "other")]
     OTHER, //mandatory comment
 }
+
+#[allow(non_camel_case_types)]
+#[derive(
+    Display, Debug, PartialEq, Eq, Clone, EnumString, EnumVariantNames, Serialize, Deserialize,
+)]
+pub enum ApplicationsError {
+    #[strum(serialize = "Approved_Voter")]
+    #[strum(to_string = "Approved_Voter")]
+    APPROVED_VOTER,
+}

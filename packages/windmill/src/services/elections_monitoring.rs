@@ -36,8 +36,10 @@ use super::voting_status::get_election_status_info;
 pub struct ElectionEventMonitoring {
     pub total_enrolled_voters: i64,
     pub total_elections: i64,
+    pub total_started_votes: i64,
+    pub total_not_started_votes: i64,
     pub total_open_votes: i64,
-    pub total_not_opened_votes: i64,
+    pub total_not_open_votes: i64,
     pub total_closed_votes: i64,
     pub total_not_closed_votes: i64,
     pub total_start_counting_votes: i64,
@@ -85,8 +87,9 @@ pub async fn get_election_event_monitoring(
     election_event_id: &str,
 ) -> Result<ElectionEventMonitoring> {
     let mut total_open_votes: i64 = 0;
-    let mut total_not_opened_votes: i64 = 0;
+    let mut total_not_started_votes: i64 = 0;
     let mut total_closed_votes: i64 = 0;
+    let mut total_started_votes: i64 = 0;
 
     let mut total_initialize: i64 = 0;
     let mut total_start_counting_votes: i64 = 0;
@@ -132,8 +135,9 @@ pub async fn get_election_event_monitoring(
     for election in elections {
         let election_status = get_election_status_info(&election);
         total_open_votes += election_status.total_open_votes;
-        total_not_opened_votes += election_status.total_not_opened_votes;
+        total_not_started_votes += election_status.total_not_started_votes;
         total_closed_votes += election_status.total_closed_votes;
+        total_started_votes += election_status.total_started_votes;
 
         match election.initialization_report_generated {
             Some(true) => total_initialize += 1,
@@ -194,8 +198,10 @@ pub async fn get_election_event_monitoring(
     Ok(ElectionEventMonitoring {
         total_enrolled_voters,
         total_elections: total_elections,
+        total_started_votes,
+        total_not_started_votes,
         total_open_votes,
-        total_not_opened_votes,
+        total_not_open_votes: total_elections - total_open_votes,
         total_closed_votes,
         total_not_closed_votes: total_elections - total_closed_votes,
         total_genereated_tally,
