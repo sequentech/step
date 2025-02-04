@@ -771,6 +771,7 @@ pub async fn confirm_application(
         election_event_id,
         user_id,
         ApplicationStatus::ACCEPTED,
+        ApplicationType::MANUAL,
         None,
         None,
         admin_name,
@@ -929,6 +930,7 @@ pub async fn reject_application(
         election_event_id,
         user_id,
         ApplicationStatus::REJECTED,
+        ApplicationType::MANUAL,
         rejection_reason,
         rejection_message,
         admin_name,
@@ -1049,6 +1051,7 @@ pub async fn send_application_communication_response(
                 name: None,
                 alias: None,
                 pdf_options: None,
+                report_options: None,
             };
 
             let celery_app = get_celery_app().await;

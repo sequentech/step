@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-FROM rust:1.70.0-slim-bookworm as builder
+FROM rust:1.82.0-slim-bookworm as builder
 
 WORKDIR /app
 
@@ -29,6 +29,7 @@ COPY ./immudb-rs ./immudb-rs
 COPY ./sequent-core ./sequent-core
 COPY ./velvet ./velvet
 COPY ./windmill ./windmill
+COPY ./e2e ./e2e
 COPY ./step-cli ./step-cli
 COPY ./orare ./orare
 COPY ./wrap-map-err ./wrap-map-err

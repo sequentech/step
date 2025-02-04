@@ -40,9 +40,6 @@ use tracing::{info, instrument};
 use velvet::config::vote_receipt::PipeConfigVoteReceipts;
 use velvet::pipes::pipe_name::PipeName;
 use velvet::pipes::pipe_name::PipeNameOutputDir;
-use velvet::pipes::vote_receipts::mcballot_receipts::{
-    BALLOT_IMAGES_OUTPUT_FILE_HTML, OUTPUT_FILE_HTML,
-};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(tag = "type")]

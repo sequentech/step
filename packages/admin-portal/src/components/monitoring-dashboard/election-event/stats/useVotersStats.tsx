@@ -191,7 +191,17 @@ const useVotersStats = (props: VotersStatsProps) => {
                 },
             ],
         }
-    }, [])
+    }, [
+        authenticationStats,
+        enrolledVotersCount,
+        showAuthenticatedVoters,
+        approvalStats,
+        eligibleVotersCount,
+        showAutomaticApproveDisapproveVoters,
+        showManuallyApproveDisapproveVoters,
+        showAllApproveDisapproveVoters,
+        showTotalEnrolledVoters,
+    ])
 
     return {votersSection}
 }

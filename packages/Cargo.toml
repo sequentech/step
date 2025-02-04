@@ -18,8 +18,10 @@ members = [
     "windmill",
     "wrap-map-err",
     "step-cli",
+    "e2e/src/mock_server",
+    "e2e",
     "orare",
-    "orare/doc_renderer",
+    "orare/doc_renderer"
 ]
 
 [patch.crates-io]
