@@ -371,7 +371,7 @@ impl Pipe for MCBallotReceipts {
 
                     let max_items_per_report = report_options
                         .max_items_per_report
-                        .unwrap_or_else(|| 50_000);
+                        .unwrap_or_else(|| 1_000);
 
                     let result: Result<(), Error> = pool.install(|| {
                         ballots
