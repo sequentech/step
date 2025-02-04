@@ -421,12 +421,16 @@ export const TallyCeremony: React.FC = () => {
                     )
             }
 
+            // If there are no selected elections, or if there is an election that is not published,
+            // or if the initialization report is either not allowed or already generated when allowed,
+            // then `newStatus` will be `true`, and the button should be disabled.
             const newStatus =
                 selectedElections.length == 0 ||
                 elections
                     ?.filter((election) => selectedElections.includes(election.id))
                     .some(
                         (election) =>
+                            !election.status?.is_published ||
                             hasInitializationReport(election.id) ||
                             election.status?.init_report == EInitReport.DISALLOWED ||
                             election.initialization_report_generated
