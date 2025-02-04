@@ -8,6 +8,7 @@ use crate::pipes::error::{Error, Result};
 use crate::pipes::pipe_inputs::{InputElectionConfig, PipeInputs};
 use crate::pipes::pipe_name::{PipeName, PipeNameOutputDir};
 use crate::pipes::Pipe;
+use csv::Writer;
 use hex::encode;
 use rayon::prelude::*;
 use rayon::ThreadPoolBuilder;
@@ -24,9 +25,10 @@ use std::fs;
 use std::fs::OpenOptions;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use strand::hash::hash_sha256;
+use std::sync::Mutex;
+use strand::hash::{hash_b64, hash_sha256};
+use tokio::runtime::Runtime;
 use tracing::{info, instrument};
-use uuid::Uuid;
 
 pub const VOTE_RECEIPTS_OUTPUT_FILE: &str = "vote_receipts";
 pub const BALLOT_IMAGES_OUTPUT_FILE: &str = "ballots";
@@ -334,15 +336,21 @@ fn generate_hashed_filename(
     Ok(path.join(new_filename))
 }
 
+#[derive(Serialize, Debug, Clone)]
+struct BallotCsvData {
+    pub file_name: String,
+    pub hash: String,
+}
 impl Pipe for MCBallotReceipts {
     #[instrument(skip_all, name = "MultiBallotReceipts::exec")]
     fn exec(&self) -> Result<()> {
         let pipe_config: PipeConfigVoteReceipts = self.get_config()?;
-
         let pipe_data = get_pipe_data(pipe_config.pipe_type.clone());
 
         for election_input in &self.pipe_inputs.election_list {
             let area_contests_map = election_input.get_area_contest_map();
+
+            let files = Mutex::new(vec![]);
 
             for (area_id, area_contests) in area_contests_map {
                 let path_ballots = PipeInputs::mcballots_path(
@@ -372,6 +380,17 @@ impl Pipe for MCBallotReceipts {
                     let max_items_per_report =
                         report_options.max_items_per_report.unwrap_or_else(|| 1_000);
 
+                    let path = PipeInputs::mcballots_path(
+                        &self
+                            .pipe_inputs
+                            .cli
+                            .output_dir
+                            .join(&pipe_data.pipe_name_output_dir)
+                            .as_path(),
+                        &election_input.id,
+                        &area_id,
+                    );
+
                     let result: Result<(), Error> = pool.install(|| {
                         ballots
                             .par_chunks(max_items_per_report)
@@ -385,17 +404,6 @@ impl Pipe for MCBallotReceipts {
                                     &area_contests.area_name,
                                 )?;
 
-                                let path = PipeInputs::mcballots_path(
-                                    &self
-                                        .pipe_inputs
-                                        .cli
-                                        .output_dir
-                                        .join(&pipe_data.pipe_name_output_dir)
-                                        .as_path(),
-                                    &election_input.id,
-                                    &area_id,
-                                );
-
                                 fs::create_dir_all(&path)?;
 
                                 if let Some(ref some_bytes_pdf) = bytes_pdf {
@@ -408,9 +416,10 @@ impl Pipe for MCBallotReceipts {
                                             ))
                                         })?;
 
+                                    let file_name = pipe_data.output_file.clone();
                                     let file = generate_hashed_filename(
                                         &path,
-                                        &pipe_data.output_file,
+                                        &file_name.clone(),
                                         &pdf_hash,
                                         &area_id.to_string(),
                                         election_input,
@@ -423,6 +432,21 @@ impl Pipe for MCBallotReceipts {
                                             e
                                         ))
                                     })?;
+
+                                    let bytes_json = file_name.as_bytes().to_vec();
+                                    let file_hash = hash_b64(&bytes_json).map_err(|err| {
+                                        Error::UnexpectedError(format!(
+                                            "Error hashing the results file: {err:?}"
+                                        ))
+                                    })?;
+
+                                    // Lock the mutex before modifying the vector
+                                    let mut files_lock = files.lock().unwrap();
+                                    files_lock.push(BallotCsvData {
+                                        file_name: file_name.clone(),
+                                        hash: file_hash,
+                                    });
+
                                     let mut file = OpenOptions::new()
                                         .write(true)
                                         .truncate(true)
@@ -430,20 +454,41 @@ impl Pipe for MCBallotReceipts {
                                         .open(file)?;
                                     file.write_all(some_bytes_pdf)?;
                                 }
+
                                 let file = path.join(format!(
                                     "{}_batch-{}.html",
                                     pipe_data.output_file, chunk_index,
                                 ));
-                                // html file creation
+
                                 let mut file = OpenOptions::new()
                                     .write(true)
                                     .truncate(true)
                                     .create(true)
                                     .open(file)?;
                                 file.write_all(&bytes_html)?;
-                                Ok(())
-                            })
+                                Ok::<(), Error>(())
+                            });
+
+                        // Write the CSV file of file names and hashes
+                        let csv_filename = format!("ballots_files.csv");
+                        let csv_path = path.join(csv_filename);
+                        let files_lock = files.lock().unwrap();
+
+                        let rt = Runtime::new().unwrap();
+                        let result = rt.block_on(async {
+                            write_file_hash_csv(files_lock.clone(), csv_path)
+                                .await
+                                .map_err(|e| {
+                                    Error::UnexpectedError(format!(
+                                        "Error writing file hash CSV: {}",
+                                        e
+                                    ))
+                                })
+                        })?;
+
+                        Ok(())
                     });
+
                     if let Err(e) = result {
                         eprintln!("Error processing: {}", e);
                     }
@@ -452,8 +497,8 @@ impl Pipe for MCBallotReceipts {
                         "[{}] File not found: {} -- Not processed",
                         &pipe_data.pipe_name,
                         path_ballots.display()
-                    )
-                }
+                    );
+                };
             }
         }
 
@@ -585,4 +630,33 @@ fn convert_ballots(
     }
 
     Ok(ret)
+}
+
+pub async fn write_file_hash_csv(data: Vec<BallotCsvData>, path: PathBuf) -> Result<()> {
+    let headers = vec!["file_name".to_string(), "hash".to_string()];
+
+    let mut writer = Writer::from_writer(vec![]);
+
+    writer.write_record(&headers).map_err(|e| {
+        Error::UnexpectedError(format!("Failed to write headers to CSV file: {}", e))
+    })?;
+
+    for entry in data {
+        writer
+            .write_record(&[entry.file_name, entry.hash])
+            .map_err(|e| Error::UnexpectedError(format!("Failed to write record: {}", e)))?;
+    }
+
+    let data_bytes = writer
+        .into_inner()
+        .map_err(|e| Error::UnexpectedError(format!("Failed to flush CSV writer: {}", e)))?;
+
+    let mut file = OpenOptions::new()
+        .write(true)
+        .truncate(true)
+        .create(true)
+        .open(path)?;
+    file.write_all(&data_bytes)?;
+
+    Ok(())
 }
