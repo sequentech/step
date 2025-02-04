@@ -1028,3 +1028,49 @@ pub async fn check_is_user_verified(
     let is_verified: bool = row.get("is_verified");
     Ok(is_verified)
 }
+
+/// Returns a vector with user ids.
+/// It is up to the caller to handle when there are mutiple users with the same username or the vector is empty - not found.
+#[instrument(err, skip_all)]
+pub async fn get_users_by_username(
+    keycloak_transaction: &Transaction<'_>,
+    realm: &str,
+    username: &str,
+) -> Result<Vec<String>> {
+    let mut params: Vec<&(dyn ToSql + Sync)> = vec![&realm, &username];
+
+    let statement = keycloak_transaction
+        .prepare(&format!(
+            r#"
+        SELECT 
+            u.id
+        FROM 
+            user_entity u
+        INNER JOIN
+            realm AS ra ON ra.id = u.realm_id
+        LEFT JOIN LATERAL (
+            SELECT
+                json_object_agg(ua.name, ua.value) AS attributes
+            FROM user_attribute ua
+            WHERE ua.user_id = u.id
+            GROUP BY ua.user_id
+        ) attr_json ON true
+        WHERE
+            ra.name = $1
+            AND u.username = $2
+        "#,
+        ))
+        .await?;
+
+    let rows: Vec<Row> = keycloak_transaction
+        .query(&statement, &params.as_slice())
+        .await
+        .map_err(|err| anyhow!("{}", err))?;
+
+    let user_ids = rows
+        .into_iter()
+        .filter_map(|row| row.get("id"))
+        .collect::<Vec<String>>();
+
+    Ok(user_ids)
+}

@@ -14,11 +14,8 @@ use rocket::http::Status;
 use rocket::response::status::Custom;
 use rocket::serde::json::Json;
 use sequent_core::services::connection::DatafixClaims;
-use sequent_core::services::keycloak::{
-    get_event_realm, get_tenant_realm, GroupInfo, KeycloakAdminClient,
-};
-use sequent_core::types::keycloak::User;
-use sequent_core::types::permissions::Permissions;
+use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
+use sequent_core::types::{keycloak::User, permissions::Permissions};
 use serde::Deserialize;
 use serde::Serialize;
 use serde_json::Value;
@@ -26,6 +23,50 @@ use tracing::{error, info, instrument};
 use windmill::postgres::election_event::get_all_tenant_election_events;
 use windmill::services::api_datafix::*;
 use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
+
+#[instrument(skip(claims))]
+#[post("/add-voter", format = "json", data = "<body>")]
+pub async fn add_voter(
+    claims: DatafixClaims,
+    body: Json<VoterInformationBody>,
+) -> Result<Json<String>, JsonErrorResponse> {
+    let input: VoterInformationBody = body.into_inner();
+
+    info!("Delete voter: {input:?}");
+
+    let required_perm = vec![
+        Permissions::DATAFIX_ACCOUNT,
+        Permissions::VOTER_READ,
+        Permissions::VOTER_WRITE,
+    ]; // TODO: Set up the permissions in Keycloak
+    info!("{claims:?}");
+    authorize(
+        &claims.jwt_claims,
+        true,
+        Some(claims.tenant_id.clone()),
+        required_perm,
+    )
+    .map_err(|e| DatafixResponse::new(Status::Unauthorized))?;
+
+    let mut hasura_db_client: DbClient =
+        get_hasura_pool().await.get().await.map_err(|e| {
+            error!("Error getting hasura client {}", e);
+            (DatafixResponse::new(Status::InternalServerError))
+        })?;
+    let hasura_transaction =
+        hasura_db_client.transaction().await.map_err(|e| {
+            error!("Error starting hasura transaction {}", e);
+            (DatafixResponse::new(Status::InternalServerError))
+        })?;
+
+    windmill::services::api_datafix::add_datafix_voter(
+        &hasura_transaction,
+        &claims.tenant_id,
+        &claims.datafix_event_id,
+        &input,
+    )
+    .await
+}
 
 #[derive(Deserialize, Debug)]
 pub struct VoterIdBody {
