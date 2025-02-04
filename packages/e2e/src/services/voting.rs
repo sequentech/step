@@ -67,8 +67,6 @@ pub fn run_voting_test(
 ) -> Result<()> {
     let tenant_id =
         env::var("SUPER_ADMIN_TENANT_ID").with_context(|| "missing SUPER_ADMIN_TENANT_ID")?;
-    let voting_portal_domain =
-        env::var("VOTING_PORTAL_URL").with_context(|| "missing VOTING_PORTAL_DOMAIN")?;
 
     print!("running voting test");
     
@@ -76,7 +74,7 @@ pub fn run_voting_test(
     //https://voting-portal-dev.sequent.vote/tenant/{tenant_id}/event/{election_event_id}/login'
     let enrollment_election_test_name = get_voting_test_name_str(&scanrio_data.election_event_id);
     let voting_portal_url = format!(
-        "https://voting-portal-dev.sequent.vote/tenant/{}/event/{}/login",
+        "https://voting-portal-comelecprod2.sequent.vote/tenant/{}/event/{}/login",
          &tenant_id, &scanrio_data.election_event_id
     );
     let script = generate_script(

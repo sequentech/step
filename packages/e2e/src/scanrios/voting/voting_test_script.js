@@ -8,6 +8,8 @@ client => {
         const randomNumber = Math.floor(Math.random() * parseInt(numberOfVotes)) + 1
         const username = `user${randomNumber}@gmail.com`
         console.log(`starting iteration ${iteration} for: ${username}`)
+        const timestamp = new Date().toISOString();
+        console.log(`Current Timestamp: ${timestamp}`);
         client.url(url)
         .waitForElementVisible('body', 20e3)
         .saveScreenshot(`screenshots/login(${iteration}).png`)
@@ -92,7 +94,7 @@ client => {
             .click("button.ok-button")
             .pause(500)
             .saveScreenshot(`screenshots/summaryPage${iteration}.png`)
-           
+            
             .pause(1000)
             //Logout
             .click("button.logout-button")
@@ -101,6 +103,7 @@ client => {
             .click('li.logout-button')
             .pause(500)
             .click("button.ok-button")
+            .pause(500)
             .perform(() => {
                 console.log(`Completed iteration #${iteration}`);
                 vote(iteration + 1);

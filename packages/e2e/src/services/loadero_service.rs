@@ -36,7 +36,6 @@ pub fn run_scenario_test(
         update_script(&test_id, test_config)?;
     }
 
-    // 2) run_test
     run_test(&loadero_url,&test_id, participants_count)?;
 
     Ok(())
@@ -84,9 +83,8 @@ pub fn init_loadero_test(
             Err(e) => {
                 if e.to_string().contains("HTTP Status") {
                     eprintln!("HTTP Error checking status for test {}: {}", test_id, e);
-                    break; // Exit the loop on HTTP errors
+                    break; 
                 } else {
-                    // Wait before retrying
                     thread::sleep(polling_interval);
                 }
             }
@@ -189,6 +187,7 @@ fn create_test_participants(
 pub fn get_test_id_by_name(test_name: String) -> Result<Option<String>> {
     let loadero_url: String =
         env::var("LOADERO_BASE_URL").with_context(|| "missing  LOADERO_BASE_URL")?;
+
     let client = reqwest::blocking::Client::new();
     let headers = create_header()?;
 
