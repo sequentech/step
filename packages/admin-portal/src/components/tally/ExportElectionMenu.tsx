@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {Box, CircularProgress, Menu, MenuItem} from "@mui/material"
-import React, {useContext, useState} from "react"
+import React, {useCallback, useContext, useState} from "react"
 import {useTranslation} from "react-i18next"
 import {EXPORT_FORMATS} from "./constants"
 import {FetchDocumentQuery} from "@/gql/graphql"
@@ -120,9 +120,13 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
         setAnchorEl(event.currentTarget)
     }
 
-    const handleClose = () => {
+    // const handleClose = () => {
+    //     setAnchorEl(null)
+    // }
+
+    const handleClose = useCallback(() => {
         setAnchorEl(null)
-    }
+    }, [])
 
     const handleExport = (documents: IResultDocuments, format: EExportFormat) => {
         let documentId = documents?.[format]
@@ -259,7 +263,7 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
                                     onClick={(e: React.MouseEvent<HTMLElement>) => {
                                         e.preventDefault()
                                         e.stopPropagation()
-                                        handleClose()
+                                        setTimeout(() => handleClose(), 0)
                                         handleExport(documents.documents, format.value)
                                     }}
                                     disabled={isExportFormatDisabled(
@@ -299,12 +303,14 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
                     {globalSettings?.ACTIVATE_MIRU_EXPORT && electionId ? (
                         <>
                             <GenerateReport
+                                handleClose={handleClose}
                                 reportType={ETemplateType.BALLOT_IMAGES}
                                 electionEventId={electionEventId}
                                 electionId={electionId}
                                 tallySessionId={tallySessionId}
                             />
                             <GenerateReport
+                                handleClose={handleClose}
                                 reportType={ETemplateType.VOTE_RECEIPT}
                                 electionEventId={electionEventId}
                                 electionId={electionId}
