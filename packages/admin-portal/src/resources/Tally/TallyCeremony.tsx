@@ -42,7 +42,7 @@ import {UPDATE_TALLY_CEREMONY} from "@/queries/UpdateTallyCeremony"
 import {CREATE_TALLY_CEREMONY} from "@/queries/CreateTallyCeremony"
 import {useMutation, useQuery} from "@apollo/client"
 import {ETallyType, ITallyExecutionStatus} from "@/types/ceremonies"
-import {EAllowTally, EInitReport, EVotingStatus} from "@sequentech/ui-core"
+import {EAllowTally, EInitializeReportPolicy, EInitReport, EVotingStatus} from "@sequentech/ui-core"
 
 import {
     CreateTallyCeremonyMutation,
@@ -404,7 +404,6 @@ export const TallyCeremony: React.FC = () => {
             // 2. It's in a cancellable status or successful. Cancellable status
             //    are: NOT_STARTED, STARTED && CONNECTED.
             const hasInitializationReport = (electionId: string) => {
-                console.log(`executing hasInitializationReport for ${electionId}`)
                 return allTallySessions
                     ?.filter((tallySession) => tallySession.election_ids?.includes(electionId))
                     .some(
@@ -423,7 +422,7 @@ export const TallyCeremony: React.FC = () => {
 
             // If there are no selected elections, or if there is an election that is not published,
             // or if the initialization report is either not allowed or already generated when allowed,
-            // then `newStatus` will be `true`, and the button should be disabled.
+            // then `newStatus` will be `true`, and the button will be disabled.
             const newStatus =
                 selectedElections.length == 0 ||
                 elections
@@ -432,7 +431,9 @@ export const TallyCeremony: React.FC = () => {
                         (election) =>
                             !election.status?.is_published ||
                             hasInitializationReport(election.id) ||
-                            election.status?.init_report == EInitReport.DISALLOWED ||
+                            (election.presentation?.initialization_report_policy ==
+                                EInitializeReportPolicy.REQUIRED &&
+                                election.status?.init_report == EInitReport.DISALLOWED) ||
                             election.initialization_report_generated
                     ) ||
                 false
