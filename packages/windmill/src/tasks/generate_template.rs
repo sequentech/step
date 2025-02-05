@@ -292,13 +292,13 @@ async fn generate_template_document(
     let final_zipped_file = encrypt_file(
         tenant_id,
         &election_event_id,
-        output_zip_path.to_str().unwrap(),
+        &output_zip_path.to_string_lossy(),
         report.as_ref(),
     )
     .await?;
 
     let (file_extension, mime_type) = if final_zipped_file.ends_with(".enc") {
-        ("enc", "application/octet-stream")
+        ("zip.enc", "application/octet-stream")
     } else {
         ("zip", "application/zip")
     };
@@ -307,9 +307,9 @@ async fn generate_template_document(
         get_file_size(&final_zipped_file).with_context(|| "Error obtaining file size")?;
 
     let otuput_doc_name = if is_ballot_images {
-        format!("election-{election_id}-ballot-images.{}", file_extension)
+        format!("election-{election_id}-ballot-images.{file_extension}")
     } else {
-        format!("election-{election_id}-vote-receipts.{}", file_extension)
+        format!("election-{election_id}-vote-receipts.{file_extension}")
     };
 
     let _document = upload_and_return_document_postgres(
