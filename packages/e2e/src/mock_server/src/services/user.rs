@@ -56,7 +56,7 @@ pub fn load_users(csv_path: &str) -> Result<(), anyhow::Error> {
         let country = record.get(15).unwrap_or_default().trim().to_string();
         let id_card_number = record.get(18).unwrap_or_default().trim().to_string();
         let id_card_type = record.get(8).unwrap_or_default().trim().to_string();
-        
+
         conn.execute(
             r#"
             INSERT OR IGNORE INTO voters (
@@ -81,7 +81,7 @@ pub fn load_users(csv_path: &str) -> Result<(), anyhow::Error> {
         )
         .with_context(|| format!("Failed to insert row for id '{}'", id))
         .context(format!("Failed to insert row for id '{}'", id))?;
-        }
+    }
 
     // On success
     Ok(())

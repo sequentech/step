@@ -29,14 +29,14 @@ pub fn run_scenario_test(
 
     let test_id = match get_test_id_by_name(test_name)? {
         Some(id) => id,
-        None => init_loadero_test(&loadero_url,&test_config, participants_count)?,
+        None => init_loadero_test(&loadero_url, &test_config, participants_count)?,
     };
 
     if update {
         update_script(&test_id, test_config)?;
     }
 
-    run_test(&loadero_url,&test_id)?;
+    run_test(&loadero_url, &test_id)?;
 
     Ok(())
 }
@@ -44,28 +44,27 @@ pub fn run_scenario_test(
 pub fn init_loadero_test(
     loadero_url: &str,
     test_config: &TestConfig,
-    participants_count: u64
+    participants_count: u64,
 ) -> Result<String> {
     let test_id =
         create_test(&loadero_url, test_config).context("Failed to create test in Loadero")?;
 
-    create_test_participants(loadero_url,&test_id, participants_count)
+    create_test_participants(loadero_url, &test_id, participants_count)
         .with_context(|| format!("Failed to create participants for test ID {}", test_id))?;
 
     Ok(test_id)
 }
 
-    
-    pub fn run_test(loadero_url: &str,test_id: &str) -> Result<()> {
-
-    let loadero_interval_polling_sec = env::var("LOADERO_INTERVAL_POLLING_TIME")
-        .unwrap_or_else(|_| "30".to_string());
+pub fn run_test(loadero_url: &str, test_id: &str) -> Result<()> {
+    let loadero_interval_polling_sec =
+        env::var("LOADERO_INTERVAL_POLLING_TIME").unwrap_or_else(|_| "30".to_string());
 
     let loadero_interval_polling_sec: u64 = loadero_interval_polling_sec
         .parse()
         .context("LOADERO_INTERVAL_POLLING_TIME must be an string")?;
 
-    let run_id = launch_test(&loadero_url, &test_id).with_context(|| format!("Failed to launch test ID {}", test_id))?;
+    let run_id = launch_test(&loadero_url, &test_id)
+        .with_context(|| format!("Failed to launch test ID {}", test_id))?;
 
     println!("Test {} (run ID {})", test_id, run_id);
 
@@ -84,7 +83,7 @@ pub fn init_loadero_test(
             Err(e) => {
                 if e.to_string().contains("HTTP Status") {
                     eprintln!("HTTP Error checking status for test {}: {}", test_id, e);
-                    break; 
+                    break;
                 } else {
                     thread::sleep(polling_interval);
                 }
@@ -109,10 +108,7 @@ fn create_header() -> Result<HeaderMap> {
     Ok(headers)
 }
 
-fn create_test(
-    loadero_url: &str,
-    test_config: &TestConfig,
-) -> Result<String> {
+fn create_test(loadero_url: &str, test_config: &TestConfig) -> Result<String> {
     let client = reqwest::blocking::Client::new();
     let headers = create_header()?;
 
@@ -308,10 +304,7 @@ pub fn replace_placeholder(template: &str, placeholder: &str, replacement: &str)
     template.replace(placeholder, replacement)
 }
 
-pub fn update_script(
-    test_id: &str,
-    test_config: TestConfig,
-) -> Result<()> {
+pub fn update_script(test_id: &str, test_config: TestConfig) -> Result<()> {
     let loadero_url: String =
         env::var("LOADERO_BASE_URL").with_context(|| "missing  LOADERO_BASE_URL")?;
 
