@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 use super::loadero_service::{run_scenario_test, TestConfig};
 use crate::services::loadero_service::replace_placeholder;
 use crate::Args;
