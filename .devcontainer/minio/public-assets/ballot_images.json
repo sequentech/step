@@ -104,7 +104,9 @@
                             }
                         ],
                         "undervotes": 2,
-                        "overvotes": 0
+                        "overvotes": 0,
+                        "digital_signature": "0x1234567890abcdef",
+                        "page_number":1
                     }
                 ]
             }

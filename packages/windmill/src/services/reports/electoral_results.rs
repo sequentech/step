@@ -9,6 +9,7 @@ use anyhow::{Context, Result};
 use async_trait::async_trait;
 use chrono::{Local, TimeZone};
 use deadpool_postgres::{Client as DbClient, Transaction};
+use sequent_core::signatures::temp_path::*;
 use serde::{Deserialize, Serialize};
 use tracing::{info, instrument};
 use velvet::pipes::generate_reports::TemplateData;
