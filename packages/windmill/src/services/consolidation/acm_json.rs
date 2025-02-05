@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::{
-    ecies_encrypt::{generate_ecies_key_pair, EciesKeyPair},
     eml_generator::{
         find_miru_annotation, MiruElectionAnnotations, MiruElectionEventAnnotations,
         MIRU_ELECTION_EVENT_ID, MIRU_ELECTION_EVENT_NAME, MIRU_PLUGIN_PREPEND,
@@ -13,6 +12,7 @@ use crate::services::consolidation::eml_types::ACMTrustee;
 use crate::services::vault;
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Utc};
+use sequent_core::signatures::ecies_encrypt::{generate_ecies_key_pair, EciesKeyPair};
 use sequent_core::{
     ballot::Annotations, types::date_time::DateFormat, util::date_time::generate_timestamp,
 };
