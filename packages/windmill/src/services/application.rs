@@ -771,6 +771,7 @@ pub async fn confirm_application(
         election_event_id,
         user_id,
         ApplicationStatus::ACCEPTED,
+        ApplicationType::MANUAL,
         None,
         None,
         admin_name,
@@ -929,6 +930,7 @@ pub async fn reject_application(
         election_event_id,
         user_id,
         ApplicationStatus::REJECTED,
+        ApplicationType::MANUAL,
         rejection_reason,
         rejection_message,
         admin_name,
@@ -1049,6 +1051,7 @@ pub async fn send_application_communication_response(
                 name: None,
                 alias: None,
                 pdf_options: None,
+                report_options: None,
             };
 
             let celery_app = get_celery_app().await;
@@ -1127,7 +1130,7 @@ fn string_to_unaccented(word: String) -> String {
 #[instrument(skip_all)]
 fn to_unaccented_without_hyphen(word: Option<String>) -> Option<String> {
     let word = match word {
-        Some(word) => word.replace("-", " "),
+        Some(word) => word.replace("-", " ").replace(".", ""),
         None => return None,
     };
     let unaccented_word = string_to_unaccented(word);

@@ -301,6 +301,11 @@ const tagalogTranslation: TranslationType = {
                     coundownSecondsLabel: "Segundo bago mag-expire para ipakita ang countdown",
                     alertSecondsLabel: "Segundo bago mag-expire para ipakita ang Logout alert",
                 },
+                voterSigningPolicy: {
+                    "policyLabel": "Patakaran sa Pagpirma ng Botante",
+                    "no-signature": "Walang pirma",
+                    "with-signature": "May pirma",
+                },
                 enrollment: {
                     policyLabel: "Pagpaparehistro",
                     options: {
@@ -1779,6 +1784,7 @@ const tagalogTranslation: TranslationType = {
                 smsMessage: "SMS Message",
                 document: "Dokumento",
                 pdfOptions: "Mga Opsyon sa PDF",
+                reportOptions: "Mga Pagpipilian sa Ulat",
                 name: "Pangalan ng Template",
                 alias: "Alias ng Template",
                 type: "Uri ng Komunikasyon",
@@ -1918,6 +1924,7 @@ const tagalogTranslation: TranslationType = {
                 approveSuccess: "Inaprubahan ang botante",
                 rejectError: "Error sa pagtanggi ng botante",
                 rejectSuccess: "Tinanggihan ang botante",
+                VoterApprovedAlready: "Ang botante ay naaprubahan na.",
             },
             export: {
                 success: "Matagumpay na natapos ang pag-export ng mga aplikasyon",

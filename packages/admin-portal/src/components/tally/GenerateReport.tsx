@@ -19,6 +19,7 @@ interface GenerateReportProps {
     electionId: string | null
     tallySessionId: string
     reportType: ETemplateType
+    handleClose: () => void
 }
 
 export const GenerateReport: React.FC<GenerateReportProps> = ({
@@ -26,6 +27,7 @@ export const GenerateReport: React.FC<GenerateReportProps> = ({
     electionId,
     tallySessionId,
     reportType,
+    handleClose,
 }) => {
     const {t} = useTranslation()
     const [documentId, setDocumentId] = useState<string | null>(null)
@@ -42,6 +44,7 @@ export const GenerateReport: React.FC<GenerateReportProps> = ({
     const onClick = async (e: React.MouseEvent<HTMLElement>) => {
         e.preventDefault()
         e.stopPropagation()
+        handleClose()
         const currWidget: WidgetProps = addWidget(ETasksExecution.GENERATE_REPORT)
         try {
             let {data} = await generateTemplate({

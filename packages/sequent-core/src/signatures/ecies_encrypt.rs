@@ -1,13 +1,10 @@
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::services::shell::run_shell_command;
-use crate::services::temp_path::generate_temp_file;
+use crate::signatures::shell::run_shell_command;
+use crate::signatures::temp_path::generate_temp_file;
 use anyhow::{anyhow, Context, Result};
 use base64::{engine::general_purpose::STANDARD, Engine};
-use openssl::ec::{EcGroup, EcKey};
-use openssl::nid::Nid;
-use openssl::pkey::Private;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::fs::File;
@@ -23,14 +20,18 @@ pub struct EciesKeyPair {
 }
 
 #[instrument(skip(password), err)]
-pub fn ecies_encrypt_string(public_key_pem: &str, password: &str) -> Result<String> {
+pub fn ecies_encrypt_string(
+    public_key_pem: &str,
+    password: &str,
+) -> Result<String> {
     let temp_pem_file = generate_temp_file("public_key", ".pem")?;
     let temp_pem_file_path = temp_pem_file.path();
     let temp_pem_file_string = temp_pem_file_path.to_string_lossy().to_string();
     // Write the salt and encrypted data to the output file
     // Using brackets: let it drop out of scope so that all bytes are written
     {
-        let mut output_file = File::create(temp_pem_file_path).context("Failed to create file")?;
+        let mut output_file = File::create(temp_pem_file_path)
+            .context("Failed to create file")?;
         output_file
             .write_all(public_key_pem.as_bytes())
             .context("Failed to write file")?;
@@ -54,15 +55,19 @@ pub fn ecies_encrypt_string(public_key_pem: &str, password: &str) -> Result<Stri
 pub fn generate_ecies_key_pair() -> Result<EciesKeyPair> {
     let temp_private_pem_file = generate_temp_file("private_key", ".pem")?;
     let temp_private_pem_file_path = temp_private_pem_file.path();
-    let temp_private_pem_file_string = temp_private_pem_file_path.to_string_lossy().to_string();
+    let temp_private_pem_file_string =
+        temp_private_pem_file_path.to_string_lossy().to_string();
 
     let temp_public_pem_file = generate_temp_file("public_key", ".pem")?;
     let temp_public_pem_file_path = temp_public_pem_file.path();
-    let temp_public_pem_file_string = temp_public_pem_file_path.to_string_lossy().to_string();
+    let temp_public_pem_file_string =
+        temp_public_pem_file_path.to_string_lossy().to_string();
 
     let command = format!(
         "java -jar {} create-keys {} {}",
-        ECIES_TOOL_PATH, temp_public_pem_file_string, temp_private_pem_file_string
+        ECIES_TOOL_PATH,
+        temp_public_pem_file_string,
+        temp_private_pem_file_string
     );
     run_shell_command(&command)?;
 
@@ -78,7 +83,10 @@ pub fn generate_ecies_key_pair() -> Result<EciesKeyPair> {
 }
 
 #[instrument(skip(data), err)]
-pub fn ecies_sign_data(acm_key_pair: &EciesKeyPair, data: &str) -> Result<String> {
+pub fn ecies_sign_data(
+    acm_key_pair: &EciesKeyPair,
+    data: &str,
+) -> Result<String> {
     // Retrieve the PEM as a string
     info!("pem: {}", acm_key_pair.private_key_pem);
 
@@ -88,17 +96,20 @@ pub fn ecies_sign_data(acm_key_pair: &EciesKeyPair, data: &str) -> Result<String
     // Write the salt and encrypted data to the output file
     // Using brackets: let it drop out of scope so that all bytes are written
     {
-        let mut output_file = File::create(temp_pem_file_path).context("Failed to create file")?;
+        let mut output_file = File::create(temp_pem_file_path)
+            .context("Failed to create file")?;
         output_file
             .write_all(acm_key_pair.private_key_pem.as_bytes())
             .context("Failed to write file")?;
     }
     let temp_data_file = generate_temp_file("data", ".eml")?;
     let temp_data_file_path = temp_data_file.path();
-    let temp_data_file_string = temp_data_file_path.to_string_lossy().to_string();
+    let temp_data_file_string =
+        temp_data_file_path.to_string_lossy().to_string();
     // Write the salt and encrypted data to the output file
     {
-        let mut output_file = File::create(temp_data_file_path).context("Failed to create file")?;
+        let mut output_file = File::create(temp_data_file_path)
+            .context("Failed to create file")?;
         output_file
             .write_all(data.as_bytes())
             .context("Failed to write file")?;
