@@ -143,7 +143,7 @@ export const TemplateFormContent: React.FC<TTemplateFormContent> = ({
         setValue("template.pdf_options", (templateExtraConfig?.pdf_options as IPdfOptions) || "")
         setValue(
             "template.report_options",
-            (templateExtraConfig?.report_options as IReportOptions) || ""
+            (templateExtraConfig?.report_options as IReportOptions) || {}
         )
         setValue(
             "template.email",

@@ -9,6 +9,7 @@ use crate::pipes::pipe_inputs::{InputElectionConfig, PipeInputs};
 use crate::pipes::pipe_name::{PipeName, PipeNameOutputDir};
 use crate::pipes::Pipe;
 use csv::Writer;
+use anyhow::Context;
 use hex::encode;
 use rayon::prelude::*;
 use rayon::ThreadPoolBuilder;
@@ -16,6 +17,7 @@ use sequent_core::ballot::{Candidate, CandidatesOrder, Contest, StringifiedPerio
 use sequent_core::ballot_codec::multi_ballot::DecodedBallotChoices;
 use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
 use sequent_core::services::{pdf, reports};
+use sequent_core::signatures::ecies_encrypt::ecies_sign_data;
 use sequent_core::types::templates::VoteReceiptPipeType;
 use sequent_core::util::date_time::get_date_and_time;
 use serde::Serialize;
@@ -144,6 +146,32 @@ impl MCBallotReceipts {
             .iter()
             .map(|c| (c.id.to_string(), c.clone()))
             .collect();
+        let execution_annotations: Option<HashMap<String, String>> =
+            pipe_config.execution_annotations.clone();
+        let precint_id = election_input
+            .annotations
+            .get(&"miru:precinct-code".to_string())
+            .map(|s| s.as_str())
+            .unwrap_or_default();
+        let mut page_number = 1;
+        let election_event_id = election_input
+            .election_event_annotations
+            .get("miru:election-event-id")
+            .map(|s| s.as_str())
+            .unwrap_or_default();
+        let election_id = election_input
+            .annotations
+            .get("miru:election-id")
+            .map(|s| s.as_str())
+            .unwrap_or_default();
+
+        info!(
+            "election_event_annotations {:?}",
+            election_input.election_event_annotations
+        );
+        info!("election annotations {:?}", election_input.annotations);
+
+        info!("event {election_event_id} election {election_id} precint_id {precint_id}");
 
         let mut ballot_data = vec![];
         for ballot in ballots {
@@ -169,14 +197,40 @@ impl MCBallotReceipts {
                     overvotes = (num_selected as i64) - contest.max_votes;
                 }
 
+                let (digital_signature, sign_data) =
+                    match (&pipe_config.acm_key, &pipe_config.pipe_type) {
+                        (Some(acm_key), VoteReceiptPipeType::BALLOT_IMAGES) => {
+                            let sign_data = format!(
+                                "{}:{}:{}:{}:{}",
+                                election_event_id,
+                                &precint_id,
+                                ballot.mcballot.serial_number.clone().unwrap_or_default(),
+                                election_id,
+                                page_number.to_string()
+                            );
+                            let signature = ecies_sign_data(&acm_key, &sign_data).map_err(|e| {
+                                Error::UnexpectedError(format!("Error sign data: {}", e))
+                            })?;
+                            (Some(signature), Some(sign_data))
+                        }
+                        _ => (None, None),
+                    };
+
                 // contest.
                 let cd: ContestData = ContestData {
                     contest: contest.clone(),
                     decoded_choices: choices,
                     undervotes,
                     overvotes,
+                    digital_signature,
+                    sign_data,
+                    page_number: match &pipe_config.pipe_type {
+                        VoteReceiptPipeType::BALLOT_IMAGES => Some(page_number),
+                        _ => None,
+                    },
                 };
 
+                page_number += 1;
                 cds.push(cd);
             }
 
@@ -198,9 +252,8 @@ impl MCBallotReceipts {
             };
 
             ballot_data.push(bd);
+            page_number += 1; //inc by one for summary page
         }
-
-        let execution_annotations = pipe_config.execution_annotations.clone();
 
         let td = TemplateData {
             election_name: election_input.name.clone(),
@@ -208,7 +261,7 @@ impl MCBallotReceipts {
             area: area_name.to_string(),
             election_annotations: election_input.annotations.clone(),
             election_dates: election_input.dates.clone(),
-            execution_annotations: execution_annotations.unwrap_or_default(),
+            execution_annotations: execution_annotations.unwrap_or_default().clone(),
         };
 
         let mut map = Map::new();
@@ -346,7 +399,6 @@ impl Pipe for MCBallotReceipts {
     fn exec(&self) -> Result<()> {
         let pipe_config: PipeConfigVoteReceipts = self.get_config()?;
         let pipe_data = get_pipe_data(pipe_config.pipe_type.clone());
-
         for election_input in &self.pipe_inputs.election_list {
             let area_contests_map = election_input.get_area_contest_map();
 
@@ -531,6 +583,9 @@ pub struct ContestData {
     pub decoded_choices: Vec<DecodedChoice>,
     pub undervotes: i64,
     pub overvotes: i64,
+    pub digital_signature: Option<String>,
+    pub sign_data: Option<String>,
+    pub page_number: Option<i64>,
 }
 
 impl ContestData {

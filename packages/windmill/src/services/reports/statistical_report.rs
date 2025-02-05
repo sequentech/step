@@ -21,6 +21,7 @@ use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
 use sequent_core::services::keycloak::get_event_realm;
+use sequent_core::signatures::temp_path::*;
 use sequent_core::types::hasura::core::Contest;
 use sequent_core::types::results::ResultsAreaContest;
 use sequent_core::types::results::*;

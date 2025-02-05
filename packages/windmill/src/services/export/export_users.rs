@@ -5,7 +5,6 @@
 use crate::postgres::area::get_areas_by_id;
 use crate::services::database::{get_keycloak_pool, PgConfig};
 use crate::services::election::{get_election_event_elections, ElectionHead};
-use crate::services::temp_path::generate_temp_file;
 use crate::services::users::ListUsersFilter;
 use crate::services::users::{list_users, list_users_with_vote_info};
 use crate::types::error::{Error, Result};
@@ -15,6 +14,7 @@ use deadpool_postgres::Transaction;
 use regex::Regex;
 use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
+use sequent_core::signatures::temp_path::generate_temp_file;
 use sequent_core::types::keycloak::{User, UserProfileAttribute};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
