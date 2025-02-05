@@ -29,14 +29,14 @@ pub fn run_scenario_test(
 
     let test_id = match get_test_id_by_name(test_name)? {
         Some(id) => id,
-        None => init_loadero_test(&loadero_url,&test_config)?,
+        None => init_loadero_test(&loadero_url,&test_config, participants_count)?,
     };
 
     if update {
         update_script(&test_id, test_config)?;
     }
 
-    run_test(&loadero_url,&test_id, participants_count)?;
+    run_test(&loadero_url,&test_id)?;
 
     Ok(())
 }
@@ -44,6 +44,7 @@ pub fn run_scenario_test(
 pub fn init_loadero_test(
     loadero_url: &str,
     test_config: &TestConfig,
+    participants_count: u64
 ) -> Result<String> {
     let test_id =
         create_test(&loadero_url, test_config).context("Failed to create test in Loadero")?;
@@ -55,7 +56,7 @@ pub fn init_loadero_test(
 }
 
     
-    pub fn run_test(loadero_url: &str,test_id: &str, participants_count: u64) -> Result<()> {
+    pub fn run_test(loadero_url: &str,test_id: &str) -> Result<()> {
 
     let loadero_interval_polling_sec = env::var("LOADERO_INTERVAL_POLLING_TIME")
         .unwrap_or_else(|_| "30".to_string());
