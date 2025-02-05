@@ -375,7 +375,7 @@ services:
   mock_server:
     profiles: ["full", "base"]
     stdin_open: true
-    image: sequentech.local/cargo-packages
+    image: sequentech.local/mock_server
     container_name: mock_server
     build:
       context: ../packages/
