@@ -9,6 +9,7 @@ use crate::postgres::election::get_election_by_id;
 use crate::postgres::election::get_election_max_revotes;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
+use crate::services::cast_votes::get_voter_signing_key;
 use crate::services::cast_votes::CastVote;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_status::get_election_status;
@@ -267,6 +268,35 @@ pub async fn try_insert_cast_vote(
         area_id,
     };
 
+    let voter_signing_policy = election_event
+        .get_presentation()
+        .map_err(|e| CastVoteError::ElectionEventNotFound(e.to_string()))?
+        .unwrap_or_default()
+        .voter_signing_policy
+        .unwrap_or_default();
+
+    info!("voter signing policy {voter_signing_policy}");
+
+    let voter_signing_key: Option<StrandSignatureSk> = if VoterSigningPolicy::WITH_SIGNATURE
+        == voter_signing_policy
+    {
+        let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
+            .with_context(|| "missing bulletin board")
+            .map_err(|e| CastVoteError::BallotVoterSignatureFailed(e.to_string()))?;
+
+        let voter_signing_key = get_voter_signing_key(
+            &board_name,
+            ids.tenant_id,
+            ids.election_event_id,
+            ids.voter_id,
+        )
+        .await
+        .map_err(|e| CastVoteError::BallotVoterSignatureFailed(e.to_string()))?;
+        Some(voter_signing_key)
+    } else {
+        None
+    };
+
     let result = insert_cast_vote_and_commit(
         input,
         hasura_transaction,
@@ -277,6 +307,7 @@ pub async fn try_insert_cast_vote(
         auth_time,
         voter_ip,
         voter_country,
+        &voter_signing_key,
     )
     .await;
 
@@ -293,7 +324,7 @@ pub async fn try_insert_cast_vote(
                 tenant_id,
                 election_event_id,
                 voter_id,
-                VoterSigningPolicy::WITH_SIGNATURE == voter_signing_policy,
+                &voter_signing_key,
             )
             .await;
 
@@ -402,7 +433,16 @@ pub fn deserialize_and_check_multi_ballot(
     Ok((pseudonym_h, vote_h))
 }
 
-#[instrument(skip(input, hasura_transaction, election_event, signing_key), err)]
+#[instrument(
+    skip(
+        input,
+        hasura_transaction,
+        election_event,
+        signing_key,
+        voter_signing_key
+    ),
+    err
+)]
 pub async fn insert_cast_vote_and_commit<'a>(
     input: InsertCastVoteInput,
     hasura_transaction: Transaction<'_>,
@@ -413,6 +453,7 @@ pub async fn insert_cast_vote_and_commit<'a>(
     auth_time: &Option<i64>,
     voter_ip: &Option<String>,
     voter_country: &Option<String>,
+    voter_signing_key: &Option<StrandSignatureSk>,
 ) -> Result<CastVote, CastVoteError> {
     let election_id_string = input.election_id.to_string();
     let election_id = election_id_string.as_str();
@@ -441,36 +482,16 @@ pub async fn insert_cast_vote_and_commit<'a>(
     // These are unhashed bytes, the signing code will hash it first.
     let ballot_bytes = input.get_bytes_for_signing();
 
-    let ballot_signature = signing_key
-        .sign(&ballot_bytes)
-        .map_err(|e| CastVoteError::BallotSignFailed(e.to_string()))?;
-    let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
-        .with_context(|| "missing bulletin board")
-        .map_err(|e| CastVoteError::BallotVoterSignatureFailed(e.to_string()))?;
-
-    let voter_signing_policy = election_event
-        .get_presentation()
-        .map_err(|e| CastVoteError::ElectionEventNotFound(e.to_string()))?
-        .unwrap_or_default()
-        .voter_signing_policy
-        .unwrap_or_default();
-
-    info!("voter signing policy {voter_signing_policy}");
-    if VoterSigningPolicy::WITH_SIGNATURE == voter_signing_policy {
-        let voter_signing_key = vault::get_voter_signing_key(
-            &board_name,
-            ids.tenant_id,
-            ids.election_event_id,
-            ids.voter_id,
-        )
-        .await
-        .map_err(|e| CastVoteError::BallotVoterSignatureFailed(e.to_string()))?;
-
+    if let Some(voter_signing_key) = voter_signing_key.clone() {
         // TODO do something with this
         let voter_ballot_signature = voter_signing_key
             .sign(&ballot_bytes)
             .map_err(|e| CastVoteError::BallotVoterSignatureFailed(e.to_string()))?;
-    }
+    };
+
+    let ballot_signature = signing_key
+        .sign(&ballot_bytes)
+        .map_err(|e| CastVoteError::BallotSignFailed(e.to_string()))?;
 
     let ballot_signature = ballot_signature.to_bytes().to_vec();
     let tenant_uuid = Uuid::parse_str(ids.tenant_id)

@@ -1791,6 +1791,7 @@ const catalanTranslation: TranslationType = {
                 smsMessage: "Missatge SMS",
                 document: "Document",
                 pdfOptions: "Opcions PDF",
+                reportOptions: "Opcions Report",
                 name: "Nom de la Plantilla",
                 alias: "Àlies de la Plantilla",
                 type: "Tipus",

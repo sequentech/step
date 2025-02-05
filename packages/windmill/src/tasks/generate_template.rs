@@ -15,8 +15,6 @@ use crate::services::documents::upload_and_return_document_postgres;
 use crate::services::reports::utils::get_public_assets_path_env_var;
 use crate::services::s3;
 use crate::services::tasks_execution::{update_complete, update_fail};
-use crate::services::temp_path::generate_temp_file;
-use crate::services::temp_path::get_file_size;
 use crate::types::error::Error;
 use crate::types::error::Result;
 use anyhow::{anyhow, Context, Result as AnyhowResult};
@@ -25,6 +23,7 @@ use deadpool_postgres::{Client as DbClient, Transaction};
 use hex;
 use sequent_core::ballot::ContestEncryptionPolicy;
 use sequent_core::services::pdf;
+use sequent_core::signatures::temp_path::*;
 use sequent_core::types::ceremonies::TallyExecutionStatus;
 use sequent_core::types::hasura::core::TallySession;
 use sequent_core::types::hasura::core::TasksExecution;
@@ -41,9 +40,6 @@ use tracing::{info, instrument};
 use velvet::config::vote_receipt::PipeConfigVoteReceipts;
 use velvet::pipes::pipe_name::PipeName;
 use velvet::pipes::pipe_name::PipeNameOutputDir;
-use velvet::pipes::vote_receipts::mcballot_receipts::{
-    BALLOT_IMAGES_OUTPUT_FILE_HTML, OUTPUT_FILE_HTML,
-};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(tag = "type")]
