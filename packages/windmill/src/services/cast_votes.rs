@@ -11,10 +11,26 @@ use deadpool_postgres::Transaction;
 use sequent_core::types::keycloak::{User, VotesInfo};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use strand::signature::{StrandSignaturePk, StrandSignatureSk};
+use strand::signature::{StrandSignaturePk, StrandSignature, StrandSignatureSk};
 use tokio_postgres::row::Row;
 use tracing::{info, instrument};
 use uuid::Uuid;
+
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
+pub struct VoterSignature {
+    pub public_key: String,
+    pub signature: String,
+}
+
+impl VoterSignature {
+    pub fn new(pk: &StrandSignaturePk, signature: &StrandSignature) -> Self {
+        VoterSignature {
+            public_key: pk.to_der_b64_string(),
+            signature: signature.to_b64_string(),
+        }
+    }
+}
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct CastVote {
@@ -26,6 +42,7 @@ pub struct CastVote {
     pub last_updated_at: Option<DateTime<Utc>>,
     pub content: Option<String>,
     pub cast_ballot_signature: Option<Vec<u8>>,
+    pub voter_signature: Option<VoterSignature>,
     pub voter_id_string: Option<String>,
     pub election_event_id: String,
     pub ballot_id: Option<String>,

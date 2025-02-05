@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::services::cast_votes::CastVote;
+use crate::services::cast_votes::{CastVote, VoterSignature};
 use anyhow::{anyhow, Result};
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Transaction;
@@ -24,13 +24,18 @@ pub async fn insert_cast_vote(
     cast_ballot_signature: &[u8],
     voter_ip: &Option<String>,
     voter_country: &Option<String>,
+    voter_signature: Option<VoterSignature>,
 ) -> Result<CastVote> {
+    let voter_signature_value = voter_signature
+        .map(|voter_signature| serde_json::to_value(&voter_signature))
+        .transpose()?;
+
     let statement = hasura_transaction
         .prepare(
             r#"
                 INSERT INTO
                     sequent_backend.cast_vote
-                (tenant_id, election_event_id, election_id, area_id, voter_id_string, ballot_id, content, cast_ballot_signature, annotations)
+                (tenant_id, election_event_id, election_id, area_id, voter_id_string, ballot_id, content, cast_ballot_signature, annotations, voter_signature)
                 VALUES(
                     $1,
                     $2,
@@ -40,7 +45,9 @@ pub async fn insert_cast_vote(
                     $6,
                     $7,
                     $8,
-                    COALESCE($9::jsonb, '{}')
+                    COALESCE($9::jsonb, '{}'),
+                    $10,
+
                 )
                 RETURNING
                     id,
@@ -57,7 +64,7 @@ pub async fn insert_cast_vote(
                     content,
                     cast_ballot_signature,
                     voter_id_string,
-                    election_event_id;
+                    voter_signature;
             "#,
         )
         .await?;
@@ -80,6 +87,7 @@ pub async fn insert_cast_vote(
                 &content,
                 &cast_ballot_signature,
                 &annotations,
+                &voter_signature_value,
             ],
         )
         .await
@@ -109,21 +117,7 @@ pub async fn get_cast_votes(
         .prepare(
             r#"
                 SELECT 
-                    id,
-                    ballot_id,
-                    election_id,
-                    election_event_id,
-                    tenant_id,
-                    election_id,
-                    area_id,
-                    created_at,
-                    last_updated_at,
-                    labels,
-                    annotations,
-                    content,
-                    cast_ballot_signature,
-                    voter_id_string,
-                    election_event_id
+                    *
                 FROM
                     sequent_backend.cast_vote
                 WHERE

@@ -62,6 +62,8 @@ use tracing::info;
 use tracing::{error, event, instrument, Level};
 use uuid::Uuid;
 
+use super::cast_votes::VoterSignature;
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct InsertCastVoteInput {
     pub ballot_id: String,
@@ -482,12 +484,12 @@ pub async fn insert_cast_vote_and_commit<'a>(
     // These are unhashed bytes, the signing code will hash it first.
     let ballot_bytes = input.get_bytes_for_signing();
 
-    if let Some(voter_signing_key) = voter_signing_key.clone() {
-        // TODO do something with this
-        let voter_ballot_signature = voter_signing_key
+    let voter_ballot_signature = voter_signing_key
+    .map(|voter_signing_key|
+        voter_signing_key
             .sign(&ballot_bytes)
-            .map_err(|e| CastVoteError::BallotVoterSignatureFailed(e.to_string()))?;
-    };
+            .map_err(|e| CastVoteError::BallotVoterSignatureFailed(e.to_string()))
+    ).transpose()?;
 
     let ballot_signature = signing_key
         .sign(&ballot_bytes)
@@ -515,6 +517,12 @@ pub async fn insert_cast_vote_and_commit<'a>(
         &ballot_signature,
         &voter_ip,
         &voter_country,
+        voter_signing_key
+            .map(|voter_signing_key| -> Result<VoterSignature> {
+                let pk = StrandSignaturePk::from_sk(&voter_signing_key)?;
+                Ok(VoterSignature::new(&pk, &voter_ballot_signature))
+            })
+            .transpose()?
     );
 
     check_status.await?;
