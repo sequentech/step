@@ -12,6 +12,7 @@ import TableHead from "@mui/material/TableHead"
 import TableRow from "@mui/material/TableRow"
 import Paper from "@mui/material/Paper"
 import {WizardStyles} from "@/components/styles/WizardStyles"
+import CloseIcon from "@mui/icons-material/Close"
 import {IMiruCcsServer, IMiruServersSentTo} from "@/types/miru"
 
 interface MiruServersProps {
@@ -23,8 +24,11 @@ export const MiruServers: React.FC<MiruServersProps> = (props) => {
     const {servers, serversSentTo} = props
     const {t} = useTranslation() //translations to be applied
 
-    const isSentTo = (serverName: string) => {
-        return !!serversSentTo.find((server) => server.name === serverName)
+    const isSentTo = (serverName: string) =>
+        serversSentTo.some((server) => server.name === serverName)
+    const isSentSuccessfully = (serverName: string) => {
+        const server = serversSentTo.find((server) => server.name === serverName)
+        return server?.status === "SUCCESS"
     }
 
     return (
@@ -55,7 +59,11 @@ export const MiruServers: React.FC<MiruServersProps> = (props) => {
                                     </TableCell>
                                     <TableCell align="center">
                                         {isSentTo(server.name) ? (
-                                            <WizardStyles.DoneIcon />
+                                            isSentSuccessfully(server.name) ? (
+                                                <WizardStyles.DoneIcon />
+                                            ) : (
+                                                <HourglassEmptyIcon />
+                                            )
                                         ) : (
                                             <HourglassEmptyIcon />
                                         )}

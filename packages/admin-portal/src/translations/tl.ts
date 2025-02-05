@@ -73,6 +73,7 @@ const tagalogTranslation: TranslationType = {
                 EXPORT_VOTERS: "I-export ang mga botante",
                 CREATE_TRANSMISSION_PACKAGE: "Lumikha ng Transmission Package",
                 EXPORT_BALLOT_PUBLICATION: "I-export ang Paglalathala ng Balota",
+                GENERATE_TRANSMISSION_REPORT: "Bumuo ng Ulat ng Paglilipat",
                 EXPORT_ACTIVITY_LOGS_REPORT: "I-export ang Ulat ng Mga Log ng Aktibidad",
                 GENERATE_REPORT: "Bumuo ng ulat",
                 EXPORT_TRUSTEES: "I-export ang mga Awtoridad",
@@ -203,6 +204,7 @@ const tagalogTranslation: TranslationType = {
             votersByChannels: "Mga botante ayon sa channel",
             voterLoginURL: "URL para sa Pag-login ng Botante",
             voterEnrollURL: "URL para sa Pag-enroll ng Botante",
+            voterEnrollKioskURL: "Kiosk URL para sa Pag-enroll ng Botante",
             ipAddress: {
                 emptyState: "Wala pang mga boto.",
                 title: "Mga IP Address",
@@ -299,6 +301,11 @@ const tagalogTranslation: TranslationType = {
                     coundownSecondsLabel: "Segundo bago mag-expire para ipakita ang countdown",
                     alertSecondsLabel: "Segundo bago mag-expire para ipakita ang Logout alert",
                 },
+                voterSigningPolicy: {
+                    "policyLabel": "Patakaran sa Pagpirma ng Botante",
+                    "no-signature": "Walang pirma",
+                    "with-signature": "May pirma",
+                },
                 enrollment: {
                     policyLabel: "Pagpaparehistro",
                     options: {
@@ -383,6 +390,11 @@ const tagalogTranslation: TranslationType = {
                 electionNumber: "Bilang ng mga Halalan",
                 trustees: "Mga Tagapangasiwa",
                 status: "Katayuan",
+                tallyType: {
+                    label: "Uri ng Bilang",
+                    ELECTORAL_RESULTS: "Mga Resulta ng Halalan",
+                    INITIALIZATION_REPORT: "Mga Resulta ng Inisyal",
+                },
                 create: {
                     title: "Lumikha ng Tally",
                     subtitle: "Lumikha ng bagong Tally para sa Kaganapan ng Halalan na ito",
@@ -891,6 +903,7 @@ const tagalogTranslation: TranslationType = {
                 "voter-voted-edit": "I-edit ang mga botanteng bumoto",
                 "voter-email-tlf-edit": "I-edit ang mga field ng email/telepono ng mga botante",
                 "cloudflare-write": "I-edit ang mga patakaran sa pag-block ng bansa sa Cloudflare",
+                "transmission-report-generate": "Lumikha ng Ulat ng Transmisyon",
             },
         },
         generalSettingsScreen: {
@@ -1392,8 +1405,9 @@ const tagalogTranslation: TranslationType = {
                     },
                     download: {
                         title: "I-download",
-                        emlTitle: "I-download ang EML",
-                        transmissionPackageTitle: "I-download ang Pakete ng Transmisyon",
+                        emlTitle: "I-download ang EML {{date}}",
+                        transmissionPackageTitle: "I-download ang Pakete ng Transmisyon {{date}}",
+                        transmissionReportTitle: "I-download ang Ulat ng Transmisyon",
                         dialog: {
                             title: "Gusto mo bang i-download ang Pakete ng Transmisyon?",
                             description:
@@ -1430,6 +1444,7 @@ const tagalogTranslation: TranslationType = {
             uploadTransmissionPackageDesc:
                 "I-upload ang iyong pirma para pirmahan ang pakete ng Resulta ng Halalan. Ang operasyong ito ay opsyonal.",
             exportElectionArea: "Ipadala ang pakete ng transmisyon para sa lugar '{{name}}'",
+            generateReport: "Bumuo ng {{name}}",
             templateTitle: "Template ng Resulta",
             templateSubTitle: "Opsyonal na palitan ang template ng mga resulta.",
             keysCeremonyTitle: "Seremonya ng mga Susi",
@@ -1769,6 +1784,7 @@ const tagalogTranslation: TranslationType = {
                 smsMessage: "SMS Message",
                 document: "Dokumento",
                 pdfOptions: "Mga Opsyon sa PDF",
+                reportOptions: "Mga Pagpipilian sa Ulat",
                 name: "Pangalan ng Template",
                 alias: "Alias ng Template",
                 type: "Uri ng Komunikasyon",
@@ -1880,6 +1896,7 @@ const tagalogTranslation: TranslationType = {
                 verificationType: "Uri ng Pag-verify",
                 createdAt: "Nilikha Noong",
                 updatedAt: "Na-update Noong",
+                approved_by: "Naaaprubahan Noong",
             },
             approvalRequest: "Kahilingan para sa Pag-apruba",
             title: "Mga Botante",
@@ -1907,6 +1924,7 @@ const tagalogTranslation: TranslationType = {
                 approveSuccess: "Inaprubahan ang botante",
                 rejectError: "Error sa pagtanggi ng botante",
                 rejectSuccess: "Tinanggihan ang botante",
+                VoterApprovedAlready: "Ang botante ay naaprubahan na.",
             },
             export: {
                 success: "Matagumpay na natapos ang pag-export ng mga aplikasyon",

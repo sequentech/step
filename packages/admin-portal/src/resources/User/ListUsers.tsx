@@ -204,7 +204,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     />
                 )
             }
-            if (electionEventId && !electionId) {
+            if (electionEventId) {
                 filters.push(
                     <BooleanInput
                         key="has_voted"
@@ -891,6 +891,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                             return (
                                 <CustomDateField
                                     key={attr.name}
+                                    base="attributes"
                                     source={`${attr.name}`}
                                     label={getTranslationLabel(attr.name, attr.display_name, t)}
                                     emptyText="-"
@@ -942,7 +943,10 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         })
 
         localStorage.removeItem(
-            `RaStore.preferences.${getPreferenceKey(location.pathname)}.datagrid.availableColumns`
+            `RaStore.preferences.${getPreferenceKey(
+                location.pathname,
+                "voters"
+            )}.datagrid.availableColumns`
         )
 
         return allFields
@@ -967,12 +971,18 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         return false
     }
 
+    const checkIsVoted = (record: IUser) => {
+        return record?.votes_info?.length
+            ? !electionId || record.votes_info.some((vote) => vote.election_id === electionId)
+            : false
+    }
+
     return (
         <>
             {
                 <List
                     resource="user"
-                    storeKey={`${getPreferenceKey(location.pathname)}`}
+                    storeKey={`${getPreferenceKey(location.pathname, "voters")}`}
                     queryOptions={{
                         refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
                     }}
@@ -980,7 +990,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     actions={
                         <ListActions
                             withColumns={showVotersColumns}
-                            preferenceKey={getPreferenceKey(location.pathname)}
+                            preferenceKey={getPreferenceKey(location.pathname, "voters")}
                             withFilter={showVotersFilters}
                             withImport={
                                 userType
@@ -1020,7 +1030,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     <ResetFilters />
                     {userAttributes?.get_user_profile_attributes && (
                         <DataGridContainerStyle
-                            preferenceKey={getPreferenceKey(location.pathname)}
+                            preferenceKey={getPreferenceKey(location.pathname, "voters")}
                             omit={listFields.omitFields}
                             isOpenSideBar={isOpenSidebar}
                             bulkActionButtons={<BulkActions />}
@@ -1054,7 +1064,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                                     label={t("usersAndRolesScreen.users.fields.has_voted")}
                                     render={(record: IUser, source: string | undefined) => {
                                         let newRecord = {
-                                            has_voted: (record?.votes_info?.length ?? 0) > 0,
+                                            has_voted: checkIsVoted(record),
                                             ...record,
                                         }
                                         return <BooleanField record={newRecord} source={source} />

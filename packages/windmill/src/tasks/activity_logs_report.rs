@@ -61,6 +61,7 @@ pub async fn generate_activity_logs_report(
             voter_id: None,
             report_origin: ReportOriginatedFrom::ExportFunction,
             executer_username: None,
+            tally_session_id: None,
         },
         format,
     );

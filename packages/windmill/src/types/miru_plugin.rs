@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use sequent_core::types::ceremonies::Log;
 use serde::{Deserialize, Serialize};
+use strum_macros::Display;
+use strum_macros::EnumString;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct MiruSignature {
@@ -12,10 +14,17 @@ pub struct MiruSignature {
     pub certificate_fingerprint: String,
 }
 
+#[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString)]
+pub enum MiruServerDocumentStatus {
+    SUCCESS,
+    ERROR,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct MiruServerDocument {
     pub name: String,
     pub sent_at: String, // date using ISO8601/rfc3339
+    pub status: MiruServerDocumentStatus,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

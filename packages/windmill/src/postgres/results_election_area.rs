@@ -10,7 +10,7 @@ use tokio_postgres::types::ToSql;
 use tracing::instrument;
 use uuid::Uuid;
 
-#[instrument(skip(hasura_transaction), err)]
+#[instrument(skip(hasura_transaction, documents), err)]
 pub async fn insert_results_election_area_documents(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,

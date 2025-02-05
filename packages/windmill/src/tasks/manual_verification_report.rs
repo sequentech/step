@@ -54,6 +54,7 @@ pub async fn generate_report(
         voter_id: Some(voter_id.to_string()),
         report_origin: ReportOriginatedFrom::ExportFunction,
         executer_username: None, //TODO: fix?
+        tally_session_id: None,
     });
 
     report

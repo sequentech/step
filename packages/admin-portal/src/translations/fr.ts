@@ -75,6 +75,7 @@ const frenchTranslation: TranslationType = {
                 EXPORT_BALLOT_PUBLICATION: "Exporter Publication de Bulletin",
                 EXPORT_ACTIVITY_LOGS_REPORT: "Exporter le Rapport des Journaux d'Activité",
                 GENERATE_REPORT: "Générer un rapport",
+                GENERATE_TRANSMISSION_REPORT: "Générer un rapport de transmission",
                 EXPORT_TRUSTEES: "Exporter les Autorités",
                 EXPORT_APPLICATION: "Exporter les Demandes",
                 EXPORT_TENANT_CONFIG: "Exporter la Configuration du Locataire",
@@ -202,6 +203,7 @@ const frenchTranslation: TranslationType = {
             votersByChannels: "Votants par canaux",
             voterLoginURL: "URL de connexion des électeurs",
             voterEnrollURL: "URL d'inscription des électeurs",
+            voterEnrollKioskURL: "Kiosk URL d'inscription des électeurs",
             ipAddress: {
                 emptyState: "Pas encore de votes.",
                 title: "IP Addresses",
@@ -300,6 +302,11 @@ const frenchTranslation: TranslationType = {
                     alertSecondsLabel:
                         "temps en secondes avant expiration pour afficher l'alerte de déconnexion",
                 },
+                voterSigningPolicy: {
+                    "policyLabel": "Politique de Signature des Électeurs",
+                    "no-signature": "Sans signature",
+                    "with-signature": "Avec signature",
+                },
                 enrollment: {
                     policyLabel: "Inscription",
                     options: {
@@ -384,6 +391,11 @@ const frenchTranslation: TranslationType = {
                 electionNumber: "Nombre d'Élections",
                 trustees: "Autorités",
                 status: "État",
+                tallyType: {
+                    label: "Type de Décompte",
+                    ELECTORAL_RESULTS: "Résultats Électoraux",
+                    INITIALIZATION_REPORT: "Résultats de l'Initialisation",
+                },
                 create: {
                     title: "Créer un Comptage",
                     subtitle: "Créer un nouveau Comptage pour cet Événement Électoral",
@@ -896,6 +908,7 @@ const frenchTranslation: TranslationType = {
                 "voter-voted-edit": "Modifier les électeurs qui ont voté",
                 "voter-email-tlf-edit": "Modifier les champs e-mail/téléphone des électeurs",
                 "cloudflare-write": "Modifier les règles de blocage par pays dans Cloudflare",
+                "transmission-report-generate": "Générer un rapport de transmission",
             },
         },
         generalSettingsScreen: {
@@ -1401,8 +1414,9 @@ const frenchTranslation: TranslationType = {
                     },
                     download: {
                         title: "Télécharger",
-                        emlTitle: "Download EML",
-                        transmissionPackageTitle: "Télécharger le Paquet de Transmission",
+                        emlTitle: "Download EML {{date}}",
+                        transmissionPackageTitle: "Télécharger le Paquet de Transmission {{date}}",
+                        transmissionReportTitle: "Télécharger le rapport de transmission",
                         dialog: {
                             title: "Voulez-vous télécharger le Paquet de Transmission?",
                             description:
@@ -1439,6 +1453,7 @@ const frenchTranslation: TranslationType = {
             uploadTransmissionPackageDesc:
                 "Téléchargez votre signature pour signer le paquet des Résultats Électoraux. Cette opération est optionnelle.",
             exportElectionArea: "Envoyer le paquet de transmission pour la zone '{{name}}'",
+            generateReport: "Générer {{name}}",
             templateTitle: "Modèle de Résultats",
             templateSubTitle: "Éventuellement écraser le modèle de résultats.",
             keysCeremonyTitle: "Cérémonie des Clés",
@@ -1778,6 +1793,7 @@ const frenchTranslation: TranslationType = {
                 smsMessage: "Message SMS",
                 document: "Document",
                 pdfOptions: "Options PDF",
+                reportOptions: "Options de Rapport",
                 name: "Nom du Modèle",
                 alias: "Alias du Modèle",
                 type: "Type",
@@ -1887,6 +1903,7 @@ const frenchTranslation: TranslationType = {
                 verificationType: "Type de Vérification",
                 createdAt: "Créé Le",
                 updatedAt: "Mis à Jour Le",
+                approved_by: "Approuvé Par",
             },
             approvalRequest: "Informations d'approbation",
             title: "Électeurs",
@@ -1914,6 +1931,7 @@ const frenchTranslation: TranslationType = {
                 approveSuccess: "Électeur approuvé",
                 rejectError: "Erreur lors du rejet de l'électeur",
                 rejectSuccess: "Électeur rejeté",
+                VoterApprovedAlready: "L'électeur est déjà approuvé.",
             },
             export: {
                 success: "L'exportation des applications a été réalisée avec succès",

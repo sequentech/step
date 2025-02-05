@@ -80,8 +80,6 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
     const notify = useNotify()
     const [transmissionLoading, setTransmissionLoading] = useState<boolean>(false)
     const [regenTransmissionLoading, setRegenTransmissionLoading] = useState<boolean>(false)
-    // const [selectedTallySessionData, setSelectedTallySessionData] =
-    // 	useState<IMiruTransmissionPackageData | null>(null)
     const [uploading, setUploading] = useState<boolean>(false)
     const [errors, setErrors] = useState<String | null>(null)
     const [tally, setTally] = useState<Sequent_Backend_Tally_Session>()
@@ -396,7 +394,7 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
             selectedTallySessionData?.documents[selectedTallySessionData?.documents.length - 1]
                 .servers_sent_to ?? []
 
-        return sentTo.length
+        return sentTo.filter((server) => server.status == "SUCCESS").length
     }
 
     const serversTotalCount: () => number = () => {
@@ -625,7 +623,10 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
                         <MiruPackageDownload
                             areaName={area?.name}
                             documents={selectedTallySessionData?.documents ?? []}
+                            tenantId={tenantId ?? ""}
                             electionEventId={electionEventId ?? ""}
+                            electionId={selectedTallySessionData?.election_id}
+                            tallySessionId={tallyId || undefined}
                             eventName={eventName}
                         />
                     ) : null}
@@ -842,6 +843,7 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
                         size="small"
                         value={passwordState}
                         onChange={(e) => setPasswordState(e.target.value)}
+                        type="password"
                     />
                 </Box>
             </Dialog>
