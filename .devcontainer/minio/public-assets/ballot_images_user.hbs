@@ -237,7 +237,7 @@
             let digitalSignature = `${contest.digital_signature}`; 
             let pageNumber = `${contest.page_number}`; 
             const qrcodeDiv = document.getElementById(`qrcode-${contest_index}-${index}`);
-            let qrText =`${eventId}:${precientId}:${ballotId}:${electionId}:${pageNumber}:${digitalSignature}`;
+            let qrText = `${contest.sign_data}`;
             let qrHeight = parseInt({{qr_height}}, 10);
             let qrWidth = qrHeight = parseInt({{qr_width}}, 10);
 

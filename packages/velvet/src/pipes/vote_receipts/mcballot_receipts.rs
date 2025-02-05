@@ -148,10 +148,28 @@ impl MCBallotReceipts {
             pipe_config.execution_annotations.clone();
         let precint_id = election_input
             .annotations
-            .get(&"pollcenter_code".to_string())
+            .get(&"miru:precinct-code".to_string())
             .map(|s| s.as_str())
             .unwrap_or_default();
         let mut page_number = 1;
+        let election_event_id = election_input
+            .election_event_annotations
+            .get("miru:election-event-id")
+            .map(|s| s.as_str())
+            .unwrap_or_default();
+        let election_id = election_input
+            .annotations
+            .get("miru:election-id")
+            .map(|s| s.as_str())
+            .unwrap_or_default();
+
+        info!(
+            "election_event_annotations {:?}",
+            election_input.election_event_annotations
+        );
+        info!("election annotations {:?}", election_input.annotations);
+
+        info!("event {election_event_id} election {election_id} precint_id {precint_id}");
 
         let mut ballot_data = vec![];
         for ballot in ballots {
@@ -177,22 +195,24 @@ impl MCBallotReceipts {
                     overvotes = (num_selected as i64) - contest.max_votes;
                 }
 
-                let digital_signature = match (&pipe_config.acm_key, &pipe_config.pipe_type) {
-                    (Some(acm_key), VoteReceiptPipeType::BALLOT_IMAGES) => {
-                        let sign_data = format!(
-                            "{}:{}:{}:{}",
-                            &contest.election_event_id,
-                            &precint_id,
-                            &contest.election_id,
-                            page_number.to_string()
-                        );
-                        let signature = ecies_sign_data(&acm_key, &sign_data).map_err(|e| {
-                            Error::UnexpectedError(format!("Error sign data: {}", e))
-                        })?;
-                        Some(signature)
-                    }
-                    _ => None,
-                };
+                let (digital_signature, sign_data) =
+                    match (&pipe_config.acm_key, &pipe_config.pipe_type) {
+                        (Some(acm_key), VoteReceiptPipeType::BALLOT_IMAGES) => {
+                            let sign_data = format!(
+                                "{}:{}:{}:{}:{}",
+                                election_event_id,
+                                &precint_id,
+                                ballot.mcballot.serial_number.clone().unwrap_or_default(),
+                                election_id,
+                                page_number.to_string()
+                            );
+                            let signature = ecies_sign_data(&acm_key, &sign_data).map_err(|e| {
+                                Error::UnexpectedError(format!("Error sign data: {}", e))
+                            })?;
+                            (Some(signature), Some(sign_data))
+                        }
+                        _ => (None, None),
+                    };
 
                 // contest.
                 let cd: ContestData = ContestData {
@@ -201,6 +221,7 @@ impl MCBallotReceipts {
                     undervotes,
                     overvotes,
                     digital_signature,
+                    sign_data,
                     page_number: match &pipe_config.pipe_type {
                         VoteReceiptPipeType::BALLOT_IMAGES => Some(page_number),
                         _ => None,
@@ -518,6 +539,7 @@ pub struct ContestData {
     pub undervotes: i64,
     pub overvotes: i64,
     pub digital_signature: Option<String>,
+    pub sign_data: Option<String>,
     pub page_number: Option<i64>,
 }
 

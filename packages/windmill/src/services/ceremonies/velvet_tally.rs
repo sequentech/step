@@ -225,8 +225,15 @@ pub fn create_election_configs_blocking(
     elections_single_map: HashMap<String, Election>,
     areas: Vec<TreeNodeArea>,
     default_lang: String,
+    election_event: ElectionEvent,
 ) -> Result<()> {
     let mut elections_map: HashMap<String, ElectionConfig> = HashMap::new();
+
+    let election_event_annotations: HashMap<String, String> = election_event
+        .annotations
+        .clone()
+        .map(|annotations| deserialize_value(annotations).unwrap_or(Default::default()))
+        .unwrap_or(Default::default());
     for area_contest in area_contests {
         let election_id = area_contest.contest.election_id.clone();
         let election_event_id = area_contest.contest.election_event_id.clone();
@@ -275,7 +282,7 @@ pub fn create_election_configs_blocking(
                 alias: election_alias_otp.unwrap_or("".to_string()),
                 description: election_description,
                 annotations: election_annotations.clone(),
-                election_event_annotations: Default::default(),
+                election_event_annotations: election_event_annotations.clone(),
                 dates: election_dates,
                 tenant_id: Uuid::parse_str(&area_contest.contest.tenant_id)?,
                 election_event_id: Uuid::parse_str(&area_contest.contest.election_event_id)?,
@@ -385,6 +392,8 @@ pub async fn create_election_configs(
     .await
     .map_err(|e| anyhow!("Error getting scheduled event by election event_id: {e:?}"))?;
 
+    let event = election_event.clone();
+
     // Spawn the task
     let handle = tokio::task::spawn_blocking(move || {
         create_election_configs_blocking(
@@ -395,6 +404,7 @@ pub async fn create_election_configs(
             elections_single_map.clone(),
             areas_clone.clone(),
             default_language.clone(),
+            event.clone(),
         )
     });
 
