@@ -8,8 +8,8 @@ use crate::pipes::error::{Error, Result};
 use crate::pipes::pipe_inputs::{InputElectionConfig, PipeInputs};
 use crate::pipes::pipe_name::{PipeName, PipeNameOutputDir};
 use crate::pipes::Pipe;
-use csv::Writer;
 use anyhow::Context;
+use csv::Writer;
 use hex::encode;
 use rayon::prelude::*;
 use rayon::ThreadPoolBuilder;
@@ -521,22 +521,24 @@ impl Pipe for MCBallotReceipts {
                                 Ok::<(), Error>(())
                             });
 
-                        // Write the CSV file of file names and hashes
-                        let csv_filename = format!("ballots_files.csv");
-                        let csv_path = path.join(csv_filename);
-                        let files_lock = files.lock().unwrap();
+                        if (pipe_data.output_file.clone() == BALLOT_IMAGES_OUTPUT_FILE) {
+                            // Write the CSV file of file names and hashes
+                            let csv_filename = format!("ballots_files.csv");
+                            let csv_path = path.join(csv_filename);
+                            let files_lock = files.lock().unwrap();
 
-                        let rt = Runtime::new().unwrap();
-                        let result = rt.block_on(async {
-                            write_file_hash_csv(files_lock.clone(), csv_path)
-                                .await
-                                .map_err(|e| {
-                                    Error::UnexpectedError(format!(
-                                        "Error writing file hash CSV: {}",
-                                        e
-                                    ))
-                                })
-                        })?;
+                            let rt = Runtime::new().unwrap();
+                            let result = rt.block_on(async {
+                                write_file_hash_csv(files_lock.clone(), csv_path)
+                                    .await
+                                    .map_err(|e| {
+                                        Error::UnexpectedError(format!(
+                                            "Error writing file hash CSV: {}",
+                                            e
+                                        ))
+                                    })
+                            })?;
+                        }
 
                         Ok(())
                     });
