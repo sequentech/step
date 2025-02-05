@@ -55,6 +55,7 @@ use serde::{Deserialize, Serialize};
 use strand::backend::ristretto::RistrettoCtx;
 use strand::hash::{hash_to_array, Hash, HashWrapper};
 use strand::serialization::StrandSerialize;
+use strand::signature::StrandSignaturePk;
 use strand::signature::StrandSignatureSk;
 use strand::util::StrandError;
 use strand::zkp::Zkp;
@@ -484,12 +485,21 @@ pub async fn insert_cast_vote_and_commit<'a>(
     // These are unhashed bytes, the signing code will hash it first.
     let ballot_bytes = input.get_bytes_for_signing();
 
-    let voter_ballot_signature = voter_signing_key
-    .map(|voter_signing_key|
-        voter_signing_key
-            .sign(&ballot_bytes)
-            .map_err(|e| CastVoteError::BallotVoterSignatureFailed(e.to_string()))
-    ).transpose()?;
+    let voter_signature = voter_signing_key
+        .as_ref()
+        .clone()
+        .map(
+            |voter_signing_key| -> Result<VoterSignature, CastVoteError> {
+                let voter_ballot_signature = voter_signing_key
+                    .sign(&ballot_bytes)
+                    .map_err(|e| CastVoteError::BallotVoterSignatureFailed(e.to_string()))?;
+                let pk = StrandSignaturePk::from_sk(&voter_signing_key)
+                    .map_err(|e| CastVoteError::BallotVoterSignatureFailed(e.to_string()))?;
+                VoterSignature::new(&pk, &voter_ballot_signature)
+                    .map_err(|e| CastVoteError::BallotVoterSignatureFailed(e.to_string()))
+            },
+        )
+        .transpose()?;
 
     let ballot_signature = signing_key
         .sign(&ballot_bytes)
@@ -517,12 +527,7 @@ pub async fn insert_cast_vote_and_commit<'a>(
         &ballot_signature,
         &voter_ip,
         &voter_country,
-        voter_signing_key
-            .map(|voter_signing_key| -> Result<VoterSignature> {
-                let pk = StrandSignaturePk::from_sk(&voter_signing_key)?;
-                Ok(VoterSignature::new(&pk, &voter_ballot_signature))
-            })
-            .transpose()?
+        &voter_signature,
     );
 
     check_status.await?;

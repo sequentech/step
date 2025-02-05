@@ -8,14 +8,16 @@ use anyhow::{anyhow, Context, Result};
 use chrono::NaiveDate;
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Transaction;
+use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::types::keycloak::{User, VotesInfo};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::collections::HashMap;
-use strand::signature::{StrandSignaturePk, StrandSignature, StrandSignatureSk};
+use strand::signature::{StrandSignature, StrandSignaturePk, StrandSignatureSk};
+use strand::util::StrandError;
 use tokio_postgres::row::Row;
 use tracing::{info, instrument};
 use uuid::Uuid;
-
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct VoterSignature {
@@ -24,11 +26,11 @@ pub struct VoterSignature {
 }
 
 impl VoterSignature {
-    pub fn new(pk: &StrandSignaturePk, signature: &StrandSignature) -> Self {
-        VoterSignature {
-            public_key: pk.to_der_b64_string(),
-            signature: signature.to_b64_string(),
-        }
+    pub fn new(pk: &StrandSignaturePk, signature: &StrandSignature) -> Result<Self, StrandError> {
+        Ok(VoterSignature {
+            public_key: pk.to_der_b64_string()?,
+            signature: signature.to_b64_string()?,
+        })
     }
 }
 
@@ -67,6 +69,10 @@ impl TryFrom<Row> for CastVote {
             voter_id_string: item.try_get("voter_id_string")?,
             election_event_id: item.try_get::<_, Uuid>("election_event_id")?.to_string(),
             ballot_id: item.try_get("ballot_id")?,
+            voter_signature: item
+                .try_get::<_, Option<Value>>("voter_signature")?
+                .map(|val| deserialize_value(val))
+                .transpose()?,
         })
     }
 }

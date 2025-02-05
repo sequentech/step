@@ -24,9 +24,10 @@ pub async fn insert_cast_vote(
     cast_ballot_signature: &[u8],
     voter_ip: &Option<String>,
     voter_country: &Option<String>,
-    voter_signature: Option<VoterSignature>,
+    voter_signature: &Option<VoterSignature>,
 ) -> Result<CastVote> {
     let voter_signature_value = voter_signature
+        .clone()
         .map(|voter_signature| serde_json::to_value(&voter_signature))
         .transpose()?;
 
