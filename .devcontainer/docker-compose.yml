@@ -375,13 +375,16 @@ services:
   mock_server:
     profiles: ["full", "base"]
     stdin_open: true
-    image: sequentech.local/cargo-packages
+    image: sequentech.local/mock-server
     container_name: mock_server
+    build:
+      context: ../packages/
+      dockerfile: ./e2e/src/mock_server/Dockerfile
     volumes_from:
       - devcontainer
     depends_on:
       - devcontainer
-    working_dir: /workspaces/step/e2e/src/mock_server
+    working_dir: /workspaces/step/packages/e2e/src/mock_server
     entrypoint: [
       "cargo",
       "watch",
