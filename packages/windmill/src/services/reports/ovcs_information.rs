@@ -18,6 +18,7 @@ use async_trait::async_trait;
 use deadpool_postgres::Transaction;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::s3::get_minio_url;
+use sequent_core::signatures::temp_path::*;
 use sequent_core::types::scheduled_event::generate_voting_period_dates;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;

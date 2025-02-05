@@ -2,7 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::postgres::reports::get_reports_by_election_id;
+use crate::postgres::reports::ReportType;
 use crate::postgres::tally_session::get_tally_session_by_id;
+use crate::services::ceremonies::encrypter::encrypt_file;
 use crate::services::ceremonies::velvet_tally::build_ballot_images_pipe_config;
 use crate::services::ceremonies::velvet_tally::build_vote_receipe_pipe_config;
 use crate::services::ceremonies::velvet_tally::call_velvet;
@@ -14,8 +17,6 @@ use crate::services::database::get_hasura_pool;
 use crate::services::documents::upload_and_return_document_postgres;
 use crate::services::reports::utils::get_public_assets_path_env_var;
 use crate::services::tasks_execution::{update_complete, update_fail};
-use crate::services::temp_path::generate_temp_file;
-use crate::services::temp_path::get_file_size;
 use crate::types::error::Error;
 use crate::types::error::Result;
 use anyhow::{anyhow, Context, Result as AnyhowResult};
@@ -24,6 +25,7 @@ use deadpool_postgres::{Client as DbClient, Transaction};
 use hex;
 use sequent_core::ballot::ContestEncryptionPolicy;
 use sequent_core::services::{pdf, s3};
+use sequent_core::signatures::temp_path::*;
 use sequent_core::types::ceremonies::TallyExecutionStatus;
 use sequent_core::types::hasura::core::TallySession;
 use sequent_core::types::hasura::core::TasksExecution;
@@ -202,18 +204,28 @@ async fn generate_template_document(
 
     let tally_path_path = tally_path.into_path();
 
-    let pipe_name = if is_ballot_images {
-        if contest_encryption_policy == ContestEncryptionPolicy::MULTIPLE_CONTESTS {
-            PipeNameOutputDir::MCBallotImages.as_ref().to_string()
-        } else {
-            PipeNameOutputDir::BallotImages.as_ref().to_string()
-        }
+    let (pipe_name, report_type) = if is_ballot_images {
+        (
+            if contest_encryption_policy == ContestEncryptionPolicy::MULTIPLE_CONTESTS {
+                PipeNameOutputDir::MCBallotImages
+            } else {
+                PipeNameOutputDir::BallotImages
+            }
+            .as_ref()
+            .to_string(),
+            ReportType::BALLOT_IMAGES,
+        )
     } else {
-        if contest_encryption_policy == ContestEncryptionPolicy::MULTIPLE_CONTESTS {
-            PipeNameOutputDir::MCBallotReceipts.as_ref().to_string()
-        } else {
-            PipeNameOutputDir::VoteReceipts.as_ref().to_string()
-        }
+        (
+            if contest_encryption_policy == ContestEncryptionPolicy::MULTIPLE_CONTESTS {
+                PipeNameOutputDir::MCBallotReceipts
+            } else {
+                PipeNameOutputDir::VoteReceipts
+            }
+            .as_ref()
+            .to_string(),
+            ReportType::VOTE_RECEIPT,
+        )
     };
 
     let step_path = tally_path_path.join("output").join(&pipe_name);
@@ -237,7 +249,6 @@ async fn generate_template_document(
 
     let output_zip_tempfile = generate_temp_file(&pipe_name, "zip")?;
     let output_zip_path = output_zip_tempfile.path();
-    let output_zip_str = output_zip_path.to_string_lossy();
 
     // clear the path
     let subfolders = list_subfolders(&election_path);
@@ -260,19 +271,50 @@ async fn generate_template_document(
     }
 
     compress_folder_to_zip(&election_path, output_zip_path)?;
-    let file_size = get_file_size(&output_zip_str).with_context(|| "Error obtaining file size")?;
+
+    let election_reports =
+        get_reports_by_election_id(hasura_transaction, tenant_id, &election_id).await?;
+
+    let report = election_reports
+        .iter()
+        .find(|report| {
+            report.report_type == report_type.to_string()
+                && report
+                    .election_id
+                    .as_ref()
+                    .map_or(true, |id| *id == election_id)
+        })
+        .cloned();
+
+    // Encrypt the file if needed
+    let final_zipped_file = encrypt_file(
+        tenant_id,
+        &election_event_id,
+        &output_zip_path.to_string_lossy(),
+        report.as_ref(),
+    )
+    .await?;
+
+    let (file_extension, mime_type) = if final_zipped_file.ends_with(".enc") {
+        ("zip.enc", "application/octet-stream")
+    } else {
+        ("zip", "application/zip")
+    };
+
+    let file_size =
+        get_file_size(&final_zipped_file).with_context(|| "Error obtaining file size")?;
 
     let otuput_doc_name = if is_ballot_images {
-        format!("election-{election_id}-ballot-images.zip")
+        format!("election-{election_id}-ballot-images.{file_extension}")
     } else {
-        format!("election-{election_id}-vote-receipts.zip")
+        format!("election-{election_id}-vote-receipts.{file_extension}")
     };
 
     let _document = upload_and_return_document_postgres(
         &hasura_transaction,
-        &output_zip_str,
+        &final_zipped_file,
         file_size,
-        "applization/zip",
+        mime_type,
         tenant_id,
         Some(election_event_id.to_string()),
         &otuput_doc_name,

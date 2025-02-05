@@ -123,6 +123,7 @@ ptree = "0.5.0"
 [features]
 wasmtest = ["wasm", "dep:web-sys", "strand/wasmtest"]
 wasm = ["wasm-bindgen", "areas", "serde-wasm-bindgen"]
+signatures=["dep:tempfile","dep:tracing"]
 default = []
 areas = []
 reports = ["dep:handlebars", "dep:handlebars-chrono", "dep:headless_chrome", "dep:reqwest", "dep:tracing", "dep:tempfile", "dep:tokio", "dep:num-format", "dep:aws-config", "dep:aws-sdk-sesv2", "dep:aws-sdk-sns", "dep:aws-sdk-s3", "dep:aws-smithy-types"]

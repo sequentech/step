@@ -3,11 +3,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::template_renderer::*;
 use crate::postgres::reports::ReportType;
+use crate::services::temp_path::PUBLIC_ASSETS_QRCODE_LIB;
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
 use sequent_core::services::s3::get_minio_url;
-use sequent_core::temp_path::*;
+use sequent_core::signatures::temp_path::*;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use velvet::pipes::vote_receipts::ComputedTemplateData;

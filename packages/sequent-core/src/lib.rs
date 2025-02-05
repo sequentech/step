@@ -25,6 +25,9 @@ pub mod util;
 #[cfg(feature = "reports")]
 pub mod temp_path;
 
+#[cfg(feature = "signatures")]
+pub mod signatures;
+
 /// Webassembly API.
 #[cfg(feature = "wasm")]
 pub mod wasm;

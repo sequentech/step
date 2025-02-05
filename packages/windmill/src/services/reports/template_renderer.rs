@@ -11,9 +11,7 @@ use crate::services::documents::upload_and_return_document;
 use crate::services::providers::email_sender::{Attachment, EmailSender};
 use crate::services::reports_vault::get_report_secret_key;
 use crate::services::tasks_execution::{update_complete, update_fail};
-use crate::services::temp_path::{
-    generate_temp_file, get_file_size, read_temp_path, write_into_named_temp_file,
-};
+use crate::services::temp_path::PUBLIC_ASSETS_QRCODE_LIB;
 use crate::services::vault;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
@@ -21,6 +19,7 @@ use deadpool_postgres::Transaction;
 use sequent_core::serialization::deserialize_with_path::{deserialize_str, deserialize_value};
 use sequent_core::services::keycloak::{self, get_event_realm, KeycloakAdminClient};
 use sequent_core::services::{pdf, reports};
+use sequent_core::signatures::temp_path::*;
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::templates::{
     CommunicationTemplatesExtraConfig, EmailConfig, PrintToPdfOptionsLocal, ReportExtraConfig,
