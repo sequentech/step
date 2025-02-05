@@ -371,7 +371,37 @@ services:
       - immudb_logs:/var/log/immudb
     depends_on:
       - immudb-init
-  
+
+  mock_server:
+    profiles: ["full", "base"]
+    stdin_open: true
+    image: sequentech.local/cargo-packages
+    container_name: mock_server
+    build:
+      context: ../packages/
+      dockerfile: /workspaces/step/packages/e2e/src/mock_server/Dockerfile
+    volumes_from:
+      - devcontainer
+    depends_on:
+      - devcontainer
+    working_dir: /workspaces/step/e2e/src/mock_server
+    entrypoint: [
+      "cargo",
+      "watch",
+      "--why",
+      # ignoring rust-local-target/ since it's used for local builds and
+      # otherwise triggers a rebuild all the time (probably rust analyzer)
+      "--ignore",
+      "rust-local-target/",
+      "-x",
+      "run"
+    ] 
+    environment:
+      ROCKET_ADDRESS: ${ROCKET_ADDRESS}
+      ROCKET_PORT: ${MOCK_SERVER_PORT}
+      MOCK_SERVER_PORT: ${MOCK_SERVER_PORT}
+    ports:
+     - ${MOCK_SERVER_PORT}:${MOCK_SERVER_PORT}
   harvest:
     profiles: ["full", "base"]
     stdin_open: true
