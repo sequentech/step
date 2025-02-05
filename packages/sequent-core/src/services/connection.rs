@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
 use std::sync::RwLock;
 use std::time::{Duration, Instant};
-use tracing::{info, instrument, warn};
+use tracing::{error, info, instrument, warn};
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct AuthHeaders {
     pub key: String,
@@ -212,7 +212,7 @@ impl LastAccessToken {
 
 /// Reads the access token if it has been requested successfully before and it
 /// is not expired.
-#[instrument]
+#[instrument(skip(lst_acc_tkn))]
 async fn read_access_token(
     client_id: &str,
     client_secret: &str,
@@ -244,7 +244,7 @@ async fn read_access_token(
 }
 
 /// Request a new access token and writes it to the cache
-#[instrument(err)]
+#[instrument(err, skip(lst_acc_tkn))]
 async fn request_access_token(
     client_id: String,
     client_secret: String,
@@ -298,6 +298,7 @@ impl<'r> FromRequest<'r> for DatafixClaims {
                     datafix_headers.authorization,
                 ),
                 None => {
+                    error!("DatafixClaims guard: Missing headers!");
                     return Outcome::Error((Status::BadRequest, ()));
                 }
             };
@@ -326,14 +327,13 @@ impl<'r> FromRequest<'r> for DatafixClaims {
                 {
                     Ok(token_resp) => token_resp,
                     Err(err) => {
-                        warn!("JwtClaims guard: decode_jwt error {err:?}");
+                        error!("DatafixClaims guard: request_access_token error {err:?}");
                         return Outcome::Error((Status::Unauthorized, ()));
                     }
                 }
             }
         };
 
-        info!("JwtClaims guard: token_resp: {token_resp:?}");
         match decode_jwt(&token_resp.access_token) {
             Ok(jwt_claims) => Outcome::Success(DatafixClaims {
                 jwt_claims,
@@ -341,7 +341,7 @@ impl<'r> FromRequest<'r> for DatafixClaims {
                 datafix_event_id,
             }),
             Err(err) => {
-                warn!("JwtClaims guard: decode_jwt error {err:?}");
+                warn!("DatafixClaims guard: decode_jwt error {err:?}");
                 Outcome::Error((Status::Unauthorized, ()))
             }
         }

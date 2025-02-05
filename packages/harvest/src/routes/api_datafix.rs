@@ -25,11 +25,7 @@ pub async fn add_voter(
 
     info!("Delete voter: {input:?}");
 
-    let required_perm = vec![
-        Permissions::DATAFIX_ACCOUNT,
-        Permissions::VOTER_READ,
-        Permissions::VOTER_WRITE,
-    ]; // TODO: Set up the permissions in Keycloak
+    let required_perm = vec![Permissions::DATAFIX_ACCOUNT];
     info!("{claims:?}");
     authorize(
         &claims.jwt_claims,
@@ -77,11 +73,7 @@ pub async fn delete_voter(
 
     info!("Delete voter: {input:?}");
 
-    let required_perm = vec![
-        Permissions::DATAFIX_ACCOUNT,
-        Permissions::VOTER_READ,
-        Permissions::VOTER_WRITE,
-    ]; // TODO: Set up the permissions in Keycloak
+    let required_perm = vec![Permissions::DATAFIX_ACCOUNT];
     info!("{claims:?}");
     authorize(
         &claims.jwt_claims,

@@ -32,15 +32,23 @@ This document intends to define the Headers, Body and Errors of the Sequent´s e
 
 ##### PIN:
 
-PIN is the same as sequent´s password and it should be configurable (by Area?), usually it´s 16 numeric digits.
-
+    PIN is the same as sequent´s password and it should be configurable (by election-event), usually it´s 16 numeric digits.
     PIN can be generated as either ( this should be configurable):
         - The voter password.
         - A combination of Voter ID + password.
         - The regular expression to generate the PIN should be configurable
-
     If voter is disabled, do not generate a PIN
 
+#### Annotations content:
+
+    DATAFIX: Json {
+        id: String (ID datafix)
+        password_policy: Json {
+            base: Enum (ID_PLUS_PSW/PSW_ONLY)
+            size: number (The size of the pass)
+            characters: Enum (ALPHANUMERIC/NUMERIC)
+        }
+    }
 
 ------------------------------------------------------------------------------------------
 

@@ -1031,13 +1031,13 @@ pub async fn check_is_user_verified(
 
 /// Returns a vector with user ids.
 /// It is up to the caller to handle when there are mutiple users with the same username or the vector is empty - not found.
-#[instrument(err, skip_all)]
+#[instrument(err, skip(keycloak_transaction))]
 pub async fn get_users_by_username(
     keycloak_transaction: &Transaction<'_>,
     realm: &str,
     username: &str,
 ) -> Result<Vec<String>> {
-    let mut params: Vec<&(dyn ToSql + Sync)> = vec![&realm, &username];
+    let params: Vec<&(dyn ToSql + Sync)> = vec![&realm, &username];
 
     let statement = keycloak_transaction
         .prepare(&format!(

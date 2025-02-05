@@ -46,13 +46,26 @@ impl DatafixResponse {
     }
 }
 
-/// Gets the election_event_id of the event that has the datafix id in its annotations.
+#[derive(Deserialize, Serialize, Debug)]
+struct DatafixAnnotations {
+    id: String,
+    password_policy: PasswordPolicy,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+struct PasswordPolicy {
+    base: String,
+    size: u8,
+    characters: String,
+}
+
+/// Gets the election_event_id and the DatafixAnnotations of the event that has the datafix id in its annotations.
 #[instrument(skip(hasura_transaction))]
-async fn get_datafix_election_event_id(
+async fn get_datafix_annotations(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
-    datafix_event_id: &str,
-) -> Result<String, JsonErrorResponse> {
+    requester_datafix_id: &str,
+) -> Result<(String, DatafixAnnotations), JsonErrorResponse> {
     let election_events = get_all_tenant_election_events(hasura_transaction, tenant_id)
         .await
         .map_err(|err| {
@@ -60,32 +73,38 @@ async fn get_datafix_election_event_id(
             DatafixResponse::new(Status::BadRequest)
         })?;
 
-    info!("election_events: {:?}", election_events);
-    let mut election_event_id_match = None;
     let mut itr: std::slice::Iter<'_, ElectionEvent> = election_events.iter();
-    let mut event_opt = itr.next(); // Use while let Some(event) = itr.next()... once the compiler gets updated.
-    while event_opt.is_some() && election_event_id_match.is_none() {
-        let event = event_opt.unwrap();
-        let annotations_datafix_id = event.annotations.clone().and_then(|v| {
-            v.get("DATAFIX")
-                .and_then(|v| v.get("id").map(|v| v.to_string()))
-        });
-        election_event_id_match = match annotations_datafix_id {
-            Some(annotations_datafix_id) if annotations_datafix_id.eq(datafix_event_id) => {
-                Some(event.id.clone())
+    let mut next_event = itr.next(); // Use while let Some(event) = itr.next()... once the compiler gets updated.
+
+    // Search for the datafix event id in all the annotations
+    while next_event.is_some() {
+        let event = next_event.unwrap();
+        let datafix_object = event.annotations.as_ref().and_then(|v| v.get("DATAFIX"));
+        info!("datafix_object: {datafix_object:?}");
+        // If there is a Datafix object, deserialize it:
+        if let Some(datafix_value) = datafix_object {
+            match deserialize_value::<DatafixAnnotations>(datafix_value.clone()) {
+                // Return Ok only in case of matching the ID of the requester:
+                Ok(annotations_datafix) if requester_datafix_id.eq(&annotations_datafix.id) => {
+                    return Ok((event.id.clone(), annotations_datafix));
+                }
+                Ok(annotations_datafix) => {
+                    info!(
+                        "Not matching id: {} found in event: {}",
+                        annotations_datafix.id, event.id
+                    );
+                }
+                Err(err) => {
+                    error!("Error deserializing datafix annotations: {err}");
+                }
             }
-            _ => None,
-        };
-        event_opt = itr.next();
+        }
+
+        next_event = itr.next();
     }
 
-    match election_event_id_match {
-        Some(election_event_id) => Ok(election_event_id),
-        None => {
-            warn!("Datafix event id: {datafix_event_id} not found");
-            return Err(DatafixResponse::new(Status::BadRequest));
-        }
-    }
+    warn!("Datafix annotations not found. Requested datafix ID: {requester_datafix_id}");
+    return Err(DatafixResponse::new(Status::BadRequest));
 }
 
 /// Disable the voter, datafix users are not actually deleted but just disabled.
@@ -97,9 +116,9 @@ pub async fn disable_datafix_voter(
     datafix_event_id: &str,
     username: &str,
 ) -> Result<Json<DatafixResponse>, JsonErrorResponse> {
-    let election_event_id =
-        get_datafix_election_event_id(hasura_transaction, tenant_id, datafix_event_id).await?;
-
+    let (election_event_id, _) =
+        get_datafix_annotations(hasura_transaction, tenant_id, datafix_event_id).await?;
+    info!("election_event_id: {election_event_id}");
     let realm = get_event_realm(tenant_id, &election_event_id);
     let client = KeycloakAdminClient::new().await.map_err(|e| {
         error!("Error getting KeycloakAdminClient: {e:?}");
@@ -155,8 +174,8 @@ pub async fn add_datafix_voter(
     voter_info: &VoterInformationBody,
 ) -> Result<Json<DatafixResponse>, JsonErrorResponse> {
     let username = &voter_info.voter_id;
-    let election_event_id =
-        get_datafix_election_event_id(hasura_transaction, tenant_id, datafix_event_id).await?;
+    let (election_event_id, _) =
+        get_datafix_annotations(hasura_transaction, tenant_id, datafix_event_id).await?;
 
     let realm = get_event_realm(tenant_id, &election_event_id);
     let client = KeycloakAdminClient::new().await.map_err(|e| {
