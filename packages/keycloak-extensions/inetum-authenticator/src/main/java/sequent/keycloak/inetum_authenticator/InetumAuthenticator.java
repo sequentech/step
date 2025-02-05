@@ -101,7 +101,27 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
     log.info("validated is NOT TRUE, rendering the form");
     try {
       Boolean isTestMode = Boolean.parseBoolean(configMap.get(Utils.TEST_MODE_ATTRIBUTE));
-      if (!isTestMode) {
+      if (isTestMode) {
+        // Make a new transaction request to mock server
+        SimpleHttp.Response mockTransactionData =
+            doPost(configMap, context, "{}", Utils.API_TRANSACTION_NEW, true);
+        JsonNode responseContent = mockTransactionData.asJson().get("response");
+        log.info(responseContent);
+        String tokenDob = responseContent.get("token_dob").asText();
+        String userId = responseContent.get("user_id").asText();
+
+        AuthenticationSessionModel sessionModel = context.getAuthenticationSession();
+        sessionModel.setAuthNote(Utils.FTL_TOKEN_DOB, tokenDob);
+        sessionModel.setAuthNote(Utils.FTL_USER_ID, userId);
+
+        // Verifying results
+        // Getting status
+        SimpleHttp.Response response = verifyResults(context, isTestMode);
+        log.info("response" + response);
+        String error = validateAttributes(context, response);
+        storeAttributes(context, response);
+        context.success();
+      } else {
         Map<String, String> transactionData = newTransaction(configMap, context);
 
         // Save the transaction data into the auth session
@@ -116,26 +136,6 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
                 .createForm(Utils.INETUM_FORM);
         context.challenge(challenge);
       }
-
-      // Make a new transaction request to mock server
-      SimpleHttp.Response mockTransactionData =
-          doPost(configMap, context, "{}", Utils.API_TRANSACTION_NEW, true);
-      JsonNode responseContent = mockTransactionData.asJson().get("response");
-      log.info(responseContent);
-      String tokenDob = responseContent.get("token_dob").asText();
-      String userId = responseContent.get("user_id").asText();
-
-      AuthenticationSessionModel sessionModel = context.getAuthenticationSession();
-      sessionModel.setAuthNote(Utils.FTL_TOKEN_DOB, tokenDob);
-      sessionModel.setAuthNote(Utils.FTL_USER_ID, userId);
-
-      SimpleHttp.Response response = verifyResults(context, isTestMode);
-      log.info("response" + response);
-      String error = validateAttributes(context, response);
-      storeAttributes(context, response);
-      context.success();
-      // Verifying results
-      // Getting status
 
     } catch (IOException error) {
       context.getEvent().error(ERROR_FAILED_TO_LOAD_INETUM_FORM);
@@ -161,7 +161,10 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
       String uriPath,
       Boolean isTestMode)
       throws IOException {
-    String baseUrl = isTestMode ? configMap.get(Utils.TEST_MODE_SERVER_URL) : configMap.get(Utils.BASE_URL_ATTRIBUTE);
+    String baseUrl =
+        isTestMode
+            ? configMap.get(Utils.TEST_MODE_SERVER_URL)
+            : configMap.get(Utils.BASE_URL_ATTRIBUTE);
     String url = baseUrl + uriPath;
     String authorization = "Bearer " + configMap.get(Utils.API_KEY_ATTRIBUTE);
     log.info("doPost: url=" + url + ", payload =" + payload.toString());
@@ -208,7 +211,10 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
       String uriPath,
       Boolean isTestMode)
       throws IOException {
-    String baseUrl = isTestMode ? configMap.get(Utils.TEST_MODE_SERVER_URL) : configMap.get(Utils.BASE_URL_ATTRIBUTE);
+    String baseUrl =
+        isTestMode
+            ? configMap.get(Utils.TEST_MODE_SERVER_URL)
+            : configMap.get(Utils.BASE_URL_ATTRIBUTE);
     String url = baseUrl + uriPath;
     String authorization = "Bearer " + configMap.get(Utils.API_KEY_ATTRIBUTE);
     log.info("doGet: url=" + url);
@@ -345,7 +351,6 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
 
     MultivaluedMap<String, String> formData = context.getHttpRequest().getDecodedFormParameters();
     String action = formData.getFirst("action");
-
     log.infov("action(): Get action from request {0}", action);
 
     // Check if user has confirmed data
@@ -359,6 +364,24 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
 
       context.success();
       return;
+    } else if (action == null) {
+      // Retrieve error details from form
+      String errorCode = formData.getFirst("error_code");
+      log.errorv("Received error from form: Code={0}", errorCode);
+
+      // Handle uploadAndCheckException error properly
+      if ("uploadAndCheckException".equals(errorCode)) {
+        String sessionId = context.getAuthenticationSession().getParentSession().getId();
+
+        Response challenge =
+            getBaseForm(context)
+                .setAttribute(Utils.FTL_ERROR, Utils.UPLOAD_AND_CHECK_EXCEPTION)
+                .setAttribute(Utils.CODE_ID, sessionId)
+                .createForm(Utils.INETUM_ERROR);
+
+        context.challenge(challenge);
+        return;
+      }
     }
 
     UserModel user = context.getUser();
@@ -1174,7 +1197,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
                             "inetumDateFormat": "dd/MM/yyyy"
                         }
                     ],
-                    "Seaman Book": [
+                    "Seaman's Book": [
                         {
                             "UserAttribute": "sequent.read-only.id-card-number",
                             "inetumAttributePath": "/response/mrz/personal_number",
@@ -1233,7 +1256,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
                             "errorMsg": "attributesInetumError"
                         }
                     ],
-                    "Seaman Book": [
+                    "Seaman's Book": [
                         {
                             "type": "equalAuthnoteAttributeId",
                             "equalAuthnoteAttributeId": "sequent.read-only.id-card-number",

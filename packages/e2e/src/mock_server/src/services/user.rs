@@ -23,7 +23,6 @@ pub fn load_users(csv_path: &str) -> Result<(), anyhow::Error> {
         .context("Failed to open or create 'voters.db'")
         .context("Error creating sqlite connection")?;
 
-
     conn.execute_batch(
         r#"
         CREATE TABLE IF NOT EXISTS voters (

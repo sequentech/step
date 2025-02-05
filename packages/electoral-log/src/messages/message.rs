@@ -45,9 +45,16 @@ impl Message {
         ip: VoterIpString,
         country: VoterCountryString,
         voter_id: Option<String>,
+        voter_username: Option<String>,
     ) -> Result<Self> {
         let body = StatementBody::CastVote(election, pseudonym_h, vote_h, ip, country);
-        Self::from_body(event, body, sd, voter_id, None /* username */)
+        Self::from_body(
+            event,
+            body,
+            sd,
+            voter_id.clone(),
+            voter_username.clone(), /* username */
+        )
     }
 
     pub fn cast_vote_error_message(

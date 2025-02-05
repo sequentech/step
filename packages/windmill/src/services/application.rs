@@ -1,10 +1,9 @@
 // SPDX-FileCopyrightText: 2024 Sequent Legal <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use super::users::{lookup_users, FilterOption, ListUsersFilter};
 use crate::postgres::application::get_permission_label_from_post;
-use crate::postgres::area::get_areas_by_name;
 use crate::postgres::election_event::get_election_event_by_id;
-use crate::services::cast_votes::get_users_with_vote_info;
 use crate::services::celery_app::get_celery_app;
 use crate::services::providers::{email_sender::EmailSender, sms_sender::SmsSender};
 use crate::services::reports::utils::get_public_asset_template;
@@ -31,14 +30,33 @@ use sequent_core::types::templates::{EmailConfig, SendTemplateBody, SmsConfig, T
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
+use strum_macros::Display;
 use tracing::{debug, event, info, instrument, warn, Level};
 use uuid::Uuid;
 
 use sequent_core::types::templates::AudienceSelection::SELECTED;
 use sequent_core::types::templates::TemplateMethod::{EMAIL, SMS};
-
-use super::users::{lookup_users, FilterOption, ListUsersFilter};
 use unicode_normalization::char::decompose_canonical;
+
+#[allow(non_camel_case_types)]
+#[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
+pub enum ECardType {
+    #[strum(serialize = "philSysID")]
+    #[serde(rename = "philSysID")]
+    PHILSYS_ID,
+    #[strum(serialize = "seamanBook")]
+    #[serde(rename = "seamanBook")]
+    SEAMANS_BOOK,
+    #[strum(serialize = "driversLicense")]
+    #[serde(rename = "driversLicense")]
+    DRIVER_LICENSE,
+    #[strum(serialize = "philippinePassport")]
+    #[serde(rename = "philippinePassport")]
+    PHILIPPINE_PASSPORT,
+    #[strum(serialize = "iBP")]
+    #[serde(rename = "iBP")]
+    IBP,
+}
 
 /// Struct for email/sms Accepted/Rejected Communication object.
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -53,7 +71,7 @@ struct ApplicationCommunicationChannels {
     sms: SmsConfig,
 }
 
-#[instrument(skip(hasura_transaction, keycloak_transaction), err)]
+#[instrument(skip_all, err)]
 pub async fn verify_application(
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
@@ -247,6 +265,7 @@ fn build_manual_verify_reason(fields_match: HashMap<String, bool>) -> String {
             "lastName" => "Last Name",
             "embassy" => "Post",
             "dateOfBirth" => "Date Of Birth",
+            "firstName.middleName" => "First Name + Middle Name",
             _ => key,
         })
         .collect::<Vec<&str>>()
@@ -463,17 +482,77 @@ fn check_mismatches(
 ) -> Result<(usize, usize, HashMap<String, bool>, HashMap<String, bool>)> {
     let mut match_result = HashMap::new();
     let mut unset_result = HashMap::new();
-    let mut missmatches = 0;
+    let mut mismatches = 0;
 
     debug!(
         "Checking user with id: {:?}, fields to check: {:?}, unset to check: {:?}",
         user.id, fields_to_check, fields_to_check_unset
     );
 
+    let card_type = applicant_data
+        .get("sequent.read-only.id-card-type")
+        .cloned()
+        .ok_or(anyhow!("Error converting applicant_data to map"))?;
+
+    // Check if the card type is seamans_book or driver_license
+    let card_type_flag = card_type == ECardType::SEAMANS_BOOK.to_string()
+        || card_type == ECardType::DRIVER_LICENSE.to_string();
+
     for field_to_check in fields_to_check.split(",") {
         let field_to_check = field_to_check.trim();
 
-        // Extract field from application
+        // Special handling for firstName when card_type_flag is true
+        if card_type_flag {
+            if field_to_check == "middleName" {
+                continue;
+            } else if field_to_check == "firstName" {
+                // Extract first and middle names from applicant_data
+                let applicant_first_name = applicant_data
+                    .get("firstName")
+                    .map(|value| value.to_string().to_lowercase());
+                let applicant_middle_name = applicant_data
+                    .get("middleName")
+                    .map(|value| value.to_string().to_lowercase());
+                let applicant_combined = match (applicant_first_name, applicant_middle_name) {
+                    (Some(first), Some(middle)) => {
+                        Some(format!("{} {}", first, middle).trim().to_string())
+                    }
+                    (Some(first), None) => Some(first),
+                    _ => None,
+                };
+
+                // Combine firstName and middleName for the user
+                let user_combined = match (&user.first_name, &user.attributes) {
+                    (Some(first_name), Some(attributes)) => {
+                        let middle_name = attributes
+                            .get("middleName")
+                            .and_then(|values| values.first())
+                            .map(|value| value.to_lowercase());
+                        Some(
+                            format!(
+                                "{} {}",
+                                first_name.to_lowercase(),
+                                middle_name.unwrap_or_default()
+                            )
+                            .trim()
+                            .to_string(),
+                        )
+                    }
+                    (Some(first_name), None) => Some(first_name.to_lowercase()),
+                    _ => None,
+                };
+
+                let is_match = is_fuzzy_match(applicant_combined, user_combined);
+                match_result.insert("firstName.middleName".to_string(), is_match);
+
+                if !is_match {
+                    mismatches += 1;
+                }
+                continue;
+            }
+        }
+
+        // Extract field from applicant_data
         let applicant_field_value = applicant_data
             .get(field_to_check)
             .map(|value| value.to_string().to_lowercase());
@@ -499,7 +578,7 @@ fn check_mismatches(
         match_result.insert(field_to_check.to_string(), is_match);
 
         if !is_match {
-            missmatches += 1;
+            mismatches += 1;
         }
     }
 
@@ -532,12 +611,12 @@ fn check_mismatches(
         }
     }
 
-    debug!("Missmatches {:?}", missmatches);
-    debug!("Missmatches Unset {:?}", unset_mismatches);
+    debug!("Mismatches {:?}", mismatches);
+    debug!("Unset Mismatches {:?}", unset_mismatches);
     debug!("Match Result {:?}", match_result);
     debug!("Unset Result {:?}", unset_result);
 
-    Ok((missmatches, unset_mismatches, match_result, unset_result))
+    Ok((mismatches, unset_mismatches, match_result, unset_result))
 }
 
 /// Get the accepted/rejected message from the internalization object in the defaults file.
@@ -586,7 +665,7 @@ async fn get_i18n_default_application_communication(
 }
 
 /// Get the accepted/rejected message from the internalization object in presentation.
-#[instrument(skip(presentation))]
+#[instrument(skip_all)]
 pub async fn get_i18n_application_communication(
     presentation: ElectionEventPresentation,
     lang: &str,
@@ -673,7 +752,7 @@ pub async fn get_application_response_communication(
     }
 }
 
-#[instrument(skip(hasura_transaction), err)]
+#[instrument(skip_all, err)]
 pub async fn confirm_application(
     hasura_transaction: &Transaction<'_>,
     id: &str,
@@ -692,6 +771,7 @@ pub async fn confirm_application(
         election_event_id,
         user_id,
         ApplicationStatus::ACCEPTED,
+        ApplicationType::MANUAL,
         None,
         None,
         admin_name,
@@ -850,6 +930,7 @@ pub async fn reject_application(
         election_event_id,
         user_id,
         ApplicationStatus::REJECTED,
+        ApplicationType::MANUAL,
         rejection_reason,
         rejection_message,
         admin_name,
@@ -970,6 +1051,7 @@ pub async fn send_application_communication_response(
                 name: None,
                 alias: None,
                 pdf_options: None,
+                report_options: None,
             };
 
             let celery_app = get_celery_app().await;

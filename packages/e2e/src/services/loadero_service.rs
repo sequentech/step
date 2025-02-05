@@ -48,6 +48,9 @@ pub fn init_loadero_test(
     let test_id =
         create_test(&loadero_url, test_config).context("Failed to create test in Loadero")?;
 
+    create_test_participants(loadero_url,&test_id, participants_count)
+        .with_context(|| format!("Failed to create participants for test ID {}", test_id))?;
+
     Ok(test_id)
 }
 
@@ -60,9 +63,6 @@ pub fn init_loadero_test(
     let loadero_interval_polling_sec: u64 = loadero_interval_polling_sec
         .parse()
         .context("LOADERO_INTERVAL_POLLING_TIME must be an string")?;
-
-    create_test_participants(loadero_url,&test_id, participants_count)
-        .with_context(|| format!("Failed to create participants for test ID {}", test_id))?;
 
     let run_id = launch_test(&loadero_url, &test_id).with_context(|| format!("Failed to launch test ID {}", test_id))?;
 
@@ -187,7 +187,6 @@ fn create_test_participants(
 pub fn get_test_id_by_name(test_name: String) -> Result<Option<String>> {
     let loadero_url: String =
         env::var("LOADERO_BASE_URL").with_context(|| "missing  LOADERO_BASE_URL")?;
-
     let client = reqwest::blocking::Client::new();
     let headers = create_header()?;
 
