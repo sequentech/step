@@ -11,7 +11,6 @@ use crate::postgres::tally_session_execution::get_tally_session_executions;
 use crate::services::consolidation::eml_generator::ValidateAnnotations;
 use crate::services::election_dates::get_election_dates;
 use crate::services::election_event_status::get_election_event_status;
-use crate::services::temp_path::read_temp_file;
 use crate::services::users::{
     count_keycloak_enabled_users, count_keycloak_enabled_users_by_attrs, AttributesFilterBy,
     AttributesFilterOption,
@@ -20,6 +19,7 @@ use crate::types::miru_plugin::MiruSbeiUser;
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::StringifiedPeriodDates;
+use sequent_core::signatures::temp_path::*;
 use sequent_core::types::hasura::core::{Area, Election, ElectionEvent};
 use sequent_core::types::keycloak::AREA_ID_ATTR_NAME;
 use sequent_core::types::scheduled_event::ScheduledEvent;

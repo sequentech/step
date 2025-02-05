@@ -27,6 +27,7 @@ use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::area_tree::TreeNodeArea;
 use sequent_core::services::translations::Name;
 use sequent_core::signatures::ecies_encrypt::EciesKeyPair;
+use sequent_core::signatures::temp_path::get_public_assets_path_env_var;
 use sequent_core::types::ceremonies::TallyType;
 use sequent_core::types::hasura::core::{Area, Election, ElectionEvent, TallySession, TallySheet};
 use sequent_core::types::scheduled_event::ScheduledEvent;

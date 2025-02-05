@@ -19,12 +19,12 @@ use crate::{
         compress::compress_folder,
         documents::{upload_and_return_document, upload_and_return_document_postgres},
         folders::copy_to_temp_dir,
-        temp_path::get_file_size,
     },
 };
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::services::translations::Name;
+use sequent_core::signatures::temp_path::get_file_size;
 use sequent_core::types::ceremonies::TallyType;
 use sequent_core::{services::connection::AuthHeaders, types::results::ResultDocuments};
 use sequent_core::{services::keycloak, types::hasura::core::Area};
