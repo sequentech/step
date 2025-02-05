@@ -6,6 +6,7 @@ use crate::postgres::application::insert_applications;
 use crate::postgres::reports::insert_reports;
 use crate::postgres::reports::Report;
 use crate::postgres::trustee::get_all_trustees;
+use crate::services::import::import_publications::import_ballot_publications;
 use crate::services::import::import_scheduled_events::import_scheduled_events;
 use crate::services::protocol_manager::get_event_board;
 use crate::services::reports::template_renderer::EReportEncryption;
@@ -79,10 +80,9 @@ use crate::services::protocol_manager::get_protocol_manager_secret_path;
 use crate::services::protocol_manager::{
     create_protocol_manager_keys, get_b3_pgsql_client, get_board_client,
 };
-use crate::services::temp_path::generate_temp_file;
-use crate::services::temp_path::get_file_size;
 use crate::tasks::import_election_event::ImportElectionEventBody;
 use crate::types::documents::EDocuments;
+use sequent_core::signatures::temp_path::{generate_temp_file, get_file_size};
 use sequent_core::types::hasura::core::{Area, Candidate, Contest, Election, ElectionEvent};
 use sequent_core::types::scheduled_event::*;
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -939,6 +939,26 @@ pub async fn process_document(
                 )
                 .await
                 .with_context(|| "Error managing dates")?;
+            }
+
+            if file_name.contains(&format!("{}", EDocuments::PUBLICATIONS.to_file_name())) {
+                let mut temp_file = NamedTempFile::new()
+                    .context("Failed to create ballot publications temporary file")?;
+
+                io::copy(&mut cursor, &mut temp_file).context(
+                    "Failed to copy contents of ballot publications file to temporary file",
+                )?;
+                temp_file.as_file_mut().rewind()?;
+
+                import_ballot_publications(
+                    hasura_transaction,
+                    &election_event_schema.tenant_id.to_string(),
+                    &election_event_schema.election_event.id,
+                    temp_file,
+                    replacement_map.clone(),
+                )
+                .await
+                .with_context(|| "Error importing publications")?;
             }
 
             if file_name.contains(&format!(

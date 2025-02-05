@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {Box, CircularProgress, Menu, MenuItem} from "@mui/material"
-import React, {useContext, useState} from "react"
+import React, {useCallback, useContext, useState} from "react"
 import {useTranslation} from "react-i18next"
 import {EXPORT_FORMATS} from "./constants"
 import {FetchDocumentQuery} from "@/gql/graphql"
@@ -15,7 +15,7 @@ import {useQuery} from "@apollo/client"
 import {FETCH_DOCUMENT} from "@/queries/FetchDocument"
 import {MiruExport} from "../MiruExport"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
-import {ETallyType} from "@/types/ceremonies"
+import {ETallyType, ETallyTypeCssClass} from "@/types/ceremonies"
 import {notDeepEqual} from "assert"
 import {StyledAppAtom} from "@/App"
 import {ETemplateType} from "@/types/templates"
@@ -120,9 +120,13 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
         setAnchorEl(event.currentTarget)
     }
 
-    const handleClose = () => {
+    // const handleClose = () => {
+    //     setAnchorEl(null)
+    // }
+
+    const handleClose = useCallback(() => {
         setAnchorEl(null)
-    }
+    }, [])
 
     const handleExport = (documents: IResultDocuments, format: EExportFormat) => {
         let documentId = documents?.[format]
@@ -189,6 +193,18 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
         if (classSubtype) {
             classes.push(classSubtype)
         }
+        if (tallyType) {
+            let tally_type_class = ""
+            switch (tallyType) {
+                case ETallyType.ELECTORAL_RESULTS:
+                    tally_type_class = ETallyTypeCssClass[ETallyType.ELECTORAL_RESULTS]
+                    break
+                case ETallyType.INITIALIZATION_REPORT:
+                    tally_type_class = ETallyTypeCssClass[ETallyType.INITIALIZATION_REPORT]
+                    break
+            }
+            classes.push(tally_type_class)
+        }
 
         return classes.join(" ")
     }
@@ -247,7 +263,7 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
                                     onClick={(e: React.MouseEvent<HTMLElement>) => {
                                         e.preventDefault()
                                         e.stopPropagation()
-                                        handleClose()
+                                        setTimeout(() => handleClose(), 0)
                                         handleExport(documents.documents, format.value)
                                     }}
                                     disabled={isExportFormatDisabled(
@@ -284,15 +300,19 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
                             loading={miruExportloading}
                         />
                     ) : null}
-                    {globalSettings?.ACTIVATE_MIRU_EXPORT && electionId ? (
+                    {globalSettings?.ACTIVATE_MIRU_EXPORT &&
+                    tallyType !== ETallyType.INITIALIZATION_REPORT &&
+                    electionId ? (
                         <>
                             <GenerateReport
+                                handleClose={handleClose}
                                 reportType={ETemplateType.BALLOT_IMAGES}
                                 electionEventId={electionEventId}
                                 electionId={electionId}
                                 tallySessionId={tallySessionId}
                             />
                             <GenerateReport
+                                handleClose={handleClose}
                                 reportType={ETemplateType.VOTE_RECEIPT}
                                 electionEventId={electionEventId}
                                 electionId={electionId}

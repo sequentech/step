@@ -24,7 +24,7 @@ serde_path_to_error = "0.1"
 # borsh = "0.9.3"
 borsh = { version = "=1.5.1", features = ["derive"] }
 # wasm
-wasm-bindgen = {version = "=0.2.79", features = ['serde-serialize'], optional = true}
+wasm-bindgen = {version = "=0.2.100", features = ['serde-serialize'], optional = true}
 serde-wasm-bindgen = { version = "0.4", optional = true }
 web-sys = { version = "0.3.4", features = ['Performance', 'console'], optional = true}
 cfg-if = "1.0"
@@ -104,6 +104,7 @@ ptree = "0.5.0"
 [features]
 wasmtest = ["wasm", "dep:web-sys", "strand/wasmtest"]
 wasm = ["wasm-bindgen", "areas", "serde-wasm-bindgen"]
+signatures=["dep:tempfile","dep:tracing"]
 default = []
 areas = []
 reports = ["dep:handlebars", "dep:handlebars-chrono", "dep:headless_chrome", "dep:tracing", "dep:tempfile", "dep:num-format"]

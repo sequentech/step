@@ -8,37 +8,37 @@ use crate::pipes::error::{Error, Result};
 use crate::pipes::pipe_inputs::{InputElectionConfig, PipeInputs};
 use crate::pipes::pipe_name::{PipeName, PipeNameOutputDir};
 use crate::pipes::Pipe;
+use anyhow::Context;
 use hex::encode;
+use rayon::prelude::*;
+use rayon::ThreadPoolBuilder;
 use sequent_core::ballot::{Candidate, CandidatesOrder, Contest, StringifiedPeriodDates};
 use sequent_core::ballot_codec::multi_ballot::DecodedBallotChoices;
 use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
 use sequent_core::services::{pdf, reports};
+use sequent_core::signatures::ecies_encrypt::ecies_sign_data;
 use sequent_core::types::templates::VoteReceiptPipeType;
 use sequent_core::util::date_time::get_date_and_time;
 use serde::Serialize;
 use serde_json::Map;
 use std::collections::HashMap;
+use std::fs;
 use std::fs::OpenOptions;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::{default, fs};
 use strand::hash::hash_sha256;
 use tracing::{info, instrument};
 use uuid::Uuid;
 
-pub const OUTPUT_FILE_PDF: &str = "mcballots_receipts.pdf";
-pub const OUTPUT_FILE_HTML: &str = "mcballots_receipts.html";
-
-pub const BALLOT_IMAGES_OUTPUT_FILE_PDF: &str = "mcballots_images.pdf";
-pub const BALLOT_IMAGES_OUTPUT_FILE_HTML: &str = "mcballots_images.html";
+pub const VOTE_RECEIPTS_OUTPUT_FILE: &str = "vote_receipts";
+pub const BALLOT_IMAGES_OUTPUT_FILE: &str = "ballots";
 
 pub struct MCBallotReceipts {
     pub pipe_inputs: PipeInputs,
 }
 
 pub struct VoteReceiptsPipeData {
-    pub output_file_pdf: String,
-    pub output_file_html: String,
+    pub output_file: String,
     pub pipe_name: String,
     pub pipe_name_output_dir: String,
 }
@@ -134,24 +134,47 @@ impl MCBallotReceipts {
     #[instrument(skip_all, err)]
     fn print_vote_receipts(
         &self,
-        path: &Path,
+        ballots: &[Bridge],
         contests: &Vec<Contest>,
         election_input: &InputElectionConfig,
         pipe_config: &PipeConfigVoteReceipts,
         area_name: &str,
     ) -> Result<(Option<Vec<u8>>, Vec<u8>)> {
-        let f = fs::File::open(&path).map_err(|e| Error::FileAccess(path.to_path_buf(), e))?;
-        let mcballots: Vec<DecodedBallotChoices> = crate::utils::parse_file(f)?;
         let contest_map: HashMap<String, Contest> = contests
             .iter()
             .map(|c| (c.id.to_string(), c.clone()))
             .collect();
-        let ballots = convert_ballots(election_input, mcballots)?;
+        let execution_annotations: Option<HashMap<String, String>> =
+            pipe_config.execution_annotations.clone();
+        let precint_id = election_input
+            .annotations
+            .get(&"miru:precinct-code".to_string())
+            .map(|s| s.as_str())
+            .unwrap_or_default();
+        let mut page_number = 1;
+        let election_event_id = election_input
+            .election_event_annotations
+            .get("miru:election-event-id")
+            .map(|s| s.as_str())
+            .unwrap_or_default();
+        let election_id = election_input
+            .annotations
+            .get("miru:election-id")
+            .map(|s| s.as_str())
+            .unwrap_or_default();
+
+        info!(
+            "election_event_annotations {:?}",
+            election_input.election_event_annotations
+        );
+        info!("election annotations {:?}", election_input.annotations);
+
+        info!("event {election_event_id} election {election_id} precint_id {precint_id}");
 
         let mut ballot_data = vec![];
         for ballot in ballots {
             let mut cds = vec![];
-            for contest_choices in ballot.choices {
+            for contest_choices in &ballot.choices {
                 let contest = contest_map.get(&contest_choices.contest_id).unwrap();
                 let mut choices = DecodedChoice::from_dvcs(&contest_choices, &contest);
 
@@ -172,14 +195,40 @@ impl MCBallotReceipts {
                     overvotes = (num_selected as i64) - contest.max_votes;
                 }
 
+                let (digital_signature, sign_data) =
+                    match (&pipe_config.acm_key, &pipe_config.pipe_type) {
+                        (Some(acm_key), VoteReceiptPipeType::BALLOT_IMAGES) => {
+                            let sign_data = format!(
+                                "{}:{}:{}:{}:{}",
+                                election_event_id,
+                                &precint_id,
+                                ballot.mcballot.serial_number.clone().unwrap_or_default(),
+                                election_id,
+                                page_number.to_string()
+                            );
+                            let signature = ecies_sign_data(&acm_key, &sign_data).map_err(|e| {
+                                Error::UnexpectedError(format!("Error sign data: {}", e))
+                            })?;
+                            (Some(signature), Some(sign_data))
+                        }
+                        _ => (None, None),
+                    };
+
                 // contest.
                 let cd: ContestData = ContestData {
                     contest: contest.clone(),
                     decoded_choices: choices,
                     undervotes,
                     overvotes,
+                    digital_signature,
+                    sign_data,
+                    page_number: match &pipe_config.pipe_type {
+                        VoteReceiptPipeType::BALLOT_IMAGES => Some(page_number),
+                        _ => None,
+                    },
                 };
 
+                page_number += 1;
                 cds.push(cd);
             }
 
@@ -193,7 +242,7 @@ impl MCBallotReceipts {
             let is_blank = cds.iter().all(|choice| choice.is_blank());
 
             let bd = BallotData {
-                id: ballot.mcballot.serial_number.unwrap_or_default(),
+                id: ballot.mcballot.serial_number.clone().unwrap_or_default(),
                 encoded_vote: encoded_vote,
                 is_invalid: ballot.mcballot.is_explicit_invalid,
                 is_blank: is_blank,
@@ -201,9 +250,8 @@ impl MCBallotReceipts {
             };
 
             ballot_data.push(bd);
+            page_number += 1; //inc by one for summary page
         }
-
-        let execution_annotations = pipe_config.execution_annotations.clone();
 
         let td = TemplateData {
             election_name: election_input.name.clone(),
@@ -211,7 +259,7 @@ impl MCBallotReceipts {
             area: area_name.to_string(),
             election_annotations: election_input.annotations.clone(),
             election_dates: election_input.dates.clone(),
-            execution_annotations: execution_annotations.unwrap_or_default(),
+            execution_annotations: execution_annotations.unwrap_or_default().clone(),
         };
 
         let mut map = Map::new();
@@ -285,14 +333,12 @@ impl MCBallotReceipts {
 fn get_pipe_data(pipe_type: VoteReceiptPipeType) -> VoteReceiptsPipeData {
     match pipe_type {
         VoteReceiptPipeType::VOTE_RECEIPT => VoteReceiptsPipeData {
-            output_file_pdf: OUTPUT_FILE_PDF.to_string(),
-            output_file_html: OUTPUT_FILE_HTML.to_string(),
+            output_file: VOTE_RECEIPTS_OUTPUT_FILE.to_string(),
             pipe_name_output_dir: PipeNameOutputDir::MCBallotReceipts.as_ref().to_string(),
             pipe_name: PipeName::VoteReceipts.as_ref().to_string(),
         },
         VoteReceiptPipeType::BALLOT_IMAGES => VoteReceiptsPipeData {
-            output_file_pdf: BALLOT_IMAGES_OUTPUT_FILE_PDF.to_string(),
-            output_file_html: BALLOT_IMAGES_OUTPUT_FILE_HTML.to_string(),
+            output_file: BALLOT_IMAGES_OUTPUT_FILE.to_string(),
             pipe_name_output_dir: PipeNameOutputDir::MCBallotImages.as_ref().to_string(),
             pipe_name: PipeName::MCBallotImages.as_ref().to_string(),
         },
@@ -301,31 +347,44 @@ fn get_pipe_data(pipe_type: VoteReceiptPipeType) -> VoteReceiptsPipeData {
 
 fn generate_hashed_filename(
     path: &PathBuf,
+    name: &str,
     hash_bytes: &[u8],
-    default_extension: &str,
+    area_id: &str,
+    election_input: &InputElectionConfig,
+    from_ballot: &Bridge,
+    to_ballot: &Bridge,
 ) -> Result<PathBuf> {
     let path = path.as_path();
-
+    let country_code = election_input
+        .areas
+        .iter()
+        .find(|area| area.id == area_id.to_string())
+        .and_then(|area| {
+            area.annotations
+                .as_ref()
+                .and_then(|annotations| annotations.get("miru:area-station-id"))
+                .and_then(|value| value.as_str())
+        })
+        .unwrap_or("");
+    let post_code = election_input
+        .annotations
+        .get("miru:precinct-code")
+        .map(|s| s.as_str())
+        .unwrap_or("");
+    let clustered_precint_id = election_input
+        .annotations
+        .get("clustered_precint_id")
+        .map(|s| s.as_str())
+        .unwrap_or("");
+    let from_ballot_id = from_ballot.mcballot.serial_number.as_deref().unwrap_or("");
+    let to_ballot_id = to_ballot.mcballot.serial_number.as_deref().unwrap_or("");
     let hash_hex = hex::encode(hash_bytes);
 
-    let file_stem = path
-        .file_stem()
-        .ok_or("Invalid file name: No stem found")
-        .map_err(|e| Error::UnexpectedError(format!("Error get path file_stem: {}", e)))?
-        .to_string_lossy();
+    let new_filename = format!(
+        "{name}_{post_code}_{country_code}_{clustered_precint_id}_{from_ballot_id}-{to_ballot_id}_{hash_hex}.pdf"
+    );
 
-    let extension = path
-        .extension()
-        .map(|ext| ext.to_string_lossy())
-        .unwrap_or_else(|| default_extension.to_string().into());
-
-    let new_filename = if extension.is_empty() {
-        format!("{file_stem}_{hash_hex}")
-    } else {
-        format!("{file_stem}_{hash_hex}.{extension}")
-    };
-
-    Ok(path.with_file_name(new_filename))
+    Ok(path.join(new_filename))
 }
 
 impl Pipe for MCBallotReceipts {
@@ -334,7 +393,6 @@ impl Pipe for MCBallotReceipts {
         let pipe_config: PipeConfigVoteReceipts = self.get_config()?;
 
         let pipe_data = get_pipe_data(pipe_config.pipe_type.clone());
-
         for election_input in &self.pipe_inputs.election_list {
             let area_contests_map = election_input.get_area_contest_map();
 
@@ -352,67 +410,95 @@ impl Pipe for MCBallotReceipts {
                 .join(OUTPUT_DECODED_BALLOTS_FILE);
 
                 if path_ballots.exists() {
-                    let (bytes_pdf, bytes_html) = self.print_vote_receipts(
-                        path_ballots.as_path(),
-                        &area_contests.contests,
-                        &election_input,
-                        &pipe_config,
-                        &area_contests.area_name,
-                    )?;
+                    let f = fs::File::open(path_ballots.as_path())
+                        .map_err(|e| Error::FileAccess(path_ballots.as_path().to_path_buf(), e))?;
+                    let mcballots: Vec<DecodedBallotChoices> = crate::utils::parse_file(f)?;
+                    let ballots = convert_ballots(election_input, mcballots)?;
+                    let report_options = pipe_config.report_options.clone().unwrap_or_default();
+                    let max_threads = report_options.max_threads.unwrap_or_else(|| 3);
+                    let pool = ThreadPoolBuilder::new()
+                        .num_threads(max_threads)
+                        .build()
+                        .unwrap();
 
-                    let path = PipeInputs::mcballots_path(
-                        &self
-                            .pipe_inputs
-                            .cli
-                            .output_dir
-                            .join(&pipe_data.pipe_name_output_dir)
-                            .as_path(),
-                        &election_input.id,
-                        &area_id,
-                    );
+                    let max_items_per_report =
+                        report_options.max_items_per_report.unwrap_or_else(|| 1_000);
 
-                    fs::create_dir_all(&path)?;
+                    let result: Result<(), Error> = pool.install(|| {
+                        ballots
+                            .par_chunks(max_items_per_report)
+                            .enumerate()
+                            .try_for_each(|(chunk_index, chunk)| {
+                                let (bytes_pdf, bytes_html) = self.print_vote_receipts(
+                                    chunk,
+                                    &area_contests.contests,
+                                    &election_input,
+                                    &pipe_config,
+                                    &area_contests.area_name,
+                                )?;
 
-                    if let Some(ref some_bytes_pdf) = bytes_pdf {
-                        let file = match &pipe_config.pipe_type {
-                            VoteReceiptPipeType::VOTE_RECEIPT => {
-                                path.join(&pipe_data.output_file_pdf)
-                            }
-                            VoteReceiptPipeType::BALLOT_IMAGES => {
-                                let pdf_hash =
-                                    hash_sha256(some_bytes_pdf.as_slice()).map_err(|e| {
+                                let path = PipeInputs::mcballots_path(
+                                    &self
+                                        .pipe_inputs
+                                        .cli
+                                        .output_dir
+                                        .join(&pipe_data.pipe_name_output_dir)
+                                        .as_path(),
+                                    &election_input.id,
+                                    &area_id,
+                                );
+
+                                fs::create_dir_all(&path)?;
+
+                                if let Some(ref some_bytes_pdf) = bytes_pdf {
+                                    // pdf file creation
+                                    let pdf_hash =
+                                        hash_sha256(some_bytes_pdf.as_slice()).map_err(|e| {
+                                            Error::UnexpectedError(format!(
+                                                "Error during hash pdf bytes: {}",
+                                                e
+                                            ))
+                                        })?;
+
+                                    let file = generate_hashed_filename(
+                                        &path,
+                                        &pipe_data.output_file,
+                                        &pdf_hash,
+                                        &area_id.to_string(),
+                                        election_input,
+                                        chunk.first().unwrap(),
+                                        chunk.last().unwrap(),
+                                    )
+                                    .map_err(|e| {
                                         Error::UnexpectedError(format!(
                                             "Error during hash pdf bytes: {}",
                                             e
                                         ))
                                     })?;
-
-                                let file = path.join(&pipe_data.output_file_pdf);
-
-                                generate_hashed_filename(&file, &pdf_hash, "pdf").map_err(|e| {
-                                    Error::UnexpectedError(format!(
-                                        "Error during hash pdf bytes: {}",
-                                        e
-                                    ))
-                                })?
-                            }
-                        };
-
-                        let mut file = OpenOptions::new()
-                            .write(true)
-                            .truncate(true)
-                            .create(true)
-                            .open(file)?;
-                        file.write_all(&some_bytes_pdf)?;
+                                    let mut file = OpenOptions::new()
+                                        .write(true)
+                                        .truncate(true)
+                                        .create(true)
+                                        .open(file)?;
+                                    file.write_all(some_bytes_pdf)?;
+                                }
+                                let file = path.join(format!(
+                                    "{}_batch-{}.html",
+                                    pipe_data.output_file, chunk_index,
+                                ));
+                                // html file creation
+                                let mut file = OpenOptions::new()
+                                    .write(true)
+                                    .truncate(true)
+                                    .create(true)
+                                    .open(file)?;
+                                file.write_all(&bytes_html)?;
+                                Ok(())
+                            })
+                    });
+                    if let Err(e) = result {
+                        eprintln!("Error processing: {}", e);
                     }
-
-                    let file = path.join(&pipe_data.output_file_html);
-                    let mut file = OpenOptions::new()
-                        .write(true)
-                        .truncate(true)
-                        .create(true)
-                        .open(file)?;
-                    file.write_all(&bytes_html)?;
                 } else {
                     println!(
                         "[{}] File not found: {} -- Not processed",
@@ -452,6 +538,9 @@ pub struct ContestData {
     pub decoded_choices: Vec<DecodedChoice>,
     pub undervotes: i64,
     pub overvotes: i64,
+    pub digital_signature: Option<String>,
+    pub sign_data: Option<String>,
+    pub page_number: Option<i64>,
 }
 
 impl ContestData {

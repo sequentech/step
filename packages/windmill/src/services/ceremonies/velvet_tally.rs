@@ -6,6 +6,7 @@ use crate::postgres::election::export_elections;
 use crate::postgres::reports::ReportType;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::cast_votes::ElectionCastVotes;
+use crate::services::consolidation::acm_json::get_acm_key_pair;
 use crate::services::database::get_hasura_pool;
 use crate::services::election_dates::get_election_dates;
 use crate::services::reports::ballot_images::BallotImagesTemplate;
@@ -25,6 +26,8 @@ use sequent_core::ballot_codec::PlaintextCodec;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::area_tree::TreeNodeArea;
 use sequent_core::services::translations::Name;
+use sequent_core::signatures::ecies_encrypt::EciesKeyPair;
+use sequent_core::signatures::temp_path::get_public_assets_path_env_var;
 use sequent_core::types::ceremonies::TallyType;
 use sequent_core::types::hasura::core::{Area, Election, ElectionEvent, TallySession, TallySheet};
 use sequent_core::types::scheduled_event::ScheduledEvent;
@@ -222,8 +225,15 @@ pub fn create_election_configs_blocking(
     elections_single_map: HashMap<String, Election>,
     areas: Vec<TreeNodeArea>,
     default_lang: String,
+    election_event: ElectionEvent,
 ) -> Result<()> {
     let mut elections_map: HashMap<String, ElectionConfig> = HashMap::new();
+
+    let election_event_annotations: HashMap<String, String> = election_event
+        .annotations
+        .clone()
+        .map(|annotations| deserialize_value(annotations).unwrap_or(Default::default()))
+        .unwrap_or(Default::default());
     for area_contest in area_contests {
         let election_id = area_contest.contest.election_id.clone();
         let election_event_id = area_contest.contest.election_event_id.clone();
@@ -272,7 +282,7 @@ pub fn create_election_configs_blocking(
                 alias: election_alias_otp.unwrap_or("".to_string()),
                 description: election_description,
                 annotations: election_annotations.clone(),
-                election_event_annotations: Default::default(),
+                election_event_annotations: election_event_annotations.clone(),
                 dates: election_dates,
                 tenant_id: Uuid::parse_str(&area_contest.contest.tenant_id)?,
                 election_event_id: Uuid::parse_str(&area_contest.contest.election_event_id)?,
@@ -382,6 +392,8 @@ pub async fn create_election_configs(
     .await
     .map_err(|e| anyhow!("Error getting scheduled event by election event_id: {e:?}"))?;
 
+    let event = election_event.clone();
+
     // Spawn the task
     let handle = tokio::task::spawn_blocking(move || {
         create_election_configs_blocking(
@@ -392,6 +404,7 @@ pub async fn create_election_configs(
             elections_single_map.clone(),
             areas_clone.clone(),
             default_language.clone(),
+            event.clone(),
         )
     });
 
@@ -527,11 +540,12 @@ pub async fn build_vote_receipe_pipe_config(
         tally_session_id: None,
     });
 
-    let (mut tpl_pdf_options, mut tpl_email, mut tpl_sms) = (None, None, None);
+    let (mut tpl_pdf_options, mut tpl_report_options, mut tpl_email, mut tpl_sms) =
+        (None, None, None, None);
 
     // Fill extra config if needed with default data
     let ext_cfg: ReportExtraConfig = vote_receipt_renderer
-        .fill_extra_config_with_default(tpl_pdf_options, tpl_email, tpl_sms)
+        .fill_extra_config_with_default(tpl_pdf_options, tpl_report_options, tpl_email, tpl_sms)
         .await
         .map_err(|e| anyhow!("Error getting the extra config: {e:?}"))?;
     debug!("Extra config read: {ext_cfg:?}");
@@ -570,7 +584,9 @@ pub async fn build_vote_receipe_pipe_config(
         enable_pdfs: true,
         pipe_type: VoteReceiptPipeType::VOTE_RECEIPT,
         pdf_options: Some(ext_cfg.pdf_options),
+        report_options: Some(ext_cfg.report_options),
         execution_annotations: Some(execution_annotations),
+        acm_key: None,
     };
     Ok(vote_receipt_pipe_config)
 }
@@ -593,10 +609,11 @@ pub async fn build_ballot_images_pipe_config(
         tally_session_id: None,
     });
 
-    let (mut tpl_pdf_options, mut tpl_email, mut tpl_sms) = (None, None, None);
+    let (mut tpl_pdf_options, tpl_report_options, mut tpl_email, mut tpl_sms) =
+        (None, None, None, None);
 
     let ext_cfg: ReportExtraConfig = ballot_images_renderer
-        .fill_extra_config_with_default(tpl_pdf_options, tpl_email, tpl_sms)
+        .fill_extra_config_with_default(tpl_pdf_options, tpl_report_options, tpl_email, tpl_sms)
         .await
         .map_err(|e| anyhow!("Error getting the extra config: {e:?}"))?;
     debug!("Extra config read: {ext_cfg:?}");
@@ -620,6 +637,8 @@ pub async fn build_ballot_images_pipe_config(
     let ballot_imagest_system_template =
         get_public_asset_template(PUBLIC_ASSETS_VELVET_BALLOT_IMAGES_TEMPLATE_SYSTEM).await?;
 
+    let acm_key = get_acm_key_pair().await?;
+
     let ballot_images_pipe_config = PipeConfigVoteReceipts {
         template: ballot_images_template,
         system_template: ballot_imagest_system_template,
@@ -627,7 +646,9 @@ pub async fn build_ballot_images_pipe_config(
         enable_pdfs: true,
         pipe_type: VoteReceiptPipeType::BALLOT_IMAGES,
         pdf_options: Some(ext_cfg.pdf_options),
+        report_options: Some(ext_cfg.report_options),
         execution_annotations: None,
+        acm_key: Some(acm_key),
     };
     Ok(ballot_images_pipe_config)
 }
@@ -704,22 +725,6 @@ pub async fn create_config_file(
 
     let minio_endpoint_base = s3::get_minio_url()?;
 
-    let vote_receipt_pipe_config: PipeConfigVoteReceipts = build_vote_receipe_pipe_config(
-        &tally_session,
-        &hasura_transaction,
-        minio_endpoint_base.clone(),
-        public_asset_path.clone(),
-    )
-    .await?;
-
-    let ballot_images_pipe_config: PipeConfigVoteReceipts = build_ballot_images_pipe_config(
-        &tally_session,
-        &hasura_transaction,
-        minio_endpoint_base.clone(),
-        public_asset_path.clone(),
-    )
-    .await?;
-
     let gen_report_pipe_config = build_reports_pipe_config(
         &tally_session,
         minio_endpoint_base,
@@ -744,24 +749,6 @@ pub async fn create_config_file(
                             ContestEncryptionPolicy::SINGLE_CONTEST => PipeName::DecodeBallots,
                         },
                         config: Some(serde_json::Value::Null),
-                    },
-                    velvet::config::PipeConfig {
-                        id: "vote-receipts".to_string(),
-                        pipe: match contest_encryption_policy {
-                            ContestEncryptionPolicy::MULTIPLE_CONTESTS => {
-                                PipeName::MCBallotReceipts
-                            }
-                            ContestEncryptionPolicy::SINGLE_CONTEST => PipeName::VoteReceipts,
-                        },
-                        config: Some(serde_json::to_value(vote_receipt_pipe_config)?),
-                    },
-                    velvet::config::PipeConfig {
-                        id: "ballot-images".to_string(),
-                        pipe: match contest_encryption_policy {
-                            ContestEncryptionPolicy::MULTIPLE_CONTESTS => PipeName::MCBallotImages,
-                            ContestEncryptionPolicy::SINGLE_CONTEST => PipeName::BallotImages,
-                        },
-                        config: Some(serde_json::to_value(ballot_images_pipe_config)?),
                     },
                     velvet::config::PipeConfig {
                         id: "do-tally".to_string(),

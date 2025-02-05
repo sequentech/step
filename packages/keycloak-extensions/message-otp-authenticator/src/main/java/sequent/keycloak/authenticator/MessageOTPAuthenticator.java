@@ -71,7 +71,8 @@ public class MessageOTPAuthenticator
     String code = authSession.getAuthNote(Utils.CODE);
     String ttl = authSession.getAuthNote(Utils.CODE_TTL);
 
-    boolean isTestMode = config.getConfig().get(Utils.TEST_MODE_ATTRIBUTE).equals("true");
+    boolean isTestMode =
+        config.getConfig().getOrDefault(Utils.TEST_MODE_ATTRIBUTE, "false").equals("true");
     String testModeCode = config.getConfig().get(Utils.TEST_MODE_CODE_ATTRIBUTE);
 
     try {

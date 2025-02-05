@@ -11,7 +11,6 @@ use crate::postgres::tally_session_execution::get_tally_session_executions;
 use crate::services::consolidation::eml_generator::ValidateAnnotations;
 use crate::services::election_dates::get_election_dates;
 use crate::services::election_event_status::get_election_event_status;
-use crate::services::temp_path::read_temp_file;
 use crate::services::users::{
     count_keycloak_enabled_users, count_keycloak_enabled_users_by_attrs, AttributesFilterBy,
     AttributesFilterOption,
@@ -20,6 +19,7 @@ use crate::types::miru_plugin::MiruSbeiUser;
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::StringifiedPeriodDates;
+use sequent_core::signatures::temp_path::*;
 use sequent_core::types::hasura::core::{Area, Election, ElectionEvent};
 use sequent_core::types::keycloak::AREA_ID_ATTR_NAME;
 use sequent_core::types::scheduled_event::ScheduledEvent;
@@ -30,10 +30,8 @@ use std::env;
 use strand::hash::hash_b64;
 use tracing::instrument;
 // re-export for easy refactor:
+pub use crate::services::users::{VALIDATE_ID_ATTR_NAME, VALIDATE_ID_REGISTERED_VOTER};
 pub use sequent_core::util::date_time::get_date_and_time;
-
-pub const VALIDATE_ID_ATTR_NAME: &str = "sequent.read-only.id-card-number-validated";
-pub const VALIDATE_ID_REGISTERED_VOTER: &str = "VERIFIED";
 
 pub const DEFULT_CHAIRPERSON: &str = "Chairperson";
 pub const DEFULT_POLL_CLERK: &str = "Poll Clerk";
