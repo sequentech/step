@@ -208,8 +208,7 @@ impl TemplateRenderer for TransmissionReport {
             &self.ids.election_event_id,
             &election_id,
         )
-        .await
-        .unwrap_or("-".to_string());
+        .await?;
 
         let report_hash = get_report_hash(&ReportType::TRANSMISSION_REPORT.to_string())
             .await
@@ -290,7 +289,7 @@ impl TemplateRenderer for TransmissionReport {
                 software_version: app_version.clone(),
                 app_hash,
                 executer_username: self.ids.executer_username.clone(),
-                results_hash: Some(results_hash),
+                results_hash: results_hash.clone(),
             },
         })
     }

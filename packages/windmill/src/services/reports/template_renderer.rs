@@ -460,21 +460,20 @@ pub trait TemplateRenderer: Debug {
         let extension_suffix = "pdf";
 
         // Generate PDF
-        let content_bytes = pdf::html_to_pdf(
+        let mut content_bytes = pdf::html_to_pdf(
             rendered_system_template.clone(),
             Some(ext_cfg.pdf_options.to_print_to_pdf_options()),
         )
         .map_err(|err| anyhow!("Error rendering report to {extension_suffix:?}: {err:?}"))?;
 
         let base_name = self.base_name();
-        let fmt_extension = format!(".{extension_suffix}");
-        let report_name: String = format!("{}{fmt_extension}", self.prefix());
+        let mut report_name: String = format!("{}.{extension_suffix}", self.prefix());
 
         // Write temp file and upload
-        let (_temp_path, temp_path_string, file_size) = write_into_named_temp_file(
+        let (_temp_path, temp_path_string, mut file_size) = write_into_named_temp_file(
             &content_bytes,
             format!("{base_name}-").as_str(),
-            fmt_extension.as_str(),
+            format!(".{extension_suffix}").as_str(),
         )
         .map_err(|err| anyhow!("Error writing to file: {err:?}"))?;
         let mimetype = format!("application/{}", extension_suffix);
@@ -517,93 +516,59 @@ pub trait TemplateRenderer: Debug {
         let auth_headers = keycloak::get_client_credentials()
             .await
             .map_err(|err| anyhow!("Error getting client credentials: {err:?}"))?;
+
+        let mut upload_path = temp_path_string.clone();
+        let mut email_mime_type = mimetype.clone();
+
         if let Some(enc_temp_path) = encrypted_temp_data {
-            let encrypted_temp_path = enc_temp_path.to_string_lossy().to_string();
-            let enc_temp_size = get_file_size(encrypted_temp_path.as_str())
-                .with_context(|| "Error obtaining file size")?;
-            let enc_report_name: String = format!("{}.epdf", self.prefix());
-            let _document = upload_and_return_document(
-                encrypted_temp_path,
-                enc_temp_size,
-                mimetype.clone(),
-                auth_headers.clone(),
-                tenant_id.to_string(),
-                election_event_id.to_string(),
-                enc_report_name.clone(),
-                Some(document_id.to_string()),
-                true,
-            )
-            .await
-            .map_err(|err| anyhow!("Error uploading document: {err:?}"))?;
+            upload_path = enc_temp_path.to_string_lossy().to_string();
+            file_size =
+                get_file_size(upload_path.as_str()).with_context(|| "Error obtaining file size")?;
+            report_name = format!("{}.e{}", self.prefix(), extension_suffix);
+            content_bytes = read_temp_path(&enc_temp_path)?;
+            email_mime_type = "application/octet-stream".into();
+        }
+        
+        let _document = upload_and_return_document(
+            temp_path_string,
+            file_size,
+            mimetype.clone(),
+            auth_headers.clone(),
+            tenant_id.to_string(),
+            election_event_id.to_string(),
+            report_name.clone(),
+            Some(document_id.to_string()),
+            true,
+        )
+        .await
+        .map_err(|err| anyhow!("Error uploading document: {err:?}"))?;
 
-            // Send email if needed
-            if self.should_send_email(is_scheduled_task) {
-                let email_config = ext_cfg.communication_templates.email_config;
-                let email_recipients = self
-                    .get_email_recipients(recipients, tenant_id, election_event_id)
-                    .await
-                    .map_err(|err| anyhow!("Error getting email receiver: {err:?}"))?;
-                let email_sender = EmailSender::new()
-                    .await
-                    .map_err(|e| anyhow::anyhow!(format!("Error getting email sender {e:?}")))?;
-                let enc_report_bytes = read_temp_path(&enc_temp_path)?;
-                email_sender
-                    .send(
-                        email_recipients,
-                        email_config.subject,
-                        email_config.plaintext_body,
-                        email_config.html_body,
-                        /* attachments */
-                        vec![Attachment {
-                            filename: enc_report_name,
-                            mimetype: "application/octet-stream".into(),
-                            content: enc_report_bytes,
-                        }],
-                    )
-                    .await
-                    .map_err(|err| anyhow!("Error sending email: {err:?}"))?;
-            }
-        } else {
-            let _document = upload_and_return_document(
-                temp_path_string,
-                file_size,
-                mimetype.clone(),
-                auth_headers.clone(),
-                tenant_id.to_string(),
-                election_event_id.to_string(),
-                report_name.clone(),
-                Some(document_id.to_string()),
-                true,
-            )
-            .await
-            .map_err(|err| anyhow!("Error uploading document: {err:?}"))?;
+        // Send email if needed
+        if self.should_send_email(is_scheduled_task) {
+            let email_config = ext_cfg.communication_templates.email_config;
+            let email_recipients = self
+                .get_email_recipients(recipients, tenant_id, election_event_id)
+                .await
+                .map_err(|err| anyhow!("Error getting email receiver: {err:?}"))?;
+            let email_sender = EmailSender::new()
+                .await
+                .map_err(|e| anyhow::anyhow!(format!("Error getting email sender {e:?}")))?;
 
-            // Send email if needed
-            if self.should_send_email(is_scheduled_task) {
-                let email_config = ext_cfg.communication_templates.email_config;
-                let email_recipients = self
-                    .get_email_recipients(recipients, tenant_id, election_event_id)
-                    .await
-                    .map_err(|err| anyhow!("Error getting email receiver: {err:?}"))?;
-                let email_sender = EmailSender::new()
-                    .await
-                    .map_err(|e| anyhow::anyhow!(format!("Error getting email sender {e:?}")))?;
-                email_sender
-                    .send(
-                        email_recipients,
-                        email_config.subject,
-                        email_config.plaintext_body,
-                        email_config.html_body,
-                        /* attachments */
-                        vec![Attachment {
-                            filename: report_name,
-                            mimetype: mimetype,
-                            content: content_bytes,
-                        }],
-                    )
-                    .await
-                    .map_err(|err| anyhow!("Error sending email: {err:?}"))?;
-            }
+            email_sender
+                .send(
+                    email_recipients,
+                    email_config.subject,
+                    email_config.plaintext_body,
+                    email_config.html_body,
+                    /* attachments */
+                    vec![Attachment {
+                        filename: report_name,
+                        mimetype: email_mime_type,
+                        content: content_bytes,
+                    }],
+                )
+                .await
+                .map_err(|err| anyhow!("Error sending email: {err:?}"))?;
         }
 
         if let Some(task) = task_execution {
