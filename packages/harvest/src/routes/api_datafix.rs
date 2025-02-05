@@ -13,7 +13,7 @@ use serde::Deserialize;
 use serde::Serialize;
 use tracing::{error, info, instrument};
 use windmill::services::api_datafix::*;
-use windmill::services::database::get_hasura_pool;
+use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
 
 #[instrument(skip(claims))]
 #[post("/add-voter", format = "json", data = "<body>")]
@@ -97,8 +97,20 @@ pub async fn delete_voter(
             DatafixResponse::new(Status::InternalServerError)
         })?;
 
+    let mut keycloak_db_client: DbClient =
+        get_keycloak_pool().await.get().await.map_err(|e| {
+            error!("Error getting keycloak client {}", e);
+            DatafixResponse::new(Status::InternalServerError)
+        })?;
+    let keycloak_transaction =
+        keycloak_db_client.transaction().await.map_err(|e| {
+            error!("Error starting keycloak transaction {}", e);
+            DatafixResponse::new(Status::InternalServerError)
+        })?;
+
     windmill::services::api_datafix::disable_datafix_voter(
         &hasura_transaction,
+        &keycloak_transaction,
         &claims.tenant_id,
         &claims.datafix_event_id,
         &input.voter_id,

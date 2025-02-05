@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::postgres::election::{get_election_by_id, get_elections, update_election_voting_status};
+use crate::postgres::area::get_event_areas;
 use crate::postgres::election_event::{
     get_all_tenant_election_events, get_election_event_by_id, update_election_event_status,
 };
@@ -112,6 +112,7 @@ async fn get_datafix_annotations(
 #[instrument(skip(hasura_transaction))]
 pub async fn disable_datafix_voter(
     hasura_transaction: &Transaction<'_>,
+    keycloak_transaction: &Transaction<'_>,
     tenant_id: &str,
     datafix_event_id: &str,
     username: &str,
@@ -125,7 +126,7 @@ pub async fn disable_datafix_voter(
         DatafixResponse::new(Status::InternalServerError)
     })?;
 
-    let user_ids = get_users_by_username(hasura_transaction, &realm, username)
+    let user_ids = get_users_by_username(keycloak_transaction, &realm, username)
         .await
         .map_err(|e| {
             error!("Error getting users by username: {e:?}");
@@ -182,14 +183,46 @@ pub async fn add_datafix_voter(
         error!("Error getting KeycloakAdminClient: {e:?}");
         DatafixResponse::new(Status::InternalServerError)
     })?;
+    let mut area_concat: String = voter_info.ward.clone();
+    let area_childs = vec![voter_info.schoolboard.clone(), voter_info.poll.clone()];
+    for subarea in &area_childs {
+        if let Some(subarea) = subarea {
+            area_concat.push_str(format!(" - {subarea}").as_str());
+        }
+    }
 
-    let area = Some(UserArea {
-        id: None, // TODO: Arrange the areas from the voter_info and verify them
-        name: None,
-    });
+    let event_areas = get_event_areas(hasura_transaction, tenant_id, &election_event_id)
+        .await
+        .map_err(|e| {
+            error!("Error getting event areas: {e:?}");
+            DatafixResponse::new(Status::InternalServerError)
+        })?;
+
+    let area_id = event_areas
+        .iter()
+        .find(|area| {
+            if let Some(a) = &area.name {
+                a.eq(&area_concat)
+            } else {
+                false
+            }
+        })
+        .and_then(|area| area.name.clone());
+
+    let area = match area_id {
+        Some(id) => Some(UserArea {
+            id: Some(id),
+            name: Some(area_concat),
+        }),
+        None => {
+            error!("Error getting event areas: Area not found");
+            return Err(DatafixResponse::new(Status::NotFound));
+        }
+    };
+
     let user = User {
         id: None,
-        attributes: None,
+        attributes: None, // TODO: Add voter_info.birthdate into the hashmap
         email: None,
         email_verified: None,
         enabled: None,
