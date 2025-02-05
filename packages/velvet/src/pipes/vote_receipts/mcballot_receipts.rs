@@ -445,7 +445,7 @@ impl Pipe for MCBallotReceipts {
 
                     let result: Result<(), Error> = pool.install(|| {
                         ballots
-                            .par_chunks(max_items_per_report)
+                            .par_chunks(1)
                             .enumerate()
                             .try_for_each(|(chunk_index, chunk)| {
                                 let (bytes_pdf, bytes_html) = self.print_vote_receipts(
@@ -468,10 +468,10 @@ impl Pipe for MCBallotReceipts {
                                             ))
                                         })?;
 
-                                    let file_name = pipe_data.output_file.clone();
+                                    let base_file_name = pipe_data.output_file.clone();
                                     let file = generate_hashed_filename(
                                         &path,
-                                        &file_name.clone(),
+                                        &base_file_name.clone(),
                                         &pdf_hash,
                                         &area_id.to_string(),
                                         election_input,
@@ -485,6 +485,7 @@ impl Pipe for MCBallotReceipts {
                                         ))
                                     })?;
 
+                                    let file_name = file.file_name().unwrap().to_str().unwrap();
                                     let bytes_json = file_name.as_bytes().to_vec();
                                     let file_hash = hash_b64(&bytes_json).map_err(|err| {
                                         Error::UnexpectedError(format!(
@@ -495,7 +496,7 @@ impl Pipe for MCBallotReceipts {
                                     // Lock the mutex before modifying the vector
                                     let mut files_lock = files.lock().unwrap();
                                     files_lock.push(BallotCsvData {
-                                        file_name: file_name.clone(),
+                                        file_name: file_name.to_string(),
                                         hash: file_hash,
                                     });
 
@@ -521,14 +522,14 @@ impl Pipe for MCBallotReceipts {
                                 Ok::<(), Error>(())
                             });
 
+                        // Write the CSV file of file names and hashes ONLY for `ballot` type
                         if (pipe_data.output_file.clone() == BALLOT_IMAGES_OUTPUT_FILE) {
-                            // Write the CSV file of file names and hashes
                             let csv_filename = format!("ballots_files.csv");
                             let csv_path = path.join(csv_filename);
                             let files_lock = files.lock().unwrap();
 
                             let rt = Runtime::new().unwrap();
-                            let result = rt.block_on(async {
+                            rt.block_on(async {
                                 write_file_hash_csv(files_lock.clone(), csv_path)
                                     .await
                                     .map_err(|e| {
