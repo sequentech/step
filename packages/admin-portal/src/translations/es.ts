@@ -302,6 +302,11 @@ const spanishTranslation: TranslationType = {
                     alertSecondsLabel:
                         "tiempo en segundos antes de la expiración para mostrar la alerta de cierre de sesión",
                 },
+                voterSigningPolicy: {
+                    "policyLabel": "Política de Firma de Votantes",
+                    "no-signature": "Sin firma",
+                    "with-signature": "Con firma",
+                },
                 enrollment: {
                     policyLabel: "Inscripción",
                     options: {
@@ -1783,6 +1788,7 @@ const spanishTranslation: TranslationType = {
                 alias: "Alias de la Plantilla",
                 type: "Tipo",
                 communicationMethod: "Método",
+                reportOptions: "Opciones de Informe",
             },
             type: {
                 CREDENTIALS: "Credenciales",
@@ -1917,6 +1923,7 @@ const spanishTranslation: TranslationType = {
                 approveSuccess: "Votante aprobado",
                 rejectError: "Error al rechazar al votante",
                 rejectSuccess: "Votante rechazado",
+                VoterApprovedAlready: "El votante ya está aprobado.",
             },
             export: {
                 success: "La exportación de aplicaciones se completó con éxito",

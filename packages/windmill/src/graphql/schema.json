@@ -131,6 +131,41 @@
         "possibleTypes": null
       },
       {
+        "kind": "OBJECT",
+        "name": "ApplicationChangeStatusOutput",
+        "description": null,
+        "fields": [
+          {
+            "name": "error",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "message",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
         "kind": "INPUT_OBJECT",
         "name": "ApplicationVerifyBody",
         "description": null,
@@ -1583,7 +1618,7 @@
             "deprecationReason": null
           },
           {
-            "name": "total_not_opened_votes",
+            "name": "total_not_open_votes",
             "description": null,
             "args": [],
             "type": {
@@ -1596,6 +1631,18 @@
           },
           {
             "name": "total_not_start_counting_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_not_started_votes",
             "description": null,
             "args": [],
             "type": {
@@ -1620,6 +1667,18 @@
           },
           {
             "name": "total_start_counting_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_started_votes",
             "description": null,
             "args": [],
             "type": {
@@ -2326,6 +2385,61 @@
       },
       {
         "kind": "OBJECT",
+        "name": "ExportElectionEventOutput",
+        "description": null,
+        "fields": [
+          {
+            "name": "document_id",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "password",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "task_execution",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "tasks_execution_type",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
         "name": "ExportLogsOutput",
         "description": null,
         "fields": [
@@ -2410,16 +2524,22 @@
             "defaultValue": null
           },
           {
+            "name": "is_encrypted",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "Boolean",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "password",
             "description": null,
             "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "String",
-                "ofType": null
-              }
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
             },
             "defaultValue": null
           },
@@ -8458,13 +8578,9 @@
               }
             ],
             "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "String",
-                "ofType": null
-              }
+              "kind": "OBJECT",
+              "name": "ApplicationChangeStatusOutput",
+              "ofType": null
             },
             "isDeprecated": false,
             "deprecationReason": null
@@ -12261,7 +12377,7 @@
             ],
             "type": {
               "kind": "OBJECT",
-              "name": "documentTaskOutput",
+              "name": "ExportElectionEventOutput",
               "ofType": null
             },
             "isDeprecated": false,

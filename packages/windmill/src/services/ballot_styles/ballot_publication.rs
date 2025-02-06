@@ -7,9 +7,10 @@ use crate::hasura::ballot_publication::{
     soft_delete_other_ballot_publications, soft_delete_other_ballot_publications_election,
     update_ballot_publication_d,
 };
-use crate::hasura::election::get_all_elections_for_event;
+use crate::hasura::election::{self, get_all_elections_for_event};
 use crate::hasura::election_event::get_election_event_helper;
 use crate::hasura::election_event::update_election_event_status;
+use crate::postgres::election::update_election_status;
 use crate::services::ballot_styles::ballot_publication::get_ballot_publication::GetBallotPublicationSequentBackendBallotPublication;
 use crate::services::ballot_styles::ballot_publication::get_previous_publication::GetPreviousPublicationSequentBackendBallotPublication;
 use crate::services::celery_app::get_celery_app;
@@ -19,6 +20,7 @@ use crate::services::electoral_log::*;
 use crate::tasks::update_election_event_ballot_styles::update_election_event_ballot_styles;
 use anyhow::{anyhow, Context, Result};
 use chrono::Utc;
+use deadpool_postgres::Transaction;
 use sequent_core::ballot::ElectionEventStatus;
 use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::connection;
@@ -127,6 +129,7 @@ pub async fn add_ballot_publication(
 
 #[instrument(err)]
 pub async fn update_publish_ballot(
+    hasura_transaction: &Transaction<'_>,
     user_id: String,
     username: String,
     tenant_id: String,
@@ -201,6 +204,20 @@ pub async fn update_publish_ballot(
         new_status_js,
     )
     .await?;
+
+    // Update elections status
+    let election_ids = ballot_publication.election_ids.clone().unwrap_or(vec![]);
+    for election_id in election_ids {
+        update_election_status(
+            &hasura_transaction,
+            &election_id,
+            &tenant_id.clone(),
+            &election_event_id.clone(),
+            true,
+        )
+        .await
+        .with_context(|| "error updating election status")?;
+    }
 
     let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
         .with_context(|| "missing bulletin board")?;

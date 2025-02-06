@@ -50,6 +50,7 @@ import {
     EElectionEventEnrollment,
     EElectionEventOTP,
     EElectionEventContestEncryptionPolicy,
+    EVoterSigningPolicy,
 } from "@sequentech/ui-core"
 import {ListActions} from "@/components/ListActions"
 import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
@@ -590,6 +591,13 @@ export const EditElectionEventDataForm: React.FC = () => {
         }))
     }
 
+    const voterSigningPolicyChoices = () => {
+        return Object.values(EVoterSigningPolicy).map((value) => ({
+            id: value,
+            name: t(`electionEventScreen.field.voterSigningPolicy.${value}`),
+        }))
+    }
+
     const enrollmentChoices = () => {
         return Object.values(EElectionEventEnrollment).map((value) => ({
             id: value,
@@ -1116,6 +1124,16 @@ export const EditElectionEventDataForm: React.FC = () => {
                                             "electionEventScreen.field.countDownPolicyOptions.policyLabel"
                                         )}
                                         defaultValue={EVotingPortalCountdownPolicy.NO_COUNTDOWN}
+                                        emptyText={undefined}
+                                        validate={required()}
+                                    />
+                                    <SelectInput
+                                        source={"presentation.voter_signing_policy"}
+                                        choices={voterSigningPolicyChoices()}
+                                        label={t(
+                                            "electionEventScreen.field.voterSigningPolicy.policyLabel"
+                                        )}
+                                        defaultValue={EVoterSigningPolicy.NO_SIGNATURE}
                                         emptyText={undefined}
                                         validate={required()}
                                     />

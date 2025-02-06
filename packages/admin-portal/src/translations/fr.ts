@@ -302,6 +302,11 @@ const frenchTranslation: TranslationType = {
                     alertSecondsLabel:
                         "temps en secondes avant expiration pour afficher l'alerte de déconnexion",
                 },
+                voterSigningPolicy: {
+                    "policyLabel": "Politique de Signature des Électeurs",
+                    "no-signature": "Sans signature",
+                    "with-signature": "Avec signature",
+                },
                 enrollment: {
                     policyLabel: "Inscription",
                     options: {
@@ -1791,6 +1796,7 @@ const frenchTranslation: TranslationType = {
                 smsMessage: "Message SMS",
                 document: "Document",
                 pdfOptions: "Options PDF",
+                reportOptions: "Options de Rapport",
                 name: "Nom du Modèle",
                 alias: "Alias du Modèle",
                 type: "Type",
@@ -1928,6 +1934,7 @@ const frenchTranslation: TranslationType = {
                 approveSuccess: "Électeur approuvé",
                 rejectError: "Erreur lors du rejet de l'électeur",
                 rejectSuccess: "Électeur rejeté",
+                VoterApprovedAlready: "L'électeur est déjà approuvé.",
             },
             export: {
                 success: "L'exportation des applications a été réalisée avec succès",

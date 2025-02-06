@@ -96,8 +96,14 @@ export interface ICommTemplates {
     sms_config?: ISmsConfig
 }
 
+export interface IReportOptions {
+    max_items_per_report: number
+    max_threads: number
+}
+
 export interface IExtraConfig {
     pdf_options?: JSON
+    report_options?: IReportOptions
     communication_templates?: ICommTemplates
 }
 
