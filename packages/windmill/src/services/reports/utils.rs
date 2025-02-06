@@ -2,8 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::s3::get_minio_url;
 use anyhow::{anyhow, Context, Result};
+use sequent_core::services::s3::get_minio_url;
 use std::env;
 use tracing::instrument;
 
