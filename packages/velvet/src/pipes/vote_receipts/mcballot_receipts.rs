@@ -8,7 +8,7 @@ use crate::pipes::error::{Error, Result};
 use crate::pipes::pipe_inputs::{InputElectionConfig, PipeInputs};
 use crate::pipes::pipe_name::{PipeName, PipeNameOutputDir};
 use crate::pipes::Pipe;
-use anyhow::Context;
+use anyhow::{anyhow, Context};
 use csv::Writer;
 use hex::encode;
 use rayon::prelude::*;
@@ -177,7 +177,9 @@ impl MCBallotReceipts {
         for ballot in ballots {
             let mut cds = vec![];
             for contest_choices in &ballot.choices {
-                let contest = contest_map.get(&contest_choices.contest_id).unwrap();
+                let contest = contest_map
+                    .get(&contest_choices.contest_id)
+                    .ok_or(Error::UnexpectedError("Can't get contest".into()))?;
                 let mut choices = DecodedChoice::from_dvcs(&contest_choices, &contest);
 
                 let candidates_order = contest
@@ -427,7 +429,9 @@ impl Pipe for MCBallotReceipts {
                     let pool = ThreadPoolBuilder::new()
                         .num_threads(max_threads)
                         .build()
-                        .unwrap();
+                        .map_err(|e| {
+                            Error::UnexpectedError(format!("Error building thread pool: {}", e))
+                        })?;
 
                     let max_items_per_report =
                         report_options.max_items_per_report.unwrap_or_else(|| 1_000);
@@ -444,10 +448,8 @@ impl Pipe for MCBallotReceipts {
                     );
 
                     let result: Result<(), Error> = pool.install(|| {
-                        ballots
-                            .par_chunks(1)
-                            .enumerate()
-                            .try_for_each(|(chunk_index, chunk)| {
+                        ballots.par_chunks(1).enumerate().try_for_each(
+                            |(chunk_index, chunk)| {
                                 let (bytes_pdf, bytes_html) = self.print_vote_receipts(
                                     chunk,
                                     &area_contests.contests,
@@ -475,8 +477,12 @@ impl Pipe for MCBallotReceipts {
                                         &pdf_hash,
                                         &area_id.to_string(),
                                         election_input,
-                                        chunk.first().unwrap(),
-                                        chunk.last().unwrap(),
+                                        chunk.first().ok_or(Error::UnexpectedError(
+                                            "Can't get first chunk".into(),
+                                        ))?,
+                                        chunk.last().ok_or(Error::UnexpectedError(
+                                            "Can't get last chunk".into(),
+                                        ))?,
                                     )
                                     .map_err(|e| {
                                         Error::UnexpectedError(format!(
@@ -485,7 +491,15 @@ impl Pipe for MCBallotReceipts {
                                         ))
                                     })?;
 
-                                    let file_name = file.file_name().unwrap().to_str().unwrap();
+                                    let file_name = file
+                                        .file_name()
+                                        .ok_or(Error::UnexpectedError(
+                                            "Can't get file name".into(),
+                                        ))?
+                                        .to_str()
+                                        .ok_or(Error::UnexpectedError(
+                                            "Can't get file name".into(),
+                                        ))?;
                                     let bytes_json = file_name.as_bytes().to_vec();
                                     let file_hash = hash_b64(&bytes_json).map_err(|err| {
                                         Error::UnexpectedError(format!(
@@ -494,7 +508,12 @@ impl Pipe for MCBallotReceipts {
                                     })?;
 
                                     // Lock the mutex before modifying the vector
-                                    let mut files_lock = files.lock().unwrap();
+                                    let mut files_lock = files.lock().map_err(|e| {
+                                        Error::UnexpectedError(format!(
+                                            "Error locking files: {}",
+                                            e
+                                        ))
+                                    })?;
                                     files_lock.push(BallotCsvData {
                                         file_name: file_name.to_string(),
                                         hash: file_hash,
@@ -520,15 +539,18 @@ impl Pipe for MCBallotReceipts {
                                     .open(file)?;
                                 file.write_all(&bytes_html)?;
                                 Ok::<(), Error>(())
-                            });
+                            },
+                        )?;
 
                         // Write the CSV file of file names and hashes ONLY for `ballot` type
                         if (pipe_data.output_file.clone() == BALLOT_IMAGES_OUTPUT_FILE) {
                             let csv_filename = format!("ballots_files.csv");
                             let csv_path = path.join(csv_filename);
-                            let files_lock = files.lock().unwrap();
+                            let files_lock = files.lock().map_err(|e| {
+                                Error::UnexpectedError(format!("Error locking files: {}", e))
+                            })?;
 
-                            let rt = Runtime::new().unwrap();
+                            let rt = Runtime::new()?;
                             rt.block_on(async {
                                 write_file_hash_csv(files_lock.clone(), csv_path)
                                     .await
