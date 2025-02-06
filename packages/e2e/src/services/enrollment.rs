@@ -7,7 +7,6 @@ use serde_json::{from_str, json, Value};
 use std::{collections::HashMap, env, error::Error, fs, thread, time::Duration};
 
 use crate::{services::loadero_service::replace_placeholder, Args};
-use anyhow::Result;
 use std::fs::File;
 
 use super::loadero_service::{run_scenario_test, TestConfig};
