@@ -104,6 +104,7 @@ impl EmailSender {
         html_body: Option<String>,
         attachments: Vec<Attachment>,
     ) -> Result<()> {
+        println!("Sending email to {:?}", receivers);
         // Build the email message using lettre
         let mut email_builder = Message::builder()
             .from(

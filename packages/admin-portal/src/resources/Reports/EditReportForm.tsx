@@ -271,6 +271,7 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
         if ("password" in formValues) {
             delete formValues.password
         }
+        console.log({formValues, values})
 
         const formData: Partial<Sequent_Backend_Report> = {
             ...formValues,
@@ -392,6 +393,7 @@ interface EmailRecipientsInputProps extends InputProps {
 interface EmailRecipientsInputProps extends InputProps {
     label?: string
     placeholder?: string
+    onChange?: (newValue: any) => void
 }
 
 const EmailRecipientsInput: React.FC<EmailRecipientsInputProps> = (props) => {
@@ -401,6 +403,7 @@ const EmailRecipientsInput: React.FC<EmailRecipientsInputProps> = (props) => {
         isRequired,
         id,
     } = useInput(props)
+    const {label, placeholder, onChange} = props
 
     return (
         <Autocomplete
@@ -408,8 +411,15 @@ const EmailRecipientsInput: React.FC<EmailRecipientsInputProps> = (props) => {
             freeSolo
             options={[] as string[]}
             value={field.value || []}
+            // onChange={(event: any, newValue: string[]) => {
+            //     field.onChange(newValue)
+            // }}
             onChange={(event: any, newValue: string[]) => {
-                field.onChange(newValue)
+                console.log("newValue for email", newValue)
+                field.onChange(newValue || [])
+                if (onChange) {
+                    onChange(newValue || []) // Call the passed onChange prop
+                }
             }}
             fullWidth={true}
             renderTags={(value: string[], getTagProps) =>
@@ -421,8 +431,8 @@ const EmailRecipientsInput: React.FC<EmailRecipientsInputProps> = (props) => {
                 <TextField
                     {...params}
                     variant="outlined"
-                    label={props.label}
-                    placeholder={props.placeholder}
+                    label={label}
+                    placeholder={placeholder}
                     error={fieldState.invalid}
                     helperText={fieldState.error?.message}
                     required={isRequired}
@@ -433,16 +443,14 @@ const EmailRecipientsInput: React.FC<EmailRecipientsInputProps> = (props) => {
     )
 }
 
-// Add 'onChange' to the props interface
 interface ReportTypeInputProps extends InputProps {
     label?: string
     choices: {id: any; name: string}[]
-    onChange?: (newValue: any) => void // Add this line
+    onChange?: (newValue: any) => void
 }
 
 const ReportTypeInput: React.FC<ReportTypeInputProps> = (props) => {
     const {field, fieldState, isRequired, id} = useInput(props)
-
     const {choices, label, onChange} = props // Destructure 'onChange'
 
     return (
@@ -496,7 +504,7 @@ const FormContent: React.FC<CreateReportProps> = ({
     }, [register])
 
     useEffect(() => {
-        console.log("report changed")
+        console.log("report changed", {report})
         setIsCronActive(report?.cron_config?.is_active || false)
         setCronValue?.(report?.cron_config?.cron_expression || "")
         setReportType(report?.report_type ? (report.report_type as ETemplateType) : undefined)
@@ -711,6 +719,9 @@ const FormContent: React.FC<CreateReportProps> = ({
                         label={t("reportsScreen.fields.emailRecipients")}
                         placeholder={t("reportsScreen.fields.emailRecipientsPlaceholder")}
                         isRequired={false}
+                        onChange={(newValue) => {
+                            setValue("cron_config.email_recipients", newValue)
+                        }}
                     />
                 </>
             )}
