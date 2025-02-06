@@ -16,6 +16,7 @@ use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
 use sequent_core::types::hasura::core::ElectionEvent;
 use sequent_core::types::keycloak::{User, UserArea, AREA_ID_ATTR_NAME, DATE_OF_BIRTH};
+use sequent_core::util::date_time::verify_date_format_ymd;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tracing::{error, info, instrument, warn};
@@ -259,6 +260,10 @@ pub async fn add_datafix_voter(
     );
     // Area is required in the input body but the birthdate is not.
     if let Some(birthdate) = voter_info.birthdate.clone() {
+        verify_date_format_ymd(&birthdate).map_err(|e| {
+            error!("Birthdate format is not correct: {e:?}");
+            DatafixResponse::new(Status::BadRequest)
+        })?;
         hash_map.insert(DATE_OF_BIRTH.to_string(), vec![birthdate]);
     }
     let attributes = Some(hash_map);
@@ -321,6 +326,10 @@ pub async fn update_datafix_voter(
     );
     // Area is required in the input body but birthdate is not.
     if let Some(birthdate) = voter_info.birthdate.clone() {
+        verify_date_format_ymd(&birthdate).map_err(|e| {
+            error!("Birthdate format is not correct: {e:?}");
+            DatafixResponse::new(Status::BadRequest)
+        })?;
         hash_map.insert(DATE_OF_BIRTH.to_string(), vec![birthdate]);
     }
     let attributes = Some(hash_map);
