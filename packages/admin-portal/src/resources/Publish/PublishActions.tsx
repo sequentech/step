@@ -32,7 +32,6 @@ import {
     IElectionPresentation,
     IElectionStatus,
 } from "@sequentech/ui-core"
-import {UPDATE_ELECTION_INITIALIZATION_REPORT} from "@/queries/UpdateElectionInitializationReport"
 import {usePublishPermissions} from "./usePublishPermissions"
 import PublishExport from "./PublishExport"
 
@@ -116,8 +115,6 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
         showPublishFilters,
     } = usePublishPermissions()
 
-    const [UpdateElectionInitializationReport] = useMutation(UPDATE_ELECTION_INITIALIZATION_REPORT)
-
     const StatusIcon = ({
         changingStatus,
         Icon,
@@ -183,6 +180,19 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
         setCurrentCallback(() => callback)
     }
 
+    let reauthCallback = (baseUrl: URL, action: EPublishActions) => {
+        if (publishType === EPublishType.Event) {
+            const electionEventPublishTabIndex = localStorage.getItem(
+                "electionEventPublishTabIndex"
+            )
+            baseUrl.searchParams.set("tabIndex", electionEventPublishTabIndex ?? "8")
+        } else {
+            const electionPublishTabIndex = localStorage.getItem("electionPublishTabIndex")
+            baseUrl.searchParams.set("tabIndex", electionPublishTabIndex ?? "4")
+        }
+        sessionStorage.setItem(action, "true")
+    }
+
     /**
      * Specific Handler for "Start Voting" Button:
      * Incorporates re-authentication logic for actions that require Gold-level permissions.
@@ -199,17 +209,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
             try {
                 if (!isGoldUser()) {
                     const baseUrl = new URL(window.location.href)
-                    if (publishType === EPublishType.Event) {
-                        const electionEventPublishTabIndex = localStorage.getItem(
-                            "electionEventPublishTabIndex"
-                        )
-                        baseUrl.searchParams.set("tabIndex", electionEventPublishTabIndex ?? "8")
-                    } else {
-                        const electionPublishTabIndex =
-                            localStorage.getItem("electionPublishTabIndex")
-                        baseUrl.searchParams.set("tabIndex", electionPublishTabIndex ?? "4")
-                    }
-                    sessionStorage.setItem(EPublishActions.PENDING_START_VOTING, "true")
+                    reauthCallback(baseUrl, EPublishActions.PENDING_START_VOTING)
                     await reauthWithGold(baseUrl.toString())
                 } else {
                     onChangeStatus(ElectionEventStatus.Open)
@@ -235,18 +235,9 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
             try {
                 if (!isGoldUser()) {
                     const baseUrl = new URL(window.location.href)
-                    if (publishType === EPublishType.Event) {
-                        const electionEventPublishTabIndex = localStorage.getItem(
-                            "electionEventPublishTabIndex"
-                        )
-                        baseUrl.searchParams.set("tabIndex", electionEventPublishTabIndex ?? "8")
-                    } else {
-                        const electionPublishTabIndex =
-                            localStorage.getItem("electionPublishTabIndex")
-                        baseUrl.searchParams.set("tabIndex", electionPublishTabIndex ?? "4")
-                    }
-                    sessionStorage.setItem(EPublishActions.PENDING_STOP_KIOSK_ACTION, "true")
-                    await reauthWithGold(baseUrl.toString())
+                    reauthCallback(baseUrl, EPublishActions.PENDING_STOP_KIOSK_ACTION)
+                    await reauthWithGold(baseUrl.toString()
+                    )
                 } else {
                     handleOnChange(ElectionEventStatus.Closed, [VotingStatusChannel.Kiosk])
                 }
@@ -271,18 +262,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
             try {
                 if (!isGoldUser()) {
                     const baseUrl = new URL(window.location.href)
-                    if (publishType === EPublishType.Event) {
-                        const electionEventPublishTabIndex = localStorage.getItem(
-                            "electionEventPublishTabIndex"
-                        )
-                        baseUrl.searchParams.set("tabIndex", electionEventPublishTabIndex ?? "8")
-                    } else {
-                        const electionPublishTabIndex =
-                            localStorage.getItem("electionPublishTabIndex")
-                        baseUrl.searchParams.set("tabIndex", electionPublishTabIndex ?? "4")
-                    }
-                    sessionStorage.setItem(EPublishActions.PENDING_PUBLISH_ACTION, "true")
-
+                    reauthCallback(baseUrl, EPublishActions.PENDING_PUBLISH_ACTION)
                     await reauthWithGold(baseUrl.toString())
                 } else {
                     onGenerate()
@@ -305,14 +285,16 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                 return
             }
 
+            let isGold = isGoldUser()
+
             const pendingStart = sessionStorage.getItem(EPublishActions.PENDING_START_VOTING)
-            if (pendingStart) {
+            if (pendingStart && isGold) {
                 sessionStorage.removeItem(EPublishActions.PENDING_START_VOTING)
                 onChangeStatus(ElectionEventStatus.Open)
             }
 
             const pendingPublish = sessionStorage.getItem(EPublishActions.PENDING_PUBLISH_ACTION)
-            if (pendingPublish) {
+            if (pendingPublish && isGold) {
                 sessionStorage.removeItem(EPublishActions.PENDING_PUBLISH_ACTION)
                 onGenerate()
             }
@@ -320,7 +302,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
             const pendingStopKiosk = sessionStorage.getItem(
                 EPublishActions.PENDING_STOP_KIOSK_ACTION
             )
-            if (pendingStopKiosk) {
+            if (pendingStopKiosk && isGold) {
                 sessionStorage.removeItem(EPublishActions.PENDING_STOP_KIOSK_ACTION)
                 onChangeStatus(ElectionEventStatus.Closed, [VotingStatusChannel.Kiosk])
             }

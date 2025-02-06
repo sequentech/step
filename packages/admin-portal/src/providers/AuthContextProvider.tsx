@@ -199,6 +199,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
 
     const reauthWithGold = async (redirectUri: string): Promise<void> => {
         try {
+            console.log("Re-authenticating with gold permissions", {redirectUri})
             await keycloak?.login({
                 acr: {essential: true, values: [IPermissions.GOLD_PERMISSION]},
                 redirectUri: redirectUri || window.location.href, // Use the passed URL or fallback to current URL
