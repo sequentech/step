@@ -6,6 +6,7 @@ use super::utils::get_public_asset_template;
 use crate::postgres::reports::{get_template_alias_for_report, Report, ReportType};
 use crate::postgres::{election_event, template};
 use crate::services::consolidation::aes_256_cbc_encrypt::encrypt_file_aes_256_cbc;
+use crate::services::consolidation::zip::compress_folder_to_zip;
 use crate::services::database::get_hasura_pool;
 use crate::services::documents::upload_and_return_document;
 use crate::services::providers::email_sender::{Attachment, EmailSender};
@@ -16,6 +17,7 @@ use crate::services::vault;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
+use pdfium_render::prelude::*;
 use sequent_core::serialization::deserialize_with_path::{deserialize_str, deserialize_value};
 use sequent_core::services::keycloak::{self, get_event_realm, KeycloakAdminClient};
 use sequent_core::services::{pdf, reports};
@@ -28,8 +30,10 @@ use sequent_core::types::templates::{
 use sequent_core::types::to_map::ToMap;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
+use std::fs::File;
+use std::io::{Cursor, Write};
 use strum_macros::{Display, EnumString, IntoStaticStr};
-use tempfile::{NamedTempFile, TempPath};
+use tempfile::{tempdir, NamedTempFile, TempPath};
 use tracing::{debug, info, instrument, warn};
 
 #[allow(non_camel_case_types)]
@@ -471,6 +475,47 @@ pub trait TemplateRenderer: Debug {
         let fmt_extension = format!(".{extension_suffix}");
         let report_name: String = format!("{}{fmt_extension}", self.prefix());
 
+        // let temp_dir = tempdir().with_context(|| "Error generating temp directory")?;
+        // let temp_dir_path = temp_dir.path();
+
+        // let output_zip_tempfile = generate_temp_file("report_folder", "zip")?;
+        // let output_zip_path = output_zip_tempfile.path();
+        // let output_zip_path_str = output_zip_path.to_string_lossy().to_string();
+
+        // let split_pdfs = split_pdf(content_bytes.clone(), 1)
+        //     .await
+        //     .map_err(|err| anyhow!("Error split_pdf_into_memory: {err:?}"))?;
+
+        // for (i, pdf_chunk) in split_pdfs.iter().enumerate() {
+        //     let file_path = temp_dir_path.join(format!("output_part_{}.pdf", i).as_str());
+        //     let mut file = File::create(&file_path)
+        //         .with_context(|| format!("Failed to create or open file: {:?}", file_path))?;
+        //     file.write_all(pdf_chunk)
+        //         .with_context(|| format!("Failed to write data to file: {:?}", file_path))?;
+        // }
+
+        // compress_folder_to_zip(&temp_dir_path, output_zip_path)?;
+
+        // let file_size = get_file_size(output_zip_path_str.as_str())
+        //     .with_context(|| "Error obtaining file size")?;
+        // let auth_headers = keycloak::get_client_credentials()
+        //     .await
+        //     .map_err(|err| anyhow!("Error getting client credentials: {err:?}"))?;
+
+        // let _document = upload_and_return_document(
+        //     output_zip_path_str,
+        //     file_size,
+        //     "applization/zip".to_string(),
+        //     auth_headers.clone(),
+        //     tenant_id.to_string(),
+        //     election_event_id.to_string(),
+        //     "report_folder.zip".to_string(),
+        //     Some(document_id.to_string()),
+        //     true,
+        // )
+        // .await
+        // .map_err(|err| anyhow!("Error uploading document: {err:?}"))?;
+
         // Write temp file and upload
         let (_temp_path, temp_path_string, file_size) = write_into_named_temp_file(
             &content_bytes,
@@ -674,4 +719,34 @@ pub trait TemplateRenderer: Debug {
             })?])
         }
     }
+}
+
+async fn split_pdf(
+    pdf_bytes: Vec<u8>,
+    max_pages: usize,
+) -> Result<Vec<Vec<u8>>, Box<dyn std::error::Error>> {
+    let pdfium = Pdfium::default();
+    let document = pdfium
+        .load_pdf_from_byte_vec(pdf_bytes.clone(), None)
+        .map_err(|err| anyhow!("Error in load_pdf_from_byte_slice: {:?} ", err))?;
+
+    let mut result_pdfs = Vec::new();
+
+    let mut new_doc = pdfium
+        .create_new_pdf()
+        .map_err(|err| anyhow!("Error in create_new_pdf``: {:?} ", err))?;
+    let destination_page_index = new_doc.pages().len();
+
+    new_doc
+        .pages()
+        .copy_page_range_from_document(&document, 0..=2, destination_page_index)
+        .map_err(|err| anyhow!("Error in copy_page_range_from_document: {:?} ", err))?;
+
+    result_pdfs.push(
+        new_doc
+            .save_to_bytes()
+            .map_err(|err| anyhow!("Err in save to bytes: {:?}", err))?,
+    );
+
+    Ok(result_pdfs)
 }
