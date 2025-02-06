@@ -221,39 +221,36 @@ impl GenerateReports {
         let config = self.get_config()?;
         let mut execution_annotations = config.execution_annotations;
 
-        // hash json reports bytes
+        let computed_reports = self.compute_reports(reports.clone())?;
+        let template_data = TemplateData {
+            execution_annotations: execution_annotations.clone(),
+            reports: computed_reports.clone(),
+        };
+
+        let json_data = serde_json::to_value(template_data)?;
+        let bytes_json = json_data.to_string().as_bytes().to_vec();
+
+        // Hash the json results
         let results_hash = if let Some(election_hash) = election_hash {
             election_hash
         } else {
-            let template_data = TemplateData {
-                execution_annotations: execution_annotations.clone(),
-                reports: self.compute_reports(reports.clone())?,
-            };
-
-            let json_reports = serde_json::to_value(template_data)?;
-            let bytes_json = json_reports.to_string().as_bytes().to_vec();
-
             hash_b64(&bytes_json).map_err(|err| {
                 Error::UnexpectedError(format!("Error hashing the results file: {err:?}"))
             })?
         };
 
-        // add results_hash to execution_annotations
+        // Insert the results_hash into the execution_annotations and re-render the template for both PDF and HTML
         execution_annotations.insert("results_hash".to_string(), results_hash.clone());
-
-        // render again the template with the new execution_annotations
         let template_data = TemplateData {
             execution_annotations,
-            reports: self.compute_reports(reports.clone())?,
+            reports: computed_reports,
         };
+
         let template_vars = template_data
             .clone()
             .to_map()
             // TODO: Fix neededing to do a Map Err
             .map_err(|err| Error::UnexpectedError(format!("serialization error: {err:?}")))?;
-
-        let json_reports = serde_json::to_value(template_data)?;
-        let bytes_json = json_reports.to_string().as_bytes().to_vec();
 
         let mut template_map = HashMap::new();
         let report_base_html = include_str!("../../resources/report_base_html.hbs");
