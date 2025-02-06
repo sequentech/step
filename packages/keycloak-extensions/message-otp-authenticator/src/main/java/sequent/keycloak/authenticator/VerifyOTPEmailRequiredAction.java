@@ -152,7 +152,8 @@ public class VerifyOTPEmailRequiredAction implements RequiredActionFactory, Requ
           /* deferred user */ false,
           isOtl,
           new String[0],
-          context);
+          context,
+          context.getEvent());
       context.challenge(
           form.setAttribute(
                   "address",

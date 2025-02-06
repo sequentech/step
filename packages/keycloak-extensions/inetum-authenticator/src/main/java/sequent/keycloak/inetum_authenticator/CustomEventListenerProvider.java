@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 package sequent.keycloak.inetum_authenticator;
 
+import static sequent.keycloak.authenticator.Utils.EVENT_TYPE_COMMUNICATIONS;
+import static sequent.keycloak.authenticator.Utils.EVENT_TYPE_MANUAL_VERIFICATION;
 import static sequent.keycloak.authenticator.Utils.sendErrorNotificationToUser;
 
 import java.io.IOException;
@@ -56,29 +58,33 @@ public class CustomEventListenerProvider implements EventListenerProvider {
     if (event.getDetails() == null) {
       logEvent(
           getElectionEventId(event.getRealmId()),
-          event.getType(),
+          event.getType().toString(),
           event.getError(),
           event.getUserId());
     }
-    String eventType = event.getDetails().get("type");
-    if (Utils.EVENT_TYPE_COMMUNICATIONS.equals(eventType)) {
-      handleCommunicationsEvent(event);
-    } else {
+
+    log.infov("onEvent() event details to string: {0}", event.getDetails().toString());
+    log.infov("onEvent() event getType: {0}", event.getType().toString());
+    log.infov("onEvent() event getUserId: {0}", event.getUserId());
+    String eventTypeFromDetails = event.getDetails().get("type");
+    // As we cannot define Keycloak events into the Keycloak library, we put them into the details
+    // so this CustomEventListenerProvider can pick them up.
+    log.infov("onEvent() eventTypeFromDetails: {0}", eventTypeFromDetails);
+
+    String msgBody =
+        Optional.ofNullable(event.getDetails().get("msgBody")).orElse("-").replace("\n", " ");
+
+    if (EVENT_TYPE_COMMUNICATIONS.equals(eventTypeFromDetails)
+        || EVENT_TYPE_MANUAL_VERIFICATION.equals(eventTypeFromDetails)) {
+      logEvent(
+          getElectionEventId(event.getRealmId()), eventTypeFromDetails, msgBody, event.getUserId());
+    } else { // LOGIN, LOGOUT and other Keycloak events
       logEvent(
           getElectionEventId(event.getRealmId()),
-          event.getType(),
-          event.getError(),
+          event.getType().toString(),
+          msgBody,
           event.getUserId());
     }
-  }
-
-  private void handleCommunicationsEvent(Event event) {
-    String msgBody = Optional.ofNullable(event.getDetails().get("msgBody")).orElse("");
-
-    String body =
-        String.format("%s %s", Utils.EVENT_TYPE_COMMUNICATIONS, msgBody).replace("\n", " ");
-
-    logEvent(getElectionEventId(event.getRealmId()), event.getType(), body, event.getUserId());
   }
 
   public void authenticate() {
@@ -139,14 +145,17 @@ public class CustomEventListenerProvider implements EventListenerProvider {
     return null;
   }
 
-  private void logEvent(String electionEventId, EventType eventType, String body, String userId) {
+  private void logEvent(String electionEventId, String eventTypeStr, String body, String userId) {
+
+    log.infov("logEvent(): user id: {0}", userId);
+    log.infov("logEvent(): body: {0}", body);
     HttpClient client = HttpClient.newHttpClient();
     String url = "http://" + this.harvestUrl + "/immudb/log-event";
     String requestBody =
         String.format(
             "{\"election_event_id\": \"%s\", \"message_type\": \"%s\", \"body\" : \"%s\", \"user_id\": \"%s\"}",
             Utils.escapeJson(electionEventId),
-            Utils.escapeJson(eventType.toString()),
+            Utils.escapeJson(eventTypeStr),
             Utils.escapeJson(body),
             Utils.escapeJson(userId));
     HttpRequest request =

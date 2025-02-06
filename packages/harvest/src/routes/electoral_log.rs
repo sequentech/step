@@ -9,9 +9,11 @@ use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt::JwtClaims;
+use sequent_core::services::keycloak::get_event_realm;
+use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
-use tracing::instrument;
+use tracing::{instrument, warn};
 use windmill::postgres::election_event::get_election_event_by_id;
 use windmill::services::database::get_hasura_pool;
 use windmill::services::election_event_board::get_election_event_board;
@@ -21,7 +23,7 @@ use windmill::services::electoral_log::{
 };
 use windmill::types::resources::DataList;
 
-const EVENT_TYPE_COMMUNICATIONS: &str = "communications";
+const EVENT_TYPE_COMMUNICATIONS: &str = "SEND_COMMUNICATION_TO_USER";
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct LogEventInput {
@@ -86,17 +88,21 @@ pub async fn create_electoral_log(
     )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    info!("log event election event: {:?}", election_event);
+    debug!("log event election event: {:?}", election_event);
     let board_name = get_election_event_board(
         election_event.bulletin_board_reference.clone(),
     )
     .with_context(|| "error getting election event")
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
     let tenant_id = claims.hasura_claims.tenant_id;
-    let user_id = claims.hasura_claims.user_id;
-    let username = claims.preferred_username;
+    let adm_user_id = claims.hasura_claims.user_id; // id of the service-account
+    let adm_username = claims.preferred_username; // service-account
+    debug!(
+        "Hasura claims user: {:?} id: {:?}",
+        adm_username, adm_user_id
+    );
     let electoral_log =
-        ElectoralLog::for_admin_user(&board_name, &tenant_id, &user_id)
+        ElectoralLog::for_admin_user(&board_name, &tenant_id, &adm_user_id)
             .await
             .map_err(|e| {
                 (
@@ -104,34 +110,32 @@ pub async fn create_electoral_log(
                     format!("error getting electoral log: {e:?}"),
                 )
             })?;
-    electoral_log
-        .post_keycloak_event(
-            input.election_event_id.clone(),
-            input.message_type.clone(),
-            input.body.clone(),
-            Some(user_id.clone()),
-            username.clone(),
-        )
-        .await
-        .map_err(|e| {
-            (
-                Status::InternalServerError,
-                format!("error posting registration error: {e:?}"),
-            )
-        })?;
 
-    if input.body.contains(EVENT_TYPE_COMMUNICATIONS) {
-        let body = input
-            .body
-            .replace(EVENT_TYPE_COMMUNICATIONS, "")
-            .trim()
-            .to_string();
-        let _ = electoral_log
+    let username = match &input.user_id {
+        Some(user_id) => {
+            // Get the username from keycloak
+            let realm = get_event_realm(&tenant_id, &input.election_event_id);
+            let client = KeycloakAdminClient::new().await.map_err(|e| {
+                (Status::InternalServerError, format!("{:?}", e))
+            })?;
+            let user = client.get_user(&realm, user_id).await.map_err(|e| {
+                (Status::InternalServerError, format!("{:?}", e))
+            })?;
+            user.username
+        }
+        None => {
+            warn!("No input user_id for log creation!");
+            None
+        }
+    };
+
+    if input.message_type.eq(EVENT_TYPE_COMMUNICATIONS) {
+        electoral_log
             .post_send_template(
-                Some(body),
+                Some(input.body),
                 input.election_event_id.clone(),
-                Some(user_id.clone()),
-                username.clone(),
+                input.user_id,
+                username,
                 None,
             )
             .await
@@ -142,8 +146,8 @@ pub async fn create_electoral_log(
                 input.election_event_id.clone(),
                 input.message_type,
                 input.body,
-                Some(user_id.clone()),
-                username.clone(),
+                input.user_id,
+                username,
             )
             .await
             .map_err(|e| {

@@ -47,6 +47,12 @@ pub enum ApplicationRejectReason {
     OTHER, //mandatory comment
 }
 
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
+pub struct ApplicationStatusUpdateEvent {
+    pub application_type: ApplicationType,
+    pub application_status: ApplicationStatus,
+}
+
 #[allow(non_camel_case_types)]
 #[derive(
     Display, Debug, PartialEq, Eq, Clone, EnumString, EnumVariantNames, Serialize, Deserialize,

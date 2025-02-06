@@ -131,6 +131,7 @@ public class UsernamePasswordFormWithExpiry extends AbstractUsernameFormAuthenti
 
     UserModel user = getUser(context, formData);
     if (user == null) {
+      log.info("validateForm(): user null");
       if (!hideUserNotFound) {
         // should not happen. We have validated the form, so we should have
         // found both the username/email and password to be valid!
@@ -146,6 +147,9 @@ public class UsernamePasswordFormWithExpiry extends AbstractUsernameFormAuthenti
         context.clearUser();
         context.success();
       }
+    } else {
+      log.infov("validateForm(): user name: {0}", user.getUsername());
+      log.infov("validateForm(): user ID: {0}", user.getId());
     }
 
     // get the user attribute name

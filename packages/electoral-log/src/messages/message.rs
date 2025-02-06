@@ -231,6 +231,17 @@ impl Message {
         Self::from_body(event, body, sd, user_id, username)
     }
 
+    pub fn application_status_update_event(
+        event: EventIdString,
+        sd: &SigningData,
+        user_id: Option<String>,
+        username: Option<String>,
+        description: Option<String>,
+    ) -> Result<Self> {
+        let body = StatementBody::ApplicationStatusUpdateEvent(description);
+        Self::from_body(event, body, sd, user_id, username)
+    }
+
     pub fn voter_public_key_message(
         tenant_id: TenantIdString,
         event: EventIdString,
@@ -290,7 +301,7 @@ impl Message {
         let bytes = statement.strand_serialize()?;
         let sender_signature: StrandSignature = sender_sk.sign(&bytes)?;
         let system_signature: StrandSignature = system_sk.sign(&bytes)?;
-        let sender_pk = StrandSignaturePk::from_sk(&sender_sk)?;
+        let sender_pk = StrandSignaturePk::from_sk(sender_sk)?;
         let sender = Sender::new(sender_name.to_string(), sender_pk);
 
         Ok(Message {

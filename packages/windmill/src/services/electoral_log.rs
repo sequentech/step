@@ -5,6 +5,7 @@
 use crate::services::database::PgConfig;
 use crate::services::protocol_manager::get_protocol_manager;
 use crate::services::protocol_manager::{create_named_param, get_board_client, get_immudb_client};
+use crate::types::application::ApplicationStatusUpdateEvent;
 use crate::types::resources::{Aggregate, DataList, OrderDirection, TotalAggregate};
 use anyhow::{anyhow, Context, Result};
 use base64::engine::general_purpose;
@@ -14,8 +15,6 @@ use electoral_log::messages::message::SigningData;
 use electoral_log::messages::newtypes::ErrorMessageString;
 use electoral_log::messages::newtypes::KeycloakEventTypeString;
 use electoral_log::messages::newtypes::*;
-use electoral_log::messages::statement::StatementHead;
-use sequent_core::ballot::VotingStatusChannel;
 use sequent_core::serialization::deserialize_with_path;
 use sequent_core::services::date::ISO8601;
 use strand::hash::HashWrapper;
@@ -23,17 +22,16 @@ use strand::hash::HashWrapper;
 use crate::services::insert_cast_vote::hash_voter_id;
 use crate::services::protocol_manager::get_event_board;
 use crate::services::vault;
-use b3::messages::message::{self, Signer as _};
+use b3::messages::message::Signer as _;
 use electoral_log::assign_value;
 use electoral_log::ElectoralLogMessage;
-use immudb_rs::{sql_value::Value, Client, NamedParam, Row, SqlValue};
-use sequent_core::serialization::base64::{Base64Deserialize, Base64Serialize};
+use immudb_rs::{sql_value::Value, NamedParam, Row};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::serialization::StrandDeserialize;
 use strand::signature::StrandSignatureSk;
-use strum_macros::{Display, EnumString, ToString};
+use strum_macros::{Display, EnumString};
 use tempfile::NamedTempFile;
 use tracing::{event, info, instrument, Level};
 pub struct ElectoralLog {
@@ -489,6 +487,32 @@ impl ElectoralLog {
         self.post(&message).await
     }
 
+    #[instrument(skip(self))]
+    pub async fn post_application_status_update(
+        &self,
+        status_change: ApplicationStatusUpdateEvent,
+        event_id: String,
+        user_id: Option<String>,
+        username: Option<String>,
+    ) -> Result<()> {
+        let event = EventIdString(event_id);
+        let description = format!(
+            "Application status: {} Procedure: {}",
+            status_change.application_status.to_string(),
+            status_change.application_type.to_string()
+        );
+        let message = Message::application_status_update_event(
+            event,
+            &self.sd,
+            user_id,
+            username,
+            Some(description),
+        )
+        .map_err(|e| anyhow!("Error sending template: {e:?}"))?;
+
+        self.post(&message).await
+    }
+
     async fn post(&self, message: &Message) -> Result<()> {
         let board_message: ElectoralLogMessage = message.try_into()?;
         let ms = vec![board_message];
@@ -769,8 +793,8 @@ impl TryFrom<&Row> for ElectoralLogRow {
                 _ => return Err(anyhow!("invalid column found '{}'", column.as_str())),
             }
         }
-        let deserialized_message =
-            Message::strand_deserialize(&message).with_context(|| "Error deserializing message")?;
+        let deserialized_message = Message::strand_deserialize(&message)
+            .map_err(|err| anyhow!(format!("Error deserializing message: {err:?}")))?;
         let serialized = general_purpose::STANDARD_NO_PAD.encode(message);
         Ok(ElectoralLogRow {
             id,
@@ -788,7 +812,7 @@ impl TryFrom<&Row> for ElectoralLogRow {
 
 pub const IMMUDB_ROWS_LIMIT: usize = 2500;
 
-#[instrument(err)]
+#[instrument(err, skip_all)]
 pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<ElectoralLogRow>> {
     let mut client = get_immudb_client().await?;
     let board_name = get_event_board(input.tenant_id.as_str(), input.election_event_id.as_str());
