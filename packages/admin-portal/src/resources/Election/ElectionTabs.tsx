@@ -95,10 +95,10 @@ export const ElectionTabs: React.FC = () => {
         >
             <ElectionHeader
                 title={
-                    translateElection(record, "alias", i18n.language) ||
-                    translateElection(record, "name", i18n.language) ||
-                    record.alias ||
-                    record.name ||
+                    translateElection(record, "alias", i18n?.language) ||
+                    translateElection(record, "name", i18n?.language) ||
+                    record?.alias ||
+                    record?.name ||
                     "-"
                 }
                 subtitle="electionScreen.common.subtitle"
