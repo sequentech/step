@@ -756,8 +756,7 @@ mod tests {
         Ok(())
     }
 
-    // TODO: uncomment and fix test
-    //#[test]
+    #[test]
     fn test_results() -> Result<()> {
         let fixture = TestFixture::new()?;
 
