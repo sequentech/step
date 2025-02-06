@@ -308,9 +308,9 @@ impl MCBallotReceipts {
 
         let bytes_pdf = if pipe_config.enable_pdfs {
             Some(
-                pdf::html_to_pdf(bytes_html.clone(), pdf_options).map_err(|e| {
-                    Error::UnexpectedError(format!("Error during html_to_pdf conversion: {}", e))
-                })?,
+                pdf::sync::PdfRenderer::render_pdf(bytes_html.clone(), pdf_options).map_err(
+                    |e| Error::UnexpectedError(format!("Error during PDF rendering: {}", e)),
+                )?,
             )
         } else {
             None
