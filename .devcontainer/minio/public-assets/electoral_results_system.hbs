@@ -29,7 +29,7 @@
       }
 
       body {
-        font-family: Arial, sans-serif;
+        font-family: sans-serif;
         margin: auto;
         max-width: 768px;
       }
@@ -101,23 +101,21 @@
         text-align: center;
       }
 
-      .top-header .left {
-        font-family: "Book Antiqua";
-        text-align: left;
+      .top-header {
         margin: 16px 0;
         margin-top: 5px;
-        font-size: 10pt;
+        font-size: 8pt;
+      }
+
+      .top-header .left {
+        text-align: left;
         font-style: italic;
 
       }
 
       .top-header .right {
-        font-family: "Book Antiqua";
         text-transform: uppercase;
         text-align: right;
-        margin: 16px 0;
-        margin-top: 5px;
-        font-size: 10pt;
       }
 
       .main-header {
@@ -125,7 +123,7 @@
       }
 
       .main-header .left img {
-        max-width: 100px;
+        max-width: 125px;
         margin-top: 8px;
         text-align: left;
         vertical-align: top;
@@ -144,20 +142,14 @@
         vertical-align: top;
       }
 
-      .main-header .center {
-        font-size: 10pt;
-      }
-
       .main-header .center .country {
         font-weight: 100;
         font-size: 11pt;
         text-transform: uppercase;
-        font-family: "Courier New", monospace;
       }
 
       .main-header .center .commission {
         text-transform: uppercase;
-        font-family: "Courier New", monospace;
         font-weight: bold;
         font-size: 12pt;
 
@@ -165,25 +157,20 @@
 
       .main-header .center .election-date {
         text-transform: uppercase;
-        font-family: "Book Antiqua";
-
       }
 
       .main-header .center .election-name {
         text-transform: uppercase;
-        font-family: "Book Antiqua";
       }
 
       .main-header .center .online {
         padding-top: 25px;
         text-transform: uppercase;
-        font-family: "Book Antiqua";
         font-weight: bold;
       }
 
       .main-header .center .voting-period {
         padding-top: 3px;
-        font-family: "Book Antiqua";
         font-size: 10pt;
         font-weight: lighter;
         font-style: italic;
@@ -191,50 +178,56 @@
 
       .main-title {
         text-transform: uppercase;
-        font-family: "Book Antiqua";
         font-weight: bold;
         font-size: 12pt;
       }
 
       .stats-table {
         width: 100%;
-        margin: 32px 10px;
+        margin: 32px 0px;
       }
 
-      .first-col {
-        width: 65%;
-      }
-      .second-col {
-        width: 35%;
-      }
-
-      .stats-table .key {
-        margin-left: 15px;
-        font-family: "Book Antiqua";
-        font-size: 10pt;
-        font-weight: bold;
-        text-align: left;
+      .stats-table tr{
         vertical-align: top;
       }
 
+      .stats-table .first-col {
+        width: 50%;
+      }
+     .stats-table .second-col {
+        width: 50%;
+      }
+
+      .stats-table  .precint-id {
+        padding-bottom: 30px;
+      }
+
+      .stats-table .key {
+        font-size: 10pt;
+        font-weight: bold;
+        text-align: left;
+      }
+
       .stats-table .value {
-        font-family: "Book Antiqua";
         font-size: 10pt;
         text-align: left;
       }
 
       .candidates {
-        font-family: "Book Antiqua";
-        font-size: 10pt;
         border-spacing: 1px;
         background-color: black;
-        width: 100%;
         margin-top: 16px;
         margin-bottom: 16px;
       }
 
+      .candidates .first-col {
+        width: 70%;
+      }
+      .candidates .second-col {
+        width: 30%;
+      }
+
       .candidates td {
-        padding: 2px 10px;
         background-color: white;
       }
 
@@ -243,9 +236,9 @@
       }
 
       .candidates thead td {
-        text-align: center;
         text-transform: uppercase;
         font-weight: bold;
+        font-size: 10pt;
       }
 
       .candidates tbody tr.contest-title {
@@ -255,10 +248,14 @@
       .candidates tbody td {
         text-align: left;
         vertical-align: top;
+         font-size: 10pt;
+      }
+
+      .candidates .votes {
+        text-align: right;
       }
 
       .paragraph {
-        font-family: "Book Antiqua";
         font-size: 10pt;
         margin-top: 12px;
         margin-bottom: 12px;
@@ -271,7 +268,6 @@
 
       .inspectors-title, .inspector-signature, .watchers-title, .watcher-signature {
         page-break-inside: avoid;
-        font-family: "Book Antiqua";
         font-size: 10pt;
       }
 
@@ -337,7 +333,6 @@
       }
 
       .sys-info td div {
-        font-family: "Book Antiqua";
         font-size: 11pt;
         padding-left: 30px;
         text-align: left;
@@ -347,7 +342,6 @@
       }
 
       tr.report-end td {
-        font-family: "Book Antiqua";
         text-align: center;
         margin: 16px 0;
         margin-top: 30px;
@@ -367,14 +361,16 @@
       @media print and (max-width: 90mm), screen and (max-width: 302px) {
         /* @media print { */
         body {
-          width: 80mm;
           margin: 0;
-          padding: 2mm;
           font-family: "Arial", sans-serif;
           font-size: 11pt;
-          line-height: 1.2;
         }
 
+        @page {
+          margin-top: 0;
+          margin-bottom: 0;
+        }
+        
         /* Header styling */
         .country,
         .commission,
@@ -396,29 +392,20 @@
         table {
           width: 100%;
           border-collapse: collapse;
-          margin: 3mm 0;
+        }
+
+        .candidates thead {
+          display: table-row-group; /* Ensures the header appears on the first page only */
         }
 
         th,
         td {
           padding: 1mm 2mm;
-          /* border: 1px solid #000; */
-          font-size: 8pt;
         }
 
         th {
           text-align: left;
           font-weight: bold;
-        }
-
-        /* Candidate results */
-        .candidate-name {
-          padding-left: 2mm;
-        }
-
-        .vote-count {
-          text-align: right;
-          padding-right: 2mm;
         }
 
         /* Signature blocks */
@@ -439,6 +426,7 @@
           height: 20mm;
           margin: 2mm auto;
         }
+
 
         /* Footer */
         .footer {
@@ -486,7 +474,6 @@
         }
 
         .sys-info td div {
-          font-family: "Book Antiqua";
           font-size: 8;
           padding-left: 30px;
           text-align: left;
@@ -501,11 +488,6 @@
           height: auto;
           display: block;
           margin: 0 auto;
-        }
-
-        .left,
-        .right {
-          display: none;
         }
 
         .logo-printer-block {

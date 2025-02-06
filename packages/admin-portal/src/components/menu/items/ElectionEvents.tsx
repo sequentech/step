@@ -263,7 +263,7 @@ export default function ElectionEvents() {
     )
     const {refetch: refetchContestData} = useGetOne<Sequent_Backend_Contest>(
         "sequent_backend_contest",
-        {id: contestId || contest_id},
+        {id: contest_id || contestId},
         {
             enabled: !!contest_id,
             onSuccess: (data) => {
@@ -274,7 +274,18 @@ export default function ElectionEvents() {
             },
         }
     )
-
+    const {refetch: candidateData} = useGetOne<Sequent_Backend_Candidate>(
+        "sequent_backend_candidate",
+        {id: candidate_id},
+        {
+            enabled: !!candidate_id,
+            onSuccess: (data) => {
+                setContestId(data.contest_id)
+                setElectionEventId(data.election_event_id)
+                setCandidateId(data.id)
+            },
+        }
+    )
     // Get subtrees
     const [
         _getElectionEventTree,
@@ -329,8 +340,8 @@ export default function ElectionEvents() {
             contestTreeRefetch()
             refetchContestData()
         } else if (callerPath === "sequent_backend_candidate") {
+            candidateData()
             candidateTreeRefetch()
-            electionEventDataRefetch()
         } else {
             electionEventDataRefetch()
         }
@@ -395,9 +406,11 @@ export default function ElectionEvents() {
     }, [candidateId])
 
     useEffect(() => {
-        if (!electionEventData) return
-        setArchivedElectionEvents(electionEventData?.is_archived ?? false)
-    }, [electionEventData, setArchivedElectionEvents])
+        if (!electionEventData || !electionEventId) return
+        if (electionEventData?.id === electionEventId && electionEventData?.is_archived) {
+            setArchivedElectionEvents(electionEventData?.is_archived ?? false)
+        }
+    }, [electionEventId, electionEventData, setArchivedElectionEvents])
 
     function handleSearchChange(searchInput: string) {
         setSearchInput(searchInput)
@@ -431,7 +444,7 @@ export default function ElectionEvents() {
         )
     }
 
-    let finalresultData = useMemo(() => {
+    let finalResultData = useMemo(() => {
         return {
             electionEvents: cloneDeep(resultData?.electionEvents ?? [])?.map(
                 (electionEvent: ElectionEventType) => {
@@ -455,20 +468,39 @@ export default function ElectionEvents() {
                                                                         ? {
                                                                               active: true,
                                                                               candidates:
+                                                                                  candidateTreeData?.sequent_backend_candidate
+                                                                                      ?.map(
+                                                                                          (
+                                                                                              ca: any
+                                                                                          ) => ({
+                                                                                              ...ca,
+                                                                                              active:
+                                                                                                  ca.id ===
+                                                                                                  candidateId,
+                                                                                          })
+                                                                                      )
+                                                                                      ?.map(
+                                                                                          (
+                                                                                              ca: any
+                                                                                          ) => ({
+                                                                                              ...ca,
+                                                                                              active:
+                                                                                                  ca.id ===
+                                                                                                  candidateId,
+                                                                                          })
+                                                                                      ) ?? [],
+                                                                          }
+                                                                        : {
+                                                                              active: false,
+                                                                              candidates:
                                                                                   candidateTreeData?.sequent_backend_candidate?.map(
                                                                                       (
                                                                                           ca: any
                                                                                       ) => ({
                                                                                           ...ca,
-                                                                                          active:
-                                                                                              ca.id ===
-                                                                                              candidateId,
+                                                                                          active: false,
                                                                                       })
                                                                                   ) ?? [],
-                                                                          }
-                                                                        : {
-                                                                              active: false,
-                                                                              candidates: [],
                                                                           }),
                                                                 })
                                                             ) ?? [],
@@ -491,6 +523,7 @@ export default function ElectionEvents() {
         electionTreeData,
         contestTreeData,
         candidateTreeData,
+        data,
     ])
 
     const reloadTreeMenu = () => {
@@ -507,7 +540,7 @@ export default function ElectionEvents() {
         <CircularProgress />
     ) : (
         <TreeMenu
-            data={finalresultData}
+            data={finalResultData}
             treeResourceNames={TREE_RESOURCE_NAMES}
             isArchivedElectionEvents={isArchivedElectionEvents}
             onArchiveElectionEventsSelect={changeArchiveSelection}

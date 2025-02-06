@@ -45,6 +45,8 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
         secondCheckbox: false,
     })
     const handleCheckboxChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        console.log("aa changed", event.target.checked)
+
         setCheckboxState({
             ...checkboxState,
             [event.target.name]: event.target.checked,
@@ -163,6 +165,7 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
                 ok={t("keysGeneration.downloadStep.confirmdDialog.ok")}
                 cancel={t("keysGeneration.downloadStep.confirmdDialog.cancel")}
                 title={t("keysGeneration.downloadStep.confirmdDialog.title")}
+                okEnabled={() => firstCheckbox && secondCheckbox}
                 handleClose={(result: boolean) => {
                     if (result) {
                         if (firstCheckbox && secondCheckbox) {
@@ -174,6 +177,10 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
                             })
                         }
                     } else {
+                        setCheckboxState({
+                            firstCheckbox: false,
+                            secondCheckbox: false,
+                        })
                         setOpenConfirmationModal(false)
                     }
                 }}

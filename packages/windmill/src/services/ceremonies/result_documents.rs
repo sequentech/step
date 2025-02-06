@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::encrypter::{encrypt_directory_contents, get_file_report_type, traversal_encrypt_files};
 use super::renamer::rename_folders;
+use crate::postgres::document::get_document;
 use crate::postgres::reports::Report;
 use crate::postgres::reports::{get_reports_by_election_event_id, ReportType};
 use crate::postgres::results_election_area::insert_results_election_area_documents;
@@ -18,20 +19,21 @@ use crate::{
         compress::compress_folder,
         documents::{upload_and_return_document, upload_and_return_document_postgres},
         folders::copy_to_temp_dir,
-        temp_path::get_file_size,
     },
 };
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::services::translations::Name;
+use sequent_core::signatures::temp_path::get_file_size;
 use sequent_core::types::ceremonies::TallyType;
 use sequent_core::{services::connection::AuthHeaders, types::results::ResultDocuments};
 use sequent_core::{services::keycloak, types::hasura::core::Area};
 use std::{
     collections::HashMap,
-    fs::File,
+    fs,
     path::{Path, PathBuf},
 };
+use strand::hash::hash_b64;
 use tokio::task;
 use tracing::instrument;
 use velvet::pipes::generate_reports::{
@@ -78,6 +80,18 @@ async fn generic_save_documents(
     .await?;
 
     documents.json = process_and_upload_document(
+        document_paths.json.clone(),
+        MIME_JSON,
+        OUTPUT_JSON,
+        &all_reports,
+        report_type.clone(),
+        auth_headers,
+        tenant_id,
+        election_event_id,
+    )
+    .await?;
+
+    documents.vote_receipts_pdf = process_and_upload_document(
         document_paths.vote_receipts_pdf.clone(),
         MIME_JSON,
         OUTPUT_JSON,
@@ -412,6 +426,16 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
             .contest
             .clone();
 
+        // Read the json file and hash it
+        let file_path = document_paths
+            .json
+            .clone()
+            .context("Missing json file path")?;
+        let content = fs::read(file_path.clone())
+            .with_context(|| format!("Failed to read the file at {}", file_path))?;
+        let json_hash = hash_b64(&content).map_err(|err| anyhow!("Error hashing json: {err:?}"))?;
+
+        // Save election results documents to S3 and Hasura
         let documents = generic_save_documents(
             auth_headers,
             document_paths,
@@ -429,6 +453,7 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
             &contest.election_event_id,
             &contest.election_id,
             &documents,
+            &json_hash,
         )
         .await?;
 

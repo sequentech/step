@@ -42,6 +42,7 @@ const catalanTranslation: TranslationType = {
                 EXPORT_BALLOT_PUBLICATION: "Exporta Publicació de Butlleta",
                 EXPORT_ACTIVITY_LOGS_REPORT: "Exportar Informe de Registres d'Activitat",
                 GENERATE_REPORT: "Generar informe",
+                GENERATE_TRANSMISSION_REPORT: "Generar informe de transmissió",
                 EXPORT_TRUSTEES: "Exportar Autoritats",
                 EXPORT_APPLICATION: "Exportar Sol·licituds",
                 EXPORT_TENANT_CONFIG: "Exporta la Configuració del Llogater",
@@ -300,6 +301,11 @@ const catalanTranslation: TranslationType = {
                         "temps en segons abans de la caducitat per mostrar el compte enrere",
                     alertSecondsLabel:
                         "temps en segons abans de la caducitat per mostrar l'avís de tancament de sessió",
+                },
+                voterSigningPolicy: {
+                    "policyLabel": "Política de Signatura de Votants",
+                    "no-signature": "Sense signatura",
+                    "with-signature": "Amb signatura",
                 },
                 enrollment: {
                     policyLabel: "Inscripció",
@@ -906,6 +912,7 @@ const catalanTranslation: TranslationType = {
                 "voter-voted-edit": "Edita els votants que han votat",
                 "voter-email-tlf-edit": "Edita els camps de correu electrònic/telèfon dels votants",
                 "cloudflare-write": "Edita les regles de bloqueig per país a Cloudflare",
+                "transmission-report-generate": "Generar Informe de Transmissió",
             },
         },
         generalSettingsScreen: {
@@ -1407,6 +1414,7 @@ const catalanTranslation: TranslationType = {
                         title: "Descarregar",
                         emlTitle: "Download EML {{date}}",
                         transmissionPackageTitle: "Descarregar el Paquet de Transmissió {{date}}",
+                        transmissionReportTitle: "Descarrega l'informe de transmissió",
                         dialog: {
                             title: "Vols descarregar el Paquet de Transmissió?",
                             description:
@@ -1443,6 +1451,7 @@ const catalanTranslation: TranslationType = {
             uploadTransmissionPackageDesc:
                 "Carrega la teva signatura per signar el paquet de Resultats Electorals. Aquesta operació és opcional.",
             exportElectionArea: "Envia paquet de transmissió per a l'àrea '{{name}}'",
+            generateReport: "Genera {{name}}",
             templateTitle: "Plantilla de Resultats",
             initializationTitle: "Eleccions per a l'informe d'inicialització",
             templateSubTitle: "Opcionalment sobreescriure la plantilla de resultats.",
@@ -1782,6 +1791,7 @@ const catalanTranslation: TranslationType = {
                 smsMessage: "Missatge SMS",
                 document: "Document",
                 pdfOptions: "Opcions PDF",
+                reportOptions: "Opcions Report",
                 name: "Nom de la Plantilla",
                 alias: "Àlies de la Plantilla",
                 type: "Tipus",
@@ -1892,6 +1902,7 @@ const catalanTranslation: TranslationType = {
                 verificationType: "Tipus de Verificació",
                 createdAt: "Creat El",
                 updatedAt: "Actualitzat El",
+                approved_by: "Aprovat per",
             },
             approvalRequest: "Sol·licitud d'Aprovació",
             title: "Votants",
@@ -1919,6 +1930,7 @@ const catalanTranslation: TranslationType = {
                 approveSuccess: "Votant aprovat",
                 rejectError: "Error en rebutjar el votant",
                 rejectSuccess: "Votant rebutjat",
+                VoterApprovedAlready: "El votant ja està aprovat.",
             },
             export: {
                 success: "L'exportació d'aplicacions s'ha completat amb èxit",

@@ -75,6 +75,7 @@ const spanishTranslation: TranslationType = {
                 EXPORT_BALLOT_PUBLICATION: "Exportar Publicación de Boleta",
                 EXPORT_ACTIVITY_LOGS_REPORT: "Exportar Informe de Registros de Actividad",
                 GENERATE_REPORT: "Generar Reporte",
+                GENERATE_TRANSMISSION_REPORT: "Generar Informe de Transmisión",
                 EXPORT_TRUSTEES: "Exportar Autoridades",
                 EXPORT_APPLICATION: "Exportar Solicitudes",
                 EXPORT_TENANT_CONFIG: "Exportar Configuración del Inquilino",
@@ -300,6 +301,11 @@ const spanishTranslation: TranslationType = {
                         "tiempo en segundos antes de la expiración para mostrar la cuenta regresiva",
                     alertSecondsLabel:
                         "tiempo en segundos antes de la expiración para mostrar la alerta de cierre de sesión",
+                },
+                voterSigningPolicy: {
+                    "policyLabel": "Política de Firma de Votantes",
+                    "no-signature": "Sin firma",
+                    "with-signature": "Con firma",
                 },
                 enrollment: {
                     policyLabel: "Inscripción",
@@ -896,6 +902,7 @@ const spanishTranslation: TranslationType = {
                 "voter-voted-edit": "Editar a los votantes que votaron",
                 "voter-email-tlf-edit": "Editar email/teléfono de los votantes",
                 "cloudflare-write": "Editar las reglas de bloqueo por país en Cloudflare",
+                "transmission-report-generate": "Generar Informe de Transmisión",
             },
         },
         generalSettingsScreen: {
@@ -1397,6 +1404,7 @@ const spanishTranslation: TranslationType = {
                         title: "Descargar",
                         emlTitle: "Download EML {{date}}",
                         transmissionPackageTitle: "Descargar el Paquete de Transmisión {{date}}",
+                        transmissionReportTitle: "Descargar informe de transmisión",
                         dialog: {
                             title: "¿Quieres descargar el Paquete de Transmisión?",
                             description:
@@ -1433,6 +1441,7 @@ const spanishTranslation: TranslationType = {
             uploadTransmissionPackageDesc:
                 "Sube tu firma para firmar el paquete de Resultados Electorales. Esta operación es opcional.",
             exportElectionArea: "Enviar paquete de transmisión para el área '{{name}}'",
+            generateReport: "Generar {{name}}",
             templateTitle: "Plantilla de Resultados",
             templateSubTitle: "Opcionalmente sobrescribir la plantilla de resultados.",
             keysCeremonyTitle: "Ceremonia de Llaves",
@@ -1776,6 +1785,7 @@ const spanishTranslation: TranslationType = {
                 alias: "Alias de la Plantilla",
                 type: "Tipo",
                 communicationMethod: "Método",
+                reportOptions: "Opciones de Informe",
             },
             type: {
                 CREDENTIALS: "Credenciales",
@@ -1882,6 +1892,7 @@ const spanishTranslation: TranslationType = {
                 verificationType: "Tipo de Verificación",
                 createdAt: "Creado El",
                 updatedAt: "Actualizado El",
+                approved_by: "Aprobado Por",
             },
             approvalRequest: "Solicitud de Aprobación",
             title: "Votantes",
@@ -1909,6 +1920,7 @@ const spanishTranslation: TranslationType = {
                 approveSuccess: "Votante aprobado",
                 rejectError: "Error al rechazar al votante",
                 rejectSuccess: "Votante rechazado",
+                VoterApprovedAlready: "El votante ya está aprobado.",
             },
             export: {
                 success: "La exportación de aplicaciones se completó con éxito",

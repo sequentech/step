@@ -2,9 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {en} from "intl-tel-input/i18n"
-import {title} from "process"
-
 const englishTranslation = {
     translations: {
         philippinePassport: "Philippine Passport",
@@ -77,6 +74,7 @@ const englishTranslation = {
                 EXPORT_BALLOT_PUBLICATION: "Export Ballot Publication",
                 EXPORT_ACTIVITY_LOGS_REPORT: "Export Activity Logs Report",
                 GENERATE_REPORT: "Generate Report",
+                GENERATE_TRANSMISSION_REPORT: "Generate Transmission Report",
                 EXPORT_TRUSTEES: "Export Trustees",
                 EXPORT_APPLICATION: "Export Applications",
                 EXPORT_TENANT_CONFIG: "Export Tenant Config",
@@ -300,6 +298,11 @@ const englishTranslation = {
                     policyLabel: "Voting Portal Countdown policy",
                     coundownSecondsLabel: "time in seconds before expiration to show countdown",
                     alertSecondsLabel: "time in seconds before expiration to show Logout alert",
+                },
+                voterSigningPolicy: {
+                    "policyLabel": "Voter Signing Policy",
+                    "no-signature": "No signature",
+                    "with-signature": "With signature",
                 },
                 enrollment: {
                     policyLabel: "Enrollment",
@@ -870,7 +873,7 @@ const englishTranslation = {
                 "publish-pause-voting": "Pause Voting",
                 "publish-stop-voting": "Stop Voting",
                 "publish-changes": "Publish Changes",
-                "election-event-publish-view": "View Election Event Publish",
+                "election-event-publish-view": "Election Event Publish View",
                 "election-event-keys-columns": "Election Event Keys Columns",
                 "create-ceremony": "Create Ceremony",
                 "export-ceremony": "Export Ceremony",
@@ -887,6 +890,7 @@ const englishTranslation = {
                 "voter-voted-edit": "Edit voters who voted",
                 "voter-email-tlf-edit": "Edit voters email/phone fields",
                 "cloudflare-write": "Edit Country Blocking Rules in Cloudflare",
+                "transmission-report-generate": "Generate Transmission Report",
             },
         },
         generalSettingsScreen: {
@@ -1386,6 +1390,7 @@ const englishTranslation = {
                         title: "Download",
                         emlTitle: "Download EML {{date}}",
                         transmissionPackageTitle: "Download Transmission Package {{date}}",
+                        transmissionReportTitle: "Download Transmission Report",
                         dialog: {
                             title: "Do you want to Download the Transmission Package?",
                             description:
@@ -1421,6 +1426,7 @@ const englishTranslation = {
             uploadTransmissionPackageDesc:
                 "Upload your Signature to sign the Transmission Package. This is an optional operation.",
             exportElectionArea: "Generate Transmission Package for Area '{{name}}'",
+            generateReport: "Generate {{name}}",
             templateTitle: "Results Template",
             templateSubTitle: "Optionally overwrite the results template.",
             keysCeremonyTitle: "Keys Ceremony",
@@ -1759,6 +1765,7 @@ const englishTranslation = {
                 smsMessage: "SMS Message",
                 document: "Document",
                 pdfOptions: "PDF Options",
+                reportOptions: "Report Options",
                 name: "Template Name",
                 alias: "Template Alias",
                 type: "Type",
@@ -1767,7 +1774,7 @@ const englishTranslation = {
             type: {
                 CREDENTIALS: "Credentials",
                 BALLOT_RECEIPT: "Ballot Receipt",
-                VOTE_RECEIPT: "Vote Receipt",
+                VOTE_RECEIPT: "Vote Receipts",
                 PARTICIPATION_REPORT: "Participation Report",
                 ELECTORAL_RESULTS: "Electoral Results",
                 OTP: "OTP",
@@ -1867,6 +1874,7 @@ const englishTranslation = {
                 verificationType: "Verification Type",
                 createdAt: "Created At",
                 updatedAt: "Updated At",
+                approved_by: "Approved By",
             },
             approvalRequest: "Approval Request",
             title: "Voters",
@@ -1894,6 +1902,7 @@ const englishTranslation = {
                 approveSuccess: "Voter approved",
                 rejectError: "Error rejecting voter",
                 rejectSuccess: "Voter rejected",
+                VoterApprovedAlready: "Voter is already approved.",
             },
             export: {
                 success: "Applications export finished successfully",
