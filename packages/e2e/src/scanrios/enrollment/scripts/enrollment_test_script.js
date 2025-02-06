@@ -18,7 +18,8 @@ client => {
 
 
     const enroll = (i) => {
-        waitForElementVisible('body', 1000)
+        client.url(testUrl)
+        .waitForElementVisible('body', 1000)
 
             .setValue(emailInput, `user${i}@gamil.com`)
             .setValue(passwordInput, 'User1234567!')
