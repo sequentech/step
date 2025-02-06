@@ -12,41 +12,45 @@ client => {
     const embassyInput = "*[id='embassy']";
     const termsCheckbox = "*[type=checkbox][name='termsOfService']";
     const submitButton = "*[type=submit]";
-    
+
     const otpContainer = "*[id='otp-inputs']"
     const finishButton = "*[id='loginContinueLink']"
 
 
-      const enroll = (i) => {
-            client.url(testUrl)
-            .waitForElementVisible('body', 1000)
+    const enroll = (i) => {
+        waitForElementVisible('body', 1000)
+
+            .setValue(emailInput, `user${i}@gamil.com`)
+            .setValue(passwordInput, 'User1234567!')
+            .setValue(confirmPasswordInput, 'User1234567!')
+
             .click(validIdInput)
-            .waitForElementVisible(validIdInput + "option[value='Philippine Passport']", 2000)
+            .waitForElementVisible(validIdInput + " option[value='Philippine Passport']", 2000)
             .click(validIdInput + " option[value='Philippine Passport']")
-            .setValue(passwordInput, 'Pass12345*')
-            .setValue(confirmPasswordInput, 'Pass12345*')
-            .setValue(emailInput, `user${i}@gmail.com`) 
+
             .click(embassyInput)
             .waitForElementVisible(embassyInput + " option[value='Tokyo PE']", 2000)
             .click(embassyInput + " option[value='Tokyo PE']")
+
             .click(termsCheckbox)
-            .takeScreenshot( `enrollment${i}.png`)
+
+
+            .takeScreenshot(`enrollment.png`)
             .click(submitButton)
 
-
-            client.waitForElementVisible(otpContainer,2000)
-            for (let otpIndex = 1; otpIndex <= 6; otpIndex++) {
-                  client.setValue(`*[id='otp-${otpIndex}']`, otpCode.at(otpIndex - 1));
-            }
-            client.takeScreenshot(`otp${i}.png`)
+        client.waitForElementVisible(otpContainer, 2000)
+        for (let i = 1; i <= otpLength; i++) {
+            client.setValue(`*[id='otp-${i}']`, otpCode.at(i - 1));
+        }
+        client.takeScreenshot(`otp.png`)
             .click(submitButton)
 
-            client.waitForElementVisible(finishButton,10000)
+        client.waitForElementVisible(finishButton, 10000)
             .takeScreenshot(`finisht_screen${i}.png`)
             .click(finishButton)
-      }
+    }
 
-      enroll(1);
+    enroll(1);
 
     //   for(let i=1; i<=enrollmentsCount; i++) {
     //         try {
