@@ -14,7 +14,6 @@ use crate::services::reports::report_variables::{get_app_hash, get_app_version, 
 use crate::services::reports::template_renderer::{
     ReportOriginatedFrom, ReportOrigins, TemplateRenderer,
 };
-use crate::services::reports::utils::get_public_asset_template;
 use crate::services::reports::vote_receipt::VoteReceiptTemplate;
 use crate::services::s3;
 use crate::services::tally_sheets::tally::create_tally_sheets_map;
@@ -41,7 +40,7 @@ use std::fs::{self, File, OpenOptions};
 use std::io::Write;
 use std::path::PathBuf;
 use strand::{backend::ristretto::RistrettoCtx, context::Ctx};
-use tracing::{debug, event, instrument, warn, Level};
+use tracing::{event, instrument, warn, Level};
 use uuid::Uuid;
 use velvet::cli::state::State;
 use velvet::cli::CliRun;
