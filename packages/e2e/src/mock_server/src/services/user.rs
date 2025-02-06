@@ -6,6 +6,7 @@ use anyhow::{anyhow, Context, Result};
 use csv::ReaderBuilder;
 use rand::Rng;
 use rusqlite::{params, Connection};
+use chrono::NaiveDate;
 
 use crate::types::user::User;
 
@@ -48,12 +49,17 @@ pub fn load_users(csv_path: &str) -> Result<usize, anyhow::Error> {
         let id = uuid::Uuid::new_v4().to_string();
         let first_name = record.get(0).unwrap_or_default().trim().to_string();
         let last_name = record.get(1).unwrap_or_default().trim().to_string();
-        let middle_ame = record.get(5).unwrap_or_default().trim().to_string();
-        let date_of_birth = record.get(6).unwrap_or_default().trim().to_string();
-        let embassy = record.get(7).unwrap_or_default().trim().to_string();
-        let country = record.get(8).unwrap_or_default().trim().to_string();
-        let id_card_number = record.get(13).unwrap_or_default().trim().to_string();
-        let id_card_type = record.get(14).unwrap_or_default().trim().to_string();
+        let middle_ame = record.get(4).unwrap_or_default().trim().to_string();
+        let date_of_birth_str = record.get(5).unwrap_or_default().trim().to_string();
+        let embassy = record.get(6).unwrap_or_default().trim().to_string();
+        let country = record.get(7).unwrap_or_default().trim().to_string();
+        let id_card_number = record.get(12).unwrap_or_default().trim().to_string();
+        let id_card_type = record.get(13).unwrap_or_default().trim().to_string();
+
+        let date_of_birth = match NaiveDate::parse_from_str(&date_of_birth_str, "%Y-%m-%d") {
+            Ok(parsed_date) => parsed_date.format("%d/%m/%Y").to_string(),
+            Err(_) => date_of_birth_str.to_string(),
+        };
 
         let rows_effected = conn
             .execute(
