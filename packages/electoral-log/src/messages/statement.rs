@@ -151,7 +151,8 @@ impl StatementHead {
             },
             StatementBody::KeycloakUserEvent(error_message_string, error_message_type) => {
                 let description = if (error_message_string.0.trim() == "null")
-                    || (error_message_string.0.trim().is_empty())
+                    || error_message_string.0.trim().is_empty()
+                    || error_message_string.0.trim() == "-"
                 {
                     format!("{}", error_message_type.0)
                 } else {
