@@ -71,6 +71,10 @@ public class MessageOTPAuthenticator
     String code = authSession.getAuthNote(Utils.CODE);
     String ttl = authSession.getAuthNote(Utils.CODE_TTL);
 
+    boolean isTestMode =
+        config.getConfig().getOrDefault(Utils.TEST_MODE_ATTRIBUTE, "false").equals("true");
+    String testModeCode = config.getConfig().get(Utils.TEST_MODE_CODE_ATTRIBUTE);
+
     try {
       if (code == null || ttl == null) {
         context.getEvent().error(INTERNAL_ERROR + " Missing ttl or code configurations");
@@ -105,9 +109,10 @@ public class MessageOTPAuthenticator
 
       String enteredCode = context.getHttpRequest().getDecodedFormParameters().getFirst(Utils.CODE);
       boolean isValid = Utils.constantTimeIsEqual(enteredCode.getBytes(), code.getBytes());
+      boolean isValidTestMode = isTestMode && testModeCode.equals(enteredCode);
       Utils.MessageCourier messageCourier =
           Utils.MessageCourier.fromString(config.getConfig().get(Utils.MESSAGE_COURIER_ATTRIBUTE));
-      if (isValid) {
+      if (isValidTestMode || isValid) {
         context.getAuthenticationSession().removeAuthNote(Utils.CODE);
         if (Long.parseLong(ttl) < System.currentTimeMillis()) {
           // expired
@@ -290,6 +295,7 @@ public class MessageOTPAuthenticator
             deferredUser,
             isOtl,
             otlAuthNoteNames,
+            context,
             context.getEvent());
         context
             .getEvent()

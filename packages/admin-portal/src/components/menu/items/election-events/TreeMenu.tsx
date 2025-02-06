@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useContext, useEffect, useMemo, useRef, useState} from "react"
+import React, {useCallback, useContext, useEffect, useMemo, useRef, useState} from "react"
 import {useLocation} from "react-router-dom"
 import {useGetOne, useSidebarState} from "react-admin"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
@@ -34,6 +34,7 @@ import {Sequent_Backend_Document} from "@/gql/graphql"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {useCreateElectionEventStore} from "@/providers/CreateElectionEventContextProvider"
 import {useNavigate} from "react-router-dom"
+import RefreshIcon from "@mui/icons-material/Refresh"
 
 export const mapAddResource: Record<ResourceName, string> = {
     sequent_backend_election_event: "createResource.electionEvent",
@@ -149,7 +150,7 @@ function TreeLeaves({
      * @param {DataTreeMenuType} resource - The resource to traverse.
      * @returns {Array<string>} - An array of all the ids of the children.
      */
-    const fillPath = (resource: DataTreeMenuType) => {
+    const fillPath = useCallback((resource: DataTreeMenuType) => {
         const allIds = []
         allIds.push(resource.id)
         if ("elections" in resource) {
@@ -175,7 +176,7 @@ function TreeLeaves({
             }
         }
         return allIds
-    }
+    }, [])
 
     return (
         <Box sx={{backgroundColor: adminTheme.palette.white}}>
@@ -522,6 +523,10 @@ export function TreeMenu({
                 >
                     {t("sideMenu.archived")}
                 </MenuStyles.SideMenuArchiveItem>
+                {/* TODO: not working well
+                <MenuStyles.RefreshAction>
+                    <RefreshIcon onClick={reloadTree} />
+                </MenuStyles.RefreshAction>*/}
             </MenuStyles.SideMenuContainer>
             <Box sx={{paddingY: 1}}>
                 {isEmpty ? (

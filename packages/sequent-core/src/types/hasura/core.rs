@@ -49,6 +49,7 @@ pub struct BallotStyle {
     pub status: Option<String>,
     pub election_event_id: String,
     pub deleted_at: Option<DateTime<Local>>,
+    pub ballot_publication_id: String,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]

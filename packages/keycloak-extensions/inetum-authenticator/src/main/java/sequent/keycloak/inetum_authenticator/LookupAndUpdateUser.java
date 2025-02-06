@@ -388,6 +388,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
               mobileNumber,
               rejectionReason,
               mismatchedFields,
+              context,
               context.getEvent());
           return;
         }
@@ -423,6 +424,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
               mobileNumber,
               rejectionReason,
               mismatchedFields,
+              context,
               context.getEvent());
           return;
         }
@@ -571,6 +573,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
                 user,
                 messageCourier,
                 mobile,
+                context,
                 context.getEvent());
           } else {
             sendConfirmation(
@@ -579,6 +582,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
                 user,
                 messageCourier,
                 mobile,
+                context,
                 context.getEvent());
           }
         } catch (Exception error) {
@@ -638,8 +642,17 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       log.info("getMismatchedFields(): field=" + field.getKey() + "..");
       if (!field.getValue().asBoolean()) {
         String key = field.getKey();
-        log.info("getMismatchedFields(): field=" + key + ", value = " + applicantDataMap.get(key));
-        String value = applicantDataMap.get(key);
+        String value = null;
+        // Special case for first and middle name (for DL and SB)
+        if (key.equals("firstName.middleName")) {
+          String firstName = applicantDataMap.get("firstName");
+          String middleName = applicantDataMap.get("middleName");
+          value = firstName != null ? firstName : "" + ", " + middleName != null ? middleName : "";
+          key = "First name, Middle name";
+        } else {
+          value = applicantDataMap.get(key);
+        }
+        log.info("getMismatchedFields(): field=" + key + ", value = " + value);
 
         if (value == null) {
           value = getTranslationFromOverridesOrMessages("empty", messages, realmOverrides, "null");

@@ -22,10 +22,11 @@ interface TallyResultsContestProps {
     electionEventId: string | null
     tenantId: string | null
     resultsEventId: string | null
+    tallySessionId: string | null
 }
 
 export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) => {
-    const {areas, electionId, electionEventId, tenantId, resultsEventId} = props
+    const {areas, electionId, electionEventId, tenantId, resultsEventId, tallySessionId} = props
     const [value, setValue] = React.useState<number | null>(0)
     const [contestsData, setContestsData] = useState<Array<Sequent_Backend_Contest>>([])
     const [contestId, setContestId] = useState<string | null>()
@@ -165,11 +166,12 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
                         />
                     ))}
                 </Tabs>
-                {documents && electionEventId && canExportCeremony ? (
+                {documents && electionEventId && canExportCeremony && tallySessionId ? (
                     <ExportElectionMenu
                         documentsList={[documents]}
                         electionEventId={electionEventId}
                         itemName={contestName ?? "contest"}
+                        tallySessionId={tallySessionId}
                     />
                 ) : null}
             </Box>
@@ -183,6 +185,7 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
                         electionEventId={contest?.election_event_id}
                         tenantId={contest?.tenant_id}
                         resultsEventId={resultsEventId}
+                        tallySessionId={tallySessionId}
                     />
                 </CustomTabPanel>
             ))}
