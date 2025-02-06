@@ -9259,6 +9259,7 @@ dependencies = [
  "anyhow",
  "clap 4.5.23",
  "criterion 0.5.1",
+ "csv",
  "hex",
  "num-bigint",
  "rand 0.8.5",
