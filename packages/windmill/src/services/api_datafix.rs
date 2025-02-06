@@ -15,10 +15,10 @@ use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
 use sequent_core::types::hasura::core::ElectionEvent;
-use sequent_core::types::keycloak::{User, UserArea};
+use sequent_core::types::keycloak::{User, UserArea, AREA_ID_ATTR_NAME, DATE_OF_BIRTH};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use tracing::{error, info, instrument, warn};
-
 #[derive(Deserialize, Debug)]
 pub struct VoterInformationBody {
     voter_id: String,
@@ -61,7 +61,7 @@ struct PasswordPolicy {
 
 /// Gets the election_event_id and the DatafixAnnotations of the event that has the datafix id in its annotations.
 #[instrument(skip(hasura_transaction))]
-async fn get_datafix_annotations(
+async fn get_event_id_and_datafix_annotations(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     requester_datafix_id: &str,
@@ -107,6 +107,80 @@ async fn get_datafix_annotations(
     return Err(DatafixResponse::new(Status::BadRequest));
 }
 
+/// Returns the UserArea object. If it cannot find the area id by name returns an error.
+#[instrument(skip_all)]
+pub async fn find_user_area_by_name(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    voter_info: &VoterInformationBody,
+) -> Result<UserArea, JsonErrorResponse> {
+    // Compose the full area name from the voter information
+    let mut area_concat: String = voter_info.ward.clone();
+    let area_childs = vec![voter_info.schoolboard.clone(), voter_info.poll.clone()];
+    for subarea in &area_childs {
+        if let Some(subarea) = subarea {
+            area_concat.push_str(format!(" - {subarea}").as_str());
+        }
+    }
+    // Get the areas for this election_event_id
+    let event_areas = get_event_areas(hasura_transaction, tenant_id, election_event_id)
+        .await
+        .map_err(|e| {
+            error!("Error getting event areas: {e:?}");
+            DatafixResponse::new(Status::InternalServerError)
+        })?;
+    // Find the id that matches the full name.
+    let area_id = event_areas
+        .iter()
+        .find(|area| {
+            if let Some(name) = &area.name {
+                name.eq(&area_concat)
+            } else {
+                false
+            }
+        })
+        .and_then(|area| Some(area.id.clone()));
+
+    match area_id {
+        Some(id) => Ok(UserArea {
+            id: Some(id),
+            name: Some(area_concat),
+        }),
+        None => {
+            error!("Error. Area not found for {}", area_concat);
+            Err(DatafixResponse::new(Status::NotFound))
+        }
+    }
+}
+
+/// Disable the voter, datafix users are not actually deleted but just disabled.
+/// Note: voter_id in Datafix API represents the username in Keycloak/Sequent´s system.
+#[instrument(skip(keycloak_transaction))]
+pub async fn get_user_id(
+    keycloak_transaction: &Transaction<'_>,
+    realm: &str,
+    username: &str,
+) -> Result<String, JsonErrorResponse> {
+    let user_ids = get_users_by_username(keycloak_transaction, &realm, username)
+        .await
+        .map_err(|e| {
+            error!("Error getting users by username: {e:?}");
+            DatafixResponse::new(Status::InternalServerError)
+        })?;
+
+    match user_ids.len() {
+        0 => {
+            error!("Error getting users by username: Not Found");
+            return Err(DatafixResponse::new(Status::NotFound));
+        }
+        1 => Ok(user_ids[0].clone()),
+        _ => {
+            error!("Error getting users by username: Multiple users Found");
+            return Err(DatafixResponse::new(Status::NotFound));
+        }
+    }
+}
 /// Disable the voter, datafix users are not actually deleted but just disabled.
 /// Note: voter_id in Datafix API represents the username in Keycloak/Sequent´s system.
 #[instrument(skip(hasura_transaction))]
@@ -118,7 +192,8 @@ pub async fn disable_datafix_voter(
     username: &str,
 ) -> Result<Json<DatafixResponse>, JsonErrorResponse> {
     let (election_event_id, _) =
-        get_datafix_annotations(hasura_transaction, tenant_id, datafix_event_id).await?;
+        get_event_id_and_datafix_annotations(hasura_transaction, tenant_id, datafix_event_id)
+            .await?;
     info!("election_event_id: {election_event_id}");
     let realm = get_event_realm(tenant_id, &election_event_id);
     let client = KeycloakAdminClient::new().await.map_err(|e| {
@@ -126,24 +201,7 @@ pub async fn disable_datafix_voter(
         DatafixResponse::new(Status::InternalServerError)
     })?;
 
-    let user_ids = get_users_by_username(keycloak_transaction, &realm, username)
-        .await
-        .map_err(|e| {
-            error!("Error getting users by username: {e:?}");
-            DatafixResponse::new(Status::InternalServerError)
-        })?;
-
-    let user_id = match user_ids.len() {
-        0 => {
-            error!("Error getting users by username: Not Found");
-            return Err(DatafixResponse::new(Status::NotFound));
-        }
-        1 => user_ids[0].clone(),
-        _ => {
-            error!("Error getting users by username: Multiple users Found");
-            return Err(DatafixResponse::new(Status::NotFound));
-        }
-    };
+    let user_id = get_user_id(keycloak_transaction, &realm, username).await?;
 
     let _user = client
         .edit_user(
@@ -176,66 +234,110 @@ pub async fn add_datafix_voter(
 ) -> Result<Json<DatafixResponse>, JsonErrorResponse> {
     let username = &voter_info.voter_id;
     let (election_event_id, _) =
-        get_datafix_annotations(hasura_transaction, tenant_id, datafix_event_id).await?;
+        get_event_id_and_datafix_annotations(hasura_transaction, tenant_id, datafix_event_id)
+            .await?;
 
     let realm = get_event_realm(tenant_id, &election_event_id);
     let client = KeycloakAdminClient::new().await.map_err(|e| {
         error!("Error getting KeycloakAdminClient: {e:?}");
         DatafixResponse::new(Status::InternalServerError)
     })?;
-    let mut area_concat: String = voter_info.ward.clone();
-    let area_childs = vec![voter_info.schoolboard.clone(), voter_info.poll.clone()];
-    for subarea in &area_childs {
-        if let Some(subarea) = subarea {
-            area_concat.push_str(format!(" - {subarea}").as_str());
-        }
+
+    let area = find_user_area_by_name(
+        hasura_transaction,
+        tenant_id,
+        &election_event_id,
+        voter_info,
+    )
+    .await?;
+
+    // Both area and birthdate have to go into the attributes HashMap. They will be taken from there but not from the User struct.
+    let mut hash_map = HashMap::new();
+    hash_map.insert(
+        AREA_ID_ATTR_NAME.to_string(),
+        vec![area.id.clone().unwrap_or_default()],
+    );
+    // Area is required in the input body but the birthdate is not.
+    if let Some(birthdate) = voter_info.birthdate.clone() {
+        hash_map.insert(DATE_OF_BIRTH.to_string(), vec![birthdate]);
     }
-
-    let event_areas = get_event_areas(hasura_transaction, tenant_id, &election_event_id)
-        .await
-        .map_err(|e| {
-            error!("Error getting event areas: {e:?}");
-            DatafixResponse::new(Status::InternalServerError)
-        })?;
-
-    let area_id = event_areas
-        .iter()
-        .find(|area| {
-            if let Some(a) = &area.name {
-                a.eq(&area_concat)
-            } else {
-                false
-            }
-        })
-        .and_then(|area| area.name.clone());
-
-    let area = match area_id {
-        Some(id) => Some(UserArea {
-            id: Some(id),
-            name: Some(area_concat),
-        }),
-        None => {
-            error!("Error getting event areas: Area not found");
-            return Err(DatafixResponse::new(Status::NotFound));
-        }
-    };
+    let attributes = Some(hash_map);
 
     let user = User {
         id: None,
-        attributes: None, // TODO: Add voter_info.birthdate into the hashmap
+        attributes: attributes.clone(),
         email: None,
         email_verified: None,
-        enabled: None,
+        enabled: Some(true),
         first_name: None,
         last_name: None,
         username: Some(username.to_string()),
-        area,
+        area: Some(area),
         votes_info: None,
     };
     let _user = client
-        .create_user(
-            // TODO: Check Which values are required to create an user?
-            &realm, &user, None, None,
+        .create_user(&realm, &user, attributes, None)
+        .await
+        .map_err(|e| {
+            error!("Error creating user: {e:?}");
+            DatafixResponse::new(Status::InternalServerError)
+        })?;
+    Ok(DatafixResponse::new(Status::Ok))
+}
+
+/// There are 2 things that can be updated, the area and the birthdate.
+/// Note: voter_id in Datafix API represents the username in Keycloak/Sequent´s system.
+#[instrument(skip(hasura_transaction))]
+pub async fn update_datafix_voter(
+    hasura_transaction: &Transaction<'_>,
+    keycloak_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    datafix_event_id: &str,
+    voter_info: &VoterInformationBody,
+) -> Result<Json<DatafixResponse>, JsonErrorResponse> {
+    let username = voter_info.voter_id.clone();
+    let (election_event_id, _) =
+        get_event_id_and_datafix_annotations(hasura_transaction, tenant_id, datafix_event_id)
+            .await?;
+
+    let realm = get_event_realm(tenant_id, &election_event_id);
+    let client = KeycloakAdminClient::new().await.map_err(|e| {
+        error!("Error getting KeycloakAdminClient: {e:?}");
+        DatafixResponse::new(Status::InternalServerError)
+    })?;
+
+    let area = find_user_area_by_name(
+        hasura_transaction,
+        tenant_id,
+        &election_event_id,
+        voter_info,
+    )
+    .await?;
+    // Both area and birthdate have to go into the attributes HashMap. They will be taken from there but not from the User struct.
+    let mut hash_map = HashMap::new();
+    hash_map.insert(
+        AREA_ID_ATTR_NAME.to_string(),
+        vec![area.id.unwrap_or_default()],
+    );
+    // Area is required in the input body but birthdate is not.
+    if let Some(birthdate) = voter_info.birthdate.clone() {
+        hash_map.insert(DATE_OF_BIRTH.to_string(), vec![birthdate]);
+    }
+    let attributes = Some(hash_map);
+
+    let user_id = get_user_id(keycloak_transaction, &realm, &username).await?;
+    let _user = client
+        .edit_user(
+            &realm,
+            &user_id,
+            None,
+            attributes,
+            None,
+            None,
+            None,
+            Some(username),
+            None,
+            None,
         )
         .await
         .map_err(|e| {

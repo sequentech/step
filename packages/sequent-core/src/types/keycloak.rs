@@ -8,6 +8,7 @@ use serde_json::Value;
 use std::collections::HashMap;
 
 pub const AREA_ID_ATTR_NAME: &str = "area-id";
+pub const DATE_OF_BIRTH: &str = "dateOfBirth";
 pub const AUTHORIZED_ELECTION_IDS_NAME: &str = "authorized-election-ids";
 pub const TENANT_ID_ATTR_NAME: &str = "tenant-id";
 pub const PERMISSION_TO_EDIT: &str = "admin";

@@ -23,7 +23,7 @@ pub async fn add_voter(
 ) -> Result<Json<DatafixResponse>, JsonErrorResponse> {
     let input: VoterInformationBody = body.into_inner();
 
-    info!("Delete voter: {input:?}");
+    info!("Add voter: {input:?}");
 
     let required_perm = vec![Permissions::DATAFIX_ACCOUNT];
     info!("{claims:?}");
@@ -51,6 +51,61 @@ pub async fn add_voter(
 
     windmill::services::api_datafix::add_datafix_voter(
         &hasura_transaction,
+        &claims.tenant_id,
+        &claims.datafix_event_id,
+        &input,
+    )
+    .await
+}
+
+#[instrument(skip(claims))]
+#[post("/update-voter", format = "json", data = "<body>")]
+pub async fn update_voter(
+    claims: DatafixClaims,
+    body: Json<VoterInformationBody>,
+) -> Result<Json<DatafixResponse>, JsonErrorResponse> {
+    let input: VoterInformationBody = body.into_inner();
+
+    info!("Update voter: {input:?}");
+
+    let required_perm = vec![Permissions::DATAFIX_ACCOUNT];
+    info!("{claims:?}");
+    authorize(
+        &claims.jwt_claims,
+        true,
+        Some(claims.tenant_id.clone()),
+        required_perm,
+    )
+    .map_err(|e| {
+        error!("Error authorizing {e:?}");
+        DatafixResponse::new(Status::Unauthorized)
+    })?;
+
+    let mut hasura_db_client: DbClient =
+        get_hasura_pool().await.get().await.map_err(|e| {
+            error!("Error getting hasura client {}", e);
+            DatafixResponse::new(Status::InternalServerError)
+        })?;
+    let hasura_transaction =
+        hasura_db_client.transaction().await.map_err(|e| {
+            error!("Error starting hasura transaction {}", e);
+            DatafixResponse::new(Status::InternalServerError)
+        })?;
+
+    let mut keycloak_db_client: DbClient =
+        get_keycloak_pool().await.get().await.map_err(|e| {
+            error!("Error getting keycloak client {}", e);
+            DatafixResponse::new(Status::InternalServerError)
+        })?;
+    let keycloak_transaction =
+        keycloak_db_client.transaction().await.map_err(|e| {
+            error!("Error starting keycloak transaction {}", e);
+            DatafixResponse::new(Status::InternalServerError)
+        })?;
+
+    windmill::services::api_datafix::update_datafix_voter(
+        &hasura_transaction,
+        &keycloak_transaction,
         &claims.tenant_id,
         &claims.datafix_event_id,
         &input,

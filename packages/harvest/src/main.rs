@@ -38,6 +38,8 @@ async fn rocket() -> _ {
         .mount(
             "/api/datafix",
             routes![
+                routes::api_datafix::add_voter,
+                routes::api_datafix::update_voter,
                 routes::api_datafix::delete_voter,
                 routes::api_datafix::unmark_voted,
                 routes::api_datafix::mark_voted,
