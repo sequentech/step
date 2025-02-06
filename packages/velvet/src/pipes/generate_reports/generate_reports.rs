@@ -324,9 +324,12 @@ impl GenerateReports {
                 .map(|val| Some(val.to_print_to_pdf_options()))
                 .unwrap_or_default();
 
-            let bytes_pdf = pdf::html_to_pdf(render_pdf.clone(), pdf_options).map_err(|e| {
-                Error::UnexpectedError(format!("Error during html_to_pdf conversion: {}", e))
-            })?;
+            let rt = tokio::runtime::Runtime::new().unwrap();
+            let bytes_pdf =
+                pdf::sync::PdfRenderer::render_pdf(render_pdf, pdf_options).map_err(|e| {
+                    Error::UnexpectedError(format!("Error during html_to_pdf conversion: {}", e))
+                })?;
+
             Some(bytes_pdf)
         } else {
             None
