@@ -24,7 +24,7 @@ pub fn get_voting_test_name_str(election_event_id: &str) -> String {
 }
 
 fn generate_script(url: &str, number_of_votes: &u64, password: String) -> Result<String> {
-    let template_path = "/workspaces/step/packages/e2e/src/scanrios/voting/voting_test_script.js";
+    let template_path = "/workspaces/step/packages/e2e/src/scenarios/voting/voting_test_script.js";
     let template_content = fs::read_to_string(template_path)?;
 
     // Replace placeholders with actual values
@@ -52,7 +52,7 @@ fn get_test_config(election_event_id: &str, script: String, test_duration: &u64)
 
 fn get_test_data() -> Result<VotingScenarioData> {
     print!("getting test data");
-    let json_file = File::open("/workspaces/step/packages/e2e/src/scanrios/voting/data.json")
+    let json_file = File::open("/workspaces/step/packages/e2e/src/scenarios/voting/data.json")
         .map_err(|e| anyhow::anyhow!("Failed to open voting data file: {}", e))?;
     let scenario_data: VotingScenarioData =
         serde_json::from_reader(json_file).with_context(|| "Invalid JSON for voting scenario")?;

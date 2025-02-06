@@ -1358,11 +1358,11 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
             ProviderConfigProperty.BOOLEAN_TYPE,
             "false"),
         new ProviderConfigProperty(
-          Utils.TEST_MODE_SERVER_URL,
-          "Test Mode Server Url",
-          "If in test mode this will be the case url of the mock server.",
-          ProviderConfigProperty.TEXT_TYPE,
-          ""));
+            Utils.TEST_MODE_SERVER_URL,
+            "Test Mode Server Url",
+            "If in test mode this will be the case url of the mock server.",
+            ProviderConfigProperty.TEXT_TYPE,
+            ""));
   }
 
   @Override
