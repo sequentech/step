@@ -36,7 +36,7 @@ fn get_test_data() -> Result<EnrollmentScenarioData> {
         .map_err(|e| anyhow::anyhow!("Failed to open voting data file: {}", e))?;
     let scenario_data: EnrollmentScenarioData =
         serde_json::from_reader(json_file).with_context(|| "Invalid JSON for voting scenario")?;
-    
+
     Ok(scenario_data)
 }
 
@@ -72,7 +72,8 @@ pub fn run_enrollment_test(args: &Args) -> Result<()> {
         test_config,
         enrollment_election_test_name,
         args.update,
-    ).with_context(|| "unable to run test")?;
+    )
+    .with_context(|| "unable to run test")?;
 
     Ok(())
 }

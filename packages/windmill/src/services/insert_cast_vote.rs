@@ -469,7 +469,7 @@ pub async fn insert_cast_vote_and_commit<'a>(
     );
 
     // Transaction isolation begins at this future (unless above methods are
-    // switched from hasura to direct sql) 
+    // switched from hasura to direct sql)
     let check_previous_votes = check_previous_votes(
         ids.voter_id,
         ids.tenant_id,

@@ -3,10 +3,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::{anyhow, Context, Result};
+use chrono::NaiveDate;
 use csv::ReaderBuilder;
 use rand::Rng;
 use rusqlite::{params, Connection};
-use chrono::NaiveDate;
 
 use crate::types::user::User;
 
