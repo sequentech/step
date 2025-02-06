@@ -9,16 +9,12 @@ use rusqlite::{params, Connection};
 
 use crate::types::user::User;
 
-pub fn load_users(csv_path: &str) -> Result<(), anyhow::Error> {
-    // 1. Define the CSV path
-
-    // 3. Open the CSV with headers
+pub fn load_users(csv_path: &str) -> Result<usize, anyhow::Error> {
     let mut rdr = ReaderBuilder::new()
-        .has_headers(true) // if you have a header row in the CSV
+        .has_headers(true)
         .from_path(csv_path)
         .context("Error opening the CSV file")?;
 
-    // 4. Connect to SQLite
     let conn = Connection::open("voters.db")
         .context("Failed to open or create 'voters.db'")
         .context("Error creating sqlite connection")?;
@@ -36,29 +32,32 @@ pub fn load_users(csv_path: &str) -> Result<(), anyhow::Error> {
             id_card_number TEXT,
             id_card_type TEXT
         );
+
+        DELETE FROM voters;
         "#,
     )
     .context("Failed to create 'voters' table")?;
 
-    // 6. Insert records
+    let mut inserted_count = 0_usize;
+
     for record_result in rdr.records() {
         let record = record_result
             .context("Failed to read record from CSV")
             .context("Failed to read record from CSV")?;
 
-        // Extract each column by index, in the same order as your CSV
-        let id = record.get(0).unwrap_or_default().trim().to_string();
-        let first_name = record.get(4).unwrap_or_default().trim().to_string();
-        let last_name = record.get(5).unwrap_or_default().trim().to_string();
-        let middle_ame = record.get(9).unwrap_or_default().trim().to_string();
-        let date_of_birth = record.get(12).unwrap_or_default().trim().to_string();
-        let embassy = record.get(14).unwrap_or_default().trim().to_string();
-        let country = record.get(15).unwrap_or_default().trim().to_string();
-        let id_card_number = record.get(18).unwrap_or_default().trim().to_string();
-        let id_card_type = record.get(8).unwrap_or_default().trim().to_string();
+        let id = uuid::Uuid::new_v4().to_string();
+        let first_name = record.get(0).unwrap_or_default().trim().to_string();
+        let last_name = record.get(1).unwrap_or_default().trim().to_string();
+        let middle_ame = record.get(5).unwrap_or_default().trim().to_string();
+        let date_of_birth = record.get(6).unwrap_or_default().trim().to_string();
+        let embassy = record.get(7).unwrap_or_default().trim().to_string();
+        let country = record.get(8).unwrap_or_default().trim().to_string();
+        let id_card_number = record.get(13).unwrap_or_default().trim().to_string();
+        let id_card_type = record.get(14).unwrap_or_default().trim().to_string();
 
-        conn.execute(
-            r#"
+        let rows_effected = conn
+            .execute(
+                r#"
             INSERT OR IGNORE INTO voters (
                 id, first_name, last_name, middle_name, date_of_birth,
                 embassy, country, id_card_number, id_card_type
@@ -67,24 +66,25 @@ pub fn load_users(csv_path: &str) -> Result<(), anyhow::Error> {
                 ?8, ?9
             )
             "#,
-            params![
-                id,
-                first_name,
-                last_name,
-                middle_ame,
-                date_of_birth,
-                embassy,
-                country,
-                id_card_number,
-                id_card_type
-            ],
-        )
-        .with_context(|| format!("Failed to insert row for id '{}'", id))
-        .context(format!("Failed to insert row for id '{}'", id))?;
+                params![
+                    id,
+                    first_name,
+                    last_name,
+                    middle_ame,
+                    date_of_birth,
+                    embassy,
+                    country,
+                    id_card_number,
+                    id_card_type
+                ],
+            )
+            .with_context(|| format!("Failed to insert row for id '{}'", id))
+            .context(format!("Failed to insert row for id '{}'", id))?;
+
+        inserted_count += rows_effected;
     }
 
-    // On success
-    Ok(())
+    Ok((inserted_count))
 }
 
 pub fn get_users_from_db() -> anyhow::Result<Vec<User>> {
@@ -121,7 +121,6 @@ pub fn get_users_from_db() -> anyhow::Result<Vec<User>> {
     Ok(users)
 }
 
-// Example function: returns a random user from the given country
 pub fn random_user_by_country(country: &str) -> Result<Option<User>> {
     let conn = Connection::open("voters.db")?;
     let mut stmt = conn.prepare(

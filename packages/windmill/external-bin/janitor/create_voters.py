@@ -3046,6 +3046,7 @@ authorized_election_ids = [
 sex = ["M", "F"]
 clusteredPrecinct = ["0012A", "0001A", "0075A", "0001A", "0001A"]
 overseasReferences = ["X", "B"]
+card_types = ["philippinePassport", "seamanBook", "philSysID", "driversLicense"]
 
 # Number of rows to generate
 default_num_rows = 2_000_000
@@ -3116,30 +3117,32 @@ def generate_csv():
                 "sex",
                 "clusteredPrecinct",
                 "overseasReferences",
+                "sequent.read-only.id-card-number",
+                "sequent.read-only.id-card-type",
                 # "password",
                 "password_salt",
                 "hashed_password"
             ]
         )
 
-        # Write myself
-        writer.writerow(
-            [
-                "Xavier",
-                "Alsina",
-                uuid.uuid4(),
-                "JAPAN",
-                "",
-                "1987-12-15",
-                "Tokyo PE",
-                "Japan/Tokyo PE",
-                "TOKYO PE - General Election|TOKYO PE - Test Voting",
-                "M",
-                "0001A",
-                "B",
-                "12341234"
-            ]
-        )
+        # # Write myself
+        # writer.writerow(
+        #     [
+        #         "Xavier",
+        #         "Alsina",
+        #         uuid.uuid4(),
+        #         "JAPAN",
+        #         "",
+        #         "1987-12-15",
+        #         "Tokyo PE",
+        #         "Japan/Tokyo PE",
+        #         "TOKYO PE - General Election|TOKYO PE - Test Voting",
+        #         "M",
+        #         "0001A",
+        #         "B",
+        #         "12341234"
+        #     ]
+        # )
 
         # Show a message to the user saying how many rows are going to be generated
         print(f"Generating {num_rows} rows...")
@@ -3174,8 +3177,11 @@ def generate_csv():
                 clusteredPrecinct[selected_post],
                 random.choice(overseasReferences),
                 # COMMON_PASSWORD,
+                random.randint(100_000_000, 999_999_999),
+                random.choice(card_types),
                 salt_base64,
                 hashed_password_base64,
+                
                 # Add a row with a random password
                 # ''.join(random.choices(string.ascii_letters + string.digits, k=8)),
             ]
