@@ -3643,6 +3643,7 @@ dependencies = [
  "auto_generate_cdp",
  "base64 0.22.1",
  "derive_builder",
+ "directories",
  "log",
  "rand 0.8.5",
  "regex",
@@ -3651,9 +3652,12 @@ dependencies = [
  "tempfile",
  "thiserror 1.0.69",
  "tungstenite 0.24.0",
+ "ureq",
  "url",
+ "walkdir",
  "which 6.0.3",
  "winreg 0.52.0",
+ "zip",
 ]
 
 [[package]]
