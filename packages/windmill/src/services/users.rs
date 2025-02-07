@@ -98,12 +98,15 @@ async fn get_area_ids(
     Ok((Some(area_ids), area_ids_join_clause, area_ids_where_clause))
 }
 
+// TODO Paginate users
 #[instrument(skip(keycloak_transaction), err)]
 pub async fn list_keycloak_enabled_users_by_area_id(
     keycloak_transaction: &Transaction<'_>,
     realm: &str,
     area_id: &str,
-) -> Result<HashSet<String>> {
+    limit: i32,
+    offset: i32,
+) -> Result<Vec<String>> {
     let statement = keycloak_transaction
         .prepare(
             format!(
@@ -128,19 +131,23 @@ pub async fn list_keycloak_enabled_users_by_area_id(
             )
         GROUP BY
             u.id;
+        SORT BY
+            u.id;
+        LIMIT $4 OFFSET $5
     "#
             )
             .as_str(),
         )
         .await?;
-    let params: Vec<&(dyn ToSql + Sync)> = vec![&realm, &AREA_ID_ATTR_NAME, &area_id];
+    let params: Vec<&(dyn ToSql + Sync)> =
+        vec![&realm, &AREA_ID_ATTR_NAME, &area_id, &limit, &offset];
     let rows: Vec<Row> = keycloak_transaction
         .query(&statement, &params.as_slice())
         .await
         .map_err(|err| anyhow!("{}", err))?;
 
     let found_user_ids: Vec<String> = rows.into_iter().map(|row| row.get("id")).collect();
-    Ok(found_user_ids.into_iter().collect())
+    Ok(found_user_ids)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, EnumString, Display)]

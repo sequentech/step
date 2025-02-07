@@ -55,11 +55,14 @@ impl TryFrom<Row> for CastVote {
 }
 
 #[instrument(err)]
+// TODO Make it possible to use pagination
 pub async fn find_area_ballots(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
     area_id: &str,
+    limit: i32,
+    offset: i32,
 ) -> Result<Vec<CastVote>> {
     let tenant_uuid: uuid::Uuid = Uuid::parse_str(tenant_id)
         .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
@@ -88,13 +91,20 @@ pub async fn find_area_ballots(
                         election_event_id = $2 AND
                         area_id = $3
                     ORDER BY election_id, voter_id_string, created_at DESC
+                    LIMIT $4 OFFSET $5
                 "#,
         )
         .await?;
     let rows: Vec<Row> = hasura_transaction
         .query(
             &areas_statement,
-            &[&tenant_uuid, &election_event_uuid, &area_uuid],
+            &[
+                &tenant_uuid,
+                &election_event_uuid,
+                &area_uuid,
+                &limit,
+                &offset,
+            ],
         )
         .await
         .map_err(|err| anyhow!("Error running the areas query: {}", err))?;
