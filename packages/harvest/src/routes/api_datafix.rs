@@ -206,13 +206,57 @@ pub struct ReplacePinOutput {
     pin: String,
 }
 
-#[instrument]
+#[instrument(skip(claims))]
 #[post("/replace-pin", format = "json", data = "<body>")]
 pub async fn replace_pin(
     claims: DatafixClaims,
     body: Json<VoterIdBody>,
 ) -> Result<Json<ReplacePinOutput>, JsonErrorResponse> {
-    // WIP
-    let pin = "684400123987".to_string();
+    let input: VoterIdBody = body.into_inner();
+    info!("Replace pin: {input:?}");
+    let required_perm = vec![Permissions::DATAFIX_ACCOUNT];
+    info!("{claims:?}");
+    authorize(
+        &claims.jwt_claims,
+        true,
+        Some(claims.tenant_id.clone()),
+        required_perm,
+    )
+    .map_err(|e| {
+        error!("Error authorizing {e:?}");
+        DatafixResponse::new(Status::Unauthorized)
+    })?;
+
+    let mut hasura_db_client: DbClient =
+        get_hasura_pool().await.get().await.map_err(|e| {
+            error!("Error getting hasura client {}", e);
+            DatafixResponse::new(Status::InternalServerError)
+        })?;
+    let hasura_transaction =
+        hasura_db_client.transaction().await.map_err(|e| {
+            error!("Error starting hasura transaction {}", e);
+            DatafixResponse::new(Status::InternalServerError)
+        })?;
+
+    let mut keycloak_db_client: DbClient =
+        get_keycloak_pool().await.get().await.map_err(|e| {
+            error!("Error getting keycloak client {}", e);
+            DatafixResponse::new(Status::InternalServerError)
+        })?;
+    let keycloak_transaction =
+        keycloak_db_client.transaction().await.map_err(|e| {
+            error!("Error starting keycloak transaction {}", e);
+            DatafixResponse::new(Status::InternalServerError)
+        })?;
+
+    let pin = windmill::services::api_datafix::replace_voter_pin(
+        &hasura_transaction,
+        &keycloak_transaction,
+        &claims.tenant_id,
+        &claims.datafix_event_id,
+        &input.voter_id,
+    )
+    .await?;
+
     Ok(Json(ReplacePinOutput { pin }))
 }

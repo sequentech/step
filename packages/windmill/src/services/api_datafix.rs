@@ -9,6 +9,7 @@ use crate::services::providers::transactions_provider::provide_hasura_transactio
 use crate::services::users::get_users_by_username;
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Transaction;
+use rand::{distributions::Uniform, thread_rng, Rng};
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
@@ -19,7 +20,9 @@ use sequent_core::types::keycloak::{User, UserArea, AREA_ID_ATTR_NAME, DATE_OF_B
 use sequent_core::util::date_time::verify_date_format_ymd;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use strum_macros::{Display, EnumString};
 use tracing::{error, info, instrument, warn};
+
 #[derive(Deserialize, Debug)]
 pub struct VoterInformationBody {
     voter_id: String,
@@ -53,11 +56,61 @@ struct DatafixAnnotations {
     password_policy: PasswordPolicy,
 }
 
+#[derive(Default, Display, Serialize, Deserialize, Debug, Clone, EnumString)]
+pub enum BasePolicy {
+    #[strum(serialize = "id-password-concatenated")]
+    #[serde(rename = "id-password-concatenated")]
+    IdPswConcat,
+    #[default]
+    #[strum(serialize = "password-only")]
+    #[serde(rename = "password-only")]
+    PswOnly,
+}
+
+#[derive(Default, Display, Serialize, Deserialize, Debug, Clone, EnumString)]
+pub enum CharactersPolicy {
+    #[strum(serialize = "numeric")]
+    #[serde(rename = "numeric")]
+    Numeric,
+    #[default]
+    #[strum(serialize = "alphanumeric")]
+    #[serde(rename = "alphanumeric")]
+    Alphanumeric,
+}
+
 #[derive(Deserialize, Serialize, Debug)]
 struct PasswordPolicy {
-    base: String,
-    size: u8,
-    characters: String,
+    base: BasePolicy,
+    size: usize,
+    characters: CharactersPolicy,
+}
+
+impl PasswordPolicy {
+    #[instrument]
+    fn generate_password(self, voter_id: &str) -> String {
+        // Create a random password of length self.size and policy either self.characters. Numeric or self.characters.Alphanumeric
+        // generate_random_string_with_charset(self.size as usize, self.characters.to_string().as_str())
+        let pin = match self.characters {
+            CharactersPolicy::Numeric => {
+                let mut pass = String::new();
+                let mut rng = rand::thread_rng();
+                for _ in 0..self.size {
+                    pass.push_str(rng.gen_range(0..10).to_string().as_str());
+                }
+                pass
+            }
+            CharactersPolicy::Alphanumeric => rand::thread_rng()
+                // .sample_iter(&rand::distributions::Alphanumeric)
+                .sample_iter(Uniform::new(char::from(32), char::from(126))) // In the range of the ascii characters
+                .take(self.size)
+                .map(char::from)
+                .collect(),
+        };
+        match self.base {
+            BasePolicy::IdPswConcat => format!("{}{}", voter_id, pin),
+            BasePolicy::PswOnly => pin,
+        }
+    }
 }
 
 /// Gets the election_event_id and the DatafixAnnotations of the event that has the datafix id in its annotations.
@@ -354,4 +407,32 @@ pub async fn update_datafix_voter(
             DatafixResponse::new(Status::InternalServerError)
         })?;
     Ok(DatafixResponse::new(Status::Ok))
+}
+
+/// Generate a new password.
+#[instrument(skip(hasura_transaction))]
+pub async fn replace_voter_pin(
+    hasura_transaction: &Transaction<'_>,
+    keycloak_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    datafix_event_id: &str,
+    username: &str,
+) -> Result<String, JsonErrorResponse> {
+    let (election_event_id, datafix_annotations) =
+        get_event_id_and_datafix_annotations(hasura_transaction, tenant_id, datafix_event_id)
+            .await?;
+    info!("election_event_id: {election_event_id}");
+    let realm = get_event_realm(tenant_id, &election_event_id);
+    let client = KeycloakAdminClient::new().await.map_err(|e| {
+        error!("Error getting KeycloakAdminClient: {e:?}");
+        DatafixResponse::new(Status::InternalServerError)
+    })?;
+
+    let user_id = get_user_id(keycloak_transaction, &realm, username).await?;
+    let pin = datafix_annotations
+        .password_policy
+        .generate_password(&username);
+
+    // TODO: insert credentials in the DB
+    Ok(pin)
 }
