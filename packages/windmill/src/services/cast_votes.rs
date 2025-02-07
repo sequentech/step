@@ -25,10 +25,10 @@ pub struct CastVote {
     pub created_at: Option<DateTime<Utc>>,
     pub last_updated_at: Option<DateTime<Utc>>,
     pub content: Option<String>,
-    pub cast_ballot_signature: Option<Vec<u8>>,
     pub voter_id_string: Option<String>,
     pub election_event_id: String,
     pub ballot_id: Option<String>,
+    pub cast_ballot_signature: Option<Vec<u8>>,
 }
 
 impl TryFrom<Row> for CastVote {
@@ -61,8 +61,8 @@ pub async fn find_area_ballots(
     tenant_id: &str,
     election_event_id: &str,
     area_id: &str,
-    limit: i32,
-    offset: i32,
+    limit: i64,
+    offset: i64,
 ) -> Result<Vec<CastVote>> {
     let tenant_uuid: uuid::Uuid = Uuid::parse_str(tenant_id)
         .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;

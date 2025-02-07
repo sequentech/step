@@ -104,8 +104,8 @@ pub async fn list_keycloak_enabled_users_by_area_id(
     keycloak_transaction: &Transaction<'_>,
     realm: &str,
     area_id: &str,
-    limit: i32,
-    offset: i32,
+    limit: i64,
+    offset: i64,
 ) -> Result<Vec<String>> {
     let statement = keycloak_transaction
         .prepare(
@@ -130,10 +130,10 @@ pub async fn list_keycloak_enabled_users_by_area_id(
                 area_attr.value = $3
             )
         GROUP BY
-            u.id;
-        SORT BY
-            u.id;
-        LIMIT $4 OFFSET $5
+            u.id
+        ORDER BY
+            u.id
+        LIMIT $4 OFFSET $5;
     "#
             )
             .as_str(),

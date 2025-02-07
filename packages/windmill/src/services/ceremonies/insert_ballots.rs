@@ -11,7 +11,7 @@ use crate::hasura::trustee::get_trustees_by_name;
 use crate::services::cast_votes::{find_area_ballots, CastVote};
 use crate::services::ceremonies::insert_ballots::get_last_tally_session_execution::GetLastTallySessionExecutionSequentBackendTallySessionContest;
 use crate::services::database::PgConfig;
-use crate::services::join::merge_join_csv;
+use crate::services::join::{count_unique_csv, merge_join_csv};
 use crate::services::protocol_manager::*;
 use crate::services::public_keys::deserialize_public_key;
 use crate::services::users::list_keycloak_enabled_users_by_area_id;
@@ -20,7 +20,7 @@ use b3::messages::message::Message;
 use b3::messages::newtypes::BatchNumber;
 use b3::messages::newtypes::TrusteeSet;
 use chrono::{DateTime, Utc};
-use csv::Writer;
+use csv::WriterBuilder;
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::{ContestEncryptionPolicy, ElectionPresentation, HashableBallot};
 use sequent_core::multi_ballot::HashableMultiBallot;
@@ -90,7 +90,7 @@ pub async fn insert_ballots_messages(
 
         // TODO use find_area_ballots with pagination
         let mut offset = 0;
-        let batch_size = PgConfig::from_env()?.default_sql_batch_size;
+        let batch_size = PgConfig::from_env()?.default_sql_batch_size.into();
 
         // Create a temporary file (auto-deleted when dropped)
         let ballots_temp_file = NamedTempFile::new().expect("Failed to create temp file");
@@ -99,7 +99,9 @@ pub async fn insert_ballots_messages(
             "Creating temporary file for ballots with path {:?}",
             ballots_temp_file.path()
         );
-        let mut writer = Writer::from_writer(&ballots_temp_file);
+        let mut writer = WriterBuilder::new()
+            .has_headers(false)
+            .from_writer(&ballots_temp_file);
 
         loop {
             let ballots_list = find_area_ballots(
@@ -128,16 +130,20 @@ pub async fn insert_ballots_messages(
             offset += batch_size;
         }
 
+        let ballots_temp_file = ballots_temp_file.reopen()?;
+
         // TODO Use pagination and write the contents to a file
 
         // Create a temporary file (auto-deleted when dropped)
         let users_temp_file = NamedTempFile::new().expect("Failed to create temp file");
         event!(
             Level::INFO,
-            "Creating temporary file for ballots with path {:?}",
+            "Creating temporary file for users with path {:?}",
             users_temp_file.path()
         );
-        let mut writer = Writer::from_writer(&users_temp_file);
+        let mut writer = WriterBuilder::new()
+            .has_headers(false)
+            .from_writer(&users_temp_file);
 
         // Reset offset
         offset = 0;
@@ -152,7 +158,7 @@ pub async fn insert_ballots_messages(
             )
             .await?;
 
-            event!(Level::INFO, "ballots_list len: {:?}", users_map.len());
+            event!(Level::INFO, "users_map len: {:?}", users_map.len());
 
             if users_map.is_empty() {
                 break;
@@ -168,36 +174,32 @@ pub async fn insert_ballots_messages(
             offset += batch_size;
         }
 
+        let users_temp_file = users_temp_file.reopen()?;
+
         // TODO Use a join function to filter and extract the ballot content
-        let users_join_idexes = &[];
-        let ballots_join_indexes = &[];
-        let ballots_output_index = 3;
+        let ballots_output_index = 6;
+        let ballots_join_indexes = 7;
+        let ballot_election_id_index = 2;
+        let users_join_idexes = 0;
 
         let ballots_list_content = merge_join_csv(
             &ballots_temp_file,
             &users_temp_file,
-            users_join_idexes,
             ballots_join_indexes,
+            users_join_idexes,
             ballots_output_index,
+            ballot_election_id_index,
+            &tally_session_contest.election_id,
         )?;
+
+        event!(
+            Level::INFO,
+            "ballots_list_content len: {:?}",
+            ballots_list_content.len()
+        );
 
         let insertable_ballots: Vec<Ciphertext<RistrettoCtx>> = ballots_list_content
             .iter()
-            // .filter(|ballot| {
-            //     let Some(voter_id) = ballot.voter_id_string.clone() else {
-            //         return false;
-            //     };
-            //     let Some(election_id) = ballot.election_id.clone() else {
-            //         return false;
-            //     };
-            //     if tally_session_contest.election_id != election_id {
-            //         return false;
-            //     }
-            //     let Some(_ballot_created_at) = ballot.created_at else {
-            //         return false;
-            //     };
-            //     users_map.contains(&voter_id)
-            // })
             .map(|ballot_str| -> Result<Option<Ciphertext<RistrettoCtx>>> {
                 if ContestEncryptionPolicy::MULTIPLE_CONTESTS == contest_encryption_policy {
                     let hashable_multi_ballot: HashableMultiBallot = deserialize_str(&ballot_str)?;
@@ -310,34 +312,108 @@ pub async fn count_auditable_ballots(
     let realm = get_event_realm(tenant_id, election_event_id);
 
     // TODO use find_area_ballots with pagination
-    // let ballots_list =
-    //     find_area_ballots(hasura_transaction, tenant_id, election_event_id, area_id).await?;
+    let mut offset = 0;
+    let batch_size = PgConfig::from_env()?.default_sql_batch_size.into();
 
-    // event!(Level::INFO, "ballots_list len: {:?}", ballots_list.len());
+    // Create a temporary file (auto-deleted when dropped)
+    let ballots_temp_file = NamedTempFile::new().expect("Failed to create temp file");
+    event!(
+        Level::INFO,
+        "Creating temporary file for ballots with path {:?}",
+        ballots_temp_file.path()
+    );
+    let mut writer = WriterBuilder::new()
+        .has_headers(false)
+        .from_writer(&ballots_temp_file);
+
+    loop {
+        let ballots_list = find_area_ballots(
+            &hasura_transaction,
+            &tenant_id,
+            &election_event_id,
+            area_id,
+            batch_size,
+            offset,
+        )
+        .await?;
+
+        event!(Level::INFO, "ballots_list len: {:?}", ballots_list.len());
+
+        if ballots_list.is_empty() {
+            break;
+        }
+
+        for ballot in ballots_list {
+            writer.serialize(ballot).expect("Failed to write row");
+        }
+
+        writer.flush().expect("Failed to flush writer");
+
+        // Move to next batch
+        offset += batch_size;
+    }
+
+    let ballots_temp_file = ballots_temp_file.reopen()?;
 
     // TODO Use pagination and write the contents to a file
-    // let users_map =
-    //     list_keycloak_enabled_users_by_area_id(keycloak_transaction, &realm, area_id).await?;
 
-    // let auditable_ballots: Vec<&CastVote> = ballots_list
-    //     .iter()
-    //     .filter(|ballot| {
-    //         let Some(voter_id) = ballot.voter_id_string.clone() else {
-    //             return true;
-    //         };
+    // Create a temporary file (auto-deleted when dropped)
+    let users_temp_file = NamedTempFile::new().expect("Failed to create temp file");
+    event!(
+        Level::INFO,
+        "Creating temporary file for users with path {:?}",
+        users_temp_file.path()
+    );
+    let mut writer = WriterBuilder::new()
+        .has_headers(false)
+        .from_writer(&users_temp_file);
 
-    //         let Some(_election_id) = ballot.election_id.clone() else {
-    //             return true;
-    //         };
+    // Reset offset
+    offset = 0;
 
-    //         let Some(_ballot_created_at) = ballot.created_at else {
-    //             return true;
-    //         };
+    loop {
+        let users_map = list_keycloak_enabled_users_by_area_id(
+            keycloak_transaction,
+            &realm,
+            &area_id,
+            batch_size,
+            offset,
+        )
+        .await?;
 
-    //         !users_map.contains(&voter_id)
-    //     })
-    //     .collect();
+        event!(Level::INFO, "users_map len: {:?}", users_map.len());
 
-    let auditable_ballots: Vec<&CastVote> = Vec::new();
-    Ok(auditable_ballots.len())
+        if users_map.is_empty() {
+            break;
+        }
+
+        for user in &users_map {
+            writer.serialize(user).expect("Failed to write row");
+        }
+
+        writer.flush().expect("Failed to flush writer");
+
+        // Move to next batch
+        offset += batch_size;
+    }
+
+    let users_temp_file = users_temp_file.reopen()?;
+
+    // TODO Use a join function to filter and extract the ballot content
+    let ballots_join_indexes = 7;
+    let ballot_election_id_index = 2;
+    let users_join_idexes = 0;
+
+    let count = count_unique_csv(
+        &ballots_temp_file,
+        &users_temp_file,
+        ballots_join_indexes,
+        users_join_idexes,
+        ballot_election_id_index,
+        election_id,
+    )?;
+
+    event!(Level::INFO, "auditable votes count: {:?}", count);
+
+    Ok(count)
 }
