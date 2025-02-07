@@ -269,7 +269,13 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 // If the authentication was not successfull the user is send back to the Keycloak login form
                 if (!isAuthenticatedResponse && authType) {
                     if (authType === "register") {
-                        return await keycloak.register(keycloakInitOptions)
+                        return await keycloak.register({
+                            ...keycloakInitOptions,
+                            // after successful enrollment, we should redirect to login
+                            redirectUri: window.location.href.endsWith("/enroll")
+                                ? window.location.href.replace(/\/enroll$/, "/login")
+                                : window.location.href,
+                        })
                     } else {
                         return await keycloak.login(keycloakInitOptions)
                     }
