@@ -4,7 +4,17 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {useEffect, useState} from "react"
-import {CircularProgress, Typography, TextField, InputLabel, Select, MenuItem} from "@mui/material"
+import {
+    CircularProgress,
+    Typography,
+    InputLabel,
+    Select,
+    MenuItem,
+    FormControl,
+    OutlinedInput,
+    IconButton,
+} from "@mui/material"
+import InputAdornment from "@mui/material/InputAdornment"
 import {
     CreateKeysCeremonyMutation,
     Sequent_Backend_Election,
@@ -34,8 +44,29 @@ import {isNull} from "@sequentech/ui-core"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {IPermissions} from "@/types/keycloak"
+import {Clear} from "@mui/icons-material"
 
 const ALL_ELECTIONS = "all-elections"
+
+const ITEM_HEIGHT = 48
+const ITEM_PADDING_TOP = 8
+const MenuProps = {
+    PaperProps: {
+        style: {
+            maxHeight: ITEM_HEIGHT * 4 + ITEM_PADDING_TOP,
+        },
+    },
+}
+const TRUSTEE_CHECKBOXES_SX = {
+    [`.MuiFormGroup-root`]: {
+        width: "100%",
+        height: "200px",
+        display: "flex",
+        flexDirection: "column",
+        flexFlow: "column",
+        overflowY: "scroll",
+    },
+}
 
 export interface ConfigureStepProps {
     currentCeremony: Sequent_Backend_Keys_Ceremony | null
@@ -107,6 +138,19 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
             },
         }
     )
+
+    const [filterTrustees, setFilterTrustees] = useState<string>("")
+    const [filteredTrustees, setFilteredTrustees] = useState<
+        Sequent_Backend_Trustee[] | undefined
+    >()
+
+    useEffect(() => {
+        setFilteredTrustees(
+            trusteeList?.filter((trustee: Sequent_Backend_Trustee) =>
+                trustee?.name?.toLowerCase().includes(filterTrustees)
+            ) ?? []
+        )
+    }, [filterTrustees, trusteeList])
 
     useEffect(() => {
         if (isNull(newId)) {
@@ -289,23 +333,53 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                             variant="filled"
                         />
                         {trusteeList ? (
-                            <CheckboxGroupInput
-                                dir={i18n.dir(i18n.language)}
-                                validate={validateTrusteeList}
-                                label={t("keysGeneration.configureStep.trusteeList")}
-                                source="trusteeNames"
-                                choices={trusteeList}
-                                translateChoice={false}
-                                optionText="name"
-                                optionValue="name"
-                                row={false}
-                                className="keys-trustees-input"
-                            />
+                            <>
+                                <InputLabel dir={i18n.dir(i18n.language)}>
+                                    {t("keysGeneration.configureStep.trusteeList")}
+                                </InputLabel>
+                                <FormControl>
+                                    <InputLabel htmlFor="trustees-filter">
+                                        {t("keysGeneration.configureStep.filterTrustees")}
+                                    </InputLabel>
+                                    <OutlinedInput
+                                        id="trustees-filter"
+                                        dir={i18n.dir(i18n.language)}
+                                        label={t("keysGeneration.configureStep.filterTrustees")}
+                                        value={filterTrustees}
+                                        type="text"
+                                        onChange={(e) => setFilterTrustees(e.target.value)}
+                                        endAdornment={
+                                            <InputAdornment position="end">
+                                                <IconButton
+                                                    onClick={() => setFilterTrustees("")}
+                                                    edge="end"
+                                                >
+                                                    <Clear />
+                                                </IconButton>
+                                            </InputAdornment>
+                                        }
+                                    />
+                                </FormControl>
+                                <CheckboxGroupInput
+                                    sx={TRUSTEE_CHECKBOXES_SX}
+                                    dir={i18n.dir(i18n.language)}
+                                    validate={validateTrusteeList}
+                                    label=""
+                                    source="trusteeNames"
+                                    choices={filteredTrustees || trusteeList}
+                                    translateChoice={false}
+                                    optionText="name"
+                                    optionValue="name"
+                                    row={false}
+                                    className="keys-trustees-input"
+                                />
+                            </>
                         ) : null}
                         <InputLabel dir={i18n.dir(i18n.language)}>
                             {t("electionScreen.common.title")}
                         </InputLabel>
                         <Select
+                            MenuProps={MenuProps}
                             dir={i18n.dir(i18n.language)}
                             value={electionId}
                             label={t("electionScreen.common.title")}
