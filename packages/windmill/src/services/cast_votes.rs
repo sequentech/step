@@ -8,12 +8,12 @@ use chrono::NaiveDate;
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Transaction;
 use sequent_core::types::keycloak::{User, VotesInfo};
+use sequent_core::types::keycloak::{VOTED_CHANNEL, VOTED_CHANNEL_RESET_VALUE};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tokio_postgres::row::Row;
 use tracing::instrument;
 use uuid::Uuid;
-
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct CastVote {
     pub id: String,
@@ -280,6 +280,7 @@ pub async fn get_users_with_vote_info(
     election_id: Option<String>,
     users: Vec<User>,
     filter_by_has_voted: Option<bool>,
+    is_datafix_event: bool,
 ) -> Result<Vec<User>> {
     let tenant_uuid =
         Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
@@ -382,10 +383,28 @@ pub async fn get_users_with_vote_info(
             .clone()
             .ok_or_else(|| anyhow!("Encountered a user without an ID"))?;
 
-        let votes_info = user_votes_map
+        let mut votes_info = user_votes_map
             .get(&user_id)
             .cloned()
             .ok_or_else(|| anyhow!("Missing vote info for user ID {}", user_id))?;
+
+        if is_datafix_event {
+            let reset_value = VOTED_CHANNEL_RESET_VALUE.to_string();
+            let attributes = user.attributes.clone().unwrap_or_default();
+            match attributes.iter().find(|tpl| tpl.0.eq(VOTED_CHANNEL)) {
+                Some((_, v)) => {
+                    let channel = v.last().clone().unwrap_or(&reset_value);
+                    if !channel.eq(VOTED_CHANNEL_RESET_VALUE) {
+                        votes_info = vec![VotesInfo {
+                            election_id: "".to_string(), // Not used
+                            num_votes: 1,
+                            last_voted_at: "".to_string(), // Not used
+                        }];
+                    }
+                }
+                None => {}
+            }
+        }
 
         match filter_by_has_voted {
             Some(has_voted) => {
