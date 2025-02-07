@@ -414,26 +414,6 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                         <InputLabel dir={i18n.dir(i18n.language)}>
                             {t("electionScreen.common.title")}
                         </InputLabel>
-                        {/*<Select
-                            MenuProps={MenuProps}
-                            dir={i18n.dir(i18n.language)}
-                            value={electionId}
-                            label={t("electionScreen.common.title")}
-                            onChange={(e) => onElectionChange(e.target.value ?? null)}
-                        >
-                            <MenuItem value={ALL_ELECTIONS} dir={i18n.dir(i18n.language)}>
-                                {t("keysGeneration.configureStep.allElections")}
-                            </MenuItem>
-                            {electionsList?.map((election) => (
-                                <MenuItem
-                                    key={election.id}
-                                    value={election.id}
-                                    dir={i18n.dir(i18n.language)}
-                                >
-                                    {aliasRenderer(election)}
-                                </MenuItem>
-                            ))}
-                        </Select>*/}
 
                         <Autocomplete
                             fullWidth
