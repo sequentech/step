@@ -19,7 +19,7 @@
   outputs = { self, nixpkgs, devenv, flake-utils, rust-overlay, flake-compat }:
     flake-utils.lib.eachDefaultSystem (
       system:
-        let 
+        let
           overlays = [ (import rust-overlay) ];
           # pkgs is just the nix packages
           pkgs = import nixpkgs {
@@ -98,11 +98,11 @@
           # configure the dev shell
           devShell = (
             pkgs.mkShell.override { stdenv = pkgs.clangStdenv; }
-          ) { 
-            nativeBuildInputs = 
-              defaultPackage.nativeBuildInputs; 
-            buildInputs = 
-              [ pkgs.bash pkgs.reuse pkgs.cargo-deny pkgs.ack ]; 
+          ) {
+            nativeBuildInputs =
+              defaultPackage.nativeBuildInputs;
+            buildInputs =
+              with pkgs; [ bash reuse cargo-deny ack wasm-pack ];
           };
         }
     );
