@@ -655,6 +655,9 @@ pub async fn list_users_with_vote_info(
     let (users, users_count) = list_users(hasura_transaction, keycloak_transaction, filter)
         .await
         .with_context(|| "Error listing users")?;
+    // TODO: Get the ElectionEvent, check if its DATAFIX event (has DATAFIX annotations).
+    // If it is, iterate over the users and set the Votes information checking the attribute VOTED_CHANNEL for each user
+
     let users: Vec<User> = get_users_with_vote_info(
         hasura_transaction,
         tenant_id.as_str(),

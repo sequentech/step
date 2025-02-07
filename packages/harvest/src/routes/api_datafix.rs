@@ -179,15 +179,53 @@ pub async fn unmark_voted(
     claims: DatafixClaims,
     body: Json<VoterIdBody>,
 ) -> Result<Json<DatafixResponse>, JsonErrorResponse> {
-    // WIP
-    let status = Status::Unauthorized;
-    Err(DatafixResponse::new(status))
-}
+    let input: VoterIdBody = body.into_inner();
 
-#[derive(Deserialize, Debug)]
-pub struct MarkVotedBody {
-    voter_id: String,
-    channel: String,
+    info!("Unmark voter as voted {input:?}");
+
+    let required_perm = vec![Permissions::DATAFIX_ACCOUNT];
+    info!("{claims:?}");
+    authorize(
+        &claims.jwt_claims,
+        true,
+        Some(claims.tenant_id.clone()),
+        required_perm,
+    )
+    .map_err(|e| {
+        error!("Error authorizing {e:?}");
+        DatafixResponse::new(Status::Unauthorized)
+    })?;
+
+    let mut hasura_db_client: DbClient =
+        get_hasura_pool().await.get().await.map_err(|e| {
+            error!("Error getting hasura client {}", e);
+            DatafixResponse::new(Status::InternalServerError)
+        })?;
+    let hasura_transaction =
+        hasura_db_client.transaction().await.map_err(|e| {
+            error!("Error starting hasura transaction {}", e);
+            DatafixResponse::new(Status::InternalServerError)
+        })?;
+
+    let mut keycloak_db_client: DbClient =
+        get_keycloak_pool().await.get().await.map_err(|e| {
+            error!("Error getting keycloak client {}", e);
+            DatafixResponse::new(Status::InternalServerError)
+        })?;
+    let keycloak_transaction =
+        keycloak_db_client.transaction().await.map_err(|e| {
+            error!("Error starting keycloak transaction {}", e);
+            DatafixResponse::new(Status::InternalServerError)
+        })?;
+
+    windmill::services::api_datafix::unmark_voter_as_voted(
+        &hasura_transaction,
+        &keycloak_transaction,
+        &claims.tenant_id,
+        &claims.datafix_event_id,
+        &input.voter_id,
+    )
+    .await
 }
 
 #[instrument(skip(claims))]
@@ -196,9 +234,53 @@ pub async fn mark_voted(
     claims: DatafixClaims,
     body: Json<MarkVotedBody>,
 ) -> Result<Json<DatafixResponse>, JsonErrorResponse> {
-    // WIP
-    let status = Status::Unauthorized;
-    Err(DatafixResponse::new(status))
+    let input: MarkVotedBody = body.into_inner();
+
+    info!("Mark voter as voted: {input:?}");
+
+    let required_perm = vec![Permissions::DATAFIX_ACCOUNT];
+    info!("{claims:?}");
+    authorize(
+        &claims.jwt_claims,
+        true,
+        Some(claims.tenant_id.clone()),
+        required_perm,
+    )
+    .map_err(|e| {
+        error!("Error authorizing {e:?}");
+        DatafixResponse::new(Status::Unauthorized)
+    })?;
+
+    let mut hasura_db_client: DbClient =
+        get_hasura_pool().await.get().await.map_err(|e| {
+            error!("Error getting hasura client {}", e);
+            DatafixResponse::new(Status::InternalServerError)
+        })?;
+    let hasura_transaction =
+        hasura_db_client.transaction().await.map_err(|e| {
+            error!("Error starting hasura transaction {}", e);
+            DatafixResponse::new(Status::InternalServerError)
+        })?;
+
+    let mut keycloak_db_client: DbClient =
+        get_keycloak_pool().await.get().await.map_err(|e| {
+            error!("Error getting keycloak client {}", e);
+            DatafixResponse::new(Status::InternalServerError)
+        })?;
+    let keycloak_transaction =
+        keycloak_db_client.transaction().await.map_err(|e| {
+            error!("Error starting keycloak transaction {}", e);
+            DatafixResponse::new(Status::InternalServerError)
+        })?;
+
+    windmill::services::api_datafix::mark_as_voted_via_channel(
+        &hasura_transaction,
+        &keycloak_transaction,
+        &claims.tenant_id,
+        &claims.datafix_event_id,
+        &input,
+    )
+    .await
 }
 
 #[derive(Serialize, Debug)]

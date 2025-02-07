@@ -15,6 +15,7 @@ use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::types::hasura::core::ElectionEvent;
 use sequent_core::types::keycloak::{
     User, UserArea, AREA_ID_ATTR_NAME, DATE_OF_BIRTH, DISABLE_COMMENT, VOTED_CHANNEL,
+    VOTED_CHANNEL_RESET_VALUE,
 };
 use sequent_core::util::date_time::verify_date_format_ymd;
 use serde::{Deserialize, Serialize};
@@ -29,6 +30,12 @@ pub struct VoterInformationBody {
     schoolboard: Option<String>,
     poll: Option<String>,
     birthdate: Option<String>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct MarkVotedBody {
+    voter_id: String,
+    channel: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -204,8 +211,7 @@ pub async fn find_user_area_by_name(
     }
 }
 
-/// Disable the voter, datafix users are not actually deleted but just disabled.
-/// Note: voter_id in Datafix API represents the username in Keycloak/Sequent´s system.
+/// Get user id by username
 #[instrument(skip(keycloak_transaction))]
 pub async fn get_user_id(
     keycloak_transaction: &Transaction<'_>,
@@ -233,7 +239,7 @@ pub async fn get_user_id(
 }
 /// Disable the voter, datafix users are not actually deleted but just disabled.
 /// Note: voter_id in Datafix API represents the username in Keycloak/Sequent´s system.
-#[instrument(skip(hasura_transaction))]
+#[instrument(skip(hasura_transaction, keycloak_transaction))]
 pub async fn disable_datafix_voter(
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
@@ -347,7 +353,7 @@ pub async fn add_datafix_voter(
 
 /// There are 2 things that can be updated, the area and the birthdate.
 /// Note: voter_id in Datafix API represents the username in Keycloak/Sequent´s system.
-#[instrument(skip(hasura_transaction))]
+#[instrument(skip(hasura_transaction, keycloak_transaction))]
 pub async fn update_datafix_voter(
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
@@ -411,8 +417,108 @@ pub async fn update_datafix_voter(
     Ok(DatafixResponse::new(Status::Ok))
 }
 
+/// Mark a voter as having voted via a given channel
+/// Also disables the voter so it cannot vote online
+#[instrument(skip(hasura_transaction, keycloak_transaction))]
+pub async fn mark_as_voted_via_channel(
+    hasura_transaction: &Transaction<'_>,
+    keycloak_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    datafix_event_id: &str,
+    voter_body: &MarkVotedBody,
+) -> Result<Json<DatafixResponse>, JsonErrorResponse> {
+    let username = voter_body.voter_id.clone();
+    let (election_event_id, _) =
+        get_event_id_and_datafix_annotations(hasura_transaction, tenant_id, datafix_event_id)
+            .await?;
+
+    let realm = get_event_realm(tenant_id, &election_event_id);
+    let client = KeycloakAdminClient::new().await.map_err(|e| {
+        error!("Error getting KeycloakAdminClient: {e:?}");
+        DatafixResponse::new(Status::InternalServerError)
+    })?;
+
+    let mut hash_map = HashMap::new();
+    hash_map.insert(VOTED_CHANNEL.to_string(), vec![voter_body.channel.clone()]);
+    hash_map.insert(
+        DISABLE_COMMENT.to_string(),
+        vec!["Datafix call to mark-voted".to_string()],
+    );
+    let attributes = Some(hash_map);
+
+    let user_id = get_user_id(keycloak_transaction, &realm, &username).await?;
+    let _user = client
+        .edit_user(
+            &realm,
+            &user_id,
+            Some(false), // Disable the voter
+            attributes,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
+        .await
+        .map_err(|e| {
+            error!("Error creating user: {e:?}");
+            DatafixResponse::new(Status::InternalServerError)
+        })?;
+    Ok(DatafixResponse::new(Status::Ok))
+}
+
+/// Unmark a voter as having voted, set the attribute to None
+/// Also enables the voter
+#[instrument(skip(hasura_transaction, keycloak_transaction))]
+pub async fn unmark_voter_as_voted(
+    hasura_transaction: &Transaction<'_>,
+    keycloak_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    datafix_event_id: &str,
+    voter_id: &str,
+) -> Result<Json<DatafixResponse>, JsonErrorResponse> {
+    let username = voter_id.to_string();
+    let (election_event_id, _) =
+        get_event_id_and_datafix_annotations(hasura_transaction, tenant_id, datafix_event_id)
+            .await?;
+
+    let realm = get_event_realm(tenant_id, &election_event_id);
+    let client = KeycloakAdminClient::new().await.map_err(|e| {
+        error!("Error getting KeycloakAdminClient: {e:?}");
+        DatafixResponse::new(Status::InternalServerError)
+    })?;
+
+    let mut hash_map = HashMap::new();
+    hash_map.insert(
+        VOTED_CHANNEL.to_string(),
+        vec![VOTED_CHANNEL_RESET_VALUE.to_string()],
+    );
+    let attributes = Some(hash_map);
+    let user_id = get_user_id(keycloak_transaction, &realm, &username).await?;
+    let _user = client
+        .edit_user(
+            &realm,
+            &user_id,
+            Some(true), // Enable the voter again
+            attributes,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
+        .await
+        .map_err(|e| {
+            error!("Error creating user: {e:?}");
+            DatafixResponse::new(Status::InternalServerError)
+        })?;
+    Ok(DatafixResponse::new(Status::Ok))
+}
+
 /// Generate a new password.
-#[instrument(skip(hasura_transaction))]
+#[instrument(skip(hasura_transaction, keycloak_transaction))]
 pub async fn replace_voter_pin(
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
