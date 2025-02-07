@@ -88,7 +88,7 @@ pub async fn insert_ballots_messages(
             tally_session_contest.session_id,
         );
 
-        // TODO use find_area_ballots with pagination
+        // Use find_area_ballots with pagination
         let mut offset = 0;
         let batch_size = PgConfig::from_env()?.default_sql_batch_size.into();
 
@@ -132,7 +132,7 @@ pub async fn insert_ballots_messages(
 
         let ballots_temp_file = ballots_temp_file.reopen()?;
 
-        // TODO Use pagination and write the contents to a file
+        // Use pagination and write the contents to a file
 
         // Create a temporary file (auto-deleted when dropped)
         let users_temp_file = NamedTempFile::new().expect("Failed to create temp file");
@@ -176,7 +176,7 @@ pub async fn insert_ballots_messages(
 
         let users_temp_file = users_temp_file.reopen()?;
 
-        // TODO Use a join function to filter and extract the ballot content
+        // Use a join function to filter and extract the ballot content
         let ballots_output_index = 6;
         let ballots_join_indexes = 7;
         let ballot_election_id_index = 2;
@@ -257,7 +257,7 @@ pub async fn get_elections_end_dates(
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<HashMap<String, Option<DateTime<Utc>>>> {
-    // TODO: use ballot publications instead?
+    // Use ballot publications instead?
     let elections_dates: HashMap<String, Option<DateTime<_>>> = get_all_elections_for_event(
         auth_headers.clone(),
         tenant_id.to_string(),
@@ -311,7 +311,7 @@ pub async fn count_auditable_ballots(
 
     let realm = get_event_realm(tenant_id, election_event_id);
 
-    // TODO use find_area_ballots with pagination
+    // Use find_area_ballots with pagination
     let mut offset = 0;
     let batch_size = PgConfig::from_env()?.default_sql_batch_size.into();
 
@@ -355,7 +355,7 @@ pub async fn count_auditable_ballots(
 
     let ballots_temp_file = ballots_temp_file.reopen()?;
 
-    // TODO Use pagination and write the contents to a file
+    // Use pagination and write the contents to a file
 
     // Create a temporary file (auto-deleted when dropped)
     let users_temp_file = NamedTempFile::new().expect("Failed to create temp file");
@@ -399,7 +399,7 @@ pub async fn count_auditable_ballots(
 
     let users_temp_file = users_temp_file.reopen()?;
 
-    // TODO Use a join function to filter and extract the ballot content
+    // Use a unique function to filter and extract the ballot content
     let ballots_join_indexes = 7;
     let ballot_election_id_index = 2;
     let users_join_idexes = 0;
