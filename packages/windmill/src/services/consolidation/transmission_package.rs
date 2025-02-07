@@ -10,14 +10,12 @@ use super::{
     zip::compress_folder_to_zip,
 };
 use crate::services::consolidation::eml_types::ACMTrustee;
-use crate::services::{
-    password::generate_random_string_with_charset,
-    s3::{download_s3_file_to_string, get_public_asset_file_path},
-};
+use crate::services::password::generate_random_string_with_charset;
 use anyhow::{anyhow, Context, Result};
 use base64::{engine::general_purpose, Engine as _};
 use chrono::{DateTime, Utc};
 use sequent_core::services::reports;
+use sequent_core::services::s3::{download_s3_file_to_string, get_public_asset_file_path};
 use sequent_core::signatures::ecies_encrypt::{
     ecies_encrypt_string, ecies_sign_data, EciesKeyPair,
 };

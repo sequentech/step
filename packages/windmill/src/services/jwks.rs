@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::services::s3;
 use anyhow::{anyhow, Context, Result};
+use sequent_core::services::s3;
 use sequent_core::signatures::temp_path::generate_temp_file;
 use serde::{Deserialize, Serialize};
 use std::env;
