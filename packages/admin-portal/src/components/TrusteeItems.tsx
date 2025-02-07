@@ -1,9 +1,6 @@
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-
-import {Get_Key_Ceremony_TrusteesQuery} from "@/gql/graphql"
-import {GET_KEY_CEREMONY_TRUSTEES} from "@/queries/GetKeyCeremonyTrustees"
 import {useQuery} from "@apollo/client"
 import styled from "@emotion/styled"
 import React from "react"
