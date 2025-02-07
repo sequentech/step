@@ -1,7 +1,6 @@
 // SPDX-FileCopyrightText: 2023 Kevin Nguyen <kevin@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-1
 import {gql} from "@apollo/client"
 
 export const GET_KEY_CEREMONY_TRUSTEES = gql`
