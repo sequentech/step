@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useEffect, useState} from "react"
+import React, {useEffect, useMemo, useState} from "react"
 import {
     CircularProgress,
     Typography,
@@ -13,6 +13,8 @@ import {
     FormControl,
     OutlinedInput,
     IconButton,
+    Autocomplete,
+    TextField,
 } from "@mui/material"
 import InputAdornment from "@mui/material/InputAdornment"
 import {
@@ -31,6 +33,7 @@ import {
     useGetOne,
     useNotify,
     ValidationErrorMessage,
+    AutocompleteInput,
 } from "react-admin"
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos"
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
@@ -138,6 +141,39 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
             },
         }
     )
+
+    // Build Autocomplete options for elections
+    const electionOptions = useMemo(() => {
+        const defaultOption = {
+            id: ALL_ELECTIONS,
+            name: t("keysGeneration.configureStep.allElections"),
+        }
+
+        // Convert each election to { id: string, name: string }
+        const mappedElections =
+            electionsList?.map((election) => ({
+                id: election.id,
+                name: aliasRenderer(election),
+            })) || []
+
+        return [defaultOption, ...mappedElections]
+    }, [electionsList, t, aliasRenderer])
+
+    // Match the selected value object from the electionOptions
+    const selectedElectionOption =
+        electionOptions.find((option) => option.id === electionId) || electionOptions[0]
+
+    // Handler for Autocomplete change
+    const handleElectionChange = (
+        _: React.SyntheticEvent<Element, Event>,
+        newValue: {id: string; name: string} | null
+    ) => {
+        if (!newValue) {
+            setElectionId(ALL_ELECTIONS)
+            return
+        }
+        setElectionId(newValue.id)
+    }
 
     const [filterTrustees, setFilterTrustees] = useState<string>("")
     const [filteredTrustees, setFilteredTrustees] = useState<
@@ -378,7 +414,7 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                         <InputLabel dir={i18n.dir(i18n.language)}>
                             {t("electionScreen.common.title")}
                         </InputLabel>
-                        <Select
+                        {/*<Select
                             MenuProps={MenuProps}
                             dir={i18n.dir(i18n.language)}
                             value={electionId}
@@ -397,7 +433,26 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                                     {aliasRenderer(election)}
                                 </MenuItem>
                             ))}
-                        </Select>
+                        </Select>*/}
+
+                        <Autocomplete
+                            fullWidth
+                            id="searchable-elections"
+                            options={electionOptions}
+                            // display each option's name in the dropdown
+                            getOptionLabel={(option) => option.name ?? ""}
+                            // current selection
+                            value={selectedElectionOption}
+                            onChange={handleElectionChange}
+                            renderInput={(params) => (
+                                <TextField
+                                    {...params}
+                                    label={t("electionScreen.common.title")}
+                                    variant="outlined"
+                                    dir={i18n.dir(i18n.language)}
+                                />
+                            )}
+                        />
                         {errors ? (
                             <WizardStyles.ErrorMessage variant="body2" className="keys-error">
                                 {errors}
