@@ -28,6 +28,7 @@ import {
     Sequent_Backend_Election_Event,
     Sequent_Backend_Tally_Session,
     Sequent_Backend_Tally_Session_Execution,
+    TrusteeNamesQuery,
     UpdateTallyCeremonyMutation,
 } from "../../gql/graphql"
 import {ActionsColumn} from "../../components/ActionButons"
@@ -61,6 +62,7 @@ import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {IKeysCeremonyExecutionStatus} from "@/services/KeyCeremony"
 import {Add} from "@mui/icons-material"
 import {useKeysPermissions} from "../ElectionEvent/useKeysPermissions"
+import {GET_TRUSTEES_NAMES} from "@/queries/GetTrusteesNames"
 
 const OMIT_FIELDS = ["id", "ballot_eml"]
 
@@ -176,6 +178,12 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
             refetchOnMount: false,
         }
     )
+
+    const {data: trusteeNames} = useQuery<TrusteeNamesQuery>(GET_TRUSTEES_NAMES, {
+        variables: {
+            tenantId: tenantId,
+        },
+    })
     const isKeyCeremonyFinished = useMemo(
         () =>
             !!keysCeremonies?.list_keys_ceremony?.items?.find(
@@ -438,7 +446,10 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
                             label={t("electionEventScreen.tally.trustees")}
                             render={(record: RaRecord<Identifier>) => (
                                 <Box sx={{height: 36, overflowY: "scroll"}}>
-                                    <TrusteeItems record={record} />
+                                    <TrusteeItems
+                                        record={record}
+                                        trusteeNames={trusteeNames?.sequent_backend_trustee}
+                                    />
                                 </Box>
                             )}
                         />

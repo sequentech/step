@@ -2,17 +2,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {Sequent_Backend_Keys_Ceremony_Select_Column} from "@/gql/graphql"
-import {GET_AREA_WITH_AREA_CONTESTS} from "@/queries/GetAreaWithAreaContest"
+import {Get_Key_Ceremony_TrusteesQuery} from "@/gql/graphql"
 import {GET_KEY_CEREMONY_TRUSTEES} from "@/queries/GetKeyCeremonyTrustees"
-import {GET_TRUSTEES_NAMES} from "@/queries/GetTrusteesNames"
-import {sequent_backend_keys_ceremony} from "@/types/query"
 import {useQuery} from "@apollo/client"
 import styled from "@emotion/styled"
-import {Chip, IconButton} from "@mui/material"
-import {adminTheme} from "@sequentech/ui-essentials"
-import React, {useEffect} from "react"
-import {Identifier, RaRecord, useGetList, useGetOne, useRecordContext} from "react-admin"
+import React from "react"
+import {Identifier, RaRecord, useGetOne} from "react-admin"
 
 /*  
         In the component where you want to use the actions column:
@@ -26,6 +21,10 @@ import {Identifier, RaRecord, useGetList, useGetOne, useRecordContext} from "rea
 
 interface TrusteeItemsProps {
     record: RaRecord<Identifier>
+    trusteeNames?: Array<{
+        id?: string
+        name?: string | null
+    }>
 }
 
 const StyledChips = styled.div`
@@ -55,34 +54,22 @@ const StyledChipLabel = styled.div`
 `
 
 export const TrusteeItems: React.FC<TrusteeItemsProps> = (props) => {
-    const {record} = props
-
-    const {data} = useQuery(GET_TRUSTEES_NAMES, {
-        variables: {
-            tenantId: record.tenant_id,
-        },
-    })
+    const {record, trusteeNames} = props
 
     const {data: keyCeremony} = useGetOne("sequent_backend_keys_ceremony", {
         id: record.keys_ceremony_id,
     })
 
-    const {data: trustees} = useQuery(GET_KEY_CEREMONY_TRUSTEES, {
-        variables: {
-            trusteeIds: keyCeremony?.trustee_ids ?? [],
-            tenantId: record.tenant_id,
-        },
-    })
+    let filteredTrustees =
+        trusteeNames?.filter((trustee) => keyCeremony?.trustee_ids?.includes(trustee.id)) ?? []
 
     return (
         <StyledChips>
-            {data && data.sequent_backend_trustee
-                ? trustees?.sequent_backend_trustee?.map((item: any, index: number) => (
-                      <StyledChip key={index}>
-                          <StyledChipLabel>{item.name}</StyledChipLabel>
-                      </StyledChip>
-                  ))
-                : null}
+            {filteredTrustees?.map((item, index: number) => (
+                <StyledChip key={index}>
+                    <StyledChipLabel>{item.name}</StyledChipLabel>
+                </StyledChip>
+            ))}
         </StyledChips>
     )
 }
