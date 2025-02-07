@@ -21,7 +21,7 @@ import {
 import CellTowerIcon from "@mui/icons-material/CellTower"
 import {ListActions} from "../../components/ListActions"
 import {Button} from "react-admin"
-import {Alert, Tooltip, Typography} from "@mui/material"
+import {Alert, Box, Tooltip, Typography} from "@mui/material"
 import {
     ListKeysCeremonyQuery,
     Sequent_Backend_Election,
@@ -437,7 +437,9 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
                         <FunctionField
                             label={t("electionEventScreen.tally.trustees")}
                             render={(record: RaRecord<Identifier>) => (
-                                <TrusteeItems record={record} />
+                                <Box sx={{height: 36, overflowY: "scroll"}}>
+                                    <TrusteeItems record={record} />
+                                </Box>
                             )}
                         />
 

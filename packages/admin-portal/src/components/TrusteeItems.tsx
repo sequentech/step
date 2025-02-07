@@ -2,14 +2,17 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import {Sequent_Backend_Keys_Ceremony_Select_Column} from "@/gql/graphql"
 import {GET_AREA_WITH_AREA_CONTESTS} from "@/queries/GetAreaWithAreaContest"
+import {GET_KEY_CEREMONY_TRUSTEES} from "@/queries/GetKeyCeremonyTrustees"
 import {GET_TRUSTEES_NAMES} from "@/queries/GetTrusteesNames"
+import {sequent_backend_keys_ceremony} from "@/types/query"
 import {useQuery} from "@apollo/client"
 import styled from "@emotion/styled"
 import {Chip, IconButton} from "@mui/material"
 import {adminTheme} from "@sequentech/ui-essentials"
 import React, {useEffect} from "react"
-import {Identifier, RaRecord, useGetList, useRecordContext} from "react-admin"
+import {Identifier, RaRecord, useGetList, useGetOne, useRecordContext} from "react-admin"
 
 /*  
         In the component where you want to use the actions column:
@@ -29,6 +32,7 @@ const StyledChips = styled.div`
     display: flex;
     padding: 1px 7px;
     flex-direction: row;
+    flex-wrap: wrap;
     align-items: flex-start;
     gap: 4px;
 `
@@ -52,8 +56,20 @@ const StyledChipLabel = styled.div`
 
 export const TrusteeItems: React.FC<TrusteeItemsProps> = (props) => {
     const {record} = props
+
     const {data} = useQuery(GET_TRUSTEES_NAMES, {
         variables: {
+            tenantId: record.tenant_id,
+        },
+    })
+
+    const {data: keyCeremony} = useGetOne("sequent_backend_keys_ceremony", {
+        id: record.keys_ceremony_id,
+    })
+
+    const {data: trustees} = useQuery(GET_KEY_CEREMONY_TRUSTEES, {
+        variables: {
+            trusteeIds: keyCeremony?.trustee_ids ?? [],
             tenantId: record.tenant_id,
         },
     })
@@ -61,7 +77,7 @@ export const TrusteeItems: React.FC<TrusteeItemsProps> = (props) => {
     return (
         <StyledChips>
             {data && data.sequent_backend_trustee
-                ? data.sequent_backend_trustee.map((item: any, index: number) => (
+                ? trustees?.sequent_backend_trustee?.map((item: any, index: number) => (
                       <StyledChip key={index}>
                           <StyledChipLabel>{item.name}</StyledChipLabel>
                       </StyledChip>
