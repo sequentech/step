@@ -1271,6 +1271,7 @@ const englishTranslation = {
                     description:
                         "You are about to Create Keys Ceremony. This action will notify the Trustees to participate in the creation and distribution of the Election Event Keys.",
                 },
+                filterTrustees: "Filter Trustees",
             },
             ceremonyStep: {
                 cancel: "Cancel Keys Ceremony",

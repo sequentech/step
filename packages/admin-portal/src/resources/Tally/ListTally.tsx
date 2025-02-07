@@ -21,13 +21,14 @@ import {
 import CellTowerIcon from "@mui/icons-material/CellTower"
 import {ListActions} from "../../components/ListActions"
 import {Button} from "react-admin"
-import {Alert, Tooltip, Typography} from "@mui/material"
+import {Alert, Box, Tooltip, Typography} from "@mui/material"
 import {
     ListKeysCeremonyQuery,
     Sequent_Backend_Election,
     Sequent_Backend_Election_Event,
     Sequent_Backend_Tally_Session,
     Sequent_Backend_Tally_Session_Execution,
+    TrusteeNamesQuery,
     UpdateTallyCeremonyMutation,
 } from "../../gql/graphql"
 import {ActionsColumn} from "../../components/ActionButons"
@@ -61,6 +62,7 @@ import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {IKeysCeremonyExecutionStatus} from "@/services/KeyCeremony"
 import {Add} from "@mui/icons-material"
 import {useKeysPermissions} from "../ElectionEvent/useKeysPermissions"
+import {GET_TRUSTEES_NAMES} from "@/queries/GetTrusteesNames"
 
 const OMIT_FIELDS = ["id", "ballot_eml"]
 
@@ -176,6 +178,12 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
             refetchOnMount: false,
         }
     )
+
+    const {data: trusteeNames} = useQuery<TrusteeNamesQuery>(GET_TRUSTEES_NAMES, {
+        variables: {
+            tenantId: tenantId,
+        },
+    })
     const isKeyCeremonyFinished = useMemo(
         () =>
             !!keysCeremonies?.list_keys_ceremony?.items?.find(
@@ -437,7 +445,12 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
                         <FunctionField
                             label={t("electionEventScreen.tally.trustees")}
                             render={(record: RaRecord<Identifier>) => (
-                                <TrusteeItems record={record} />
+                                <Box sx={{height: 36, overflowY: "scroll"}}>
+                                    <TrusteeItems
+                                        record={record}
+                                        trusteeNames={trusteeNames?.sequent_backend_trustee}
+                                    />
+                                </Box>
                             )}
                         />
 

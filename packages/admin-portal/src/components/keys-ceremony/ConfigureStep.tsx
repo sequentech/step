@@ -3,8 +3,20 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useEffect, useState} from "react"
-import {CircularProgress, Typography, TextField, InputLabel, Select, MenuItem} from "@mui/material"
+import React, {useEffect, useMemo, useState} from "react"
+import {
+    CircularProgress,
+    Typography,
+    InputLabel,
+    Select,
+    MenuItem,
+    FormControl,
+    OutlinedInput,
+    IconButton,
+    Autocomplete,
+    TextField,
+} from "@mui/material"
+import InputAdornment from "@mui/material/InputAdornment"
 import {
     CreateKeysCeremonyMutation,
     Sequent_Backend_Election,
@@ -21,6 +33,7 @@ import {
     useGetOne,
     useNotify,
     ValidationErrorMessage,
+    AutocompleteInput,
 } from "react-admin"
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos"
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
@@ -34,8 +47,29 @@ import {isNull} from "@sequentech/ui-core"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {IPermissions} from "@/types/keycloak"
+import {Clear} from "@mui/icons-material"
 
 const ALL_ELECTIONS = "all-elections"
+
+const ITEM_HEIGHT = 48
+const ITEM_PADDING_TOP = 8
+const MenuProps = {
+    PaperProps: {
+        style: {
+            maxHeight: ITEM_HEIGHT * 4 + ITEM_PADDING_TOP,
+        },
+    },
+}
+const TRUSTEE_CHECKBOXES_SX = {
+    [`.MuiFormGroup-root`]: {
+        width: "100%",
+        height: "200px",
+        display: "flex",
+        flexDirection: "column",
+        flexFlow: "column",
+        overflowY: "scroll",
+    },
+}
 
 export interface ConfigureStepProps {
     currentCeremony: Sequent_Backend_Keys_Ceremony | null
@@ -107,6 +141,52 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
             },
         }
     )
+
+    // Build Autocomplete options for elections
+    const electionOptions = useMemo(() => {
+        const defaultOption = {
+            id: ALL_ELECTIONS,
+            name: t("keysGeneration.configureStep.allElections"),
+        }
+
+        // Convert each election to { id: string, name: string }
+        const mappedElections =
+            electionsList?.map((election) => ({
+                id: election.id,
+                name: aliasRenderer(election),
+            })) || []
+
+        return [defaultOption, ...mappedElections]
+    }, [electionsList, t, aliasRenderer])
+
+    // Match the selected value object from the electionOptions
+    const selectedElectionOption =
+        electionOptions.find((option) => option.id === electionId) || electionOptions[0]
+
+    // Handler for Autocomplete change
+    const handleElectionChange = (
+        _: React.SyntheticEvent<Element, Event>,
+        newValue: {id: string; name: string} | null
+    ) => {
+        if (!newValue) {
+            setElectionId(ALL_ELECTIONS)
+            return
+        }
+        setElectionId(newValue.id)
+    }
+
+    const [filterTrustees, setFilterTrustees] = useState<string>("")
+    const [filteredTrustees, setFilteredTrustees] = useState<
+        Sequent_Backend_Trustee[] | undefined
+    >()
+
+    useEffect(() => {
+        setFilteredTrustees(
+            trusteeList?.filter((trustee: Sequent_Backend_Trustee) =>
+                trustee?.name?.toLowerCase().includes(filterTrustees)
+            ) ?? []
+        )
+    }, [filterTrustees, trusteeList])
 
     useEffect(() => {
         if (isNull(newId)) {
@@ -289,41 +369,70 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                             variant="filled"
                         />
                         {trusteeList ? (
-                            <CheckboxGroupInput
-                                dir={i18n.dir(i18n.language)}
-                                validate={validateTrusteeList}
-                                label={t("keysGeneration.configureStep.trusteeList")}
-                                source="trusteeNames"
-                                choices={trusteeList}
-                                translateChoice={false}
-                                optionText="name"
-                                optionValue="name"
-                                row={false}
-                                className="keys-trustees-input"
-                            />
+                            <>
+                                <InputLabel dir={i18n.dir(i18n.language)}>
+                                    {t("keysGeneration.configureStep.trusteeList")}
+                                </InputLabel>
+                                <FormControl>
+                                    <InputLabel htmlFor="trustees-filter">
+                                        {t("keysGeneration.configureStep.filterTrustees")}
+                                    </InputLabel>
+                                    <OutlinedInput
+                                        id="trustees-filter"
+                                        dir={i18n.dir(i18n.language)}
+                                        label={t("keysGeneration.configureStep.filterTrustees")}
+                                        value={filterTrustees}
+                                        type="text"
+                                        onChange={(e) => setFilterTrustees(e.target.value)}
+                                        endAdornment={
+                                            <InputAdornment position="end">
+                                                <IconButton
+                                                    onClick={() => setFilterTrustees("")}
+                                                    edge="end"
+                                                >
+                                                    <Clear />
+                                                </IconButton>
+                                            </InputAdornment>
+                                        }
+                                    />
+                                </FormControl>
+                                <CheckboxGroupInput
+                                    sx={TRUSTEE_CHECKBOXES_SX}
+                                    dir={i18n.dir(i18n.language)}
+                                    validate={validateTrusteeList}
+                                    label=""
+                                    source="trusteeNames"
+                                    choices={filteredTrustees || trusteeList}
+                                    translateChoice={false}
+                                    optionText="name"
+                                    optionValue="name"
+                                    row={false}
+                                    className="keys-trustees-input"
+                                />
+                            </>
                         ) : null}
                         <InputLabel dir={i18n.dir(i18n.language)}>
                             {t("electionScreen.common.title")}
                         </InputLabel>
-                        <Select
-                            dir={i18n.dir(i18n.language)}
-                            value={electionId}
-                            label={t("electionScreen.common.title")}
-                            onChange={(e) => onElectionChange(e.target.value ?? null)}
-                        >
-                            <MenuItem value={ALL_ELECTIONS} dir={i18n.dir(i18n.language)}>
-                                {t("keysGeneration.configureStep.allElections")}
-                            </MenuItem>
-                            {electionsList?.map((election) => (
-                                <MenuItem
-                                    key={election.id}
-                                    value={election.id}
+
+                        <Autocomplete
+                            fullWidth
+                            id="searchable-elections"
+                            options={electionOptions}
+                            // display each option's name in the dropdown
+                            getOptionLabel={(option) => option.name ?? ""}
+                            // current selection
+                            value={selectedElectionOption}
+                            onChange={handleElectionChange}
+                            renderInput={(params) => (
+                                <TextField
+                                    {...params}
+                                    label={t("electionScreen.common.title")}
+                                    variant="outlined"
                                     dir={i18n.dir(i18n.language)}
-                                >
-                                    {aliasRenderer(election)}
-                                </MenuItem>
-                            ))}
-                        </Select>
+                                />
+                            )}
+                        />
                         {errors ? (
                             <WizardStyles.ErrorMessage variant="body2" className="keys-error">
                                 {errors}
