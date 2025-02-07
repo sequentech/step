@@ -23,6 +23,7 @@ pub const DISABLE_COMMENT: &str = "disable-comment";
 /// In addition the voter list, when setting the has_voted flag will check if
 /// this attribute is set, then set has_voted true.
 pub const VOTED_CHANNEL: &str = "voted-channel";
+pub const VOTED_CHANNEL_RESET_VALUE: &str = "NONE";
 
 pub const AREA_ID_ATTR_NAME: &str = "area-id";
 pub const DATE_OF_BIRTH: &str = "dateOfBirth";

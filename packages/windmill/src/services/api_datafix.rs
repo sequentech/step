@@ -2,21 +2,20 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::area::get_event_areas;
-use crate::postgres::election_event::{
-    get_all_tenant_election_events, get_election_event_by_id, update_election_event_status,
-};
-use crate::services::providers::transactions_provider::provide_hasura_transaction;
+use crate::postgres::election_event::get_all_tenant_election_events;
 use crate::services::users::get_users_by_username;
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use deadpool_postgres::Transaction;
-use rand::{distributions::Uniform, thread_rng, Rng};
+use rand::{distributions::Uniform, Rng};
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
+use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::keycloak::KeycloakAdminClient;
-use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
 use sequent_core::types::hasura::core::ElectionEvent;
-use sequent_core::types::keycloak::{User, UserArea, AREA_ID_ATTR_NAME, DATE_OF_BIRTH};
+use sequent_core::types::keycloak::{
+    User, UserArea, AREA_ID_ATTR_NAME, DATE_OF_BIRTH, DISABLE_COMMENT, VOTED_CHANNEL,
+};
 use sequent_core::util::date_time::verify_date_format_ymd;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -88,8 +87,6 @@ struct PasswordPolicy {
 impl PasswordPolicy {
     #[instrument]
     fn generate_password(self, voter_id: &str) -> String {
-        // Create a random password of length self.size and policy either self.characters. Numeric or self.characters.Alphanumeric
-        // generate_random_string_with_charset(self.size as usize, self.characters.to_string().as_str())
         let pin = match self.characters {
             CharactersPolicy::Numeric => {
                 let mut pass = String::new();
@@ -100,7 +97,6 @@ impl PasswordPolicy {
                 pass
             }
             CharactersPolicy::Alphanumeric => rand::thread_rng()
-                // .sample_iter(&rand::distributions::Alphanumeric)
                 .sample_iter(Uniform::new(char::from(32), char::from(126))) // In the range of the ascii characters
                 .take(self.size)
                 .map(char::from)
@@ -256,13 +252,19 @@ pub async fn disable_datafix_voter(
     })?;
 
     let user_id = get_user_id(keycloak_transaction, &realm, username).await?;
+    let mut hash_map = HashMap::new();
+    hash_map.insert(
+        DISABLE_COMMENT.to_string(),
+        vec!["Datafix call to delete-voter".to_string()],
+    );
+    let attributes = Some(hash_map);
 
     let _user = client
         .edit_user(
             &realm,
             &user_id,
             Some(false),
-            None,
+            attributes,
             None,
             None,
             None,
