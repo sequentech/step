@@ -280,12 +280,14 @@ impl PdfRenderer {
         pdf_options: Option<PrintToPdfOptions>,
     ) -> Result<Vec<u8>> {
         let html_sha256 = sha256::digest(&html);
-        Ok(PdfRenderer::new()?.do_render_pdf(
-            html,
-            pdf_options,
-            s3_private_bucket(),
-            s3_bucket_path(html_sha256),
-        ).await?)
+        Ok(PdfRenderer::new()?
+            .do_render_pdf(
+                html,
+                pdf_options,
+                s3_private_bucket(),
+                s3_bucket_path(html_sha256),
+            )
+            .await?)
     }
 
     #[instrument(err)]
