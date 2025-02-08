@@ -137,7 +137,7 @@ pub mod sync {
             match &self.transport {
                 PdfTransport::AWSLambda { .. }
                 | PdfTransport::OpenWhisk { .. } => {
-                    if (PdfTransport::AWSLambda {
+                    let payload = if (PdfTransport::AWSLambda {
                         endpoint: endpoint.to_string(),
                     }) == self.transport
                     {
@@ -146,21 +146,26 @@ pub mod sync {
                             "Using AWS Lambda endpoint: {}",
                             endpoint
                         );
+                        let html_sha256 = sha256::digest(&html);
+                        json!({
+                            "html": html,
+                            "html_path": format!("input-{}", html_sha256),
+                            "pdf_options": pdf_options,
+                            "bucket": bucket,
+                            "result_path": format!("output-{}", html_sha256),
+                        })
                     } else {
                         event!(
                             Level::INFO,
                             "Using OpenWhisk endpoint: {}",
                             endpoint
                         );
-                    }
+                        json!({
+                            "html": html,
+                            "pdf_options": pdf_options,
+                        })
+                    };
                     let client = reqwest::blocking::Client::new();
-                    let payload = json!({
-                        "html": html,
-                        "pdf_options": pdf_options,
-                        "bucket": bucket,
-                        "bucket_path": bucket_path,
-                    });
-
                     let mut request_builder =
                         client.post(endpoint.clone()).json(&payload);
                     if let Some(basic_auth) = basic_auth {
@@ -358,7 +363,7 @@ impl PdfRenderer {
 
         match &self.transport {
             PdfTransport::AWSLambda { .. } | PdfTransport::OpenWhisk { .. } => {
-                if (PdfTransport::AWSLambda {
+                let payload = if (PdfTransport::AWSLambda {
                     endpoint: endpoint.to_string(),
                 }) == self.transport
                 {
@@ -367,20 +372,26 @@ impl PdfRenderer {
                         "Using AWS Lambda endpoint: {}",
                         endpoint
                     );
+                    let html_sha256 = sha256::digest(&html);
+                    json!({
+                        "html": html,
+                        "html_path": format!("input-{}", html_sha256),
+                        "pdf_options": pdf_options,
+                        "bucket": bucket,
+                        "result_path": format!("output-{}", html_sha256),
+                    })
                 } else {
                     event!(
                         Level::INFO,
                         "Using OpenWhisk endpoint: {}",
                         endpoint
                     );
-                }
+                    json!({
+                        "html": html,
+                        "pdf_options": pdf_options,
+                    })
+                };
                 let client = reqwest::Client::new();
-                let payload = json!({
-                    "html": html,
-                    "pdf_options": pdf_options,
-                    "bucket": bucket,
-                    "bucket_path": bucket_path,
-                });
 
                 let mut request_builder =
                     client.post(endpoint.clone()).json(&payload);

@@ -28,20 +28,28 @@ cfg_if::cfg_if! {
     } else if #[cfg(feature = "aws_lambda")] {
         #[orare::lambda_runtime]
         async fn render_pdf(input: Input) -> Result<(), String> {
-            // FIXME(ereslibre): share this code with the OpenWhisk backend
+            match (&input.html, &input.html_path) {
+                (None, None) => return Err("missing html and html_path; provide one, and only one of them".to_string()),
+                (Some(_), Some(_)) => return Err("cannot provide both html and html_path; provide one, and only one of them".to_string()),
+                (None, Some(_)) | (Some(_), None) => {}
+            }
+
+            let Some(ref bucket) = input.bucket else { return Err("no bucket provided in the lambda input to upload rendered PDF to".to_string()) };
+            let Some(ref result_path) = input.result_path else { return Err("missing result_path in bucket for PDF".to_string()) };
+
             let pdf = pdf::render_pdf(input.clone())?;
-            let Some(bucket) = input.bucket else { return Err("no bucket provided in the lambda input to upload rendered PDF to".to_string()) };
-            let Some(bucket_path) = input.bucket_path else { return Err("missing path in bucket for PDF".to_string()) };
-            let raw_pdf = BASE64.decode(pdf.clone().pdf_base64)
-                .map_err(|e| format!("error deserializing PDF in base64 encoding: {e:?}"))?;
-            s3::upload_data_to_s3(
-                raw_pdf.into(),
-                bucket_path,
-                false,
-                bucket,
-                "application/pdf".to_string(),
-                None,
-            ).await.map_err(|e| format!("error uploading PDF file to S3: {e:?}"))?;
+            if let Some(pdf) = pdf.pdf {
+                s3::upload_data_to_s3(
+                    pdf.into(),
+                    result_path.clone(),
+                    false,
+                    bucket.clone(),
+                    "application/pdf".to_string(),
+                    None,
+                ).await
+                    .map_err(|err| format!("could not upload PDF to S3: {:?}", err))?;
+            }
+
             Ok(())
         }
     } else if #[cfg(feature = "openwhisk")] {

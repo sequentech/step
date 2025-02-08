@@ -8,19 +8,23 @@ use sequent_core::services::pdf::{PrintToPdfOptions, TransferMode};
 
 #[derive(Debug, Deserialize)]
 pub struct Input {
-    pub html: String,
+    #[serde(default)]
+    pub html: Option<String>,
+    #[serde(default)]
+    pub html_path: Option<String>,
     #[serde(default)]
     pub pdf_options: Option<PrintToPdfOptions>,
     #[serde(default)]
     pub bucket: Option<String>,
     #[serde(default)]
-    pub bucket_path: Option<String>,
+    pub result_path: Option<String>,
 }
 
 impl Clone for Input {
     fn clone(&self) -> Self {
         Input {
             html: self.html.clone(),
+            html_path: self.html_path.clone(),
             pdf_options: self
                 .pdf_options
                 .as_ref()
@@ -43,12 +47,12 @@ impl Clone for Input {
                     transfer_mode: None,
                 }),
             bucket: self.bucket.clone(),
-            bucket_path: self.bucket_path.clone(),
+            result_path: self.result_path.clone(),
         }
     }
 }
 
 #[derive(Clone, Debug, Serialize)]
 pub struct Output {
-    pub pdf_base64: String,
+    pub pdf: Option<Vec<u8>>,
 }
