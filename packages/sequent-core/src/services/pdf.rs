@@ -18,6 +18,7 @@ use std::thread::sleep;
 use std::time::Duration;
 use std::{fs, path::PathBuf, process::Command};
 use tempfile::tempdir;
+use tokio::runtime::Runtime;
 use tracing::{debug, event, info, instrument, Level};
 
 #[derive(PartialEq)]
@@ -147,6 +148,27 @@ pub mod sync {
                             endpoint
                         );
                         let html_sha256 = sha256::digest(&html);
+                        #[cfg(feature = "s3")]
+                        {
+                            let rt = Runtime::new()?;
+                            rt.block_on(async {
+                                s3::upload_data_to_s3(
+                                    html.into_bytes().into(),
+                                    s3_bucket_path(format!("input-{}", html_sha256)).ok_or_else(|| anyhow!("missing bucket path"))?,
+                                    false,
+                                    s3_private_bucket().ok_or_else(|| anyhow!("missing bucket identifier"))?,
+                                    "text/plain".to_string(),
+                                    None,
+                                )
+                                    .await
+                                    .map_err(|err| {
+                                        anyhow!(
+                                            "error uploading input document to S3: {:?}",
+                                            err
+                                        )
+                                    })
+                            })?;
+                        }
                         json!({
                             "html_path": format!("input-{}", html_sha256),
                             "pdf_options": pdf_options,
@@ -375,7 +397,6 @@ impl PdfRenderer {
                     );
                     let html_sha256 = sha256::digest(&html);
                     json!({
-                        "html": html,
                         "html_path": format!("input-{}", html_sha256),
                         "pdf_options": pdf_options,
                         "bucket": bucket,
