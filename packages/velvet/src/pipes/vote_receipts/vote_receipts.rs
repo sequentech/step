@@ -114,7 +114,6 @@ impl VoteReceipts {
 
         let bytes_pdf = if pipe_config.enable_pdfs {
             let bytes_html = bytes_html.clone();
-            let rt = tokio::runtime::Runtime::new().unwrap();
             let bytes_pdf =
                 pdf::sync::PdfRenderer::render_pdf(bytes_html, pdf_options).map_err(|e| {
                     Error::UnexpectedError(format!("Error during PDF rendering: {}", e))
@@ -163,8 +162,6 @@ fn get_pipe_data(pipe_type: VoteReceiptPipeType) -> VoteReceiptsPipeData {
 impl Pipe for VoteReceipts {
     #[instrument(skip_all, name = "VoteReceipts::exec")]
     fn exec(&self) -> Result<()> {
-        let rt = tokio::runtime::Runtime::new().unwrap();
-
         let input_dir = self
             .pipe_inputs
             .cli
