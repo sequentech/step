@@ -52,7 +52,8 @@ impl Clone for Input {
     }
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Default, Serialize)]
 pub struct Output {
     pub pdf: Option<Vec<u8>>,
+    pub pdf_base64: Option<String>,
 }

@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
+use base64::prelude::*;
 use bytes::Bytes;
 use sequent_core::services::pdf::PrintToPdfOptions;
 use serde::{Deserialize, Serialize};
@@ -31,7 +31,20 @@ async fn handle_render_impl(input: Input) -> Result<impl Reply, Rejection> {
     info!("OpenWhisk: Starting PDF generation");
     let pdf = crate::pdf::render_pdf(input.clone())
         .map_err(|e| warp::reject::custom(CustomError(e.to_string())))?;
-    Ok(warp::reply::json(&pdf))
+    let payload = if let Some(pdf) = pdf.pdf {
+        Output {
+            pdf_base64: Some(BASE64_STANDARD.encode(pdf)),
+            ..Default::default()
+        }
+    } else if let Some(pdf_base64) = pdf.pdf_base64 {
+        Output {
+            pdf_base64: Some(pdf_base64),
+            ..Default::default()
+        }
+    } else {
+        return Err(CustomError(format!("missing PDF")).into());
+    };
+    Ok(warp::reply::json(&payload))
 }
 
 pub async fn start_server() {

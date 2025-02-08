@@ -148,7 +148,6 @@ pub mod sync {
                         );
                         let html_sha256 = sha256::digest(&html);
                         json!({
-                            "html": html,
                             "html_path": format!("input-{}", html_sha256),
                             "pdf_options": pdf_options,
                             "bucket": bucket,

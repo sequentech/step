@@ -25,5 +25,8 @@ pub fn render_pdf(input: Input) -> Result<Output, String> {
 
     info!("PDF generation completed");
 
-    Ok(Output { pdf: Some(bytes) })
+    Ok(Output {
+        pdf: Some(bytes),
+        ..Default::default()
+    })
 }
