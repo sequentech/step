@@ -8,22 +8,29 @@ import {useTenantStore} from "@/providers/TenantContextProvider"
 import {GET_TALLY_DATA} from "@/queries/GetTallyData"
 import {useQuery} from "@apollo/client"
 import {useSetAtom} from "jotai"
-import React, {useContext, useEffect} from "react"
+import React, {useContext, useEffect, useState} from "react"
 
 export interface ResultsDataLoaderProps {
     resultsEventId: string
     electionEventId: string
+    isTallyCompleted: boolean
 }
 
 export const ResultsDataLoader: React.FC<ResultsDataLoaderProps> = ({
     resultsEventId,
     electionEventId,
+    isTallyCompleted,
 }) => {
     const [tenantId] = useTenantStore()
     const setTallyQueryData = useSetAtom(tallyQueryData)
     const {globalSettings} = useContext(SettingsContext)
+    const [isPolling, setIsPolling] = useState(false)
 
-    const {data: tallyData, startPolling} = useQuery<GetTallyDataQuery>(GET_TALLY_DATA, {
+    const {
+        data: tallyData,
+        startPolling,
+        stopPolling,
+    } = useQuery<GetTallyDataQuery>(GET_TALLY_DATA, {
         variables: {
             resultsEventId,
             electionEventId,
@@ -36,8 +43,18 @@ export const ResultsDataLoader: React.FC<ResultsDataLoaderProps> = ({
     }, [tallyData])
 
     useEffect(() => {
-        startPolling(globalSettings.QUERY_POLL_INTERVAL_MS)
-    }, [startPolling, globalSettings.QUERY_POLL_INTERVAL_MS])
+        if (isTallyCompleted) {
+            if (isPolling) {
+                setIsPolling(false)
+                stopPolling()
+            }
+        } else {
+            if (!isPolling) {
+                setIsPolling(true)
+                startPolling(globalSettings.QUERY_POLL_INTERVAL_MS)
+            }
+        }
+    }, [startPolling, globalSettings.QUERY_POLL_INTERVAL_MS, isTallyCompleted, isPolling])
 
     return <></>
 }

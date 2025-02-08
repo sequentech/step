@@ -57,6 +57,7 @@ export const TallyCeremonyTrustees: React.FC = () => {
     const [errors, setErrors] = useState<String | null>(null)
     const [trusteeStatus, setTrusteeStatus] = useState<ITrusteeStatus | null>(null)
     const {globalSettings} = useContext(SettingsContext)
+    const [isTallyCompleted, setIsTallyCompleted] = useState<boolean>(false)
 
     const {data} = useGetOne<Sequent_Backend_Tally_Session>(
         "sequent_backend_tally_session",
@@ -87,12 +88,18 @@ export const TallyCeremonyTrustees: React.FC = () => {
             },
         },
         {
-            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+            refetchInterval: isTallyCompleted ? undefined : globalSettings.QUERY_POLL_INTERVAL_MS,
             refetchOnWindowFocus: false,
             refetchOnReconnect: false,
             refetchOnMount: false,
         }
     )
+
+    useEffect(() => {
+        if (data?.is_execution_completed && !isTallyCompleted) {
+            setIsTallyCompleted(true)
+        }
+    }, [data?.is_execution_completed, isTallyCompleted])
 
     useEffect(() => {
         if (data) {
@@ -270,6 +277,7 @@ export const TallyCeremonyTrustees: React.FC = () => {
                             <TallyTrusteesList
                                 tally={tally}
                                 update={(trustees) => setSelectedTrustees(trustees)}
+                                tallySessionExecutions={tallySessionExecutions}
                             />
                         </>
                     )}

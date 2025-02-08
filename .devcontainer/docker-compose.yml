@@ -704,7 +704,7 @@ services:
     - type: bind
       source: /var/run/docker.sock
       target: /var/run/docker.sock
-    network_mode: host
+    #network_mode: host
 
   doc_renderer_lambda_build:
     profiles: ["full", "lambdas"]
@@ -849,6 +849,9 @@ services:
       WINDMILL_PROBE_READY_PATH: ${WINDMILL_PROBE_READY_PATH}
       APP_VERSION: ${APP_VERSION}
       APP_HASH: ${APP_HASH}
+      DOC_RENDERER_BACKEND: openwhisk
+      AWS_LAMBDA_DOC_RENDERER_ENDPOINT: ${AWS_LAMBDA_DOC_RENDERER_ENDPOINT}
+      OPENWHISK_DOC_RENDERER_ENDPOINT: ${OPENWHISK_DOC_RENDERER_ENDPOINT}
 
       PUBLIC_ASSETS_PATH: ${PUBLIC_ASSETS_PATH}
        #Demo key
