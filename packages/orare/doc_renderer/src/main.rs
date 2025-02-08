@@ -31,7 +31,7 @@ cfg_if::cfg_if! {
             match (&input.html, &input.html_path) {
                 (None, None) => return Err("missing html and html_path; provide one, and only one of them".to_string()),
                 (Some(_), Some(_)) => return Err("cannot provide both html and html_path; provide one, and only one of them".to_string()),
-                (None, Some(_)) | (Some(_), None) => {}
+                _ => {}
             }
 
             let Some(ref bucket) = input.bucket else { return Err("no bucket provided in the lambda input to upload rendered PDF to".to_string()) };
