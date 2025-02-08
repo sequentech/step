@@ -103,8 +103,7 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
     )
     const [errors, setErrors] = useState<String | null>(null)
     const [threshold, setThreshold] = useState<number>(2)
-    const [name, setName] = useState<string>("")
-    const [electionId, _] = useState<string | null>(null)
+    const [electionId, setElectionId] = useState<string | null>(null)
     const [trusteeNames, setTrusteeNames] = useState<string[]>([])
     const refresh = useRefresh()
     const aliasRenderer = useAliasRenderer()
@@ -243,10 +242,11 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
 
     // Called by the form. Saves the information and shows the confirmation
     // dialog
-    const onSubmit: SubmitHandler<FieldValues> = async ({threshold, trusteeNames}) => {
+    const onSubmit: SubmitHandler<FieldValues> = async ({threshold, trusteeNames, electionId}) => {
         setThreshold(Number(threshold))
         setTrusteeNames(trusteeNames)
         setOpenConfirmationModal(true)
+        setElectionId(electionId ?? null)
     }
 
     // Default values
@@ -254,7 +254,6 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
         threshold: 2,
         electionId: null,
     })
-
 
     const electionFilterToQuery = (searchText: string) => {
         if (!searchText || searchText.length == 0) {
@@ -399,7 +398,7 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                                 election_event_id: electionEvent.id,
                                 keys_ceremony_id: {
                                     format: "hasura-raw-query",
-                                    value: { _is_null: true },
+                                    value: {_is_null: true},
                                 },
                             }}
                             perPage={50}
@@ -409,6 +408,7 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                                 optionText={aliasRenderer}
                                 filterToQuery={electionFilterToQuery}
                                 debounce={100}
+                                emptyText={t("keysGeneration.configureStep.allElections")}
                             />
                         </ReferenceInput>
 

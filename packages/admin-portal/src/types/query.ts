@@ -607,8 +607,8 @@ export const COLUMNS_MAP: {[key: string]: Array<string>} = {
     sequent_backend_document: Object.keys(sequent_backend_document),
     sequent_backend_election: [
         ...Object.keys(sequent_backend_election),
-        'keys_ceremony_id',
-        'name@_ilike,alias@_ilike',
+        "keys_ceremony_id",
+        "name@_ilike,alias@_ilike",
     ],
     sequent_backend_election_event: Object.keys(sequent_backend_election_event),
     sequent_backend_election_result: Object.keys(sequent_backend_election_result),
