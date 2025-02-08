@@ -34,6 +34,7 @@ import {
     useNotify,
     ValidationErrorMessage,
     AutocompleteInput,
+    ReferenceInput,
 } from "react-admin"
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos"
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
@@ -48,8 +49,6 @@ import {WizardStyles} from "@/components/styles/WizardStyles"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {IPermissions} from "@/types/keycloak"
 import {Clear} from "@mui/icons-material"
-
-const ALL_ELECTIONS = "all-elections"
 
 const ITEM_HEIGHT = 48
 const ITEM_PADDING_TOP = 8
@@ -105,7 +104,7 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
     const [errors, setErrors] = useState<String | null>(null)
     const [threshold, setThreshold] = useState<number>(2)
     const [name, setName] = useState<string>("")
-    const [electionId, setElectionId] = useState<string | null>(ALL_ELECTIONS)
+    const [electionId, _] = useState<string | null>(null)
     const [trusteeNames, setTrusteeNames] = useState<string[]>([])
     const refresh = useRefresh()
     const aliasRenderer = useAliasRenderer()
@@ -141,39 +140,6 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
             },
         }
     )
-
-    // Build Autocomplete options for elections
-    const electionOptions = useMemo(() => {
-        const defaultOption = {
-            id: ALL_ELECTIONS,
-            name: t("keysGeneration.configureStep.allElections"),
-        }
-
-        // Convert each election to { id: string, name: string }
-        const mappedElections =
-            electionsList?.map((election) => ({
-                id: election.id,
-                name: aliasRenderer(election),
-            })) || []
-
-        return [defaultOption, ...mappedElections]
-    }, [electionsList, t, aliasRenderer])
-
-    // Match the selected value object from the electionOptions
-    const selectedElectionOption =
-        electionOptions.find((option) => option.id === electionId) || electionOptions[0]
-
-    // Handler for Autocomplete change
-    const handleElectionChange = (
-        _: React.SyntheticEvent<Element, Event>,
-        newValue: {id: string; name: string} | null
-    ) => {
-        if (!newValue) {
-            setElectionId(ALL_ELECTIONS)
-            return
-        }
-        setElectionId(newValue.id)
-    }
 
     const [filterTrustees, setFilterTrustees] = useState<string>("")
     const [filteredTrustees, setFilteredTrustees] = useState<
@@ -226,7 +192,7 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                 electionEventId: electionEvent.id,
                 threshold,
                 trusteeNames,
-                electionId: (ALL_ELECTIONS !== electionId && electionId) || null,
+                electionId: electionId || null,
                 name: name ?? t("keysGeneration.configureStep.name"),
             },
         })
@@ -286,7 +252,16 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
     // Default values
     const getDefaultValues = () => ({
         threshold: 2,
+        electionId: null,
     })
+
+
+    const electionFilterToQuery = (searchText: string) => {
+        if (!searchText || searchText.length == 0) {
+            return {name: ""}
+        }
+        return {"name@_ilike,alias@_ilike": searchText.trim()}
+    }
 
     // validates threshold is within the limits
     const thresholdValidator = (value: string): ValidationErrorMessage | null => {
@@ -320,9 +295,6 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
 
     const validateTrusteeList = [trusteeListValidator]
     const validateThreshold = [thresholdValidator]
-    const onElectionChange = (id: string | null) => {
-        setElectionId(id)
-    }
 
     return (
         <>
@@ -415,24 +387,31 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                             {t("electionScreen.common.title")}
                         </InputLabel>
 
-                        <Autocomplete
+                        <ReferenceInput
                             fullWidth
+                            label={t("electionScreen.common.title")}
+                            source="electionId"
                             id="searchable-elections"
-                            options={electionOptions}
-                            // display each option's name in the dropdown
-                            getOptionLabel={(option) => option.name ?? ""}
-                            // current selection
-                            value={selectedElectionOption}
-                            onChange={handleElectionChange}
-                            renderInput={(params) => (
-                                <TextField
-                                    {...params}
-                                    label={t("electionScreen.common.title")}
-                                    variant="outlined"
-                                    dir={i18n.dir(i18n.language)}
-                                />
-                            )}
-                        />
+                            reference="sequent_backend_election"
+                            enableGetChoices={({q}) => q && q.length >= 3}
+                            filter={{
+                                tenant_id: electionEvent.tenant_id,
+                                election_event_id: electionEvent.id,
+                                keys_ceremony_id: {
+                                    format: "hasura-raw-query",
+                                    value: { _is_null: true },
+                                },
+                            }}
+                            perPage={50}
+                        >
+                            <AutocompleteInput
+                                className="election-selector"
+                                optionText={aliasRenderer}
+                                filterToQuery={electionFilterToQuery}
+                                debounce={100}
+                            />
+                        </ReferenceInput>
+
                         {errors ? (
                             <WizardStyles.ErrorMessage variant="body2" className="keys-error">
                                 {errors}
