@@ -396,6 +396,25 @@ impl PdfRenderer {
                         endpoint
                     );
                     let html_sha256 = sha256::digest(&html);
+
+                    #[cfg(feature = "s3")]
+                    {
+                        s3::upload_data_to_s3(
+                            html.into_bytes().into(),
+                            s3_bucket_path(format!("input-{}", html_sha256)).ok_or_else(|| anyhow!("missing bucket path"))?,
+                            false,
+                            s3_private_bucket().ok_or_else(|| anyhow!("missing bucket identifier"))?,
+                            "text/plain".to_string(),
+                            None,
+                        ).await
+                            .map_err(|err| {
+                                anyhow!(
+                                    "error uploading input document to S3: {:?}",
+                                    err
+                                )
+                            })?;
+                    }
+
                     json!({
                         "html_path": format!("input-{}", html_sha256),
                         "pdf_options": pdf_options,
