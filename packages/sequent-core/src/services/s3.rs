@@ -209,9 +209,29 @@ pub async fn upload_file_to_s3(
     file_path: String,
     cache_control: Option<String>,
 ) -> Result<()> {
-    let body = ByteStream::from_path(&file_path).await.with_context(|| {
+    let data = ByteStream::from_path(&file_path).await.with_context(|| {
         anyhow!("Error creating bytestream from file path={file_path}")
     })?;
+    upload_data_to_s3(
+        data,
+        key,
+        is_public,
+        s3_bucket,
+        media_type,
+        cache_control,
+    )
+    .await
+}
+
+#[instrument(err, skip_all)]
+pub async fn upload_data_to_s3(
+    data: ByteStream,
+    key: String,
+    is_public: bool,
+    s3_bucket: String,
+    media_type: String,
+    cache_control: Option<String>,
+) -> Result<()> {
     let config = get_s3_aws_config(!is_public)
         .await
         .with_context(|| "Error getting s3 aws config")?;
@@ -224,7 +244,7 @@ pub async fn upload_file_to_s3(
         .bucket(s3_bucket)
         .key(key)
         .content_type(media_type)
-        .body(body);
+        .body(data);
 
     let request = if let Some(cache_control_value) = cache_control {
         request.cache_control(cache_control_value)
