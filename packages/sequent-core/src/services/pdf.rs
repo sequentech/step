@@ -2,6 +2,10 @@
 // SPDX-FileCopyrightText: 2024 Eduardo Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+#[cfg(feature = "s3")]
+use crate::services::s3;
+
 use anyhow::{anyhow, Context, Result};
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 pub use headless_chrome::types::{PrintToPdfOptions, TransferMode};
@@ -44,7 +48,13 @@ pub mod sync {
             html: String,
             pdf_options: Option<PrintToPdfOptions>,
         ) -> Result<Vec<u8>> {
-            Ok(PdfRenderer::new()?.do_render_pdf(html, pdf_options)?)
+            let html_sha256 = sha256::digest(&html);
+            Ok(PdfRenderer::new()?.do_render_pdf(
+                html,
+                pdf_options,
+                s3_private_bucket(),
+                s3_bucket_path(html_sha256),
+            )?)
         }
 
         #[instrument(err)]
@@ -110,6 +120,8 @@ pub mod sync {
             &self,
             html: String,
             pdf_options: Option<PrintToPdfOptions>,
+            bucket: Option<String>,
+            bucket_path: Option<String>,
         ) -> Result<Vec<u8>> {
             let (endpoint, basic_auth) = match &self.transport {
                 PdfTransport::AWSLambda { endpoint } => {
@@ -145,6 +157,8 @@ pub mod sync {
                     let payload = json!({
                         "html": html,
                         "pdf_options": pdf_options,
+                        "bucket": bucket,
+                        "bucket_path": bucket_path,
                     });
 
                     let mut request_builder =
@@ -237,12 +251,36 @@ pub mod sync {
     }
 }
 
+cfg_if::cfg_if! {
+    if #[cfg(feature = "s3")] {
+        fn s3_private_bucket() -> Option<String> {
+            s3::get_private_bucket().ok()
+        }
+        fn s3_bucket_path(path: String) -> Option<String> {
+            Some(path)
+        }
+    } else {
+        fn s3_private_bucket() -> Option<String> {
+            None
+        }
+        fn s3_bucket_path(path: String) -> Option<String> {
+            None
+        }
+    }
+}
+
 impl PdfRenderer {
     pub async fn render_pdf(
         html: String,
         pdf_options: Option<PrintToPdfOptions>,
     ) -> Result<Vec<u8>> {
-        Ok(PdfRenderer::new()?.do_render_pdf(html, pdf_options).await?)
+        let html_sha256 = sha256::digest(&html);
+        Ok(PdfRenderer::new()?.do_render_pdf(
+            html,
+            pdf_options,
+            s3_private_bucket(),
+            s3_bucket_path(html_sha256),
+        ).await?)
     }
 
     #[instrument(err)]
@@ -306,6 +344,8 @@ impl PdfRenderer {
         &self,
         html: String,
         pdf_options: Option<PrintToPdfOptions>,
+        bucket: Option<String>,
+        bucket_path: Option<String>,
     ) -> Result<Vec<u8>> {
         let (endpoint, basic_auth) = match &self.transport {
             PdfTransport::AWSLambda { endpoint } => (endpoint.clone(), None),
@@ -338,6 +378,8 @@ impl PdfRenderer {
                 let payload = json!({
                     "html": html,
                     "pdf_options": pdf_options,
+                    "bucket": bucket,
+                    "bucket_path": bucket_path,
                 });
 
                 let mut request_builder =
