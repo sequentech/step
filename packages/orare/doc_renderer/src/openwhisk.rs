@@ -31,7 +31,6 @@ async fn handle_render_impl(input: Input) -> Result<impl Reply, Rejection> {
     info!("OpenWhisk: Starting PDF generation");
     let pdf = crate::pdf::render_pdf(input.clone())
         .map_err(|e| warp::reject::custom(CustomError(e.to_string())))?;
-    // FIXME(ereslibre): share this code with the AWS Lambda backend
     Ok(warp::reply::json(&pdf))
 }
 
