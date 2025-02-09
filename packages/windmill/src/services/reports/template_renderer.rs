@@ -17,7 +17,7 @@ use crate::services::vault;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
-use pdfium_render::prelude::*;
+use lopdf::{dictionary, Document, Object, ObjectId};
 use sequent_core::serialization::deserialize_with_path::{deserialize_str, deserialize_value};
 use sequent_core::services::keycloak::{self, get_event_realm, KeycloakAdminClient};
 use sequent_core::services::{pdf, reports};
@@ -29,6 +29,7 @@ use sequent_core::types::templates::{
 };
 use sequent_core::types::to_map::ToMap;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use std::fmt::Debug;
 use std::fs::File;
 use std::io::{Cursor, Write};
@@ -482,12 +483,12 @@ pub trait TemplateRenderer: Debug {
         // let output_zip_path = output_zip_tempfile.path();
         // let output_zip_path_str = output_zip_path.to_string_lossy().to_string();
 
-        // let split_pdfs = split_pdf(content_bytes.clone(), 1)
+        // let split_pdfs = split_pdf(&content_bytes.clone(), 1)
         //     .await
         //     .map_err(|err| anyhow!("Error split_pdf_into_memory: {err:?}"))?;
 
-        // for (i, pdf_chunk) in split_pdfs.iter().enumerate() {
-        //     let file_path = temp_dir_path.join(format!("output_part_{}.pdf", i).as_str());
+        // for (_i, (pdf_name,pdf_chunk)) in split_pdfs.iter().enumerate() {
+        //     let file_path = temp_dir_path.join(pdf_name.as_str());
         //     let mut file = File::create(&file_path)
         //         .with_context(|| format!("Failed to create or open file: {:?}", file_path))?;
         //     file.write_all(pdf_chunk)
@@ -721,32 +722,180 @@ pub trait TemplateRenderer: Debug {
     }
 }
 
-async fn split_pdf(
-    pdf_bytes: Vec<u8>,
-    max_pages: usize,
-) -> Result<Vec<Vec<u8>>, Box<dyn std::error::Error>> {
-    let pdfium = Pdfium::default();
-    let document = pdfium
-        .load_pdf_from_byte_vec(pdf_bytes.clone(), None)
-        .map_err(|err| anyhow!("Error in load_pdf_from_byte_slice: {:?} ", err))?;
+async fn split_pdf(pdf_bytes: &[u8], _chunk_size: usize) -> Result<Vec<(String, Vec<u8>)>> {
+    let source_doc = Document::load_mem(pdf_bytes)?;
 
-    let mut result_pdfs = Vec::new();
+    //TODO: use chunk_size to split the pdf into chunks
+    let pages_to_extract = vec![1, 2];
 
-    let mut new_doc = pdfium
-        .create_new_pdf()
-        .map_err(|err| anyhow!("Error in create_new_pdf``: {:?} ", err))?;
-    let destination_page_index = new_doc.pages().len();
+    let mut extracted_doc = extract_pages(&source_doc, &pages_to_extract);
 
-    new_doc
-        .pages()
-        .copy_page_range_from_document(&document, 0..=2, destination_page_index)
-        .map_err(|err| anyhow!("Error in copy_page_range_from_document: {:?} ", err))?;
+    let mut results = Vec::new();
 
-    result_pdfs.push(
-        new_doc
-            .save_to_bytes()
-            .map_err(|err| anyhow!("Err in save to bytes: {:?}", err))?,
-    );
+    let chunk_name = format!("chunk_{}-{}.pdf", 1, 2);
 
-    Ok(result_pdfs)
+    let mut chunk_bytes = Vec::new();
+    extracted_doc.save_to(&mut chunk_bytes)?;
+
+    results.push((chunk_name, chunk_bytes));
+
+    Ok(results)
+}
+
+fn extract_pages(source_doc: &Document, pages_to_extract: &[u32]) -> Document {
+    let mut target_doc = Document::with_version(source_doc.version.clone());
+
+    let pages_id = target_doc.new_object_id();
+    let pages_dict = lopdf::dictionary! {
+        "Type"  => "Pages",
+        "Kids"  => lopdf::Object::Array(vec![]),
+        "Count" => lopdf::Object::Integer(0),
+    };
+    target_doc
+        .objects
+        .insert(pages_id, lopdf::Object::Dictionary(pages_dict));
+
+    let catalog_id = target_doc.new_object_id();
+    let catalog_dict = lopdf::dictionary! {
+        "Type"  => "Catalog",
+        "Pages" => lopdf::Object::Reference(pages_id),
+    };
+    target_doc.objects.insert(catalog_id, catalog_dict.into());
+    // Update trailer so the target doc knows where its root is
+    target_doc.trailer.set("Root", catalog_id);
+
+    let source_pages_map = source_doc.get_pages();
+
+    let mut obj_map = BTreeMap::new();
+
+    let mut new_kids_refs = vec![];
+    for page_number in pages_to_extract {
+        if let Some(page_id) = source_pages_map.get(page_number) {
+            // Copy this page object (plus everything it references) into the new doc
+            let new_page_id = copy_object_deep(*page_id, source_doc, &mut target_doc, &mut obj_map);
+            new_kids_refs.push(Object::Reference(new_page_id));
+        }
+    }
+
+    // 4) Patch up the "Kids" and "Count" in the target's Pages dictionary
+    let pages_obj = target_doc.objects.get_mut(&pages_id).unwrap();
+    let pages_dict = pages_obj.as_dict_mut().unwrap();
+    pages_dict.set("Kids", Object::Array(new_kids_refs.clone()));
+    pages_dict.set("Count", new_kids_refs.len() as i64);
+
+    target_doc.compress();
+
+    target_doc
+}
+
+/// Recursively copies an object (and all its children) from the `source_doc` to the `target_doc`.
+/// Tracks object IDs in `obj_map` so the same source object isn’t duplicated multiple times.
+fn copy_object_deep(
+    source_id: ObjectId,
+    source_doc: &Document,
+    target_doc: &mut Document,
+    obj_map: &mut BTreeMap<ObjectId, ObjectId>,
+) -> ObjectId {
+    if let Some(&already_copied_id) = obj_map.get(&source_id) {
+        return already_copied_id;
+    }
+
+    let new_id = target_doc.new_object_id();
+    obj_map.insert(source_id, new_id);
+
+    // Fetch the original object
+    let object = source_doc
+        .get_object(source_id)
+        .unwrap_or_else(|_| panic!("Missing object {:?} in source PDF", source_id))
+        .clone();
+
+    // Recursively fix references inside the object
+    let cloned = match object {
+        Object::Dictionary(dict) => {
+            let mut dict = dict;
+            for (key, val) in dict.iter_mut() {
+                let key_bytes: &[u8] = key;
+                if key_bytes == b"Contents" || key_bytes == b"Resources" {
+                    match val {
+                        Object::Reference(old_ref) => {
+                            let new_ref =
+                                copy_object_deep(*old_ref, source_doc, target_doc, obj_map);
+                            *val = Object::Reference(new_ref);
+                        }
+                        Object::Array(arr) => {
+                            fix_array_references(arr, source_doc, target_doc, obj_map);
+                        }
+                        Object::Dictionary(res_dict) => {
+                            fix_dict_references(res_dict, source_doc, target_doc, obj_map);
+                        }
+                        _ => {}
+                    }
+                } else {
+                    if let Object::Reference(old_ref) = *val {
+                        let new_ref = copy_object_deep(old_ref, source_doc, target_doc, obj_map);
+                        *val = Object::Reference(new_ref);
+                    } else if let Object::Array(arr) = val {
+                        fix_array_references(arr, source_doc, target_doc, obj_map);
+                    }
+                }
+            }
+            Object::Dictionary(dict)
+        }
+        Object::Stream(stream) => {
+            let mut stream = stream;
+            // Streams have their own dictionary
+            for (key, val) in stream.dict.iter_mut() {
+                if let Object::Reference(old_ref) = *val {
+                    let new_ref = copy_object_deep(old_ref, source_doc, target_doc, obj_map);
+                    *val = Object::Reference(new_ref);
+                } else if let Object::Array(arr) = val {
+                    fix_array_references(arr, source_doc, target_doc, obj_map);
+                }
+            }
+            Object::Stream(stream)
+        }
+        Object::Array(mut arr) => {
+            fix_array_references(&mut arr, source_doc, target_doc, obj_map);
+            Object::Array(arr)
+        }
+        other => other,
+    };
+
+    target_doc.objects.insert(new_id, cloned);
+
+    new_id
+}
+
+/// Helper to walk through an array and copy references
+fn fix_array_references(
+    arr: &mut Vec<Object>,
+    source_doc: &Document,
+    target_doc: &mut Document,
+    obj_map: &mut BTreeMap<ObjectId, ObjectId>,
+) {
+    for obj in arr.iter_mut() {
+        if let Object::Reference(old_ref) = obj {
+            let new_ref = copy_object_deep(*old_ref, source_doc, target_doc, obj_map);
+            *obj = Object::Reference(new_ref);
+        }
+    }
+}
+
+/// Helper to walk through an dictionary and copy references
+fn fix_dict_references(
+    dict: &mut lopdf::Dictionary,
+    source_doc: &Document,
+    target_doc: &mut Document,
+    obj_map: &mut BTreeMap<ObjectId, ObjectId>,
+) {
+    for (_key, val) in dict.iter_mut() {
+        if let Object::Reference(old_ref) = *val {
+            let new_ref = copy_object_deep(old_ref, source_doc, target_doc, obj_map);
+            *val = Object::Reference(new_ref);
+        } else if let Object::Array(arr) = val {
+            fix_array_references(arr, source_doc, target_doc, obj_map);
+        } else if let Object::Dictionary(sub_dict) = val {
+            fix_dict_references(sub_dict, source_doc, target_doc, obj_map);
+        }
+    }
 }

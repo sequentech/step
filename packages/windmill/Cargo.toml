@@ -101,7 +101,7 @@ ring = "0.17"
 # serializing
 hex = "0.4"
 
-pdfium-render = "0.7"
+lopdf="0.32.0"
 
 walkdir = "2.3"
 croner = "2.0"
