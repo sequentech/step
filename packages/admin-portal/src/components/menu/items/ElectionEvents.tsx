@@ -436,20 +436,6 @@ export default function ElectionEvents() {
     }
 
     const transformElectionsForSort = (elections: ElectionType[]): IElection[] => {
-        console.log("aa elections BEFORE", elections)
-        console.log("=====")
-        console.log(
-            "aa elections AFTER",
-            elections.map((election) => {
-                return {
-                    ...election,
-                    tenant_id: tenantId || "",
-                    image_document_id: election.image_document_id ?? "",
-                    // contests: transformContestsForSort(election.contests),
-                }
-            })
-        )
-
         return elections.map((election) => {
             return {
                 ...election,
