@@ -373,7 +373,7 @@ services:
       - immudb-init
 
   mock_server:
-    profiles: ["full", "base"]
+    profiles: ["full"]
     stdin_open: true
     image: sequentech.local/cargo-packages
     container_name: mock_server
@@ -392,7 +392,7 @@ services:
       "rust-local-target/",
       "-x",
       "run"
-    ] 
+    ]
     environment:
       ROCKET_ADDRESS: ${ROCKET_ADDRESS}
       ROCKET_PORT: ${MOCK_SERVER_PORT}
