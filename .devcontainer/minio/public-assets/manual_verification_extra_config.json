@@ -24,7 +24,7 @@
   "communication_templates": {
     "email_config": {
       "subject": "Sequent Online Voting - Manual Verification",
-      "plaintext_body": "",
+      "plaintext_body": "Notice! The link provided is valid for 15 minutes.",
       "html_body": null
     },
     "sms_config": {

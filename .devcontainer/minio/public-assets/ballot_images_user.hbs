@@ -234,10 +234,9 @@
       ballotData.forEach((ballot, index) => {
           let ballotId = `${ballot.id}`; 
           ballot.contest_choices.forEach((contest, contest_index) => {
-            let digitalSignature = `${contest.digital_signature}`; 
             let pageNumber = `${contest.page_number}`; 
             const qrcodeDiv = document.getElementById(`qrcode-${contest_index}-${index}`);
-            let qrText = `${contest.sign_data}`;
+            let qrText = `${contest.sign_data}:${contest.digital_signature}`;
             let qrHeight = parseInt({{qr_height}}, 10);
             let qrWidth = qrHeight = parseInt({{qr_width}}, 10);
 

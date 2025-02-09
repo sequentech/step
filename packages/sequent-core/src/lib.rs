@@ -22,6 +22,9 @@ pub mod serialization;
 pub mod services;
 pub mod util;
 
+#[cfg(feature = "reports")]
+pub mod temp_path;
+
 #[cfg(feature = "signatures")]
 pub mod signatures;
 
