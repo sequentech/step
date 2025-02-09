@@ -12,7 +12,6 @@ use crate::services::providers::{email_sender::EmailSender, sms_sender::SmsSende
 use crate::services::users::{list_users, list_users_with_vote_info, ListUsersFilter};
 use crate::tasks::send_template::get_election_event::GetElectionEventSequentBackendElectionEvent;
 use crate::types::error::Result;
-use crate::util::aws::get_from_env_aws_config;
 
 use crate::services::database::{get_hasura_pool, get_keycloak_pool, PgConfig};
 use crate::types::error::Error;
@@ -34,6 +33,7 @@ use sequent_core::types::keycloak::{User, UserArea};
 use sequent_core::types::templates::{
     AudienceSelection, EmailConfig, SendTemplateBody, SmsConfig, TemplateMethod,
 };
+use sequent_core::util::aws::get_from_env_aws_config;
 use serde_json::json;
 use serde_json::{Map, Value};
 use std::collections::HashMap;
