@@ -323,6 +323,33 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         const handleCloseEditDrawer = () => {
             setOpen(false)
         }
+
+        /**
+         * Checks for any pending actions after the component mounts.
+         * If a pending action is found, it executes the action and removes the flag.
+         */
+        useEffect(() => {
+            const executePendingActions = async () => {
+                let isGold = isGoldUser()
+                if (isGold) {
+                    const pendingPublish = sessionStorage.getItem(
+                        EPublishActions.PENDING_PUBLISH_ACTION
+                    )
+                    if (pendingPublish) {
+                        onGenerate()
+                    }
+                }
+            }
+            const cleanup = () => {
+                sessionStorage.removeItem(EPublishActions.PENDING_PUBLISH_ACTION)
+            }
+
+            if (electionEventId && electionId) {
+                executePendingActions()
+                cleanup()
+            }
+        }, [onChangeStatus, onGenerate])
+
         useEffect(() => {
             if (showList) {
                 setViewMode(ViewMode.List)
@@ -387,31 +414,6 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
             setElectionStatus(status)
             setElectionPresentation(presentation)
         }, [record])
-
-        /**
-         * Checks for any pending actions after the component mounts.
-         * If a pending action is found, it executes the action and removes the flag.
-         */
-        useEffect(() => {
-            const executePendingActions = async () => {
-                let isGold = isGoldUser()
-                if (isGold) {
-                    const pendingPublish = sessionStorage.getItem(
-                        EPublishActions.PENDING_PUBLISH_ACTION
-                    )
-                    if (pendingPublish) {
-                        onGenerate()
-                    }
-                }
-            }
-
-            const cleanup = () => {
-                sessionStorage.removeItem(EPublishActions.PENDING_PUBLISH_ACTION)
-            }
-
-            executePendingActions()
-            cleanup()
-        }, [onChangeStatus, onGenerate])
 
         return (
             <Box sx={{flexGrow: 2, flexShrink: 0}}>

@@ -190,8 +190,18 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
      * Specific Handler for "Start Voting" Button:
      * Incorporates re-authentication logic for actions that require Gold-level permissions.
      */
-    const handleChangeVotingPeriod = (action: EPublishActions, status: ElectionEventStatus) => {
-        const actionText = t(`publish.action.startVotingPeriod`)
+    const handleChangeVotingPeriod = (
+        action: EPublishActions,
+        status: ElectionEventStatus,
+        voting_channels?: VotingStatusChannel[]
+    ) => {
+        const actionText =
+            action === EPublishActions.PENDING_START_VOTING
+                ? t(`publish.action.startVotingPeriod`)
+                : action === EPublishActions.PENDING_STOP_VOTING
+                ? t(`publish.action.stopVotingPeriod`)
+                : t(`publish.action.pauseVotingPeriod`)
+
         const dialogMessage = isGoldUser()
             ? action === EPublishActions.PENDING_START_VOTING
                 ? t("publish.dialog.startInfo")
@@ -208,7 +218,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                     reauthCallback(baseUrl, action)
                     await reauthWithGold(baseUrl.toString())
                 } else {
-                    onChangeStatus(status)
+                    onChangeStatus(status, voting_channels)
                 }
             } catch (error) {
                 console.error("Re-authentication failed:", error)
@@ -284,40 +294,35 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
             }
 
             let isGold = isGoldUser()
-            if (isGold) {
-                const pendingStart = sessionStorage.getItem(EPublishActions.PENDING_START_VOTING)
-                if (pendingStart) {
-                    onChangeStatus(ElectionEventStatus.Open)
-                }
 
-                const pendingPause = sessionStorage.getItem(EPublishActions.PENDING_PAUSE_VOTING)
-                if (pendingPause) {
-                    onChangeStatus(ElectionEventStatus.Paused)
-                }
+            const pendingStart = sessionStorage.getItem(EPublishActions.PENDING_START_VOTING)
+            if (pendingStart) {
+                isGold && onChangeStatus(ElectionEventStatus.Open)
+                sessionStorage.removeItem(EPublishActions.PENDING_START_VOTING)
+            }
 
-                const pendingStop = sessionStorage.getItem(EPublishActions.PENDING_STOP_VOTING)
-                if (pendingStop) {
-                    onChangeStatus(ElectionEventStatus.Closed, [VotingStatusChannel.Online])
-                }
+            const pendingPause = sessionStorage.getItem(EPublishActions.PENDING_PAUSE_VOTING)
+            if (pendingPause) {
+                isGold && onChangeStatus(ElectionEventStatus.Paused)
+                sessionStorage.removeItem(EPublishActions.PENDING_PAUSE_VOTING)
+            }
 
-                const pendingStopKiosk = sessionStorage.getItem(
-                    EPublishActions.PENDING_STOP_KIOSK_ACTION
-                )
-                if (pendingStopKiosk) {
-                    onChangeStatus(ElectionEventStatus.Closed, [VotingStatusChannel.Kiosk])
-                }
+            const pendingStop = sessionStorage.getItem(EPublishActions.PENDING_STOP_VOTING)
+            if (pendingStop) {
+                isGold && onChangeStatus(ElectionEventStatus.Closed, [VotingStatusChannel.Online])
+                sessionStorage.removeItem(EPublishActions.PENDING_STOP_VOTING)
+            }
+
+            const pendingStopKiosk = sessionStorage.getItem(
+                EPublishActions.PENDING_STOP_KIOSK_ACTION
+            )
+            if (pendingStopKiosk) {
+                isGold && onChangeStatus(ElectionEventStatus.Closed, [VotingStatusChannel.Kiosk])
+                sessionStorage.removeItem(EPublishActions.PENDING_STOP_KIOSK_ACTION)
             }
         }
 
-        const cleanup = () => {
-            sessionStorage.removeItem(EPublishActions.PENDING_START_VOTING)
-            sessionStorage.removeItem(EPublishActions.PENDING_PAUSE_VOTING)
-            sessionStorage.removeItem(EPublishActions.PENDING_STOP_VOTING)
-            sessionStorage.removeItem(EPublishActions.PENDING_STOP_KIOSK_ACTION)
-        }
-
         executePendingActions()
-        cleanup()
     }, [isGoldUser, onChangeStatus, onGenerate, record])
 
     const kioskVotingStarted = () => {
@@ -373,7 +378,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                 <StatusButton
                                     onClick={() =>
                                         handleChangeVotingPeriod(
-                                            EPublishActions.PENDING_START_VOTING,
+                                            EPublishActions.PENDING_PAUSE_VOTING,
                                             ElectionEventStatus.Paused
                                         )
                                     }
@@ -395,7 +400,8 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                     onClick={() =>
                                         handleChangeVotingPeriod(
                                             EPublishActions.PENDING_STOP_VOTING,
-                                            ElectionEventStatus.Closed
+                                            ElectionEventStatus.Closed,
+                                            [VotingStatusChannel.Online]
                                         )
                                     }
                                     label={t("publish.action.stopVotingPeriod")}
