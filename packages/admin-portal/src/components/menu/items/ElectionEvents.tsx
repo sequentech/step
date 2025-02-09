@@ -53,6 +53,7 @@ import {
 } from "@/queries/GetElectionEventsTree"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {sortCandidatesInContest, sortContestList, sortElectionList} from "@sequentech/ui-core"
+import { SettingsContext } from "@/providers/SettingsContextProvider"
 
 const MenuItem = styled(Menu.Item)`
     color: ${adminTheme.palette.brandColor};
@@ -232,6 +233,7 @@ export default function ElectionEvents() {
     const [electionId, setElectionId] = useState<string | null>("")
     const [contestId, setContestId] = useState<string | null>("")
     const [candidateId, setCandidateId] = useState<string | null>("")
+    const {globalSettings} = useContext(SettingsContext)
 
     const {getCandidateIdFlag} = useElectionEventTallyStore()
 
@@ -247,6 +249,7 @@ export default function ElectionEvents() {
                 onSuccess: (data) => {
                     setElectionEventId(data.id)
                 },
+                refetchInterval: false,
             }
         )
     const {refetch: refetchElectionData} = useGetOne<Sequent_Backend_Election>(
@@ -260,6 +263,7 @@ export default function ElectionEvents() {
                 setContestId("")
                 setCandidateId("")
             },
+            refetchInterval: false,
         }
     )
     const {refetch: refetchContestData} = useGetOne<Sequent_Backend_Contest>(
@@ -273,6 +277,7 @@ export default function ElectionEvents() {
                 setContestId(data.id)
                 setCandidateId("")
             },
+            refetchInterval: false,
         }
     )
     const {refetch: candidateData} = useGetOne<Sequent_Backend_Candidate>(
@@ -285,6 +290,7 @@ export default function ElectionEvents() {
                 setElectionEventId(data.election_event_id)
                 setCandidateId(data.id)
             },
+            refetchInterval: false,
         }
     )
     // Get subtrees

@@ -523,10 +523,9 @@ export function TreeMenu({
                 >
                     {t("sideMenu.archived")}
                 </MenuStyles.SideMenuArchiveItem>
-                {/* TODO: not working well
                 <MenuStyles.RefreshAction>
                     <RefreshIcon onClick={reloadTree} />
-                </MenuStyles.RefreshAction>*/}
+                </MenuStyles.RefreshAction>
             </MenuStyles.SideMenuContainer>
             <Box sx={{paddingY: 1}}>
                 {isEmpty ? (

@@ -12,14 +12,12 @@ import {SettingsContext} from "@/providers/SettingsContextProvider"
 
 export function useTreeMenuData(isArchivedElectionEvents: boolean) {
     const [tenantId] = useTenantStore()
-    const {globalSettings} = useContext(SettingsContext)
 
     return useQuery(FETCH_ELECTION_EVENTS_TREE, {
         variables: {
             tenantId: tenantId,
             isArchived: isArchivedElectionEvents,
         },
-        pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
     })
 }
 
