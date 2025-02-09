@@ -21,9 +21,7 @@ import {IPermissions} from "@/types/keycloak"
 import SvgIcon from "@mui/material/SvgIcon"
 import {EPublishActions} from "@/types/publishActions"
 
-import {useMutation} from "@apollo/client"
 import {VotingStatusChannel} from "@/gql/graphql"
-
 import {Sequent_Backend_Election} from "@/gql/graphql"
 import {
     EInitializeReportPolicy,
@@ -277,6 +275,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
     /**
      * Checks for any pending actions after the component mounts.
      * If a pending action is found, it executes the action and removes the flag.
+     * Except to publishe action, which is handled in the useEffect of the parent component.
      */
     useEffect(() => {
         const executePendingActions = async () => {
@@ -301,13 +300,6 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                     onChangeStatus(ElectionEventStatus.Closed, [VotingStatusChannel.Online])
                 }
 
-                const pendingPublish = sessionStorage.getItem(
-                    EPublishActions.PENDING_PUBLISH_ACTION
-                )
-                if (pendingPublish) {
-                    onGenerate()
-                }
-
                 const pendingStopKiosk = sessionStorage.getItem(
                     EPublishActions.PENDING_STOP_KIOSK_ACTION
                 )
@@ -321,13 +313,12 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
             sessionStorage.removeItem(EPublishActions.PENDING_START_VOTING)
             sessionStorage.removeItem(EPublishActions.PENDING_PAUSE_VOTING)
             sessionStorage.removeItem(EPublishActions.PENDING_STOP_VOTING)
-            sessionStorage.removeItem(EPublishActions.PENDING_PUBLISH_ACTION)
             sessionStorage.removeItem(EPublishActions.PENDING_STOP_KIOSK_ACTION)
         }
 
         executePendingActions()
         cleanup()
-    }, [onChangeStatus, onGenerate, record])
+    }, [isGoldUser, onChangeStatus, onGenerate, record])
 
     const kioskVotingStarted = () => {
         return (
