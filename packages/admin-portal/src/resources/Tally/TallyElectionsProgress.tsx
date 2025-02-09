@@ -38,7 +38,9 @@ export const TallyElectionsProgress: React.FC<TallyElectionsProgressProps> = ({
 
     const elections = useMemo(() => {
         return (
-            allElections?.filter((election) => (tally?.election_ids ?? []).includes(election)) ?? []
+            allElections?.filter((election) =>
+                (tally?.election_ids ?? []).includes(election?.id)
+            ) ?? []
         )
     }, [tally?.election_ids, allElections])
 
