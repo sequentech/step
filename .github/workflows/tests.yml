@@ -40,9 +40,10 @@ jobs:
           components: rustfmt
           override: true
 
-      - uses: awalsh128/cache-apt-pkgs-action@v1
-        with:
-          packages: protobuf-compiler libprotobuf-dev
+      - name: Install system dependencies
+        run: |
+            sudo apt-get update
+            sudo apt-get install -y protobuf-compiler libprotobuf-dev
 
       - name: Run tests
         env:
@@ -63,4 +64,4 @@ jobs:
           LOW_SQL_LIMIT: "1000"
           DEFAULT_SQL_LIMIT: "20"
           DEFAULT_SQL_BATCH_SIZE: "1000"
-        run: which protoc; cd packages/${{ matrix.service }} && cargo test ${{ matrix.extra }}
+        run: cd packages/${{ matrix.service }} && cargo test ${{ matrix.extra }}
