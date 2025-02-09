@@ -364,7 +364,7 @@ services:
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
     ports:
       - 3322:3322 # immudb service
-      - 3324:9497 # prometheus
+      - 3324:9497 # prometheus
       - 3325:8080 # web console
     volumes:
       - immudb_data:/var/lib/immudb
