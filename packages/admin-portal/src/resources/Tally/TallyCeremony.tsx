@@ -42,7 +42,13 @@ import {UPDATE_TALLY_CEREMONY} from "@/queries/UpdateTallyCeremony"
 import {CREATE_TALLY_CEREMONY} from "@/queries/CreateTallyCeremony"
 import {useMutation, useQuery} from "@apollo/client"
 import {ETallyType, ITallyExecutionStatus} from "@/types/ceremonies"
-import {EAllowTally, EInitializeReportPolicy, EInitReport, EVotingStatus} from "@sequentech/ui-core"
+import {
+    EAllowTally,
+    EInitializeReportPolicy,
+    EInitReport,
+    EVotingStatus,
+    isArray,
+} from "@sequentech/ui-core"
 
 import {
     CreateTallyCeremonyMutation,
@@ -58,6 +64,7 @@ import {
     Sequent_Backend_Tally_Session_Execution,
     UpdateTallyCeremonyMutation,
     ListKeysCeremonyQuery,
+    Sequent_Backend_Contest,
 } from "@/gql/graphql"
 import {CancelButton, NextButton} from "./styles"
 import {statusColor} from "./constants"
@@ -136,23 +143,7 @@ export const TallyCeremony: React.FC = () => {
     const [UpdateTallyCeremonyMutation] =
         useMutation<UpdateTallyCeremonyMutation>(UPDATE_TALLY_CEREMONY)
 
-    const tallyData = useAtomValue(tallyQueryData)
-
     const {canExportCeremony, showTallyBackButton} = useKeysPermissions()
-
-    // TODO: fix the "perPage 9999"
-    const {data: elections} = useGetList<Sequent_Backend_Election>("sequent_backend_election", {
-        pagination: {page: 1, perPage: 9999},
-        filter: {election_event_id: record?.id, tenant_id: tenantId},
-    })
-
-    const area: Sequent_Backend_Area | null = useMemo(
-        () =>
-            tallyData?.sequent_backend_area?.find(
-                (area) => selectedTallySessionData?.area_id === area.id
-            ) ?? null,
-        [selectedTallySessionData?.area_id, tallyData?.sequent_backend_area]
-    )
 
     const [expandedData, setExpandedData] = useState<IExpanded>({
         "tally-data-progress": true,
@@ -188,6 +179,7 @@ export const TallyCeremony: React.FC = () => {
             refetchOnMount: false,
         }
     )
+
     const {data: keysCeremonies} = useQuery<ListKeysCeremonyQuery>(LIST_KEYS_CEREMONY, {
         variables: {
             tenantId: tenantId,
@@ -198,6 +190,37 @@ export const TallyCeremony: React.FC = () => {
                 "x-hasura-role": isTrustee
                     ? IPermissions.TRUSTEE_CEREMONY
                     : IPermissions.ADMIN_CEREMONY,
+            },
+        },
+    })
+
+    // TODO: fix the "perPage 9999"
+    const {data: elections} = useGetList<Sequent_Backend_Election>("sequent_backend_election", {
+        pagination: {page: 1, perPage: 9999},
+        filter: {
+            election_event_id: record?.id,
+            tenant_id: tenantId,
+            id: tallySession
+                ? {
+                      format: "hasura-raw-query",
+                      value: {
+                          _in: tallySession?.election_ids ?? [],
+                      },
+                  }
+                : undefined,
+        },
+    })
+
+    const {data: contests} = useGetList<Sequent_Backend_Contest>("sequent_backend_contest", {
+        pagination: {page: 1, perPage: 9999},
+        filter: {
+            election_event_id: record?.id,
+            tenant_id: tenantId,
+            election_id: {
+                format: "hasura-raw-query",
+                value: {
+                    _in: tallySession?.election_ids ?? [],
+                },
             },
         },
     })
@@ -663,11 +686,16 @@ export const TallyCeremony: React.FC = () => {
                         />
                     </TallyStyles.StyledHeader>
 
-                    {resultsEventId && record?.id ? (
+                    {resultsEventId &&
+                    record?.id &&
+                    isArray(contests) &&
+                    isArray(tallySession?.election_ids) ? (
                         <ResultsDataLoader
                             resultsEventId={resultsEventId}
                             electionEventId={record?.id}
                             isTallyCompleted={isTallyCompleted}
+                            contests={contests ?? []}
+                            electionIds={tallySession?.election_ids ?? []}
                         />
                     ) : null}
                     {page === WizardSteps.Start && (
@@ -687,6 +715,7 @@ export const TallyCeremony: React.FC = () => {
                                 disabled={isTallyElectionListDisabled}
                                 electionEventId={record?.id}
                                 keysCeremonyId={keysCeremonyId}
+                                tallySession={tallySession}
                             />
                             <FormControl fullWidth>
                                 <ElectionHeader
@@ -727,6 +756,7 @@ export const TallyCeremony: React.FC = () => {
                                 disabled={true}
                                 update={(elections) => setSelectedElections(elections)}
                                 keysCeremonyId={keysCeremonyId}
+                                tallySession={tallySession}
                             />
 
                             <TallyTrusteesList
