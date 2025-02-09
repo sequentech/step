@@ -319,6 +319,8 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
 
         const cleanup = () => {
             sessionStorage.removeItem(EPublishActions.PENDING_START_VOTING)
+            sessionStorage.removeItem(EPublishActions.PENDING_PAUSE_VOTING)
+            sessionStorage.removeItem(EPublishActions.PENDING_STOP_VOTING)
             sessionStorage.removeItem(EPublishActions.PENDING_PUBLISH_ACTION)
             sessionStorage.removeItem(EPublishActions.PENDING_STOP_KIOSK_ACTION)
         }
