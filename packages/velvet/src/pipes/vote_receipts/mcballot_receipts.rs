@@ -447,9 +447,17 @@ impl Pipe for MCBallotReceipts {
                         &area_id,
                     );
 
+                    let chunks: Vec<&[Bridge]> = if ballots.is_empty() {
+                        vec![&[] as &[Bridge]]
+                    } else {
+                        ballots.chunks(max_items_per_report).collect()
+                    };
+
                     let result: Result<(), Error> = pool.install(|| {
-                        ballots.par_chunks(1).enumerate().try_for_each(
-                            |(chunk_index, chunk)| {
+                        chunks
+                            .into_iter()
+                            .enumerate()
+                            .try_for_each(|(chunk_index, chunk)| {
                                 let (bytes_pdf, bytes_html) = self.print_vote_receipts(
                                     chunk,
                                     &area_contests.contests,
@@ -539,8 +547,7 @@ impl Pipe for MCBallotReceipts {
                                     .open(file)?;
                                 file.write_all(&bytes_html)?;
                                 Ok::<(), Error>(())
-                            },
-                        )?;
+                            })?;
 
                         // Write the CSV file of file names and hashes ONLY for `ballot` type
                         if (pipe_data.output_file.clone() == BALLOT_IMAGES_OUTPUT_FILE) {
