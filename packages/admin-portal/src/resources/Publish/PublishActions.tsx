@@ -283,9 +283,10 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
     }
 
     /**
-     * Checks for any pending actions after the component mounts.
-     * If a pending action is found, it executes the action and removes the flag.
-     * Except to publishe action, which is handled in the useEffect of the parent component.
+     * Checks for any pending actions after the component mounts. If a pending
+     * action is found, it executes the action and removes the flag. Except to
+     * publish action, which is handled in the useEffect of the parent
+     * component.
      */
     useEffect(() => {
         const executePendingActions = async () => {
