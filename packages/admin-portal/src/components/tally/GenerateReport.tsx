@@ -42,7 +42,6 @@ export const GenerateReport: React.FC<GenerateReportProps> = ({
     const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
 
     const onClick = async (e: React.MouseEvent<HTMLElement>) => {
-        console.log("aa onClick")
         e.preventDefault()
         e.stopPropagation()
         setDocumentId(null)
