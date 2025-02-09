@@ -6,11 +6,11 @@
 name = "mock_server"
 version = "0.1.0"
 edition = "2021"
-default-run = "default"
+default-run = "mock_server"
 
 
 [[bin]]
-name = "default"
+name = "mock_server"
 path = "src/main.rs"
 
 [dependencies]
