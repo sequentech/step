@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::users::{lookup_users, FilterOption, ListUsersFilter};
 use crate::postgres::application::get_permission_label_from_post;
+use crate::postgres::area::get_event_areas;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::services::celery_app::get_celery_app;
 use crate::services::providers::{email_sender::EmailSender, sms_sender::SmsSender};
@@ -102,8 +103,7 @@ pub async fn verify_application(
 
     // Uses applicant data to lookup possible users
     let users = lookup_users(hasura_transaction, keycloak_transaction, filter).await?;
-
-    debug!("Found users before verification: {:?}", users);
+    info!("Found users before verification: {:?}", users);
 
     // Finds an user from the list of found possible users
     let result = automatic_verification(users.clone(), &annotations, applicant_data)?;
@@ -125,14 +125,35 @@ pub async fn verify_application(
     };
 
     // Add a permission label only if the embassy matches the voter in db
-    let (permission_label, area_id) = if let Some(true) = result
+    let (permission_label, voter_area_id) = if let Some(true) = result
         .fields_match
         .as_ref()
         .and_then(|value| value.get("embassy"))
     {
         get_permission_label_from_applicant_data(hasura_transaction, applicant_data).await?
     } else {
-        (None, None)
+        //TODO: get area id from embassy
+        let area_name = applicant_data.get("country").and_then(|country| {
+            country.split('/').next().map(|country| country.to_lowercase())
+        }).ok_or(anyhow!("Error with applicant country"))?;
+        println!("***** Area name: {:?}", area_name);
+        let areas = get_event_areas(hasura_transaction, tenant_id, election_event_id).await?;
+        println!("***** Areas: {:?}", areas);
+        let area = areas
+            .iter()
+            .find(|area| {
+                area.name
+                    .as_ref()
+                    .map(|name| {
+                        println!("***** Area name1: {:?}", name);
+                        println!("***** Area name2: {:?}", area_name.clone());
+                        name.to_lowercase().contains(&area_name.clone())
+                    })
+                    .unwrap_or_default()
+            })
+            .ok_or(anyhow!("Error finding area"))?;
+        println!("***** Area: {:?}", area);
+        (None, Some(Uuid::parse_str(&area.id)?))
     };
 
     let mut final_applicant_data = applicant_data.clone();
@@ -142,7 +163,7 @@ pub async fn verify_application(
         hasura_transaction,
         tenant_id,
         election_event_id,
-        &area_id,
+        &voter_area_id,
         applicant_id,
         &final_applicant_data,
         labels,
@@ -342,6 +363,7 @@ fn automatic_verification(
     let mut mismatch_reason = None;
 
     for user in users {
+        println!("**** User to compare: {:?}", user);
         let (mismatches, mismatches_unset, fields_match, attributes_unset) = check_mismatches(
             &user,
             applicant_data,
@@ -411,6 +433,7 @@ fn automatic_verification(
                         manual_verify_reason: None,
                     });
                 }
+                println!("**** Hereee 1");
                 matched_user = None;
                 matched_status = ApplicationStatus::PENDING;
                 matched_type = ApplicationType::MANUAL;
@@ -421,6 +444,7 @@ fn automatic_verification(
                 rejection_message = None;
             }
         } else if mismatches == 2 && !fields_match.get("embassy").unwrap_or(&false) {
+            println!("**** Hereee 2");
             matched_user = None;
             matched_status = ApplicationStatus::PENDING;
             matched_type = ApplicationType::MANUAL;
@@ -433,6 +457,7 @@ fn automatic_verification(
             && !fields_match.get("middleName").unwrap_or(&false)
             && !fields_match.get("lastName").unwrap_or(&false)
         {
+            println!("**** Hereee 3");
             matched_user = None;
             matched_status = ApplicationStatus::PENDING;
             matched_type = ApplicationType::MANUAL;
@@ -442,6 +467,7 @@ fn automatic_verification(
             rejection_reason = Some(ApplicationRejectReason::NO_VOTER);
             rejection_message = None;
         } else if matched_status != ApplicationStatus::PENDING {
+            println!("**** Hereee 4");
             matched_user = None;
             matched_status = ApplicationStatus::REJECTED;
             matched_type = ApplicationType::AUTOMATIC;

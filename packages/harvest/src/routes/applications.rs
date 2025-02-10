@@ -106,6 +106,8 @@ pub async fn verify_user_application(
             )
         })?;
 
+        println!("******* input: {:?}", input);
+
     let result = verify_application(
         &hasura_transaction,
         &keycloak_transaction,
