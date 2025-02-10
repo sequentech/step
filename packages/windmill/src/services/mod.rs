@@ -29,6 +29,7 @@ pub mod export;
 pub mod folders;
 pub mod import;
 pub mod insert_cast_vote;
+pub mod join;
 pub mod jwks;
 pub mod keycloak;
 pub mod keycloak_events;

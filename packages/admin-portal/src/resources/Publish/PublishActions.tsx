@@ -21,9 +21,7 @@ import {IPermissions} from "@/types/keycloak"
 import SvgIcon from "@mui/material/SvgIcon"
 import {EPublishActions} from "@/types/publishActions"
 
-import {useMutation} from "@apollo/client"
 import {VotingStatusChannel} from "@/gql/graphql"
-
 import {Sequent_Backend_Election} from "@/gql/graphql"
 import {
     EInitializeReportPolicy,
@@ -32,7 +30,6 @@ import {
     IElectionPresentation,
     IElectionStatus,
 } from "@sequentech/ui-core"
-import {UPDATE_ELECTION_INITIALIZATION_REPORT} from "@/queries/UpdateElectionInitializationReport"
 import {usePublishPermissions} from "./usePublishPermissions"
 import PublishExport from "./PublishExport"
 
@@ -116,8 +113,6 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
         showPublishFilters,
     } = usePublishPermissions()
 
-    const [UpdateElectionInitializationReport] = useMutation(UPDATE_ELECTION_INITIALIZATION_REPORT)
-
     const StatusIcon = ({
         changingStatus,
         Icon,
@@ -172,53 +167,65 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
         </Button>
     )
 
-    /**
-     * General Handler for Events:
-     * Shows a confirmation dialog without involving re-authentication.
-     * Used by buttons that don't require Gold-level permissions.
-     */
-    const handleEvent = (callback: (status?: number) => void, dialogText: string) => {
+    const openDialog = (dialogText: string) => {
         setDialogText(dialogText)
         setShowDialog(true)
-        setCurrentCallback(() => callback)
+    }
+
+    // Handler for navigating after a re-authentication action.
+    let reauthCallback = (baseUrl: URL, action: EPublishActions) => {
+        if (publishType === EPublishType.Event) {
+            const electionEventPublishTabIndex = localStorage.getItem(
+                "electionEventPublishTabIndex"
+            )
+            baseUrl.searchParams.set("tabIndex", electionEventPublishTabIndex ?? "8")
+        } else {
+            const electionPublishTabIndex = localStorage.getItem("electionPublishTabIndex")
+            baseUrl.searchParams.set("tabIndex", electionPublishTabIndex ?? "4")
+        }
+        sessionStorage.setItem(action, "true")
     }
 
     /**
      * Specific Handler for "Start Voting" Button:
      * Incorporates re-authentication logic for actions that require Gold-level permissions.
      */
-    const handleStartVotingPeriod = () => {
-        const actionText = t(`publish.action.startVotingPeriod`)
-        const dialogMessage = isGoldUser()
-            ? t("publish.dialog.startInfo", {action: actionText})
-            : t("publish.dialog.confirmation", {action: actionText})
+    const handleChangeVotingPeriod = (
+        action: EPublishActions,
+        status: ElectionEventStatus,
+        voting_channels?: VotingStatusChannel[]
+    ) => {
+        const actionText =
+            action === EPublishActions.PENDING_START_VOTING
+                ? t(`publish.action.startVotingPeriod`)
+                : action === EPublishActions.PENDING_STOP_VOTING
+                ? t(`publish.action.stopVotingPeriod`)
+                : t(`publish.action.pauseVotingPeriod`)
 
-        setDialogText(dialogMessage)
-        setShowDialog(true)
+        const dialogMessage = isGoldUser()
+            ? action === EPublishActions.PENDING_START_VOTING
+                ? t("publish.dialog.startInfo")
+                : action === EPublishActions.PENDING_STOP_VOTING
+                ? t("publish.dialog.stopInfo")
+                : t("publish.dialog.pauseInfo")
+            : t("publish.dialog.confirmation", {action: actionText})
+        openDialog(dialogMessage)
+
         setCurrentCallback(() => async () => {
             try {
                 if (!isGoldUser()) {
                     const baseUrl = new URL(window.location.href)
-                    if (publishType === EPublishType.Event) {
-                        const electionEventPublishTabIndex = localStorage.getItem(
-                            "electionEventPublishTabIndex"
-                        )
-                        baseUrl.searchParams.set("tabIndex", electionEventPublishTabIndex ?? "8")
-                    } else {
-                        const electionPublishTabIndex =
-                            localStorage.getItem("electionPublishTabIndex")
-                        baseUrl.searchParams.set("tabIndex", electionPublishTabIndex ?? "4")
-                    }
-                    sessionStorage.setItem(EPublishActions.PENDING_START_VOTING, "true")
+                    reauthCallback(baseUrl, action)
                     await reauthWithGold(baseUrl.toString())
                 } else {
-                    onChangeStatus(ElectionEventStatus.Open)
+                    onChangeStatus(status, voting_channels)
                 }
             } catch (error) {
                 console.error("Re-authentication failed:", error)
             }
         })
     }
+
     /**
      * Specific Handler for "Stop Kiosk Voting" Button:
      * Incorporates re-authentication logic for actions that require Gold-level permissions.
@@ -228,27 +235,16 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
         const dialogMessage = isGoldUser()
             ? t("publish.dialog.kioskStopInfo", {action: actionText})
             : t("publish.dialog.confirmation", {action: actionText})
+        openDialog(dialogMessage)
 
-        setDialogText(dialogMessage)
-        setShowDialog(true)
         setCurrentCallback(() => async () => {
             try {
                 if (!isGoldUser()) {
                     const baseUrl = new URL(window.location.href)
-                    if (publishType === EPublishType.Event) {
-                        const electionEventPublishTabIndex = localStorage.getItem(
-                            "electionEventPublishTabIndex"
-                        )
-                        baseUrl.searchParams.set("tabIndex", electionEventPublishTabIndex ?? "8")
-                    } else {
-                        const electionPublishTabIndex =
-                            localStorage.getItem("electionPublishTabIndex")
-                        baseUrl.searchParams.set("tabIndex", electionPublishTabIndex ?? "4")
-                    }
-                    sessionStorage.setItem(EPublishActions.PENDING_STOP_KIOSK_ACTION, "true")
+                    reauthCallback(baseUrl, EPublishActions.PENDING_STOP_KIOSK_ACTION)
                     await reauthWithGold(baseUrl.toString())
                 } else {
-                    handleOnChange(ElectionEventStatus.Closed, [VotingStatusChannel.Kiosk])
+                    onChangeStatus(ElectionEventStatus.Closed, [VotingStatusChannel.Kiosk])
                 }
             } catch (error) {
                 console.error("Re-authentication failed:", error)
@@ -260,29 +256,20 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
      * Specific Handler for "Publish Changes" Button: Incorporates
      * re-authentication logic for actions that require Gold-level permissions.
      */
-    const handlePublish = () => {
+    const handlePublish = (is_generate: boolean) => {
+        const actionText = t(`publish.action.publish`)
         const dialogMessage = isGoldUser()
-            ? t("publish.dialog.publishInfo", {action: t("publish.action.publish")})
-            : t("publish.dialog.confirmation", {action: t("publish.action.publish")})
-        setDialogText(dialogMessage)
-        setShowDialog(true)
+            ? is_generate
+                ? t("publish.dialog.info")
+                : t("publish.dialog.publishInfo", {action: actionText})
+            : t("publish.dialog.confirmation", {action: actionText})
+        openDialog(dialogMessage)
 
         setCurrentCallback(() => async () => {
             try {
                 if (!isGoldUser()) {
                     const baseUrl = new URL(window.location.href)
-                    if (publishType === EPublishType.Event) {
-                        const electionEventPublishTabIndex = localStorage.getItem(
-                            "electionEventPublishTabIndex"
-                        )
-                        baseUrl.searchParams.set("tabIndex", electionEventPublishTabIndex ?? "8")
-                    } else {
-                        const electionPublishTabIndex =
-                            localStorage.getItem("electionPublishTabIndex")
-                        baseUrl.searchParams.set("tabIndex", electionPublishTabIndex ?? "4")
-                    }
-                    sessionStorage.setItem(EPublishActions.PENDING_PUBLISH_ACTION, "true")
-
+                    reauthCallback(baseUrl, EPublishActions.PENDING_PUBLISH_ACTION)
                     await reauthWithGold(baseUrl.toString())
                 } else {
                     onGenerate()
@@ -296,8 +283,10 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
     }
 
     /**
-     * Checks for any pending actions after the component mounts.
-     * If a pending action is found, it executes the action and removes the flag.
+     * Checks for any pending actions after the component mounts. If a pending
+     * action is found, it executes the action and removes the flag. Except to
+     * publish action, which is handled in the useEffect of the parent
+     * component.
      */
     useEffect(() => {
         const executePendingActions = async () => {
@@ -305,33 +294,37 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                 return
             }
 
+            let isGold = isGoldUser()
+
             const pendingStart = sessionStorage.getItem(EPublishActions.PENDING_START_VOTING)
             if (pendingStart) {
+                isGold && onChangeStatus(ElectionEventStatus.Open)
                 sessionStorage.removeItem(EPublishActions.PENDING_START_VOTING)
-                onChangeStatus(ElectionEventStatus.Open)
             }
 
-            const pendingPublish = sessionStorage.getItem(EPublishActions.PENDING_PUBLISH_ACTION)
-            if (pendingPublish) {
-                sessionStorage.removeItem(EPublishActions.PENDING_PUBLISH_ACTION)
-                onGenerate()
+            const pendingPause = sessionStorage.getItem(EPublishActions.PENDING_PAUSE_VOTING)
+            if (pendingPause) {
+                isGold && onChangeStatus(ElectionEventStatus.Paused)
+                sessionStorage.removeItem(EPublishActions.PENDING_PAUSE_VOTING)
+            }
+
+            const pendingStop = sessionStorage.getItem(EPublishActions.PENDING_STOP_VOTING)
+            if (pendingStop) {
+                isGold && onChangeStatus(ElectionEventStatus.Closed, [VotingStatusChannel.Online])
+                sessionStorage.removeItem(EPublishActions.PENDING_STOP_VOTING)
             }
 
             const pendingStopKiosk = sessionStorage.getItem(
                 EPublishActions.PENDING_STOP_KIOSK_ACTION
             )
             if (pendingStopKiosk) {
+                isGold && onChangeStatus(ElectionEventStatus.Closed, [VotingStatusChannel.Kiosk])
                 sessionStorage.removeItem(EPublishActions.PENDING_STOP_KIOSK_ACTION)
-                onChangeStatus(ElectionEventStatus.Closed, [VotingStatusChannel.Kiosk])
             }
         }
 
         executePendingActions()
-    }, [onChangeStatus, onGenerate, record])
-
-    const handleOnChange =
-        (status: ElectionEventStatus, votingChannel?: VotingStatusChannel[]) => () =>
-            onChangeStatus(status, votingChannel)
+    }, [isGoldUser, onChangeStatus, onGenerate, record])
 
     const kioskVotingStarted = () => {
         return (
@@ -360,7 +353,12 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                             {showPublishFilters ? <FilterButton /> : null}
                             {canChangeStatus && canPublishStartVoting && (
                                 <StatusButton
-                                    onClick={handleStartVotingPeriod}
+                                    onClick={() =>
+                                        handleChangeVotingPeriod(
+                                            EPublishActions.PENDING_START_VOTING,
+                                            ElectionEventStatus.Open
+                                        )
+                                    }
                                     label={t("publish.action.startVotingPeriod")}
                                     st={PublishStatus.Started}
                                     Icon={PlayCircle}
@@ -380,9 +378,9 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                             {canChangeStatus && canPublishPauseVoting && (
                                 <StatusButton
                                     onClick={() =>
-                                        handleEvent(
-                                            handleOnChange(ElectionEventStatus.Paused),
-                                            t("publish.dialog.pauseInfo")
+                                        handleChangeVotingPeriod(
+                                            EPublishActions.PENDING_PAUSE_VOTING,
+                                            ElectionEventStatus.Paused
                                         )
                                     }
                                     label={t("publish.action.pauseVotingPeriod")}
@@ -401,11 +399,10 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                             {canChangeStatus && canPublishStopVoting && (
                                 <StatusButton
                                     onClick={() =>
-                                        handleEvent(
-                                            handleOnChange(ElectionEventStatus.Closed, [
-                                                VotingStatusChannel.Online,
-                                            ]),
-                                            t("publish.dialog.stopInfo")
+                                        handleChangeVotingPeriod(
+                                            EPublishActions.PENDING_STOP_VOTING,
+                                            ElectionEventStatus.Closed,
+                                            [VotingStatusChannel.Online]
                                         )
                                     }
                                     label={t("publish.action.stopVotingPeriod")}
@@ -439,7 +436,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                             {canWrite && canPublishChanges && (
                                 <StatusButton
                                     Icon={Publish}
-                                    onClick={handlePublish}
+                                    onClick={() => handlePublish(false)}
                                     st={PublishStatus.Generated}
                                     label={t("publish.action.publish")}
                                     disabledStatus={[PublishStatus.Stopped]}
@@ -455,9 +452,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                         disabledStatus={[]}
                                         st={PublishStatus.Generated}
                                         label={t("publish.action.generate")}
-                                        onClick={() =>
-                                            handleEvent(onGenerate, t("publish.dialog.info"))
-                                        }
+                                        onClick={() => handlePublish(true)}
                                     />
                                 </div>
                             )}
