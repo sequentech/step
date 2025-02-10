@@ -355,8 +355,8 @@ fn generate_hashed_filename(
     hash_bytes: &[u8],
     area_id: &str,
     election_input: &InputElectionConfig,
-    from_ballot: &Bridge,
-    to_ballot: &Bridge,
+    from_ballot: Option<&Bridge>,
+    to_ballot: Option<&Bridge>,
 ) -> Result<PathBuf> {
     let path = path.as_path();
     let country_code = election_input
@@ -380,8 +380,16 @@ fn generate_hashed_filename(
         .get("clustered_precint_id")
         .map(|s| s.as_str())
         .unwrap_or("");
-    let from_ballot_id = from_ballot.mcballot.serial_number.as_deref().unwrap_or("");
-    let to_ballot_id = to_ballot.mcballot.serial_number.as_deref().unwrap_or("");
+
+    let from_ballot_id = match from_ballot {
+        Some(from_ballot) => from_ballot.mcballot.serial_number.as_deref().unwrap_or(""),
+        None => "000000000",
+    };
+    let to_ballot_id = match to_ballot {
+        Some(to_ballot) => to_ballot.mcballot.serial_number.as_deref().unwrap_or(""),
+        None => "000000000",
+    };
+
     let hash_hex = hex::encode(hash_bytes);
 
     let new_filename = format!(
@@ -447,9 +455,16 @@ impl Pipe for MCBallotReceipts {
                         &area_id,
                     );
 
+                    let chunks: Vec<&[Bridge]> = match ballots.is_empty() {
+                        true => vec![&[] as &[Bridge]],
+                        false => ballots.chunks(max_items_per_report).collect(),
+                    };
+
                     let result: Result<(), Error> = pool.install(|| {
-                        ballots.par_chunks(1).enumerate().try_for_each(
-                            |(chunk_index, chunk)| {
+                        chunks
+                            .into_iter()
+                            .enumerate()
+                            .try_for_each(|(chunk_index, chunk)| {
                                 let (bytes_pdf, bytes_html) = self.print_vote_receipts(
                                     chunk,
                                     &area_contests.contests,
@@ -471,18 +486,28 @@ impl Pipe for MCBallotReceipts {
                                         })?;
 
                                     let base_file_name = pipe_data.output_file.clone();
+                                    let from_ballot = match ballots.is_empty() {
+                                        true => None,
+                                        false => Some(chunk.first().ok_or(
+                                            Error::UnexpectedError("Can't get first chunk".into()),
+                                        )?),
+                                    };
+
+                                    let to_ballot = match ballots.is_empty() {
+                                        true => None,
+                                        false => Some(chunk.last().ok_or(
+                                            Error::UnexpectedError("Can't get last chunk".into()),
+                                        )?),
+                                    };
+
                                     let file = generate_hashed_filename(
                                         &path,
                                         &base_file_name.clone(),
                                         &pdf_hash,
                                         &area_id.to_string(),
                                         election_input,
-                                        chunk.first().ok_or(Error::UnexpectedError(
-                                            "Can't get first chunk".into(),
-                                        ))?,
-                                        chunk.last().ok_or(Error::UnexpectedError(
-                                            "Can't get last chunk".into(),
-                                        ))?,
+                                        from_ballot,
+                                        to_ballot,
                                     )
                                     .map_err(|e| {
                                         Error::UnexpectedError(format!(
@@ -539,8 +564,7 @@ impl Pipe for MCBallotReceipts {
                                     .open(file)?;
                                 file.write_all(&bytes_html)?;
                                 Ok::<(), Error>(())
-                            },
-                        )?;
+                            })?;
 
                         // Write the CSV file of file names and hashes ONLY for `ballot` type
                         if (pipe_data.output_file.clone() == BALLOT_IMAGES_OUTPUT_FILE) {
