@@ -10,6 +10,8 @@ use crate::hasura::tally_session_execution::{
 use crate::hasura::trustee::get_trustees_by_name;
 use crate::services::cast_votes::{find_area_ballots, CastVote};
 use crate::services::ceremonies::insert_ballots::get_last_tally_session_execution::GetLastTallySessionExecutionSequentBackendTallySessionContest;
+use crate::services::database::PgConfig;
+use crate::services::join::{count_unique_csv, merge_join_csv};
 use crate::services::protocol_manager::*;
 use crate::services::public_keys::deserialize_public_key;
 use crate::services::users::list_keycloak_enabled_users_by_area_id;
@@ -18,6 +20,7 @@ use b3::messages::message::Message;
 use b3::messages::newtypes::BatchNumber;
 use b3::messages::newtypes::TrusteeSet;
 use chrono::{DateTime, Utc};
+use csv::WriterBuilder;
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::{ContestEncryptionPolicy, ElectionPresentation, HashableBallot};
 use sequent_core::multi_ballot::HashableMultiBallot;
@@ -29,6 +32,7 @@ use std::collections::HashMap;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::elgamal::Ciphertext;
 use strand::signature::StrandSignaturePk;
+use tempfile::NamedTempFile;
 use tracing::{event, instrument, Level};
 
 #[instrument(skip_all, err)]
@@ -83,89 +87,140 @@ pub async fn insert_ballots_messages(
             tally_session_contest.area_id,
             tally_session_contest.session_id,
         );
-        let ballots_list = find_area_ballots(
-            &hasura_transaction,
-            &tenant_id,
-            &election_event_id,
-            &tally_session_contest.area_id,
-        )
-        .await?;
 
-        event!(Level::INFO, "ballots_list len: {:?}", ballots_list.len());
+        // Use find_area_ballots with pagination
+        let mut offset = 0;
+        let batch_size = PgConfig::from_env()?.default_sql_batch_size.into();
 
-        let users_map = list_keycloak_enabled_users_by_area_id(
-            keycloak_transaction,
-            &realm,
-            &tally_session_contest.area_id,
-        )
-        .await?;
+        // Create a temporary file (auto-deleted when dropped)
+        let ballots_temp_file = NamedTempFile::new().expect("Failed to create temp file");
+        event!(
+            Level::INFO,
+            "Creating temporary file for ballots with path {:?}",
+            ballots_temp_file.path()
+        );
+        let mut writer = WriterBuilder::new()
+            .has_headers(false)
+            .from_writer(&ballots_temp_file);
 
-        /*
-        let elections_end_dates =
-            get_elections_end_dates(auth_headers, tenant_id, election_event_id)
-                .await
-                .with_context(|| "error getting elections' end_date")?;
-        */
+        loop {
+            let ballots_list = find_area_ballots(
+                &hasura_transaction,
+                &tenant_id,
+                &election_event_id,
+                &tally_session_contest.area_id,
+                batch_size,
+                offset,
+            )
+            .await?;
 
-        let insertable_ballots: Vec<Ciphertext<RistrettoCtx>> = ballots_list
+            event!(Level::INFO, "ballots_list len: {:?}", ballots_list.len());
+
+            if ballots_list.is_empty() {
+                break;
+            }
+
+            for ballot in ballots_list {
+                writer.serialize(ballot).expect("Failed to write row");
+            }
+
+            writer.flush().expect("Failed to flush writer");
+
+            // Move to next batch
+            offset += batch_size;
+        }
+
+        let ballots_temp_file = ballots_temp_file.reopen()?;
+
+        // Use pagination and write the contents to a file
+
+        // Create a temporary file (auto-deleted when dropped)
+        let users_temp_file = NamedTempFile::new().expect("Failed to create temp file");
+        event!(
+            Level::INFO,
+            "Creating temporary file for users with path {:?}",
+            users_temp_file.path()
+        );
+        let mut writer = WriterBuilder::new()
+            .has_headers(false)
+            .from_writer(&users_temp_file);
+
+        // Reset offset
+        offset = 0;
+
+        loop {
+            let users_map = list_keycloak_enabled_users_by_area_id(
+                keycloak_transaction,
+                &realm,
+                &tally_session_contest.area_id,
+                batch_size,
+                offset,
+            )
+            .await?;
+
+            event!(Level::INFO, "users_map len: {:?}", users_map.len());
+
+            if users_map.is_empty() {
+                break;
+            }
+
+            for user in &users_map {
+                writer.serialize(user).expect("Failed to write row");
+            }
+
+            writer.flush().expect("Failed to flush writer");
+
+            // Move to next batch
+            offset += batch_size;
+        }
+
+        let users_temp_file = users_temp_file.reopen()?;
+
+        // Use a join function to filter and extract the ballot content
+        let ballots_output_index = 6;
+        let ballots_join_indexes = 7;
+        let ballot_election_id_index = 2;
+        let users_join_idexes = 0;
+
+        let ballots_list_content = merge_join_csv(
+            &ballots_temp_file,
+            &users_temp_file,
+            ballots_join_indexes,
+            users_join_idexes,
+            ballots_output_index,
+            ballot_election_id_index,
+            &tally_session_contest.election_id,
+        )?;
+
+        event!(
+            Level::INFO,
+            "ballots_list_content len: {:?}",
+            ballots_list_content.len()
+        );
+
+        let insertable_ballots: Vec<Ciphertext<RistrettoCtx>> = ballots_list_content
             .iter()
-            .filter(|ballot| {
-                let Some(voter_id) = ballot.voter_id_string.clone() else {
-                    return false;
-                };
+            .map(|ballot_str| -> Result<Option<Ciphertext<RistrettoCtx>>> {
+                if ContestEncryptionPolicy::MULTIPLE_CONTESTS == contest_encryption_policy {
+                    let hashable_multi_ballot: HashableMultiBallot = deserialize_str(&ballot_str)?;
 
-                let Some(election_id) = ballot.election_id.clone() else {
-                    return false;
-                };
-
-                if tally_session_contest.election_id != election_id {
-                    return false;
+                    let hashable_multi_ballot_contests = hashable_multi_ballot
+                        .deserialize_contests()
+                        .map_err(|err| anyhow!("{:?}", err))?;
+                    Ok(Some(hashable_multi_ballot_contests.ciphertext))
+                } else {
+                    let hashable_ballot: HashableBallot = deserialize_str(&ballot_str)?;
+                    let contests = hashable_ballot
+                        .deserialize_contests()
+                        .map_err(|err| anyhow!("{:?}", err))?;
+                    Ok(contests
+                        .iter()
+                        .find(|contest| {
+                            contest.contest_id
+                                == tally_session_contest.contest_id.clone().unwrap_or_default()
+                        })
+                        .map(|contest| contest.ciphertext.clone()))
                 }
-
-                let Some(ballot_created_at) = ballot.created_at else {
-                    return false;
-                };
-
-                /*let valid = match elections_end_dates.get(&election_id) {
-                    Some(Some(election_end_date)) => ballot_created_at <= *election_end_date,
-                    _ => true,
-                };*/
-                let valid = true;
-
-                users_map.contains(&voter_id) && valid
-            })
-            .map(|ballot| -> Result<Option<Ciphertext<RistrettoCtx>>> {
-                Ok(ballot
-                    .content
-                    .clone()
-                    .map(|ballot_str| -> Result<Option<Ciphertext<RistrettoCtx>>> {
-                        if ContestEncryptionPolicy::MULTIPLE_CONTESTS == contest_encryption_policy {
-                            let hashable_multi_ballot: HashableMultiBallot =
-                                deserialize_str(&ballot_str)?;
-
-                            let hashable_multi_ballot_contests = hashable_multi_ballot
-                                .deserialize_contests()
-                                .map_err(|err| anyhow!("{:?}", err))?;
-                            Ok(Some(hashable_multi_ballot_contests.ciphertext))
-                        } else {
-                            let hashable_ballot: HashableBallot = deserialize_str(&ballot_str)?;
-                            let contests = hashable_ballot
-                                .deserialize_contests()
-                                .map_err(|err| anyhow!("{:?}", err))?;
-                            Ok(contests
-                                .iter()
-                                .find(|contest| {
-                                    contest.contest_id
-                                        == tally_session_contest
-                                            .contest_id
-                                            .clone()
-                                            .unwrap_or_default()
-                                })
-                                .map(|contest| contest.ciphertext.clone()))
-                        }
-                    })
-                    .transpose()?
-                    .flatten())
             })
             .collect::<Result<Vec<_>>>()?
             .iter()
@@ -175,7 +230,7 @@ pub async fn insert_ballots_messages(
         event!(
             Level::INFO,
             "insertable_ballots len: {:?}",
-            ballots_list.len()
+            insertable_ballots.len()
         );
 
         let mut board = get_b3_pgsql_client().await?;
@@ -202,7 +257,7 @@ pub async fn get_elections_end_dates(
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<HashMap<String, Option<DateTime<Utc>>>> {
-    // TODO: use ballot publications instead?
+    // Use ballot publications instead?
     let elections_dates: HashMap<String, Option<DateTime<_>>> = get_all_elections_for_event(
         auth_headers.clone(),
         tenant_id.to_string(),
@@ -255,44 +310,110 @@ pub async fn count_auditable_ballots(
     );
 
     let realm = get_event_realm(tenant_id, election_event_id);
-    let ballots_list =
-        find_area_ballots(hasura_transaction, tenant_id, election_event_id, area_id).await?;
 
-    event!(Level::INFO, "ballots_list len: {:?}", ballots_list.len());
+    // Use find_area_ballots with pagination
+    let mut offset = 0;
+    let batch_size = PgConfig::from_env()?.default_sql_batch_size.into();
 
-    let users_map =
-        list_keycloak_enabled_users_by_area_id(keycloak_transaction, &realm, area_id).await?;
+    // Create a temporary file (auto-deleted when dropped)
+    let ballots_temp_file = NamedTempFile::new().expect("Failed to create temp file");
+    event!(
+        Level::INFO,
+        "Creating temporary file for ballots with path {:?}",
+        ballots_temp_file.path()
+    );
+    let mut writer = WriterBuilder::new()
+        .has_headers(false)
+        .from_writer(&ballots_temp_file);
 
-    /*
-    let elections_end_dates = get_elections_end_dates(auth_headers, tenant_id, election_event_id)
-        .await
-        .with_context(|| "error getting elections' end_date")?;
-    */
+    loop {
+        let ballots_list = find_area_ballots(
+            &hasura_transaction,
+            &tenant_id,
+            &election_event_id,
+            area_id,
+            batch_size,
+            offset,
+        )
+        .await?;
 
-    let auditable_ballots: Vec<&CastVote> = ballots_list
-        .iter()
-        .filter(|ballot| {
-            let Some(voter_id) = ballot.voter_id_string.clone() else {
-                return true;
-            };
+        event!(Level::INFO, "ballots_list len: {:?}", ballots_list.len());
 
-            let Some(election_id) = ballot.election_id.clone() else {
-                return true;
-            };
+        if ballots_list.is_empty() {
+            break;
+        }
 
-            let Some(ballot_created_at) = ballot.created_at else {
-                return true;
-            };
-            /*
-            let valid = match elections_end_dates.get(&election_id) {
-                Some(Some(election_end_date)) => ballot_created_at <= *election_end_date,
-                _ => true,
-            };
-            */
-            let valid: bool = true;
+        for ballot in ballots_list {
+            writer.serialize(ballot).expect("Failed to write row");
+        }
 
-            !users_map.contains(&voter_id) || !valid
-        })
-        .collect();
-    Ok(auditable_ballots.len())
+        writer.flush().expect("Failed to flush writer");
+
+        // Move to next batch
+        offset += batch_size;
+    }
+
+    let ballots_temp_file = ballots_temp_file.reopen()?;
+
+    // Use pagination and write the contents to a file
+
+    // Create a temporary file (auto-deleted when dropped)
+    let users_temp_file = NamedTempFile::new().expect("Failed to create temp file");
+    event!(
+        Level::INFO,
+        "Creating temporary file for users with path {:?}",
+        users_temp_file.path()
+    );
+    let mut writer = WriterBuilder::new()
+        .has_headers(false)
+        .from_writer(&users_temp_file);
+
+    // Reset offset
+    offset = 0;
+
+    loop {
+        let users_map = list_keycloak_enabled_users_by_area_id(
+            keycloak_transaction,
+            &realm,
+            &area_id,
+            batch_size,
+            offset,
+        )
+        .await?;
+
+        event!(Level::INFO, "users_map len: {:?}", users_map.len());
+
+        if users_map.is_empty() {
+            break;
+        }
+
+        for user in &users_map {
+            writer.serialize(user).expect("Failed to write row");
+        }
+
+        writer.flush().expect("Failed to flush writer");
+
+        // Move to next batch
+        offset += batch_size;
+    }
+
+    let users_temp_file = users_temp_file.reopen()?;
+
+    // Use a unique function to filter and extract the ballot content
+    let ballots_join_indexes = 7;
+    let ballot_election_id_index = 2;
+    let users_join_idexes = 0;
+
+    let count = count_unique_csv(
+        &ballots_temp_file,
+        &users_temp_file,
+        ballots_join_indexes,
+        users_join_idexes,
+        ballot_election_id_index,
+        election_id,
+    )?;
+
+    event!(Level::INFO, "auditable votes count: {:?}", count);
+
+    Ok(count)
 }
