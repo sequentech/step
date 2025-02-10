@@ -3,10 +3,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use super::{Vault, VaultManagerType};
-use crate::util::aws::get_from_env_aws_config;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use aws_sdk_secretsmanager::Client;
+use sequent_core::util::aws::get_from_env_aws_config;
 use std::env;
 use tracing::{info, instrument};
 

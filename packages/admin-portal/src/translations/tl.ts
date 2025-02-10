@@ -1291,6 +1291,7 @@ const tagalogTranslation: TranslationType = {
                     description:
                         "Ikaw ay malapit nang lumikha ng Seremonya ng Mga Susi. Ang aksyong ito ay magpapadala ng abiso sa mga Trustee upang lumahok sa paglikha at pamamahagi ng Mga Susi ng Kaganapan sa Halalan.",
                 },
+                filterTrustees: "I-filter ang mga trustee",
             },
             ceremonyStep: {
                 cancel: "Kanselahin ang Seremonya ng Mga Susi",
