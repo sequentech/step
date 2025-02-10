@@ -93,7 +93,8 @@ pub async fn insert_ballots_messages(
         let batch_size = PgConfig::from_env()?.default_sql_batch_size.into();
 
         // Create a temporary file (auto-deleted when dropped)
-        let ballots_temp_file = NamedTempFile::new().expect("Failed to create temp file");
+        let ballots_temp_file = NamedTempFile::new()
+            .map_err(|error| anyhow!("Failed to create temp file {}", error))?;
         event!(
             Level::INFO,
             "Creating temporary file for ballots with path {:?}",
@@ -121,10 +122,14 @@ pub async fn insert_ballots_messages(
             }
 
             for ballot in ballots_list {
-                writer.serialize(ballot).expect("Failed to write row");
+                writer
+                    .serialize(ballot)
+                    .map_err(|error| anyhow!("Failed to write row {}", error));
             }
 
-            writer.flush().expect("Failed to flush writer");
+            writer
+                .flush()
+                .map_err(|error| anyhow!("Failed to flush writer {}", error));
 
             // Move to next batch
             offset += batch_size;
@@ -135,7 +140,8 @@ pub async fn insert_ballots_messages(
         // Use pagination and write the contents to a file
 
         // Create a temporary file (auto-deleted when dropped)
-        let users_temp_file = NamedTempFile::new().expect("Failed to create temp file");
+        let users_temp_file = NamedTempFile::new()
+            .map_err(|error| anyhow!("Failed to create temp file: {}", error))?;
         event!(
             Level::INFO,
             "Creating temporary file for users with path {:?}",
@@ -165,10 +171,14 @@ pub async fn insert_ballots_messages(
             }
 
             for user in &users_map {
-                writer.serialize(user).expect("Failed to write row");
+                writer
+                    .serialize(user)
+                    .map_err(|error| anyhow!("Failed to write row: {}", error))?;
             }
 
-            writer.flush().expect("Failed to flush writer");
+            writer
+                .flush()
+                .map_err(|error| anyhow!("Failed to flush writer: {}", error))?;
 
             // Move to next batch
             offset += batch_size;
@@ -265,7 +275,7 @@ pub async fn get_elections_end_dates(
     )
     .await?
     .data
-    .expect("expected data")
+    .ok_or(anyhow!("Expected election dates to have data"))?
     .sequent_backend_election
     .into_iter()
     .map(|election| {
@@ -316,7 +326,8 @@ pub async fn count_auditable_ballots(
     let batch_size = PgConfig::from_env()?.default_sql_batch_size.into();
 
     // Create a temporary file (auto-deleted when dropped)
-    let ballots_temp_file = NamedTempFile::new().expect("Failed to create temp file");
+    let ballots_temp_file =
+        NamedTempFile::new().map_err(|error| anyhow!("Failed to create temp file {}", error))?;
     event!(
         Level::INFO,
         "Creating temporary file for ballots with path {:?}",
@@ -344,10 +355,14 @@ pub async fn count_auditable_ballots(
         }
 
         for ballot in ballots_list {
-            writer.serialize(ballot).expect("Failed to write row");
+            writer
+                .serialize(ballot)
+                .map_err(|error| anyhow!("Failed to write row: {}", error))?;
         }
 
-        writer.flush().expect("Failed to flush writer");
+        writer
+            .flush()
+            .map_err(|error| anyhow!("Failed to flush writer: {}", error))?;
 
         // Move to next batch
         offset += batch_size;
@@ -358,7 +373,8 @@ pub async fn count_auditable_ballots(
     // Use pagination and write the contents to a file
 
     // Create a temporary file (auto-deleted when dropped)
-    let users_temp_file = NamedTempFile::new().expect("Failed to create temp file");
+    let users_temp_file =
+        NamedTempFile::new().map_err(|error| anyhow!("Failed to create temp file: {}", error))?;
     event!(
         Level::INFO,
         "Creating temporary file for users with path {:?}",
@@ -388,10 +404,14 @@ pub async fn count_auditable_ballots(
         }
 
         for user in &users_map {
-            writer.serialize(user).expect("Failed to write row");
+            writer
+                .serialize(user)
+                .map_err(|error| anyhow!("Failed to write row: {}", error))?;
         }
 
-        writer.flush().expect("Failed to flush writer");
+        writer
+            .flush()
+            .map_err(|error| anyhow!("Failed to flush writer: {}", error))?;
 
         // Move to next batch
         offset += batch_size;
