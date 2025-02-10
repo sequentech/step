@@ -21,13 +21,13 @@ client => {
         client.url(testUrl)
         .waitForElementVisible('body', 1000)
 
-            .setValue(emailInput, `user${i}@gamil.com`)
+            .setValue(emailInput, `user${i}@gmail.com`)
             .setValue(passwordInput, 'User1234567!')
             .setValue(confirmPasswordInput, 'User1234567!')
 
             .click(validIdInput)
-            .waitForElementVisible(validIdInput + " option[value='Philippine Passport']", 2000)
-            .click(validIdInput + " option[value='Philippine Passport']")
+            .waitForElementVisible(validIdInput + " option[value='philippinePassport']", 2000)
+            .click(validIdInput + " option[value='philippinePassport']")
 
             .click(embassyInput)
             .waitForElementVisible(embassyInput + " option[value='Tokyo PE']", 2000)
@@ -40,7 +40,7 @@ client => {
             .click(submitButton)
 
         client.waitForElementVisible(otpContainer, 2000)
-        for (let i = 1; i <= otpLength; i++) {
+        for (let i = 1; i <= 6; i++) {
             client.setValue(`*[id='otp-${i}']`, otpCode.at(i - 1));
         }
         client.takeScreenshot(`otp.png`)
@@ -49,17 +49,13 @@ client => {
         client.waitForElementVisible(finishButton, 10000)
             .takeScreenshot(`finisht_screen${i}.png`)
             .click(finishButton)
+            .pause(500)
+            .perform(() => {
+                console.log(`Completed iteration #${i}`);
+                enroll(i + 1);
+            })
     }
 
     enroll(1);
-
-    //   for(let i=1; i<=enrollmentsCount; i++) {
-    //         try {
-    //             console.log(`test ${i}`)
-    //              enroll(i);
-    //         } catch (error) {
-    //             console.log(`Error ${error}\n`);
-    //         }
-    //   }
 
 }
