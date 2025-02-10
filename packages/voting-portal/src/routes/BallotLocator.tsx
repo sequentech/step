@@ -14,7 +14,7 @@ import {
     Dialog,
 } from "@sequentech/ui-essentials"
 import {stringToHtml} from "@sequentech/ui-core"
-import {Box, TextField, Typography, Button} from "@mui/material"
+import {Box, TextField, Typography, Button, Stack} from "@mui/material"
 import {styled} from "@mui/material/styles"
 import {Link, useLocation, useNavigate, useParams} from "react-router-dom"
 import {GET_CAST_VOTE} from "../queries/GetCastVote"
@@ -85,6 +85,12 @@ function isHex(str: string) {
     return regex.test(str)
 }
 
+const StyledApp = styled(Stack)<{css: string}>`
+    min-height: 100vh;
+    min-width: 100vw;
+    ${({css}) => css}
+`
+
 const BallotLocator: React.FC = () => {
     const {tenantId, eventId, electionId, ballotId} = useParams()
     const [openTitleHelp, setOpenTitleHelp] = useState<boolean>(false)
@@ -96,8 +102,11 @@ const BallotLocator: React.FC = () => {
 
     const hasBallotId = !!ballotId
     const {data: dataBallotStyles} = useQuery<GetBallotStylesQuery>(GET_BALLOT_STYLES)
+    console.log("aa dataBallotStyles", dataBallotStyles)
+
     const dispatch = useAppDispatch()
     const ballotStyle = useAppSelector(selectFirstBallotStyle)
+    console.log("aa ballotStyle", ballotStyle)
     useLanguage({ballotStyle})
 
     const {data, loading} = useQuery<GetCastVoteQuery>(GET_CAST_VOTE, {
@@ -139,7 +148,7 @@ const BallotLocator: React.FC = () => {
     }
 
     return (
-        <>
+        <StyledApp css={ballotStyle?.ballot_eml.election_event_presentation?.css ?? ""}>
             <PageLimit maxWidth="lg" className="ballot-locator-screen screen">
                 <Box marginTop="48px">
                     <BreadCrumbSteps
@@ -249,7 +258,7 @@ const BallotLocator: React.FC = () => {
                     </>
                 )}
             </PageLimit>
-        </>
+        </StyledApp>
     )
 }
 
