@@ -545,7 +545,20 @@ pub async fn replace_voter_pin(
     let pin = datafix_annotations
         .password_policy
         .generate_password(&username);
+    let password = Some(pin.clone());
 
+    let _user = client
+        .edit_user(
+            &realm, &user_id, None, // Enable/disable
+            None, // attributes
+            None, None, None, None, password, None,
+        )
+        .await
+        .map_err(|e| {
+            error!("Error creating user: {e:?}");
+            DatafixResponse::new(Status::InternalServerError)
+        })?;
     // TODO: insert credentials in the DB
+    // client.
     Ok(pin)
 }
