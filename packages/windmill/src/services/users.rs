@@ -203,7 +203,7 @@ impl FilterOption {
                 format!(
                     r#"(normalize_text({col_name}) = normalize_text(${param_number})){operator} "#,
                 ),
-                Some(format!("%{}%", pattern)),
+                Some(format!("{}", pattern)),
             ),
 
             Self::IsNotLike(pattern) => (
