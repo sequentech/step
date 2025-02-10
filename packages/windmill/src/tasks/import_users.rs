@@ -10,7 +10,6 @@ use crate::services::tasks_execution::*;
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context};
 use celery::error::TaskError;
-use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
 use deadpool_postgres::{Client as DbClient, Transaction as _};
 use sequent_core::services::keycloak::get_client_credentials;
