@@ -7,9 +7,10 @@ use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use sequent_core::serialization::base64::Base64Deserialize;
 use sequent_core::services::pdf::PrintToPdfOptions;
 use sequent_core::util::aws::{
-    get_fetch_expiration_secs, get_s3_aws_config, get_upload_expiration_secs,
+    get_fetch_expiration_secs, get_region, get_s3_aws_config, get_upload_expiration_secs,
 };
 use serde::{Deserialize, Serialize};
+use tokio::task;
 
 mod io;
 mod openwhisk;
@@ -37,7 +38,12 @@ cfg_if::cfg_if! {
             let Some(ref bucket) = input.bucket else { return Err("no bucket provided in the lambda input to upload rendered PDF to".to_string()) };
             let Some(ref result_path) = input.result_path else { return Err("missing result_path in bucket for PDF".to_string()) };
 
-            let pdf = pdf::render_pdf(input.clone())?;
+            let input = input.clone();
+            let pdf = task::spawn_blocking(move || {
+                pdf::render_pdf(input.clone())
+                    .map_err(|err| format!("could not render PDF due to error: {:?}", err))
+            }).await.map_err(|err| format!("could not start render_pdf action due to error: {:?}", err))??;
+
             if let Some(pdf) = pdf.pdf {
                 s3::upload_data_to_s3(
                     pdf.into(),
