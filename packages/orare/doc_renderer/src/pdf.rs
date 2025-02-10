@@ -4,9 +4,9 @@
 
 use crate::io::{Input, Output};
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
-use sequent_core::services::pdf::PrintToPdfOptions;
 use sequent_core::services::s3;
 use sequent_core::util::aws::get_region;
+use sequent_core::{services::pdf::PrintToPdfOptions, util::convert_vec::IntoVec};
 use tokio::runtime::Runtime;
 use tracing::{info, instrument};
 
@@ -43,10 +43,24 @@ pub fn render_pdf(input: Input) -> Result<Output, String> {
         let rt =
             Runtime::new().map_err(|err| format!("error creating Tokio runtime: {:?}", err))?;
 
-        let uri = uri(&input)?;
+        let bucket = input
+            .bucket
+            .clone()
+            .ok_or_else(|| format!("missing bucket"))?;
+        let html_path = input
+            .html_path
+            .clone()
+            .ok_or_else(|| format!("missing html_path"))?;
 
-        rt.block_on(async { s3::download_s3_file_to_string(&uri).await })
-            .map_err(|err| format!("error downloading HTML to render from s3: {:?}", err))?
+        let uri = uri(&input)?;
+        rt.block_on(async {
+            String::from_utf8(
+                s3::get_file_from_s3(bucket, html_path)
+                    .await
+                    .expect("could not retrieve file from S3"),
+            )
+        })
+        .map_err(|err| format!("error downloading HTML to render from s3: {:?}", err))?
     } else {
         return Err(format!("no html or html_path were provided"));
     };

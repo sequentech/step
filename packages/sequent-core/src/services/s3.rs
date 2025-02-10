@@ -349,6 +349,35 @@ pub async fn delete_files_from_s3(
 }
 
 #[instrument(err)]
+pub async fn get_file_from_s3(
+    s3_bucket: String,
+    path: String,
+) -> Result<Vec<u8>> {
+    let config = get_s3_aws_config(true)
+        .await
+        .with_context(|| "Error getting s3 aws config")?;
+    let client = get_s3_client(config.clone())
+        .await
+        .with_context(|| "Error getting s3 client")?;
+
+    let mut object = client
+        .get_object()
+        .bucket(s3_bucket.clone())
+        .key(path)
+        .send()
+        .await?;
+
+    let mut result: Vec<u8> = Vec::new();
+    while let Some(bytes) = object.body.try_next().await.map_err(|err| {
+        anyhow!("Failed to read from S3 download stream: {err:?}")
+    })? {
+        result.extend(&bytes);
+    }
+
+    Ok(result)
+}
+
+#[instrument(err)]
 pub async fn get_files_from_s3(
     s3_bucket: String,
     prefix: String,
