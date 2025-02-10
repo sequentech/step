@@ -40,11 +40,11 @@ pub fn merge_join_csv(
         let rec1 = rec1_opt
             .as_ref()
             .and_then(|res| res.as_ref().ok())
-            .expect("Could not unwrap record");
+            .ok_or(anyhow!("Could not unwrap record"))?;
         let rec2 = rec2_opt
             .as_ref()
             .and_then(|res| res.as_ref().ok())
-            .expect("Could not unwrap record");
+            .ok_or(anyhow!("Could not unwrap record"))?;
 
         // Extract the join keys.
         let Some(key1) = rec1.get(file1_join_index) else {
@@ -131,11 +131,11 @@ pub fn count_unique_csv(
         let rec1 = rec1_opt
             .as_ref()
             .and_then(|res| res.as_ref().ok())
-            .expect("Could not unwrap record");
+            .ok_or(anyhow!("Could not unwrap record"))?;
         let rec2 = rec2_opt
             .as_ref()
             .and_then(|res| res.as_ref().ok())
-            .expect("Could not unwrap record");
+            .ok_or(anyhow!("Could not unwrap record"))?;
 
         // Extract the join keys.
         let Some(key1) = rec1.get(file1_join_index) else {
