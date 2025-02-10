@@ -1618,7 +1618,7 @@
             "deprecationReason": null
           },
           {
-            "name": "total_not_opened_votes",
+            "name": "total_not_open_votes",
             "description": null,
             "args": [],
             "type": {
@@ -1631,6 +1631,18 @@
           },
           {
             "name": "total_not_start_counting_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_not_started_votes",
             "description": null,
             "args": [],
             "type": {
@@ -1655,6 +1667,18 @@
           },
           {
             "name": "total_start_counting_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_started_votes",
             "description": null,
             "args": [],
             "type": {

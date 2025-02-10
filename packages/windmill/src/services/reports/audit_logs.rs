@@ -17,16 +17,18 @@ use crate::services::electoral_log::{
     list_electoral_log, ElectoralLogRow, GetElectoralLogBody, IMMUDB_ROWS_LIMIT,
 };
 
+use crate::postgres::reports::ReportType;
 use crate::services::temp_path::*;
 use crate::services::users::{list_users, ListUsersFilter};
 use crate::types::resources::{Aggregate, DataList, TotalAggregate};
-use crate::{postgres::reports::ReportType, services::s3::get_minio_url};
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use chrono::{DateTime, Local};
 use deadpool_postgres::Transaction;
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
+use sequent_core::services::s3::get_minio_url;
+use sequent_core::signatures::temp_path::*;
 use sequent_core::types::{hasura::core::Election, scheduled_event::generate_voting_period_dates};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
@@ -469,16 +471,25 @@ impl TemplateRenderer for AuditLogsTemplate {
         &self,
         rendered_user_template: String,
     ) -> Result<Self::SystemData> {
-        let public_asset_path = get_public_assets_path_env_var()?;
-        let minio_endpoint_base =
-            get_minio_url().with_context(|| "Error getting minio endpoint")?;
+        if std::env::var_os("DOC_RENDERER_BACKEND") == Some("inplace".into()) {
+            let public_asset_path = get_public_assets_path_env_var()?;
+            let minio_endpoint_base =
+                get_minio_url().with_context(|| "Error getting minio endpoint")?;
 
-        Ok(SystemData {
-            rendered_user_template,
-            file_qrcode_lib: format!(
-                "{}/{}/{}",
-                minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_QRCODE_LIB
-            ),
-        })
+            Ok(SystemData {
+                rendered_user_template,
+                file_qrcode_lib: format!(
+                    "{}/{}/{}",
+                    minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_QRCODE_LIB
+                ),
+            })
+        } else {
+            // If we are rendering with a lambda, the QRCode lib is
+            // already included in the lambda container image.
+            Ok(SystemData {
+                rendered_user_template,
+                file_qrcode_lib: "/assets/qrcode.min.js".to_string(),
+            })
+        }
     }
 }

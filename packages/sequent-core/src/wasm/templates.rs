@@ -97,6 +97,7 @@ extern "C" {
 const IEXTRA_CONFIG: &'static str = r#"
 interface IExtraConfig {
     pdf_options: string;
+    report_options: string;
     communication_templates: ICommTemplates;
 }
 "#;

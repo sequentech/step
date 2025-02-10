@@ -1295,6 +1295,7 @@ const frenchTranslation: TranslationType = {
                     description:
                         "Vous êtes sur le point de Créer une Cérémonie de Clés. Cette action notifiera aux Autorités de participer à la création et distribution des Clés de l'Événement Électoral.",
                 },
+                filterTrustees: "Filtre des Autorités",
             },
             ceremonyStep: {
                 cancel: "Annuler la Cérémonie de Clés",
@@ -1793,6 +1794,7 @@ const frenchTranslation: TranslationType = {
                 smsMessage: "Message SMS",
                 document: "Document",
                 pdfOptions: "Options PDF",
+                reportOptions: "Options de Rapport",
                 name: "Nom du Modèle",
                 alias: "Alias du Modèle",
                 type: "Type",

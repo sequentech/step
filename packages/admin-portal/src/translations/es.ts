@@ -1284,6 +1284,7 @@ const spanishTranslation: TranslationType = {
                     description:
                         "Estás a punto de Crear una Ceremonia de Claves. Esta acción notificará a las Autoridades para participar en la creación y distribución de las Claves del Evento Electoral.",
                 },
+                filterTrustees: "Filtrar Autoridades",
             },
             ceremonyStep: {
                 cancel: "Cancelar Ceremonia de Claves",
@@ -1785,6 +1786,7 @@ const spanishTranslation: TranslationType = {
                 alias: "Alias de la Plantilla",
                 type: "Tipo",
                 communicationMethod: "Método",
+                reportOptions: "Opciones de Informe",
             },
             type: {
                 CREDENTIALS: "Credenciales",

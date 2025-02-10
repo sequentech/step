@@ -223,10 +223,12 @@ export type ElectionEventStatsMonitoringOutput = {
     total_not_closed_votes?: Maybe<Scalars["Int"]["output"]>
     total_not_genereated_tally?: Maybe<Scalars["Int"]["output"]>
     total_not_initialize?: Maybe<Scalars["Int"]["output"]>
-    total_not_opened_votes?: Maybe<Scalars["Int"]["output"]>
+    total_not_open_votes?: Maybe<Scalars["Int"]["output"]>
     total_not_start_counting_votes?: Maybe<Scalars["Int"]["output"]>
+    total_not_started_votes?: Maybe<Scalars["Int"]["output"]>
     total_open_votes?: Maybe<Scalars["Int"]["output"]>
     total_start_counting_votes?: Maybe<Scalars["Int"]["output"]>
+    total_started_votes?: Maybe<Scalars["Int"]["output"]>
     transmission_stats?: Maybe<MonitoringTransmissionStatus>
     voting_stats?: Maybe<MonitoringVotingSatus>
 }

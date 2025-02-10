@@ -154,6 +154,7 @@ pub async fn update_application_status(
     election_event_id: &str,
     applicant_id: &str,
     status: ApplicationStatus,
+    verification_type: ApplicationType,
     rejection_reason: Option<String>,
     rejection_message: Option<String>,
     admin_name: &str,
@@ -166,12 +167,13 @@ pub async fn update_application_status(
         SET
             status = $1,
             applicant_id = $2,
+            verification_type = $3,
             updated_at = NOW(),
             annotations = {}
         WHERE
-            id = $3 AND
-            tenant_id = $4 AND
-            election_event_id = $5
+            id = $4 AND
+            tenant_id = $5 AND
+            election_event_id = $6
         RETURNING *;
     "#;
     // Serialize group names to JSON string
@@ -181,22 +183,22 @@ pub async fn update_application_status(
     let annotations_update = {
         let mut update = "COALESCE(annotations, '{}'::jsonb)".to_string();
         update = format!(
-            "jsonb_set({}, '{{verified_by}}', to_jsonb($6::text), true)",
+            "jsonb_set({}, '{{verified_by}}', to_jsonb($7::text), true)",
             update
         );
         update = format!(
-            "jsonb_set({}, '{{verified_by_role}}', to_jsonb($7::text), true)",
+            "jsonb_set({}, '{{verified_by_role}}', to_jsonb($8::text), true)",
             update
         );
         if rejection_reason.is_some() {
             update = format!(
-                "jsonb_set({}, '{{rejection_reason}}', to_jsonb($8::text), true)",
+                "jsonb_set({}, '{{rejection_reason}}', to_jsonb($9::text), true)",
                 update
             );
         }
         if rejection_message.is_some() {
             update = format!(
-                "jsonb_set({}, '{{rejection_message}}', to_jsonb($9::text), true)",
+                "jsonb_set({}, '{{rejection_message}}', to_jsonb($10::text), true)",
                 update
             );
         }
@@ -214,6 +216,7 @@ pub async fn update_application_status(
 
     // Parse UUIDs
     let status_str = status.to_string();
+    let verification_type_str = verification_type.to_string();
     let parsed_id = Uuid::parse_str(id)?;
     let parsed_tenant_id = Uuid::parse_str(tenant_id)?;
     let parsed_election_event_id = Uuid::parse_str(election_event_id)?;
@@ -222,6 +225,7 @@ pub async fn update_application_status(
     let mut params: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = vec![
         &status_str,
         &applicant_id,
+        &verification_type_str,
         &parsed_id,
         &parsed_tenant_id,
         &parsed_election_event_id,

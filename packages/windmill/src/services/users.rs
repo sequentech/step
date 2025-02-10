@@ -99,12 +99,15 @@ async fn get_area_ids(
     Ok((Some(area_ids), area_ids_join_clause, area_ids_where_clause))
 }
 
+// TODO Paginate users
 #[instrument(skip(keycloak_transaction), err)]
 pub async fn list_keycloak_enabled_users_by_area_id(
     keycloak_transaction: &Transaction<'_>,
     realm: &str,
     area_id: &str,
-) -> Result<HashSet<String>> {
+    limit: i64,
+    offset: i64,
+) -> Result<Vec<String>> {
     let statement = keycloak_transaction
         .prepare(
             format!(
@@ -128,20 +131,24 @@ pub async fn list_keycloak_enabled_users_by_area_id(
                 area_attr.value = $3
             )
         GROUP BY
-            u.id;
+            u.id
+        ORDER BY
+            u.id
+        LIMIT $4 OFFSET $5;
     "#
             )
             .as_str(),
         )
         .await?;
-    let params: Vec<&(dyn ToSql + Sync)> = vec![&realm, &AREA_ID_ATTR_NAME, &area_id];
+    let params: Vec<&(dyn ToSql + Sync)> =
+        vec![&realm, &AREA_ID_ATTR_NAME, &area_id, &limit, &offset];
     let rows: Vec<Row> = keycloak_transaction
         .query(&statement, &params.as_slice())
         .await
         .map_err(|err| anyhow!("{}", err))?;
 
     let found_user_ids: Vec<String> = rows.into_iter().map(|row| row.get("id")).collect();
-    Ok(found_user_ids.into_iter().collect())
+    Ok(found_user_ids)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, EnumString, Display)]
@@ -156,6 +163,8 @@ pub enum FilterOption {
     IsEqual(String),
     /// Those elements that do not match precisely the string are returned.
     IsNotEqual(String),
+    /// Equals but uses a generated normalized column and compares to normalized text.
+    IsEqualNormalized(String),
     /// When it is true, those elements that are null or empty are returned. When it is false they are discarded.
     IsEmpty(bool),
     /// Option not valid or set to null instead of an object, then it should not filter anything, display all.
@@ -191,6 +200,13 @@ impl FilterOption {
                     Some(format!("%{}%", pattern)),
                 )
             }
+            Self::IsEqualNormalized(pattern) => (
+                format!(
+                    r#"(normalize_text({col_name}) = normalize_text(${param_number})){operator} "#,
+                ),
+                Some(format!("%{}%", pattern)),
+            ),
+
             Self::IsNotLike(pattern) => (
                 format!(
                     r#"({col_name} IS NULL OR {col_name} NOT ILIKE ${param_number}){operator} "#,
@@ -277,6 +293,13 @@ impl<'de> Deserialize<'de> for FilterOption {
                 })?)
             }
             FilterOption::IsNotEqual(_) => {
+                FilterOption::IsNotEqual(deserialize_value(pattern_val.clone()).map_err(|e| {
+                    serde::de::Error::custom(format!(
+                        "Error parsing String value {pattern_val:?} for pattern: {e:?}"
+                    ))
+                })?)
+            }
+            FilterOption::IsEqualNormalized(_) => {
                 FilterOption::IsNotEqual(deserialize_value(pattern_val.clone()).map_err(|e| {
                     serde::de::Error::custom(format!(
                         "Error parsing String value {pattern_val:?} for pattern: {e:?}"
@@ -727,8 +750,8 @@ pub async fn lookup_users(
     let query_limit: i64 =
         std::cmp::min(low_sql_limit, filter.limit.unwrap_or(default_sql_limit)).into();
 
-    let mut params: Vec<&(dyn ToSql + Sync)> = vec![&filter.realm];
-    let mut next_param_number = 2;
+    let mut params: Vec<&(dyn ToSql + Sync)> = vec![&filter.realm, &query_limit];
+    let mut next_param_number = 3;
 
     let mut filters_clause = "".to_string();
     let mut filter_params: Vec<String> = vec![];
@@ -742,7 +765,17 @@ pub async fn lookup_users(
         match filter_option {
             Some(filter_obj) => {
                 let (clause, param) =
-                    filter_obj.get_sql_filter_clause(col_name, next_param_number, "::int +");
+                    filter_obj.get_sql_filter_clause(col_name, next_param_number, "");
+                let clause = format!(
+                    r#"
+                    SELECT
+                        ue.id, "{col_name}"
+                    FROM user_entity ue
+                    WHERE
+                        {clause}
+                    UNION ALL
+                    "#
+                );
                 filters_clause.push_str(&clause);
                 if let Some(param) = param {
                     next_param_number += 1;
@@ -760,16 +793,15 @@ pub async fn lookup_users(
 
     let mut dynamic_attr_conditions: Vec<String> = Vec::new();
     let mut dynamic_attr_params: Vec<Option<String>> = vec![];
+
     if let Some(attributes) = &filter.attributes {
         for (key, value) in attributes {
             dynamic_attr_conditions.push(format!(
-                // r#"(ua.name = ${} AND UNACCENT(ua.value) ILIKE ${})::int"#,
-                r#"(ua.name = ${} AND UNACCENT(ua.value) ILIKE ${})"#,
+                r#"(ua.name = ${} AND normalize_text(ua.value) = normalize_text(${}))"#,
                 next_param_number,
                 next_param_number + 1
             ));
-            let value = value.replace(" ", "_"); // replace blanks by single wildcards to detect hyphens
-            let val = Some(format!("%{value}%"));
+            let val = Some(value.to_string());
             let formatted_keyy = key.trim_matches('\'').to_string();
             dynamic_attr_params.push(Some(formatted_keyy.clone()));
             dynamic_attr_params.push(val.clone());
@@ -779,77 +811,56 @@ pub async fn lookup_users(
     for value in &dynamic_attr_params {
         params.push(value);
     }
-    let dynamic_attr_clause = if !dynamic_attr_conditions.is_empty() {
-        dynamic_attr_conditions.join(" OR ")
-    } else {
-        "0=1".to_string() // Always false if no dynamic attributes are specified
+
+    let dynamic_attr_clause = match dynamic_attr_conditions.is_empty() {
+        true => "".to_string(),
+        false => dynamic_attr_conditions.join(" OR "),
     };
 
     debug!("parameters count: {}", next_param_number - 1);
     debug!("params {:?}", params);
+
     let statement_str = format!(
         r#"
-        WITH matching_users AS (
-            WITH matching_user_attributes AS (
-                SELECT 
-                    ua.user_id,
-                    count(*) as matched_user_attributes
-                FROM user_attribute ua
-                WHERE
-                    {dynamic_attr_clause}
-                GROUP BY ua.user_id
-                ORDER BY matched_user_attributes DESC
-            )
+        WITH matched_ids AS (
+            {filters_clause}
             SELECT
-                u.id,
-                ({filters_clause}
-                COALESCE(mua.matched_user_attributes, 0)) AS match_score
-            FROM
-                user_entity u
-            LEFT JOIN 
-                matching_user_attributes mua ON u.id = mua.user_id
-            INNER JOIN 
-                realm ra ON ra.id = u.realm_id
+                ua.user_id, ua.name
+            FROM user_attribute ua
             WHERE
-                ra.name = $1
-                {enabled_condition}
-            ORDER BY match_score DESC
+                {dynamic_attr_clause}
+        ),
+        score_matches AS (
+            SELECT mu.id, count(*) as match_score FROM matched_ids mu
+            GROUP BY mu.id
         )
-        SELECT 
-            u.id,
-            u.email,
-            u.email_verified,
-            u.enabled,
-            u.first_name,
-            u.last_name,
-            u.realm_id,
-            u.username,
-            u.created_timestamp,
-            COALESCE(attr_json.attributes, '{{}}'::json) AS attributes
-        FROM 
-            matching_users mu
-        INNER JOIN 
-            user_entity u ON u.id = mu.id
-        INNER JOIN 
-            realm ra ON ra.id = u.realm_id
+        SELECT match_score, u.id, u.email, u.email_verified, u.enabled, u.first_name, u.last_name, u.realm_id, u.username, u.created_timestamp, COALESCE(
+                attr_json.attributes, '{{}}'::json
+            ) AS attributes
+        FROM
+            score_matches rm
+        INNER JOIN user_entity u ON u.id = rm.id
+        INNER JOIN realm ra ON ra.id = u.realm_id
         LEFT JOIN LATERAL (
-            SELECT
-                json_object_agg(attr.name, attr.values_array) AS attributes
+            SELECT json_object_agg(attr.name, attr.values_array) AS attributes
             FROM (
-                SELECT
-                    ua.name,
-                    json_agg(ua.value) AS values_array
-                FROM user_attribute ua
-                WHERE ua.user_id = u.id
-                GROUP BY ua.name
-            ) attr
+                    SELECT ua.name, json_agg(ua.value) AS values_array
+                    FROM user_attribute ua
+                    WHERE
+                        ua.user_id = u.id
+                    GROUP BY
+                        ua.name
+                ) attr
         ) attr_json ON true
-        WHERE 
-            match_score > 0 AND
-            match_score = (SELECT MAX(match_score) FROM matching_users);
-    "#
+        WHERE  match_score = (
+                SELECT MAX(match_score)
+                FROM score_matches
+            )
+            AND ra.name = $1
+            {enabled_condition}
+        LIMIT $2
+        "#
     );
-
     debug!("statement: {}", statement_str);
 
     let statement = keycloak_transaction.prepare(statement_str.as_str()).await?;

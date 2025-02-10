@@ -1271,6 +1271,7 @@ const englishTranslation = {
                     description:
                         "You are about to Create Keys Ceremony. This action will notify the Trustees to participate in the creation and distribution of the Election Event Keys.",
                 },
+                filterTrustees: "Filter Trustees",
             },
             ceremonyStep: {
                 cancel: "Cancel Keys Ceremony",
@@ -1765,6 +1766,7 @@ const englishTranslation = {
                 smsMessage: "SMS Message",
                 document: "Document",
                 pdfOptions: "PDF Options",
+                reportOptions: "Report Options",
                 name: "Template Name",
                 alias: "Template Alias",
                 type: "Type",
@@ -1773,7 +1775,7 @@ const englishTranslation = {
             type: {
                 CREDENTIALS: "Credentials",
                 BALLOT_RECEIPT: "Ballot Receipt",
-                VOTE_RECEIPT: "Vote Receipt",
+                VOTE_RECEIPT: "Vote Receipts",
                 PARTICIPATION_REPORT: "Participation Report",
                 ELECTORAL_RESULTS: "Electoral Results",
                 OTP: "OTP",
