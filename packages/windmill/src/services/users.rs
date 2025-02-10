@@ -639,23 +639,6 @@ pub async fn list_users(
     }
 }
 
-#[instrument(skip(hasura_transaction), err)]
-pub async fn is_datafix_election_event(
-    hasura_transaction: &Transaction<'_>,
-    tenant_id: &str,
-    election_event_id: &str,
-) -> Result<bool> {
-    let election_event = get_election_event_by_id(hasura_transaction, tenant_id, election_event_id)
-        .await
-        .map_err(|e| anyhow!("{:?}", e))?;
-
-    let datafix_object = election_event
-        .annotations
-        .as_ref()
-        .and_then(|v| v.get("DATAFIX"));
-    Ok(datafix_object.is_some())
-}
-
 #[instrument(skip(hasura_transaction, keycloak_transaction), err)]
 pub async fn list_users_with_vote_info(
     hasura_transaction: &Transaction<'_>,
@@ -674,16 +657,6 @@ pub async fn list_users_with_vote_info(
         .await
         .with_context(|| "Error listing users")?;
 
-    // Get the ElectionEvent, check if its DATAFIX event (has DATAFIX annotations).
-    // If it is,set the Votes information checking the attribute VOTED_CHANNEL for each user
-    let is_datafix_event = is_datafix_election_event(
-        hasura_transaction,
-        tenant_id.as_str(),
-        election_event_id.as_str(),
-    )
-    .await
-    .map_err(|e| anyhow!(" Error checking if is datafix election event: {:?}", e))?;
-
     let users: Vec<User> = get_users_with_vote_info(
         hasura_transaction,
         tenant_id.as_str(),
@@ -691,7 +664,6 @@ pub async fn list_users_with_vote_info(
         election_id,
         users,
         filter_by_has_voted,
-        is_datafix_event,
     )
     .await
     .with_context(|| "Error listing users with vote info")?;

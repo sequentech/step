@@ -7,12 +7,16 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 
-/// If the voter is disabled via Datafix delete-voter end point, we set this
-/// value to "Datafix call to delete-voter".
+/// A voter can be disabled:
 ///
-/// If the voter is disabled because of a call to Datafix mark-voted, we set
-/// this value to "Datafix call to mark-voted".
+/// Via Datafix delete-voter end point.
+///
+/// A call to Datafix mark-voted.
 pub const DISABLE_COMMENT: &str = "disable-comment";
+pub const DISABLE_REASON_DELETE_CALL: &str =
+    "Disable reason: datafix call to delete-voter endpoint";
+pub const DISABLE_REASON_MARKVOTED_CALL: &str =
+    "Disable reason: Voter marked as voted via other channel";
 
 /// If there is a call to Datafix mark-voted, we disable the voter and set this
 /// value to signal the channel e.g "PHONE", "POST"... whatsoever
@@ -23,7 +27,7 @@ pub const DISABLE_COMMENT: &str = "disable-comment";
 /// In addition the voter list, when setting the has_voted flag will check if
 /// this attribute is set, then set has_voted true.
 pub const VOTED_CHANNEL: &str = "voted-channel";
-pub const VOTED_CHANNEL_RESET_VALUE: &str = "NONE";
+pub const ATTR_RESET_VALUE: &str = "NONE";
 
 pub const AREA_ID_ATTR_NAME: &str = "area-id";
 pub const DATE_OF_BIRTH: &str = "dateOfBirth";

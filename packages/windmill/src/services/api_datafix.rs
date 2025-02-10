@@ -14,8 +14,8 @@ use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::types::hasura::core::ElectionEvent;
 use sequent_core::types::keycloak::{
-    User, UserArea, AREA_ID_ATTR_NAME, DATE_OF_BIRTH, DISABLE_COMMENT, VOTED_CHANNEL,
-    VOTED_CHANNEL_RESET_VALUE,
+    User, UserArea, AREA_ID_ATTR_NAME, ATTR_RESET_VALUE, DATE_OF_BIRTH, DISABLE_COMMENT,
+    DISABLE_REASON_DELETE_CALL, DISABLE_REASON_MARKVOTED_CALL, VOTED_CHANNEL,
 };
 use sequent_core::util::date_time::verify_date_format_ymd;
 use serde::{Deserialize, Serialize};
@@ -261,7 +261,7 @@ pub async fn disable_datafix_voter(
     let mut hash_map = HashMap::new();
     hash_map.insert(
         DISABLE_COMMENT.to_string(),
-        vec!["Datafix call to delete-voter".to_string()],
+        vec![DISABLE_REASON_DELETE_CALL.to_string()],
     );
     let attributes = Some(hash_map);
 
@@ -442,7 +442,7 @@ pub async fn mark_as_voted_via_channel(
     hash_map.insert(VOTED_CHANNEL.to_string(), vec![voter_body.channel.clone()]);
     hash_map.insert(
         DISABLE_COMMENT.to_string(),
-        vec!["Datafix call to mark-voted".to_string()],
+        vec![DISABLE_REASON_MARKVOTED_CALL.to_string()],
     );
     let attributes = Some(hash_map);
 
@@ -492,7 +492,11 @@ pub async fn unmark_voter_as_voted(
     let mut hash_map = HashMap::new();
     hash_map.insert(
         VOTED_CHANNEL.to_string(),
-        vec![VOTED_CHANNEL_RESET_VALUE.to_string()],
+        vec![ATTR_RESET_VALUE.to_string()],
+    );
+    hash_map.insert(
+        DISABLE_COMMENT.to_string(),
+        vec![ATTR_RESET_VALUE.to_string()],
     );
     let attributes = Some(hash_map);
     let user_id = get_user_id(keycloak_transaction, &realm, &username).await?;
@@ -537,6 +541,7 @@ pub async fn replace_voter_pin(
     })?;
 
     let user_id = get_user_id(keycloak_transaction, &realm, username).await?;
+    // NOTE: If a voter is disabled, do not generate a PIN
     let pin = datafix_annotations
         .password_policy
         .generate_password(&username);
