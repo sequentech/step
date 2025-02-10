@@ -163,7 +163,7 @@ pub async fn insert_ballots_messages(
                         &ciphertext_base64,
                     ))
                     .map_err(|error| anyhow!("Failed to write row {}", error))?;
-            }
+           }
 
             writer
                 .flush()
@@ -376,6 +376,7 @@ pub async fn count_auditable_ballots(
                     &ballot.election_id,
                     &ballot.content,
                 ))
+
                 .map_err(|error| anyhow!("Failed to write row: {}", error))?;
         }
 

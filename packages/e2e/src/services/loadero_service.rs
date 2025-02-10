@@ -29,36 +29,39 @@ pub fn run_scenario_test(
 
     let test_id = match get_test_id_by_name(test_name)? {
         Some(id) => id,
-        None => init_loadero_test(&loadero_url, &test_config)?,
+        None => init_loadero_test(&loadero_url, &test_config, participants_count)?,
     };
 
     if update {
         update_script(&test_id, test_config)?;
     }
 
-    // 2) run_test
-    run_test(&loadero_url, &test_id, participants_count)?;
+    run_test(&loadero_url, &test_id)?;
 
     Ok(())
 }
 
-pub fn init_loadero_test(loadero_url: &str, test_config: &TestConfig) -> Result<String> {
+pub fn init_loadero_test(
+    loadero_url: &str,
+    test_config: &TestConfig,
+    participants_count: u64,
+) -> Result<String> {
     let test_id =
         create_test(&loadero_url, test_config).context("Failed to create test in Loadero")?;
+
+    create_test_participants(loadero_url, &test_id, participants_count)
+        .with_context(|| format!("Failed to create participants for test ID {}", test_id))?;
 
     Ok(test_id)
 }
 
-pub fn run_test(loadero_url: &str, test_id: &str, participants_count: u64) -> Result<()> {
+pub fn run_test(loadero_url: &str, test_id: &str) -> Result<()> {
     let loadero_interval_polling_sec =
         env::var("LOADERO_INTERVAL_POLLING_TIME").unwrap_or_else(|_| "30".to_string());
 
     let loadero_interval_polling_sec: u64 = loadero_interval_polling_sec
         .parse()
         .context("LOADERO_INTERVAL_POLLING_TIME must be an string")?;
-
-    create_test_participants(loadero_url, &test_id, participants_count)
-        .with_context(|| format!("Failed to create participants for test ID {}", test_id))?;
 
     let run_id = launch_test(&loadero_url, &test_id)
         .with_context(|| format!("Failed to launch test ID {}", test_id))?;
@@ -80,9 +83,8 @@ pub fn run_test(loadero_url: &str, test_id: &str, participants_count: u64) -> Re
             Err(e) => {
                 if e.to_string().contains("HTTP Status") {
                     eprintln!("HTTP Error checking status for test {}: {}", test_id, e);
-                    break; // Exit the loop on HTTP errors
+                    break;
                 } else {
-                    // Wait before retrying
                     thread::sleep(polling_interval);
                 }
             }
