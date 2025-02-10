@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::area::get_event_areas;
 use crate::postgres::election_event::get_all_tenant_election_events;
-use crate::services::users::get_users_by_username;
+use crate::services::users::{get_users_by_username, lookup_users, FilterOption, ListUsersFilter};
 use anyhow::Result;
 use deadpool_postgres::Transaction;
 use rand::{distributions::Uniform, Rng};
@@ -540,8 +540,37 @@ pub async fn replace_voter_pin(
         DatafixResponse::new(Status::InternalServerError)
     })?;
 
-    let user_id = get_user_id(keycloak_transaction, &realm, username).await?;
-    // NOTE: If a voter is disabled, do not generate a PIN
+    let filter = ListUsersFilter {
+        tenant_id: tenant_id.to_string(),
+        election_event_id: Some(election_event_id),
+        realm: realm.clone(),
+        username: Some(FilterOption::IsEqual(username.to_string())),
+        ..ListUsersFilter::default()
+    };
+
+    // If a voter is disabled, do not generate a PIN
+    let user_id = match lookup_users(hasura_transaction, keycloak_transaction, filter).await {
+        Ok(users) if users.len() == 1 => {
+            let user = users
+                .last()
+                .map(|val_ref| val_ref.to_owned())
+                .unwrap_or_default();
+            if !user.enabled.unwrap_or(true) {
+                warn!("Cannot replace pin because the user is disabled.");
+                return Err(DatafixResponse::new(Status::BadRequest));
+            }
+            user.id.unwrap_or_default()
+        }
+        Ok(_) => {
+            warn!("Error getting users by username: Must be only one user per username");
+            return Err(DatafixResponse::new(Status::NotFound));
+        }
+        Err(e) => {
+            error!("Error looking up user: {e:?}");
+            return Err(DatafixResponse::new(Status::InternalServerError));
+        }
+    };
+
     let pin = datafix_annotations
         .password_policy
         .generate_password(&username);
@@ -558,7 +587,6 @@ pub async fn replace_voter_pin(
             error!("Error creating user: {e:?}");
             DatafixResponse::new(Status::InternalServerError)
         })?;
-    // TODO: insert credentials in the DB
-    // client.
+
     Ok(pin)
 }

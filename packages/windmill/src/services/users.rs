@@ -312,6 +312,16 @@ pub struct ListUsersFilter {
     pub authorized_to_election_alias: Option<String>,
 }
 
+impl ListUsersFilter {
+    pub fn new(tenant_id: &str, realm: &str) -> Self {
+        Self {
+            tenant_id: tenant_id.to_string(),
+            realm: realm.to_string(),
+            ..Default::default()
+        }
+    }
+}
+
 fn get_query_bool_condition(field: &str, value: Option<bool>) -> String {
     match value {
         Some(true) => format!(r#"AND u.{} = true"#, field),
