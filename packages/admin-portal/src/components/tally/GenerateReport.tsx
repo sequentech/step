@@ -94,7 +94,6 @@ export const GenerateReport: React.FC<GenerateReportProps> = ({
                             electionEventId={electionEventId}
                             fileName={null}
                             onDownload={() => {
-                                // console.log("aa onDownload called")
                                 setDocumentId(null)
                             }}
                         />
