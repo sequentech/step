@@ -5,7 +5,7 @@
 
 use crate::hasura::keys_ceremony::{get_keys_ceremony_by_id, update_keys_ceremony_status};
 use crate::postgres::election::{
-    get_election_by_id, get_election_by_keys_ceremony_id, set_election_keys_ceremony,
+    get_election_by_id, get_elections_by_keys_ceremony_id, set_election_keys_ceremony,
 };
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::keys_ceremony;
@@ -21,9 +21,7 @@ use crate::tasks::create_keys::{create_keys, CreateKeysBody};
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::serialization::deserialize_with_path::*;
-use sequent_core::services::connection;
 use sequent_core::services::jwt::JwtClaims;
-use sequent_core::services::keycloak;
 use sequent_core::types::ceremonies::{
     KeysCeremonyExecutionStatus, KeysCeremonyStatus, Trustee, TrusteeStatus,
 };
@@ -51,17 +49,16 @@ pub async fn get_keys_ceremony_board(
             .with_context(|| "missing bulletin board")?;
         Ok((board_name, None))
     } else {
-        let election = get_election_by_keys_ceremony_id(
+        let election = get_elections_by_keys_ceremony_id(
             transaction,
             tenant_id,
             election_event_id,
             &keys_ceremony.id,
         )
         .await?
-        .ok_or(anyhow!(
-            "Can't find election with keys ceremony {}",
-            keys_ceremony.id
-        ))?;
+        .into_iter()
+        .next()
+        .ok_or_else(|| anyhow!("Can't find election with keys ceremony {}", keys_ceremony.id))?;    
         let board = get_election_board(tenant_id, &election.id);
         Ok((board, Some(election.id)))
     }
@@ -399,6 +396,15 @@ pub async fn create_keys_ceremony(
             .collect::<Result<Vec<Trustee>>>()?,
     })?;
     let is_default = election_id.is_none();
+
+    // get permission labels
+    let permission_labels: Vec<String> = get_elections_by_keys_ceremony_id(
+        transaction,
+        &tenant_id.clone(),
+        &election_event_id.clone(),
+        &keys_ceremony_id.clone()
+    )
+    .await?.into_iter().filter_map(|election| election.permission_label).collect();
 
     // insert keys-ceremony into the database using postgres
     keys_ceremony::insert_keys_ceremony(

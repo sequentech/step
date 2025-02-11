@@ -249,12 +249,12 @@ pub async fn get_elections_by_ids(
 }
 
 #[instrument(skip(hasura_transaction), err)]
-pub async fn get_election_by_keys_ceremony_id(
+pub async fn get_elections_by_keys_ceremony_id(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
     keys_ceremony_id: &str,
-) -> Result<Option<Election>> {
+) -> Result<Vec<Election>> {
     let statement = hasura_transaction
         .prepare(
             r#"
@@ -289,7 +289,7 @@ pub async fn get_election_by_keys_ceremony_id(
         })
         .collect::<Result<Vec<Election>>>()?;
 
-    Ok(elections.get(0).map(|election| election.clone()))
+    Ok(elections)
 }
 
 #[instrument(skip(hasura_transaction), err)]
