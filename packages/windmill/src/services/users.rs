@@ -739,14 +739,21 @@ pub async fn count_keycloak_enabled_users(
     Ok(user_count)
 }
 
+/// Use only for verifying application!, does not work as it seems for other situations, then use list_users instead.
 #[instrument(skip(hasura_transaction, keycloak_transaction), err)]
 pub async fn lookup_users(
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
     filter: ListUsersFilter,
 ) -> Result<Vec<User>> {
-    let low_sql_limit = PgConfig::from_env()?.low_sql_limit;
-    let default_sql_limit = PgConfig::from_env()?.default_sql_limit;
+    let low_sql_limit = PgConfig::from_env()
+        .map_err(|e| anyhow!("Error getting low_sql_limit {e:?}"))?
+        .low_sql_limit;
+
+    let default_sql_limit = PgConfig::from_env()
+        .map_err(|e| anyhow!("Error getting default_sql_limit {e:?}"))?
+        .default_sql_limit;
+
     let query_limit: i64 =
         std::cmp::min(low_sql_limit, filter.limit.unwrap_or(default_sql_limit)).into();
 
