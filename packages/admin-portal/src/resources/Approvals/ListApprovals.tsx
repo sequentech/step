@@ -359,18 +359,24 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
 
     const handleImportApplications = async (documentId: string, sha256: string) => {
         setOpenImportDrawer(false)
+        let currWidget: WidgetProps | undefined
         try {
-            await importApplications({
+            currWidget = addWidget(ETasksExecution.IMPORT_APPLICATION)
+            let {data, errors} = await importApplications({
                 variables: {
                     tenantId: electionEventRecord.tenant_id,
                     electionEventId: electionEventRecord.id,
                     electionId: electionId,
                     documentId,
+                    sha256,
                 },
             })
-            notify(t("application.import.messages.success"), {type: "success"})
+            const task_id = data?.import_application?.task_execution?.id
+            setWidgetTaskId(currWidget.identifier, task_id)
             refresh()
         } catch (err) {
+            console.log(err)
+            currWidget && updateWidgetFail(currWidget.identifier)
             notify("application.import.messages.error", {type: "error"})
         }
     }
