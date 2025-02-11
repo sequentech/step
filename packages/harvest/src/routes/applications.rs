@@ -113,7 +113,6 @@ pub async fn verify_user_application(
         &input.applicant_data,
         &input.tenant_id,
         &input.election_event_id,
-        &None,
         &input.labels,
         &input.annotations,
     )

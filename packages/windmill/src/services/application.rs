@@ -80,7 +80,6 @@ pub async fn verify_application(
     applicant_data: &HashMap<String, String>,
     tenant_id: &str,
     election_event_id: &str,
-    area_id: &Option<String>,
     labels: &Option<Value>,
     annotations: &ApplicationAnnotations,
 ) -> Result<ApplicationVerificationResult> {
