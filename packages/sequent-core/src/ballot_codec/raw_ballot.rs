@@ -340,10 +340,14 @@ impl RawBallotCodec for Contest {
         }
 
         // implicit invalid errors
-        let num_selected_candidates = sorted_choices
+        let mut num_selected_candidates = sorted_choices
             .iter()
             .filter(|choice| choice.selected > -1)
             .count();
+
+        if is_explicit_invalid {
+            num_selected_candidates += 1;
+        }
 
         // Prepare the return value to pass it around, its values can still be
         // modified.
