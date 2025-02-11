@@ -5,6 +5,7 @@
 
 #[cfg(feature = "s3")]
 use crate::services::s3;
+use crate::util::convert_vec::IntoVec;
 
 use anyhow::{anyhow, Context, Result};
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
@@ -280,11 +281,14 @@ pub mod sync {
                             let output_filename =
                                 format!("output-{}", html_sha256);
                             let rt = Runtime::new()?;
-                            Ok(rt.block_on(async {
-                                s3::get_file_from_s3(bucket, output_filename)
-                                    .await
-                                    .expect("could not retrieve file from S3")
-                            }))
+                            if cfg!(feature = "s3") {
+                                rt.block_on(async {
+                                    get_file_from_s3(bucket, output_filename)
+                                        .await
+                                })
+                            } else {
+                                Ok(html.into())
+                            }
                         }
                         PdfTransport::OpenWhisk { .. } => {
                             let response_json =
@@ -352,12 +356,25 @@ cfg_if::cfg_if! {
         fn s3_bucket_path(path: String) -> Option<String> {
             Some(path)
         }
+        async fn get_file_from_s3(bucket: String, output_filename: String) -> Result<Vec<u8>> {
+            s3::get_file_from_s3(bucket, output_filename)
+                .await
+                .map_err(|err| {
+                    anyhow!(
+                        "could not retrieve file from S3: {:?}",
+                        err
+                    )
+                })
+        }
     } else {
         fn s3_private_bucket() -> Option<String> {
             None
         }
         fn s3_bucket_path(path: String) -> Option<String> {
             None
+        }
+        async fn get_file_from_s3(bucket: String, output_filename: String) -> Result<Vec<u8>> {
+            unimplemented!()
         }
     }
 }
@@ -557,14 +574,7 @@ impl PdfRenderer {
                         };
                         let html_sha256 = sha256::digest(&html);
                         let output_filename = format!("output-{}", html_sha256);
-                        s3::get_file_from_s3(bucket, output_filename)
-                            .await
-                            .map_err(|err| {
-                                anyhow!(
-                                    "could not retrieve file from S3: {:?}",
-                                    err
-                                )
-                            })
+                        get_file_from_s3(bucket, output_filename).await
                     }
                     PdfTransport::OpenWhisk { .. } => {
                         let response_json =
