@@ -22,6 +22,45 @@ use tokio::runtime::Runtime;
 use tracing::{debug, event, info, instrument, Level};
 
 #[derive(PartialEq)]
+pub enum DocRendererBackend {
+    AWSLambda,
+    OpenWhisk,
+    InPlace,
+}
+
+pub fn doc_renderer_backend() -> DocRendererBackend {
+    match std::env::var("DOC_RENDERER_BACKEND").as_deref() {
+        Ok("aws_lambda") => {
+            event!(Level::INFO, "Using AWS Lambda doc renderer backend",);
+            DocRendererBackend::AWSLambda
+        }
+        Ok("openwhisk") => {
+            event!(Level::INFO, "Using Openwhisk doc renderer backend",);
+            DocRendererBackend::OpenWhisk
+        }
+        Ok("inplace") => {
+            event!(Level::INFO, "Using inplace doc renderer backend",);
+            DocRendererBackend::InPlace
+        }
+        Ok(unknown_backend) => {
+            event!(
+                Level::WARN,
+                "Unknown backend {:?} specified in the DOC_RENDERER_BACKEND envvar, defaulting to inplace",
+                unknown_backend
+            );
+            DocRendererBackend::InPlace
+        }
+        Err(_) => {
+            event!(
+                Level::WARN,
+                "Missing DOC_RENDERER_BACKEND envvar, defaulting to inplace",
+            );
+            DocRendererBackend::InPlace
+        }
+    }
+}
+
+#[derive(PartialEq)]
 pub enum PdfTransport {
     AWSLambda {
         endpoint: String,

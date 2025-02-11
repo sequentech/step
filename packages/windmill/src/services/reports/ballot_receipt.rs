@@ -11,6 +11,7 @@ use async_trait::async_trait;
 use deadpool_postgres::Transaction;
 use sequent_core::util::temp_path::*;
 
+use sequent_core::services::pdf;
 use sequent_core::services::s3::get_minio_url;
 use sequent_core::types::date_time::{DateFormat, TimeZone};
 use sequent_core::util::date_time::generate_timestamp;
@@ -166,7 +167,7 @@ impl TemplateRenderer for BallotTemplate {
         let minio_endpoint_base =
             get_minio_url().with_context(|| "Error getting minio endpoint")?;
 
-        if std::env::var_os("DOC_RENDERER_BACKEND") == Some("inplace".into()) {
+        if pdf::doc_renderer_backend() == pdf::DocRendererBackend::InPlace {
             Ok(SystemData {
                 rendered_user_template,
                 file_logo: format!(
