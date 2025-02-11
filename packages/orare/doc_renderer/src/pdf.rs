@@ -38,7 +38,7 @@ cfg_if::cfg_if! {
                     todo!()
                 },
                 Input::S3 { bucket, input_path, .. } => {
-                    Err(format!("invalid input for OpenWhisk lambda: use raw input instead"));
+                    panic!("invalid input for OpenWhisk lambda: use raw input instead")
                 },
             }
         }
