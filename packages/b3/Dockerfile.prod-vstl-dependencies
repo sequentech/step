@@ -1,0 +1,72 @@
+# SPDX-FileCopyrightText: 2023-2024 Sequent Tech <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+FROM rust:1.82.0-slim-bookworm
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    chromium \
+    protobuf-compiler \
+    libprotobuf-dev \
+    m4 \
+    make \
+    pkg-config \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN rustup toolchain install nightly-2024-09-01 \
+    && rustup default nightly-2024-09-01
+
+#TODO: Copy only necessary files
+COPY ./braid/Cargo.toml ./braid/Cargo.toml
+COPY ./b3/Cargo.toml ./b3/Cargo.toml
+COPY ./electoral-log/Cargo.toml ./electoral-log/Cargo.toml
+COPY ./harvest/Cargo.toml ./harvest/Cargo.toml
+COPY ./strand/Cargo.toml ./strand/Cargo.toml
+COPY ./immu-board/Cargo.toml ./immu-board/Cargo.toml
+COPY ./immudb-rs/Cargo.toml ./immudb-rs/Cargo.toml
+COPY ./sequent-core/Cargo.toml ./sequent-core/Cargo.toml
+COPY ./velvet/Cargo.toml ./velvet/Cargo.toml
+COPY ./windmill/Cargo.toml ./windmill/Cargo.toml
+COPY ./e2e/Cargo.toml ./e2e/Cargo.toml
+COPY ./e2e/src/mock_server/Cargo.toml ./e2e/src/mock_server/Cargo.toml
+COPY ./step-cli/Cargo.toml ./step-cli/Cargo.toml
+COPY ./wrap-map-err/Cargo.toml ./wrap-map-err/Cargo.toml
+COPY ./braid/scripts/Cargo.toml ./braid/scripts/Cargo.toml
+COPY ./Cargo.toml ./Cargo.toml
+COPY ./Cargo.lock ./Cargo.lock
+RUN mkdir ./harvest/src \
+    && echo "// dummy file" > ./harvest/src/lib.rs
+RUN mkdir ./immu-board/src \
+    && echo "// dummy file" > ./immu-board/src/lib.rs
+RUN mkdir ./immudb-rs/src \
+    && echo "// dummy file" > ./immudb-rs/src/lib.rs
+RUN mkdir ./windmill/src \
+    && echo "// dummy file" > ./windmill/src/lib.rs
+RUN mkdir ./e2e/src \
+    && echo "// dummy file" > ./e2e/src/lib.rs
+RUN mkdir ./e2e/src/mock_server/src \
+    && echo "// dummy file" > ./e2e/src/mock_server/src/lib.rs
+RUN mkdir ./velvet/src ./velvet/benches \
+    && echo "// dummy file" > ./velvet/src/lib.rs \
+    && echo "// dummy file" > ./velvet/benches/pdf_generation.rs
+RUN mkdir ./strand/src \
+    && echo "// dummy file" > ./strand/src/lib.rs
+RUN mkdir ./strand/benches \
+    && echo "// dummy file" > ./strand/benches/encrypt.rs \
+    && echo "// dummy file" > ./strand/benches/shuffle.rs \
+    && echo "// dummy file" > ./strand/benches/verify_ballot.rs
+RUN mkdir ./b3/src \
+    && echo "// dummy file" > ./b3/src/lib.rs
+RUN mkdir ./electoral-log/src \
+    && echo "// dummy file" > ./electoral-log/src/lib.rs
+RUN mkdir ./sequent-core/src \
+    && echo "// dummy file" > ./sequent-core/src/lib.rs
+RUN mkdir ./wrap-map-err/src \
+    && echo "// dummy file" > ./wrap-map-err/src/lib.rs
+RUN mkdir ./braid/src \
+    && echo "// dummy file" > ./braid/src/lib.rs
+WORKDIR /app/b3
+RUN cargo fetch --locked

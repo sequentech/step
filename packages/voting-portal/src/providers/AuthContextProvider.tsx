@@ -48,6 +48,11 @@ export interface AuthContextValues {
      */
     hasRole: (role: string) => boolean
 
+    /**
+     * Is the user in kiosk mode
+     */
+    isKiosk: () => boolean
+
     getExpiry: () => Date | undefined
 
     /**
@@ -86,6 +91,7 @@ const defaultAuthContextValues: AuthContextValues = {
     getExpiry: () => undefined,
     setTenantEvent: (_tenantId: string, _eventId: string) => {},
     hasRole: () => false,
+    isKiosk: () => false,
     openProfileLink: () => new Promise(() => undefined),
 }
 
@@ -130,6 +136,44 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
             if (keycloak || !tenantId || !eventId) {
                 return
             }
+            /**
+             * Get the Keycloak URL. If there's a param `kiosk` in the URL, it
+             * appends `-kiosk` to the subdomain (if it exists).
+             */
+            const getKeycloakUrl: (defaultUrl: string) => string = (defaultUrl) => {
+                const searchParams = new URLSearchParams(window.location.search)
+                const isKiosk = searchParams.has("kiosk")
+
+                if (!isKiosk) {
+                    return defaultUrl
+                }
+
+                try {
+                    const url = new URL(defaultUrl)
+                    const subdomainParts = url.hostname.split(".")
+
+                    // Only modify if there is a subdomain
+                    if (subdomainParts.length > 2) {
+                        subdomainParts[0] += "-kiosk"
+                        url.hostname = subdomainParts.join(".")
+                    }
+
+                    return url.toString()
+                } catch (error) {
+                    console.error("Invalid URL provided:", defaultUrl)
+                    return defaultUrl // Fallback to the original URL if an error occurs
+                }
+            }
+
+            /**
+             * Get the voting client. If there's a param `kiosk` in the URL, it
+             * append `-kiosk` to the
+             */
+            const getClientId: (defaultClientId: string) => string = (defaultClientId) => {
+                const searchParams = new URLSearchParams(window.location.search)
+                const isKiosk = searchParams.has("kiosk")
+                return isKiosk ? `${defaultClientId}-kiosk` : defaultClientId
+            }
 
             /**
              * KeycloakConfig configures the connection to the Keycloak server.
@@ -149,8 +193,8 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
             const keycloakConfig = createKeycloakConfig(
                 tenantId,
                 eventId,
-                globalSettings.KEYCLOAK_URL,
-                globalSettings.ONLINE_VOTING_CLIENT_ID
+                getKeycloakUrl(globalSettings.KEYCLOAK_URL),
+                getClientId(globalSettings.ONLINE_VOTING_CLIENT_ID)
             )
 
             // Create the Keycloak client instance
@@ -164,7 +208,9 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 } else {
                     newKeycloak.logout()
                 }*/
-                newKeycloak.logout()
+                newKeycloak.logout({
+                    redirectUri: `/tenant/${tenantId}/event/${eventId}/`,
+                })
             }
 
             setKeycloak(newKeycloak)
@@ -223,7 +269,16 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 // If the authentication was not successfull the user is send back to the Keycloak login form
                 if (!isAuthenticatedResponse && authType) {
                     if (authType === "register") {
-                        return await keycloak.register(keycloakInitOptions)
+                        const baseUrl = window.location.origin + window.location.pathname
+                        const queryString = window.location.search
+
+                        return await keycloak.register({
+                            ...keycloakInitOptions,
+                            // after successful enrollment, we should redirect to login
+                            redirectUri: baseUrl.endsWith("/enroll")
+                                ? baseUrl.replace(/\/enroll$/, "/login") + queryString
+                                : undefined,
+                        })
                     } else {
                         return await keycloak.login(keycloakInitOptions)
                     }
@@ -290,26 +345,29 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         authType && setAuthType(authType)
     }
 
+    const getRedirectUrl = (redirectUrl?: string) => {
+        if (redirectUrl) {
+            return redirectUrl
+        } else {
+            const currentPath = window.location.pathname
+            const pathSegments = currentPath.split("/")
+            while (pathSegments.length > 5) {
+                pathSegments.pop() // Remove the last segment (To only keep the teanant and event params)
+            }
+            return pathSegments.join("/")
+        }
+    }
+
     const logout = (redirectUrl?: string) => {
         if (!keycloak) {
             // If no keycloak object initailized manually clear cookies and redirect user
             clearAllCookies()
-            if (redirectUrl) {
-                window.location.href = redirectUrl
-            } else {
-                const currentPath = window.location.pathname
-                const pathSegments = currentPath.split("/")
-                while (pathSegments.length > 5) {
-                    pathSegments.pop() // Remove the last segment (To only keep the teanant and event params)
-                }
-                const newPath = pathSegments.join("/")
-                window.location.href = newPath
-            }
+            window.location.href = getRedirectUrl(redirectUrl)
             return
         }
 
         keycloak.logout({
-            redirectUri: redirectUrl,
+            redirectUri: getRedirectUrl(redirectUrl),
         })
     }
 
@@ -331,6 +389,17 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         }
 
         return keycloak.hasRealmRole(role)
+    }
+    /**
+     * Check if the user is in kiosk mode
+     * @returns whether or not the user in kiosk mode
+     */
+    const isKiosk = () => {
+        if (!keycloak?.tokenParsed?.azp) {
+            return false
+        }
+
+        return keycloak.tokenParsed.azp.endsWith("-kiosk")
     }
 
     const openProfileLink = async () => {
@@ -360,6 +429,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 getExpiry,
                 logout,
                 hasRole,
+                isKiosk,
                 openProfileLink,
                 keycloakAccessToken,
             }}

@@ -1,0 +1,17 @@
+# SPDX-FileCopyrightText: 2023-2024 Sequent Tech <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+FROM harvest-build-dependencies
+ENV ROCKET_ADDRESS=0.0.0.0
+ENV ROCKET_PORT=8400
+EXPOSE 8400
+
+# Copy the compiled binary from the builder stage
+COPY --from=harvest-compile /app/target/release/harvest /usr/local/bin/harvest
+COPY --from=harvest-compile /usr/local/bin/ecies-tool.jar /usr/local/bin/ecies-tool.jar
+
+WORKDIR /usr/local/bin
+
+# Run the application
+CMD ["harvest"]

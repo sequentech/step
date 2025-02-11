@@ -7,6 +7,7 @@
 extern crate rocket;
 
 use dotenv::dotenv;
+use sequent_core::services::connection::LastAccessToken;
 use sequent_core::util::init_log::init_log;
 use windmill::services::{
     celery_app::set_is_app_active,
@@ -35,6 +36,17 @@ async fn rocket() -> _ {
             ],
         )
         .mount(
+            "/api/datafix",
+            routes![
+                routes::api_datafix::add_voter,
+                routes::api_datafix::update_voter,
+                routes::api_datafix::delete_voter,
+                routes::api_datafix::unmark_voted,
+                routes::api_datafix::mark_voted,
+                routes::api_datafix::replace_pin,
+            ],
+        )
+        .mount(
             "/",
             routes![
                 routes::ballot_publication::get_ballot_publication_changes,
@@ -57,6 +69,8 @@ async fn rocket() -> _ {
                 routes::import_candidates::import_candidates_route,
                 routes::insert_election_event::import_election_event_f,
                 routes::delete_election_event::delete_election_event_f,
+                routes::import_tenant_config::import_tenant_config_route,
+                routes::export_tenant_config::export_tenant_config_route,
                 routes::insert_tenant::insert_tenant,
                 routes::users::create_user,
                 routes::users::import_users_f,
@@ -104,12 +118,20 @@ async fn rocket() -> _ {
                 routes::import_templates::import_templates_route,
                 routes::election_event_stats::get_election_event_top_votes_by_ip,
                 routes::export_ballot_publication::export_ballot_publication_route,
+                routes::reports::generate_template,
                 routes::reports::generate_report,
                 routes::reports::encrypt_report_route,
+                routes::reports::generate_transmission_report,
                 routes::templates::get_user_template,
                 routes::applications::verify_user_application,
-                routes::applications::confirm_user_application,
-                routes::users::get_users_lookup,
+                routes::applications::change_application_status,
+                routes::election_event_monitoring::get_election_event_monitoring_f,
+                routes::election_monitoring::get_election_monitoring_f,
+                routes::export_application::export_application_route,
+                routes::import_application::import_application_route,
+                routes::trustees::export_trustees_route,
+                routes::set_voter_authentication::set_voter_authentication,
             ],
         )
+        .manage(LastAccessToken::init())
 }

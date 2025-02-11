@@ -1,2 +1,6 @@
 <#ftl output_format="plainText">
-${msg("messageSuccessEmailTextBody",realmName ,username)}
+<#if isKiosk?? && isKiosk>
+  ${msg("messageSuccessEmailTextBodyKiosk", realmName, username, enrollmentUrl, loginUrl)}
+<#else>
+  ${msg("messageSuccessEmailTextBody", realmName, username, enrollmentUrl, loginUrl)}
+</#if>

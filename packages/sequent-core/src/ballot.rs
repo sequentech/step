@@ -3,16 +3,18 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 #![allow(non_snake_case)]
 #![allow(dead_code)]
+use crate::ballot_codec::PlaintextCodec;
 use crate::error::BallotError;
 use crate::serialization::base64::{Base64Deserialize, Base64Serialize};
 use crate::serialization::deserialize_with_path::deserialize_value;
-use crate::types::hasura::core;
+use crate::types::hasura::core::{self, ElectionEvent};
 use crate::types::scheduled_event::EventProcessors;
 use borsh::{BorshDeserialize, BorshSerialize};
 use chrono::DateTime;
 use chrono::Utc;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use serde_path_to_error::Error;
 use std::hash::Hash;
 use std::{collections::HashMap, default::Default};
 use strand::elgamal::Ciphertext;
@@ -55,14 +57,15 @@ pub struct AuditableBallotContest<C: Ctx> {
     pub choice: ReplicationChoice<C>,
     pub proof: Schnorr<C>,
 }
-
+/*
+FIXME: why does this exist
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug, Clone)]
 pub struct RawAuditableBallot<C: Ctx> {
     pub election_url: String,
     pub issue_date: String,
     pub contests: Vec<AuditableBallotContest<C>>,
     pub ballot_hash: String,
-}
+}*/
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct AuditableBallot {
@@ -126,19 +129,6 @@ pub struct RawHashableBallot<C: Ctx> {
     pub contests: Vec<HashableBallotContest<C>>,
 }
 
-impl<C: Ctx> TryFrom<&HashableBallot> for RawHashableBallot<C> {
-    type Error = BallotError;
-
-    fn try_from(value: &HashableBallot) -> Result<Self, Self::Error> {
-        let contests = value.deserialize_contests::<C>()?;
-        Ok(RawHashableBallot {
-            version: value.version,
-            issue_date: value.issue_date.clone(),
-            contests: contests,
-        })
-    }
-}
-
 impl HashableBallot {
     pub fn deserialize_contests<C: Ctx>(
         &self,
@@ -167,6 +157,19 @@ impl HashableBallot {
             .collect::<Vec<Result<String, BallotError>>>()
             .into_iter()
             .collect()
+    }
+}
+
+impl<C: Ctx> TryFrom<&HashableBallot> for RawHashableBallot<C> {
+    type Error = BallotError;
+
+    fn try_from(value: &HashableBallot) -> Result<Self, Self::Error> {
+        let contests = value.deserialize_contests::<C>()?;
+        Ok(RawHashableBallot {
+            version: value.version,
+            issue_date: value.issue_date.clone(),
+            contests: contests,
+        })
     }
 }
 
@@ -641,9 +644,24 @@ pub struct ElectionEventPresentation {
     pub voting_portal_countdown_policy: Option<VotingPortalCountdownPolicy>,
     pub custom_urls: Option<CustomUrls>,
     pub keys_ceremony_policy: Option<KeysCeremonyPolicy>,
+    pub contest_encryption_policy: Option<ContestEncryptionPolicy>,
     pub locked_down: Option<LockedDown>,
     pub publish_policy: Option<Publish>,
     pub enrollment: Option<Enrollment>,
+    pub otp: Option<Otp>,
+    pub voter_signing_policy: Option<VoterSigningPolicy>,
+}
+
+impl ElectionEvent {
+    pub fn get_presentation(
+        &self,
+    ) -> Result<Option<ElectionEventPresentation>, Error<serde_json::Error>>
+    {
+        self.presentation
+            .clone()
+            .map(|presentation_value| deserialize_value(presentation_value))
+            .transpose()
+    }
 }
 
 #[allow(non_camel_case_types)]
@@ -882,13 +900,12 @@ pub struct ElectionPresentation {
 }
 
 impl core::Election {
-    pub fn get_presentation(&self) -> ElectionPresentation {
-        let election_presentation: ElectionPresentation = self
+    pub fn get_presentation(&self) -> Option<ElectionPresentation> {
+        let election_presentation: Option<ElectionPresentation> = self
             .presentation
             .clone()
             .map(|value| deserialize_value(value).ok())
-            .flatten()
-            .unwrap_or(Default::default());
+            .flatten();
 
         election_presentation
     }
@@ -985,6 +1002,7 @@ pub struct ContestPresentation {
     pub max_selections_per_type: Option<u64>,
     pub types_presentation: Option<HashMap<String, Option<TypePresentation>>>,
     pub sort_order: Option<i64>,
+    pub columns: Option<u64>,
 }
 
 impl ContestPresentation {
@@ -1009,6 +1027,7 @@ impl ContestPresentation {
             types_presentation: None,
             sort_order: None,
             under_vote_policy: Some(EUnderVotePolicy::ALLOWED),
+            columns: None,
         }
     }
 }
@@ -1157,6 +1176,81 @@ pub enum Enrollment {
     EnumString,
     JsonSchema,
 )]
+pub enum Otp {
+    #[default]
+    #[strum(serialize = "enabled")]
+    #[serde(rename = "enabled")]
+    ENABLED,
+    #[strum(serialize = "disabled")]
+    #[serde(rename = "disabled")]
+    DISABLED,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Default,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    JsonSchema,
+)]
+pub enum ContestEncryptionPolicy {
+    #[strum(serialize = "multiple-contests")]
+    #[serde(rename = "multiple-contests")]
+    MULTIPLE_CONTESTS,
+    #[default]
+    #[strum(serialize = "single-contest")]
+    #[serde(rename = "single-contest")]
+    SINGLE_CONTEST,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Default,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    JsonSchema,
+)]
+pub enum VoterSigningPolicy {
+    #[default]
+    #[strum(serialize = "no-signature")]
+    #[serde(rename = "no-signature")]
+    NO_SIGNATURE,
+    #[strum(serialize = "with-signature")]
+    #[serde(rename = "with-signature")]
+    WITH_SIGNATURE,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Default,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    JsonSchema,
+)]
 pub enum LockedDown {
     #[strum(serialize = "locked-down")]
     #[serde(rename = "locked-down")]
@@ -1248,6 +1342,7 @@ impl ElectionEventStatus {
     BorshSerialize,
     BorshDeserialize,
     Display,
+    Default,
     Serialize,
     Deserialize,
     Debug,
@@ -1259,6 +1354,7 @@ impl ElectionEventStatus {
     IntoStaticStr,
 )]
 pub enum VotingStatus {
+    #[default]
     NOT_STARTED,
     OPEN,
     PAUSED,
@@ -1289,6 +1385,9 @@ pub enum AllowTallyStatus {
     #[strum(serialize = "disallowed")]
     #[serde(rename = "disallowed")]
     DISALLOWED,
+    #[strum(serialize = "requires-voting-period-end")]
+    #[serde(rename = "requires-voting-period-end")]
+    REQUIRES_VOTING_PERIOD_END,
 }
 
 #[allow(non_camel_case_types)]
@@ -1576,8 +1675,9 @@ pub fn format_date_opt(date: &Option<DateTime<Utc>>) -> Option<String> {
     date.map(|d| d.to_rfc3339())
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
+#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct ElectionStatus {
+    pub is_published: Option<bool>,
     pub voting_status: VotingStatus,
     pub init_report: InitReport,
     pub kiosk_voting_status: VotingStatus,
@@ -1589,6 +1689,7 @@ pub struct ElectionStatus {
 impl Default for ElectionStatus {
     fn default() -> Self {
         ElectionStatus {
+            is_published: Some(false),
             voting_status: VotingStatus::NOT_STARTED,
             init_report: InitReport::ALLOWED,
             kiosk_voting_status: VotingStatus::NOT_STARTED,

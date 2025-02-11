@@ -4,29 +4,36 @@
 use super::report_variables::{
     extract_area_data, extract_election_data, extract_election_event_annotations,
     generate_election_votes_data, get_app_hash, get_app_version, get_date_and_time,
-    get_results_hash, InspectorData,
+    get_results_hash, ExecutionAnnotations, InspectorData,
 };
 use super::template_renderer::*;
 use crate::postgres::area::get_areas_by_election_id;
 use crate::postgres::election::get_election_by_id;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
+use crate::services::cast_votes::count_ballots_by_election;
 use crate::services::database::PgConfig;
+use crate::services::election_dates::get_election_dates;
 use crate::services::electoral_log::{
     list_electoral_log, ElectoralLogRow, GetElectoralLogBody, IMMUDB_ROWS_LIMIT,
 };
 
+use crate::postgres::reports::ReportType;
+use crate::services::reports::report_variables::get_report_hash;
 use crate::services::temp_path::*;
 use crate::services::users::{list_users, ListUsersFilter};
 use crate::types::resources::{Aggregate, DataList, TotalAggregate};
-use crate::{postgres::reports::ReportType, services::s3::get_minio_url};
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use chrono::{DateTime, Local};
 use deadpool_postgres::Transaction;
+use sequent_core::ballot::StringifiedPeriodDates;
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
-use sequent_core::types::{hasura::core::Election, scheduled_event::generate_voting_period_dates};
+use sequent_core::services::pdf;
+use sequent_core::services::s3::get_minio_url;
+use sequent_core::signatures::temp_path::*;
+use sequent_core::types::hasura::core::Election;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use tracing::{info, instrument, warn};
@@ -34,10 +41,8 @@ use tracing::{info, instrument, warn};
 /// Struct for Audit Logs User Data
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
-    pub election_event_date: String,
     pub election_event_title: String,
-    pub voting_period_start: String,
-    pub voting_period_end: String,
+    pub election_dates: StringifiedPeriodDates,
     pub geographical_region: String,
     pub post: String,
     pub voting_center: String,
@@ -47,13 +52,8 @@ pub struct UserData {
     pub voters_turnout: Option<f64>,
     pub sequences: Vec<AuditLogEntry>,
     pub signature_date: String,
-    pub results_hash: String,
-    pub report_hash: String,
-    pub ovcs_version: String,
-    pub software_version: String,
-    pub system_hash: String,
-    pub date_printed: String,
     pub inspectors: Vec<InspectorData>,
+    pub execution_annotations: ExecutionAnnotations,
 }
 
 /// Struct for each Audit Log Entry
@@ -74,18 +74,12 @@ pub struct SystemData {
 
 #[derive(Debug)]
 pub struct AuditLogsTemplate {
-    tenant_id: String,
-    election_event_id: String,
-    election_id: Option<String>,
+    ids: ReportOrigins,
 }
 
 impl AuditLogsTemplate {
-    pub fn new(tenant_id: String, election_event_id: String, election_id: Option<String>) -> Self {
-        AuditLogsTemplate {
-            tenant_id,
-            election_event_id,
-            election_id,
-        }
+    pub fn new(ids: ReportOrigins) -> Self {
+        AuditLogsTemplate { ids }
     }
 }
 
@@ -99,15 +93,23 @@ impl TemplateRenderer for AuditLogsTemplate {
     }
 
     fn get_tenant_id(&self) -> String {
-        self.tenant_id.clone()
+        self.ids.tenant_id.clone()
     }
 
     fn get_election_event_id(&self) -> String {
-        self.election_event_id.clone()
+        self.ids.election_event_id.clone()
+    }
+
+    fn get_initial_template_alias(&self) -> Option<String> {
+        self.ids.template_alias.clone()
+    }
+
+    fn get_report_origin(&self) -> ReportOriginatedFrom {
+        self.ids.report_origin
     }
 
     fn get_election_id(&self) -> Option<String> {
-        self.election_id.clone()
+        self.ids.election_id.clone()
     }
 
     fn base_name(&self) -> String {
@@ -115,7 +117,7 @@ impl TemplateRenderer for AuditLogsTemplate {
     }
 
     fn prefix(&self) -> String {
-        format!("audit_logs_{}", self.election_event_id)
+        format!("audit_logs_{}", self.ids.election_event_id)
     }
 
     #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
@@ -124,26 +126,29 @@ impl TemplateRenderer for AuditLogsTemplate {
         hasura_transaction: &Transaction<'_>,
         keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
-        let event_realm_name = get_event_realm(&self.tenant_id, &self.election_event_id);
-        let tenant_realm_name = get_tenant_realm(&self.tenant_id);
+        // TODO: Fix a lot clonning happening with the getters.
+
+        let event_realm_name =
+            get_event_realm(&self.get_tenant_id(), &self.get_election_event_id());
+        let tenant_realm_name = get_tenant_realm(&self.get_tenant_id());
         // This is used to fill the user data.
         let election_event = get_election_event_by_id(
             &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
+            &self.get_tenant_id(),
+            &self.get_election_event_id(),
         )
         .await
         .map_err(|e| anyhow!("Error getting scheduled event by election event_id: {e:?}"))?;
 
-        let Some(election_id) = self.election_id.clone() else {
+        let Some(election_id) = self.get_election_id() else {
             return Err(anyhow!("Empty election_id"));
         };
 
         info!("Preparing data of audit logs report for election_id: {election_id}");
         let election: Election = match get_election_by_id(
             &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
             &election_id,
         )
         .await
@@ -165,38 +170,28 @@ impl TemplateRenderer for AuditLogsTemplate {
             .await
             .map_err(|err| anyhow!("Error extract election event annotations {err}"))?;
 
-        // Fetch election event data
-        let start_election_event = find_scheduled_event_by_election_event_id(
+        // Fetch election's voting periods
+        let scheduled_events = find_scheduled_event_by_election_event_id(
             &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
         )
         .await
-        .map_err(|e| anyhow!("Error getting scheduled event by election event_id: {e:?}"))?;
+        .map_err(|e| {
+            anyhow::anyhow!("Error getting scheduled events by election event_id: {}", e)
+        })?;
 
-        // Fetch election event's voting periods
-        let voting_period_dates = generate_voting_period_dates(
-            start_election_event,
-            &self.tenant_id,
-            &self.election_event_id,
-            None,
-        )
-        .map_err(|e| anyhow!(format!("Error generating voting period dates {e:?}")))?;
+        let election_dates = get_election_dates(&election, scheduled_events)
+            .map_err(|e| anyhow::anyhow!("Error getting election dates {e}"))?;
 
-        // extract start date from voting period
-        let voting_period_start_date = voting_period_dates.start_date.unwrap_or_default();
-        // extract end date from voting period
-        let voting_period_end_date = voting_period_dates.end_date.unwrap_or_default();
-
-        let election_event_date: &String = &voting_period_start_date;
         let datetime_printed: String = get_date_and_time();
 
         // To filter log entries by election we´ll prepare a list with the user Ids that belong to this election.
         // To get the voter_ids related to this election, we need the areas.
         let election_areas = get_areas_by_election_id(
             &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
             &election_id,
         )
         .await
@@ -304,7 +299,7 @@ impl TemplateRenderer for AuditLogsTemplate {
         loop {
             let electoral_logs_batch = list_electoral_log(GetElectoralLogBody {
                 tenant_id: String::from(&self.get_tenant_id()),
-                election_event_id: String::from(&self.election_event_id),
+                election_event_id: String::from(&self.ids.election_event_id),
                 limit: Some(IMMUDB_ROWS_LIMIT as i64),
                 offset: Some(offset),
                 filter: None,
@@ -346,13 +341,13 @@ impl TemplateRenderer for AuditLogsTemplate {
 
             // Set default username if user_id is None
             let username = item
-                .user_id
+                .username
                 .clone()
-                .map(|username| {
-                    if username == "null" {
+                .map(|user| {
+                    if user == "null" {
                         "-".to_string()
                     } else {
-                        username
+                        user
                     }
                 })
                 .unwrap_or_else(|| "-".to_string());
@@ -375,8 +370,8 @@ impl TemplateRenderer for AuditLogsTemplate {
 
         let votes_data = generate_election_votes_data(
             &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
             &election.id,
         )
         .await
@@ -388,11 +383,14 @@ impl TemplateRenderer for AuditLogsTemplate {
         let voting_center = election_general_data.voting_center.clone();
         let precinct_code = election_general_data.precinct_code.clone();
 
-        let report_hash = "-".to_string();
+        let report_hash = get_report_hash(&ReportType::AUDIT_LOGS.to_string())
+            .await
+            .unwrap_or("-".to_string());
         let results_hash = get_results_hash(
             &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
+            &election_id,
         )
         .await
         .map_err(|err| {
@@ -408,8 +406,8 @@ impl TemplateRenderer for AuditLogsTemplate {
         // Fetch areas associated with the election
         let election_areas = get_areas_by_election_id(
             &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
             &election_id,
         )
         .await
@@ -426,27 +424,37 @@ impl TemplateRenderer for AuditLogsTemplate {
         .await
         .map_err(|err| anyhow!("Error extract area data {err}"))?;
 
+        let ballots_counted = count_ballots_by_election(
+            hasura_transaction,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
+            &election_id,
+        )
+        .await
+        .map_err(|err| anyhow!("Error at count_ballots_by_election: {err:?}"))?;
+
         Ok(UserData {
-            election_event_date: election_event_date.to_string(),
             election_event_title: election_event.name.clone(),
-            date_printed: datetime_printed.clone(),
-            voting_period_start: voting_period_start_date,
-            voting_period_end: voting_period_end_date,
+            election_dates,
             geographical_region,
             post,
             voting_center,
             precinct_code,
             registered_voters: votes_data.registered_voters,
-            ballots_counted: votes_data.total_ballots,
+            ballots_counted: Some(ballots_counted),
             voters_turnout: votes_data.voters_turnout,
             sequences,
             signature_date,
-            results_hash,
-            report_hash,
-            software_version: app_version.clone(),
-            ovcs_version: app_version,
-            system_hash: app_hash,
-            inspectors: area_general_data.inspectors.clone(),
+            inspectors: area_general_data.inspectors,
+            execution_annotations: ExecutionAnnotations {
+                date_printed: datetime_printed,
+                report_hash,
+                software_version: app_version.clone(),
+                app_version,
+                app_hash,
+                executer_username: self.ids.executer_username.clone(),
+                results_hash: Some(results_hash),
+            },
         })
     }
 
@@ -455,16 +463,25 @@ impl TemplateRenderer for AuditLogsTemplate {
         &self,
         rendered_user_template: String,
     ) -> Result<Self::SystemData> {
-        let public_asset_path = get_public_assets_path_env_var()?;
-        let minio_endpoint_base =
-            get_minio_url().with_context(|| "Error getting minio endpoint")?;
+        if pdf::doc_renderer_backend() == pdf::DocRendererBackend::InPlace {
+            let public_asset_path = get_public_assets_path_env_var()?;
+            let minio_endpoint_base =
+                get_minio_url().with_context(|| "Error getting minio endpoint")?;
 
-        Ok(SystemData {
-            rendered_user_template,
-            file_qrcode_lib: format!(
-                "{}/{}/{}",
-                minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_QRCODE_LIB
-            ),
-        })
+            Ok(SystemData {
+                rendered_user_template,
+                file_qrcode_lib: format!(
+                    "{}/{}/{}",
+                    minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_QRCODE_LIB
+                ),
+            })
+        } else {
+            //If we are rendering with a lambda, the QRCode lib is
+            //already included in the lambda container image.
+            Ok(SystemData {
+                rendered_user_template,
+                file_qrcode_lib: "/assets/qrcode.min.js".to_string(),
+            })
+        }
     }
 }

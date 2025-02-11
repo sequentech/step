@@ -4,7 +4,13 @@
 import {gql} from "@apollo/client"
 
 export const GET_TALLY_DATA = gql`
-    query GetTallyData($tenantId: uuid!, $resultsEventId: uuid!, $electionEventId: uuid!) {
+    query GetTallyData(
+        $tenantId: uuid!
+        $resultsEventId: uuid!
+        $electionEventId: uuid!
+        $contestIds: [uuid!]!
+        $electionIds: [uuid!]!
+    ) {
         sequent_backend_area(
             where: {election_event_id: {_eq: $electionEventId}, tenant_id: {_eq: $tenantId}}
         ) {
@@ -20,7 +26,11 @@ export const GET_TALLY_DATA = gql`
             type
         }
         sequent_backend_area_contest(
-            where: {election_event_id: {_eq: $electionEventId}, tenant_id: {_eq: $tenantId}}
+            where: {
+                election_event_id: {_eq: $electionEventId}
+                tenant_id: {_eq: $tenantId}
+                contest_id: {_in: $contestIds}
+            }
         ) {
             tenant_id
             last_updated_at
@@ -33,7 +43,11 @@ export const GET_TALLY_DATA = gql`
             annotations
         }
         sequent_backend_election(
-            where: {election_event_id: {_eq: $electionEventId}, tenant_id: {_eq: $tenantId}}
+            where: {
+                election_event_id: {_eq: $electionEventId}
+                tenant_id: {_eq: $tenantId}
+                id: {_in: $electionIds}
+            }
         ) {
             tenant_id
             status
@@ -56,7 +70,11 @@ export const GET_TALLY_DATA = gql`
             created_at
         }
         sequent_backend_candidate(
-            where: {election_event_id: {_eq: $electionEventId}, tenant_id: {_eq: $tenantId}}
+            where: {
+                election_event_id: {_eq: $electionEventId}
+                tenant_id: {_eq: $tenantId}
+                contest_id: {_in: $contestIds}
+            }
         ) {
             type
             tenant_id
@@ -75,7 +93,11 @@ export const GET_TALLY_DATA = gql`
             alias
         }
         sequent_backend_contest(
-            where: {election_event_id: {_eq: $electionEventId}, tenant_id: {_eq: $tenantId}}
+            where: {
+                election_event_id: {_eq: $electionEventId}
+                tenant_id: {_eq: $tenantId}
+                id: {_in: $contestIds}
+            }
         ) {
             winning_candidates_num
             voting_type
@@ -260,6 +282,24 @@ export const GET_TALLY_DATA = gql`
             total_votes_percent
             total_auditable_votes
             total_auditable_votes_percent
+        }
+        sequent_backend_results_election_area(
+            where: {
+                election_event_id: {_eq: $electionEventId}
+                tenant_id: {_eq: $tenantId}
+                results_event_id: {_eq: $resultsEventId}
+            }
+        ) {
+            id
+            tenant_id
+            election_event_id
+            election_id
+            area_id
+            results_event_id
+            created_at
+            last_updated_at
+            documents
+            name
         }
     }
 `

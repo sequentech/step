@@ -9,6 +9,7 @@ use crate::postgres::election::get_election_by_id;
 use crate::postgres::election::get_election_max_revotes;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
+use crate::services::cast_votes::get_voter_signing_key;
 use crate::services::cast_votes::CastVote;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_status::get_election_status;
@@ -26,20 +27,28 @@ use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
 use electoral_log::messages::newtypes::*;
 use rocket::futures::TryFutureExt;
+use sequent_core::ballot::ContestEncryptionPolicy;
 use sequent_core::ballot::EGracePeriodPolicy;
+use sequent_core::ballot::ElectionEventPresentation;
 use sequent_core::ballot::ElectionEventStatus;
 use sequent_core::ballot::ElectionPresentation;
 use sequent_core::ballot::ElectionStatus;
+use sequent_core::ballot::VoterSigningPolicy;
 use sequent_core::ballot::VotingPeriodDates;
 use sequent_core::ballot::VotingStatus;
 use sequent_core::ballot::VotingStatusChannel;
 use sequent_core::ballot::{HashableBallot, HashableBallotContest};
 use sequent_core::encrypt::hash_ballot_sha512;
+use sequent_core::encrypt::hash_multi_ballot_sha512;
 use sequent_core::encrypt::DEFAULT_PLAINTEXT_LABEL;
+use sequent_core::multi_ballot::HashableMultiBallot;
+use sequent_core::multi_ballot::HashableMultiBallotContests;
 use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::connection::AuthHeaders;
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak;
+use sequent_core::services::keycloak::get_event_realm;
+use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::types::hasura::core::{ElectionEvent, VotingChannels};
 use sequent_core::types::scheduled_event::*;
 use serde::{Deserialize, Serialize};
@@ -53,7 +62,7 @@ use tracing::info;
 use tracing::{error, event, instrument, Level};
 use uuid::Uuid;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct InsertCastVoteInput {
     pub ballot_id: String,
     pub election_id: Uuid,
@@ -195,37 +204,10 @@ pub async fn try_insert_cast_vote(
         .transaction()
         .await
         .map_err(|e| CastVoteError::GetTransactionFailed(e.to_string()))?;
-    // TODO performance of serializable
-    /*hasura_transaction
-    .simple_query("SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;")
-    .await
-    .with_context(|| "Cannot set transaction isolation level")?;*/
-
-    let hashable_ballot: HashableBallot = deserialize_str(&input.content)
-        .map_err(|e| CastVoteError::DeserializeBallotFailed(e.to_string()))?;
-
-    let pseudonym_h = hash_voter_id(voter_id)
-        .map_err(|e| CastVoteError::SerializeVoterIdFailed(e.to_string()))?;
-
-    let vote_h = hash_ballot_sha512(&hashable_ballot)
-        .map_err(|e| CastVoteError::SerializeBallotFailed(e.to_string()))?;
-
-    let pseudonym_h = PseudonymHash(HashWrapper::new(pseudonym_h));
-    let vote_h = CastVoteHash(HashWrapper::new(vote_h));
 
     let area_opt = get_area_by_id(&hasura_transaction, tenant_id, area_id)
         .await
         .map_err(|e| CastVoteError::GetAreaIdFailed(e.to_string()))?;
-
-    let hashable_ballot_contests = hashable_ballot
-        .deserialize_contests()
-        .map_err(|e| CastVoteError::DeserializeContestsFailed(e.to_string()))?;
-
-    hashable_ballot_contests
-        .iter()
-        .map(check_popk)
-        .collect::<Result<Vec<()>>>()
-        .map_err(|e| CastVoteError::PokValidationFailed(e.to_string()))?;
 
     let area = if let Some(area) = area_opt {
         area
@@ -234,10 +216,43 @@ pub async fn try_insert_cast_vote(
     };
     let election_event_id: &str = area.election_event_id.as_str();
 
+    let realm = get_event_realm(tenant_id, election_event_id);
+
+    let client = KeycloakAdminClient::new().await.map_err(|err| {
+        CastVoteError::UnknownError(format!("Error obtaining keycloak admin client: {}", err))
+    })?;
+
+    let user = client
+        .get_user(&realm, voter_id)
+        .await
+        .map_err(|err| CastVoteError::UnknownError(format!("Error getting the user:  {}", err)))?;
+
     let election_event =
         get_election_event_by_id(&hasura_transaction, tenant_id, election_event_id)
             .await
             .map_err(|e| CastVoteError::ElectionEventNotFound(e.to_string()))?;
+
+    let presentation_opt = election_event
+        .get_presentation()
+        .map_err(|e| CastVoteError::ElectionEventNotFound(e.to_string()))?;
+
+    let voter_signing_policy = presentation_opt
+        .clone()
+        .unwrap_or_default()
+        .voter_signing_policy
+        .unwrap_or_default();
+
+    let is_multi_contest = if let Some(presentation) = presentation_opt.clone() {
+        presentation.contest_encryption_policy == Some(ContestEncryptionPolicy::MULTIPLE_CONTESTS)
+    } else {
+        false
+    };
+
+    let (pseudonym_h, vote_h) = if is_multi_contest {
+        deserialize_and_check_multi_ballot(&input.content, voter_id)?
+    } else {
+        deserialize_and_check_ballot(&input.content, voter_id)?
+    };
 
     let (electoral_log, signing_key) = get_electoral_log(&election_event)
         .await
@@ -253,6 +268,35 @@ pub async fn try_insert_cast_vote(
         area_id,
     };
 
+    let voter_signing_policy = election_event
+        .get_presentation()
+        .map_err(|e| CastVoteError::ElectionEventNotFound(e.to_string()))?
+        .unwrap_or_default()
+        .voter_signing_policy
+        .unwrap_or_default();
+
+    info!("voter signing policy {voter_signing_policy}");
+
+    let voter_signing_key: Option<StrandSignatureSk> = if VoterSigningPolicy::WITH_SIGNATURE
+        == voter_signing_policy
+    {
+        let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
+            .with_context(|| "missing bulletin board")
+            .map_err(|e| CastVoteError::BallotVoterSignatureFailed(e.to_string()))?;
+
+        let voter_signing_key = get_voter_signing_key(
+            &board_name,
+            ids.tenant_id,
+            ids.election_event_id,
+            ids.voter_id,
+        )
+        .await
+        .map_err(|e| CastVoteError::BallotVoterSignatureFailed(e.to_string()))?;
+        Some(voter_signing_key)
+    } else {
+        None
+    };
+
     let result = insert_cast_vote_and_commit(
         input,
         hasura_transaction,
@@ -263,6 +307,7 @@ pub async fn try_insert_cast_vote(
         auth_time,
         voter_ip,
         voter_country,
+        &voter_signing_key,
     )
     .await;
 
@@ -274,14 +319,22 @@ pub async fn try_insert_cast_vote(
 
     match result {
         Ok(inserted_cast_vote) => {
-            let electoral_log = ElectoralLog::for_voter(
+            let electoral_log_res = ElectoralLog::for_voter(
                 &electoral_log.elog_database,
                 tenant_id,
                 election_event_id,
                 voter_id,
+                &voter_signing_key,
             )
-            .await
-            .map_err(|e| CastVoteError::ElectoralLogNotFound(e.to_string()))?;
+            .await;
+
+            let electoral_log = match electoral_log_res {
+                Ok(electoral_log) => electoral_log,
+                Err(err) => {
+                    error!("Error posting to the electoral log {:?}", err);
+                    return Ok(inserted_cast_vote);
+                }
+            };
 
             let log_result = electoral_log
                 .post_cast_vote(
@@ -292,6 +345,7 @@ pub async fn try_insert_cast_vote(
                     ip,
                     country,
                     voter_id.to_string(),
+                    user.username.clone(),
                 )
                 .await;
             if let Err(log_err) = log_result {
@@ -322,7 +376,73 @@ pub async fn try_insert_cast_vote(
     }
 }
 
-#[instrument(skip(input, hasura_transaction, election_event, signing_key), err)]
+#[instrument(err)]
+pub fn deserialize_and_check_ballot(
+    content: &str,
+    voter_id: &str,
+) -> Result<(PseudonymHash, CastVoteHash), CastVoteError> {
+    let hashable_ballot: HashableBallot = deserialize_str(&content)
+        .map_err(|e| CastVoteError::DeserializeBallotFailed(e.to_string()))?;
+
+    let pseudonym_h = hash_voter_id(voter_id)
+        .map_err(|e| CastVoteError::SerializeVoterIdFailed(e.to_string()))?;
+
+    let vote_h = hash_ballot_sha512(&hashable_ballot)
+        .map_err(|e| CastVoteError::SerializeBallotFailed(e.to_string()))?;
+
+    let pseudonym_h = PseudonymHash(HashWrapper::new(pseudonym_h));
+    let vote_h = CastVoteHash(HashWrapper::new(vote_h));
+
+    let hashable_ballot_contests = hashable_ballot
+        .deserialize_contests()
+        .map_err(|e| CastVoteError::DeserializeContestsFailed(e.to_string()))?;
+
+    hashable_ballot_contests
+        .iter()
+        .map(check_popk)
+        .collect::<Result<Vec<()>>>()
+        .map_err(|e| CastVoteError::PokValidationFailed(e.to_string()))?;
+
+    Ok((pseudonym_h, vote_h))
+}
+
+#[instrument(err)]
+pub fn deserialize_and_check_multi_ballot(
+    content: &str,
+    voter_id: &str,
+) -> Result<(PseudonymHash, CastVoteHash), CastVoteError> {
+    let hashable_multi_ballot: HashableMultiBallot = deserialize_str(content)
+        .map_err(|e| CastVoteError::DeserializeBallotFailed(e.to_string()))?;
+
+    let pseudonym_h = hash_voter_id(voter_id)
+        .map_err(|e| CastVoteError::SerializeVoterIdFailed(e.to_string()))?;
+
+    let vote_h = hash_multi_ballot_sha512(&hashable_multi_ballot)
+        .map_err(|e| CastVoteError::SerializeBallotFailed(e.to_string()))?;
+
+    let pseudonym_h = PseudonymHash(HashWrapper::new(pseudonym_h));
+    let vote_h = CastVoteHash(HashWrapper::new(vote_h));
+
+    let hashable_multi_ballot_contests = hashable_multi_ballot
+        .deserialize_contests()
+        .map_err(|e| CastVoteError::DeserializeContestsFailed(e.to_string()))?;
+
+    check_popk_multi(&hashable_multi_ballot_contests)
+        .map_err(|e| CastVoteError::PokValidationFailed(e.to_string()))?;
+
+    Ok((pseudonym_h, vote_h))
+}
+
+#[instrument(
+    skip(
+        input,
+        hasura_transaction,
+        election_event,
+        signing_key,
+        voter_signing_key
+    ),
+    err
+)]
 pub async fn insert_cast_vote_and_commit<'a>(
     input: InsertCastVoteInput,
     hasura_transaction: Transaction<'_>,
@@ -333,6 +453,7 @@ pub async fn insert_cast_vote_and_commit<'a>(
     auth_time: &Option<i64>,
     voter_ip: &Option<String>,
     voter_country: &Option<String>,
+    voter_signing_key: &Option<StrandSignatureSk>,
 ) -> Result<CastVote, CastVoteError> {
     let election_id_string = input.election_id.to_string();
     let election_id = election_id_string.as_str();
@@ -361,26 +482,16 @@ pub async fn insert_cast_vote_and_commit<'a>(
     // These are unhashed bytes, the signing code will hash it first.
     let ballot_bytes = input.get_bytes_for_signing();
 
+    if let Some(voter_signing_key) = voter_signing_key.clone() {
+        // TODO do something with this
+        let voter_ballot_signature = voter_signing_key
+            .sign(&ballot_bytes)
+            .map_err(|e| CastVoteError::BallotVoterSignatureFailed(e.to_string()))?;
+    };
+
     let ballot_signature = signing_key
         .sign(&ballot_bytes)
         .map_err(|e| CastVoteError::BallotSignFailed(e.to_string()))?;
-    let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
-        .with_context(|| "missing bulletin board")
-        .map_err(|e| CastVoteError::BallotVoterSignatureFailed(e.to_string()))?;
-
-    let voter_signing_key = vault::get_voter_signing_key(
-        &board_name,
-        ids.tenant_id,
-        ids.election_event_id,
-        ids.voter_id,
-    )
-    .await
-    .map_err(|e| CastVoteError::BallotVoterSignatureFailed(e.to_string()))?;
-
-    // TODO do something with this
-    let voter_ballot_signature = voter_signing_key
-        .sign(&ballot_bytes)
-        .map_err(|e| CastVoteError::BallotVoterSignatureFailed(e.to_string()))?;
 
     let ballot_signature = ballot_signature.to_bytes().to_vec();
     let tenant_uuid = Uuid::parse_str(ids.tenant_id)
@@ -702,6 +813,26 @@ fn check_popk(ballot_contest: &HashableBallotContest<RistrettoCtx>) -> Result<()
         return Err(anyhow!(
             "Popk validation failed for contest {}",
             ballot_contest.contest_id
+        ));
+    }
+
+    Ok(())
+}
+
+#[instrument(skip_all, err)]
+fn check_popk_multi(ballot_contest: &HashableMultiBallotContests<RistrettoCtx>) -> Result<()> {
+    let zkp = Zkp::new(&RistrettoCtx);
+    let popk_ok = zkp.encryption_popk_verify(
+        &ballot_contest.ciphertext.mhr,
+        &ballot_contest.ciphertext.gr,
+        &ballot_contest.proof,
+        &DEFAULT_PLAINTEXT_LABEL,
+    )?;
+
+    if !popk_ok {
+        return Err(anyhow!(
+            "Popk validation failed for contest ids {:?}",
+            ballot_contest.contest_ids
         ));
     }
 

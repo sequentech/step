@@ -40,6 +40,7 @@ import {
 import {useTranslation} from "react-i18next"
 import {PageHeaderStyles} from "@/components/styles/PageHeaderStyles"
 import _ from "lodash"
+import {useLocalizationPermissions} from "./useLocalizationPermissions"
 
 interface LocalizationListProps {
     selectedLanguage: string
@@ -137,6 +138,13 @@ const EditElectionEventTextDataTable = () => {
     const [openDeleteModal, setOpenDeleteModal] = useState(false)
     const [deleteId, setDeleteId] = useState<Identifier | null>(null)
     const [recordId, setRecordId] = useState<Identifier | null>(null)
+
+    const {
+        canCreateLocalization,
+        canEditLocalization,
+        canDeleteLocalization,
+        showLocalizationSelector,
+    } = useLocalizationPermissions()
 
     const languageOptions = useMemo(() => {
         return (record?.presentation?.language_conf?.enabled_language_codes ?? []) as string[]
@@ -267,8 +275,8 @@ const EditElectionEventTextDataTable = () => {
     }
 
     const actions: Action[] = [
-        {icon: <EditIcon />, action: editAction},
-        {icon: <DeleteIcon />, action: deleteAction},
+        {icon: <EditIcon />, action: editAction, showAction: () => canEditLocalization},
+        {icon: <DeleteIcon />, action: deleteAction, showAction: () => canDeleteLocalization},
     ]
 
     if (!languageOptions || !selectedLanguage) {
@@ -293,31 +301,38 @@ const EditElectionEventTextDataTable = () => {
                         justifyContent: "space-between",
                     }}
                 >
-                    <FormControl key="select-language" sx={{width: "50%"}}>
-                        <InputLabel id="select-language">
-                            {t("electionEventScreen.localization.selectLanguage")}
-                        </InputLabel>
-                        <Select
-                            labelId="select-language"
-                            fullWidth
-                            label={t("electionEventScreen.localization.selectLanguage")}
-                            onChange={handleLanguageChange}
-                            value={selectedLanguage}
-                        >
-                            {languageOptions &&
-                                languageOptions.map((lang) => {
-                                    return (
-                                        <MenuItem key={lang} value={lang}>
-                                            {t(`common.language.${lang}`)}
-                                        </MenuItem>
-                                    )
-                                })}
-                        </Select>
-                    </FormControl>
+                    {showLocalizationSelector ? (
+                        <FormControl key="select-language" sx={{width: "50%"}}>
+                            <InputLabel id="select-language">
+                                {t("electionEventScreen.localization.selectLanguage")}
+                            </InputLabel>
+                            <Select
+                                labelId="select-language"
+                                fullWidth
+                                label={t("electionEventScreen.localization.selectLanguage")}
+                                onChange={handleLanguageChange}
+                                value={selectedLanguage}
+                            >
+                                {languageOptions &&
+                                    languageOptions.map((lang) => {
+                                        return (
+                                            <MenuItem key={lang} value={lang}>
+                                                {t(`common.language.${lang}`)}
+                                            </MenuItem>
+                                        )
+                                    })}
+                            </Select>
+                        </FormControl>
+                    ) : null}
                     <div className="list-actions">
-                        <Button onClick={() => setOpenCreate(true)} label={t("common.label.add")}>
-                            <Add />
-                        </Button>
+                        {canCreateLocalization ? (
+                            <Button
+                                onClick={() => setOpenCreate(true)}
+                                label={t("common.label.add")}
+                            >
+                                <Add />
+                            </Button>
+                        ) : null}
 
                         <Drawer
                             anchor="right"

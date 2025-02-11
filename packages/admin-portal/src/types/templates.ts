@@ -2,6 +2,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+export enum EIntegrityCheckError {
+    IO_ERROR = "io-error",
+    HASH_MISSMATCH = "hash-mismatch",
+    HASH_COMPUTING_ERROR = "hash-computing-error",
+}
+
 export enum IAudienceSelection {
     ALL_USERS = "ALL_USERS",
     NOT_VOTED = "NOT_VOTED",
@@ -13,35 +19,32 @@ export enum ETemplateType {
     CREDENTIALS = "CREDENTIALS",
     PARTICIPATION_REPORT = "PARTICIPATION_REPORT",
     OTP = "OTP",
-    STATUS = "STATUS",
     TALLY_REPORT = "TALLY_REPORT",
     BALLOT_RECEIPT = "BALLOT_RECEIPT",
-    ELECTORAL_RESULTS = "ELECTORAL_RESULTS",
+    VOTE_RECEIPT = "VOTE_RECEIPT",
     MANUAL_VERIFICATION = "MANUAL_VERIFICATION",
-    STATISTICAL_REPORT = "STATISTICAL_REPORT",
-    INITIALIZATION = "INITIALIZATION",
-    TRANSMISSION_REPORTS = "TRANSMISSION_REPORTS",
-    AUDIT_LOGS = "AUDIT_LOGS",
     ACTIVITY_LOGS = "ACTIVITY_LOGS",
+    INITIALIZATION_REPORT = "INITIALIZATION_REPORT",
+    STATUS = "STATUS",
+    ELECTORAL_RESULTS = "ELECTORAL_RESULTS",
+    TRANSMISSION_REPORT = "TRANSMISSION_REPORT",
+    STATISTICAL_REPORT = "STATISTICAL_REPORT",
+    AUDIT_LOGS = "AUDIT_LOGS",
     OVCS_INFORMATION = "OVCS_INFORMATION",
+    OV_TURNOUT_PERCENTAGE = "OV_TURNOUT_PERCENTAGE",
     OVCS_EVENTS = "OVCS_EVENTS",
-    OVERSEAS_VOTERS = "OVERSEAS_VOTERS",
-    OVERSEAS_VOTERS_TURNOUT = "OVERSEAS_VOTERS_TURNOUT",
-    OVERSEAS_VOTING_MONITORING_OVCS_EVENTS = "OVERSEAS_VOTING_MONITORING_OVCS_EVENTS",
     OVCS_STATISTICS = "OVCS_STATISTICS",
-    OVERSEAS_VOTING_MONITORING_OVCS_STATISTICS = "OVERSEAS_VOTING_MONITORING_OVCS_STATISTICS",
-    OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_AND_SEX = "OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_AND_SEX",
-    OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_SEX_AND_WITH_PERCENTAGE = "OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_SEX_AND_WITH_PERCENTAGE",
-    OV_USERS = "OV_USERS",
-    OV_USERS_WHO_VOTED = "OV_USERS_WHO_VOTED",
-    OV_USERS_WHO_PRE_ENROLLED = "OV_USERS_WHO_PRE_ENROLLED",
+    OV_TURNOUT_PER_ABOARD_STATUS_SEX = "OV_TURNOUT_PER_ABOARD_STATUS_SEX",
+    OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE = "OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE",
+    LIST_OF_OVERSEAS_VOTERS = "LIST_OF_OVERSEAS_VOTERS",
+    OV_PRE_ENROLLED_APPROVED = "OV_PRE_ENROLLED_APPROVED",
     PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION = "PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION",
     PRE_ENROLLED_OV_BUT_DISAPPROVED = "PRE_ENROLLED_OV_BUT_DISAPPROVED",
-    LIST_OF_OV_WHO_PRE_ENROLLED_APPROVED = "LIST_OF_OV_WHO_PRE_ENROLLED_APPROVED",
-    LIST_OF_OV_WHO_PRE_ENROLLED_BUT_SUBJECT_FOR_MANUAL_VALIDATION = "LIST_OF_OV_WHO_PRE_ENROLLED_BUT_SUBJECT_FOR_MANUAL_VALIDATION",
-    LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED = "LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED",
-    LIST_OF_OVERSEAS_VOTERS_WITH_VOTING_STATUS = "LIST_OF_OVERSEAS_VOTERS_WITH_VOTING_STATUS",
-    NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED = "NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED",
+    OV_NOT_YET_PRE_ENROLLED_LIST = "OV_NOT_YET_PRE_ENROLLED_LIST",
+    OV_WITH_VOTING_STATUS = "OV_WITH_VOTING_STATUS",
+    OV_WHO_VOTED = "OV_WHO_VOTED",
+    OV_NOT_YET_PRE_ENROLLED_NUMBER = "OV_NOT_YET_PRE_ENROLLED_NUMBER",
+    BALLOT_IMAGES = "BALLOT_IMAGES",
 }
 
 export enum ITemplateMethod {
@@ -79,12 +82,29 @@ export interface ISendTemplateBody {
     communication_method?: ITemplateMethod
     schedule_now?: boolean
     schedule_date?: string
-    email?: IEmail
-    sms?: ISmsConfig
     name?: string
     alias?: string
     document?: string
+    email?: IEmail
+    sms?: ISmsConfig
+    pdf_options?: IPdfOptions
     selected_methods?: IMethods
+}
+
+export interface ICommTemplates {
+    email_config?: IEmail
+    sms_config?: ISmsConfig
+}
+
+export interface IReportOptions {
+    max_items_per_report: number
+    max_threads: number
+}
+
+export interface IExtraConfig {
+    pdf_options?: JSON
+    report_options?: IReportOptions
+    communication_templates?: ICommTemplates
 }
 
 export interface IRECEIPTS {
@@ -92,4 +112,23 @@ export interface IRECEIPTS {
         allowed?: boolean
         template?: string | null
     }
+}
+
+export interface IPdfOptions {
+    landscape?: boolean
+    displayHeaderFooter?: boolean
+    printBackground?: boolean
+    scale?: number
+    paperWidth?: number
+    paperHeight?: number
+    marginTop?: number
+    marginBottom?: number
+    marginLeft?: number
+    marginRight?: number
+    pageRanges?: string
+    ignoreInvalidPageRanges?: boolean
+    headerTemplate?: string
+    footerTemplate?: string
+    preferCssPageSize?: boolean
+    transferMode?: string
 }

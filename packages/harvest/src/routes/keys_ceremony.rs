@@ -194,6 +194,7 @@ pub async fn create_keys_ceremony(
     let input = body.into_inner();
     let tenant_id = claims.hasura_claims.tenant_id.clone();
     let user_id = claims.hasura_claims.user_id;
+    let username = claims.preferred_username.unwrap_or("-".to_string());
 
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
@@ -210,6 +211,7 @@ pub async fn create_keys_ceremony(
         &hasura_transaction,
         tenant_id,
         &user_id,
+        &username,
         input.election_event_id.clone(),
         input.threshold,
         input.trustee_names,
@@ -285,6 +287,7 @@ pub async fn list_keys_ceremonies(
         &hasura_transaction,
         &tenant_id,
         &input.election_event_id,
+        None,
     )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;

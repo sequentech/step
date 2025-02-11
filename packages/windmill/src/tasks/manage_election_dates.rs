@@ -75,14 +75,28 @@ async fn manage_election_date_wrapper(
         }
     };
 
+    let voting_channels: Vec<VotingStatusChannel> = match event_processor {
+        EventProcessors::START_VOTING_PERIOD => {
+            vec![VotingStatusChannel::ONLINE, VotingStatusChannel::KIOSK]
+        }
+        EventProcessors::END_VOTING_PERIOD => vec![VotingStatusChannel::ONLINE],
+        _ => {
+            info!("Invalid scheduled event type: {:?}", event_processor);
+            stop_scheduled_event(&hasura_transaction, &tenant_id, &scheduled_manage_date.id)
+                .await?;
+            return Ok(());
+        }
+    };
+
     let result = voting_status::update_election_status(
         tenant_id.clone(),
+        None,
         None,
         hasura_transaction,
         &election_event_id,
         &election_id,
         &status,
-        &VotingStatusChannel::ONLINE,
+        &Some(voting_channels),
     )
     .await;
     info!("result: {result:?}");

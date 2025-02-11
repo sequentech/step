@@ -80,6 +80,35 @@ extern "C" {
 }
 
 #[wasm_bindgen(typescript_custom_section)]
+const ICOMM_TEMPLATES: &'static str = r#"
+interface ICommTemplates {
+    email: IEmail;
+    sms: ISmsConfig;
+}
+"#;
+
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(typescript_type = "ICommTemplates")]
+    pub type ICommTemplates;
+}
+
+#[wasm_bindgen(typescript_custom_section)]
+const IEXTRA_CONFIG: &'static str = r#"
+interface IExtraConfig {
+    pdf_options: string;
+    report_options: string;
+    communication_templates: ICommTemplates;
+}
+"#;
+
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(typescript_type = "IExtraConfig")]
+    pub type IExtraConfig;
+}
+
+#[wasm_bindgen(typescript_custom_section)]
 const ISEND_Template_BODY: &'static str = r#"
 interface ISendTemplateBody {
     audience_selection: IAudienceSelection;
@@ -88,8 +117,10 @@ interface ISendTemplateBody {
     communication_method: ITemplateMethod;
     schedule_now: boolean;
     schedule_date?: string;
-    email?: IEmailConfig,
-    sms?: ISmsConfig,
+    name?: string;
+    alias?: string;
+    document?: string;
+    extra_config?: IExtraConfig;
 }
 "#;
 

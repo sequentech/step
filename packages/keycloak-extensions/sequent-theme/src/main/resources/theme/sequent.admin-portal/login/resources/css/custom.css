@@ -343,6 +343,20 @@ button#resend-otp-btn:hover {
     text-decoration: underline;
 }
 
+.login-pf-page #kc-error-message {
+    font-size: 14px;
+}
+
+.last-page-text, .last-page-text li {
+    font-size: 16px;
+    color: #72767b;
+}
+
+.last-page-text li::before {
+    content: "-";
+    margin-right: 8px;
+}
+
 .inetum-error-form {
     font-size: 16px;
 }

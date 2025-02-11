@@ -3,12 +3,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::template::get_templates_by_tenant_id;
 use crate::services::database::get_hasura_pool;
-use crate::services::{
-    documents::upload_and_return_document_postgres, temp_path::write_into_named_temp_file,
-};
+use crate::services::documents::upload_and_return_document_postgres;
 use anyhow::{anyhow, Result};
 use csv::Writer;
 use deadpool_postgres::{Client as DbClient, Transaction};
+use sequent_core::signatures::temp_path::write_into_named_temp_file;
 use sequent_core::types::hasura::core::Template;
 use sequent_core::{services::keycloak::get_event_realm, types::hasura::core::Document};
 use serde::{Deserialize, Serialize};
@@ -25,7 +24,7 @@ pub async fn read_export_data(
     let transformed_templates: Vec<Template> = templates
         .into_iter()
         .map(|template| Template {
-            id: template.id.to_string(),
+            alias: template.alias.to_string(),
             tenant_id: template.tenant_id.to_string(),
             template: template.template,
             created_by: template.created_by,
@@ -37,7 +36,6 @@ pub async fn read_export_data(
             r#type: template.r#type,
         })
         .collect();
-
     Ok(transformed_templates)
 }
 
@@ -49,7 +47,7 @@ pub async fn write_export_document(
 ) -> Result<Document> {
     // Define the headers
     let headers = vec![
-        "id",
+        "alias",
         "tenant_id",
         "template",
         "created_by",
@@ -69,7 +67,7 @@ pub async fn write_export_document(
     for template in data.clone() {
         writer
             .write_record(&[
-                template.id,
+                template.alias,
                 template.tenant_id,
                 template.template.to_string(),
                 template.created_by,

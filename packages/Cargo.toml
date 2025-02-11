@@ -6,7 +6,7 @@
 resolver = "2"
 
 members = [
-    "braid", 
+    "braid",
     "b3",
     "electoral-log",
     "harvest",
@@ -17,5 +17,18 @@ members = [
     "velvet",
     "windmill",
     "wrap-map-err",
-    "step-cli"
+    "step-cli",
+    "e2e/src/mock_server",
+    "e2e",
+    "orare",
+    "orare/doc_renderer"
 ]
+
+[patch.crates-io]
+celery = { git = "https://github.com/rusty-celery/rusty-celery.git", rev = "1a0168f4b4b521c891fcfc853c21fc30de12c2f2" }
+
+[source.crates-io]
+replace-with = "vendored-sources"
+
+[source.vendored-sources]
+directory = "vendor"

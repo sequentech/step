@@ -11,6 +11,8 @@ import {
     useRefresh,
     AutocompleteArrayInput,
     ReferenceArrayInput,
+    BooleanInput,
+    useGetList,
 } from "react-admin"
 import {useMutation, useQuery} from "@apollo/client"
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
@@ -27,13 +29,15 @@ import {
     InputLabel,
     FormGroup,
     FormLabel,
+    Box,
 } from "@mui/material"
 import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
 import {
-    CreateUserMutationVariables,
+    CreateUserMutation,
     DeleteUserRoleMutation,
     EditUsersInput,
     ListUserRolesQuery,
+    Sequent_Backend_Cast_Vote,
     SetUserRoleMutation,
     UserProfileAttribute,
 } from "@/gql/graphql"
@@ -45,13 +49,22 @@ import {DELETE_USER_ROLE} from "@/queries/DeleteUserRole"
 import {SET_USER_ROLE} from "@/queries/SetUserRole"
 import {FormStyles} from "@/components/styles/FormStyles"
 import {CREATE_USER} from "@/queries/CreateUser"
-import {formatUserAtributes, getAttributeLabel, userBasicInfo} from "@/services/UserService"
+import {
+    formatUserAtributes,
+    getAttributeLabel,
+    getTranslationLabel,
+    userBasicInfo,
+} from "@/services/UserService"
 import PhoneInput from "@/components/PhoneInput"
 import SelectArea from "@/components/area/SelectArea"
 import SelectActedTrustee from "./SelectActedTrustee"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {useLocation} from "react-router"
+import {InputContainerStyle, InputLabelStyle, PasswordInputStyle} from "./EditPassword"
+import IconTooltip from "@/components/IconTooltip"
+import {faInfoCircle} from "@fortawesome/free-solid-svg-icons"
+import {useUsersPermissions} from "./useUsersPermissions"
 
 interface ListUserRolesProps {
     userId?: string
@@ -201,28 +214,51 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     record,
 }) => {
     const {t} = useTranslation()
+
     const [user, setUser] = useState<IUser | undefined>(
-        createMode ? {enabled: true} : (record && convertRecordToUser(record)) || {}
+        createMode
+            ? {
+                  enabled: true,
+                  attributes: {}, // Initialize attributes object for new users
+              }
+            : (record && convertRecordToUser(record)) || {attributes: {}}
     )
+
     const [selectedArea, setSelectedArea] = useState<string>("")
     const [selectedActedTrustee, setSelectedActedTrustee] = useState<string>("")
     const [selectedRolesOnCreate, setSelectedRolesOnCreate] = useState<string[]>([])
     const [phoneInputs, setPhoneInputs] = useState<{[key: string]: string[]}>({})
+    const {canEditVoters, canEditVotersWhoVoted, canEditVotersEmailTlf} = useUsersPermissions()
     const [tenantId] = useTenantStore()
     const refresh = useRefresh()
     const notify = useNotify()
     const authContext = useContext(AuthContext)
-    const [createUser] = useMutation<CreateUserMutationVariables>(CREATE_USER)
+    const [createUser] = useMutation<CreateUserMutation>(CREATE_USER)
     const [edit_user] = useMutation<EditUsersInput>(EDIT_USER)
     const [permissionLabels, setPermissionLabels] = useState<string[]>(
         (user?.attributes?.permission_labels as string[]) || []
     )
+    const [temporary, setTemportay] = useState<boolean>(true)
     const [choices, setChoices] = useState<any[]>(
         (user?.attributes?.permission_labels as string[])?.map((label) => ({
             id: label,
             name: label,
         })) || []
     )
+    const [errorText, setErrorText] = useState("")
+
+    const equalToPassword = (allValues: any) => {
+        if (!allValues.password || allValues.password.length == 0) {
+            return
+        }
+        if (allValues.confirm_password !== allValues.password) {
+            setErrorText(t("usersAndRolesScreen.users.fields.passwordMismatch"))
+        }
+
+        if (errorText && allValues.confirm_password === allValues.password) {
+            setErrorText("")
+        }
+    }
 
     useEffect(() => {
         const userPermissionLabels = user?.attributes?.permission_labels as string[] | undefined
@@ -244,6 +280,33 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         },
     })
 
+    const {data: voterCastVotes} = useGetList<Sequent_Backend_Cast_Vote>(
+        "sequent_backend_cast_vote",
+        {
+            pagination: {page: 1, perPage: 10},
+            sort: {field: "last_updated_at", order: "DESC"},
+            filter: {
+                tenant_id: tenantId,
+                election_event_id: electionEventId,
+                voter_id_string: id,
+            },
+        },
+        {
+            enabled: !!electionEventId,
+        }
+    )
+
+    // true if not affected by canEditVotersWhoVoted
+    // which happens if the voter has not voted
+    // or if current admin user has the permission canEditVotersWhoVoted
+    const enabledByVoteNum = useMemo(() => {
+        return (
+            canEditVotersWhoVoted ||
+            !voterCastVotes ||
+            (voterCastVotes !== undefined && voterCastVotes?.length === 0)
+        )
+    }, [canEditVotersWhoVoted, voterCastVotes])
+
     const handleSelectedRolesOnCreate = useCallback(
         (id: string) => {
             const existId = selectedRolesOnCreate.find((roleId) => id === roleId)
@@ -258,7 +321,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
 
     const onSubmitCreateUser = async () => {
         try {
-            let {errors} = await createUser({
+            let {errors, data} = await createUser({
                 variables: {
                     tenantId,
                     electionEventId,
@@ -279,11 +342,16 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                     userRolesIds: selectedRolesOnCreate,
                 },
             })
+            //update user password after creating user
+            //@ts-ignore because data returns create_user property but not recognized
             close?.()
             if (errors) {
                 notify(t("usersAndRolesScreen.voters.errors.createError"), {type: "error"})
                 console.log(`Error creating user: ${errors}`)
             } else {
+                if ((user?.password?.length ?? 0) > 0 && data?.create_user.id) {
+                    await handleUpdateUserPassword(data?.create_user.id)
+                }
                 notify(t("usersAndRolesScreen.voters.errors.createSuccess"), {type: "success"})
                 refresh()
             }
@@ -299,25 +367,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
             onSubmitCreateUser()
         } else {
             try {
-                await edit_user({
-                    variables: {
-                        body: {
-                            user_id: user?.id,
-                            tenant_id: tenantId,
-                            election_event_id: electionEventId,
-                            first_name: user?.first_name,
-                            last_name: user?.last_name,
-                            enabled: user?.enabled,
-                            email: user?.email,
-                            attributes: {
-                                ...formatUserAtributes(user?.attributes),
-                                ...(selectedArea && {"area-id": [selectedArea]}),
-                                ...(phoneInputs && phoneInputs),
-                                ...(selectedActedTrustee && {trustee: [selectedActedTrustee]}),
-                            },
-                        },
-                    },
-                })
+                await handleEditUser()
                 if (authContext.userId === user?.id) {
                     authContext.updateTokenAndPermissionLabels()
                 }
@@ -331,14 +381,60 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         }
     }
 
+    const handleUpdateUserPassword = async (id: string) => {
+        return edit_user({
+            variables: {
+                body: {
+                    user_id: id,
+                    tenant_id: tenantId,
+                    election_event_id: electionEventId,
+                    password:
+                        user?.password && user?.password.length > 0 ? user.password : undefined,
+                    temporary: temporary,
+                },
+            },
+        })
+    }
+
+    const handleEditUser = async () => {
+        return edit_user({
+            variables: {
+                body: {
+                    user_id: user?.id,
+                    tenant_id: tenantId,
+                    election_event_id: electionEventId,
+                    first_name: user?.first_name,
+                    last_name: user?.last_name,
+                    enabled: user?.enabled,
+                    email: user?.email,
+                    password:
+                        user?.password && user?.password.length > 0 ? user.password : undefined,
+                    temporary: temporary,
+                    attributes: {
+                        ...formatUserAtributes(user?.attributes),
+                        ...(selectedArea && {"area-id": [selectedArea]}),
+                        ...(phoneInputs && phoneInputs),
+                        ...(selectedActedTrustee && {trustee: [selectedActedTrustee]}),
+                    },
+                },
+            },
+        })
+    }
+
     const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const {name, value} = e.target
-        setUser((prev) => {
-            return {
-                ...prev,
-                [name]: value,
-            }
-        })
+
+        const updatedUser = {
+            ...user,
+            [name]: value,
+        }
+
+        //only run on password update
+        if (name === "confirm_password" || name === "password") {
+            equalToPassword(updatedUser)
+        }
+
+        setUser(updatedUser)
     }
 
     const handleAttrChange =
@@ -453,23 +549,32 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                     ? user?.attributes?.[attr.name]
                     : user && user[attr.name as keyof IUser]
                 const displayName = attr.display_name ?? ""
+                const isRequired = isFieldRequired(attr)
                 if (attr.annotations?.inputType === "select") {
                     return (
                         <FormControl fullWidth>
-                            <InputLabel id="select-label">
-                                {getAttributeLabel(displayName)}
+                            <InputLabel id="select-label" required={isRequired}>
+                                {getTranslationLabel(attr.name, attr.display_name, t)}
                             </InputLabel>
                             <Select
                                 name={displayName}
                                 defaultValue={value}
                                 labelId="select-label"
-                                label={getAttributeLabel(displayName)}
+                                label={getTranslationLabel(attr.name, attr.display_name, t)}
                                 value={value}
                                 onChange={handleSelectChange(attr.name)}
+                                required={isRequired}
+                                disabled={
+                                    !(
+                                        createMode ||
+                                        !electionEventId ||
+                                        (enabledByVoteNum && canEditVoters)
+                                    )
+                                }
                             >
-                                {attr.validations.options?.options?.map((area: string) => (
-                                    <MenuItem key={area} value={area}>
-                                        {area}
+                                {attr.validations.options?.options?.map((option: string) => (
+                                    <MenuItem key={option} value={option}>
+                                        {t(option)}
                                     </MenuItem>
                                 ))}
                             </Select>
@@ -487,7 +592,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                     return (
                         <FormControl component="fieldset">
                             <FormLabel component="legend" style={{margin: 0}}>
-                                {getAttributeLabel(displayName)}
+                                {getTranslationLabel(attr.name, attr.display_name, t)}
                             </FormLabel>
                             <FormGroup row>
                                 {choices.map((choice) => {
@@ -496,6 +601,17 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                             key={choice.id}
                                             control={
                                                 <Checkbox
+                                                    disabled={
+                                                        !(
+                                                            createMode ||
+                                                            !electionEventId ||
+                                                            (enabledByVoteNum &&
+                                                                (canEditVoters ||
+                                                                    (attr.name ===
+                                                                        "emailAndOrMobile" &&
+                                                                        canEditVotersEmailTlf)))
+                                                        )
+                                                    }
                                                     checked={value && value.includes(choice.id)}
                                                     onChange={() =>
                                                         handleCheckboxChange(attr.name ?? "")(
@@ -516,7 +632,14 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                         <FormStyles.DateInput
                             source={`attributes.${attr.name}`}
                             onChange={handleAttrChange(attr.name)}
-                            label={getAttributeLabel(displayName)}
+                            label={getTranslationLabel(attr.name, attr.display_name, t)}
+                            disabled={
+                                !(
+                                    createMode ||
+                                    !electionEventId ||
+                                    (enabledByVoteNum && canEditVoters)
+                                )
+                            }
                         />
                     )
                 } else if (attr.name.toLowerCase().includes("area")) {
@@ -525,9 +648,16 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                     return (
                         <PhoneInput
                             handlePhoneNumberChange={handlePhoneNumberChange(attr.name)}
-                            label={getAttributeLabel(displayName)}
+                            label={getTranslationLabel(attr.name, attr.display_name, t)}
                             fullWidth
                             initialValue={value}
+                            disabled={
+                                !(
+                                    createMode ||
+                                    !electionEventId ||
+                                    (enabledByVoteNum && (canEditVoters || canEditVotersEmailTlf))
+                                )
+                            }
                         />
                     )
                 } else if (attr.name.toLowerCase().includes("trustee")) {
@@ -556,13 +686,20 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                             enableGetChoices={({q}) => q && q.length >= 3}
                         >
                             <FormStyles.AutocompleteArrayInput
-                                label={getAttributeLabel(displayName)}
+                                label={getTranslationLabel(attr.name, attr.display_name, t)}
                                 className="elections-selector"
                                 fullWidth={true}
                                 optionValue="alias"
                                 optionText={aliasRenderer}
                                 filterToQuery={electionFilterToQuery}
                                 onChange={handleArraySelectChange(attr.name)}
+                                disabled={
+                                    !(
+                                        createMode ||
+                                        !electionEventId ||
+                                        (enabledByVoteNum && canEditVoters)
+                                    )
+                                }
                             />
                         </ReferenceArrayInput>
                     )
@@ -591,6 +728,13 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                             optionText="name"
                             choices={choices}
                             freeSolo={true}
+                            disabled={
+                                !(
+                                    createMode ||
+                                    !electionEventId ||
+                                    (enabledByVoteNum && canEditVoters)
+                                )
+                            }
                             onKeyDown={(e) => {
                                 if (e.key === "Enter") {
                                     e.preventDefault()
@@ -616,18 +760,33 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                     <>
                         {isCustomAttribute ? (
                             <FormStyles.TextField
-                                label={getAttributeLabel(displayName)}
+                                label={getTranslationLabel(attr.name, attr.display_name, t)}
                                 value={value}
                                 onChange={handleAttrChange(attr.name)}
+                                disabled={
+                                    !(
+                                        createMode ||
+                                        !electionEventId ||
+                                        (enabledByVoteNum && canEditVoters)
+                                    )
+                                }
                             />
                         ) : (
                             <FormStyles.TextInput
                                 key={attr.display_name}
-                                label={getAttributeLabel(displayName)}
+                                label={getTranslationLabel(attr.name, attr.display_name, t)}
                                 onChange={handleChange}
                                 source={attr.name}
                                 required={isFieldRequired(attr)}
-                                disabled={attr.name === "username" && !createMode}
+                                disabled={
+                                    (attr.name === "username" && !createMode) ||
+                                    !(
+                                        !electionEventId ||
+                                        (enabledByVoteNum &&
+                                            (canEditVoters ||
+                                                (attr.name === "email" && canEditVotersEmailTlf)))
+                                    )
+                                }
                             />
                         )}
                     </>
@@ -638,10 +797,11 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     )
 
     const isFieldRequired = (config: UserProfileAttribute): boolean => {
-        if (
-            config?.required?.roles?.find((r: string) => r === "admin") ||
-            config?.name === "username"
-        ) {
+        // changed: required is controlled from keycloak
+        // if the user profile attribute is not null in keycloak (at tenant or election event levels),
+        // then the field is required
+        // exceot username thai is always required
+        if ((config?.required?.roles || config?.name === "username") && config?.name !== "email") {
             return true
         }
         return false
@@ -656,10 +816,30 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         return null
     }
 
+    // Update the area selection handler
+    const handleAreaSelection = (areaId: string) => {
+        if (createMode) {
+            setUser((prev) => ({
+                ...prev,
+                attributes: {
+                    ...(prev?.attributes || {}),
+                    "area-id": [areaId],
+                },
+            }))
+        } else {
+            setUser((prev) => ({
+                ...prev,
+                area: {
+                    id: areaId,
+                },
+            }))
+        }
+    }
+
     return (
         <PageHeaderStyles.Wrapper>
             <SimpleForm
-                toolbar={<SaveButton alwaysEnable />}
+                toolbar={<SaveButton alwaysEnable={!errorText} />}
                 record={user}
                 onSubmit={onSubmit}
                 sanitizeEmptyValues
@@ -676,6 +856,13 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                         label={`${t("usersAndRolesScreen.users.fields.enabled")} *`}
                         control={
                             <Checkbox
+                                disabled={
+                                    !(
+                                        createMode ||
+                                        !electionEventId ||
+                                        (enabledByVoteNum && canEditVoters)
+                                    )
+                                }
                                 checked={user?.enabled || false}
                                 onChange={(event: any) => {
                                     setUser({...user, enabled: event.target.checked})
@@ -687,13 +874,22 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                         <FormControl fullWidth>
                             <ElectionHeaderStyles.Title>
                                 {t("usersAndRolesScreen.users.fields.area")}
+                                {` *`}
                             </ElectionHeaderStyles.Title>
                             <SelectArea
                                 tenantId={tenantId}
                                 electionEventId={electionEventId}
-                                source={createMode ? "attributes.area-id" : "area.id"}
-                                onSelectArea={setSelectedArea}
+                                source={createMode ? "attributes.area-id[0]" : "area.id"}
+                                onSelectArea={handleAreaSelection}
                                 label=""
+                                isRequired={true}
+                                disabled={
+                                    !(
+                                        createMode ||
+                                        !electionEventId ||
+                                        (enabledByVoteNum && canEditVoters)
+                                    )
+                                }
                                 customStyle={{
                                     "& legend": {
                                         display: "none",
@@ -702,6 +898,69 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                             />
                         </FormControl>
                     )}
+                    <>
+                        <FormControl fullWidth>
+                            <ElectionHeaderStyles.Title>
+                                {t("usersAndRolesScreen.users.fields.password")}:
+                            </ElectionHeaderStyles.Title>
+                            <PasswordInputStyle
+                                label={false}
+                                source="password"
+                                onChange={handleChange}
+                                error={!!errorText}
+                                disabled={
+                                    !(
+                                        createMode ||
+                                        !electionEventId ||
+                                        (enabledByVoteNum && canEditVoters)
+                                    )
+                                }
+                            />
+                        </FormControl>
+                        <FormControl fullWidth>
+                            <ElectionHeaderStyles.Title>
+                                {t("usersAndRolesScreen.users.fields.repeatPassword")}:
+                            </ElectionHeaderStyles.Title>
+                            <PasswordInputStyle
+                                label={false}
+                                source="confirm_password"
+                                onChange={handleChange}
+                                helperText={errorText}
+                                error={!!errorText}
+                                disabled={
+                                    !(
+                                        createMode ||
+                                        !electionEventId ||
+                                        (enabledByVoteNum && canEditVoters)
+                                    )
+                                }
+                            />
+                        </FormControl>
+                        <InputContainerStyle sx={{flexDirection: "row !important"}}>
+                            <InputLabelStyle paddingTop={false}>
+                                <Box sx={{display: "flex", gap: "8px"}}>
+                                    {t(`usersAndRolesScreen.editPassword.temporatyLabel`)}
+                                    <IconTooltip
+                                        icon={faInfoCircle}
+                                        info={t(`usersAndRolesScreen.editPassword.temporatyInfo`)}
+                                    />
+                                </Box>
+                            </InputLabelStyle>
+                            <BooleanInput
+                                source=""
+                                label={false}
+                                onChange={(e) => setTemportay(!temporary)}
+                                checked={temporary}
+                                disabled={
+                                    !(
+                                        createMode ||
+                                        !electionEventId ||
+                                        (enabledByVoteNum && canEditVoters)
+                                    )
+                                }
+                            />
+                        </InputContainerStyle>
+                    </>
                     {isUndefined(electionEventId) ? (
                         <ListUserRoles
                             userRoles={userRoles}

@@ -5,18 +5,21 @@ use crate::hasura;
 use crate::hasura::election_event::get_election_event_helper;
 use crate::hasura::election_event::update_election_event_status;
 use crate::hasura::keys_ceremony::get_keys_ceremonies;
-use crate::hasura::results_event::insert_results_event;
 use crate::hasura::tally_session::set_tally_session_completed;
+use crate::hasura::tally_session_execution::get_last_tally_session_execution;
 use crate::hasura::tally_session_execution::get_last_tally_session_execution::ResponseData;
-use crate::hasura::tally_session_execution::{
-    get_last_tally_session_execution, insert_tally_session_execution,
-};
 use crate::postgres::area::get_event_areas;
+use crate::postgres::contest::export_contests;
 use crate::postgres::election::set_election_initialization_report_generated;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::keys_ceremony::get_keys_ceremony_by_id;
+use crate::postgres::reports::get_template_alias_for_report;
 use crate::postgres::reports::ReportType;
+use crate::postgres::results_event::insert_results_event;
+use crate::postgres::tally_session::get_tally_session_by_id;
+use crate::postgres::tally_session_execution::insert_tally_session_execution;
 use crate::postgres::tally_sheet::get_published_tally_sheets_by_event;
+use crate::postgres::template::get_template_by_alias;
 use crate::services::cast_votes::{count_cast_votes_election, ElectionCastVotes};
 use crate::services::ceremonies::insert_ballots::{
     count_auditable_ballots, get_elections_end_dates, insert_ballots_messages,
@@ -39,8 +42,14 @@ use crate::services::pg_lock::PgLock;
 use crate::services::protocol_manager;
 use crate::services::reports::electoral_results::ElectoralResults;
 use crate::services::reports::initialization::InitializationTemplate;
-use crate::services::reports::template_renderer::TemplateRenderer;
+use crate::services::reports::template_renderer::{
+    ReportOriginatedFrom, ReportOrigins, TemplateRenderer,
+};
+use crate::services::reports::utils::get_public_asset_template;
 use crate::services::tally_sheets::validation::validate_tally_sheet;
+use crate::services::temp_path::{
+    PUBLIC_ASSETS_ELECTORAL_RESULTS_TEMPLATE_SYSTEM, PUBLIC_ASSETS_INITIALIZATION_TEMPLATE_SYSTEM,
+};
 use crate::services::users::list_users;
 use crate::services::users::ListUsersFilter;
 use crate::tasks::execute_tally_session::get_last_tally_session_execution::{
@@ -48,7 +57,7 @@ use crate::tasks::execute_tally_session::get_last_tally_session_execution::{
     GetLastTallySessionExecutionSequentBackendTallySessionContest,
 };
 use crate::types::error::{Error, Result};
-use anyhow::{anyhow, Context};
+use anyhow::{anyhow, Context, Result as AnyhowResult};
 use b3::messages::{artifact::Plaintexts, message::Message, statement::StatementType};
 use celery::prelude::TaskError;
 use chrono::{DateTime, Duration, Utc};
@@ -59,6 +68,7 @@ use rand::seq::SliceRandom;
 use rand::{Rng, SeedableRng};
 use sequent_core::ballot::BallotStyle;
 use sequent_core::ballot::Contest;
+use sequent_core::ballot::ContestEncryptionPolicy;
 use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::area_tree::TreeNode;
 use sequent_core::services::area_tree::TreeNodeArea;
@@ -74,7 +84,10 @@ use sequent_core::types::ceremonies::TallyType;
 use sequent_core::types::hasura::core::Area;
 use sequent_core::types::hasura::core::ElectionEvent;
 use sequent_core::types::hasura::core::KeysCeremony;
+use sequent_core::types::hasura::core::TallySession;
 use sequent_core::types::hasura::core::TallySheet;
+use sequent_core::types::templates::PrintToPdfOptionsLocal;
+use sequent_core::types::templates::ReportExtraConfig;
 use sequent_core::types::templates::SendTemplateBody;
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -106,23 +119,131 @@ fn get_ballot_styles(tally_session_data: &ResponseData) -> Result<Vec<BallotStyl
 }
 
 #[instrument(skip_all, err)]
-async fn process_plaintexts(
-    auth_headers: AuthHeaders,
-    relevant_plaintexts: Vec<&Message>,
-    ballot_styles: Vec<BallotStyle>,
-    tally_session_data: ResponseData,
+async fn generate_area_contests_mc(
+    hasura_transaction: &Transaction<'_>,
+    relevant_plaintexts: &Vec<&Message>,
+    ballot_styles: &Vec<BallotStyle>,
+    tally_session_data: &ResponseData,
     areas: &Vec<Area>,
     tenant_id: &str,
     election_event_id: &str,
-) -> Result<Vec<AreaContestDataType>> {
+) -> AnyhowResult<Vec<AreaContestDataType>> {
+    let all_contests = export_contests(hasura_transaction, tenant_id, election_event_id).await?;
     let areas_map: HashMap<String, Area> = areas
         .clone()
         .into_iter()
         .map(|area: Area| (area.id.clone(), area.clone()))
         .collect();
-    let treenode_areas: Vec<TreeNodeArea> = areas.iter().map(|area| area.into()).collect();
+    let mut almost_vec: Vec<AreaContestDataType> = vec![];
+    for session_election in tally_session_data
+        .sequent_backend_tally_session_contest
+        .clone()
+    {
+        // contest ids for this election
+        let contest_ids = all_contests
+            .iter()
+            .filter_map(|contest| {
+                if contest.election_id != session_election.election_id {
+                    return None;
+                }
+                Some(contest.id.clone())
+            })
+            .collect::<Vec<_>>();
+        for (i, contest_id) in contest_ids.iter().enumerate() {
+            let area_id = session_election.area_id.clone();
+            let election_id = session_election.election_id.clone();
 
-    let areas_tree = TreeNode::<()>::from_areas(treenode_areas)?;
+            let Some(ballot_style) = ballot_styles.iter().find(|ballot_style| {
+                ballot_style.area_id == area_id
+                    && ballot_style.election_id == election_id
+                    && ballot_style
+                        .contests
+                        .iter()
+                        .any(|contest| contest.id == *contest_id)
+            }) else {
+                event!(Level::WARN, "IGNORING: Ballot Style not found for area id = {}, election id = {}, contest id = {}", area_id, election_id, contest_id);
+                continue;
+            };
+
+            let Some(contest) = ballot_style
+                .contests
+                .iter()
+                .find(|contest| contest.election_id == election_id && contest.id == *contest_id)
+            else {
+                event!(
+                    Level::WARN,
+                    "IGNORING: Contest not found for contest id = {}",
+                    contest_id
+                );
+                continue;
+            };
+
+            let plaintexts = if 0 == i {
+                let batch_num: i64 = session_election.session_id;
+                let Some(plaintexts) = relevant_plaintexts
+                    .iter()
+                    .find(|plaintexts_message| {
+                        batch_num == plaintexts_message.statement.get_batch_number() as i64
+                    })
+                    .map(|plaintexts_message| {
+                        plaintexts_message
+                            .artifact
+                            .clone()
+                            .map(|artifact| -> Option<Vec<<RistrettoCtx as Ctx>::P>> {
+                                Plaintexts::<RistrettoCtx>::strand_deserialize(&artifact)
+                                    .ok()
+                                    .map(|plaintexts| plaintexts.0 .0)
+                            })
+                            .flatten()
+                    })
+                    .flatten()
+                else {
+                    event!(Level::INFO, "Expected: Plaintexts not found yet for session contest = {}, batch number = {}", session_election.id, batch_num );
+                    continue;
+                };
+                info!(
+                    "Multi Contests: Adding {} plaintexts for area {} and election {}",
+                    plaintexts.len(),
+                    area_id,
+                    election_id
+                );
+                plaintexts
+            } else {
+                vec![]
+            };
+
+            let Some(area) = areas_map.get(&ballot_style.area_id) else {
+                event!(Level::INFO, "Area not found {}", ballot_style.area_id);
+                continue;
+            };
+
+            almost_vec.push(AreaContestDataType {
+                plaintexts,
+                last_tally_session_execution: session_election.clone(),
+                contest: contest.clone(),
+                ballot_style: ballot_style.clone(),
+                eligible_voters: 0,
+                auditable_votes: 0,
+                area: area.clone(),
+            })
+        }
+    }
+
+    Ok(almost_vec)
+}
+
+#[instrument(skip_all, err)]
+fn generate_area_contests(
+    relevant_plaintexts: &Vec<&Message>,
+    ballot_styles: &Vec<BallotStyle>,
+    tally_session_data: &ResponseData,
+    areas: &Vec<Area>,
+) -> AnyhowResult<Vec<AreaContestDataType>> {
+    let areas_map: HashMap<String, Area> = areas
+        .clone()
+        .into_iter()
+        .map(|area: Area| (area.id.clone(), area.clone()))
+        .collect();
 
     event!(
         Level::WARN,
@@ -142,17 +263,18 @@ async fn process_plaintexts(
                     && ballot_style
                         .contests
                         .iter()
-                        .any(|contest| contest.id == session_contest.contest_id)
+                        .any(|contest| contest.id == session_contest.contest_id.clone().unwrap_or_default())
             }) else {
-                event!(Level::WARN, "IGNORING: Ballot Style not found for area id = {}, election id = {}, contest id = {}", session_contest.area_id, session_contest.election_id, session_contest.contest_id);
+                event!(Level::WARN, "IGNORING: Ballot Style not found for area id = {}, election id = {}, contest id = {}", session_contest.area_id, session_contest.election_id, session_contest.contest_id.clone().unwrap_or_default());
                 return None;
             };
 
             let Some(contest) = ballot_style
                 .contests
                 .iter()
-                .find(|contest| contest.id == session_contest.contest_id) else {
-                    event!(Level::WARN, "IGNORING: Contest not found for contest id = {}", session_contest.contest_id);
+                .find(|contest| contest.election_id == session_contest.election_id &&
+                    contest.id == session_contest.contest_id.clone().unwrap_or_default() ) else {
+                    event!(Level::WARN, "IGNORING: Contest not found for contest id = {}", session_contest.contest_id.clone().unwrap_or_default());
                     return None;
                 };
 
@@ -192,7 +314,54 @@ async fn process_plaintexts(
             })
         })
         .collect();
+
+    Ok(almost_vec)
+}
+
+#[instrument(skip_all, err)]
+async fn process_plaintexts(
+    auth_headers: AuthHeaders,
+    hasura_transaction: &Transaction<'_>,
+    keycloak_transaction: &Transaction<'_>,
+    relevant_plaintexts: Vec<&Message>,
+    ballot_styles: Vec<BallotStyle>,
+    tally_session_data: ResponseData,
+    areas: &Vec<Area>,
+    tenant_id: &str,
+    election_event_id: &str,
+    contest_encryption_policy: ContestEncryptionPolicy,
+) -> Result<Vec<AreaContestDataType>> {
+    event!(
+        Level::WARN,
+        "Num sequent_backend_tally_session_contest = {}",
+        tally_session_data
+            .sequent_backend_tally_session_contest
+            .len()
+    );
+    let almost_vec = match contest_encryption_policy {
+        ContestEncryptionPolicy::MULTIPLE_CONTESTS => {
+            generate_area_contests_mc(
+                hasura_transaction,
+                &relevant_plaintexts,
+                &ballot_styles,
+                &tally_session_data,
+                areas,
+                tenant_id,
+                election_event_id,
+            )
+            .await?
+        }
+        ContestEncryptionPolicy::SINGLE_CONTEST => generate_area_contests(
+            &relevant_plaintexts,
+            &ballot_styles,
+            &tally_session_data,
+            areas,
+        )?,
+    };
     event!(Level::WARN, "Num almost_vec = {}", almost_vec.len());
+    let treenode_areas: Vec<TreeNodeArea> = areas.iter().map(|area| area.into()).collect();
+
+    let areas_tree = TreeNode::<()>::from_areas(treenode_areas)?;
 
     // set<area_id, contest_id>
     let found_area_contests: HashSet<(String, String)> = almost_vec
@@ -227,25 +396,6 @@ async fn process_plaintexts(
         filtered_area_contests.len()
     );
 
-    let mut keycloak_db_client: DbClient = get_keycloak_pool()
-        .await
-        .get()
-        .await
-        .with_context(|| "Error acquiring keycloak db client")?;
-    let keycloak_transaction = keycloak_db_client
-        .transaction()
-        .await
-        .with_context(|| "Error acquiring keycloak transaction")?;
-    let mut hasura_db_client: DbClient = get_hasura_pool()
-        .await
-        .get()
-        .await
-        .with_context(|| "Error acquiring hasura db client")?;
-    let hasura_transaction = hasura_db_client
-        .transaction()
-        .await
-        .with_context(|| "Error acquiring hasura transaction")?;
-
     let elections_end_dates = get_elections_end_dates(&auth_headers, tenant_id, election_event_id)
         .await
         .with_context(|| "error getting elections end_date")?;
@@ -260,6 +410,7 @@ async fn process_plaintexts(
             .collect();
 
     // fill in the eligible voters data
+    // FIXME: For election level data
     for almost in filtered_area_contests {
         let mut area_contest = almost.clone();
 
@@ -355,7 +506,8 @@ pub async fn count_cast_votes_election_with_census(
     election_event_id: &str,
 ) -> Result<Vec<ElectionCastVotes>> {
     let mut cast_votes =
-        count_cast_votes_election(&hasura_transaction, &tenant_id, &election_event_id).await?;
+        count_cast_votes_election(&hasura_transaction, &tenant_id, &election_event_id, None)
+            .await?;
 
     let election_ids_alias: HashMap<String, String> =
         get_election_event_elections(&hasura_transaction, tenant_id, election_event_id)
@@ -458,7 +610,13 @@ pub async fn upsert_ballots_messages(
     trustee_names: Vec<String>,
     messages: &Vec<Message>,
     tally_session_contests: &Vec<GetLastTallySessionExecutionSequentBackendTallySessionContest>,
+    tally_session_hasura: &TallySession,
 ) -> Result<Vec<GetLastTallySessionExecutionSequentBackendTallySessionContest>> {
+    let contest_encryption_policy = tally_session_hasura
+        .configuration
+        .clone()
+        .unwrap_or_default()
+        .get_contest_encryption_policy();
     let expected_batch_ids: Vec<i64> = tally_session_contests
         .clone()
         .into_iter()
@@ -502,6 +660,7 @@ pub async fn upsert_ballots_messages(
             board_name,
             trustee_names,
             missing_ballots_batches.clone(),
+            contest_encryption_policy,
         )
         .await?;
     }
@@ -588,6 +747,7 @@ async fn map_plaintext_data(
         Vec<ElectionCastVotes>,
         Vec<TallySheet>,
         ElectionEvent,
+        TallySession,
     )>,
 > {
     // fetch election_event
@@ -602,6 +762,13 @@ async fn map_plaintext_data(
 
         return Ok(None);
     };
+    let tally_session_hasura = get_tally_session_by_id(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &tally_session_id,
+    )
+    .await?;
 
     // get name of bulletin board
     let (bulletin_board, _) = get_keys_ceremony_board(
@@ -648,7 +815,7 @@ async fn map_plaintext_data(
     .with_context(|| "error listing existing keys ceremonies")?
     .sequent_backend_keys_ceremony;
 
-    if 0 == keys_ceremonies.len() {
+    if keys_ceremonies.is_empty() {
         event!(
             Level::INFO,
             "Election Event {} has no keys ceremony",
@@ -709,7 +876,7 @@ async fn map_plaintext_data(
     };
 
     // get board messages
-    let mut board_client = protocol_manager::get_b3_pgsql_client().await?;
+    let board_client = protocol_manager::get_b3_pgsql_client().await?;
     let board_messages = board_client.get_messages(&bulletin_board, -1).await?;
     event!(Level::INFO, "Num board_messages {}", board_messages.len());
 
@@ -727,10 +894,11 @@ async fn map_plaintext_data(
         trustee_names,
         &messages,
         &tally_session_data.sequent_backend_tally_session_contest,
+        &tally_session_hasura,
     )
     .await?;
 
-    if 0 != new_ballots_messages.len() {
+    if !new_ballots_messages.is_empty() {
         event!(
             Level::INFO,
             "Ballots messages inserted: {} skipping iteration",
@@ -794,7 +962,7 @@ async fn map_plaintext_data(
     let mut new_status = get_tally_ceremony_status(initial_status)?;
 
     let new_tally_progress = generate_tally_progress(&tally_session_data, &messages).await?;
-    let mut new_logs = generate_logs(&messages, next_timestamp.clone(), &batch_ids)?;
+    let mut new_logs = generate_logs(&messages, next_timestamp, &batch_ids)?;
 
     new_status.elections_status = new_tally_progress;
 
@@ -826,20 +994,28 @@ async fn map_plaintext_data(
     // we have all plaintexts
     let is_execution_completed = relevant_plaintexts.len() == batch_ids.len();
 
-    let areas = get_event_areas(&hasura_transaction, &tenant_id, &election_event_id).await?;
+    let areas = get_event_areas(hasura_transaction, &tenant_id, &election_event_id).await?;
 
     let tally_sheet_rows =
-        get_published_tally_sheets_by_event(&hasura_transaction, &tenant_id, &election_event_id)
+        get_published_tally_sheets_by_event(hasura_transaction, &tenant_id, &election_event_id)
             .await?;
 
+    let contest_encryption_policy = tally_session_hasura
+        .configuration
+        .clone()
+        .unwrap_or_default()
+        .get_contest_encryption_policy();
     let plaintexts_data: Vec<AreaContestDataType> = process_plaintexts(
         auth_headers.clone(),
+        hasura_transaction,
+        keycloak_transaction,
         relevant_plaintexts,
         ballot_styles,
         tally_session_data,
         &areas,
         &tenant_id,
         &election_event_id,
+        contest_encryption_policy,
     )
     .await?;
     event!(Level::INFO, "Num plaintexts_data {}", plaintexts_data.len());
@@ -847,8 +1023,8 @@ async fn map_plaintext_data(
 
     let cast_votes_count = count_cast_votes_election_with_census(
         auth_headers.clone(),
-        &hasura_transaction,
-        &keycloak_transaction,
+        hasura_transaction,
+        keycloak_transaction,
         &tenant_id,
         &election_event_id,
     )
@@ -862,24 +1038,118 @@ async fn map_plaintext_data(
         cast_votes_count,
         tally_sheets,
         election_event,
+        tally_session_hasura,
     )))
 }
 
-#[instrument(skip(auth_headers), err)]
+#[instrument(skip(hasura_transaction), err)]
 async fn create_results_event(
-    auth_headers: &connection::AuthHeaders,
+    hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<String> {
-    let results_event = &insert_results_event(auth_headers, &tenant_id, &election_event_id)
-        .await?
-        .data
-        .with_context(|| "can't find results_event")?
-        .insert_sequent_backend_results_event
-        .with_context(|| "can't find results_event")?
-        .returning[0];
+    let results_event = &insert_results_event(hasura_transaction, tenant_id, election_event_id)
+        .await
+        .with_context(|| "can't find results_event")?;
 
     Ok(results_event.id.clone())
+}
+
+async fn build_reports_template_data(
+    tally_type_enum: TallyType,
+    tenant_id: String,
+    election_event_id: String,
+    election_id: &str,
+    hasura_transaction: &Transaction<'_>,
+) -> Result<(Option<String>, String, Option<PrintToPdfOptionsLocal>)> {
+    let (report_content_template, pdf_options): (Option<String>, Option<PrintToPdfOptionsLocal>) =
+        match tally_type_enum {
+            TallyType::INITIALIZATION_REPORT => {
+                let renderer = InitializationTemplate::new(ReportOrigins {
+                    tenant_id: tenant_id.clone(),
+                    election_event_id: election_event_id.clone(),
+                    election_id: Some(election_id.to_string()),
+                    template_alias: None,
+                    voter_id: None,
+                    report_origin: ReportOriginatedFrom::ExportFunction,
+                    executer_username: None, //TODO: fix?
+                    tally_session_id: None,
+                });
+                let template_data_opt: Option<SendTemplateBody> = renderer
+                    .get_custom_user_template_data(hasura_transaction)
+                    .await
+                    .map_err(|e| {
+                        anyhow!("Error getting initialization report custom user template: {e:?}")
+                    })?;
+
+                match template_data_opt {
+                    Some(template) => (template.document, template.pdf_options),
+                    None => {
+                        let default_doc: String = renderer.get_default_user_template()
+                        .await
+                        .map_err(|err| {
+                            anyhow!("Error getting initialization report default user template: {err:?}")
+                        })?;
+
+                        let pdf_options: Option<PrintToPdfOptionsLocal> =
+                            if let Ok(default_extra_config) =
+                                renderer.get_default_extra_config().await
+                            {
+                                Some(default_extra_config.pdf_options)
+                            } else {
+                                None
+                            };
+                        (Some(default_doc), pdf_options)
+                    }
+                }
+            }
+            _ => {
+                let renderer = ElectoralResults::new(ReportOrigins {
+                    tenant_id: tenant_id.clone(),
+                    election_event_id: election_event_id.clone(),
+                    election_id: None,
+                    template_alias: None,
+                    voter_id: None,
+                    report_origin: ReportOriginatedFrom::ExportFunction,
+                    executer_username: None, //TODO: fix?
+                    tally_session_id: None,
+                });
+                let template_data_opt: Option<SendTemplateBody> = renderer
+                    .get_custom_user_template_data(hasura_transaction)
+                    .await
+                    .map_err(|e| {
+                        anyhow!("Error getting electoral results  custom user template: {e:?}")
+                    })?;
+
+                match template_data_opt {
+                    Some(template) => (template.document, template.pdf_options),
+                    None => {
+                        let default_doc: String = renderer.get_default_user_template()
+                    .await
+                    .map_err(|err| {
+                        anyhow!("Error getting electoral results  default user template: {err:?}")
+                    })?;
+                        let pdf_options: Option<PrintToPdfOptionsLocal> =
+                            if let Ok(default_extra_config) =
+                                renderer.get_default_extra_config().await
+                            {
+                                Some(default_extra_config.pdf_options)
+                            } else {
+                                None
+                            };
+                        (Some(default_doc), pdf_options)
+                    }
+                }
+            }
+        };
+
+    let report_system_template = match tally_type_enum {
+        TallyType::INITIALIZATION_REPORT => {
+            get_public_asset_template(PUBLIC_ASSETS_INITIALIZATION_TEMPLATE_SYSTEM).await?
+        }
+        _ => get_public_asset_template(PUBLIC_ASSETS_ELECTORAL_RESULTS_TEMPLATE_SYSTEM).await?,
+    };
+    Ok((report_content_template, report_system_template, pdf_options))
 }
 
 #[instrument(err, skip(auth_headers, hasura_transaction, keycloak_transaction))]
@@ -906,7 +1176,7 @@ pub async fn execute_tally_session_wrapped(
     };
 
     let keys_ceremony = get_keys_ceremony_by_id(
-        &hasura_transaction,
+        hasura_transaction,
         &tenant_id,
         &election_event_id,
         &tally_session.keys_ceremony_id,
@@ -921,63 +1191,23 @@ pub async fn execute_tally_session_wrapped(
     let election_id = election_ids_default.get(0).map_or("", |v| v.as_str());
 
     // Check the report type and create renderer according the report type
-    let report_content_template: Option<String> = match tally_type_enum {
-        TallyType::INITIALIZATION_REPORT => {
-            let renderer = InitializationTemplate::new(
-                tenant_id.clone(),
-                election_event_id.clone(),
-                Some(election_id.clone().to_string()),
-            );
-            if let Some(template_content) = renderer
-                .get_custom_user_template(hasura_transaction)
-                .await
-                .map_err(|err| anyhow!("Error getting electoral results custom user template: {err:?}"))?
-            {
-                Some(template_content)
-            } else if let Ok(template_content) = renderer
-                .get_default_user_template()
-                .await
-                .map_err(|err| {
-                    warn!("Error getting initialization report default user template: {err:?}. Ignoring it, using the default compiled in velvet.");
-                    anyhow!("Error getting electoral results default user template: {err:?}")
-                })
-            {
-                Some(template_content)
-            } else {
-                None
-            }
-        }
-        _ => {
-            let renderer =
-                ElectoralResults::new(tenant_id.clone(), election_event_id.clone(), None);
-            if let Some(template_content) = renderer
-                .get_custom_user_template(hasura_transaction)
-                .await
-                .map_err(|err| anyhow!("Error getting electoral results custom user template: {err:?}"))?
-            {
-                Some(template_content)
-            } else if let Ok(template_content) = renderer
-                .get_default_user_template()
-                .await
-                .map_err(|err| {
-                    warn!("Error getting electoral results default user template: {err:?}. Ignoring it, using the default compiled in velvet..");
-                    anyhow!("Error getting electoral results default user template: {err:?}")
-                })
-            {
-                Some(template_content)
-            } else {
-                None
-            }
-        }
-    };
+    let (report_content_template, report_system_template, pdf_options) =
+        build_reports_template_data(
+            tally_type_enum.clone(),
+            tenant_id.clone(),
+            election_event_id.clone(),
+            election_id,
+            hasura_transaction,
+        )
+        .await?;
 
     let status = get_tally_ceremony_status(tally_session_execution.status.clone())?;
 
     // map plaintexts to contests
     let plaintexts_data_opt = map_plaintext_data(
         auth_headers.clone(),
-        &hasura_transaction,
-        &keycloak_transaction,
+        hasura_transaction,
+        keycloak_transaction,
         tenant_id.clone(),
         election_event_id.clone(),
         tally_session_id.clone(),
@@ -995,6 +1225,7 @@ pub async fn execute_tally_session_wrapped(
         cast_votes_count,
         tally_sheets,
         election_event,
+        tally_session,
     )) = plaintexts_data_opt
     else {
         event!(Level::INFO, "map_plaintext_data is None, skipping");
@@ -1007,9 +1238,9 @@ pub async fn execute_tally_session_wrapped(
     let base_tempdir = tempdir()?;
 
     let areas: Vec<Area> =
-        get_event_areas(&hasura_transaction, &tenant_id, &election_event_id).await?;
+        get_event_areas(hasura_transaction, &tenant_id, &election_event_id).await?;
 
-    let status = if plaintexts_data.len() > 0 {
+    let status = if !plaintexts_data.is_empty() {
         Some(
             run_velvet_tally(
                 base_tempdir.path().to_path_buf(),
@@ -1017,7 +1248,13 @@ pub async fn execute_tally_session_wrapped(
                 &cast_votes_count,
                 &tally_sheets,
                 report_content_template,
+                report_system_template,
+                pdf_options,
                 &areas,
+                hasura_transaction,
+                &election_event,
+                &tally_session,
+                tally_type_enum.clone(),
             )
             .await?,
         )
@@ -1037,22 +1274,27 @@ pub async fn execute_tally_session_wrapped(
         tally_session_execution.clone(),
         &areas,
         &default_language,
+        tally_type_enum.clone(),
     )
     .await?;
     // map_plaintext_data also calls this but at this point the credentials
     // could be expired
     let auth_headers = keycloak::get_client_credentials().await?;
 
+    let session_ids_i32: Option<Vec<i32>> = session_ids
+        .clone()
+        .map(|values| values.clone().into_iter().map(|int| int as i32).collect());
+
     // insert tally_session_execution
     insert_tally_session_execution(
-        auth_headers.clone(),
-        tenant_id.clone(),
-        election_event_id.clone(),
-        newest_message_id,
-        tally_session_id.clone(),
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        newest_message_id as i32,
+        &tally_session_id,
         Some(new_status),
         results_event_id,
-        session_ids,
+        session_ids_i32,
     )
     .await?;
 
@@ -1073,7 +1315,7 @@ pub async fn execute_tally_session_wrapped(
         )
         .await?;
         let current_status = get_election_event_status(election_event.status).unwrap();
-        let mut new_event_status = current_status.clone();
+        let new_event_status = current_status.clone();
         let new_status_js = serde_json::to_value(new_event_status)?;
         update_election_event_status(
             auth_headers.clone(),

@@ -1,6 +1,6 @@
 {
   "pdf_options": {
-    "landscape": null,
+    "landscape": true,
     "display_header_footer": null,
     "print_background": true,
     "scale": null,
@@ -17,6 +17,10 @@
     "prefer_css_page_size": null,
     "transfer_mode": null
   },
+  "report_options": {
+    "max_items_per_report": null,
+    "max_threads": null
+  },  
   "communication_templates": {
     "email_config": {
       "subject": "Sequent Online Voting - OVCS Events",

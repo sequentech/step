@@ -14,7 +14,7 @@ use strum_macros::EnumString;
 use tracing::{info, instrument};
 
 #[derive(EnumString)]
-enum VaultManagerType {
+pub enum VaultManagerType {
     HashiCorpVault,
     AwsSecretManager,
 }
@@ -23,9 +23,10 @@ enum VaultManagerType {
 pub trait Vault: Send {
     async fn save_secret(&self, key: String, value: String) -> Result<()>;
     async fn read_secret(&self, key: String) -> Result<Option<String>>;
+    fn vault_type(&self) -> VaultManagerType;
 }
 
-fn get_vault() -> Result<Box<dyn Vault + Send>> {
+pub fn get_vault() -> Result<Box<dyn Vault + Send>> {
     let vault_name = std::env::var("SECRETS_BACKEND").unwrap_or("HashiCorpVault".to_string());
 
     info!("Vault: vault_name={vault_name}");
@@ -58,51 +59,6 @@ pub async fn read_secret(key: String) -> Result<Option<String>> {
     let vault = get_vault()?;
 
     vault.read_secret(key).await
-}
-
-/// Returns the private signing key for the given voter.
-///
-/// The private key is obtained from the vault.
-/// If no such key exists, it is generated and a log post
-/// is published with the corresponding public key
-/// (with StatementType::AdminPublicKey).
-///
-/// There is a possibility that the private key is saved
-/// but the notification fails. This is logged in
-/// electorallog::post_voter_pk
-#[instrument(err)]
-pub async fn get_voter_signing_key(
-    elog_database: &str,
-    tenant_id: &str,
-    event_id: &str,
-    user_id: &str,
-) -> Result<StrandSignatureSk> {
-    let lookup_key = voter_vault_lookup_key(&tenant_id, &event_id, &user_id);
-    let sk_der_b64 = read_secret(lookup_key.clone()).await?;
-
-    let sk = if let Some(sk_der_b64) = sk_der_b64 {
-        StrandSignatureSk::from_der_b64_string(&sk_der_b64)?
-    } else {
-        info!(
-            "Vault: generating private signing key for voter {}",
-            lookup_key.clone()
-        );
-        let sk = StrandSignatureSk::gen()?;
-        let sk_string = sk.to_der_b64_string()?;
-        let pk = StrandSignaturePk::from_sk(&sk)?;
-        let pk = pk.to_der_b64_string()?;
-
-        // We save the secret right before notifying the public key
-        // to minimize the chances that the second call fails while
-        // while the first one succeeds. If this happens the
-        // secret will exist but the pk notification will not.
-        save_secret(lookup_key.clone(), sk_string).await?;
-        ElectoralLog::post_voter_pk(elog_database, tenant_id, event_id, user_id, &pk).await?;
-
-        sk
-    };
-
-    Ok(sk)
 }
 
 /// Returns the private signing key for the given admin user.

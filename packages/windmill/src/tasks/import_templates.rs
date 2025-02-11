@@ -2,22 +2,14 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::postgres::area_contest::insert_area_contests;
-use crate::postgres::contest::export_contests;
 use crate::postgres::template::insert_templates;
-use crate::{
-    postgres::document::get_document,
-    services::{database::get_hasura_pool, documents::get_document_as_temp_file},
-};
-use anyhow::{anyhow, Context, Result};
-use csv::StringRecord;
-use deadpool_postgres::Client as DbClient;
+use crate::types::error::{Error, Result};
+use crate::{postgres::document::get_document, services::documents::get_document_as_temp_file};
 use deadpool_postgres::Transaction;
-use sequent_core::serialization::deserialize_with_path;
-use sequent_core::types::hasura::core::AreaContest;
-use sequent_core::types::hasura::core::{Area, Template};
+use sequent_core::types::hasura::core::Template;
+use sequent_core::util::integrity_check::integrity_check;
 use std::io::Seek;
-use tracing::instrument;
+use tracing::{info, instrument};
 use uuid::Uuid;
 
 #[instrument(err)]
@@ -25,14 +17,29 @@ pub async fn import_templates_task(
     hasura_transaction: &Transaction<'_>,
     tenant_id: String,
     document_id: String,
+    sha256: Option<String>,
 ) -> Result<()> {
-    let document = get_document(&hasura_transaction, &tenant_id, None, &document_id)
+    let document = get_document(hasura_transaction, &tenant_id, None, &document_id)
         .await
-        .with_context(|| "Error obtaining the document")?
-        .ok_or(anyhow!("document not found"))?;
+        .map_err(|e| "Error obtaining the document: {:e?}")?
+        .ok_or(Error::String("document not found".to_string()))?;
 
     let mut temp_file = get_document_as_temp_file(&tenant_id, &document).await?;
     temp_file.rewind()?;
+
+    match sha256 {
+        Some(hash) if !hash.is_empty() => match integrity_check(&temp_file, hash) {
+            Ok(_) => {
+                info!("Hash verified !");
+            }
+            Err(err) => {
+                return Err(err.into());
+            }
+        },
+        _ => {
+            info!("No hash provided, skipping integrity check");
+        }
+    }
 
     let mut rdr = csv::ReaderBuilder::new()
         .delimiter(b',')
@@ -42,11 +49,11 @@ pub async fn import_templates_task(
     let mut templates: Vec<Template> = vec![];
 
     for result in rdr.records() {
-        let record = result.with_context(|| "Error reading CSV record")?;
+        let record = result.map_err(|e| "Error reading CSV record: {:e?}")?;
 
-        let _template_id = record.get(0).unwrap_or("");
+        let template_alias = record.get(0).unwrap_or("");
         let tenant_id = record.get(1).unwrap_or("");
-        let template = record.get(2).unwrap_or("");
+        let template_content = record.get(2).unwrap_or("");
         let created_by = record.get(3).unwrap_or("");
         let labels = record.get(4).unwrap_or("");
         let annotations = record.get(5).unwrap_or("");
@@ -55,8 +62,6 @@ pub async fn import_templates_task(
         let communication_method = record.get(8).unwrap_or("");
         let template_type = record.get(9).unwrap_or("");
 
-        let new_template_id = Uuid::new_v4();
-
         let tenant_id_parsed = match Uuid::parse_str(tenant_id) {
             Ok(uuid) => uuid.to_string(),
             Err(_) => {
@@ -64,11 +69,10 @@ pub async fn import_templates_task(
                 continue;
             }
         };
-
         templates.push(Template {
-            id: new_template_id.to_string(),
+            alias: template_alias.to_string(),
             tenant_id: tenant_id_parsed,
-            template: deserialize_with_path::deserialize_str(template).unwrap_or_default(),
+            template: serde_json::from_str(template_content).unwrap_or_default(),
             created_by: created_by.to_string(),
             labels: Some(serde_json::Value::String(labels.to_string())),
             annotations: Some(serde_json::Value::String(annotations.to_string())),
@@ -79,7 +83,7 @@ pub async fn import_templates_task(
         });
     }
 
-    insert_templates(&hasura_transaction, &templates).await?;
+    insert_templates(hasura_transaction, &templates).await?;
 
     Ok(())
 }

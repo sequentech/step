@@ -15,6 +15,10 @@ pub enum EDocuments {
     BULLETIN_BOARDS,
     PROTOCOL_MANAGER_KEYS,
     TRUSTEES_CONFIGURATION,
+    TENANT_CONFIG,
+    KEYCLOAK_CONFIG,
+    ROLES_PERMISSIONS_CONFIG,
+    PUBLICATIONS,
 }
 
 impl EDocuments {
@@ -29,6 +33,10 @@ impl EDocuments {
             EDocuments::BULLETIN_BOARDS => "export_bulletin_boards",
             EDocuments::PROTOCOL_MANAGER_KEYS => "export_protocol_manager_keys",
             EDocuments::TRUSTEES_CONFIGURATION => "trustees_configuration",
+            EDocuments::TENANT_CONFIG => "tenant_configuration",
+            EDocuments::KEYCLOAK_CONFIG => "keycloak_admin",
+            EDocuments::ROLES_PERMISSIONS_CONFIG => "export_permissions",
+            EDocuments::PUBLICATIONS => "export_publications",
         }
     }
 }

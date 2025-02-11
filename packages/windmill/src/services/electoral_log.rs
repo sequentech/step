@@ -9,7 +9,6 @@ use crate::types::resources::{Aggregate, DataList, OrderDirection, TotalAggregat
 use anyhow::{anyhow, Context, Result};
 use base64::engine::general_purpose;
 use base64::Engine;
-
 use electoral_log::messages::message::Message;
 use electoral_log::messages::message::SigningData;
 use electoral_log::messages::newtypes::ErrorMessageString;
@@ -18,6 +17,7 @@ use electoral_log::messages::newtypes::*;
 use electoral_log::messages::statement::StatementHead;
 use sequent_core::ballot::VotingStatusChannel;
 use sequent_core::serialization::deserialize_with_path;
+use sequent_core::services::date::ISO8601;
 use strand::hash::HashWrapper;
 
 use crate::services::insert_cast_vote::hash_voter_id;
@@ -42,7 +42,7 @@ pub struct ElectoralLog {
 }
 
 impl ElectoralLog {
-    #[instrument(err)]
+    #[instrument(err, name = "ElectoralLog::new")]
     pub async fn new(elog_database: &str) -> Result<Self> {
         let protocol_manager = get_protocol_manager::<RistrettoCtx>(elog_database).await?;
 
@@ -75,20 +75,21 @@ impl ElectoralLog {
     /// We need to pass in the log database because the vault
     /// will post a public key message if it needs to generates
     /// a signing key.
-    #[instrument(err)]
+    #[instrument(skip(voter_signing_key), err)]
     pub async fn for_voter(
         elog_database: &str,
         tenant_id: &str,
         event_id: &str,
         user_id: &str,
+        voter_signing_key: &Option<StrandSignatureSk>,
     ) -> Result<Self> {
         let protocol_manager = get_protocol_manager::<RistrettoCtx>(elog_database).await?;
         let system_sk = protocol_manager.get_signing_key().clone();
 
-        let sk = vault::get_voter_signing_key(elog_database, tenant_id, event_id, user_id).await?;
+        let sk = voter_signing_key.clone().unwrap_or(system_sk.clone());
 
         Ok(ElectoralLog {
-            sd: SigningData::new(sk, "", system_sk),
+            sd: SigningData::new(sk, user_id, system_sk),
             elog_database: elog_database.to_string(),
         })
     }
@@ -139,6 +140,7 @@ impl ElectoralLog {
             PublicKeyDerB64(pk_der_b64.to_string()),
             &sd,
             Some(user_id.to_string()),
+            None, /* username */
         )?;
 
         let elog = ElectoralLog {
@@ -183,6 +185,7 @@ impl ElectoralLog {
         let message = Message::admin_public_key_message(
             TenantIdString(tenant_id.to_string()),
             Some(user_id.to_string()),
+            None,
             PublicKeyDerB64(pk_der_b64.to_string()),
             &sd,
         )?;
@@ -215,6 +218,7 @@ impl ElectoralLog {
         voter_ip: String,
         voter_country: String,
         voter_id: String,
+        voter_username: Option<String>,
     ) -> Result<()> {
         let event = EventIdString(event_id);
         let election = ElectionIdString(election_id);
@@ -230,6 +234,7 @@ impl ElectoralLog {
             ip,
             country,
             Some(voter_id),
+            voter_username,
         )?;
 
         self.post(&message).await
@@ -273,13 +278,20 @@ impl ElectoralLog {
         election_id: Option<String>,
         ballot_pub_id: String,
         user_id: Option<String>,
+        username: Option<String>,
     ) -> Result<()> {
         let event = EventIdString(event_id);
         let election = ElectionIdString(election_id);
         let ballot_pub_id = BallotPublicationIdString(ballot_pub_id);
 
-        let message =
-            Message::election_published_message(event, election, ballot_pub_id, &self.sd, user_id)?;
+        let message = Message::election_published_message(
+            event,
+            election,
+            ballot_pub_id,
+            &self.sd,
+            user_id,
+            username,
+        )?;
 
         self.post(&message).await
     }
@@ -292,6 +304,7 @@ impl ElectoralLog {
         elections_ids: Option<Vec<String>>,
         voting_channel: VotingChannelString,
         user_id: Option<String>,
+        username: Option<String>,
     ) -> Result<()> {
         let event = EventIdString(event_id);
         let election = election_id.map(|id| ElectionIdString(Some(id)));
@@ -302,6 +315,7 @@ impl ElectoralLog {
             voting_channel,
             &self.sd,
             user_id,
+            username,
         )?;
 
         self.post(&message).await
@@ -314,12 +328,19 @@ impl ElectoralLog {
         election_id: Option<String>,
         voting_channel: VotingChannelString,
         user_id: Option<String>,
+        username: Option<String>,
     ) -> Result<()> {
         let event = EventIdString(event_id);
         let election = election_id.map(|id| ElectionIdString(Some(id)));
 
-        let message =
-            Message::election_pause_message(event, election, voting_channel, &self.sd, user_id)?;
+        let message = Message::election_pause_message(
+            event,
+            election,
+            voting_channel,
+            &self.sd,
+            user_id,
+            username,
+        )?;
 
         self.post(&message).await
     }
@@ -332,6 +353,7 @@ impl ElectoralLog {
         elections_ids: Option<Vec<String>>,
         voting_channel: VotingChannelString,
         user_id: Option<String>,
+        username: Option<String>,
     ) -> Result<()> {
         let event = EventIdString(event_id);
         let election = election_id.map(|id| ElectionIdString(Some(id)));
@@ -343,6 +365,7 @@ impl ElectoralLog {
             voting_channel,
             &self.sd,
             user_id,
+            username,
         )?;
 
         self.post(&message).await
@@ -355,20 +378,32 @@ impl ElectoralLog {
         event_type: String,
         error_message: String,
         user_id: Option<String>,
+        username: Option<String>,
     ) -> Result<()> {
         let event = EventIdString(event_id);
         let error_message = ErrorMessageString(error_message);
         let event_type = KeycloakEventTypeString(event_type);
-        let message =
-            Message::keycloak_user_event(event, event_type, error_message, user_id, &self.sd)?;
+        let message = Message::keycloak_user_event(
+            event,
+            event_type,
+            error_message,
+            user_id,
+            username,
+            &self.sd,
+        )?;
         self.post(&message).await
     }
 
     #[instrument(skip(self))]
-    pub async fn post_keygen(&self, event_id: String, user_id: Option<String>) -> Result<()> {
+    pub async fn post_keygen(
+        &self,
+        event_id: String,
+        user_id: Option<String>,
+        username: Option<String>,
+    ) -> Result<()> {
         let event = EventIdString(event_id);
 
-        let message = Message::keygen_message(event, &self.sd, user_id)?;
+        let message = Message::keygen_message(event, &self.sd, user_id, username)?;
 
         self.post(&message).await
     }
@@ -378,10 +413,11 @@ impl ElectoralLog {
         &self,
         event_id: String,
         user_id: Option<String>,
+        username: Option<String>,
     ) -> Result<()> {
         let event = EventIdString(event_id);
 
-        let message = Message::key_insertion_start(event, &self.sd, user_id)?;
+        let message = Message::key_insertion_start(event, &self.sd, user_id, username)?;
 
         self.post(&message).await
     }
@@ -392,11 +428,13 @@ impl ElectoralLog {
         event_id: String,
         trustee_name: String,
         user_id: Option<String>,
+        username: Option<String>,
     ) -> Result<()> {
         let event = EventIdString(event_id);
         let trustee_name = TrusteeNameString(trustee_name);
 
-        let message = Message::key_insertion_message(event, trustee_name, &self.sd, user_id)?;
+        let message =
+            Message::key_insertion_message(event, trustee_name, &self.sd, user_id, username)?;
 
         self.post(&message).await
     }
@@ -407,11 +445,12 @@ impl ElectoralLog {
         event_id: String,
         election_id: Option<String>,
         user_id: Option<String>,
+        username: Option<String>,
     ) -> Result<()> {
         let event = EventIdString(event_id);
         let election = ElectionIdString(election_id);
 
-        let message = Message::tally_open_message(event, election, &self.sd, user_id)?;
+        let message = Message::tally_open_message(event, election, &self.sd, user_id, username)?;
 
         self.post(&message).await
     }
@@ -422,11 +461,12 @@ impl ElectoralLog {
         event_id: String,
         election_id: Option<String>,
         user_id: Option<String>,
+        username: Option<String>,
     ) -> Result<()> {
         let event = EventIdString(event_id);
         let election = ElectionIdString(election_id);
 
-        let message = Message::tally_close_message(event, election, &self.sd, user_id)?;
+        let message = Message::tally_close_message(event, election, &self.sd, user_id, username)?;
 
         self.post(&message).await
     }
@@ -437,12 +477,13 @@ impl ElectoralLog {
         message: Option<String>,
         event_id: String,
         user_id: Option<String>,
+        username: Option<String>,
         election_id: Option<String>,
     ) -> Result<()> {
         let event = EventIdString(event_id);
         let election = ElectionIdString(election_id);
 
-        let message = Message::send_template(event, election, &self.sd, user_id, message)
+        let message = Message::send_template(event, election, &self.sd, user_id, username, message)
             .map_err(|e| anyhow!("Error sending template: {e:?}"))?;
 
         self.post(&message).await
@@ -501,6 +542,11 @@ pub enum OrderField {
     StatementKind,
     Message,
     UserId,
+    SenderPk,
+    LogType,
+    EventType,
+    Description,
+    Version,
 }
 
 #[derive(Deserialize, Debug)]
@@ -528,16 +574,28 @@ impl GetElectoralLogBody {
                 info!("field = ?: {field}, value = ?: {value}");
                 let param_name = format!("param_{field}");
                 match field {
-                    OrderField::Id => {
+                    OrderField::Id => { // sql INTEGER type
                         let int_value: i64 = value.parse()?;
                         where_clauses.push(format!("id = @{}", param_name));
                         params.push(create_named_param(param_name, Value::N(int_value)));
                     }
-                    OrderField::StatementTimestamp | OrderField::Created | OrderField::Message => {}
-                    _ => {
+                    OrderField::SenderPk | OrderField::UserId | OrderField::StatementKind | OrderField::Version => { // sql VARCHAR type
                         where_clauses.push(format!("{field} LIKE @{}", param_name));
                         params.push(create_named_param(param_name, Value::S(value.to_string())));
                     }
+                    OrderField::StatementTimestamp | OrderField::Created => { // sql TIMESTAMP type
+                        // these have their own column and are inside of Message´s column as well
+                        let datetime = ISO8601::to_date_utc(&value)
+                            .map_err(|err| anyhow!("Failed to parse timestamp: {:?}", err))?;
+                        let ts: i64 = datetime.timestamp();
+                        let ts_end: i64 = ts + 60; // Search along that minute, the second is not specified by the front.
+                        let param_name_end = format!("{param_name}_end");
+                        where_clauses.push(format!("{field} >= @{} AND {field} < @{}", param_name, param_name_end));
+                        params.push(create_named_param(param_name, Value::Ts(ts)));
+                        params.push(create_named_param(param_name_end, Value::Ts(ts_end)));
+                    }
+                    OrderField::EventType | OrderField::LogType | OrderField::Description // these have no column but are inside of Message
+                    | OrderField::Message => {} // Message column is sql BLOB type and it´s encrypted so we can't search it without expensive operations
                 }
             }
 
@@ -592,6 +650,7 @@ pub struct ElectoralLogRow {
     pub message: String,
     pub data: String,
     pub user_id: Option<String>,
+    pub username: Option<String>,
 }
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct StatementHeadDataString {
@@ -626,6 +685,10 @@ impl ElectoralLogRow {
 
     pub fn user_id(&self) -> Option<&str> {
         self.user_id.as_ref().map(|s| s.as_str())
+    }
+
+    pub fn username(&self) -> Option<&str> {
+        self.username.as_ref().map(|s| s.as_str())
     }
 
     pub fn statement_head_data(&self) -> Result<StatementHeadDataString> {
@@ -669,6 +732,7 @@ impl TryFrom<&Row> for ElectoralLogRow {
         let mut statement_kind = String::from("");
         let mut message = vec![];
         let mut user_id = None;
+        let mut username = None;
 
         for (column, value) in row.columns.iter().zip(row.values.iter()) {
             match column.as_str() {
@@ -696,6 +760,12 @@ impl TryFrom<&Row> for ElectoralLogRow {
                     None => user_id = None,
                     _ => return Err(anyhow!("invalid column value for 'user_id'")),
                 },
+                c if c.ends_with(".username)") => match value.value.as_ref() {
+                    Some(Value::S(inner)) => username = Some(inner.clone()),
+                    Some(Value::Null(_)) => username = None,
+                    None => username = None,
+                    _ => return Err(anyhow!("invalid column value for 'username'")),
+                },
                 _ => return Err(anyhow!("invalid column found '{}'", column.as_str())),
             }
         }
@@ -711,6 +781,7 @@ impl TryFrom<&Row> for ElectoralLogRow {
                 .with_context(|| "Error serializing message to json")?,
             data: serialized,
             user_id,
+            username,
         })
     }
 }
@@ -737,7 +808,8 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
             statement_timestamp,
             statement_kind,
             message,
-            user_id
+            user_id,
+            username
         FROM electoral_log_messages
         {clauses}
         "#,

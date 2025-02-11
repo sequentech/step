@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useContext, useEffect, useState} from "react"
+import React, {useContext, useEffect, useMemo, useState} from "react"
 import {selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {Box} from "@mui/material"
@@ -14,6 +14,9 @@ import {
     isUndefined,
     translateElection,
     IContest,
+    IAuditableMultiBallot,
+    IAuditableSingleBallot,
+    EElectionEventContestEncryptionPolicy,
 } from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
@@ -178,6 +181,23 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
     const contestsOrderType = ballotStyle?.ballot_eml.election_presentation?.contests_order
     const [pageIndex, setPageIndex] = useState(0)
     const sortedContests = sortContestList(contests[pageIndex], contestsOrderType)
+    const ballotSelectionState = useAppSelector(
+        selectBallotSelectionByElectionId(ballotStyle.election_id)
+    )
+
+    const {interpretContestSelection, interpretMultiContestSelection} = provideBallotService()
+
+    const isMultiContest =
+        ballotStyle?.ballot_eml.election_event_presentation?.contest_encryption_policy ==
+        EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
+    const errorSelectionState = useMemo(() => {
+        if (!ballotSelectionState) {
+            return []
+        }
+        return isMultiContest
+            ? interpretMultiContestSelection(ballotSelectionState, ballotStyle.ballot_eml)
+            : interpretContestSelection(ballotSelectionState, ballotStyle.ballot_eml)
+    }, [ballotSelectionState, isMultiContest, ballotStyle.ballot_eml])
 
     const handleNext = () => {
         if (pageIndex === contests.length - 1) {
@@ -213,16 +233,17 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
     return (
         <>
             {sortedContests &&
-                sortedContests.map((contest) => (
-                    <div key={contest.id}>
+                sortedContests.map((contest, index) => (
+                    <Box key={contest.id} className={`contest-${index}`}>
                         <Question
                             ballotStyle={ballotStyle}
                             question={contest}
                             isReview={false}
                             setDisableNext={() => onSetDisableNext(contest)}
                             setDecodedContests={onSetDecodedContests(contest.id)}
+                            errorSelectionState={errorSelectionState}
                         />
-                    </div>
+                    </Box>
                 ))}
             <ActionButtons
                 handleNext={handleNext}
@@ -247,7 +268,12 @@ const VotingScreen: React.FC = () => {
     const [openNotVoted, setOpenNonVoted] = useState(false)
     const [contestsPerPage, setContestsPerPage] = useState<IContest[][]>([])
 
-    const {encryptBallotSelection, decodeAuditableBallot} = provideBallotService()
+    const {
+        encryptBallotSelection,
+        encryptMultiBallotSelection,
+        decodeAuditableBallot,
+        decodeAuditableMultiBallot,
+    } = provideBallotService()
     const election = useAppSelector(selectElectionById(String(electionId)))
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
 
@@ -306,7 +332,13 @@ const VotingScreen: React.FC = () => {
             return
         }
         try {
-            const auditableBallot = encryptBallotSelection(selectionState, ballotStyle.ballot_eml)
+            const isMultiContest =
+                ballotStyle.ballot_eml.election_event_presentation?.contest_encryption_policy ==
+                EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
+
+            const auditableBallot = isMultiContest
+                ? encryptMultiBallotSelection(selectionState, ballotStyle.ballot_eml)
+                : encryptBallotSelection(selectionState, ballotStyle.ballot_eml)
 
             dispatch(
                 setAuditableBallot({
@@ -315,7 +347,9 @@ const VotingScreen: React.FC = () => {
                 })
             )
 
-            let decodedSelectionState = decodeAuditableBallot(auditableBallot)
+            let decodedSelectionState = isMultiContest
+                ? decodeAuditableMultiBallot(auditableBallot as IAuditableMultiBallot)
+                : decodeAuditableBallot(auditableBallot as IAuditableSingleBallot)
 
             if (null !== decodedSelectionState) {
                 dispatch(
@@ -384,14 +418,15 @@ const VotingScreen: React.FC = () => {
 
     return (
         <PageLimit maxWidth="lg" className="voting-screen screen">
-            <Box marginTop="48px">
+            <Box marginTop="48px" className="stepper-box">
                 <Stepper selected={1} />
             </Box>
-            <StyledTitle variant="h4">
+            <StyledTitle variant="h4" className="title-container">
                 <Box className="selected-election-title">
                     {translateElection(election, "name", i18n.language) ?? "-"}
                 </Box>
                 <IconButton
+                    className="title-question"
                     icon={faCircleQuestion}
                     sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
                     fontSize="16px"
@@ -408,7 +443,11 @@ const VotingScreen: React.FC = () => {
                 </Dialog>
             </StyledTitle>
             {election.description ? (
-                <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
+                <Typography
+                    className="description"
+                    variant="body2"
+                    sx={{color: theme.palette.customGrey.main}}
+                >
                     {stringToHtml(translateElection(election, "description", i18n.language) ?? "-")}
                 </Typography>
             ) : null}

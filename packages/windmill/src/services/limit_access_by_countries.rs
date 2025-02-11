@@ -39,14 +39,19 @@ fn create_limit_ip_by_countries_rule_format(
         voting_portal_keycloak_url
     );
 
+    let login_registration_rule_expression = format!(
+        "ends_with(http.request.uri.path, \"/protocol/openid-connect/registrations\")
+        or ends_with(http.request.uri.path, \"/login-actions/registration\")"
+    );
+
     let rule_expression_enroll = format!(
         "starts_with(http.request.uri.path, \"/realms/tenant-{}-event-\") and ends_with(http.request.uri.path, \"/protocol/openid-connect/registrations\") and http.request.uri.query contains \"client_id=voting-portal\"",
         tenant_id
     );
 
     let rule_expression_voting = format!(
-        "(http.request.full_uri contains \"{}\" or ({})) and (http.request.uri.path contains \"{}\") and ({})",
-        voting_portal_url, keycloak_rule_expression_voting ,tenant_id, countries_expression
+        "(http.request.full_uri contains \"{}\" or ({})) and (http.request.uri.path contains \"{}\") and ({}) and ({})",
+        voting_portal_url, keycloak_rule_expression_voting, tenant_id, countries_expression, login_registration_rule_expression
     );
 
     Ok(CreateCustomRuleRequest {

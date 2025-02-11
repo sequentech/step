@@ -185,6 +185,82 @@ body {
 
 /*
  * ------------
+ * CONFIRMATION
+ * ------------
+ */
+.confirmation-buttons-wrapper{
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  margin: 4rem 0;
+}
+
+.confirmation-buttons-container{
+  flex: 1;
+  display: flex;
+  flex-direction: row;
+  justify-content: start;
+}
+
+.confirmation-button{
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  width: 250px;
+  font-family: Poppins;
+  font-size: 18px;
+  font-weight: 800;
+  padding: 16px 36px;
+  background-color: #28a745;
+  color: white;
+  border: none;
+  border-radius: 4px;
+}
+
+.confirmation-button:disabled {
+  background-color: #19672b;
+}
+
+.repeat-button-container{
+  flex: 1;
+  display: flex;
+  flex-direction: row;
+  justify-content: end;
+}
+
+.repeat-button{
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  width: 250px;
+  font-family: Poppins;
+  font-size: 18px;
+  font-weight: 800;
+  padding: 16px 36px;
+  background-color: #dc3545;
+  color: white;
+  border: none;
+  border-radius: 4px;
+}
+
+@media (max-width: 768px) {
+  .confirmation-button{
+    width: 200px;
+    padding: 8px 18px;
+    font-size: 16px;
+  }
+
+  .repeat-button{
+    width: 200px;
+    padding: 8px 18px;
+    font-size: 16px;
+  }
+}
+
+/*
+ * ------------
  * SDK
  * ------------
  */
@@ -253,11 +329,11 @@ dob-sdk-root {
   --dob-button-icon-sign-out: var(--dob-icon-sign-out);
 
   --dob-button-continue-color-text: #ffffff;
-  --dob-button-continue-color-background: #c33430;
+  --dob-button-continue-color-background: #28a745;
   --dob-button-continue-color-hover-text: #ffffff;
-  --dob-button-continue-color-hover-background: #c33430;
+  --dob-button-continue-color-hover-background: #28a745;
   --dob-button-continue-color-active-text: #ffffff;
-  --dob-button-continue-color-active-background: #c33430;
+  --dob-button-continue-color-active-background: #28a745;
 
   --dob-button-agree-color-text: #ffffff;
   --dob-button-agree-color-background: var(--dob-success-color);

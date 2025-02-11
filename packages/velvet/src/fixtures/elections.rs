@@ -23,6 +23,7 @@ pub fn get_election_config_1(election_event_id: &Uuid, areas: Vec<Uuid>) -> Elec
     ElectionConfig {
         id: election_id,
         name: "Election 1".to_string(),
+        alias: "Election 1 alias".to_string(),
         description: "".to_string(),
         dates: None,
         annotations: Default::default(),
@@ -37,6 +38,7 @@ pub fn get_election_config_1(election_event_id: &Uuid, areas: Vec<Uuid>) -> Elec
             .map(|area| TreeNodeArea {
                 id: area.to_string(),
                 tenant_id: tenant_id.to_string(),
+                annotations: Default::default(),
                 election_event_id: election_event_id.to_string(),
                 parent_id: None,
             })
@@ -61,6 +63,7 @@ pub fn get_election_config_2() -> ElectionConfig {
     ElectionConfig {
         id: election_id,
         name: "Election 2".to_string(),
+        alias: "Election 2 alias".to_string(),
         description: "".to_string(),
         annotations: Default::default(),
         election_event_annotations: Default::default(),
@@ -73,6 +76,7 @@ pub fn get_election_config_2() -> ElectionConfig {
         areas: vec![TreeNodeArea {
             id: area_id.to_string(),
             tenant_id: tenant_id.to_string(),
+            annotations: Default::default(),
             election_event_id: election_event_id.to_string(),
             parent_id: None,
         }],
@@ -98,6 +102,7 @@ pub fn get_election_config_3(
     ElectionConfig {
         id: election_id,
         name: "Election 3".to_string(),
+        alias: "Election 3 alias".to_string(),
         description: "".to_string(),
         annotations: Default::default(),
         election_event_annotations: Default::default(),
@@ -112,6 +117,7 @@ pub fn get_election_config_3(
             .map(|(area_id, parent_area_id)| TreeNodeArea {
                 id: area_id.to_string(),
                 tenant_id: tenant_id.to_string(),
+                annotations: Default::default(),
                 election_event_id: election_event_id.to_string(),
                 parent_id: parent_area_id.map(|a| a.to_string()),
             })

@@ -12,7 +12,7 @@ use sequent_core::{
         date_time::*,
         hasura::core::{self, ElectionEvent, Trustee},
     },
-    util::date_time::{generate_timestamp, get_system_timezone},
+    util::date_time::generate_timestamp,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -38,10 +38,14 @@ pub const MIRU_AREA_CCS_SERVERS: &str = "area-ccs-servers";
 pub const MIRU_AREA_STATION_ID: &str = "area-station-id";
 pub const MIRU_AREA_THRESHOLD: &str = "area-threshold";
 pub const MIRU_AREA_TRUSTEE_USERS: &str = "area-trustee-users";
+pub const MIRU_REGISTERED_VOTERS: &str = "registered-voters";
 pub const MIRU_TALLY_SESSION_DATA: &str = "tally-session-data";
 pub const MIRU_TRUSTEE_ID: &str = "trustee-id";
 pub const MIRU_TRUSTEE_NAME: &str = "trustee-name";
 pub const MIRU_SBEI_USERS: &str = "sbei-users";
+pub const MIRU_ROOT_CA: &str = "root-ca";
+pub const MIRU_INTERMEDIATE_CAS: &str = "intermediate-cas";
+pub const MIRU_USE_ROOT_CA: &str = "use-root-ca";
 
 const ISSUE_DATE_FORMAT: &str = "%Y-%m-%dT%H:%M:%S";
 const OFFICIAL_STATUS_DATE_FORMAT: &str = "%Y-%m-%d";
@@ -50,6 +54,7 @@ const OFFICIAL_STATUS_DATE_FORMAT: &str = "%Y-%m-%d";
 pub const MIRU_GEOGRAPHICAL_REGION: &str = "geographical-region";
 pub const MIRU_VOTING_CENTER: &str = "voting-center";
 pub const MIRU_PRECINCT_CODE: &str = "precinct-code";
+pub const MIRU_POLLCENTER_CODE: &str = "pollcenter_code";
 /**/
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, EnumString, Display)]
@@ -60,13 +65,13 @@ pub enum OfficialStatus {
 }
 
 pub trait GetMetrics {
-    fn get_metrics(&self) -> Vec<EMLCountMetric>;
+    fn get_metrics(&self, registered_voters: i64) -> Vec<EMLCountMetric>;
 }
 
 // TODO: review
 impl GetMetrics for ContestResult {
-    #[instrument(skip_all)]
-    fn get_metrics(&self) -> Vec<EMLCountMetric> {
+    #[instrument(skip_all, name = "ContestResult::get_metrics")]
+    fn get_metrics(&self, registered_voters: i64) -> Vec<EMLCountMetric> {
         let extended_metrics = self.extended_metrics.clone().unwrap_or_default();
 
         vec![
@@ -88,7 +93,7 @@ impl GetMetrics for ContestResult {
             EMLCountMetric {
                 kind: "Total Number of Registered Voters".into(),
                 id: "RV".into(),
-                datum: self.census as i64,
+                datum: registered_voters,
             },
             EMLCountMetric {
                 kind: "Total Number of Expected Votes".into(),
@@ -168,7 +173,7 @@ pub trait ValidateAnnotations {
     }
 }
 
-#[instrument(err)]
+#[instrument(err, skip(annotations))]
 fn check_annotations_exist(keys: Vec<String>, annotations: &Annotations) -> Result<()> {
     for key in keys {
         if !annotations.contains_key(&key) {
@@ -183,12 +188,15 @@ pub struct MiruElectionEventAnnotations {
     pub event_id: String,
     pub event_name: String,
     pub sbei_users: Vec<MiruSbeiUser>,
+    pub root_ca: String,
+    pub intermediate_cas: String,
+    pub use_root_ca: bool,
 }
 
 impl ValidateAnnotations for ElectionEvent {
     type Item = MiruElectionEventAnnotations;
 
-    #[instrument(err)]
+    #[instrument(skip_all, err, name = "ElectionEvent::get_annotations")]
     fn get_annotations(&self) -> Result<Self::Item> {
         let annotations_js = self
             .annotations
@@ -202,6 +210,9 @@ impl ValidateAnnotations for ElectionEvent {
                 prepend_miru_annotation(MIRU_ELECTION_EVENT_ID),
                 prepend_miru_annotation(MIRU_ELECTION_EVENT_NAME),
                 prepend_miru_annotation(MIRU_SBEI_USERS),
+                prepend_miru_annotation(MIRU_ROOT_CA),
+                prepend_miru_annotation(MIRU_INTERMEDIATE_CAS),
+                prepend_miru_annotation(MIRU_USE_ROOT_CA),
             ],
             &annotations,
         )
@@ -230,13 +241,39 @@ impl ValidateAnnotations for ElectionEvent {
                     MIRU_PLUGIN_PREPEND, MIRU_SBEI_USERS, &annotations
                 )
             })?;
-        let sbei_users: Vec<MiruSbeiUser> =
-            deserialize_str(&sbei_users_js).map_err(|err| anyhow!("{}", err))?;
+        let sbei_users: Vec<MiruSbeiUser> = deserialize_str(&sbei_users_js)
+            .map_err(|err| anyhow::Error::from(err).context("Can't parse sbei users"))?;
+
+        let root_ca = find_miru_annotation(MIRU_ROOT_CA, &annotations).with_context(|| {
+            format!(
+                "Missing election event annotation: '{}:{}'",
+                MIRU_PLUGIN_PREPEND, MIRU_ROOT_CA
+            )
+        })?;
+
+        let intermediate_cas = find_miru_annotation(MIRU_INTERMEDIATE_CAS, &annotations)
+            .with_context(|| {
+                format!(
+                    "Missing election event annotation: '{}:{}'",
+                    MIRU_PLUGIN_PREPEND, MIRU_INTERMEDIATE_CAS
+                )
+            })?;
+
+        let use_root_ca =
+            find_miru_annotation(MIRU_USE_ROOT_CA, &annotations).with_context(|| {
+                format!(
+                    "Missing election event annotation: '{}:{}'",
+                    MIRU_PLUGIN_PREPEND, MIRU_ROOT_CA
+                )
+            })?;
 
         Ok(MiruElectionEventAnnotations {
             event_id,
             event_name,
             sbei_users,
+            root_ca,
+            intermediate_cas,
+            use_root_ca: "true" == use_root_ca.as_str(),
         })
     }
     #[instrument(err)]
@@ -259,10 +296,20 @@ impl ValidateAnnotations for ElectionEvent {
         let sbei_users: Vec<MiruSbeiUser> =
             deserialize_str(&sbei_users_js).unwrap_or_else(|_| Vec::new());
 
+        let root_ca = find_miru_annotation_opt(MIRU_ROOT_CA, &annotations)?.unwrap_or_default();
+        let intermediate_cas =
+            find_miru_annotation_opt(MIRU_INTERMEDIATE_CAS, &annotations)?.unwrap_or_default();
+
+        let use_root_ca =
+            find_miru_annotation_opt(MIRU_USE_ROOT_CA, &annotations)?.unwrap_or_default();
+
         Ok(MiruElectionEventAnnotations {
             event_id,
             event_name,
             sbei_users,
+            root_ca,
+            intermediate_cas,
+            use_root_ca: "true" == use_root_ca.as_str(),
         })
     }
 }
@@ -274,12 +321,14 @@ pub struct MiruElectionAnnotations {
     pub geographical_area: String,
     pub post: String,
     pub precinct_code: String,
+    pub registered_voters: i64, // registered voters at a given precinct id
+    pub pollcenter_code: String,
 }
 
 impl ValidateAnnotations for core::Election {
     type Item = MiruElectionAnnotations;
 
-    #[instrument(err)]
+    #[instrument(skip_all, err, name = "Election::get_annotations")]
     fn get_annotations(&self) -> Result<Self::Item> {
         let annotations_js = self
             .annotations
@@ -295,6 +344,7 @@ impl ValidateAnnotations for core::Election {
                 prepend_miru_annotation(MIRU_GEOGRAPHICAL_REGION),
                 prepend_miru_annotation(MIRU_VOTING_CENTER),
                 prepend_miru_annotation(MIRU_PRECINCT_CODE),
+                prepend_miru_annotation(MIRU_REGISTERED_VOTERS),
             ],
             &annotations,
         )
@@ -303,7 +353,7 @@ impl ValidateAnnotations for core::Election {
         let election_id =
             find_miru_annotation(MIRU_ELECTION_ID, &annotations).with_context(|| {
                 format!(
-                    "Missing area annotation: '{}:{}'",
+                    "Missing election annotation: '{}:{}'",
                     MIRU_PLUGIN_PREPEND, MIRU_ELECTION_ID
                 )
             })?;
@@ -311,7 +361,7 @@ impl ValidateAnnotations for core::Election {
         let election_name =
             find_miru_annotation(MIRU_ELECTION_NAME, &annotations).with_context(|| {
                 format!(
-                    "Missing area annotation: '{}:{}'",
+                    "Missing election annotation: '{}:{}'",
                     MIRU_PLUGIN_PREPEND, MIRU_ELECTION_NAME
                 )
             })?;
@@ -319,14 +369,14 @@ impl ValidateAnnotations for core::Election {
         let geographical_area = find_miru_annotation(MIRU_GEOGRAPHICAL_REGION, &annotations)
             .with_context(|| {
                 format!(
-                    "Missing area annotation: '{}:{}'",
+                    "Missing election annotation: '{}:{}'",
                     MIRU_PLUGIN_PREPEND, MIRU_GEOGRAPHICAL_REGION
                 )
             })?;
 
         let post = find_miru_annotation(MIRU_VOTING_CENTER, &annotations).with_context(|| {
             format!(
-                "Missing area annotation: '{}:{}'",
+                "Missing election annotation: '{}:{}'",
                 MIRU_PLUGIN_PREPEND, MIRU_VOTING_CENTER
             )
         })?;
@@ -334,16 +384,34 @@ impl ValidateAnnotations for core::Election {
         let precinct_code =
             find_miru_annotation(MIRU_PRECINCT_CODE, &annotations).with_context(|| {
                 format!(
-                    "Missing area annotation: '{}:{}'",
+                    "Missing election annotation: '{}:{}'",
                     MIRU_PLUGIN_PREPEND, MIRU_PRECINCT_CODE
                 )
             })?;
+
+        let registered_voters: i64 = find_miru_annotation(MIRU_REGISTERED_VOTERS, &annotations)
+            .with_context(|| {
+                format!(
+                    "Missing election annotation: '{}:{}'",
+                    MIRU_PLUGIN_PREPEND, MIRU_REGISTERED_VOTERS
+                )
+            })?
+            .parse::<i64>()
+            .with_context(|| anyhow!("Can't parse registered_voters"))?;
+
+        let pollcenter_code = annotations
+            .get(MIRU_POLLCENTER_CODE)
+            .with_context(|| format!("Missing election annotation: {}", MIRU_POLLCENTER_CODE))
+            .cloned()?;
+
         Ok(MiruElectionAnnotations {
             election_id,
             election_name,
             geographical_area,
             post,
             precinct_code,
+            registered_voters,
+            pollcenter_code,
         })
     }
 
@@ -370,12 +438,24 @@ impl ValidateAnnotations for core::Election {
         let precinct_code =
             find_miru_annotation_opt(MIRU_PRECINCT_CODE, &annotations)?.unwrap_or("-".to_string());
 
+        let registered_voters: i64 =
+            find_miru_annotation_opt(MIRU_REGISTERED_VOTERS, &annotations)?
+                .and_then(|val| val.parse::<i64>().ok())
+                .unwrap_or(-1); //TODO: fix
+
+        let pollcenter_code = annotations
+            .get(MIRU_POLLCENTER_CODE)
+            .cloned()
+            .unwrap_or_default();
+
         Ok(MiruElectionAnnotations {
             election_id,
             election_name,
             geographical_area,
             post,
             precinct_code,
+            registered_voters,
+            pollcenter_code,
         })
     }
 }
@@ -391,7 +471,7 @@ pub struct MiruAreaAnnotations {
 impl ValidateAnnotations for core::Area {
     type Item = MiruAreaAnnotations;
 
-    #[instrument(err)]
+    #[instrument(skip_all, err, name = "Area::get_annotations")]
     fn get_annotations(&self) -> Result<Self::Item> {
         let annotations_js = self
             .annotations
@@ -499,7 +579,7 @@ impl ValidateAnnotations for core::Area {
 impl ValidateAnnotations for core::TallySession {
     type Item = MiruTallySessionData;
 
-    #[instrument(err)]
+    #[instrument(skip_all, err, name = "TallySession::get_annotations")]
     fn get_annotations(&self) -> Result<Self::Item> {
         let annotations_js = self
             .annotations
@@ -521,6 +601,20 @@ impl ValidateAnnotations for core::TallySession {
 
         Ok(tally_session_data)
     }
+
+    fn get_annotations_or_empty_values(&self) -> Result<Self::Item> {
+        let annotations_js = self
+            .annotations
+            .clone()
+            .unwrap_or_else(|| Value::Object(Default::default()));
+        let annotations: Annotations = deserialize_value(annotations_js).unwrap_or_default();
+        let tally_session_data_js =
+            find_miru_annotation_opt(MIRU_TALLY_SESSION_DATA, &annotations)?.unwrap_or_default();
+
+        let tally_session_data: MiruTallySessionData =
+            deserialize_str(&tally_session_data_js).unwrap_or_else(|_| Vec::new());
+        Ok(tally_session_data)
+    }
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
@@ -532,7 +626,7 @@ pub struct MiruContestAnnotations {
 impl ValidateAnnotations for Contest {
     type Item = MiruContestAnnotations;
 
-    #[instrument(err)]
+    #[instrument(skip_all, err, name = "Contest::get_annotations")]
     fn get_annotations(&self) -> Result<Self::Item> {
         let annotations = self
             .annotations
@@ -583,7 +677,7 @@ pub struct MiruCandidateAnnotations {
 impl ValidateAnnotations for Candidate {
     type Item = MiruCandidateAnnotations;
 
-    #[instrument(err)]
+    #[instrument(skip_all, err, name = "Candidate::get_annotations")]
     fn get_annotations(&self) -> Result<Self::Item> {
         let annotations = self
             .annotations
@@ -672,7 +766,7 @@ pub fn prepend_miru_annotation(data: &str) -> String {
     format!("{}:{}", MIRU_PLUGIN_PREPEND, data)
 }
 
-#[instrument(err)]
+#[instrument(err, skip(annotations))]
 pub fn find_miru_annotation(data: &str, annotations: &Annotations) -> Result<String> {
     let key = prepend_miru_annotation(data);
     annotations
@@ -681,13 +775,13 @@ pub fn find_miru_annotation(data: &str, annotations: &Annotations) -> Result<Str
         .cloned()
 }
 
-#[instrument(err)]
+#[instrument(err, skip(annotations))]
 pub fn find_miru_annotation_opt(data: &str, annotations: &Annotations) -> Result<Option<String>> {
     let key = prepend_miru_annotation(data);
     Ok(annotations.get(&key).cloned())
 }
 
-#[instrument(err)]
+#[instrument(err, skip_all)]
 pub fn render_eml_contest(report: &ReportData) -> Result<EMLContest> {
     // Extract contest annotations
     let contest_annotations = report
@@ -695,7 +789,12 @@ pub fn render_eml_contest(report: &ReportData) -> Result<EMLContest> {
         .get_annotations()
         .with_context(|| "render_eml_contest: ")?;
 
-    let count_metrics = report.contest_result.get_metrics();
+    let registered_voters: i64 =
+        find_miru_annotation_opt(MIRU_REGISTERED_VOTERS, &report.election_annotations)?
+            .and_then(|val| val.parse::<i64>().ok())
+            .unwrap_or(-1);
+
+    let count_metrics = report.contest_result.get_metrics(registered_voters);
 
     let selections: Vec<EMLSelection> = report
         .contest_result
@@ -747,7 +846,7 @@ pub fn render_eml_contest(report: &ReportData) -> Result<EMLContest> {
     Ok(contests)
 }
 
-#[instrument(err)]
+#[instrument(err, skip(election_event_annotations, election_annotations, reports))]
 pub fn render_eml_file(
     tally_id: &str,
     transaction_id: &str,

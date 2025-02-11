@@ -3,39 +3,66 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use super::utils::get_public_asset_template;
-use crate::postgres::reports::{get_template_id_for_report, Report, ReportType};
-use crate::postgres::template;
+use crate::postgres::reports::{get_template_alias_for_report, Report, ReportType};
+use crate::postgres::{election_event, template};
 use crate::services::consolidation::aes_256_cbc_encrypt::encrypt_file_aes_256_cbc;
+use crate::services::database::get_hasura_pool;
 use crate::services::documents::upload_and_return_document;
 use crate::services::providers::email_sender::{Attachment, EmailSender};
 use crate::services::reports_vault::get_report_secret_key;
 use crate::services::tasks_execution::{update_complete, update_fail};
-use crate::services::temp_path::{
-    generate_temp_file, get_file_size, read_temp_path, write_into_named_temp_file,
-};
+use crate::services::temp_path::PUBLIC_ASSETS_QRCODE_LIB;
 use crate::services::vault;
-use crate::tasks::send_template::send_template_email;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
-use headless_chrome::types::PrintToPdfOptions;
+use sequent_core::serialization::deserialize_with_path::{deserialize_str, deserialize_value};
 use sequent_core::services::keycloak::{self, get_event_realm, KeycloakAdminClient};
 use sequent_core::services::{pdf, reports};
+use sequent_core::signatures::temp_path::*;
 use sequent_core::types::hasura::core::TasksExecution;
-use sequent_core::types::templates::ReportExtraConfig;
+use sequent_core::types::templates::{
+    CommunicationTemplatesExtraConfig, EmailConfig, PrintToPdfOptionsLocal, ReportExtraConfig,
+    ReportOptions, SendTemplateBody, SmsConfig,
+};
 use sequent_core::types::to_map::ToMap;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use std::fmt::Debug;
 use strum_macros::{Display, EnumString, IntoStaticStr};
 use tempfile::{NamedTempFile, TempPath};
-use tracing::{debug, info, warn};
+use tracing::{debug, info, instrument, warn};
 
 #[allow(non_camel_case_types)]
 #[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString)]
 pub enum GenerateReportMode {
     PREVIEW,
     REAL,
+}
+
+#[derive(Debug)]
+pub struct ReportOrigins {
+    pub tenant_id: String,
+    pub election_event_id: String,
+    pub election_id: Option<String>,
+    pub template_alias: Option<String>,
+    pub voter_id: Option<String>,
+    pub report_origin: ReportOriginatedFrom,
+    pub executer_username: Option<String>,
+    pub tally_session_id: Option<String>,
+}
+
+// // Note: Should be implemented once types for each id are defined.
+// impl ReportOrigins {
+//     pub fn new(...) -> Self {
+//     }
+// }
+
+/// To signify how the report generation was triggered
+#[derive(Debug, Clone, Copy)]
+pub enum ReportOriginatedFrom {
+    VotingPortal,
+    ExportFunction,
+    ReportsTab,
 }
 
 #[allow(non_camel_case_types)]
@@ -60,111 +87,191 @@ pub trait TemplateRenderer: Debug {
     fn prefix(&self) -> String;
     fn get_tenant_id(&self) -> String;
     fn get_election_event_id(&self) -> String;
+    fn get_report_origin(&self) -> ReportOriginatedFrom;
 
-    /// Default implementation, can be overridden in specific reports that have
-    /// election_id
-    fn get_election_id(&self) -> Option<String> {
-        None
-    }
-
-    /// Send email if it's a cron job (scheduled task) or if a voterId is present
-    fn should_send_email(&self, is_scheduled_task: bool) -> bool {
-        is_scheduled_task || self.get_voter_id().is_some()
-    }
-
-    // Default implementation, can be overridden in specific reports that have
-    // voterId
-    fn get_voter_id(&self) -> Option<String> {
-        None
-    }
-
-    async fn prepare_preview_data(&self) -> Result<Self::UserData> {
-        let json_data = self
-            .get_preview_data_file()
-            .await
-            .map_err(|e| anyhow::anyhow!(format!("Error preparing report preview {e:?}")))?;
-        let data: Self::UserData = serde_json::from_str(&json_data)?;
-
-        Ok(data)
-    }
+    /// Can be None when a report is generated with no template assigned to it,
+    /// or from other place than the reports TAB.
+    fn get_initial_template_alias(&self) -> Option<String>;
 
     async fn prepare_user_data(
         &self,
         hasura_transaction: &Transaction<'_>,
         keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData>;
-
     async fn prepare_system_data(&self, rendered_user_template: String)
         -> Result<Self::SystemData>;
 
-    async fn get_custom_user_template(
+    /// Default implementation, can be overridden but is not recommended!.
+    /// Returns None only if no template was chosen and/or none was found in DB, then TemplateRenderer will use the default template.
+    ///
+    /// For reports generated from Reports tab:
+    /// If no initial template_alias is provided at creation of the report object, then None is returned.
+    ///
+    /// For Report types from the voting portal (like in ballot_receipt):
+    /// No template_alias is provided (because the voter cannot choose) so the first match found in DB will be used
+    /// and the UI should restrict to add only one template for that type.
+    ///
+    /// For reports generated from a export button:
+    /// No template_alias is provided from the UI at the moment, then it must be retrieved from postgres as well.
+
+    /// Default implementation, can be overridden in specific reports that have
+    /// election_id
+    #[instrument(skip(self))]
+    fn get_election_id(&self) -> Option<String> {
+        None
+    }
+
+    /// Send email if it's a cron job (scheduled task) or if a voterId is present
+    #[instrument(skip(self))]
+    fn should_send_email(&self, is_scheduled_task: bool) -> bool {
+        is_scheduled_task || self.get_voter_id().is_some()
+    }
+
+    // Default implementation, can be overridden in specific reports that have
+    // voterId
+    #[instrument(skip(self))]
+    fn get_voter_id(&self) -> Option<String> {
+        None
+    }
+
+    #[instrument(err, skip(self))]
+    async fn prepare_preview_data(&self) -> Result<Self::UserData> {
+        let json_data = self
+            .get_preview_data_file()
+            .await
+            .map_err(|e| anyhow::anyhow!(format!("Error preparing report preview {e:?}")))?;
+
+        let data: Self::UserData = deserialize_str(&json_data)?;
+
+        Ok(data)
+    }
+
+    #[instrument(err, skip(self, hasura_transaction))]
+    async fn get_custom_user_template_data(
         &self,
         hasura_transaction: &Transaction<'_>,
-    ) -> Result<Option<String>> {
+    ) -> Result<Option<SendTemplateBody>> {
         let report_type = &self.get_report_type();
         let election_id = self.get_election_id();
 
-        let report_template_id = get_template_id_for_report(
-            &hasura_transaction,
+        // Get the template by ID and return its value:
+        let report_template_alias = get_template_alias_for_report(
+            hasura_transaction,
             &self.get_tenant_id(),
             &self.get_election_event_id(),
             report_type,
             election_id.as_deref(),
         )
         .await
-        .with_context(|| "Error getting template id for report")?;
-        // Get the template by ID and return its value:
-        let template_id = match report_template_id {
-            Some(id) => id,
+        .with_context(|| "Error getting template alias for report")?;
+        info!("template_alias: {:?}", &report_template_alias);
+
+        let template_alias = match report_template_alias {
+            Some(alias) => alias,
             None => {
-                warn!("No template id was found for report type: {report_type} when trying to get the custom user template.");
+                warn!("No template alias was found for report type: {report_type} when trying to get the custom user template.");
                 return Ok(None);
             }
         };
 
-        let template_data_opt =
-            template::get_template_by_id(&hasura_transaction, &self.get_tenant_id(), &template_id)
-                .await
-                .with_context(|| "Error getting template by id")?;
+        let template_table_opt = template::get_template_by_alias(
+            hasura_transaction,
+            &self.get_tenant_id(),
+            &template_alias,
+        )
+        .await
+        .with_context(|| "Error getting template by id")?;
 
-        let tpl_document: Option<&str> = match &template_data_opt {
-            Some(template_data) => template_data
-                .template
-                .get("document")
-                .and_then(Value::as_str),
+        // Template table has a column with the same name "Template" which stores a Value,
+        // being its atributes: document, sms, pdf_options, etc.
+        match template_table_opt {
+            Some(template_tbl) => {
+                let template_data: SendTemplateBody = deserialize_value(template_tbl.template)
+                    .map_err(|e| {
+                        anyhow!(format!("Error deserializing custom user template: {e:?}"))
+                    })?;
+                Ok(Some(template_data))
+            }
             None => {
                 warn!("No {} template was found by id", self.base_name());
                 return Ok(None);
             }
-        };
-
-        match tpl_document {
-            Some(document) if !document.is_empty() => Ok(Some(document.to_string())),
-            _ => Ok(None),
         }
     }
 
+    /// Get the default ReportExtraConfig from the _extra_config file and
+    /// for any passed option that is None its default value is filled.
+    #[instrument(err, skip(self))]
+    async fn fill_extra_config_with_default(
+        &self,
+        tpl_pdf_options: Option<PrintToPdfOptionsLocal>,
+        tpl_report_options: Option<ReportOptions>,
+        tpl_email_config: Option<EmailConfig>,
+        tpl_sms_config: Option<SmsConfig>,
+    ) -> Result<ReportExtraConfig> {
+        let (pdf_options, report_options, email_config, sms_config) = match tpl_pdf_options
+            .is_none()
+            || tpl_report_options.is_none()
+            || tpl_email_config.is_none()
+            || tpl_sms_config.is_none()
+        {
+            true => {
+                let def_ext_cfg: ReportExtraConfig = self
+                    .get_default_extra_config()
+                    .await
+                    .map_err(|e| anyhow!("Error getting default extra config: {e:?}"))?;
+                debug!("Default extra config read: {def_ext_cfg:?}");
+                (
+                    tpl_pdf_options.unwrap_or(def_ext_cfg.pdf_options),
+                    tpl_report_options.unwrap_or(def_ext_cfg.report_options),
+                    tpl_email_config.unwrap_or(def_ext_cfg.communication_templates.email_config),
+                    tpl_sms_config.unwrap_or(def_ext_cfg.communication_templates.sms_config),
+                )
+            }
+            false => (
+                tpl_pdf_options.unwrap_or_default(),
+                tpl_report_options.unwrap_or_default(),
+                tpl_email_config.unwrap_or_default(),
+                tpl_sms_config.unwrap_or_default(),
+            ),
+        };
+        Ok(ReportExtraConfig {
+            pdf_options,
+            communication_templates: CommunicationTemplatesExtraConfig {
+                email_config,
+                sms_config,
+            },
+            report_options,
+        })
+    }
+
+    #[instrument(err, skip(self))]
     async fn get_default_user_template(&self) -> Result<String> {
         let base_name = self.base_name();
         get_public_asset_template(format!("{base_name}_user.hbs").as_str()).await
     }
 
+    #[instrument(err, skip(self))]
     async fn get_system_template(&self) -> Result<String> {
         let base_name = self.base_name();
         get_public_asset_template(format!("{base_name}_system.hbs").as_str()).await
     }
 
+    #[instrument(err, skip(self))]
     async fn get_preview_data_file(&self) -> Result<String> {
         let base_name = self.base_name();
+        info!("base_name: {}", &base_name);
         get_public_asset_template(format!("{base_name}.json").as_str()).await
     }
 
+    #[instrument(err, skip(self))]
     async fn get_default_extra_config_file(&self) -> Result<String> {
         let base_name = self.base_name();
         get_public_asset_template(format!("{base_name}_extra_config.json").as_str()).await
     }
 
     /// Read the default extra config for this template's type like PDF options and communication templates.
+    #[instrument(err, skip(self))]
     async fn get_default_extra_config(&self) -> Result<ReportExtraConfig> {
         let json_data = self
             .get_default_extra_config_file()
@@ -175,25 +282,17 @@ pub trait TemplateRenderer: Debug {
         Ok(data)
     }
 
+    #[instrument(
+        err,
+        skip(self, hasura_transaction, keycloak_transaction, user_tpl_document)
+    )]
     async fn generate_report_inner(
         &self,
         generate_mode: GenerateReportMode,
         hasura_transaction: &Transaction<'_>,
         keycloak_transaction: &Transaction<'_>,
+        user_tpl_document: &str,
     ) -> Result<String> {
-        // Get user template (custom or default)
-        let user_template = match self
-            .get_custom_user_template(hasura_transaction)
-            .await
-            .map_err(|e| anyhow!("Error getting custom user template: {e:?}"))?
-        {
-            Some(template) => template,
-            None => self
-                .get_default_user_template()
-                .await
-                .map_err(|e| anyhow!("Error getting default user template: {e:?}"))?,
-        };
-
         // Prepare user data either preview or real
         let user_data = if generate_mode == GenerateReportMode::PREVIEW {
             self.prepare_preview_data()
@@ -209,10 +308,13 @@ pub trait TemplateRenderer: Debug {
             .to_map()
             .map_err(|e| anyhow!("Error converting user data to map: {e:?}"))?;
 
-        info!("user data in template renderer: {user_data_map:#?}");
-
+        debug!("user data in template renderer: {user_data_map:#?}");
+        info!(
+            "imri generate_report_inner user_data_map: {:?}",
+            user_data_map
+        );
         let rendered_user_template =
-            reports::render_template_text(&user_template, user_data_map)
+            reports::render_template_text(&user_tpl_document, user_data_map)
                 .map_err(|e| anyhow!("Error rendering user template: {e:?}"))?;
 
         // Prepare system data
@@ -222,11 +324,11 @@ pub trait TemplateRenderer: Debug {
             .map_err(|e| anyhow!("Error preparing system data: {e:?}"))?
             .to_map()
             .map_err(|e| anyhow!("Error converting system data to map: {e:?}"))?;
-
+        info!("imri generate_report_inner system_data: {:?}", system_data);
         let system_template = self
             .get_system_template()
             .await
-            .map_err(|e| anyhow!("Error getting default user template: {e:?}"))?;
+            .map_err(|e| anyhow!("Error getting the system template: {e:?}"))?;
 
         let rendered_system_template = reports::render_template_text(&system_template, system_data)
             .map_err(|e| anyhow!("Error rendering system template: {e:?}"))?;
@@ -234,25 +336,17 @@ pub trait TemplateRenderer: Debug {
         Ok(rendered_system_template)
     }
 
+    #[instrument(
+        err,
+        skip(self, hasura_transaction, keycloak_transaction, user_tpl_document)
+    )]
     async fn generate_report(
         &self,
         generate_mode: GenerateReportMode,
         hasura_transaction: &Transaction<'_>,
         keycloak_transaction: &Transaction<'_>,
+        user_tpl_document: &str,
     ) -> Result<String> {
-        // Get user template (custom or default)
-        let user_template = match self
-            .get_custom_user_template(hasura_transaction)
-            .await
-            .map_err(|e| anyhow!("Error getting custom user template: {e:?}"))?
-        {
-            Some(template) => template,
-            None => self
-                .get_default_user_template()
-                .await
-                .map_err(|e| anyhow!("Error getting default user template: {e:?}"))?,
-        };
-
         // Prepare user data either preview or real
         let user_data = if generate_mode == GenerateReportMode::PREVIEW {
             self.prepare_preview_data()
@@ -268,10 +362,11 @@ pub trait TemplateRenderer: Debug {
             .to_map()
             .map_err(|e| anyhow!("Error converting user data to map: {e:?}"))?;
 
-        info!("user data in template renderer: {user_data_map:#?}");
+        debug!("user data in template renderer: {user_data_map:#?}");
+        info!("imri generate_report user_data_map: {:?}", user_data_map);
 
         let rendered_user_template =
-            reports::render_template_text(&user_template, user_data_map)
+            reports::render_template_text(user_tpl_document, user_data_map)
                 .map_err(|e| anyhow!("Error rendering user template: {e:?}"))?;
 
         // Prepare system data
@@ -293,9 +388,53 @@ pub trait TemplateRenderer: Debug {
         Ok(rendered_system_template)
     }
 
+    /// Provides the User template String and the ReportExtraConfig, encapsulating the logic that gets either the custom or default.
+    /// Tries to get first the custom template and extra config, if any value is not available then its default is set.
+    #[instrument(err, skip_all)]
+    async fn user_tpl_and_extra_cfg_provider(
+        &self,
+        hasura_transaction: &Transaction<'_>,
+    ) -> Result<(String, ReportExtraConfig)> {
+        // Do the query to get the user template data
+        let template_data_opt: Option<SendTemplateBody> = self
+            .get_custom_user_template_data(hasura_transaction)
+            .await
+            .map_err(|e| anyhow!("Error getting custom user template: {e:?}"))?;
+        // Set the data from the user
+        let (mut tpl_pdf_options, mut tpl_report_options, mut tpl_email, mut tpl_sms) =
+            (None, None, None, None);
+        let user_tpl_document = match template_data_opt {
+            Some(template) => {
+                tpl_pdf_options = template.pdf_options;
+                tpl_report_options = template.report_options;
+                tpl_email = template.email;
+                tpl_sms = template.sms;
+                Some(template.document.unwrap_or_default())
+            }
+            None => None,
+        };
+        // Fill extra config if needed with default data
+        let ext_cfg: ReportExtraConfig = self
+            .fill_extra_config_with_default(tpl_pdf_options, tpl_report_options, tpl_email, tpl_sms)
+            .await
+            .map_err(|e| anyhow!("Error getting the extra config: {e:?}"))?;
+        debug!("Extra config read: {ext_cfg:?}");
+
+        // Get the default user template document if needed
+        let user_tpl_document = match user_tpl_document {
+            None => self
+                .get_default_user_template()
+                .await
+                .map_err(|e| anyhow!("Error getting default user template: {e:?}"))?,
+            Some(user_tpl_document) => user_tpl_document,
+        };
+        Ok((user_tpl_document, ext_cfg))
+    }
+
     // Inner implementation for `execute_report()` so that implementors of the
     // trait can reimplement the function while calling the parent default
     // implementation too when needed
+    #[instrument(err, skip_all)]
     async fn execute_report_inner(
         &self,
         document_id: &str,
@@ -303,46 +442,45 @@ pub trait TemplateRenderer: Debug {
         election_event_id: &str,
         is_scheduled_task: bool,
         recipients: Vec<String>,
-        pdf_options: Option<PrintToPdfOptions>,
         generate_mode: GenerateReportMode,
         report: Option<Report>,
         hasura_transaction: &Transaction<'_>,
         keycloak_transaction: &Transaction<'_>,
         task_execution: Option<TasksExecution>,
     ) -> Result<()> {
+        let (user_tpl_document, ext_cfg) = self
+            .user_tpl_and_extra_cfg_provider(hasura_transaction)
+            .await
+            .map_err(|e| anyhow!("Error providing the user template and extra config: {e:?}"))?;
         // Generate report in html
         let rendered_system_template = match self
-            .generate_report(generate_mode, hasura_transaction, keycloak_transaction)
+            .generate_report(
+                generate_mode,
+                hasura_transaction,
+                keycloak_transaction,
+                &user_tpl_document,
+            )
             .await
         {
             Ok(template) => template,
             Err(err) => {
                 if let Some(task) = task_execution {
-                    update_fail(&task, "Failed to generate report").await?;
+                    update_fail(&task, &format!("Failed to generate report {err:?}")).await?;
                 }
                 return Err(anyhow!("Error rendering report: {err:?}"));
             }
         };
 
         debug!("Report generated: {rendered_system_template}");
-
-        let ext_cfg: ReportExtraConfig = self
-            .get_default_extra_config()
-            .await
-            .map_err(|e| anyhow!("Error getting default extra config: {e:?}"))?;
-        debug!("Extra config read: {ext_cfg:?}");
-
-        // Use the default pdf options only if not given
-        let pdf_options = match pdf_options {
-            Some(pdf_options) => Some(pdf_options),
-            None => Some(ext_cfg.pdf_options),
-        };
-
         let extension_suffix = "pdf";
 
         // Generate PDF
-        let content_bytes = pdf::html_to_pdf(rendered_system_template.clone(), pdf_options)
-            .map_err(|err| anyhow!("Error rendering report to {extension_suffix:?}: {err:?}"))?;
+        let content_bytes = pdf::PdfRenderer::render_pdf(
+            rendered_system_template.clone(),
+            Some(ext_cfg.pdf_options.to_print_to_pdf_options()),
+        )
+        .await
+        .map_err(|err| anyhow!("Error rendering report to {extension_suffix:?}: {err:?}"))?;
 
         let base_name = self.base_name();
         let fmt_extension = format!(".{extension_suffix}");
@@ -367,7 +505,6 @@ pub trait TemplateRenderer: Debug {
                 let encryption_password = vault::read_secret(secret_key.clone())
                     .await?
                     .ok_or_else(|| anyhow!("Encryption password not found"))?;
-                info!("Encryption password: {:?}", encryption_password);
 
                 // Encrypt the file
                 let enc_file: NamedTempFile =
@@ -494,6 +631,7 @@ pub trait TemplateRenderer: Debug {
         Ok(())
     }
 
+    #[instrument(err, skip_all)]
     async fn execute_report(
         &self,
         document_id: &str,
@@ -501,7 +639,6 @@ pub trait TemplateRenderer: Debug {
         election_event_id: &str,
         is_scheduled_task: bool,
         recipients: Vec<String>,
-        pdf_options: Option<PrintToPdfOptions>,
         generate_mode: GenerateReportMode,
         report: Option<Report>,
         hasura_transaction: &Transaction<'_>,
@@ -514,7 +651,6 @@ pub trait TemplateRenderer: Debug {
             election_event_id,
             is_scheduled_task,
             recipients,
-            pdf_options,
             generate_mode,
             report,
             hasura_transaction,
@@ -524,6 +660,7 @@ pub trait TemplateRenderer: Debug {
         .await
     }
 
+    #[instrument(err, skip(self))]
     async fn get_email_recipients(
         &self,
         recipients: Vec<String>,

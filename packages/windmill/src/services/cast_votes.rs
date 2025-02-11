@@ -3,17 +3,20 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::database::PgConfig;
+use crate::postgres::election_event::is_datafix_election_event;
+use crate::services::electoral_log::ElectoralLog;
 use anyhow::{anyhow, Context, Result};
 use chrono::NaiveDate;
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Transaction;
 use sequent_core::types::keycloak::{User, VotesInfo};
+use sequent_core::types::keycloak::{ATTR_RESET_VALUE, VOTED_CHANNEL};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 use tokio_postgres::row::Row;
-use tracing::instrument;
+use tracing::{info, instrument};
 use uuid::Uuid;
-
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct CastVote {
     pub id: String,
@@ -23,10 +26,10 @@ pub struct CastVote {
     pub created_at: Option<DateTime<Utc>>,
     pub last_updated_at: Option<DateTime<Utc>>,
     pub content: Option<String>,
-    pub cast_ballot_signature: Option<Vec<u8>>,
     pub voter_id_string: Option<String>,
     pub election_event_id: String,
     pub ballot_id: Option<String>,
+    pub cast_ballot_signature: Option<Vec<u8>>,
 }
 
 impl TryFrom<Row> for CastVote {
@@ -53,11 +56,14 @@ impl TryFrom<Row> for CastVote {
 }
 
 #[instrument(err)]
+// TODO Make it possible to use pagination
 pub async fn find_area_ballots(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
     area_id: &str,
+    limit: i64,
+    offset: i64,
 ) -> Result<Vec<CastVote>> {
     let tenant_uuid: uuid::Uuid = Uuid::parse_str(tenant_id)
         .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
@@ -86,13 +92,20 @@ pub async fn find_area_ballots(
                         election_event_id = $2 AND
                         area_id = $3
                     ORDER BY election_id, voter_id_string, created_at DESC
+                    LIMIT $4 OFFSET $5
                 "#,
         )
         .await?;
     let rows: Vec<Row> = hasura_transaction
         .query(
             &areas_statement,
-            &[&tenant_uuid, &election_event_uuid, &area_uuid],
+            &[
+                &tenant_uuid,
+                &election_event_uuid,
+                &area_uuid,
+                &limit,
+                &offset,
+            ],
         )
         .await
         .map_err(|err| anyhow!("Error running the areas query: {}", err))?;
@@ -143,27 +156,40 @@ pub async fn count_cast_votes_election(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
+    is_test_election: Option<bool>,
 ) -> Result<Vec<ElectionCastVotes>> {
     let tenant_uuid: uuid::Uuid = Uuid::parse_str(tenant_id)
         .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
     let election_event_uuid: uuid::Uuid = Uuid::parse_str(election_event_id)
         .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
-    let areas_statement = hasura_transaction
-        .prepare(
-            r#"
-            SELECT el.id AS election_id, COUNT(DISTINCT voter_id_string) AS cast_votes
+
+    let test_elections_clause = match is_test_election {
+        Some(true) => "AND el.name ILIKE '%Test%'".to_string(),
+        Some(false) => "AND el.name NOT ILIKE '%Test%'".to_string(),
+        None => "".to_string(),
+    };
+
+    let statement_str = format!(
+        r#"
+            SELECT el.id AS election_id, COUNT(DISTINCT cv.voter_id_string) AS cast_votes
             FROM sequent_backend.election el
-            LEFT JOIN sequent_backend.cast_vote cv ON el.id = cv.election_id
+            LEFT JOIN (
+                SELECT DISTINCT election_id, voter_id_string
+                FROM sequent_backend.cast_vote
+            ) cv ON el.id = cv.election_id
             WHERE
                 el.tenant_id = $1 AND
                 el.election_event_id = $2
+                {test_elections_clause}
             GROUP BY
                 el.id
-            "#,
-        )
-        .await?;
+            "#
+    );
+
+    let statement = hasura_transaction.prepare(statement_str.as_str()).await?;
+
     let rows: Vec<Row> = hasura_transaction
-        .query(&areas_statement, &[&tenant_uuid, &election_event_uuid])
+        .query(&statement, &[&tenant_uuid, &election_event_uuid])
         .await
         .map_err(|err| anyhow!("Error running the query: {}", err))?;
     let count_data = rows
@@ -182,6 +208,7 @@ pub async fn get_count_votes_per_day(
     start_date: &str,
     end_date: &str,
     election_id: Option<String>,
+    user_timezone: &str,
 ) -> Result<Vec<CastVotesPerDay>> {
     let start_date_naive = NaiveDate::parse_from_str(start_date, "%Y-%m-%d")
         .with_context(|| "Error parsing start_date")?;
@@ -197,27 +224,35 @@ pub async fn get_count_votes_per_day(
                 r#"
             WITH date_series AS (
                 SELECT
-                    t.day::date 
+                    (t.day)::date AS day
                 FROM 
                     generate_series(
                         $3::date,
                         $4::date,
-                        interval  '1 day'
+                        interval '1 day'
                     ) AS t(day)
             )
             SELECT
                 ds.day,
-                COALESCE(COUNT(v.created_at), 0) AS day_count
+                COALESCE(
+                    COUNT(
+                        CASE 
+                            WHEN DATE(v.created_at AT TIME ZONE $5) = ds.day THEN 1 
+                            ELSE NULL 
+                        END
+                    ), 
+                    0
+                ) AS day_count
             FROM
                 date_series ds
-            LEFT JOIN sequent_backend.cast_vote v ON ds.day = DATE(v.created_at)
+            LEFT JOIN sequent_backend.cast_vote v ON ds.day = DATE(v.created_at AT TIME ZONE $5)
                 AND v.tenant_id = $1
                 AND v.election_event_id = $2
-                AND (v.election_id = $5 OR $5 IS NULL)
+                AND (v.election_id = $6 OR $6 IS NULL)
             WHERE
                 (
-                    DATE(v.created_at) >= $3 AND
-                    DATE(v.created_at) <= $4
+                    DATE(v.created_at AT TIME ZONE $5) >= $3 AND
+                    DATE(v.created_at AT TIME ZONE $5) <= $4
                 )
                 OR v.created_at IS NULL
             GROUP BY ds.day
@@ -236,10 +271,12 @@ pub async fn get_count_votes_per_day(
                 &Uuid::parse_str(election_event_id)?,
                 &start_date_naive,
                 &end_date_naive,
+                &user_timezone,
                 &election_uuid,
             ],
         )
         .await?;
+
     let cast_votes_by_day = rows
         .into_iter()
         .map(|row| -> Result<CastVotesPerDay> { row.try_into() })
@@ -253,6 +290,7 @@ pub async fn get_users_with_vote_info(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
+    election_id: Option<String>,
     users: Vec<User>,
     filter_by_has_voted: Option<bool>,
 ) -> Result<Vec<User>> {
@@ -260,6 +298,16 @@ pub async fn get_users_with_vote_info(
         Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
     let election_event_uuid = Uuid::parse_str(election_event_id)
         .with_context(|| "Error parsing election_event_id as UUID")?;
+
+    let election_uuid = match election_id {
+        Some(ref election_id_r) => Some(Uuid::parse_str(election_id_r.as_str())?),
+        None => None,
+    };
+
+    let is_datafix_event =
+        is_datafix_election_event(hasura_transaction, tenant_id, election_event_id)
+            .await
+            .map_err(|e| anyhow!(" Error checking if is datafix election event: {:?}", e))?;
 
     // Prepare the list of user IDs for the query
     let user_ids: Vec<String> = users
@@ -285,7 +333,8 @@ pub async fn get_users_with_vote_info(
             WHERE 
                 v.tenant_id = $1 AND
                 v.election_event_id = $2 AND
-                v.voter_id_string = ANY($3)
+                v.voter_id_string = ANY($3) AND
+                (v.election_id = $4 OR $4 IS NULL)
             GROUP BY 
                 v.voter_id_string, v.election_id;
             "#,
@@ -296,7 +345,12 @@ pub async fn get_users_with_vote_info(
     let rows = hasura_transaction
         .query(
             &vote_info_statement,
-            &[&tenant_uuid, &election_event_uuid, &user_ids],
+            &[
+                &tenant_uuid,
+                &election_event_uuid,
+                &user_ids,
+                &election_uuid,
+            ],
         )
         .await
         .with_context(|| "Error executing the vote info query")?;
@@ -346,10 +400,31 @@ pub async fn get_users_with_vote_info(
             .clone()
             .ok_or_else(|| anyhow!("Encountered a user without an ID"))?;
 
-        let votes_info = user_votes_map
+        let mut votes_info = user_votes_map
             .get(&user_id)
             .cloned()
             .ok_or_else(|| anyhow!("Missing vote info for user ID {}", user_id))?;
+
+        if is_datafix_event {
+            // Checking the attribute voted-channel for each user.
+            let attributes = user.attributes.clone().unwrap_or_default();
+            // Set the num_votes ot 1 if the voter has voted through a Channel to make it appear in the Voter list as "Voted"
+            match attributes.iter().find(|tupple| tupple.0.eq(VOTED_CHANNEL)) {
+                Some((_, v)) => {
+                    match v.last() {
+                        Some(channel) if !channel.eq(ATTR_RESET_VALUE) && !channel.is_empty() => {
+                            votes_info = vec![VotesInfo {
+                                election_id: "".to_string(), // Not used for datafix
+                                num_votes: 1,
+                                last_voted_at: "".to_string(), // Not used for datafix
+                            }];
+                        }
+                        _ => {}
+                    };
+                }
+                None => {}
+            }
+        }
 
         match filter_by_has_voted {
             Some(has_voted) => {
@@ -602,4 +677,74 @@ pub async fn count_ballots_by_area_id(
     let vote_count: i64 = row.get(0);
 
     Ok(vote_count)
+}
+
+#[instrument(err)]
+pub async fn count_cast_votes_election_event(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    is_test_election: Option<bool>,
+) -> Result<i64> {
+    let tenant_uuid: uuid::Uuid = Uuid::parse_str(tenant_id)
+        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
+    let election_event_uuid: uuid::Uuid = Uuid::parse_str(election_event_id)
+        .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
+
+    let test_elections_clause = match is_test_election {
+        Some(true) => "AND el.name ILIKE '%Test%'".to_string(),
+        Some(false) => "AND el.name NOT ILIKE '%Test%'".to_string(),
+        None => "".to_string(),
+    };
+
+    let statement_str = format!(
+        r#"
+            SELECT COUNT(DISTINCT cv.voter_id_string) AS voter_count
+            FROM sequent_backend.election el
+            JOIN sequent_backend.cast_vote cv ON el.id = cv.election_id
+            WHERE 
+                cv.voter_id_string IS NOT NULL AND
+                el.tenant_id = $1 AND 
+                el.election_event_id = $2
+                {test_elections_clause};
+            "#
+    );
+
+    let statement = hasura_transaction.prepare(statement_str.as_str()).await?;
+
+    let rows: Row = hasura_transaction
+        .query_one(&statement, &[&tenant_uuid, &election_event_uuid])
+        .await
+        .map_err(|err| anyhow!("Error running the query: {}", err))?;
+
+    let count = rows.try_get::<_, i64>("voter_count")?;
+
+    Ok(count)
+}
+
+/// Returns the private signing key for the given voter.
+///
+/// The private key is generated and a log post
+/// is published with the corresponding public key
+/// (with StatementType::AdminPublicKey).
+///
+/// There is a possibility that the private key is created
+/// but the notification fails. This is logged in
+/// electorallog::post_voter_pk
+#[instrument(err)]
+pub async fn get_voter_signing_key(
+    elog_database: &str,
+    tenant_id: &str,
+    event_id: &str,
+    user_id: &str,
+) -> Result<StrandSignatureSk> {
+    info!("Generating private signing key for voter {}", user_id);
+    let sk = StrandSignatureSk::gen()?;
+    let sk_string = sk.to_der_b64_string()?;
+    let pk = StrandSignaturePk::from_sk(&sk)?;
+    let pk = pk.to_der_b64_string()?;
+
+    ElectoralLog::post_voter_pk(elog_database, tenant_id, event_id, user_id, &pk).await?;
+
+    Ok(sk)
 }

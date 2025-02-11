@@ -22,7 +22,9 @@ import {ListApprovalsMatches} from "./ListApprovalsMatches"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {getAttributeLabel} from "@/services/UserService"
 import {USER_PROFILE_ATTRIBUTES} from "@/queries/GetUserProfileAttributes"
-import {convertToCamelCase, convertToSnakeCase} from "./UtilsApprovals"
+import {convertOneToSnakeCase, convertToCamelCase, convertToSnakeCase} from "./UtilsApprovals"
+import {IApplicationsStatus} from "@/types/applications"
+import {RejectApplicationButton, RejectApplicationDialog} from "./RejectApplication"
 
 export interface ViewApprovalProps {
     electionEventId: string
@@ -43,6 +45,7 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
 }) => {
     const {t} = useTranslation()
     const [tenantId] = useTenantStore()
+    const [rejectDialogOpen, setRejectDialogOpen] = useState(false)
 
     const {data: userAttributes} = useQuery<GetUserProfileAttributesQuery>(
         USER_PROFILE_ATTRIBUTES,
@@ -93,9 +96,13 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
         )
 
         if (userAttributes?.get_user_profile_attributes) {
-            return userAttributes?.get_user_profile_attributes.map((attr, index) => {
-                if (attr && attr.name && userApprovalInfo.includes(attr.name)) {
-                    const key = getAttributeLabel(attr["display_name"] ?? "")
+            const applicantData = userAttributes?.get_user_profile_attributes.map((attr, index) => {
+                if (
+                    attr &&
+                    attr.name &&
+                    userApprovalInfo.includes(convertOneToSnakeCase(attr.name))
+                ) {
+                    const key = getAttributeLabel(attr["display_name"] ?? attr.name)
                     let value = task.applicant_data[convertToCamelCase(attr.name)]
                     return (
                         <TableRow key={index}>
@@ -115,6 +122,32 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
                 }
                 return null
             })
+
+            task.status === IApplicationsStatus.REJECTED &&
+                applicantData.push(
+                    <TableRow key={100}>
+                        <TableCell
+                            sx={{
+                                fontWeight: "500",
+                                width: "40%",
+                                textTransform: "capitalize",
+                            }}
+                        >
+                            {t("approvalsScreen.reject.rejectReason")}
+                        </TableCell>
+                        <TableCell>
+                            {formatValue(
+                                t(
+                                    `approvalsScreen.reject.reasons.${
+                                        task.annotations.rejection_reason ?? "undefined"
+                                    }`
+                                )
+                            )}
+                        </TableCell>
+                    </TableRow>
+                )
+
+            return applicantData
         }
 
         return []
@@ -125,9 +158,10 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
             <Accordion sx={{width: "100%"}} expanded={true}>
                 <AccordionSummary expandIcon={false}>
                     <WizardStyles.AccordionTitle>
-                        {t("approvalsScreen.approvalInformation")}
+                        {t("approvalsScreen.approvalRequest")}
                     </WizardStyles.AccordionTitle>
                 </AccordionSummary>
+
                 <WizardStyles.AccordionDetails sx={{marginBottom: "3rem"}}>
                     <TableContainer component={Paper}>
                         <Table aria-label="approvals details table">
@@ -135,8 +169,14 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
                         </Table>
                     </TableContainer>
                 </WizardStyles.AccordionDetails>
+
+                {task.status === IApplicationsStatus.PENDING && (
+                    <RejectApplicationButton
+                        label={t("approvalsScreen.reject.label")}
+                        onClick={setRejectDialogOpen}
+                    />
+                )}
             </Accordion>
-            {/* <Logs logs={task?.logs} /> */}
             <ListApprovalsMatches
                 electionEventId={electionEventId}
                 electionId={electionId}
@@ -176,6 +216,14 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
                     </CancelButton>
                 </WizardStyles.StyledFooter>
             </WizardStyles.FooterContainer>
+
+            <RejectApplicationDialog
+                electionEventId={electionEventId}
+                task={task}
+                goBack={goBack}
+                rejectDialogOpen={rejectDialogOpen}
+                setRejectDialogOpen={setRejectDialogOpen}
+            />
         </WizardStyles.WizardContainer>
     )
 }

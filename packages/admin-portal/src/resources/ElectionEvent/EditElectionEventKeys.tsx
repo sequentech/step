@@ -46,6 +46,7 @@ import {ResetFilters} from "@/components/ResetFilters"
 import {useQuery} from "@apollo/client"
 import {LIST_KEYS_CEREMONY} from "@/queries/ListKeysCeremonies"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
+import {useKeysPermissions} from "./useKeysPermissions"
 
 const NotificationLink = styled.span`
     text-decoration: underline;
@@ -60,23 +61,6 @@ const NotificationLink = styled.span`
 const TrusteeKeyIcon = MUIStiled(KeyIcon)`
     color: ${theme.palette.brandSuccess};
 `
-
-export function useActionPermissions() {
-    const [tenantId] = useTenantStore()
-    const authContext = useContext(AuthContext)
-
-    const canAdminCeremony = authContext.isAuthorized(true, tenantId, IPermissions.ADMIN_CEREMONY)
-    const canTrusteeCeremony = authContext.isAuthorized(
-        true,
-        tenantId,
-        IPermissions.TRUSTEE_CEREMONY
-    )
-
-    return {
-        canAdminCeremony,
-        canTrusteeCeremony,
-    }
-}
 
 interface StatusLabelProps {
     record: any
@@ -175,7 +159,13 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
 
     const [showCeremony, setShowCeremony] = useState(false)
     const [showTrusteeCeremony, setShowTrusteeCeremony] = useState(false)
-    const {canAdminCeremony, canTrusteeCeremony} = useActionPermissions()
+    const {
+        canAdminCeremony,
+        canTrusteeCeremony,
+        canExportCeremony,
+        canCreateCeremony,
+        showKeysColumns,
+    } = useKeysPermissions()
 
     const CreateButton = () => (
         <Button
@@ -193,7 +183,7 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
             <Typography variant="h4" paragraph>
                 {t("electionEventScreen.keys.emptyHeader")}
             </Typography>
-            {canAdminCeremony ? (
+            {canCreateCeremony ? (
                 <>
                     <Typography variant="body1" paragraph>
                         {t("common.resources.noResult.askCreate")}
@@ -310,11 +300,13 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
                     empty={<Empty />}
                     actions={
                         <ListActions
+                            withColumns={showKeysColumns}
                             withFilter={false}
                             withImport={false}
+                            withExport={false}
                             actionLabel="common.label.add"
                             doAction={() => setShowCeremony(true)}
-                            withAction={true}
+                            withAction={canCreateCeremony}
                         />
                     }
                 >

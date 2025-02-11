@@ -26,7 +26,7 @@
 
 	"onCreateCommand": "direnv allow && devenv shell bash -- -c './.devcontainer/scripts/fix-vscode-settings-nix.sh'",
 	"updateContentCommand": "direnv allow && devenv shell bash -- -c './.devcontainer/scripts/fix-vscode-settings-nix.sh'",
-	"postCreateCommand":"direnv allow && devenv shell bash -- -c './.devcontainer/scripts/init-cli.sh'",
+	"postCreateCommand": "direnv allow && devenv shell bash -- -c './.devcontainer/scripts/init-cli.sh'",
 
 	// Adding host requirements so that there is no need to manually select the
 	// machine to run on all the time
@@ -92,7 +92,13 @@
 				"eamodio.gitlens",
 
 				// HTML preview
-				"george-alisson.html-preview-vscode"
+				"george-alisson.html-preview-vscode",
+
+				// Python
+				"ms-python.python",
+
+				// Useful to check interactions with keyloak´s DB or other SQL databases
+				"cweijan.vscode-database-client2"
     		]
 		},
 		"devpod": {

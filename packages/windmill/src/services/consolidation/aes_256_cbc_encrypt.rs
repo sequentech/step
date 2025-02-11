@@ -1,8 +1,9 @@
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::services::shell::run_shell_command;
 use anyhow::{anyhow, Context, Result};
+use sequent_core::signatures::shell::run_shell_command;
+use std::process::Command;
 use tracing::{info, instrument};
 
 // used to recreate this command:
@@ -14,12 +15,25 @@ pub fn encrypt_file_aes_256_cbc(
     output_file_path: &str,
     password: &str,
 ) -> Result<()> {
-    let command = format!(
-        "openssl enc -aes-256-cbc -e -in {} -out {} -pass pass:{} -md md5",
-        input_file_path, output_file_path, password
-    );
+    let output = Command::new("openssl")
+        .args(["enc", "-aes-256-cbc", "-e"])
+        .arg("-in")
+        .arg(input_file_path)
+        .arg("-out")
+        .arg(output_file_path)
+        // use pass:... to avoid shell interpolation
+        .arg("-pass")
+        .arg(format!("pass:{password}"))
+        .args(["-md", "md5"])
+        .output()
+        .map_err(|err| {
+            anyhow!("Error encrypting file {input_file_path} to {output_file_path}: {err}")
+        })?;
 
-    run_shell_command(&command).context("Failed to encrypt file")?;
+    // Check if the command was successful
+    if !output.status.success() {
+        return Err(anyhow::anyhow!("Command failed: {:?}", output));
+    }
 
     Ok(())
 }
@@ -30,16 +44,25 @@ pub fn decrypt_file_aes_256_cbc(
     output_file_path: &str,
     password: &str,
 ) -> Result<()> {
-    let command = format!(
-        "openssl enc -aes-256-cbc -d -in \"{}\" -out \"{}\" -pass pass:{} -md md5",
-        input_file_path, output_file_path, password
-    );
-
-    run_shell_command(&command)
-        .context("Failed to decrypt file")
+    let output = Command::new("openssl")
+        .args(["enc", "-aes-256-cbc", "-d"])
+        .arg("-in")
+        .arg(input_file_path)
+        .arg("-out")
+        .arg(output_file_path)
+        // use pass:... to avoid shell interpolation
+        .arg("-pass")
+        .arg(format!("pass:{password}"))
+        .args(["-md", "md5"])
+        .output()
         .map_err(|err| {
             anyhow!("Error decrypting file {input_file_path} to {output_file_path}: {err}")
         })?;
+
+    // Check if the command was successful
+    if !output.status.success() {
+        return Err(anyhow::anyhow!("Command failed: {:?}", output));
+    }
 
     Ok(())
 }

@@ -139,6 +139,75 @@ pub async fn get_election_event_by_id(
         .ok_or(anyhow!("Election event {election_event_id} not found"))
 }
 
+#[instrument(err, skip_all)]
+pub async fn get_all_tenant_election_events(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+) -> Result<Vec<ElectionEventData>> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT
+                    id, created_at, updated_at, labels, annotations, tenant_id, name, description, presentation, bulletin_board_reference, is_archived, voting_channels, status, user_boards, encryption_protocol, is_audit, audit_election_event_id, public_key, alias, statistics
+                FROM
+                    sequent_backend.election_event
+                WHERE
+                    tenant_id = $1
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(&statement, &[&Uuid::parse_str(tenant_id)?])
+        .await?;
+
+    let election_events: Vec<ElectionEventData> = rows
+        .into_iter()
+        .map(|row| -> Result<ElectionEventData> {
+            row.try_into()
+                .map(|res: ElectionEventWrapper| -> ElectionEventData { res.0 })
+        })
+        .collect::<Result<Vec<ElectionEventData>>>()?;
+
+    Ok(election_events)
+}
+
+pub async fn update_election_event_annotations(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    annotations: Value,
+) -> Result<()> {
+    let tenant_uuid: uuid::Uuid =
+        Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
+    let election_event_uuid: uuid::Uuid = Uuid::parse_str(election_event_id)
+        .with_context(|| "Error parsing election_event_id as UUID")?;
+
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+            UPDATE
+                "sequent_backend".election_event
+            SET
+                annotations = $3
+            WHERE
+                tenant_id = $1
+                AND id = $2;
+            "#,
+        )
+        .await?;
+
+    let _rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[&tenant_uuid, &election_event_uuid, &annotations],
+        )
+        .await
+        .with_context(|| anyhow!("Error running the update_election_event_annotations query"))?;
+
+    Ok(())
+}
+
 pub async fn update_election_event_presentation(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -321,6 +390,7 @@ pub async fn delete_election_event(
 ) -> Result<()> {
     let related_tables = vec![
         "area_contest",
+        "results_election_area",
         "results_area_contest_candidate",
         "results_area_contest",
         "election_result",
@@ -346,6 +416,7 @@ pub async fn delete_election_event(
         "area",
         "tasks_execution",
         "report",
+        "applications",
     ];
 
     for table in related_tables {
@@ -394,4 +465,22 @@ pub async fn delete_election_event(
         .map_err(|err| anyhow!("Error executing the delete query: {err}"))?;
 
     Ok(())
+}
+
+/// Get the ElectionEvent, check if its DATAFIX event (has DATAFIX annotations).
+#[instrument(skip(hasura_transaction), err)]
+pub async fn is_datafix_election_event(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<bool> {
+    let election_event = get_election_event_by_id(hasura_transaction, tenant_id, election_event_id)
+        .await
+        .map_err(|e| anyhow!("{:?}", e))?;
+
+    let datafix_object = election_event
+        .annotations
+        .as_ref()
+        .and_then(|v| v.get("DATAFIX"));
+    Ok(datafix_object.is_some())
 }

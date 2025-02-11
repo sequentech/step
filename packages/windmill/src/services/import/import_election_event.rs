@@ -2,11 +2,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::postgres::application::insert_applications;
 use crate::postgres::reports::insert_reports;
 use crate::postgres::reports::Report;
-use crate::postgres::reports::ReportCronConfig;
 use crate::postgres::trustee::get_all_trustees;
-use crate::services::password;
+use crate::services::import::import_publications::import_ballot_publications;
+use crate::services::import::import_scheduled_events::import_scheduled_events;
 use crate::services::protocol_manager::get_event_board;
 use crate::services::reports::template_renderer::EReportEncryption;
 use crate::services::reports_vault::get_report_key_pair;
@@ -25,16 +26,17 @@ use sequent_core::ballot::PeriodDates;
 use sequent_core::ballot::VotingPeriodDates;
 use sequent_core::ballot::VotingStatus;
 use sequent_core::serialization::deserialize_with_path::deserialize_str;
+use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::connection;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::keycloak::{get_client_credentials, KeycloakAdminClient};
 use sequent_core::services::replace_uuids::replace_uuids;
+use sequent_core::types::hasura::core::Application;
 use sequent_core::types::hasura::core::AreaContest;
 use sequent_core::types::hasura::core::Document;
 use sequent_core::types::hasura::core::KeysCeremony;
 use sequent_core::types::hasura::core::TasksExecution;
-use sequent_core::types::hasura::core::Template;
-use sequent_core::util::mime::get_mime_type;
+use sequent_core::util::mime::{get_mime_types, matches_mime};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 use std::collections::HashMap;
@@ -61,7 +63,7 @@ use crate::postgres::area::insert_areas;
 use crate::postgres::area_contest::insert_area_contests;
 use crate::postgres::candidate::insert_candidates;
 use crate::postgres::contest::insert_contest;
-use crate::postgres::election::insert_election;
+use crate::postgres::election::insert_elections;
 use crate::postgres::election_event::insert_election_event;
 use crate::postgres::keys_ceremony;
 use crate::postgres::scheduled_event::insert_scheduled_event;
@@ -78,10 +80,9 @@ use crate::services::protocol_manager::get_protocol_manager_secret_path;
 use crate::services::protocol_manager::{
     create_protocol_manager_keys, get_b3_pgsql_client, get_board_client,
 };
-use crate::services::temp_path::generate_temp_file;
-use crate::services::temp_path::get_file_size;
 use crate::tasks::import_election_event::ImportElectionEventBody;
 use crate::types::documents::EDocuments;
+use sequent_core::signatures::temp_path::{generate_temp_file, get_file_size};
 use sequent_core::types::hasura::core::{Area, Candidate, Contest, Election, ElectionEvent};
 use sequent_core::types::scheduled_event::*;
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -94,9 +95,10 @@ pub struct ImportElectionEventSchema {
     pub candidates: Vec<Candidate>,
     pub areas: Vec<Area>,
     pub area_contests: Vec<AreaContest>,
-    pub scheduled_events: Vec<ScheduledEvent>,
+    pub scheduled_events: Option<Vec<ScheduledEvent>>,
     pub reports: Vec<Report>,
     pub keys_ceremonies: Option<Vec<KeysCeremony>>,
+    pub applications: Option<Vec<Application>>,
 }
 
 #[instrument(err)]
@@ -112,30 +114,61 @@ pub async fn upsert_b3_and_elog(
     immudb_client.upsert_electoral_log_db(&board_name).await?;
 
     let mut board_client = get_b3_pgsql_client().await?;
+
+    // Create board and protocol manager keys for election event (assert)
     let existing: Option<b3::client::pgsql::B3IndexRow> =
         board_client.get_board(board_name.as_str()).await?;
+    // insert into the index of boards
     board_client.create_index_ine().await?;
+    // create board table
     board_client.create_board_ine(board_name.as_str()).await?;
-    if !dont_auto_generate_keys {
-        if existing.is_none() {
+
+    if existing.is_none() && !dont_auto_generate_keys {
+        event!(
+            Level::INFO,
+            "creating protocol manager keys for Election event {}",
+            election_event_id
+        );
+        create_protocol_manager_keys(&board_name).await?;
+    }
+
+    // board was created, checking it is now present
+    let board = board_client
+        .get_board(board_name.as_str())
+        .await?
+        .ok_or(anyhow!(
+            "Unexpected error: could not retrieve created board '{}'",
+            &board_name
+        ))?;
+
+    for election_id in election_ids.clone() {
+        // Create board and protocol manager keys for election (insert, not asssert)
+        let board_name = get_election_board(tenant_id, &election_id);
+
+        let existing: Option<b3::client::pgsql::B3IndexRow> =
+            board_client.get_board(board_name.as_str()).await?;
+
+        // assert board table
+        board_client.create_board_ine(board_name.as_str()).await?;
+        // create board table
+
+        if existing.is_none() && !dont_auto_generate_keys {
             event!(
                 Level::INFO,
-                "creating protocol manager keys for Election event {}",
-                election_event_id
+                "creating protocol manager keys for election {}",
+                election_id
             );
             create_protocol_manager_keys(&board_name).await?;
         }
-        for election_id in election_ids.clone() {
-            let board_name = get_election_board(tenant_id, &election_id);
-            board_client.create_board_ine(board_name.as_str()).await?;
-            create_protocol_manager_keys(&board_name).await?;
-        }
+        // board was created, checking it is now present
+        board_client
+            .get_board(board_name.as_str())
+            .await?
+            .ok_or(anyhow!(
+                "Unexpected error: could not retrieve created board '{}'",
+                &board_name
+            ))?;
     }
-    let board = board_client.get_board(board_name.as_str()).await?;
-    let board = board.ok_or(anyhow!(
-        "Unexpected error: could not retrieve created board '{}'",
-        &board_name
-    ))?;
 
     let board_serializable: BoardSerializable = board.into();
 
@@ -177,6 +210,7 @@ pub async fn upsert_keycloak_realm(
             tenant_id,
             keycloak_event_realm.is_none(),
             None,
+            Some(election_event_id.to_string()),
         )
         .await?;
     upsert_realm_jwks(realm_name.as_str()).await?;
@@ -391,26 +425,25 @@ pub async fn process_election_event_file(
                 serde_json::to_value(ElectionStatistics::default())
                     .with_context(|| "Error serializing election statistics")?,
             );
+
+            let mut status: ElectionStatus = clone
+                .status
+                .clone()
+                .map(|value| deserialize_value::<ElectionStatus>(value))
+                .transpose()
+                .unwrap_or_default()
+                .unwrap_or_default();
+
+            status.voting_status = VotingStatus::default();
+            status.kiosk_voting_status = VotingStatus::default();
+            status.voting_period_dates = PeriodDates::default();
+            status.kiosk_voting_period_dates = PeriodDates::default();
+
             clone.status = Some(
-                serde_json::to_value(ElectionStatus {
-                    voting_status: VotingStatus::NOT_STARTED,
-                    init_report: serde_json::from_value(
-                        clone
-                            .status
-                            .clone()
-                            .unwrap_or_default()
-                            .get("init_report")
-                            .cloned()
-                            .unwrap_or_default(),
-                    )
-                    .unwrap_or_default(),
-                    kiosk_voting_status: VotingStatus::NOT_STARTED,
-                    voting_period_dates: PeriodDates::default(),
-                    kiosk_voting_period_dates: PeriodDates::default(),
-                    allow_tally: AllowTallyStatus::default(),
-                })
-                .with_context(|| "Error serializing election status")?,
+                serde_json::to_value(status)
+                    .with_context(|| "Error serializing election status")?,
             );
+            clone.initialization_report_generated = Some(false);
 
             Ok(clone)
         })
@@ -428,10 +461,6 @@ pub async fn process_election_event_file(
     insert_election_event(hasura_transaction, &data)
         .await
         .with_context(|| "Error inserting election event")?;
-
-    manage_dates(&data, hasura_transaction)
-        .await
-        .with_context(|| "Error managing dates")?;
 
     if let Some(keys_ceremonies) = data.keys_ceremonies.clone() {
         let trustees = get_all_trustees(&hasura_transaction, &tenant_id).await?;
@@ -470,7 +499,7 @@ pub async fn process_election_event_file(
         .await?;
     }
 
-    insert_election(hasura_transaction, &data)
+    insert_elections(hasura_transaction, &data)
         .await
         .with_context(|| "Error inserting election")?;
 
@@ -500,9 +529,16 @@ pub async fn process_election_event_file(
     .await
     .with_context(|| "Error inserting area contests")?;
 
+    if let Some(applications) = data.applications.clone() {
+        insert_applications(hasura_transaction, &applications)
+            .await
+            .with_context(|| "Error inserting applications")?;
+    }
+
     Ok((data, replacement_map))
 }
 
+#[instrument(err, skip(hasura_transaction, temp_file))]
 async fn process_voters_file(
     hasura_transaction: &Transaction<'_>,
     temp_file: &NamedTempFile,
@@ -570,17 +606,16 @@ pub async fn process_reports_file(
                 .get(2)
                 .ok_or_else(|| anyhow!("Missing Report Type"))?
                 .to_string(),
-            template_id: record
+            template_alias: record
                 .get(3)
                 .map(|s| s.to_string())
                 .filter(|s| !s.is_empty()),
             cron_config: match record.get(4) {
                 None => None,
                 Some(cron_config_str) if cron_config_str.is_empty() => None,
-                Some(cron_config_str) => Some(
-                    deserialize_str(&cron_config_str)
-                        .map_err(|err| anyhow!("Error parsing cron_config: {err:?}"))?,
-                ),
+                Some(cron_config_str) => deserialize_str(&cron_config_str).map_err(|err| {
+                    anyhow!("Error parsing cron_config: {err:?}\nThe string: {cron_config_str}")
+                })?,
             },
             encryption_policy: EReportEncryption::from_str(
                 record
@@ -589,6 +624,18 @@ pub async fn process_reports_file(
             )
             .map_err(|err| anyhow!("Error parsing encryption_policy: {err:?}"))?,
             created_at: Utc::now(),
+            permission_label: record.get(7).and_then(|permission_labels| {
+                if permission_labels.is_empty() {
+                    None
+                } else {
+                    Some(
+                        permission_labels
+                            .split("|")
+                            .map(|label| label.to_string())
+                            .collect(),
+                    )
+                }
+            }),
         };
 
         if let Some(password) = record
@@ -622,6 +669,7 @@ pub async fn process_reports_file(
     Ok(())
 }
 
+#[instrument(err, skip(temp_file))]
 async fn process_activity_logs_file(
     temp_file: &NamedTempFile,
     election_event: ElectionEvent,
@@ -635,6 +683,7 @@ async fn process_activity_logs_file(
     Ok(())
 }
 
+#[instrument(err, skip(hasura_transaction, temp_file_path))]
 pub async fn process_s3_files(
     hasura_transaction: &Transaction<'_>,
     temp_file_path: &NamedTempFile,
@@ -652,7 +701,7 @@ pub async fn process_s3_files(
         .unwrap()
         .to_str()
         .unwrap();
-    let document_type = get_mime_type(file_suffix);
+    let document_type = get_mime_types(file_suffix)[0];
 
     // Upload the file and return the document
     let _document = upload_and_return_document_postgres(
@@ -678,7 +727,7 @@ pub async fn get_zip_entries(
     document_type: &str,
 ) -> Result<(Vec<(String, Vec<u8>)>, String)> {
     let (mut zip_entries, election_event_schema) =
-        if document_type == "application/ezip" || document_type == get_mime_type("zip") {
+        if document_type == "application/ezip" || matches_mime("zip", document_type) {
             tokio::task::spawn_blocking(move || -> Result<(Vec<(String, Vec<u8>)>, String)> {
                 let file = File::open(&temp_file_path)?;
                 let mut zip = ZipArchive::new(file)?;
@@ -767,7 +816,7 @@ pub async fn process_document(
     .map_err(|err| anyhow!("Error processing election event file: {err}"))?;
 
     // Zip file processing
-    if document_type == "application/ezip" || document_type == get_mime_type("zip") {
+    if document_type == "application/ezip" || matches_mime("zip", &document_type) {
         for (file_name, mut file_contents) in zip_entries {
             info!("Importing file: {:?}", file_name);
 
@@ -785,7 +834,8 @@ pub async fn process_document(
                     &temp_file,
                     election_event_schema.election_event.clone(),
                 )
-                .await?;
+                .await
+                .context("Failed to import activity logs")?;
             }
 
             if file_name.contains(&format!("{}", EDocuments::VOTERS.to_file_name())) {
@@ -803,7 +853,8 @@ pub async fn process_document(
                     election_event_schema.tenant_id.to_string(),
                     false,
                 )
-                .await?;
+                .await
+                .context("Failed to import voters")?;
             }
 
             if file_name.contains(&format!("{}", EDocuments::REPORTS.to_file_name())) {
@@ -821,7 +872,8 @@ pub async fn process_document(
                     Some(election_event_schema.election_event.id.clone()),
                     &replacement_map,
                 )
-                .await?;
+                .await
+                .context("Failed to import reports")?;
             }
 
             if file_name.contains(&format!("/{}/", EDocuments::S3_FILES.to_file_name())) {
@@ -848,7 +900,8 @@ pub async fn process_document(
                     election_event_schema.election_event.id.clone(),
                     election_event_schema.tenant_id.to_string(),
                 )
-                .await?;
+                .await
+                .context("Failed to import S3 files")?;
             }
 
             if file_name.contains(&format!("{}", EDocuments::BULLETIN_BOARDS.to_file_name())) {
@@ -864,7 +917,48 @@ pub async fn process_document(
                     temp_file,
                     replacement_map.clone(),
                 )
-                .await?;
+                .await
+                .context("Failed to import bulletin boards")?;
+            }
+
+            if file_name.contains(&format!("{}", EDocuments::SCHEDULED_EVENTS.to_file_name())) {
+                let mut temp_file = NamedTempFile::new()
+                    .context("Failed to create scheduled events temporary file")?;
+
+                io::copy(&mut cursor, &mut temp_file).context(
+                    "Failed to copy contents of scheduled events file to temporary file",
+                )?;
+                temp_file.as_file_mut().rewind()?;
+
+                import_scheduled_events(
+                    hasura_transaction,
+                    &election_event_schema.tenant_id.to_string(),
+                    &election_event_schema.election_event.id,
+                    temp_file,
+                    replacement_map.clone(),
+                )
+                .await
+                .with_context(|| "Error managing dates")?;
+            }
+
+            if file_name.contains(&format!("{}", EDocuments::PUBLICATIONS.to_file_name())) {
+                let mut temp_file = NamedTempFile::new()
+                    .context("Failed to create ballot publications temporary file")?;
+
+                io::copy(&mut cursor, &mut temp_file).context(
+                    "Failed to copy contents of ballot publications file to temporary file",
+                )?;
+                temp_file.as_file_mut().rewind()?;
+
+                import_ballot_publications(
+                    hasura_transaction,
+                    &election_event_schema.tenant_id.to_string(),
+                    &election_event_schema.election_event.id,
+                    temp_file,
+                    replacement_map.clone(),
+                )
+                .await
+                .with_context(|| "Error importing publications")?;
             }
 
             if file_name.contains(&format!(
@@ -885,114 +979,11 @@ pub async fn process_document(
                     temp_file,
                     replacement_map.clone(),
                 )
-                .await?;
+                .await
+                .context("Failed to import protocol manager keys")?;
             }
         }
     };
-
-    Ok(())
-}
-
-#[instrument(err, skip_all)]
-pub async fn manage_dates(
-    data: &ImportElectionEventSchema,
-    hasura_transaction: &Transaction<'_>,
-) -> Result<()> {
-    //Manage election event
-    let election_event_dates = generate_voting_period_dates(
-        data.scheduled_events.clone(),
-        data.tenant_id.to_string().as_str(),
-        &data.election_event.id,
-        None,
-    )?;
-    if let Some(start_date) = election_event_dates.start_date {
-        maybe_create_scheduled_event(
-            hasura_transaction,
-            data.tenant_id.to_string().as_str(),
-            &data.election_event.id,
-            EventProcessors::START_VOTING_PERIOD,
-            start_date,
-            None,
-        )
-        .await?;
-    }
-    if let Some(end_date) = election_event_dates.end_date {
-        maybe_create_scheduled_event(
-            hasura_transaction,
-            data.tenant_id.to_string().as_str(),
-            &data.election_event.id,
-            EventProcessors::END_VOTING_PERIOD,
-            end_date,
-            None,
-        )
-        .await?;
-    }
-    //Manage elections
-    let elections = &data.elections;
-    for election in elections {
-        let dates = generate_voting_period_dates(
-            data.scheduled_events.clone(),
-            data.tenant_id.to_string().as_str(),
-            &data.election_event.id,
-            Some(&election.id),
-        )?;
-        if let Some(start_date) = dates.start_date {
-            maybe_create_scheduled_event(
-                hasura_transaction,
-                data.tenant_id.to_string().as_str(),
-                &data.election_event.id,
-                EventProcessors::START_VOTING_PERIOD,
-                start_date,
-                Some(&election.id),
-            )
-            .await?;
-        }
-        if let Some(end_date) = dates.end_date {
-            maybe_create_scheduled_event(
-                hasura_transaction,
-                data.tenant_id.to_string().as_str(),
-                &data.election_event.id,
-                EventProcessors::END_VOTING_PERIOD,
-                end_date,
-                Some(&election.id),
-            )
-            .await?;
-        }
-    }
-    Ok(())
-}
-
-#[instrument(err, skip_all)]
-pub async fn maybe_create_scheduled_event(
-    hasura_transaction: &Transaction<'_>,
-    tenant_id: &str,
-    election_event_id: &str,
-    event_processor: EventProcessors,
-    start_date: String,
-    election_id: Option<&str>,
-) -> Result<()> {
-    let start_task_id =
-        generate_manage_date_task_name(tenant_id, election_event_id, election_id, &event_processor);
-    let payload = ManageElectionDatePayload {
-        election_id: match election_id {
-            Some(id) => Some(id.to_string()),
-            None => None,
-        },
-    };
-    let cron_config = CronConfig {
-        cron: None,
-        scheduled_date: Some(start_date.to_string()),
-    };
-    insert_scheduled_event(
-        hasura_transaction,
-        tenant_id,
-        election_event_id,
-        event_processor,
-        &start_task_id,
-        cron_config,
-        serde_json::to_value(payload)?,
-    )
-    .await?;
 
     Ok(())
 }

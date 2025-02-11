@@ -4,7 +4,7 @@
 
 import React, {RefObject} from "react"
 import {useNavigate} from "react-router-dom"
-import {useDelete, useNotify, useUpdate} from "react-admin"
+import {useDelete, useNotify, useRedirect, useUpdate} from "react-admin"
 import MoreHorizIcon from "@mui/icons-material/MoreHoriz"
 import AddCircleIcon from "@mui/icons-material/AddCircle"
 import DeleteIcon from "@mui/icons-material/Delete"
@@ -12,7 +12,7 @@ import InventoryIcon from "@mui/icons-material/Inventory"
 import {Divider, ListItemIcon, MenuItem, MenuList, Popover} from "@mui/material"
 import {Dialog, adminTheme} from "@sequentech/ui-essentials"
 import {DataTreeMenuType, ResourceName} from "../ElectionEvents"
-import {getNavLinkCreate, mapAddResource} from "./TreeMenu"
+import {getNavLinkCreate, mapAddResource, mapImportResource} from "./TreeMenu"
 import {useActionPermissions, useTreeMenuData} from "../use-tree-menu-hook"
 import {useTranslation} from "react-i18next"
 import styled from "@emotion/styled"
@@ -22,6 +22,7 @@ import {DeleteElectionEvent} from "@/gql/graphql"
 import {DELETE_ELECTION_EVENT} from "@/queries/DeleteElectionEvent"
 import {IPermissions} from "@/types/keycloak"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
+import {useCreateElectionEventStore} from "@/providers/CreateElectionEventContextProvider"
 
 const mapRemoveResource: Record<ResourceName, string> = {
     sequent_backend_election_event: "sideMenu.menuActions.remove.electionEvent",
@@ -32,6 +33,7 @@ const mapRemoveResource: Record<ResourceName, string> = {
 
 enum Action {
     Add,
+    Import,
     Remove,
     Archive,
     Unarchive,
@@ -52,6 +54,7 @@ interface Props {
     menuItemRef: RefObject<HTMLDivElement | null>
     setAnchorEl: (val: HTMLParagraphElement | null) => void
     anchorEl: HTMLParagraphElement | null
+    reloadTree: () => void
 }
 
 export default function MenuAction({
@@ -63,10 +66,12 @@ export default function MenuAction({
     menuItemRef,
     setAnchorEl,
     anchorEl,
+    reloadTree,
 }: Props) {
     const {t, i18n} = useTranslation()
 
     const navigate = useNavigate()
+    const redirect = useRedirect()
 
     const [deleteOne] = useDelete()
     const [update] = useUpdate()
@@ -90,7 +95,7 @@ export default function MenuAction({
     } | null>(null)
 
     const isItemElectionEventType = resourceType === "sequent_backend_election_event"
-    const {setElectionEventIdFlag, setElectionIdFlag, setContestIdFlag} =
+    const {setElectionEventIdFlag, setElectionIdFlag, setContestIdFlag, setCandidateIdFlag} =
         useElectionEventTallyStore()
 
     function handleOpenItemActions(): void {
@@ -188,7 +193,7 @@ export default function MenuAction({
             setElectionEventIdFlag(null)
             setElectionIdFlag(null)
             setContestIdFlag(null)
-            // navigate("/")
+            reloadTree()
         } catch (error) {
             notify(t("sideMenu.menuActions.messages.notification.error.delete"), {
                 type: "error",
@@ -211,20 +216,30 @@ export default function MenuAction({
                 {id: payload.id},
                 {
                     onSuccess: () => {
-                        if (parentData?.__typename === "sequent_backend_election_event") {
-                            setContestIdFlag(null)
-                            navigate("/sequent_backend_election_event/" + parentData.id)
-                        }
-                        if (parentData?.__typename === "sequent_backend_election") {
-                            setElectionIdFlag(null)
-                            navigate("/sequent_backend_election/" + parentData.id)
-                        }
+                        reloadTree()
                         refetch()
+
                         notify(t("sideMenu.menuActions.messages.notification.success.delete"), {
                             type: "success",
                         })
+                        if (parentData?.__typename === "sequent_backend_election_event") {
+                            setElectionEventIdFlag("")
+                            setElectionIdFlag("")
+                            navigate("/sequent_backend_election_event/" + parentData.id)
+                        }
+                        if (parentData?.__typename === "sequent_backend_election") {
+                            setElectionIdFlag("")
+                            setContestIdFlag("")
+                            navigate("/sequent_backend_election/" + parentData.id)
+                        }
+                        if (parentData?.__typename === "sequent_backend_contest") {
+                            setElectionIdFlag("")
+                            setContestIdFlag("")
+                            navigate("/sequent_backend_contest/" + parentData.id)
+                        }
                     },
                     onError: () => {
+                        setOpenDeleteModal(false)
                         notify(t("sideMenu.menuActions.messages.notification.error.delete"), {
                             type: "error",
                         })
@@ -286,6 +301,24 @@ export default function MenuAction({
      * ======
      */
 
+    /**
+     * Create and import ee from drawer
+     */
+    const {openCreateDrawer, openImportDrawer} = useCreateElectionEventStore()
+
+    const handleOpenCreateElectionEventForm = (e: React.MouseEvent<HTMLElement>) => {
+        setAnchorEl(null)
+        openCreateDrawer?.()
+    }
+
+    const handleOpenImportElectionEventForm = (e: React.MouseEvent<HTMLElement>) => {
+        setAnchorEl(null)
+        openImportDrawer?.()
+    }
+    /**
+     * ======
+     */
+
     return (
         <>
             <StyledIconContainer onClick={handleOpenItemActions}>
@@ -310,13 +343,17 @@ export default function MenuAction({
                             dir={i18n.dir(i18n.language)}
                             key={Action.Add}
                             className={`menu-action-add-${resourceType}`}
-                            onClick={() =>
-                                handleAction(Action.Add, {
-                                    id: resourceId,
-                                    name: resourceName,
-                                    type: resourceType,
-                                })
-                            }
+                            onClick={(e) => {
+                                if (resourceType === "sequent_backend_election_event") {
+                                    handleOpenCreateElectionEventForm(e)
+                                } else {
+                                    handleAction(Action.Add, {
+                                        id: resourceId,
+                                        name: resourceName,
+                                        type: resourceType,
+                                    })
+                                }
+                            }}
                         >
                             <ListItemIcon>
                                 <StyledAddCircleIcon />
@@ -324,6 +361,27 @@ export default function MenuAction({
                             {t(mapAddResource[resourceType])}
                         </MenuItem>
                     )}
+
+                    {isItemElectionEventType &&
+                        !isArchivedTab &&
+                        canShowCreate &&
+                        canShowDelete && <Divider key="divider0" />}
+
+                    {!isArchivedTab &&
+                    canShowCreate &&
+                    resourceType === "sequent_backend_election_event" ? (
+                        <MenuItem
+                            dir={i18n.dir(i18n.language)}
+                            key={Action.Import}
+                            className={`menu-action-add-${resourceType}`}
+                            onClick={handleOpenImportElectionEventForm}
+                        >
+                            <ListItemIcon>
+                                <StyledAddCircleIcon />
+                            </ListItemIcon>
+                            {t(mapImportResource[resourceType])}
+                        </MenuItem>
+                    ) : null}
 
                     {isItemElectionEventType &&
                         !isArchivedTab &&

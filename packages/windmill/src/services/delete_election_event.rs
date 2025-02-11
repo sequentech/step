@@ -7,12 +7,12 @@ use crate::postgres::election::get_elections;
 use crate::postgres::election_event::delete_election_event;
 use crate::services::protocol_manager::get_event_board;
 use crate::services::protocol_manager::get_immudb_client;
-use crate::services::s3;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
 use futures::future::try_join_all;
 use sequent_core::services::keycloak::KeycloakAdminClient;
+use sequent_core::services::s3;
 use tracing::{event, instrument, Level};
 
 #[instrument(err)]
@@ -36,7 +36,7 @@ pub async fn delete_event_b3(
     let mut board_client = get_b3_pgsql_client().await?;
     let board_name = get_event_board(tenant_id, election_event_id);
 
-    let elections = get_elections(&hasura_transaction, tenant_id, election_event_id).await?;
+    let elections = get_elections(&hasura_transaction, tenant_id, election_event_id, None).await?;
     board_client.delete_board(board_name.as_str()).await?;
 
     for election in elections {

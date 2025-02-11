@@ -14,11 +14,23 @@ export function useUsersPermissions() {
     /**
      * Permissions
      */
+    const canImportUsers = authContext.isAuthorized(true, tenantId, IPermissions.USER_IMPORT)
+
+    const canExportVoters = authContext.isAuthorized(true, tenantId, IPermissions.VOTER_EXPORT)
     const canCreateVoters = authContext.isAuthorized(true, tenantId, IPermissions.VOTER_CREATE)
     const canEditVoters = authContext.isAuthorized(true, tenantId, IPermissions.VOTER_WRITE)
+    const canEditVotersWhoVoted = authContext.isAuthorized(
+        true,
+        tenantId,
+        IPermissions.VOTER_VOTED_EDIT
+    )
+    const canEditVotersEmailTlf = authContext.isAuthorized(
+        true,
+        tenantId,
+        IPermissions.VOTER_EMAIL_TLF_EDIT
+    )
     const canDeleteVoters = authContext.isAuthorized(true, tenantId, IPermissions.VOTER_DELETE)
     const canImportVoters = authContext.isAuthorized(true, tenantId, IPermissions.VOTER_IMPORT)
-    const canExportVoters = authContext.isAuthorized(true, tenantId, IPermissions.VOTER_EXPORT)
     const canManuallyVerify = authContext.isAuthorized(
         true,
         tenantId,
@@ -51,8 +63,11 @@ export function useUsersPermissions() {
      */
 
     return {
+        canImportUsers,
         canCreateVoters,
         canEditVoters,
+        canEditVotersWhoVoted,
+        canEditVotersEmailTlf,
         canDeleteVoters,
         canImportVoters,
         canExportVoters,

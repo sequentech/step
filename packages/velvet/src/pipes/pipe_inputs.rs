@@ -85,6 +85,43 @@ impl PipeInputs {
         path
     }
 
+    pub fn build_path_by_area(
+        root: &Path,
+        election_id: &Uuid,
+        contest_id: Option<&Uuid>,
+        area_id: Option<&Uuid>,
+    ) -> PathBuf {
+        let mut path = PathBuf::new();
+
+        path.push(root);
+        path.push(format!("{}{}", PREFIX_ELECTION, election_id));
+
+        if let Some(area_id) = area_id {
+            path.push(format!("{}{}", PREFIX_AREA, area_id));
+        }
+
+        if let Some(contest_id) = contest_id {
+            path.push(format!("{}{}", PREFIX_CONTEST, contest_id));
+        }
+
+        path
+    }
+
+    /// Returns the path at which multi contest ballots are present,
+    /// relative to some supplied root path.
+    ///
+    /// This path is used both to find input ballots and to output decoded
+    /// ballots.
+    pub fn mcballots_path(root: &Path, election_id: &Uuid, area_id: &Uuid) -> PathBuf {
+        let mut path = PathBuf::new();
+
+        path.push(root);
+        path.push(format!("{}{}", PREFIX_ELECTION, election_id));
+        path.push(format!("{}{}", PREFIX_AREA, area_id));
+
+        path
+    }
+
     pub fn build_tally_sheet_path(root: &Path, tally_sheet_id: &str) -> PathBuf {
         let mut path = PathBuf::new();
 
@@ -146,6 +183,7 @@ impl PipeInputs {
         Ok(InputElectionConfig {
             id: election_id,
             name: election.name,
+            alias: election.alias,
             description: election.description,
             annotations: election.annotations,
             election_event_annotations: election.election_event_annotations,
@@ -235,6 +273,7 @@ impl PipeInputs {
 pub struct InputElectionConfig {
     pub id: Uuid,
     pub name: String,
+    pub alias: String,
     pub description: String,
     pub dates: Option<StringifiedPeriodDates>,
     pub annotations: HashMap<String, String>,
@@ -245,6 +284,39 @@ pub struct InputElectionConfig {
     pub census: u64,
     pub total_votes: u64,
     pub areas: Vec<TreeNodeArea>,
+}
+
+#[derive(Debug, Clone)]
+pub struct AreaContest {
+    pub area_name: String,
+    pub contests: Vec<Contest>,
+}
+
+impl InputElectionConfig {
+    pub(crate) fn get_area_contest_map(&self) -> HashMap<Uuid, AreaContest> {
+        let mut ret: HashMap<Uuid, AreaContest> = HashMap::new();
+
+        for contest_input in &self.contest_list {
+            for area_input in &contest_input.area_list {
+                let key = area_input.id;
+                let value = contest_input.contest.clone();
+                let area_name = area_input.area.name.clone();
+                if let Some(area_contests) = ret.get_mut(&key) {
+                    area_contests.contests.push(value);
+                } else {
+                    ret.insert(
+                        key,
+                        AreaContest {
+                            area_name,
+                            contests: vec![value],
+                        },
+                    );
+                }
+            }
+        }
+
+        ret
+    }
 }
 
 #[derive(Debug)]
@@ -271,6 +343,7 @@ pub struct InputAreaConfig {
 pub struct ElectionConfig {
     pub id: Uuid,
     pub name: String,
+    pub alias: String,
     pub description: String,
     pub annotations: HashMap<String, String>,
     pub election_event_annotations: HashMap<String, String>,
@@ -300,6 +373,7 @@ impl Into<TreeNodeArea> for &AreaConfig {
         TreeNodeArea {
             id: self.id.to_string(),
             tenant_id: self.tenant_id.to_string(),
+            annotations: Default::default(),
             election_event_id: self.election_event_id.to_string(),
             parent_id: self.parent_id.clone().map(|val| val.to_string()),
         }

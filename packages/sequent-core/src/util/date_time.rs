@@ -4,8 +4,11 @@
 
 use crate::types::date_time::{DateFormat, TimeZone};
 use chrono::{
-    DateTime, Duration, FixedOffset, Local, TimeZone as ChronoTimeZone, Utc,
+    DateTime, Duration, FixedOffset, Local, NaiveDate,
+    TimeZone as ChronoTimeZone, Utc,
 };
+
+pub const PHILIPPINO_TIMEZONE: TimeZone = TimeZone::Offset(8);
 
 pub fn get_system_timezone() -> TimeZone {
     let now = Local::now();
@@ -50,6 +53,34 @@ pub fn generate_timestamp(
             }
         }
     }
+}
+
+/// Check if the date is correct, format must be YYYY-MM-DD.
+/// Date in the future is not valid.
+pub fn verify_date_format_ymd(date_str: &str) -> Result<DateTime<Utc>, String> {
+    let parts: Vec<&str> = date_str.split('-').collect();
+    if parts.len() != 3 {
+        return Err("Invalid date format".to_string());
+    }
+
+    let year: i32 = parts[0].parse().map_err(|_| "Invalid year".to_string())?;
+    let month: u32 =
+        parts[1].parse().map_err(|_| "Invalid month".to_string())?;
+    let day: u32 = parts[2].parse().map_err(|_| "Invalid day".to_string())?;
+
+    let naive_date = NaiveDate::from_ymd_opt(year, month, day)
+        .ok_or_else(|| "Invalid date".to_string())?;
+
+    let date = DateTime::<Utc>::from_naive_utc_and_offset(
+        naive_date.and_hms_opt(0, 0, 0).unwrap_or_default(),
+        Utc,
+    );
+
+    if date > Utc::now() {
+        return Err("Date is in the future".to_string());
+    }
+
+    Ok(date)
 }
 
 #[cfg(test)]

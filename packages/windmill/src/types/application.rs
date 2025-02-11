@@ -13,15 +13,6 @@ pub enum ApplicationStatus {
     ACCEPTED,
     REJECTED,
 }
-impl ApplicationStatus {
-    pub fn to_string(&self) -> String {
-        match self {
-            ApplicationStatus::PENDING => "PENDING".to_string(),
-            ApplicationStatus::ACCEPTED => "ACCEPTED".to_string(),
-            ApplicationStatus::REJECTED => "REJECTED".to_string(),
-        }
-    }
-}
 
 #[derive(
     Display, Debug, PartialEq, Eq, Clone, EnumString, EnumVariantNames, Serialize, Deserialize,
@@ -30,11 +21,38 @@ pub enum ApplicationType {
     AUTOMATIC,
     MANUAL,
 }
-impl ApplicationType {
-    pub fn to_string(&self) -> String {
-        match self {
-            ApplicationType::AUTOMATIC => "AUTOMATIC".to_string(),
-            ApplicationType::MANUAL => "MANUAL".to_string(),
-        }
-    }
+
+#[allow(non_camel_case_types)]
+#[derive(
+    Display,
+    Default,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    EnumVariantNames,
+    Serialize,
+    Deserialize,
+)]
+pub enum ApplicationRejectReason {
+    #[strum(to_string = "insufficient-information")]
+    INSUFFICIENT_INFORMATION,
+    #[strum(to_string = "no-matching-voter")]
+    NO_VOTER,
+    #[strum(to_string = "voter-already-approved")]
+    ALREADY_APPROVED,
+    #[default]
+    #[strum(to_string = "other")]
+    OTHER, //mandatory comment
+}
+
+#[allow(non_camel_case_types)]
+#[derive(
+    Display, Debug, PartialEq, Eq, Clone, EnumString, EnumVariantNames, Serialize, Deserialize,
+)]
+pub enum ApplicationsError {
+    #[strum(serialize = "Approved_Voter")]
+    #[strum(to_string = "Approved_Voter")]
+    APPROVED_VOTER,
 }
