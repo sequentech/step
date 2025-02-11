@@ -32,6 +32,7 @@ pub struct InvalidPlaintextError {
 pub struct DecodedVoteContest {
     pub contest_id: String,
     pub is_explicit_invalid: bool,
+    pub is_explicit_blank: bool,
     pub invalid_errors: Vec<InvalidPlaintextError>,
     pub invalid_alerts: Vec<InvalidPlaintextError>,
     pub choices: Vec<DecodedVoteChoice>,

@@ -96,17 +96,20 @@ impl RawBallotCodec for Contest {
             if candidate.is_explicit_invalid() {
                 continue;
             }
+            let mut selected = choice.selected;
+            if candidate.is_explicit_blank() {
+                selected = 0;
+            }
             if self.get_counting_algorithm() == "plurality-at-large" {
                 // We just flag if the candidate was selected or not with 1 for
                 // selected and 0 otherwise
-                choices.push(u64::from(choice.selected > -1));
+                choices.push(u64::from(selected > -1));
             } else {
                 // we add 1 because the counting starts with 1, as zero means
                 // this candidate was not voted / ranked
-                let value =
-                    (choice.selected + 1).to_u64().ok_or_else(|| {
-                        "selected value must be positive or zero".to_string()
-                    })?;
+                let value = (selected + 1).to_u64().ok_or_else(|| {
+                    "selected value must be positive or zero".to_string()
+                })?;
                 choices.push(value);
             }
         }
@@ -166,8 +169,9 @@ impl RawBallotCodec for Contest {
         // valid information (and a comprehensive error list) as possible at
         // the end of the function
 
-        let choices = raw_ballot.choices.clone();
+        let choices: Vec<u64> = raw_ballot.choices.clone();
         let is_explicit_invalid: bool = !choices.is_empty() && (choices[0] > 0);
+        let mut is_explicit_blank: bool = false;
         let mut invalid_errors: Vec<InvalidPlaintextError> = vec![];
         let mut invalid_alerts: Vec<InvalidPlaintextError> = vec![];
         let char_map = self.get_char_map();
@@ -217,11 +221,18 @@ impl RawBallotCodec for Contest {
                 .to_i64()
                 .ok_or_else(|| "choice out of range".to_string())?;
 
-            sorted_choices.push(DecodedVoteChoice {
+            let mut choice = DecodedVoteChoice {
                 id: candidate.id.clone(),
                 selected: choice_value - 1,
                 write_in_text: None,
-            });
+            };
+
+            if candidate.is_explicit_blank() && choice.is_selected() {
+                is_explicit_blank = true;
+                choice.selected = -1;
+            }
+
+            sorted_choices.push(choice);
 
             index += 1;
         }
@@ -349,11 +360,16 @@ impl RawBallotCodec for Contest {
             num_selected_candidates += 1;
         }
 
+        if is_explicit_blank {
+            num_selected_candidates += 1;
+        }
+
         // Prepare the return value to pass it around, its values can still be
         // modified.
         let mut decoded_contest = DecodedVoteContest {
             contest_id: self.id.clone(),
             is_explicit_invalid,
+            is_explicit_blank,
             invalid_errors,
             invalid_alerts,
             choices: sorted_choices,
