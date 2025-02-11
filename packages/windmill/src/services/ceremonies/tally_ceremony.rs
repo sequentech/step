@@ -355,7 +355,8 @@ pub async fn create_tally_ceremony(
     }
 
     // Convert HashSet to Vec if needed
-    let tally_permission_labels: Vec<String> = selected_elections_permission_labels.into_iter().collect();
+    let tally_permission_labels: Vec<String> =
+        selected_elections_permission_labels.into_iter().collect();
 
     event!(Level::INFO, "contests {:?}", contests);
     let contest_ids: Vec<String> = contests.clone().into_iter().map(|c| c.id.clone()).collect();
