@@ -11,6 +11,7 @@ use tokio_postgres::row::Row;
 use tracing::{event, info, instrument, Level};
 use uuid::Uuid;
 
+pub struct ElectionEventDatafix(pub ElectionEventData);
 pub struct ElectionEventWrapper(pub ElectionEventData);
 
 impl TryFrom<Row> for ElectionEventWrapper {
@@ -139,11 +140,12 @@ pub async fn get_election_event_by_id(
         .ok_or(anyhow!("Election event {election_event_id} not found"))
 }
 
+/// Returns all the Election events as ElectionEventDatafix
 #[instrument(err, skip_all)]
 pub async fn get_all_tenant_election_events(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
-) -> Result<Vec<ElectionEventData>> {
+) -> Result<Vec<ElectionEventDatafix>> {
     let statement = hasura_transaction
         .prepare(
             r#"
@@ -161,13 +163,13 @@ pub async fn get_all_tenant_election_events(
         .query(&statement, &[&Uuid::parse_str(tenant_id)?])
         .await?;
 
-    let election_events: Vec<ElectionEventData> = rows
+    let election_events: Vec<ElectionEventDatafix> = rows
         .into_iter()
-        .map(|row| -> Result<ElectionEventData> {
+        .map(|row| -> Result<ElectionEventDatafix> {
             row.try_into()
-                .map(|res: ElectionEventWrapper| -> ElectionEventData { res.0 })
+                .map(|res: ElectionEventWrapper| ElectionEventDatafix(res.0))
         })
-        .collect::<Result<Vec<ElectionEventData>>>()?;
+        .collect::<Result<Vec<ElectionEventDatafix>>>()?;
 
     Ok(election_events)
 }
