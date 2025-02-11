@@ -209,7 +209,7 @@ pub async fn change_application_status(
         })?;
 
     // Determine the action: Confirm or Reject
-    let action_result = if input.rejection_reason.is_some() {
+    if input.rejection_reason.is_some() {
         // Rejection logic
         reject_application(
             &hasura_transaction,

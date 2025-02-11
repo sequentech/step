@@ -297,7 +297,7 @@ const englishTranslation = {
         },
         ballotLocator: {
             title: "Locate your Ballot",
-            titleResult: "Result of your Ballot lookup",
+            titleResult: "Result of your Ballot Lookup",
             description: "Verify that your Ballot has been correctly submitted",
             locate: "Locate your Ballot",
             locateAgain: "Locate another Ballot",

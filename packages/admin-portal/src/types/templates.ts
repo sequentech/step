@@ -2,6 +2,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+export enum EIntegrityCheckError {
+    IO_ERROR = "io-error",
+    HASH_MISSMATCH = "hash-mismatch",
+    HASH_COMPUTING_ERROR = "hash-computing-error",
+}
+
 export enum IAudienceSelection {
     ALL_USERS = "ALL_USERS",
     NOT_VOTED = "NOT_VOTED",
