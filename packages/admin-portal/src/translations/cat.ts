@@ -1922,11 +1922,11 @@ const catalanTranslation: TranslationType = {
                 rejectReason: "Motiu del rebuig",
                 messageRequired: "Es requereix un missatge de rebuig per a l'opció 'Altres'",
                 reasons: {
-                    "undefined": "-",
-                    "INSUFFICIENT_INFORMATION": "Données Manquantes",
-                    "NO_VOTER": "Votant Non Trouvé",
-                    "ALREADY_APPROVED": "Déjà Approuvé",
-                    "OTHER": "Autre",
+                    undefined: "-",
+                    INSUFFICIENT_INFORMATION: "Données Manquantes",
+                    NO_VOTER: "Votant Non Trouvé",
+                    ALREADY_APPROVED: "Déjà Approuvé",
+                    OTHER: "Autre",
                 },
             },
             notifications: {
