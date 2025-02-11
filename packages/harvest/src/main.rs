@@ -7,6 +7,7 @@
 extern crate rocket;
 
 use dotenv::dotenv;
+use sequent_core::services::connection::LastAccessToken;
 use sequent_core::util::init_log::init_log;
 use windmill::services::{
     celery_app::set_is_app_active,
@@ -32,6 +33,17 @@ async fn rocket() -> _ {
                 routes::error_catchers::internal_error,
                 routes::error_catchers::not_found,
                 routes::error_catchers::default
+            ],
+        )
+        .mount(
+            "/api/datafix",
+            routes![
+                routes::api_datafix::add_voter,
+                routes::api_datafix::update_voter,
+                routes::api_datafix::delete_voter,
+                routes::api_datafix::unmark_voted,
+                routes::api_datafix::mark_voted,
+                routes::api_datafix::replace_pin,
             ],
         )
         .mount(
@@ -121,4 +133,5 @@ async fn rocket() -> _ {
                 routes::set_voter_authentication::set_voter_authentication,
             ],
         )
+        .manage(LastAccessToken::init())
 }
