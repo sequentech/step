@@ -102,11 +102,9 @@ const BallotLocator: React.FC = () => {
 
     const hasBallotId = !!ballotId
     const {data: dataBallotStyles} = useQuery<GetBallotStylesQuery>(GET_BALLOT_STYLES)
-    console.log("aa dataBallotStyles", dataBallotStyles)
 
     const dispatch = useAppDispatch()
     const ballotStyle = useAppSelector(selectFirstBallotStyle)
-    console.log("aa ballotStyle", ballotStyle)
     useLanguage({ballotStyle})
 
     const {data, loading} = useQuery<GetCastVoteQuery>(GET_CAST_VOTE, {
