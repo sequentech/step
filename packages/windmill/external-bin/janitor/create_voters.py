@@ -3123,23 +3123,23 @@ def generate_csv():
         )
 
         # Write myself
-        writer.writerow(
-            [
-                "Xavier",
-                "Alsina",
-                uuid.uuid4(),
-                "JAPAN",
-                "",
-                "1987-12-15",
-                "Tokyo PE",
-                "Japan/Tokyo PE",
-                "TOKYO PE - General Election|TOKYO PE - Test Voting",
-                "M",
-                "0001A",
-                "B",
-                "12341234"
-            ]
-        )
+        # writer.writerow(
+        #     [
+        #         "Xavier",
+        #         "Alsina",
+        #         uuid.uuid4(),
+        #         "JAPAN",
+        #         "",
+        #         "1987-12-15",
+        #         "Tokyo PE",
+        #         "Japan/Tokyo PE",
+        #         "TOKYO PE - General Election|TOKYO PE - Test Voting",
+        #         "M",
+        #         "0001A",
+        #         "B",
+        #         "12341234"
+        #     ]
+        # )
 
         # Show a message to the user saying how many rows are going to be generated
         print(f"Generating {num_rows} rows...")

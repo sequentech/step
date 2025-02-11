@@ -81,7 +81,6 @@ pub async fn process_record(
     let annotations = record
         .get(5)
         .and_then(|s| deserialize_str::<JsonValue>(s).ok());
-    println!("**** is_active: {:?}", record.get(6));
     let is_active: bool = record
         .get(6)
         .map(|val| deserialize_str::<bool>(val).ok())

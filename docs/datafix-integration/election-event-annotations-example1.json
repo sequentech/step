@@ -1,0 +1,10 @@
+{
+    "DATAFIX": {
+        "id": "998877",
+        "password_policy": {
+            "base": "id-password-concatenated",
+            "size": 16,
+            "characters": "alphanumeric"
+        }
+    }
+}
