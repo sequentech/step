@@ -351,6 +351,7 @@ pub struct TallySession {
     pub threshold: i64,
     pub configuration: Option<TallySessionConfiguration>,
     pub tally_type: Option<String>,
+    pub permission_label: Option<Vec<String>>,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
