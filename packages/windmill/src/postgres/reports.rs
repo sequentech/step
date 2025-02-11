@@ -239,7 +239,7 @@ pub async fn get_report_by_id(
     Ok(reports.get(0).cloned())
 }
 
-/// Returns ONLY THE FIRST the template_alias which mathes these arguments,
+/// Returns ONLY THE FIRST the template_alias which matches these arguments,
 /// If there are multiple matches, the rest are ignored.
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_template_alias_for_report(
@@ -335,37 +335,36 @@ pub async fn get_template_alias_for_report(
 }
 
 #[instrument(skip(hasura_transaction), err)]
-pub async fn get_reports_by_election_event_id(
+async fn get_reports_by_condition(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
-    election_event_id: &str,
+    condition_value: &str,
+    condition_column: &str,
 ) -> Result<Vec<Report>> {
     let tenant_uuid =
         Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
-    let election_event_uuid = Uuid::parse_str(election_event_id)
-        .with_context(|| "Error parsing election_event_id as UUID")?;
+    let condition_uuid = Uuid::parse_str(condition_value)
+        .with_context(|| format!("Error parsing {condition_column} as UUID"))?;
 
     let statement = hasura_transaction
-        .prepare(
+        .prepare(&format!(
             r#"
-            SELECT
-                *
-            FROM
-                "sequent_backend".report
-            WHERE
-                tenant_id = $1
-                AND election_event_id = $2
-            "#,
-        )
+                SELECT
+                    *
+                FROM
+                    "sequent_backend".report
+                WHERE
+                    tenant_id = $1
+                    AND {condition_column} = $2
+                "#
+        ))
         .await
         .map_err(|err| anyhow!("Error preparing query: {err}"))?;
 
     let rows: Vec<Row> = hasura_transaction
-        .query(&statement, &[&tenant_uuid, &election_event_uuid])
+        .query(&statement, &[&tenant_uuid, &condition_uuid])
         .await
-        .map_err(|err| {
-            anyhow!("Error running get_reports_by_tenant_and_election_event_id query: {err}")
-        })?;
+        .map_err(|err| anyhow!("Error running get_reports_by_condition query: {err}"))?;
 
     let reports = rows
         .into_iter()
@@ -374,7 +373,32 @@ pub async fn get_reports_by_election_event_id(
         })
         .collect::<Result<Vec<Report>>>()
         .with_context(|| "Error converting rows into Report")?;
+
     Ok(reports)
+}
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn get_reports_by_election_event_id(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<Vec<Report>> {
+    get_reports_by_condition(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        "election_event_id",
+    )
+    .await
+}
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn get_reports_by_election_id(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_id: &str,
+) -> Result<Vec<Report>> {
+    get_reports_by_condition(hasura_transaction, tenant_id, election_id, "election_id").await
 }
 
 #[instrument(skip(hasura_transaction), err)]

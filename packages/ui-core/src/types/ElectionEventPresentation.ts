@@ -15,6 +15,11 @@ export interface ICustomUrls {
     saml?: string
 }
 
+export enum EVoterSigningPolicy {
+    NO_SIGNATURE = "no-signature",
+    WITH_SIGNATURE = "with-signature",
+}
+
 export enum ElectionsOrder {
     RANDOM = "random",
     CUSTOM = "custom",

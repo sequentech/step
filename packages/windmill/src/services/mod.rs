@@ -3,6 +3,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+pub mod api_datafix;
 pub mod application;
 pub mod ballot_styles;
 pub mod cast_votes;
@@ -29,6 +30,7 @@ pub mod export;
 pub mod folders;
 pub mod import;
 pub mod insert_cast_vote;
+pub mod join;
 pub mod jwks;
 pub mod keycloak;
 pub mod keycloak_events;
@@ -42,9 +44,7 @@ pub mod providers;
 pub mod public_keys;
 pub mod reports;
 pub mod reports_vault;
-pub mod s3;
 pub mod serialize_tasks_logs;
-pub mod shell;
 pub mod tally_sheets;
 pub mod tasks_execution;
 pub mod temp_path;

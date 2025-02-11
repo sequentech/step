@@ -78,7 +78,7 @@ export const SettingsBackupRestore: React.FC<void> = () => {
         },
     })
 
-    const handleRestore = async (documentId: string) => {
+    const handleRestore = async (documentId: string, sha256: string) => {
         const currWidget: WidgetProps = addWidget(ETasksExecution.IMPORT_TENANT_CONFIG)
         try {
             setLoading(true)
@@ -92,6 +92,7 @@ export const SettingsBackupRestore: React.FC<void> = () => {
                         include_keycloak: importConfigurations?.includeKeycloak,
                         include_roles: importConfigurations?.includeRoles,
                     },
+                    sha256,
                 },
             })
 

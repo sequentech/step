@@ -37,7 +37,7 @@ interface IElectionSubmit {
     name: string
 }
 
-interface IElectionEventSubmit {
+export interface IElectionEventSubmit {
     name: string
     description: string
     elections: Array<IElectionSubmit>
@@ -247,58 +247,45 @@ export const CreateElectionEventProvider = ({children}: any) => {
     //     setErrors(null)
     // }
 
-    const uploadCallback = async (documentId: string, password: string = "") => {
+    const uploadCallback = async (documentId: string, password: string = "", sha256: string) => {
         setErrors(null)
-        let {data: importData, errors} = await importElectionEvent({
-            variables: {
-                tenantId,
-                documentId,
-                password,
-                checkOnly: true,
-            },
-        })
-
-        if (importData?.import_election_event?.error) {
-            setErrors(importData.import_election_event.error)
-            throw new Error(importData?.import_election_event?.error)
-        }
+        console.log("uploadCallback")
     }
 
     const handleImportElectionEvent = async (
         documentId: string,
-        sha256: string,
+        sha256: string | null,
         password?: string
     ) => {
         closeImportDrawer()
         setIsLoading(false)
         setErrors(null)
 
-        const currWidget = addWidget(ETasksExecution.IMPORT_ELECTION_EVENT)
         console.log({documentId})
-
+        const currWidget = addWidget(ETasksExecution.IMPORT_ELECTION_EVENT)
         try {
             let {data, errors} = await importElectionEvent({
                 variables: {
                     tenantId,
                     documentId,
                     password,
+                    sha256,
                 },
             })
+
+            const task_id = data?.import_election_event?.task_execution?.id
+            let electionEventId = data?.import_election_event?.id
+            setWidgetTaskId(currWidget.identifier, task_id)
             if (data?.import_election_event?.error) {
-                setErrors(data.import_election_event.error)
                 updateWidgetFail(currWidget.identifier)
                 return
             }
-
-            let id = data?.import_election_event?.id
-            if (id) {
-                setWidgetTaskId(
-                    currWidget.identifier,
-                    data?.import_election_event?.task_execution?.id,
-                    () => navigate(`/sequent_backend_election_event/${id}`)
-                )
-                setNewId(id)
-                setLastCreatedResource({id, type: "sequent_backend_election_event"})
+            if (electionEventId) {
+                setNewId(electionEventId)
+                setLastCreatedResource({
+                    id: electionEventId,
+                    type: "sequent_backend_election_event",
+                })
             }
         } catch (err) {
             updateWidgetFail(currWidget.identifier)

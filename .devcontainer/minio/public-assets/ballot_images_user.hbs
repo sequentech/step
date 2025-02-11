@@ -39,7 +39,7 @@
                         <div>
                           <div class="election-info">
                               <span>Clustered Precinct ID:</span>
-                              <span>{{../../election_annotations.clustered_precint_id}}</span>
+                              <span>{{../../election_annotations.pollcenter_code}}</span>
                           </div>
                           <div class="election-info">
                               <span>Precincts in Cluster:</span>
@@ -125,7 +125,7 @@
                         <div>
                           <div class="election-info">
                               <span>Clustered Precinct ID:</span>
-                              <span>{{../../election_annotations.clustered_precint_id}}</span>
+                              <span>{{../../election_annotations.pollcenter_code}}</span>
                           </div>
                           <div class="election-info">
                               <span>Precincts in Cluster:</span>
@@ -214,7 +214,9 @@
                       <div class="summary-inner-content summary-text">{{this.candidate.name}}</div>
                     {{/if}}
                   {{/each}}
+                  {{#if (gte undervotes 1)}}
                   <div class="summary-inner-content summary-text">{{undervotes}} UNDER VOTE/S</div>
+                  {{/if}}
                 {{/each}}
               </div>
             </div>
@@ -225,34 +227,27 @@
   <script>
  window.onload = function () {
       const ballotData = {{{to_json data.ballot_data}}};
+      const eventId = '{{expr data.ballot_data.0.contest_choices.0.contest.election_event_id}}';
+      const electionId = '{{expr data.ballot_data.0.contest_choices.0.contest.election_id}}';
+      const precientId = '{{expr data.election_annotations.clustered_precint_id}}';
+
       ballotData.forEach((ballot, index) => {
+          let ballotId = `${ballot.id}`; 
           ballot.contest_choices.forEach((contest, contest_index) => {
-            let qrText = '{{{extra_data.title}}}'
-            let isBlank = true;
-          const qrcodeDiv = document.getElementById(`qrcode-${contest_index}-${index}`);
-            qrText += `: ${contest.contest.name}`; 
-            contest.decoded_choices.forEach((decodedChoice) => {
-              if (decodedChoice.choice.selected >= 0) {
-                  isBlank = false;
-                  qrText += `: ${decodedChoice.candidate.name}`;
-              }
-              });
+            let pageNumber = `${contest.page_number}`; 
+            const qrcodeDiv = document.getElementById(`qrcode-${contest_index}-${index}`);
+            let qrText = `${contest.sign_data}:${contest.digital_signature}`;
+            let qrHeight = parseInt({{qr_height}}, 10);
+            let qrWidth = qrHeight = parseInt({{qr_width}}, 10);
 
-          if (isBlank) {
-            qrText = "ABSTENTION";
-          }
-          
-          let qrHeight = parseInt({{qr_height}}, 10);
-          let qrWidth = qrHeight = parseInt({{qr_width}}, 10);
-          new QRCode(qrcodeDiv, {
-            text: qrText,
-            width: qrWidth,
-            height: qrHeight,
-            colorDark: "#000000",
-            colorLight: "#ffffff",
-            correctLevel: QRCode.CorrectLevel.H,
-          });
-
+            new QRCode(qrcodeDiv, {
+              text: qrText,
+              width: qrWidth,
+              height: qrHeight,
+              colorDark: "#000000",
+              colorLight: "#ffffff",
+              correctLevel: QRCode.CorrectLevel.H,
+            });
           });
         }
       );

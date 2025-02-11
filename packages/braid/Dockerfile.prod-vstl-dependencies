@@ -29,6 +29,8 @@ COPY ./immudb-rs/Cargo.toml ./immudb-rs/Cargo.toml
 COPY ./sequent-core/Cargo.toml ./sequent-core/Cargo.toml
 COPY ./velvet/Cargo.toml ./velvet/Cargo.toml
 COPY ./windmill/Cargo.toml ./windmill/Cargo.toml
+COPY ./e2e/Cargo.toml ./e2e/Cargo.toml
+COPY ./e2e/src/mock_server/Cargo.toml ./e2e/src/mock_server/Cargo.toml
 COPY ./step-cli/Cargo.toml ./step-cli/Cargo.toml
 COPY ./wrap-map-err/Cargo.toml ./wrap-map-err/Cargo.toml
 COPY ./braid/scripts/Cargo.toml ./braid/scripts/Cargo.toml
@@ -42,6 +44,10 @@ RUN mkdir ./immudb-rs/src \
     && echo "// dummy file" > ./immudb-rs/src/lib.rs
 RUN mkdir ./windmill/src \
     && echo "// dummy file" > ./windmill/src/lib.rs
+RUN mkdir ./e2e/src \
+    && echo "// dummy file" > ./e2e/src/lib.rs
+RUN mkdir ./e2e/src/mock_server/src \
+    && echo "// dummy file" > ./e2e/src/mock_server/src/lib.rs
 RUN mkdir ./velvet/src ./velvet/benches \
     && echo "// dummy file" > ./velvet/src/lib.rs \
     && echo "// dummy file" > ./velvet/benches/pdf_generation.rs
