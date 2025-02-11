@@ -16,7 +16,7 @@ use windmill::services::api_datafix::*;
 use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
 
 #[instrument(skip(claims))]
-#[post("/api/datafix/add-voter", format = "json", data = "<body>")]
+#[post("/add-voter", format = "json", data = "<body>")]
 pub async fn add_voter(
     claims: DatafixClaims,
     body: Json<VoterInformationBody>,
@@ -59,7 +59,7 @@ pub async fn add_voter(
 }
 
 #[instrument(skip(claims))]
-#[post("/api/datafix/update-voter", format = "json", data = "<body>")]
+#[post("/update-voter", format = "json", data = "<body>")]
 pub async fn update_voter(
     claims: DatafixClaims,
     body: Json<VoterInformationBody>,
@@ -119,7 +119,7 @@ pub struct VoterIdBody {
 }
 
 #[instrument(skip(claims))]
-#[post("/api/datafix/delete-voter", format = "json", data = "<body>")]
+#[post("/delete-voter", format = "json", data = "<body>")]
 pub async fn delete_voter(
     claims: DatafixClaims,
     body: Json<VoterIdBody>,
