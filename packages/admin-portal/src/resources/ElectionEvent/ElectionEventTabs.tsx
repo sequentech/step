@@ -12,7 +12,7 @@ import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider
 import {useLocation, useNavigate} from "react-router"
 import {v4 as uuidv4} from "uuid"
 import {EPublishType} from "../Publish/EPublishType"
-import {EElectionEventLockedDown} from "@sequentech/ui-core"
+import {EElectionEventLockedDown, i18n, translateElection} from "@sequentech/ui-core"
 import {Box, CircularProgress} from "@mui/material"
 import {Tabs} from "@/components/Tabs"
 
@@ -199,7 +199,16 @@ export const ElectionEventTabs: React.FC = () => {
             sx={{maxWidth: `calc(100vw - ${open ? "352px" : "96px"})`, bgcolor: "background.paper"}}
             className="events-box"
         >
-            <ElectionHeader title={record?.name} subtitle="electionEventScreen.common.subtitle" />
+            <ElectionHeader
+                title={
+                    translateElection(record, "alias", i18n.language) ||
+                    translateElection(record, "name", i18n.language) ||
+                    record.alias ||
+                    record.name ||
+                    "-"
+                }
+                subtitle="electionEventScreen.common.subtitle"
+            />
             <Box
                 sx={{
                     bgcolor: "background.paper",

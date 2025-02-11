@@ -2,15 +2,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::Context;
+use anyhow::{Context, Result};
 use serde_json::{from_str, json, Value};
 use std::{collections::HashMap, env, error::Error, fs, thread, time::Duration};
 
 use crate::{services::loadero_service::replace_placeholder, Args};
-use anyhow::Context;
-use anyhow::Result;
 use std::fs::File;
-use std::{env, fs};
 
 use super::loadero_service::{run_scenario_test, TestConfig};
 
