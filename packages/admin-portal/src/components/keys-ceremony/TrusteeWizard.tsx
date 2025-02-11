@@ -19,6 +19,18 @@ import {DownloadStep} from "./DownloadStep"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {CheckStep} from "./CheckStep"
 
+export const checkPermissionLabel = (
+    ceremony: Sequent_Backend_Keys_Ceremony,
+    trusteePermissionLabels: string[]
+): boolean => {
+    // Ensure ceremony has permission labels to check against
+    if (!ceremony.permission_label || ceremony.permission_label.length === 0) {
+        return false
+    }
+    // Check if at least one trustee permission label exists in the ceremony's permission labels
+    return ceremony.permission_label.some((label) => trusteePermissionLabels.includes(label))
+}
+
 export const isTrusteeParticipating = (
     ceremony: Sequent_Backend_Keys_Ceremony,
     authContext: AuthContextValues
@@ -27,7 +39,8 @@ export const isTrusteeParticipating = (
     return (
         (ceremony.execution_status === EStatus.USER_CONFIGURATION ||
             ceremony.execution_status === EStatus.IN_PROGRESS) &&
-        !!status.trustees.find((trustee) => trustee.name === authContext.trustee)
+        !!status.trustees.find((trustee) => trustee.name === authContext.trustee) &&
+        checkPermissionLabel(ceremony, authContext.permissionLabels)
     )
 }
 

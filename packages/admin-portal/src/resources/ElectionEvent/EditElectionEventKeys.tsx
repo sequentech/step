@@ -139,11 +139,6 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
         },
     })
 
-    const {data: elections} = useGetList<Sequent_Backend_Election>("sequent_backend_election", {
-        pagination: {page: 1, perPage: 9999},
-        filter: {election_event_id: electionEvent?.id ?? "", tenant_id: tenantId},
-    })
-
     const keysCeremonyIds = useMemo(() => {
         return keysCeremonies?.list_keys_ceremony?.items.map((key) => key?.id) ?? []
     }, [keysCeremonies?.list_keys_ceremony?.items])
@@ -229,12 +224,6 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
         }
     }
 
-    const ShowAdminWizard: React.FC = () => {
-        setShowCeremony(true)
-
-        return <></>
-    }
-
     const actions: Action[] = [
         {
             icon: <FileOpenIcon className="keys-view-admin-icon" />,
@@ -250,6 +239,7 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
 
     return (
         <>
+            {/* Show the notification if the conditions are met */}
             {canTrusteeCeremony && activeCeremony && !showCeremony && !showTrusteeCeremony && (
                 <Alert severity="info">
                     <Trans i18nKey="electionEventScreen.keys.notify.participateNow">
@@ -269,6 +259,7 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
                     </Trans>
                 </Alert>
             )}
+            {/* Show the admin keys ceremony steps if the conditions are met */}
             {canAdminCeremony && showCeremony && (
                 <AdminWizard
                     electionEvent={electionEvent}
@@ -277,6 +268,7 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
                     goBack={goBack}
                 />
             )}
+            {/* Show the trustees keys ceremony steps if the conditions are met */}
             {canTrusteeCeremony && showTrusteeCeremony && currentCeremony && (
                 <TrusteeWizard
                     electionEvent={electionEvent}
@@ -285,6 +277,7 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
                     goBack={goBack}
                 />
             )}
+            {/* Show the keys ceremony table list */}
             {!showCeremony && !showTrusteeCeremony && (
                 <List
                     resource="sequent_backend_keys_ceremony"

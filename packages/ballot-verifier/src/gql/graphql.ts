@@ -640,6 +640,7 @@ export type KeysCeremony = {
     labels?: Maybe<Scalars["jsonb"]["output"]>
     last_updated_at?: Maybe<Scalars["String"]["output"]>
     name?: Maybe<Scalars["String"]["output"]>
+    permission_label?: Maybe<Array<Maybe<Scalars["String"]["output"]>>>
     settings?: Maybe<Scalars["jsonb"]["output"]>
     status?: Maybe<Scalars["jsonb"]["output"]>
     tenant_id: Scalars["String"]["output"]
