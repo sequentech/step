@@ -2,14 +2,16 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::area::get_event_areas;
-use crate::postgres::election_event::get_all_tenant_election_events;
+use crate::postgres::election_event::{get_all_tenant_election_events, ElectionEventDatafix};
+use crate::services::consolidation::eml_generator::ValidateAnnotations;
 use crate::services::users::{get_users_by_username, lookup_users, FilterOption, ListUsersFilter};
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use deadpool_postgres::Transaction;
 use rand::{distributions::Uniform, Rng};
 use rocket::http::Status;
 use rocket::serde::json::Json;
-use sequent_core::serialization::deserialize_with_path::deserialize_value;
+use sequent_core::ballot::Annotations;
+use sequent_core::serialization::deserialize_with_path::{deserialize_str, deserialize_value};
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::types::hasura::core::ElectionEvent;
@@ -57,7 +59,7 @@ impl DatafixResponse {
 }
 
 #[derive(Deserialize, Serialize, Debug)]
-struct DatafixAnnotations {
+pub struct DatafixAnnotations {
     id: String,
     password_policy: PasswordPolicy,
 }
@@ -91,6 +93,86 @@ struct PasswordPolicy {
     characters: CharactersPolicy,
 }
 
+impl ValidateAnnotations for ElectionEventDatafix {
+    type Item = DatafixAnnotations;
+
+    fn get_annotations(&self) -> Result<Self::Item> {
+        let annotations_value = self
+            .0
+            .annotations
+            .clone()
+            .ok_or_else(|| anyhow!("Missing election event annotations"))?;
+
+        let annotations: Annotations = deserialize_value(annotations_value)?;
+        let id = match annotations.get("datafix:id") {
+            Some(id) => id.clone(),
+            None => return Err(anyhow!("datafix:id not found")),
+        };
+
+        let password_policy: PasswordPolicy = match annotations.get("datafix:password_policy") {
+            Some(value_as_str) => deserialize_str(value_as_str)?,
+            None => return Err(anyhow!("datafix:id not found")),
+        };
+
+        Ok(DatafixAnnotations {
+            id,
+            password_policy,
+        })
+    }
+}
+
+/// Gets the election_event_id and the DatafixAnnotations of the event that has the datafix id in its annotations.
+#[instrument(skip(hasura_transaction))]
+async fn get_event_id_and_datafix_annotations(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    requester_datafix_id: &str,
+) -> Result<(String, DatafixAnnotations), JsonErrorResponse> {
+    let election_events = get_all_tenant_election_events(hasura_transaction, tenant_id)
+        .await
+        .map_err(|err| {
+            error!("Error getting election events: {err}");
+            DatafixResponse::new(Status::BadRequest)
+        })?;
+
+    let mut itr: std::slice::Iter<'_, ElectionEventDatafix> = election_events.iter();
+    let mut next_event = itr.next(); // Use while let Some(event) = itr.next()... once the compiler gets updated.
+
+    // Search for the datafix event id in all the annotations
+    while next_event.is_some() {
+        let event = next_event.unwrap();
+        let datafix_id_value = event
+            .0
+            .annotations
+            .as_ref()
+            .and_then(|v| v.get("datafix:id"));
+        info!("datafix_id_value: {datafix_id_value:?}");
+        // If there is a Datafix object, deserialize it:
+        if datafix_id_value.is_some() {
+            match event.get_annotations() {
+                // Return Ok only in case of matching the ID of the requester:
+                Ok(annotations_datafix) if requester_datafix_id.eq(&annotations_datafix.id) => {
+                    return Ok((event.0.id.clone(), annotations_datafix));
+                }
+                Ok(annotations_datafix) => {
+                    info!(
+                        "Not matching id: {} found in event: {}",
+                        annotations_datafix.id, event.0.id
+                    );
+                }
+                Err(err) => {
+                    error!("Error deserializing datafix annotations: {err}");
+                }
+            }
+        }
+
+        next_event = itr.next();
+    }
+
+    warn!("Datafix annotations not found. Requested datafix ID: {requester_datafix_id}");
+    return Err(DatafixResponse::new(Status::BadRequest));
+}
+
 impl PasswordPolicy {
     #[instrument]
     fn generate_password(self, voter_id: &str) -> String {
@@ -114,54 +196,6 @@ impl PasswordPolicy {
             BasePolicy::PswOnly => pin,
         }
     }
-}
-
-/// Gets the election_event_id and the DatafixAnnotations of the event that has the datafix id in its annotations.
-#[instrument(skip(hasura_transaction))]
-async fn get_event_id_and_datafix_annotations(
-    hasura_transaction: &Transaction<'_>,
-    tenant_id: &str,
-    requester_datafix_id: &str,
-) -> Result<(String, DatafixAnnotations), JsonErrorResponse> {
-    let election_events = get_all_tenant_election_events(hasura_transaction, tenant_id)
-        .await
-        .map_err(|err| {
-            error!("Error getting election events: {err}");
-            DatafixResponse::new(Status::BadRequest)
-        })?;
-
-    let mut itr: std::slice::Iter<'_, ElectionEvent> = election_events.iter();
-    let mut next_event = itr.next(); // Use while let Some(event) = itr.next()... once the compiler gets updated.
-
-    // Search for the datafix event id in all the annotations
-    while next_event.is_some() {
-        let event = next_event.unwrap();
-        let datafix_object = event.annotations.as_ref().and_then(|v| v.get("DATAFIX"));
-        info!("datafix_object: {datafix_object:?}");
-        // If there is a Datafix object, deserialize it:
-        if let Some(datafix_value) = datafix_object {
-            match deserialize_value::<DatafixAnnotations>(datafix_value.clone()) {
-                // Return Ok only in case of matching the ID of the requester:
-                Ok(annotations_datafix) if requester_datafix_id.eq(&annotations_datafix.id) => {
-                    return Ok((event.id.clone(), annotations_datafix));
-                }
-                Ok(annotations_datafix) => {
-                    info!(
-                        "Not matching id: {} found in event: {}",
-                        annotations_datafix.id, event.id
-                    );
-                }
-                Err(err) => {
-                    error!("Error deserializing datafix annotations: {err}");
-                }
-            }
-        }
-
-        next_event = itr.next();
-    }
-
-    warn!("Datafix annotations not found. Requested datafix ID: {requester_datafix_id}");
-    return Err(DatafixResponse::new(Status::BadRequest));
 }
 
 /// Returns the UserArea object. If it cannot find the area id by name returns an error.
