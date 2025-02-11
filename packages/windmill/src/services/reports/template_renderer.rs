@@ -153,10 +153,10 @@ pub trait TemplateRenderer: Debug {
     ) -> Result<Option<SendTemplateBody>> {
         let report_type = &self.get_report_type();
         let election_id = self.get_election_id();
-        // Get the template by ID and return its value:
 
+        // Get the template by ID and return its value:
         let report_template_alias = get_template_alias_for_report(
-            &hasura_transaction,
+            hasura_transaction,
             &self.get_tenant_id(),
             &self.get_election_event_id(),
             report_type,
@@ -165,6 +165,7 @@ pub trait TemplateRenderer: Debug {
         .await
         .with_context(|| "Error getting template alias for report")?;
         info!("template_alias: {:?}", &report_template_alias);
+
         let template_alias = match report_template_alias {
             Some(alias) => alias,
             None => {
@@ -174,7 +175,7 @@ pub trait TemplateRenderer: Debug {
         };
 
         let template_table_opt = template::get_template_by_alias(
-            &hasura_transaction,
+            hasura_transaction,
             &self.get_tenant_id(),
             &template_alias,
         )
@@ -327,7 +328,7 @@ pub trait TemplateRenderer: Debug {
         let system_template = self
             .get_system_template()
             .await
-            .map_err(|e| anyhow!("Error getting default user template: {e:?}"))?;
+            .map_err(|e| anyhow!("Error getting the system template: {e:?}"))?;
 
         let rendered_system_template = reports::render_template_text(&system_template, system_data)
             .map_err(|e| anyhow!("Error rendering system template: {e:?}"))?;
@@ -365,7 +366,7 @@ pub trait TemplateRenderer: Debug {
         info!("imri generate_report user_data_map: {:?}", user_data_map);
 
         let rendered_user_template =
-            reports::render_template_text(&user_tpl_document, user_data_map)
+            reports::render_template_text(user_tpl_document, user_data_map)
                 .map_err(|e| anyhow!("Error rendering user template: {e:?}"))?;
 
         // Prepare system data
@@ -387,23 +388,13 @@ pub trait TemplateRenderer: Debug {
         Ok(rendered_system_template)
     }
 
-    // Inner implementation for `execute_report()` so that implementors of the
-    // trait can reimplement the function while calling the parent default
-    // implementation too when needed
+    /// Provides the User template String and the ReportExtraConfig, encapsulating the logic that gets either the custom or default.
+    /// Tries to get first the custom template and extra config, if any value is not available then its default is set.
     #[instrument(err, skip_all)]
-    async fn execute_report_inner(
+    async fn user_tpl_and_extra_cfg_provider(
         &self,
-        document_id: &str,
-        tenant_id: &str,
-        election_event_id: &str,
-        is_scheduled_task: bool,
-        recipients: Vec<String>,
-        generate_mode: GenerateReportMode,
-        report: Option<Report>,
         hasura_transaction: &Transaction<'_>,
-        keycloak_transaction: &Transaction<'_>,
-        task_execution: Option<TasksExecution>,
-    ) -> Result<()> {
+    ) -> Result<(String, ReportExtraConfig)> {
         // Do the query to get the user template data
         let template_data_opt: Option<SendTemplateBody> = self
             .get_custom_user_template_data(hasura_transaction)
@@ -437,6 +428,30 @@ pub trait TemplateRenderer: Debug {
                 .map_err(|e| anyhow!("Error getting default user template: {e:?}"))?,
             Some(user_tpl_document) => user_tpl_document,
         };
+        Ok((user_tpl_document, ext_cfg))
+    }
+
+    // Inner implementation for `execute_report()` so that implementors of the
+    // trait can reimplement the function while calling the parent default
+    // implementation too when needed
+    #[instrument(err, skip_all)]
+    async fn execute_report_inner(
+        &self,
+        document_id: &str,
+        tenant_id: &str,
+        election_event_id: &str,
+        is_scheduled_task: bool,
+        recipients: Vec<String>,
+        generate_mode: GenerateReportMode,
+        report: Option<Report>,
+        hasura_transaction: &Transaction<'_>,
+        keycloak_transaction: &Transaction<'_>,
+        task_execution: Option<TasksExecution>,
+    ) -> Result<()> {
+        let (user_tpl_document, ext_cfg) = self
+            .user_tpl_and_extra_cfg_provider(hasura_transaction)
+            .await
+            .map_err(|e| anyhow!("Error providing the user template and extra config: {e:?}"))?;
         // Generate report in html
         let rendered_system_template = match self
             .generate_report(
@@ -460,10 +475,11 @@ pub trait TemplateRenderer: Debug {
         let extension_suffix = "pdf";
 
         // Generate PDF
-        let content_bytes = pdf::html_to_pdf(
+        let content_bytes = pdf::PdfRenderer::render_pdf(
             rendered_system_template.clone(),
             Some(ext_cfg.pdf_options.to_print_to_pdf_options()),
         )
+        .await
         .map_err(|err| anyhow!("Error rendering report to {extension_suffix:?}: {err:?}"))?;
 
         let base_name = self.base_name();

@@ -195,8 +195,8 @@ pub async fn get_voters_by_area_id(
     let statement = keycloak_transaction
         .prepare(&format!(
             r#"
-        SELECT 
-            u.id, 
+        SELECT
+            u.id,
             u.first_name,
             u.last_name,
             u.username,
@@ -204,7 +204,7 @@ pub async fn get_voters_by_area_id(
             COALESCE(attr_json.attributes ->> 'suffix', '') AS suffix,
             COALESCE(attr_json.attributes ->> '{VALIDATE_ID_ATTR_NAME}', '') AS validate_id,
             COUNT(u.id) OVER() AS total_count
-        FROM 
+        FROM
             user_entity u
         INNER JOIN
             realm AS ra ON ra.id = u.realm_id
@@ -218,10 +218,10 @@ pub async fn get_voters_by_area_id(
         WHERE
             ra.name = $1 AND
             EXISTS (
-                SELECT 1 
-                FROM user_attribute ua 
-                WHERE ua.user_id = u.id 
-                AND ua.name = '{AREA_ID_ATTR_NAME}' 
+                SELECT 1
+                FROM user_attribute ua
+                WHERE ua.user_id = u.id
+                AND ua.name = '{AREA_ID_ATTR_NAME}'
                 AND ua.value = $2
             )
             AND ({dynamic_attr_clause})
@@ -299,16 +299,16 @@ pub async fn get_voters_with_vote_info(
     let vote_info_statement = hasura_transaction
         .prepare(
             r#"
-             SELECT DISTINCT ON (v.voter_id_string) 
+             SELECT DISTINCT ON (v.voter_id_string)
                 v.voter_id_string AS voter_id_string,
                 MAX(v.created_at) AS last_voted_at
-            FROM 
+            FROM
                 sequent_backend.cast_vote v
-            WHERE 
+            WHERE
                 v.tenant_id = $1 AND
                 v.election_event_id = $2 AND
                 v.voter_id_string = ANY($3)
-            GROUP BY 
+            GROUP BY
                 v.voter_id_string, v.election_id;
             "#,
         )
