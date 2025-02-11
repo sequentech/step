@@ -58,7 +58,12 @@ pub async fn get_keys_ceremony_board(
         .await?
         .into_iter()
         .next()
-        .ok_or_else(|| anyhow!("Can't find election with keys ceremony {}", keys_ceremony.id))?;    
+        .ok_or_else(|| {
+            anyhow!(
+                "Can't find election with keys ceremony {}",
+                keys_ceremony.id
+            )
+        })?;
         let board = get_election_board(tenant_id, &election.id);
         Ok((board, Some(election.id)))
     }
@@ -397,14 +402,26 @@ pub async fn create_keys_ceremony(
     })?;
     let is_default = election_id.is_none();
 
+    set_election_keys_ceremony(
+        &transaction,
+        &tenant_id,
+        &election_event_id,
+        election_id.clone(),
+        &keys_ceremony_id,
+    )
+    .await?;
+
     // get permission labels
-    let permission_labels: Vec<String> = get_elections_by_keys_ceremony_id(
+    let permission_labels = get_elections_by_keys_ceremony_id(
         transaction,
         &tenant_id.clone(),
         &election_event_id.clone(),
-        &keys_ceremony_id.clone()
+        &keys_ceremony_id.clone(),
     )
-    .await?.into_iter().filter_map(|election| election.permission_label).collect();
+    .await?
+    .into_iter()
+    .filter_map(|election| election.permission_label)
+    .collect::<Vec<String>>();
 
     // insert keys-ceremony into the database using postgres
     keys_ceremony::insert_keys_ceremony(
@@ -419,18 +436,10 @@ pub async fn create_keys_ceremony(
         name,
         None,
         is_default,
+        permission_labels,
     )
     .await
     .with_context(|| "couldn't insert keys ceremony")?;
-
-    set_election_keys_ceremony(
-        &transaction,
-        &tenant_id,
-        &election_event_id,
-        election_id.clone(),
-        &keys_ceremony_id,
-    )
-    .await?;
 
     // Save it in the electoral log
     let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())

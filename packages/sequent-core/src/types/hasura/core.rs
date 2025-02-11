@@ -301,6 +301,7 @@ pub struct KeysCeremony {
     pub name: Option<String>,
     pub settings: Option<Value>,
     pub is_default: Option<bool>,
+    pub permission_label: Option<Vec<String>>,
 }
 
 impl KeysCeremony {

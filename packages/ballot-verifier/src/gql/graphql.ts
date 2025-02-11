@@ -10338,6 +10338,7 @@ export type Sequent_Backend_Keys_Ceremony = {
     labels?: Maybe<Scalars["jsonb"]["output"]>
     last_updated_at: Scalars["timestamptz"]["output"]
     name?: Maybe<Scalars["String"]["output"]>
+    permission_label?: Maybe<Array<Scalars["String"]["output"]>>
     settings?: Maybe<Scalars["jsonb"]["output"]>
     status?: Maybe<Scalars["jsonb"]["output"]>
     tenant_id: Scalars["uuid"]["output"]
@@ -10442,6 +10443,7 @@ export type Sequent_Backend_Keys_Ceremony_Bool_Exp = {
     labels?: InputMaybe<Jsonb_Comparison_Exp>
     last_updated_at?: InputMaybe<Timestamptz_Comparison_Exp>
     name?: InputMaybe<String_Comparison_Exp>
+    permission_label?: InputMaybe<String_Array_Comparison_Exp>
     settings?: InputMaybe<Jsonb_Comparison_Exp>
     status?: InputMaybe<Jsonb_Comparison_Exp>
     tenant_id?: InputMaybe<Uuid_Comparison_Exp>
@@ -10496,6 +10498,7 @@ export type Sequent_Backend_Keys_Ceremony_Insert_Input = {
     labels?: InputMaybe<Scalars["jsonb"]["input"]>
     last_updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     name?: InputMaybe<Scalars["String"]["input"]>
+    permission_label?: InputMaybe<Array<Scalars["String"]["input"]>>
     settings?: InputMaybe<Scalars["jsonb"]["input"]>
     status?: InputMaybe<Scalars["jsonb"]["input"]>
     tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
@@ -10512,6 +10515,7 @@ export type Sequent_Backend_Keys_Ceremony_Max_Fields = {
     id?: Maybe<Scalars["uuid"]["output"]>
     last_updated_at?: Maybe<Scalars["timestamptz"]["output"]>
     name?: Maybe<Scalars["String"]["output"]>
+    permission_label?: Maybe<Array<Scalars["String"]["output"]>>
     tenant_id?: Maybe<Scalars["uuid"]["output"]>
     threshold?: Maybe<Scalars["Int"]["output"]>
     trustee_ids?: Maybe<Array<Scalars["uuid"]["output"]>>
@@ -10526,6 +10530,7 @@ export type Sequent_Backend_Keys_Ceremony_Min_Fields = {
     id?: Maybe<Scalars["uuid"]["output"]>
     last_updated_at?: Maybe<Scalars["timestamptz"]["output"]>
     name?: Maybe<Scalars["String"]["output"]>
+    permission_label?: Maybe<Array<Scalars["String"]["output"]>>
     tenant_id?: Maybe<Scalars["uuid"]["output"]>
     threshold?: Maybe<Scalars["Int"]["output"]>
     trustee_ids?: Maybe<Array<Scalars["uuid"]["output"]>>
@@ -10559,6 +10564,7 @@ export type Sequent_Backend_Keys_Ceremony_Order_By = {
     labels?: InputMaybe<Order_By>
     last_updated_at?: InputMaybe<Order_By>
     name?: InputMaybe<Order_By>
+    permission_label?: InputMaybe<Order_By>
     settings?: InputMaybe<Order_By>
     status?: InputMaybe<Order_By>
     tenant_id?: InputMaybe<Order_By>
@@ -10602,6 +10608,8 @@ export enum Sequent_Backend_Keys_Ceremony_Select_Column {
     /** column name */
     Name = "name",
     /** column name */
+    PermissionLabel = "permission_label",
+    /** column name */
     Settings = "settings",
     /** column name */
     Status = "status",
@@ -10624,6 +10632,7 @@ export type Sequent_Backend_Keys_Ceremony_Set_Input = {
     labels?: InputMaybe<Scalars["jsonb"]["input"]>
     last_updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     name?: InputMaybe<Scalars["String"]["input"]>
+    permission_label?: InputMaybe<Array<Scalars["String"]["input"]>>
     settings?: InputMaybe<Scalars["jsonb"]["input"]>
     status?: InputMaybe<Scalars["jsonb"]["input"]>
     tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
@@ -10668,6 +10677,7 @@ export type Sequent_Backend_Keys_Ceremony_Stream_Cursor_Value_Input = {
     labels?: InputMaybe<Scalars["jsonb"]["input"]>
     last_updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     name?: InputMaybe<Scalars["String"]["input"]>
+    permission_label?: InputMaybe<Array<Scalars["String"]["input"]>>
     settings?: InputMaybe<Scalars["jsonb"]["input"]>
     status?: InputMaybe<Scalars["jsonb"]["input"]>
     tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
@@ -10701,6 +10711,8 @@ export enum Sequent_Backend_Keys_Ceremony_Update_Column {
     LastUpdatedAt = "last_updated_at",
     /** column name */
     Name = "name",
+    /** column name */
+    PermissionLabel = "permission_label",
     /** column name */
     Settings = "settings",
     /** column name */
