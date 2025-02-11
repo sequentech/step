@@ -19,11 +19,17 @@ use anyhow::{anyhow, Context, Result};
 use b3::messages::message::Message;
 use b3::messages::newtypes::BatchNumber;
 use b3::messages::newtypes::TrusteeSet;
+use base64::{
+    alphabet,
+    engine::{self, general_purpose},
+    Engine as _,
+};
 use chrono::{DateTime, Utc};
 use csv::WriterBuilder;
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::{ContestEncryptionPolicy, ElectionPresentation, HashableBallot};
 use sequent_core::multi_ballot::HashableMultiBallot;
+use sequent_core::serialization::base64::{Base64Deserialize, Base64Serialize};
 use sequent_core::serialization::deserialize_with_path::{deserialize_str, deserialize_value};
 use sequent_core::services::connection::AuthHeaders;
 use sequent_core::services::date::ISO8601;
@@ -93,7 +99,8 @@ pub async fn insert_ballots_messages(
         let batch_size = PgConfig::from_env()?.default_sql_batch_size.into();
 
         // Create a temporary file (auto-deleted when dropped)
-        let ballots_temp_file = NamedTempFile::new().expect("Failed to create temp file");
+        let ballots_temp_file = NamedTempFile::new()
+            .map_err(|error| anyhow!("Failed to create temp file {}", error))?;
         event!(
             Level::INFO,
             "Creating temporary file for ballots with path {:?}",
@@ -121,10 +128,46 @@ pub async fn insert_ballots_messages(
             }
 
             for ballot in ballots_list {
-                writer.serialize(ballot).expect("Failed to write row");
+                let ballot_str = ballot.content.ok_or(anyhow!("Empty ballot content"))?;
+
+                let ciphertext: Ciphertext<RistrettoCtx> =
+                    if ContestEncryptionPolicy::MULTIPLE_CONTESTS == contest_encryption_policy {
+                        let hashable_multi_ballot: HashableMultiBallot =
+                            deserialize_str(&ballot_str)?;
+
+                        let hashable_multi_ballot_contests = hashable_multi_ballot
+                            .deserialize_contests()
+                            .map_err(|err| anyhow!("{:?}", err))?;
+                        Some(hashable_multi_ballot_contests.ciphertext)
+                    } else {
+                        let hashable_ballot: HashableBallot = deserialize_str(&ballot_str)?;
+                        let contests = hashable_ballot
+                            .deserialize_contests()
+                            .map_err(|err| anyhow!("{:?}", err))?;
+                        contests
+                            .iter()
+                            .find(|contest| {
+                                contest.contest_id
+                                    == tally_session_contest.contest_id.clone().unwrap_or_default()
+                            })
+                            .map(|contest| contest.ciphertext.clone())
+                    }
+                    .ok_or(anyhow!("Could not get ciphertext"))?;
+
+                let ciphertext_base64 = ciphertext.serialize()?;
+
+                writer
+                    .serialize((
+                        &ballot.voter_id_string,
+                        &ballot.election_id,
+                        &ciphertext_base64,
+                    ))
+                    .map_err(|error| anyhow!("Failed to write row {}", error))?;
             }
 
-            writer.flush().expect("Failed to flush writer");
+            writer
+                .flush()
+                .map_err(|error| anyhow!("Failed to flush writer {}", error))?;
 
             // Move to next batch
             offset += batch_size;
@@ -135,7 +178,8 @@ pub async fn insert_ballots_messages(
         // Use pagination and write the contents to a file
 
         // Create a temporary file (auto-deleted when dropped)
-        let users_temp_file = NamedTempFile::new().expect("Failed to create temp file");
+        let users_temp_file = NamedTempFile::new()
+            .map_err(|error| anyhow!("Failed to create temp file: {}", error))?;
         event!(
             Level::INFO,
             "Creating temporary file for users with path {:?}",
@@ -165,10 +209,14 @@ pub async fn insert_ballots_messages(
             }
 
             for user in &users_map {
-                writer.serialize(user).expect("Failed to write row");
+                writer
+                    .serialize(user)
+                    .map_err(|error| anyhow!("Failed to write row: {}", error))?;
             }
 
-            writer.flush().expect("Failed to flush writer");
+            writer
+                .flush()
+                .map_err(|error| anyhow!("Failed to flush writer: {}", error))?;
 
             // Move to next batch
             offset += batch_size;
@@ -177,12 +225,12 @@ pub async fn insert_ballots_messages(
         let users_temp_file = users_temp_file.reopen()?;
 
         // Use a join function to filter and extract the ballot content
-        let ballots_output_index = 6;
-        let ballots_join_indexes = 7;
-        let ballot_election_id_index = 2;
+        let ballots_output_index = 2;
+        let ballots_join_indexes = 0;
+        let ballot_election_id_index = 1;
         let users_join_idexes = 0;
 
-        let ballots_list_content = merge_join_csv(
+        let insertable_ballots: Vec<Ciphertext<RistrettoCtx>> = merge_join_csv(
             &ballots_temp_file,
             &users_temp_file,
             ballots_join_indexes,
@@ -190,42 +238,19 @@ pub async fn insert_ballots_messages(
             ballots_output_index,
             ballot_election_id_index,
             &tally_session_contest.election_id,
-        )?;
+        )?
+        .into_iter()
+        .map(|serialized_ciphertext| {
+            Base64Deserialize::deserialize(serialized_ciphertext)
+                .map_err(|error| anyhow!("Error while deserializng ciphertext: {}", error))
+        })
+        .collect::<Result<Vec<_>>>()?;
 
         event!(
             Level::INFO,
-            "ballots_list_content len: {:?}",
-            ballots_list_content.len()
+            "insertable_ballots len: {:?}",
+            insertable_ballots.len()
         );
-
-        let insertable_ballots: Vec<Ciphertext<RistrettoCtx>> = ballots_list_content
-            .iter()
-            .map(|ballot_str| -> Result<Option<Ciphertext<RistrettoCtx>>> {
-                if ContestEncryptionPolicy::MULTIPLE_CONTESTS == contest_encryption_policy {
-                    let hashable_multi_ballot: HashableMultiBallot = deserialize_str(&ballot_str)?;
-
-                    let hashable_multi_ballot_contests = hashable_multi_ballot
-                        .deserialize_contests()
-                        .map_err(|err| anyhow!("{:?}", err))?;
-                    Ok(Some(hashable_multi_ballot_contests.ciphertext))
-                } else {
-                    let hashable_ballot: HashableBallot = deserialize_str(&ballot_str)?;
-                    let contests = hashable_ballot
-                        .deserialize_contests()
-                        .map_err(|err| anyhow!("{:?}", err))?;
-                    Ok(contests
-                        .iter()
-                        .find(|contest| {
-                            contest.contest_id
-                                == tally_session_contest.contest_id.clone().unwrap_or_default()
-                        })
-                        .map(|contest| contest.ciphertext.clone()))
-                }
-            })
-            .collect::<Result<Vec<_>>>()?
-            .iter()
-            .filter_map(|ballot_opt| ballot_opt.clone())
-            .collect();
 
         event!(
             Level::INFO,
@@ -265,7 +290,7 @@ pub async fn get_elections_end_dates(
     )
     .await?
     .data
-    .expect("expected data")
+    .ok_or(anyhow!("Expected election dates to have data"))?
     .sequent_backend_election
     .into_iter()
     .map(|election| {
@@ -316,7 +341,8 @@ pub async fn count_auditable_ballots(
     let batch_size = PgConfig::from_env()?.default_sql_batch_size.into();
 
     // Create a temporary file (auto-deleted when dropped)
-    let ballots_temp_file = NamedTempFile::new().expect("Failed to create temp file");
+    let ballots_temp_file =
+        NamedTempFile::new().map_err(|error| anyhow!("Failed to create temp file {}", error))?;
     event!(
         Level::INFO,
         "Creating temporary file for ballots with path {:?}",
@@ -344,10 +370,18 @@ pub async fn count_auditable_ballots(
         }
 
         for ballot in ballots_list {
-            writer.serialize(ballot).expect("Failed to write row");
+            writer
+                .serialize((
+                    &ballot.voter_id_string,
+                    &ballot.election_id,
+                    &ballot.content,
+                ))
+                .map_err(|error| anyhow!("Failed to write row: {}", error))?;
         }
 
-        writer.flush().expect("Failed to flush writer");
+        writer
+            .flush()
+            .map_err(|error| anyhow!("Failed to flush writer: {}", error))?;
 
         // Move to next batch
         offset += batch_size;
@@ -358,7 +392,8 @@ pub async fn count_auditable_ballots(
     // Use pagination and write the contents to a file
 
     // Create a temporary file (auto-deleted when dropped)
-    let users_temp_file = NamedTempFile::new().expect("Failed to create temp file");
+    let users_temp_file =
+        NamedTempFile::new().map_err(|error| anyhow!("Failed to create temp file: {}", error))?;
     event!(
         Level::INFO,
         "Creating temporary file for users with path {:?}",
@@ -388,10 +423,14 @@ pub async fn count_auditable_ballots(
         }
 
         for user in &users_map {
-            writer.serialize(user).expect("Failed to write row");
+            writer
+                .serialize(user)
+                .map_err(|error| anyhow!("Failed to write row: {}", error))?;
         }
 
-        writer.flush().expect("Failed to flush writer");
+        writer
+            .flush()
+            .map_err(|error| anyhow!("Failed to flush writer: {}", error))?;
 
         // Move to next batch
         offset += batch_size;
@@ -400,8 +439,8 @@ pub async fn count_auditable_ballots(
     let users_temp_file = users_temp_file.reopen()?;
 
     // Use a unique function to filter and extract the ballot content
-    let ballots_join_indexes = 7;
-    let ballot_election_id_index = 2;
+    let ballots_join_indexes = 0;
+    let ballot_election_id_index = 1;
     let users_join_idexes = 0;
 
     let count = count_unique_csv(
