@@ -170,10 +170,12 @@ pub mod sync {
                             })?;
                         }
                         json!({
-                            "html_path": format!("input-{}", html_sha256),
-                            "pdf_options": pdf_options,
-                            "bucket": bucket,
-                            "result_path": output_filename,
+                            "s3": {
+                                "bucket": bucket,
+                                "input_path": format!("input-{}", html_sha256),
+                                "output_path": output_filename,
+                                "pdf_options": pdf_options,
+                            }
                         })
                     } else {
                         event!(
@@ -182,8 +184,10 @@ pub mod sync {
                             endpoint
                         );
                         json!({
-                            "html": html,
-                            "pdf_options": pdf_options,
+                            "raw": {
+                                "html": html,
+                                "pdf_options": pdf_options,
+                            }
                         })
                     };
                     let client = reqwest::blocking::Client::new();
@@ -445,10 +449,12 @@ impl PdfRenderer {
                     }
 
                     json!({
-                        "html_path": format!("input-{}", html_sha256),
-                        "pdf_options": pdf_options,
-                        "bucket": bucket,
-                        "result_path": output_filename,
+                        "s3": {
+                            "bucket": bucket,
+                            "input_path": format!("input-{}", html_sha256),
+                            "output_path": output_filename,
+                            "pdf_options": pdf_options,
+                        }
                     })
                 } else {
                     event!(
@@ -457,8 +463,10 @@ impl PdfRenderer {
                         endpoint
                     );
                     json!({
-                        "html": html,
-                        "pdf_options": pdf_options,
+                        "raw": {
+                            "html": html,
+                            "pdf_options": pdf_options,
+                        }
                     })
                 };
                 let client = reqwest::Client::new();
