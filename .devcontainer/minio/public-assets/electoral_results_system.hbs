@@ -101,11 +101,14 @@
         text-align: center;
       }
 
-      .top-header .left {
-        text-align: left;
+      .top-header {
         margin: 16px 0;
         margin-top: 5px;
-        font-size: 10pt;
+        font-size: 8pt;
+      }
+
+      .top-header .left {
+        text-align: left;
         font-style: italic;
 
       }
@@ -113,9 +116,6 @@
       .top-header .right {
         text-transform: uppercase;
         text-align: right;
-        margin: 16px 0;
-        margin-top: 5px;
-        font-size: 10pt;
       }
 
       .main-header {
@@ -236,7 +236,6 @@
       }
 
       .candidates thead td {
-        text-align: center;
         text-transform: uppercase;
         font-weight: bold;
         font-size: 10pt;
@@ -362,11 +361,14 @@
       @media print and (max-width: 90mm), screen and (max-width: 302px) {
         /* @media print { */
         body {
-          width: 80mm;
           margin: 0;
-          padding: 0 2mm;
           font-family: "Arial", sans-serif;
           font-size: 11pt;
+        }
+
+        @page {
+          margin-top: 0;
+          margin-bottom: 0;
         }
         
         /* Header styling */
@@ -486,11 +488,6 @@
           height: auto;
           display: block;
           margin: 0 auto;
-        }
-
-        .left,
-        .right {
-          display: none;
         }
 
         .logo-printer-block {

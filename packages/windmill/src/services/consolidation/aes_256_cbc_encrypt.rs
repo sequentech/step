@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::services::shell::run_shell_command;
 use anyhow::{anyhow, Context, Result};
+use sequent_core::signatures::shell::run_shell_command;
 use std::process::Command;
 use tracing::{info, instrument};
 

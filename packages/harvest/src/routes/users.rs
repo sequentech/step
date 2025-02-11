@@ -500,6 +500,7 @@ pub async fn edit_user(
                 &hasura_transaction,
                 &input.tenant_id,
                 &election_event_id,
+                None,
                 vec![user],
                 None, // filter_by_has_voted
             )
@@ -651,16 +652,12 @@ pub async fn import_users_f(
         Some(input.tenant_id.clone()),
         vec![required_perm],
     )?;
-    let name = claims
-        .name
-        .clone()
-        .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
     let celery_app = get_celery_app().await;
 
     let mut task_input = input.clone();
     task_input.is_admin = is_admin;
 
-    let celery_task = match celery_app
+    let _celery_task = match celery_app
         .send_task(import_users::import_users::new(
             task_input,
             task_execution.clone(),

@@ -14,7 +14,7 @@ use std::path::{Path, PathBuf};
 use tracing::{info, instrument};
 use walkdir::WalkDir;
 
-pub const MC_VOTE_RECEIOT_FILE_NAME: &str = "mcballots_receipts";
+pub const MC_VOTE_RECEIPT_FILE_NAME: &str = "mcballots_receipts";
 pub const MC_BALLOT_IMAGES_FILE_NAME: &str = "mcballots_images";
 pub const VOTE_RECEIOT_FILE_NAME: &str = "vote_receipts";
 pub const BALLOT_IMAGES_FILE_NAME: &str = "ballot_images";
@@ -23,7 +23,7 @@ pub const ELECTORAL_RESULTS_FILE_NAME: &str = "ELECTORAL_RESULTS";
 
 #[instrument(err, skip_all)]
 pub fn get_file_report_type(file_name: &str) -> Result<Option<ReportType>> {
-    if file_name.contains(MC_VOTE_RECEIOT_FILE_NAME) || file_name.contains(VOTE_RECEIOT_FILE_NAME) {
+    if file_name.contains(MC_VOTE_RECEIPT_FILE_NAME) || file_name.contains(VOTE_RECEIOT_FILE_NAME) {
         Ok(Some(ReportType::VOTE_RECEIPT))
     } else if file_name.contains(MC_BALLOT_IMAGES_FILE_NAME)
         || file_name.contains(BALLOT_IMAGES_FILE_NAME)
@@ -118,6 +118,16 @@ pub async fn encrypt_directory_contents(
         })
         .cloned();
 
+    let upload_path = encrypt_file(tenant_id, election_event_id, old_path, report.as_ref()).await?;
+    Ok(upload_path)
+}
+#[instrument(err, skip_all)]
+pub async fn encrypt_file(
+    tenant_id: &str,
+    election_event_id: &str,
+    old_path: &str,
+    report: Option<&Report>,
+) -> Result<String> {
     let mut upload_path = old_path.to_string();
     if let Some(report) = report {
         if report.encryption_policy == EReportEncryption::ConfiguredPassword {

@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-FROM rust:1.70.0-slim-bookworm as builder
+FROM rust:1.82.0-slim-bookworm as builder
 
 WORKDIR /app
 
@@ -20,22 +20,28 @@ RUN rustup toolchain install nightly-2024-09-01 \
     && rustup default nightly-2024-09-01
 
 #TODO: Copy only necessary files
-COPY ./harvest ./harvest
-COPY ./immu-board ./immu-board
-COPY ./immudb-rs ./immudb-rs
-COPY ./strand ./strand
+COPY ./braid ./braid
 COPY ./b3 ./b3
 COPY ./electoral-log ./electoral-log
+COPY ./harvest ./harvest
+COPY ./strand ./strand
+COPY ./immu-board ./immu-board
+COPY ./immudb-rs ./immudb-rs
 COPY ./sequent-core ./sequent-core
-COPY ./windmill ./windmill
-COPY ./wrap-map-err ./wrap-map-err
 COPY ./velvet ./velvet
+COPY ./windmill ./windmill
+COPY ./e2e ./e2e
+COPY ./step-cli ./step-cli
+COPY ./orare ./orare
+COPY ./wrap-map-err ./wrap-map-err
+COPY ./braid/scripts ./braid/scripts
+COPY ./Cargo.toml ./Cargo.toml
 COPY ./Cargo.lock ./Cargo.lock
 
 RUN cp /app/windmill/external-bin/ecies-tool.jar /usr/local/bin/
 
 WORKDIR /app/harvest
-RUN cargo build --release
+RUN cargo build --release --locked
 
 
 FROM debian:bookworm
@@ -56,7 +62,7 @@ RUN wget https://download.java.net/java/GA/jdk22.0.2/c9ecb94cd31b495da20a27d4581
     && update-alternatives --install /usr/bin/java java /usr/local/jdk-22.0.2/bin/java 1 \
     && update-alternatives --install /usr/bin/javac javac /usr/local/jdk-22.0.2/bin/javac 1
 # Copy the compiled binary from the builder stage
-COPY --from=builder /app/harvest/target/release/harvest /usr/local/bin/harvest
+COPY --from=builder /app/target/release/harvest /usr/local/bin/harvest
 COPY --from=builder /usr/local/bin/ecies-tool.jar /usr/local/bin/ecies-tool.jar
 
 WORKDIR /usr/local/bin

@@ -38,6 +38,12 @@ export type ApplicationChangeStatusBody = {
   user_id: Scalars['String']['input'];
 };
 
+export type ApplicationChangeStatusOutput = {
+  __typename?: 'ApplicationChangeStatusOutput';
+  error?: Maybe<Scalars['String']['output']>;
+  message?: Maybe<Scalars['String']['output']>;
+};
+
 export type ApplicationVerifyBody = {
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
   applicant_data?: InputMaybe<Scalars['jsonb']['input']>;
@@ -215,10 +221,12 @@ export type ElectionEventStatsMonitoringOutput = {
   total_not_closed_votes?: Maybe<Scalars['Int']['output']>;
   total_not_genereated_tally?: Maybe<Scalars['Int']['output']>;
   total_not_initialize?: Maybe<Scalars['Int']['output']>;
-  total_not_opened_votes?: Maybe<Scalars['Int']['output']>;
+  total_not_open_votes?: Maybe<Scalars['Int']['output']>;
   total_not_start_counting_votes?: Maybe<Scalars['Int']['output']>;
+  total_not_started_votes?: Maybe<Scalars['Int']['output']>;
   total_open_votes?: Maybe<Scalars['Int']['output']>;
   total_start_counting_votes?: Maybe<Scalars['Int']['output']>;
+  total_started_votes?: Maybe<Scalars['Int']['output']>;
   transmission_stats?: Maybe<MonitoringTransmissionStatus>;
   voting_stats?: Maybe<MonitoringVotingSatus>;
 };
@@ -301,6 +309,13 @@ export type ExportBallotPublicationOutput = {
   task_execution?: Maybe<Tasks_Execution_Type>;
 };
 
+export type ExportElectionEventOutput = {
+  __typename?: 'ExportElectionEventOutput';
+  document_id: Scalars['String']['output'];
+  password?: Maybe<Scalars['String']['output']>;
+  task_execution: Tasks_Execution_Type;
+};
+
 export type ExportLogsOutput = {
   __typename?: 'ExportLogsOutput';
   document_id: Scalars['String']['output'];
@@ -312,7 +327,8 @@ export type ExportOptions = {
   applications?: InputMaybe<Scalars['Boolean']['input']>;
   bulletin_board?: InputMaybe<Scalars['Boolean']['input']>;
   include_voters?: InputMaybe<Scalars['Boolean']['input']>;
-  password: Scalars['String']['input'];
+  is_encrypted?: InputMaybe<Scalars['Boolean']['input']>;
+  password?: InputMaybe<Scalars['String']['input']>;
   publications?: InputMaybe<Scalars['Boolean']['input']>;
   reports?: InputMaybe<Scalars['Boolean']['input']>;
   s3_files?: InputMaybe<Scalars['Boolean']['input']>;
@@ -361,6 +377,12 @@ export type ExportUsersOutput = {
 export type FetchDocumentOutput = {
   __typename?: 'FetchDocumentOutput';
   url: Scalars['String']['output'];
+};
+
+export type GenerateTemplateOutput = {
+  __typename?: 'GenerateTemplateOutput';
+  document_id: Scalars['String']['output'];
+  task_execution?: Maybe<Tasks_Execution_Type>;
 };
 
 export type GetBallotPublicationChangesOutput = {
@@ -894,6 +916,7 @@ export type ApplicationOutput = {
   __typename?: 'applicationOutput';
   document_id?: Maybe<Scalars['String']['output']>;
   error_msg?: Maybe<Scalars['String']['output']>;
+  task_execution?: Maybe<Tasks_Execution_Type>;
 };
 
 /** Boolean expression to compare columns of type "bytea". All fields are combined with logical 'AND'. */
@@ -989,7 +1012,7 @@ export type Jsonb_Comparison_Exp = {
 export type Mutation_Root = {
   __typename?: 'mutation_root';
   /** Confirm voter application and correlate to a Voter */
-  ApplicationChangeStatus: Scalars['String']['output'];
+  ApplicationChangeStatus?: Maybe<ApplicationChangeStatusOutput>;
   /** Verify User Registration Application */
   VerifyApplication: Scalars['String']['output'];
   /** check private key */
@@ -1159,7 +1182,7 @@ export type Mutation_Root = {
   exportTrustees?: Maybe<ExportTrusteesOutput>;
   export_application?: Maybe<ExportApplicationOutput>;
   export_ballot_publication?: Maybe<ExportBallotPublicationOutput>;
-  export_election_event?: Maybe<DocumentTaskOutput>;
+  export_election_event?: Maybe<ExportElectionEventOutput>;
   export_election_event_logs?: Maybe<ExportLogsOutput>;
   export_election_event_tasks?: Maybe<ExportTasksOutput>;
   export_tasks_execution?: Maybe<ExportTasksExecutionOutput>;
@@ -1169,6 +1192,7 @@ export type Mutation_Root = {
   export_users?: Maybe<ExportUsersOutput>;
   generate_ballot_publication?: Maybe<PublishBallotOutput>;
   generate_report?: Maybe<GenerateReportOutput>;
+  generate_template?: Maybe<GenerateTemplateOutput>;
   generate_transmission_report?: Maybe<GenerateReportOutput>;
   get_ballot_publication_changes?: Maybe<GetBallotPublicationChangesOutput>;
   get_manual_verification_pdf?: Maybe<GetManualVerificationOutput>;
@@ -1604,6 +1628,7 @@ export type Mutation_RootCreate_ElectionArgs = {
   description?: InputMaybe<Scalars['String']['input']>;
   election_event_id: Scalars['String']['input'];
   name: Scalars['String']['input'];
+  presentation?: InputMaybe<Scalars['jsonb']['input']>;
 };
 
 
@@ -2286,6 +2311,15 @@ export type Mutation_RootGenerate_ReportArgs = {
 
 
 /** mutation root */
+export type Mutation_RootGenerate_TemplateArgs = {
+  election_event_id: Scalars['String']['input'];
+  election_id: Scalars['String']['input'];
+  tally_session_id: Scalars['String']['input'];
+  type: Scalars['String']['input'];
+};
+
+
+/** mutation root */
 export type Mutation_RootGenerate_Transmission_ReportArgs = {
   election_event_id: Scalars['String']['input'];
   election_id?: InputMaybe<Scalars['String']['input']>;
@@ -2344,6 +2378,7 @@ export type Mutation_RootImport_ApplicationArgs = {
   document_id: Scalars['String']['input'];
   election_event_id?: InputMaybe<Scalars['String']['input']>;
   election_id?: InputMaybe<Scalars['String']['input']>;
+  sha256?: InputMaybe<Scalars['String']['input']>;
   tenant_id: Scalars['String']['input'];
 };
 
@@ -2352,6 +2387,7 @@ export type Mutation_RootImport_ApplicationArgs = {
 export type Mutation_RootImport_AreasArgs = {
   document_id: Scalars['String']['input'];
   election_event_id: Scalars['String']['input'];
+  sha256?: InputMaybe<Scalars['String']['input']>;
 };
 
 
@@ -2359,6 +2395,7 @@ export type Mutation_RootImport_AreasArgs = {
 export type Mutation_RootImport_CandidatesArgs = {
   document_id: Scalars['String']['input'];
   election_event_id: Scalars['String']['input'];
+  sha256?: InputMaybe<Scalars['String']['input']>;
 };
 
 
@@ -2367,6 +2404,7 @@ export type Mutation_RootImport_Election_EventArgs = {
   check_only?: InputMaybe<Scalars['Boolean']['input']>;
   document_id: Scalars['String']['input'];
   password?: InputMaybe<Scalars['String']['input']>;
+  sha256?: InputMaybe<Scalars['String']['input']>;
   tenant_id: Scalars['String']['input'];
 };
 
@@ -2374,6 +2412,7 @@ export type Mutation_RootImport_Election_EventArgs = {
 /** mutation root */
 export type Mutation_RootImport_TemplatesArgs = {
   document_id: Scalars['String']['input'];
+  sha256?: InputMaybe<Scalars['String']['input']>;
   tenant_id: Scalars['String']['input'];
 };
 
@@ -2382,6 +2421,7 @@ export type Mutation_RootImport_TemplatesArgs = {
 export type Mutation_RootImport_Tenant_ConfigArgs = {
   document_id: Scalars['String']['input'];
   import_configurations?: InputMaybe<ImportOptions>;
+  sha256?: InputMaybe<Scalars['String']['input']>;
   tenant_id: Scalars['String']['input'];
 };
 
@@ -2390,6 +2430,7 @@ export type Mutation_RootImport_Tenant_ConfigArgs = {
 export type Mutation_RootImport_UsersArgs = {
   document_id: Scalars['String']['input'];
   election_event_id?: InputMaybe<Scalars['String']['input']>;
+  sha256?: InputMaybe<Scalars['String']['input']>;
   tenant_id: Scalars['String']['input'];
 };
 
@@ -2987,7 +3028,7 @@ export type Mutation_RootSet_Voter_AuthenticationArgs = {
 export type Mutation_RootUpdate_Election_Voting_StatusArgs = {
   election_event_id: Scalars['uuid']['input'];
   election_id: Scalars['uuid']['input'];
-  voting_channel: VotingStatusChannel;
+  voting_channels?: InputMaybe<Array<InputMaybe<VotingStatusChannel>>>;
   voting_status: VotingStatus;
 };
 
@@ -2995,7 +3036,7 @@ export type Mutation_RootUpdate_Election_Voting_StatusArgs = {
 /** mutation root */
 export type Mutation_RootUpdate_Event_Voting_StatusArgs = {
   election_event_id: Scalars['uuid']['input'];
-  voting_channel: VotingStatusChannel;
+  voting_channels?: InputMaybe<Array<InputMaybe<VotingStatusChannel>>>;
   voting_status: VotingStatus;
 };
 
