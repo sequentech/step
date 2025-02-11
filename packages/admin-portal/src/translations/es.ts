@@ -302,6 +302,11 @@ const spanishTranslation: TranslationType = {
                     alertSecondsLabel:
                         "tiempo en segundos antes de la expiración para mostrar la alerta de cierre de sesión",
                 },
+                voterSigningPolicy: {
+                    "policyLabel": "Política de Firma de Votantes",
+                    "no-signature": "Sin firma",
+                    "with-signature": "Con firma",
+                },
                 enrollment: {
                     policyLabel: "Inscripción",
                     options: {
@@ -440,6 +445,8 @@ const spanishTranslation: TranslationType = {
                 fileUploadError: "Error subiendo el fichero",
                 importVotersSuccess: "Importación de Votantes lanzada en segundo plano con éxito.",
                 importVotersError: "Error Importando Votantes.",
+                importElectionEventSuccess: "Election event imported Successfully",
+                importElectionEventError: "Error importing election event",
                 shaDialog: {
                     ok: "Sí, Importar Sin Verificación de Integridad",
                     cancel: "Volver",
@@ -1087,6 +1094,7 @@ const spanishTranslation: TranslationType = {
             election: "Importar una Elección",
             contest: "Importar un Concurso",
             candidate: "Importar un Candidato",
+            ImportHashMismatch: "Hashes don't match. Integrity check failure.",
         },
         sideMenu: {
             electionEvents: "Procesos Electorales",
@@ -1279,6 +1287,7 @@ const spanishTranslation: TranslationType = {
                     description:
                         "Estás a punto de Crear una Ceremonia de Claves. Esta acción notificará a las Autoridades para participar en la creación y distribución de las Claves del Evento Electoral.",
                 },
+                filterTrustees: "Filtrar Autoridades",
             },
             ceremonyStep: {
                 cancel: "Cancelar Ceremonia de Claves",
@@ -1780,6 +1789,7 @@ const spanishTranslation: TranslationType = {
                 alias: "Alias de la Plantilla",
                 type: "Tipo",
                 communicationMethod: "Método",
+                reportOptions: "Opciones de Informe",
             },
             type: {
                 CREDENTIALS: "Credenciales",
@@ -1914,6 +1924,7 @@ const spanishTranslation: TranslationType = {
                 approveSuccess: "Votante aprobado",
                 rejectError: "Error al rechazar al votante",
                 rejectSuccess: "Votante rechazado",
+                VoterApprovedAlready: "El votante ya está aprobado.",
             },
             export: {
                 success: "La exportación de aplicaciones se completó con éxito",

@@ -14,7 +14,7 @@ import {SimpleForm, useNotify} from "react-admin"
 
 interface ImportScreenProps {
     doImport: (documentId: string, sha256: string, password?: string) => Promise<void>
-    uploadCallback?: (documentId: string, password?: string) => Promise<void>
+    uploadCallback?: (documentId: string, password?: string, shaField?: string) => Promise<void>
     doCancel: () => void
     errors: string | null
     disableImport?: boolean
@@ -90,7 +90,8 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                 await uploadFile(data.get_upload_url.url, theFile)
                 setDocumentId(data.get_upload_url.document_id)
                 if (uploadCallback) {
-                    await uploadCallback?.(data.get_upload_url.document_id, password)
+                    console.log("uploadCallback call")
+                    await uploadCallback?.(data.get_upload_url.document_id, password, shaField)
                 }
                 notify(t("electionEventScreen.import.fileUploadSuccess"), {type: "success"})
             } catch (_error) {

@@ -302,6 +302,11 @@ const frenchTranslation: TranslationType = {
                     alertSecondsLabel:
                         "temps en secondes avant expiration pour afficher l'alerte de déconnexion",
                 },
+                voterSigningPolicy: {
+                    "policyLabel": "Politique de Signature des Électeurs",
+                    "no-signature": "Sans signature",
+                    "with-signature": "Avec signature",
+                },
                 enrollment: {
                     policyLabel: "Inscription",
                     options: {
@@ -442,6 +447,8 @@ const frenchTranslation: TranslationType = {
                 importVotersSuccess:
                     "Importation des Électeurs lancée en arrière-plan avec succès.",
                 importVotersError: "Erreur lors de l'Importation des Électeurs.",
+                importElectionEventSuccess: "Election event imported Successfully",
+                importElectionEventError: "Error importing election event",
                 shaDialog: {
                     ok: "Oui, Importer Sans Vérification de l'Intégrité",
                     cancel: "Retour",
@@ -1094,6 +1101,7 @@ const frenchTranslation: TranslationType = {
             election: "Importer une Élection",
             contest: "Importer un Concours",
             candidate: "Importer un Candidat",
+            ImportHashMismatch: "Hashes don't match. Integrity check failure.",
         },
         sideMenu: {
             electionEvents: "Processus Électoraux",
@@ -1290,6 +1298,7 @@ const frenchTranslation: TranslationType = {
                     description:
                         "Vous êtes sur le point de Créer une Cérémonie de Clés. Cette action notifiera aux Autorités de participer à la création et distribution des Clés de l'Événement Électoral.",
                 },
+                filterTrustees: "Filtre des Autorités",
             },
             ceremonyStep: {
                 cancel: "Annuler la Cérémonie de Clés",
@@ -1788,6 +1797,7 @@ const frenchTranslation: TranslationType = {
                 smsMessage: "Message SMS",
                 document: "Document",
                 pdfOptions: "Options PDF",
+                reportOptions: "Options de Rapport",
                 name: "Nom du Modèle",
                 alias: "Alias du Modèle",
                 type: "Type",
@@ -1925,6 +1935,7 @@ const frenchTranslation: TranslationType = {
                 approveSuccess: "Électeur approuvé",
                 rejectError: "Erreur lors du rejet de l'électeur",
                 rejectSuccess: "Électeur rejeté",
+                VoterApprovedAlready: "L'électeur est déjà approuvé.",
             },
             export: {
                 success: "L'exportation des applications a été réalisée avec succès",

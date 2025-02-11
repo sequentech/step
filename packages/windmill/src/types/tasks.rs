@@ -22,6 +22,7 @@ pub enum ETasksExecution {
     GENERATE_TEMPLATE,
     GENERATE_TRANSMISSION_REPORT,
     EXPORT_APPLICATION,
+    IMPORT_APPLICATION,
     EXPORT_TRUSTEES,
 }
 
@@ -44,6 +45,7 @@ impl ETasksExecution {
             ETasksExecution::GENERATE_TEMPLATE => "Generate Template",
             ETasksExecution::GENERATE_TRANSMISSION_REPORT => "Generate Transmission Report",
             ETasksExecution::EXPORT_APPLICATION => "Export Application",
+            ETasksExecution::IMPORT_APPLICATION => "Import Application",
             ETasksExecution::EXPORT_TRUSTEES => "Export Trustees",
         }
     }

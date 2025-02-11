@@ -6,7 +6,6 @@ pub mod acm_json;
 pub mod acm_transaction;
 pub mod aes_256_cbc_encrypt;
 pub mod create_transmission_package_service;
-pub mod ecies_encrypt;
 pub mod eml_generator;
 pub mod eml_types;
 pub mod logs;

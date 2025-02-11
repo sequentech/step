@@ -3,8 +3,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::temp_path::{generate_temp_file, get_public_assets_path_env_var};
-use crate::util::aws::{get_fetch_expiration_secs, get_s3_aws_config, get_upload_expiration_secs};
+use crate::signatures::temp_path::{
+    generate_temp_file, get_public_assets_path_env_var,
+};
+use crate::util::aws::{
+    get_fetch_expiration_secs, get_s3_aws_config, get_upload_expiration_secs,
+};
 
 use anyhow::{anyhow, Context, Result};
 use aws_sdk_s3 as s3;
@@ -21,8 +25,8 @@ use tracing::{info, instrument};
 
 #[instrument(err, skip_all)]
 pub fn get_private_bucket() -> Result<String> {
-    let s3_bucket =
-        env::var("AWS_S3_BUCKET").map_err(|err| anyhow!("AWS_S3_BUCKET must be set: {err}"))?;
+    let s3_bucket = env::var("AWS_S3_BUCKET")
+        .map_err(|err| anyhow!("AWS_S3_BUCKET must be set: {err}"))?;
     Ok(s3_bucket)
 }
 
@@ -56,13 +60,19 @@ async fn create_bucket_if_not_exists(
             .create_bucket()
             .create_bucket_configuration(
                 s3::types::CreateBucketConfiguration::builder()
-                    .location_constraint(s3::types::BucketLocationConstraint::from(region.as_str()))
+                    .location_constraint(
+                        s3::types::BucketLocationConstraint::from(
+                            region.as_str(),
+                        ),
+                    )
                     .build(),
             )
             .bucket(bucket_name)
             .send()
             .await
-            .with_context(|| format!("Error creating bucket with name={bucket_name}"))?;
+            .with_context(|| {
+                format!("Error creating bucket with name={bucket_name}")
+            })?;
         println!("Bucket {} created", bucket_name);
     }
     Ok(())
@@ -91,17 +101,25 @@ pub fn get_document_key(
 }
 
 #[instrument(skip_all)]
-pub fn get_public_document_key(tenant_id: &str, document_id: &str, name: &str) -> String {
+pub fn get_public_document_key(
+    tenant_id: &str,
+    document_id: &str,
+    name: &str,
+) -> String {
     format!("tenant-{}/document-{}/{}", tenant_id, document_id, name)
 }
 
 #[instrument(err)]
-pub async fn get_document_url(key: String, s3_bucket: String) -> Result<String> {
+pub async fn get_document_url(
+    key: String,
+    s3_bucket: String,
+) -> Result<String> {
     let config = get_s3_aws_config(/* private = */ false).await?;
     let client = get_s3_client(config).await?;
 
-    let presigning_config =
-        PresigningConfig::expires_in(Duration::from_secs(get_fetch_expiration_secs()?))?;
+    let presigning_config = PresigningConfig::expires_in(Duration::from_secs(
+        get_fetch_expiration_secs()?,
+    ))?;
 
     let presigned_request = client
         .get_object()
@@ -114,7 +132,11 @@ pub async fn get_document_url(key: String, s3_bucket: String) -> Result<String> 
 }
 
 #[instrument(err, ret)]
-pub async fn get_upload_url(key: String, is_public: bool, is_local: bool) -> Result<String> {
+pub async fn get_upload_url(
+    key: String,
+    is_public: bool,
+    is_local: bool,
+) -> Result<String> {
     let s3_bucket = match is_public {
         true => get_public_bucket()?,
         false => get_private_bucket()?,
@@ -124,8 +146,9 @@ pub async fn get_upload_url(key: String, is_public: bool, is_local: bool) -> Res
     let config = get_s3_aws_config(/* private = */ is_local).await?;
     let client = get_s3_client(config.clone()).await?;
 
-    let presigning_config =
-        PresigningConfig::expires_in(Duration::from_secs(get_upload_expiration_secs()?))?;
+    let presigning_config = PresigningConfig::expires_in(Duration::from_secs(
+        get_upload_expiration_secs()?,
+    ))?;
 
     let presigned_request = client
         .put_object()
@@ -154,11 +177,13 @@ pub async fn get_object_into_temp_file(
         .key(key)
         .send()
         .await
-        .map_err(|err| anyhow!("Error getting the object from S3: {:?}", err.source()))?;
+        .map_err(|err| {
+            anyhow!("Error getting the object from S3: {:?}", err.source())
+        })?;
 
     // Stream the data into a temporary file
-    let mut temp_file =
-        generate_temp_file(prefix, suffix).with_context(|| "Error creating temp file")?;
+    let mut temp_file = generate_temp_file(prefix, suffix)
+        .with_context(|| "Error creating temp file")?;
     let mut stream = response.body.into_async_read();
     let mut buffer = [0u8; 1024]; // Adjust buffer size as needed
 
@@ -184,9 +209,9 @@ pub async fn upload_file_to_s3(
     file_path: String,
     cache_control: Option<String>,
 ) -> Result<()> {
-    let body = ByteStream::from_path(&file_path)
-        .await
-        .with_context(|| anyhow!("Error creating bytestream from file path={file_path}"))?;
+    let body = ByteStream::from_path(&file_path).await.with_context(|| {
+        anyhow!("Error creating bytestream from file path={file_path}")
+    })?;
     let config = get_s3_aws_config(!is_public)
         .await
         .with_context(|| "Error getting s3 aws config")?;
@@ -213,23 +238,24 @@ pub async fn upload_file_to_s3(
 }
 
 pub fn get_minio_url() -> Result<String> {
-    let minio_private_uri =
-        env::var("AWS_S3_PRIVATE_URI").map_err(|err| anyhow!("AWS_S3_PRIVATE_URI must be set"))?;
+    let minio_private_uri = env::var("AWS_S3_PRIVATE_URI")
+        .map_err(|err| anyhow!("AWS_S3_PRIVATE_URI must be set"))?;
     let bucket = get_public_bucket()?;
 
     Ok(format!("{}/{}", minio_private_uri, bucket))
 }
 
 pub fn get_minio_public_url() -> Result<String> {
-    let minio_public_uri =
-        env::var("AWS_S3_PUBLIC_URI").map_err(|err| anyhow!("AWS_S3_PUBLIC_URI must be set"))?;
+    let minio_public_uri = env::var("AWS_S3_PUBLIC_URI")
+        .map_err(|err| anyhow!("AWS_S3_PUBLIC_URI must be set"))?;
     let bucket = get_public_bucket()?;
 
     Ok(format!("{}/{}", minio_public_uri, bucket))
 }
 
 pub fn get_public_asset_file_path(filename: &str) -> Result<String> {
-    let minio_endpoint_base = get_minio_url().with_context(|| "Error fetching get_minio_url")?;
+    let minio_endpoint_base =
+        get_minio_url().with_context(|| "Error fetching get_minio_url")?;
     let public_asset_path = get_public_assets_path_env_var()?;
 
     Ok(format!(
@@ -303,7 +329,10 @@ pub async fn delete_files_from_s3(
 }
 
 #[instrument(err)]
-pub async fn get_files_from_s3(s3_bucket: String, prefix: String) -> Result<Vec<PathBuf>> {
+pub async fn get_files_from_s3(
+    s3_bucket: String,
+    prefix: String,
+) -> Result<Vec<PathBuf>> {
     let config = get_s3_aws_config(true)
         .await
         .with_context(|| "Error getting s3 aws config")?;

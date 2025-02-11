@@ -3,17 +3,20 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::database::PgConfig;
+use crate::postgres::election_event::is_datafix_election_event;
+use crate::services::electoral_log::ElectoralLog;
 use anyhow::{anyhow, Context, Result};
 use chrono::NaiveDate;
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Transaction;
 use sequent_core::types::keycloak::{User, VotesInfo};
+use sequent_core::types::keycloak::{ATTR_RESET_VALUE, VOTED_CHANNEL};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 use tokio_postgres::row::Row;
-use tracing::instrument;
+use tracing::{info, instrument};
 use uuid::Uuid;
-
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct CastVote {
     pub id: String,
@@ -23,10 +26,10 @@ pub struct CastVote {
     pub created_at: Option<DateTime<Utc>>,
     pub last_updated_at: Option<DateTime<Utc>>,
     pub content: Option<String>,
-    pub cast_ballot_signature: Option<Vec<u8>>,
     pub voter_id_string: Option<String>,
     pub election_event_id: String,
     pub ballot_id: Option<String>,
+    pub cast_ballot_signature: Option<Vec<u8>>,
 }
 
 impl TryFrom<Row> for CastVote {
@@ -53,11 +56,14 @@ impl TryFrom<Row> for CastVote {
 }
 
 #[instrument(err)]
+// TODO Make it possible to use pagination
 pub async fn find_area_ballots(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
     area_id: &str,
+    limit: i64,
+    offset: i64,
 ) -> Result<Vec<CastVote>> {
     let tenant_uuid: uuid::Uuid = Uuid::parse_str(tenant_id)
         .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
@@ -86,13 +92,20 @@ pub async fn find_area_ballots(
                         election_event_id = $2 AND
                         area_id = $3
                     ORDER BY election_id, voter_id_string, created_at DESC
+                    LIMIT $4 OFFSET $5
                 "#,
         )
         .await?;
     let rows: Vec<Row> = hasura_transaction
         .query(
             &areas_statement,
-            &[&tenant_uuid, &election_event_uuid, &area_uuid],
+            &[
+                &tenant_uuid,
+                &election_event_uuid,
+                &area_uuid,
+                &limit,
+                &offset,
+            ],
         )
         .await
         .map_err(|err| anyhow!("Error running the areas query: {}", err))?;
@@ -291,6 +304,11 @@ pub async fn get_users_with_vote_info(
         None => None,
     };
 
+    let is_datafix_event =
+        is_datafix_election_event(hasura_transaction, tenant_id, election_event_id)
+            .await
+            .map_err(|e| anyhow!(" Error checking if is datafix election event: {:?}", e))?;
+
     // Prepare the list of user IDs for the query
     let user_ids: Vec<String> = users
         .iter()
@@ -382,10 +400,31 @@ pub async fn get_users_with_vote_info(
             .clone()
             .ok_or_else(|| anyhow!("Encountered a user without an ID"))?;
 
-        let votes_info = user_votes_map
+        let mut votes_info = user_votes_map
             .get(&user_id)
             .cloned()
             .ok_or_else(|| anyhow!("Missing vote info for user ID {}", user_id))?;
+
+        if is_datafix_event {
+            // Checking the attribute voted-channel for each user.
+            let attributes = user.attributes.clone().unwrap_or_default();
+            // Set the num_votes ot 1 if the voter has voted through a Channel to make it appear in the Voter list as "Voted"
+            match attributes.iter().find(|tupple| tupple.0.eq(VOTED_CHANNEL)) {
+                Some((_, v)) => {
+                    match v.last() {
+                        Some(channel) if !channel.eq(ATTR_RESET_VALUE) && !channel.is_empty() => {
+                            votes_info = vec![VotesInfo {
+                                election_id: "".to_string(), // Not used for datafix
+                                num_votes: 1,
+                                last_voted_at: "".to_string(), // Not used for datafix
+                            }];
+                        }
+                        _ => {}
+                    };
+                }
+                None => {}
+            }
+        }
 
         match filter_by_has_voted {
             Some(has_voted) => {
@@ -681,4 +720,31 @@ pub async fn count_cast_votes_election_event(
     let count = rows.try_get::<_, i64>("voter_count")?;
 
     Ok(count)
+}
+
+/// Returns the private signing key for the given voter.
+///
+/// The private key is generated and a log post
+/// is published with the corresponding public key
+/// (with StatementType::AdminPublicKey).
+///
+/// There is a possibility that the private key is created
+/// but the notification fails. This is logged in
+/// electorallog::post_voter_pk
+#[instrument(err)]
+pub async fn get_voter_signing_key(
+    elog_database: &str,
+    tenant_id: &str,
+    event_id: &str,
+    user_id: &str,
+) -> Result<StrandSignatureSk> {
+    info!("Generating private signing key for voter {}", user_id);
+    let sk = StrandSignatureSk::gen()?;
+    let sk_string = sk.to_der_b64_string()?;
+    let pk = StrandSignaturePk::from_sk(&sk)?;
+    let pk = pk.to_der_b64_string()?;
+
+    ElectoralLog::post_voter_pk(elog_database, tenant_id, event_id, user_id, &pk).await?;
+
+    Ok(sk)
 }

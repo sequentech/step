@@ -1,5 +1,7 @@
 type Mutation {
-    ApplicationChangeStatus(body: ApplicationChangeStatusBody!): String
+    ApplicationChangeStatus(
+        body: ApplicationChangeStatusBody!
+    ): ApplicationChangeStatusOutput
 }
 
 type Mutation {
@@ -166,7 +168,7 @@ type Mutation {
     export_election_event(
         election_event_id: String
         export_configurations: ExportOptions
-    ): documentTaskOutput
+    ): ExportElectionEventOutput
 }
 
 type Mutation {
@@ -347,17 +349,23 @@ type Mutation {
         election_event_id: String
         election_id: String
         document_id: String!
+        sha256: String
     ): applicationOutput
 }
 
 type Mutation {
-    import_areas(election_event_id: String!, document_id: String!): OptionalId
+    import_areas(
+        election_event_id: String!
+        document_id: String!
+        sha256: String
+    ): OptionalId
 }
 
 type Mutation {
     import_candidates(
         election_event_id: String!
         document_id: String!
+        sha256: String
     ): documentTaskOutput
 }
 
@@ -367,11 +375,16 @@ type Mutation {
         document_id: String!
         password: String
         check_only: Boolean
+        sha256: String
     ): OptionalImportEvent
 }
 
 type Mutation {
-    import_templates(tenant_id: String!, document_id: String!): templateOutput
+    import_templates(
+        tenant_id: String!
+        document_id: String!
+        sha256: String
+    ): templateOutput
 }
 
 type Mutation {
@@ -379,6 +392,7 @@ type Mutation {
         tenant_id: String!
         document_id: String!
         import_configurations: ImportOptions
+        sha256: String
     ): ImportTenantOutput
 }
 
@@ -387,6 +401,7 @@ type Mutation {
         tenant_id: String!
         election_event_id: String
         document_id: String!
+        sha256: String
     ): taskOutput
 }
 
@@ -835,7 +850,8 @@ input GetTopCastVotesByIpInput {
 }
 
 input ExportOptions {
-    password: String!
+    password: String
+    is_encrypted: Boolean
     include_voters: Boolean
     activity_logs: Boolean
     bulletin_board: Boolean
@@ -1452,8 +1468,10 @@ type ElectionEventStatsMonitoringOutput {
     total_eligible_voters: Int
     total_enrolled_voters: Int
     total_elections: Int
+    total_started_votes: Int
+    total_not_started_votes: Int
     total_open_votes: Int
-    total_not_opened_votes: Int
+    total_not_open_votes: Int
     total_closed_votes: Int
     total_not_closed_votes: Int
     total_start_counting_votes: Int
@@ -1477,6 +1495,7 @@ type ExportApplicationOutput {
 type applicationOutput {
     error_msg: String
     document_id: String
+    task_execution: tasks_execution_type
 }
 
 type ExportTrusteesOutput {
@@ -1496,7 +1515,18 @@ type ImportTenantOutput {
     task_execution: tasks_execution_type
 }
 
+type ExportElectionEventOutput {
+    password: String
+    task_execution: tasks_execution_type!
+    document_id: String!
+}
+
 type GenerateTemplateOutput {
     document_id: String!
     task_execution: tasks_execution_type
+}
+
+type ApplicationChangeStatusOutput {
+    message: String
+    error: String
 }

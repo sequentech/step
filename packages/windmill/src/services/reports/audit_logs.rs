@@ -13,21 +13,27 @@ use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::cast_votes::count_ballots_by_election;
 use crate::services::database::PgConfig;
+use crate::services::election_dates::get_election_dates;
 use crate::services::electoral_log::{
     list_electoral_log, ElectoralLogRow, GetElectoralLogBody, IMMUDB_ROWS_LIMIT,
 };
 
+use crate::postgres::reports::ReportType;
+use crate::services::reports::report_variables::get_report_hash;
 use crate::services::temp_path::*;
 use crate::services::users::{list_users, ListUsersFilter};
 use crate::types::resources::{Aggregate, DataList, TotalAggregate};
-use crate::{postgres::reports::ReportType, services::s3::get_minio_url};
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use chrono::{DateTime, Local};
 use deadpool_postgres::Transaction;
+use sequent_core::ballot::StringifiedPeriodDates;
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
-use sequent_core::types::{hasura::core::Election, scheduled_event::generate_voting_period_dates};
+use sequent_core::services::pdf;
+use sequent_core::services::s3::get_minio_url;
+use sequent_core::signatures::temp_path::*;
+use sequent_core::types::hasura::core::Election;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use tracing::{info, instrument, warn};
@@ -35,10 +41,8 @@ use tracing::{info, instrument, warn};
 /// Struct for Audit Logs User Data
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
-    pub election_event_date: String,
     pub election_event_title: String,
-    pub voting_period_start: String,
-    pub voting_period_end: String,
+    pub election_dates: StringifiedPeriodDates,
     pub geographical_region: String,
     pub post: String,
     pub voting_center: String,
@@ -166,30 +170,20 @@ impl TemplateRenderer for AuditLogsTemplate {
             .await
             .map_err(|err| anyhow!("Error extract election event annotations {err}"))?;
 
-        // Fetch election event data
-        let start_election_event = find_scheduled_event_by_election_event_id(
+        // Fetch election's voting periods
+        let scheduled_events = find_scheduled_event_by_election_event_id(
             &hasura_transaction,
             &self.ids.tenant_id,
             &self.ids.election_event_id,
         )
         .await
-        .map_err(|e| anyhow!("Error getting scheduled event by election event_id: {e:?}"))?;
+        .map_err(|e| {
+            anyhow::anyhow!("Error getting scheduled events by election event_id: {}", e)
+        })?;
 
-        // Fetch election event's voting periods
-        let voting_period_dates = generate_voting_period_dates(
-            start_election_event,
-            &self.ids.tenant_id,
-            &self.ids.election_event_id,
-            None,
-        )
-        .map_err(|e| anyhow!(format!("Error generating voting period dates {e:?}")))?;
+        let election_dates = get_election_dates(&election, scheduled_events)
+            .map_err(|e| anyhow::anyhow!("Error getting election dates {e}"))?;
 
-        // extract start date from voting period
-        let voting_period_start_date = voting_period_dates.start_date.unwrap_or_default();
-        // extract end date from voting period
-        let voting_period_end_date = voting_period_dates.end_date.unwrap_or_default();
-
-        let election_event_date: &String = &voting_period_start_date;
         let datetime_printed: String = get_date_and_time();
 
         // To filter log entries by election we´ll prepare a list with the user Ids that belong to this election.
@@ -389,7 +383,9 @@ impl TemplateRenderer for AuditLogsTemplate {
         let voting_center = election_general_data.voting_center.clone();
         let precinct_code = election_general_data.precinct_code.clone();
 
-        let report_hash = "-".to_string();
+        let report_hash = get_report_hash(&ReportType::AUDIT_LOGS.to_string())
+            .await
+            .unwrap_or("-".to_string());
         let results_hash = get_results_hash(
             &hasura_transaction,
             &self.ids.tenant_id,
@@ -438,10 +434,8 @@ impl TemplateRenderer for AuditLogsTemplate {
         .map_err(|err| anyhow!("Error at count_ballots_by_election: {err:?}"))?;
 
         Ok(UserData {
-            election_event_date: election_event_date.to_string(),
             election_event_title: election_event.name.clone(),
-            voting_period_start: voting_period_start_date,
-            voting_period_end: voting_period_end_date,
+            election_dates,
             geographical_region,
             post,
             voting_center,
@@ -469,16 +463,25 @@ impl TemplateRenderer for AuditLogsTemplate {
         &self,
         rendered_user_template: String,
     ) -> Result<Self::SystemData> {
-        let public_asset_path = get_public_assets_path_env_var()?;
-        let minio_endpoint_base =
-            get_minio_url().with_context(|| "Error getting minio endpoint")?;
+        if pdf::doc_renderer_backend() == pdf::DocRendererBackend::InPlace {
+            let public_asset_path = get_public_assets_path_env_var()?;
+            let minio_endpoint_base =
+                get_minio_url().with_context(|| "Error getting minio endpoint")?;
 
-        Ok(SystemData {
-            rendered_user_template,
-            file_qrcode_lib: format!(
-                "{}/{}/{}",
-                minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_QRCODE_LIB
-            ),
-        })
+            Ok(SystemData {
+                rendered_user_template,
+                file_qrcode_lib: format!(
+                    "{}/{}/{}",
+                    minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_QRCODE_LIB
+                ),
+            })
+        } else {
+            //If we are rendering with a lambda, the QRCode lib is
+            //already included in the lambda container image.
+            Ok(SystemData {
+                rendered_user_template,
+                file_qrcode_lib: "/assets/qrcode.min.js".to_string(),
+            })
+        }
     }
 }
