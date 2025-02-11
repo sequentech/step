@@ -27,6 +27,7 @@ use sequent_core::types::ceremonies::{
 };
 use sequent_core::types::hasura::core::KeysCeremony;
 use serde_json::Value;
+use std::collections::HashSet;
 use tracing::instrument;
 use tracing::{event, Level};
 use uuid::Uuid;
@@ -402,7 +403,7 @@ pub async fn create_keys_ceremony(
     })?;
     let is_default = election_id.is_none();
 
-    set_election_keys_ceremony(
+    let elections = set_election_keys_ceremony(
         &transaction,
         &tenant_id,
         &election_event_id,
@@ -411,17 +412,13 @@ pub async fn create_keys_ceremony(
     )
     .await?;
 
-    // get permission labels
-    let permission_labels = get_elections_by_keys_ceremony_id(
-        transaction,
-        &tenant_id.clone(),
-        &election_event_id.clone(),
-        &keys_ceremony_id.clone(),
-    )
-    .await?
-    .into_iter()
-    .filter_map(|election| election.permission_label)
-    .collect::<Vec<String>>();
+    // Get permission labels, removing duplicates
+    let permission_labels: Vec<String> = elections
+        .into_iter()
+        .filter_map(|election| election.permission_label)
+        .collect::<HashSet<_>>() // Remove duplicates
+        .into_iter()
+        .collect(); // Convert back to Vec
 
     // insert keys-ceremony into the database using postgres
     keys_ceremony::insert_keys_ceremony(
