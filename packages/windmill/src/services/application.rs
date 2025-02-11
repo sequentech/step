@@ -125,7 +125,7 @@ pub async fn verify_application(
     };
 
     // Add a permission label only if the embassy matches the voter in db
-    let (permission_label, voter_area_id) = if let Some(true) = result
+    let (permission_label, area_id) = if let Some(true) = result
         .fields_match
         .as_ref()
         .and_then(|value| value.get("embassy"))
@@ -161,7 +161,7 @@ pub async fn verify_application(
         hasura_transaction,
         tenant_id,
         election_event_id,
-        &voter_area_id,
+        &area_id,
         applicant_id,
         &final_applicant_data,
         labels,
