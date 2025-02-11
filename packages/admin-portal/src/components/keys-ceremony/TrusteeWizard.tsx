@@ -23,12 +23,11 @@ export const checkPermissionLabel = (
     ceremony: Sequent_Backend_Keys_Ceremony,
     trusteePermissionLabels: string[]
 ): boolean => {
-    // Ensure ceremony has permission labels to check against
+    // Ensure the ceremony has permission labels to check against and that the trustee has permissions
     if (!ceremony.permission_label || ceremony.permission_label.length === 0) {
         return false
     }
-    // Check if at least one trustee permission label exists in the ceremony's permission labels
-    return ceremony.permission_label.some((label) => trusteePermissionLabels.includes(label))
+    return ceremony.permission_label.every((label) => trusteePermissionLabels.includes(label))
 }
 
 export const isTrusteeParticipating = (
