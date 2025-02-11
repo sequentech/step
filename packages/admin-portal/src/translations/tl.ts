@@ -1900,7 +1900,7 @@ const tagalogTranslation: TranslationType = {
                 verificationType: "Uri ng Pag-verify",
                 createdAt: "Nilikha Noong",
                 updatedAt: "Na-update Noong",
-                approved_by: "Naaaprubahan Noong",
+                verified_by: "Napatunayan Noong",
             },
             approvalRequest: "Kahilingan para sa Pag-apruba",
             title: "Mga Botante",
@@ -1917,10 +1917,10 @@ const tagalogTranslation: TranslationType = {
                 messageRequired: "Kinakailangan ang mensahe ng pagtanggi para sa opsyon na 'Iba'",
                 reasons: {
                     "undefined": "-",
-                    "insufficient-information": "Kulang na Datos",
-                    "no-matching-voter": "Walang Tumutugma na Botante",
-                    "voter-already-approved": "Naaprubahan Na",
-                    "other": "Iba Pa",
+                    "INSUFFICIENT_INFORMATION": "Kulang na Datos",
+                    "NO_VOTER": "Walang Tumutugma na Botante",
+                    "ALREADY_APPROVED": "Naaprubahan Na",
+                    "OTHER": "Iba Pa",
                 },
             },
             notifications: {
