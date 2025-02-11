@@ -22,11 +22,13 @@ use sequent_core::services::pdf::{PrintToPdfOptions, TransferMode};
 /// that invoked the lambda, finally returning the PDF to the user.
 #[derive(Debug, Serialize, Deserialize)]
 pub enum Input {
+    #[serde(rename = "raw")]
     Raw {
         html: String,
         #[serde(default)]
         pdf_options: Option<PrintToPdfOptions>,
     },
+    #[serde(rename = "s3")]
     S3 {
         // The bucket name.
         bucket: String,
@@ -99,5 +101,10 @@ impl Clone for Input {
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Output {
+    // If the Input was provided via the S3 mechanism, the pdf_base64
+    // will not be present on the HTTP response, but a success HTTP
+    // return code will be provided on success, and the PDF can be
+    // found on the `output_path` provided in the lambda input at the
+    // provided bucket.
     pub pdf_base64: Option<String>,
 }
