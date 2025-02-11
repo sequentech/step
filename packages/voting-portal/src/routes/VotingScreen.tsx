@@ -82,6 +82,7 @@ interface ActionButtonProps {
     handlePrev: () => void
     handleClearCustom?: () => void
     pageIndex?: number
+    disableNext?: boolean
 }
 
 const ActionButtons: React.FC<ActionButtonProps> = ({
@@ -89,6 +90,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     handlePrev,
     handleClearCustom,
     pageIndex,
+    disableNext,
 }) => {
     const {t} = useTranslation()
     const backLink = useRootBackLink()
@@ -148,7 +150,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                     className="next-button"
                     sx={{width: {xs: "100%", sm: "200px"}}}
                     onClick={() => handleNext()}
-                    // disabled={disableNext}
+                    disabled={disableNext}
                 >
                     <Box>{t("votingScreen.reviewButton")}</Box>
                     <Icon icon={faAngleRight} size="sm" />
@@ -164,6 +166,7 @@ interface ContestPaginationProps {
     onSetDisableNext: (contest: any) => void
     onSetDecodedContests: (id: string) => (value: IDecodedVoteContest) => void
     encryptAndReview: () => void
+    disableNextButton: () => boolean
 }
 
 const ContestPagination: React.FC<ContestPaginationProps> = ({
@@ -172,6 +175,7 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
     onSetDisableNext,
     onSetDecodedContests,
     encryptAndReview,
+    disableNextButton,
 }) => {
     const dispatch = useAppDispatch()
 
@@ -219,7 +223,7 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
                             ballotStyle={ballotStyle}
                             question={contest}
                             isReview={false}
-                            setDisableNext={() => onSetDisableNext(contest)}
+                            setDisableNext={() => onSetDisableNext(contest.id)}
                             setDecodedContests={onSetDecodedContests(contest.id)}
                         />
                     </div>
@@ -229,6 +233,7 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
                 handlePrev={handlePrev}
                 handleClearCustom={handleClear}
                 pageIndex={pageIndex}
+                disableNext={disableNextButton() && contests.length !== 1}
             />
         </>
     )
@@ -419,6 +424,7 @@ const VotingScreen: React.FC = () => {
                 onSetDisableNext={onSetDisableNext}
                 onSetDecodedContests={onSetDecodedContests}
                 encryptAndReview={encryptAndReview}
+                disableNextButton={disableNextButton}
             />
 
             {disableNextButton() ? (
