@@ -4,7 +4,7 @@
 use crate::postgres::area::get_event_areas;
 use crate::postgres::election_event::{get_all_tenant_election_events, ElectionEventDatafix};
 use crate::services::consolidation::eml_generator::ValidateAnnotations;
-use crate::services::users::{get_users_by_username, lookup_users, FilterOption, ListUsersFilter};
+use crate::services::users::{get_users_by_username, list_users, FilterOption, ListUsersFilter};
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Transaction;
 use rand::{distributions::Uniform, Rng};
@@ -583,8 +583,8 @@ pub async fn replace_voter_pin(
     };
 
     // If a voter is disabled, do not generate a PIN
-    let user_id = match lookup_users(hasura_transaction, keycloak_transaction, filter).await {
-        Ok(users) if users.len() == 1 => {
+    let user_id = match list_users(hasura_transaction, keycloak_transaction, filter).await {
+        Ok((users, count)) if count == 1 => {
             let user = users
                 .last()
                 .map(|val_ref| val_ref.to_owned())

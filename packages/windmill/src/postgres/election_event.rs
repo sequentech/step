@@ -140,6 +140,7 @@ pub async fn get_election_event_by_id(
         .ok_or(anyhow!("Election event {election_event_id} not found"))
 }
 
+/// Returns all the Election events as ElectionEventDatafix
 #[instrument(err, skip_all)]
 pub async fn get_all_tenant_election_events(
     hasura_transaction: &Transaction<'_>,
