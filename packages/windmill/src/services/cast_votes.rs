@@ -56,7 +56,6 @@ impl TryFrom<Row> for CastVote {
 }
 
 #[instrument(err)]
-// TODO Make it possible to use pagination
 pub async fn find_area_ballots(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
