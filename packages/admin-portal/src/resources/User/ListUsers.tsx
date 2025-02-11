@@ -842,6 +842,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     tenantId,
                     documentId,
                     electionEventId: electionEventId || undefined,
+                    sha256,
                 },
             })
             const task_id = data?.import_users?.task_execution.id
