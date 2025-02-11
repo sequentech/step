@@ -12,6 +12,8 @@ use rocket::serde::json::Json;
 use sequent_core::services::connection::UserLocation;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::VoterPermissions;
+use sequent_core::util::retry::retry_with_exponential_backoff;
+use std::time::Duration;
 use std::time::Instant;
 use tracing::{debug, error, info, instrument};
 use windmill::services::insert_cast_vote::{
@@ -52,17 +54,32 @@ pub async fn insert_cast_vote(
 
     info!("insert-cast-vote: starting");
 
-    let inserted_cast_vote = try_insert_cast_vote(
-        input,
-        &claims.hasura_claims.tenant_id,
-        &claims.hasura_claims.user_id,
-        &area_id,
-        &voting_channel,
-        &claims.auth_time,
-        &user_info.ip.map(|ip| ip.to_string()),
-        &user_info.country_code.map(|country_code| country_code.to_string()),
+    let insert_result = retry_with_exponential_backoff(
+        // The closure we want to call repeatedly
+        || async {
+            try_insert_cast_vote(
+                input.clone(),
+                &claims.hasura_claims.tenant_id,
+                &claims.hasura_claims.user_id,
+                &area_id,
+                &voting_channel,
+                &claims.auth_time,
+                &user_info.ip.clone().map(|ip| ip.to_string()),
+                &user_info
+                    .country_code
+                    .clone()
+                    .map(|country_code| country_code.to_string()),
+            )
+            .await
+        },
+        // Maximum number of retries:
+        5,
+        // Initial backoff:
+        Duration::from_millis(100),
     )
-    .await
+    .await;
+
+    let inserted_cast_vote = insert_result
     .map_err(|cast_vote_err| {
         let duration = start.elapsed();
         info!(

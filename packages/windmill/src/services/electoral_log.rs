@@ -75,20 +75,21 @@ impl ElectoralLog {
     /// We need to pass in the log database because the vault
     /// will post a public key message if it needs to generates
     /// a signing key.
-    #[instrument(err)]
+    #[instrument(skip(voter_signing_key), err)]
     pub async fn for_voter(
         elog_database: &str,
         tenant_id: &str,
         event_id: &str,
         user_id: &str,
+        voter_signing_key: &Option<StrandSignatureSk>,
     ) -> Result<Self> {
         let protocol_manager = get_protocol_manager::<RistrettoCtx>(elog_database).await?;
         let system_sk = protocol_manager.get_signing_key().clone();
 
-        let sk = vault::get_voter_signing_key(elog_database, tenant_id, event_id, user_id).await?;
+        let sk = voter_signing_key.clone().unwrap_or(system_sk.clone());
 
         Ok(ElectoralLog {
-            sd: SigningData::new(sk, "", system_sk),
+            sd: SigningData::new(sk, user_id, system_sk),
             elog_database: elog_database.to_string(),
         })
     }
@@ -217,6 +218,7 @@ impl ElectoralLog {
         voter_ip: String,
         voter_country: String,
         voter_id: String,
+        voter_username: Option<String>,
     ) -> Result<()> {
         let event = EventIdString(event_id);
         let election = ElectionIdString(election_id);
@@ -232,6 +234,7 @@ impl ElectoralLog {
             ip,
             country,
             Some(voter_id),
+            voter_username,
         )?;
 
         self.post(&message).await

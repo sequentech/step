@@ -3,12 +3,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::tenant::get_tenant_by_id;
-use crate::services::temp_path::write_into_named_temp_file;
 use crate::types::documents::EDocuments;
 use anyhow::Context;
 use anyhow::{anyhow, Result};
 use csv::Writer;
 use deadpool_postgres::{Client as DbClient, Transaction};
+use sequent_core::signatures::temp_path::write_into_named_temp_file;
 use sequent_core::types::hasura::core::Tenant;
 use tempfile::{NamedTempFile, TempPath};
 use tracing::{event, info, instrument, Level};
