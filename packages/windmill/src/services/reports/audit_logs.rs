@@ -30,6 +30,7 @@ use deadpool_postgres::Transaction;
 use sequent_core::ballot::StringifiedPeriodDates;
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
+use sequent_core::services::pdf;
 use sequent_core::services::s3::get_minio_url;
 use sequent_core::signatures::temp_path::*;
 use sequent_core::types::hasura::core::Election;
@@ -462,7 +463,7 @@ impl TemplateRenderer for AuditLogsTemplate {
         &self,
         rendered_user_template: String,
     ) -> Result<Self::SystemData> {
-        if std::env::var_os("DOC_RENDERER_BACKEND") == Some("inplace".into()) {
+        if pdf::doc_renderer_backend() == pdf::DocRendererBackend::InPlace {
             let public_asset_path = get_public_assets_path_env_var()?;
             let minio_endpoint_base =
                 get_minio_url().with_context(|| "Error getting minio endpoint")?;
