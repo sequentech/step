@@ -27,7 +27,11 @@ import {useTranslation} from "react-i18next"
 import {NewResourceContext} from "@/providers/NewResourceProvider"
 import {Sequent_Backend_Election_Extended} from "./ElectionDataForm"
 import {addDefaultTranslationsToElement} from "@/services/i18n"
-import {IElectionPresentation, ITenantSettings} from "@sequentech/ui-core"
+import {
+    IElectionPresentation,
+    ITenantSettings,
+    IElectionEventPresentation,
+} from "@sequentech/ui-core"
 import {useMutation} from "@apollo/client"
 import {CREATE_ELECTION} from "@/queries/CreateElection"
 import {CreateElectionMutation} from "@/gql/graphql"
@@ -74,6 +78,7 @@ export const CreateElection: React.FC = () => {
             enabled_language_codes: settings?.languages ?? ["en"],
             default_language_code: "en",
         }
+
         tenantLangConf.default_language_code = tenantLangConf.default_language_code ?? "en"
         let presentation: IElectionPresentation = {
             ...(data.presentation as IElectionPresentation),
@@ -87,13 +92,40 @@ export const CreateElection: React.FC = () => {
     }
 
     const onSubmit = async (input0: any) => {
-        let input = input0 as {name: string; description?: string}
+        let electionSubmit = input0 as {
+            name: string
+            description?: string
+            presentation: IElectionPresentation
+        }
+        let i18n = addDefaultTranslationsToElement(electionSubmit)
+        let tenantLangConf = (tenant?.settings as ITenantSettings | undefined)?.language_conf ?? {
+            enabled_language_codes: settings?.languages ?? ["en"],
+            default_language_code: "en",
+        }
+
+        tenantLangConf.default_language_code = tenantLangConf.default_language_code ?? "en"
+        // Set the lang conf to the same as the event, if not fallback to the tenant
+        let parentLangConf =
+            (electionEvent?.presentation as IElectionEventPresentation | undefined)
+                ?.language_conf ?? tenantLangConf
+        let presentation: IElectionPresentation = {
+            ...(input0.presentation as IElectionPresentation),
+            i18n,
+            language_conf: parentLangConf,
+        }
+
+        electionSubmit = {
+            ...electionSubmit,
+            presentation,
+        }
+
         try {
             const {data} = await createElection({
                 variables: {
                     electionEventId: electionEventId,
-                    name: input.name,
-                    description: input.description,
+                    name: electionSubmit.name,
+                    presentation: electionSubmit.presentation,
+                    description: electionSubmit.description,
                 },
             })
             let id = data?.create_election?.id

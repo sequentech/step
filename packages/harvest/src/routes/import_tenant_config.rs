@@ -22,6 +22,7 @@ pub struct ImportTenantConfigInput {
     tenant_id: String,
     document_id: String,
     import_configurations: ImportOptions,
+    sha256: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -72,6 +73,7 @@ pub async fn import_tenant_config_route(
             body.import_configurations,
             body.tenant_id.clone(),
             body.document_id.clone(),
+            body.sha256.clone(),
             task_execution.clone(),
         ))
         .await

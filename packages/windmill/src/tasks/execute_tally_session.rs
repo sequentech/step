@@ -5,12 +5,9 @@ use crate::hasura;
 use crate::hasura::election_event::get_election_event_helper;
 use crate::hasura::election_event::update_election_event_status;
 use crate::hasura::keys_ceremony::get_keys_ceremonies;
-use crate::hasura::results_event::insert_results_event;
 use crate::hasura::tally_session::set_tally_session_completed;
+use crate::hasura::tally_session_execution::get_last_tally_session_execution;
 use crate::hasura::tally_session_execution::get_last_tally_session_execution::ResponseData;
-use crate::hasura::tally_session_execution::{
-    get_last_tally_session_execution, insert_tally_session_execution,
-};
 use crate::postgres::area::get_event_areas;
 use crate::postgres::contest::export_contests;
 use crate::postgres::election::set_election_initialization_report_generated;
@@ -18,7 +15,9 @@ use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::keys_ceremony::get_keys_ceremony_by_id;
 use crate::postgres::reports::get_template_alias_for_report;
 use crate::postgres::reports::ReportType;
+use crate::postgres::results_event::insert_results_event;
 use crate::postgres::tally_session::get_tally_session_by_id;
+use crate::postgres::tally_session_execution::insert_tally_session_execution;
 use crate::postgres::tally_sheet::get_published_tally_sheets_by_event;
 use crate::postgres::template::get_template_by_alias;
 use crate::services::cast_votes::{count_cast_votes_election, ElectionCastVotes};
@@ -816,7 +815,7 @@ async fn map_plaintext_data(
     .with_context(|| "error listing existing keys ceremonies")?
     .sequent_backend_keys_ceremony;
 
-    if 0 == keys_ceremonies.len() {
+    if keys_ceremonies.is_empty() {
         event!(
             Level::INFO,
             "Election Event {} has no keys ceremony",
@@ -877,7 +876,7 @@ async fn map_plaintext_data(
     };
 
     // get board messages
-    let mut board_client = protocol_manager::get_b3_pgsql_client().await?;
+    let board_client = protocol_manager::get_b3_pgsql_client().await?;
     let board_messages = board_client.get_messages(&bulletin_board, -1).await?;
     event!(Level::INFO, "Num board_messages {}", board_messages.len());
 
@@ -899,7 +898,7 @@ async fn map_plaintext_data(
     )
     .await?;
 
-    if 0 != new_ballots_messages.len() {
+    if !new_ballots_messages.is_empty() {
         event!(
             Level::INFO,
             "Ballots messages inserted: {} skipping iteration",
@@ -963,7 +962,7 @@ async fn map_plaintext_data(
     let mut new_status = get_tally_ceremony_status(initial_status)?;
 
     let new_tally_progress = generate_tally_progress(&tally_session_data, &messages).await?;
-    let mut new_logs = generate_logs(&messages, next_timestamp.clone(), &batch_ids)?;
+    let mut new_logs = generate_logs(&messages, next_timestamp, &batch_ids)?;
 
     new_status.elections_status = new_tally_progress;
 
@@ -995,10 +994,10 @@ async fn map_plaintext_data(
     // we have all plaintexts
     let is_execution_completed = relevant_plaintexts.len() == batch_ids.len();
 
-    let areas = get_event_areas(&hasura_transaction, &tenant_id, &election_event_id).await?;
+    let areas = get_event_areas(hasura_transaction, &tenant_id, &election_event_id).await?;
 
     let tally_sheet_rows =
-        get_published_tally_sheets_by_event(&hasura_transaction, &tenant_id, &election_event_id)
+        get_published_tally_sheets_by_event(hasura_transaction, &tenant_id, &election_event_id)
             .await?;
 
     let contest_encryption_policy = tally_session_hasura
@@ -1024,8 +1023,8 @@ async fn map_plaintext_data(
 
     let cast_votes_count = count_cast_votes_election_with_census(
         auth_headers.clone(),
-        &hasura_transaction,
-        &keycloak_transaction,
+        hasura_transaction,
+        keycloak_transaction,
         &tenant_id,
         &election_event_id,
     )
@@ -1043,19 +1042,15 @@ async fn map_plaintext_data(
     )))
 }
 
-#[instrument(skip(auth_headers), err)]
+#[instrument(skip(hasura_transaction), err)]
 async fn create_results_event(
-    auth_headers: &connection::AuthHeaders,
+    hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<String> {
-    let results_event = &insert_results_event(auth_headers, &tenant_id, &election_event_id)
-        .await?
-        .data
-        .with_context(|| "can't find results_event")?
-        .insert_sequent_backend_results_event
-        .with_context(|| "can't find results_event")?
-        .returning[0];
+    let results_event = &insert_results_event(hasura_transaction, tenant_id, election_event_id)
+        .await
+        .with_context(|| "can't find results_event")?;
 
     Ok(results_event.id.clone())
 }
@@ -1073,11 +1068,12 @@ async fn build_reports_template_data(
                 let renderer = InitializationTemplate::new(ReportOrigins {
                     tenant_id: tenant_id.clone(),
                     election_event_id: election_event_id.clone(),
-                    election_id: Some(election_id.clone().to_string()),
+                    election_id: Some(election_id.to_string()),
                     template_alias: None,
                     voter_id: None,
                     report_origin: ReportOriginatedFrom::ExportFunction,
                     executer_username: None, //TODO: fix?
+                    tally_session_id: None,
                 });
                 let template_data_opt: Option<SendTemplateBody> = renderer
                     .get_custom_user_template_data(hasura_transaction)
@@ -1116,6 +1112,7 @@ async fn build_reports_template_data(
                     voter_id: None,
                     report_origin: ReportOriginatedFrom::ExportFunction,
                     executer_username: None, //TODO: fix?
+                    tally_session_id: None,
                 });
                 let template_data_opt: Option<SendTemplateBody> = renderer
                     .get_custom_user_template_data(hasura_transaction)
@@ -1179,7 +1176,7 @@ pub async fn execute_tally_session_wrapped(
     };
 
     let keys_ceremony = get_keys_ceremony_by_id(
-        &hasura_transaction,
+        hasura_transaction,
         &tenant_id,
         &election_event_id,
         &tally_session.keys_ceremony_id,
@@ -1199,8 +1196,8 @@ pub async fn execute_tally_session_wrapped(
             tally_type_enum.clone(),
             tenant_id.clone(),
             election_event_id.clone(),
-            election_id.clone(),
-            &hasura_transaction,
+            election_id,
+            hasura_transaction,
         )
         .await?;
 
@@ -1209,8 +1206,8 @@ pub async fn execute_tally_session_wrapped(
     // map plaintexts to contests
     let plaintexts_data_opt = map_plaintext_data(
         auth_headers.clone(),
-        &hasura_transaction,
-        &keycloak_transaction,
+        hasura_transaction,
+        keycloak_transaction,
         tenant_id.clone(),
         election_event_id.clone(),
         tally_session_id.clone(),
@@ -1241,9 +1238,9 @@ pub async fn execute_tally_session_wrapped(
     let base_tempdir = tempdir()?;
 
     let areas: Vec<Area> =
-        get_event_areas(&hasura_transaction, &tenant_id, &election_event_id).await?;
+        get_event_areas(hasura_transaction, &tenant_id, &election_event_id).await?;
 
-    let status = if plaintexts_data.len() > 0 {
+    let status = if !plaintexts_data.is_empty() {
         Some(
             run_velvet_tally(
                 base_tempdir.path().to_path_buf(),
@@ -1254,7 +1251,7 @@ pub async fn execute_tally_session_wrapped(
                 report_system_template,
                 pdf_options,
                 &areas,
-                &hasura_transaction,
+                hasura_transaction,
                 &election_event,
                 &tally_session,
                 tally_type_enum.clone(),
@@ -1284,16 +1281,20 @@ pub async fn execute_tally_session_wrapped(
     // could be expired
     let auth_headers = keycloak::get_client_credentials().await?;
 
+    let session_ids_i32: Option<Vec<i32>> = session_ids
+        .clone()
+        .map(|values| values.clone().into_iter().map(|int| int as i32).collect());
+
     // insert tally_session_execution
     insert_tally_session_execution(
-        auth_headers.clone(),
-        tenant_id.clone(),
-        election_event_id.clone(),
-        newest_message_id,
-        tally_session_id.clone(),
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        newest_message_id as i32,
+        &tally_session_id,
         Some(new_status),
         results_event_id,
-        session_ids,
+        session_ids_i32,
     )
     .await?;
 
@@ -1314,7 +1315,7 @@ pub async fn execute_tally_session_wrapped(
         )
         .await?;
         let current_status = get_election_event_status(election_event.status).unwrap();
-        let mut new_event_status = current_status.clone();
+        let new_event_status = current_status.clone();
         let new_status_js = serde_json::to_value(new_event_status)?;
         update_election_event_status(
             auth_headers.clone(),

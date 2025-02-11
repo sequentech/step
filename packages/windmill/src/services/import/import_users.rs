@@ -584,6 +584,10 @@ pub async fn import_users_file(
                     hash_password(&processed_data, &salt_bytes)
                         .with_context(|| "Error generating hashed password")?,
                 );
+            } else if column_name == &*SALT_COL_NAME {
+                password_salt = Some(data.to_string());
+            } else if column_name == &*HASHED_PASSWORD_COL_NAME {
+                hashed_password = Some(data.to_string());
             } else {
                 owned_data.push(processed_data);
             }

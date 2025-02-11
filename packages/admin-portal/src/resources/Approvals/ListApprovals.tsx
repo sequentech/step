@@ -18,6 +18,7 @@ import {
     useRefresh,
     useSidebarState,
     useGetOne,
+    useRemoveFromStore,
 } from "react-admin"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {TFunction, useTranslation} from "react-i18next"
@@ -55,6 +56,8 @@ import {convertToCamelCase} from "./UtilsApprovals"
 import {getAttributeLabel, getTranslationLabel} from "@/services/UserService"
 import {useLocation} from "react-router"
 import {getPreferenceKey} from "@/lib/helpers"
+import CustomDateField from "../User/CustomDateField"
+import {IUser} from "@sequentech/ui-core"
 
 const StyledChip = styled(Chip)`
     margin: 4px;
@@ -128,16 +131,15 @@ const ApprovalsList = (props: ApprovalsListProps) => {
                             record: Sequent_Backend_Applications,
                             source: string | undefined
                         ) => {
-                            const dateValue = record?.applicant_data[attrMappedName]
-                            try {
-                                const date = new Date(dateValue)
-                                if (isNaN(date.getTime())) {
-                                    throw new Error("Invalid date")
-                                }
-                                return <span>{date.toLocaleDateString()}</span>
-                            } catch {
-                                return <span>-</span>
-                            }
+                            return (
+                                <CustomDateField
+                                    key={attr.name}
+                                    base="applicant_data"
+                                    source={`${attrMappedName}`}
+                                    label={getTranslationLabel(attr.name, attr.display_name, t)}
+                                    emptyText="-"
+                                />
+                            )
                         }}
                     />
                 )
@@ -211,6 +213,13 @@ const ApprovalsList = (props: ApprovalsListProps) => {
         return theFields
     }, [listFields?.basicInfoFields, listFields?.attributesFields, location.pathname])
 
+    // Monitor and save filter changes
+    useEffect(() => {
+        if (filterValues?.status) {
+            localStorage.setItem(STATUS_FILTER_KEY, filterValues.status)
+        }
+    }, [filterValues?.status])
+
     return (
         <DatagridConfigurable
             preferenceKey={getPreferenceKey(location.pathname, "approvals")}
@@ -241,7 +250,7 @@ const ApprovalsList = (props: ApprovalsListProps) => {
             />
             <TextField
                 source="annotations.verified_by"
-                label={props.t("approvalsScreen.column.approved_by")}
+                label={props.t("approvalsScreen.column.verified_by")}
                 emptyText="-"
             />
             {restFields}
@@ -351,18 +360,24 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
 
     const handleImportApplications = async (documentId: string, sha256: string) => {
         setOpenImportDrawer(false)
+        let currWidget: WidgetProps | undefined
         try {
-            await importApplications({
+            currWidget = addWidget(ETasksExecution.IMPORT_APPLICATION)
+            let {data, errors} = await importApplications({
                 variables: {
                     tenantId: electionEventRecord.tenant_id,
                     electionEventId: electionEventRecord.id,
                     electionId: electionId,
                     documentId,
+                    sha256,
                 },
             })
-            notify(t("application.import.messages.success"), {type: "success"})
+            const task_id = data?.import_application?.task_execution?.id
+            setWidgetTaskId(currWidget.identifier, task_id)
             refresh()
         } catch (err) {
+            console.log(err)
+            currWidget && updateWidgetFail(currWidget.identifier)
             notify("application.import.messages.error", {type: "error"})
         }
     }
@@ -441,6 +456,7 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
     const canExport = authContext.isAuthorized(true, tenantId, IPermissions.APPLICATION_EXPORT)
     const canImport = authContext.isAuthorized(true, tenantId, IPermissions.APPLICATION_IMPORT)
 
+    // add election level
     if (userAttributesLoading) {
         return null
     }

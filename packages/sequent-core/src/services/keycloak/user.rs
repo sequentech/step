@@ -397,7 +397,9 @@ impl KeycloakAdminClient {
         self.client
             .realm_users_post(realm, new_user_keycloak.clone())
             .await
-            .map_err(|err| anyhow!("{:?}", err))?;
+            .map_err(|err| {
+                anyhow!("Failed to create user in keycloak: {:?}", err)
+            })?;
         let found_users = self
             .client
             .realm_users_get(
@@ -418,7 +420,9 @@ impl KeycloakAdminClient {
                 user.username.clone(),
             )
             .await
-            .map_err(|err| anyhow!("{:?}", err))?;
+            .map_err(|err| {
+                anyhow!("Failed to find user in keycloak: {:?}", err)
+            })?;
 
         match found_users.first() {
             Some(found_user) => Ok(found_user.clone().into()),
@@ -459,13 +463,19 @@ impl KeycloakAdminClient {
             .map_err(|err| anyhow!("{:?}", err))?;
         // Map to custom struct
         let groups: Vec<GroupInfo> = response
-       .into_iter()
-       .map(|group| GroupInfo {
-        group_id: group.id.clone().unwrap_or_else(|| "Unknown Group ID".to_string()), // Default if None
-        // Handle Option<String> for groupname safely
-        group_name: group.name.clone().unwrap_or_else(|| "Unknown Group".to_string()), // Default to "Unknown Group" if None
-    })
-    .collect();
+            .into_iter()
+            .map(|group| GroupInfo {
+                group_id: group
+                    .id
+                    .clone()
+                    .unwrap_or_else(|| "Unknown Group ID".to_string()), // Default if None
+                // Handle Option<String> for groupname safely
+                group_name: group
+                    .name
+                    .clone()
+                    .unwrap_or_else(|| "Unknown Group".to_string()), // Default to "Unknown Group" if None
+            })
+            .collect();
         Ok(groups)
     }
 

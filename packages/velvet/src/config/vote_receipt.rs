@@ -2,9 +2,13 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use sequent_core::types::templates::{PrintToPdfOptionsLocal, VoteReceiptPipeType};
+use sequent_core::{
+    signatures::ecies_encrypt::EciesKeyPair,
+    types::templates::{PrintToPdfOptionsLocal, ReportOptions, VoteReceiptPipeType},
+};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+use std::collections::HashMap;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct PipeConfigVoteReceipts {
@@ -14,6 +18,9 @@ pub struct PipeConfigVoteReceipts {
     pub enable_pdfs: bool,
     pub pipe_type: VoteReceiptPipeType,
     pub pdf_options: Option<PrintToPdfOptionsLocal>,
+    pub report_options: Option<ReportOptions>,
+    pub execution_annotations: Option<HashMap<String, String>>,
+    pub acm_key: Option<EciesKeyPair>,
 }
 
 pub const DEFAULT_MCBALLOT_TITLE: &str = "Vote receipts";
@@ -38,6 +45,9 @@ impl PipeConfigVoteReceipts {
             enable_pdfs: true,
             pipe_type: pipe_type.unwrap_or(VoteReceiptPipeType::VOTE_RECEIPT),
             pdf_options: None,
+            report_options: None,
+            execution_annotations: None,
+            acm_key: None,
         }
     }
 }
@@ -54,6 +64,9 @@ impl Default for PipeConfigVoteReceipts {
             enable_pdfs: true,
             pipe_type: VoteReceiptPipeType::VOTE_RECEIPT,
             pdf_options: None,
+            report_options: None,
+            execution_annotations: None,
+            acm_key: None,
         }
     }
 }

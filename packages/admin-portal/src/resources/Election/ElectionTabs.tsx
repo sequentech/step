@@ -21,7 +21,7 @@ import {IPermissions} from "@/types/keycloak"
 import {EditElectionEventUsers} from "../ElectionEvent/EditElectionEventUsers"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {Box, Typography} from "@mui/material"
-import {EElectionEventLockedDown} from "@sequentech/ui-core"
+import {EElectionEventLockedDown, i18n, translateElection} from "@sequentech/ui-core"
 import {EditElectionEventApprovals} from "../ElectionEvent/EditElectionEventApprovals"
 import {Tabs} from "@/components/Tabs"
 
@@ -93,7 +93,16 @@ export const ElectionTabs: React.FC = () => {
             sx={{maxWidth: `calc(100vw - ${open ? "352px" : "96px"})`, bgcolor: "background.paper"}}
             className="election-box"
         >
-            <ElectionHeader title={record?.name} subtitle="electionScreen.common.subtitle" />
+            <ElectionHeader
+                title={
+                    translateElection(record, "alias", i18n?.language) ||
+                    translateElection(record, "name", i18n?.language) ||
+                    record?.alias ||
+                    record?.name ||
+                    "-"
+                }
+                subtitle="electionScreen.common.subtitle"
+            />
             <Tabs
                 elements={[
                     ...(showDashboard
@@ -161,6 +170,12 @@ export const ElectionTabs: React.FC = () => {
                                           />
                                       </Suspense>
                                   ),
+                                  action: (index: number) => {
+                                      localStorage.setItem(
+                                          "electionPublishTabIndex",
+                                          index.toString()
+                                      )
+                                  },
                               },
                           ]
                         : []),

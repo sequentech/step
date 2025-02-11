@@ -33,6 +33,7 @@ import {MenuItem, Menu} from "@mui/material"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import {ETasksExecution} from "@/types/tasksExecution"
 import {useLogsPermissions} from "@/resources/ElectionEvent/useLogsPermissions"
+import {MessageField} from "./MessageField"
 
 enum ExportFormat {
     CSV = "CSV",
@@ -273,11 +274,7 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                         label={t("logsScreen.column.description")}
                         render={(record: any) => getHeadField(record, "description")}
                     />
-                    <TextField
-                        source="message"
-                        label={t("logsScreen.column.message")}
-                        sx={{wordBreak: "break-word"}}
-                    />
+                    <MessageField />
                 </DatagridConfigurable>
             </List>
             <ExportDialog
