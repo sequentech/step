@@ -1913,10 +1913,10 @@ const spanishTranslation: TranslationType = {
                 messageRequired: "Se requiere un mensaje de rechazo para la opción 'Otro'",
                 reasons: {
                     "undefined": "-",
-                    "insufficient-information": "Datos Faltantes",
-                    "no-matching-voter": "Votante no Coincidente",
-                    "voter-already-approved": "Ya Aprobado",
-                    "other": "Otro",
+                    "INSUFFICIENT_INFORMATION": "Datos Faltantes",
+                    "NO_VOTER": "Votante no Coincidente",
+                    "ALREADY_APPROVED": "Ya Aprobado",
+                    "OTHER": "Otro",
                 },
             },
             notifications: {

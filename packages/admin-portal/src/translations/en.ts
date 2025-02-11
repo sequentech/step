@@ -1878,7 +1878,7 @@ const englishTranslation = {
                 verificationType: "Verification Type",
                 createdAt: "Created At",
                 updatedAt: "Updated At",
-                verified_by: "Approved By",
+                verified_by: "Verified By",
             },
             approvalRequest: "Approval Request",
             title: "Voters",
@@ -1895,10 +1895,10 @@ const englishTranslation = {
                 messageRequired: "A rejection message is required for the 'Other' option.",
                 reasons: {
                     "undefined": "-",
-                    "insufficient-information": "Missing Data",
-                    "no-matching-voter": "No Matching Voter",
-                    "voter-already-approved": "Already Approved",
-                    "other": "Other",
+                    "INSUFFICIENT_INFORMATION": "Missing Data",
+                    "NO_VOTER": "No Matching Voter",
+                    "ALREADY_APPROVED": "Already Approved",
+                    "OTHER": "Other",
                 },
             },
             notifications: {

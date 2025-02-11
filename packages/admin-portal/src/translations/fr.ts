@@ -1924,10 +1924,10 @@ const frenchTranslation: TranslationType = {
                 messageRequired: "Un message de rejet est requis pour l'option 'Autre'",
                 reasons: {
                     "undefined": "-",
-                    "insufficient-information": "Données Manquantes",
-                    "no-matching-voter": "Électeur Non Correspondant",
-                    "voter-already-approved": "Déjà Approuvé",
-                    "other": "Autre",
+                    "INSUFFICIENT_INFORMATION": "Données Manquantes",
+                    "NO_VOTER": "Électeur Non Correspondant",
+                    "ALREADY_APPROVED": "Déjà Approuvé",
+                    "OTHER": "Autre",
                 },
             },
             notifications: {

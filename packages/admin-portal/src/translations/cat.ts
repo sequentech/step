@@ -1923,10 +1923,10 @@ const catalanTranslation: TranslationType = {
                 messageRequired: "Es requereix un missatge de rebuig per a l'opció 'Altres'",
                 reasons: {
                     "undefined": "-",
-                    "insufficient-information": "Données Manquantes",
-                    "no-matching-voter": "Votant Non Trouvé",
-                    "voter-already-approved": "Déjà Approuvé",
-                    "other": "Autre",
+                    "INSUFFICIENT_INFORMATION": "Données Manquantes",
+                    "NO_VOTER": "Votant Non Trouvé",
+                    "ALREADY_APPROVED": "Déjà Approuvé",
+                    "OTHER": "Autre",
                 },
             },
             notifications: {
