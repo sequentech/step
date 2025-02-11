@@ -3,13 +3,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::signatures::temp_path::{
-    generate_temp_file, get_public_assets_path_env_var,
-};
 use crate::util::aws::{
     get_fetch_expiration_secs, get_s3_aws_config, get_upload_expiration_secs,
 };
-
+use crate::util::temp_path::{
+    generate_temp_file, get_public_assets_path_env_var,
+};
 use anyhow::{anyhow, Context, Result};
 use aws_sdk_s3 as s3;
 use aws_smithy_types::byte_stream::ByteStream;

@@ -28,23 +28,25 @@ struct CustomError(String);
 impl warp::reject::Reject for CustomError {}
 
 async fn handle_render_impl(input: Input) -> Result<impl Reply, Rejection> {
-    info!("OpenWhisk: Starting PDF generation");
-    let pdf = crate::pdf::render_pdf(input.clone())
-        .map_err(|e| warp::reject::custom(CustomError(e.to_string())))?;
-    let payload = if let Some(pdf) = pdf.pdf {
-        Output {
-            pdf_base64: Some(BASE64_STANDARD.encode(pdf)),
-            ..Default::default()
+    match input {
+        Input::Raw { html, pdf_options } => {
+            info!("OpenWhisk: Starting PDF generation");
+            let payload = match crate::pdf::render_pdf(html, pdf_options) {
+                Ok(pdf) => {
+                    Output {
+                        pdf_base64: Some(BASE64_STANDARD.encode(pdf))
+                    }
+                },
+                Err(err) => {
+                    return Err(warp::reject::custom(CustomError(format!("error rendering PDF due to error: {:?}", err))))
+                }
+            };
+            Ok(warp::reply::json(&payload))
+        },
+        Input::S3 { .. } => {
+            Err(CustomError(format!("You are trying to provide a document through the S3 mechanism to a lambda running locally on OpenWhisk. Please, provide the HTML document directly as an input to the lambda instead")).into())
         }
-    } else if let Some(pdf_base64) = pdf.pdf_base64 {
-        Output {
-            pdf_base64: Some(pdf_base64),
-            ..Default::default()
-        }
-    } else {
-        return Err(CustomError(format!("missing PDF")).into());
-    };
-    Ok(warp::reply::json(&payload))
+    }
 }
 
 pub async fn start_server() {

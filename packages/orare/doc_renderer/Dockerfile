@@ -29,7 +29,11 @@ COPY ./Cargo.lock ./Cargo.lock
 RUN rustup target add x86_64-unknown-linux-musl
 RUN cd orare/doc_renderer && \
     cargo fetch --target x86_64-unknown-linux-musl && \
-    cargo build --release --target x86_64-unknown-linux-musl --features=${FEATURES}
+    cargo build \
+        --release \
+        --target x86_64-unknown-linux-musl \
+        --no-default-features \
+        --features=${FEATURES}
 
 FROM ${BASE_IMAGE}
 ARG RUST_LOG

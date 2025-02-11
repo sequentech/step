@@ -27,7 +27,6 @@ use sequent_core::services::area_tree::TreeNodeArea;
 use sequent_core::services::s3;
 use sequent_core::services::translations::Name;
 use sequent_core::signatures::ecies_encrypt::EciesKeyPair;
-use sequent_core::signatures::temp_path::get_public_assets_path_env_var;
 use sequent_core::types::ceremonies::TallyType;
 use sequent_core::types::hasura::core::{Area, Election, ElectionEvent, TallySession, TallySheet};
 use sequent_core::types::scheduled_event::ScheduledEvent;
@@ -35,6 +34,7 @@ use sequent_core::types::templates::{
     PrintToPdfOptionsLocal, ReportExtraConfig, SendTemplateBody, VoteReceiptPipeType,
 };
 pub use sequent_core::util::date_time::get_date_and_time;
+use sequent_core::util::temp_path::get_public_assets_path_env_var;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::fs::{self, File, OpenOptions};
