@@ -377,7 +377,10 @@ const VotingScreen: React.FC = () => {
     useEffect(() => {
         let minMaxGlobal = false
         let contestsPages = new Map<String, IContest[]>()
-        let contests = [...ballotStyle?.ballot_eml.contests ?? []].sort((a, b) => (a.presentation?.sort_order ?? Infinity) - (b.presentation?.sort_order ?? Infinity));
+        let contests = [...(ballotStyle?.ballot_eml.contests ?? [])].sort(
+            (a, b) =>
+                (a.presentation?.sort_order ?? Infinity) - (b.presentation?.sort_order ?? Infinity)
+        )
         for (let contest of contests ?? []) {
             let countVotes = 0
             let selection = selectionState?.find((s) => s.contest_id === contest.id)
