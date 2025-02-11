@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::authorization::authorize;
-use anyhow::Result;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt;
@@ -22,11 +21,12 @@ use windmill::{
 pub struct ImportTemplatesInput {
     tenant_id: String,
     document_id: String,
+    sha256: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ImportTemplatesOutput {
-    error_msg: String,
+    error_msg: Option<String>,
     document_id: String,
 }
 
@@ -44,25 +44,30 @@ pub async fn import_templates_route(
         vec![Permissions::TEMPLATE_WRITE],
     )?;
 
-    provide_hasura_transaction(|hasura_transaction| {
+    match provide_hasura_transaction(|hasura_transaction| {
         let tenant_id = claims.hasura_claims.tenant_id.clone();
         let document_id = body.document_id.clone();
         Box::pin(async move {
             // Your async code here
-            import_templates_task(hasura_transaction, tenant_id, document_id)
-                .await
+            import_templates_task(
+                hasura_transaction,
+                tenant_id,
+                document_id,
+                body.sha256.clone(),
+            )
+            .await?;
+            Ok(())
         })
     })
     .await
-    .map_err(|error| {
-        (
-            Status::InternalServerError,
-            format!("Error importing areas: {error:?}"),
-        )
-    })?;
-
-    Ok(Json(ImportTemplatesOutput {
-        error_msg: String::new(),
-        document_id: body.document_id,
-    }))
+    {
+        Ok(_) => Ok(Json(ImportTemplatesOutput {
+            error_msg: None,
+            document_id: body.document_id,
+        })),
+        Err(err) => Ok(Json(ImportTemplatesOutput {
+            error_msg: Some(err.to_string()),
+            document_id: body.document_id,
+        })),
+    }
 }
