@@ -4,6 +4,7 @@
 
 use crate::io::{Input, Output};
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
+#[cfg(feature = "aws_lambda")]
 use sequent_core::services::s3;
 use sequent_core::util::aws::get_region;
 use sequent_core::{services::pdf::PrintToPdfOptions, util::convert_vec::IntoVec};

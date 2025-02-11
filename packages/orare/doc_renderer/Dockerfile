@@ -32,7 +32,6 @@ RUN cd orare/doc_renderer && \
     cargo build \
         --release \
         --target x86_64-unknown-linux-musl \
-        --no-default-features \
         --features=${FEATURES}
 
 FROM ${BASE_IMAGE}
