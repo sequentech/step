@@ -99,7 +99,7 @@ async fn get_area_ids(
     Ok((Some(area_ids), area_ids_join_clause, area_ids_where_clause))
 }
 
-// TODO Paginate users
+// Paginate users
 #[instrument(skip(keycloak_transaction), err)]
 pub async fn list_keycloak_enabled_users_by_area_id(
     keycloak_transaction: &Transaction<'_>,
