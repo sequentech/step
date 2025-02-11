@@ -333,16 +333,29 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
         }
     }
 
+    const checkPermissionLabel = (
+        ceremony: Sequent_Backend_Tally_Session,
+        trusteePermissionLabels: string[]
+    ): boolean => {
+        // Ensure the ceremony has permission labels to check against and that the trustee has permissions
+        if (!ceremony.permission_label || ceremony.permission_label.length === 0) {
+            return false
+        }
+        return ceremony.permission_label.every((label) => trusteePermissionLabels.includes(label))
+    }
+
     const isTrusteeParticipating = (
+        tally_session: Sequent_Backend_Tally_Session,
         ceremony: Sequent_Backend_Tally_Session_Execution | undefined,
         authContext: AuthContextValues
     ) => {
         if (ceremony) {
-            const status: ITallyCeremonyStatus = ceremony.status
             return (
-                (ceremony.status === IExecutionStatus.NOT_STARTED ||
-                    ceremony.status === IExecutionStatus.IN_PROCESS) &&
-                !!status.trustees.find((trustee) => trustee.name === authContext.trustee)
+                tally_session.execution_status === ITallyExecutionStatus.STARTED &&
+                !!ceremony.status.trustees.find(
+                    (trustee: any) => trustee.name === authContext.trustee
+                ) &&
+                checkPermissionLabel(tally_session, authContext.permissionLabels)
             )
         }
         return false
@@ -357,8 +370,8 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
         if (!tallySessions) {
             return
         } else {
-            return tallySessions.find((ceremony) =>
-                isTrusteeParticipating(tallySessionExecutions?.[0], authContext)
+            return tallySessions.find((tallySession) =>
+                isTrusteeParticipating(tallySession, tallySessionExecutions?.[0], authContext)
             )
         }
     }
@@ -376,7 +389,9 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
 
     return (
         <>
-            {canTrusteeCeremony && tallySessions?.[0]?.execution_status === "STARTED" ? (
+            {canTrusteeCeremony &&
+            activeCeremony &&
+            tallySessions?.[0]?.execution_status === "STARTED" ? (
                 <Alert severity="info">
                     <Trans i18nKey="electionEventScreen.tally.notify.participateNow">
                         {t("tally.invited")}
