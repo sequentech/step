@@ -1775,6 +1775,8 @@ const englishTranslation = {
                 alias: "Template Alias",
                 type: "Type",
                 communicationMethod: "Method",
+                is_active: "Active",
+                is_communication: "Communication template",
             },
             type: {
                 CREDENTIALS: "Credentials",
