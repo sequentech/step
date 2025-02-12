@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::area::get_areas;
+use crate::postgres::election_event::get_election_event_by_id;
 use crate::services::cast_votes::get_users_with_vote_info;
 use crate::services::database::PgConfig;
 use anyhow::{anyhow, Context, Result};
@@ -98,7 +99,7 @@ async fn get_area_ids(
     Ok((Some(area_ids), area_ids_join_clause, area_ids_where_clause))
 }
 
-// TODO Paginate users
+// Paginate users
 #[instrument(skip(keycloak_transaction), err)]
 pub async fn list_keycloak_enabled_users_by_area_id(
     keycloak_transaction: &Transaction<'_>,
@@ -203,7 +204,7 @@ impl FilterOption {
                 format!(
                     r#"(normalize_text({col_name}) = normalize_text(${param_number})){operator} "#,
                 ),
-                Some(format!("%{}%", pattern)),
+                Some(format!("{}", pattern)),
             ),
 
             Self::IsNotLike(pattern) => (
@@ -332,6 +333,16 @@ pub struct ListUsersFilter {
     pub sort: Option<HashMap<String, String>>,
     pub has_voted: Option<bool>,
     pub authorized_to_election_alias: Option<String>,
+}
+
+impl ListUsersFilter {
+    pub fn new(tenant_id: &str, realm: &str) -> Self {
+        Self {
+            tenant_id: tenant_id.to_string(),
+            realm: realm.to_string(),
+            ..Default::default()
+        }
+    }
 }
 
 fn get_query_bool_condition(field: &str, value: Option<bool>) -> String {
@@ -675,9 +686,10 @@ pub async fn list_users_with_vote_info(
     let election_id = filter.election_id.clone();
 
     let filter_by_has_voted = filter.has_voted.clone();
-    let (users, users_count) = list_users(hasura_transaction, keycloak_transaction, filter)
+    let (mut users, users_count) = list_users(hasura_transaction, keycloak_transaction, filter)
         .await
         .with_context(|| "Error listing users")?;
+
     let users: Vec<User> = get_users_with_vote_info(
         hasura_transaction,
         tenant_id.as_str(),
@@ -727,14 +739,21 @@ pub async fn count_keycloak_enabled_users(
     Ok(user_count)
 }
 
+/// Use only for verifying application!, does not work as it seems for other situations, then use list_users instead.
 #[instrument(skip(hasura_transaction, keycloak_transaction), err)]
 pub async fn lookup_users(
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
     filter: ListUsersFilter,
 ) -> Result<Vec<User>> {
-    let low_sql_limit = PgConfig::from_env()?.low_sql_limit;
-    let default_sql_limit = PgConfig::from_env()?.default_sql_limit;
+    let low_sql_limit = PgConfig::from_env()
+        .map_err(|e| anyhow!("Error getting low_sql_limit {e:?}"))?
+        .low_sql_limit;
+
+    let default_sql_limit = PgConfig::from_env()
+        .map_err(|e| anyhow!("Error getting default_sql_limit {e:?}"))?
+        .default_sql_limit;
+
     let query_limit: i64 =
         std::cmp::min(low_sql_limit, filter.limit.unwrap_or(default_sql_limit)).into();
 
@@ -1038,4 +1057,50 @@ pub async fn check_is_user_verified(
 
     let is_verified: bool = row.get("is_verified");
     Ok(is_verified)
+}
+
+/// Returns a vector with user ids.
+/// It is up to the caller to handle when there are mutiple users with the same username or the vector is empty - not found.
+#[instrument(err, skip(keycloak_transaction))]
+pub async fn get_users_by_username(
+    keycloak_transaction: &Transaction<'_>,
+    realm: &str,
+    username: &str,
+) -> Result<Vec<String>> {
+    let params: Vec<&(dyn ToSql + Sync)> = vec![&realm, &username];
+
+    let statement = keycloak_transaction
+        .prepare(&format!(
+            r#"
+        SELECT 
+            u.id
+        FROM 
+            user_entity u
+        INNER JOIN
+            realm AS ra ON ra.id = u.realm_id
+        LEFT JOIN LATERAL (
+            SELECT
+                json_object_agg(ua.name, ua.value) AS attributes
+            FROM user_attribute ua
+            WHERE ua.user_id = u.id
+            GROUP BY ua.user_id
+        ) attr_json ON true
+        WHERE
+            ra.name = $1
+            AND u.username = $2
+        "#,
+        ))
+        .await?;
+
+    let rows: Vec<Row> = keycloak_transaction
+        .query(&statement, &params.as_slice())
+        .await
+        .map_err(|err| anyhow!("{}", err))?;
+
+    let user_ids = rows
+        .into_iter()
+        .filter_map(|row| row.get("id"))
+        .collect::<Vec<String>>();
+
+    Ok(user_ids)
 }

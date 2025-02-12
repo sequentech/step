@@ -1,0 +1,4 @@
+{
+    "datafix:id": "998877",
+    "datafix:password_policy": "{\"base\": \"password-only\",\"size\": 8,\"characters\": \"numeric\"}"
+}

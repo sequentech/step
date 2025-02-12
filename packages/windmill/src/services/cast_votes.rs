@@ -3,19 +3,20 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::database::PgConfig;
+use crate::postgres::election_event::is_datafix_election_event;
 use crate::services::electoral_log::ElectoralLog;
 use anyhow::{anyhow, Context, Result};
 use chrono::NaiveDate;
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Transaction;
 use sequent_core::types::keycloak::{User, VotesInfo};
+use sequent_core::types::keycloak::{ATTR_RESET_VALUE, VOTED_CHANNEL};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 use tokio_postgres::row::Row;
 use tracing::{info, instrument};
 use uuid::Uuid;
-
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct CastVote {
     pub id: String,
@@ -55,7 +56,6 @@ impl TryFrom<Row> for CastVote {
 }
 
 #[instrument(err)]
-// TODO Make it possible to use pagination
 pub async fn find_area_ballots(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -303,6 +303,11 @@ pub async fn get_users_with_vote_info(
         None => None,
     };
 
+    let is_datafix_event =
+        is_datafix_election_event(hasura_transaction, tenant_id, election_event_id)
+            .await
+            .map_err(|e| anyhow!(" Error checking if is datafix election event: {:?}", e))?;
+
     // Prepare the list of user IDs for the query
     let user_ids: Vec<String> = users
         .iter()
@@ -394,10 +399,31 @@ pub async fn get_users_with_vote_info(
             .clone()
             .ok_or_else(|| anyhow!("Encountered a user without an ID"))?;
 
-        let votes_info = user_votes_map
+        let mut votes_info = user_votes_map
             .get(&user_id)
             .cloned()
             .ok_or_else(|| anyhow!("Missing vote info for user ID {}", user_id))?;
+
+        if is_datafix_event {
+            // Checking the attribute voted-channel for each user.
+            let attributes = user.attributes.clone().unwrap_or_default();
+            // Set the num_votes ot 1 if the voter has voted through a Channel to make it appear in the Voter list as "Voted"
+            match attributes.iter().find(|tupple| tupple.0.eq(VOTED_CHANNEL)) {
+                Some((_, v)) => {
+                    match v.last() {
+                        Some(channel) if !channel.eq(ATTR_RESET_VALUE) && !channel.is_empty() => {
+                            votes_info = vec![VotesInfo {
+                                election_id: "".to_string(), // Not used for datafix
+                                num_votes: 1,
+                                last_voted_at: "".to_string(), // Not used for datafix
+                            }];
+                        }
+                        _ => {}
+                    };
+                }
+                None => {}
+            }
+        }
 
         match filter_by_has_voted {
             Some(has_voted) => {

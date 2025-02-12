@@ -3046,7 +3046,6 @@ authorized_election_ids = [
 sex = ["M", "F"]
 clusteredPrecinct = ["0012A", "0001A", "0075A", "0001A", "0001A"]
 overseasReferences = ["X", "B"]
-# card_types = ["philippinePassport", "seamanBook", "philSysID", "driversLicense"]
 
 # Number of rows to generate
 default_num_rows = 2_000_000
@@ -3106,7 +3105,7 @@ def generate_csv():
             [
                 "first_name",
                 "last_name",
-                # "email",
+                "email",
                 "username",
                 "area_name",
                 "middleName",
@@ -3117,15 +3116,13 @@ def generate_csv():
                 "sex",
                 "clusteredPrecinct",
                 "overseasReferences",
-                "sequent.read-only.id-card-number",
-                "sequent.read-only.id-card-type",
                 # "password",
-                # "password_salt",
-                # "hashed_password"
+                "password_salt",
+                "hashed_password"
             ]
         )
 
-        # # Write myself
+        # Write myself
         # writer.writerow(
         #     [
         #         "Xavier",
@@ -3165,7 +3162,7 @@ def generate_csv():
             row = [
                 random.choice(first_names),
                 random.choice(last_names),
-                # email,
+                email,
                 uuid.uuid4(),
                 area_name[selected_post],
                 random.choice(middle_names),
@@ -3177,11 +3174,8 @@ def generate_csv():
                 clusteredPrecinct[selected_post],
                 random.choice(overseasReferences),
                 # COMMON_PASSWORD,
-                random.randint(100_000_000, 999_999_999),
-                "philippinePassport",
-                # salt_base64,
-                # hashed_password_base64,
-                
+                salt_base64,
+                hashed_password_base64,
                 # Add a row with a random password
                 # ''.join(random.choices(string.ascii_letters + string.digits, k=8)),
             ]

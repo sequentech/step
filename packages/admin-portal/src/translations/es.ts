@@ -391,6 +391,7 @@ const spanishTranslation: TranslationType = {
                 electionNumber: "Número de Elecciones",
                 trustees: "Trustees",
                 status: "Estado",
+                permissionLabels: "Etiquetas de Permisos",
                 tallyType: {
                     label: "Tipo de Conteo",
                     ELECTORAL_RESULTS: "Resultados Electorales",
@@ -445,6 +446,8 @@ const spanishTranslation: TranslationType = {
                 fileUploadError: "Error subiendo el fichero",
                 importVotersSuccess: "Importación de Votantes lanzada en segundo plano con éxito.",
                 importVotersError: "Error Importando Votantes.",
+                importElectionEventSuccess: "Election event imported Successfully",
+                importElectionEventError: "Error importing election event",
                 shaDialog: {
                     ok: "Sí, Importar Sin Verificación de Integridad",
                     cancel: "Volver",
@@ -1092,6 +1095,7 @@ const spanishTranslation: TranslationType = {
             election: "Importar una Elección",
             contest: "Importar un Concurso",
             candidate: "Importar un Candidato",
+            ImportHashMismatch: "Hashes don't match. Integrity check failure.",
         },
         sideMenu: {
             electionEvents: "Procesos Electorales",
@@ -1893,7 +1897,7 @@ const spanishTranslation: TranslationType = {
                 verificationType: "Tipo de Verificación",
                 createdAt: "Creado El",
                 updatedAt: "Actualizado El",
-                approved_by: "Aprobado Por",
+                verified_by: "Aprobado Por",
             },
             approvalRequest: "Solicitud de Aprobación",
             title: "Votantes",
@@ -1909,11 +1913,11 @@ const spanishTranslation: TranslationType = {
                 rejectReason: "Motivo del rechazo",
                 messageRequired: "Se requiere un mensaje de rechazo para la opción 'Otro'",
                 reasons: {
-                    "undefined": "-",
-                    "insufficient-information": "Datos Faltantes",
-                    "no-matching-voter": "Votante no Coincidente",
-                    "voter-already-approved": "Ya Aprobado",
-                    "other": "Otro",
+                    undefined: "-",
+                    INSUFFICIENT_INFORMATION: "Datos Faltantes",
+                    NO_VOTER: "Votante no Coincidente",
+                    ALREADY_APPROVED: "Ya Aprobado",
+                    OTHER: "Otro",
                 },
             },
             notifications: {

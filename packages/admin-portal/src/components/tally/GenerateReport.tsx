@@ -72,10 +72,6 @@ export const GenerateReport: React.FC<GenerateReportProps> = ({
             setWidgetTaskId(currWidget.identifier, taskId)
         } catch (e) {
             updateWidgetFail(currWidget.identifier)
-            setDocumentId(null)
-        } finally {
-            setDocumentId(null)
-            handleClose()
         }
     }
 
@@ -98,7 +94,7 @@ export const GenerateReport: React.FC<GenerateReportProps> = ({
                             electionEventId={electionEventId}
                             fileName={null}
                             onDownload={() => {
-                                console.log("onDownload called")
+                                setDocumentId(null)
                             }}
                         />
                     ) : null}
