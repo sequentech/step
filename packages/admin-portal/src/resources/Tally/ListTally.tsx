@@ -62,7 +62,7 @@ import {IKeysCeremonyExecutionStatus} from "@/services/KeyCeremony"
 import {Add} from "@mui/icons-material"
 import {useKeysPermissions} from "../ElectionEvent/useKeysPermissions"
 import {GET_TRUSTEES_NAMES} from "@/queries/GetTrusteesNames"
-import { StyledChip } from "@/components/StyledChip"
+import {StyledChip} from "@/components/StyledChip"
 
 const OMIT_FIELDS = ["id", "ballot_eml", "trustees"]
 
@@ -84,7 +84,6 @@ const NotificationLink = styled.span`
         text-decoration: none;
     }
 `
-
 
 const StyledNull = styled.div`
     display: block;
@@ -166,14 +165,14 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
             refetchOnReconnect: true,
             refetchOnMount: true,
             meta: {
-               context: {
+                context: {
                     headers: {
                         "x-hasura-role": isTrustee
                             ? IPermissions.TRUSTEE_CEREMONY
                             : IPermissions.ADMIN_CEREMONY,
                     },
-               }
-            }
+                },
+            },
         }
     )
 
@@ -354,12 +353,11 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
         authContext: AuthContextValues
     ) => {
         if (ceremony) {
-            let ret = (
+            let ret =
                 tally_session.execution_status === ITallyExecutionStatus.STARTED &&
                 !!ceremony.status.trustees.find(
                     (trustee: any) => trustee.name === authContext.trustee
                 )
-            )
             return ret
         }
         return false
@@ -468,9 +466,11 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
                                 return (
                                     <>
                                         {record?.permission_label ? (
-                                            record?.permission_label.map((item: any, index: number) => (
-                                                <StyledChip key={index} label={item} />
-                                            ))
+                                            record?.permission_label.map(
+                                                (item: any, index: number) => (
+                                                    <StyledChip key={index} label={item} />
+                                                )
+                                            )
                                         ) : (
                                             <StyledNull>-</StyledNull>
                                         )}
