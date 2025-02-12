@@ -7,10 +7,14 @@ use crate::postgres;
 use crate::postgres::area::get_area_by_id;
 use crate::postgres::election::get_election_by_id;
 use crate::postgres::election::get_election_max_revotes;
-use crate::postgres::election_event::get_election_event_by_id;
+use crate::postgres::election_event::{
+    get_election_event_by_id, is_datafix_election_event, ElectionEventDatafix,
+};
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::cast_votes::get_voter_signing_key;
 use crate::services::cast_votes::CastVote;
+use crate::services::datafix;
+use crate::services::datafix::types::SoapRequest;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_status::get_election_status;
 use crate::services::electoral_log::ElectoralLog;
@@ -300,7 +304,7 @@ pub async fn try_insert_cast_vote(
     let result = insert_cast_vote_and_commit(
         input,
         hasura_transaction,
-        election_event,
+        election_event.clone(),
         voting_channel,
         ids,
         signing_key,
@@ -319,7 +323,15 @@ pub async fn try_insert_cast_vote(
 
     match result {
         Ok(inserted_cast_vote) => {
-            // if is_data_fix_event send_set_voted_voterview_request
+            if is_datafix_election_event(&election_event) {
+                datafix::voterview_requests::send(
+                    SoapRequest::SetVoted,
+                    ElectionEventDatafix(election_event),
+                    &user.username,
+                )
+                .await
+                .map_err(|e| CastVoteError::UnknownError(e.to_string()))?;
+            }
             let electoral_log_res = ElectoralLog::for_voter(
                 &electoral_log.elog_database,
                 tenant_id,

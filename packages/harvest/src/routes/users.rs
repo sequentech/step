@@ -22,9 +22,14 @@ use std::collections::HashMap;
 use std::env;
 use tracing::instrument;
 use uuid::Uuid;
+use windmill::postgres::election_event::{
+    get_election_event_by_id, is_datafix_election_event, ElectionEventDatafix,
+};
 use windmill::services::cast_votes::get_users_with_vote_info;
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
+use windmill::services::datafix;
+use windmill::services::datafix::types::SoapRequest;
 use windmill::services::export::export_users::{
     ExportBody, ExportTenantUsersBody, ExportUsersBody,
 };
@@ -473,27 +478,25 @@ pub async fn edit_user(
         None => get_tenant_realm(&input.tenant_id),
     };
 
+    let mut hasura_db_client: DbClient =
+        get_hasura_pool().await.get().await.map_err(|e| {
+            (
+                Status::InternalServerError,
+                format!("Error acquiring hasura db client from pool {:?}", e),
+            )
+        })?;
+
+    let hasura_transaction =
+        hasura_db_client.transaction().await.map_err(|e| {
+            (
+                Status::InternalServerError,
+                format!("Error acquiring hasura transaction {:?}", e),
+            )
+        })?;
+
     // check if the voter has voted
     if !voter_voted_edit {
         if let Some(election_event_id) = input.election_event_id.clone() {
-            let mut hasura_db_client: DbClient =
-                get_hasura_pool().await.get().await.map_err(|e| {
-                    (
-                        Status::InternalServerError,
-                        format!(
-                            "Error acquiring hasura db client from pool {:?}",
-                            e
-                        ),
-                    )
-                })?;
-
-            let hasura_transaction =
-                hasura_db_client.transaction().await.map_err(|e| {
-                    (
-                        Status::InternalServerError,
-                        format!("Error acquiring hasura transaction {:?}", e),
-                    )
-                })?;
             let mut user = User::default();
             user.id = Some(input.user_id.clone());
             let voters = get_users_with_vote_info(
@@ -563,6 +566,37 @@ pub async fn edit_user(
         )
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    match (input.election_event_id, input.enabled) {
+        (Some(election_event_id), Some(enabled)) if !enabled => {
+            // If the user is disabled via EDIT: send a SetNotVoted request to
+            // VoterView.
+            // ToTest:  This would not work if EDIT is not allowed when
+            // the user has voted.
+            let election_event = get_election_event_by_id(
+                &hasura_transaction,
+                &input.tenant_id,
+                &election_event_id,
+            )
+            .await
+            .map_err(|e| {
+                (
+                    Status::InternalServerError,
+                    format!("Error get_election_event_by_id {e:?}"),
+                )
+            })?;
+            if is_datafix_election_event(&election_event) {
+                datafix::voterview_requests::send(
+                    SoapRequest::SetNotVoted,
+                    ElectionEventDatafix(election_event),
+                    &user.username,
+                )
+                .await
+                .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+            }
+        }
+        _ => {}
+    }
 
     Ok(Json(user))
 }

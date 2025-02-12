@@ -6,51 +6,15 @@ use crate::postgres::area::get_event_areas;
 use crate::postgres::election_event::{get_all_tenant_election_events, ElectionEventDatafix};
 use crate::services::consolidation::eml_generator::ValidateAnnotations;
 use crate::services::users::get_users_by_username;
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use deadpool_postgres::Transaction;
 use rocket::http::Status;
-use sequent_core::ballot::Annotations;
-use sequent_core::serialization::deserialize_with_path::{deserialize_str, deserialize_value};
 use sequent_core::types::keycloak::UserArea;
 use tracing::{error, info, instrument, warn};
 
 pub const DATAFIX_ID_KEY: &str = "datafix:id";
 pub const DATAFIX_PSW_POLICY_KEY: &str = "datafix:password_policy";
 pub const DATAFIX_VOTERVIEW_REQ_KEY: &str = "datafix:voterview_request";
-
-impl ValidateAnnotations for ElectionEventDatafix {
-    type Item = DatafixAnnotations;
-
-    fn get_annotations(&self) -> Result<Self::Item> {
-        let annotations_value = self
-            .0
-            .annotations
-            .clone()
-            .ok_or_else(|| anyhow!("Missing election event annotations"))?;
-
-        let annotations: Annotations = deserialize_value(annotations_value)?;
-        let id = match annotations.get(DATAFIX_ID_KEY) {
-            Some(id) => id.clone(),
-            None => return Err(anyhow!("{DATAFIX_ID_KEY} not found")),
-        };
-
-        let password_policy: PasswordPolicy = match annotations.get(DATAFIX_PSW_POLICY_KEY) {
-            Some(value_as_str) => deserialize_str(value_as_str)?,
-            None => return Err(anyhow!("{DATAFIX_PSW_POLICY_KEY} not found")),
-        };
-
-        let voterview_request: VoterviewRequest = match annotations.get(DATAFIX_VOTERVIEW_REQ_KEY) {
-            Some(value_as_str) => deserialize_str(value_as_str)?,
-            None => return Err(anyhow!("{DATAFIX_VOTERVIEW_REQ_KEY} not found")),
-        };
-
-        Ok(DatafixAnnotations {
-            id,
-            password_policy,
-            voterview_request,
-        })
-    }
-}
 
 /// Gets the election_event_id and the DatafixAnnotations of the event that has the datafix id in its annotations.
 #[instrument(skip(hasura_transaction))]

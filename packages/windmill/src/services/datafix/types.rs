@@ -1,13 +1,19 @@
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use super::utils::{DATAFIX_ID_KEY, DATAFIX_PSW_POLICY_KEY, DATAFIX_VOTERVIEW_REQ_KEY};
+use anyhow::{anyhow, Result};
 use rand::{distributions::Uniform, Rng};
 use rocket::http::Status;
 use rocket::serde::json::Json;
+use sequent_core::ballot::Annotations;
+use sequent_core::serialization::deserialize_with_path::{deserialize_str, deserialize_value};
 use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumString};
 use tracing::{instrument, warn};
 
+use crate::postgres::election_event::ElectionEventDatafix;
+use crate::services::consolidation::eml_generator::ValidateAnnotations;
 #[derive(Deserialize, Debug)]
 pub struct VoterInformationBody {
     pub voter_id: String,
@@ -108,4 +114,44 @@ impl PasswordPolicy {
             BasePolicy::PswOnly => pin,
         }
     }
+}
+
+impl ValidateAnnotations for ElectionEventDatafix {
+    type Item = DatafixAnnotations;
+
+    fn get_annotations(&self) -> Result<Self::Item> {
+        let annotations_value = self
+            .0
+            .annotations
+            .clone()
+            .ok_or_else(|| anyhow!("Missing election event annotations"))?;
+
+        let annotations: Annotations = deserialize_value(annotations_value)?;
+        let id = match annotations.get(DATAFIX_ID_KEY) {
+            Some(id) => id.clone(),
+            None => return Err(anyhow!("{DATAFIX_ID_KEY} not found")),
+        };
+
+        let password_policy: PasswordPolicy = match annotations.get(DATAFIX_PSW_POLICY_KEY) {
+            Some(value_as_str) => deserialize_str(value_as_str)?,
+            None => return Err(anyhow!("{DATAFIX_PSW_POLICY_KEY} not found")),
+        };
+
+        let voterview_request: VoterviewRequest = match annotations.get(DATAFIX_VOTERVIEW_REQ_KEY) {
+            Some(value_as_str) => deserialize_str(value_as_str)?,
+            None => return Err(anyhow!("{DATAFIX_VOTERVIEW_REQ_KEY} not found")),
+        };
+
+        Ok(DatafixAnnotations {
+            id,
+            password_policy,
+            voterview_request,
+        })
+    }
+}
+
+#[derive(Display, Debug, Clone)]
+pub enum SoapRequest {
+    SetVoted,
+    SetNotVoted,
 }

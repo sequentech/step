@@ -470,9 +470,9 @@ pub async fn delete_election_event(
     Ok(())
 }
 
-/// Get the ElectionEvent, check if its a datafix election event (has datafix:id annotations).
+/// Get the ElectionEvent and check if its a datafix election event (has datafix:id annotations).
 #[instrument(skip(hasura_transaction), err)]
-pub async fn is_datafix_election_event(
+pub async fn is_datafix_election_event_by_id(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
@@ -481,9 +481,15 @@ pub async fn is_datafix_election_event(
         .await
         .map_err(|e| anyhow!("{:?}", e))?;
 
+    Ok(is_datafix_election_event(&election_event))
+}
+
+/// Check if its a datafix election event (has datafix:id annotations).
+#[instrument(skip(election_event))]
+pub fn is_datafix_election_event(election_event: &ElectionEventData) -> bool {
     let datafix_object = election_event
         .annotations
         .as_ref()
         .and_then(|v| v.get(DATAFIX_ID_KEY));
-    Ok(datafix_object.is_some())
+    datafix_object.is_some()
 }
