@@ -111,13 +111,15 @@ export const MessageField: React.FC<MessageFieldProps> = ({
                     </>
                 )}
             </Box>
-            {data.length > initialLength && <Box sx={{display: "flex", justifyContent: "flex-end"}}>
-                <LinkButton disableRipple onClick={() => setMore(!more)}>
-                    {more
-                        ? t("electionEventScreen.common.showLess")
-                        : t("electionEventScreen.common.showMore")}
-                </LinkButton>
-            </Box>}
+            {data.length > initialLength && (
+                <Box sx={{display: "flex", justifyContent: "flex-end"}}>
+                    <LinkButton disableRipple onClick={() => setMore(!more)}>
+                        {more
+                            ? t("electionEventScreen.common.showLess")
+                            : t("electionEventScreen.common.showMore")}
+                    </LinkButton>
+                </Box>
+            )}
         </Box>
     )
 }
