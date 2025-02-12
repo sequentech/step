@@ -390,6 +390,7 @@ const catalanTranslation: TranslationType = {
                 elections: "Eleccions",
                 electionNumber: "Número d'Eleccions",
                 trustees: "Trustees",
+                permissionLabels: "Etiquetes de Permís",
                 status: "Estat",
                 tallyType: {
                     label: "Tipus de Recompte",
