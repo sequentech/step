@@ -1,0 +1,176 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+use super::types::*;
+use crate::postgres::area::get_event_areas;
+use crate::postgres::election_event::{get_all_tenant_election_events, ElectionEventDatafix};
+use crate::services::consolidation::eml_generator::ValidateAnnotations;
+use crate::services::users::get_users_by_username;
+use anyhow::{anyhow, Result};
+use deadpool_postgres::Transaction;
+use rocket::http::Status;
+use sequent_core::ballot::Annotations;
+use sequent_core::serialization::deserialize_with_path::{deserialize_str, deserialize_value};
+use sequent_core::types::keycloak::UserArea;
+use tracing::{error, info, instrument, warn};
+
+impl ValidateAnnotations for ElectionEventDatafix {
+    type Item = DatafixAnnotations;
+
+    fn get_annotations(&self) -> Result<Self::Item> {
+        let annotations_value = self
+            .0
+            .annotations
+            .clone()
+            .ok_or_else(|| anyhow!("Missing election event annotations"))?;
+
+        let annotations: Annotations = deserialize_value(annotations_value)?;
+        let id = match annotations.get("datafix:id") {
+            Some(id) => id.clone(),
+            None => return Err(anyhow!("datafix:id not found")),
+        };
+
+        let password_policy: PasswordPolicy = match annotations.get("datafix:password_policy") {
+            Some(value_as_str) => deserialize_str(value_as_str)?,
+            None => return Err(anyhow!("datafix:password_policy not found")),
+        };
+
+        let voterview_request: VoterviewRequest = match annotations.get("datafix:voterview_request")
+        {
+            Some(value_as_str) => deserialize_str(value_as_str)?,
+            None => return Err(anyhow!("datafix:voterview_request not found")),
+        };
+
+        Ok(DatafixAnnotations {
+            id,
+            password_policy,
+            voterview_request,
+        })
+    }
+}
+
+/// Gets the election_event_id and the DatafixAnnotations of the event that has the datafix id in its annotations.
+#[instrument(skip(hasura_transaction))]
+pub async fn get_event_id_and_datafix_annotations(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    requester_datafix_id: &str,
+) -> Result<(String, DatafixAnnotations), JsonErrorResponse> {
+    let election_events = get_all_tenant_election_events(hasura_transaction, tenant_id)
+        .await
+        .map_err(|err| {
+            error!("Error getting election events: {err}");
+            DatafixResponse::new(Status::BadRequest)
+        })?;
+
+    let mut itr: std::slice::Iter<'_, ElectionEventDatafix> = election_events.iter();
+    let mut next_event = itr.next(); // Use while let Some(event) = itr.next()... once the compiler gets updated.
+
+    // Search for the datafix event id in all the annotations
+    while next_event.is_some() {
+        let event = next_event.unwrap();
+        let datafix_id_value = event
+            .0
+            .annotations
+            .as_ref()
+            .and_then(|v| v.get("datafix:id"));
+        info!("datafix_id_value: {datafix_id_value:?}");
+        // If there is a Datafix object, deserialize it:
+        if datafix_id_value.is_some() {
+            match event.get_annotations() {
+                // Return Ok only in case of matching the ID of the requester:
+                Ok(annotations_datafix) if requester_datafix_id.eq(&annotations_datafix.id) => {
+                    return Ok((event.0.id.clone(), annotations_datafix));
+                }
+                Ok(annotations_datafix) => {
+                    info!(
+                        "Not matching id: {} found in event: {}",
+                        annotations_datafix.id, event.0.id
+                    );
+                }
+                Err(err) => {
+                    error!("Error deserializing datafix annotations: {err}");
+                }
+            }
+        }
+
+        next_event = itr.next();
+    }
+
+    warn!("Datafix annotations not found. Requested datafix ID: {requester_datafix_id}");
+    return Err(DatafixResponse::new(Status::BadRequest));
+}
+
+/// Returns the UserArea object. If it cannot find the area id by name returns an error.
+#[instrument(skip_all)]
+pub async fn find_user_area_by_name(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    voter_info: &VoterInformationBody,
+) -> Result<UserArea, JsonErrorResponse> {
+    // Compose the full area name from the voter information
+    let mut area_concat: String = voter_info.ward.clone();
+    let area_childs = vec![voter_info.schoolboard.clone(), voter_info.poll.clone()];
+    for subarea in &area_childs {
+        if let Some(subarea) = subarea {
+            area_concat.push_str(format!(" - {subarea}").as_str());
+        }
+    }
+    // Get the areas for this election_event_id
+    let event_areas = get_event_areas(hasura_transaction, tenant_id, election_event_id)
+        .await
+        .map_err(|e| {
+            error!("Error getting event areas: {e:?}");
+            DatafixResponse::new(Status::InternalServerError)
+        })?;
+    // Find the id that matches the full name.
+    let area_id = event_areas
+        .iter()
+        .find(|area| {
+            if let Some(name) = &area.name {
+                name.eq(&area_concat)
+            } else {
+                false
+            }
+        })
+        .and_then(|area| Some(area.id.clone()));
+
+    match area_id {
+        Some(id) => Ok(UserArea {
+            id: Some(id),
+            name: Some(area_concat),
+        }),
+        None => {
+            error!("Error. Area not found for {}", area_concat);
+            Err(DatafixResponse::new(Status::NotFound))
+        }
+    }
+}
+
+/// Get user id by username
+#[instrument(skip(keycloak_transaction))]
+pub async fn get_user_id(
+    keycloak_transaction: &Transaction<'_>,
+    realm: &str,
+    username: &str,
+) -> Result<String, JsonErrorResponse> {
+    let user_ids = get_users_by_username(keycloak_transaction, &realm, username)
+        .await
+        .map_err(|e| {
+            error!("Error getting users by username: {e:?}");
+            DatafixResponse::new(Status::InternalServerError)
+        })?;
+
+    match user_ids.len() {
+        0 => {
+            error!("Error getting users by username: Not Found");
+            return Err(DatafixResponse::new(Status::NotFound));
+        }
+        1 => Ok(user_ids[0].clone()),
+        _ => {
+            error!("Error getting users by username: Multiple users Found");
+            return Err(DatafixResponse::new(Status::NotFound));
+        }
+    }
+}
