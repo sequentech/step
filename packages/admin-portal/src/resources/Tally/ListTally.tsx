@@ -64,7 +64,7 @@ import {useKeysPermissions} from "../ElectionEvent/useKeysPermissions"
 import {GET_TRUSTEES_NAMES} from "@/queries/GetTrusteesNames"
 import { StyledChip } from "@/components/StyledChip"
 
-const OMIT_FIELDS = ["id", "ballot_eml"]
+const OMIT_FIELDS = ["id", "ballot_eml", "trustees"]
 
 const Filters: Array<ReactElement> = [
     <TextInput label="Name" source="name" key={0} />,
@@ -462,6 +462,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
                         <DateField source="created_at" showTime={true} />
 
                         <FunctionField
+                            key="permission_label"
                             label={t("electionEventScreen.tally.permissionLabels")}
                             render={(record: RaRecord<Identifier>) => {
                                 return (
@@ -479,6 +480,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
                         />
 
                         <FunctionField
+                            source="trustees"
                             label={t("electionEventScreen.tally.trustees")}
                             render={(record: RaRecord<Identifier>) => (
                                 <Box sx={{height: 36, overflowY: "scroll"}}>
