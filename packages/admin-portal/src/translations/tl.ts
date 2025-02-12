@@ -1916,11 +1916,11 @@ const tagalogTranslation: TranslationType = {
                 rejectReason: "Dahilan ng Pagtanggi",
                 messageRequired: "Kinakailangan ang mensahe ng pagtanggi para sa opsyon na 'Iba'",
                 reasons: {
-                    "undefined": "-",
-                    "INSUFFICIENT_INFORMATION": "Kulang na Datos",
-                    "NO_VOTER": "Walang Tumutugma na Botante",
-                    "ALREADY_APPROVED": "Naaprubahan Na",
-                    "OTHER": "Iba Pa",
+                    undefined: "-",
+                    INSUFFICIENT_INFORMATION: "Kulang na Datos",
+                    NO_VOTER: "Walang Tumutugma na Botante",
+                    ALREADY_APPROVED: "Naaprubahan Na",
+                    OTHER: "Iba Pa",
                 },
             },
             notifications: {

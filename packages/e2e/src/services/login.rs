@@ -15,7 +15,7 @@ use std::{env, fs};
 #[derive(serde::Deserialize, Debug)]
 pub struct LoginScenarioData {
     pub election_event_id: String,
-    pub password: String, 
+    pub password: String,
 }
 
 pub fn get_login_test_name_str(election_event_id: &str) -> String {
