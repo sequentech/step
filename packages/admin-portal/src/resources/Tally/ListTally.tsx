@@ -24,7 +24,6 @@ import {Button} from "react-admin"
 import {Alert, Box, Tooltip, Typography} from "@mui/material"
 import {
     ListKeysCeremonyQuery,
-    Sequent_Backend_Election,
     Sequent_Backend_Election_Event,
     Sequent_Backend_Tally_Session,
     Sequent_Backend_Tally_Session_Execution,
@@ -63,6 +62,7 @@ import {IKeysCeremonyExecutionStatus} from "@/services/KeyCeremony"
 import {Add} from "@mui/icons-material"
 import {useKeysPermissions} from "../ElectionEvent/useKeysPermissions"
 import {GET_TRUSTEES_NAMES} from "@/queries/GetTrusteesNames"
+import { StyledChip } from "@/components/StyledChip"
 
 const OMIT_FIELDS = ["id", "ballot_eml"]
 
@@ -83,6 +83,12 @@ const NotificationLink = styled.span`
     &:hover {
         text-decoration: none;
     }
+`
+
+
+const StyledNull = styled.div`
+    display: block;
+    padding-left: 18px;
 `
 
 const TrusteeKeyIcon = MUIStiled(KeyIcon)`
@@ -156,9 +162,18 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
             },
         },
         {
-            refetchOnWindowFocus: false,
-            refetchOnReconnect: false,
-            refetchOnMount: false,
+            refetchOnWindowFocus: true,
+            refetchOnReconnect: true,
+            refetchOnMount: true,
+            meta: {
+               context: {
+                    headers: {
+                        "x-hasura-role": isTrustee
+                            ? IPermissions.TRUSTEE_CEREMONY
+                            : IPermissions.ADMIN_CEREMONY,
+                    },
+               }
+            }
         }
     )
 
@@ -333,30 +348,19 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
         }
     }
 
-    const checkPermissionLabel = (
-        ceremony: Sequent_Backend_Tally_Session,
-        trusteePermissionLabels: string[]
-    ): boolean => {
-        // Ensure the ceremony has permission labels to check against and that the trustee has permissions
-        if (!ceremony.permission_label || ceremony.permission_label.length === 0) {
-            return false
-        }
-        return ceremony.permission_label.every((label) => trusteePermissionLabels.includes(label))
-    }
-
     const isTrusteeParticipating = (
         tally_session: Sequent_Backend_Tally_Session,
         ceremony: Sequent_Backend_Tally_Session_Execution | undefined,
         authContext: AuthContextValues
     ) => {
         if (ceremony) {
-            return (
+            let ret = (
                 tally_session.execution_status === ITallyExecutionStatus.STARTED &&
                 !!ceremony.status.trustees.find(
                     (trustee: any) => trustee.name === authContext.trustee
-                ) &&
-                checkPermissionLabel(tally_session, authContext.permissionLabels)
+                )
             )
+            return ret
         }
         return false
     }
@@ -456,6 +460,23 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
                             }
                         />
                         <DateField source="created_at" showTime={true} />
+
+                        <FunctionField
+                            label={t("electionEventScreen.tally.permissionLabels")}
+                            render={(record: RaRecord<Identifier>) => {
+                                return (
+                                    <>
+                                        {record?.permission_label ? (
+                                            record?.permission_label.map((item: any, index: number) => (
+                                                <StyledChip key={index} label={item} />
+                                            ))
+                                        ) : (
+                                            <StyledNull>-</StyledNull>
+                                        )}
+                                    </>
+                                )
+                            }}
+                        />
 
                         <FunctionField
                             label={t("electionEventScreen.tally.trustees")}
