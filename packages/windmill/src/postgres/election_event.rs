@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::services::datafix::utils::DATAFIX_ID_KEY;
 use crate::services::import::import_election_event::ImportElectionEventSchema;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
@@ -469,7 +470,7 @@ pub async fn delete_election_event(
     Ok(())
 }
 
-/// Get the ElectionEvent, check if its DATAFIX event (has DATAFIX annotations).
+/// Get the ElectionEvent, check if its a datafix election event (has datafix:id annotations).
 #[instrument(skip(hasura_transaction), err)]
 pub async fn is_datafix_election_event(
     hasura_transaction: &Transaction<'_>,
@@ -483,6 +484,6 @@ pub async fn is_datafix_election_event(
     let datafix_object = election_event
         .annotations
         .as_ref()
-        .and_then(|v| v.get("DATAFIX"));
+        .and_then(|v| v.get(DATAFIX_ID_KEY));
     Ok(datafix_object.is_some())
 }

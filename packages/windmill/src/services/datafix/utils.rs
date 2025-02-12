@@ -14,6 +14,10 @@ use sequent_core::serialization::deserialize_with_path::{deserialize_str, deseri
 use sequent_core::types::keycloak::UserArea;
 use tracing::{error, info, instrument, warn};
 
+pub const DATAFIX_ID_KEY: &str = "datafix:id";
+pub const DATAFIX_PSW_POLICY_KEY: &str = "datafix:password_policy";
+pub const DATAFIX_VOTERVIEW_REQ_KEY: &str = "datafix:voterview_request";
+
 impl ValidateAnnotations for ElectionEventDatafix {
     type Item = DatafixAnnotations;
 
@@ -25,20 +29,19 @@ impl ValidateAnnotations for ElectionEventDatafix {
             .ok_or_else(|| anyhow!("Missing election event annotations"))?;
 
         let annotations: Annotations = deserialize_value(annotations_value)?;
-        let id = match annotations.get("datafix:id") {
+        let id = match annotations.get(DATAFIX_ID_KEY) {
             Some(id) => id.clone(),
-            None => return Err(anyhow!("datafix:id not found")),
+            None => return Err(anyhow!("{DATAFIX_ID_KEY} not found")),
         };
 
-        let password_policy: PasswordPolicy = match annotations.get("datafix:password_policy") {
+        let password_policy: PasswordPolicy = match annotations.get(DATAFIX_PSW_POLICY_KEY) {
             Some(value_as_str) => deserialize_str(value_as_str)?,
-            None => return Err(anyhow!("datafix:password_policy not found")),
+            None => return Err(anyhow!("{DATAFIX_PSW_POLICY_KEY} not found")),
         };
 
-        let voterview_request: VoterviewRequest = match annotations.get("datafix:voterview_request")
-        {
+        let voterview_request: VoterviewRequest = match annotations.get(DATAFIX_VOTERVIEW_REQ_KEY) {
             Some(value_as_str) => deserialize_str(value_as_str)?,
-            None => return Err(anyhow!("datafix:voterview_request not found")),
+            None => return Err(anyhow!("{DATAFIX_VOTERVIEW_REQ_KEY} not found")),
         };
 
         Ok(DatafixAnnotations {
