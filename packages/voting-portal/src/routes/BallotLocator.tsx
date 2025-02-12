@@ -14,7 +14,7 @@ import {
     Dialog,
 } from "@sequentech/ui-essentials"
 import {stringToHtml} from "@sequentech/ui-core"
-import {Box, TextField, Typography, Button} from "@mui/material"
+import {Box, TextField, Typography, Button, Stack} from "@mui/material"
 import {styled} from "@mui/material/styles"
 import {Link, useLocation, useNavigate, useParams} from "react-router-dom"
 import {GET_CAST_VOTE} from "../queries/GetCastVote"
@@ -61,6 +61,7 @@ const MessageSuccess = styled(Box)`
     align-items: center;
     margin-right: auto;
     margin-left: auto;
+    overflow-wrap: anywhere;
 `
 
 const MessageFailed = styled(Box)`
@@ -74,6 +75,7 @@ const MessageFailed = styled(Box)`
     align-items: center;
     margin-right: auto;
     margin-left: auto;
+    overflow-wrap: anywhere;
 `
 
 function isHex(str: string) {
@@ -84,6 +86,12 @@ function isHex(str: string) {
     const regex = /^[0-9a-fA-F]+$/
     return regex.test(str)
 }
+
+const StyledApp = styled(Stack)<{css: string}>`
+    min-height: 100vh;
+    min-width: 100vw;
+    ${({css}) => css}
+`
 
 const BallotLocator: React.FC = () => {
     const {tenantId, eventId, electionId, ballotId} = useParams()
@@ -96,6 +104,7 @@ const BallotLocator: React.FC = () => {
 
     const hasBallotId = !!ballotId
     const {data: dataBallotStyles} = useQuery<GetBallotStylesQuery>(GET_BALLOT_STYLES)
+
     const dispatch = useAppDispatch()
     const ballotStyle = useAppSelector(selectFirstBallotStyle)
     useLanguage({ballotStyle})
@@ -139,7 +148,7 @@ const BallotLocator: React.FC = () => {
     }
 
     return (
-        <>
+        <StyledApp css={ballotStyle?.ballot_eml.election_event_presentation?.css ?? ""}>
             <PageLimit maxWidth="lg" className="ballot-locator-screen screen">
                 <Box marginTop="48px">
                     <BreadCrumbSteps
@@ -148,8 +157,19 @@ const BallotLocator: React.FC = () => {
                     />
                 </Box>
 
-                <Box sx={{display: "flex", justifyContent: "space-between"}}>
-                    <Box>
+                <Box
+                    sx={{
+                        display: "flex",
+                        flexDirection: {xs: "column", md: "row"},
+                        justifyContent: "space-between",
+                        alignItems: "flex-start",
+                    }}
+                >
+                    <Box
+                        sx={{
+                            order: {xs: 2, md: 1},
+                        }}
+                    >
                         <StyledTitle variant="h1">
                             {!hasBallotId ? (
                                 <Box>{t("ballotLocator.title")}</Box>
@@ -180,7 +200,7 @@ const BallotLocator: React.FC = () => {
                             {t("ballotLocator.description")}
                         </Typography>
                     </Box>
-                    <Box sx={{marginTop: "20px"}}>
+                    <Box sx={{order: {xs: 1, md: 2}, marginTop: "20px"}}>
                         <StyledLink
                             to={`/tenant/${tenantId}/event/${eventId}/election-chooser${location.search}`}
                         >
@@ -249,7 +269,7 @@ const BallotLocator: React.FC = () => {
                     </>
                 )}
             </PageLimit>
-        </>
+        </StyledApp>
     )
 }
 

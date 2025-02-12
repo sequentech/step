@@ -371,8 +371,6 @@ function TreeMenuItem({
 
     useEffect(() => {
         if (lastCreatedResource?.id === resource.id) {
-            console.log("aa IN EFFECT")
-
             setOpen(true)
             setLastCreatedResource(null)
         }

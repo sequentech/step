@@ -239,7 +239,7 @@ pub async fn get_report_by_id(
     Ok(reports.get(0).cloned())
 }
 
-/// Returns ONLY THE FIRST the template_alias which mathes these arguments,
+/// Returns ONLY THE FIRST the template_alias which matches these arguments,
 /// If there are multiple matches, the rest are ignored.
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_template_alias_for_report(

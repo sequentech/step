@@ -7,7 +7,8 @@ use tracing::{info, instrument};
 
 pub fn get_region() -> Result<RegionProviderChain> {
     let region = RegionProviderChain::first_try(Region::new(
-        std::env::var("AWS_REGION").map_err(|err| anyhow!("AWS_REGION env var missing: {err}"))?,
+        std::env::var("AWS_REGION")
+            .map_err(|err| anyhow!("AWS_REGION env var missing: {err}"))?,
     ))
     .or_default_provider()
     .or_else(Region::new("us-east-1"));
@@ -17,7 +18,8 @@ pub fn get_region() -> Result<RegionProviderChain> {
 #[instrument(err, skip_all)]
 pub async fn get_from_env_aws_config() -> Result<SdkConfig> {
     let region = Region::new(
-        std::env::var("AWS_REGION").map_err(|err| anyhow!("AWS_REGION env var missing: {err}"))?,
+        std::env::var("AWS_REGION")
+            .map_err(|err| anyhow!("AWS_REGION env var missing: {err}"))?,
     );
     Ok(aws_config::from_env().region(region).load().await)
 }
@@ -34,7 +36,9 @@ pub async fn get_s3_aws_config(is_private: bool) -> Result<aws_sdk_s3::Config> {
     let access_secret_result = std::env::var("AWS_S3_ACCESS_SECRET");
     let endpoint_uri = std::env::var(env_var_name)?;
     info!("env_var_name={env_var_name}, endpoint_uri = {endpoint_uri:?}");
-    if let (Ok(access_key), Ok(access_secret)) = (acces_key_result, access_secret_result) {
+    if let (Ok(access_key), Ok(access_secret)) =
+        (acces_key_result, access_secret_result)
+    {
         info!("using aws credentials with access key and access secret");
 
         let credentials_provider = aws_sdk_s3::config::Credentials::new(
@@ -62,18 +66,24 @@ pub async fn get_s3_aws_config(is_private: bool) -> Result<aws_sdk_s3::Config> {
 
 pub fn get_max_upload_size() -> Result<usize> {
     Ok(std::env::var("AWS_S3_MAX_UPLOAD_BYTES")
-        .map_err(|err| anyhow!("AWS_S3_MAX_UPLOAD_BYTES env var missing: {err}"))?
+        .map_err(|err| {
+            anyhow!("AWS_S3_MAX_UPLOAD_BYTES env var missing: {err}")
+        })?
         .parse()?)
 }
 
 pub fn get_upload_expiration_secs() -> Result<u64> {
     Ok(std::env::var("AWS_S3_UPLOAD_EXPIRATION_SECS")
-        .map_err(|err| anyhow!("AWS_S3_UPLOAD_EXPIRATION_SECS env var missing: {err}"))?
+        .map_err(|err| {
+            anyhow!("AWS_S3_UPLOAD_EXPIRATION_SECS env var missing: {err}")
+        })?
         .parse()?)
 }
 
 pub fn get_fetch_expiration_secs() -> Result<u64> {
     Ok(std::env::var("AWS_S3_FETCH_EXPIRATION_SECS")
-        .map_err(|err| anyhow!("AWS_S3_FETCH_EXPIRATION_SECS env var missing: {err}"))?
+        .map_err(|err| {
+            anyhow!("AWS_S3_FETCH_EXPIRATION_SECS env var missing: {err}")
+        })?
         .parse()?)
 }
