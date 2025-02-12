@@ -56,6 +56,7 @@ impl TryFrom<Row> for TallySessionWrapper {
                 .map(|val| deserialize_value(val))
                 .transpose()?,
             tally_type: item.try_get("tally_type")?,
+            permission_label: item.get::<_, Option<Vec<String>>>("permission_label"),
         }))
     }
 }
@@ -74,6 +75,7 @@ pub async fn insert_tally_session(
     configuration: Option<TallySessionConfiguration>,
     tally_type: &str,
     annotations: Value,
+    permission_label: Vec<String>,
 ) -> Result<TallySession> {
     let configuration_json: Option<Value> = configuration
         .map(|value| serde_json::to_value(&value))
@@ -91,7 +93,7 @@ pub async fn insert_tally_session(
             r#"
                 INSERT INTO
                     sequent_backend.tally_session
-                (tenant_id, election_event_id, election_ids, area_ids, id, keys_ceremony_id, execution_status, threshold, configuration, tally_type, annotations)
+                (tenant_id, election_event_id, election_ids, area_ids, id, keys_ceremony_id, execution_status, threshold, configuration, tally_type, annotations, permission_label)
                 VALUES(
                     $1,
                     $2,
@@ -103,7 +105,8 @@ pub async fn insert_tally_session(
                     $8,
                     $9,
                     $10,
-                    $11
+                    $11,
+                    $12
                 )
                 RETURNING
                     *;
@@ -125,6 +128,7 @@ pub async fn insert_tally_session(
                 &configuration_json,
                 &tally_type.to_string(),
                 &annotations,
+                &permission_label,
             ],
         )
         .await

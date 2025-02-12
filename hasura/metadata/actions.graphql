@@ -1406,6 +1406,7 @@ type KeysCeremony {
     name: String
     settings: jsonb
     is_default: Boolean
+    permission_label: [String]
 }
 
 type generateReportOutput {

@@ -391,6 +391,7 @@ const frenchTranslation: TranslationType = {
                 electionNumber: "Nombre d'Élections",
                 trustees: "Autorités",
                 status: "État",
+                permissionLabels: "Étiquettes d’Autorisation",
                 tallyType: {
                     label: "Type de Décompte",
                     ELECTORAL_RESULTS: "Résultats Électoraux",

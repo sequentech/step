@@ -249,12 +249,12 @@ pub async fn get_elections_by_ids(
 }
 
 #[instrument(skip(hasura_transaction), err)]
-pub async fn get_election_by_keys_ceremony_id(
+pub async fn get_elections_by_keys_ceremony_id(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
     keys_ceremony_id: &str,
-) -> Result<Option<Election>> {
+) -> Result<Vec<Election>> {
     let statement = hasura_transaction
         .prepare(
             r#"
@@ -289,7 +289,7 @@ pub async fn get_election_by_keys_ceremony_id(
         })
         .collect::<Result<Vec<Election>>>()?;
 
-    Ok(elections.get(0).map(|election| election.clone()))
+    Ok(elections)
 }
 
 #[instrument(skip(hasura_transaction), err)]
@@ -606,7 +606,7 @@ pub async fn set_election_keys_ceremony(
     election_event_id: &str,
     election_id: Option<String>,
     keys_ceremony_id: &str,
-) -> Result<()> {
+) -> Result<Vec<Election>> {
     let election_uuid_opt = election_id
         .clone()
         .map(|val| Uuid::parse_str(&val))
@@ -623,7 +623,7 @@ pub async fn set_election_keys_ceremony(
                     tenant_id = $3 AND
                     election_event_id = $4
                 RETURNING
-                    id;
+                    *;
             "#,
         )
         .await?;
@@ -645,7 +645,15 @@ pub async fn set_election_keys_ceremony(
         return Err(anyhow!("No election found"));
     }
 
-    Ok(())
+    let elections: Vec<Election> = rows
+        .into_iter()
+        .map(|row| -> Result<Election> {
+            row.try_into()
+                .map(|res: ElectionWrapper| -> Election { res.0 })
+        })
+        .collect::<Result<Vec<Election>>>()?;
+
+    Ok(elections)
 }
 
 #[instrument(err, skip(hasura_transaction))]
