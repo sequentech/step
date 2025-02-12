@@ -391,6 +391,7 @@ const frenchTranslation: TranslationType = {
                 electionNumber: "Nombre d'Élections",
                 trustees: "Autorités",
                 status: "État",
+                permissionLabels: "Étiquettes d’Autorisation",
                 tallyType: {
                     label: "Type de Décompte",
                     ELECTORAL_RESULTS: "Résultats Électoraux",
@@ -1907,7 +1908,7 @@ const frenchTranslation: TranslationType = {
                 verificationType: "Type de Vérification",
                 createdAt: "Créé Le",
                 updatedAt: "Mis à Jour Le",
-                approved_by: "Approuvé Par",
+                verified_by: "Vérifié Par",
             },
             approvalRequest: "Informations d'approbation",
             title: "Électeurs",
@@ -1923,11 +1924,11 @@ const frenchTranslation: TranslationType = {
                 rejectReason: "Raison du rejet",
                 messageRequired: "Un message de rejet est requis pour l'option 'Autre'",
                 reasons: {
-                    "undefined": "-",
-                    "insufficient-information": "Données Manquantes",
-                    "no-matching-voter": "Électeur Non Correspondant",
-                    "voter-already-approved": "Déjà Approuvé",
-                    "other": "Autre",
+                    undefined: "-",
+                    INSUFFICIENT_INFORMATION: "Données Manquantes",
+                    NO_VOTER: "Électeur Non Correspondant",
+                    ALREADY_APPROVED: "Déjà Approuvé",
+                    OTHER: "Autre",
                 },
             },
             notifications: {

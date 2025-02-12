@@ -391,6 +391,7 @@ const spanishTranslation: TranslationType = {
                 electionNumber: "Número de Elecciones",
                 trustees: "Trustees",
                 status: "Estado",
+                permissionLabels: "Etiquetas de Permisos",
                 tallyType: {
                     label: "Tipo de Conteo",
                     ELECTORAL_RESULTS: "Resultados Electorales",
@@ -1896,7 +1897,7 @@ const spanishTranslation: TranslationType = {
                 verificationType: "Tipo de Verificación",
                 createdAt: "Creado El",
                 updatedAt: "Actualizado El",
-                approved_by: "Aprobado Por",
+                verified_by: "Aprobado Por",
             },
             approvalRequest: "Solicitud de Aprobación",
             title: "Votantes",
@@ -1912,11 +1913,11 @@ const spanishTranslation: TranslationType = {
                 rejectReason: "Motivo del rechazo",
                 messageRequired: "Se requiere un mensaje de rechazo para la opción 'Otro'",
                 reasons: {
-                    "undefined": "-",
-                    "insufficient-information": "Datos Faltantes",
-                    "no-matching-voter": "Votante no Coincidente",
-                    "voter-already-approved": "Ya Aprobado",
-                    "other": "Otro",
+                    undefined: "-",
+                    INSUFFICIENT_INFORMATION: "Datos Faltantes",
+                    NO_VOTER: "Votante no Coincidente",
+                    ALREADY_APPROVED: "Ya Aprobado",
+                    OTHER: "Otro",
                 },
             },
             notifications: {
