@@ -265,7 +265,7 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                         render={(record: any) => (
                             <MessageField
                                 content={getHeadField(record, "description")}
-                                initialLength={10}
+                                initialLength={50}
                             />
                         )}
                     />

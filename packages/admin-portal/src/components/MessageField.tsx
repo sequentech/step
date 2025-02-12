@@ -26,7 +26,7 @@ const LinkButton = styled(Button)(({theme}) => ({
     "color": theme.palette.primary.main,
     "border": "none",
     "padding": 0,
-    "textDecoration": "underline",
+    "textDecoration": "none",
     "boxShadow": "none",
     "cursor": "pointer",
     /**
@@ -111,13 +111,13 @@ export const MessageField: React.FC<MessageFieldProps> = ({
                     </>
                 )}
             </Box>
-            <Box sx={{display: "flex", justifyContent: "flex-end"}}>
+            {data.length > initialLength && <Box sx={{display: "flex", justifyContent: "flex-end"}}>
                 <LinkButton disableRipple onClick={() => setMore(!more)}>
                     {more
                         ? t("electionEventScreen.common.showLess")
                         : t("electionEventScreen.common.showMore")}
                 </LinkButton>
-            </Box>
+            </Box>}
         </Box>
     )
 }
