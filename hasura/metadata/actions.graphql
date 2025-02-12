@@ -349,17 +349,23 @@ type Mutation {
         election_event_id: String
         election_id: String
         document_id: String!
+        sha256: String
     ): applicationOutput
 }
 
 type Mutation {
-    import_areas(election_event_id: String!, document_id: String!): OptionalId
+    import_areas(
+        election_event_id: String!
+        document_id: String!
+        sha256: String
+    ): OptionalId
 }
 
 type Mutation {
     import_candidates(
         election_event_id: String!
         document_id: String!
+        sha256: String
     ): documentTaskOutput
 }
 
@@ -369,11 +375,16 @@ type Mutation {
         document_id: String!
         password: String
         check_only: Boolean
+        sha256: String
     ): OptionalImportEvent
 }
 
 type Mutation {
-    import_templates(tenant_id: String!, document_id: String!): templateOutput
+    import_templates(
+        tenant_id: String!
+        document_id: String!
+        sha256: String
+    ): templateOutput
 }
 
 type Mutation {
@@ -381,6 +392,7 @@ type Mutation {
         tenant_id: String!
         document_id: String!
         import_configurations: ImportOptions
+        sha256: String
     ): ImportTenantOutput
 }
 
@@ -389,6 +401,7 @@ type Mutation {
         tenant_id: String!
         election_event_id: String
         document_id: String!
+        sha256: String
     ): taskOutput
 }
 
@@ -1393,6 +1406,7 @@ type KeysCeremony {
     name: String
     settings: jsonb
     is_default: Boolean
+    permission_label: [String]
 }
 
 type generateReportOutput {
@@ -1455,8 +1469,10 @@ type ElectionEventStatsMonitoringOutput {
     total_eligible_voters: Int
     total_enrolled_voters: Int
     total_elections: Int
+    total_started_votes: Int
+    total_not_started_votes: Int
     total_open_votes: Int
-    total_not_opened_votes: Int
+    total_not_open_votes: Int
     total_closed_votes: Int
     total_not_closed_votes: Int
     total_start_counting_votes: Int
@@ -1480,6 +1496,7 @@ type ExportApplicationOutput {
 type applicationOutput {
     error_msg: String
     document_id: String
+    task_execution: tasks_execution_type
 }
 
 type ExportTrusteesOutput {

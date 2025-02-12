@@ -390,6 +390,7 @@ const catalanTranslation: TranslationType = {
                 elections: "Eleccions",
                 electionNumber: "Número d'Eleccions",
                 trustees: "Trustees",
+                permissionLabels: "Etiquetes de Permís",
                 status: "Estat",
                 tallyType: {
                     label: "Tipus de Recompte",
@@ -446,6 +447,8 @@ const catalanTranslation: TranslationType = {
                 fileUploadError: "Error pujant el fitxer",
                 importVotersSuccess: "Importació de Votants llançada en segon pla amb èxit.",
                 importVotersError: "Error Important Votants.",
+                importElectionEventSuccess: "Election event imported Successfully",
+                importElectionEventError: "Error importing election event",
                 shaDialog: {
                     ok: "Sí, Importar Sense Verificació d'Integritat",
                     cancel: "Tornar",
@@ -1102,6 +1105,7 @@ const catalanTranslation: TranslationType = {
             election: "Importar una Elecció",
             contest: "Importar un Concurs",
             candidate: "Importar un Candidat",
+            ImportHashMismatch: "Hashes don't match. Integrity check failure.",
         },
         sideMenu: {
             electionEvents: "Processos Electorals",
@@ -1294,6 +1298,7 @@ const catalanTranslation: TranslationType = {
                     description:
                         "Estàs a punt de Crear una Cerimònia de Claus. Aquesta acció notificarà a les Autoritats per participar en la creació i distribució de les Claus de l'Esdeveniment Electoral.",
                 },
+                filterTrustees: "Filtrar Autoritats",
             },
             ceremonyStep: {
                 cancel: "Cancel·lar Cerimònia de Claus",
@@ -1791,6 +1796,7 @@ const catalanTranslation: TranslationType = {
                 smsMessage: "Missatge SMS",
                 document: "Document",
                 pdfOptions: "Opcions PDF",
+                reportOptions: "Opcions Report",
                 name: "Nom de la Plantilla",
                 alias: "Àlies de la Plantilla",
                 type: "Tipus",
@@ -1903,7 +1909,7 @@ const catalanTranslation: TranslationType = {
                 verificationType: "Tipus de Verificació",
                 createdAt: "Creat El",
                 updatedAt: "Actualitzat El",
-                approved_by: "Aprovat per",
+                verified_by: "Verificat Per",
             },
             approvalRequest: "Sol·licitud d'Aprovació",
             title: "Votants",
@@ -1919,11 +1925,11 @@ const catalanTranslation: TranslationType = {
                 rejectReason: "Motiu del rebuig",
                 messageRequired: "Es requereix un missatge de rebuig per a l'opció 'Altres'",
                 reasons: {
-                    "undefined": "-",
-                    "insufficient-information": "Données Manquantes",
-                    "no-matching-voter": "Votant Non Trouvé",
-                    "voter-already-approved": "Déjà Approuvé",
-                    "other": "Autre",
+                    undefined: "-",
+                    INSUFFICIENT_INFORMATION: "Données Manquantes",
+                    NO_VOTER: "Votant Non Trouvé",
+                    ALREADY_APPROVED: "Déjà Approuvé",
+                    OTHER: "Autre",
                 },
             },
             notifications: {

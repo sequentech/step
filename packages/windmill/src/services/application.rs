@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::users::{lookup_users, FilterOption, ListUsersFilter};
 use crate::postgres::application::get_permission_label_from_post;
+use crate::postgres::area::get_event_areas;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::services::celery_app::get_celery_app;
 use crate::services::providers::{email_sender::EmailSender, sms_sender::SmsSender};
@@ -79,7 +80,6 @@ pub async fn verify_application(
     applicant_data: &HashMap<String, String>,
     tenant_id: &str,
     election_event_id: &str,
-    area_id: &Option<String>,
     labels: &Option<Value>,
     annotations: &ApplicationAnnotations,
 ) -> Result<ApplicationVerificationResult> {
@@ -102,7 +102,6 @@ pub async fn verify_application(
 
     // Uses applicant data to lookup possible users
     let users = lookup_users(hasura_transaction, keycloak_transaction, filter).await?;
-
     debug!("Found users before verification: {:?}", users);
 
     // Finds an user from the list of found possible users
@@ -132,7 +131,26 @@ pub async fn verify_application(
     {
         get_permission_label_from_applicant_data(hasura_transaction, applicant_data).await?
     } else {
-        (None, None)
+        let area_name = applicant_data
+            .get("country")
+            .and_then(|country| {
+                country
+                    .split('/')
+                    .next()
+                    .map(|country| country.to_lowercase())
+            })
+            .ok_or(anyhow!("Error with applicant country"))?;
+        let areas = get_event_areas(hasura_transaction, tenant_id, election_event_id).await?;
+        let area = areas
+            .iter()
+            .find(|area| {
+                area.name
+                    .as_ref()
+                    .map(|name| name.to_lowercase().contains(&area_name.clone()))
+                    .unwrap_or_default()
+            })
+            .ok_or(anyhow!("Error finding area"))?;
+        (None, Some(Uuid::parse_str(&area.id)?))
     };
 
     let mut final_applicant_data = applicant_data.clone();
@@ -196,22 +214,25 @@ fn get_filter_from_applicant_data(
             "firstName" => {
                 first_name = applicant_data
                     .get("firstName")
-                    .and_then(|value| Some(FilterOption::IsLikeUnaccentHyphens(value.to_string())));
+                    .and_then(|value| Some(FilterOption::IsEqualNormalized(value.to_string())));
             }
             "lastName" => {
                 last_name = applicant_data
                     .get("lastName")
-                    .and_then(|value| Some(FilterOption::IsLikeUnaccentHyphens(value.to_string())));
+                    .and_then(|value| Some(FilterOption::IsEqualNormalized(value.to_string())));
             }
             "username" => {
                 username = applicant_data
                     .get("username")
-                    .and_then(|value| Some(FilterOption::IsLikeUnaccentHyphens(value.to_string())));
+                    .and_then(|value| Some(FilterOption::IsEqualNormalized(value.to_string())));
             }
             "email" => {
                 email = applicant_data
                     .get("email")
-                    .and_then(|value| Some(FilterOption::IsLikeUnaccentHyphens(value.to_string())));
+                    .and_then(|value| Some(FilterOption::IsEqualNormalized(value.to_string())));
+            }
+            "embassy" => {
+                // Ignore embassy to speed up user lookup
             }
             _ => {
                 let value = applicant_data
@@ -771,6 +792,7 @@ pub async fn confirm_application(
         election_event_id,
         user_id,
         ApplicationStatus::ACCEPTED,
+        ApplicationType::MANUAL,
         None,
         None,
         admin_name,
@@ -929,6 +951,7 @@ pub async fn reject_application(
         election_event_id,
         user_id,
         ApplicationStatus::REJECTED,
+        ApplicationType::MANUAL,
         rejection_reason,
         rejection_message,
         admin_name,
@@ -1049,6 +1072,7 @@ pub async fn send_application_communication_response(
                 name: None,
                 alias: None,
                 pdf_options: None,
+                report_options: None,
             };
 
             let celery_app = get_celery_app().await;
@@ -1127,7 +1151,7 @@ fn string_to_unaccented(word: String) -> String {
 #[instrument(skip_all)]
 fn to_unaccented_without_hyphen(word: Option<String>) -> Option<String> {
     let word = match word {
-        Some(word) => word.replace("-", " "),
+        Some(word) => word.replace("-", " ").replace(".", ""),
         None => return None,
     };
     let unaccented_word = string_to_unaccented(word);

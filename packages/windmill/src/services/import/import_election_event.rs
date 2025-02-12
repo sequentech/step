@@ -80,10 +80,9 @@ use crate::services::protocol_manager::get_protocol_manager_secret_path;
 use crate::services::protocol_manager::{
     create_protocol_manager_keys, get_b3_pgsql_client, get_board_client,
 };
-use crate::services::temp_path::generate_temp_file;
-use crate::services::temp_path::get_file_size;
 use crate::tasks::import_election_event::ImportElectionEventBody;
 use crate::types::documents::EDocuments;
+use sequent_core::signatures::temp_path::{generate_temp_file, get_file_size};
 use sequent_core::types::hasura::core::{Area, Candidate, Contest, Election, ElectionEvent};
 use sequent_core::types::scheduled_event::*;
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -493,6 +492,7 @@ pub async fn process_election_event_file(
                         keys_ceremony.name,
                         keys_ceremony.settings,
                         keys_ceremony.is_default.clone().unwrap_or_default(),
+                        keys_ceremony.permission_label.unwrap_or_default(),
                     )
                 })
                 .collect::<Vec<_>>(),

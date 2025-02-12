@@ -24,7 +24,7 @@ serde_path_to_error = "0.1"
 reqwest = { version="0.12.5", features = ["multipart", "blocking", "json"] }
 handlebars = "6.1.0"
 anyhow = "1.0.75"
-tempfile = "3.8.0"
+tempfile = "3.15.0"
 fs_extra = "1.3.0"
 flate2 = "1.0.28"
 tar = "0.4.40"
@@ -71,7 +71,7 @@ immudb-rs = { path="../immudb-rs" }
 b3 = { path="../b3", features = ["client"] }
 electoral-log = { path="../electoral-log" }
 strand = { path="../strand" }
-sequent-core = { path="../sequent-core", features = ["reports", "keycloak", "log", "probe", "areas"] }
+sequent-core = { path="../sequent-core", features = ["reports", "s3", "keycloak", "log", "probe", "areas"] }
 velvet = { path="../velvet" }
 
 # To connect to the Database
@@ -102,7 +102,6 @@ ring = "0.17"
 hex = "0.4"
 
 walkdir = "2.3"
-headless_chrome = { version = "1.0.15"}
 croner = "2.0"
 unicode-normalization = "0.1.24"
 num_cpus = "1.16.0"

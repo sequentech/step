@@ -5,13 +5,12 @@ use crate::postgres::ballot_publication::get_ballot_publication;
 use crate::postgres::ballot_style::{
     export_event_ballot_styles, get_ballot_styles_by_ballot_publication_by_id,
 };
-use crate::services::{
-    documents::upload_and_return_document_postgres, temp_path::write_into_named_temp_file,
-};
+use crate::services::documents::upload_and_return_document_postgres;
 use anyhow::{anyhow, Context, Result};
 use csv::Writer;
 use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::serialization::deserialize_with_path::deserialize_str;
+use sequent_core::signatures::temp_path::write_into_named_temp_file;
 use sequent_core::types::hasura::core::Document;
 use sequent_core::types::hasura::core::{BallotPublication, Template};
 use serde::{Deserialize, Serialize};
