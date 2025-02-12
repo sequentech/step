@@ -64,7 +64,7 @@ import {useKeysPermissions} from "../ElectionEvent/useKeysPermissions"
 import {GET_TRUSTEES_NAMES} from "@/queries/GetTrusteesNames"
 import {StyledChip} from "@/components/StyledChip"
 
-const OMIT_FIELDS = ["id", "ballot_eml", "trustees"]
+const OMIT_FIELDS = ["ballot_eml", "trustees"]
 
 const Filters: Array<ReactElement> = [
     <TextInput label="Name" source="name" key={0} />,
@@ -450,7 +450,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
                     <ResetFilters />
                     <ElectionHeader title={"electionEventScreen.tally.title"} subtitle="" />
                     <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={false}>
-                        <TextField source="tenant_id" />
+                        <TextField source="id" />
                         <FunctionField
                             label={t("electionEventScreen.tally.tallyType.label")}
                             render={(record: RaRecord<Identifier>) =>
@@ -465,7 +465,8 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
                             render={(record: RaRecord<Identifier>) => {
                                 return (
                                     <>
-                                        {record?.permission_label ? (
+                                        {record?.permission_label &&
+                                        record?.permission_label.length > 0 ? (
                                             record?.permission_label.map(
                                                 (item: any, index: number) => (
                                                     <StyledChip key={index} label={item} />

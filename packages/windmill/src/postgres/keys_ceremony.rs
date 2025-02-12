@@ -281,15 +281,9 @@ pub async fn list_keys_ceremony(
                 WHERE
                     keys_ceremony.tenant_id = $1 AND
                     keys_ceremony.election_event_id = $2 AND
-                    EXISTS (
-                        SELECT 1
-                        FROM
-                            sequent_backend.election AS election
-                        WHERE
-                            election.keys_ceremony_id = keys_ceremony.id AND
-                            election.tenant_id = $1 AND
-                            election.election_event_id = $2 AND
-                            (cardinality($3::text[]) = 0 OR election.permission_label = ANY($3::text[]))
+                    (
+                        cardinality($3::text[]) = 0
+                        OR keys_ceremony.permission_label && $3::text[]
                     );
             "#,
         )
