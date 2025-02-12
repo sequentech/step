@@ -390,6 +390,7 @@ const tagalogTranslation: TranslationType = {
                 electionNumber: "Bilang ng mga Halalan",
                 trustees: "Mga Tagapangasiwa",
                 status: "Katayuan",
+                permissionLabels: "Mga Label ng Pahintulot",
                 tallyType: {
                     label: "Uri ng Bilang",
                     ELECTORAL_RESULTS: "Mga Resulta ng Halalan",
@@ -445,6 +446,8 @@ const tagalogTranslation: TranslationType = {
                 fileUploadError: "Error sa pag-upload ng file",
                 importVotersSuccess: "Matagumpay na na-iskedyul ang Pag-import ng mga Botante",
                 importVotersError: "Error sa pag-import ng mga Botante",
+                importElectionEventSuccess: "Election event imported Successfully",
+                importElectionEventError: "Error importing election event",
                 shaDialog: {
                     ok: "Oo, Mag-import nang walang Pag-check ng Integridad",
                     cancel: "Bumalik",
@@ -1094,6 +1097,7 @@ const tagalogTranslation: TranslationType = {
             election: "Mag-import ng Halalan",
             contest: "Mag-import ng Paligsahan",
             candidate: "Mag-import ng Kandidato",
+            ImportHashMismatch: "Hashes don't match. Integrity check failure.",
         },
         sideMenu: {
             electionEvents: "Mga Kaganapan ng Halalan",
@@ -1288,6 +1292,7 @@ const tagalogTranslation: TranslationType = {
                     description:
                         "Ikaw ay malapit nang lumikha ng Seremonya ng Mga Susi. Ang aksyong ito ay magpapadala ng abiso sa mga Trustee upang lumahok sa paglikha at pamamahagi ng Mga Susi ng Kaganapan sa Halalan.",
                 },
+                filterTrustees: "I-filter ang mga trustee",
             },
             ceremonyStep: {
                 cancel: "Kanselahin ang Seremonya ng Mga Susi",
@@ -1896,7 +1901,7 @@ const tagalogTranslation: TranslationType = {
                 verificationType: "Uri ng Pag-verify",
                 createdAt: "Nilikha Noong",
                 updatedAt: "Na-update Noong",
-                approved_by: "Naaaprubahan Noong",
+                verified_by: "Napatunayan Noong",
             },
             approvalRequest: "Kahilingan para sa Pag-apruba",
             title: "Mga Botante",
@@ -1912,11 +1917,11 @@ const tagalogTranslation: TranslationType = {
                 rejectReason: "Dahilan ng Pagtanggi",
                 messageRequired: "Kinakailangan ang mensahe ng pagtanggi para sa opsyon na 'Iba'",
                 reasons: {
-                    "undefined": "-",
-                    "insufficient-information": "Kulang na Datos",
-                    "no-matching-voter": "Walang Tumutugma na Botante",
-                    "voter-already-approved": "Naaprubahan Na",
-                    "other": "Iba Pa",
+                    undefined: "-",
+                    INSUFFICIENT_INFORMATION: "Kulang na Datos",
+                    NO_VOTER: "Walang Tumutugma na Botante",
+                    ALREADY_APPROVED: "Naaprubahan Na",
+                    OTHER: "Iba Pa",
                 },
             },
             notifications: {

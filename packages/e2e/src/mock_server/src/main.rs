@@ -18,19 +18,8 @@ fn index() -> &'static str {
     "Server is running!"
 }
 
-// If you have a CSV load at startup or anything, you can do it in main or a fairing
-
 #[rocket::main]
 async fn main() -> Result<(), rocket::Error> {
-    // For example, if you want to load CSV before launching, do it here:
-    // load_csv_into_db("voters.csv").expect("Failed to load CSV");
-
-    if let Err(e) = load_users("./voters.csv") {
-        eprintln!("Failed to load CSV: {:?}", e);
-        // Exit early if CSV loading is critical and you want to fail fast.
-        std::process::exit(1);
-    }
-
     let _rocket = rocket::build()
         .mount(
             "/",
@@ -40,6 +29,7 @@ async fn main() -> Result<(), rocket::Error> {
                 routes::inetum::transaction_new,
                 routes::inetum::transaction_status_simple,
                 routes::inetum::transaction_results,
+                routes::user::upload_csv,
             ],
         )
         .launch()

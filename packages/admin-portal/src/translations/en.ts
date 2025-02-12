@@ -387,6 +387,7 @@ const englishTranslation = {
                 elections: "Elections",
                 electionNumber: "Number Elections",
                 trustees: "Trustees",
+                permissionLabels: "Permission Labels",
                 status: "Status",
                 tallyType: {
                     label: "Tally Type",
@@ -442,6 +443,8 @@ const englishTranslation = {
                 fileUploadError: "Error uploading file",
                 importVotersSuccess: "Voters Import Scheduled Successfully",
                 importVotersError: "Error importing Voters",
+                importElectionEventSuccess: "Election event imported Successfully",
+                importElectionEventError: "Error importing election event",
                 shaDialog: {
                     ok: "Yes, Import without Integrity Check",
                     cancel: "Go Back",
@@ -1079,6 +1082,7 @@ const englishTranslation = {
             election: "Import an Election",
             contest: "Import a Contest",
             candidate: "Import a Candidate",
+            ImportHashMismatch: "Hashes don't match. Integrity check failure.",
         },
         sideMenu: {
             electionEvents: "Election Events",
@@ -1271,6 +1275,7 @@ const englishTranslation = {
                     description:
                         "You are about to Create Keys Ceremony. This action will notify the Trustees to participate in the creation and distribution of the Election Event Keys.",
                 },
+                filterTrustees: "Filter Trustees",
             },
             ceremonyStep: {
                 cancel: "Cancel Keys Ceremony",
@@ -1874,7 +1879,7 @@ const englishTranslation = {
                 verificationType: "Verification Type",
                 createdAt: "Created At",
                 updatedAt: "Updated At",
-                approved_by: "Approved By",
+                verified_by: "Verified By",
             },
             approvalRequest: "Approval Request",
             title: "Voters",
@@ -1890,11 +1895,11 @@ const englishTranslation = {
                 message: "Write here the disapproval reason",
                 messageRequired: "A rejection message is required for the 'Other' option.",
                 reasons: {
-                    "undefined": "-",
-                    "insufficient-information": "Missing Data",
-                    "no-matching-voter": "No Matching Voter",
-                    "voter-already-approved": "Already Approved",
-                    "other": "Other",
+                    undefined: "-",
+                    INSUFFICIENT_INFORMATION: "Missing Data",
+                    NO_VOTER: "No Matching Voter",
+                    ALREADY_APPROVED: "Already Approved",
+                    OTHER: "Other",
                 },
             },
             notifications: {

@@ -44,7 +44,7 @@ export const GenerateReport: React.FC<GenerateReportProps> = ({
     const onClick = async (e: React.MouseEvent<HTMLElement>) => {
         e.preventDefault()
         e.stopPropagation()
-        handleClose()
+        setDocumentId(null)
         const currWidget: WidgetProps = addWidget(ETasksExecution.GENERATE_REPORT)
         try {
             let {data} = await generateTemplate({
@@ -58,6 +58,7 @@ export const GenerateReport: React.FC<GenerateReportProps> = ({
                             : "VoteReceipts",
                 },
             })
+            console.log("aa onClick data", data)
             let response = data?.generate_template
             let taskId = response?.task_execution?.id
             let generatedDocumentId = response?.document_id
@@ -71,7 +72,6 @@ export const GenerateReport: React.FC<GenerateReportProps> = ({
             setWidgetTaskId(currWidget.identifier, taskId)
         } catch (e) {
             updateWidgetFail(currWidget.identifier)
-            setDocumentId(null)
         }
     }
 
@@ -94,7 +94,7 @@ export const GenerateReport: React.FC<GenerateReportProps> = ({
                             electionEventId={electionEventId}
                             fileName={null}
                             onDownload={() => {
-                                console.log("onDownload called")
+                                setDocumentId(null)
                             }}
                         />
                     ) : null}
