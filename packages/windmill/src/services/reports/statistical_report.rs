@@ -14,11 +14,13 @@ use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::reports::{ReportCronConfig, ReportType};
 use crate::postgres::results_area_contest::get_results_area_contest;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
+use crate::services::election_dates::get_election_dates;
 use crate::services::cast_votes::count_ballots_by_area_id;
 use crate::services::temp_path::*;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
+use sequent_core::ballot::StringifiedPeriodDates;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::pdf;
 use sequent_core::services::s3::get_minio_url;
@@ -48,9 +50,7 @@ pub struct SystemData {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserDataArea {
     pub election_title: String,
-    pub voting_period_start: String,
-    pub voting_period_end: String,
-    pub election_date: String,
+    pub election_dates: StringifiedPeriodDates,
     pub post: String,
     pub country: String,
     pub geographical_region: String,
@@ -198,12 +198,6 @@ impl TemplateRenderer for StatisticalReportTemplate {
         )
         .map_err(|e| anyhow!(format!("Error generating voting period dates {e:?}")))?;
 
-        // extract start date from voting period
-        let voting_period_start_date = voting_period_dates.start_date.unwrap_or_default();
-        // extract end date from voting period
-        let voting_period_end_date = voting_period_dates.end_date.unwrap_or_default();
-
-        let election_date: String = voting_period_start_date.clone();
 
         let election_areas = get_areas_by_election_id(
             &hasura_transaction,
@@ -305,11 +299,24 @@ impl TemplateRenderer for StatisticalReportTemplate {
 
             let country = area.clone().name.unwrap_or("-".to_string());
 
+            let scheduled_events = find_scheduled_event_by_election_event_id(
+                &hasura_transaction,
+                &self.ids.tenant_id,
+                &self.ids.election_event_id,
+            )
+            .await
+            .map_err(|e| {
+                anyhow::anyhow!("Error getting scheduled events by election event_id: {}", e)
+            })?;
+            let election_dates = get_election_dates(&election, scheduled_events)
+                .map_err(|e| anyhow::anyhow!("Error getting election dates {e}"))?;
+
+            println!("election_dates: {:?}", election_dates);
+
+
             areas.push(UserDataArea {
                 election_title: election_title.clone(),
-                voting_period_start: voting_period_start_date.clone(),
-                voting_period_end: voting_period_end_date.clone(),
-                election_date: election_date.clone(),
+                election_dates: election_dates.clone(),
                 post: election_general_data.post.clone(),
                 country: country,
                 geographical_region: election_general_data.geographical_region.clone(),
