@@ -344,7 +344,7 @@ export default function ElectionEvents() {
             candidateData()
             candidateTreeRefetch()
         } else {
-            // do nothing electionEventDataRefetch()
+            // do nothing
         }
     }, [location])
 

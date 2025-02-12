@@ -335,4 +335,3 @@ export const CreateElectionEventProvider = ({children}: any) => {
 
 //hook
 export const useCreateElectionEventStore = () => useContext(CreateElectionEventContext)
-
