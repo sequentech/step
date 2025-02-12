@@ -20,6 +20,7 @@ use sequent_core::types::hasura::core::{Application, Area};
 use sequent_core::types::keycloak::AREA_ID_ATTR_NAME;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use strum_macros::Display;
 use tokio_postgres::types::ToSql;
 use tokio_postgres::Row;
 use tracing::{info, instrument};
@@ -33,20 +34,15 @@ pub const LANDBASED_VALUE: &str = "land";
 pub const SEAFARER_VALUE: &str = "sea";
 const OFOV_ROLE: &str = "ofov";
 const SBEI_ROLE: &str = "sbei";
-enum VoterStatus {
-    Voted,
-    NotVoted,
-    DidNotPreEnrolled,
-}
 
-impl VoterStatus {
-    pub fn to_string(&self) -> String {
-        match self {
-            VoterStatus::Voted => "Voted".to_string(),
-            VoterStatus::NotVoted => "Did Not Vote".to_string(),
-            VoterStatus::DidNotPreEnrolled => "Did Not Pre-enrolled".to_string(),
-        }
-    }
+#[derive(Display)]
+enum VoterStatus {
+    #[strum(to_string = "Voted")]
+    Voted,
+    #[strum(to_string = "Did Not Vote")]
+    NotVoted,
+    #[strum(to_string = "Did Not Pre-enrolled")]
+    DidNotPreEnrolled,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
@@ -63,6 +59,7 @@ pub struct Voter {
     pub verification_date: Option<String>, // for approval & disaproval
     pub verified_by: Option<String>,       // OFOV/SBEI/SYSTEM for approval & disaproval
     pub disapproval_reason: Option<String>, // for disapproval
+    pub manual_verify_reason: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
@@ -118,6 +115,26 @@ pub async fn get_enrolled_voters(
                 Some(VoterStatus::DidNotPreEnrolled.to_string())
             };
 
+            let verified_by_role: Option<Vec<String>> = row
+                .annotations
+                .clone()
+                .unwrap_or_default()
+                .get("verified_by_role")
+                .and_then(|v| v.as_str())
+                .and_then(|s| serde_json::from_str::<Vec<String>>(s).ok());
+
+            let mut role: Option<String> = None;
+
+            if let Some(roles) = verified_by_role {
+                if roles.contains(&SBEI_ROLE.to_string()) {
+                    role = Some(SBEI_ROLE.to_string())
+                } else if roles.contains(&OFOV_ROLE.to_string()) {
+                    role = Some(OFOV_ROLE.to_string())
+                } else {
+                    role = Some("system".to_string())
+                }
+            }
+
             Voter {
                 id: Some(row.applicant_id),
                 middle_name,
@@ -129,17 +146,18 @@ pub async fn get_enrolled_voters(
                 date_voted: None,
                 enrollment_date: row.created_at.map(|date| date.to_rfc3339()),
                 verification_date: row.updated_at.map(|date| date.to_rfc3339()),
-                verified_by: row
-                    .annotations
-                    .clone()
-                    .unwrap_or_default()
-                    .get("verified_by")
-                    .and_then(|v| v.as_str().map(|s| s.to_string())),
+                verified_by: role,
                 disapproval_reason: row
                     .annotations
                     .clone()
                     .unwrap_or_default()
                     .get("rejection_reason")
+                    .and_then(|v| v.as_str().map(|s| s.to_string())),
+                manual_verify_reason: row
+                    .annotations
+                    .clone()
+                    .unwrap_or_default()
+                    .get("manual_verify_reason")
                     .and_then(|v| v.as_str().map(|s| s.to_string())),
             }
         })
@@ -177,8 +195,8 @@ pub async fn get_voters_by_area_id(
     let statement = keycloak_transaction
         .prepare(&format!(
             r#"
-        SELECT 
-            u.id, 
+        SELECT
+            u.id,
             u.first_name,
             u.last_name,
             u.username,
@@ -186,7 +204,7 @@ pub async fn get_voters_by_area_id(
             COALESCE(attr_json.attributes ->> 'suffix', '') AS suffix,
             COALESCE(attr_json.attributes ->> '{VALIDATE_ID_ATTR_NAME}', '') AS validate_id,
             COUNT(u.id) OVER() AS total_count
-        FROM 
+        FROM
             user_entity u
         INNER JOIN
             realm AS ra ON ra.id = u.realm_id
@@ -200,10 +218,10 @@ pub async fn get_voters_by_area_id(
         WHERE
             ra.name = $1 AND
             EXISTS (
-                SELECT 1 
-                FROM user_attribute ua 
-                WHERE ua.user_id = u.id 
-                AND ua.name = '{AREA_ID_ATTR_NAME}' 
+                SELECT 1
+                FROM user_attribute ua
+                WHERE ua.user_id = u.id
+                AND ua.name = '{AREA_ID_ATTR_NAME}'
                 AND ua.value = $2
             )
             AND ({dynamic_attr_clause})
@@ -244,6 +262,7 @@ pub async fn get_voters_by_area_id(
                 verification_date: None,
                 verified_by: None,
                 disapproval_reason: None,
+                manual_verify_reason: None,
             };
             user
         })
@@ -280,16 +299,16 @@ pub async fn get_voters_with_vote_info(
     let vote_info_statement = hasura_transaction
         .prepare(
             r#"
-             SELECT DISTINCT ON (v.voter_id_string) 
+             SELECT DISTINCT ON (v.voter_id_string)
                 v.voter_id_string AS voter_id_string,
                 MAX(v.created_at) AS last_voted_at
-            FROM 
+            FROM
                 sequent_backend.cast_vote v
-            WHERE 
+            WHERE
                 v.tenant_id = $1 AND
                 v.election_event_id = $2 AND
                 v.voter_id_string = ANY($3)
-            GROUP BY 
+            GROUP BY
                 v.voter_id_string, v.election_id;
             "#,
         )

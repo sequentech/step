@@ -18,6 +18,7 @@ import {
     useRefresh,
     useSidebarState,
     useGetOne,
+    useRemoveFromStore,
 } from "react-admin"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {TFunction, useTranslation} from "react-i18next"
@@ -50,12 +51,13 @@ import {useQuery} from "@apollo/client"
 import {USER_PROFILE_ATTRIBUTES} from "@/queries/GetUserProfileAttributes"
 import {styled} from "@mui/material/styles"
 import eStyled from "@emotion/styled"
-import {Chip, Typography} from "@mui/material"
+import {Chip} from "@mui/material"
 import {convertToCamelCase} from "./UtilsApprovals"
 import {getAttributeLabel, getTranslationLabel} from "@/services/UserService"
-import {log} from "node:console"
 import {useLocation} from "react-router"
 import {getPreferenceKey} from "@/lib/helpers"
+import CustomDateField from "../User/CustomDateField"
+import {IUser} from "@sequentech/ui-core"
 
 const StyledChip = styled(Chip)`
     margin: 4px;
@@ -78,13 +80,14 @@ interface ApprovalsListProps extends Omit<DatagridConfigurableProps, "children">
     actions: Action[]
     t: TFunction
     userAttributes: GetUserProfileAttributesQuery | undefined
+    defaultFilters: string | null
 }
 
 // Storage key for the status filter
 const STATUS_FILTER_KEY = "approvals_status_filter"
 
 const ApprovalsList = (props: ApprovalsListProps) => {
-    const {filterValues, data, isLoading} = useListContext()
+    const {filterValues, setFilters} = useListContext()
     const location = useLocation()
 
     const {t} = useTranslation()
@@ -109,6 +112,12 @@ const ApprovalsList = (props: ApprovalsListProps) => {
         return {basicInfoFields, attributesFields, omitFields}
     }, [props.userAttributes?.get_user_profile_attributes])
 
+    useEffect(() => {
+        if (props.defaultFilters) {
+            setFilters({...filterValues, status: localStorage.getItem(STATUS_FILTER_KEY)}, {})
+        }
+    }, [props.defaultFilters])
+
     const renderUserFields = (fields: UserProfileAttribute[]) => {
         const allFields = fields.map((attr) => {
             const attrMappedName = convertToCamelCase(getAttributeLabel(attr.name ?? ""))
@@ -122,16 +131,15 @@ const ApprovalsList = (props: ApprovalsListProps) => {
                             record: Sequent_Backend_Applications,
                             source: string | undefined
                         ) => {
-                            const dateValue = record?.applicant_data[attrMappedName]
-                            try {
-                                const date = new Date(dateValue)
-                                if (isNaN(date.getTime())) {
-                                    throw new Error("Invalid date")
-                                }
-                                return <span>{date.toLocaleDateString()}</span>
-                            } catch {
-                                return <span>-</span>
-                            }
+                            return (
+                                <CustomDateField
+                                    key={attr.name}
+                                    base="applicant_data"
+                                    source={`${attrMappedName}`}
+                                    label={getTranslationLabel(attr.name, attr.display_name, t)}
+                                    emptyText="-"
+                                />
+                            )
                         }}
                     />
                 )
@@ -179,6 +187,22 @@ const ApprovalsList = (props: ApprovalsListProps) => {
             }
         })
 
+        return allFields
+    }
+
+    const sx = {
+        "@media (min-width: 960px)": {
+            overflowX: "auto",
+            width: "100%",
+            maxWidth: isOpenSidebar ? "calc(100vw - 355px)" : "calc(100vw - 108px)",
+        },
+    }
+
+    const restFields = useMemo(() => {
+        const theFields = []
+        theFields.push(...renderUserFields(listFields?.basicInfoFields ?? []))
+        theFields.push(...renderUserFields(listFields?.attributesFields ?? []))
+
         localStorage.removeItem(
             `RaStore.preferences.${getPreferenceKey(
                 location.pathname,
@@ -186,20 +210,8 @@ const ApprovalsList = (props: ApprovalsListProps) => {
             )}.datagrid.availableColumns`
         )
 
-        return allFields
-    }
-
-    const sx = {
-        "@media (min-width: 960px)": {
-            "overflowX": "auto",
-            "width": "100%",
-            "maxWidth": isOpenSidebar ? "calc(100vw - 355px)" : "calc(100vw - 108px)",
-            "& > div:first-of-type": {
-                position: "absolute",
-                width: "100%",
-            },
-        },
-    }
+        return theFields
+    }, [listFields?.basicInfoFields, listFields?.attributesFields, location.pathname])
 
     // Monitor and save filter changes
     useEffect(() => {
@@ -209,44 +221,46 @@ const ApprovalsList = (props: ApprovalsListProps) => {
     }, [filterValues?.status])
 
     return (
-        <div>
-            <DatagridConfigurable
-                preferenceKey={getPreferenceKey(location.pathname, "approvals")}
-                sx={sx}
-                {...props}
-                omit={listFields.omitFields}
-                bulkActionButtons={<></>}
-            >
-                <TextField source="id" />
-                <DateField showTime source="created_at" />
-                <DateField showTime source="updated_at" />
-                <FunctionField
-                    source="applicant_id"
-                    render={(record: Sequent_Backend_Applications) => {
-                        if (record.applicant_id && record.applicant_id != "null") {
-                            return record.applicant_id
-                        } else {
-                            return "-"
-                        }
-                    }}
-                />
-                <TextField source="verification_type" />
-                <FunctionField
-                    label={props.t("approvalsScreen.column.status")}
-                    render={(record: any) => (
-                        <StatusApplicationChip status={record.status.toUpperCase()} />
-                    )}
-                />
-                {renderUserFields(listFields.basicInfoFields)}
-                {renderUserFields(listFields.attributesFields)}
-                <ActionsColumn actions={props.actions} label={props.t("common.label.actions")} />
-            </DatagridConfigurable>
-        </div>
+        <DatagridConfigurable
+            preferenceKey={getPreferenceKey(location.pathname, "approvals")}
+            sx={sx}
+            {...props}
+            omit={listFields?.omitFields}
+            bulkActionButtons={false}
+        >
+            <TextField source="id" />
+            <DateField showTime source="created_at" />
+            <DateField showTime source="updated_at" />
+            <FunctionField
+                source="applicant_id"
+                render={(record: Sequent_Backend_Applications) => {
+                    if (record.applicant_id && record.applicant_id !== "null") {
+                        return record.applicant_id
+                    } else {
+                        return "-"
+                    }
+                }}
+            />
+            <TextField source="verification_type" />
+            <FunctionField
+                label={props.t("approvalsScreen.column.status")}
+                render={(record: any) => (
+                    <StatusApplicationChip status={record.status.toUpperCase()} />
+                )}
+            />
+            <TextField
+                source="annotations.verified_by"
+                label={props.t("approvalsScreen.column.verified_by")}
+                emptyText="-"
+            />
+            {restFields}
+            <ActionsColumn actions={props.actions} label={props.t("common.label.actions")} />
+        </DatagridConfigurable>
     )
 }
 
-const CustomFilters = () => {
-    const {t} = useTranslation()
+const CustomFilters = (t: any, changeFilters: any) => {
+    // const {t} = useTranslation()
 
     return [
         <SelectInput
@@ -258,6 +272,13 @@ const CustomFilters = () => {
                 {id: "accepted", name: "Accepted"},
                 {id: "rejected", name: "Rejected"},
             ]}
+            defaultValue={localStorage.getItem(STATUS_FILTER_KEY)}
+            onChange={(e) => {
+                if (e.target.value) {
+                    localStorage.setItem(STATUS_FILTER_KEY, e.target.value)
+                    changeFilters(e.target.value)
+                }
+            }}
         />,
         <SelectInput
             source="verification_type"
@@ -311,25 +332,21 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
 
     // ✨ Admin Portal > Approvals: Add Approved By row #5050
 
+    useEffect(() => {
+        localStorage.removeItem(
+            `RaStore.preferences.${getPreferenceKey(
+                location.pathname,
+                "approvals"
+            )}.datagrid.availableColumns`
+        )
+    }, [])
+
     // Move the useGetOne hook here and handle the undefined case
     const {data: election} = useGetOne<Sequent_Backend_Election>(
         "sequent_backend_election",
         {id: electionId || ""},
         {enabled: !!electionId} // Only fetch when electionId exists
     )
-
-    const listFilter = useMemo(() => {
-        const filter: Record<string, any> = {
-            election_event_id: electionEventId || undefined,
-            // status: initialStatus,
-        }
-
-        if (election?.permission_label) {
-            filter.permission_label = election.permission_label
-        }
-
-        return filter
-    }, [electionEventId, election?.permission_label])
 
     const handleExport = () => {
         setExporting(false)
@@ -343,19 +360,24 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
 
     const handleImportApplications = async (documentId: string, sha256: string) => {
         setOpenImportDrawer(false)
+        let currWidget: WidgetProps | undefined
         try {
-            await importApplications({
+            currWidget = addWidget(ETasksExecution.IMPORT_APPLICATION)
+            let {data, errors} = await importApplications({
                 variables: {
                     tenantId: electionEventRecord.tenant_id,
                     electionEventId: electionEventRecord.id,
                     electionId: electionId,
                     documentId,
+                    sha256,
                 },
             })
-            notify(t("application.import.messages.success"), {type: "success"})
+            const task_id = data?.import_application?.task_execution?.id
+            setWidgetTaskId(currWidget.identifier, task_id)
             refresh()
         } catch (err) {
             console.log(err)
+            currWidget && updateWidgetFail(currWidget.identifier)
             notify("application.import.messages.error", {type: "error"})
         }
     }
@@ -393,7 +415,6 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
         } catch (err) {
             setExporting(false)
             currWidget && updateWidgetFail(currWidget.identifier)
-            console.log(err)
         }
     }
 
@@ -405,24 +426,40 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
     ]
 
     const [tenantId] = useTenantStore()
-    const {data: userAttributes} = useQuery<GetUserProfileAttributesQuery>(
-        USER_PROFILE_ATTRIBUTES,
-        {
+    const {data: userAttributes, loading: userAttributesLoading} =
+        useQuery<GetUserProfileAttributesQuery>(USER_PROFILE_ATTRIBUTES, {
             variables: {
                 tenantId: tenantId,
                 electionEventId: electionEventId,
             },
-        }
-    )
+        })
 
     // Get initial status from localStorage or use "pending" as default
-    const initialStatus = localStorage.getItem(STATUS_FILTER_KEY) || "pending"
+    // const defaultFilters = localStorage.getItem(STATUS_FILTER_KEY) // || "pending"
+    const [defaultFilters, setDefaultFilters] = useState<string | null>(
+        localStorage.getItem(STATUS_FILTER_KEY) || "pending"
+    )
+
+    const listFilter = useMemo(() => {
+        const filter: Record<string, any> = {
+            election_event_id: electionEventId || undefined,
+        }
+
+        if (election?.permission_label) {
+            filter.permission_label = election.permission_label
+        }
+
+        return filter
+    }, [electionEventId, election?.permission_label, defaultFilters])
 
     const authContext = useContext(AuthContext)
     const canExport = authContext.isAuthorized(true, tenantId, IPermissions.APPLICATION_EXPORT)
     const canImport = authContext.isAuthorized(true, tenantId, IPermissions.APPLICATION_IMPORT)
 
     // add election level
+    if (userAttributesLoading) {
+        return null
+    }
 
     return (
         <>
@@ -436,23 +473,24 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
                         doExport={handleExport}
                     />
                 }
-                empty={false}
+                // empty={false}
                 resource="sequent_backend_applications"
-                filters={CustomFilters()}
+                filters={CustomFilters(t, setDefaultFilters)}
                 filter={listFilter}
                 sort={{field: "created_at", order: "DESC"}}
                 perPage={10}
-                filterDefaultValues={{status: initialStatus}}
+                filterDefaultValues={{status: defaultFilters}}
                 disableSyncWithLocation
-                storeKey="approvals-list"
             >
                 <ApprovalsList
                     omit={OMIT_FIELDS}
                     actions={actions}
                     t={t}
                     userAttributes={userAttributes}
+                    defaultFilters={defaultFilters}
                 />
             </List>
+
             <Dialog
                 variant="info"
                 open={openExport}
@@ -482,7 +520,6 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
                         electionEventId={electionEventRecord?.id || ""}
                         fileName={`export-applications.csv`}
                         onDownload={() => {
-                            console.log("onDownload called")
                             setExportDocumentId(undefined)
                             setExporting(false)
                             setOpenExport(false)

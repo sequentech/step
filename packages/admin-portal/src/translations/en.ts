@@ -2,9 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {en} from "intl-tel-input/i18n"
-import {title} from "process"
-
 const englishTranslation = {
     translations: {
         philippinePassport: "Philippine Passport",
@@ -302,6 +299,11 @@ const englishTranslation = {
                     coundownSecondsLabel: "time in seconds before expiration to show countdown",
                     alertSecondsLabel: "time in seconds before expiration to show Logout alert",
                 },
+                voterSigningPolicy: {
+                    "policyLabel": "Voter Signing Policy",
+                    "no-signature": "No signature",
+                    "with-signature": "With signature",
+                },
                 enrollment: {
                     policyLabel: "Enrollment",
                     options: {
@@ -385,6 +387,7 @@ const englishTranslation = {
                 elections: "Elections",
                 electionNumber: "Number Elections",
                 trustees: "Trustees",
+                permissionLabels: "Permission Labels",
                 status: "Status",
                 tallyType: {
                     label: "Tally Type",
@@ -440,6 +443,8 @@ const englishTranslation = {
                 fileUploadError: "Error uploading file",
                 importVotersSuccess: "Voters Import Scheduled Successfully",
                 importVotersError: "Error importing Voters",
+                importElectionEventSuccess: "Election event imported Successfully",
+                importElectionEventError: "Error importing election event",
                 shaDialog: {
                     ok: "Yes, Import without Integrity Check",
                     cancel: "Go Back",
@@ -1077,6 +1082,7 @@ const englishTranslation = {
             election: "Import an Election",
             contest: "Import a Contest",
             candidate: "Import a Candidate",
+            ImportHashMismatch: "Hashes don't match. Integrity check failure.",
         },
         sideMenu: {
             electionEvents: "Election Events",
@@ -1269,6 +1275,7 @@ const englishTranslation = {
                     description:
                         "You are about to Create Keys Ceremony. This action will notify the Trustees to participate in the creation and distribution of the Election Event Keys.",
                 },
+                filterTrustees: "Filter Trustees",
             },
             ceremonyStep: {
                 cancel: "Cancel Keys Ceremony",
@@ -1424,6 +1431,7 @@ const englishTranslation = {
             uploadTransmissionPackageDesc:
                 "Upload your Signature to sign the Transmission Package. This is an optional operation.",
             exportElectionArea: "Generate Transmission Package for Area '{{name}}'",
+            generateReport: "Generate {{name}}",
             templateTitle: "Results Template",
             templateSubTitle: "Optionally overwrite the results template.",
             keysCeremonyTitle: "Keys Ceremony",
@@ -1762,6 +1770,7 @@ const englishTranslation = {
                 smsMessage: "SMS Message",
                 document: "Document",
                 pdfOptions: "PDF Options",
+                reportOptions: "Report Options",
                 name: "Template Name",
                 alias: "Template Alias",
                 type: "Type",
@@ -1770,7 +1779,7 @@ const englishTranslation = {
             type: {
                 CREDENTIALS: "Credentials",
                 BALLOT_RECEIPT: "Ballot Receipt",
-                VOTE_RECEIPT: "Vote Receipt",
+                VOTE_RECEIPT: "Vote Receipts",
                 PARTICIPATION_REPORT: "Participation Report",
                 ELECTORAL_RESULTS: "Electoral Results",
                 OTP: "OTP",
@@ -1870,6 +1879,7 @@ const englishTranslation = {
                 verificationType: "Verification Type",
                 createdAt: "Created At",
                 updatedAt: "Updated At",
+                verified_by: "Verified By",
             },
             approvalRequest: "Approval Request",
             title: "Voters",
@@ -1885,11 +1895,11 @@ const englishTranslation = {
                 message: "Write here the disapproval reason",
                 messageRequired: "A rejection message is required for the 'Other' option.",
                 reasons: {
-                    "undefined": "-",
-                    "insufficient-information": "Missing Data",
-                    "no-matching-voter": "No Matching Voter",
-                    "voter-already-approved": "Already Approved",
-                    "other": "Other",
+                    undefined: "-",
+                    INSUFFICIENT_INFORMATION: "Missing Data",
+                    NO_VOTER: "No Matching Voter",
+                    ALREADY_APPROVED: "Already Approved",
+                    OTHER: "Other",
                 },
             },
             notifications: {
@@ -1897,6 +1907,7 @@ const englishTranslation = {
                 approveSuccess: "Voter approved",
                 rejectError: "Error rejecting voter",
                 rejectSuccess: "Voter rejected",
+                VoterApprovedAlready: "Voter is already approved.",
             },
             export: {
                 success: "Applications export finished successfully",

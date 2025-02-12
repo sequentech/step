@@ -52,6 +52,7 @@ import {
     FETCH_ELECTIONS_TREE,
 } from "@/queries/GetElectionEventsTree"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
+import {sortCandidatesInContest, sortContestList, sortElectionList} from "@sequentech/ui-core"
 
 const MenuItem = styled(Menu.Item)`
     color: ${adminTheme.palette.brandColor};
@@ -263,7 +264,7 @@ export default function ElectionEvents() {
     )
     const {refetch: refetchContestData} = useGetOne<Sequent_Backend_Contest>(
         "sequent_backend_contest",
-        {id: contestId || contest_id},
+        {id: contest_id || contestId},
         {
             enabled: !!contest_id,
             onSuccess: (data) => {
@@ -274,7 +275,18 @@ export default function ElectionEvents() {
             },
         }
     )
-
+    const {refetch: candidateData} = useGetOne<Sequent_Backend_Candidate>(
+        "sequent_backend_candidate",
+        {id: candidate_id},
+        {
+            enabled: !!candidate_id,
+            onSuccess: (data) => {
+                setContestId(data.contest_id)
+                setElectionEventId(data.election_event_id)
+                setCandidateId(data.id)
+            },
+        }
+    )
     // Get subtrees
     const [
         _getElectionEventTree,
@@ -329,8 +341,8 @@ export default function ElectionEvents() {
             contestTreeRefetch()
             refetchContestData()
         } else if (callerPath === "sequent_backend_candidate") {
+            candidateData()
             candidateTreeRefetch()
-            electionEventDataRefetch()
         } else {
             electionEventDataRefetch()
         }
@@ -395,9 +407,11 @@ export default function ElectionEvents() {
     }, [candidateId])
 
     useEffect(() => {
-        if (!electionEventData) return
-        setArchivedElectionEvents(electionEventData?.is_archived ?? false)
-    }, [electionEventData, setArchivedElectionEvents])
+        if (!electionEventData || !electionEventId) return
+        if (electionEventData?.id === electionEventId && electionEventData?.is_archived) {
+            setArchivedElectionEvents(electionEventData?.is_archived ?? false)
+        }
+    }, [electionEventId, electionEventData, setArchivedElectionEvents])
 
     function handleSearchChange(searchInput: string) {
         setSearchInput(searchInput)
@@ -421,6 +435,42 @@ export default function ElectionEvents() {
         openImportDrawer?.()
     }
 
+    const transformElectionsForSort = (elections: ElectionType[]): IElection[] => {
+        return elections.map((election) => {
+            return {
+                ...election,
+                tenant_id: tenantId || "",
+                image_document_id: election.image_document_id ?? "",
+                contests: [],
+            }
+        })
+    }
+
+    const transformContestsForSort = (contests: ContestType[]): IContest[] => {
+        return contests.map((contest): IContest => {
+            return {
+                ...contest,
+                tenant_id: tenantId || "",
+                candidates: [],
+                max_votes: 0,
+                min_votes: 0,
+                winning_candidates_num: 0,
+                is_encrypted: false,
+            }
+        })
+    }
+
+    const transformCandidatesForSort = (candidates: ICandidate[]): ICandidate[] => {
+        return candidates.map((candidate: ICandidate) => {
+            return {
+                ...candidate,
+                id: candidate.id,
+                election_id: electionId || "",
+                tenant_id: tenantId || "",
+            }
+        })
+    }
+
     let resultData = {...data}
     if (!loading && data && data.sequent_backend_election_event) {
         resultData = filterTree(
@@ -435,47 +485,93 @@ export default function ElectionEvents() {
         return {
             electionEvents: cloneDeep(resultData?.electionEvents ?? [])?.map(
                 (electionEvent: ElectionEventType) => {
+                    const electionOrderType = electionEvent?.presentation?.elections_order
                     return {
                         ...electionEvent,
                         ...(electionEvent.id === electionEventId
                             ? {
                                   active: true,
                                   elections:
-                                      electionTreeData?.sequent_backend_election?.map?.(
-                                          (e: any) => ({
+                                      sortElectionList(
+                                          transformElectionsForSort(
+                                              electionTreeData?.sequent_backend_election || []
+                                          ),
+                                          electionOrderType
+                                      )?.map?.((e: any) => {
+                                          const contestOrderType = e?.presentation?.contests_order
+                                          return {
                                               ...e,
                                               ...(e.id === electionId
                                                   ? {
                                                         active: true,
                                                         contests:
-                                                            contestTreeData?.sequent_backend_contest?.map?.(
-                                                                (c: any) => ({
+                                                            sortContestList(
+                                                                transformContestsForSort(
+                                                                    contestTreeData?.sequent_backend_contest ||
+                                                                        []
+                                                                ),
+                                                                contestOrderType
+                                                            )?.map?.((c: any) => {
+                                                                let orderType =
+                                                                    c.presentation?.candidates_order
+                                                                return {
                                                                     ...c,
                                                                     ...(c.id === contestId
                                                                         ? {
                                                                               active: true,
                                                                               candidates:
-                                                                                  candidateTreeData?.sequent_backend_candidate?.map(
+                                                                                  sortCandidatesInContest(
+                                                                                      transformCandidatesForSort(
+                                                                                          candidateTreeData?.sequent_backend_candidate ||
+                                                                                              []
+                                                                                      ),
+                                                                                      orderType
+                                                                                  )
+                                                                                      ?.map(
+                                                                                          (
+                                                                                              ca: any
+                                                                                          ) => ({
+                                                                                              ...ca,
+                                                                                              active:
+                                                                                                  ca.id ===
+                                                                                                  candidateId,
+                                                                                          })
+                                                                                      )
+                                                                                      ?.map(
+                                                                                          (
+                                                                                              ca: any
+                                                                                          ) => ({
+                                                                                              ...ca,
+                                                                                              active:
+                                                                                                  ca.id ===
+                                                                                                  candidateId,
+                                                                                          })
+                                                                                      ) ?? [],
+                                                                          }
+                                                                        : {
+                                                                              active: false,
+                                                                              candidates:
+                                                                                  sortCandidatesInContest(
+                                                                                      transformCandidatesForSort(
+                                                                                          candidateTreeData?.sequent_backend_candidate ||
+                                                                                              []
+                                                                                      ),
+                                                                                      orderType
+                                                                                  )?.map(
                                                                                       (
                                                                                           ca: any
                                                                                       ) => ({
                                                                                           ...ca,
-                                                                                          active:
-                                                                                              ca.id ===
-                                                                                              candidateId,
+                                                                                          active: false,
                                                                                       })
                                                                                   ) ?? [],
-                                                                          }
-                                                                        : {
-                                                                              active: false,
-                                                                              candidates: [],
                                                                           }),
-                                                                })
-                                                            ) ?? [],
+                                                                }
+                                                            }) ?? [],
                                                     }
                                                   : {active: false, contests: []}),
-                                          })
-                                      ) ?? [],
+                                          }
+                                      }) || [],
                               }
                             : {active: false, elections: []}),
                     }

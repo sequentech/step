@@ -61,7 +61,8 @@
           "middle_name": "A.",
           "suffix": "",
           "verification_date": "2024-05-02T10:45:00-04:00",
-          "verified_by": "SYSTEM"
+          "verified_by": "SYSTEM",
+          "disapproval_reason":"Mismatch at First Name and Last Name"
         },
         {
           "last_name": "Doe",
@@ -69,7 +70,8 @@
           "middle_name": "B.",
           "suffix": "",
           "verification_date": "2024-05-02T10:45:00-04:00",
-          "verified_by": "OFOV"
+          "verified_by": "OFOV",
+          "disapproval_reason":"Mismatch at First Name and Last Name"
         },
         {
           "last_name": "Brown",
@@ -77,7 +79,8 @@
           "middle_name": "C.",
           "suffix": "",
           "verification_date": "2024-05-02T10:45:00-04:00",
-          "verified_by": "OFOV"
+          "verified_by": "OFOV",
+          "disapproval_reason":"Mismatch at First Name and Birthday"
         },
         {
           "last_name": "Taylor",
@@ -85,7 +88,8 @@
           "middle_name": "D.",
           "suffix": "",
           "verification_date": "2024-05-02T10:45:00-04:00",
-          "verified_by": "OFOV"
+          "verified_by": "SBEI",
+          "disapproval_reason":"Mismatch at First Name and Last Name"
         },
         {
           "last_name": "Davis",
@@ -93,7 +97,8 @@
           "middle_name": "E.",
           "suffix": "",
           "verification_date": "2024-05-02T10:45:00-04:00",
-          "verified_by": "OFOV"
+          "verified_by": "SBEI",
+          "disapproval_reason":"Mismatch at Last Name and Birthday"
         }
       ]
     }

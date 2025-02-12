@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 import {Box, Button} from "@mui/material"
 import {styled} from "@mui/material/styles"
 import React, {useEffect, useState, useTransition} from "react"

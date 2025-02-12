@@ -20,7 +20,7 @@ use sequent_core::services::keycloak::{
 };
 use sequent_core::types::keycloak::User;
 use sequent_core::types::permissions::Permissions;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::instrument;
 use windmill::services::application::{
@@ -28,8 +28,11 @@ use windmill::services::application::{
     verify_application, ApplicationAnnotations, ApplicationVerificationResult,
 };
 use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
+use windmill::services::users::check_is_user_verified;
 use windmill::tasks::send_template::send_template;
-use windmill::types::application::{ApplicationStatus, ApplicationType};
+use windmill::types::application::{
+    ApplicationStatus, ApplicationType, ApplicationsError,
+};
 
 #[derive(Deserialize, Debug)]
 pub struct ApplicationVerifyBody {
@@ -110,7 +113,6 @@ pub async fn verify_user_application(
         &input.applicant_data,
         &input.tenant_id,
         &input.election_event_id,
-        &None,
         &input.labels,
         &input.annotations,
     )
@@ -145,12 +147,18 @@ pub struct ApplicationChangeStatusBody {
     rejection_message: Option<String>, // Optional for rejection
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ApplicationChangeStatusOutput {
+    message: Option<String>,
+    error: Option<String>,
+}
+
 #[instrument(skip(claims))]
 #[post("/change-application-status", format = "json", data = "<body>")]
 pub async fn change_application_status(
     claims: jwt::JwtClaims,
     body: Json<ApplicationChangeStatusBody>,
-) -> Result<Json<String>, JsonError> {
+) -> Result<Json<ApplicationChangeStatusOutput>, JsonError> {
     let input = body.into_inner();
 
     info!("Changing application status: {input:?}");
@@ -190,17 +198,18 @@ pub async fn change_application_status(
         })?;
 
     let user_id = &claims.hasura_claims.user_id;
-    let realm = get_tenant_realm(&input.tenant_id);
-    let group_names = get_group_names(&realm, user_id).await.map_err(|e| {
-        ErrorResponse::new(
-            Status::InternalServerError,
-            &format!("Error getting group names: {:#?}", e),
-            ErrorCode::InternalServerError,
-        )
-    })?;
+    let tenant_realm = get_tenant_realm(&input.tenant_id);
+    let group_names =
+        get_group_names(&tenant_realm, user_id).await.map_err(|e| {
+            ErrorResponse::new(
+                Status::InternalServerError,
+                &format!("Error getting group names: {:#?}", e),
+                ErrorCode::InternalServerError,
+            )
+        })?;
 
     // Determine the action: Confirm or Reject
-    let action_result = if input.rejection_reason.is_some() {
+    if input.rejection_reason.is_some() {
         // Rejection logic
         reject_application(
             &hasura_transaction,
@@ -226,7 +235,46 @@ pub async fn change_application_status(
             )
         })?;
     } else if input.rejection_reason.is_none() {
-        // Confirmation logic
+        let mut keycloak_db_client: DbClient =
+            get_keycloak_pool().await.get().await.map_err(|e| {
+                ErrorResponse::new(
+                    Status::InternalServerError,
+                    &format!("{:?}", e),
+                    ErrorCode::GetTransactionFailed,
+                )
+            })?;
+        let keycloak_transaction =
+            keycloak_db_client.transaction().await.map_err(|e| {
+                ErrorResponse::new(
+                    Status::InternalServerError,
+                    &format!("{:?}", e),
+                    ErrorCode::GetTransactionFailed,
+                )
+            })?;
+
+        let realm = get_event_realm(&input.tenant_id, &input.election_event_id);
+
+        let is_user_verified = check_is_user_verified(
+            &keycloak_transaction,
+            &realm,
+            &input.user_id,
+        )
+        .await
+        .map_err(|e| {
+            ErrorResponse::new(
+                Status::InternalServerError,
+                &format!("Error in check_is_user_verified: {:?}", e),
+                ErrorCode::InternalServerError,
+            )
+        })?;
+
+        if is_user_verified {
+            return Ok(Json(ApplicationChangeStatusOutput {
+                message: None,
+                error: Some(ApplicationsError::APPROVED_VOTER.to_string()),
+            }));
+        }
+        //Confirmation logic
         confirm_application(
             &hasura_transaction,
             &input.id,
@@ -264,5 +312,8 @@ pub async fn change_application_status(
         )
     })?;
 
-    Ok(Json("Success".to_string()))
+    Ok(Json(ApplicationChangeStatusOutput {
+        message: Some("Success".to_string()),
+        error: None,
+    }))
 }

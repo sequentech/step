@@ -37,8 +37,10 @@ export interface ElectionEventStatsProps {
     eligibleVotersCount: number | string
     enrolledVotersCount: number | string
     electionsCount: number | string
+    startedVoteCount: number | string
+    notStartedVotesCount: number | string
     openVotesCount: number | string
-    notOpenedVotesCount: number | string
+    notOpenVotesCount: number | string
     closedVotesCount: number | string
     notClosedVotesCount: number | string
     startCountingVotesCount: number | string
@@ -55,7 +57,7 @@ export interface ElectionEventStatsProps {
 
 export const calcPrecentage = (part: number | string, total: number | string) =>
     total === 0 || typeof total === "string" || typeof part === "string"
-        ? undefined
+        ? "0"
         : ((part / total) * 100.0).toFixed(2)
 
 const ElectionEventStats = (props: ElectionEventStatsProps) => {
@@ -63,8 +65,10 @@ const ElectionEventStats = (props: ElectionEventStatsProps) => {
         eligibleVotersCount,
         enrolledVotersCount,
         electionsCount,
+        startedVoteCount,
+        notStartedVotesCount,
         openVotesCount,
-        notOpenedVotesCount,
+        notOpenVotesCount,
         closedVotesCount,
         notClosedVotesCount,
         startCountingVotesCount,
@@ -90,8 +94,10 @@ const ElectionEventStats = (props: ElectionEventStatsProps) => {
         eligibleVotersCount,
         enrolledVotersCount,
         electionsCount,
+        startedVoteCount,
+        notStartedVotesCount,
         openVotesCount,
-        notOpenedVotesCount,
+        notOpenVotesCount,
         closedVotesCount,
         notClosedVotesCount,
         initializeCount,

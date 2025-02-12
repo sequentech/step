@@ -1,10 +1,10 @@
 // SPDX-FileCopyrightText: 2024 Sequent Legal <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use super::users::{lookup_users, FilterOption, ListUsersFilter};
 use crate::postgres::application::get_permission_label_from_post;
-use crate::postgres::area::get_areas_by_name;
+use crate::postgres::area::get_event_areas;
 use crate::postgres::election_event::get_election_event_by_id;
-use crate::services::cast_votes::get_users_with_vote_info;
 use crate::services::celery_app::get_celery_app;
 use crate::services::providers::{email_sender::EmailSender, sms_sender::SmsSender};
 use crate::services::reports::utils::get_public_asset_template;
@@ -31,14 +31,33 @@ use sequent_core::types::templates::{EmailConfig, SendTemplateBody, SmsConfig, T
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
+use strum_macros::Display;
 use tracing::{debug, event, info, instrument, warn, Level};
 use uuid::Uuid;
 
 use sequent_core::types::templates::AudienceSelection::SELECTED;
 use sequent_core::types::templates::TemplateMethod::{EMAIL, SMS};
-
-use super::users::{lookup_users, FilterOption, ListUsersFilter};
 use unicode_normalization::char::decompose_canonical;
+
+#[allow(non_camel_case_types)]
+#[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
+pub enum ECardType {
+    #[strum(serialize = "philSysID")]
+    #[serde(rename = "philSysID")]
+    PHILSYS_ID,
+    #[strum(serialize = "seamanBook")]
+    #[serde(rename = "seamanBook")]
+    SEAMANS_BOOK,
+    #[strum(serialize = "driversLicense")]
+    #[serde(rename = "driversLicense")]
+    DRIVER_LICENSE,
+    #[strum(serialize = "philippinePassport")]
+    #[serde(rename = "philippinePassport")]
+    PHILIPPINE_PASSPORT,
+    #[strum(serialize = "iBP")]
+    #[serde(rename = "iBP")]
+    IBP,
+}
 
 /// Struct for email/sms Accepted/Rejected Communication object.
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -53,7 +72,7 @@ struct ApplicationCommunicationChannels {
     sms: SmsConfig,
 }
 
-#[instrument(skip(hasura_transaction, keycloak_transaction), err)]
+#[instrument(skip_all, err)]
 pub async fn verify_application(
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
@@ -61,7 +80,6 @@ pub async fn verify_application(
     applicant_data: &HashMap<String, String>,
     tenant_id: &str,
     election_event_id: &str,
-    area_id: &Option<String>,
     labels: &Option<Value>,
     annotations: &ApplicationAnnotations,
 ) -> Result<ApplicationVerificationResult> {
@@ -84,7 +102,6 @@ pub async fn verify_application(
 
     // Uses applicant data to lookup possible users
     let users = lookup_users(hasura_transaction, keycloak_transaction, filter).await?;
-
     debug!("Found users before verification: {:?}", users);
 
     // Finds an user from the list of found possible users
@@ -103,6 +120,7 @@ pub async fn verify_application(
         update_attributes: annotations.update_attributes.clone(),
         mismatches: result.mismatches,
         fields_match: result.fields_match.clone(),
+        manual_verify_reason: result.manual_verify_reason.clone(),
     };
 
     // Add a permission label only if the embassy matches the voter in db
@@ -113,7 +131,26 @@ pub async fn verify_application(
     {
         get_permission_label_from_applicant_data(hasura_transaction, applicant_data).await?
     } else {
-        (None, None)
+        let area_name = applicant_data
+            .get("country")
+            .and_then(|country| {
+                country
+                    .split('/')
+                    .next()
+                    .map(|country| country.to_lowercase())
+            })
+            .ok_or(anyhow!("Error with applicant country"))?;
+        let areas = get_event_areas(hasura_transaction, tenant_id, election_event_id).await?;
+        let area = areas
+            .iter()
+            .find(|area| {
+                area.name
+                    .as_ref()
+                    .map(|name| name.to_lowercase().contains(&area_name.clone()))
+                    .unwrap_or_default()
+            })
+            .ok_or(anyhow!("Error finding area"))?;
+        (None, Some(Uuid::parse_str(&area.id)?))
     };
 
     let mut final_applicant_data = applicant_data.clone();
@@ -137,6 +174,7 @@ pub async fn verify_application(
     Ok(result)
 }
 
+#[instrument(err, skip_all)]
 async fn get_permission_label_from_applicant_data(
     hasura_transaction: &Transaction<'_>,
     applicant_data: &HashMap<String, String>,
@@ -150,6 +188,7 @@ async fn get_permission_label_from_applicant_data(
     return get_permission_label_from_post(hasura_transaction, post).await;
 }
 
+#[instrument(err, skip_all)]
 fn get_filter_from_applicant_data(
     tenant_id: String,
     election_event_id: Option<String>,
@@ -175,22 +214,25 @@ fn get_filter_from_applicant_data(
             "firstName" => {
                 first_name = applicant_data
                     .get("firstName")
-                    .and_then(|value| Some(FilterOption::IsLikeUnaccentHyphens(value.to_string())));
+                    .and_then(|value| Some(FilterOption::IsEqualNormalized(value.to_string())));
             }
             "lastName" => {
                 last_name = applicant_data
                     .get("lastName")
-                    .and_then(|value| Some(FilterOption::IsLikeUnaccentHyphens(value.to_string())));
+                    .and_then(|value| Some(FilterOption::IsEqualNormalized(value.to_string())));
             }
             "username" => {
                 username = applicant_data
                     .get("username")
-                    .and_then(|value| Some(FilterOption::IsLikeUnaccentHyphens(value.to_string())));
+                    .and_then(|value| Some(FilterOption::IsEqualNormalized(value.to_string())));
             }
             "email" => {
                 email = applicant_data
                     .get("email")
-                    .and_then(|value| Some(FilterOption::IsLikeUnaccentHyphens(value.to_string())));
+                    .and_then(|value| Some(FilterOption::IsEqualNormalized(value.to_string())));
+            }
+            "embassy" => {
+                // Ignore embassy to speed up user lookup
             }
             _ => {
                 let value = applicant_data
@@ -233,6 +275,26 @@ fn get_filter_from_applicant_data(
     })
 }
 
+#[instrument(skip_all)]
+fn build_manual_verify_reason(fields_match: HashMap<String, bool>) -> String {
+    let mismatch_fields = fields_match
+        .iter()
+        .filter(|(_, &value)| !value)
+        .map(|(key, _)| match key.as_str() {
+            "firstName" => "First Name",
+            "middleName" => "Middle Name",
+            "lastName" => "Last Name",
+            "embassy" => "Post",
+            "dateOfBirth" => "Date Of Birth",
+            "firstName.middleName" => "First Name + Middle Name",
+            _ => key,
+        })
+        .collect::<Vec<&str>>()
+        .join(", ");
+
+    format!("Mismatch at {}", mismatch_fields)
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ApplicationAnnotations {
     session_id: Option<String>,
@@ -248,6 +310,7 @@ pub struct ApplicationAnnotations {
     update_attributes: Option<String>,
     mismatches: Option<usize>,
     fields_match: Option<HashMap<String, bool>>,
+    manual_verify_reason: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -261,8 +324,10 @@ pub struct ApplicationVerificationResult {
     pub attributes_unset: Option<HashMap<String, bool>>,
     pub rejection_reason: Option<ApplicationRejectReason>,
     pub rejection_message: Option<String>,
+    pub manual_verify_reason: Option<String>,
 }
 
+#[instrument(err, skip_all)]
 fn automatic_verification(
     users: Vec<User>,
     annotations: &ApplicationAnnotations,
@@ -292,6 +357,7 @@ fn automatic_verification(
     let mut rejection_reason: Option<ApplicationRejectReason> =
         Some(ApplicationRejectReason::NO_VOTER);
     let mut rejection_message: Option<String> = None;
+    let mut mismatch_reason = None;
 
     for user in users {
         let (mismatches, mismatches_unset, fields_match, attributes_unset) = check_mismatches(
@@ -301,6 +367,10 @@ fn automatic_verification(
             unset_attributes.clone(),
         )?;
         let username = user.username.clone().unwrap_or_default();
+
+        if mismatches > 0 {
+            mismatch_reason = Some(build_manual_verify_reason(fields_match.clone()));
+        }
 
         // If there are no mismatches..
         if mismatches == 0 {
@@ -327,6 +397,7 @@ fn automatic_verification(
                     attributes_unset: Some(attributes_unset),
                     rejection_reason: None,
                     rejection_message: None,
+                    manual_verify_reason: None,
                 });
             }
         // If there was only 1 mismatch
@@ -355,6 +426,7 @@ fn automatic_verification(
                         attributes_unset: Some(attributes_unset),
                         rejection_reason: None,
                         rejection_message: None,
+                        manual_verify_reason: None,
                     });
                 }
                 matched_user = None;
@@ -399,6 +471,12 @@ fn automatic_verification(
         }
     }
 
+    info!("matched_status: {}", matched_status.to_string());
+    info!(
+        "rejection_reason: {}",
+        rejection_reason.clone().unwrap_or_default().to_string()
+    );
+
     Ok(ApplicationVerificationResult {
         user_id: matched_user.clone().and_then(|user| user.id),
         username: matched_user
@@ -412,6 +490,7 @@ fn automatic_verification(
         attributes_unset: verification_attributes_unset,
         rejection_reason,
         rejection_message,
+        manual_verify_reason: mismatch_reason,
     })
 }
 
@@ -424,17 +503,77 @@ fn check_mismatches(
 ) -> Result<(usize, usize, HashMap<String, bool>, HashMap<String, bool>)> {
     let mut match_result = HashMap::new();
     let mut unset_result = HashMap::new();
-    let mut missmatches = 0;
+    let mut mismatches = 0;
 
     debug!(
         "Checking user with id: {:?}, fields to check: {:?}, unset to check: {:?}",
         user.id, fields_to_check, fields_to_check_unset
     );
 
+    let card_type = applicant_data
+        .get("sequent.read-only.id-card-type")
+        .cloned()
+        .ok_or(anyhow!("Error converting applicant_data to map"))?;
+
+    // Check if the card type is seamans_book or driver_license
+    let card_type_flag = card_type == ECardType::SEAMANS_BOOK.to_string()
+        || card_type == ECardType::DRIVER_LICENSE.to_string();
+
     for field_to_check in fields_to_check.split(",") {
         let field_to_check = field_to_check.trim();
 
-        // Extract field from application
+        // Special handling for firstName when card_type_flag is true
+        if card_type_flag {
+            if field_to_check == "middleName" {
+                continue;
+            } else if field_to_check == "firstName" {
+                // Extract first and middle names from applicant_data
+                let applicant_first_name = applicant_data
+                    .get("firstName")
+                    .map(|value| value.to_string().to_lowercase());
+                let applicant_middle_name = applicant_data
+                    .get("middleName")
+                    .map(|value| value.to_string().to_lowercase());
+                let applicant_combined = match (applicant_first_name, applicant_middle_name) {
+                    (Some(first), Some(middle)) => {
+                        Some(format!("{} {}", first, middle).trim().to_string())
+                    }
+                    (Some(first), None) => Some(first),
+                    _ => None,
+                };
+
+                // Combine firstName and middleName for the user
+                let user_combined = match (&user.first_name, &user.attributes) {
+                    (Some(first_name), Some(attributes)) => {
+                        let middle_name = attributes
+                            .get("middleName")
+                            .and_then(|values| values.first())
+                            .map(|value| value.to_lowercase());
+                        Some(
+                            format!(
+                                "{} {}",
+                                first_name.to_lowercase(),
+                                middle_name.unwrap_or_default()
+                            )
+                            .trim()
+                            .to_string(),
+                        )
+                    }
+                    (Some(first_name), None) => Some(first_name.to_lowercase()),
+                    _ => None,
+                };
+
+                let is_match = is_fuzzy_match(applicant_combined, user_combined);
+                match_result.insert("firstName.middleName".to_string(), is_match);
+
+                if !is_match {
+                    mismatches += 1;
+                }
+                continue;
+            }
+        }
+
+        // Extract field from applicant_data
         let applicant_field_value = applicant_data
             .get(field_to_check)
             .map(|value| value.to_string().to_lowercase());
@@ -460,7 +599,7 @@ fn check_mismatches(
         match_result.insert(field_to_check.to_string(), is_match);
 
         if !is_match {
-            missmatches += 1;
+            mismatches += 1;
         }
     }
 
@@ -493,16 +632,16 @@ fn check_mismatches(
         }
     }
 
-    debug!("Missmatches {:?}", missmatches);
-    debug!("Missmatches Unset {:?}", unset_mismatches);
+    debug!("Mismatches {:?}", mismatches);
+    debug!("Unset Mismatches {:?}", unset_mismatches);
     debug!("Match Result {:?}", match_result);
     debug!("Unset Result {:?}", unset_result);
 
-    Ok((missmatches, unset_mismatches, match_result, unset_result))
+    Ok((mismatches, unset_mismatches, match_result, unset_result))
 }
 
 /// Get the accepted/rejected message from the internalization object in the defaults file.
-#[instrument(err, res)]
+#[instrument(err)]
 async fn get_i18n_default_application_communication(
     lang: &str,
     app_status: ApplicationStatus,
@@ -547,7 +686,7 @@ async fn get_i18n_default_application_communication(
 }
 
 /// Get the accepted/rejected message from the internalization object in presentation.
-#[instrument(skip(presentation))]
+#[instrument(skip_all)]
 pub async fn get_i18n_application_communication(
     presentation: ElectionEventPresentation,
     lang: &str,
@@ -634,7 +773,7 @@ pub async fn get_application_response_communication(
     }
 }
 
-#[instrument(skip(hasura_transaction), err)]
+#[instrument(skip_all, err)]
 pub async fn confirm_application(
     hasura_transaction: &Transaction<'_>,
     id: &str,
@@ -653,6 +792,7 @@ pub async fn confirm_application(
         election_event_id,
         user_id,
         ApplicationStatus::ACCEPTED,
+        ApplicationType::MANUAL,
         None,
         None,
         admin_name,
@@ -811,6 +951,7 @@ pub async fn reject_application(
         election_event_id,
         user_id,
         ApplicationStatus::REJECTED,
+        ApplicationType::MANUAL,
         rejection_reason,
         rejection_message,
         admin_name,
@@ -870,6 +1011,7 @@ pub async fn reject_application(
     Ok(application)
 }
 
+#[instrument(err, skip_all)]
 pub async fn send_application_communication_response(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -930,6 +1072,7 @@ pub async fn send_application_communication_response(
                 name: None,
                 alias: None,
                 pdf_options: None,
+                report_options: None,
             };
 
             let celery_app = get_celery_app().await;
@@ -968,6 +1111,29 @@ pub async fn send_application_communication_response(
     Ok(())
 }
 
+#[instrument(err, skip_all)]
+pub async fn get_group_names(realm: &str, user_id: &str) -> Result<Vec<String>> {
+    let client = KeycloakAdminClient::new()
+        .await
+        .map_err(|err| anyhow!("Error create keycloak admin client: {err}"))?;
+
+    // Fetch user groups from Keycloak
+    let _groups = client
+        .get_user_groups(&realm, user_id)
+        .await
+        .map_err(|err| anyhow!("Error fetch group names: {err}"))?;
+
+    // Extract group names
+    let group_names: Vec<String> = _groups
+        .into_iter()
+        .map(|group| group.group_name) // Assuming `group_name` is a String
+        .collect();
+
+    // Return group names as a JSON response
+    Ok(group_names)
+}
+
+#[instrument(skip_all)]
 fn string_to_unaccented(word: String) -> String {
     let mut unaccented_word = String::new();
     for l in word.chars() {
@@ -982,9 +1148,10 @@ fn string_to_unaccented(word: String) -> String {
     unaccented_word
 }
 
+#[instrument(skip_all)]
 fn to_unaccented_without_hyphen(word: Option<String>) -> Option<String> {
     let word = match word {
-        Some(word) => word.replace("-", " "),
+        Some(word) => word.replace("-", " ").replace(".", ""),
         None => return None,
     };
     let unaccented_word = string_to_unaccented(word);
@@ -1126,25 +1293,4 @@ mod tests {
             applicant_value, user_value
         );
     }
-}
-
-pub async fn get_group_names(realm: &str, user_id: &str) -> Result<Vec<String>> {
-    let client = KeycloakAdminClient::new()
-        .await
-        .map_err(|err| anyhow!("Error create keycloak admin client: {err}"))?;
-
-    // Fetch user groups from Keycloak
-    let _groups = client
-        .get_user_groups(&realm, user_id)
-        .await
-        .map_err(|err| anyhow!("Error fetch group names: {err}"))?;
-
-    // Extract group names
-    let group_names: Vec<String> = _groups
-        .into_iter()
-        .map(|group| group.group_name) // Assuming `group_name` is a String
-        .collect();
-
-    // Return group names as a JSON response
-    Ok(group_names)
 }

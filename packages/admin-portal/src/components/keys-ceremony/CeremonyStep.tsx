@@ -34,6 +34,8 @@ import {CancelButton} from "@/resources/Tally/styles"
 export const statusColor: (status: EStatus) => string = (status) => {
     if (status === EStatus.USER_CONFIGURATION) {
         return theme.palette.warning.light
+    } else if (status === EStatus.STARTED) {
+        return theme.palette.warning.light
     } else if (status === EStatus.IN_PROGRESS) {
         return theme.palette.info.main
     } else if (status === EStatus.SUCCESS) {

@@ -46,7 +46,7 @@ const useTestingStats = (props: StatsProps) => {
                 },
             ],
         }
-    }, [])
+    }, [showVoterVotedTestElection, votingStats, enrolledVotersCount])
 
     return {testSection}
 }
