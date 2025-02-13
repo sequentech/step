@@ -183,6 +183,10 @@ export const ballotSelectionsSlice = createSlice({
             // modify
             if (currentQuestion && !isUndefined(currentChoiceIndex)) {
                 currentQuestion.choices[currentChoiceIndex] = action.payload.voteChoice
+
+                if (action.payload.voteChoice?.selected > -1 && currentQuestion.is_explicit_blank) {
+                    currentQuestion.is_explicit_blank = false
+                }
             }
 
             return state
