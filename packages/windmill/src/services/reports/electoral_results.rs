@@ -10,7 +10,7 @@ use chrono::{Local, TimeZone};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::services::pdf;
 use sequent_core::services::s3::get_minio_url;
-use sequent_core::signatures::temp_path::*;
+use sequent_core::util::temp_path::*;
 use serde::{Deserialize, Serialize};
 use tracing::{info, instrument};
 use velvet::pipes::generate_reports::TemplateData;
