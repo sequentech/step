@@ -286,7 +286,7 @@ async fn request_access_token(
 #[rocket::async_trait]
 impl<'r> FromRequest<'r> for DatafixClaims {
     type Error = ();
-    #[instrument(skip_all, err)]
+    #[instrument(skip_all)]
     async fn from_request(
         request: &'r Request<'_>,
     ) -> Outcome<Self, Self::Error> {
