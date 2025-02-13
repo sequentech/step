@@ -81,7 +81,7 @@ pub async fn find_user_area_by_name(
     let area_childs = vec![voter_info.schoolboard.clone(), voter_info.poll.clone()];
     for subarea in &area_childs {
         if let Some(subarea) = subarea {
-            area_concat.push_str(format!(" - {subarea}").as_str());
+            area_concat.push_str(format!("-{subarea}").as_str());
         }
     }
     // Get the areas for this election_event_id
