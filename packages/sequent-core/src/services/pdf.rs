@@ -287,7 +287,7 @@ pub mod sync {
                                         .await
                                 })
                             } else {
-                                Ok(html.into())
+                                return Err(anyhow!("cannot read result from s3 as this component was built without s3 support"));
                             }
                         }
                         PdfTransport::OpenWhisk { .. } => {
