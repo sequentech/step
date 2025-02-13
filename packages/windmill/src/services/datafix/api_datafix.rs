@@ -14,12 +14,12 @@ use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::types::keycloak::{
     User, AREA_ID_ATTR_NAME, ATTR_RESET_VALUE, DATE_OF_BIRTH, DISABLE_COMMENT,
-    DISABLE_REASON_DELETE_CALL, DISABLE_REASON_MARKVOTED_CALL, VOTED_CHANNEL,
+    DISABLE_REASON_DELETE_CALL, DISABLE_REASON_MARKVOTED_CALL, TENANT_ID_ATTR_NAME, VOTED_CHANNEL,
 };
 use sequent_core::util::date_time::verify_date_format_ymd;
 use std::collections::HashMap;
+use std::env;
 use tracing::{error, info, instrument, warn};
-
 /// Disable the voter, datafix users are not actually deleted but just disabled.
 /// Note: voter_id in Datafix API represents the username in Keycloak/Sequent´s system.
 #[instrument(skip(hasura_transaction, keycloak_transaction))]
@@ -102,6 +102,7 @@ pub async fn add_datafix_voter(
         AREA_ID_ATTR_NAME.to_string(),
         vec![area.id.clone().unwrap_or_default()],
     );
+    hash_map.insert(TENANT_ID_ATTR_NAME.to_string(), vec![tenant_id.to_string()]);
     // Area is required in the input body but the birthdate is not.
     if let Some(birthdate) = voter_info.birthdate.clone() {
         verify_date_format_ymd(&birthdate).map_err(|e| {
@@ -111,21 +112,19 @@ pub async fn add_datafix_voter(
         hash_map.insert(DATE_OF_BIRTH.to_string(), vec![birthdate]);
     }
     let attributes = Some(hash_map);
-
     let user = User {
-        id: None,
         attributes: attributes.clone(),
-        email: None,
-        email_verified: None,
         enabled: Some(true),
-        first_name: None,
-        last_name: None,
         username: Some(username.to_string()),
         area: Some(area),
-        votes_info: None,
+        ..User::default()
     };
+    let voter_group_name = env::var("KEYCLOAK_VOTER_GROUP_NAME").map_err(|e| {
+        error!("Error getting env var KEYCLOAK_VOTER_GROUP_NAME: {e:?}");
+        DatafixResponse::new(Status::InternalServerError)
+    })?;
     let _user = client
-        .create_user(&realm, &user, attributes, None)
+        .create_user(&realm, &user, attributes, Some(vec![voter_group_name]))
         .await
         .map_err(|e| {
             error!("Error creating user: {e:?}");
