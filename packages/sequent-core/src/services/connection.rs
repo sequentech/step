@@ -134,7 +134,7 @@ struct DatafixHeaders {
 /// Returns None if any of the required headers are missing or is incomplete
 #[instrument]
 fn parse_datafix_headers(headers: &HeaderMap) -> Option<DatafixHeaders> {
-    let required_headers = ["tenant_id", "event_id", "authorization"];
+    let required_headers = ["tenant-id", "event-id", "authorization"];
     let mut missing_headers = vec![];
     for header in required_headers {
         if !headers.contains(header) {
@@ -148,13 +148,13 @@ fn parse_datafix_headers(headers: &HeaderMap) -> Option<DatafixHeaders> {
     }
 
     let (tenant_id, event_id, authorization) = (
-        headers.get_one("tenant_id").unwrap_or_default(),
-        headers.get_one("event_id").unwrap_or_default(),
+        headers.get_one("tenant-id").unwrap_or_default(),
+        headers.get_one("event-id").unwrap_or_default(),
         headers.get_one("authorization").unwrap_or_default(),
     );
 
     info!(
-        "tenant_id: {:?} event_id: {:?} authorization: {:?}",
+        "tenant-id: {:?} event-id: {:?} authorization: {:?}",
         tenant_id, event_id, authorization
     );
 
