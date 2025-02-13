@@ -324,13 +324,19 @@ pub async fn try_insert_cast_vote(
     match result {
         Ok(inserted_cast_vote) => {
             if is_datafix_election_event(&election_event) {
-                datafix::voterview_requests::send(
+                // If insert_cast_vote_and_commit fails then we will not send SetVoted to VoterView.
+                // However if the one failing is voterview_requests::send returning an error here would be problematic
+                // because the vote is already casted.
+                // But it will be a good idea to log the error in the electoral_log.
+                if let Err(err) = datafix::voterview_requests::send(
                     SoapRequest::SetVoted,
                     ElectionEventDatafix(election_event),
                     &user.username,
                 )
                 .await
-                .map_err(|e| CastVoteError::UnknownError(e.to_string()))?;
+                {
+                    // TODO: Post the error in the electoral_log
+                }
             }
             let electoral_log_res = ElectoralLog::for_voter(
                 &electoral_log.elog_database,
@@ -368,7 +374,6 @@ pub async fn try_insert_cast_vote(
         }
         Err(err) => {
             error!(err=?err);
-
             let log_result = electoral_log
                 .post_cast_vote_error(
                     election_event_id.to_string(),

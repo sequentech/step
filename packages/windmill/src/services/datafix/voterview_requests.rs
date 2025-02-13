@@ -6,6 +6,7 @@ use super::types::*;
 use crate::postgres::election_event::ElectionEventDatafix;
 use crate::services::consolidation::eml_generator::ValidateAnnotations;
 use anyhow::{anyhow, Result};
+use reqwest;
 use tracing::{error, info, instrument, warn};
 
 impl SoapRequest {
@@ -78,11 +79,49 @@ pub async fn send(
     let annotations: DatafixAnnotations = election_event
         .get_annotations()
         .map_err(|err| anyhow!("Error getting election event annotations: {err}"))?;
-    info!("Election event annotations: {annotations:?}");
 
-    let content = req_type.get_body(&annotations, &voter_id);
-    info!("Soup content: {content}");
+    let soap_body = req_type.get_body(&annotations, &voter_id);
+    let url = &annotations.voterview_request.url;
+    info!("Soap body: {soap_body}");
+    info!("URL: {url}");
 
-    // WIP: Send the request
-    Ok(())
+    let http = reqwest::Client::new();
+    let response = http
+        .post(url)
+        .header("Content-Type", "text/xml; charset=UTF-8")
+        .header("SOAPAction", "https://www.voterview.ca/MVVServices/")
+        .body(soap_body)
+        .send()
+        .await
+        .map_err(|err| anyhow!("Failed to get SOAP response: {err}"))?;
+
+    let status = response.status().clone();
+    let response_txt = response
+        .text()
+        .await
+        .map_err(|err| anyhow!("Failed to get the full response text: {err}"))?;
+
+    info!("Response: {response_txt}");
+
+    if status.is_success() {
+        return Ok(());
+    }
+
+    let faultcode: String =
+        parse_tag("<faultcode>", "</faultcode>", &response_txt).unwrap_or_default();
+    let faultstring: String =
+        parse_tag("<faultstring>", "</faultstring>", &response_txt).unwrap_or_default();
+    Err(anyhow!(
+        "Request to VoterView {req_type} failed with response status: {status}. Faultcode: {faultcode}, Faultstring: {faultstring}"
+    ))
+}
+
+pub fn parse_tag(open_tag: &str, close_tag: &str, response_txt: &str) -> Option<String> {
+    match response_txt.split(open_tag).collect::<Vec<&str>>() {
+        after if after.len() > 1 => match after[1].split(close_tag).collect::<Vec<&str>>() {
+            before if before.len() > 1 => Some(before[0].to_string()),
+            _ => None,
+        },
+        _ => None,
+    }
 }
