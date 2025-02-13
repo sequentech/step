@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useCallback, useContext, useEffect, useMemo, useState} from "react"
+import React, {useCallback, useContext, useEffect, useMemo, useRef, useState} from "react"
 import {
     Identifier,
     RaRecord,
@@ -13,6 +13,7 @@ import {
     ReferenceArrayInput,
     BooleanInput,
     useGetList,
+    SelectArrayInput,
 } from "react-admin"
 import {useMutation, useQuery} from "@apollo/client"
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
@@ -463,16 +464,53 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         })
     }
 
+    /**
+     * This code snippet updates the attributes object in the user state when a multi-select input changes.
+     * It merges the newly selected values with the existing values, removing any duplicates and preserving the original order.
+     * If the new selection is empty, it resets the attribute to an empty array.
+     * ---
+     * Updates the user attributes on the given attrName with the new value (string[]).
+     * It removes the previous values that are not included in the new value and adds the new ones.
+     * @param {string} attrName - The name of the attribute to be updated.
+     * @param {string[]} value - The new value of the attribute.
+     */
     const handleArraySelectChange = (attrName: string) => async (value: string[]) => {
         setUser((prev) => {
+            /*
+             * - If the new selection is empty, it resets the attribute to an empty array.
+             */
+
+            if (value?.length === 0) {
+                return {
+                    ...prev,
+                    attributes: {
+                        ...prev?.attributes,
+                        [attrName]: [],
+                    },
+                }
+            }
+
+            /*
+             * - Otherwise, it merges the newly selected values with the existing values,
+             * removing any duplicates and preserving the original order.
+             */
+            const elections = prev?.attributes?.[attrName] ?? []
+            const filteredElections = elections.filter((ab: string) => value.includes(ab))
+            const notIncluded =
+                filteredElections.length === 0
+                    ? elections.filter((ab: string) => !value.includes(ab))
+                    : filteredElections.filter((ab: string) => !value.includes(ab))
+            const newElections = [...notIncluded, ...value]
+
             return {
                 ...prev,
                 attributes: {
                     ...prev?.attributes,
-                    [attrName]: value,
+                    [attrName]: newElections,
                 },
             }
         })
+        searched.current = ""
     }
 
     const handlePermissionLabelRemoved = (value: string[]) => {
@@ -534,11 +572,13 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
 
     const aliasRenderer = useAliasRenderer()
 
+    const searched = useRef("")
+
     const electionFilterToQuery = (searchText: string) => {
-        if (!searchText || searchText.length == 0) {
-            return {name: ""}
+        if (searchText && searchText.length > 0) {
+            searched.current = searchText.trim()
         }
-        return {"name@_ilike,alias@_ilike": searchText.trim()}
+        return {"name@_ilike,alias@_ilike": searched.current}
     }
 
     const renderFormField = useCallback(
@@ -684,6 +724,8 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                 election_event_id: electionEventId,
                             }}
                             enableGetChoices={({q}) => q && q.length >= 3}
+                            perPage={9999}
+                            format={(value) => (value === undefined ? "not defined" : null)}
                         >
                             <FormStyles.AutocompleteArrayInput
                                 label={getTranslationLabel(attr.name, attr.display_name, t)}
