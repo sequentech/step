@@ -344,8 +344,9 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
       throw new IOException("doGet: Retry interrupted", interruptedException);
     }
   }
-  
+
   int action_retries = 0;
+
   @Override
   public void action(AuthenticationFlowContext context) {
     log.info("action(): start inetum-authenticator");
@@ -427,7 +428,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
       // invalid
       AuthenticationExecutionModel execution = context.getExecution();
       if (execution.isRequired()) {
-        if(action_retries == 3) {
+        if (action_retries == 3) {
           // String supportLink = "https://comelec.gov.ph/?r=2025NLESupport";
           error = "maxRetriesError";
           Response challenge =
