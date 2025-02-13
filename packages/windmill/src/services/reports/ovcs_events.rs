@@ -7,7 +7,7 @@ use super::report_variables::{
 };
 use super::template_renderer::*;
 use crate::postgres::election_event::get_election_event_by_id;
-use crate::postgres::tally_session::{get_tally_sessions_by_election_id};
+use crate::postgres::tally_session::get_tally_sessions_by_election_id;
 use crate::postgres::{
     area::get_areas_by_election_id,
     election::{get_election_by_id, get_elections},
