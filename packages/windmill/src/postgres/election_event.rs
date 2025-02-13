@@ -155,7 +155,8 @@ pub async fn get_all_tenant_election_events(
                 FROM
                     sequent_backend.election_event
                 WHERE
-                    tenant_id = $1
+                    tenant_id = $1 AND
+                    is_archived = false
             "#,
         )
         .await?;
