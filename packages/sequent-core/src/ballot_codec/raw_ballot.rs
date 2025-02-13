@@ -96,10 +96,7 @@ impl RawBallotCodec for Contest {
             if candidate.is_explicit_invalid() {
                 continue;
             }
-            let mut selected = choice.selected;
-            if candidate.is_explicit_blank() {
-                selected = 0;
-            }
+            let selected = choice.selected;
             if self.get_counting_algorithm() == "plurality-at-large" {
                 // We just flag if the candidate was selected or not with 1 for
                 // selected and 0 otherwise

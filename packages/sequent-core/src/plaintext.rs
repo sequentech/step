@@ -121,8 +121,12 @@ pub fn map_decoded_ballot_choices_to_decoded_contests(
 
         let mut choices = vec![];
 
+        let mut is_explicit_blank = false;
         for candidate in &found_contest.candidates {
-            let selected = if found_ballot_choices
+            if candidate.is_explicit_invalid() {
+                continue;
+            }
+            let mut selected = if found_ballot_choices
                 .choices
                 .iter()
                 .find(|choice| choice.0 == candidate.id)
@@ -132,6 +136,10 @@ pub fn map_decoded_ballot_choices_to_decoded_contests(
             } else {
                 -1
             };
+            if candidate.is_explicit_blank() && selected > -1 {
+                selected = -1;
+                is_explicit_blank = true;
+            }
 
             let decoded_vote_choice = DecodedVoteChoice {
                 id: candidate.id.clone(),
@@ -145,6 +153,7 @@ pub fn map_decoded_ballot_choices_to_decoded_contests(
         let decoded_contest = DecodedVoteContest {
             contest_id: contest_id,
             is_explicit_invalid: decoded_ballot_choices.is_explicit_invalid,
+            is_explicit_blank: is_explicit_blank,
             invalid_errors: found_ballot_choices.invalid_errors.clone(),
             invalid_alerts: found_ballot_choices.invalid_alerts.clone(),
             choices,

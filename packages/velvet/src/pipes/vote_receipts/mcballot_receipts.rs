@@ -693,16 +693,32 @@ fn convert_ballots(
     for dbc in mcballots {
         let mut ballot_dvcs = vec![];
         for contest in &dbc.choices {
+            let input_contest = election_input
+                .contest_list
+                .iter()
+                .find(|c| c.id.to_string() == contest.contest_id)
+                .ok_or(Error::UnexpectedError(format!("could not find contest")))?;
             let blank: Option<&HashMap<String, DecodedVoteChoice>> =
                 contest_dvc_map.get(&contest.contest_id);
             if let Some(blank) = blank {
                 let mut next = blank.clone();
+                let mut is_explicit_blank = false;
                 for choice in &contest.choices {
                     let blank = next.get(&choice.0);
                     if let Some(blank) = blank {
-                        let mut marked = blank.clone();
-                        marked.selected = 1;
-                        next.insert(choice.0.clone(), marked);
+                        let input_candidate = input_contest
+                            .contest
+                            .candidates
+                            .iter()
+                            .find(|c| c.id == blank.id)
+                            .ok_or(Error::UnexpectedError(format!("could not find candidate")))?;
+                        if input_candidate.is_explicit_blank() {
+                            is_explicit_blank = true;
+                        } else {
+                            let mut marked = blank.clone();
+                            marked.selected = 1;
+                            next.insert(choice.0.clone(), marked);
+                        }
                     } else {
                         return Err(Error::UnexpectedError(format!(
                             "could not find candidate for choice"
@@ -715,6 +731,7 @@ fn convert_ballots(
                 let marked_contest = DecodedVoteContest {
                     contest_id: contest.contest_id.clone(),
                     is_explicit_invalid: dbc.is_explicit_invalid,
+                    is_explicit_blank: is_explicit_blank,
                     // FIXME
                     invalid_alerts: vec![],
                     // FIXME
