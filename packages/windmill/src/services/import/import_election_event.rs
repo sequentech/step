@@ -493,6 +493,7 @@ pub async fn process_election_event_file(
                         keys_ceremony.name,
                         keys_ceremony.settings,
                         keys_ceremony.is_default.clone().unwrap_or_default(),
+                        keys_ceremony.permission_label.unwrap_or_default(),
                     )
                 })
                 .collect::<Vec<_>>(),

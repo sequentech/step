@@ -329,24 +329,35 @@ pub async fn create_tally_ceremony(
         })
         .collect();
 
+    let mut selected_elections_permission_labels = HashSet::new();
+
     let permission_label_filtered_elections: Vec<_> = elections
         .clone()
         .into_iter()
         .filter(|election| {
-            if 0 == permission_labels.len() {
+            if permission_labels.is_empty() {
                 return true;
             }
-            let Some(election_perm_label) = election.permission_label.clone() else {
-                return true;
-            };
-            permission_labels.contains(&election_perm_label)
+
+            if let Some(election_perm_label) = &election.permission_label {
+                selected_elections_permission_labels.insert(election_perm_label.clone()); // Collect unique labels
+                permission_labels.contains(election_perm_label)
+            } else {
+                true
+            }
         })
         .collect();
+
     if permission_label_filtered_elections.len() != election_ids.len() {
         return Err(anyhow!(
             "Some elections don't have the required permission label or are not published"
         ));
     }
+
+    // Convert HashSet to Vec if needed
+    let tally_permission_labels: Vec<String> =
+        selected_elections_permission_labels.into_iter().collect();
+
     event!(Level::INFO, "contests {:?}", contests);
     let contest_ids: Vec<String> = contests.clone().into_iter().map(|c| c.id.clone()).collect();
     let area_contests: Vec<AreaContest> = all_area_contests
@@ -406,6 +417,7 @@ pub async fn create_tally_ceremony(
         Some(final_configuration.clone()),
         &tally_type,
         annotations,
+        tally_permission_labels,
     )
     .await?;
 

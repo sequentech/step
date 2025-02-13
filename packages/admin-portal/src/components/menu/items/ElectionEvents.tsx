@@ -344,7 +344,7 @@ export default function ElectionEvents() {
             candidateData()
             candidateTreeRefetch()
         } else {
-            electionEventDataRefetch()
+            // do nothing
         }
     }, [location])
 
@@ -417,8 +417,12 @@ export default function ElectionEvents() {
         setSearchInput(searchInput)
     }
 
+    let resultData = {...data}
+
     function changeArchiveSelection(val: number) {
         setArchivedElectionEvents(val === 1)
+        resultData = {}
+        navigate("/sequent_backend_election_event/")
     }
 
     const handleOpenCreateElectionEventMenu = (e: React.MouseEvent<HTMLElement>) => {
@@ -471,7 +475,6 @@ export default function ElectionEvents() {
         })
     }
 
-    let resultData = {...data}
     if (!loading && data && data.sequent_backend_election_event) {
         resultData = filterTree(
             {

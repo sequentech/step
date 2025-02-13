@@ -73,25 +73,19 @@ const ExportDialog: React.FC<ExportWrapperProps> = ({
             })
             if (errors) {
                 updateWidgetFail(currWidget.identifier)
-                console.log(`Error exporting: ${errors}`)
                 return
             }
             let documentId = exportElectionEventData?.export_election_event_logs?.document_id
             setExportDocumentId(documentId)
-            console.log(documentId)
             const task_id = exportElectionEventData?.export_election_event_logs?.task_execution.id
-            console.log(task_id)
             setWidgetTaskId(currWidget.identifier, task_id)
         } catch (error) {
             updateWidgetFail(currWidget.identifier)
             setExportDocumentId(undefined)
-            console.log(`Catched error exporting: ${error}`)
         }
     }
     const confirmExportAction = () => {
         setOpenExport(false)
-        console.log(exportFormat)
-        console.log(electionEventId)
         download()
     }
 
@@ -123,11 +117,7 @@ const ExportDialog: React.FC<ExportWrapperProps> = ({
                         electionEventId={electionEventId}
                         fileName={`election-event-logs-${electionEventId}-export.${exportFormat.toLowerCase()}`}
                         onDownload={() => {
-                            console.log("onDownload called")
                             setExportDocumentId(undefined)
-                        }}
-                        onSucess={() => {
-                            console.log("onDownloadSuccess")
                         }}
                     />
                 </>
@@ -272,9 +262,14 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                     <FunctionField
                         source="description"
                         label={t("logsScreen.column.description")}
-                        render={(record: any) => getHeadField(record, "description")}
+                        render={(record: any) => (
+                            <MessageField
+                                content={getHeadField(record, "description")}
+                                initialLength={50}
+                            />
+                        )}
                     />
-                    <MessageField />
+                    <MessageField source="message" />
                 </DatagridConfigurable>
             </List>
             <ExportDialog

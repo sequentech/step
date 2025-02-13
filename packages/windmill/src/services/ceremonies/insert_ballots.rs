@@ -191,6 +191,7 @@ pub async fn insert_ballots_messages(
 
         // Reset offset
         offset = 0;
+        let batch_size = batch_size * 100;
 
         loop {
             let users_map = list_keycloak_enabled_users_by_area_id(
@@ -230,27 +231,34 @@ pub async fn insert_ballots_messages(
         let ballot_election_id_index = 1;
         let users_join_idexes = 0;
 
-        let insertable_ballots: Vec<Ciphertext<RistrettoCtx>> = merge_join_csv(
-            &ballots_temp_file,
-            &users_temp_file,
-            ballots_join_indexes,
-            users_join_idexes,
-            ballots_output_index,
-            ballot_election_id_index,
-            &tally_session_contest.election_id,
-        )?
-        .into_iter()
-        .map(|serialized_ciphertext| {
-            Base64Deserialize::deserialize(serialized_ciphertext)
-                .map_err(|error| anyhow!("Error while deserializng ciphertext: {}", error))
-        })
-        .collect::<Result<Vec<_>>>()?;
+        let handle = tokio::task::spawn_blocking({
+            move || {
+                tokio::runtime::Handle::current().block_on(async move {
+                    merge_join_csv(
+                        &ballots_temp_file,
+                        &users_temp_file,
+                        ballots_join_indexes,
+                        users_join_idexes,
+                        ballots_output_index,
+                        ballot_election_id_index,
+                        &tally_session_contest.election_id,
+                    )?
+                    .into_iter()
+                    .map(|serialized_ciphertext| {
+                        Base64Deserialize::deserialize(serialized_ciphertext).map_err(|error| {
+                            anyhow!("Error while deserializng ciphertext: {}", error)
+                        })
+                    })
+                    .collect::<Result<Vec<_>>>()
+                })
+            }
+        });
 
-        event!(
-            Level::INFO,
-            "insertable_ballots len: {:?}",
-            insertable_ballots.len()
-        );
+        // Await the result and handle JoinError explicitly
+        let insertable_ballots: Vec<Ciphertext<RistrettoCtx>> = match handle.await {
+            Ok(inner_result) => inner_result.map_err(|err| anyhow!(err.context("Task failed"))),
+            Err(join_error) => Err(anyhow!("Task panicked: {}", join_error)),
+        }?;
 
         event!(
             Level::INFO,
@@ -271,7 +279,7 @@ pub async fn insert_ballots_messages(
             insertable_ballots,
             batch,
         )
-        .await?;
+        .await?
     }
     Ok(())
 }
@@ -405,6 +413,7 @@ pub async fn count_auditable_ballots(
 
     // Reset offset
     offset = 0;
+    let batch_size = batch_size * 100;
 
     loop {
         let users_map = list_keycloak_enabled_users_by_area_id(
@@ -442,15 +451,28 @@ pub async fn count_auditable_ballots(
     let ballots_join_indexes = 0;
     let ballot_election_id_index = 1;
     let users_join_idexes = 0;
+    let election_id = election_id.to_owned();
 
-    let count = count_unique_csv(
-        &ballots_temp_file,
-        &users_temp_file,
-        ballots_join_indexes,
-        users_join_idexes,
-        ballot_election_id_index,
-        election_id,
-    )?;
+    let handle = tokio::task::spawn_blocking({
+        move || {
+            tokio::runtime::Handle::current().block_on(async move {
+                count_unique_csv(
+                    &ballots_temp_file,
+                    &users_temp_file,
+                    ballots_join_indexes,
+                    users_join_idexes,
+                    ballot_election_id_index,
+                    &election_id,
+                )
+            })
+        }
+    });
+
+    // Await the result and handle JoinError explicitly
+    let count = match handle.await {
+        Ok(inner_result) => inner_result.map_err(|err| anyhow!(err.context("Task failed"))),
+        Err(join_error) => Err(anyhow!("Task panicked: {}", join_error)),
+    }?;
 
     event!(Level::INFO, "auditable votes count: {:?}", count);
 

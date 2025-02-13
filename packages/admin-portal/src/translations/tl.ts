@@ -390,6 +390,7 @@ const tagalogTranslation: TranslationType = {
                 electionNumber: "Bilang ng mga Halalan",
                 trustees: "Mga Tagapangasiwa",
                 status: "Katayuan",
+                permissionLabels: "Mga Label ng Pahintulot",
                 tallyType: {
                     label: "Uri ng Bilang",
                     ELECTORAL_RESULTS: "Mga Resulta ng Halalan",
