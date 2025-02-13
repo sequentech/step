@@ -586,13 +586,15 @@ pub async fn edit_user(
                 )
             })?;
             if is_datafix_election_event(&election_event) {
-                datafix::voterview_requests::send(
+                if let Err(err) = datafix::voterview_requests::send(
                     SoapRequest::SetNotVoted,
                     ElectionEventDatafix(election_event),
                     &user.username,
                 )
                 .await
-                .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+                {
+                    // TODO: Post the error in the electoral_log
+                }
             }
         }
         _ => {}
