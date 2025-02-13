@@ -49,14 +49,12 @@ pub struct ActivityLogRow {
 pub struct UserData {
     pub act_log: Vec<ActivityLogRow>,
     pub electoral_log: Vec<ElectoralLogRow>,
-    pub logo: String,
 }
 
 /// Struct for System Data
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SystemData {
     pub rendered_user_template: String,
-    pub file_logo: String,
 }
 
 /// Implementation of TemplateRenderer for Activity Logs
@@ -210,7 +208,6 @@ impl TemplateRenderer for ActivityLogsTemplate {
         Ok(UserData {
             act_log,
             electoral_log: elect_logs,
-            logo: LOGO_TEMPLATE.to_string(),
         })
     }
 
@@ -225,10 +222,6 @@ impl TemplateRenderer for ActivityLogsTemplate {
 
         Ok(SystemData {
             rendered_user_template,
-            file_logo: format!(
-                "{}/{}/{}",
-                minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_LOGO_IMG
-            ),
         })
     }
 
