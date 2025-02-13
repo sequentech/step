@@ -91,6 +91,8 @@ pub async fn find_user_area_by_name(
             error!("Error getting event areas: {e:?}");
             DatafixResponse::new(Status::InternalServerError)
         })?;
+
+    area_concat = area_concat.to_uppercase();
     // Find the id that matches the full name.
     let area_id = event_areas
         .iter()
