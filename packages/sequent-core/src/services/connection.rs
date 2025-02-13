@@ -132,7 +132,7 @@ struct DatafixHeaders {
 }
 
 /// Returns None if any of the required headers are missing or is incomplete
-#[instrument]
+#[instrument(skip_all)]
 fn parse_datafix_headers(headers: &HeaderMap) -> Option<DatafixHeaders> {
     let required_headers = ["tenant-id", "event-id", "authorization"];
     let mut missing_headers = vec![];
@@ -286,7 +286,7 @@ async fn request_access_token(
 #[rocket::async_trait]
 impl<'r> FromRequest<'r> for DatafixClaims {
     type Error = ();
-    #[instrument]
+    #[instrument(skip_all, err)]
     async fn from_request(
         request: &'r Request<'_>,
     ) -> Outcome<Self, Self::Error> {
