@@ -344,7 +344,8 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
       throw new IOException("doGet: Retry interrupted", interruptedException);
     }
   }
-
+  
+  int action_retries = 0;
   @Override
   public void action(AuthenticationFlowContext context) {
     log.info("action(): start inetum-authenticator");
@@ -420,11 +421,23 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
     String error = validateAttributes(context, result);
 
     if (error != null) {
+      action_retries++;
       log.error(
           "action(): The submitted form data does not correspond with the ones provided by Inetum.");
       // invalid
       AuthenticationExecutionModel execution = context.getExecution();
       if (execution.isRequired()) {
+        if(action_retries == 3) {
+          // String supportLink = "https://comelec.gov.ph/?r=2025NLESupport";
+          error = "maxRetriesError";
+          Response challenge =
+              getBaseForm(context)
+                  .setAttribute(Utils.FTL_ERROR, error)
+                  .setAttribute(Utils.CODE_ID, sessionId)
+                  .createForm(Utils.INETUM_ERROR);
+          context.challenge(challenge);
+          return;
+        }
         context.failure(AuthenticationFlowError.INVALID_CREDENTIALS);
         context.attempted();
         Response challenge =
