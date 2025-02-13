@@ -198,6 +198,7 @@ mod tests {
         let vote = DecodedVoteContest {
             contest_id: contest.id.clone(),
             is_explicit_invalid: false,
+            is_explicit_blank: false,
             invalid_errors: vec![],
             invalid_alerts: vec![],
             choices,
@@ -237,6 +238,7 @@ mod tests {
         let ballot = DecodedVoteContest {
             contest_id: contest.id.clone(),
             is_explicit_invalid: false,
+            is_explicit_blank: false,
             invalid_errors: vec![],
             invalid_alerts: vec![],
             choices: vec![
