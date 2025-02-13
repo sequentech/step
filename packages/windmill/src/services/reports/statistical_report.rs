@@ -50,7 +50,6 @@ pub struct SystemData {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserDataArea {
     pub election_title: String,
-    pub election_dates: StringifiedPeriodDates,
     pub post: String,
     pub country: String,
     pub geographical_region: String,
@@ -67,6 +66,7 @@ pub struct UserDataArea {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
     pub areas: Vec<UserDataArea>,
+    pub election_dates: StringifiedPeriodDates,
     pub execution_annotations: ExecutionAnnotations,
 }
 
@@ -222,6 +222,19 @@ impl TemplateRenderer for StatisticalReportTemplate {
             .await
             .unwrap_or("-".to_string());
 
+        let scheduled_events = find_scheduled_event_by_election_event_id(
+            &hasura_transaction,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
+        )
+        .await
+        .map_err(|e| {
+            anyhow::anyhow!("Error getting scheduled events by election event_id: {}", e)
+        })?;
+
+        let election_dates = get_election_dates(&election, scheduled_events)
+            .map_err(|e| anyhow::anyhow!("Error getting election dates {e}"))?;
+
         let mut areas: Vec<UserDataArea> = vec![];
 
         for area in election_areas.iter() {
@@ -298,21 +311,8 @@ impl TemplateRenderer for StatisticalReportTemplate {
 
             let country = area.clone().name.unwrap_or("-".to_string());
 
-            let scheduled_events = find_scheduled_event_by_election_event_id(
-                &hasura_transaction,
-                &self.ids.tenant_id,
-                &self.ids.election_event_id,
-            )
-            .await
-            .map_err(|e| {
-                anyhow::anyhow!("Error getting scheduled events by election event_id: {}", e)
-            })?;
-            let election_dates = get_election_dates(&election, scheduled_events)
-                .map_err(|e| anyhow::anyhow!("Error getting election dates {e}"))?;
-
             areas.push(UserDataArea {
                 election_title: election_title.clone(),
-                election_dates: election_dates.clone(),
                 post: election_general_data.post.clone(),
                 country: country,
                 geographical_region: election_general_data.geographical_region.clone(),
@@ -328,6 +328,7 @@ impl TemplateRenderer for StatisticalReportTemplate {
 
         Ok(UserData {
             areas,
+            election_dates,
             execution_annotations: ExecutionAnnotations {
                 date_printed,
                 report_hash,
