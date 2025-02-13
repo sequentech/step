@@ -66,6 +66,7 @@ import {InputContainerStyle, InputLabelStyle, PasswordInputStyle} from "./EditPa
 import IconTooltip from "@/components/IconTooltip"
 import {faInfoCircle} from "@fortawesome/free-solid-svg-icons"
 import {useUsersPermissions} from "./useUsersPermissions"
+import {values} from "lodash"
 
 interface ListUserRolesProps {
     userId?: string
@@ -495,12 +496,20 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
              * removing any duplicates and preserving the original order.
              */
             const elections = prev?.attributes?.[attrName] ?? []
-            const filteredElections = elections.filter((ab: string) => value.includes(ab))
-            const notIncluded =
-                filteredElections.length === 0
-                    ? elections.filter((ab: string) => !value.includes(ab))
-                    : filteredElections.filter((ab: string) => !value.includes(ab))
-            const newElections = [...notIncluded, ...value]
+
+            const notIncluded = value.filter((item) => !elections.includes(item))
+
+            let newElections = []
+
+            if (searched.current !== "") {
+                newElections = [...Array.from(new Set([...elections, ...value]))]
+            } else {
+                if (elections.length < value.length) {
+                    newElections = [...Array.from(new Set([...elections, ...notIncluded]))]
+                } else {
+                    newElections = [...value]
+                }
+            }
 
             return {
                 ...prev,
