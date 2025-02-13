@@ -14,8 +14,8 @@ use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::reports::{ReportCronConfig, ReportType};
 use crate::postgres::results_area_contest::get_results_area_contest;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
-use crate::services::election_dates::get_election_dates;
 use crate::services::cast_votes::count_ballots_by_area_id;
+use crate::services::election_dates::get_election_dates;
 use crate::services::temp_path::*;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
@@ -198,7 +198,6 @@ impl TemplateRenderer for StatisticalReportTemplate {
         )
         .map_err(|e| anyhow!(format!("Error generating voting period dates {e:?}")))?;
 
-
         let election_areas = get_areas_by_election_id(
             &hasura_transaction,
             &self.ids.tenant_id,
@@ -310,9 +309,6 @@ impl TemplateRenderer for StatisticalReportTemplate {
             })?;
             let election_dates = get_election_dates(&election, scheduled_events)
                 .map_err(|e| anyhow::anyhow!("Error getting election dates {e}"))?;
-
-            println!("election_dates: {:?}", election_dates);
-
 
             areas.push(UserDataArea {
                 election_title: election_title.clone(),
