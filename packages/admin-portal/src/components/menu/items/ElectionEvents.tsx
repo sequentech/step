@@ -186,14 +186,14 @@ export type DataTreeMenuType = (BaseType | CandidateType | ElectionType | Electi
 }
 
 function filterTree(tree: any, filterName: string): any {
-    console.log("aa tree", tree)
-    console.log("aa filterName", filterName)
-
     if (Array.isArray(tree)) {
         return tree.map((subTree) => filterTree(subTree, filterName)).filter((v) => v !== null)
     } else if (typeof tree === "object" && tree !== null) {
         for (let key in tree) {
-            if (tree.name?.toLowerCase().search(filterName.toLowerCase()) > -1) {
+            if (
+                tree.name?.toLowerCase().search(filterName.toLowerCase()) > -1 ||
+                tree.alias?.toLowerCase().search(filterName.toLowerCase()) > -1
+            ) {
                 return tree
             } else if (ENTITY_FIELD_NAMES.includes(key as EntityFieldName)) {
                 let filteredSubTree = filterTree(tree[key], filterName)
@@ -478,24 +478,11 @@ export default function ElectionEvents() {
         })
     }
 
-    // if (!loading && data && data.sequent_backend_election_event) {
-    //     resultData = filterTree(
-    //         {
-    //             electionEvents: [...(data.sequent_backend_election_event ?? [])],
-    //         },
-    //         searchInput
-    //     )
-    // }
-
     if (!loading && data && data.sequent_backend_election_event) {
         resultData = {
             electionEvents: [...(data.sequent_backend_election_event ?? [])],
         }
     }
-
-    useEffect(() => {
-        console.log("aa searchInput", searchInput)
-    }, [searchInput])
 
     let finalResultData = useMemo(() => {
         return {
