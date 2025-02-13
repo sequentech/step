@@ -24,7 +24,7 @@ use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
 use sequent_core::services::pdf;
-use sequent_core::signatures::temp_path::get_public_assets_path_env_var;
+use sequent_core::util::temp_path::get_public_assets_path_env_var;
 use sequent_core::{
     ballot::StringifiedPeriodDates, services::s3::get_minio_url, types::hasura::core::Election,
 };
