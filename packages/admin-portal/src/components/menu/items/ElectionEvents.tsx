@@ -186,6 +186,9 @@ export type DataTreeMenuType = (BaseType | CandidateType | ElectionType | Electi
 }
 
 function filterTree(tree: any, filterName: string): any {
+    console.log("aa tree", tree)
+    console.log("aa filterName", filterName)
+
     if (Array.isArray(tree)) {
         return tree.map((subTree) => filterTree(subTree, filterName)).filter((v) => v !== null)
     } else if (typeof tree === "object" && tree !== null) {
@@ -475,14 +478,24 @@ export default function ElectionEvents() {
         })
     }
 
+    // if (!loading && data && data.sequent_backend_election_event) {
+    //     resultData = filterTree(
+    //         {
+    //             electionEvents: [...(data.sequent_backend_election_event ?? [])],
+    //         },
+    //         searchInput
+    //     )
+    // }
+
     if (!loading && data && data.sequent_backend_election_event) {
-        resultData = filterTree(
-            {
-                electionEvents: [...(data.sequent_backend_election_event ?? [])],
-            },
-            searchInput
-        )
+        resultData = {
+            electionEvents: [...(data.sequent_backend_election_event ?? [])],
+        }
     }
+
+    useEffect(() => {
+        console.log("aa searchInput", searchInput)
+    }, [searchInput])
 
     let finalResultData = useMemo(() => {
         return {
@@ -591,7 +604,12 @@ export default function ElectionEvents() {
         contestTreeData,
         candidateTreeData,
         data,
+        searchInput,
     ])
+
+    // if (!loading && data && data.sequent_backend_election_event) {
+    finalResultData = filterTree(finalResultData, searchInput)
+    // }
 
     const reloadTreeMenu = () => {
         candidateTreeRefetch()
