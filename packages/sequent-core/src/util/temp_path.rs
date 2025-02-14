@@ -36,7 +36,6 @@ pub fn get_file_size(filepath: &str) -> Result<u64> {
  * Returning the TempPath, even if the variable goes unused, allows the
  * caller to control the lifetime of the created temp file.
  */
-#[instrument(skip(data), err)]
 pub fn write_into_named_temp_file(
     data: &Vec<u8>,
     prefix: &str,
@@ -63,7 +62,6 @@ pub fn write_into_named_temp_file(
     Ok((temp_path, temp_path_string, file_size))
 }
 
-// #[instrument(ret)]
 pub fn generate_temp_file(prefix: &str, suffix: &str) -> Result<NamedTempFile> {
     // Get the system's temporary directory.
     let temp_dir = env::temp_dir();
@@ -81,7 +79,6 @@ pub fn generate_temp_file(prefix: &str, suffix: &str) -> Result<NamedTempFile> {
     Ok(temp_file)
 }
 
-#[instrument(err)]
 pub fn read_temp_file(temp_file: &mut NamedTempFile) -> Result<Vec<u8>> {
     // Rewind the file to the beginning to read its contents
     temp_file
@@ -96,7 +93,6 @@ pub fn read_temp_file(temp_file: &mut NamedTempFile) -> Result<Vec<u8>> {
     Ok(file_bytes)
 }
 
-#[instrument(err)]
 pub fn read_temp_path(temp_path: &TempPath) -> Result<Vec<u8>> {
     let mut file =
         File::open(temp_path).with_context(|| "Error opening temp file")?;
