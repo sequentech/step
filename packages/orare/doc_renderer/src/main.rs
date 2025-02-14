@@ -35,9 +35,9 @@ cfg_if::cfg_if! {
                 },
                 Input::S3 { bucket, input_path, output_path, pdf_options } => {
                     let html = String::from_utf8(
-                        s3::get_file_from_s3(bucket.clone(), input_path)
+                        s3::get_file_from_s3(bucket.clone(), input_path.clone())
                             .await
-                            .map_err(|err| format!("could not retrieve file from S3: {}", err))?
+                            .map_err(|err| format!("could not retrieve file {} (bucket: {}) from S3: {:?}", input_path.clone(), bucket.clone(), err))?
                     ).map_err(|_| format!("provided document is not valid UTF-8"))?;
                     let pdf = pdf::render_pdf(html, pdf_options)
                         .map_err(|err| format!("could not render PDF due to error: {:?}", err))?;
@@ -70,7 +70,7 @@ cfg_if::cfg_if! {
                     });
                 }
                 Err(e) => {
-                    error!("Failed to create Tokio runtime: {}", e);
+                    error!("Failed to create Tokio runtime: {:?}", e);
                     std::process::exit(1);
                 }
             }
