@@ -429,7 +429,6 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
       AuthenticationExecutionModel execution = context.getExecution();
       if (execution.isRequired()) {
         if (action_retries == 3) {
-          // String supportLink = "https://comelec.gov.ph/?r=2025NLESupport";
           error = "maxRetriesError";
           Response challenge =
               getBaseForm(context)
