@@ -40,10 +40,8 @@ const is_communication_template: ETemplateType[] = [
     ETemplateType.PARTICIPATION_REPORT,
     ETemplateType.TALLY_REPORT,
     ETemplateType.BALLOT_RECEIPT,
-    ETemplateType.PARTICIPATION_REPORT,
     ETemplateType.ELECTORAL_RESULTS,
     ETemplateType.OTP,
-    ETemplateType.TALLY_REPORT,
     ETemplateType.MANUAL_VERIFICATION_VOTER,
     ETemplateType.MANUAL_VERIFICATION_APPROVAL,
 ]

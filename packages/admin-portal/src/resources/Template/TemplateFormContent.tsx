@@ -124,7 +124,6 @@ export const TemplateFormContent: React.FC<TTemplateFormContent> = ({
             }
             setTemplateExtraConfig(extraConfig)
         } else {
-            // ("Use default user template")
             fetchDefaultTemplateData()
         }
     }, [selectedTemplateType, recordMemo])

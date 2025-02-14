@@ -37,6 +37,7 @@ import {ScheduledEventType} from "@/services/ScheduledEvent"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {ITemplateMethod, ETemplateType, IEmail, ISendTemplateBody} from "@/types/templates"
 import {useLocation} from "react-router"
+import {is_communication_template_type} from "@/lib/helpers"
 
 export enum AudienceSelection {
     ALL_USERS = "ALL_USERS",
@@ -509,16 +510,11 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
                                     value={template.type}
                                     onChange={handleSelectTypeChange}
                                 >
-                                    {/* {Object.values(ETemplateType) */}
-                                    {typesList
-                                        .filter(
-                                            (type) => type !== ETemplateType.MANUAL_VERIFICATION
-                                        )
-                                        .map((key) => (
-                                            <MenuItem key={key} value={key}>
-                                                {t(`template.type.${key}`)}
-                                            </MenuItem>
-                                        ))}
+                                    {typesList.filter(is_communication_template_type).map((key) => (
+                                        <MenuItem key={key} value={key}>
+                                            {t(`template.type.${key}`)}
+                                        </MenuItem>
+                                    ))}
                                 </FormStyles.Select>
                                 <Typography variant="body2" sx={{margin: "0"}}>
                                     {t("sendCommunication.alias")}
