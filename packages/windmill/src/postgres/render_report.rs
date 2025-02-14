@@ -12,7 +12,7 @@ use tracing::instrument;
 use crate::hasura;
 use crate::services::documents::upload_and_return_document;
 use crate::tasks::render_report::{FormatType, RenderTemplateBody};
-use sequent_core::signatures::temp_path::write_into_named_temp_file;
+use sequent_core::util::temp_path::write_into_named_temp_file;
 
 #[instrument(err)]
 pub async fn render_report_task(

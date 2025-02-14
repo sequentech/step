@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::signatures::shell::run_shell_command;
-use crate::signatures::temp_path::generate_temp_file;
+use crate::util::temp_path::generate_temp_file;
 use anyhow::{anyhow, Context, Result};
 use base64::{engine::general_purpose::STANDARD, Engine};
 use serde::{Deserialize, Serialize};
