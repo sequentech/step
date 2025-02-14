@@ -8,8 +8,8 @@ use anyhow::Context;
 use anyhow::{anyhow, Result};
 use csv::Writer;
 use deadpool_postgres::{Client as DbClient, Transaction};
-use sequent_core::signatures::temp_path::write_into_named_temp_file;
 use sequent_core::types::hasura::core::Tenant;
+use sequent_core::util::temp_path::write_into_named_temp_file;
 use tempfile::{NamedTempFile, TempPath};
 use tracing::{event, info, instrument, Level};
 
