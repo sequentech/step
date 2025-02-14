@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{anyhow, Context, Result};
 use sequent_core::services::s3;
-use sequent_core::signatures::temp_path::generate_temp_file;
+use sequent_core::util::temp_path::generate_temp_file;
 use serde::{Deserialize, Serialize};
 use std::env;
 use std::io::{BufWriter, Write};
