@@ -154,14 +154,24 @@ export const MenuStyles = {
         cursor: pointer;
         color: black;
     `,
-    StyledSideBarNavLink: styled(NavLink)`
+    StyledSideBarNavLink: styled(NavLink)<{multiline?: boolean}>`
         flex-grow: 1;
         padding-top: 0.375rem;
         padding-bottom: 0.375rem;
         color: black;
         border-bottom: 2px solid white;
         cursor: pointer;
-        white-space: nowrap;
+        ${(data) =>
+            data.multiline
+                ? `
+            /* Allow up to two lines of text */
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            white-space: normal;
+            overflow: hidden;
+            `
+                : "white-space: nowrap;"}
         overflow: hidden;
         text-overflow: ellipsis;
 
