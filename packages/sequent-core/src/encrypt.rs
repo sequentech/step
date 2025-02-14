@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use std::collections::HashMap;
+
 use strand::backend::ristretto::RistrettoCtx;
 use strand::context::Ctx;
 use strand::elgamal::*;
@@ -155,10 +157,21 @@ pub fn encode_to_plaintext_decoded_multi_contest(
         )));
     }
 
+    let contests_map: HashMap<String, Contest> = config
+        .contests
+        .iter()
+        .map(|contest| (contest.id.clone(), contest.clone()))
+        .collect();
+
     let contest_choices = decoded_contests
         .iter()
-        .map(ContestChoices::from_decoded_vote_contest)
-        .collect();
+        .map(|choice| -> Result<ContestChoices, BallotError> {
+            let contest = contests_map.get(&choice.contest_id).ok_or(
+                BallotError::ConsistencyCheck(format!("Can't find contest")),
+            )?;
+            Ok(ContestChoices::from_decoded_vote_contest(choice, contest))
+        })
+        .collect::<Result<Vec<_>, BallotError>>()?;
 
     let ballot_choices = BallotChoices::new(false, contest_choices);
 
@@ -186,10 +199,21 @@ pub fn encrypt_decoded_multi_contest<C: Ctx<P = [u8; 30]>>(
         )));
     }
 
+    let contests_map: HashMap<String, Contest> = config
+        .contests
+        .iter()
+        .map(|contest| (contest.id.clone(), contest.clone()))
+        .collect();
+
     let contest_choices = decoded_contests
         .iter()
-        .map(ContestChoices::from_decoded_vote_contest)
-        .collect();
+        .map(|choice| -> Result<ContestChoices, BallotError> {
+            let contest = contests_map.get(&choice.contest_id).ok_or(
+                BallotError::ConsistencyCheck(format!("Can't find contest")),
+            )?;
+            Ok(ContestChoices::from_decoded_vote_contest(choice, contest))
+        })
+        .collect::<Result<Vec<_>, BallotError>>()?;
 
     let ballot = BallotChoices::new(false, contest_choices);
 
