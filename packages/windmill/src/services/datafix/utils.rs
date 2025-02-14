@@ -27,7 +27,7 @@ pub async fn get_event_id_and_datafix_annotations(
         .await
         .map_err(|err| {
             error!("Error getting election events: {err}");
-            DatafixResponse::new(Status::BadRequest)
+            DatafixResponse::new(Status::InternalServerError)
         })?;
 
     let mut itr: std::slice::Iter<'_, ElectionEventDatafix> = election_events.iter();
@@ -40,7 +40,7 @@ pub async fn get_event_id_and_datafix_annotations(
             .0
             .annotations
             .as_ref()
-            .and_then(|v| v.get("datafix:id"));
+            .and_then(|v| v.get(DATAFIX_ID_KEY));
         info!("datafix_id_value: {datafix_id_value:?}");
         // If there is a Datafix object, deserialize it:
         if datafix_id_value.is_some() {
@@ -65,7 +65,7 @@ pub async fn get_event_id_and_datafix_annotations(
     }
 
     warn!("Datafix annotations not found. Requested datafix ID: {requester_datafix_id}");
-    return Err(DatafixResponse::new(Status::BadRequest));
+    return Err(DatafixResponse::new(Status::NotFound));
 }
 
 /// Returns the UserArea object. If it cannot find the area id by name returns an error.
