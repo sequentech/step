@@ -190,7 +190,10 @@ function filterTree(tree: any, filterName: string): any {
         return tree.map((subTree) => filterTree(subTree, filterName)).filter((v) => v !== null)
     } else if (typeof tree === "object" && tree !== null) {
         for (let key in tree) {
-            if (tree.name?.toLowerCase().search(filterName.toLowerCase()) > -1) {
+            if (
+                tree.name?.toLowerCase().search(filterName.toLowerCase()) > -1 ||
+                tree.alias?.toLowerCase().search(filterName.toLowerCase()) > -1
+            ) {
                 return tree
             } else if (ENTITY_FIELD_NAMES.includes(key as EntityFieldName)) {
                 let filteredSubTree = filterTree(tree[key], filterName)
@@ -476,12 +479,9 @@ export default function ElectionEvents() {
     }
 
     if (!loading && data && data.sequent_backend_election_event) {
-        resultData = filterTree(
-            {
-                electionEvents: [...(data.sequent_backend_election_event ?? [])],
-            },
-            searchInput
-        )
+        resultData = {
+            electionEvents: [...(data.sequent_backend_election_event ?? [])],
+        }
     }
 
     let finalResultData = useMemo(() => {
@@ -591,7 +591,12 @@ export default function ElectionEvents() {
         contestTreeData,
         candidateTreeData,
         data,
+        searchInput,
     ])
+
+    // if (!loading && data && data.sequent_backend_election_event) {
+    finalResultData = filterTree(finalResultData, searchInput)
+    // }
 
     const reloadTreeMenu = () => {
         candidateTreeRefetch()
