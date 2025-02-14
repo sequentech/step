@@ -52,7 +52,7 @@
                       Overseas Voting Period: {{datetime
                       from_rfc3339=election_dates.scheduled_event_dates.ALLOW_INIT_REPORT.scheduled_at
                       output_format="%d %B" with_timezone="Asia/Manila"}} - {{datetime
-                      from_rfc3339=election_dates.scheduled_event_dates.ALLOW_VOTING_PERIOD_END.scheduled_at
+                      from_rfc3339=election_dates.scheduled_event_dates.END_VOTING_PERIOD.scheduled_at
                       output_format="%d %B %Y"
                       with_timezone="Asia/Manila"}}
                     </div>
@@ -174,14 +174,17 @@
     {{#each inspectors}}
     <tr class="inspector-signature">
       <td align="center">
+        <div class="box"></div>
+        <p>Right Thumbmark</p>
         <p>
           <strong class="inspector-name">{{sanitize_html (expr name)}}</strong>
-          <br /><strong>{{sanitize_html (expr role)}}</strong><br />(Signature above printed full name)
+          <br />(Signature above printed full name)
         </p>
       </td>
     </tr>
     {{/each}}
     <!-- END Main signature section -->
+
 
     <!-- Title secondary section -->
     <tr class="watchers-title">

@@ -24,7 +24,7 @@ use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::pdf;
 use sequent_core::services::s3::get_minio_url;
-use sequent_core::signatures::temp_path::*;
+use sequent_core::util::temp_path::*;
 use sequent_core::{ballot::ElectionStatus, ballot::VotingStatus};
 use serde::{Deserialize, Serialize};
 use serde_json::value::Value;
