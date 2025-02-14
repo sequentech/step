@@ -15,6 +15,7 @@ use crate::tasks::activity_logs_report::generate_activity_logs_report;
 use crate::tasks::create_ballot_receipt::create_ballot_receipt;
 use crate::tasks::create_keys::create_keys;
 use crate::tasks::delete_election_event::delete_election_event_t;
+use crate::tasks::electoral_log::new_electoral_log_event;
 use crate::tasks::execute_tally_session::execute_tally_session;
 use crate::tasks::export_application::export_application;
 use crate::tasks::export_ballot_publication::export_ballot_publication;
@@ -52,7 +53,7 @@ use crate::tasks::set_public_key::set_public_key;
 use crate::tasks::update_election_event_ballot_styles::update_election_event_ballot_styles;
 
 #[derive(AsRefStr, Debug)]
-enum Queue {
+pub enum Queue {
     #[strum(serialize = "short_queue")]
     Short,
     #[strum(serialize = "beat")]
@@ -65,6 +66,8 @@ enum Queue {
     Reports,
     #[strum(serialize = "import_export_queue")]
     ImportExport,
+    #[strum(serialize = "electoral_log_queue")]
+    ElectoralLog,
 }
 
 static mut PREFETCH_COUNT_S: u16 = 100;
@@ -219,6 +222,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             export_ballot_publication::NAME => Queue::ImportExport.as_ref(),
             export_application::NAME => Queue::ImportExport.as_ref(),
             import_applications::NAME => Queue::ImportExport.as_ref(),
+            new_electoral_log_event::NAME => Queue::ElectoralLog.as_ref(),
 
         ],
         prefetch_count = prefetch_count,

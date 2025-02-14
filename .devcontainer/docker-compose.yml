@@ -263,6 +263,7 @@ services:
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
     environment:
+      AMQP_ADDR: ${AMQP_ADDR}
       KC_HOSTNAME: ${KC_HOSTNAME}
       KC_HOSTNAME_STRICT: ${KC_HOSTNAME_STRICT}
       KC_HTTP_PORT: ${KC_HTTP_PORT}
@@ -812,7 +813,7 @@ services:
       "--ignore",
       "rust-local-target/",
       "-x",
-      "run --bin main consume -q short_queue tally_queue reports_queue beat communication_queue import_export_queue"
+      "run --bin main consume -q short_queue tally_queue reports_queue beat communication_queue import_export_queue electoral_log_queue"
     ]
     volumes_from:
       - devcontainer

@@ -13,8 +13,7 @@ use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use windmill::services::electoral_log::{
-    list_electoral_log as get_logs, ElectoralLogRow,
-    GetElectoralLogBody,
+    list_electoral_log as get_logs, ElectoralLogRow, GetElectoralLogBody,
 };
 use windmill::types::resources::DataList;
 

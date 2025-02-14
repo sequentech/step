@@ -30,8 +30,14 @@ extern crate chrono;
 enum CeleryOpt {
     Consume {
         #[structopt(short, long, possible_values = &[
-            "short_queue", "reports_queue", "tally_queue", "beat", "communication_queue", "import_export_queue"
-        ], default_value = "beat")]
+            Queue::Short.as_ref(),
+            Queue::Beat.as_ref(),
+            Queue::Communication.as_ref(),
+            Queue::Tally.as_ref(),
+            Queue::Reports.as_ref(),
+            Queue::ImportExport.as_ref(),
+            Queue::ElectoralLog.as_ref(),
+        ], default_value = Queue::Beat.as_ref())]
         queues: Vec<String>,
         #[structopt(short, long, default_value = "100")]
         prefetch_count: u16,
