@@ -16,10 +16,9 @@ impl SoapRequest {
         let psw = &annotations.voterview_request.psw;
         format!(
             r#"
-            <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+            <soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
                 <soap:Body>
-                    <SetNotVoted xmlns="https://www.voterview.ca/MVVServices/">
-                        <CountyMun>{county_mun}</CountyMun>
+                    <SetNotVoted xmlns="https://www.voterview.ca/MVVServices/"><CountyMun>{county_mun}</CountyMun>
                         <Username>{usr}</Username>
                         <Password>{psw}</Password>
                         <VoterID>{voter_id}</VoterID>
@@ -36,10 +35,9 @@ impl SoapRequest {
         let psw = &annotations.voterview_request.psw;
         format!(
             r#"
-            <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema"> 
+            <soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
                 <soap:Body>
-                    <SetVoted xmlns="https://www.voterview.ca/MVVServices/">
-                        <CountyMun>{county_mun}</CountyMun>
+                    <SetVoted xmlns="https://www.voterview.ca/MVVServices/"><CountyMun>{county_mun}</CountyMun>
                         <Username>{usr}</Username>
                         <Password>{psw}</Password>
                         <VoterID>{voter_id}</VoterID>
@@ -89,7 +87,10 @@ pub async fn send(
     let response = http
         .post(url)
         .header("Content-Type", "text/xml; charset=UTF-8")
-        .header("SOAPAction", "https://www.voterview.ca/MVVServices/")
+        .header(
+            "SOAPAction",
+            format!("https://www.voterview.ca/MVVServices/{req_type}"),
+        )
         .body(soap_body)
         .send()
         .await
