@@ -7,7 +7,7 @@ use anyhow::Context;
 use flate2::read::GzDecoder;
 use flate2::write::GzEncoder;
 use flate2::Compression;
-use sequent_core::signatures::temp_path::generate_temp_file;
+use sequent_core::util::temp_path::generate_temp_file;
 use std::fs::File;
 use std::path::Path;
 use tempfile::{tempdir, TempDir, TempPath};

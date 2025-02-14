@@ -36,5 +36,5 @@ sequent-core = { path = "../sequent-core", features = ["reports", "log", "areas"
 
 [features]
 default = []
-aws_lambda = []
+aws_lambda = ["sequent-core/s3"]
 openwhisk = []
