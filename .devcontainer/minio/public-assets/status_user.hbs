@@ -174,14 +174,17 @@
     {{#each inspectors}}
     <tr class="inspector-signature">
       <td align="center">
+        <div class="box"></div>
+        <p>Right Thumbmark</p>
         <p>
           <strong class="inspector-name">{{sanitize_html (expr name)}}</strong>
-          <br /><strong>{{sanitize_html (expr role)}}</strong><br />(Signature above printed full name)
+          <br />(Signature above printed full name)
         </p>
       </td>
     </tr>
     {{/each}}
     <!-- END Main signature section -->
+
 
     <!-- Title secondary section -->
     <tr class="watchers-title">

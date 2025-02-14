@@ -23,10 +23,17 @@ SPDX-License-Identifier: AGPL-3.0-only
       margin-bottom: 48px;
     }
 
-    .logo {
-      content: url("{{file_logo}}");
-      text-align: center;
+    .logo-container {
+      display: flex;
+      width: 100%;
+      justify-content: center;
       margin: 16px auto;
+    }
+
+    .logo {
+      text-align: center;
+      width: 130px;
+      height: 130px;
     }
 
     .main {
