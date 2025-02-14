@@ -82,30 +82,22 @@ impl ContestChoices {
         } else {
             vec![]
         };
-        let candidates_map: HashMap<String, Candidate> = contest
-            .candidates
-            .into_iter()
-            .map(|val| (val.id.clone(), val.clone()))
-            .collect();
         let choices: Vec<ContestChoice> = dcv
             .choices
             .iter()
             // Only values > -1 are interpreted as set values
             // Values not present will be automatically interpreted as unset
-            .filter(|dc| dc.is_selected())
-            .map(|dc| -> Result<ContestChoice> {
-
-                Ok(ContestChoice {
-                    candidate_id: dc.id.clone(),
-                    selected: dc.selected,
-                })
+            .filter(|dc| dc.is_selected() || explicit_blank_candidate_ids.contains(&dc.id))
+            .map(|dc| ContestChoice {
+                candidate_id: dc.id.clone(),
+                selected: if dc.is_selected() { dc.selected } else { 0 },
             })
-            .collect::<Result<Vec<_>>>()?;
+            .collect();
 
-        Ok(ContestChoices {
+        ContestChoices {
             contest_id: dcv.contest_id.clone(),
             choices,
-        })
+        }
     }
 }
 #[derive(
