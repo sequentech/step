@@ -922,7 +922,8 @@ def gen_tree(excel_data, miru_data, script_idr, multiply_factor):
     test_elections =  copy.deepcopy(elections_object["elections"])
     for election in test_elections:
         election["name"] = "Test Voting"
-        election["alias"] = " - ".join([election["alias"].split("-")[0].strip(), "Test Voting"])
+        name_parts = election["alias"].split("-")
+        election["alias"] = " - ".join([name_parts[0].strip(), name_parts[1].strip(), "Test Voting"])
 
     elections_object["elections"].extend(test_elections)
     

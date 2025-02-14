@@ -387,6 +387,7 @@ const englishTranslation = {
                 elections: "Elections",
                 electionNumber: "Number Elections",
                 trustees: "Trustees",
+                permissionLabels: "Permission Labels",
                 status: "Status",
                 tallyType: {
                     label: "Tally Type",

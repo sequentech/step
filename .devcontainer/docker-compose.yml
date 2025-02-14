@@ -97,6 +97,12 @@ services:
     #restart: always
     #depends_on:
     #  - graphql-engine
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://minio:9000/minio/health/live"]
+      interval: 5s
+      timeout: 10s
+      retries: 25
+      start_period: 5s
 
   # used to add headers to minio
   minio-proxy:
@@ -118,7 +124,8 @@ services:
       context: ./minio
       dockerfile: Dockerfile
     depends_on:
-      - minio
+      minio:
+        condition: service_healthy
     environment:
       - MINIO_ROOT_USER=${AWS_S3_ROOT_USER}
       - MINIO_ROOT_PASSWORD=${AWS_S3_ROOT_PASSWORD}
@@ -197,6 +204,10 @@ services:
         condition: service_healthy
       postgres:
         condition: service_healthy
+      minio:
+        condition: service_healthy
+      configure-minio:
+        condition: service_completed_successfully
 
   data-connector-agent:
     profiles: ["full", "base"]
@@ -372,6 +383,33 @@ services:
     depends_on:
       - immudb-init
 
+  mock_server:
+    profiles: ["full"]
+    stdin_open: true
+    image: sequentech.local/cargo-packages
+    container_name: mock_server
+    volumes_from:
+      - devcontainer
+    depends_on:
+      - devcontainer
+    working_dir: /workspaces/step/packages/e2e/src/mock_server
+    entrypoint: [
+      "cargo",
+      "watch",
+      "--why",
+      # ignoring rust-local-target/ since it's used for local builds and
+      # otherwise triggers a rebuild all the time (probably rust analyzer)
+      "--ignore",
+      "rust-local-target/",
+      "-x",
+      "run"
+    ]
+    environment:
+      ROCKET_ADDRESS: ${ROCKET_ADDRESS}
+      ROCKET_PORT: ${MOCK_SERVER_PORT}
+      MOCK_SERVER_PORT: ${MOCK_SERVER_PORT}
+    ports:
+     - ${MOCK_SERVER_PORT}:${MOCK_SERVER_PORT}
   harvest:
     profiles: ["full", "base"]
     stdin_open: true

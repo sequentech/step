@@ -9,7 +9,7 @@ use async_trait::async_trait;
 use deadpool_postgres::Transaction;
 use sequent_core::services::pdf;
 use sequent_core::services::s3::get_minio_url;
-use sequent_core::signatures::temp_path::*;
+use sequent_core::util::temp_path::*;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use velvet::pipes::vote_receipts::ComputedTemplateData;

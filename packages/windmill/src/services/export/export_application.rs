@@ -10,10 +10,10 @@ use anyhow::{anyhow, Result};
 use base64::write;
 use csv::Writer;
 use deadpool_postgres::{Client as DbClient, Transaction};
-use sequent_core::signatures::temp_path::{
+use sequent_core::types::hasura::core::{Application, Document};
+use sequent_core::util::temp_path::{
     generate_temp_file, get_file_size, write_into_named_temp_file,
 };
-use sequent_core::types::hasura::core::{Application, Document};
 use tempfile::{NamedTempFile, TempPath};
 use tracing::{event, info, instrument, Level};
 
