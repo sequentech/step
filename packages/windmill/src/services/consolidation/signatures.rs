@@ -6,7 +6,7 @@ use openssl::pkcs12::Pkcs12;
 use openssl::pkey::PKey;
 use sequent_core::signatures::ecies_encrypt::ECIES_TOOL_PATH;
 use sequent_core::signatures::shell::run_shell_command;
-use sequent_core::signatures::temp_path::*;
+use sequent_core::util::temp_path::*;
 use std::fs;
 use std::io::Read;
 use tempfile::{tempdir, NamedTempFile, TempPath};

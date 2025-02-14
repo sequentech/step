@@ -43,8 +43,9 @@ async fn main() -> Result<(), Error> {
     }
 
     match PdfRenderer::render_pdf("Hello, world!".to_string(), None).await {
-        Ok(_) => {
-            println!("PDF correctly generated. Lambda is working as expected.");
+        Ok(data) => {
+            println!("PDF correctly generated. Lambda is working as expected. Writing PDF to out.pdf");
+            std::fs::write("out.pdf", data).expect("failed to write PDF file");
             Ok(())
         }
         Err(err) => Err(anyhow!("Error generating PDF: {err:?}")),

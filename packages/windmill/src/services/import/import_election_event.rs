@@ -82,9 +82,10 @@ use crate::services::protocol_manager::{
 };
 use crate::tasks::import_election_event::ImportElectionEventBody;
 use crate::types::documents::EDocuments;
-use sequent_core::signatures::temp_path::{generate_temp_file, get_file_size};
 use sequent_core::types::hasura::core::{Area, Candidate, Contest, Election, ElectionEvent};
 use sequent_core::types::scheduled_event::*;
+use sequent_core::util::temp_path::{generate_temp_file, get_file_size};
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ImportElectionEventSchema {
     pub tenant_id: Uuid,

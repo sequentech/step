@@ -78,7 +78,7 @@ pub async fn transaction_results(
                 "middle_name": user.middle_name,
                 "surname": user.last_name,
                 "personal_number": user.id_card_number,
-                "dateOfBirth": user.date_of_birth,
+                "date_of_birth": user.date_of_birth,
             },
             "mrz": {
                 "issuing_state_code": "PHL",
@@ -86,7 +86,7 @@ pub async fn transaction_results(
                 "surname": user.last_name,
                 "personal_number": user.id_card_number,
                 "document_number": user.id_card_number,
-                "dateOfBirth": user.date_of_birth,
+                "date_of_birth": user.date_of_birth,
             },
             "resultData": {
                 "scoreDocumental": 75,

@@ -4,4 +4,3 @@
 
 pub mod ecies_encrypt;
 pub mod shell;
-pub mod temp_path;

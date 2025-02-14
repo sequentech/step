@@ -282,3 +282,47 @@ pub async fn update_tally_session_annotation(
 
     Ok(())
 }
+
+#[instrument(err, skip(hasura_transaction))]
+pub async fn get_tally_sessions_by_election_id(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: &str,
+) -> Result<Vec<TallySession>> {
+    let query = format!(
+        r#"
+        SELECT
+            *
+        FROM
+            sequent_backend.tally_session
+        WHERE
+            tenant_id = $1
+            AND election_event_id = $2
+            AND $3 = ANY(election_ids)
+        ORDER BY
+            created_at DESC;
+        "#
+    );
+
+    let statement = hasura_transaction.prepare(&query).await?;
+
+    // Note: tenant_id is parsed as a UUID while election_id is a string.
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(&election_event_id)?,
+                &Uuid::parse_str(&election_id)?,
+            ],
+        )
+        .await?;
+
+    let tally_sessions: Vec<TallySession> = rows
+        .into_iter()
+        .map(|row| -> Result<TallySession> { row.try_into().map(|res: TallySessionWrapper| res.0) })
+        .collect::<Result<Vec<TallySession>>>()?;
+
+    Ok(tally_sessions)
+}

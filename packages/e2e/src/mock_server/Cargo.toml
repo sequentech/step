@@ -3,14 +3,14 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 [package]
-name = "enrollment"
+name = "mock_server"
 version = "0.1.0"
 edition = "2021"
-default-run = "default"
+default-run = "mock_server"
 
 
 [[bin]]
-name = "default"
+name = "mock_server"
 path = "src/main.rs"
 
 [dependencies]
@@ -25,3 +25,4 @@ rand = "0.8.5"
 uuid = { version = "1.5.0", features = ["v4", "fast-rng"] }
 reqwest = { version = "0.12.5", features = ["blocking", "json"] }
 clap = { version = "4.0", features = ["derive"] }
+chrono = "0.4"
