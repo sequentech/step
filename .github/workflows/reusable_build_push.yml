@@ -25,59 +25,74 @@ jobs:
           - service: keycloak
             context: packages
             file: packages/Dockerfile.keycloak
+            provenance: true
 
           - service: voting-portal
             context: packages
             file: packages/Dockerfile.prod
             spa_name: "voting-portal"
+            provenance: true
 
           - service: admin-portal
             context: packages
             file: packages/Dockerfile.prod
             spa_name: "admin-portal"
+            provenance: true
 
           - service: ballot-verifier
             context: packages
             file: packages/Dockerfile.prod
             spa_name: "ballot-verifier"
+            provenance: true
 
           - service: harvest
             context: packages
             file: packages/harvest/Dockerfile.prod
+            provenance: true
 
           - service: b3
             context: packages
             file: packages/b3/Dockerfile.prod
+            provenance: true
 
           - service: braid
             context: packages
             file: packages/braid/Dockerfile.prod
+            provenance: true
 
           - service: windmill
             context: packages
             file: packages/windmill/Dockerfile.prod
+            provenance: true
 
           - service: immudb-init
             context: packages
             file: packages/Dockerfile.immudb-init.prod
+            provenance: true
 
           - service: immudb
             context: packages
             file: packages/Dockerfile.immudb
+            provenance: true
 
           - service: doc_renderer_openwhisk
             context: packages
             file: packages/orare/doc_renderer/Dockerfile
             features: openwhisk
+            provenance: true
 
           - service: doc_renderer_aws_lambda
             context: packages
             file: packages/orare/doc_renderer/Dockerfile
             features: aws_lambda
+            # FIXME(ereslibre): building images with provenance fails
+            # to be loaded in AWS lambda.
+            provenance: false
 
           - service: mock_server
             context: packages/e2e/src/mock_server
             file: packages/e2e/src/mock_server/Dockerfile.prod
+            provenance: true
 
       fail-fast: false
 
@@ -108,6 +123,7 @@ jobs:
         context: ${{ matrix.context }}
         file: ${{ matrix.file }}
         push: ${{ inputs.push }}
+        provenance: ${{ matrix.provenance }}
         tags: |
           ${{ secrets.AWS_PROD_REGISTRY }}/${{ matrix.service }}:${{ env.SHORT_SHA }}
           ${{ secrets.AWS_PROD_REGISTRY }}/${{ matrix.service }}:${{ inputs.tag || github.run_number }}
