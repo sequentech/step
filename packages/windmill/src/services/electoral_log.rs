@@ -851,3 +851,33 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
         },
     })
 }
+
+#[instrument(err)]
+pub async fn count_electoral_log(input: GetElectoralLogBody) -> Result<i64> {
+    let mut client = get_immudb_client().await?;
+    let board_name = get_event_board(input.tenant_id.as_str(), input.election_event_id.as_str());
+    client.open_session(&board_name).await?;
+
+    let (clauses_to_count, count_params) = input.as_sql(true)?;
+    let sql = format!(
+        r#"
+        SELECT COUNT(*)
+        FROM electoral_log_messages
+        {clauses_to_count}
+        "#,
+    );
+
+    let sql_query_response = client.sql_query(&sql, count_params).await?;
+
+    let mut rows_iter = sql_query_response
+        .get_ref()
+        .rows
+        .iter()
+        .map(Aggregate::try_from);
+    let aggregate = rows_iter
+        .next()
+        .ok_or_else(|| anyhow!("No aggregate found"))??;
+
+    client.close_session().await?;
+    Ok(aggregate.count as i64)
+}

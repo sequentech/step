@@ -16,6 +16,9 @@ use crate::services::vault;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
+use futures::executor::block_on;
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use rayon::ThreadPoolBuilder;
 use sequent_core::serialization::deserialize_with_path::{deserialize_str, deserialize_value};
 use sequent_core::services::keycloak::{self, get_event_realm, KeycloakAdminClient};
 use sequent_core::services::{pdf, reports};
@@ -25,13 +28,22 @@ use sequent_core::types::templates::{
     CommunicationTemplatesExtraConfig, EmailConfig, PrintToPdfOptionsLocal, ReportExtraConfig,
     ReportOptions, SendTemplateBody, SmsConfig,
 };
+use futures::future::join_all;
 use sequent_core::types::to_map::ToMap;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use strum_macros::{Display, EnumString, IntoStaticStr};
 use tempfile::{NamedTempFile, TempPath};
 use tracing::{debug, info, instrument, warn};
+use once_cell::sync::Lazy;
+use tokio::runtime::Runtime;
 
+static GLOBAL_RT: Lazy<Runtime> = Lazy::new(|| {
+    tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .expect("Failed to build global Tokio runtime")
+});
 #[allow(non_camel_case_types)]
 #[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString)]
 pub enum GenerateReportMode {
@@ -75,7 +87,6 @@ pub enum EReportEncryption {
     Unencrypted,
     ConfiguredPassword,
 }
-
 /// Trait that defines the behavior for rendering templates
 #[async_trait]
 pub trait TemplateRenderer: Debug {
@@ -92,6 +103,16 @@ pub trait TemplateRenderer: Debug {
     /// Can be None when a report is generated with no template assigned to it,
     /// or from other place than the reports TAB.
     fn get_initial_template_alias(&self) -> Option<String>;
+
+    async fn count_items(&self) -> Option<i64> {
+        None
+    }
+    async fn prepare_user_data_batch(&self,
+        hasura_transaction: &Transaction<'_>,
+        keycloak_transaction: &Transaction<'_>,   offset: i64,
+        limit: i64) -> Result<Self::UserData> {
+        Err(anyhow!("prepare_user_data_batch is not implemented for this report type"))
+    }
 
     async fn prepare_user_data(
         &self,
@@ -286,55 +307,6 @@ pub trait TemplateRenderer: Debug {
         err,
         skip(self, hasura_transaction, keycloak_transaction, user_tpl_document)
     )]
-    async fn generate_report_inner(
-        &self,
-        generate_mode: GenerateReportMode,
-        hasura_transaction: &Transaction<'_>,
-        keycloak_transaction: &Transaction<'_>,
-        user_tpl_document: &str,
-    ) -> Result<String> {
-        // Prepare user data either preview or real
-        let user_data = if generate_mode == GenerateReportMode::PREVIEW {
-            self.prepare_preview_data()
-                .await
-                .map_err(|e| anyhow!("Error preparing preview user data: {e:?}"))?
-        } else {
-            self.prepare_user_data(hasura_transaction, keycloak_transaction)
-                .await
-                .map_err(|e| anyhow!("Error preparing user data: {e:?}"))?
-        };
-
-        let user_data_map = user_data
-            .to_map()
-            .map_err(|e| anyhow!("Error converting user data to map: {e:?}"))?;
-
-        debug!("user data in template renderer: {user_data_map:#?}");
-        info!(
-            "imri generate_report_inner user_data_map: {:?}",
-            user_data_map
-        );
-        let rendered_user_template =
-            reports::render_template_text(&user_tpl_document, user_data_map)
-                .map_err(|e| anyhow!("Error rendering user template: {e:?}"))?;
-
-        // Prepare system data
-        let system_data = self
-            .prepare_system_data(rendered_user_template)
-            .await
-            .map_err(|e| anyhow!("Error preparing system data: {e:?}"))?
-            .to_map()
-            .map_err(|e| anyhow!("Error converting system data to map: {e:?}"))?;
-        info!("imri generate_report_inner system_data: {:?}", system_data);
-        let system_template = self
-            .get_system_template()
-            .await
-            .map_err(|e| anyhow!("Error getting the system template: {e:?}"))?;
-
-        let rendered_system_template = reports::render_template_text(&system_template, system_data)
-            .map_err(|e| anyhow!("Error rendering system template: {e:?}"))?;
-
-        Ok(rendered_system_template)
-    }
 
     #[instrument(
         err,
@@ -346,6 +318,8 @@ pub trait TemplateRenderer: Debug {
         hasura_transaction: &Transaction<'_>,
         keycloak_transaction: &Transaction<'_>,
         user_tpl_document: &str,
+        offset: Option<i64>,
+        limit: Option<i64>,
     ) -> Result<String> {
         // Prepare user data either preview or real
         let user_data = if generate_mode == GenerateReportMode::PREVIEW {
@@ -353,9 +327,15 @@ pub trait TemplateRenderer: Debug {
                 .await
                 .map_err(|e| anyhow!("Error preparing preview user data: {e:?}"))?
         } else {
-            self.prepare_user_data(hasura_transaction, keycloak_transaction)
-                .await
-                .map_err(|e| anyhow!("Error preparing user data: {e:?}"))?
+            if let (Some(o), Some(l)) = (offset, limit) {
+                self.prepare_user_data_batch(hasura_transaction, keycloak_transaction, o, l)
+                    .await
+                    .map_err(|e| anyhow!("Error preparing batched user data: {e:?}"))?
+            } else {
+                self.prepare_user_data(hasura_transaction, keycloak_transaction)
+                    .await
+                    .map_err(|e| anyhow!("Error preparing user data: {e:?}"))?
+            }
         };
 
         let user_data_map = user_data
@@ -363,7 +343,6 @@ pub trait TemplateRenderer: Debug {
             .map_err(|e| anyhow!("Error converting user data to map: {e:?}"))?;
 
         debug!("user data in template renderer: {user_data_map:#?}");
-        info!("imri generate_report user_data_map: {:?}", user_data_map);
 
         let rendered_user_template =
             reports::render_template_text(user_tpl_document, user_data_map)
@@ -448,10 +427,111 @@ pub trait TemplateRenderer: Debug {
         keycloak_transaction: &Transaction<'_>,
         task_execution: Option<TasksExecution>,
     ) -> Result<()> {
+        let task_execution_ref = task_execution.as_ref();
         let (user_tpl_document, ext_cfg) = self
             .user_tpl_and_extra_cfg_provider(hasura_transaction)
             .await
-            .map_err(|e| anyhow!("Error providing the user template and extra config: {e:?}"))?;
+            .map_err(|e| {
+                if let Some(task) = task_execution_ref {
+                    block_on(update_fail(task, &format!("Failed to provide user template and extra config: {e:?}"))).ok();
+                }
+                anyhow!("Error providing the user template and extra config: {e:?}")
+            })?;
+
+            if self.get_report_type() == ReportType::ACTIVITY_LOGS {
+                let activity_logs_count = self.count_items().await.unwrap_or(0);
+                
+                // batch until reaching the count
+                let report_options = ext_cfg.report_options;
+                let limit = report_options.max_items_per_report.unwrap_or(1000) as i64;
+                let max_threads = report_options.max_threads.unwrap_or(4);
+                info!("activity_logs_count: {:?}", activity_logs_count);
+                // Compute the number of batches needed.
+                let num_batches = if limit > 0 {
+                    (activity_logs_count + limit - 1) / limit
+                } else {
+                    1
+                };
+                info!("Number of batches: {:?}", num_batches);
+
+                let mut handles = Vec::new();
+                for batch_index in 0..num_batches {
+                    // Clone or capture everything that must be moved into the async block.
+                    let generate_mode = generate_mode.clone();
+                    let user_tpl_document = user_tpl_document.clone();
+                    // If these transactions are not cloneable, consider wrapping them in an Arc.
+                    let hasura_transaction = hasura_transaction.clone();
+                    let keycloak_transaction = keycloak_transaction.clone();
+                    // Use a reference to self (if self implements Sync, or otherwise wrap it in an Arc)
+                    let renderer = self;
+                    
+                    let handle: tokio::task::JoinHandle<Result<String, anyhow::Error>> = tokio::spawn(async move {
+                        let offset = batch_index * limit;
+                        // Generate the report for the current batch.
+                        let rendered_system_template = renderer.generate_report(
+                            generate_mode,
+                            &hasura_transaction,
+                            &keycloak_transaction,
+                            &user_tpl_document,
+                            Some(limit),
+                            Some(offset),
+                        ).await.map_err(|err| {
+                            anyhow!("Error rendering report for batch {}: {err:?}", offset)
+                        })?;
+                        
+                        // Render the PDF for this batch.
+                        let extension_suffix = "pdf";
+                        let batched_content_bytes = pdf::PdfRenderer::render_pdf(
+                            rendered_system_template,
+                            Some(ext_cfg.pdf_options.to_print_to_pdf_options()),
+                        ).await.map_err(|err| {
+                            anyhow!("Error rendering PDF for batch {}: {err:?}", offset)
+                        })?;
+                        
+                        let base_name = renderer.base_name();
+                        let fmt_extension = format!(".{extension_suffix}");
+                        // Create a unique report name using the offset.
+                        let report_name = format!("{}{}{}", renderer.prefix(), fmt_extension, offset);
+                        info!("report_name for batch {}: {:?}", batch_index, report_name);
+                        
+                        // Write the PDF to a temporary file.
+                        write_into_named_temp_file(
+                            &batched_content_bytes,
+                            format!("{base_name}-").as_str(),
+                            fmt_extension.as_str(),
+                        ).map_err(|err| {
+                            anyhow!("Error writing batch {} to file: {err:?}", offset)
+                        })?;
+                        
+                        Ok(report_name)
+                    });
+                    handles.push(handle);
+                }
+                
+                // Await all spawned tasks concurrently.
+                let results = join_all(handles).await;
+                
+                // Process the results.
+                let mut batch_report_names = Vec::new();
+                for handle_result in results {
+                    // Each handle_result is a Result<Result<String, anyhow::Error>, JoinError>
+                    match handle_result {
+                        Ok(inner_result) => match inner_result {
+                            Ok(name) => batch_report_names.push(name),
+                            Err(e) => return Err(anyhow!("Batch task error: {e:?}")),
+                        },
+                        Err(e) => return Err(anyhow!("Task join error: {e:?}")),
+                    }
+                }
+            
+                // Here we have a Vec<String> of report names for each batch.
+                // You can either return them joined as a single string or process them individually.
+                let final_report = batch_report_names.join(", ");
+                info!("Final report names: {}",final_report);
+            }   
+    
+            // TODO NEED to add ELSE
+
         // Generate report in html
         let rendered_system_template = match self
             .generate_report(
@@ -459,12 +539,14 @@ pub trait TemplateRenderer: Debug {
                 hasura_transaction,
                 keycloak_transaction,
                 &user_tpl_document,
+                None,
+                None,
             )
             .await
         {
             Ok(template) => template,
             Err(err) => {
-                if let Some(task) = task_execution {
+                if let Some(task) = task_execution_ref {
                     update_fail(&task, &format!("Failed to generate report {err:?}")).await?;
                 }
                 return Err(anyhow!("Error rendering report: {err:?}"));
@@ -622,7 +704,7 @@ pub trait TemplateRenderer: Debug {
             }
         }
 
-        if let Some(task) = task_execution {
+        if let Some(task) = task_execution_ref {
             update_complete(&task)
                 .await
                 .context("Failed to update task execution status to COMPLETED")?;
