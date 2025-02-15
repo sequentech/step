@@ -145,7 +145,27 @@ public class CustomEventListenerProvider implements EventListenerProvider {
     log.info("logEvent: start");
     String message =
         String.format(
-            "{\"election_event_id\":\"%s\",\"message_type\":\"%s\",\"body\":\"%s\",\"user_id\":\"%s\",\"tenant_id\":\"%s\",\"username\":\"%s\"}",
+            """
+            [
+                [],
+                {
+                    "input": {
+                        "election_event_id":"%s",
+                        "message_type":"%s",
+                        "body":"%s",
+                        "user_id":"%s",
+                        "tenant_id":"%s",
+                        "username":"%s"
+                    }
+                },
+                {
+                    "callbacks": null,
+                    "errbacks": null,
+                    "chain": null,
+                    "chord": null
+                }
+            ]
+            """,
             Utils.escapeJson(electionEventId),
             Utils.escapeJson(messageType),
             Utils.escapeJson(body),
