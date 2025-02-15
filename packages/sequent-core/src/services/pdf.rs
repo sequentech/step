@@ -90,12 +90,7 @@ pub mod sync {
             pdf_options: Option<PrintToPdfOptions>,
         ) -> Result<Vec<u8>> {
             let html_sha256 = sha256::digest(&html);
-            Ok(PdfRenderer::new()?.do_render_pdf(
-                html,
-                pdf_options,
-                s3_private_bucket(),
-                s3_bucket_path(html_sha256),
-            )?)
+            Ok(PdfRenderer::new()?.do_render_pdf(html, pdf_options)?)
         }
 
         pub fn new() -> Result<Self> {
@@ -159,8 +154,6 @@ pub mod sync {
             &self,
             html: String,
             pdf_options: Option<PrintToPdfOptions>,
-            bucket: Option<String>,
-            bucket_path: Option<String>,
         ) -> Result<Vec<u8>> {
             let (endpoint, basic_auth) = match &self.transport {
                 PdfTransport::AWSLambda { endpoint } => {
@@ -196,7 +189,7 @@ pub mod sync {
                                     html.clone().into_bytes().into(),
                                     s3_bucket_path(format!("input-{}", html_sha256)).ok_or_else(|| anyhow!("missing bucket path"))?,
                                     false,
-                                    s3_private_bucket().ok_or_else(|| anyhow!("missing bucket identifier"))?,
+                                    s3_private_bucket().ok_or_else(|| anyhow!("missing bucket"))?,
                                     "text/plain".to_string(),
                                     None,
                                 )
@@ -211,7 +204,7 @@ pub mod sync {
                         }
                         json!({
                             "s3": {
-                                "bucket": bucket,
+                                "bucket": s3_private_bucket().ok_or_else(|| anyhow!("missing bucket"))?,
                                 "input_path": format!("input-{}", html_sha256),
                                 "output_path": output_filename,
                                 "pdf_options": pdf_options,
@@ -274,17 +267,19 @@ pub mod sync {
 
                     match &self.transport {
                         PdfTransport::AWSLambda { .. } => {
-                            let Some(bucket) = bucket else {
-                                return Err(anyhow!("missing bucket"));
-                            };
                             let html_sha256 = sha256::digest(&html);
                             let output_filename =
                                 format!("output-{}", html_sha256);
                             let rt = Runtime::new()?;
                             if cfg!(feature = "s3") {
                                 rt.block_on(async {
-                                    get_file_from_s3(bucket, output_filename)
-                                        .await
+                                    get_file_from_s3(
+                                        s3_private_bucket().ok_or_else(
+                                            || anyhow!("missing bucket"),
+                                        )?,
+                                        output_filename,
+                                    )
+                                    .await
                                 })
                             } else {
                                 return Err(anyhow!("cannot read result from s3 as this component was built without s3 support"));
@@ -384,15 +379,7 @@ impl PdfRenderer {
         html: String,
         pdf_options: Option<PrintToPdfOptions>,
     ) -> Result<Vec<u8>> {
-        let html_sha256 = sha256::digest(&html);
-        Ok(PdfRenderer::new()?
-            .do_render_pdf(
-                html,
-                pdf_options,
-                s3_private_bucket(),
-                s3_bucket_path(html_sha256),
-            )
-            .await?)
+        Ok(PdfRenderer::new()?.do_render_pdf(html, pdf_options).await?)
     }
 
     pub fn new() -> Result<Self> {
@@ -454,8 +441,6 @@ impl PdfRenderer {
         &self,
         html: String,
         pdf_options: Option<PrintToPdfOptions>,
-        bucket: Option<String>,
-        bucket_path: Option<String>,
     ) -> Result<Vec<u8>> {
         let (endpoint, basic_auth) = match &self.transport {
             PdfTransport::AWSLambda { endpoint } => (endpoint.clone(), None),
@@ -484,14 +469,10 @@ impl PdfRenderer {
                     {
                         s3::upload_data_to_s3(
                             html.clone().into_bytes().into(),
-                            s3_bucket_path(format!("input-{}", html_sha256))
-                                .ok_or_else(|| {
-                                    anyhow!("missing bucket path")
-                                })?,
+                            output_filename.clone(),
                             false,
-                            s3_private_bucket().ok_or_else(|| {
-                                anyhow!("missing bucket identifier")
-                            })?,
+                            s3_private_bucket()
+                                .ok_or_else(|| anyhow!("missing bucket"))?,
                             "text/plain".to_string(),
                             None,
                         )
@@ -506,7 +487,7 @@ impl PdfRenderer {
 
                     json!({
                         "s3": {
-                            "bucket": bucket,
+                            "bucket": s3_private_bucket().ok_or_else(|| anyhow!("missing bucket"))?,
                             "input_path": format!("input-{}", html_sha256),
                             "output_path": output_filename,
                             "pdf_options": pdf_options,
@@ -569,12 +550,14 @@ impl PdfRenderer {
 
                 match &self.transport {
                     PdfTransport::AWSLambda { .. } => {
-                        let Some(bucket) = bucket else {
-                            return Err(anyhow!("missing bucket"));
-                        };
                         let html_sha256 = sha256::digest(&html);
                         let output_filename = format!("output-{}", html_sha256);
-                        get_file_from_s3(bucket, output_filename).await
+                        get_file_from_s3(
+                            s3_private_bucket()
+                                .ok_or_else(|| anyhow!("missing bucket"))?,
+                            output_filename,
+                        )
+                        .await
                     }
                     PdfTransport::OpenWhisk { .. } => {
                         let response_json =
