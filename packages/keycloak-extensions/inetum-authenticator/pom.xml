@@ -123,6 +123,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 							<artifactSet>
 								<includes>
 									<include>org.reactivestreams:reactive-streams</include>
+									<include>com.rabbitmq:*</include>
 								</includes>
 							</artifactSet>
 						</configuration>
