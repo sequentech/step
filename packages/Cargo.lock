@@ -2671,7 +2671,6 @@ dependencies = [
  "sequent-core",
  "serde",
  "serde_json",
- "sha256",
  "tokio",
  "tracing",
  "tracing-subscriber",
@@ -3626,7 +3625,6 @@ dependencies = [
  "auto_generate_cdp",
  "base64 0.22.1",
  "derive_builder",
- "directories",
  "log",
  "rand 0.8.5",
  "regex",
@@ -3635,12 +3633,9 @@ dependencies = [
  "tempfile",
  "thiserror 1.0.69",
  "tungstenite 0.24.0",
- "ureq",
  "url",
- "walkdir",
  "which 6.0.3",
  "winreg 0.52.0",
- "zip",
 ]
 
 [[package]]
@@ -7474,6 +7469,7 @@ dependencies = [
  "serde_json",
  "serde_path_to_error",
  "serde_urlencoded",
+ "sha256",
  "strand",
  "strum 0.25.0",
  "strum_macros 0.25.3",

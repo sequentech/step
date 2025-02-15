@@ -22,7 +22,6 @@ use rayon::ThreadPoolBuilder;
 use sequent_core::serialization::deserialize_with_path::{deserialize_str, deserialize_value};
 use sequent_core::services::keycloak::{self, get_event_realm, KeycloakAdminClient};
 use sequent_core::services::{pdf, reports};
-use sequent_core::signatures::temp_path::*;
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::templates::{
     CommunicationTemplatesExtraConfig, EmailConfig, PrintToPdfOptionsLocal, ReportExtraConfig,
@@ -30,6 +29,7 @@ use sequent_core::types::templates::{
 };
 use futures::future::join_all;
 use sequent_core::types::to_map::ToMap;
+use sequent_core::util::temp_path::*;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use strum_macros::{Display, EnumString, IntoStaticStr};

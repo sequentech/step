@@ -2,6 +2,11 @@
 // SPDX-FileCopyrightText: 2024 Eduardo Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+#[cfg(feature = "s3")]
+use crate::services::s3;
+use crate::util::convert_vec::IntoVec;
+
 use anyhow::{anyhow, Context, Result};
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 pub use headless_chrome::types::{PrintToPdfOptions, TransferMode};
@@ -14,6 +19,7 @@ use std::thread::sleep;
 use std::time::Duration;
 use std::{fs, path::PathBuf, process::Command};
 use tempfile::tempdir;
+use tokio::runtime::Runtime;
 use tracing::{debug, event, info, instrument, Level};
 
 #[derive(PartialEq)]
@@ -83,10 +89,10 @@ pub mod sync {
             html: String,
             pdf_options: Option<PrintToPdfOptions>,
         ) -> Result<Vec<u8>> {
+            let html_sha256 = sha256::digest(&html);
             Ok(PdfRenderer::new()?.do_render_pdf(html, pdf_options)?)
         }
 
-        #[instrument(err)]
         pub fn new() -> Result<Self> {
             event!(Level::INFO, "PdfRenderer::new() - Starting initialization");
 
@@ -144,7 +150,6 @@ pub mod sync {
             Ok(PdfRenderer { transport })
         }
 
-        #[instrument(skip(self, html), err)]
         pub fn do_render_pdf(
             &self,
             html: String,
@@ -164,7 +169,7 @@ pub mod sync {
             match &self.transport {
                 PdfTransport::AWSLambda { .. }
                 | PdfTransport::OpenWhisk { .. } => {
-                    if (PdfTransport::AWSLambda {
+                    let payload = if (PdfTransport::AWSLambda {
                         endpoint: endpoint.to_string(),
                     }) == self.transport
                     {
@@ -173,19 +178,52 @@ pub mod sync {
                             "Using AWS Lambda endpoint: {}",
                             endpoint
                         );
+                        let html_sha256 = sha256::digest(&html);
+                        let output_filename = format!("output-{}", html_sha256);
+
+                        #[cfg(feature = "s3")]
+                        {
+                            let rt = Runtime::new()?;
+                            rt.block_on(async {
+                                s3::upload_data_to_s3(
+                                    html.clone().into_bytes().into(),
+                                    s3_bucket_path(format!("input-{}", html_sha256)).ok_or_else(|| anyhow!("missing bucket path"))?,
+                                    false,
+                                    s3_private_bucket().ok_or_else(|| anyhow!("missing bucket"))?,
+                                    "text/plain".to_string(),
+                                    None,
+                                )
+                                    .await
+                                    .map_err(|err| {
+                                        anyhow!(
+                                            "error uploading input document to S3: {:?}",
+                                            err
+                                        )
+                                    })
+                            })?;
+                        }
+                        json!({
+                            "s3": {
+                                "bucket": s3_private_bucket().ok_or_else(|| anyhow!("missing bucket"))?,
+                                "input_path": format!("input-{}", html_sha256),
+                                "output_path": output_filename,
+                                "pdf_options": pdf_options,
+                            }
+                        })
                     } else {
                         event!(
                             Level::INFO,
                             "Using OpenWhisk endpoint: {}",
                             endpoint
                         );
-                    }
+                        json!({
+                            "raw": {
+                                "html": html,
+                                "pdf_options": pdf_options,
+                            }
+                        })
+                    };
                     let client = reqwest::blocking::Client::new();
-                    let payload = json!({
-                        "html": html,
-                        "pdf_options": pdf_options,
-                    });
-
                     let mut request_builder =
                         client.post(endpoint.clone()).json(&payload);
                     if let Some(basic_auth) = basic_auth {
@@ -227,13 +265,42 @@ pub mod sync {
                         }
                     }
 
-                    let response_json = response.json::<serde_json::Value>()?;
-                    let pdf_base64 =
-                        response_json["pdf_base64"].as_str().ok_or_else(
-                            || anyhow!("Missing pdf_base64 in response"),
-                        )?;
+                    match &self.transport {
+                        PdfTransport::AWSLambda { .. } => {
+                            let html_sha256 = sha256::digest(&html);
+                            let output_filename =
+                                format!("output-{}", html_sha256);
+                            let rt = Runtime::new()?;
+                            if cfg!(feature = "s3") {
+                                rt.block_on(async {
+                                    get_file_from_s3(
+                                        s3_private_bucket().ok_or_else(
+                                            || anyhow!("missing bucket"),
+                                        )?,
+                                        output_filename,
+                                    )
+                                    .await
+                                })
+                            } else {
+                                return Err(anyhow!("cannot read result from s3 as this component was built without s3 support"));
+                            }
+                        }
+                        PdfTransport::OpenWhisk { .. } => {
+                            let response_json =
+                                response.json::<serde_json::Value>()?;
 
-                    BASE64.decode(pdf_base64).map_err(|e| anyhow!(e))
+                            let pdf_base64 = response_json["pdf_base64"]
+                                .as_str()
+                                .ok_or_else(|| {
+                                    anyhow!("Missing pdf_base64 in response")
+                                })?;
+
+                            BASE64.decode(pdf_base64).map_err(|e| anyhow!(e))
+                        }
+                        _ => {
+                            unreachable!()
+                        }
+                    }
                 }
                 PdfTransport::InPlace => {
                     event!(
@@ -276,6 +343,37 @@ pub mod sync {
     }
 }
 
+cfg_if::cfg_if! {
+    if #[cfg(feature = "s3")] {
+        fn s3_private_bucket() -> Option<String> {
+            s3::get_private_bucket().ok()
+        }
+        fn s3_bucket_path(path: String) -> Option<String> {
+            Some(path)
+        }
+        async fn get_file_from_s3(bucket: String, output_filename: String) -> Result<Vec<u8>> {
+            s3::get_file_from_s3(bucket, output_filename)
+                .await
+                .map_err(|err| {
+                    anyhow!(
+                        "could not retrieve file from S3: {:?}",
+                        err
+                    )
+                })
+        }
+    } else {
+        fn s3_private_bucket() -> Option<String> {
+            None
+        }
+        fn s3_bucket_path(path: String) -> Option<String> {
+            None
+        }
+        async fn get_file_from_s3(bucket: String, output_filename: String) -> Result<Vec<u8>> {
+            unimplemented!()
+        }
+    }
+}
+
 impl PdfRenderer {
     pub async fn render_pdf(
         html: String,
@@ -284,7 +382,6 @@ impl PdfRenderer {
         Ok(PdfRenderer::new()?.do_render_pdf(html, pdf_options).await?)
     }
 
-    #[instrument(err)]
     pub fn new() -> Result<Self> {
         event!(Level::INFO, "PdfRenderer::new() - Starting initialization");
 
@@ -340,7 +437,6 @@ impl PdfRenderer {
         Ok(PdfRenderer { transport })
     }
 
-    #[instrument(skip(self, html), err)]
     pub async fn do_render_pdf(
         &self,
         html: String,
@@ -357,7 +453,7 @@ impl PdfRenderer {
 
         match &self.transport {
             PdfTransport::AWSLambda { .. } | PdfTransport::OpenWhisk { .. } => {
-                if (PdfTransport::AWSLambda {
+                let payload = if (PdfTransport::AWSLambda {
                     endpoint: endpoint.to_string(),
                 }) == self.transport
                 {
@@ -366,18 +462,51 @@ impl PdfRenderer {
                         "Using AWS Lambda endpoint: {}",
                         endpoint
                     );
+                    let html_sha256 = sha256::digest(&html);
+                    let output_filename = format!("output-{}", html_sha256);
+
+                    #[cfg(feature = "s3")]
+                    {
+                        s3::upload_data_to_s3(
+                            html.clone().into_bytes().into(),
+                            output_filename.clone(),
+                            false,
+                            s3_private_bucket()
+                                .ok_or_else(|| anyhow!("missing bucket"))?,
+                            "text/plain".to_string(),
+                            None,
+                        )
+                        .await
+                        .map_err(|err| {
+                            anyhow!(
+                                "error uploading input document to S3: {:?}",
+                                err
+                            )
+                        })?;
+                    }
+
+                    json!({
+                        "s3": {
+                            "bucket": s3_private_bucket().ok_or_else(|| anyhow!("missing bucket"))?,
+                            "input_path": format!("input-{}", html_sha256),
+                            "output_path": output_filename,
+                            "pdf_options": pdf_options,
+                        }
+                    })
                 } else {
                     event!(
                         Level::INFO,
                         "Using OpenWhisk endpoint: {}",
                         endpoint
                     );
-                }
+                    json!({
+                        "raw": {
+                            "html": html,
+                            "pdf_options": pdf_options,
+                        }
+                    })
+                };
                 let client = reqwest::Client::new();
-                let payload = json!({
-                    "html": html,
-                    "pdf_options": pdf_options,
-                });
 
                 let mut request_builder =
                     client.post(endpoint.clone()).json(&payload);
@@ -419,13 +548,32 @@ impl PdfRenderer {
                     }
                 }
 
-                let response_json =
-                    response.json::<serde_json::Value>().await?;
-                let pdf_base64 = response_json["pdf_base64"]
-                    .as_str()
-                    .ok_or_else(|| anyhow!("Missing pdf_base64 in response"))?;
+                match &self.transport {
+                    PdfTransport::AWSLambda { .. } => {
+                        let html_sha256 = sha256::digest(&html);
+                        let output_filename = format!("output-{}", html_sha256);
+                        get_file_from_s3(
+                            s3_private_bucket()
+                                .ok_or_else(|| anyhow!("missing bucket"))?,
+                            output_filename,
+                        )
+                        .await
+                    }
+                    PdfTransport::OpenWhisk { .. } => {
+                        let response_json =
+                            response.json::<serde_json::Value>().await?;
 
-                BASE64.decode(pdf_base64).map_err(|e| anyhow!(e))
+                        let pdf_base64 =
+                            response_json["pdf_base64"].as_str().ok_or_else(
+                                || anyhow!("Missing pdf_base64 in response"),
+                            )?;
+
+                        BASE64.decode(pdf_base64).map_err(|e| anyhow!(e))
+                    }
+                    _ => {
+                        unreachable!()
+                    }
+                }
             }
             PdfTransport::InPlace => {
                 event!(Level::INFO, "Using InPlace backend for PDF rendering");
