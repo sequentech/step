@@ -988,12 +988,11 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         // `isFetching` => subsequent loads (e.g. paging, filtering)
 
         if (isLoading || isFetching) {
-            return true
+            return <LinearProgress sx={{width: "100%"}} />
         }
 
         return (
             <>
-                <ResetFilters />
                 {userAttributes?.get_user_profile_attributes && (
                     <DataGridContainerStyle
                         preferenceKey={getPreferenceKey(location.pathname, "voters")}
@@ -1119,7 +1118,10 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     filters={Filters}
                     disableSyncWithLocation
                 >
-                    <CustomListBody />
+                    <>
+                        <CustomListBody />
+                        <ResetFilters />
+                    </>
                 </List>
             }
 
