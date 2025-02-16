@@ -983,12 +983,13 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
 
     const CustomListBody = () => {
         // `isLoading` => initial load, `isFetching` => subsequent loads (e.g. paging, filtering)
-        const {isLoading, isFetching, perPage, filterValues, page} = useListContext()
+        const {isLoading, isFetching, perPage, filterValues, page, data} = useListContext()
         // Keep track of the "previous" page/filters in a ref and whether they changed
         const prevStateRef = useRef({perPage, page, filterValues})
         const [filtersChanged, setFiltersChanged] = useState(false)
 
-        // Compare current page and filters with previous
+        // 1. Compare current page and filters with previous
+        //    Detect when filters/page change, and set filtersChanged=true
         useEffect(() => {
             const prev = prevStateRef.current
             const changed =
@@ -996,10 +997,19 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 prev.page !== page ||
                 !isEqual(prev.filterValues, filterValues)
 
-            setFiltersChanged(changed)
+            if (changed) {
+                setFiltersChanged(true)
+            }
 
             prevStateRef.current = {perPage, page, filterValues}
         }, [perPage, page, filterValues])
+
+        // 2. Detect when the fetch is complete so we can reset filtersChanged if it was set
+        useEffect(() => {
+            if (!isFetching && filtersChanged) {
+                setFiltersChanged(false)
+            }
+        }, [isFetching, filtersChanged])
 
         if (isLoading || (isFetching && filtersChanged)) {
             return <TableSkeleton rowCount={perPage} />
