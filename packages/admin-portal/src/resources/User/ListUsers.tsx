@@ -25,7 +25,6 @@ import {
     RaRecord,
     PreferencesEditorContext,
     useListContext,
-    Datagrid,
 } from "react-admin"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import {useTenantStore} from "@/providers/TenantContextProvider"
@@ -90,6 +89,7 @@ import {useUsersPermissions} from "./useUsersPermissions"
 import {Check, FilterAltOff} from "@mui/icons-material"
 import {useLocation} from "react-router"
 import {getPreferenceKey} from "@/lib/helpers"
+import {isEqual} from "lodash"
 
 const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
     @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
@@ -982,11 +982,26 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     }
 
     const CustomListBody = () => {
-        const {isLoading, isFetching, perPage} = useListContext()
-        // `isLoading` => initial load
-        // `isFetching` => subsequent loads (e.g. paging, filtering)
+        // `isLoading` => initial load, `isFetching` => subsequent loads (e.g. paging, filtering)
+        const {isLoading, isFetching, perPage, filterValues, page} = useListContext()
+        // Keep track of the "previous" page/filters in a ref and whether they changed
+        const prevStateRef = useRef({perPage, page, filterValues})
+        const [filtersChanged, setFiltersChanged] = useState(false)
 
-        if (isLoading || isFetching) {
+        // Compare current page and filters with previous
+        useEffect(() => {
+            const prev = prevStateRef.current
+            const changed =
+                prev.perPage !== perPage ||
+                prev.page !== page ||
+                !isEqual(prev.filterValues, filterValues)
+
+            setFiltersChanged(changed)
+
+            prevStateRef.current = {perPage, page, filterValues}
+        }, [perPage, page, filterValues])
+
+        if (isLoading || (isFetching && filtersChanged)) {
             return <TableSkeleton rowCount={perPage} />
         }
 
@@ -1117,10 +1132,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     filters={Filters}
                     disableSyncWithLocation
                 >
-                    <>
-                        <CustomListBody />
-                        <ResetFilters />
-                    </>
+                    <CustomListBody />
                 </List>
             }
 
