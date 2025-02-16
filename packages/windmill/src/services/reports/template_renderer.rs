@@ -12,6 +12,7 @@ use crate::services::documents::upload_and_return_document;
 use crate::services::providers::email_sender::{Attachment, EmailSender};
 use crate::services::reports_vault::get_report_secret_key;
 use crate::services::tasks_execution::{update_complete, update_fail};
+use crate::services::celery_app::get_worker_threads;
 use crate::services::temp_path::PUBLIC_ASSETS_QRCODE_LIB;
 use crate::services::vault;
 use anyhow::{anyhow, Context, Result};
@@ -485,7 +486,7 @@ pub trait TemplateRenderer: Debug {
 
             // Build a Rayon pool for batch processing.
             let batch_pool = ThreadPoolBuilder::new()
-                .num_threads(report_options.max_threads.unwrap_or(4))
+                .num_threads(report_options.max_threads.unwrap_or(get_worker_threads()))
                 .build()
                 .expect("Failed to build thread pool");
 

@@ -73,10 +73,23 @@ static mut TASK_MAX_RETRIES: u32 = 4;
 static mut IS_APP_ACTIVE: bool = true;
 static mut BROKER_CONNECTION_MAX_RETRIES: u32 = 5;
 static mut HEARTBEAT_SECS: u16 = 10;
+static mut WORKER_THREADS: usize = 1;
 
 pub fn set_prefetch_count(new_val: u16) {
     unsafe {
         PREFETCH_COUNT_S = new_val;
+    }
+}
+
+pub fn set_worker_threads(new_val: usize) {
+    unsafe {
+        WORKER_THREADS = new_val;
+    }
+}
+
+pub fn get_worker_threads() -> usize {
+    unsafe {
+        WORKER_THREADS
     }
 }
 

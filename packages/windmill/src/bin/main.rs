@@ -11,6 +11,7 @@ extern crate lazy_static;
 use std::collections::HashMap;
 
 use anyhow::{anyhow, Result};
+use celery::Celery;
 use sequent_core::util::init_log::init_log;
 
 use dotenv::dotenv;
@@ -21,7 +22,7 @@ use windmill::services::celery_app::*;
 use windmill::services::probe::{setup_probe, AppName};
 extern crate chrono;
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, StructOpt, Clone)]
 #[structopt(
     name = "windmill",
     about = "Run a Rust Celery producer or consumer.",
@@ -43,6 +44,8 @@ enum CeleryOpt {
         broker_connection_max_retries: u32,
         #[structopt(short, long, default_value = "10")]
         heartbeat: u16,
+        #[structopt(short, long)]
+        worker_threads: Option<usize>,
     },
     Produce,
 }
@@ -65,8 +68,22 @@ fn find_duplicates(input: Vec<&str>) -> Vec<&str> {
     duplicates
 }
 
+fn read_worker_threads(opt: &CeleryOpt) -> usize {
+    match opt.clone() {
+        CeleryOpt::Consume(consume) => consume.worker_threads,
+        CeleryOpt::Produce => None
+    }
+    .unwrap_or(num_cpus::get())
+}
+
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let cpus = num_cpus::get();
+    dotenv().ok();
+
+    let opt = CeleryOpt::from_args();
+
+    let cpus = read_worker_threads(&opt);
+    set_worker_threads(cpus);
 
     // 1) Build a custom runtime
     let rt = Builder::new_multi_thread()
@@ -76,20 +93,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .build()?;
 
     // 2) Run your async code on it
-    rt.block_on(async_main())?;
+    rt.block_on(async_main(opt))?;
 
     Ok(())
 }
 
-async fn async_main() -> Result<()> {
-    dotenv().ok();
+async fn async_main(opt: CeleryOpt) -> Result<()> {
     init_log(true);
 
     setup_probe(AppName::WINDMILL).await;
 
-    let opt = CeleryOpt::from_args();
-
-    match opt {
+    match opt.clone() {
         CeleryOpt::Consume {
             queues,
             prefetch_count,
@@ -97,6 +111,7 @@ async fn async_main() -> Result<()> {
             task_max_retries,
             broker_connection_max_retries,
             heartbeat,
+            worker_threads
         } => {
             set_prefetch_count(prefetch_count);
             set_acks_late(acks_late);
