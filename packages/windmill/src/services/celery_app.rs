@@ -15,7 +15,7 @@ use crate::tasks::activity_logs_report::generate_activity_logs_report;
 use crate::tasks::create_ballot_receipt::create_ballot_receipt;
 use crate::tasks::create_keys::create_keys;
 use crate::tasks::delete_election_event::delete_election_event_t;
-use crate::tasks::electoral_log::insert_electoral_log_event;
+use crate::tasks::electoral_log::enqueue_electoral_log_event;
 use crate::tasks::execute_tally_session::execute_tally_session;
 use crate::tasks::export_application::export_application;
 use crate::tasks::export_ballot_publication::export_ballot_publication;
@@ -182,7 +182,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             export_trustees_task,
             export_tenant_config,
             import_tenant_config,
-            insert_electoral_log_event,
+            enqueue_electoral_log_event,
         ],
         // Route certain tasks to certain queues based on glob matching.
         task_routes = [
@@ -225,7 +225,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             export_ballot_publication::NAME => Queue::ImportExport.as_ref(),
             export_application::NAME => Queue::ImportExport.as_ref(),
             import_applications::NAME => Queue::ImportExport.as_ref(),
-            insert_electoral_log_event::NAME => Queue::ElectoralLogBatch.as_ref(),
+            enqueue_electoral_log_event::NAME => Queue::ElectoralLogBatch.as_ref(),
 
         ],
         prefetch_count = prefetch_count,

@@ -499,6 +499,48 @@ impl ElectoralLog {
             .await
     }
 
+    /// Builds a keycloak event message and returns the resulting ElectoralLogMessage.
+    pub fn build_keycloak_event_message(
+        &self,
+        event_id: String,
+        event_type: String,
+        error_message: String,
+        user_id: Option<String>,
+        username: Option<String>,
+    ) -> Result<ElectoralLogMessage> {
+        let event = EventIdString(event_id);
+        let error_message = ErrorMessageString(error_message);
+        let event_type = KeycloakEventTypeString(event_type);
+        let message = &Message::keycloak_user_event(
+            event,
+            event_type,
+            error_message,
+            user_id,
+            username,
+            &self.sd,
+        )?;
+        let board_message: ElectoralLogMessage = message.try_into()?;
+        Ok(board_message)
+    }
+
+    /// Builds a send-template message and returns the resulting ElectoralLogMessage.
+    pub fn build_send_template_message(
+        &self,
+        message_body: Option<String>,
+        event_id: String,
+        user_id: Option<String>,
+        username: Option<String>,
+        election_id: Option<String>,
+    ) -> Result<ElectoralLogMessage> {
+        let event = EventIdString(event_id);
+        let election = ElectionIdString(election_id);
+        let message =
+            &Message::send_template(event, election, &self.sd, user_id, username, message_body)
+                .map_err(|e| anyhow!("Error creating send template message: {:?}", e))?;
+        let board_message: ElectoralLogMessage = message.try_into()?;
+        Ok(board_message)
+    }
+
     #[instrument(skip(self))]
     pub async fn import_from_csv(&self, logs_file: &NamedTempFile) -> Result<()> {
         let batch_size: usize = PgConfig::from_env()?.default_sql_batch_size.try_into()?;

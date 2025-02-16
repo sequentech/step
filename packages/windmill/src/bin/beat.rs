@@ -14,6 +14,7 @@ use tokio::time::Duration;
 use windmill::services::celery_app::set_is_app_active;
 use windmill::services::celery_app::Queue;
 use windmill::services::probe::{setup_probe, AppName};
+use windmill::tasks::electoral_log::process_electoral_log_events_batch;
 use windmill::tasks::review_boards::review_boards;
 use windmill::tasks::scheduled_events::scheduled_events;
 use windmill::tasks::scheduled_reports::scheduled_reports;
@@ -26,7 +27,13 @@ use windmill::tasks::scheduled_reports::scheduled_reports;
 )]
 struct CeleryOpt {
     #[structopt(short, long, default_value = "15")]
-    interval: u64,
+    review_boards_interval: u64,
+    #[structopt(short, long, default_value = "10")]
+    schedule_events_interval: u64,
+    #[structopt(short, long, default_value = "10")]
+    schedule_reports_interval: u64,
+    #[structopt(short, long, default_value = "1")]
+    events_interval: u64,
 }
 
 #[tokio::main]
@@ -42,17 +49,22 @@ async fn main() -> Result<()> {
         tasks = [
             review_boards::NAME => {
                 review_boards,
-                schedule = DeltaSchedule::new(Duration::from_secs(CeleryOpt::from_args().interval)),
+                schedule = DeltaSchedule::new(Duration::from_secs(CeleryOpt::from_args().review_boards_interval)),
                 args = (),
             },
             scheduled_events::NAME => {
                 scheduled_events,
-                schedule = DeltaSchedule::new(Duration::from_secs(10)),
+                schedule = DeltaSchedule::new(Duration::from_secs(CeleryOpt::from_args().schedule_events_interval)),
                 args = (),
             },
             scheduled_reports::NAME => {
                 scheduled_reports,
-                schedule = DeltaSchedule::new(Duration::from_secs(10)),
+                schedule = DeltaSchedule::new(Duration::from_secs(CeleryOpt::from_args().schedule_reports_interval)),
+                args = (),
+            },
+            process_electoral_log_events_batch::NAME {
+                process_electoral_log_events_batch,
+                schedule = DeltaSchedule::new(Duration::from_secs(CeleryOpt::from_args().events_interval)),
                 args = (),
             },
         ],
@@ -60,6 +72,7 @@ async fn main() -> Result<()> {
             review_boards::NAME => Queue::Beat.as_ref(),
             scheduled_events::NAME => Queue::Beat.as_ref(),
             scheduled_reports::NAME => Queue::Beat.as_ref(),
+            process_electoral_log_events_batch::NAME => ElectoralLogBeat::Beat.as_ref(),
         ],
     ).await?;
 
