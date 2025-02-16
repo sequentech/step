@@ -22,29 +22,16 @@ interface TallyElectionsListProps {
     disabled?: boolean
     update: (elections: Array<string>) => void
     keysCeremonyId: string | null
+    tallySession?: Sequent_Backend_Tally_Session
 }
 
 export const TallyElectionsList: React.FC<TallyElectionsListProps> = (props) => {
-    const {disabled, elections, update, electionEventId, keysCeremonyId} = props
+    const {disabled, elections, update, keysCeremonyId, tallySession: tallyData} = props
 
-    const {tallyId} = useElectionEventTallyStore()
-    const [tenantId] = useTenantStore()
     const {t} = useTranslation()
     const aliasRenderer = useAliasRenderer()
 
     const [electionsData, setElectionsData] = useState<Array<Sequent_Backend_Election_Extended>>([])
-
-    const {data: tallyData} = useGetOne<Sequent_Backend_Tally_Session>(
-        "sequent_backend_tally_session",
-        {
-            id: tallyId,
-        },
-        {
-            refetchOnWindowFocus: false,
-            refetchOnReconnect: false,
-            refetchOnMount: false,
-        }
-    )
 
     const filteredElections = useMemo(() => {
         if (!keysCeremonyId || tallyData) {

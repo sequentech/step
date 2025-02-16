@@ -159,13 +159,9 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
 
     Stream<String> mappedAuthorizedElectionIds =
         authorizedElectionIds.stream()
-            // Filter out elements that are not the alias. For elections that have alias to
-            // null
-            // key is the election id.
-            .filter(
-                electionAlias ->
-                    (electionsAliasIds.get(electionAlias) != null
-                        && !electionsAliasIds.get(electionAlias).equals(electionAlias)))
+            // The key is either the alias or the id when alias is null. The value is always the id.
+            // Then when key and value are equal (Ids) is because the alias was found to be null.
+            .filter(electionAlias -> (electionsAliasIds.get(electionAlias) != null))
             // Map alias to election_id
             .map(electionAlias -> electionsAliasIds.get(electionAlias));
 

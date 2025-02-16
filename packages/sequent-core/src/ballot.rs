@@ -7,13 +7,14 @@ use crate::ballot_codec::PlaintextCodec;
 use crate::error::BallotError;
 use crate::serialization::base64::{Base64Deserialize, Base64Serialize};
 use crate::serialization::deserialize_with_path::deserialize_value;
-use crate::types::hasura::core;
+use crate::types::hasura::core::{self, ElectionEvent};
 use crate::types::scheduled_event::EventProcessors;
 use borsh::{BorshDeserialize, BorshSerialize};
 use chrono::DateTime;
 use chrono::Utc;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use serde_path_to_error::Error;
 use std::hash::Hash;
 use std::{collections::HashMap, default::Default};
 use strand::elgamal::Ciphertext;
@@ -648,6 +649,19 @@ pub struct ElectionEventPresentation {
     pub publish_policy: Option<Publish>,
     pub enrollment: Option<Enrollment>,
     pub otp: Option<Otp>,
+    pub voter_signing_policy: Option<VoterSigningPolicy>,
+}
+
+impl ElectionEvent {
+    pub fn get_presentation(
+        &self,
+    ) -> Result<Option<ElectionEventPresentation>, Error<serde_json::Error>>
+    {
+        self.presentation
+            .clone()
+            .map(|presentation_value| deserialize_value(presentation_value))
+            .transpose()
+    }
 }
 
 #[allow(non_camel_case_types)]
@@ -1212,6 +1226,31 @@ pub enum ContestEncryptionPolicy {
     EnumString,
     JsonSchema,
 )]
+pub enum VoterSigningPolicy {
+    #[default]
+    #[strum(serialize = "no-signature")]
+    #[serde(rename = "no-signature")]
+    NO_SIGNATURE,
+    #[strum(serialize = "with-signature")]
+    #[serde(rename = "with-signature")]
+    WITH_SIGNATURE,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Default,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    JsonSchema,
+)]
 pub enum LockedDown {
     #[strum(serialize = "locked-down")]
     #[serde(rename = "locked-down")]
@@ -1636,8 +1675,9 @@ pub fn format_date_opt(date: &Option<DateTime<Utc>>) -> Option<String> {
     date.map(|d| d.to_rfc3339())
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
+#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct ElectionStatus {
+    pub is_published: Option<bool>,
     pub voting_status: VotingStatus,
     pub init_report: InitReport,
     pub kiosk_voting_status: VotingStatus,
@@ -1649,6 +1689,7 @@ pub struct ElectionStatus {
 impl Default for ElectionStatus {
     fn default() -> Self {
         ElectionStatus {
+            is_published: Some(false),
             voting_status: VotingStatus::NOT_STARTED,
             init_report: InitReport::ALLOWED,
             kiosk_voting_status: VotingStatus::NOT_STARTED,

@@ -1,0 +1,4 @@
+{
+    "datafix:id": "998877",
+    "datafix:password_policy": "{\"base\": \"id-password-concatenated\",\"size\": 16,\"characters\": \"alphanumeric\"}"
+}

@@ -73,7 +73,6 @@ const PublishExport: FC<PublishExportProps> = ({ballotPublicationId}) => {
             const documentId = ballotResponse?.export_ballot_publication?.document_id
             setExportDocumentId(documentId)
             const task_id = ballotResponse?.export_ballot_publication?.task_execution?.id
-            setExportDocumentId(documentId)
             task_id
                 ? setWidgetTaskId(currWidget.identifier, task_id)
                 : updateWidgetFail(currWidget.identifier)
@@ -116,7 +115,7 @@ const PublishExport: FC<PublishExportProps> = ({ballotPublicationId}) => {
                     {exporting && exportDocumentId ? (
                         <DownloadDocument
                             documentId={exportDocumentId}
-                            fileName={`ballot-publication-export.csv`}
+                            fileName={`ballot-publication-export.json`}
                             onDownload={() => {
                                 setExportDocumentId(undefined)
                                 setExporting(false)

@@ -119,7 +119,19 @@ const useTallyStats = (props: StatsProps) => {
                 },
             ],
         }
-    }, [])
+    }, [
+        showPostsStartCounting,
+        showPostsGeneratedER,
+        showPostsTransmittedResults,
+        electionsCount,
+        transmissionStats,
+        showPostsTransmittedResults,
+        notGenereatedTallyCount,
+        genereatedTallyCount,
+        showPostsGeneratedER,
+        startCountingVotesCount,
+        notStartCountingVotesCount,
+    ])
 
     return {tallySection}
 }

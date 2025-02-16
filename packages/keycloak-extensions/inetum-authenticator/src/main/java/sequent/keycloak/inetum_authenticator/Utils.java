@@ -66,7 +66,8 @@ public class Utils {
   public final String INETUM_CONFIRM = "inetum-confirmation.ftl";
   public final String ATTRIBUTES_TO_VALIDATE = "attributes-to-validate";
   public final String ATTRIBUTES_TO_STORE = "attributes-to-store";
-
+  public static final String TEST_MODE_ATTRIBUTE = "testMode";
+  public static final String TEST_MODE_SERVER_URL = "testModeServerUrl";
   public final String API_TRANSACTION_NEW = "/transaction/new";
 
   public final String CODE_ID = "code_id";
@@ -85,6 +86,7 @@ public class Utils {
   public final String FTL_ERROR_AUTH_INVALID = "internalInetumError";
   public final String FTL_ERROR_INVALID_SCORE = "scoringInetumError";
   public final String FTL_ERROR_INVALID_ATTRIBUTES = "attributesInetumError";
+  public final String FTL_ERROR_MAX_RETRIES = "maxRetriesError";
 
   private static final String KEYS_USERDATA = "keyUserdata";
   private static final String KEYS_USERDATA_SEPARATOR = ";";
@@ -102,6 +104,7 @@ public class Utils {
   public static final String ERROR_USER_ATTRIBUTES_NOT_UNSET_ERROR =
       "userShouldHaveUnsetAttributes";
   public static final String ERROR_USER_ATTRIBUTES_NOT_UNIQUE = "User Attributes Not Unique";
+  public static final String UPLOAD_AND_CHECK_EXCEPTION = "Exception during Upload and Check";
   public static final String PHONE_NUMBER = "phone_number";
   public static final String PHONE_NUMBER_ATTRIBUTE = "sequent.read-only.mobile-number";
   public static final String ID_NUMBER_ATTRIBUTE = "sequent.read-only.id-card-number";

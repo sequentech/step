@@ -24,10 +24,7 @@ use super::{
     transmission_package::{compress_hash_eml, create_transmission_package},
     zip::unzip_file,
 };
-use crate::{
-    postgres::election_event::update_election_event_annotations,
-    services::temp_path::read_temp_file,
-};
+use crate::postgres::election_event::update_election_event_annotations;
 use crate::{
     postgres::{
         area::get_area_by_id, document::get_document, election::get_election_by_id,
@@ -37,7 +34,6 @@ use crate::{
     services::{
         database::get_hasura_pool,
         documents::{get_document_as_temp_file, upload_and_return_document_postgres},
-        temp_path::{generate_temp_file, get_file_size},
     },
     types::miru_plugin::{
         MiruCcsServer, MiruServerDocument, MiruTallySessionData, MiruTransmissionPackageData,
@@ -54,6 +50,7 @@ use anyhow::{anyhow, Context, Result};
 use chrono::{Local, Utc};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use reqwest::multipart;
+use sequent_core::util::temp_path::{generate_temp_file, get_file_size, read_temp_file};
 use sequent_core::{
     ballot::Annotations,
     serialization::deserialize_with_path::{deserialize_str, deserialize_value},

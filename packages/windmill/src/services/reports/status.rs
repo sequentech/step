@@ -12,8 +12,9 @@ use crate::postgres::election::get_election_by_id;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::reports::ReportType;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
+use crate::services::cast_votes::count_ballots_by_area_id;
 use crate::services::election_dates::get_election_dates;
-use crate::services::s3::get_minio_url;
+use crate::services::temp_path::PUBLIC_ASSETS_QRCODE_LIB;
 use crate::services::temp_path::*;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
@@ -21,10 +22,14 @@ use deadpool_postgres::Transaction;
 use sequent_core::ballot::StringifiedPeriodDates;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::keycloak::get_event_realm;
+use sequent_core::services::pdf;
+use sequent_core::services::s3::get_minio_url;
+use sequent_core::util::temp_path::*;
 use sequent_core::{ballot::ElectionStatus, ballot::VotingStatus};
 use serde::{Deserialize, Serialize};
 use serde_json::value::Value;
 use tracing::instrument;
+
 // UserData struct now contains a vector of areas
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
@@ -216,6 +221,16 @@ impl TemplateRenderer for StatusTemplate {
             .await
             .map_err(|e| anyhow!(format!("Error generating election area votes data {e:?}")))?;
 
+            let ballots_counted = count_ballots_by_area_id(
+                &hasura_transaction,
+                &self.ids.tenant_id,
+                &self.ids.election_event_id,
+                &election_id,
+                &area.id,
+            )
+            .await
+            .map_err(|err| anyhow!("Error getting counted ballots: {err}"))?;
+
             // Create UserDataArea instance
             let area_data = UserDataArea {
                 election_title: election_title.clone(),
@@ -226,7 +241,7 @@ impl TemplateRenderer for StatusTemplate {
                 voting_center: election_general_data.voting_center.clone(),
                 precinct_code: election_general_data.precinct_code.clone(),
                 registered_voters: votes_data.registered_voters,
-                ballots_counted: votes_data.total_ballots,
+                ballots_counted: Some(ballots_counted),
                 ovcs_status: ovcs_status.clone(),
                 inspectors: area_general_data.inspectors.clone(),
             };
@@ -254,17 +269,26 @@ impl TemplateRenderer for StatusTemplate {
         &self,
         rendered_user_template: String,
     ) -> Result<Self::SystemData> {
-        let public_asset_path = get_public_assets_path_env_var()?;
-        let minio_endpoint_base =
-            get_minio_url().with_context(|| "Error getting minio endpoint")?;
+        if pdf::doc_renderer_backend() == pdf::DocRendererBackend::InPlace {
+            let public_asset_path = get_public_assets_path_env_var()?;
+            let minio_endpoint_base =
+                get_minio_url().with_context(|| "Error getting minio endpoint")?;
 
-        Ok(SystemData {
-            rendered_user_template,
-            file_qrcode_lib: format!(
-                "{}/{}/{}",
-                minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_QRCODE_LIB
-            ),
-        })
+            Ok(SystemData {
+                rendered_user_template,
+                file_qrcode_lib: format!(
+                    "{}/{}/{}",
+                    minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_QRCODE_LIB
+                ),
+            })
+        } else {
+            // If we are rendering with a lambda, the QRCode lib is
+            // already included in the lambda container image.
+            Ok(SystemData {
+                rendered_user_template,
+                file_qrcode_lib: "/assets/qrcode.min.js".to_string(),
+            })
+        }
     }
 }
 

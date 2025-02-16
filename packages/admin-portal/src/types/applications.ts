@@ -14,3 +14,7 @@ export enum RejectReason {
     ALREADY_APPROVED = "voter-already-approved",
     OTHER = "other", //mandatory comment
 }
+
+export enum ApplicationsError {
+    APPROVED_VOTER = "Approved_Voter",
+}

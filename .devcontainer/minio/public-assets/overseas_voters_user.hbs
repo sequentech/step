@@ -52,7 +52,7 @@
                       Overseas Voting Period: {{datetime
                       from_rfc3339=election_dates.scheduled_event_dates.ALLOW_INIT_REPORT.scheduled_at
                       output_format="%d %B" with_timezone="Asia/Manila"}} - {{datetime
-                      from_rfc3339=election_dates.scheduled_event_dates.ALLOW_VOTING_PERIOD_END.scheduled_at
+                      from_rfc3339=election_dates.scheduled_event_dates.END_VOTING_PERIOD.scheduled_at
                       output_format="%d %B %Y"
                       with_timezone="Asia/Manila"}}
                     </div>
@@ -123,6 +123,9 @@
                   <strong>Name</strong>
                 </td>
                 <td>
+                  <strong>ID</strong>
+                </td>
+                <td>
                   <strong>Status</strong>
                 </td>
                 <td>
@@ -142,6 +145,9 @@
                 <td style=>
                   {{last_name}},
                   {{first_name}} {{suffix}} {{middle_name}}
+                </td>
+                <td>
+                  {{username}}
                 </td>
                 <td>
                   {{status}}
@@ -240,7 +246,7 @@
       <td align="center">
         <p>
           <strong class="inspector-name">{{sanitize_html (expr name)}}</strong>
-          <br /><strong>{{sanitize_html (expr role)}}</strong><br />(Signature above printed full name)
+          <br />(Signature above printed full name)
         </p>
       </td>
     </tr>

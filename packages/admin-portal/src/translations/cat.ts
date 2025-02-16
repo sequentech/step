@@ -302,6 +302,11 @@ const catalanTranslation: TranslationType = {
                     alertSecondsLabel:
                         "temps en segons abans de la caducitat per mostrar l'avís de tancament de sessió",
                 },
+                voterSigningPolicy: {
+                    "policyLabel": "Política de Signatura de Votants",
+                    "no-signature": "Sense signatura",
+                    "with-signature": "Amb signatura",
+                },
                 enrollment: {
                     policyLabel: "Inscripció",
                     options: {
@@ -385,6 +390,7 @@ const catalanTranslation: TranslationType = {
                 elections: "Eleccions",
                 electionNumber: "Número d'Eleccions",
                 trustees: "Trustees",
+                permissionLabels: "Etiquetes de Permís",
                 status: "Estat",
                 tallyType: {
                     label: "Tipus de Recompte",
@@ -441,6 +447,8 @@ const catalanTranslation: TranslationType = {
                 fileUploadError: "Error pujant el fitxer",
                 importVotersSuccess: "Importació de Votants llançada en segon pla amb èxit.",
                 importVotersError: "Error Important Votants.",
+                importElectionEventSuccess: "Election event imported Successfully",
+                importElectionEventError: "Error importing election event",
                 shaDialog: {
                     ok: "Sí, Importar Sense Verificació d'Integritat",
                     cancel: "Tornar",
@@ -1097,6 +1105,7 @@ const catalanTranslation: TranslationType = {
             election: "Importar una Elecció",
             contest: "Importar un Concurs",
             candidate: "Importar un Candidat",
+            ImportHashMismatch: "Hashes don't match. Integrity check failure.",
         },
         sideMenu: {
             electionEvents: "Processos Electorals",
@@ -1289,6 +1298,7 @@ const catalanTranslation: TranslationType = {
                     description:
                         "Estàs a punt de Crear una Cerimònia de Claus. Aquesta acció notificarà a les Autoritats per participar en la creació i distribució de les Claus de l'Esdeveniment Electoral.",
                 },
+                filterTrustees: "Filtrar Autoritats",
             },
             ceremonyStep: {
                 cancel: "Cancel·lar Cerimònia de Claus",
@@ -1446,6 +1456,7 @@ const catalanTranslation: TranslationType = {
             uploadTransmissionPackageDesc:
                 "Carrega la teva signatura per signar el paquet de Resultats Electorals. Aquesta operació és opcional.",
             exportElectionArea: "Envia paquet de transmissió per a l'àrea '{{name}}'",
+            generateReport: "Genera {{name}}",
             templateTitle: "Plantilla de Resultats",
             initializationTitle: "Eleccions per a l'informe d'inicialització",
             templateSubTitle: "Opcionalment sobreescriure la plantilla de resultats.",
@@ -1785,6 +1796,7 @@ const catalanTranslation: TranslationType = {
                 smsMessage: "Missatge SMS",
                 document: "Document",
                 pdfOptions: "Opcions PDF",
+                reportOptions: "Opcions Report",
                 name: "Nom de la Plantilla",
                 alias: "Àlies de la Plantilla",
                 type: "Tipus",
@@ -1895,6 +1907,7 @@ const catalanTranslation: TranslationType = {
                 verificationType: "Tipus de Verificació",
                 createdAt: "Creat El",
                 updatedAt: "Actualitzat El",
+                verified_by: "Verificat Per",
             },
             approvalRequest: "Sol·licitud d'Aprovació",
             title: "Votants",
@@ -1910,11 +1923,11 @@ const catalanTranslation: TranslationType = {
                 rejectReason: "Motiu del rebuig",
                 messageRequired: "Es requereix un missatge de rebuig per a l'opció 'Altres'",
                 reasons: {
-                    "undefined": "-",
-                    "insufficient-information": "Données Manquantes",
-                    "no-matching-voter": "Votant Non Trouvé",
-                    "voter-already-approved": "Déjà Approuvé",
-                    "other": "Autre",
+                    undefined: "-",
+                    INSUFFICIENT_INFORMATION: "Données Manquantes",
+                    NO_VOTER: "Votant Non Trouvé",
+                    ALREADY_APPROVED: "Déjà Approuvé",
+                    OTHER: "Autre",
                 },
             },
             notifications: {
@@ -1922,6 +1935,7 @@ const catalanTranslation: TranslationType = {
                 approveSuccess: "Votant aprovat",
                 rejectError: "Error en rebutjar el votant",
                 rejectSuccess: "Votant rebutjat",
+                VoterApprovedAlready: "El votant ja està aprovat.",
             },
             export: {
                 success: "L'exportació d'aplicacions s'ha completat amb èxit",

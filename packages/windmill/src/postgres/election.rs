@@ -1,15 +1,15 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::services::import::import_election_event::ImportElectionEventSchema;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
+use sequent_core::ballot::ElectionPresentation;
 use sequent_core::types::hasura::core::Election;
 use serde_json::Value;
 use tokio_postgres::row::Row;
-use tracing::{event, info, instrument, Level};
+use tracing::{event, instrument, Level};
 use uuid::Uuid;
-
-use crate::services::import::import_election_event::ImportElectionEventSchema;
 
 pub struct ElectionWrapper(pub Election);
 
@@ -249,12 +249,12 @@ pub async fn get_elections_by_ids(
 }
 
 #[instrument(skip(hasura_transaction), err)]
-pub async fn get_election_by_keys_ceremony_id(
+pub async fn get_elections_by_keys_ceremony_id(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
     keys_ceremony_id: &str,
-) -> Result<Option<Election>> {
+) -> Result<Vec<Election>> {
     let statement = hasura_transaction
         .prepare(
             r#"
@@ -289,7 +289,7 @@ pub async fn get_election_by_keys_ceremony_id(
         })
         .collect::<Result<Vec<Election>>>()?;
 
-    Ok(elections.get(0).map(|election| election.clone()))
+    Ok(elections)
 }
 
 #[instrument(skip(hasura_transaction), err)]
@@ -385,8 +385,12 @@ pub async fn create_election(
     tenant_id: &str,
     election_event_id: &str,
     name: &str,
+    presentation: &ElectionPresentation,
     description: Option<String>,
 ) -> Result<Election> {
+    let presentation_value = serde_json::to_value(presentation)
+        .map_err(|err| anyhow!("Error serializing election presentation: {err}"))?;
+
     let statement = hasura_transaction
         .prepare(
             r#"
@@ -397,7 +401,8 @@ pub async fn create_election(
                     created_at,
                     last_updated_at,
                     name,
-                    description
+                    description,
+					presentation
                 )
                 VALUES
                 (
@@ -406,7 +411,8 @@ pub async fn create_election(
                     NOW(),
                     NOW(),
                     $3,
-                    $4
+                    $4,
+					$5
                 )
                 RETURNING *;
             "#,
@@ -421,6 +427,7 @@ pub async fn create_election(
                 &Uuid::parse_str(&election_event_id)?,
                 &name.to_string(),
                 &description,
+                &presentation_value,
             ],
         )
         .await
@@ -599,7 +606,7 @@ pub async fn set_election_keys_ceremony(
     election_event_id: &str,
     election_id: Option<String>,
     keys_ceremony_id: &str,
-) -> Result<()> {
+) -> Result<Vec<Election>> {
     let election_uuid_opt = election_id
         .clone()
         .map(|val| Uuid::parse_str(&val))
@@ -616,7 +623,7 @@ pub async fn set_election_keys_ceremony(
                     tenant_id = $3 AND
                     election_event_id = $4
                 RETURNING
-                    id;
+                    *;
             "#,
         )
         .await?;
@@ -638,7 +645,15 @@ pub async fn set_election_keys_ceremony(
         return Err(anyhow!("No election found"));
     }
 
-    Ok(())
+    let elections: Vec<Election> = rows
+        .into_iter()
+        .map(|row| -> Result<Election> {
+            row.try_into()
+                .map(|res: ElectionWrapper| -> Election { res.0 })
+        })
+        .collect::<Result<Vec<Election>>>()?;
+
+    Ok(elections)
 }
 
 #[instrument(err, skip(hasura_transaction))]
@@ -680,9 +695,62 @@ pub async fn set_election_initialization_report_generated(
     Ok(())
 }
 
-// pub fn get_election_status(status_json_opt: Option<Value>) -> Option<ElectionStatus> {
-//     status_json_opt.and_then(|status_json| deserialize_value(status_json).ok())
-// }
+#[instrument(err, skip_all)]
+pub async fn update_election_status(
+    hasura_transaction: &Transaction<'_>,
+    id: &str,
+    tenant_id: &str,
+    election_event_id: &str,
+    status: bool,
+) -> Result<Vec<Election>> {
+    let query = r#"
+        UPDATE
+            sequent_backend.election
+        SET
+            last_updated_at = NOW(),
+            status = jsonb_set(status, '{is_published}', to_jsonb($4::bool), true)
+        WHERE
+            id = $1 AND
+            tenant_id = $2 AND
+            election_event_id = $3
+        RETURNING *;
+    "#;
+
+    // Prepare the statement
+    let statement = hasura_transaction
+        .prepare(&query)
+        .await
+        .map_err(|err| anyhow!("Error preparing the update query: {err}"))?;
+
+    // Parse UUIDs
+    let parsed_id = Uuid::parse_str(id)?;
+    let parsed_tenant_id = Uuid::parse_str(tenant_id)?;
+    let parsed_election_event_id = Uuid::parse_str(election_event_id)?;
+
+    // Execute the query
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &parsed_id,
+                &parsed_tenant_id,
+                &parsed_election_event_id,
+                &status,
+            ],
+        )
+        .await
+        .map_err(|err| anyhow!("Error updating Election: {err}"))?;
+
+    let results: Vec<Election> = rows
+        .into_iter()
+        .map(|row| -> Result<Election> {
+            row.try_into()
+                .map(|res: ElectionWrapper| -> Election { res.0 })
+        })
+        .collect::<Result<Vec<Election>>>()?;
+
+    Ok(results)
+}
 
 // #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 // pub struct ElectionMonitorStatus {

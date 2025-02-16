@@ -147,6 +147,8 @@ pub enum Permissions {
     MIRU_SIGN,
     #[strum(serialize = "service-account")]
     SERVICE_ACCOUNT,
+    #[strum(serialize = "datafix-account")]
+    DATAFIX_ACCOUNT,
     #[strum(serialize = "contest-write")]
     CONTEST_WRITE,
     #[strum(serialize = "contest-read")]

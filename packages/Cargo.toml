@@ -6,7 +6,7 @@
 resolver = "2"
 
 members = [
-    "braid", 
+    "braid",
     "b3",
     "electoral-log",
     "harvest",
@@ -17,7 +17,11 @@ members = [
     "velvet",
     "windmill",
     "wrap-map-err",
-    "step-cli"
+    "step-cli",
+    "e2e/src/mock_server",
+    "e2e",
+    "orare",
+    "orare/doc_renderer"
 ]
 
 [patch.crates-io]

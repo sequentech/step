@@ -1,0 +1,28 @@
+# SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+[package]
+name = "mock_server"
+version = "0.1.0"
+edition = "2021"
+default-run = "mock_server"
+
+
+[[bin]]
+name = "mock_server"
+path = "src/main.rs"
+
+[dependencies]
+rocket = { version = "0.5.0", features = ["json"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+csv = "1.1"
+rusqlite = { version = "0.32", features = ["bundled"] }
+tokio = { version = "1.0", features = ["macros"] }
+anyhow = "1.0"
+rand = "0.8.5"
+uuid = { version = "1.5.0", features = ["v4", "fast-rng"] }
+reqwest = { version = "0.12.5", features = ["blocking", "json"] }
+clap = { version = "4.0", features = ["derive"] }
+chrono = "0.4"

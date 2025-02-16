@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::acm_json::get_acm_key_pair;
 use super::acm_transaction::generate_transaction_id;
-use super::ecies_encrypt::generate_ecies_key_pair;
 use super::eml_generator::{
     find_miru_annotation, prepend_miru_annotation, MiruElectionAnnotations,
     MiruElectionEventAnnotations, ValidateAnnotations, MIRU_AREA_CCS_SERVERS, MIRU_AREA_STATION_ID,
@@ -20,7 +19,7 @@ use crate::postgres::election::get_election_by_id;
 use crate::postgres::results_election::get_results_election_by_results_event_id;
 use crate::postgres::results_event::get_results_event_by_id;
 use crate::postgres::tally_session::{get_tally_session_by_id, update_tally_session_annotation};
-use crate::postgres::tally_session_execution::get_tally_session_executions;
+use crate::postgres::tally_session_execution::get_last_tally_session_execution;
 use crate::services::ceremonies::velvet_tally::generate_initial_state;
 use crate::services::compress::decompress_file;
 use crate::services::consolidation::eml_types::ACMTrustee;
@@ -28,7 +27,6 @@ use crate::services::database::get_hasura_pool;
 use crate::services::documents::get_document_as_temp_file;
 use crate::services::documents::upload_and_return_document_postgres;
 use crate::services::folders::list_files;
-use crate::services::temp_path::{generate_temp_file, get_file_size, write_into_named_temp_file};
 use crate::types::miru_plugin::{
     MiruCcsServer, MiruDocument, MiruDocumentIds, MiruTransmissionPackageData,
 };
@@ -42,36 +40,34 @@ use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::ballot::Annotations;
 use sequent_core::serialization::deserialize_with_path::{deserialize_str, deserialize_value};
 use sequent_core::services::date::ISO8601;
+use sequent_core::signatures::ecies_encrypt::generate_ecies_key_pair;
 use sequent_core::types::ceremonies::Log;
 use sequent_core::types::date_time::TimeZone;
 use sequent_core::types::hasura::core::Document;
 use sequent_core::types::results::{ResultDocumentType, ResultDocuments};
 use sequent_core::util::date_time::PHILIPPINO_TIMEZONE;
+use sequent_core::util::temp_path::*;
 use tempfile::{tempdir, NamedTempFile};
 use tracing::{info, instrument};
 use uuid::Uuid;
 use velvet::pipes::generate_reports::ReportData;
 
 #[instrument(skip(hasura_transaction), err)]
-pub async fn download_to_file(
+pub async fn download_tally_tar_gz_to_file(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
     tally_session_id: &str,
 ) -> Result<NamedTempFile> {
-    let tally_session_executions = get_tally_session_executions(
+    let tally_session_execution = get_last_tally_session_execution(
         hasura_transaction,
         tenant_id,
         election_event_id,
         tally_session_id,
     )
     .await
-    .with_context(|| "Error fetching tally session executions")?;
-
-    // the first execution is the latest one
-    let tally_session_execution = tally_session_executions
-        .first()
-        .ok_or_else(|| anyhow!("No tally session executions found"))?;
+    .with_context(|| "Error fetching tally session executions")?
+    .ok_or(anyhow!("No tally session execution found"))?;
 
     let results_event_id = tally_session_execution
         .results_event_id
@@ -308,7 +304,7 @@ pub async fn create_transmission_package_service(
 
     let ccs_servers = area_annotations.ccs_servers;
 
-    let tar_gz_file = download_to_file(
+    let tar_gz_file = download_tally_tar_gz_to_file(
         &hasura_transaction,
         tenant_id,
         &election_event.id,
@@ -322,7 +318,7 @@ pub async fn create_transmission_package_service(
 
     list_files(&tally_path_path)?;
 
-    let state = generate_initial_state(&tally_path_path)?;
+    let state = generate_initial_state(&tally_path_path, "decode-ballots")?;
 
     let results = state.get_results(true)?;
 

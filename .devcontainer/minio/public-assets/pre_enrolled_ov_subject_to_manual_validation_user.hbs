@@ -51,7 +51,7 @@
                     <div class="voting-period">
                       Overseas Voting Period: {{datetime from_rfc3339=election_dates.scheduled_event_dates.ALLOW_INIT_REPORT.scheduled_at
                       output_format="%d %B" with_timezone="Asia/Manila"}} - {{datetime
-                      from_rfc3339=election_dates.scheduled_event_dates.ALLOW_VOTING_PERIOD_END.scheduled_at output_format="%d %B %Y"
+                      from_rfc3339=election_dates.scheduled_event_dates.END_VOTING_PERIOD.scheduled_at output_format="%d %B %Y"
                       with_timezone="Asia/Manila"}}
                     </div>
 
@@ -142,10 +142,10 @@
                 {{first_name}} {{suffix}} {{middle_name}}
               </td>
               <td>
-                {{id}}
+                {{username}}
               </td>
               <td>
-                {{sanitize_html (expr disapproval_reason)}}
+                {{sanitize_html (expr manual_verify_reason)}}
               </td>
               <td>
                 {{datetime from_rfc3339=enrollment_date output_format="%B %d, %Y"}}

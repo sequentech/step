@@ -113,11 +113,13 @@ impl VoteReceipts {
         };
 
         let bytes_pdf = if pipe_config.enable_pdfs {
-            Some(
-                pdf::html_to_pdf(bytes_html.clone(), pdf_options).map_err(|e| {
-                    Error::UnexpectedError(format!("Error during html_to_pdf conversion: {}", e))
-                })?,
-            )
+            let bytes_html = bytes_html.clone();
+            let bytes_pdf =
+                pdf::sync::PdfRenderer::render_pdf(bytes_html, pdf_options).map_err(|e| {
+                    Error::UnexpectedError(format!("Error during PDF rendering: {}", e))
+                })?;
+
+            Some(bytes_pdf)
         } else {
             None
         };

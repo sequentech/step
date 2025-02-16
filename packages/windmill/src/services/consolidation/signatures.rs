@@ -1,13 +1,12 @@
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::services::shell::run_shell_command;
-use crate::services::{
-    consolidation::ecies_encrypt::ECIES_TOOL_PATH, temp_path::generate_temp_file,
-};
 use anyhow::{anyhow, Context, Result};
 use openssl::pkcs12::Pkcs12;
 use openssl::pkey::PKey;
+use sequent_core::signatures::ecies_encrypt::ECIES_TOOL_PATH;
+use sequent_core::signatures::shell::run_shell_command;
+use sequent_core::util::temp_path::*;
 use std::fs;
 use std::io::Read;
 use tempfile::{tempdir, NamedTempFile, TempPath};

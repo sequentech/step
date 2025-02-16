@@ -3,17 +3,17 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::application::get_applications_by_election;
 use crate::services::database::get_hasura_pool;
+use crate::services::documents::upload_and_return_document_postgres;
 use crate::services::providers::transactions_provider::provide_hasura_transaction;
-use crate::services::temp_path::{generate_temp_file, get_file_size};
-use crate::services::{
-    documents::upload_and_return_document_postgres, temp_path::write_into_named_temp_file,
-};
 use anyhow::Context;
 use anyhow::{anyhow, Result};
 use base64::write;
 use csv::Writer;
 use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::types::hasura::core::{Application, Document};
+use sequent_core::util::temp_path::{
+    generate_temp_file, get_file_size, write_into_named_temp_file,
+};
 use tempfile::{NamedTempFile, TempPath};
 use tracing::{event, info, instrument, Level};
 

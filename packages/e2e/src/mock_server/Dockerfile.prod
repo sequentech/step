@@ -1,0 +1,48 @@
+# SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+FROM rust:1.82.0-slim-bookworm AS builder
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    chromium \
+    protobuf-compiler \
+    libprotobuf-dev \
+    m4 \
+    make \
+    pkg-config \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN rustup toolchain install nightly-2024-09-01 \
+    && rustup default nightly-2024-09-01
+
+#TODO: Copy only necessary files
+COPY ./ ./
+
+WORKDIR /app/
+RUN cargo build --release
+RUN ls /app/target/release
+
+
+FROM debian:bookworm
+ENV ROCKET_ADDRESS=0.0.0.0
+ENV ROCKET_PORT=8500
+EXPOSE 8500
+# Some shared libraries (extra-runtime-dependencies) may need to be installed:
+    # Install any necessary runtime dependencies for production
+
+RUN echo "deb http://deb.debian.org/debian/ bookworm-proposed-updates main" >> /etc/apt/sources.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends libssl3 chromium ca-certificates wget software-properties-common \
+    && rm -rf /var/lib/apt/lists/*
+RUN update-ca-certificates
+# Copy the compiled binary from the builder stage
+COPY --from=builder /app/target/release/mock_server /usr/local/bin/mock_server
+
+WORKDIR /usr/local/bin
+
+# Run the application
+CMD ["mock_server"]

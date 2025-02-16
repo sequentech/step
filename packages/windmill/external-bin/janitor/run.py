@@ -859,6 +859,7 @@ def gen_tree(excel_data, miru_data, script_idr, multiply_factor):
                     "post": row_election_post,
                     "geographical_region": miru_precinct["REGION"],
                     "precinct_code": row["DB_PRECINCT_ESTABLISHED_CODE"],
+                    "pollcenter_code": row["allbgy_ID_BARANGAY"]
                 },
                 **base_context,
                 **election_context
@@ -921,7 +922,8 @@ def gen_tree(excel_data, miru_data, script_idr, multiply_factor):
     test_elections =  copy.deepcopy(elections_object["elections"])
     for election in test_elections:
         election["name"] = "Test Voting"
-        election["alias"] = " - ".join([election["alias"].split("-")[0].strip(), "Test Voting"])
+        name_parts = election["alias"].split("-")
+        election["alias"] = " - ".join([name_parts[0].strip(), name_parts[1].strip(), "Test Voting"])
 
     elections_object["elections"].extend(test_elections)
     

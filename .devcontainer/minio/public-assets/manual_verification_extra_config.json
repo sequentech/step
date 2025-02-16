@@ -17,10 +17,14 @@
     "prefer_css_page_size": null,
     "transfer_mode": null
   },
+  "report_options": {
+    "max_items_per_report": null,
+    "max_threads": null
+  },  
   "communication_templates": {
     "email_config": {
       "subject": "Sequent Online Voting - Manual Verification",
-      "plaintext_body": "",
+      "plaintext_body": "Notice! The link provided is valid for 15 minutes.",
       "html_body": null
     },
     "sms_config": {
