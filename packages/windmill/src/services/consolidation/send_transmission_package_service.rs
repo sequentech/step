@@ -33,7 +33,7 @@ use anyhow::{anyhow, Context, Result};
 use chrono::{Local, Utc};
 use deadpool_postgres::Client as DbClient;
 use reqwest::multipart;
-use sequent_core::signatures::temp_path::{generate_temp_file, get_file_size};
+use sequent_core::util::temp_path::{generate_temp_file, get_file_size};
 use sequent_core::{
     ballot::Annotations,
     serialization::deserialize_with_path::{deserialize_str, deserialize_value},

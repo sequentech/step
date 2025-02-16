@@ -301,6 +301,7 @@ pub struct KeysCeremony {
     pub name: Option<String>,
     pub settings: Option<Value>,
     pub is_default: Option<bool>,
+    pub permission_label: Option<Vec<String>>,
 }
 
 impl KeysCeremony {
@@ -350,6 +351,7 @@ pub struct TallySession {
     pub threshold: i64,
     pub configuration: Option<TallySessionConfiguration>,
     pub tally_type: Option<String>,
+    pub permission_label: Option<Vec<String>>,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]

@@ -3,12 +3,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::template_renderer::*;
 use crate::postgres::reports::ReportType;
-use crate::services::s3::get_minio_url;
 use crate::services::temp_path::*;
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
-use sequent_core::signatures::temp_path::*;
+use sequent_core::services::pdf;
+use sequent_core::services::s3::get_minio_url;
+use sequent_core::util::temp_path::*;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use velvet::pipes::vote_receipts::ComputedTemplateData;
@@ -97,17 +98,27 @@ impl TemplateRenderer for BallotImagesTemplate {
         &self,
         rendered_user_template: String,
     ) -> Result<Self::SystemData> {
-        let public_asset_path = get_public_assets_path_env_var()?;
-        let minio_endpoint_base =
-            get_minio_url().with_context(|| "Error getting minio endpoint")?;
+        if pdf::doc_renderer_backend() == pdf::DocRendererBackend::InPlace {
+            let public_asset_path = get_public_assets_path_env_var()?;
+            let minio_endpoint_base =
+                get_minio_url().with_context(|| "Error getting minio endpoint")?;
 
-        Ok(SystemData {
-            title: "Ballot Images - Sequentech".to_string(),
-            rendered_user_template,
-            file_qrcode_lib: format!(
-                "{}/{}/{}",
-                minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_QRCODE_LIB
-            ),
-        })
+            Ok(SystemData {
+                title: "Ballot Images - Sequentech".to_string(),
+                rendered_user_template,
+                file_qrcode_lib: format!(
+                    "{}/{}/{}",
+                    minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_QRCODE_LIB
+                ),
+            })
+        } else {
+            // If we are rendering with a lambda, the QRCode lib is
+            // already included in the lambda container image.
+            Ok(SystemData {
+                title: "Ballot Images - Sequentech".to_string(),
+                rendered_user_template,
+                file_qrcode_lib: "/assets/qrcode.min.js".to_string(),
+            })
+        }
     }
 }

@@ -19,10 +19,10 @@ use crate::types::miru_plugin::MiruSbeiUser;
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::StringifiedPeriodDates;
-use sequent_core::signatures::temp_path::*;
 use sequent_core::types::hasura::core::{Area, Election, ElectionEvent};
 use sequent_core::types::keycloak::AREA_ID_ATTR_NAME;
 use sequent_core::types::scheduled_event::ScheduledEvent;
+use sequent_core::util::temp_path::*;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
@@ -287,19 +287,24 @@ pub async fn extract_area_data(
         area_sbei_ids.is_empty(),
         election_event_sbei_users.is_empty(),
     ) {
-        (false, false) => election_event_sbei_users
-            .into_iter()
-            .filter_map(|user: MiruSbeiUser| {
-                if area_sbei_ids.contains(&user.miru_id) {
-                    Some(InspectorData {
-                        role: user.miru_name.clone(),
-                        name: user.miru_name,
-                    })
-                } else {
-                    None
-                }
-            })
-            .collect(),
+        (false, false) => {
+            let mut seen_ids = HashSet::new();
+            election_event_sbei_users
+                .into_iter()
+                .filter_map(|user| {
+                    if area_sbei_ids.contains(&user.miru_id)
+                        && seen_ids.insert(user.miru_id.clone())
+                    {
+                        Some(InspectorData {
+                            role: user.miru_name.clone(),
+                            name: user.miru_name,
+                        })
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<_>>()
+        }
         _ => vec![
             InspectorData {
                 role: "".to_string(),

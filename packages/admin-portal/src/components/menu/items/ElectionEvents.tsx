@@ -52,6 +52,7 @@ import {
     FETCH_ELECTIONS_TREE,
 } from "@/queries/GetElectionEventsTree"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
+import {sortCandidatesInContest, sortContestList, sortElectionList} from "@sequentech/ui-core"
 
 const MenuItem = styled(Menu.Item)`
     color: ${adminTheme.palette.brandColor};
@@ -189,7 +190,10 @@ function filterTree(tree: any, filterName: string): any {
         return tree.map((subTree) => filterTree(subTree, filterName)).filter((v) => v !== null)
     } else if (typeof tree === "object" && tree !== null) {
         for (let key in tree) {
-            if (tree.name?.toLowerCase().search(filterName.toLowerCase()) > -1) {
+            if (
+                tree.name?.toLowerCase().search(filterName.toLowerCase()) > -1 ||
+                tree.alias?.toLowerCase().search(filterName.toLowerCase()) > -1
+            ) {
                 return tree
             } else if (ENTITY_FIELD_NAMES.includes(key as EntityFieldName)) {
                 let filteredSubTree = filterTree(tree[key], filterName)
@@ -343,7 +347,7 @@ export default function ElectionEvents() {
             candidateData()
             candidateTreeRefetch()
         } else {
-            electionEventDataRefetch()
+            // do nothing
         }
     }, [location])
 
@@ -416,8 +420,12 @@ export default function ElectionEvents() {
         setSearchInput(searchInput)
     }
 
+    let resultData = {...data}
+
     function changeArchiveSelection(val: number) {
         setArchivedElectionEvents(val === 1)
+        resultData = {}
+        navigate("/sequent_backend_election_event/")
     }
 
     const handleOpenCreateElectionEventMenu = (e: React.MouseEvent<HTMLElement>) => {
@@ -434,41 +442,94 @@ export default function ElectionEvents() {
         openImportDrawer?.()
     }
 
-    let resultData = {...data}
+    const transformElectionsForSort = (elections: ElectionType[]): IElection[] => {
+        return elections.map((election) => {
+            return {
+                ...election,
+                tenant_id: tenantId || "",
+                image_document_id: election.image_document_id ?? "",
+                contests: [],
+            }
+        })
+    }
+
+    const transformContestsForSort = (contests: ContestType[]): IContest[] => {
+        return contests.map((contest): IContest => {
+            return {
+                ...contest,
+                tenant_id: tenantId || "",
+                candidates: [],
+                max_votes: 0,
+                min_votes: 0,
+                winning_candidates_num: 0,
+                is_encrypted: false,
+            }
+        })
+    }
+
+    const transformCandidatesForSort = (candidates: ICandidate[]): ICandidate[] => {
+        return candidates.map((candidate: ICandidate) => {
+            return {
+                ...candidate,
+                id: candidate.id,
+                election_id: electionId || "",
+                tenant_id: tenantId || "",
+            }
+        })
+    }
+
     if (!loading && data && data.sequent_backend_election_event) {
-        resultData = filterTree(
-            {
-                electionEvents: [...(data.sequent_backend_election_event ?? [])],
-            },
-            searchInput
-        )
+        resultData = {
+            electionEvents: [...(data.sequent_backend_election_event ?? [])],
+        }
     }
 
     let finalResultData = useMemo(() => {
         return {
             electionEvents: cloneDeep(resultData?.electionEvents ?? [])?.map(
                 (electionEvent: ElectionEventType) => {
+                    const electionOrderType = electionEvent?.presentation?.elections_order
                     return {
                         ...electionEvent,
                         ...(electionEvent.id === electionEventId
                             ? {
                                   active: true,
                                   elections:
-                                      electionTreeData?.sequent_backend_election?.map?.(
-                                          (e: any) => ({
+                                      sortElectionList(
+                                          transformElectionsForSort(
+                                              electionTreeData?.sequent_backend_election || []
+                                          ),
+                                          electionOrderType
+                                      )?.map?.((e: any) => {
+                                          const contestOrderType = e?.presentation?.contests_order
+                                          return {
                                               ...e,
                                               ...(e.id === electionId
                                                   ? {
                                                         active: true,
                                                         contests:
-                                                            contestTreeData?.sequent_backend_contest?.map?.(
-                                                                (c: any) => ({
+                                                            sortContestList(
+                                                                transformContestsForSort(
+                                                                    contestTreeData?.sequent_backend_contest ||
+                                                                        []
+                                                                ),
+                                                                contestOrderType
+                                                            )?.map?.((c: any) => {
+                                                                let orderType =
+                                                                    c.presentation?.candidates_order
+                                                                return {
                                                                     ...c,
                                                                     ...(c.id === contestId
                                                                         ? {
                                                                               active: true,
                                                                               candidates:
-                                                                                  candidateTreeData?.sequent_backend_candidate
+                                                                                  sortCandidatesInContest(
+                                                                                      transformCandidatesForSort(
+                                                                                          candidateTreeData?.sequent_backend_candidate ||
+                                                                                              []
+                                                                                      ),
+                                                                                      orderType
+                                                                                  )
                                                                                       ?.map(
                                                                                           (
                                                                                               ca: any
@@ -493,7 +554,13 @@ export default function ElectionEvents() {
                                                                         : {
                                                                               active: false,
                                                                               candidates:
-                                                                                  candidateTreeData?.sequent_backend_candidate?.map(
+                                                                                  sortCandidatesInContest(
+                                                                                      transformCandidatesForSort(
+                                                                                          candidateTreeData?.sequent_backend_candidate ||
+                                                                                              []
+                                                                                      ),
+                                                                                      orderType
+                                                                                  )?.map(
                                                                                       (
                                                                                           ca: any
                                                                                       ) => ({
@@ -502,12 +569,12 @@ export default function ElectionEvents() {
                                                                                       })
                                                                                   ) ?? [],
                                                                           }),
-                                                                })
-                                                            ) ?? [],
+                                                                }
+                                                            }) ?? [],
                                                     }
                                                   : {active: false, contests: []}),
-                                          })
-                                      ) ?? [],
+                                          }
+                                      }) || [],
                               }
                             : {active: false, elections: []}),
                     }
@@ -524,7 +591,12 @@ export default function ElectionEvents() {
         contestTreeData,
         candidateTreeData,
         data,
+        searchInput,
     ])
+
+    // if (!loading && data && data.sequent_backend_election_event) {
+    finalResultData = filterTree(finalResultData, searchInput)
+    // }
 
     const reloadTreeMenu = () => {
         candidateTreeRefetch()

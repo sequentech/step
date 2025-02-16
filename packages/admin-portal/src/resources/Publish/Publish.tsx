@@ -29,7 +29,6 @@ import {
     GetBallotPublicationChangesOutput,
     Sequent_Backend_Ballot_Publication,
     VotingStatusChannel,
-    VotingStatus,
     Sequent_Backend_Tenant,
 } from "@/gql/graphql"
 
@@ -51,6 +50,7 @@ import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {convertToNumber} from "@/lib/helpers"
 import {EditPreview} from "./EditPreview"
 import FormDialog from "@/components/FormDialog"
+import {EPublishActions} from "@/types/publishActions"
 
 enum ViewMode {
     Edit,
@@ -78,8 +78,9 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         const [ballotPublicationId, setBallotPublicationId] = useState<string | Identifier | null>(
             null
         )
-        const authContext = useContext(AuthContext)
         const {globalSettings} = useContext(SettingsContext)
+        const authContext = useContext(AuthContext)
+        const {isGoldUser} = authContext
         const canWrite = authContext.isAuthorized(true, tenantId, IPermissions.PUBLISH_WRITE)
         const canRead = authContext.isAuthorized(true, tenantId, IPermissions.PUBLISH_READ)
 
@@ -322,6 +323,33 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         const handleCloseEditDrawer = () => {
             setOpen(false)
         }
+
+        /**
+         * Checks for any pending actions after the component mounts.
+         * If a pending action is found, it executes the action and removes the flag.
+         */
+        useEffect(() => {
+            const executePendingActions = async () => {
+                let isGold = isGoldUser()
+                if (isGold) {
+                    const pendingPublish = sessionStorage.getItem(
+                        EPublishActions.PENDING_PUBLISH_ACTION
+                    )
+                    if (pendingPublish) {
+                        onGenerate()
+                    }
+                }
+            }
+            const cleanup = () => {
+                sessionStorage.removeItem(EPublishActions.PENDING_PUBLISH_ACTION)
+            }
+
+            if (electionEventId && electionId) {
+                executePendingActions()
+                cleanup()
+            }
+        }, [onChangeStatus, onGenerate])
+
         useEffect(() => {
             if (showList) {
                 setViewMode(ViewMode.List)
@@ -395,7 +423,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                         electionStatus={electionStatus}
                         electionPresentation={electionPresentation}
                         canRead={canRead}
-                        type={type}
+                        publishType={type}
                         canWrite={canWrite}
                         kioskModeEnabled={kioskModeEnabled()}
                         changingStatus={changingStatus}

@@ -8,7 +8,6 @@ use crate::services::database::PgConfig;
 use crate::services::documents::upload_and_return_document;
 use crate::services::electoral_log::{list_electoral_log, ElectoralLogRow, GetElectoralLogBody};
 use crate::services::providers::email_sender::{Attachment, EmailSender};
-use crate::services::s3::get_minio_url;
 use crate::services::temp_path::*;
 use crate::types::resources::DataList;
 use anyhow::{anyhow, Context, Result};
@@ -17,9 +16,10 @@ use csv::WriterBuilder;
 use deadpool_postgres::Transaction;
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak::{self};
-use sequent_core::signatures::temp_path::*;
+use sequent_core::services::s3::get_minio_url;
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::templates::{ReportExtraConfig, SendTemplateBody};
+use sequent_core::util::temp_path::*;
 use serde::{Deserialize, Serialize};
 use strum_macros::EnumString;
 use tempfile::NamedTempFile;
@@ -49,14 +49,12 @@ pub struct ActivityLogRow {
 pub struct UserData {
     pub act_log: Vec<ActivityLogRow>,
     pub electoral_log: Vec<ElectoralLogRow>,
-    pub logo: String,
 }
 
 /// Struct for System Data
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SystemData {
     pub rendered_user_template: String,
-    pub file_logo: String,
 }
 
 /// Implementation of TemplateRenderer for Activity Logs
@@ -210,7 +208,6 @@ impl TemplateRenderer for ActivityLogsTemplate {
         Ok(UserData {
             act_log,
             electoral_log: elect_logs,
-            logo: LOGO_TEMPLATE.to_string(),
         })
     }
 
@@ -225,10 +222,6 @@ impl TemplateRenderer for ActivityLogsTemplate {
 
         Ok(SystemData {
             rendered_user_template,
-            file_logo: format!(
-                "{}/{}/{}",
-                minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_LOGO_IMG
-            ),
         })
     }
 

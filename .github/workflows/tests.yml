@@ -26,7 +26,7 @@ jobs:
           - service: velvet
           - service: windmill
           - service: wrap-map-err
-  
+
       fail-fast: false
     steps:
       - name: Check out code
@@ -40,13 +40,15 @@ jobs:
           components: rustfmt
           override: true
 
-      - uses: awalsh128/cache-apt-pkgs-action@latest
-        with:
-          packages: chromium protobuf-compiler libprotobuf-dev
+      - name: Install system dependencies
+        run: |
+            sudo apt-get update
+            sudo apt-get install -y protobuf-compiler libprotobuf-dev
 
       - name: Run tests
         env:
           RUST_BACKTRACE: "full"
+          PROTOC: "/usr/bin/protoc"
           KEYCLOAK_DB__USER: "test"
           KEYCLOAK_DB__PASSWORD: "test"
           KEYCLOAK_DB__HOST: "test"

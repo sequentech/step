@@ -4,8 +4,13 @@
 pub mod convert_vec;
 pub mod date;
 pub mod date_time;
+pub mod integrity_check;
 pub mod mime;
 pub mod normalize_vote;
+pub mod temp_path;
+
+#[cfg(feature = "reports")]
+pub mod aws;
 
 #[cfg(feature = "log")]
 pub mod init_log;
