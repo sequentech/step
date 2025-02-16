@@ -333,6 +333,8 @@ pub enum Permissions {
     MONITOR_POSTS_INITIALIZED_THE_SYSTEM,
     #[strum(serialize = "monitor-posts-started-voting")]
     MONITOR_POSTS_STARTED_VOTING,
+    #[strum(serialize = "monitor-posts-kiosk-closed-voting")]
+    MONITOR_POSTS_KIOSK_CLOSED_VOTING,
     #[strum(serialize = "monitor-posts-transmitted-results")]
     MONITOR_POSTS_TRANSMITTED_RESULTS,
     #[strum(serialize = "monitor-voters-voted-test-election")]

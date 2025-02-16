@@ -36,12 +36,15 @@ use super::voting_status::get_election_status_info;
 pub struct ElectionEventMonitoring {
     pub total_enrolled_voters: i64,
     pub total_elections: i64,
+    pub total_elections_with_kiosk: i64,
     pub total_started_votes: i64,
     pub total_not_started_votes: i64,
     pub total_open_votes: i64,
     pub total_not_open_votes: i64,
     pub total_closed_votes: i64,
     pub total_not_closed_votes: i64,
+    pub total_kiosk_closed_votes: i64,
+    pub total_kiosk_not_closed_votes: i64,
     pub total_start_counting_votes: i64,
     pub total_not_start_counting_votes: i64,
     pub total_initialize: i64,
@@ -90,6 +93,7 @@ pub async fn get_election_event_monitoring(
     let mut total_not_started_votes: i64 = 0;
     let mut total_closed_votes: i64 = 0;
     let mut total_started_votes: i64 = 0;
+    let mut total_kiosk_closed_votes: i64 = 0;
 
     let mut total_initialize: i64 = 0;
     let mut total_start_counting_votes: i64 = 0;
@@ -132,15 +136,23 @@ pub async fn get_election_event_monitoring(
             .await
             .map_err(|err| anyhow!("Error at getting total enrolled voters: {err}"))?;
 
+    let mut total_elections_with_kiosk: i64 = 0;
+
     for election in elections {
         let election_status = get_election_status_info(&election);
-        total_open_votes += election_status.total_open_votes;
-        total_not_started_votes += election_status.total_not_started_votes;
-        total_closed_votes += election_status.total_closed_votes;
-        total_started_votes += election_status.total_started_votes;
+        total_open_votes += election_status.is_open_votes;
+        total_not_started_votes += election_status.is_not_started_votes;
+        total_closed_votes += election_status.is_closed_votes;
+        total_started_votes += election_status.is_started_votes;
+        total_kiosk_closed_votes += election_status.is_kiosk_closed_votes;
 
         match election.initialization_report_generated {
             Some(true) => total_initialize += 1,
+            _ => {}
+        }
+
+        match election.is_kiosk {
+            Some(true) => total_elections_with_kiosk += 1,
             _ => {}
         }
 
@@ -198,12 +210,15 @@ pub async fn get_election_event_monitoring(
     Ok(ElectionEventMonitoring {
         total_enrolled_voters,
         total_elections: total_elections,
+        total_elections_with_kiosk,
         total_started_votes,
         total_not_started_votes,
         total_open_votes,
         total_not_open_votes: total_elections - total_open_votes,
         total_closed_votes,
         total_not_closed_votes: total_elections - total_closed_votes,
+        total_kiosk_closed_votes,
+        total_kiosk_not_closed_votes: total_elections_with_kiosk - total_kiosk_closed_votes,
         total_genereated_tally,
         total_not_genereated_tally: total_elections - total_genereated_tally,
         total_initialize,

@@ -1534,6 +1534,18 @@
             "deprecationReason": null
           },
           {
+            "name": "total_elections_with_kiosk",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "total_eligible_voters",
             "description": null,
             "args": [],
@@ -1571,6 +1583,30 @@
           },
           {
             "name": "total_initialize",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_kiosk_closed_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_kiosk_not_closed_votes",
             "description": null,
             "args": [],
             "type": {
