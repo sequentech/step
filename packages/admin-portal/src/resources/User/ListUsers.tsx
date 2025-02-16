@@ -24,7 +24,6 @@ import {
     useUnselectAll,
     RaRecord,
     PreferencesEditorContext,
-    LinearProgress,
     useListContext,
     Datagrid,
 } from "react-admin"
@@ -32,7 +31,7 @@ import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import UploadIcon from "@mui/icons-material/Upload"
 import {ListActions} from "@/components/ListActions"
-import {Button, Chip, Menu, MenuItem, Stack, Typography} from "@mui/material"
+import {Box, Button, Chip, Menu, MenuItem, Skeleton, Stack, Typography} from "@mui/material"
 import {Dialog, theme} from "@sequentech/ui-essentials"
 import {useTranslation} from "react-i18next"
 import {Action} from "@/components/ActionButons"
@@ -983,12 +982,12 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     }
 
     const CustomListBody = () => {
-        const {isLoading, isFetching} = useListContext()
+        const {isLoading, isFetching, perPage} = useListContext()
         // `isLoading` => initial load
         // `isFetching` => subsequent loads (e.g. paging, filtering)
 
         if (isLoading || isFetching) {
-            return <LinearProgress sx={{width: "100%"}} />
+            return <TableSkeleton rowCount={perPage} />
         }
 
         return (
@@ -1297,5 +1296,31 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 />
             )}
         </>
+    )
+}
+
+interface TableSkeletonProps {
+    rowCount?: number
+    columnWidths?: string[]
+}
+
+export const TableSkeleton: React.FC<TableSkeletonProps> = ({
+    rowCount = 10,
+    columnWidths = ["10%", "20%", "20%", "10%", "15%", "25%"],
+}) => {
+    return (
+        <Box sx={{width: "100%", p: 2}}>
+            {Array.from({length: rowCount}).map((_, rowIndex) => (
+                <Box key={rowIndex} sx={{display: "flex", gap: 2, mb: 1, alignItems: "center"}}>
+                    {columnWidths.map((width, colIndex) => (
+                        <Skeleton
+                            key={`${rowIndex}-${colIndex}`}
+                            variant="text"
+                            sx={{width, height: 24}}
+                        />
+                    ))}
+                </Box>
+            ))}
+        </Box>
     )
 }
