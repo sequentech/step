@@ -160,19 +160,8 @@ const usePollsStats = (props: PollsStatsProps) => {
                     ],
                 },
                 {
-                    show: showVotersVoted,
-                    title: t("monitoringDashboardScreen.polls.voterTurnout"),
-                    items: [
-                        {
-                            icon: <MarkEmailReadOutlinedIcon />,
-                            count: votingStats.votedCount,
-                            percentage: calcPrecentage(votingStats.votedCount, eligibleVotersCount),
-                        },
-                    ],
-                },
-                {
                     show: showKioskClosed,
-                    title: "Post with kiosk closed voting",
+                    title: t("monitoringDashboardScreen.polls.votingKioskClosed"),
                     items: [
                         {
                             icon: <CheckCircleOutlineIcon />,
@@ -189,6 +178,17 @@ const usePollsStats = (props: PollsStatsProps) => {
                                 kioskNotClosedVotesCount,
                                 electionsWithKioskCount
                             ),
+                        },
+                    ],
+                },
+                {
+                    show: showVotersVoted,
+                    title: t("monitoringDashboardScreen.polls.voterTurnout"),
+                    items: [
+                        {
+                            icon: <MarkEmailReadOutlinedIcon />,
+                            count: votingStats.votedCount,
+                            percentage: calcPrecentage(votingStats.votedCount, eligibleVotersCount),
                         },
                     ],
                 },

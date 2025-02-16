@@ -1950,6 +1950,7 @@ const spanishTranslation: TranslationType = {
                 votingClosed: "Publicaciones con Votación Cerrada",
                 votingStarted: "Publicaciones con Votación Iniciada",
                 voterTurnout: "Participación de los Votantes",
+                votingKioskClosed: "Publicaciones con Votación en Kiosco Cerrada",
             },
             tally: {
                 title: "Conteo",

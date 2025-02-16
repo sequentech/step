@@ -1960,6 +1960,7 @@ const catalanTranslation: TranslationType = {
                 votingClosed: "Publicacions amb Votació Tancada",
                 votingStarted: "Publicacions amb Votació Iniciada",
                 voterTurnout: "Participació dels Votants",
+                votingKioskClosed: "Publicacions amb Votació en Quiosc Tancada",
             },
             tally: {
                 title: "Compte",
