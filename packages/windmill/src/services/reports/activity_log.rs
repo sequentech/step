@@ -208,8 +208,7 @@ impl TemplateRenderer for ActivityLogsTemplate {
 
         Ok(UserData {
             act_log,
-            electoral_log: elect_logs,
-            logo: LOGO_TEMPLATE.to_string(),
+            electoral_log: elect_logs
         })
     }
     #[instrument(err, skip_all)]
