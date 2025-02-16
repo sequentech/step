@@ -3,34 +3,34 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::database::PgConfig;
+use crate::services::insert_cast_vote::hash_voter_id;
+use crate::services::protocol_manager::get_event_board;
 use crate::services::protocol_manager::get_protocol_manager;
 use crate::services::protocol_manager::{create_named_param, get_board_client, get_immudb_client};
+use crate::services::vault;
 use crate::types::resources::{Aggregate, DataList, OrderDirection, TotalAggregate};
+
 use anyhow::{anyhow, Context, Result};
+use b3::messages::message::{self, Signer as _};
 use base64::engine::general_purpose;
 use base64::Engine;
+use electoral_log::assign_value;
 use electoral_log::messages::message::Message;
 use electoral_log::messages::message::SigningData;
 use electoral_log::messages::newtypes::ErrorMessageString;
 use electoral_log::messages::newtypes::KeycloakEventTypeString;
 use electoral_log::messages::newtypes::*;
 use electoral_log::messages::statement::StatementHead;
+use electoral_log::ElectoralLogMessage;
+use immudb_rs::{sql_value::Value, Client, NamedParam, Row, SqlValue, TxMode};
 use sequent_core::ballot::VotingStatusChannel;
+use sequent_core::serialization::base64::{Base64Deserialize, Base64Serialize};
 use sequent_core::serialization::deserialize_with_path;
 use sequent_core::services::date::ISO8601;
-use strand::hash::HashWrapper;
-
-use crate::services::insert_cast_vote::hash_voter_id;
-use crate::services::protocol_manager::get_event_board;
-use crate::services::vault;
-use b3::messages::message::{self, Signer as _};
-use electoral_log::assign_value;
-use electoral_log::ElectoralLogMessage;
-use immudb_rs::{sql_value::Value, Client, NamedParam, Row, SqlValue};
-use sequent_core::serialization::base64::{Base64Deserialize, Base64Serialize};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use strand::backend::ristretto::RistrettoCtx;
+use strand::hash::HashWrapper;
 use strand::serialization::StrandDeserialize;
 use strand::signature::StrandSignatureSk;
 use strum_macros::{Display, EnumString, ToString};
@@ -501,32 +501,43 @@ impl ElectoralLog {
 
     #[instrument(skip(self))]
     pub async fn import_from_csv(&self, logs_file: &NamedTempFile) -> Result<()> {
-        let mut client = get_board_client().await?;
-        let mut rows = Vec::new();
-
+        let batch_size: usize = PgConfig::from_env()?.default_sql_batch_size.try_into()?;
         let mut rdr = csv::Reader::from_reader(logs_file);
+
+        let mut client = get_board_client().await?;
+        client.open_session(self.elog_database.as_str()).await?;
+        let tx = client.new_tx(TxMode::ReadWrite).await?;
+
+        // Allocate a vector with capacity equal to the batch size.
+        let mut messages: Vec<ElectoralLogMessage> = Vec::with_capacity(batch_size);
 
         for result in rdr.deserialize() {
             let row: ElectoralLogRow =
                 result.map_err(|err| anyhow::Error::new(err).context("Failed to read CSV row"))?;
-            rows.push(row);
-        }
-
-        for log in rows {
             let message: &Message =
-                &Message::strand_deserialize(&general_purpose::STANDARD_NO_PAD.decode(&log.data)?)
+                &Message::strand_deserialize(&general_purpose::STANDARD_NO_PAD.decode(&row.data)?)
                     .map_err(|err| anyhow!("Failed to deserialize message: {:?}", err))?;
             let electoral_log_message: ElectoralLogMessage = message.try_into()?;
+            messages.push(electoral_log_message);
 
-            client
-                .insert_electoral_log_messages(
-                    self.elog_database.as_str(),
-                    &vec![electoral_log_message],
-                )
-                .await
-                .map_err(|err| anyhow!("Failed to insert log message: {:?}", err))?;
+            // Once we reach the batch size, flush the batch.
+            if messages.len() >= batch_size {
+                client
+                    .insert_electoral_log_messages_batch(&tx, &messages)
+                    .await?;
+                messages.clear();
+            }
         }
 
+        // Flush any remaining messages that didn't complete a full batch.
+        if !messages.is_empty() {
+            client
+                .insert_electoral_log_messages_batch(&tx, &messages)
+                .await?;
+        }
+
+        client.commit(&tx).await?;
+        client.close_session().await?;
         Ok(())
     }
 }
