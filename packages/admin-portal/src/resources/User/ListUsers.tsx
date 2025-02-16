@@ -24,6 +24,9 @@ import {
     useUnselectAll,
     RaRecord,
     PreferencesEditorContext,
+    LinearProgress,
+    useListContext,
+    Datagrid,
 } from "react-admin"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import {useTenantStore} from "@/providers/TenantContextProvider"
@@ -155,6 +158,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const [deleteUsers] = useMutation<DeleteUsersMutation>(DELETE_USERS)
     const [exportUsers] = useMutation<ExportUsersMutation>(EXPORT_USERS)
     const PHONE_NUMBER_USER_ATTRIBUTE = "sequent.read-only.mobile-number"
+
     const {data: userAttributes} = useQuery<GetUserProfileAttributesQuery>(
         USER_PROFILE_ATTRIBUTES,
         {
@@ -978,6 +982,93 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             : false
     }
 
+    const CustomListBody = () => {
+        const {isLoading, isFetching} = useListContext()
+        // `isLoading` => initial load
+        // `isFetching` => subsequent loads (e.g. paging, filtering)
+
+        if (isLoading || isFetching) {
+            return true
+        }
+
+        return (
+            <>
+                <ResetFilters />
+                {userAttributes?.get_user_profile_attributes && (
+                    <DataGridContainerStyle
+                        preferenceKey={getPreferenceKey(location.pathname, "voters")}
+                        omit={listFields.omitFields}
+                        isOpenSideBar={isOpenSidebar}
+                        bulkActionButtons={<BulkActions />}
+                    >
+                        <TextField source="id" sx={{display: "block", width: "280px"}} />
+                        <BooleanField
+                            source="email_verified"
+                            label={t("usersAndRolesScreen.users.fields.emailVerified")}
+                        />
+                        <BooleanField
+                            source="enabled"
+                            label={t("usersAndRolesScreen.users.fields.enabled")}
+                        />
+                        {renderFields(listFields.basicInfoFields)}
+                        {electionEventId && (
+                            <FunctionField
+                                label={t("usersAndRolesScreen.users.fields.area")}
+                                render={(record: IUser) =>
+                                    record?.area?.name ? (
+                                        <Chip label={record?.area?.name ?? ""} />
+                                    ) : (
+                                        "-"
+                                    )
+                                }
+                            />
+                        )}
+                        {renderFields(listFields.attributesFields)}
+                        {electionEventId && (
+                            <FunctionField
+                                source="has_voted"
+                                label={t("usersAndRolesScreen.users.fields.has_voted")}
+                                render={(record: IUser, source: string | undefined) => {
+                                    let newRecord = {
+                                        has_voted: checkIsVoted(record),
+                                        ...record,
+                                    }
+                                    return <BooleanField record={newRecord} source={source} />
+                                }}
+                            />
+                        )}
+                        {!canEditVoters &&
+                        !canDeleteVoters &&
+                        !canSendTemplates &&
+                        !canManuallyVerify &&
+                        !canChangePassword &&
+                        !showVotersLogs ? null : (
+                            <WrapperField source="actions" label="Actions">
+                                <ListActionsMenu actions={actions} />
+                            </WrapperField>
+                        )}
+                    </DataGridContainerStyle>
+                )}
+                {/* Custom filters menu */}
+                {showVotersFilters && (
+                    <Menu
+                        id="custom-filters-menu"
+                        anchorEl={anchorEl}
+                        open={openCustomMenu}
+                        onClose={handleCloseCustomMenu}
+                        MenuListProps={{
+                            "aria-labelledby": "basic-button",
+                        }}
+                    >
+                        {/* {customFiltersList} */}
+                        {renderMenuItems()}
+                    </Menu>
+                )}
+                {/* Custom filters menu */}
+            </>
+        )
+    }
+
     return (
         <>
             {
@@ -1028,78 +1119,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     filters={Filters}
                     disableSyncWithLocation
                 >
-                    <ResetFilters />
-                    {userAttributes?.get_user_profile_attributes && (
-                        <DataGridContainerStyle
-                            preferenceKey={getPreferenceKey(location.pathname, "voters")}
-                            omit={listFields.omitFields}
-                            isOpenSideBar={isOpenSidebar}
-                            bulkActionButtons={<BulkActions />}
-                        >
-                            <TextField source="id" sx={{display: "block", width: "280px"}} />
-                            <BooleanField
-                                source="email_verified"
-                                label={t("usersAndRolesScreen.users.fields.emailVerified")}
-                            />
-                            <BooleanField
-                                source="enabled"
-                                label={t("usersAndRolesScreen.users.fields.enabled")}
-                            />
-                            {renderFields(listFields.basicInfoFields)}
-                            {electionEventId && (
-                                <FunctionField
-                                    label={t("usersAndRolesScreen.users.fields.area")}
-                                    render={(record: IUser) =>
-                                        record?.area?.name ? (
-                                            <Chip label={record?.area?.name ?? ""} />
-                                        ) : (
-                                            "-"
-                                        )
-                                    }
-                                />
-                            )}
-                            {renderFields(listFields.attributesFields)}
-                            {electionEventId && (
-                                <FunctionField
-                                    source="has_voted"
-                                    label={t("usersAndRolesScreen.users.fields.has_voted")}
-                                    render={(record: IUser, source: string | undefined) => {
-                                        let newRecord = {
-                                            has_voted: checkIsVoted(record),
-                                            ...record,
-                                        }
-                                        return <BooleanField record={newRecord} source={source} />
-                                    }}
-                                />
-                            )}
-                            {!canEditVoters &&
-                            !canDeleteVoters &&
-                            !canSendTemplates &&
-                            !canManuallyVerify &&
-                            !canChangePassword &&
-                            !showVotersLogs ? null : (
-                                <WrapperField source="actions" label="Actions">
-                                    <ListActionsMenu actions={actions} />
-                                </WrapperField>
-                            )}
-                        </DataGridContainerStyle>
-                    )}
-                    {/* Custom filters menu */}
-                    {showVotersFilters && (
-                        <Menu
-                            id="custom-filters-menu"
-                            anchorEl={anchorEl}
-                            open={openCustomMenu}
-                            onClose={handleCloseCustomMenu}
-                            MenuListProps={{
-                                "aria-labelledby": "basic-button",
-                            }}
-                        >
-                            {/* {customFiltersList} */}
-                            {renderMenuItems()}
-                        </Menu>
-                    )}
-                    {/* Custom filters menu */}
+                    <CustomListBody />
                 </List>
             }
 
@@ -1191,7 +1211,6 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     ) : null}
                 </FormStyles.ReservedProgressSpace>
             </Dialog>
-
             <ImportDataDrawer
                 open={openImportDrawer}
                 closeDrawer={() => setOpenImportDrawer(false)}
@@ -1201,7 +1220,6 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 doImport={handleImportVoters}
                 errors={null}
             />
-
             <Dialog
                 variant="warning"
                 open={openDeleteBulkModal}
@@ -1218,7 +1236,6 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             >
                 {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.delete.bulkBody`)}
             </Dialog>
-
             <Dialog
                 variant="info"
                 open={openExport}
