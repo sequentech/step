@@ -119,6 +119,9 @@ impl TemplateRenderer for AuditLogsTemplate {
     fn prefix(&self) -> String {
         format!("audit_logs_{}", self.ids.election_event_id)
     }
+    async fn count_items(&self) -> Option<i64> {
+        None
+    }
 
     #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
     async fn prepare_user_data(

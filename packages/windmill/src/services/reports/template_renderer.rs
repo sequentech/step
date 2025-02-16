@@ -36,6 +36,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use std::path::{Path, PathBuf};
 use strum_macros::{Display, EnumString, IntoStaticStr};
+use tempfile::tempdir;
 use tempfile::{NamedTempFile, TempPath};
 use tokio::runtime::Runtime;
 use tracing::{debug, info, instrument, warn};
@@ -471,6 +472,7 @@ pub trait TemplateRenderer: Debug {
             );
             // Calculate the number of batches needed.
             let num_batches = if per_report_limit > 0 {
+                // calculate the ceil of activity_logs_count/per_report_limit
                 (activity_logs_count + per_report_limit - 1) / per_report_limit
             } else {
                 1
@@ -478,10 +480,8 @@ pub trait TemplateRenderer: Debug {
             info!("Number of batches: {:?}", num_batches);
 
             // Define a temporary reports folder (this folder will later be compressed)
-            let reports_folder = std::path::Path::new("/tmp/reports_folder"); // adjust as needed
-            std::fs::create_dir_all(&reports_folder).with_context(|| {
-                format!("Failed to create reports folder: {:?}", reports_folder)
-            })?;
+            let temp_dir = tempdir()?;
+            let reports_folder = temp_dir.path();
 
             // Build a Rayon pool for batch processing.
             let batch_pool = ThreadPoolBuilder::new()
