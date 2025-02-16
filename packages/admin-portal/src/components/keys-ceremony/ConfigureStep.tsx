@@ -117,18 +117,21 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
             },
         }
     )
-    const {data: electionsList} = useGetList<Sequent_Backend_Election>("sequent_backend_election", {
-        pagination: {page: 1, perPage: 10},
-        sort: {field: "last_updated_at", order: "DESC"},
-        filter: {
-            tenant_id: electionEvent.tenant_id,
-            election_event_id: electionEvent.id,
-            keys_ceremony_id: {
-                format: "hasura-raw-query",
-                value: {_is_null: true},
+    const {data: electionById} = useGetOne<Sequent_Backend_Election>(
+        "sequent_backend_election",
+        {
+            id: electionId,
+            meta: {
+                tenant_id: tenantId,
+                election_event_id: electionEvent.id,
+                keys_ceremony_id: {
+                    format: "hasura-raw-query",
+                    value: {_is_null: true},
+                },
             },
         },
-    })
+        {enabled: !!electionId}
+    )
     const {data: keysCeremony, isLoading: isOneLoading} = useGetOne<Sequent_Backend_Keys_Ceremony>(
         "sequent_backend_keys_ceremony",
         {
@@ -212,10 +215,9 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
         }
         setErrors(null)
         setIsLoading(true)
-        let election = electionsList?.find((election) => election.id === electionId)
         let electionName = electionId
-            ? election
-                ? aliasRenderer(election)
+            ? electionById
+                ? aliasRenderer(electionById)
                 : t("keysGeneration.configureStep.allElections")
             : t("keysGeneration.configureStep.allElections")
 
