@@ -2,6 +2,7 @@
 #![feature(result_flattening)]
 #![recursion_limit = "256"]
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -12,13 +13,12 @@ use dotenv::dotenv;
 use sequent_core::util::init_log::init_log;
 use structopt::StructOpt;
 use tokio::time::Duration;
-use windmill::services::celery_app::set_is_app_active;
-use windmill::services::celery_app::Queue;
+use windmill::services::celery_app::{set_is_app_active, Queue};
 use windmill::services::probe::{setup_probe, AppName};
-use windmill::tasks::electoral_log::process_electoral_log_events_batch;
 use windmill::tasks::review_boards::review_boards;
 use windmill::tasks::scheduled_events::scheduled_events;
 use windmill::tasks::scheduled_reports::scheduled_reports;
+use windmill::tasks::electoral_log::process_electoral_log_events_batch;
 
 #[derive(Debug, StructOpt)]
 #[structopt(
@@ -33,39 +33,39 @@ struct CeleryOpt {
     schedule_events_interval: u64,
     #[structopt(short, long, default_value = "10")]
     schedule_reports_interval: u64,
-    #[structopt(short, long, default_value = "1")]
-    events_interval: u64,
+    #[structopt(short, long, default_value = "5")]
+    electoral_log_interval: u64,
 }
 
 #[tokio::main]
 async fn main() -> Result<()> {
     dotenv().ok();
     init_log(true);
-
     setup_probe(AppName::BEAT).await;
 
-    // Build a `Beat` with a default scheduler backend.
+    let opt = CeleryOpt::from_args();
+
     let mut beat = celery::beat!(
         broker = AMQPBroker { std::env::var("AMQP_ADDR").unwrap_or_else(|_| "amqp://rabbitmq:5672".into()) },
         tasks = [
             review_boards::NAME => {
                 review_boards,
-                schedule = DeltaSchedule::new(Duration::from_secs(CeleryOpt::from_args().review_boards_interval)),
+                schedule = DeltaSchedule::new(Duration::from_secs(opt.review_boards_interval)),
                 args = (),
             },
             scheduled_events::NAME => {
                 scheduled_events,
-                schedule = DeltaSchedule::new(Duration::from_secs(CeleryOpt::from_args().schedule_events_interval)),
+                schedule = DeltaSchedule::new(Duration::from_secs(opt.schedule_events_interval)),
                 args = (),
             },
             scheduled_reports::NAME => {
                 scheduled_reports,
-                schedule = DeltaSchedule::new(Duration::from_secs(CeleryOpt::from_args().schedule_reports_interval)),
+                schedule = DeltaSchedule::new(Duration::from_secs(opt.schedule_reports_interval)),
                 args = (),
             },
             process_electoral_log_events_batch::NAME => {
                 process_electoral_log_events_batch,
-                schedule = DeltaSchedule::new(Duration::from_secs(CeleryOpt::from_args().events_interval)),
+                schedule = DeltaSchedule::new(Duration::from_secs(opt.electoral_log_interval)),
                 args = (),
             },
         ],
@@ -80,6 +80,5 @@ async fn main() -> Result<()> {
     set_is_app_active(true);
     beat.start().await?;
     set_is_app_active(false);
-
     Ok(())
 }

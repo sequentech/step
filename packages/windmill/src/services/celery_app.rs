@@ -1,21 +1,23 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
-//
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use std::sync::{Arc, OnceLock};
 use async_once::AsyncOnce;
-use celery::export::Arc;
+use futures::future::Lazy;
 use celery::prelude::Task;
 use celery::Celery;
 use std;
 use std::convert::AsRef;
 use strum_macros::AsRefStr;
-use tracing::{event, instrument, Level};
+use tokio::sync::RwLock;
+use anyhow::Result;
+use lapin::{Connection, ConnectionProperties};
 
 use crate::tasks::activity_logs_report::generate_activity_logs_report;
 use crate::tasks::create_ballot_receipt::create_ballot_receipt;
 use crate::tasks::create_keys::create_keys;
 use crate::tasks::delete_election_event::delete_election_event_t;
-use crate::tasks::electoral_log::enqueue_electoral_log_event;
+use crate::tasks::electoral_log::{enqueue_electoral_log_event, process_electoral_log_events_batch};
 use crate::tasks::execute_tally_session::execute_tally_session;
 use crate::tasks::export_application::export_application;
 use crate::tasks::export_ballot_publication::export_ballot_publication;
@@ -183,8 +185,8 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             export_tenant_config,
             import_tenant_config,
             enqueue_electoral_log_event,
+            process_electoral_log_events_batch,
         ],
-        // Route certain tasks to certain queues based on glob matching.
         task_routes = [
             create_keys::NAME => Queue::Short.as_ref(),
             review_boards::NAME => Queue::Beat.as_ref(),
@@ -226,7 +228,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             export_application::NAME => Queue::ImportExport.as_ref(),
             import_applications::NAME => Queue::ImportExport.as_ref(),
             enqueue_electoral_log_event::NAME => Queue::ElectoralLogBatch.as_ref(),
-
+            process_electoral_log_events_batch::NAME => Queue::ElectoralLogBeat.as_ref(),
         ],
         prefetch_count = prefetch_count,
         acks_late = acks_late,
@@ -243,4 +245,21 @@ lazy_static! {
 
 pub async fn get_celery_app() -> Arc<Celery> {
     CELERY_APP.get().await.clone()
+}
+
+static CELERY_CONNECTION: Lazy<RwLock<Option<Connection>>> = Lazy::new(|| RwLock::new(None));
+
+/// Returns a reused AMQP connection wrapped in an Arc.
+/// If no connection exists (or if it’s disconnected), a new one is created and stored.
+pub async fn get_celery_connection() -> Result<Arc<Connection>> {
+    if let Some(conn) = CELERY_CONNECTION.get() {
+        // We assume the connection is valid; lapin connections do not implement a convenient status check.
+        return Ok(conn.clone());
+    }
+    let amqp_url = std::env::var("AMQP_ADDR")
+        .unwrap_or_else(|_| "amqp://rabbitmq:5672".into());
+    let connection = Connection::connect(&amqp_url, ConnectionProperties::default()).await?;
+    let arc_conn = Arc::new(connection);
+    let _ = CELERY_CONNECTION.set(arc_conn.clone());
+    Ok(arc_conn)
 }
