@@ -24,7 +24,7 @@ extern crate chrono;
 #[derive(Debug, StructOpt)]
 #[structopt(
     name = "windmill",
-    about = "Run a Rust Celery producer or consumer.",
+    about = "Windmill task queue prosumer.",
     setting = structopt::clap::AppSettings::ColoredHelp,
 )]
 enum CeleryOpt {
@@ -32,11 +32,12 @@ enum CeleryOpt {
         #[structopt(short, long, possible_values = &[
             Queue::Short.as_ref(),
             Queue::Beat.as_ref(),
+            Queue::ElectoralLogBeat.as_ref(),
             Queue::Communication.as_ref(),
             Queue::Tally.as_ref(),
             Queue::Reports.as_ref(),
             Queue::ImportExport.as_ref(),
-            Queue::ElectoralLog.as_ref(),
+            Queue::ElectoralLogBatch.as_ref(),
         ], default_value = Queue::Beat.as_ref())]
         queues: Vec<String>,
         #[structopt(short, long, default_value = "100")]

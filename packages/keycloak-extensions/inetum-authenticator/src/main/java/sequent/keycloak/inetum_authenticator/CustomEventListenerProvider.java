@@ -30,7 +30,7 @@ public class CustomEventListenerProvider implements EventListenerProvider {
   // Environment variables (read once for performance)
   private static final String AMQP_URI = System.getenv("AMQP_ADDR");
   private static final String TASK_NAME = "insert_electoral_log_event";
-  private static final String QUEUE_NAME = "electoral_log_queue";
+  private static final String QUEUE_NAME = "electoral_log_beat_queue";
 
   // RabbitMQ connection fields
   private Connection rabbitConnection;

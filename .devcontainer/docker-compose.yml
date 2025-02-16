@@ -813,7 +813,7 @@ services:
       "--ignore",
       "rust-local-target/",
       "-x",
-      "run --bin main consume -q short_queue tally_queue reports_queue beat communication_queue import_export_queue electoral_log_queue"
+      "run --bin main consume -q short_queue tally_queue reports_queue communication_queue import_export_queue electoral_log_batch_queue"
     ]
     volumes_from:
       - devcontainer
@@ -923,7 +923,7 @@ services:
       "--ignore",
       "rust-local-target/",
       "-x",
-      "run --bin beat"
+      "run --bin beat electoral_log_beat_queue"
     ]
     environment:
       RUSTFLAGS: ${RUSTFLAGS}

@@ -54,10 +54,12 @@ use crate::tasks::update_election_event_ballot_styles::update_election_event_bal
 
 #[derive(AsRefStr, Debug)]
 pub enum Queue {
-    #[strum(serialize = "short_queue")]
-    Short,
     #[strum(serialize = "beat")]
     Beat,
+    #[strum(serialize = "electoral_log_beat_queue")]
+    ElectoralLogBeat,
+    #[strum(serialize = "short_queue")]
+    Short,
     #[strum(serialize = "communication_queue")]
     Communication,
     #[strum(serialize = "tally_queue")]
@@ -66,8 +68,8 @@ pub enum Queue {
     Reports,
     #[strum(serialize = "import_export_queue")]
     ImportExport,
-    #[strum(serialize = "electoral_log_queue")]
-    ElectoralLog,
+    #[strum(serialize = "electoral_log_batch_queue")]
+    ElectoralLogBatch,
 }
 
 static mut PREFETCH_COUNT_S: u16 = 100;
@@ -223,7 +225,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             export_ballot_publication::NAME => Queue::ImportExport.as_ref(),
             export_application::NAME => Queue::ImportExport.as_ref(),
             import_applications::NAME => Queue::ImportExport.as_ref(),
-            insert_electoral_log_event::NAME => Queue::ElectoralLog.as_ref(),
+            insert_electoral_log_event::NAME => Queue::ElectoralLogBatch.as_ref(),
 
         ],
         prefetch_count = prefetch_count,
