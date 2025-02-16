@@ -89,6 +89,8 @@ pub enum EReportEncryption {
     Unencrypted,
     ConfiguredPassword,
 }
+
+pub const DEFAULT_ITEMS_PER_REPORT_LIMIT: usize = 1000;
 /// Trait that defines the behavior for rendering templates
 #[async_trait]
 pub trait TemplateRenderer: Debug {
@@ -453,9 +455,13 @@ pub trait TemplateRenderer: Debug {
         // is greater than the per‑report limit, we assume multiple files will be generated.
         let activity_logs_count = self.count_items().await.unwrap_or(0);
         let report_options = ext_cfg.report_options;
-        let per_report_limit = report_options.max_items_per_report.unwrap_or(1000) as i64;
+        let per_report_limit = report_options
+            .max_items_per_report
+            .unwrap_or(DEFAULT_ITEMS_PER_REPORT_LIMIT) as i64;
 
-        let use_batching = self.get_report_type() == ReportType::ACTIVITY_LOGS
+        let batching_report_types = vec![ReportType::ACTIVITY_LOGS, ReportType::AUDIT_LOGS];
+
+        let use_batching = batching_report_types.contains(&self.get_report_type())
             && activity_logs_count > per_report_limit;
 
         let (final_file_path, file_size, final_report_name, mimetype) = if use_batching {
