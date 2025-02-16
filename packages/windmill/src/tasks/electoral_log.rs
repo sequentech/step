@@ -10,6 +10,7 @@ use crate::services::protocol_manager::get_board_client;
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context};
 use celery::error::TaskError;
+use celery::prelude::Task;
 use deadpool_postgres::Client as DbClient;
 use electoral_log::client::board_client::ElectoralLogMessage;
 use immudb_rs::TxMode;

@@ -7,6 +7,7 @@
 
 use anyhow::Result;
 use celery::beat::DeltaSchedule;
+use celery::prelude::Task;
 use dotenv::dotenv;
 use sequent_core::util::init_log::init_log;
 use structopt::StructOpt;
@@ -62,7 +63,7 @@ async fn main() -> Result<()> {
                 schedule = DeltaSchedule::new(Duration::from_secs(CeleryOpt::from_args().schedule_reports_interval)),
                 args = (),
             },
-            process_electoral_log_events_batch::NAME {
+            process_electoral_log_events_batch::NAME => {
                 process_electoral_log_events_batch,
                 schedule = DeltaSchedule::new(Duration::from_secs(CeleryOpt::from_args().events_interval)),
                 args = (),
@@ -72,7 +73,7 @@ async fn main() -> Result<()> {
             review_boards::NAME => Queue::Beat.as_ref(),
             scheduled_events::NAME => Queue::Beat.as_ref(),
             scheduled_reports::NAME => Queue::Beat.as_ref(),
-            process_electoral_log_events_batch::NAME => ElectoralLogBeat::Beat.as_ref(),
+            process_electoral_log_events_batch::NAME => Queue::ElectoralLogBeat.as_ref(),
         ],
     ).await?;
 
