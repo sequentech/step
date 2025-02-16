@@ -6,7 +6,9 @@ use super::template_renderer::*;
 use crate::postgres::reports::{Report, ReportType};
 use crate::services::database::PgConfig;
 use crate::services::documents::upload_and_return_document;
-use crate::services::electoral_log::{count_electoral_log, list_electoral_log, ElectoralLogRow, GetElectoralLogBody};
+use crate::services::electoral_log::{
+    count_electoral_log, list_electoral_log, ElectoralLogRow, GetElectoralLogBody,
+};
 use crate::services::providers::email_sender::{Attachment, EmailSender};
 use crate::services::temp_path::*;
 use crate::types::resources::DataList;
@@ -170,17 +172,16 @@ impl TemplateRenderer for ActivityLogsTemplate {
         let mut act_log: Vec<ActivityLogRow> = vec![];
         let mut elect_logs: Vec<ElectoralLogRow> = vec![];
 
-        let electoral_logs: DataList<ElectoralLogRow> =
-            list_electoral_log(GetElectoralLogBody {
-                tenant_id: self.ids.tenant_id.clone(),
-                election_event_id: self.ids.election_event_id.clone(),
-                limit: Some(limit),
-                offset: Some(offset),
-                filter: None,
-                order_by: None,
-            })
-            .await
-            .map_err(|e| anyhow!("Error listing electoral logs: {e:?}"))?;
+        let electoral_logs: DataList<ElectoralLogRow> = list_electoral_log(GetElectoralLogBody {
+            tenant_id: self.ids.tenant_id.clone(),
+            election_event_id: self.ids.election_event_id.clone(),
+            limit: Some(limit),
+            offset: Some(offset),
+            filter: None,
+            order_by: None,
+        })
+        .await
+        .map_err(|e| anyhow!("Error listing electoral logs: {e:?}"))?;
 
         let is_empty = electoral_logs.items.is_empty();
 
@@ -208,7 +209,7 @@ impl TemplateRenderer for ActivityLogsTemplate {
 
         Ok(UserData {
             act_log,
-            electoral_log: elect_logs
+            electoral_log: elect_logs,
         })
     }
     #[instrument(err, skip_all)]

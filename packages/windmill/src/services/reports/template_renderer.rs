@@ -14,11 +14,12 @@ use crate::services::reports_vault::get_report_secret_key;
 use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::services::temp_path::PUBLIC_ASSETS_QRCODE_LIB;
 use crate::services::vault;
-use std::path::{PathBuf, Path};
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
 use futures::executor::block_on;
+use futures::future::join_all;
+use once_cell::sync::Lazy;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use rayon::ThreadPoolBuilder;
 use sequent_core::serialization::deserialize_with_path::{deserialize_str, deserialize_value};
@@ -29,16 +30,15 @@ use sequent_core::types::templates::{
     CommunicationTemplatesExtraConfig, EmailConfig, PrintToPdfOptionsLocal, ReportExtraConfig,
     ReportOptions, SendTemplateBody, SmsConfig,
 };
-use futures::future::join_all;
 use sequent_core::types::to_map::ToMap;
 use sequent_core::util::temp_path::*;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
+use std::path::{Path, PathBuf};
 use strum_macros::{Display, EnumString, IntoStaticStr};
 use tempfile::{NamedTempFile, TempPath};
-use tracing::{debug, info, instrument, warn};
-use once_cell::sync::Lazy;
 use tokio::runtime::Runtime;
+use tracing::{debug, info, instrument, warn};
 
 static GLOBAL_RT: Lazy<Runtime> = Lazy::new(|| {
     tokio::runtime::Builder::new_multi_thread()
@@ -109,11 +109,16 @@ pub trait TemplateRenderer: Debug {
     async fn count_items(&self) -> Option<i64> {
         None
     }
-    async fn prepare_user_data_batch(&self,
+    async fn prepare_user_data_batch(
+        &self,
         hasura_transaction: &Transaction<'_>,
-        keycloak_transaction: &Transaction<'_>,   offset: i64,
-        limit: i64) -> Result<Self::UserData> {
-        Err(anyhow!("prepare_user_data_batch is not implemented for this report type"))
+        keycloak_transaction: &Transaction<'_>,
+        offset: i64,
+        limit: i64,
+    ) -> Result<Self::UserData> {
+        Err(anyhow!(
+            "prepare_user_data_batch is not implemented for this report type"
+        ))
     }
 
     async fn prepare_user_data(
@@ -309,7 +314,6 @@ pub trait TemplateRenderer: Debug {
         err,
         skip(self, hasura_transaction, keycloak_transaction, user_tpl_document)
     )]
-
     #[instrument(
         err,
         skip(self, hasura_transaction, keycloak_transaction, user_tpl_document)
@@ -412,351 +416,381 @@ pub trait TemplateRenderer: Debug {
         Ok((user_tpl_document, ext_cfg))
     }
 
-// Inner implementation for `execute_report()` so that implementors of the
-// trait can reimplement the function while calling the parent default
-// implementation too when needed
-#[instrument(err, skip_all)]
-async fn execute_report_inner(
-    &self,
-    document_id: &str,
-    tenant_id: &str,
-    election_event_id: &str,
-    is_scheduled_task: bool,
-    recipients: Vec<String>,
-    generate_mode: GenerateReportMode,
-    report: Option<Report>,
-    hasura_transaction: &Transaction<'_>,
-    keycloak_transaction: &Transaction<'_>,
-    task_execution: Option<TasksExecution>,
-) -> Result<()> {
-    let task_execution_ref = task_execution.as_ref();
-    let (user_tpl_document, ext_cfg) = self
-        .user_tpl_and_extra_cfg_provider(hasura_transaction)
-        .await
-        .map_err(|e| {
-            if let Some(task) = task_execution_ref {
-                // Using block_on here is acceptable since this call is outside our batch pool.
-                block_on(update_fail(task, &format!("Failed to provide user template and extra config: {e:?}")))
+    // Inner implementation for `execute_report()` so that implementors of the
+    // trait can reimplement the function while calling the parent default
+    // implementation too when needed
+    #[instrument(err, skip_all)]
+    async fn execute_report_inner(
+        &self,
+        document_id: &str,
+        tenant_id: &str,
+        election_event_id: &str,
+        is_scheduled_task: bool,
+        recipients: Vec<String>,
+        generate_mode: GenerateReportMode,
+        report: Option<Report>,
+        hasura_transaction: &Transaction<'_>,
+        keycloak_transaction: &Transaction<'_>,
+        task_execution: Option<TasksExecution>,
+    ) -> Result<()> {
+        let task_execution_ref = task_execution.as_ref();
+        let (user_tpl_document, ext_cfg) = self
+            .user_tpl_and_extra_cfg_provider(hasura_transaction)
+            .await
+            .map_err(|e| {
+                if let Some(task) = task_execution_ref {
+                    // Using block_on here is acceptable since this call is outside our batch pool.
+                    block_on(update_fail(
+                        task,
+                        &format!("Failed to provide user template and extra config: {e:?}"),
+                    ))
                     .ok();
+                }
+                anyhow!("Error providing the user template and extra config: {e:?}")
+            })?;
+
+        // First, compute whether we need batching. In our case, if the activity log count
+        // is greater than the per‑report limit, we assume multiple files will be generated.
+        let activity_logs_count = self.count_items().await.unwrap_or(0);
+        let report_options = ext_cfg.report_options;
+        let per_report_limit = report_options.max_items_per_report.unwrap_or(1000) as i64;
+
+        let use_batching = self.get_report_type() == ReportType::ACTIVITY_LOGS
+            && activity_logs_count > per_report_limit;
+
+        let (final_file_path, file_size, final_report_name, mimetype) = if use_batching {
+            info!(
+                "Using batched processing because activity_logs_count ({}) > per_report_limit ({})",
+                activity_logs_count, per_report_limit
+            );
+            // Calculate the number of batches needed.
+            let num_batches = if per_report_limit > 0 {
+                (activity_logs_count + per_report_limit - 1) / per_report_limit
+            } else {
+                1
+            };
+            info!("Number of batches: {:?}", num_batches);
+
+            // Define a temporary reports folder (this folder will later be compressed)
+            let reports_folder = std::path::Path::new("/tmp/reports_folder"); // adjust as needed
+            std::fs::create_dir_all(&reports_folder).with_context(|| {
+                format!("Failed to create reports folder: {:?}", reports_folder)
+            })?;
+
+            // Build a Rayon pool for batch processing.
+            let batch_pool = ThreadPoolBuilder::new()
+                .num_threads(report_options.max_threads.unwrap_or(4))
+                .build()
+                .expect("Failed to build thread pool");
+
+            // Process batches concurrently.
+            let batch_file_paths: Vec<PathBuf> = batch_pool.install(|| {
+                (0..num_batches)
+                    .into_par_iter()
+                    .map(|batch_index| -> Result<PathBuf, anyhow::Error> {
+                        let offset = batch_index * per_report_limit;
+                        let rendered_system_template = GLOBAL_RT
+                            .block_on(async {
+                                self.generate_report(
+                                    generate_mode.clone(),
+                                    hasura_transaction,
+                                    keycloak_transaction,
+                                    &user_tpl_document,
+                                    Some(per_report_limit),
+                                    Some(offset),
+                                )
+                                .await
+                            })
+                            .map_err(|err| {
+                                anyhow!("Error rendering report for batch {}: {err:?}", offset)
+                            })?;
+
+                        // Render to PDF bytes
+                        let pdf_bytes = GLOBAL_RT
+                            .block_on(async {
+                                pdf::PdfRenderer::render_pdf(
+                                    rendered_system_template,
+                                    Some(ext_cfg.pdf_options.to_print_to_pdf_options()),
+                                )
+                                .await
+                            })
+                            .map_err(|err| {
+                                anyhow!("Error rendering PDF for batch {}: {err:?}", offset)
+                            })?;
+
+                        // e.g., "my_prefix"
+                        let prefix = self.prefix();
+                        // e.g., "somebasename"
+                        let base_name = self.base_name();
+
+                        let extension_suffix = "pdf";
+                        let file_suffix = format!(".{}", extension_suffix); // = ".pdf"
+
+                        // Create the actual final filename, e.g. "my_prefix-123.pdf"
+                        let batch_file_name = format!("{}-{}{}", prefix, offset, file_suffix);
+                        info!(
+                            "Batch {} => batch_file_name: {}",
+                            batch_index, batch_file_name
+                        );
+
+                        // Build the final path inside `reports_folder`:
+                        let final_path = reports_folder.join(&batch_file_name);
+
+                        // Then pass *that* final_path to write_into_named_temp_file:
+                        let (temp_file, temp_path_str, file_size) = write_into_named_temp_file(
+                            &pdf_bytes,
+                            final_path.to_string_lossy().as_ref(),
+                            &file_suffix, // or just ".pdf"
+                        )
+                        .map_err(|err| {
+                            anyhow!("Error writing batch {} to file: {err:?}", offset)
+                        })?;
+                        // We'll return the actual final path of the file in `reports_folder`.
+                        // If you want to do more renaming or copying, do it here.
+                        let final_path = reports_folder.join(&batch_file_name);
+                        temp_file.persist(&final_path).map_err(|err| {
+                            anyhow!("Error persisting batch file {batch_file_name}: {err:?}")
+                        })?;
+                        Ok(final_path)
+                    })
+                    // The critical piece: specify the collection type
+                    .collect::<Result<Vec<PathBuf>, anyhow::Error>>()
+            })?;
+
+            // Now you have a `Vec<PathBuf>` of all the PDFs created in parallel.
+            info!("batch_file_paths = {:?}", batch_file_paths);
+            // Now we define the *final* zip path in /tmp/reports_folder
+            // let dst_zip = reports_folder.join(format!("{}_final.zip", self.prefix()));
+            let zip_filename = format!("{}_final.zip", self.prefix());
+            let dst_zip = std::path::Path::new("/tmp").join(&zip_filename);
+
+            // Remove the final ZIP file from the reports folder (if it exists)
+            // This ensures it won't be included in the compression.
+            let final_zip_path = reports_folder.join(&zip_filename);
+            if final_zip_path.exists() {
+                std::fs::remove_file(&final_zip_path).with_context(|| {
+                    format!("Failed to remove existing zip file: {:?}", final_zip_path)
+                })?;
             }
-            anyhow!("Error providing the user template and extra config: {e:?}")
-        })?;
-
-    // First, compute whether we need batching. In our case, if the activity log count
-    // is greater than the per‑report limit, we assume multiple files will be generated.
-    let activity_logs_count = self.count_items().await.unwrap_or(0);
-    let report_options = ext_cfg.report_options;
-    let per_report_limit = report_options.max_items_per_report.unwrap_or(1000) as i64;
-
-    let use_batching = self.get_report_type() == ReportType::ACTIVITY_LOGS && activity_logs_count > per_report_limit;
-
-    let (final_file_path, file_size, final_report_name, mimetype) = if use_batching {
-        info!("Using batched processing because activity_logs_count ({}) > per_report_limit ({})", activity_logs_count, per_report_limit);
-        // Calculate the number of batches needed.
-        let num_batches = if per_report_limit > 0 {
-            (activity_logs_count + per_report_limit - 1) / per_report_limit
-        } else {
-            1
-        };
-        info!("Number of batches: {:?}", num_batches);
-    
-        // Define a temporary reports folder (this folder will later be compressed)
-        let reports_folder = std::path::Path::new("/tmp/reports_folder"); // adjust as needed
-        std::fs::create_dir_all(&reports_folder)
-            .with_context(|| format!("Failed to create reports folder: {:?}", reports_folder))?;
-    
-        // Build a Rayon pool for batch processing.
-        let batch_pool = ThreadPoolBuilder::new()
-            .num_threads(report_options.max_threads.unwrap_or(4))
-            .build()
-            .expect("Failed to build thread pool");
-    
-        // Process batches concurrently.
-        let batch_file_paths: Vec<PathBuf> = batch_pool.install(|| {
-            (0..num_batches)
-                .into_par_iter()
-                .map(|batch_index| -> Result<PathBuf, anyhow::Error> {
-                    let offset = batch_index * per_report_limit;
-                    let rendered_system_template = GLOBAL_RT.block_on(async {
-                        self.generate_report(
-                            generate_mode.clone(),
-                            hasura_transaction,
-                            keycloak_transaction,
-                            &user_tpl_document,
-                            Some(per_report_limit),
-                            Some(offset),
-                        )
-                        .await
-                    })
-                    .map_err(|err| anyhow!("Error rendering report for batch {}: {err:?}", offset))?;
-        
-                    // Render to PDF bytes
-                    let pdf_bytes = GLOBAL_RT.block_on(async {
-                        pdf::PdfRenderer::render_pdf(
-                            rendered_system_template,
-                            Some(ext_cfg.pdf_options.to_print_to_pdf_options()),
-                        )
-                        .await
-                    })
-                    .map_err(|err| anyhow!("Error rendering PDF for batch {}: {err:?}", offset))?;
-        
-                    // e.g., "my_prefix"
-                    let prefix = self.prefix();  
-                    // e.g., "somebasename"
-                    let base_name = self.base_name(); 
-
-                    let extension_suffix = "pdf";
-                    let file_suffix = format!(".{}", extension_suffix); // = ".pdf"
-
-                    // Create the actual final filename, e.g. "my_prefix-123.pdf"
-                    let batch_file_name = format!("{}-{}{}", prefix, offset, file_suffix);
-                    info!("Batch {} => batch_file_name: {}", batch_index, batch_file_name);
-
-                    // Build the final path inside `reports_folder`:
-                    let final_path = reports_folder.join(&batch_file_name);
-
-                    // Then pass *that* final_path to write_into_named_temp_file:
-                    let (temp_file, temp_path_str, file_size) = write_into_named_temp_file(
-                        &pdf_bytes,
-                        final_path.to_string_lossy().as_ref(),
-                        &file_suffix,  // or just ".pdf"
-                    )
-                    .map_err(|err| anyhow!("Error writing batch {} to file: {err:?}", offset))?;
-                    // We'll return the actual final path of the file in `reports_folder`.
-                    // If you want to do more renaming or copying, do it here.
-                    let final_path = reports_folder.join(&batch_file_name);
-                    temp_file
-                        .persist(&final_path)
-                        .map_err(|err| anyhow!("Error persisting batch file {batch_file_name}: {err:?}"))?;
-                    Ok(final_path)
-                })
-                // The critical piece: specify the collection type
-                .collect::<Result<Vec<PathBuf>, anyhow::Error>>()
-        })?;
-        
-        // Now you have a `Vec<PathBuf>` of all the PDFs created in parallel.
-        info!("batch_file_paths = {:?}", batch_file_paths);
-        // Now we define the *final* zip path in /tmp/reports_folder
-        // let dst_zip = reports_folder.join(format!("{}_final.zip", self.prefix()));
-        let zip_filename = format!("{}_final.zip", self.prefix());
-        let dst_zip = std::path::Path::new("/tmp").join(&zip_filename); 
-        
-        // Remove the final ZIP file from the reports folder (if it exists)
-        // This ensures it won't be included in the compression.
-        let final_zip_path = reports_folder.join(&zip_filename);
-        if final_zip_path.exists() {
-            std::fs::remove_file(&final_zip_path)
-                .with_context(|| format!("Failed to remove existing zip file: {:?}", final_zip_path))?;
-        }
-        // We compress the *entire folder* into that zip. If `compress_folder_to_zip`
-        // takes (source_directory, destination_zip), do this:
-        info!("Starting compression of reports folder: {:?}", reports_folder);
-        info!("Starting compression of :dst_zip {:?}", dst_zip);
-        let result = compress_folder_to_zip(reports_folder, &dst_zip);
+            // We compress the *entire folder* into that zip. If `compress_folder_to_zip`
+            // takes (source_directory, destination_zip), do this:
+            info!(
+                "Starting compression of reports folder: {:?}",
+                reports_folder
+            );
+            info!("Starting compression of :dst_zip {:?}", dst_zip);
+            let result = compress_folder_to_zip(reports_folder, &dst_zip);
             if let Err(e) = result {
-                info!("Compression failed: {:?}", e);  // Log the specific error
+                info!("Compression failed: {:?}", e); // Log the specific error
                 return Err(anyhow!("Error compressing folder: {e:?}"));
             }
 
-        // compress_folder_to_zip(reports_folder, &dst_zip)
+            // compress_folder_to_zip(reports_folder, &dst_zip)
             // .with_context(|| "Error compressing temporary files to zip")
 
-        // Next, get the file size for the ZIP
-        let zip_file_size = get_file_size(&dst_zip.to_string_lossy())
-        .map_err(|err| anyhow!("Error obtaining file size for zip file: {err:?}"))?;
+            // Next, get the file size for the ZIP
+            let zip_file_size = get_file_size(&dst_zip.to_string_lossy())
+                .map_err(|err| anyhow!("Error obtaining file size for zip file: {err:?}"))?;
             // .with_context(|| "Error obtaining file size for zip file")?;
 
-        // let output_zip_tempfile = generate_temp_file(&"activity_logs", "zip")?;
-        // let output_zip_path = output_zip_tempfile.path();
-        // let dst_zip = reports_folder.join(format!("{}_final.zip", self.prefix()));
-        // compress_folder_to_zip(reports_folder.as_ref(), output_zip_path)
-        //     .with_context(|| "Error compressing temporary files to zip")?;
-        // let zip_file_size = get_file_size(&output_zip_path.to_string_lossy())
-        //     .with_context(|| "Error obtaining file size for zip file")?;
-        (
-            dst_zip.to_string_lossy().to_string(),
-            zip_file_size,
-            zip_filename,
-            "application/zip".to_string()
-        )
-    } else {
-        // Regular branch for non-activity-logs or if activity_logs_count <= per_report_limit.
-        let rendered_system_template = match self.generate_report(
-            generate_mode,
-            hasura_transaction,
-            keycloak_transaction,
-            &user_tpl_document,
-            None,
-            None,
-        )
-        .await {
-            Ok(template) => template,
-            Err(err) => {
-                if let Some(task) = task_execution.as_ref() {
-                    update_fail(task, &format!("Failed to generate report {err:?}")).await.ok();
-                }
-                return Err(anyhow!("Error rendering report: {err:?}"));
-            }
-        };
-        
-        debug!("Report generated: {rendered_system_template}");
-        let extension_suffix = "pdf";
-        let content_bytes = pdf::PdfRenderer::render_pdf(
-            rendered_system_template.clone(),
-            Some(ext_cfg.pdf_options.to_print_to_pdf_options()),
-        )
-        .await
-        .map_err(|err| anyhow!("Error rendering report to pdf: {err:?}"))?;
-        
-        let base_name = self.base_name();
-        let fmt_extension = format!(".{extension_suffix}");
-        let report_name = format!("{}{}", self.prefix(), fmt_extension);
-        
-        let (_temp_path, final_file_path, file_size) = write_into_named_temp_file(
-            &content_bytes,
-            &format!("{base_name}-"),
-            fmt_extension.as_str(),
-        )
-        .map_err(|err| anyhow!("Error writing to file: {err:?}"))?;
-        (
-            final_file_path,
-            file_size,
-            report_name,
-            format!("application/{}", extension_suffix)
-        )
-    };
-
-    info!("Final file info: path = {}, size = {}, name = {}, mimetype = {}", 
-        final_file_path, file_size, final_report_name, mimetype);
-
-
-    let auth_headers = keycloak::get_client_credentials()
-        .await
-        .map_err(|err| anyhow!("Error getting client credentials: {err:?}"))?;
-    
-    let encrypted_temp_data: Option<TempPath> = if let Some(report) = &report {
-        if report.encryption_policy == EReportEncryption::ConfiguredPassword {
-            let secret_key = get_report_secret_key(&tenant_id, &election_event_id, Some(report.id.clone()));
-            let encryption_password = vault::read_secret(secret_key.clone())
-                .await?
-                .ok_or_else(|| anyhow!("Encryption password not found"))?;
-    
-                let enc_file: NamedTempFile = generate_temp_file(self.base_name().as_str(), ".epdf")
-                .with_context(|| "Error creating named temp file")?;
-    
-            let enc_temp_path = enc_file.into_temp_path();
-            let encrypted_temp_path = enc_temp_path.to_string_lossy().to_string();
-    
-            encrypt_file_aes_256_cbc(
-                &final_file_path,
-                &encrypted_temp_path,
-                &encryption_password,
+            // let output_zip_tempfile = generate_temp_file(&"activity_logs", "zip")?;
+            // let output_zip_path = output_zip_tempfile.path();
+            // let dst_zip = reports_folder.join(format!("{}_final.zip", self.prefix()));
+            // compress_folder_to_zip(reports_folder.as_ref(), output_zip_path)
+            //     .with_context(|| "Error compressing temporary files to zip")?;
+            // let zip_file_size = get_file_size(&output_zip_path.to_string_lossy())
+            //     .with_context(|| "Error obtaining file size for zip file")?;
+            (
+                dst_zip.to_string_lossy().to_string(),
+                zip_file_size,
+                zip_filename,
+                "application/zip".to_string(),
             )
-            .map_err(|err| anyhow!("Error encrypting file: {err:?}"))?;
-    
-            Some(enc_temp_path)
+        } else {
+            // Regular branch for non-activity-logs or if activity_logs_count <= per_report_limit.
+            let rendered_system_template = match self
+                .generate_report(
+                    generate_mode,
+                    hasura_transaction,
+                    keycloak_transaction,
+                    &user_tpl_document,
+                    None,
+                    None,
+                )
+                .await
+            {
+                Ok(template) => template,
+                Err(err) => {
+                    if let Some(task) = task_execution.as_ref() {
+                        update_fail(task, &format!("Failed to generate report {err:?}"))
+                            .await
+                            .ok();
+                    }
+                    return Err(anyhow!("Error rendering report: {err:?}"));
+                }
+            };
+
+            debug!("Report generated: {rendered_system_template}");
+            let extension_suffix = "pdf";
+            let content_bytes = pdf::PdfRenderer::render_pdf(
+                rendered_system_template.clone(),
+                Some(ext_cfg.pdf_options.to_print_to_pdf_options()),
+            )
+            .await
+            .map_err(|err| anyhow!("Error rendering report to pdf: {err:?}"))?;
+
+            let base_name = self.base_name();
+            let fmt_extension = format!(".{extension_suffix}");
+            let report_name = format!("{}{}", self.prefix(), fmt_extension);
+
+            let (_temp_path, final_file_path, file_size) = write_into_named_temp_file(
+                &content_bytes,
+                &format!("{base_name}-"),
+                fmt_extension.as_str(),
+            )
+            .map_err(|err| anyhow!("Error writing to file: {err:?}"))?;
+            (
+                final_file_path,
+                file_size,
+                report_name,
+                format!("application/{}", extension_suffix),
+            )
+        };
+
+        info!(
+            "Final file info: path = {}, size = {}, name = {}, mimetype = {}",
+            final_file_path, file_size, final_report_name, mimetype
+        );
+
+        let auth_headers = keycloak::get_client_credentials()
+            .await
+            .map_err(|err| anyhow!("Error getting client credentials: {err:?}"))?;
+
+        let encrypted_temp_data: Option<TempPath> = if let Some(report) = &report {
+            if report.encryption_policy == EReportEncryption::ConfiguredPassword {
+                let secret_key =
+                    get_report_secret_key(&tenant_id, &election_event_id, Some(report.id.clone()));
+                let encryption_password = vault::read_secret(secret_key.clone())
+                    .await?
+                    .ok_or_else(|| anyhow!("Encryption password not found"))?;
+
+                let enc_file: NamedTempFile =
+                    generate_temp_file(self.base_name().as_str(), ".epdf")
+                        .with_context(|| "Error creating named temp file")?;
+
+                let enc_temp_path = enc_file.into_temp_path();
+                let encrypted_temp_path = enc_temp_path.to_string_lossy().to_string();
+
+                encrypt_file_aes_256_cbc(
+                    &final_file_path,
+                    &encrypted_temp_path,
+                    &encryption_password,
+                )
+                .map_err(|err| anyhow!("Error encrypting file: {err:?}"))?;
+
+                Some(enc_temp_path)
+            } else {
+                None
+            }
         } else {
             None
-        }
-    } else {
-        None
-    };
-    
-    if let Some(enc_temp_path) = encrypted_temp_data {
-        let encrypted_temp_path = enc_temp_path.to_string_lossy().to_string();
-        let enc_temp_size = get_file_size(encrypted_temp_path.as_str())
-            .with_context(|| "Error obtaining file size")?;
-        let enc_report_name: String = format!("{}.epdf", self.prefix());
-        let _document = upload_and_return_document(
-            encrypted_temp_path,
-            enc_temp_size,
-            mimetype.clone(),
-            auth_headers.clone(),
-            tenant_id.to_string(),
-            election_event_id.to_string(),
-            enc_report_name.clone(),
-            Some(document_id.to_string()),
-            true,
-        )
-        .await
-        .map_err(|err| anyhow!("Error uploading document: {err:?}"))?;
-    
-        if self.should_send_email(is_scheduled_task) {
-            let email_config = ext_cfg.communication_templates.email_config;
-            let email_recipients = self
-                .get_email_recipients(recipients, tenant_id, election_event_id)
-                .await
-                .map_err(|err| anyhow!("Error getting email receiver: {err:?}"))?;
-            let email_sender = EmailSender::new()
-                .await
-                .map_err(|e| anyhow!(format!("Error getting email sender {e:?}")))?;
-            let enc_report_bytes = read_temp_path(&enc_temp_path)?;
-            email_sender
-                .send(
-                    email_recipients,
-                    email_config.subject,
-                    email_config.plaintext_body,
-                    email_config.html_body,
-                    vec![Attachment {
-                        filename: enc_report_name,
-                        mimetype: "application/octet-stream".into(),
-                        content: enc_report_bytes,
-                    }],
-                )
-                .await
-                .map_err(|err| anyhow!("Error sending email: {err:?}"))?;
-        }
-    } else {
-        let _document = upload_and_return_document(
-            final_file_path.clone(),
-            file_size,
-            mimetype.clone(),
-            auth_headers.clone(),
-            tenant_id.to_string(),
-            election_event_id.to_string(),
-            final_report_name.clone(),
-            Some(document_id.to_string()),
-            true,
-        )
-        .await
-        .map_err(|err| anyhow!("Error uploading document: {err:?}"))?;
-    
-        if self.should_send_email(is_scheduled_task) {
-            let email_config = ext_cfg.communication_templates.email_config;
-            let email_recipients = self
-                .get_email_recipients(recipients, tenant_id, election_event_id)
-                .await
-                .map_err(|err| anyhow!("Error getting email receiver: {err:?}"))?;
-            let email_sender = EmailSender::new()
-                .await
-                .map_err(|e| anyhow!(format!("Error getting email sender {e:?}")))?;
-            let final_file_bytes = std::fs::read(&final_file_path)
-                .map_err(|e| anyhow!("Error reading final file: {e:?}"))?;
-            email_sender
-                .send(
-                    email_recipients,
-                    email_config.subject,
-                    email_config.plaintext_body,
-                    email_config.html_body,
-                    vec![Attachment {
-                        filename: final_report_name,
-                        mimetype: mimetype,
-                        content: final_file_bytes,
-                    }],
-                )
-                .await
-                .map_err(|err| anyhow!("Error sending email: {err:?}"))?;
-        }
-    }
-    
-    if let Some(task) = task_execution_ref {
-        update_complete(task)
+        };
+
+        if let Some(enc_temp_path) = encrypted_temp_data {
+            let encrypted_temp_path = enc_temp_path.to_string_lossy().to_string();
+            let enc_temp_size = get_file_size(encrypted_temp_path.as_str())
+                .with_context(|| "Error obtaining file size")?;
+            let enc_report_name: String = format!("{}.epdf", self.prefix());
+            let _document = upload_and_return_document(
+                encrypted_temp_path,
+                enc_temp_size,
+                mimetype.clone(),
+                auth_headers.clone(),
+                tenant_id.to_string(),
+                election_event_id.to_string(),
+                enc_report_name.clone(),
+                Some(document_id.to_string()),
+                true,
+            )
             .await
-            .context("Failed to update task execution status to COMPLETED")?;
+            .map_err(|err| anyhow!("Error uploading document: {err:?}"))?;
+
+            if self.should_send_email(is_scheduled_task) {
+                let email_config = ext_cfg.communication_templates.email_config;
+                let email_recipients = self
+                    .get_email_recipients(recipients, tenant_id, election_event_id)
+                    .await
+                    .map_err(|err| anyhow!("Error getting email receiver: {err:?}"))?;
+                let email_sender = EmailSender::new()
+                    .await
+                    .map_err(|e| anyhow!(format!("Error getting email sender {e:?}")))?;
+                let enc_report_bytes = read_temp_path(&enc_temp_path)?;
+                email_sender
+                    .send(
+                        email_recipients,
+                        email_config.subject,
+                        email_config.plaintext_body,
+                        email_config.html_body,
+                        vec![Attachment {
+                            filename: enc_report_name,
+                            mimetype: "application/octet-stream".into(),
+                            content: enc_report_bytes,
+                        }],
+                    )
+                    .await
+                    .map_err(|err| anyhow!("Error sending email: {err:?}"))?;
+            }
+        } else {
+            let _document = upload_and_return_document(
+                final_file_path.clone(),
+                file_size,
+                mimetype.clone(),
+                auth_headers.clone(),
+                tenant_id.to_string(),
+                election_event_id.to_string(),
+                final_report_name.clone(),
+                Some(document_id.to_string()),
+                true,
+            )
+            .await
+            .map_err(|err| anyhow!("Error uploading document: {err:?}"))?;
+
+            if self.should_send_email(is_scheduled_task) {
+                let email_config = ext_cfg.communication_templates.email_config;
+                let email_recipients = self
+                    .get_email_recipients(recipients, tenant_id, election_event_id)
+                    .await
+                    .map_err(|err| anyhow!("Error getting email receiver: {err:?}"))?;
+                let email_sender = EmailSender::new()
+                    .await
+                    .map_err(|e| anyhow!(format!("Error getting email sender {e:?}")))?;
+                let final_file_bytes = std::fs::read(&final_file_path)
+                    .map_err(|e| anyhow!("Error reading final file: {e:?}"))?;
+                email_sender
+                    .send(
+                        email_recipients,
+                        email_config.subject,
+                        email_config.plaintext_body,
+                        email_config.html_body,
+                        vec![Attachment {
+                            filename: final_report_name,
+                            mimetype: mimetype,
+                            content: final_file_bytes,
+                        }],
+                    )
+                    .await
+                    .map_err(|err| anyhow!("Error sending email: {err:?}"))?;
+            }
+        }
+
+        if let Some(task) = task_execution_ref {
+            update_complete(task)
+                .await
+                .context("Failed to update task execution status to COMPLETED")?;
+        }
+
+        Ok(())
     }
-    
-    Ok(())
-}
     // Inner implementation for `execute_report()` so that implementors of the
     // trait can reimplement the function while calling the parent default
     // implementation too when needed
@@ -787,7 +821,7 @@ async fn execute_report_inner(
 
         // if self.get_report_type() == ReportType::ACTIVITY_LOGS {
         //     let activity_logs_count = self.count_items().await.unwrap_or(0);
-            
+
         //     // batch until reaching the count
         //     let report_options = ext_cfg.report_options;
         //     let limit = report_options.max_items_per_report.unwrap_or(1000) as i64;
@@ -821,7 +855,7 @@ async fn execute_report_inner(
         //                         Some(offset),
         //                     ).await
         //                 }).map_err(|err| anyhow!("Error rendering report for batch {}: {err:?}", offset))?;
-                        
+
         //                 let extension_suffix = "pdf";
         //                 let batched_content_bytes = GLOBAL_RT.block_on(async {
         //                     pdf::PdfRenderer::render_pdf(
@@ -829,12 +863,12 @@ async fn execute_report_inner(
         //                         Some(ext_cfg.pdf_options.to_print_to_pdf_options()),
         //                     ).await
         //                 }).map_err(|err| anyhow!("Error rendering report to {extension_suffix} for batch {}: {err:?}", offset))?;
-                        
+
         //                 let base_name = self.base_name();
         //                 let fmt_extension = format!(".{extension_suffix}");
         //                 let report_name = format!("{}{}{}", self.prefix(), fmt_extension, offset);
         //                 info!("IMRI report_name for batch {}: {:?}", batch_index, report_name);
-                        
+
         //                 // Write the PDF to a temporary file.
         //                 let (_temp_path, _temp_path_string, _file_size) = write_into_named_temp_file(
         //                     &batched_content_bytes,
@@ -842,12 +876,12 @@ async fn execute_report_inner(
         //                     fmt_extension.as_str(),
         //                 )
         //                 .map_err(|err| anyhow!("Error writing batch {} to file: {err:?}", offset))?;
-                        
+
         //                 Ok(report_name)
         //             })
         //             .collect()
         //     });
-            
+
         //     // Here we have a Vec<String> of report names for each batch.
         //     // You can either return them joined as a single string or process them individually.
         //     let final_report = match batch_report_names {
@@ -876,10 +910,10 @@ async fn execute_report_inner(
         //             return Err(anyhow!("Error rendering report: {err:?}"));
         //         }
         //     };
-    
+
         //     debug!("Report generated: {rendered_system_template}");
         //     let extension_suffix = "pdf";
-    
+
         //     // Generate PDF
         //     let content_bytes = pdf::PdfRenderer::render_pdf(
         //         rendered_system_template.clone(),
@@ -887,11 +921,11 @@ async fn execute_report_inner(
         //     )
         //     .await
         //     .map_err(|err| anyhow!("Error rendering report to {extension_suffix:?}: {err:?}"))?;
-    
+
         //     let base_name = self.base_name();
         //     let fmt_extension = format!(".{extension_suffix}");
         //     let report_name: String = format!("{}{fmt_extension}", self.prefix());
-    
+
         //     // Write temp file and upload
         //     let (_temp_path, temp_path_string, file_size) = write_into_named_temp_file(
         //         &content_bytes,
@@ -900,8 +934,7 @@ async fn execute_report_inner(
         //     )
         //     .map_err(|err| anyhow!("Error writing to file: {err:?}"))?;
         // }
-    
-    
+
         // let mimetype = format!("application/{}", extension_suffix);
 
         // info!("Report details: {:?}", report);
