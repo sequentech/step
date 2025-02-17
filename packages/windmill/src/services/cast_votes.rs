@@ -17,6 +17,7 @@ use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 use tokio_postgres::row::Row;
 use tracing::{info, instrument};
 use uuid::Uuid;
+
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct CastVote {
     pub id: String,
@@ -361,10 +362,18 @@ pub async fn get_users_with_vote_info(
     let mut user_votes_map = HashMap::<String, Vec<VotesInfo>>::with_capacity(rows.len());
 
     for row in rows {
-        let voter_id_string: String = row.try_get("voter_id_string")?;
-        let election_id: Uuid = row.try_get("election_id")?;
-        let num_votes: i64 = row.try_get("num_votes")?;
-        let last_voted_at: DateTime<Utc> = row.try_get("last_voted_at")?;
+        let voter_id_string: String = row
+            .try_get("voter_id_string")
+            .with_context(|| "Error getting voter_id_string from row")?;
+        let election_id: Uuid = row
+            .try_get("election_id")
+            .with_context(|| "Error getting election_id from row")?;
+        let num_votes: i64 = row
+            .try_get("num_votes")
+            .with_context(|| "Error getting num_votes from row")?;
+        let last_voted_at: DateTime<Utc> = row
+            .try_get("last_voted_at")
+            .with_context(|| "Error getting last_voted_at from row")?;
 
         let entry = user_votes_map
             .entry(voter_id_string)
@@ -378,7 +387,7 @@ pub async fn get_users_with_vote_info(
     }
 
     // Attach votes_info to each user in-place. Then do datafix logic if needed.
-    // We'll keep the same user order by iterating in place.
+    // keep the same user order by iterating in place.
     for user in &mut users {
         let user_id = user
             .id
@@ -391,8 +400,6 @@ pub async fn get_users_with_vote_info(
         // If this is a "datafix" event, check user attributes for "voted-channel"
         if is_datafix_event {
             if let Some(attributes) = &user.attributes {
-                // Equivalent to `.iter().find(|(k,_)| k.eq(VOTED_CHANNEL))`,
-                // but more direct:
                 if let Some(channels) = attributes.get(VOTED_CHANNEL) {
                     if let Some(channel) = channels.last() {
                         if channel != ATTR_RESET_VALUE && !channel.is_empty() {
@@ -412,7 +419,6 @@ pub async fn get_users_with_vote_info(
         user.votes_info = Some(votes_info);
     }
 
-    // If there's a filter (has_voted = true/false), we can apply a .retain
     if let Some(has_voted) = filter_by_has_voted {
         users.retain(|user| {
             let info = user.votes_info.as_ref().map(|v| v.len()).unwrap_or(0);
