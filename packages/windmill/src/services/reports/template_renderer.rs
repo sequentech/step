@@ -544,7 +544,7 @@ pub trait TemplateRenderer: Debug {
             content_bytes = read_temp_path(&enc_temp_path)?;
             email_mime_type = "application/octet-stream".into();
         }
-        
+
         let _document = upload_and_return_document(
             temp_path_string,
             file_size,

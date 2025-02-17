@@ -393,9 +393,7 @@ impl TemplateRenderer for AuditLogsTemplate {
             &election_id,
         )
         .await
-        .map_err(|err| {
-            anyhow!("Error getting results_hash: {err:?}")
-        })?;
+        .map_err(|err| anyhow!("Error getting results_hash: {err:?}"))?;
 
         let app_hash = get_app_hash();
         let app_version = get_app_version();

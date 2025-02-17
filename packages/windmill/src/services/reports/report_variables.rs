@@ -371,7 +371,7 @@ pub async fn get_results_hash(
     .first()
     .cloned();
 
-let Some(tally_session_execution) = tally_session_execution else {
+    let Some(tally_session_execution) = tally_session_execution else {
         return Ok(None);
     };
     let Some(results_event_id) = tally_session_execution.results_event_id else {
