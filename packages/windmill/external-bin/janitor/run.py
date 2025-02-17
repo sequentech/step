@@ -1204,7 +1204,7 @@ def parse_users(sheet):
     )
     return data
 
-def parse_elections(sheet):
+def parse_posts(sheet):
     data = parse_table_sheet(
         sheet,
         required_keys=[
@@ -1215,6 +1215,21 @@ def parse_elections(sheet):
             "^precinct_id$",
             "^description$",
             "^permission_label$"
+        ]
+    )
+    return data
+
+def parse_precincts(sheet):
+    data = parse_table_sheet(
+        sheet,
+        required_keys=[
+            "^precinct_id$",
+            "^name$"
+        ],
+        allowed_keys=[
+            "^precinct_id$",
+            "^name$",
+            "^region_code_overwrite$"
         ]
     )
     return data
@@ -1284,7 +1299,8 @@ def parse_excel(excel_path):
 
     return dict(
         election_event = parse_election_event(electoral_data['ElectionEvent']),
-        elections = parse_elections(electoral_data['Elections']),
+        elections = parse_posts(electoral_data['Posts']),
+        areas = parse_precincts(electoral_data['Precincts']),
         scheduled_events = parse_scheduled_events(electoral_data['ScheduledEvents']),
         reports = parse_reports(electoral_data['Reports']),
         users = parse_users(electoral_data['Users']),
@@ -1500,10 +1516,10 @@ voters_path = args.voters or args.only_voters or None
 # Determine the script's directory to use as cwd
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
-miru_data = read_miru_data(miru_path, script_dir)
-
 # Step 7: Read Excel
 excel_data = parse_excel(excel_path)
+
+miru_data = read_miru_data(miru_path, script_dir)
 
 # Step 9: Read base configuration
 base_config = read_base_config()
