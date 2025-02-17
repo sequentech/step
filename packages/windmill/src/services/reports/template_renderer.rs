@@ -464,8 +464,7 @@ pub trait TemplateRenderer: Debug {
 
         let batching_report_types = vec![ReportType::ACTIVITY_LOGS, ReportType::AUDIT_LOGS];
 
-        let use_batching = batching_report_types.contains(&self.get_report_type())
-            && activity_logs_count > per_report_limit;
+        let use_batching = batching_report_types.contains(&self.get_report_type()); //&& activity_logs_count > per_report_limit;
 
         let zip_temp_dir = tempdir()?;
         let zip_temp_dir_path = zip_temp_dir.path();
