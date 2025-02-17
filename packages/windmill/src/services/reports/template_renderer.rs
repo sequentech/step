@@ -118,7 +118,7 @@ pub trait TemplateRenderer: Debug {
         &self,
         hasura_transaction: &Transaction<'_>,
         keycloak_transaction: &Transaction<'_>,
-        offset: i64,
+        offset: &mut i64,
         limit: i64,
     ) -> Result<Self::UserData> {
         Err(anyhow!(
@@ -329,7 +329,7 @@ pub trait TemplateRenderer: Debug {
         hasura_transaction: &Transaction<'_>,
         keycloak_transaction: &Transaction<'_>,
         user_tpl_document: &str,
-        offset: Option<i64>,
+        offset: &mut Option<i64>,
         limit: Option<i64>,
     ) -> Result<String> {
         // Prepare user data either preview or real
@@ -473,7 +473,7 @@ pub trait TemplateRenderer: Debug {
         let zip_temp_dir = tempdir()?;
         let zip_temp_dir_path = zip_temp_dir.path();
 
-        let (final_file_path, file_size, final_report_name, mimetype) = if use_batching {
+        let (final_file_path, file_size, final_report_name, mimetype) = if self.get_report_type() == ReportType::ACTIVITY_LOGS {
             info!(
                 "Using batched processing because items_count ({}) > per_report_limit ({})",
                 items_count, per_report_limit
@@ -510,7 +510,7 @@ pub trait TemplateRenderer: Debug {
                                     hasura_transaction,
                                     keycloak_transaction,
                                     &user_tpl_document,
-                                    Some(offset),
+                                    &mut Some(offset),
                                     Some(per_report_limit),
                                 )
                                 .await
@@ -573,6 +573,79 @@ pub trait TemplateRenderer: Debug {
                 zip_filename,
                 "application/zip".to_string(),
             )
+        } else if  self.get_report_type() == ReportType::AUDIT_LOGS {
+            let temp_dir = tempdir()?;
+            let reports_folder = temp_dir.path();
+
+            let offset = 0;
+            let mut i = 0;
+            let mut batch_file_paths: Vec<PathBuf> = vec![];
+            while offset < items_count {
+                let batch_index = offset / per_report_limit;
+                info!("Batch index: {}", batch_index);
+                let rendered_system_template =  self.generate_report(
+                            generate_mode.clone(),
+                            hasura_transaction,
+                            keycloak_transaction,
+                            &user_tpl_document,
+                            &mut Some(offset),
+                            Some(per_report_limit),
+                        )
+                        .await
+                        .with_context(|| {
+                        format!("Error rendering report for batch {}", offset)
+                    })?;
+
+                // Render to PDF bytes
+                let pdf_bytes = 
+                        pdf::PdfRenderer::render_pdf(
+                            rendered_system_template,
+                            Some(ext_cfg.pdf_options.to_print_to_pdf_options()),
+                        )
+                        .await
+                        .with_context(|| format!("Error rendering PDF for batch {}", offset))?;
+
+                // e.g., "my_prefix"
+                let prefix = self.prefix();
+                let extension_suffix = "pdf";
+                let file_suffix = format!(".{}", extension_suffix); // = ".pdf"
+
+                // Create the actual final filename, e.g. "my_prefix-123.pdf"
+                let batch_file_name = format!("{}-{}{}", prefix, i, file_suffix);
+                info!(
+                    "Batch {} => batch_file_name: {}",
+                    batch_index, batch_file_name
+                );
+
+        
+                let final_path = reports_folder.join(&batch_file_name);
+                batch_file_paths.push(final_path.clone());
+                fs::write(&final_path, &pdf_bytes)?;
+                i += 1;
+            }
+            // Build the final path inside `reports_folder`:
+
+            // Now you have a `Vec<PathBuf>` of all the PDFs created in parallel.
+            let some_paths = batch_file_paths.into_iter().take(10).collect::<Vec<_>>();
+            info!("first 10 batch_file_paths = {:?}", some_paths);
+            // Now we define the *final* zip path
+            let zip_filename = format!("{}_final.zip", self.prefix());
+
+            let dst_zip = zip_temp_dir_path.join(&zip_filename);
+
+            compress_folder_to_zip(reports_folder, &dst_zip)
+                .with_context(|| "Error compressing folder")?;
+
+            // Next, get the file size for the ZIP
+            let zip_file_size = get_file_size(&dst_zip.to_string_lossy())
+                .with_context(|| "Error obtaining file size for zip file")?;
+
+            (
+                dst_zip.to_string_lossy().to_string(),
+                zip_file_size,
+                zip_filename,
+                "application/zip".to_string(),
+            )
         } else {
             // Regular branch for non-activity-logs or if activity_logs_count <= per_report_limit.
             let rendered_system_template = match self
@@ -581,7 +654,7 @@ pub trait TemplateRenderer: Debug {
                     hasura_transaction,
                     keycloak_transaction,
                     &user_tpl_document,
-                    None,
+                    &mut None,
                     None,
                 )
                 .await
@@ -755,288 +828,6 @@ pub trait TemplateRenderer: Debug {
 
         Ok(())
     }
-    // Inner implementation for `execute_report()` so that implementors of the
-    // trait can reimplement the function while calling the parent default
-    // implementation too when needed
-    #[instrument(err, skip_all)]
-    async fn execute_report_inner_old(
-        &self,
-        document_id: &str,
-        tenant_id: &str,
-        election_event_id: &str,
-        is_scheduled_task: bool,
-        recipients: Vec<String>,
-        generate_mode: GenerateReportMode,
-        report: Option<Report>,
-        hasura_transaction: &Transaction<'_>,
-        keycloak_transaction: &Transaction<'_>,
-        task_execution: Option<TasksExecution>,
-    ) -> Result<()> {
-        // let task_execution_ref = task_execution.as_ref();
-        // let (user_tpl_document, ext_cfg) = self
-        //     .user_tpl_and_extra_cfg_provider(hasura_transaction)
-        //     .await
-        //     .map_err(|e| {
-        //         if let Some(task) = task_execution_ref {
-        //             block_on(update_fail(task, &format!("Failed to provide user template and extra config: {e:?}"))).ok();
-        //         }
-        //         anyhow!("Error providing the user template and extra config: {e:?}")
-        //     })?;
-
-        // if self.get_report_type() == ReportType::ACTIVITY_LOGS {
-        //     let activity_logs_count = self.count_items().await.unwrap_or(0);
-
-        //     // batch until reaching the count
-        //     let report_options = ext_cfg.report_options;
-        //     let limit = report_options.max_items_per_report.unwrap_or(1000) as i64;
-        //     let max_threads = report_options.max_threads.unwrap_or(4);
-        //     info!("activity_logs_count: {:?}", activity_logs_count);
-        //     // Compute the number of batches needed.
-        //     let num_batches = if limit > 0 {
-        //         (activity_logs_count + limit - 1) / limit
-        //     } else {
-        //         1
-        //     };
-        //     info!("Number of batches: {:?}", num_batches);
-        //     let batch_pool = ThreadPoolBuilder::new()
-        //         .num_threads(max_threads) // adjust max_threads as needed
-        //         .build()
-        //         .expect("Failed to build thread pool");
-
-        //     let batch_report_names: Result<Vec<String>, anyhow::Error> = batch_pool.install(|| {
-        //         (0..num_batches)
-        //             .into_par_iter()
-        //             .map(|batch_index| -> Result<String, anyhow::Error> {
-        //                 let offset = batch_index * limit;
-        //                 // Use the global runtime to drive async code.
-        //                 let rendered_system_template = GLOBAL_RT.block_on(async {
-        //                     self.generate_report(
-        //                         generate_mode.clone(),
-        //                         hasura_transaction,
-        //                         keycloak_transaction,
-        //                         &user_tpl_document,
-        //                         Some(limit),
-        //                         Some(offset),
-        //                     ).await
-        //                 }).map_err(|err| anyhow!("Error rendering report for batch {}: {err:?}", offset))?;
-
-        //                 let extension_suffix = "pdf";
-        //                 let batched_content_bytes = GLOBAL_RT.block_on(async {
-        //                     pdf::PdfRenderer::render_pdf(
-        //                         rendered_system_template,
-        //                         Some(ext_cfg.pdf_options.to_print_to_pdf_options()),
-        //                     ).await
-        //                 }).map_err(|err| anyhow!("Error rendering report to {extension_suffix} for batch {}: {err:?}", offset))?;
-
-        //                 let base_name = self.base_name();
-        //                 let fmt_extension = format!(".{extension_suffix}");
-        //                 let report_name = format!("{}{}{}", self.prefix(), fmt_extension, offset);
-        //                 info!("IMRI report_name for batch {}: {:?}", batch_index, report_name);
-
-        //                 // Write the PDF to a temporary file.
-        //                 let (_temp_path, _temp_path_string, _file_size) = write_into_named_temp_file(
-        //                     &batched_content_bytes,
-        //                     format!("{base_name}-").as_str(),
-        //                     fmt_extension.as_str(),
-        //                 )
-        //                 .map_err(|err| anyhow!("Error writing batch {} to file: {err:?}", offset))?;
-
-        //                 Ok(report_name)
-        //             })
-        //             .collect()
-        //     });
-
-        //     // Here we have a Vec<String> of report names for each batch.
-        //     // You can either return them joined as a single string or process them individually.
-        //     let final_report = match batch_report_names {
-        //         Ok(names) => names.join(", "),
-        //         Err(err) => return Err(err),
-        //     };
-        //     info!("Final report names: {}",final_report);
-        // } else {
-        //     // Generate report in html
-        //     let rendered_system_template = match self
-        //         .generate_report(
-        //             generate_mode,
-        //             hasura_transaction,
-        //             keycloak_transaction,
-        //             &user_tpl_document,
-        //             None,
-        //             None,
-        //         )
-        //         .await
-        //     {
-        //         Ok(template) => template,
-        //         Err(err) => {
-        //             if let Some(task) = task_execution_ref {
-        //                 update_fail(&task, &format!("Failed to generate report {err:?}")).await?;
-        //             }
-        //             return Err(anyhow!("Error rendering report: {err:?}"));
-        //         }
-        //     };
-
-        //     debug!("Report generated: {rendered_system_template}");
-        //     let extension_suffix = "pdf";
-
-        //     // Generate PDF
-        //     let content_bytes = pdf::PdfRenderer::render_pdf(
-        //         rendered_system_template.clone(),
-        //         Some(ext_cfg.pdf_options.to_print_to_pdf_options()),
-        //     )
-        //     .await
-        //     .map_err(|err| anyhow!("Error rendering report to {extension_suffix:?}: {err:?}"))?;
-
-        //     let base_name = self.base_name();
-        //     let fmt_extension = format!(".{extension_suffix}");
-        //     let report_name: String = format!("{}{fmt_extension}", self.prefix());
-
-        //     // Write temp file and upload
-        //     let (_temp_path, temp_path_string, file_size) = write_into_named_temp_file(
-        //         &content_bytes,
-        //         format!("{base_name}-").as_str(),
-        //         fmt_extension.as_str(),
-        //     )
-        //     .map_err(|err| anyhow!("Error writing to file: {err:?}"))?;
-        // }
-
-        // let mimetype = format!("application/{}", extension_suffix);
-
-        // info!("Report details: {:?}", report);
-
-        // let encrypted_temp_data: Option<TempPath> = if let Some(report) = &report {
-        //     if report.encryption_policy == EReportEncryption::ConfiguredPassword {
-        //         let secret_key =
-        //             get_report_secret_key(&tenant_id, &election_event_id, Some(report.id.clone()));
-
-        //         let encryption_password = vault::read_secret(secret_key.clone())
-        //             .await?
-        //             .ok_or_else(|| anyhow!("Encryption password not found"))?;
-
-        //         // Encrypt the file
-        //         let enc_file: NamedTempFile =
-        //             generate_temp_file(format!("{base_name}-").as_str(), ".epdf")
-        //                 .with_context(|| "Error creating named temp file")?;
-
-        //         let enc_temp_path = enc_file.into_temp_path();
-        //         let encrypted_temp_path = enc_temp_path.to_string_lossy().to_string();
-
-        //         encrypt_file_aes_256_cbc(
-        //             &temp_path_string,
-        //             &encrypted_temp_path,
-        //             &encryption_password,
-        //         )
-        //         .map_err(|err| anyhow!("Error encrypting file: {err:?}"))?;
-
-        //         Some(enc_temp_path)
-        //     } else {
-        //         None // No encryption needed
-        //     }
-        // } else {
-        //     None // No report, no encryption
-        // };
-
-        // // Upload the document
-        // let auth_headers = keycloak::get_client_credentials()
-        //     .await
-        //     .map_err(|err| anyhow!("Error getting client credentials: {err:?}"))?;
-        // if let Some(enc_temp_path) = encrypted_temp_data {
-        //     let encrypted_temp_path = enc_temp_path.to_string_lossy().to_string();
-        //     let enc_temp_size = get_file_size(encrypted_temp_path.as_str())
-        //         .with_context(|| "Error obtaining file size")?;
-        //     let enc_report_name: String = format!("{}.epdf", self.prefix());
-        //     let _document = upload_and_return_document(
-        //         encrypted_temp_path,
-        //         enc_temp_size,
-        //         mimetype.clone(),
-        //         auth_headers.clone(),
-        //         tenant_id.to_string(),
-        //         election_event_id.to_string(),
-        //         enc_report_name.clone(),
-        //         Some(document_id.to_string()),
-        //         true,
-        //     )
-        //     .await
-        //     .map_err(|err| anyhow!("Error uploading document: {err:?}"))?;
-
-        //     // Send email if needed
-        //     if self.should_send_email(is_scheduled_task) {
-        //         let email_config = ext_cfg.communication_templates.email_config;
-        //         let email_recipients = self
-        //             .get_email_recipients(recipients, tenant_id, election_event_id)
-        //             .await
-        //             .map_err(|err| anyhow!("Error getting email receiver: {err:?}"))?;
-        //         let email_sender = EmailSender::new()
-        //             .await
-        //             .map_err(|e| anyhow::anyhow!(format!("Error getting email sender {e:?}")))?;
-        //         let enc_report_bytes = read_temp_path(&enc_temp_path)?;
-        //         email_sender
-        //             .send(
-        //                 email_recipients,
-        //                 email_config.subject,
-        //                 email_config.plaintext_body,
-        //                 email_config.html_body,
-        //                 /* attachments */
-        //                 vec![Attachment {
-        //                     filename: enc_report_name,
-        //                     mimetype: "application/octet-stream".into(),
-        //                     content: enc_report_bytes,
-        //                 }],
-        //             )
-        //             .await
-        //             .map_err(|err| anyhow!("Error sending email: {err:?}"))?;
-        //     }
-        // } else {
-        //     let _document = upload_and_return_document(
-        //         temp_path_string,
-        //         file_size,
-        //         mimetype.clone(),
-        //         auth_headers.clone(),
-        //         tenant_id.to_string(),
-        //         election_event_id.to_string(),
-        //         report_name.clone(),
-        //         Some(document_id.to_string()),
-        //         true,
-        //     )
-        //     .await
-        //     .map_err(|err| anyhow!("Error uploading document: {err:?}"))?;
-
-        //     // Send email if needed
-        //     if self.should_send_email(is_scheduled_task) {
-        //         let email_config = ext_cfg.communication_templates.email_config;
-        //         let email_recipients = self
-        //             .get_email_recipients(recipients, tenant_id, election_event_id)
-        //             .await
-        //             .map_err(|err| anyhow!("Error getting email receiver: {err:?}"))?;
-        //         let email_sender = EmailSender::new()
-        //             .await
-        //             .map_err(|e| anyhow::anyhow!(format!("Error getting email sender {e:?}")))?;
-        //         email_sender
-        //             .send(
-        //                 email_recipients,
-        //                 email_config.subject,
-        //                 email_config.plaintext_body,
-        //                 email_config.html_body,
-        //                 /* attachments */
-        //                 vec![Attachment {
-        //                     filename: report_name,
-        //                     mimetype: mimetype,
-        //                     content: content_bytes,
-        //                 }],
-        //             )
-        //             .await
-        //             .map_err(|err| anyhow!("Error sending email: {err:?}"))?;
-        //     }
-        // }
-
-        // if let Some(task) = task_execution_ref {
-        //     update_complete(&task)
-        //         .await
-        //         .context("Failed to update task execution status to COMPLETED")?;
-        // }
-
-        Ok(())
-    }
-
     #[instrument(err, skip_all)]
     async fn execute_report(
         &self,

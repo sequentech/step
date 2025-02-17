@@ -166,7 +166,7 @@ impl TemplateRenderer for ActivityLogsTemplate {
         &self,
         _hasura_transaction: &Transaction<'_>,
         _keycloak_transaction: &Transaction<'_>,
-        offset: i64,
+        offset: &mut i64,
         limit: i64,
     ) -> Result<Self::UserData> {
         let mut act_log: Vec<ActivityLogRow> = vec![];
@@ -176,7 +176,7 @@ impl TemplateRenderer for ActivityLogsTemplate {
             tenant_id: self.ids.tenant_id.clone(),
             election_event_id: self.ids.election_event_id.clone(),
             limit: Some(limit),
-            offset: Some(offset),
+            offset: Some(*offset),
             filter: None,
             order_by: None,
         })

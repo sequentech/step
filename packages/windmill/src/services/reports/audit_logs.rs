@@ -27,6 +27,7 @@ use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use chrono::{DateTime, Local};
 use deadpool_postgres::Transaction;
+use rand::seq;
 use sequent_core::ballot::StringifiedPeriodDates;
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
@@ -306,7 +307,7 @@ impl TemplateRenderer for AuditLogsTemplate {
         &self,
         hasura_transaction: &Transaction<'_>,
         keycloak_transaction: &Transaction<'_>,
-        offset: i64,
+        offset: &mut i64,
         limit: i64,
     ) -> Result<Self::UserData> {
         let mut user_data = self
@@ -362,120 +363,133 @@ impl TemplateRenderer for AuditLogsTemplate {
                 None
             }
         };
-
-
-        let electoral_logs_batch = list_electoral_log(GetElectoralLogBody {
-            tenant_id: String::from(&self.get_tenant_id()),
-            election_event_id: String::from(&self.ids.election_event_id),
-            limit: Some(limit),
-            offset: Some(offset),
-            filter: None,
-            order_by: None,
-        })
-        .await
-        .with_context(|| "Error in fetching list of electoral logs")?;
-        let mut election_user_ids : Vec<String> = Vec::new();
-        for item in &electoral_logs_batch.items {
-            election_user_ids.push(item.user_id.clone().unwrap_or_default());
-        }
-
-        let admins_filter = ListUsersFilter {
-            tenant_id: self.get_tenant_id(),
-            realm: tenant_realm_name.clone(),
-            attributes: perm_lbl_attributes.clone(),
-            user_ids: Some(election_user_ids.clone()),
-            ..Default::default() // Fill the options that are left to None
-        };
-        let (users, _total_count) = list_users(
-            &hasura_transaction,
-            &keycloak_transaction,
-            ListUsersFilter {
-                ..admins_filter.clone()
-            },
-        )
-        .await
-        .with_context(|| "Failed to fetch list_users")?; 
-        
-        let election_batch_admin_ids: HashSet<String> = users
-            .into_iter()
-            .filter_map(|user| user.id) // Extract `id` if Some
-            .collect();
-    
-        let voters_filter = ListUsersFilter {
-            tenant_id: self.get_tenant_id(),
-            realm: event_realm_name.clone(),
-            election_event_id: Some(String::from(&self.get_election_event_id())),
-            election_id: Some(election_id.clone()),
-            area_id: None,        // To fill below
-            user_ids: Some(election_user_ids.clone()),
-            ..Default::default()  // Fill the options that are left to None
-        };
-        let (users, _total_count) = list_users(
-            &hasura_transaction,
-            &keycloak_transaction,
-            ListUsersFilter {
-                ..voters_filter.clone()
-            },
-        )
-        .await
-        .with_context(|| "Failed to fetch list_users")?;
-
-        let election_batch_voters_ids: HashSet<String> = users
-            .into_iter()
-            .filter_map(|user| user.id) // Extract `id` if Some
-            .collect();
         let mut sequences: Vec<AuditLogEntry> = Vec::new();
+        let mut logs_visited = 0;
+        while sequences.len() < limit as usize {
+            let electoral_logs_batch = list_electoral_log(GetElectoralLogBody {
+                tenant_id: String::from(&self.get_tenant_id()),
+                election_event_id: String::from(&self.ids.election_event_id),
+                limit: Some(limit),
+                offset: Some(*offset),
+                filter: None,
+                order_by: None,
+            })
+            .await
+            .with_context(|| "Error in fetching list of electoral logs")?;
+            if electoral_logs_batch.items.len() == 0 {
+                break;
+            }
+            let mut election_user_ids : Vec<String> = Vec::new();
+            for item in &electoral_logs_batch.items {
+                election_user_ids.push(item.user_id.clone().unwrap_or_default());
+            }
 
-        for item in &electoral_logs_batch.items {
-            // Discard the log entries that are not related to this election
-            let userkind = match &item.user_id {
-                Some(user_id) if election_batch_admin_ids.contains(user_id) => "Admin".to_string(),
-                Some(user_id) if election_batch_voters_ids.contains(user_id) => "Voter".to_string(),
-                Some(_) => continue, // Some user_id not belonging to this election
-                None => continue,    // There is no user_id, ignore log entry
+            let admins_filter = ListUsersFilter {
+                tenant_id: self.get_tenant_id(),
+                realm: tenant_realm_name.clone(),
+                attributes: perm_lbl_attributes.clone(),
+                user_ids: Some(election_user_ids.clone()),
+                ..Default::default() // Fill the options that are left to None
             };
-
-            let created_datetime: DateTime<Local> = if let Ok(created_datetime_parsed) =
-                ISO8601::timestamp_secs_utc_to_date_opt(item.created)
-            {
-                created_datetime_parsed
-            } else {
-                return Err(anyhow!(
-                    "Invalid item created timestamp: {:?}",
-                    item.created
-                ));
+            let (users, _total_count) = list_users(
+                &hasura_transaction,
+                &keycloak_transaction,
+                ListUsersFilter {
+                    ..admins_filter.clone()
+                },
+            )
+            .await
+            .with_context(|| "Failed to fetch list_users")?; 
+            
+            let election_batch_admin_ids: HashSet<String> = users
+                .into_iter()
+                .filter_map(|user| user.id) // Extract `id` if Some
+                .collect();
+        
+            let voters_filter = ListUsersFilter {
+                tenant_id: self.get_tenant_id(),
+                realm: event_realm_name.clone(),
+                election_event_id: Some(String::from(&self.get_election_event_id())),
+                election_id: Some(election_id.clone()),
+                area_id: None,        // To fill below
+                user_ids: Some(election_user_ids.clone()),
+                ..Default::default()  // Fill the options that are left to None
             };
-            let formatted_datetime: String = created_datetime.to_rfc3339();
+            let (users, _total_count) = list_users(
+                &hasura_transaction,
+                &keycloak_transaction,
+                ListUsersFilter {
+                    ..voters_filter.clone()
+                },
+            )
+            .await
+            .with_context(|| "Failed to fetch list_users")?;
 
-            // Set default username if user_id is None
-            let username = item
-                .username
-                .clone()
-                .map(|user| {
-                    if user == "null" {
-                        "-".to_string()
-                    } else {
-                        user
-                    }
-                })
-                .unwrap_or_else(|| "-".to_string());
+            let election_batch_voters_ids: HashSet<String> = users
+                .into_iter()
+                .filter_map(|user| user.id) // Extract `id` if Some
+                .collect();
 
-            // Map fields from `ElectoralLogRow` to `AuditLogEntry`
-            let audit_log_entry = AuditLogEntry {
-                number: item.id, // Increment number for each item
-                datetime: formatted_datetime,
-                username,
-                userkind,
-                activity: item
-                    .statement_head_data()
-                    .map(|head| head.description.clone())
-                    .unwrap_or("-".to_string()),
-            };
+            for item in &electoral_logs_batch.items {
+                logs_visited += 1;
+                // Discard the log entries that are not related to this election
+                let userkind = match &item.user_id {
+                    Some(user_id) if election_batch_admin_ids.contains(user_id) => "Admin".to_string(),
+                    Some(user_id) if election_batch_voters_ids.contains(user_id) => "Voter".to_string(),
+                    Some(_) => continue, // Some user_id not belonging to this election
+                    None => continue,    // There is no user_id, ignore log entry
+                };
 
-            // Push the constructed `AuditLogEntry` to the sequences array
-            sequences.push(audit_log_entry);
-        }
+                let created_datetime: DateTime<Local> = if let Ok(created_datetime_parsed) =
+                    ISO8601::timestamp_secs_utc_to_date_opt(item.created)
+                {
+                    created_datetime_parsed
+                } else {
+                    return Err(anyhow!(
+                        "Invalid item created timestamp: {:?}",
+                        item.created
+                    ));
+                };
+                let formatted_datetime: String = created_datetime.to_rfc3339();
 
+                // Set default username if user_id is None
+                let username = item
+                    .username
+                    .clone()
+                    .map(|user| {
+                        if user == "null" {
+                            "-".to_string()
+                        } else {
+                            user
+                        }
+                    })
+                    .unwrap_or_else(|| "-".to_string());
+
+                // Map fields from `ElectoralLogRow` to `AuditLogEntry`
+                let audit_log_entry = AuditLogEntry {
+                    number: item.id, // Increment number for each item
+                    datetime: formatted_datetime,
+                    username,
+                    userkind,
+                    activity: item
+                        .statement_head_data()
+                        .map(|head| head.description.clone())
+                        .unwrap_or("-".to_string()),
+                };
+                info!("sequences  {{sequences.len()}} limit {{limit}}");
+                // Push the constructed `AuditLogEntry` to the sequences array
+                sequences.push(audit_log_entry);
+                if sequences.len() == limit as usize {
+                    break;
+                }
+            }
+            
+            *offset += logs_visited;
+            info!("offset {offset} logs_visited {logs_visited}");
+            if sequences.len() == limit as usize {
+                break;
+            }
+        }   
         user_data.sequences = sequences;
 
         Ok(user_data)
