@@ -333,6 +333,26 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
 
         setSelectedList(selectedReceipts ?? null)
 
+        console.log("aa receipts", receipts)
+        console.log(
+            "aa receipts active",
+            receipts?.filter((receipt) => receipt.is_active)
+        )
+        console.log(
+            "aa receipts type",
+            receipts
+                ?.filter((receipt) => receipt.is_active)
+                .map((receipt) => receipt.type as ETemplateType)
+        )
+        console.log(
+            "aa set",
+            new Set(
+                receipts
+                    ?.filter((receipt) => receipt.is_active)
+                    .map((receipt) => receipt.type as ETemplateType)
+            )
+        )
+
         // Get a list of unique template types
         const uniqueTypes = Array.from(
             new Set(
@@ -341,9 +361,13 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
                     .map((receipt) => receipt.type as ETemplateType)
             )
         )
-        // Set the list of template types
-        setTypesList(uniqueTypes)
+        // Set the list of template types filtered by types in communication templates
+        setTypesList(uniqueTypes.filter(is_communication_template_type))
     }, [selectedMethod, selectedType, receipts])
+
+    useEffect(() => {
+        console.log("aa types list in effect", typesList)
+    }, [typesList])
 
     //const possibleLanguages = ["en", "es"]
     //const renderLangs = () => {
@@ -510,7 +534,7 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
                                     value={template.type}
                                     onChange={handleSelectTypeChange}
                                 >
-                                    {typesList.filter(is_communication_template_type).map((key) => (
+                                    {typesList.map((key) => (
                                         <MenuItem key={key} value={key}>
                                             {t(`template.type.${key}`)}
                                         </MenuItem>
