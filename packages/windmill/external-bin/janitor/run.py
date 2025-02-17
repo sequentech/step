@@ -23,6 +23,8 @@ from pathlib import Path
 from patch import parse_table_sheet, parse_parameters, patch_json_with_excel
 import re
 
+IS_DEBUG = False
+
 def is_valid_regex(pattern):
     try:
         re.compile(pattern)  # Try to compile the regex
@@ -782,10 +784,6 @@ def gen_tree(excel_data, miru_data, script_idr, multiply_factor):
         precinct_id = row["DB_TRANS_SOURCE_ID"]
         area_name = row["DB_ALLMUN_AREA_NAME"].strip()
 
-        # the area
-        if precinct_id in areas:
-            continue
-
         area_context = next((area for area in excel_data["areas"] if str(area["precinct_id"]) == precinct_id), None)
 
         if area_context is None:
@@ -796,7 +794,13 @@ def gen_tree(excel_data, miru_data, script_idr, multiply_factor):
             raise Exception(f"precinct with 'id' = {precinct_id} not found in miru acf")
         miru_precinct = miru_data[precinct_id]
 
-        region_code = area_context["region_code_overwrite"] if "region_code_overwrite" in area_context and area_context["region_code_overwrite"] is not None else row["pop_POLLCENTER_CODE"]
+        region_code = str(area_context["region_code_overwrite"] if "region_code_overwrite" in area_context and area_context["region_code_overwrite"] is not None else row["pop_POLLCENTER_CODE"])
+
+        # the area
+        if region_code in areas:
+            found_area = next((a for a in areas[region_code] if a["precinct_id"] == precinct_id), None)
+            if found_area:
+                continue
 
         ccs_servers = [{
             "name": server["NAME"],
@@ -828,7 +832,7 @@ def gen_tree(excel_data, miru_data, script_idr, multiply_factor):
         }
         if region_code not in areas:
             areas[region_code] = []
-        areas[region_code].push(area)
+        areas[region_code].append(area)
 
     for (idx, row) in enumerate(results):
         # print(f"processing row {idx}")
@@ -1000,8 +1004,6 @@ def gen_tree(excel_data, miru_data, script_idr, multiply_factor):
     print(f"elections_object {len(elections_object['elections'])}")
 
     return elections_object, areas, results
-
-
 
 def replace_placeholder_database(excel_data, election_event_id, miru_data, script_dir, multiply_factor):
     election_tree, areas_dict, results = gen_tree(excel_data, miru_data, script_dir, multiply_factor)
@@ -1386,6 +1388,8 @@ def get_data_ocf_path(script_dir):
 
 def extract_miru_zips(acf_path, script_dir):
     ocf_path = get_data_ocf_path(script_dir)
+    if IS_DEBUG:
+        return ocf_path
     remove_folder_if_exists(ocf_path)
     assert_folder_exists(ocf_path)
     extract_zip(acf_path, None, ocf_path)
@@ -1461,7 +1465,8 @@ def read_miru_data(acf_path, script_dir):
                 -providerpath bcprov.jar \
                 -rfc \
                 | openssl x509 -pubkey -noout > {alias_path}"""
-            run_command(command, script_dir)
+            if not IS_DEBUG:
+                run_command(command, script_dir)
             
             alias_pubkey = read_text_file(alias_path)
             server["PUBLIC_KEY"] = alias_pubkey
@@ -1482,6 +1487,9 @@ def read_miru_data(acf_path, script_dir):
             "USERS": users
         }
         data[precinct_id] = precinct_data
+
+        if IS_DEBUG:
+            continue
 
         sql_output_path = os.path.join(ocf_path, precinct_id,'miru.sql')
         sqlite_output_path =  os.path.join(ocf_path, precinct_id, 'db_sqlite_miru.db')
