@@ -293,7 +293,6 @@ impl TemplateRenderer for AuditLogsTemplate {
     async fn count_items(&self) -> Option<i64> {
         None
     }
-
     #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
     async fn prepare_user_data_batch(
         &self,
@@ -385,7 +384,7 @@ impl TemplateRenderer for AuditLogsTemplate {
                 let Some(admin_id) = admin.id.clone() else {
                     info!("Unexpected, admin user with no id {:?}", admin);
                     continue;
-                }
+                };
                 election_admin_ids.insert(admin_id);
             }
             if total_count < max_batch_size {

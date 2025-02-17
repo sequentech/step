@@ -339,6 +339,7 @@ pub trait TemplateRenderer: Debug {
                 .map_err(|e| anyhow!("Error preparing preview user data: {e:?}"))?
         } else {
             if let (Some(o), Some(l)) = (offset, limit) {
+                info!("Batched processing: offset = {o}, limit = {l}");
                 self.prepare_user_data_batch(hasura_transaction, keycloak_transaction, o, l)
                     .await
                     .map_err(|e| anyhow!("Error preparing batched user data: {e:?}"))?
@@ -462,11 +463,13 @@ pub trait TemplateRenderer: Debug {
             .max_items_per_report
             .unwrap_or(DEFAULT_ITEMS_PER_REPORT_LIMIT) as i64;
 
-        let batching_report_types = vec![ReportType::ACTIVITY_LOGS, ReportType::AUDIT_LOGS];
+        let batching_report_types = vec![ReportType::ACTIVITY_LOGS];
 
         let use_batching = batching_report_types.contains(&self.get_report_type())
             && items_count > per_report_limit;
-
+        info!(
+            "Items count: {items_count}, per report limit: {per_report_limit}, use batching: {use_batching}"
+        );
         let zip_temp_dir = tempdir()?;
         let zip_temp_dir_path = zip_temp_dir.path();
 
@@ -603,20 +606,17 @@ pub trait TemplateRenderer: Debug {
             .await
             .map_err(|err| anyhow!("Error rendering report to pdf: {err:?}"))?;
 
-            let base_name = self.base_name();
             let fmt_extension = format!(".{extension_suffix}");
             let report_name = format!("{}{}", self.prefix(), fmt_extension);
 
-            let (_temp_path, final_file_path, file_size) = write_into_named_temp_file(
-                &content_bytes,
-                &format!("{base_name}-"),
-                fmt_extension.as_str(),
-            )
-            .map_err(|err| anyhow!("Error writing to file: {err:?}"))?;
+            let final_path = format!("/tmp/{}", report_name);
+            fs::write(&final_path, &content_bytes)?;
+            let file_size = get_file_size(&final_path)
+                .with_context(|| "Error obtaining file size for zip file")?;
             (
-                final_file_path,
+                final_path,
                 file_size,
-                report_name,
+                report_name.clone(),
                 format!("application/{}", extension_suffix),
             )
         };
