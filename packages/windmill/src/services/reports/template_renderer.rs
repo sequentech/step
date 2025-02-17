@@ -463,7 +463,7 @@ pub trait TemplateRenderer: Debug {
             .max_items_per_report
             .unwrap_or(DEFAULT_ITEMS_PER_REPORT_LIMIT) as i64;
 
-        let batching_report_types = vec![ReportType::ACTIVITY_LOGS];
+        let batching_report_types = vec![ReportType::ACTIVITY_LOGS, ReportType::AUDIT_LOGS];
 
         let use_batching = batching_report_types.contains(&self.get_report_type())
             && items_count > per_report_limit;
