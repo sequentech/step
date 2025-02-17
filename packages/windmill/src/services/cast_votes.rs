@@ -300,14 +300,17 @@ pub async fn get_users_with_vote_info(
         .with_context(|| "Error parsing election_event_id as UUID")?;
 
     let election_uuid = match election_id {
-        Some(ref election_id_r) => Some(Uuid::parse_str(election_id_r.as_str())?),
+        Some(ref election_id_s) => Some(
+            Uuid::parse_str(election_id_s)
+                .with_context(|| format!("Error parsing election_id {election_id_s} as UUID"))?,
+        ),
         None => None,
     };
 
     let is_datafix_event =
         is_datafix_election_event(hasura_transaction, tenant_id, election_event_id)
             .await
-            .map_err(|e| anyhow!(" Error checking if is datafix election event: {:?}", e))?;
+            .with_context(|| "Error checking if is datafix election event")?;
 
     // Collect user IDs (and verify all have an ID)
     let user_ids: Vec<String> = users
@@ -320,7 +323,7 @@ pub async fn get_users_with_vote_info(
         .collect::<Result<Vec<String>>>()
         .with_context(|| "Error extracting user IDs")?;
 
-    // If there are no users, we can return early
+    // If no users, we can return early
     if user_ids.is_empty() {
         return Ok(vec![]);
     }
@@ -375,15 +378,14 @@ pub async fn get_users_with_vote_info(
             .try_get("last_voted_at")
             .with_context(|| "Error getting last_voted_at from row")?;
 
-        let entry = user_votes_map
+        user_votes_map
             .entry(voter_id_string)
-            .or_insert_with(Vec::new);
-
-        entry.push(VotesInfo {
-            election_id: election_id.to_string(),
-            num_votes: num_votes as usize,
-            last_voted_at: last_voted_at.to_string(),
-        });
+            .or_insert_with(Vec::new)
+            .push(VotesInfo {
+                election_id: election_id.to_string(),
+                num_votes: num_votes as usize,
+                last_voted_at: last_voted_at.to_string(),
+            });
     }
 
     // Attach votes_info to each user in-place. Then do datafix logic if needed.
@@ -394,16 +396,16 @@ pub async fn get_users_with_vote_info(
             .as_ref()
             .ok_or_else(|| anyhow!("Encountered a user without an ID"))?;
 
-        // Look up any VotesInfo we collected
+        // Get the collected VotesInfo from the map, or empty Vec if none
         let mut votes_info = user_votes_map.remove(user_id).unwrap_or_default();
 
-        // If this is a "datafix" event, check user attributes for "voted-channel"
+        // If this is a "datafix" event, adjust the votes_info by checking the user's attributes
         if is_datafix_event {
             if let Some(attributes) = &user.attributes {
                 if let Some(channels) = attributes.get(VOTED_CHANNEL) {
                     if let Some(channel) = channels.last() {
+                        // Overwrite with a single “voted” entry if the channel isn't reset/empty
                         if channel != ATTR_RESET_VALUE && !channel.is_empty() {
-                            // Overwrite with a single “voted” entry
                             votes_info = vec![VotesInfo {
                                 election_id: "".to_string(),
                                 num_votes: 1,
@@ -415,19 +417,17 @@ pub async fn get_users_with_vote_info(
             }
         }
 
-        // Attach the final votes_info
         user.votes_info = Some(votes_info);
     }
 
+    // filter by has_voted, if needed - keep only users with at least one vote
     if let Some(has_voted) = filter_by_has_voted {
         users.retain(|user| {
-            let info = user.votes_info.as_ref().map(|v| v.len()).unwrap_or(0);
+            let info_count = user.votes_info.as_ref().map(|v| v.len()).unwrap_or(0);
             if has_voted {
-                // keep only users with at least one VotesInfo
-                info > 0
+                info_count > 0
             } else {
-                // keep only users with zero VotesInfo
-                info == 0
+                info_count == 0
             }
         });
     }
