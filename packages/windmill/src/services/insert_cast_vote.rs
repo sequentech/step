@@ -15,6 +15,7 @@ use crate::services::cast_votes::get_voter_signing_key;
 use crate::services::cast_votes::CastVote;
 use crate::services::datafix;
 use crate::services::datafix::types::SoapRequest;
+use crate::services::datafix::utils::voted_via_internet;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_status::get_election_status;
 use crate::services::electoral_log::ElectoralLog;
@@ -54,6 +55,7 @@ use sequent_core::services::keycloak;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::types::hasura::core::{ElectionEvent, VotingChannels};
+use sequent_core::types::keycloak::{VOTED_CHANNEL, VOTED_CHANNEL_INTERNET_VALUE};
 use sequent_core::types::scheduled_event::*;
 use serde::{Deserialize, Serialize};
 use strand::backend::ristretto::RistrettoCtx;
@@ -65,7 +67,6 @@ use strand::zkp::Zkp;
 use tracing::info;
 use tracing::{error, event, instrument, Level};
 use uuid::Uuid;
-
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct InsertCastVoteInput {
     pub ballot_id: String,
@@ -328,14 +329,35 @@ pub async fn try_insert_cast_vote(
                 // However if the one failing is voterview_requests::send returning an error here would be problematic
                 // because the vote is already casted.
                 // But it will be a good idea to log the error in the electoral_log.
-                if let Err(err) = datafix::voterview_requests::send(
-                    SoapRequest::SetVoted,
-                    ElectionEventDatafix(election_event),
-                    &user.username,
-                )
-                .await
-                {
-                    // TODO: Post the error in the electoral_log
+
+                // Do not send the Soap Request if it was sent before because the user has voted already in other election.
+                let attributes = user.attributes.clone().unwrap_or_default();
+                if !voted_via_internet(&attributes) {
+                    if let Err(err) = datafix::voterview_requests::send(
+                        SoapRequest::SetVoted,
+                        ElectionEventDatafix(election_event),
+                        &user.username,
+                    )
+                    .await
+                    {
+                        // TODO: Post the error in the electoral_log
+                    }
+
+                    // Set the attribute to avoid sending it again on the next vote.
+                    let mut hash_map = HashMap::new();
+                    hash_map.insert(
+                        VOTED_CHANNEL.to_string(),
+                        vec![VOTED_CHANNEL_INTERNET_VALUE.to_string()],
+                    );
+                    let attributes = Some(hash_map);
+                    let _user = client
+                        .edit_user(
+                            &realm, &voter_id, None, attributes, None, None, None, None, None, None,
+                        )
+                        .await
+                        .map_err(|e| {
+                            error!("Error editing user Internet channel: {e:?}");
+                        });
                 }
             }
             let electoral_log_res = ElectoralLog::for_voter(

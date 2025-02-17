@@ -193,7 +193,7 @@ pub async fn update_datafix_voter(
         )
         .await
         .map_err(|e| {
-            error!("Error creating user: {e:?}");
+            error!("Error editing user: {e:?}");
             DatafixResponse::new(Status::InternalServerError)
         })?;
     Ok(DatafixResponse::new(Status::Ok))
@@ -244,7 +244,7 @@ pub async fn mark_as_voted_via_channel(
         )
         .await
         .map_err(|e| {
-            error!("Error creating user: {e:?}");
+            error!("Error editing user: {e:?}");
             DatafixResponse::new(Status::InternalServerError)
         })?;
     Ok(DatafixResponse::new(Status::Ok))
@@ -297,7 +297,7 @@ pub async fn unmark_voter_as_voted(
         )
         .await
         .map_err(|e| {
-            error!("Error creating user: {e:?}");
+            error!("Error editing user: {e:?}");
             DatafixResponse::new(Status::InternalServerError)
         })?;
     Ok(DatafixResponse::new(Status::Ok))
@@ -366,7 +366,7 @@ pub async fn replace_voter_pin(
         )
         .await
         .map_err(|e| {
-            error!("Error creating user: {e:?}");
+            error!("Error editing user: {e:?}");
             DatafixResponse::new(Status::InternalServerError)
         })?;
 

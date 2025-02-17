@@ -4,13 +4,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::database::PgConfig;
 use crate::postgres::election_event::is_datafix_election_event_by_id;
+use crate::services::datafix::utils::voted_via_not_internet_channel;
 use crate::services::electoral_log::ElectoralLog;
 use anyhow::{anyhow, Context, Result};
 use chrono::NaiveDate;
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Transaction;
 use sequent_core::types::keycloak::{User, VotesInfo};
-use sequent_core::types::keycloak::{ATTR_RESET_VALUE, VOTED_CHANNEL};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
@@ -406,22 +406,14 @@ pub async fn get_users_with_vote_info(
 
         if is_datafix_event {
             // Checking the attribute voted-channel for each user.
+            // Set the num_votes to 1 if the voter has voted through a Channel different than Internet, to make it appear in the Voter list as "Voted"
             let attributes = user.attributes.clone().unwrap_or_default();
-            // Set the num_votes ot 1 if the voter has voted through a Channel to make it appear in the Voter list as "Voted"
-            match attributes.iter().find(|tupple| tupple.0.eq(VOTED_CHANNEL)) {
-                Some((_, v)) => {
-                    match v.last() {
-                        Some(channel) if !channel.eq(ATTR_RESET_VALUE) && !channel.is_empty() => {
-                            votes_info = vec![VotesInfo {
-                                election_id: "".to_string(), // Not used for datafix
-                                num_votes: 1,
-                                last_voted_at: "".to_string(), // Not used for datafix
-                            }];
-                        }
-                        _ => {}
-                    };
-                }
-                None => {}
+            if voted_via_not_internet_channel(&attributes) {
+                votes_info = vec![VotesInfo {
+                    election_id: "".to_string(), // Not used for datafix
+                    num_votes: 1,
+                    last_voted_at: "".to_string(), // Not used for datafix
+                }];
             }
         }
 
