@@ -7,7 +7,7 @@ use log::info;
 use tracing::{event, instrument, Level};
 
 use crate::assign_value;
-use immudb_rs::{sql_value::Value, Client, NamedParam, Row, SqlValue, TxMode};
+use immudb_rs::{sql_value::Value, Client, CommittedSqlTx, NamedParam, Row, SqlValue, TxMode};
 use std::fmt::Debug;
 use tokio::time::{sleep, Duration};
 
@@ -285,6 +285,120 @@ impl BoardClient {
             .collect::<Result<Vec<ElectoralLogMessage>>>()?;
 
         Ok(messages)
+    }
+
+    pub async fn open_session(&mut self, database_name: &str) -> Result<()> {
+        self.client.open_session(database_name).await
+    }
+
+    pub async fn close_session(&mut self) -> Result<()> {
+        self.client.close_session().await
+    }
+
+    pub async fn new_tx(&mut self, mode: TxMode) -> Result<String> {
+        self.client.new_tx(mode).await
+    }
+
+    pub async fn commit(&mut self, transaction_id: &String) -> Result<CommittedSqlTx> {
+        self.client.commit(transaction_id).await
+    }
+
+    // Insert messages in batch using an existing session/transaction
+    pub async fn insert_electoral_log_messages_batch(
+        &mut self,
+        transaction_id: &String,
+        messages: &[ElectoralLogMessage],
+    ) -> Result<()> {
+        info!("Insert {} messages in batch..", messages.len());
+        let mut sql_results = vec![];
+        for message in messages {
+            let message_sql = format!(
+                r#"
+                INSERT INTO {} (
+                    created,
+                    sender_pk,
+                    statement_kind,
+                    statement_timestamp,
+                    message,
+                    version,
+                    user_id,
+                    username
+                ) VALUES (
+                    @created,
+                    @sender_pk,
+                    @statement_kind,
+                    @statement_timestamp,
+                    @message,
+                    @version,
+                    @user_id,
+                    @username
+                );
+            "#,
+                ELECTORAL_LOG_TABLE
+            );
+            let params = vec![
+                NamedParam {
+                    name: String::from("created"),
+                    value: Some(SqlValue {
+                        value: Some(Value::Ts(message.created)),
+                    }),
+                },
+                NamedParam {
+                    name: String::from("sender_pk"),
+                    value: Some(SqlValue {
+                        value: Some(Value::S(message.sender_pk.clone())),
+                    }),
+                },
+                NamedParam {
+                    name: String::from("statement_timestamp"),
+                    value: Some(SqlValue {
+                        value: Some(Value::Ts(message.statement_timestamp)),
+                    }),
+                },
+                NamedParam {
+                    name: String::from("statement_kind"),
+                    value: Some(SqlValue {
+                        value: Some(Value::S(message.statement_kind.clone())),
+                    }),
+                },
+                NamedParam {
+                    name: String::from("message"),
+                    value: Some(SqlValue {
+                        value: Some(Value::Bs(message.message.clone())),
+                    }),
+                },
+                NamedParam {
+                    name: String::from("version"),
+                    value: Some(SqlValue {
+                        value: Some(Value::S(message.version.clone())),
+                    }),
+                },
+                NamedParam {
+                    name: String::from("user_id"),
+                    value: Some(SqlValue {
+                        value: match message.user_id.clone() {
+                            Some(user_id) => Some(Value::S(user_id)),
+                            None => None,
+                        },
+                    }),
+                },
+                NamedParam {
+                    name: String::from("username"),
+                    value: Some(SqlValue {
+                        value: match message.username.clone() {
+                            Some(username) => Some(Value::S(username)),
+                            None => None,
+                        },
+                    }),
+                },
+            ];
+            let result = self
+                .client
+                .tx_sql_exec(&message_sql, transaction_id, params)
+                .await?;
+            sql_results.push(result);
+        }
+        Ok(())
     }
 
     pub async fn insert_electoral_log_messages(
