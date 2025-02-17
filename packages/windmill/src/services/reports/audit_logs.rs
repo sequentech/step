@@ -319,65 +319,26 @@ impl TemplateRenderer for AuditLogsTemplate {
             .prepare_user_data_common(hasura_transaction, keycloak_transaction)
             .await?;
 
-        // TODO: Fix a lot cloning happening with the getters.
-
         let event_realm_name =
             get_event_realm(&self.get_tenant_id(), &self.get_election_event_id());
         let tenant_realm_name = get_tenant_realm(&self.get_tenant_id());
         // This is used to fill the user data.
-        /*let election_event = get_election_event_by_id(
-            &hasura_transaction,
-            &self.get_tenant_id(),
-            &self.get_election_event_id(),
-        )
-        .await
-        .map_err(|e| anyhow!("Error getting scheduled event by election event_id: {e:?}"))?;*/
 
         let Some(election_id) = self.get_election_id() else {
             return Err(anyhow!("Empty election_id"));
         };
         info!("Preparing data of audit logs report for election_id: {election_id}");
-        let election: Election = match get_election_by_id(
+        let election: Election = get_election_by_id(
             &hasura_transaction,
             &self.ids.tenant_id,
             &self.ids.election_event_id,
             &election_id,
         )
         .await
-        .map_err(|e| anyhow!(format!("Error getting election by id {e:?}")))?
-        {
-            Some(election) => election,
-            None => {
-                return Err(anyhow!(
-                    "No election found for the given election id: {election_id}"
-                ));
-            }
-        };
-
-        /*
-        let election_general_data = extract_election_data(&election)
-            .await
-            .map_err(|err| anyhow!("Error extract election data {err}"))?;
-
-        let election_event_annotations = extract_election_event_annotations(&election_event)
-            .await
-            .map_err(|err| anyhow!("Error extract election event annotations {err}"))?;
-
-        // Fetch election's voting periods
-        let scheduled_events = find_scheduled_event_by_election_event_id(
-            &hasura_transaction,
-            &self.ids.tenant_id,
-            &self.ids.election_event_id,
-        )
-        .await
-        .map_err(|e| {
-            anyhow::anyhow!("Error getting scheduled events by election event_id: {}", e)
-        })?;
-
-        let election_dates = get_election_dates(&election, scheduled_events)
-            .map_err(|e| anyhow::anyhow!("Error getting election dates {e}"))?;
-
-        let datetime_printed: String = get_date_and_time();*/
+        .with_context(|| "Error getting election by id")?
+        .ok_or(anyhow!(
+            "No election found for the given election id: {election_id}"
+        ))?;
 
         // To filter log entries by election we´ll prepare a list with the user Ids that belong to this election.
         // To get the voter_ids related to this election, we need the areas.
@@ -388,7 +349,7 @@ impl TemplateRenderer for AuditLogsTemplate {
             &election_id,
         )
         .await
-        .map_err(|err| anyhow!("Error at get_areas_by_election_id: {err:?}"))?;
+        .with_context(|| "Error at get_areas_by_election_id")?;
 
         if election_areas.is_empty() {
             return Err(anyhow!(
@@ -431,7 +392,7 @@ impl TemplateRenderer for AuditLogsTemplate {
                 },
             )
             .await
-            .map_err(|e| anyhow!("Failed to fetch list_users: {e:?}"))?;
+            .with_context(|| "Failed to fetch list_users")?;
 
             admins_offset += total_count;
             for adm in admins {
@@ -467,7 +428,7 @@ impl TemplateRenderer for AuditLogsTemplate {
                     },
                 )
                 .await
-                .map_err(|e| anyhow!("Failed to fetch list_users: {e:?}"))?;
+                .with_context(|| "Failed to fetch list_users")?;
 
                 voters_offset += total_count;
                 for user in users {
@@ -499,7 +460,7 @@ impl TemplateRenderer for AuditLogsTemplate {
                 order_by: None,
             })
             .await
-            .map_err(|e| anyhow!(format!("Error in fetching list of electoral logs {:?}", e)))?;
+            .with_context(|| "Error in fetching list of electoral logs")?;
 
             let batch_size = electoral_logs_batch.items.len();
             offset += batch_size as i64;
