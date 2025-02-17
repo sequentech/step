@@ -790,7 +790,7 @@ pub const IMMUDB_ROWS_LIMIT: usize = 2500;
 
 #[instrument(err)]
 pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<ElectoralLogRow>> {
-    let mut client = get_immudb_client().await?;
+    let mut client: Client = get_immudb_client().await?;
     let board_name = get_event_board(input.tenant_id.as_str(), input.election_event_id.as_str());
 
     event!(Level::INFO, "database name = {board_name}");
@@ -814,6 +814,7 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
         {clauses}
         "#,
     );
+    info!("query: {sql}");
     let sql_query_response = client.sql_query(&sql, params).await?;
     let items = sql_query_response
         .get_ref()
@@ -856,6 +857,8 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
 pub async fn count_electoral_log(input: GetElectoralLogBody) -> Result<i64> {
     let mut client = get_immudb_client().await?;
     let board_name = get_event_board(input.tenant_id.as_str(), input.election_event_id.as_str());
+
+    info!("board name: {board_name}");
     client.open_session(&board_name).await?;
 
     let (clauses_to_count, count_params) = input.as_sql(true)?;
@@ -866,6 +869,8 @@ pub async fn count_electoral_log(input: GetElectoralLogBody) -> Result<i64> {
         {clauses_to_count}
         "#,
     );
+
+    info!("query: {sql}");
 
     let sql_query_response = client.sql_query(&sql, count_params).await?;
 

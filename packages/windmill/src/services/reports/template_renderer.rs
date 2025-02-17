@@ -506,8 +506,8 @@ pub trait TemplateRenderer: Debug {
                                     hasura_transaction,
                                     keycloak_transaction,
                                     &user_tpl_document,
-                                    Some(per_report_limit),
                                     Some(offset),
+                                    Some(per_report_limit),
                                 )
                                 .await
                             })
