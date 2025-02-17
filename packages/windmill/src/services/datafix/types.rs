@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::utils::{DATAFIX_ID_KEY, DATAFIX_PSW_POLICY_KEY, DATAFIX_VOTERVIEW_REQ_KEY};
 use anyhow::{anyhow, Result};
-use rand::{distributions::Uniform, Rng};
+use rand::{distributions, Rng};
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::ballot::Annotations;
@@ -104,7 +104,7 @@ impl PasswordPolicy {
                 pass
             }
             CharactersPolicy::Alphanumeric => rand::thread_rng()
-                .sample_iter(Uniform::new(char::from(32), char::from(126))) // In the range of the ascii characters
+                .sample_iter(distributions::Alphanumeric)
                 .take(self.size)
                 .map(char::from)
                 .collect(),
