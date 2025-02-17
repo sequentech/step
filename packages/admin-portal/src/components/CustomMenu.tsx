@@ -162,8 +162,9 @@ export const CustomMenu = () => {
     return (
         <>
             <StyledMenu open={open}>
+                <SelectTenants />
+                
                 <MenuWrapper>
-                    <SelectTenants />
 
                     <ElectionEvents />
 
