@@ -463,13 +463,14 @@ impl PdfRenderer {
                         endpoint
                     );
                     let html_sha256 = sha256::digest(&html);
+                    let input_filename = format!("input-{}", html_sha256);
                     let output_filename = format!("output-{}", html_sha256);
 
                     #[cfg(feature = "s3")]
                     {
                         s3::upload_data_to_s3(
                             html.clone().into_bytes().into(),
-                            output_filename.clone(),
+                            input_filename.clone(),
                             false,
                             s3_private_bucket()
                                 .ok_or_else(|| anyhow!("missing bucket"))?,
@@ -488,7 +489,7 @@ impl PdfRenderer {
                     json!({
                         "s3": {
                             "bucket": s3_private_bucket().ok_or_else(|| anyhow!("missing bucket"))?,
-                            "input_path": format!("input-{}", html_sha256),
+                            "input_path": input_filename,
                             "output_path": output_filename,
                             "pdf_options": pdf_options,
                         }
