@@ -456,7 +456,7 @@ pub trait TemplateRenderer: Debug {
 
         // First, compute whether we need batching. In our case, if the activity log count
         // is greater than the per‑report limit, we assume multiple files will be generated.
-        let activity_logs_count = self.count_items().await.unwrap_or(0);
+        let items_count = self.count_items().await.unwrap_or(0);
         let report_options = ext_cfg.report_options;
         let per_report_limit = report_options
             .max_items_per_report
@@ -464,20 +464,21 @@ pub trait TemplateRenderer: Debug {
 
         let batching_report_types = vec![ReportType::ACTIVITY_LOGS, ReportType::AUDIT_LOGS];
 
-        let use_batching = batching_report_types.contains(&self.get_report_type()); //&& activity_logs_count > per_report_limit;
+        let use_batching = batching_report_types.contains(&self.get_report_type())
+            && items_count > per_report_limit;
 
         let zip_temp_dir = tempdir()?;
         let zip_temp_dir_path = zip_temp_dir.path();
 
         let (final_file_path, file_size, final_report_name, mimetype) = if use_batching {
             info!(
-                "Using batched processing because activity_logs_count ({}) > per_report_limit ({})",
-                activity_logs_count, per_report_limit
+                "Using batched processing because items_count ({}) > per_report_limit ({})",
+                items_count, per_report_limit
             );
             // Calculate the number of batches needed.
             let num_batches = if per_report_limit > 0 {
-                // calculate the ceil of activity_logs_count/per_report_limit
-                (activity_logs_count + per_report_limit - 1) / per_report_limit
+                // calculate the ceil of items_count/per_report_limit
+                (items_count + per_report_limit - 1) / per_report_limit
             } else {
                 1
             };
