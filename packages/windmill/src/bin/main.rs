@@ -8,10 +8,10 @@
 
 extern crate lazy_static;
 
-use std::collections::HashMap;
 use anyhow::{anyhow, Result};
-use sequent_core::util::init_log::init_log;
 use dotenv::dotenv;
+use sequent_core::util::init_log::init_log;
+use std::collections::HashMap;
 use structopt::StructOpt;
 use tokio::runtime::Builder;
 use tracing::{event, Level};

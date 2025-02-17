@@ -15,10 +15,10 @@ use structopt::StructOpt;
 use tokio::time::Duration;
 use windmill::services::celery_app::{set_is_app_active, Queue};
 use windmill::services::probe::{setup_probe, AppName};
+use windmill::tasks::electoral_log::electoral_log_batch_dispatcher;
 use windmill::tasks::review_boards::review_boards;
 use windmill::tasks::scheduled_events::scheduled_events;
 use windmill::tasks::scheduled_reports::scheduled_reports;
-use windmill::tasks::electoral_log::process_electoral_log_events_batch;
 
 #[derive(Debug, StructOpt)]
 #[structopt(
@@ -27,13 +27,13 @@ use windmill::tasks::electoral_log::process_electoral_log_events_batch;
     setting = structopt::clap::AppSettings::ColoredHelp,
 )]
 struct CeleryOpt {
-    #[structopt(short, long, default_value = "15")]
+    #[structopt(short = "r", long, default_value = "15")]
     review_boards_interval: u64,
-    #[structopt(short, long, default_value = "10")]
+    #[structopt(short = "s", long, default_value = "10")]
     schedule_events_interval: u64,
-    #[structopt(short, long, default_value = "10")]
+    #[structopt(short = "c", long, default_value = "10")]
     schedule_reports_interval: u64,
-    #[structopt(short, long, default_value = "5")]
+    #[structopt(short = "e", long, default_value = "5")]
     electoral_log_interval: u64,
 }
 
@@ -43,29 +43,27 @@ async fn main() -> Result<()> {
     init_log(true);
     setup_probe(AppName::BEAT).await;
 
-    let opt = CeleryOpt::from_args();
-
     let mut beat = celery::beat!(
         broker = AMQPBroker { std::env::var("AMQP_ADDR").unwrap_or_else(|_| "amqp://rabbitmq:5672".into()) },
         tasks = [
             review_boards::NAME => {
                 review_boards,
-                schedule = DeltaSchedule::new(Duration::from_secs(opt.review_boards_interval)),
+                schedule = DeltaSchedule::new(Duration::from_secs(CeleryOpt::from_args().review_boards_interval)),
                 args = (),
             },
             scheduled_events::NAME => {
                 scheduled_events,
-                schedule = DeltaSchedule::new(Duration::from_secs(opt.schedule_events_interval)),
+                schedule = DeltaSchedule::new(Duration::from_secs(CeleryOpt::from_args().schedule_events_interval)),
                 args = (),
             },
             scheduled_reports::NAME => {
                 scheduled_reports,
-                schedule = DeltaSchedule::new(Duration::from_secs(opt.schedule_reports_interval)),
+                schedule = DeltaSchedule::new(Duration::from_secs(CeleryOpt::from_args().schedule_reports_interval)),
                 args = (),
             },
-            process_electoral_log_events_batch::NAME => {
-                process_electoral_log_events_batch,
-                schedule = DeltaSchedule::new(Duration::from_secs(opt.electoral_log_interval)),
+            electoral_log_batch_dispatcher::NAME => {
+                electoral_log_batch_dispatcher,
+                schedule = DeltaSchedule::new(Duration::from_secs(CeleryOpt::from_args().electoral_log_interval)),
                 args = (),
             },
         ],
@@ -73,7 +71,7 @@ async fn main() -> Result<()> {
             review_boards::NAME => Queue::Beat.as_ref(),
             scheduled_events::NAME => Queue::Beat.as_ref(),
             scheduled_reports::NAME => Queue::Beat.as_ref(),
-            process_electoral_log_events_batch::NAME => Queue::ElectoralLogBeat.as_ref(),
+            electoral_log_batch_dispatcher::NAME => Queue::ElectoralLogBeat.as_ref(),
         ],
     ).await?;
 

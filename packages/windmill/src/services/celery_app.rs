@@ -1,23 +1,26 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use std::sync::{Arc, OnceLock};
+use anyhow::Result;
 use async_once::AsyncOnce;
-use futures::future::Lazy;
 use celery::prelude::Task;
 use celery::Celery;
+use futures::future::Lazy;
+use lapin::{Channel, Connection, ConnectionProperties};
 use std;
 use std::convert::AsRef;
+use std::sync::Arc;
 use strum_macros::AsRefStr;
-use tokio::sync::RwLock;
-use anyhow::Result;
-use lapin::{Connection, ConnectionProperties};
+use tokio::sync::{Mutex, RwLock};
+use tracing::{event, instrument, Level};
 
 use crate::tasks::activity_logs_report::generate_activity_logs_report;
 use crate::tasks::create_ballot_receipt::create_ballot_receipt;
 use crate::tasks::create_keys::create_keys;
 use crate::tasks::delete_election_event::delete_election_event_t;
-use crate::tasks::electoral_log::{enqueue_electoral_log_event, process_electoral_log_events_batch};
+use crate::tasks::electoral_log::{
+    electoral_log_batch_dispatcher, enqueue_electoral_log_event, process_electoral_log_events_batch,
+};
 use crate::tasks::execute_tally_session::execute_tally_session;
 use crate::tasks::export_application::export_application;
 use crate::tasks::export_ballot_publication::export_ballot_publication;
@@ -58,8 +61,6 @@ use crate::tasks::update_election_event_ballot_styles::update_election_event_bal
 pub enum Queue {
     #[strum(serialize = "beat")]
     Beat,
-    #[strum(serialize = "electoral_log_beat_queue")]
-    ElectoralLogBeat,
     #[strum(serialize = "short_queue")]
     Short,
     #[strum(serialize = "communication_queue")]
@@ -70,8 +71,13 @@ pub enum Queue {
     Reports,
     #[strum(serialize = "import_export_queue")]
     ImportExport,
+
+    #[strum(serialize = "electoral_log_beat_queue")]
+    ElectoralLogBeat,
     #[strum(serialize = "electoral_log_batch_queue")]
     ElectoralLogBatch,
+    #[strum(serialize = "electoral_log_event_queue")]
+    ElectoralLogEvent,
 }
 
 static mut PREFETCH_COUNT_S: u16 = 100;
@@ -120,6 +126,18 @@ pub fn set_heartbeat(new_val: u16) {
 
 pub fn get_is_app_active() -> bool {
     unsafe { IS_APP_ACTIVE }
+}
+
+/// CELERY_APP holds the high-level Celery application. Note: The Celery app is
+/// built separately from the Broker because it handles task routing/scheduling.
+lazy_static! {
+    static ref CELERY_APP: AsyncOnce<Arc<Celery>> =
+        AsyncOnce::new(async { generate_celery_app().await });
+}
+
+/// Returns the global Celery app.
+pub async fn get_celery_app() -> Arc<Celery> {
+    CELERY_APP.get().await.clone()
 }
 
 #[instrument]
@@ -186,6 +204,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             import_tenant_config,
             enqueue_electoral_log_event,
             process_electoral_log_events_batch,
+            electoral_log_batch_dispatcher,
         ],
         task_routes = [
             create_keys::NAME => Queue::Short.as_ref(),
@@ -227,8 +246,9 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             export_ballot_publication::NAME => Queue::ImportExport.as_ref(),
             export_application::NAME => Queue::ImportExport.as_ref(),
             import_applications::NAME => Queue::ImportExport.as_ref(),
-            enqueue_electoral_log_event::NAME => Queue::ElectoralLogBatch.as_ref(),
-            process_electoral_log_events_batch::NAME => Queue::ElectoralLogBeat.as_ref(),
+            enqueue_electoral_log_event::NAME => Queue::ElectoralLogEvent.as_ref(),
+            process_electoral_log_events_batch::NAME => Queue::ElectoralLogBatch.as_ref(),
+            electoral_log_batch_dispatcher::NAME => Queue::ElectoralLogBeat.as_ref(),
         ],
         prefetch_count = prefetch_count,
         acks_late = acks_late,
@@ -238,28 +258,70 @@ pub async fn generate_celery_app() -> Arc<Celery> {
     ).await.unwrap()
 }
 
-lazy_static! {
-    static ref CELERY_APP: AsyncOnce<Arc<Celery>> =
-        AsyncOnce::new(async { generate_celery_app().await });
+/// Broker holds our single AMQP connection and separate channels for reading and writing.
+pub struct Broker {
+    connection: Arc<Connection>,
+    read_channel: RwLock<Option<Channel>>,
+    write_channel: RwLock<Option<Channel>>,
 }
 
-pub async fn get_celery_app() -> Arc<Celery> {
-    CELERY_APP.get().await.clone()
-}
-
-static CELERY_CONNECTION: Lazy<RwLock<Option<Connection>>> = Lazy::new(|| RwLock::new(None));
-
-/// Returns a reused AMQP connection wrapped in an Arc.
-/// If no connection exists (or if it’s disconnected), a new one is created and stored.
-pub async fn get_celery_connection() -> Result<Arc<Connection>> {
-    if let Some(conn) = CELERY_CONNECTION.get() {
-        // We assume the connection is valid; lapin connections do not implement a convenient status check.
-        return Ok(conn.clone());
+impl Broker {
+    pub async fn new() -> Result<Self> {
+        let amqp_url = std::env::var("AMQP_ADDR").unwrap_or_else(|_| "amqp://rabbitmq:5672".into());
+        let connection = Connection::connect(&amqp_url, ConnectionProperties::default()).await?;
+        Ok(Broker {
+            connection: Arc::new(connection),
+            read_channel: RwLock::new(None),
+            write_channel: RwLock::new(None),
+        })
     }
-    let amqp_url = std::env::var("AMQP_ADDR")
-        .unwrap_or_else(|_| "amqp://rabbitmq:5672".into());
-    let connection = Connection::connect(&amqp_url, ConnectionProperties::default()).await?;
-    let arc_conn = Arc::new(connection);
-    let _ = CELERY_CONNECTION.set(arc_conn.clone());
-    Ok(arc_conn)
+
+    pub async fn get_read_channel(&self) -> Result<Channel> {
+        {
+            let read_lock = self.read_channel.read().await;
+            if let Some(channel) = &*read_lock {
+                return Ok(channel.clone());
+            }
+        }
+        let new_channel = self.connection.create_channel().await?;
+        {
+            let mut write_lock = self.read_channel.write().await;
+            *write_lock = Some(new_channel.clone());
+        }
+        Ok(new_channel)
+    }
+
+    pub async fn get_write_channel(&self) -> Result<Channel> {
+        {
+            let read_lock = self.write_channel.read().await;
+            if let Some(channel) = &*read_lock {
+                return Ok(channel.clone());
+            }
+        }
+        let new_channel = self.connection.create_channel().await?;
+        {
+            let mut write_lock = self.write_channel.write().await;
+            *write_lock = Some(new_channel.clone());
+        }
+        Ok(new_channel)
+    }
+}
+
+lazy_static! {
+    // Create a single global Broker.
+    static ref BROKER: Broker = {
+        // We assume a Tokio runtime is running.
+        tokio::runtime::Handle::current().block_on(Broker::new())
+            .expect("Failed to initialize Broker")
+    };
+}
+
+/// Returns a reused read channel.
+pub async fn get_celery_read_channel() -> Result<Channel> {
+    BROKER.get_read_channel().await
+}
+
+/// Returns a reused write channel.
+pub async fn get_celery_write_channel() -> Result<Channel> {
+    BROKER.get_write_channel().await
 }

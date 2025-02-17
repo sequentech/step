@@ -8,6 +8,31 @@ use proc_macro::TokenStream;
 use quote::quote;
 use syn::{parse_macro_input, parse_quote, ItemFn, ReturnType, Type};
 
+/// The `wrap_map_err` attribute macro transforms a function that returns a `Result<T, E>`
+/// into one that returns a `Result<T, ProvidedError>` by mapping the error with `Into::into`.
+///
+/// This is useful when you want to unify error types across your code by converting the error
+/// returned by a function to a specific type.
+///
+/// # Arguments
+///
+/// * The macro takes a single argument: the error type to which all errors should be converted.
+///
+/// # Example
+///
+/// ```rust
+/// # use wrap_map_err::wrap_map_err;
+/// #[wrap_map_err(MyError)]
+/// fn foo() -> Result<u32, OtherError> {
+///     // function body
+///     Ok(42)
+/// }
+/// // The function is transformed so that its signature becomes:
+/// // fn foo() -> Result<u32, MyError>
+/// // and its body is wrapped with `.map_err(Into::into)`.
+/// ```
+///
+/// If the function does not return a `Result`, the macro leaves the function unchanged.
 #[proc_macro_attribute]
 pub fn wrap_map_err(attr: TokenStream, item: TokenStream) -> TokenStream {
     // Parse the function to which the attribute is applied.
@@ -61,5 +86,51 @@ pub fn wrap_map_err(attr: TokenStream, item: TokenStream) -> TokenStream {
     } else {
         // If the function does not return a Result type, return the original function.
         item
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use proc_macro::TokenStream;
+    use quote::quote;
+    use syn::{parse_quote, ItemFn};
+
+    /// Test that wrap_map_err correctly transforms a function that returns Result<T, E>
+    /// into one that returns Result<T, ProvidedError> and wraps its body with map_err.
+    #[test]
+    fn test_wrap_map_err_transformation() {
+        // Build a test function:
+        let input_fn: ItemFn = parse_quote! {
+            fn test_func() -> Result<u32, OtherError> {
+                Ok(42)
+            }
+        };
+        // Use our macro with an error type argument.
+        let attr: TokenStream = quote! { MyError }.into();
+        let item: TokenStream = quote! { #input_fn }.into();
+        let output = wrap_map_err(attr, item);
+        let output_str = output.to_string();
+        // Check that the output now has the return type "Result < u32 , MyError >".
+        assert!(output_str.contains("Result < u32 , MyError >"));
+        // Check that the function body is wrapped with map_err(Into::into).
+        assert!(output_str.contains(".map_err ( :: std :: convert :: Into :: into )"));
+    }
+
+    /// Test that a function that does not return a Result remains unchanged.
+    #[test]
+    fn test_no_result_function_unchanged() {
+        let input_fn: ItemFn = parse_quote! {
+            fn test_func() -> u32 {
+                42
+            }
+        };
+        let attr: TokenStream = quote! { MyError }.into();
+        let item: TokenStream = quote! { #input_fn }.into();
+        let output = wrap_map_err(attr, item);
+        let output_str = output.to_string();
+        // The function signature should remain as returning u32 and there should be no map_err.
+        assert!(output_str.contains("fn test_func () -> u32"));
+        assert!(!output_str.contains("map_err"));
     }
 }
