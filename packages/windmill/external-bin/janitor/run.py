@@ -1578,12 +1578,6 @@ except FileNotFoundError as e:
 except Exception as e:
     logging.exception("An error occurred while loading templates.")
 
-
-# Example of how to use the function and see the result
-
-#if voters_path:
-    #create_voters_file(sqlite_output_path)
-
 if args.only_voters:
     print("Only voters, exiting the script.")
     sys.exit()
