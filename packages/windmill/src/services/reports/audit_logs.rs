@@ -15,7 +15,7 @@ use crate::services::cast_votes::count_ballots_by_election;
 use crate::services::database::PgConfig;
 use crate::services::election_dates::get_election_dates;
 use crate::services::electoral_log::{
-    list_electoral_log, ElectoralLogRow, GetElectoralLogBody, IMMUDB_ROWS_LIMIT,
+    count_electoral_log, list_electoral_log, ElectoralLogRow, GetElectoralLogBody, IMMUDB_ROWS_LIMIT
 };
 
 use crate::postgres::reports::ReportType;
@@ -291,7 +291,15 @@ impl TemplateRenderer for AuditLogsTemplate {
         format!("audit_logs_{}", self.ids.election_event_id)
     }
     async fn count_items(&self) -> Option<i64> {
-        None
+        let input = GetElectoralLogBody {
+            tenant_id: self.ids.tenant_id.clone(),
+            election_event_id: self.ids.election_event_id.clone(),
+            limit: None,
+            offset: None,
+            filter: None,
+            order_by: None,
+        };
+        count_electoral_log(input).await.ok()
     }
     #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
     async fn prepare_user_data_batch(
@@ -355,117 +363,74 @@ impl TemplateRenderer for AuditLogsTemplate {
             }
         };
 
-        let max_batch_size = PgConfig::from_env()?.default_sql_batch_size;
+
+        let electoral_logs_batch = list_electoral_log(GetElectoralLogBody {
+            tenant_id: String::from(&self.get_tenant_id()),
+            election_event_id: String::from(&self.ids.election_event_id),
+            limit: Some(limit),
+            offset: Some(offset),
+            filter: None,
+            order_by: None,
+        })
+        .await
+        .with_context(|| "Error in fetching list of electoral logs")?;
+        let mut election_user_ids : Vec<String> = Vec::new();
+        for item in &electoral_logs_batch.items {
+            election_user_ids.push(item.user_id.clone().unwrap_or_default());
+        }
+
         let admins_filter = ListUsersFilter {
             tenant_id: self.get_tenant_id(),
             realm: tenant_realm_name.clone(),
             attributes: perm_lbl_attributes.clone(),
-            limit: Some(max_batch_size),
+            user_ids: Some(election_user_ids.clone()),
             ..Default::default() // Fill the options that are left to None
         };
-
-        // Fill election_admin_ids with the Admins that matches the election_permission_label
-        let mut election_admin_ids: HashSet<String> = HashSet::new();
-        let mut admins_offset: i32 = 0;
-        loop {
-            let (admins, total_count) = list_users(
-                &hasura_transaction,
-                &keycloak_transaction,
-                ListUsersFilter {
-                    offset: Some(admins_offset),
-                    ..admins_filter.clone()
-                },
-            )
-            .await
-            .with_context(|| "Failed to fetch list_users")?;
-
-            admins_offset += total_count;
-            for admin in admins {
-                let Some(admin_id) = admin.id.clone() else {
-                    info!("Unexpected, admin user with no id {:?}", admin);
-                    continue;
-                };
-                election_admin_ids.insert(admin_id);
-            }
-            if total_count < max_batch_size {
-                break;
-            }
-        }
-
+        let (users, _total_count) = list_users(
+            &hasura_transaction,
+            &keycloak_transaction,
+            ListUsersFilter {
+                ..admins_filter.clone()
+            },
+        )
+        .await
+        .with_context(|| "Failed to fetch list_users")?; 
+        
+        let election_batch_admin_ids: HashSet<String> = users
+            .into_iter()
+            .filter_map(|user| user.id) // Extract `id` if Some
+            .collect();
+    
         let voters_filter = ListUsersFilter {
             tenant_id: self.get_tenant_id(),
             realm: event_realm_name.clone(),
             election_event_id: Some(String::from(&self.get_election_event_id())),
             election_id: Some(election_id.clone()),
-            limit: Some(max_batch_size),
             area_id: None,        // To fill below
+            user_ids: Some(election_user_ids.clone()),
             ..Default::default()  // Fill the options that are left to None
         };
-
-        let mut voters_offset: i32 = 0;
-        let mut election_user_ids: HashSet<String> = HashSet::new();
-        // Loop over each area to fill election_user_ids with the voters
-        for area in election_areas.iter() {
-            loop {
-                let (users, total_count) = list_users(
-                    &hasura_transaction,
-                    &keycloak_transaction,
-                    ListUsersFilter {
-                        area_id: Some(area.id.clone()),
-                        offset: Some(voters_offset),
-                        ..voters_filter.clone()
-                    },
-                )
-                .await
-                .with_context(|| "Failed to fetch list_users")?;
-
-                voters_offset += total_count;
-                for user in users {
-                    election_user_ids.insert(user.id.unwrap_or_default());
-                }
-                if total_count < max_batch_size {
-                    break;
-                }
-            }
-        }
-
-        // Fetch list of audit logs
-        let mut sequences: Vec<AuditLogEntry> = Vec::new();
-        let mut electoral_logs: DataList<ElectoralLogRow> = DataList {
-            items: vec![],
-            total: TotalAggregate {
-                aggregate: Aggregate { count: 0 },
+        let (users, _total_count) = list_users(
+            &hasura_transaction,
+            &keycloak_transaction,
+            ListUsersFilter {
+                ..voters_filter.clone()
             },
-        };
+        )
+        .await
+        .with_context(|| "Failed to fetch list_users")?;
 
-        let mut offset: i64 = 0;
-        loop {
-            let electoral_logs_batch = list_electoral_log(GetElectoralLogBody {
-                tenant_id: String::from(&self.get_tenant_id()),
-                election_event_id: String::from(&self.ids.election_event_id),
-                limit: Some(IMMUDB_ROWS_LIMIT as i64),
-                offset: Some(offset),
-                filter: None,
-                order_by: None,
-            })
-            .await
-            .with_context(|| "Error in fetching list of electoral logs")?;
+        let election_batch_voters_ids: HashSet<String> = users
+            .into_iter()
+            .filter_map(|user| user.id) // Extract `id` if Some
+            .collect();
+        let mut sequences: Vec<AuditLogEntry> = Vec::new();
 
-            let batch_size = electoral_logs_batch.items.len();
-            offset += batch_size as i64;
-            electoral_logs.items.extend(electoral_logs_batch.items);
-            electoral_logs.total.aggregate.count = electoral_logs_batch.total.aggregate.count;
-            if batch_size < IMMUDB_ROWS_LIMIT {
-                break;
-            }
-        }
-
-        // iterate on list of audit logs and create array
-        for item in &electoral_logs.items {
+        for item in &electoral_logs_batch.items {
             // Discard the log entries that are not related to this election
             let userkind = match &item.user_id {
-                Some(user_id) if election_admin_ids.contains(user_id) => "Admin".to_string(),
-                Some(user_id) if election_user_ids.contains(user_id) => "Voter".to_string(),
+                Some(user_id) if election_batch_admin_ids.contains(user_id) => "Admin".to_string(),
+                Some(user_id) if election_batch_voters_ids.contains(user_id) => "Voter".to_string(),
                 Some(_) => continue, // Some user_id not belonging to this election
                 None => continue,    // There is no user_id, ignore log entry
             };
