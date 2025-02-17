@@ -114,7 +114,6 @@ pub async fn generate_report(
     };
 
     let email_recipients = report.cron_config.unwrap_or_default().email_recipients;
-    println!("******* Email recipients: {:?}", email_recipients);
 
     // Helper macro to reduce duplication in execute_report call
     macro_rules! execute_report {

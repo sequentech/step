@@ -104,7 +104,6 @@ impl EmailSender {
         html_body: Option<String>,
         attachments: Vec<Attachment>,
     ) -> Result<()> {
-        println!("Sending email to {:?}", receivers);
         // Build the email message using lettre
         let mut email_builder = Message::builder()
             .from(
@@ -220,7 +219,6 @@ impl EmailSender {
                     }
                 }
                 // Send the email via SMTP
-                println!("****** Sending email via SMTP");
                 smtp_transport
                     .send(&email_message)
                     .map_err(|err| anyhow!("Error sending email via SMTP: {err:?}"))?;
