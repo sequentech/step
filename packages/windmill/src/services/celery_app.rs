@@ -88,9 +88,7 @@ pub fn set_worker_threads(new_val: usize) {
 }
 
 pub fn get_worker_threads() -> usize {
-    unsafe {
-        WORKER_THREADS
-    }
+    unsafe { WORKER_THREADS }
 }
 
 pub fn set_acks_late(new_val: bool) {

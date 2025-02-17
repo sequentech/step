@@ -5,6 +5,7 @@
 use super::utils::get_public_asset_template;
 use crate::postgres::reports::{get_template_alias_for_report, Report, ReportType};
 use crate::postgres::{election_event, template};
+use crate::services::celery_app::get_worker_threads;
 use crate::services::consolidation::aes_256_cbc_encrypt::encrypt_file_aes_256_cbc;
 use crate::services::consolidation::zip::compress_folder_to_zip;
 use crate::services::database::get_hasura_pool;
@@ -12,7 +13,6 @@ use crate::services::documents::upload_and_return_document;
 use crate::services::providers::email_sender::{Attachment, EmailSender};
 use crate::services::reports_vault::get_report_secret_key;
 use crate::services::tasks_execution::{update_complete, update_fail};
-use crate::services::celery_app::get_worker_threads;
 use crate::services::temp_path::PUBLIC_ASSETS_QRCODE_LIB;
 use crate::services::vault;
 use anyhow::{anyhow, Context, Result};
@@ -35,6 +35,7 @@ use sequent_core::types::to_map::ToMap;
 use sequent_core::util::temp_path::*;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
+use std::fs;
 use std::path::{Path, PathBuf};
 use strum_macros::{Display, EnumString, IntoStaticStr};
 use tempfile::tempdir;
@@ -466,6 +467,9 @@ pub trait TemplateRenderer: Debug {
         let use_batching = batching_report_types.contains(&self.get_report_type())
             && activity_logs_count > per_report_limit;
 
+        let zip_temp_dir = tempdir()?;
+        let zip_temp_dir_path = zip_temp_dir.path();
+
         let (final_file_path, file_size, final_report_name, mimetype) = if use_batching {
             info!(
                 "Using batched processing because activity_logs_count ({}) > per_report_limit ({})",
@@ -488,7 +492,7 @@ pub trait TemplateRenderer: Debug {
             let batch_pool = ThreadPoolBuilder::new()
                 .num_threads(report_options.max_threads.unwrap_or(get_worker_threads()))
                 .build()
-                .expect("Failed to build thread pool");
+                .with_context(|| "Failed to build thread pool")?;
 
             // Process batches concurrently.
             let batch_file_paths: Vec<PathBuf> = batch_pool.install(|| {
@@ -508,8 +512,8 @@ pub trait TemplateRenderer: Debug {
                                 )
                                 .await
                             })
-                            .map_err(|err| {
-                                anyhow!("Error rendering report for batch {}: {err:?}", offset)
+                            .with_context(|| {
+                                format!("Error rendering report for batch {}", offset)
                             })?;
 
                         // Render to PDF bytes
@@ -521,15 +525,10 @@ pub trait TemplateRenderer: Debug {
                                 )
                                 .await
                             })
-                            .map_err(|err| {
-                                anyhow!("Error rendering PDF for batch {}: {err:?}", offset)
-                            })?;
+                            .with_context(|| format!("Error rendering PDF for batch {}", offset))?;
 
                         // e.g., "my_prefix"
                         let prefix = self.prefix();
-                        // e.g., "somebasename"
-                        let base_name = self.base_name();
-
                         let extension_suffix = "pdf";
                         let file_suffix = format!(".{}", extension_suffix); // = ".pdf"
 
@@ -543,21 +542,7 @@ pub trait TemplateRenderer: Debug {
                         // Build the final path inside `reports_folder`:
                         let final_path = reports_folder.join(&batch_file_name);
 
-                        // Then pass *that* final_path to write_into_named_temp_file:
-                        let (temp_file, temp_path_str, file_size) = write_into_named_temp_file(
-                            &pdf_bytes,
-                            final_path.to_string_lossy().as_ref(),
-                            &file_suffix, // or just ".pdf"
-                        )
-                        .map_err(|err| {
-                            anyhow!("Error writing batch {} to file: {err:?}", offset)
-                        })?;
-                        // We'll return the actual final path of the file in `reports_folder`.
-                        // If you want to do more renaming or copying, do it here.
-                        let final_path = reports_folder.join(&batch_file_name);
-                        temp_file.persist(&final_path).map_err(|err| {
-                            anyhow!("Error persisting batch file {batch_file_name}: {err:?}")
-                        })?;
+                        fs::write(&final_path, &pdf_bytes)?;
                         Ok(final_path)
                     })
                     // The critical piece: specify the collection type
@@ -565,48 +550,20 @@ pub trait TemplateRenderer: Debug {
             })?;
 
             // Now you have a `Vec<PathBuf>` of all the PDFs created in parallel.
-            info!("batch_file_paths = {:?}", batch_file_paths);
-            // Now we define the *final* zip path in /tmp/reports_folder
-            // let dst_zip = reports_folder.join(format!("{}_final.zip", self.prefix()));
+            let some_paths = batch_file_paths.into_iter().take(10).collect::<Vec<_>>();
+            info!("first 10 batch_file_paths = {:?}", some_paths);
+            // Now we define the *final* zip path
             let zip_filename = format!("{}_final.zip", self.prefix());
-            let dst_zip = std::path::Path::new("/tmp").join(&zip_filename);
 
-            // Remove the final ZIP file from the reports folder (if it exists)
-            // This ensures it won't be included in the compression.
-            let final_zip_path = reports_folder.join(&zip_filename);
-            if final_zip_path.exists() {
-                std::fs::remove_file(&final_zip_path).with_context(|| {
-                    format!("Failed to remove existing zip file: {:?}", final_zip_path)
-                })?;
-            }
-            // We compress the *entire folder* into that zip. If `compress_folder_to_zip`
-            // takes (source_directory, destination_zip), do this:
-            info!(
-                "Starting compression of reports folder: {:?}",
-                reports_folder
-            );
-            info!("Starting compression of :dst_zip {:?}", dst_zip);
-            let result = compress_folder_to_zip(reports_folder, &dst_zip);
-            if let Err(e) = result {
-                info!("Compression failed: {:?}", e); // Log the specific error
-                return Err(anyhow!("Error compressing folder: {e:?}"));
-            }
+            let dst_zip = zip_temp_dir_path.join(&zip_filename);
 
-            // compress_folder_to_zip(reports_folder, &dst_zip)
-            // .with_context(|| "Error compressing temporary files to zip")
+            compress_folder_to_zip(reports_folder, &dst_zip)
+                .with_context(|| "Error compressing folder")?;
 
             // Next, get the file size for the ZIP
             let zip_file_size = get_file_size(&dst_zip.to_string_lossy())
-                .map_err(|err| anyhow!("Error obtaining file size for zip file: {err:?}"))?;
-            // .with_context(|| "Error obtaining file size for zip file")?;
+                .with_context(|| "Error obtaining file size for zip file")?;
 
-            // let output_zip_tempfile = generate_temp_file(&"activity_logs", "zip")?;
-            // let output_zip_path = output_zip_tempfile.path();
-            // let dst_zip = reports_folder.join(format!("{}_final.zip", self.prefix()));
-            // compress_folder_to_zip(reports_folder.as_ref(), output_zip_path)
-            //     .with_context(|| "Error compressing temporary files to zip")?;
-            // let zip_file_size = get_file_size(&output_zip_path.to_string_lossy())
-            //     .with_context(|| "Error obtaining file size for zip file")?;
             (
                 dst_zip.to_string_lossy().to_string(),
                 zip_file_size,

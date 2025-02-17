@@ -71,11 +71,10 @@ fn find_duplicates(input: Vec<&str>) -> Vec<&str> {
 fn read_worker_threads(opt: &CeleryOpt) -> usize {
     match opt.clone() {
         CeleryOpt::Consume(consume) => consume.worker_threads,
-        CeleryOpt::Produce => None
+        CeleryOpt::Produce => None,
     }
     .unwrap_or(num_cpus::get())
 }
-
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenv().ok();
@@ -111,7 +110,7 @@ async fn async_main(opt: CeleryOpt) -> Result<()> {
             task_max_retries,
             broker_connection_max_retries,
             heartbeat,
-            worker_threads
+            worker_threads,
         } => {
             set_prefetch_count(prefetch_count);
             set_acks_late(acks_late);
