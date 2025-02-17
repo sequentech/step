@@ -220,6 +220,7 @@ impl EmailSender {
                     }
                 }
                 // Send the email via SMTP
+                println!("****** Sending email via SMTP");
                 smtp_transport
                     .send(&email_message)
                     .map_err(|err| anyhow!("Error sending email via SMTP: {err:?}"))?;

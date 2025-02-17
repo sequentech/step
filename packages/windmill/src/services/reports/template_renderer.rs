@@ -561,14 +561,11 @@ pub trait TemplateRenderer: Debug {
 
         // Send email if needed
         if self.should_send_email(is_scheduled_task) {
-            println!("******* Sending email");
             let email_config = ext_cfg.communication_templates.email_config;
-            println!("******* recipients before: {:?}", recipients);
             let email_recipients = self
                 .get_email_recipients(recipients, tenant_id, election_event_id)
                 .await
                 .map_err(|err| anyhow!("Error getting email receiver: {err:?}"))?;
-            println!("******* Email recipients: {:?}", email_recipients);
             let email_sender = EmailSender::new()
                 .await
                 .map_err(|e| anyhow::anyhow!(format!("Error getting email sender {e:?}")))?;
@@ -642,7 +639,6 @@ pub trait TemplateRenderer: Debug {
             let voter_id = self
                 .get_voter_id()
                 .ok_or_else(|| anyhow!("Error sending email: no recipients provided"))?;
-            println!("******* Voter ID: {:?}", voter_id);
 
             let client = KeycloakAdminClient::new()
                 .await

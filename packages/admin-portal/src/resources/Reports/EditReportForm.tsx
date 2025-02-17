@@ -271,7 +271,6 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
         if ("password" in formValues) {
             delete formValues.password
         }
-        console.log({formValues, values})
 
         const formData: Partial<Sequent_Backend_Report> = {
             ...formValues,
@@ -411,11 +410,7 @@ const EmailRecipientsInput: React.FC<EmailRecipientsInputProps> = (props) => {
             freeSolo
             options={[] as string[]}
             value={field.value || []}
-            // onChange={(event: any, newValue: string[]) => {
-            //     field.onChange(newValue)
-            // }}
             onChange={(event: any, newValue: string[]) => {
-                console.log("newValue for email", newValue)
                 field.onChange(newValue || [])
                 if (onChange) {
                     onChange(newValue || []) // Call the passed onChange prop
@@ -504,7 +499,6 @@ const FormContent: React.FC<CreateReportProps> = ({
     }, [register])
 
     useEffect(() => {
-        console.log("report changed", {report})
         setIsCronActive(report?.cron_config?.is_active || false)
         setCronValue?.(report?.cron_config?.cron_expression || "")
         setReportType(report?.report_type ? (report.report_type as ETemplateType) : undefined)
