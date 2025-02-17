@@ -15,7 +15,8 @@ use crate::services::cast_votes::count_ballots_by_election;
 use crate::services::database::PgConfig;
 use crate::services::election_dates::get_election_dates;
 use crate::services::electoral_log::{
-    count_electoral_log, list_electoral_log, ElectoralLogRow, GetElectoralLogBody, IMMUDB_ROWS_LIMIT
+    count_electoral_log, list_electoral_log, ElectoralLogRow, GetElectoralLogBody,
+    IMMUDB_ROWS_LIMIT,
 };
 
 use crate::postgres::reports::ReportType;
@@ -364,7 +365,7 @@ impl TemplateRenderer for AuditLogsTemplate {
             }
         };
         let mut sequences: Vec<AuditLogEntry> = Vec::new();
-        let mut logs_visited = 0;
+        let mut logs_visited: i64 = 0;
         while sequences.len() < limit as usize {
             let electoral_logs_batch = list_electoral_log(GetElectoralLogBody {
                 tenant_id: String::from(&self.get_tenant_id()),
@@ -379,7 +380,7 @@ impl TemplateRenderer for AuditLogsTemplate {
             if electoral_logs_batch.items.len() == 0 {
                 break;
             }
-            let mut election_user_ids : Vec<String> = Vec::new();
+            let mut election_user_ids: Vec<String> = Vec::new();
             for item in &electoral_logs_batch.items {
                 election_user_ids.push(item.user_id.clone().unwrap_or_default());
             }
@@ -399,21 +400,21 @@ impl TemplateRenderer for AuditLogsTemplate {
                 },
             )
             .await
-            .with_context(|| "Failed to fetch list_users")?; 
-            
+            .with_context(|| "Failed to fetch list_users")?;
+
             let election_batch_admin_ids: HashSet<String> = users
                 .into_iter()
                 .filter_map(|user| user.id) // Extract `id` if Some
                 .collect();
-        
+
             let voters_filter = ListUsersFilter {
                 tenant_id: self.get_tenant_id(),
                 realm: event_realm_name.clone(),
                 election_event_id: Some(String::from(&self.get_election_event_id())),
                 election_id: Some(election_id.clone()),
-                area_id: None,        // To fill below
+                area_id: None, // To fill below
                 user_ids: Some(election_user_ids.clone()),
-                ..Default::default()  // Fill the options that are left to None
+                ..Default::default() // Fill the options that are left to None
             };
             let (users, _total_count) = list_users(
                 &hasura_transaction,
@@ -434,8 +435,12 @@ impl TemplateRenderer for AuditLogsTemplate {
                 logs_visited += 1;
                 // Discard the log entries that are not related to this election
                 let userkind = match &item.user_id {
-                    Some(user_id) if election_batch_admin_ids.contains(user_id) => "Admin".to_string(),
-                    Some(user_id) if election_batch_voters_ids.contains(user_id) => "Voter".to_string(),
+                    Some(user_id) if election_batch_admin_ids.contains(user_id) => {
+                        "Admin".to_string()
+                    }
+                    Some(user_id) if election_batch_voters_ids.contains(user_id) => {
+                        "Voter".to_string()
+                    }
                     Some(_) => continue, // Some user_id not belonging to this election
                     None => continue,    // There is no user_id, ignore log entry
                 };
@@ -476,20 +481,24 @@ impl TemplateRenderer for AuditLogsTemplate {
                         .map(|head| head.description.clone())
                         .unwrap_or("-".to_string()),
                 };
-                info!("sequences  {{sequences.len()}} limit {{limit}}");
+
                 // Push the constructed `AuditLogEntry` to the sequences array
                 sequences.push(audit_log_entry);
                 if sequences.len() == limit as usize {
                     break;
                 }
             }
-            
             *offset += logs_visited;
-            info!("offset {offset} logs_visited {logs_visited}");
+
+            info!("offset {} logs_visited {}", offset, logs_visited);
             if sequences.len() == limit as usize {
                 break;
             }
-        }   
+        }
+        if (sequences.len() as i64) == 0 {
+            // signal no more logs for a new report
+            *offset = -1;
+        }
         user_data.sequences = sequences;
 
         Ok(user_data)
