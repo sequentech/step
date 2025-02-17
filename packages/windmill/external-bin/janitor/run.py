@@ -812,7 +812,8 @@ def gen_tree(excel_data, miru_data, script_idr, multiply_factor):
             **base_context,
             "miru": {
                 "ccs_servers": ccs_servers_str,
-                "sbei_ids": sbei_ids_str
+                "sbei_ids": sbei_ids_str,
+                "country": row["DB_ALLMUN_AREA_NAME"]
             }
         }
         areas[area_name] = area
