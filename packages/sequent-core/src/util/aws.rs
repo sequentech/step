@@ -32,36 +32,41 @@ pub async fn get_s3_aws_config(is_private: bool) -> Result<aws_sdk_s3::Config> {
     } else {
         "AWS_S3_PUBLIC_URI"
     };
-    let acces_key_result = std::env::var("AWS_S3_ACCESS_KEY");
+    let access_key_result = std::env::var("AWS_S3_ACCESS_KEY");
     let access_secret_result = std::env::var("AWS_S3_ACCESS_SECRET");
     let endpoint_uri = std::env::var(env_var_name)?;
     info!("env_var_name={env_var_name}, endpoint_uri = {endpoint_uri:?}");
+
     if let (Ok(access_key), Ok(access_secret)) =
-        (acces_key_result, access_secret_result)
+        (access_key_result, access_secret_result)
     {
-        info!("using aws credentials with access key and access secret");
+        if (!access_key.is_empty() && !access_secret.is_empty()) {
+            info!("using provided aws access key and secret credentials");
 
-        let credentials_provider = aws_sdk_s3::config::Credentials::new(
-            access_key,
-            access_secret,
-            None,
-            None,
-            "loaded-from-custom-env",
-        );
+            let credentials_provider = aws_sdk_s3::config::Credentials::new(
+                access_key,
+                access_secret,
+                None,
+                None,
+                "loaded-from-custom-env",
+            );
 
-        let s3_config = aws_sdk_s3::config::Builder::from(&sdk_config)
-            .endpoint_url(endpoint_uri)
-            .credentials_provider(credentials_provider)
-            .force_path_style(true) // apply bucketname as path param instead of pre-domain
-            .build();
-        Ok(s3_config)
-    } else {
-        info!("using default aws sdk config credentials");
-        Ok(aws_sdk_s3::config::Builder::from(&sdk_config)
-            .endpoint_url(endpoint_uri)
-            .force_path_style(true) // apply bucketname as path param instead of pre-domain
-            .build())
+            return Ok(aws_sdk_s3::config::Builder::from(&sdk_config)
+                .endpoint_url(endpoint_uri)
+                .credentials_provider(credentials_provider)
+                .force_path_style(true) // apply bucketname as path param instead of pre-domain
+                .build());
+        }
+        // Very important: fall-through to auto detecting credentials
+        // from the execution environment if the environment variables
+        // were present, but empty.
     }
+
+    info!("using default aws sdk config credentials");
+    Ok(aws_sdk_s3::config::Builder::from(&sdk_config)
+        .endpoint_url(endpoint_uri)
+        .force_path_style(true) // apply bucketname as path param instead of pre-domain
+        .build())
 }
 
 pub fn get_max_upload_size() -> Result<usize> {
