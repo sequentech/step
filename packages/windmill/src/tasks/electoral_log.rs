@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::election_event::get_election_event_by_id;
-use crate::services::celery_app::get_celery_read_channel;
+use crate::services::celery_app::get_celery_connection;
 use crate::services::celery_app::Queue;
 use crate::services::database::get_hasura_pool;
 use crate::services::database::PgConfig;
@@ -15,15 +15,13 @@ use celery::error::TaskError;
 use deadpool_postgres::Client as DbClient;
 use electoral_log::client::board_client::ElectoralLogMessage;
 use immudb_rs::TxMode;
-use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use tracing::{event, instrument};
+use tracing::{event, info, instrument};
 
 use lapin::{
-    options::{BasicAckOptions, BasicGetOptions},
+    options::{BasicAckOptions, BasicGetOptions, QueueDeclareOptions},
     types::FieldTable,
-    Connection,
 };
 
 const EVENT_TYPE_COMMUNICATIONS: &str = "communications";
@@ -153,26 +151,30 @@ pub async fn process_electoral_log_events_batch(events: Vec<LogEventInput>) -> R
     Ok(())
 }
 
-/// Dispatcher: repeatedly reads batches of messages from the electoral_log_batch_queue
-/// and dispatches them to the processing task. Each batch is processed sequentially.
-/// Scheduling is defined externally (e.g. in beat.rs). This function reuses the global
-/// AMQP connection from the Celery app.
+/// Dispatcher: repeatedly reads batches of messages from the electoral_log_batch_queue and dispatches them
+/// to the processing task. Each batch is processed sequentially so that only a single batch is held in memory.
 #[instrument(skip_all, err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(time_limit = 30, max_retries = 0, expires = 1)]
 pub async fn electoral_log_batch_dispatcher() -> Result<()> {
-    // Reuse the global AMQP connection.
-    let channel = get_celery_read_channel().await?;
+    info!("starting electoral_log_batch_dispatcher");
 
-    let queue_name = Queue::ElectoralLogBatch.as_ref();
+    // Reuse the global AMQP connection.
+    let connection_arc = get_celery_connection().await?;
+    let channel = connection_arc
+        .create_channel()
+        .await
+        .with_context(|| "Error creating RabbitMQ channel")?;
+
+    let queue_name = Queue::ElectoralLogEvent.as_ref();
     let _queue = channel
         .queue_declare(
             queue_name,
-            lapin::options::QueueDeclareOptions {
+            QueueDeclareOptions {
                 durable: true,
                 ..Default::default()
             },
-            lapin::types::FieldTable::default(),
+            FieldTable::default(),
         )
         .await
         .with_context(|| "Error declaring electoral_log_batch_queue")?;
@@ -181,38 +183,59 @@ pub async fn electoral_log_batch_dispatcher() -> Result<()> {
     let batch_size: usize = PgConfig::from_env()?.default_sql_batch_size.try_into()?;
 
     loop {
-        // For each iteration, read at most one batch.
+        info!("starting a new batch for queue {queue_name}, max batch_size={batch_size}");
         let mut batch_deliveries = Vec::with_capacity(batch_size);
         for _ in 0..batch_size {
             if let Some(delivery) = channel
-                .basic_get(
-                    queue_name,
-                    lapin::options::BasicGetOptions { no_ack: false },
-                )
+                .basic_get(queue_name, BasicGetOptions { no_ack: false })
                 .await?
             {
+                info!("adding delivery element to batch_deliveries");
                 batch_deliveries.push(delivery);
             } else {
+                info!("not adding to batch_deliveries, break");
                 break;
             }
         }
 
         if batch_deliveries.is_empty() {
-            // No more messages in the queue.
+            info!("no more elements to process in queue");
             break;
         }
+        info!(
+            "deserializing {len} elements for this batch",
+            len = batch_deliveries.len()
+        );
 
         // Deserialize messages sequentially.
         let mut events = Vec::with_capacity(batch_deliveries.len());
         for delivery in &batch_deliveries {
-            let event: LogEventInput = serde_json::from_slice(&delivery.data)
-                .with_context(|| "Error deserializing LogEventInput from message")?;
-            events.push(event);
+            // Parse the raw message into a JSON value.
+            let v: serde_json::Value = serde_json::from_slice(&delivery.data)
+                .with_context(|| "Error parsing Celery message as JSON")?;
+            // Expect the message to be an array.
+            if let serde_json::Value::Array(arr) = v {
+                if arr.len() < 2 {
+                    return Err(
+                        "Invalid message format: expected array with at least 2 elements".into(),
+                    );
+                }
+                let payload = &arr[1];
+                let input_value = payload
+                    .get("input")
+                    .ok_or_else(|| anyhow!("Missing 'input' field in message payload"))?;
+                let event: LogEventInput = serde_json::from_value(input_value.clone())
+                    .with_context(|| "Error deserializing LogEventInput from input field")?;
+                events.push(event);
+            } else {
+                return Err("Invalid message format: expected JSON array".into());
+            }
         }
 
         // Dispatch the processing task via the Celery app.
         let celery_app = crate::services::celery_app::get_celery_app().await;
         let celery_task = process_electoral_log_events_batch::new(events);
+        info!("sending processing task for current batch");
         celery_app
             .send_task(celery_task)
             .await
@@ -221,14 +244,11 @@ pub async fn electoral_log_batch_dispatcher() -> Result<()> {
         // Acknowledge all messages in the current batch.
         for delivery in batch_deliveries {
             channel
-                .basic_ack(
-                    delivery.delivery_tag,
-                    lapin::options::BasicAckOptions::default(),
-                )
+                .basic_ack(delivery.delivery_tag, BasicAckOptions::default())
                 .await
                 .with_context(|| "Error acknowledging message")?;
         }
     }
-
+    info!("finishing electoral_log_batch_dispatcher");
     Ok(())
 }

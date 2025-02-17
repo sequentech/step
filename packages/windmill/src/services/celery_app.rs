@@ -10,6 +10,7 @@ use lapin::{Channel, Connection, ConnectionProperties};
 use std;
 use std::convert::AsRef;
 use std::sync::Arc;
+use std::sync::OnceLock;
 use strum_macros::AsRefStr;
 use tokio::sync::{Mutex, RwLock};
 use tracing::{event, instrument, Level};
@@ -258,70 +259,18 @@ pub async fn generate_celery_app() -> Arc<Celery> {
     ).await.unwrap()
 }
 
-/// Broker holds our single AMQP connection and separate channels for reading and writing.
-pub struct Broker {
-    connection: Arc<Connection>,
-    read_channel: RwLock<Option<Channel>>,
-    write_channel: RwLock<Option<Channel>>,
-}
+static CELERY_CONNECTION: OnceLock<Arc<Connection>> = OnceLock::new();
 
-impl Broker {
-    pub async fn new() -> Result<Self> {
-        let amqp_url = std::env::var("AMQP_ADDR").unwrap_or_else(|_| "amqp://rabbitmq:5672".into());
-        let connection = Connection::connect(&amqp_url, ConnectionProperties::default()).await?;
-        Ok(Broker {
-            connection: Arc::new(connection),
-            read_channel: RwLock::new(None),
-            write_channel: RwLock::new(None),
-        })
+/// Returns a reused AMQP connection wrapped in an Arc.
+/// If no connection exists (or if it’s disconnected), a new connection is created and stored.
+pub async fn get_celery_connection() -> Result<Arc<Connection>> {
+    if let Some(conn) = CELERY_CONNECTION.get() {
+        // For simplicity we assume the connection is still valid.
+        return Ok(conn.clone());
     }
-
-    pub async fn get_read_channel(&self) -> Result<Channel> {
-        {
-            let read_lock = self.read_channel.read().await;
-            if let Some(channel) = &*read_lock {
-                return Ok(channel.clone());
-            }
-        }
-        let new_channel = self.connection.create_channel().await?;
-        {
-            let mut write_lock = self.read_channel.write().await;
-            *write_lock = Some(new_channel.clone());
-        }
-        Ok(new_channel)
-    }
-
-    pub async fn get_write_channel(&self) -> Result<Channel> {
-        {
-            let read_lock = self.write_channel.read().await;
-            if let Some(channel) = &*read_lock {
-                return Ok(channel.clone());
-            }
-        }
-        let new_channel = self.connection.create_channel().await?;
-        {
-            let mut write_lock = self.write_channel.write().await;
-            *write_lock = Some(new_channel.clone());
-        }
-        Ok(new_channel)
-    }
-}
-
-lazy_static! {
-    // Create a single global Broker.
-    static ref BROKER: Broker = {
-        // We assume a Tokio runtime is running.
-        tokio::runtime::Handle::current().block_on(Broker::new())
-            .expect("Failed to initialize Broker")
-    };
-}
-
-/// Returns a reused read channel.
-pub async fn get_celery_read_channel() -> Result<Channel> {
-    BROKER.get_read_channel().await
-}
-
-/// Returns a reused write channel.
-pub async fn get_celery_write_channel() -> Result<Channel> {
-    BROKER.get_write_channel().await
+    let amqp_url = std::env::var("AMQP_ADDR").unwrap_or_else(|_| "amqp://rabbitmq:5672".into());
+    let connection = Connection::connect(&amqp_url, ConnectionProperties::default()).await?;
+    let arc_conn = Arc::new(connection);
+    let _ = CELERY_CONNECTION.set(arc_conn.clone());
+    Ok(arc_conn)
 }
