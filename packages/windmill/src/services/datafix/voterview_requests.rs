@@ -7,10 +7,16 @@ use crate::postgres::election_event::ElectionEventDatafix;
 use crate::services::consolidation::eml_generator::ValidateAnnotations;
 use anyhow::{anyhow, Result};
 use reqwest;
-use tracing::{error, info, instrument, warn};
+use sequent_core::types::date_time::{DateFormat, TimeZone};
+use sequent_core::util::date_time::generate_timestamp;
+use tracing::{info, instrument};
 
 impl SoapRequest {
-    fn get_set_not_voted_body(annotations: &DatafixAnnotations, voter_id: &str) -> String {
+    fn get_set_not_voted_body(
+        annotations: &DatafixAnnotations,
+        voter_id: &str,
+        timestamp: &str,
+    ) -> String {
         let county_mun = &annotations.voterview_request.county_mun;
         let usr = &annotations.voterview_request.usr;
         let psw = &annotations.voterview_request.psw;
@@ -18,18 +24,23 @@ impl SoapRequest {
             r#"
             <soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
                 <soap:Body>
-                    <SetNotVoted xmlns="https://www.voterview.ca/MVVServices/"><CountyMun>{county_mun}</CountyMun>
+                    <SetNotVoted xmlns="https://www.voterview.ca/MVVServices/">
+                        <CountyMun>{county_mun}</CountyMun>
                         <Username>{usr}</Username>
                         <Password>{psw}</Password>
                         <VoterID>{voter_id}</VoterID>
-                        <DateTimeUnrecorded>2024-01-21T16:33:04.247Z</DateTimeUnrecorded>
+                        <DateTimeUnrecorded>{timestamp}</DateTimeUnrecorded>
                     </SetNotVoted>
                 </soap:Body>
             </soap:Envelope>
         "#
         )
     }
-    fn get_set_voted_body(annotations: &DatafixAnnotations, voter_id: &str) -> String {
+    fn get_set_voted_body(
+        annotations: &DatafixAnnotations,
+        voter_id: &str,
+        timestamp: &str,
+    ) -> String {
         let county_mun = &annotations.voterview_request.county_mun;
         let usr = &annotations.voterview_request.usr;
         let psw = &annotations.voterview_request.psw;
@@ -37,12 +48,13 @@ impl SoapRequest {
             r#"
             <soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
                 <soap:Body>
-                    <SetVoted xmlns="https://www.voterview.ca/MVVServices/"><CountyMun>{county_mun}</CountyMun>
+                    <SetVoted xmlns="https://www.voterview.ca/MVVServices/">
+                        <CountyMun>{county_mun}</CountyMun>
                         <Username>{usr}</Username>
                         <Password>{psw}</Password>
                         <VoterID>{voter_id}</VoterID>
                         <Channel>Internet</Channel>
-                        <DateTimeVoted>2024-01-21T16:33:04.247Z</DateTimeVoted>
+                        <DateTimeVoted>{timestamp}</DateTimeVoted>
                     </SetVoted>
                 </soap:Body>
             </soap:Envelope>
@@ -51,10 +63,17 @@ impl SoapRequest {
         )
     }
 
-    pub fn get_body(&self, annotations: &DatafixAnnotations, voter_id: &str) -> String {
+    pub fn get_body(
+        &self,
+        annotations: &DatafixAnnotations,
+        voter_id: &str,
+        timestamp: &str,
+    ) -> String {
         match self {
-            SoapRequest::SetVoted => Self::get_set_voted_body(annotations, voter_id),
-            SoapRequest::SetNotVoted => Self::get_set_not_voted_body(annotations, voter_id),
+            SoapRequest::SetVoted => Self::get_set_voted_body(annotations, voter_id, timestamp),
+            SoapRequest::SetNotVoted => {
+                Self::get_set_not_voted_body(annotations, voter_id, timestamp)
+            }
         }
     }
 }
@@ -64,11 +83,16 @@ pub async fn send(
     req_type: SoapRequest,
     election_event: ElectionEventDatafix,
     username: &Option<String>,
-    // WIP_ timestap: ...
 ) -> Result<()> {
+    let timestamp = generate_timestamp(
+        Some(TimeZone::UTC),
+        Some(DateFormat::Custom("%Y-%m-%dT%H:%M:%S.%3fZ".to_string())),
+        None,
+    );
+
     let voter_id = match username.to_owned() {
         Some(id) => id,
-        None => {
+        _ => {
             return Err(anyhow!(
                 "Cannot send the request to datafix because the username is None"
             ));
@@ -78,7 +102,7 @@ pub async fn send(
         .get_annotations()
         .map_err(|err| anyhow!("Error getting election event annotations: {err}"))?;
 
-    let soap_body = req_type.get_body(&annotations, &voter_id);
+    let soap_body = req_type.get_body(&annotations, &voter_id, &timestamp);
     let url = &annotations.voterview_request.url;
     info!("Soap body: {soap_body}");
     info!("URL: {url}");
@@ -103,18 +127,31 @@ pub async fn send(
         .map_err(|err| anyhow!("Failed to get the full response text: {err}"))?;
 
     info!("Response: {response_txt}");
-
-    if status.is_success() {
-        return Ok(());
+    if !status.is_success() {
+        let faultcode: String =
+            parse_tag("<faultcode>", "</faultcode>", &response_txt).unwrap_or_default();
+        let faultstring: String =
+            parse_tag("<faultstring>", "</faultstring>", &response_txt).unwrap_or_default();
+        return Err(anyhow!(
+            "Request to VoterView {req_type} failed with response status: {status}. Faultcode: {faultcode}, Faultstring: {faultstring}"
+        ));
     }
 
-    let faultcode: String =
-        parse_tag("<faultcode>", "</faultcode>", &response_txt).unwrap_or_default();
-    let faultstring: String =
-        parse_tag("<faultstring>", "</faultstring>", &response_txt).unwrap_or_default();
-    Err(anyhow!(
-        "Request to VoterView {req_type} failed with response status: {status}. Faultcode: {faultcode}, Faultstring: {faultstring}"
-    ))
+    let success_element = parse_tag("<Success>", "</Success>", &response_txt).unwrap_or_default();
+    match success_element.as_str() {
+        "true" => {
+            info!("Request to VoterView {req_type} succeeded");
+            Ok(())
+        }
+        "false" => {
+            let error_message =
+                parse_tag("<ErrorMessage>", "</ErrorMessage>", &response_txt).unwrap_or_default();
+            Err(anyhow!(
+                "Request to VoterView {req_type} failed with ErrorMessage: {error_message}"
+            ))
+        }
+        _ => Err(anyhow!("Failed to parse the response text: {response_txt}")),
+    }
 }
 
 pub fn parse_tag(open_tag: &str, close_tag: &str, response_txt: &str) -> Option<String> {
