@@ -13,7 +13,9 @@ use sequent_core::types::keycloak::UserArea;
 use sequent_core::types::keycloak::{
     ATTR_RESET_VALUE, VOTED_CHANNEL, VOTED_CHANNEL_INTERNET_VALUE,
 };
+use std::collections::HashMap;
 use tracing::{error, info, instrument, warn};
+
 pub const DATAFIX_ID_KEY: &str = "datafix:id";
 pub const DATAFIX_PSW_POLICY_KEY: &str = "datafix:password_policy";
 pub const DATAFIX_VOTERVIEW_REQ_KEY: &str = "datafix:voterview_request";
@@ -21,7 +23,7 @@ pub const DATAFIX_VOTERVIEW_REQ_KEY: &str = "datafix:voterview_request";
 /// Returns true if the voter has voted via Sequent´s system -
 /// this is if VOTED_CHANNEL attribute is set to VOTED_CHANNEL_INTERNET_VALUE.
 #[instrument()]
-pub fn voted_via_internet(attributes: &HashMap<String, String>) -> bool {
+pub fn voted_via_internet(attributes: &HashMap<String, Vec<String>>) -> bool {
     match attributes.iter().find(|tupple| tupple.0.eq(VOTED_CHANNEL)) {
         Some((_, v)) => match v.last() {
             Some(channel) if channel.eq(VOTED_CHANNEL_INTERNET_VALUE) => true,
@@ -34,7 +36,7 @@ pub fn voted_via_internet(attributes: &HashMap<String, String>) -> bool {
 /// Returns true if the voter has voted via a secondary channel, PAPER, PHONE, ETC -
 /// this is if VOTED_CHANNEL attribute is set to anything else than Internet.
 #[instrument()]
-pub fn voted_via_not_internet_channel(attributes: &HashMap<String, String>) -> bool {
+pub fn voted_via_not_internet_channel(attributes: &HashMap<String, Vec<String>>) -> bool {
     match attributes.iter().find(|tupple| tupple.0.eq(VOTED_CHANNEL)) {
         Some((_, v)) => match v.last() {
             Some(channel)
