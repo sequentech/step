@@ -43,18 +43,21 @@ export default function DashboardElection() {
         IPermissions.ELECTION_IP_ADDRESS_VIEW
     )
 
-    const {loading, data: dataStats} = useQuery<GetElectionStatsQuery>(GET_ELECTION_STATS, {
-        variables: {
-            tenantId,
-            electionEventId: record?.election_event_id,
-            electionId: record?.id,
-            startDate: formatDate(startDate),
-            endDate: formatDate(endDate),
-            electionAlias: record?.alias,
-            userTimezone,
+    const {loading, data: dataStats} = useQuery<GetElectionStatsQuery>(
+        GET_ELECTION_STATS,
+        {
+            variables: {
+                tenantId,
+                electionEventId: record?.election_event_id,
+                electionId: record?.id,
+                startDate: formatDate(startDate),
+                endDate: formatDate(endDate),
+                electionAlias: record?.alias,
+                userTimezone,
+            },
+            pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
         },
-        pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
-    })
+    )
 
     if (loading) {
         return <CircularProgress />

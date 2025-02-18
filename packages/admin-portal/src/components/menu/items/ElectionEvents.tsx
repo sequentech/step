@@ -291,43 +291,109 @@ export default function ElectionEvents() {
         }
     )
     // Get subtrees
-    const [
-        _getElectionEventTree,
-        {data: electionEventTreeData, refetch: electionEventTreeRefetch},
-    ] = useLazyQuery(FETCH_ELECTION_EVENTS_TREE, {
-        variables: {
-            tenantId,
-            isArchived: isArchivedElectionEvents,
-        },
-    })
+    const [getElectionEventTree, {data: electionEventTreeData, refetch: _electionEventTreeRefetch}] =
+        useLazyQuery(FETCH_ELECTION_EVENTS_TREE)
 
-    const [getElectionTree, {data: electionTreeData, refetch: electionTreeRefetch}] = useLazyQuery(
-        FETCH_ELECTIONS_TREE,
-        {
-            variables: {
-                tenantId,
-                electionEventId,
-            },
+    const [getElectionTree, {data: electionTreeData, refetch: _electionTreeRefetch}] =
+        useLazyQuery(FETCH_ELECTIONS_TREE)
+
+    const [getContestTree, {data: contestTreeData, refetch: _contestTreeRefetch}] =
+        useLazyQuery(FETCH_CONTEST_TREE)
+
+    const [getCandidateTree, {data: candidateTreeData, refetch: _candidateTreeRefetch}] =
+        useLazyQuery(FETCH_CANDIDATE_TREE)
+
+    // Wrapper refetch functions: only call the internal refetch if variables
+    // are set
+    const electionEventTreeRefetch = () => {
+        if (tenantId && electionEventId) {
+            _electionEventTreeRefetch({
+                variables: {
+                    tenantId,
+                    isArchived: isArchivedElectionEvents,
+                },
+            });
         }
-    )
+    }
 
-    const [getContestTree, {data: contestTreeData, refetch: contestTreeRefetch}] = useLazyQuery(
-        FETCH_CONTEST_TREE,
-        {
-            variables: {
-                tenantId,
-                electionId,
-            },
+    const electionTreeRefetch = () => {
+        if (tenantId && electionEventId) {
+            _electionTreeRefetch({
+                variables: {
+                    tenantId,
+                    electionEventId,
+                },
+            });
         }
-    )
+    }
 
-    const [getCandidateTree, {data: candidateTreeData, refetch: candidateTreeRefetch}] =
-        useLazyQuery(FETCH_CANDIDATE_TREE, {
-            variables: {
-                tenantId,
-                contestId,
-            },
-        })
+    const contestTreeRefetch = () => {
+        if (tenantId && electionId) {
+            _contestTreeRefetch({
+                variables: {
+                    tenantId,
+                    electionId,
+                },
+            });
+        }
+    }
+
+    const candidateTreeRefetch = () => {
+        if (tenantId && contestId) {
+            _candidateTreeRefetch({
+                variables: {
+                    tenantId,
+                    contestId,
+                },
+            });
+        }
+    }
+
+    // Instead of setting variables in the options, we now call the lazy queries
+    // only when variables exist.
+    useEffect(() => {
+        if (tenantId) {
+            getElectionEventTree({
+                variables: {
+                    tenantId,
+                    isArchived: isArchivedElectionEvents,
+                },
+            })
+        }
+    }, [tenantId, isArchivedElectionEvents, getElectionEventTree])
+
+    useEffect(() => {
+        if (tenantId && electionEventId) {
+            getElectionTree({
+                variables: {
+                    tenantId,
+                    electionEventId,
+                },
+            })
+        }
+    }, [tenantId, electionEventId, getElectionTree])
+
+    useEffect(() => {
+        if (tenantId && electionId) {
+            getContestTree({
+                variables: {
+                    tenantId,
+                    electionId,
+                },
+            })
+        }
+    }, [tenantId, electionId, getContestTree])
+
+    useEffect(() => {
+        if (tenantId && contestId) {
+            getCandidateTree({
+                variables: {
+                    tenantId,
+                    contestId,
+                },
+            })
+        }
+    }, [tenantId, contestId, candidateId, getCandidateTree])
 
     const location = useLocation()
     const isElectionEventActive = TREE_RESOURCE_NAMES.some(
@@ -352,15 +418,6 @@ export default function ElectionEvents() {
     }, [location])
 
     useEffect(() => {
-        getElectionTree({
-            variables: {
-                tenantId,
-                electionEventId,
-            },
-        })
-    }, [electionEventId])
-
-    useEffect(() => {
         const hasCandidateIdFlag = location.pathname
             .toLowerCase()
             .includes("/sequent_backend_candidate/")
@@ -375,39 +432,6 @@ export default function ElectionEvents() {
             }
         }
     }, [getCandidateIdFlag, candidate_id])
-
-    useEffect(() => {
-        if (electionId !== "") {
-            getContestTree({
-                variables: {
-                    tenantId,
-                    electionId,
-                },
-            })
-        }
-    }, [electionId])
-
-    useEffect(() => {
-        if (contestId !== "") {
-            getCandidateTree({
-                variables: {
-                    tenantId,
-                    contestId,
-                },
-            })
-        }
-    }, [contestId])
-
-    useEffect(() => {
-        if (contestId !== "") {
-            getCandidateTree({
-                variables: {
-                    tenantId,
-                    contestId,
-                },
-            })
-        }
-    }, [candidateId])
 
     useEffect(() => {
         if (!electionEventData || !electionEventId) return
@@ -594,9 +618,7 @@ export default function ElectionEvents() {
         searchInput,
     ])
 
-    // if (!loading && data && data.sequent_backend_election_event) {
     finalResultData = filterTree(finalResultData, searchInput)
-    // }
 
     const reloadTreeMenu = () => {
         candidateTreeRefetch()

@@ -49,7 +49,7 @@ export const DownloadDocument: React.FC<DownloadDocumentProps> = ({
             onSuccess: () => {
                 console.log(`success downloading doc`)
             },
-        },
+        }
     )
 
     const {loading, error, data} = useQuery<FetchDocumentQuery>(FETCH_DOCUMENT, {

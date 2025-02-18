@@ -155,7 +155,7 @@ export const ElectionDataForm: React.FC = () => {
             onSuccess: () => {
                 console.log(`success fetching image doc`)
             },
-        },
+        }
     )
 
     const [updateImage] = useUpdate()

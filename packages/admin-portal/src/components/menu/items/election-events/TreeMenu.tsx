@@ -398,7 +398,7 @@ function TreeMenuItem({
             onSuccess: () => {
                 console.log(`success fetching image doc`)
             },
-        },
+        }
     )
 
     let item: React.ReactNode
