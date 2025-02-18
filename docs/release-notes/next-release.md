@@ -168,6 +168,9 @@ As a rule of thumb, **anything** that calls to `render_pdf` from
 `packages/sequent-core/src/services/pdf.rs` will have this
 behavior. This **applies transitively** across dependencies.
 
+### Permissions
+add monitor-posts-kiosk-closed-voting permission to admin & ovof user.
+
 ## ✨ Windmill > Enrollment: improved fuzzy search with indexes
 
 A new function needs to be created to normalize search values:
