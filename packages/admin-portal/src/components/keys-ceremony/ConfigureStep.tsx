@@ -293,7 +293,6 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
             return null
         }
     }
-    console.log({trusteeList, filteredTrustees})
 
     const validateTrusteeList = [trusteeListValidator]
     const validateThreshold = [thresholdValidator]
