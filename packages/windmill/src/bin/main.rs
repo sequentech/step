@@ -14,7 +14,7 @@ use sequent_core::util::init_log::init_log;
 use std::collections::HashMap;
 use structopt::StructOpt;
 use tokio::runtime::Builder;
-use tracing::{event, Level};
+use tracing::{event, Level, error, span};
 use windmill::services::celery_app::*;
 use windmill::services::probe::{setup_probe, AppName};
 
