@@ -5,7 +5,6 @@
 
 import React, {useContext} from "react"
 import {Box, CircularProgress} from "@mui/material"
-
 import styled from "@emotion/styled"
 import {Stats} from "./Stats"
 import {VotesPerDay} from "../charts/VotesPerDay"
@@ -43,25 +42,29 @@ export default function DashboardElection() {
         IPermissions.ELECTION_IP_ADDRESS_VIEW
     )
 
-    const {loading, data: dataStats} = useQuery<GetElectionStatsQuery>(
-        GET_ELECTION_STATS,
-        {
-            variables: {
-                tenantId,
-                electionEventId: record?.election_event_id,
-                electionId: record?.id,
-                startDate: formatDate(startDate),
-                endDate: formatDate(endDate),
-                electionAlias: record?.alias,
-                userTimezone,
-            },
-            pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
-        },
+    // Ensure required parameters are set before running the query.
+    const canQueryStats = Boolean(
+        tenantId && record?.election_event_id && record?.id && record?.alias
     )
+
+    const {loading, data: dataStats} = useQuery<GetElectionStatsQuery>(GET_ELECTION_STATS, {
+        variables: {
+            tenantId,
+            electionEventId: record?.election_event_id,
+            electionId: record?.id,
+            startDate: formatDate(startDate),
+            endDate: formatDate(endDate),
+            electionAlias: record?.alias,
+            userTimezone,
+        },
+        pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+        skip: !canQueryStats,
+    })
 
     if (loading) {
         return <CircularProgress />
     }
+
     const stats = dataStats?.election?.[0]?.statistics as IElectionStatistics | null
 
     const metrics = {
@@ -76,49 +79,47 @@ export default function DashboardElection() {
     const cardHeight = 250
 
     return (
-        <>
-            <Box sx={{width: 1024, marginX: "auto"}}>
-                <Box>
-                    <Stats metrics={metrics} />
+        <Box sx={{width: 1024, marginX: "auto"}}>
+            <Box>
+                <Stats metrics={metrics} />
 
-                    <Container>
-                        <VotesPerDay
-                            data={(dataStats?.stats?.votes_per_day as CastVotesPerDay[]) ?? null}
-                            width={cardWidth}
-                            height={cardHeight}
-                            endDate={endDate}
-                        />
-                        <VotersByChannel
-                            data={[
-                                {
-                                    channel: VotingChanel.Online,
-                                    count: dataStats?.stats?.total_distinct_voters ?? 0,
-                                },
-                                {
-                                    channel: VotingChanel.Paper,
-                                    count: 0,
-                                },
-                                {
-                                    channel: VotingChanel.Telephone,
-                                    count: 0,
-                                },
-                                {
-                                    channel: VotingChanel.Postal,
-                                    count: 0,
-                                },
-                            ]}
-                            width={cardWidth}
-                            height={cardHeight}
-                        />
-                    </Container>
-                    {showIpAdresses && record?.id && (
-                        <ListIpAddress
-                            electionEventId={record?.election_event_id}
-                            electionId={record?.id}
-                        />
-                    )}
-                </Box>
+                <Container>
+                    <VotesPerDay
+                        data={(dataStats?.stats?.votes_per_day as CastVotesPerDay[]) ?? null}
+                        width={cardWidth}
+                        height={cardHeight}
+                        endDate={endDate}
+                    />
+                    <VotersByChannel
+                        data={[
+                            {
+                                channel: VotingChanel.Online,
+                                count: dataStats?.stats?.total_distinct_voters ?? 0,
+                            },
+                            {
+                                channel: VotingChanel.Paper,
+                                count: 0,
+                            },
+                            {
+                                channel: VotingChanel.Telephone,
+                                count: 0,
+                            },
+                            {
+                                channel: VotingChanel.Postal,
+                                count: 0,
+                            },
+                        ]}
+                        width={cardWidth}
+                        height={cardHeight}
+                    />
+                </Container>
+                {showIpAdresses && record?.id && (
+                    <ListIpAddress
+                        electionEventId={record?.election_event_id}
+                        electionId={record?.id}
+                    />
+                )}
             </Box>
-        </>
+        </Box>
     )
 }

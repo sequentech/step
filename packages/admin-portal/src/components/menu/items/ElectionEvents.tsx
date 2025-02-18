@@ -291,8 +291,10 @@ export default function ElectionEvents() {
         }
     )
     // Get subtrees
-    const [getElectionEventTree, {data: electionEventTreeData, refetch: _electionEventTreeRefetch}] =
-        useLazyQuery(FETCH_ELECTION_EVENTS_TREE)
+    const [
+        getElectionEventTree,
+        {data: electionEventTreeData, refetch: _electionEventTreeRefetch},
+    ] = useLazyQuery(FETCH_ELECTION_EVENTS_TREE)
 
     const [getElectionTree, {data: electionTreeData, refetch: _electionTreeRefetch}] =
         useLazyQuery(FETCH_ELECTIONS_TREE)
@@ -312,7 +314,7 @@ export default function ElectionEvents() {
                     tenantId,
                     isArchived: isArchivedElectionEvents,
                 },
-            });
+            })
         }
     }
 
@@ -323,7 +325,7 @@ export default function ElectionEvents() {
                     tenantId,
                     electionEventId,
                 },
-            });
+            })
         }
     }
 
@@ -334,7 +336,7 @@ export default function ElectionEvents() {
                     tenantId,
                     electionId,
                 },
-            });
+            })
         }
     }
 
@@ -345,7 +347,7 @@ export default function ElectionEvents() {
                     tenantId,
                     contestId,
                 },
-            });
+            })
         }
     }
 
