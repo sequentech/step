@@ -227,14 +227,16 @@ pub async fn insert_tally_session_contests(
     let contest_encryption_policy = configuration.get_contest_encryption_policy();
 
     if ContestEncryptionPolicy::MULTIPLE_CONTESTS == contest_encryption_policy {
-        let mut elections_set: HashSet<String> = HashSet::new();
+        // (election id, area id)
+        let mut elections_set: HashSet<(String, String)> = HashSet::new();
 
         for area_contest in relevant_area_contests {
             let Some(contest) = contests_map.get(&area_contest.contest_id) else {
                 return Err(anyhow!("Contest not found {:?}", area_contest.contest_id));
             };
             let election_id = contest.election_id.clone();
-            if !elections_set.insert(election_id.clone()) {
+            let area_id = area_contest.area_id.clone();
+            if !elections_set.insert((election_id.clone(), area_id.clone())) {
                 continue;
             }
 
