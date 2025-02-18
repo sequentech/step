@@ -110,7 +110,7 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
     const {data: trusteeList, error} = useGetList<Sequent_Backend_Trustee>(
         "sequent_backend_trustee",
         {
-            pagination: {page: 1, perPage: 50},
+            pagination: {page: 1, perPage: 200},
             sort: {field: "last_updated_at", order: "DESC"},
             filter: {
                 tenant_id: electionEvent.tenant_id,
