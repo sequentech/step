@@ -12,7 +12,6 @@ psql \
     <<-'EOSQL'
     CREATE EXTENSION IF NOT EXISTS pgcrypto;
     CREATE EXTENSION IF NOT EXISTS unaccent;
-    CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
     -- Create the normalization function
     CREATE OR REPLACE FUNCTION normalize_text(input_text TEXT)

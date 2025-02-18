@@ -401,7 +401,6 @@ fn get_sort_clause_and_field_param(
     }
 }
 
-// improve this
 #[instrument(skip(hasura_transaction, keycloak_transaction), err)]
 pub async fn list_users(
     hasura_transaction: &Transaction<'_>,
@@ -590,7 +589,7 @@ pub async fn list_users(
         ) attr_json ON TRUE;
         "#
     );
-    info!("statement_str {statement_str:?}");
+    debug!("statement_str {statement_str:?}");
 
     let statement = keycloak_transaction.prepare(statement_str.as_str()).await?;
     let rows: Vec<Row> = keycloak_transaction
@@ -954,13 +953,13 @@ impl AttributesFilterOption {
         let filter_option = self;
         match filter_option.filter_by {
             AttributesFilterBy::IsLike => {
-                format!("EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND normalize_text(ua.name) = normalize_text(${}) AND normalize_text(ua.value) ILIKE normalize_text(${}))",index - 1,index)
+                format!("EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${} AND ua.value ILIKE ${})",index - 1,index)
             }
             AttributesFilterBy::IsEqual => {
-                format!("EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND normalize_text(ua.name) = normalize_text(${}) AND normalize_text(ua.value) ILIKE normalize_text(${}))",index - 1,index)
+                format!("EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${} AND ua.value = ${})",index -1, index)
             }
             AttributesFilterBy::NotExist => {
-                format!("NOT EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND normalize_text(ua.name) = normalize_text(${}) AND normalize_text(ua.value) ILIKE normalize_text(${}))",index - 1,index)
+                format!("NOT EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${} AND ua.value = ${})",index -1, index)
             }
             AttributesFilterBy::PartialLike => {
                 format!("EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${} AND ua.value ILIKE '%' || ${} || '%')",index -1, index)
