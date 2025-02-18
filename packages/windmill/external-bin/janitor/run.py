@@ -23,6 +23,8 @@ from pathlib import Path
 from patch import parse_table_sheet, parse_parameters, patch_json_with_excel
 import re
 
+IS_DEBUG = False
+
 def is_valid_regex(pattern):
     try:
         re.compile(pattern)  # Try to compile the regex
@@ -227,7 +229,7 @@ def get_voters(sqlite_output_path):
     return get_sqlite_data(query, sqlite_output_path)
 
 def get_data(sqlite_output_path, excel_data):
-    precinct_ids = [e["precinct_id"] for e in excel_data["elections"]]
+    precinct_ids = [e["precinct_id"] for e in excel_data["areas"]]
     precinct_ids_str = ",".join([f"'{precinct_id}'" for precinct_id in precinct_ids])
 
     query = f"""SELECT
@@ -776,19 +778,29 @@ def gen_tree(excel_data, miru_data, script_idr, multiply_factor):
 
     ccs_servers = {}
 
-    # areas
+    # areas, indexed by region code
     areas = {}
     for row in results:
+        precinct_id = row["DB_TRANS_SOURCE_ID"]
         area_name = row["DB_ALLMUN_AREA_NAME"].strip()
 
-        # the area
-        if area_name in areas:
-            continue
+        area_context = next((area for area in excel_data["areas"] if str(area["precinct_id"]) == precinct_id), None)
 
-        precinct_id = row["DB_TRANS_SOURCE_ID"]
+        if area_context is None:
+            raise Exception(f"precinct with 'id' = {precinct_id} not found in excel areas/precincts tab")
+        area_name = area_context["name"]
+
         if precinct_id not in miru_data:
             raise Exception(f"precinct with 'id' = {precinct_id} not found in miru acf")
         miru_precinct = miru_data[precinct_id]
+
+        region_code = str(area_context["region_code_overwrite"] if "region_code_overwrite" in area_context and area_context["region_code_overwrite"] is not None else row["pop_POLLCENTER_CODE"])
+
+        # the area
+        if region_code in areas:
+            found_area = next((a for a in areas[region_code] if a["precinct_id"] == precinct_id), None)
+            if found_area:
+                continue
 
         ccs_servers = [{
             "name": server["NAME"],
@@ -809,31 +821,47 @@ def gen_tree(excel_data, miru_data, script_idr, multiply_factor):
             "name": area_name,
             "description" :row["DB_POLLING_CENTER_POLLING_PLACE"],
             "source_id": row["DB_TRANS_SOURCE_ID"],
+            "region_code": str(region_code),
+            "precinct_id": str(precinct_id),
             **base_context,
             "miru": {
                 "ccs_servers": ccs_servers_str,
-                "sbei_ids": sbei_ids_str
+                "sbei_ids": sbei_ids_str,
+                "country": row["DB_ALLMUN_AREA_NAME"]
             }
         }
-        areas[area_name] = area
+        if region_code not in areas:
+            areas[region_code] = []
+        areas[region_code].append(area)
 
     for (idx, row) in enumerate(results):
         # print(f"processing row {idx}")
         # Find or create the election object
+
+        precinct_id = row_precinct_id = row["DB_TRANS_SOURCE_ID"]
+
+        # each post has a precinct id, find the region code for that precinct in the areas/precincts tab
+        area_context = next((area for area in excel_data["areas"] if str(area["precinct_id"]) == precinct_id), None)
+        if area_context is None:
+            raise Exception(f"precinct with 'id' = {precinct_id} not found in excel areas/precincts tab")
+        region_code = str(area_context["region_code_overwrite"] if "region_code_overwrite" in area_context and area_context["region_code_overwrite"] is not None else row["pop_POLLCENTER_CODE"])
+
         row_election_post = row["DB_POLLING_CENTER_POLLING_PLACE"]
-        row_precinct_id = row["DB_TRANS_SOURCE_ID"]
         election = next((e for e in elections_object["elections"] if e["precinct_id"] == row_precinct_id), None)
         election_context = next((
             c for c in excel_data["elections"] 
             if str(c["precinct_id"]) == row_precinct_id
         ), None)
 
+        if election_context is None:
+            # it's a precinct, not a post, filter out
+            continue
+
         election_context["precinct_id"] = str(election_context["precinct_id"])
 
         if not election_context:
             raise Exception(f"election with 'precinct_id' = {row_precinct_id} not found in excel")
         
-        precinct_id = row["DB_TRANS_SOURCE_ID"]
         if precinct_id not in miru_data:
             raise Exception(f"precinct with 'id' = {precinct_id} not found in miru acf")
         miru_precinct = miru_data[precinct_id]
@@ -848,6 +876,7 @@ def gen_tree(excel_data, miru_data, script_idr, multiply_factor):
             election = {
                 "election_post": row_election_post,
                 "precinct_id": precinct_id,
+                "region_code": region_code,
                 "election_name": election_context["name"],
                 "contests": [],
                 "scheduled_events": [],
@@ -878,8 +907,7 @@ def gen_tree(excel_data, miru_data, script_idr, multiply_factor):
                 "eligible_amount": row["DB_RACE_ELIGIBLEAMOUNT"],
                 "district_code": row["DB_SEAT_DISTRICTCODE"],
                 "sort_order": row["contest_SORT_ORDER"],
-                "candidates": [],
-                "areas": []
+                "candidates": []
             }
             election["contests"].append(contest)
 
@@ -913,16 +941,12 @@ def gen_tree(excel_data, miru_data, script_idr, multiply_factor):
         if found_candidate is None:
             contest["candidates"].append(candidate)
 
-        # Add the area to the contest if it hasn't been added already
-        area_name = row["DB_ALLMUN_AREA_NAME"]
-        if area_name not in contest["areas"]:
-            contest["areas"].append(area_name)
-
     # test elections
     test_elections =  copy.deepcopy(elections_object["elections"])
     for election in test_elections:
         election["name"] = "Test Voting"
-        election["alias"] = " - ".join([election["alias"].split("-")[0].strip(), "Test Voting"])
+        name_parts = election["alias"].split("-")
+        election["alias"] = " - ".join([name_parts[0].strip(), name_parts[1].strip(), "Test Voting"])
 
     elections_object["elections"].extend(test_elections)
     
@@ -980,8 +1004,6 @@ def gen_tree(excel_data, miru_data, script_idr, multiply_factor):
     print(f"elections_object {len(elections_object['elections'])}")
 
     return elections_object, areas, results
-
-
 
 def replace_placeholder_database(excel_data, election_event_id, miru_data, script_dir, multiply_factor):
     election_tree, areas_dict, results = gen_tree(excel_data, miru_data, script_dir, multiply_factor)
@@ -1062,6 +1084,13 @@ def replace_placeholder_database(excel_data, election_event_id, miru_data, scrip
             print(f"rendering report {report_context['UUID']}")
             reports.append(json.loads(reports_compiled(report_context)))
 
+        # find the areas:
+        region_code = election["region_code"]
+        precinct_id = election["precinct_id"]
+        if region_code not in areas_dict:
+            raise Exception(f"election  with 'id' = {precinct_id} has no found areas/precincts")
+        election_areas = areas_dict[region_code]
+
         for contest in election["contests"]:
             contest_id = generate_uuid()
             contest_context = {
@@ -1094,13 +1123,10 @@ def replace_placeholder_database(excel_data, election_event_id, miru_data, scrip
                 print(f"rendering candidate {candidate['name_on_ballot']}")
                 candidates.append(json.loads(candidate_compiled(candidate_context)))
 
-            for area_name in contest["areas"]:
-                area_name = area_name.strip()
-                if area_name not in areas_dict:
-                    raise Exception(f"area not found {area_name}")
-                area = areas_dict[area_name]
+            for area in election_areas:
+                area_precinct_id = area["precinct_id"]
 
-                if area_name not in area_contexts_dict:
+                if area_precinct_id not in area_contexts_dict:
                     area_context = {
                         **area,
                         "UUID": generate_uuid(),
@@ -1110,12 +1136,12 @@ def replace_placeholder_database(excel_data, election_event_id, miru_data, scrip
                         "DB_ALLMUN_AREA_NAME": area["name"],
                         "DB_POLLING_CENTER_POLLING_PLACE":area["description"]
                     }
-                    area_contexts_dict[area_name] = area_context
+                    area_contexts_dict[area_precinct_id] = area_context
 
                     print(f"rendering area {area['name']}")
                     areas.append(json.loads(area_compiled(area_context)))
                 else:
-                    area_context = area_contexts_dict[area_name]
+                    area_context = area_contexts_dict[area_precinct_id]
 
                 area_contest_context = {
                     "UUID": generate_uuid(),
@@ -1203,7 +1229,7 @@ def parse_users(sheet):
     )
     return data
 
-def parse_elections(sheet):
+def parse_posts(sheet):
     data = parse_table_sheet(
         sheet,
         required_keys=[
@@ -1214,6 +1240,21 @@ def parse_elections(sheet):
             "^precinct_id$",
             "^description$",
             "^permission_label$"
+        ]
+    )
+    return data
+
+def parse_precincts(sheet):
+    data = parse_table_sheet(
+        sheet,
+        required_keys=[
+            "^precinct_id$",
+            "^name$"
+        ],
+        allowed_keys=[
+            "^precinct_id$",
+            "^name$",
+            "^region_code_overwrite$"
         ]
     )
     return data
@@ -1283,7 +1324,8 @@ def parse_excel(excel_path):
 
     return dict(
         election_event = parse_election_event(electoral_data['ElectionEvent']),
-        elections = parse_elections(electoral_data['Elections']),
+        elections = parse_posts(electoral_data['Posts']),
+        areas = parse_precincts(electoral_data['Precincts']),
         scheduled_events = parse_scheduled_events(electoral_data['ScheduledEvents']),
         reports = parse_reports(electoral_data['Reports']),
         users = parse_users(electoral_data['Users']),
@@ -1346,6 +1388,8 @@ def get_data_ocf_path(script_dir):
 
 def extract_miru_zips(acf_path, script_dir):
     ocf_path = get_data_ocf_path(script_dir)
+    if IS_DEBUG:
+        return ocf_path
     remove_folder_if_exists(ocf_path)
     assert_folder_exists(ocf_path)
     extract_zip(acf_path, None, ocf_path)
@@ -1421,7 +1465,8 @@ def read_miru_data(acf_path, script_dir):
                 -providerpath bcprov.jar \
                 -rfc \
                 | openssl x509 -pubkey -noout > {alias_path}"""
-            run_command(command, script_dir)
+            if not IS_DEBUG:
+                run_command(command, script_dir)
             
             alias_pubkey = read_text_file(alias_path)
             server["PUBLIC_KEY"] = alias_pubkey
@@ -1442,6 +1487,9 @@ def read_miru_data(acf_path, script_dir):
             "USERS": users
         }
         data[precinct_id] = precinct_data
+
+        if IS_DEBUG:
+            continue
 
         sql_output_path = os.path.join(ocf_path, precinct_id,'miru.sql')
         sqlite_output_path =  os.path.join(ocf_path, precinct_id, 'db_sqlite_miru.db')
@@ -1499,10 +1547,10 @@ voters_path = args.voters or args.only_voters or None
 # Determine the script's directory to use as cwd
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
-miru_data = read_miru_data(miru_path, script_dir)
-
 # Step 7: Read Excel
 excel_data = parse_excel(excel_path)
+
+miru_data = read_miru_data(miru_path, script_dir)
 
 # Step 9: Read base configuration
 base_config = read_base_config()
@@ -1559,12 +1607,6 @@ except FileNotFoundError as e:
     logging.exception(f"Template file not found: {e}")
 except Exception as e:
     logging.exception("An error occurred while loading templates.")
-
-
-# Example of how to use the function and see the result
-
-#if voters_path:
-    #create_voters_file(sqlite_output_path)
 
 if args.only_voters:
     print("Only voters, exiting the script.")

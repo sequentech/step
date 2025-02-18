@@ -841,6 +841,10 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                 area: {
                     id: areaId,
                 },
+                attributes: {
+                    ...(prev?.attributes || {}),
+                    "area-id": [areaId],
+                },
             }))
         }
     }
