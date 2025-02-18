@@ -115,7 +115,7 @@ public class CustomEventListenerProvider implements EventListenerProvider {
     if (Utils.EVENT_TYPE_COMMUNICATIONS.equals(
         event.getDetails() != null ? event.getDetails().get("type") : null)) {
       String msgBody = Optional.ofNullable(event.getDetails().get("msgBody")).orElse("");
-      body = String.format("%s %s", Utils.EVENT_TYPE_COMMUNICATIONS, msgBody).replace("\n", " ");
+      body = String.format("%s %s", Utils.EVENT_TYPE_COMMUNICATIONS, msgBody).replace("\n", " ").replace("\\\"", "\"");
     } else {
       // Use the event error (or another appropriate field) as body for non-communications events.
       body = event.getError();
