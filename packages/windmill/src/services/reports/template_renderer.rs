@@ -461,30 +461,23 @@ pub trait TemplateRenderer: Debug {
             .max_items_per_report
             .unwrap_or(DEFAULT_ITEMS_PER_REPORT_LIMIT) as i64;
 
-        let batching_report_types = vec![ReportType::ACTIVITY_LOGS, ReportType::AUDIT_LOGS];
-
-        let use_batching = batching_report_types.contains(&self.get_report_type())
-            && items_count > per_report_limit;
-        info!(
-            "Items count: {items_count}, per report limit: {per_report_limit}, use batching: {use_batching}"
-        );
+        info!("Items count: {items_count}, per report limit: {per_report_limit}");
         let zip_temp_dir = tempdir()?;
         let zip_temp_dir_path = zip_temp_dir.path();
 
+        // TODO: move this out of template_renderer, because that's why we have
+        // execute_report_inner() separated from execute_report()
         let (final_file_path, file_size, final_report_name, mimetype) = if self.get_report_type()
             == ReportType::ACTIVITY_LOGS
         {
             info!(
-                "Using batched processing because items_count ({}) > per_report_limit ({})",
+                "Using batched processing because it's activity log: items_count ({}) > per_report_limit ({})",
                 items_count, per_report_limit
             );
+
             // Calculate the number of batches needed.
-            let num_batches = if per_report_limit > 0 {
-                // calculate the ceil of items_count/per_report_limit
-                (items_count + per_report_limit - 1) / per_report_limit
-            } else {
-                1
-            };
+            let num_batches =
+                std::cmp::max((items_count + per_report_limit - 1) / per_report_limit, 1);
             info!("Number of batches: {:?}", num_batches);
 
             // Define a temporary reports folder (this folder will later be compressed)

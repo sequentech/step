@@ -53,7 +53,12 @@ export const DownloadDocument: React.FC<DownloadDocumentProps> = ({
         }
     )
 
-    const {loading, error, data, refetch: harvestRefetch} = useQuery<FetchDocumentQuery>(FETCH_DOCUMENT, {
+    const {
+        loading,
+        error,
+        data,
+        refetch: harvestRefetch,
+    } = useQuery<FetchDocumentQuery>(FETCH_DOCUMENT, {
         variables: {
             electionEventId,
             documentId,
@@ -72,7 +77,7 @@ export const DownloadDocument: React.FC<DownloadDocumentProps> = ({
             onSucess && onSucess()
             console.log("setting downloaded true")
             setDownloaded(true)
-            
+
             let name = fileName || document?.name || "file"
             console.log("calling downloadUrl")
             downloadUrl(data.fetchDocument.url, name).then(() => onDownload())
