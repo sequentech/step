@@ -65,15 +65,15 @@ jobs:
             context: packages
             file: packages/Dockerfile.immudb
 
-          - service: doc_renderer_openwhisk
-            context: packages
-            file: packages/orare/doc_renderer/Dockerfile
-            features: openwhisk
+          # - service: doc_renderer_openwhisk
+          #   context: packages
+          #   file: packages/orare/doc_renderer/Dockerfile
+          #   features: openwhisk
 
-          - service: doc_renderer_aws_lambda
-            context: packages
-            file: packages/orare/doc_renderer/Dockerfile
-            features: aws_lambda
+          # - service: doc_renderer_aws_lambda
+          #   context: packages
+          #   file: packages/orare/doc_renderer/Dockerfile
+          #   features: aws_lambda
 
       fail-fast: false
 
