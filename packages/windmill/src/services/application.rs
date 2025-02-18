@@ -129,7 +129,13 @@ pub async fn verify_application(
         .as_ref()
         .and_then(|value| value.get("embassy"))
     {
-        get_permission_label_from_applicant_data(hasura_transaction, applicant_data).await?
+        get_permission_label_from_applicant_data(
+            hasura_transaction,
+            applicant_data,
+            tenant_id,
+            election_event_id,
+        )
+        .await?
     } else {
         let area_name = applicant_data
             .get("country")
@@ -178,6 +184,8 @@ pub async fn verify_application(
 async fn get_permission_label_from_applicant_data(
     hasura_transaction: &Transaction<'_>,
     applicant_data: &HashMap<String, String>,
+    tenant_id: &str,
+    election_event_id: &str,
 ) -> Result<(Option<String>, Option<Uuid>)> {
     let post = applicant_data
         .get("embassy")
@@ -185,7 +193,8 @@ async fn get_permission_label_from_applicant_data(
 
     info!("Found post: {:?}", post);
 
-    return get_permission_label_from_post(hasura_transaction, post).await;
+    return get_permission_label_from_post(hasura_transaction, post, tenant_id, election_event_id)
+        .await;
 }
 
 #[instrument(err, skip_all)]

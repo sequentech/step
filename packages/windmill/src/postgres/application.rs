@@ -49,6 +49,8 @@ impl TryFrom<Row> for ApplicationWrapper {
 pub async fn get_permission_label_from_post(
     hasura_transaction: &Transaction<'_>,
     post: &str,
+    tenant_id: &str,
+    election_event_id: &str,
 ) -> Result<(Option<String>, Option<Uuid>)> {
     let query = r#"
         SELECT el.permission_label, a.id
@@ -57,7 +59,15 @@ pub async fn get_permission_label_from_post(
             LEFT JOIN sequent_backend.contest con ON ac.contest_id = con.id
             LEFT JOIN sequent_backend.election el ON con.election_id = el.id
         WHERE
-            a.description ILIKE $1
+            a.description ILIKE $1 AND
+            a.tenant_id = $2 AND
+            ac.tenant_id = $2 AND
+            con.tenant_id = $2 AND
+            el.tenant_id = $2 AND
+            a.election_event_id = $3 AND
+            ac.election_event_id = $3 AND
+            con.election_event_id = $3 AND
+            el.election_event_id = $3
         LIMIT 1
         "#;
 
@@ -67,7 +77,14 @@ pub async fn get_permission_label_from_post(
         .map_err(|err| anyhow!("Error preparing the application query: {err}"))?;
 
     let row = hasura_transaction
-        .query_opt(&statement, &[&post])
+        .query_opt(
+            &statement,
+            &[
+                &post,
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(election_event_id)?,
+            ],
+        )
         .await
         .map_err(|err| anyhow!("Error querying applications: {err}"))?;
 
