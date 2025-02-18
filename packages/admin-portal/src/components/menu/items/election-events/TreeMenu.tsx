@@ -384,10 +384,22 @@ function TreeMenuItem({
 
     let imageDocumentId = (resource as ElectionType).image_document_id ?? null
 
-    const {data: imageData} = useGetOne<Sequent_Backend_Document>("sequent_backend_document", {
-        id: imageDocumentId,
-        meta: {tenant_id: tenantId},
-    })
+    const {data: imageData} = useGetOne<Sequent_Backend_Document>(
+        "sequent_backend_document",
+        {
+            id: imageDocumentId,
+            meta: {tenant_id: tenantId},
+        },
+        {
+            enabled: !!imageDocumentId && !!tenantId,
+            onError: (error: any) => {
+                console.log(`error fetching image doc: ${error.message}`)
+            },
+            onSuccess: () => {
+                console.log(`success fetching image doc`)
+            },
+        },
+    )
 
     let item: React.ReactNode
     if (treeResourceNames[0] === "sequent_backend_election_event") {

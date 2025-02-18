@@ -146,7 +146,16 @@ export const ElectionDataForm: React.FC = () => {
         {
             id: record.image_document_id || record.tenant_id,
             meta: {tenant_id: record.tenant_id},
-        }
+        },
+        {
+            enabled: !!record.image_document_id || !!record.tenant_id,
+            onError: (error: any) => {
+                console.log(`error fetching image doc: ${error.message}`)
+            },
+            onSuccess: () => {
+                console.log(`success fetching image doc`)
+            },
+        },
     )
 
     const [updateImage] = useUpdate()
