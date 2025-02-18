@@ -534,7 +534,7 @@ pub async fn list_users(
     debug!("parameters count: {}", next_param_number - 1);
     debug!("params {:?}", params);
     let statement_str = format!(
-    r#"
+        r#"
         WITH limited_users AS MATERIALIZED (
             SELECT
                 u.id,
