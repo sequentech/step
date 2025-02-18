@@ -34,6 +34,8 @@ strum = "0.25"
 strum_macros = "0.25"
 base64 = "0.21.0"
 celery = { git = "https://github.com/rusty-celery/rusty-celery.git", rev = "1a0168f4b4b521c891fcfc853c21fc30de12c2f2" }
+lapin = "2.5"
+rayon = "1.5"
 tokio = { version = "1.32.0", features = ["full"] }
 async-trait = "0.1.74"
 structopt = "0.3.26"

@@ -9631,6 +9631,7 @@ dependencies = [
  "hex",
  "immudb-rs",
  "keycloak",
+ "lapin",
  "lazy_static 1.5.0",
  "lettre",
  "num_cpus",
