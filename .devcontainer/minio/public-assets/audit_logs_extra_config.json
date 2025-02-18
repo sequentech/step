@@ -18,7 +18,7 @@
     "transfer_mode": null
   },
   "report_options": {
-    "max_items_per_report": 10,
+    "max_items_per_report": 2500,
     "max_threads": 3
   },  
   "communication_templates": {
