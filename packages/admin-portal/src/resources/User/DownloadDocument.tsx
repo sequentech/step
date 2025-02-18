@@ -34,7 +34,7 @@ export const DownloadDocument: React.FC<DownloadDocumentProps> = ({
     const {globalSettings} = useContext(SettingsContext)
     const [tenantId] = useTenantStore()
 
-    const {data: document} = useGetOne<Sequent_Backend_Document>(
+    const {data: document, refetch: hasuraRefetch} = useGetOne<Sequent_Backend_Document>(
         "sequent_backend_document",
         {
             id: documentId,
@@ -48,16 +48,21 @@ export const DownloadDocument: React.FC<DownloadDocumentProps> = ({
             },
             onSuccess: () => {
                 console.log(`success downloading doc`)
+                harvestRefetch()
             },
         }
     )
 
-    const {loading, error, data} = useQuery<FetchDocumentQuery>(FETCH_DOCUMENT, {
+    const {loading, error, data, refetch: harvestRefetch} = useQuery<FetchDocumentQuery>(FETCH_DOCUMENT, {
         variables: {
             electionEventId,
             documentId,
         },
         pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+        onCompleted: () => {
+            console.log(`completed fetching document`)
+            harvestRefetch()
+        },
     })
 
     console.log({name: document?.name})
@@ -65,9 +70,11 @@ export const DownloadDocument: React.FC<DownloadDocumentProps> = ({
     useEffect(() => {
         if (!error && data?.fetchDocument?.url && !downloaded && (fileName || document)) {
             onSucess && onSucess()
+            console.log("setting downloaded true")
             setDownloaded(true)
-
+            
             let name = fileName || document?.name || "file"
+            console.log("calling downloadUrl")
             downloadUrl(data.fetchDocument.url, name).then(() => onDownload())
         }
     }, [
