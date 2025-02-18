@@ -39,6 +39,7 @@ import {
     EditUsersInput,
     ListUserRolesQuery,
     Sequent_Backend_Cast_Vote,
+    Sequent_Backend_Election,
     SetUserRoleMutation,
     UserProfileAttribute,
 } from "@/gql/graphql"
@@ -61,12 +62,10 @@ import SelectArea from "@/components/area/SelectArea"
 import SelectActedTrustee from "./SelectActedTrustee"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
-import {useLocation} from "react-router"
 import {InputContainerStyle, InputLabelStyle, PasswordInputStyle} from "./EditPassword"
 import IconTooltip from "@/components/IconTooltip"
 import {faInfoCircle} from "@fortawesome/free-solid-svg-icons"
 import {useUsersPermissions} from "./useUsersPermissions"
-import {values} from "lodash"
 
 interface ListUserRolesProps {
     userId?: string
@@ -298,6 +297,21 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         }
     )
 
+    const {data: electionsList} = useGetList<Sequent_Backend_Election>(
+        "sequent_backend_election",
+        {
+            pagination: {page: 1, perPage: 300},
+            sort: {field: "name", order: "DESC"},
+            filter: {
+                tenant_id: tenantId,
+                election_event_id: electionEventId,
+            },
+        },
+        {
+            enabled: !!electionEventId,
+        }
+    )
+
     // true if not affected by canEditVotersWhoVoted
     // which happens if the voter has not voted
     // or if current admin user has the permission canEditVotersWhoVoted
@@ -465,61 +479,16 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         })
     }
 
-    /**
-     * This code snippet updates the attributes object in the user state when a multi-select input changes.
-     * It merges the newly selected values with the existing values, removing any duplicates and preserving the original order.
-     * If the new selection is empty, it resets the attribute to an empty array.
-     * ---
-     * Updates the user attributes on the given attrName with the new value (string[]).
-     * It removes the previous values that are not included in the new value and adds the new ones.
-     * @param {string} attrName - The name of the attribute to be updated.
-     * @param {string[]} value - The new value of the attribute.
-     */
-    const handleArraySelectChange = (attrName: string) => async (value: string[]) => {
+    const handleArraySelectChange = (value: string[]) => {
         setUser((prev) => {
-            /*
-             * - If the new selection is empty, it resets the attribute to an empty array.
-             */
-
-            if (value?.length === 0) {
-                return {
-                    ...prev,
-                    attributes: {
-                        ...prev?.attributes,
-                        [attrName]: [],
-                    },
-                }
-            }
-
-            /*
-             * - Otherwise, it merges the newly selected values with the existing values,
-             * removing any duplicates and preserving the original order.
-             */
-            const elections = prev?.attributes?.[attrName] ?? []
-
-            const notIncluded = value.filter((item) => !elections.includes(item))
-
-            let newElections = []
-
-            if (searched.current !== "") {
-                newElections = [...Array.from(new Set([...elections, ...value]))]
-            } else {
-                if (elections.length < value.length) {
-                    newElections = [...Array.from(new Set([...elections, ...notIncluded]))]
-                } else {
-                    newElections = [...value]
-                }
-            }
-
             return {
                 ...prev,
                 attributes: {
                     ...prev?.attributes,
-                    [attrName]: newElections,
+                    "authorized-election-ids": value,
                 },
             }
         })
-        searched.current = ""
     }
 
     const handlePermissionLabelRemoved = (value: string[]) => {
@@ -725,34 +694,23 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                     )
                 } else if (attr.name.toLowerCase().includes("authorized-election-ids")) {
                     return (
-                        <ReferenceArrayInput
-                            reference="sequent_backend_election"
+                        <FormStyles.AutocompleteArrayInput
+                            label={getTranslationLabel(attr.name, attr.display_name, t)}
+                            className="elections-selector"
+                            fullWidth
+                            choices={electionsList || []}
                             source="attributes.authorized-election-ids"
-                            filter={{
-                                tenant_id: tenantId,
-                                election_event_id: electionEventId,
-                            }}
-                            enableGetChoices={({q}) => q && q.length >= 3}
-                            perPage={9999}
-                            format={(value) => (value === undefined ? "not defined" : null)}
-                        >
-                            <FormStyles.AutocompleteArrayInput
-                                label={getTranslationLabel(attr.name, attr.display_name, t)}
-                                className="elections-selector"
-                                fullWidth={true}
-                                optionValue="alias"
-                                optionText={aliasRenderer}
-                                filterToQuery={electionFilterToQuery}
-                                onChange={handleArraySelectChange(attr.name)}
-                                disabled={
-                                    !(
-                                        createMode ||
-                                        !electionEventId ||
-                                        (enabledByVoteNum && canEditVoters)
-                                    )
-                                }
-                            />
-                        </ReferenceArrayInput>
+                            optionValue="alias"
+                            optionText={aliasRenderer}
+                            onChange={handleArraySelectChange}
+                            disabled={
+                                !(
+                                    createMode ||
+                                    !electionEventId ||
+                                    (enabledByVoteNum && canEditVoters)
+                                )
+                            }
+                        />
                     )
                 } else if (attr.name.toLowerCase().includes("permission_labels")) {
                     return (
