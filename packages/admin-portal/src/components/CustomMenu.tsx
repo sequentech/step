@@ -163,9 +163,8 @@ export const CustomMenu = () => {
         <>
             <StyledMenu open={open}>
                 <SelectTenants />
-                
-                <MenuWrapper>
 
+                <MenuWrapper>
                     <ElectionEvents />
 
                     {tenant && showUsers && (

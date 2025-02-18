@@ -41,7 +41,7 @@ import {AuthContext} from "@/providers/AuthContextProvider"
 import {useTranslation} from "react-i18next"
 import {IPermissions} from "../../../types/keycloak"
 import {useTreeMenuData} from "./use-tree-menu-hook"
-import {cloneDeep} from "lodash"
+import {cloneDeep, debounce} from "lodash"
 import {useUrlParams} from "@/hooks/useUrlParams"
 import {useCreateElectionEventStore} from "@/providers/CreateElectionEventContextProvider"
 import {useLazyQuery} from "@apollo/client"
@@ -212,6 +212,7 @@ function filterTree(tree: any, filterName: string): any {
 export default function ElectionEvents() {
     const [tenantId] = useTenantStore()
     const [isOpenSidebar] = useSidebarState()
+    const [instantSearchInput, setInstantSearchInput] = useState<string>("")
     const [searchInput, setSearchInput] = useState<string>("")
     const navigate = useNavigate()
 
@@ -442,10 +443,6 @@ export default function ElectionEvents() {
         }
     }, [electionEventId, electionEventData, setArchivedElectionEvents])
 
-    function handleSearchChange(searchInput: string) {
-        setSearchInput(searchInput)
-    }
-
     let resultData = {...data}
 
     function changeArchiveSelection(val: number) {
@@ -632,6 +629,20 @@ export default function ElectionEvents() {
         navigate("/sequent_backend_election_event/")
     }
 
+    const debouncedSearchChange = useMemo(() => {
+        const debouncedFn = debounce((value) => {
+            console.log(`edu: debounce: ${value}`)
+            // Expensive operation or API call
+            setSearchInput(value)
+        }, 300)
+
+        return (value: any) => {
+            // Update state immediately
+            setInstantSearchInput(value)
+            debouncedFn(value)
+        }
+    }, [])
+
     const treeMenu = loading ? (
         <CircularProgress />
     ) : (
@@ -681,8 +692,8 @@ export default function ElectionEvents() {
                                 dir={i18n.dir(i18n.language)}
                                 label={t("sideMenu.search")}
                                 size="small"
-                                value={searchInput}
-                                onChange={(e) => handleSearchChange(e.target.value)}
+                                value={instantSearchInput}
+                                onChange={(e) => debouncedSearchChange(e.target.value)}
                             />
                             <SearchIcon />
                         </SideBarContainer>
