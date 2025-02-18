@@ -12,6 +12,7 @@ psql \
     <<-'EOSQL'
     CREATE EXTENSION IF NOT EXISTS pgcrypto;
     CREATE EXTENSION IF NOT EXISTS unaccent;
+    CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
     -- Create the normalization function
     CREATE OR REPLACE FUNCTION normalize_text(input_text TEXT)
@@ -35,6 +36,16 @@ psql \
             -- Normalized User entity
             CREATE INDEX IF NOT EXISTS idx_user_entity_first_name_normalize ON user_entity((normalize_text(first_name)));
             CREATE INDEX IF NOT EXISTS idx_user_entity_last_name_normalize ON user_entity((normalize_text(last_name)));
+
+            -- If you often do partial-match ILIKE on first_name:
+            CREATE INDEX IF NOT EXISTS idx_user_entity_first_name_trgm ON user_entity USING gin((normalize_text(first_name)) gin_trgm_ops);
+            CREATE INDEX IF NOT EXISTS idx_user_entity_last_name_trgm ON user_entity USING gin((normalize_text(last_name)) gin_trgm_ops);
+            CREATE INDEX IF NOT EXISTS idx_user_entity_email_trgm ON user_entity USING gin((normalize_text(email)) gin_trgm_ops);
+            CREATE INDEX IF NOT EXISTS idx_user_entity_username_trgm ON user_entity USING gin((normalize_text(username)) gin_trgm_ops);
+
+            -- Index on realm_id or (realm_id, enabled)
+            CREATE INDEX IF NOT EXISTS idx_user_entity_realm_id_enabled ON user_entity(realm_id, enabled);
+
         END IF;
     END $$;
 

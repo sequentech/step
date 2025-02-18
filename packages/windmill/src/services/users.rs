@@ -401,6 +401,7 @@ fn get_sort_clause_and_field_param(
     }
 }
 
+// improve this
 #[instrument(skip(hasura_transaction, keycloak_transaction), err)]
 pub async fn list_users(
     hasura_transaction: &Transaction<'_>,
@@ -412,18 +413,13 @@ pub async fn list_users(
     let default_sql_limit = PgConfig::from_env()?.default_sql_limit;
     let query_limit: i64 =
         std::cmp::min(low_sql_limit, filter.limit.unwrap_or(default_sql_limit)).into();
-    let query_offset: i64 = if let Some(offset_val) = filter.offset {
-        offset_val.into()
-    } else {
-        0
-    };
+    let query_offset: i64 = filter.offset.unwrap_or(0).into();
 
     let mut params: Vec<&(dyn ToSql + Sync)> = vec![&filter.realm, &filter.user_ids];
     let mut next_param_number = 3;
 
     let mut filters_clause = "".to_string();
     let mut filter_params: Vec<String> = vec![];
-
     for tuple in [
         ("email", &filter.email),
         ("first_name", &filter.first_name),
@@ -448,6 +444,7 @@ pub async fn list_users(
         params.push(filt_param);
     }
 
+    //
     let (area_ids, area_ids_join_clause, area_ids_where_clause) = get_area_ids(
         hasura_transaction,
         filter.election_id.clone(),
@@ -455,6 +452,7 @@ pub async fn list_users(
         next_param_number,
     )
     .await?;
+
     if let Some(area_ids) = &area_ids {
         params.push(area_ids);
         next_param_number += 1;
@@ -944,13 +942,13 @@ impl AttributesFilterOption {
         let filter_option = self;
         match filter_option.filter_by {
             AttributesFilterBy::IsLike => {
-                format!("EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${} AND ua.value ILIKE ${})",index - 1,index)
+                format!("EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND normalize_text(ua.name) = normalize_text(${}) AND normalize_text(ua.value) ILIKE normalize_text(${}))",index - 1,index)
             }
             AttributesFilterBy::IsEqual => {
-                format!("EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${} AND ua.value = ${})",index -1, index)
+                format!("EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND normalize_text(ua.name) = normalize_text(${}) AND normalize_text(ua.value) ILIKE normalize_text(${}))",index - 1,index)
             }
             AttributesFilterBy::NotExist => {
-                format!("NOT EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${} AND ua.value = ${})",index -1, index)
+                format!("NOT EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND normalize_text(ua.name) = normalize_text(${}) AND normalize_text(ua.value) ILIKE normalize_text(${}))",index - 1,index)
             }
             AttributesFilterBy::PartialLike => {
                 format!("EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${} AND ua.value ILIKE '%' || ${} || '%')",index -1, index)
