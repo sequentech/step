@@ -6,7 +6,9 @@ use std::num::TryFromIntError;
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::bigint;
 use super::{vec, RawBallotContest};
-use crate::ballot::{BallotStyle, Candidate, Contest, EBlankVotePolicy, EUnderVotePolicy};
+use crate::ballot::{
+    BallotStyle, Candidate, Contest, EBlankVotePolicy, EUnderVotePolicy,
+};
 use crate::mixed_radix;
 use crate::plaintext::{
     DecodedVoteContest, InvalidPlaintextError, InvalidPlaintextErrorType,
@@ -358,7 +360,7 @@ impl BallotChoices {
     /// 2) Vec<u8> -> BigUint
     /// 3) BigUint -> RawBallotContest (this is a mixed-radix structure)
     /// 4) RawBallotContest -> DecodedBallotChoices
-    /// 
+    ///
     /// =================================
     /// The following conditions will return an error.
     ///
@@ -369,32 +371,35 @@ impl BallotChoices {
     ///     - contest.min_votes
     ///     - contest.max_votes
     /// * There is a u64 -> usize conversion error on a choice
-    /// 
+    ///
     /// =================================
-    /// The following conditions produce an invalid_error or an invalid_alert 
+    /// The following conditions produce an invalid_error or an invalid_alert
     /// within DecodedContestChoices:
-    /// 
-    /// * The number of selected candidates is less than min_votes (unconditionally)
-    /// * The number of selected candidates is less than max_votes (under_vote_policy)
+    ///
+    /// * The number of selected candidates is less than min_votes
+    ///   (unconditionally)
+    /// * The number of selected candidates is less than max_votes
+    ///   (under_vote_policy)
     /// * The number of selected candidates is 0 (blank vote policy)
-    /// 
+    ///
     /// =================================
-    /// The following conditions do not short circuit, or produce an invalid_error or an invalid_alert:
-    /// 
+    /// The following conditions do not short circuit, or produce an
+    /// invalid_error or an invalid_alert:
+    ///
     /// * is_explicit_invalid and its compatibility with invalid vote policies
-    ///     
-    ///     There is currently no policy defined for invalid votes at the ballot level, which is the
-    ///     level at which is_explicit_invalid is defined. To add a check for this condition, a ballot
-    ///     level invalid vote policy would need to be defined.
-    /// 
+    ///   There is currently no policy defined for invalid votes at the ballot
+    ///   level, which is the level at which is_explicit_invalid is defined. To
+    ///   add a check for this condition, a ballot level invalid vote policy
+    ///   would need to be defined.
+    ///
     ///  * num_selected_candidates > max_votes, at the contest level
-    /// 
-    ///     This condition is not checked for individual contests, but it is implicitly checked when 
-    ///     checking the total expected number of slots, at the ballot level.
-    /// 
-    ///  * duplicate choices
-    ///     
-    ///    If a choice is duplicated it will be ignored, unless it leads to fewer than min_votes values.
+    ///
+    ///     This condition is not checked for individual contests, but it is
+    /// implicitly checked when     checking the total expected number of
+    /// slots, at the ballot level.
+    ///
+    ///  * duplicate choices  If a choice is duplicated it will be ignored,
+    ///    unless it leads to fewer than min_votes values.
     /// =================================
     ///
     /// The decoding processes the choices vector as a
@@ -430,7 +435,7 @@ impl BallotChoices {
     }
 
     /// Decode a mixed radix representation of the ballot.
-    /// 
+    ///
     /// Each contest is decoded via Self::decode_contest, and added
     /// to the overall DecodedBallotChoices.
     pub fn decode(
@@ -449,7 +454,8 @@ impl BallotChoices {
                 format!("i64 -> usize conversion on contest max_votes sum")
             })?;
 
-        // We cannot collect errors after this, the structure is fundamentally broken
+        // We cannot collect errors after this, the structure is fundamentally
+        // broken
         if choices.len() != expected_slots {
             return Err(format!(
                 "Unexpected number of slots {} != {}",
@@ -580,26 +586,23 @@ impl BallotChoices {
         // The opposite (> max_votes) is impossible due to the above
         // loop's range 0..max_votes
         if unique.len() < min_votes {
-            invalid_errors.push(
-                InvalidPlaintextError {
-                    error_type: InvalidPlaintextErrorType::Implicit,
-                    candidate_id: None,
-                    message: Some(
-                        "errors.implicit.selectedMin".to_string(),
+            invalid_errors.push(InvalidPlaintextError {
+                error_type: InvalidPlaintextErrorType::Implicit,
+                candidate_id: None,
+                message: Some("errors.implicit.selectedMin".to_string()),
+                message_map: HashMap::from([
+                    (
+                        "numSelected".to_string(),
+                        num_selected_candidates.to_string(),
                     ),
-                    message_map: HashMap::from([
-                        (
-                            "numSelected".to_string(),
-                            num_selected_candidates.to_string(),
-                        ),
-                        ("min".to_string(), min_votes.to_string()),
-                    ]),
-                },
-            );
+                    ("min".to_string(), min_votes.to_string()),
+                ]),
+            });
         }
 
-        // Undervote alerts are generated when the number of votes is less than max_votes
-        // If the number of votes is less than min_votes, an invalid_error is generated above
+        // Undervote alerts are generated when the number of votes is less than
+        // max_votes If the number of votes is less than min_votes, an
+        // invalid_error is generated above
         if under_vote_policy != EUnderVotePolicy::ALLOWED
             && num_selected_candidates < max_votes
             && num_selected_candidates >= min_votes
@@ -621,13 +624,12 @@ impl BallotChoices {
         }
 
         // Blank vote policy applies to num_selected_candidates == 0
-        // This is on top of the num_selected_candidates < min_votes condition checked above
+        // This is on top of the num_selected_candidates < min_votes condition
+        // checked above
         if let Some(blank_vote_policy) = presentation.blank_vote_policy {
             if num_selected_candidates == 0 {
                 let alert_or_error = match blank_vote_policy {
-                    EBlankVotePolicy::NOT_ALLOWED => {
-                        &mut invalid_errors
-                    }
+                    EBlankVotePolicy::NOT_ALLOWED => &mut invalid_errors,
                     _ => &mut invalid_alerts,
                 };
                 alert_or_error.push(InvalidPlaintextError {
@@ -931,10 +933,10 @@ mod tests {
                     index += 1;
                     continue;
                 }
-    
+
                 let mut value;
-                // skip past unset values that do not correspond to input choices
-                // Note this line in encode_contest:
+                // skip past unset values that do not correspond to input
+                // choices Note this line in encode_contest:
                 // We set all values as unset (0) by default
                 // let mut contest_choices = vec![0u64; max_votes];
                 loop {
@@ -1012,11 +1014,12 @@ mod tests {
     }
 
     fn presentation() -> ContestPresentation {
-        ContestPresentation{
-            under_vote_policy: None, 
+        ContestPresentation {
+            under_vote_policy: None,
             blank_vote_policy: None,
             over_vote_policy: None,
-            ..Default::default()}
+            ..Default::default()
+        }
     }
 
     fn random_contest(
