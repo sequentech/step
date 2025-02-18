@@ -8,30 +8,34 @@
 
 extern crate lazy_static;
 
-use std::collections::HashMap;
-
 use anyhow::{anyhow, Result};
-use sequent_core::util::init_log::init_log;
-
 use dotenv::dotenv;
+use sequent_core::util::init_log::init_log;
+use std::collections::HashMap;
 use structopt::StructOpt;
 use tokio::runtime::Builder;
 use tracing::{event, Level};
 use windmill::services::celery_app::*;
 use windmill::services::probe::{setup_probe, AppName};
-extern crate chrono;
 
 #[derive(Debug, StructOpt)]
 #[structopt(
     name = "windmill",
-    about = "Run a Rust Celery producer or consumer.",
+    about = "Windmill task queue prosumer.",
     setting = structopt::clap::AppSettings::ColoredHelp,
 )]
 enum CeleryOpt {
     Consume {
         #[structopt(short, long, possible_values = &[
-            "short_queue", "reports_queue", "tally_queue", "beat", "communication_queue", "import_export_queue"
-        ], default_value = "beat")]
+            Queue::Short.as_ref(),
+            Queue::Beat.as_ref(),
+            Queue::ElectoralLogBeat.as_ref(),
+            Queue::Communication.as_ref(),
+            Queue::Tally.as_ref(),
+            Queue::Reports.as_ref(),
+            Queue::ImportExport.as_ref(),
+            Queue::ElectoralLogBatch.as_ref(),
+        ], default_value = Queue::Beat.as_ref())]
         queues: Vec<String>,
         #[structopt(short, long, default_value = "100")]
         prefetch_count: u16,
@@ -50,41 +54,32 @@ enum CeleryOpt {
 fn find_duplicates(input: Vec<&str>) -> Vec<&str> {
     let mut occurrences = HashMap::new();
     let mut duplicates = Vec::new();
-
     for &item in &input {
         let count = occurrences.entry(item).or_insert(0);
         *count += 1;
     }
-
     for (&item, &count) in &occurrences {
         if count > 1 {
             duplicates.push(item);
         }
     }
-
     duplicates
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cpus = num_cpus::get();
-
-    // 1) Build a custom runtime
     let rt = Builder::new_multi_thread()
         .enable_all()
         .worker_threads(cpus)
         .thread_stack_size(8 * 1024 * 1024)
         .build()?;
-
-    // 2) Run your async code on it
     rt.block_on(async_main())?;
-
     Ok(())
 }
 
 async fn async_main() -> Result<()> {
     dotenv().ok();
     init_log(true);
-
     setup_probe(AppName::WINDMILL).await;
 
     let opt = CeleryOpt::from_args();
@@ -105,14 +100,11 @@ async fn async_main() -> Result<()> {
             set_heartbeat(heartbeat);
             let celery_app = get_celery_app().await;
             celery_app.display_pretty().await;
-
             let vec_str: Vec<&str> = queues.iter().map(AsRef::as_ref).collect();
-
             let duplicates = find_duplicates(vec_str.clone());
-            if duplicates.len() > 0 {
+            if !duplicates.is_empty() {
                 return Err(anyhow!("Found duplicate queues: {:?}", duplicates));
             }
-
             set_is_app_active(true);
             celery_app.consume_from(&vec_str[..]).await?;
             set_is_app_active(false);
@@ -120,7 +112,7 @@ async fn async_main() -> Result<()> {
         }
         CeleryOpt::Produce => {
             let celery_app = get_celery_app().await;
-            event!(Level::INFO, "Task is empty, not adding any new tasks");
+            event!(Level::INFO, "No new tasks to produce");
             celery_app.close().await?;
         }
     };

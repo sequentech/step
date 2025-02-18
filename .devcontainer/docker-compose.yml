@@ -97,6 +97,12 @@ services:
     #restart: always
     #depends_on:
     #  - graphql-engine
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://minio:9000/minio/health/live"]
+      interval: 5s
+      timeout: 10s
+      retries: 25
+      start_period: 5s
 
   # used to add headers to minio
   minio-proxy:
@@ -118,7 +124,8 @@ services:
       context: ./minio
       dockerfile: Dockerfile
     depends_on:
-      - minio
+      minio:
+        condition: service_healthy
     environment:
       - MINIO_ROOT_USER=${AWS_S3_ROOT_USER}
       - MINIO_ROOT_PASSWORD=${AWS_S3_ROOT_PASSWORD}
@@ -197,6 +204,10 @@ services:
         condition: service_healthy
       postgres:
         condition: service_healthy
+      minio:
+        condition: service_healthy
+      configure-minio:
+        condition: service_completed_successfully
 
   data-connector-agent:
     profiles: ["full", "base"]
@@ -252,6 +263,7 @@ services:
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
     environment:
+      AMQP_ADDR: ${AMQP_ADDR}
       KC_HOSTNAME: ${KC_HOSTNAME}
       KC_HOSTNAME_STRICT: ${KC_HOSTNAME_STRICT}
       KC_HTTP_PORT: ${KC_HTTP_PORT}
@@ -801,7 +813,7 @@ services:
       "--ignore",
       "rust-local-target/",
       "-x",
-      "run --bin main consume -q short_queue tally_queue reports_queue beat communication_queue import_export_queue"
+      "run --bin main consume -q beat short_queue tally_queue reports_queue communication_queue import_export_queue electoral_log_batch_queue electoral_log_beat_queue"
     ]
     volumes_from:
       - devcontainer
