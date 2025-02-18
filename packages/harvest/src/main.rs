@@ -62,7 +62,6 @@ async fn rocket() -> _ {
                 routes::import_areas::import_areas_route,
                 routes::import_areas::upsert_areas_route,
                 routes::electoral_log::list_electoral_log,
-                routes::electoral_log::create_electoral_log,
                 routes::export_election_event::export_election_event_route,
                 routes::export_election_event_logs::export_election_event_logs_route,
                 routes::insert_election_event::insert_election_event_f,
