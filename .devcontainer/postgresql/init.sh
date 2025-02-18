@@ -33,28 +33,28 @@ psql \
     DO $$
     BEGIN
         IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'user_entity') THEN
-            -- Normalized User entity
+            -- Normalized User entity indexes
             CREATE INDEX IF NOT EXISTS idx_user_entity_first_name_normalize ON user_entity((normalize_text(first_name)));
             CREATE INDEX IF NOT EXISTS idx_user_entity_last_name_normalize ON user_entity((normalize_text(last_name)));
 
-            -- If you often do partial-match ILIKE on first_name:
-            CREATE INDEX IF NOT EXISTS idx_user_entity_first_name_trgm ON user_entity USING gin((normalize_text(first_name)) gin_trgm_ops);
-            CREATE INDEX IF NOT EXISTS idx_user_entity_last_name_trgm ON user_entity USING gin((normalize_text(last_name)) gin_trgm_ops);
-            CREATE INDEX IF NOT EXISTS idx_user_entity_email_trgm ON user_entity USING gin((normalize_text(email)) gin_trgm_ops);
-            CREATE INDEX IF NOT EXISTS idx_user_entity_username_trgm ON user_entity USING gin((normalize_text(username)) gin_trgm_ops);
-
-            -- Index on realm_id or (realm_id, enabled)
-            CREATE INDEX IF NOT EXISTS idx_user_entity_realm_id_enabled ON user_entity(realm_id, enabled);
-
+            -- Index on user_entity.realm_id to optimize the join with realm
+            CREATE INDEX IF NOT EXISTS idx_user_entity_realm_id ON user_entity(realm_id);
+              
         END IF;
     END $$;
 
-    -- Check if user_attribute table exists and create index if it does
+    -- Check if user_attribute table exists and create indexes if it does
     DO $$
     BEGIN
         IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'user_attribute') THEN
-            -- Normalized attribute
+            -- Normalized attribute index
             CREATE INDEX IF NOT EXISTS idx_user_attribute_name_value_normalize_text ON user_attribute(name, (normalize_text(value)));
+
+            -- Index on user_attribute.user_id to optimize the lateral join and aggregation
+            CREATE INDEX IF NOT EXISTS idx_user_attribute_user_id ON user_attribute(user_id);
+              
+            -- A composite index on user_attribute for covering queries on user_id, name, and value
+            CREATE INDEX IF NOT EXISTS idx_user_attribute_userid_name_value ON user_attribute(user_id, name, value);
         END IF;
     END $$;
 EOSQL
