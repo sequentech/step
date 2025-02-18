@@ -444,7 +444,6 @@ pub async fn list_users(
         params.push(filt_param);
     }
 
-    //
     let (area_ids, area_ids_join_clause, area_ids_where_clause) = get_area_ids(
         hasura_transaction,
         filter.election_id.clone(),
@@ -535,50 +534,63 @@ pub async fn list_users(
     debug!("parameters count: {}", next_param_number - 1);
     debug!("params {:?}", params);
     let statement_str = format!(
-        r#"
-    SELECT
-        u.id,
-        u.email,
-        u.email_verified,
-        u.enabled,
-        u.first_name,
-        u.last_name,
-        u.realm_id,
-        u.username,
-        u.created_timestamp,
-        COALESCE(attr_json.attributes, '{{}}'::json) AS attributes
-    FROM
-        user_entity AS u
-    INNER JOIN
-        realm AS ra ON ra.id = u.realm_id
-    {area_ids_join_clause}
-    {authorized_alias_join_clause}
-    LEFT JOIN LATERAL (
-        SELECT
-            json_object_agg(attr.name, attr.values_array) AS attributes
-        FROM (
+    r#"
+        WITH limited_users AS MATERIALIZED (
             SELECT
-                ua.name,
-                json_agg(ua.value) AS values_array
-            FROM user_attribute ua
-            WHERE ua.user_id = u.id
-            GROUP BY ua.name
-        ) attr
-    ) attr_json ON true
-    WHERE
-        ra.name = $1 AND
-        {filters_clause}
-        (u.id = ANY($2) OR $2 IS NULL)
-        {area_ids_where_clause}
-        {authorized_alias_where_clause}
-        {enabled_condition}
-        {email_verified_condition}
-        {dynamic_attr_clause}
-    {sort_clause}
-    LIMIT {query_limit} OFFSET {query_offset};
-    "#
+                u.id,
+                u.email,
+                u.email_verified,
+                u.enabled,
+                u.first_name,
+                u.last_name,
+                u.realm_id,
+                u.username,
+                u.created_timestamp
+            FROM
+                user_entity AS u
+            INNER JOIN
+                realm AS ra ON ra.id = u.realm_id
+            {area_ids_join_clause}
+            {authorized_alias_join_clause}
+            WHERE
+                ra.name = $1 AND
+                {filters_clause}
+                (u.id = ANY($2) OR $2 IS NULL)
+                {area_ids_where_clause}
+                {authorized_alias_where_clause}
+                {enabled_condition}
+                {email_verified_condition}
+                {dynamic_attr_clause}
+            {sort_clause}
+            LIMIT {query_limit} OFFSET {query_offset}
+        )
+        SELECT
+            lu.id,
+            lu.email,
+            lu.email_verified,
+            lu.enabled,
+            lu.first_name,
+            lu.last_name,
+            lu.realm_id,
+            lu.username,
+            lu.created_timestamp,
+            COALESCE(attr_json.attributes, '{{}}'::json) AS attributes
+        FROM limited_users lu
+        LEFT JOIN LATERAL (
+            SELECT
+                json_object_agg(attr.name, attr.values_array) AS attributes
+            FROM (
+                SELECT
+                    ua.name,
+                    json_agg(ua.value) AS values_array
+                FROM user_attribute ua
+                WHERE ua.user_id = lu.id
+                GROUP BY ua.name
+            ) attr
+        ) attr_json ON TRUE;
+        "#
     );
-    debug!("statement_str {statement_str:?}");
+    info!("statement_str {statement_str:?}");
 
     let statement = keycloak_transaction.prepare(statement_str.as_str()).await?;
     let rows: Vec<Row> = keycloak_transaction
