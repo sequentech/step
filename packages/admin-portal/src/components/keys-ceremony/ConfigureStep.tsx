@@ -110,7 +110,7 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
     const {data: trusteeList, error} = useGetList<Sequent_Backend_Trustee>(
         "sequent_backend_trustee",
         {
-            pagination: {page: 1, perPage: 10},
+            pagination: {page: 1, perPage: 50},
             sort: {field: "last_updated_at", order: "DESC"},
             filter: {
                 tenant_id: electionEvent.tenant_id,
@@ -293,6 +293,7 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
             return null
         }
     }
+    console.log({trusteeList, filteredTrustees})
 
     const validateTrusteeList = [trusteeListValidator]
     const validateThreshold = [thresholdValidator]
