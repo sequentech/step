@@ -10,8 +10,8 @@ extern crate lazy_static;
 
 use anyhow::{anyhow, Result};
 use celery::Celery;
-use sequent_core::util::init_log::init_log;
 use dotenv::dotenv;
+use sequent_core::util::init_log::init_log;
 use std::collections::HashMap;
 use structopt::StructOpt;
 use tokio::runtime::Builder;
