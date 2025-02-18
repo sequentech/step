@@ -13,7 +13,7 @@
                         <div class='row'>
                           <div class="qr-code" id="qrcode-0-{{ballot_index}}"></div>
                             <img
-                              class="commissioner-logo image-url"
+                              class="commissioner-logo.jpg image-url"
                               alt="Electoral Commission Logo"
                             />
                           <div>
@@ -32,7 +32,7 @@
                     </div>
                     <div class="right">
                         <img
-                          class="circle printing-office-logo image-url"
+                          class="printing-office-logo.jpg image-url circle"
                         />
                         <div>
                           <div class="election-info">
@@ -73,7 +73,7 @@
                 </div>
                 <div class="footer">
                         <img
-                          class="circle printing-office-logo image-url"
+                          class="printing-office-logo.jpg image-url circle"
                         />
                     <div>
                     FOR PARTY LIST CANDIDATES, CHECK THE BACK OF THIS BALLOT<br>
@@ -97,7 +97,7 @@
                         <div class='row'>
                           <div class="qr-code" id="qrcode-1-{{ballot_index}}"></div>
                           <img
-                            class="commissioner-logo image-url"
+                            class="commissioner-logo.jpg image-url"
                             alt="Electoral Commission Logo"
                           />
                           <div>
@@ -116,7 +116,7 @@
                     </div>
                     <div class="right">
                         <img
-                          class="comelec-2025-logo image-url" 
+                          class="comelec-2025-logo.jpg image-url" 
                         />
                         <div>
                           <div class="election-info">
@@ -155,7 +155,7 @@
                 </div>
                 <div class="footer">
                         <img
-                          src="printing-office-logo image-url"
+                          src="printing-office-logo.jpg image-url"
                         />
                     <div>
                     FOR PARTY LIST CANDIDATES, CHECK THE BACK OF THIS BALLOT<br>
@@ -246,14 +246,21 @@
           });
         }
       );
-
-      document.querySelectorAll('.image-url').forEach(img => {
-        const computedStyle = getComputedStyle(img);
-        const imageUrl = computedStyle.getPropertyValue('--image-url').trim().replace(/^url\(["']?|["']?\)$/g, '');
-          
-        if (imageUrl) {
-          img.src = imageUrl;
-        }
-      });
   };
+
+  document.addEventListener("DOMContentLoaded", () => {
+      const baseUrl = fileQrCodeLibUrl;
+      
+      document.querySelectorAll('.image-url').forEach(img => {
+          const filename = img.className.split(/\s+/)[0];
+
+          if (!filename) return; // Skip if no additional class
+
+          const imageUrl = `${baseUrl}/../${filename}`;
+          if (imageUrl) {
+              img.src = imageUrl;
+              img.alt = imageUrl;
+          }
+      });
+  });
 </script>

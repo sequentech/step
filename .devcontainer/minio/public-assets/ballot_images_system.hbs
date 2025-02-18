@@ -4,7 +4,10 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>{{title}}</title>
-  <script src="{{file_qrcode_lib}}"></script>
+  <script>
+    const fileQrCodeLibUrl = "{{file_qrcode_lib}}";
+  </script>
+  <script class="qr-code-lib" src="{{file_qrcode_lib}}"></script>
    <style>
 
     body, .content {
@@ -81,22 +84,9 @@
             height: 300px;
         }
 
-        .header .commissioner-logo .image-url {
+        .image-url {
             height: 100px;
             width: 100px;
-            --image-url: url('{{file_qrcode_lib}}/../commissioner-logo.jpg');
-        }
-
-        .header .printing-office-logo .image-url {
-            height: 100px;
-            width: 100px;
-            --image-url: url('{{file_qrcode_lib}}/../printing-office-logo.jpg');
-        }
-
-        .header .comelec-2025-logo .image-url {
-            height: 100px;
-            width: 100px;
-            --image-url: url('{{file_qrcode_lib}}/../comelec-2025-logo.jpg');
         }
 
         .header .center {
