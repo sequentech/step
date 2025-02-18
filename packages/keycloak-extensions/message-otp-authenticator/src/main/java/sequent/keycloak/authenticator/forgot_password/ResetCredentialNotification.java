@@ -152,7 +152,7 @@ public class ResetCredentialNotification implements Authenticator, Authenticator
         KeycloakSession session = context.getSession();
         SmsSenderProvider smsSenderProvider = session.getProvider(SmsSenderProvider.class);
         List<String> attributes =
-            List.of(context.getRealm().getName(), link, String.valueOf(expirationInMinutes));
+            List.of(String.valueOf(expirationInMinutes), link);
         smsSenderProvider.send(
             phoneNumber, smsMessageKey, attributes, context.getRealm(), user, session);
         return true;
