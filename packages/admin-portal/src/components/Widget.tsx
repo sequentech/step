@@ -40,7 +40,7 @@ import {SettingsContext} from "../providers/SettingsContextProvider"
 import {GET_TASK_BY_ID} from "@/queries/GetTaskById"
 import {useQuery} from "@apollo/client"
 import {DownloadDocument} from "@/resources/User/DownloadDocument"
-import { Button } from "react-admin"
+import {Button} from "react-admin"
 
 interface LogTableProps {
     logs: ITaskLog[]
@@ -202,7 +202,9 @@ export const Widget: React.FC<WidgetProps> = ({
                                 {t("tasksScreen.widget.viewTask")}
                             </ViewTaskTypography>
                         ) : null}
-                        {taskId && taskData?.election_event_id && taskData?.annotations?.documentId ? (
+                        {taskId &&
+                        taskData?.election_event_id &&
+                        taskData?.annotations?.documentId ? (
                             <Button
                                 onClick={() => {
                                     setDownloading(false)

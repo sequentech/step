@@ -16,11 +16,9 @@ use crate::services::consolidation::zip::compress_folder_to_zip;
 use crate::services::database::get_hasura_pool;
 use crate::services::documents::upload_and_return_document_postgres;
 use crate::services::reports::utils::get_public_assets_path_env_var;
-use crate::services::tasks_execution::{update_complete, update_fail, update};
+use crate::services::tasks_execution::{update, update_complete, update_fail};
 use crate::types::error::Error;
 use crate::types::error::Result;
-use serde_json::json;
-use sequent_core::types::hasura::extra::TasksExecutionStatus;
 use anyhow::{anyhow, Context, Result as AnyhowResult};
 use celery::error::TaskError;
 use deadpool_postgres::{Client as DbClient, Transaction};
@@ -30,10 +28,12 @@ use sequent_core::services::{pdf, s3};
 use sequent_core::types::ceremonies::TallyExecutionStatus;
 use sequent_core::types::hasura::core::TallySession;
 use sequent_core::types::hasura::core::TasksExecution;
+use sequent_core::types::hasura::extra::TasksExecutionStatus;
 use sequent_core::util::path::get_folder_name;
 use sequent_core::util::path::list_subfolders;
 use sequent_core::util::temp_path::*;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
@@ -353,14 +353,13 @@ async fn generate_template_block(
                     /* task_id: */ &task_exec.id,
                     /* status: */ TasksExecutionStatus::IN_PROGRESS,
                     /* logs: */ json!([]),
-                    /* annotations: */ HashMap::from([
-                        ("documentId".into(), document_id.clone()),
-                    ]),
+                    /* annotations: */
+                    HashMap::from([("documentId".into(), document_id.clone())]),
                 )
                 .await?;
             }
             transaction
-        },
+        }
         Err(err) => {
             if let Some(ref task_exec) = task_execution {
                 update_fail(task_exec, "Failed to get Hasura DB pool").await?;

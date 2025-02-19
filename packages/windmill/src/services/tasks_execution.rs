@@ -6,9 +6,9 @@ use crate::postgres::tasks_execution::{insert_tasks_execution, update_task_execu
 use crate::services::serialize_tasks_logs::*;
 use crate::types::tasks::ETasksExecution;
 use anyhow::{Context, Result};
-use std::collections::HashMap;
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::hasura::extra::TasksExecutionStatus;
+use std::collections::HashMap;
 
 pub async fn post(
     tenant_id: &str,

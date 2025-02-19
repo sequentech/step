@@ -25,7 +25,7 @@ import {useQuery} from "@apollo/client"
 import {GET_TASK_BY_ID} from "@/queries/GetTaskById"
 import {CancelButton} from "../Tally/styles"
 import {useTasksPermissions} from "./useTasksPermissions"
-import { DownloadDocument } from "../User/DownloadDocument"
+import {DownloadDocument} from "../User/DownloadDocument"
 
 export const statusColor: (status: string) => string = (status) => {
     if (status === ETaskExecutionStatus.STARTED) {
@@ -183,7 +183,6 @@ export const ViewTask: React.FC<ViewTaskProps> = ({
                             <DownloadIcon />
                         </Button>
                     ) : null}
-
                 </WizardStyles.StyledFooter>
 
                 {exportDocumentId && (

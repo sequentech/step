@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::database::get_hasura_pool;
-use std::collections::HashMap;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::services::date::ISO8601;
@@ -11,6 +10,7 @@ use sequent_core::types::{
     hasura::{core::TasksExecution, extra::TasksExecutionStatus},
 };
 use serde_json::value::Value;
+use std::collections::HashMap;
 use tokio_postgres::row::Row;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
@@ -133,7 +133,6 @@ pub async fn update_task_execution_status(
     let task_execution_uuid =
         Uuid::parse_str(task_execution_id).context("Failed to parse task_execution_id as UUID")?;
 
-
     let new_annotations_value = serde_json::to_value(annotations)
         .map_err(|err| anyhow!("Error converting annotations to Json: {err}"))?;
 
@@ -146,9 +145,9 @@ pub async fn update_task_execution_status(
                 logs = $2,
                 end_at = CASE
                     WHEN $1 != 'IN_PROGRESS' THEN now()
-                    ELSE end_at,
-                annotations = COALESCE(annotations, '{}'::jsonb) || $3::jsonb
-                END
+                    ELSE end_at
+                END,
+                    annotations = COALESCE(annotations, '{}'::jsonb) || $3::jsonb
             WHERE id = $4;
             "#,
         )
@@ -163,7 +162,7 @@ pub async fn update_task_execution_status(
                 &new_status.to_string(),
                 &new_logs,
                 &new_annotations_value,
-                &task_execution_uuid
+                &task_execution_uuid,
             ],
         )
         .await
@@ -210,11 +209,7 @@ pub async fn update_task_annotations(
     db_client
         .execute(
             &statement,
-            &[
-                &new_annotations_value,
-                &task_execution_uuid,
-                &tenant_uuid,
-            ],
+            &[&new_annotations_value, &task_execution_uuid, &tenant_uuid],
         )
         .await
         .context("Failed to execute update task annotations query")?;
