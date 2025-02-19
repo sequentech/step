@@ -1918,10 +1918,10 @@ const tagalogTranslation: TranslationType = {
                 messageRequired: "Kinakailangan ang mensahe ng pagtanggi para sa opsyon na 'Iba'",
                 reasons: {
                     undefined: "-",
-                    INSUFFICIENT_INFORMATION: "Kulang na Datos",
-                    NO_VOTER: "Walang Tumutugma na Botante",
-                    ALREADY_APPROVED: "Naaprubahan Na",
-                    OTHER: "Iba Pa",
+                    "insufficient-information": "Kulang na Datos",
+                    "no-matching-voter": "Walang Tumutugma na Botante",
+                    "voter-already-approved": "Naaprubahan Na",
+                    "other": "Iba Pa",
                 },
             },
             notifications: {
