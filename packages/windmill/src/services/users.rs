@@ -412,18 +412,13 @@ pub async fn list_users(
     let default_sql_limit = PgConfig::from_env()?.default_sql_limit;
     let query_limit: i64 =
         std::cmp::min(low_sql_limit, filter.limit.unwrap_or(default_sql_limit)).into();
-    let query_offset: i64 = if let Some(offset_val) = filter.offset {
-        offset_val.into()
-    } else {
-        0
-    };
+    let query_offset: i64 = filter.offset.unwrap_or(0).into();
 
     let mut params: Vec<&(dyn ToSql + Sync)> = vec![&filter.realm, &filter.user_ids];
     let mut next_param_number = 3;
 
     let mut filters_clause = "".to_string();
     let mut filter_params: Vec<String> = vec![];
-
     for tuple in [
         ("email", &filter.email),
         ("first_name", &filter.first_name),
@@ -455,6 +450,7 @@ pub async fn list_users(
         next_param_number,
     )
     .await?;
+
     if let Some(area_ids) = &area_ids {
         params.push(area_ids);
         next_param_number += 1;
@@ -538,47 +534,60 @@ pub async fn list_users(
     debug!("params {:?}", params);
     let statement_str = format!(
         r#"
-    SELECT
-        u.id,
-        u.email,
-        u.email_verified,
-        u.enabled,
-        u.first_name,
-        u.last_name,
-        u.realm_id,
-        u.username,
-        u.created_timestamp,
-        COALESCE(attr_json.attributes, '{{}}'::json) AS attributes
-    FROM
-        user_entity AS u
-    INNER JOIN
-        realm AS ra ON ra.id = u.realm_id
-    {area_ids_join_clause}
-    {authorized_alias_join_clause}
-    LEFT JOIN LATERAL (
-        SELECT
-            json_object_agg(attr.name, attr.values_array) AS attributes
-        FROM (
+        WITH limited_users AS MATERIALIZED (
             SELECT
-                ua.name,
-                json_agg(ua.value) AS values_array
-            FROM user_attribute ua
-            WHERE ua.user_id = u.id
-            GROUP BY ua.name
-        ) attr
-    ) attr_json ON true
-    WHERE
-        ra.name = $1 AND
-        {filters_clause}
-        (u.id = ANY($2) OR $2 IS NULL)
-        {area_ids_where_clause}
-        {authorized_alias_where_clause}
-        {enabled_condition}
-        {email_verified_condition}
-        {dynamic_attr_clause}
-    {sort_clause}
-    LIMIT {query_limit} OFFSET {query_offset};
-    "#
+                u.id,
+                u.email,
+                u.email_verified,
+                u.enabled,
+                u.first_name,
+                u.last_name,
+                u.realm_id,
+                u.username,
+                u.created_timestamp
+            FROM
+                user_entity AS u
+            INNER JOIN
+                realm AS ra ON ra.id = u.realm_id
+            {area_ids_join_clause}
+            {authorized_alias_join_clause}
+            WHERE
+                ra.name = $1 AND
+                {filters_clause}
+                (u.id = ANY($2) OR $2 IS NULL)
+                {area_ids_where_clause}
+                {authorized_alias_where_clause}
+                {enabled_condition}
+                {email_verified_condition}
+                {dynamic_attr_clause}
+            {sort_clause}
+            LIMIT {query_limit} OFFSET {query_offset}
+        )
+        SELECT
+            lu.id,
+            lu.email,
+            lu.email_verified,
+            lu.enabled,
+            lu.first_name,
+            lu.last_name,
+            lu.realm_id,
+            lu.username,
+            lu.created_timestamp,
+            COALESCE(attr_json.attributes, '{{}}'::json) AS attributes
+        FROM limited_users lu
+        LEFT JOIN LATERAL (
+            SELECT
+                json_object_agg(attr.name, attr.values_array) AS attributes
+            FROM (
+                SELECT
+                    ua.name,
+                    json_agg(ua.value) AS values_array
+                FROM user_attribute ua
+                WHERE ua.user_id = lu.id
+                GROUP BY ua.name
+            ) attr
+        ) attr_json ON TRUE;
+        "#
     );
     debug!("statement_str {statement_str:?}");
 
