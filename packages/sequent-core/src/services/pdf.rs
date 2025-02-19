@@ -143,7 +143,9 @@ pub mod sync {
             payload: serde_json::Value,
             basic_auth: Option<String>,
         ) -> Result<reqwest::blocking::Response> {
-            let client = reqwest::blocking::Client::new();
+            let client = reqwest::Client::builder()
+                .pool_max_idle_per_host(0)
+                .build()?;
             let mut retries = 3;
             let mut delay = Duration::from_millis(100);
 
@@ -443,7 +445,9 @@ impl PdfRenderer {
                     })
                 };
 
-                let client = reqwest::Client::new();
+                let client = reqwest::Client::builder()
+                    .pool_max_idle_per_host(0)
+                    .build()?;
                 let mut request_builder =
                     client.post(endpoint.clone()).json(&payload);
                 if let Some(basic_auth) = basic_auth {
