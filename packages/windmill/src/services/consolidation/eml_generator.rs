@@ -39,7 +39,7 @@ pub const MIRU_AREA_STATION_ID: &str = "area-station-id";
 pub const MIRU_AREA_THRESHOLD: &str = "area-threshold";
 pub const MIRU_AREA_TRUSTEE_USERS: &str = "area-trustee-users";
 pub const MIRU_AREA_COUNTRY: &str = "area-country";
-pub const MIRU_REGISTERED_VOTERS: &str = "registered-voters";
+pub const MIRU_AREA_REGISTERED_VOTERS: &str = "registered-voters";
 pub const MIRU_TALLY_SESSION_DATA: &str = "tally-session-data";
 pub const MIRU_TRUSTEE_ID: &str = "trustee-id";
 pub const MIRU_TRUSTEE_NAME: &str = "trustee-name";
@@ -322,7 +322,6 @@ pub struct MiruElectionAnnotations {
     pub geographical_area: String,
     pub post: String,
     pub precinct_code: String,
-    pub registered_voters: i64, // registered voters at a given precinct id
     pub pollcenter_code: String,
 }
 
@@ -345,7 +344,6 @@ impl ValidateAnnotations for core::Election {
                 prepend_miru_annotation(MIRU_GEOGRAPHICAL_REGION),
                 prepend_miru_annotation(MIRU_VOTING_CENTER),
                 prepend_miru_annotation(MIRU_PRECINCT_CODE),
-                prepend_miru_annotation(MIRU_REGISTERED_VOTERS),
             ],
             &annotations,
         )
@@ -390,16 +388,6 @@ impl ValidateAnnotations for core::Election {
                 )
             })?;
 
-        let registered_voters: i64 = find_miru_annotation(MIRU_REGISTERED_VOTERS, &annotations)
-            .with_context(|| {
-                format!(
-                    "Missing election annotation: '{}:{}'",
-                    MIRU_PLUGIN_PREPEND, MIRU_REGISTERED_VOTERS
-                )
-            })?
-            .parse::<i64>()
-            .with_context(|| anyhow!("Can't parse registered_voters"))?;
-
         let pollcenter_code = annotations
             .get(MIRU_POLLCENTER_CODE)
             .with_context(|| format!("Missing election annotation: {}", MIRU_POLLCENTER_CODE))
@@ -411,7 +399,6 @@ impl ValidateAnnotations for core::Election {
             geographical_area,
             post,
             precinct_code,
-            registered_voters,
             pollcenter_code,
         })
     }
@@ -439,11 +426,6 @@ impl ValidateAnnotations for core::Election {
         let precinct_code =
             find_miru_annotation_opt(MIRU_PRECINCT_CODE, &annotations)?.unwrap_or("-".to_string());
 
-        let registered_voters: i64 =
-            find_miru_annotation_opt(MIRU_REGISTERED_VOTERS, &annotations)?
-                .and_then(|val| val.parse::<i64>().ok())
-                .unwrap_or(-1); //TODO: fix
-
         let pollcenter_code = annotations
             .get(MIRU_POLLCENTER_CODE)
             .cloned()
@@ -455,7 +437,6 @@ impl ValidateAnnotations for core::Election {
             geographical_area,
             post,
             precinct_code,
-            registered_voters,
             pollcenter_code,
         })
     }
@@ -468,6 +449,7 @@ pub struct MiruAreaAnnotations {
     pub threshold: i64,
     pub sbei_ids: Vec<String>, // the miru id of the sbei user, the election event has their annotations
     pub country: String,
+    pub registered_voters: i64, // registered voters at a given precinct id
 }
 
 impl ValidateAnnotations for core::Area {
@@ -489,6 +471,7 @@ impl ValidateAnnotations for core::Area {
                 prepend_miru_annotation(MIRU_AREA_THRESHOLD),
                 prepend_miru_annotation(MIRU_AREA_TRUSTEE_USERS),
                 prepend_miru_annotation(MIRU_AREA_COUNTRY),
+                prepend_miru_annotation(MIRU_AREA_REGISTERED_VOTERS),
             ],
             &annotations,
         )
@@ -541,12 +524,23 @@ impl ValidateAnnotations for core::Area {
             )
         })?;
 
+        let registered_voters: i64 = find_miru_annotation(MIRU_AREA_REGISTERED_VOTERS, &annotations)
+            .with_context(|| {
+                format!(
+                    "Missing election annotation: '{}:{}'",
+                    MIRU_PLUGIN_PREPEND, MIRU_AREA_REGISTERED_VOTERS
+                )
+            })?
+            .parse::<i64>()
+            .with_context(|| anyhow!("Can't parse registered_voters"))?;
+
         Ok(MiruAreaAnnotations {
             ccs_servers,
             station_id,
             threshold,
             sbei_ids: sbei_usernames,
             country,
+            registered_voters,
         })
     }
 
@@ -581,12 +575,18 @@ impl ValidateAnnotations for core::Area {
         let country =
             find_miru_annotation_opt(MIRU_AREA_COUNTRY, &annotations)?.unwrap_or("-".to_string());
 
+        let registered_voters: i64 =
+            find_miru_annotation_opt(MIRU_AREA_REGISTERED_VOTERS, &annotations)?
+                .and_then(|val| val.parse::<i64>().ok())
+                .unwrap_or(-1); //TODO: fix
+
         Ok(MiruAreaAnnotations {
             ccs_servers,
             station_id,
             threshold,
             sbei_ids: sbei_usernames,
             country,
+            registered_voters,
         })
     }
 }
@@ -805,7 +805,7 @@ pub fn render_eml_contest(report: &ReportData) -> Result<EMLContest> {
         .with_context(|| "render_eml_contest: ")?;
 
     let registered_voters: i64 =
-        find_miru_annotation_opt(MIRU_REGISTERED_VOTERS, &report.election_annotations)?
+        find_miru_annotation_opt(MIRU_AREA_REGISTERED_VOTERS, &report.election_annotations)?
             .and_then(|val| val.parse::<i64>().ok())
             .unwrap_or(-1);
 
