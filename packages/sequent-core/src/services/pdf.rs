@@ -143,7 +143,7 @@ pub mod sync {
             payload: serde_json::Value,
             basic_auth: Option<String>,
         ) -> Result<reqwest::blocking::Response> {
-            let client = reqwest::Client::builder()
+            let client = reqwest::blocking::Client::builder()
                 .pool_max_idle_per_host(0)
                 .build()?;
             let mut retries = 3;
