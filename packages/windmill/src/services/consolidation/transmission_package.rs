@@ -4,7 +4,9 @@
 use super::{
     acm_json::generate_acm_json,
     aes_256_cbc_encrypt::encrypt_file_aes_256_cbc,
-    eml_generator::{render_eml_file, MiruElectionAnnotations, MiruElectionEventAnnotations},
+    eml_generator::{
+        render_eml_file, MiruAreaAnnotations, MiruElectionAnnotations, MiruElectionEventAnnotations,
+    },
     eml_types::ACMJson,
     xz_compress::xz_compress,
     zip::compress_folder_to_zip,
@@ -58,6 +60,7 @@ pub async fn generate_base_compressed_xml(
     date_time: DateTime<Utc>,
     election_event_annotations: &MiruElectionEventAnnotations,
     election_annotations: &MiruElectionAnnotations,
+    area_annotations: &MiruAreaAnnotations,
     reports: &Vec<ReportData>,
 ) -> Result<(Vec<u8>, String, String)> {
     let eml_data = render_eml_file(
@@ -67,6 +70,7 @@ pub async fn generate_base_compressed_xml(
         date_time,
         &election_event_annotations,
         &election_annotations,
+        area_annotations,
         &reports,
     )?;
     let mut variables_map: Map<String, Value> = Map::new();

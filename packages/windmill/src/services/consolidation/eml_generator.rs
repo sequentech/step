@@ -524,15 +524,16 @@ impl ValidateAnnotations for core::Area {
             )
         })?;
 
-        let registered_voters: i64 = find_miru_annotation(MIRU_AREA_REGISTERED_VOTERS, &annotations)
-            .with_context(|| {
-                format!(
-                    "Missing election annotation: '{}:{}'",
-                    MIRU_PLUGIN_PREPEND, MIRU_AREA_REGISTERED_VOTERS
-                )
-            })?
-            .parse::<i64>()
-            .with_context(|| anyhow!("Can't parse registered_voters"))?;
+        let registered_voters: i64 =
+            find_miru_annotation(MIRU_AREA_REGISTERED_VOTERS, &annotations)
+                .with_context(|| {
+                    format!(
+                        "Missing election annotation: '{}:{}'",
+                        MIRU_PLUGIN_PREPEND, MIRU_AREA_REGISTERED_VOTERS
+                    )
+                })?
+                .parse::<i64>()
+                .with_context(|| anyhow!("Can't parse registered_voters"))?;
 
         Ok(MiruAreaAnnotations {
             ccs_servers,
@@ -797,17 +798,17 @@ pub fn find_miru_annotation_opt(data: &str, annotations: &Annotations) -> Result
 }
 
 #[instrument(err, skip_all)]
-pub fn render_eml_contest(report: &ReportData) -> Result<EMLContest> {
+pub fn render_eml_contest(
+    report: &ReportData,
+    area_annotations: &MiruAreaAnnotations,
+) -> Result<EMLContest> {
     // Extract contest annotations
     let contest_annotations = report
         .contest
         .get_annotations()
         .with_context(|| "render_eml_contest: ")?;
 
-    let registered_voters: i64 =
-        find_miru_annotation_opt(MIRU_AREA_REGISTERED_VOTERS, &report.election_annotations)?
-            .and_then(|val| val.parse::<i64>().ok())
-            .unwrap_or(-1);
+    let registered_voters = area_annotations.registered_voters;
 
     let count_metrics = report.contest_result.get_metrics(registered_voters);
 
@@ -869,6 +870,7 @@ pub fn render_eml_file(
     date_time: DateTime<Utc>,
     election_event_annotations: &MiruElectionEventAnnotations,
     election_annotations: &MiruElectionAnnotations,
+    area_annotations: &MiruAreaAnnotations,
     reports: &Vec<ReportData>,
 ) -> Result<EMLFile> {
     let issue_date = generate_timestamp(
@@ -904,7 +906,7 @@ pub fn render_eml_file(
                 },
                 contests: reports
                     .into_iter()
-                    .map(|report| Ok(render_eml_contest(report)?))
+                    .map(|report| Ok(render_eml_contest(report, area_annotations)?))
                     .collect::<Result<Vec<_>>>()
                     .with_context(|| "Error rendering EML Contest")?,
             }],

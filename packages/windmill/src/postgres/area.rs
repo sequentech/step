@@ -295,10 +295,7 @@ pub async fn get_area_by_id(
     let rows: Vec<Row> = hasura_transaction
         .query(
             &total_areas_statement,
-            &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(area_id)?
-            ],
+            &[&Uuid::parse_str(tenant_id)?, &Uuid::parse_str(area_id)?],
         )
         .await?;
 

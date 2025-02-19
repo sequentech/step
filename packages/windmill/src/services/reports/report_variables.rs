@@ -17,7 +17,7 @@ use crate::services::users::{
     AttributesFilterOption,
 };
 use crate::types::miru_plugin::MiruSbeiUser;
-use anyhow::{anyhow, Result, Context};
+use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::StringifiedPeriodDates;
 use sequent_core::types::hasura::core::{Area, Election, ElectionEvent};
@@ -82,10 +82,10 @@ pub async fn generate_election_votes_data(
 
     let registered_voters: i64 = areas
         .iter()
-        .map(|area| 
+        .map(|area| {
             area.get_annotations_or_empty_values()
-            .map(|annotations| annotations.registered_voters)
-        )
+                .map(|annotations| annotations.registered_voters)
+        })
         .collect::<Result<Vec<i64>>>()?
         .iter()
         .sum();
@@ -101,8 +101,7 @@ pub async fn generate_election_votes_data(
 
     if let Some(result) = election_results.get(0) {
         let total_ballots = result.total_voters;
-        let voters_turnout = if let Some(total_ballots) = total_ballots
-        {
+        let voters_turnout = if let Some(total_ballots) = total_ballots {
             calc_voters_turnout(total_ballots, registered_voters)?
         } else {
             None
@@ -131,13 +130,9 @@ pub async fn generate_election_area_votes_data(
     area_id: &str,
     contest_id: Option<&str>,
 ) -> Result<ElectionVotesData> {
-    let area = get_area_by_id(
-        hasura_transaction,
-        tenant_id,
-        area_id,
-    )
-    .await?
-    .ok_or(anyhow!("Can't find election"))?;
+    let area = get_area_by_id(hasura_transaction, tenant_id, area_id)
+        .await?
+        .ok_or(anyhow!("Can't find election"))?;
     let registered_voters = area
         .get_annotations_or_empty_values()
         .map(|annotations| annotations.registered_voters)
@@ -275,7 +270,7 @@ pub struct InspectorData {
 
 pub struct AreaData {
     pub inspectors: Vec<InspectorData>,
-    pub registered_voters: i64, 
+    pub registered_voters: i64,
 }
 
 #[instrument(err, skip_all)]
@@ -327,7 +322,7 @@ pub async fn extract_area_data(
 
     Ok(AreaData {
         inspectors,
-        registered_voters: annotations.registered_voters
+        registered_voters: annotations.registered_voters,
     })
 }
 
