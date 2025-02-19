@@ -572,11 +572,15 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                     )
                                 }
                             >
-                                {attr.validations.options?.options?.map((option: string) => (
-                                    <MenuItem key={option} value={option}>
-                                        {t(option)}
-                                    </MenuItem>
-                                ))}
+                                {attr.validations.options?.options
+                                    ? [...attr.validations.options.options]
+                                          .sort()
+                                          .map((option: string) => (
+                                              <MenuItem key={option} value={option}>
+                                                  {t(option)}
+                                              </MenuItem>
+                                          ))
+                                    : null}
                             </Select>
                         </FormControl>
                     )
