@@ -671,7 +671,7 @@ export const TallyCeremony: React.FC = () => {
     return (
         <TallyStyles.WizardContainer>
             <TallyStyles.ContentWrapper>
-                <WizardStyles.WizardWrapper>
+                <WizardStyles.WizardWrapper data-tally-id={`tally-id-${tallyId}`}>
                     <TallyStyles.StyledHeader>
                         <BreadCrumbSteps
                             labels={[
