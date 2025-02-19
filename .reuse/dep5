@@ -46,6 +46,7 @@ Files:
   packages/keycloak-extensions/conditional-authenticators/src/main/resources/META-INF/services/org.keycloak.protocol.ProtocolMapper
   docs/assets/*
   .devcontainer/minio/public-assets/*
+  packages/orare/doc_renderer/assets/*
 Copyright: 2024 Sequent Tech <legal@sequentech.io>
 License: AGPL-3.0-only
 
