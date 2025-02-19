@@ -6,6 +6,7 @@
 #[cfg(feature = "s3")]
 use crate::services::s3;
 use crate::util::convert_vec::IntoVec;
+use crate::util::retry::retry_with_exponential_backoff;
 
 use anyhow::{anyhow, Context, Result};
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
@@ -150,6 +151,41 @@ pub mod sync {
             Ok(PdfRenderer { transport })
         }
 
+        fn send_request(endpoint: String, payload: serde_json::Value, basic_auth: Option<String>) -> Result<reqwest::Response> {
+            let client = reqwest::Client::new();
+            let mut request_builder = client.post(endpoint.clone()).json(&payload);
+
+            if let Some(basic_auth) = basic_auth {
+                let basic_auth: Vec<&str> = basic_auth.split(':').collect();
+                if basic_auth.len() != 2 {
+                    return Err(anyhow!("Invalid basic auth provided"));
+                }
+                request_builder = request_builder.basic_auth(basic_auth[0], Some(basic_auth[1]));
+            }
+
+            let mut retries = 3;
+            let mut delay = Duration::from_secs(1);
+
+            while retries > 0 {
+                rt.block_on(async {
+                    match request_builder.try_clone().unwrap().send().await {
+                        Ok(response) => return Ok(response),
+                        Err(error) => {
+                            if retries == 1 {
+                                return Err(anyhow!("error sending request: {}", error));
+                            }
+                            info!("Request failed: {error}. Retrying in {delay:?}...");
+                            sleep(delay);
+                            delay *= 2; // Exponential backoff (1s -> 2s -> 4s)
+                            retries -= 1;
+                        }
+                    }
+                });
+            }
+
+            Err(anyhow!("Request failed after retries"))
+        }
+
         pub fn do_render_pdf(
             &self,
             html: String,
@@ -223,19 +259,8 @@ pub mod sync {
                             }
                         })
                     };
-                    let client = reqwest::blocking::Client::new();
-                    let mut request_builder =
-                        client.post(endpoint.clone()).json(&payload);
-                    if let Some(basic_auth) = basic_auth {
-                        let basic_auth: Vec<&str> =
-                            basic_auth.split(":").collect();
-                        if basic_auth.len() != 2 {
-                            return Err(anyhow!("Invalid basic auth provided"));
-                        }
-                        request_builder = request_builder
-                            .basic_auth(basic_auth[0], Some(basic_auth[1]))
-                    }
-                    let response = request_builder.send()?;
+
+                    let response = send_request(endpoint, payload, basic_auth)?;
 
                     if !response.status().is_success() {
                         let error = response.text()?;
@@ -507,7 +532,8 @@ impl PdfRenderer {
                         }
                     })
                 };
-                let client = reqwest::Client::new();
+                let client = reqwest::Client::new()
+                    ;
 
                 let mut request_builder =
                     client.post(endpoint.clone()).json(&payload);
