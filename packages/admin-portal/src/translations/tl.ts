@@ -1917,7 +1917,7 @@ const tagalogTranslation: TranslationType = {
                 rejectReason: "Dahilan ng Pagtanggi",
                 messageRequired: "Kinakailangan ang mensahe ng pagtanggi para sa opsyon na 'Iba'",
                 reasons: {
-                    undefined: "-",
+                    "undefined": "-",
                     "insufficient-information": "Kulang na Datos",
                     "no-matching-voter": "Walang Tumutugma na Botante",
                     "voter-already-approved": "Naaprubahan Na",
