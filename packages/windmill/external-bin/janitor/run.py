@@ -363,15 +363,19 @@ def generate_election_event(excel_data, base_context, miru_data):
 
 
 # "OSAKA PCG" -> "Osaka PCG"
-# WASHINGTON D.C. PE -> Washington D.C. PE
+# WASHINGTON DC PE -> Washington DC PE
+# ISLE OF MAN -> Isle Of Man
+# HOLY SEE -> Holy See
 # NEW YORK PGC -> New York PGC
 def get_embassy(embassy):
     # Split the input string into words
     without_parentheses = re.sub(r"\(.*?\)", "", embassy)
     words = without_parentheses.split()
+
+    special_words = ["DC", "MAN", "SEE", "SAR", "ROC"]
     
     # Capitalize each word, and handle the last word conditionally
-    formatted_words = [word.title() if word.upper() != "DC" else word.upper()  for word in words[:-1]]
+    formatted_words = [word.title() if word.upper() not in special_words else word.upper()  for word in words[:-1]]
     last_word = words[-1].upper() if len(words[-1]) <= 3 else words[-1].title()
     
     # Combine the formatted words with the conditionally formatted last word
@@ -726,38 +730,36 @@ def create_voters_file(sqlite_output_path):
     print(f"CSV file '{csv_filename}' created successfully.")
         
 
-def gen_keycloak_context(results, excel_data):
-
+def gen_keycloak_context(excel_data, areas_dict):
     print(f"generating keycloak context")
     country_set = set()
     embassy_set = set()
 
-    for row in results:
-        if not row["DB_ALLMUN_AREA_NAME"] or not row["allbgy_AREANAME"]:
-            continue
-        country = get_embassy(row["DB_ALLMUN_AREA_NAME"])
-        embassy = get_embassy(row["allbgy_AREANAME"])
-        embassy_set.add("\\\"" + embassy + "\\\"")
-        country_set.add("\\\"" + country + "/" + embassy + "\\\"")
+    for _region_code, areas in areas_dict.items():
+        for area in areas:
+            country = get_embassy(area["name"]).split("-")[0].strip()
+            embassy = get_embassy(area["description"])
+            embassy_set.add("\\\"" + embassy + "\\\"")
+            country_set.add("\\\"" + country + "/" + embassy + "\\\"")
     
     keycloak_settings = [t for t in excel_data["parameters"] 
                          if t["type"] == "settings" and t["key"].startswith("keycloak")]
     keycloak_context = {
-    "embassy_list": ",".join(embassy_set),
-    "country_list": ",".join(country_set),
-        }
+        "embassy_list": ",".join(embassy_set),
+        "country_list": ",".join(country_set),
+    }
 
     key_mappings = {
-    "philis_id_inetum_min_value_documental_score": "keycloak_inetum_min_value_philis_id_documental_score",
-    "philis_id_inetum_min_value_facial_score": "keycloak_inetum_min_value_philis_id_facial_score",
-    "seaman_book_inetum_min_value_val_campos_criticos_score": "keycloak_inetum_min_value_seaman_book_val_campos_criticos_score",
-    "seaman_book_inetum_min_value_facial_score": "keycloak_inetum_min_value_seaman_book_facial_score",
-    "passport_inetum_min_value_val_campos_criticos_score": "keycloak_inetum_min_value_passport_val_campos_criticos_score",
-    "passport_inetum_min_value_facial_score": "keycloak_inetum_min_value_passport_facial_score",
-    "driver_license_inetum_min_value_val_campos_criticos_score": "keycloak_inetum_min_value_driver_license_val_campos_criticos_score",
-    "driver_license_inetum_min_value_facial_score": "keycloak_inetum_min_value_driver_license_facial_score",
-    "ibp_inetum_min_value_val_campos_criticos_score": "keycloak_inetum_min_value_ibp_val_campos_criticos_score",
-    "ibp_inetum_min_value_facial_score": "keycloak_inetum_min_value_ibp_facial_score",
+        "philis_id_inetum_min_value_documental_score": "keycloak_inetum_min_value_philis_id_documental_score",
+        "philis_id_inetum_min_value_facial_score": "keycloak_inetum_min_value_philis_id_facial_score",
+        "seaman_book_inetum_min_value_val_campos_criticos_score": "keycloak_inetum_min_value_seaman_book_val_campos_criticos_score",
+        "seaman_book_inetum_min_value_facial_score": "keycloak_inetum_min_value_seaman_book_facial_score",
+        "passport_inetum_min_value_val_campos_criticos_score": "keycloak_inetum_min_value_passport_val_campos_criticos_score",
+        "passport_inetum_min_value_facial_score": "keycloak_inetum_min_value_passport_facial_score",
+        "driver_license_inetum_min_value_val_campos_criticos_score": "keycloak_inetum_min_value_driver_license_val_campos_criticos_score",
+        "driver_license_inetum_min_value_facial_score": "keycloak_inetum_min_value_driver_license_facial_score",
+        "ibp_inetum_min_value_val_campos_criticos_score": "keycloak_inetum_min_value_ibp_val_campos_criticos_score",
+        "ibp_inetum_min_value_facial_score": "keycloak_inetum_min_value_ibp_facial_score",
     }
 
     keycloak_settings_dict = {row["key"]: row["value"] for row in keycloak_settings}
@@ -782,13 +784,16 @@ def gen_tree(excel_data, miru_data, script_idr, multiply_factor):
     areas = {}
     for row in results:
         precinct_id = row["DB_TRANS_SOURCE_ID"]
-        area_name = row["DB_ALLMUN_AREA_NAME"].strip()
 
         area_context = next((area for area in excel_data["areas"] if str(area["precinct_id"]) == precinct_id), None)
 
         if area_context is None:
             raise Exception(f"precinct with 'id' = {precinct_id} not found in excel areas/precincts tab")
         area_name = area_context["name"]
+        area_split = area_name.split("-")
+        if len(area_split) < 2:
+            raise Exception(f"Invalid area name = {area_name} expected a dash")
+        area_description = area_split[1].strip()
 
         if precinct_id not in miru_data:
             raise Exception(f"precinct with 'id' = {precinct_id} not found in miru acf")
@@ -819,7 +824,7 @@ def gen_tree(excel_data, miru_data, script_idr, multiply_factor):
 
         area = {
             "name": area_name,
-            "description" :row["DB_POLLING_CENTER_POLLING_PLACE"],
+            "description" : area_description,
             "source_id": row["DB_TRANS_SOURCE_ID"],
             "region_code": str(region_code),
             "precinct_id": str(precinct_id),
@@ -946,7 +951,11 @@ def gen_tree(excel_data, miru_data, script_idr, multiply_factor):
     for election in test_elections:
         election["name"] = "Test Voting"
         name_parts = election["alias"].split("-")
-        election["alias"] = " - ".join([name_parts[0].strip(), name_parts[1].strip(), "Test Voting"])
+        parts_join = [name_parts[0].strip()]
+        if len(name_parts) > 1 and "GENERAL" not in name_parts[1].upper():
+            parts_join.append(name_parts[1].strip())
+        parts_join.append("Test Voting")
+        election["alias"] = " - ".join(parts_join)
 
     elections_object["elections"].extend(test_elections)
     
@@ -1007,7 +1016,7 @@ def gen_tree(excel_data, miru_data, script_idr, multiply_factor):
 
 def replace_placeholder_database(excel_data, election_event_id, miru_data, script_dir, multiply_factor):
     election_tree, areas_dict, results = gen_tree(excel_data, miru_data, script_dir, multiply_factor)
-    keycloak_context = gen_keycloak_context(results, excel_data)
+    keycloak_context = gen_keycloak_context(excel_data, areas_dict)
 
     election_compiled = compiler.compile(election_template)
     contest_compiled = compiler.compile(contest_template)
