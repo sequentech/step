@@ -43,6 +43,12 @@ export const DownloadDocument: React.FC<DownloadDocumentProps> = ({
         {
             enabled: !!documentId,
             refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+            onError: (error: any) => {
+                console.log(`error downloading doc: ${error.message}`)
+            },
+            onSuccess: () => {
+                console.log(`success downloading doc`)
+            },
         }
     )
 
