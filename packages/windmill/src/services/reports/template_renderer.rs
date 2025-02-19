@@ -201,7 +201,7 @@ pub trait TemplateRenderer: Debug {
 
     /// Get the default ReportExtraConfig from the _extra_config file and
     /// for any passed option that is None its default value is filled.
-    #[instrument(err, skip(self))]
+    #[instrument(err, skip_all)]
     async fn fill_extra_config_with_default(
         &self,
         tpl_pdf_options: Option<PrintToPdfOptionsLocal>,
@@ -282,10 +282,7 @@ pub trait TemplateRenderer: Debug {
         Ok(data)
     }
 
-    #[instrument(
-        err,
-        skip(self, hasura_transaction, keycloak_transaction, user_tpl_document)
-    )]
+    #[instrument(err, skip_all)]
     async fn generate_report_inner(
         &self,
         generate_mode: GenerateReportMode,
@@ -336,10 +333,7 @@ pub trait TemplateRenderer: Debug {
         Ok(rendered_system_template)
     }
 
-    #[instrument(
-        err,
-        skip(self, hasura_transaction, keycloak_transaction, user_tpl_document)
-    )]
+    #[instrument(err, skip_all)]
     async fn generate_report(
         &self,
         generate_mode: GenerateReportMode,

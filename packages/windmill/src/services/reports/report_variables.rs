@@ -424,6 +424,7 @@ pub struct UserDataElections {
     pub elections: Vec<UserDataElection>,
 }
 
+#[instrument(err, skip_all)]
 pub async fn process_elections(
     elections: Vec<Election>,
     scheduled_events: Vec<ScheduledEvent>,
