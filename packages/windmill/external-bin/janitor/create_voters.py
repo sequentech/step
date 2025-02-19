@@ -3151,7 +3151,11 @@ def generate_csv():
                 print(f"Progress: {round(_ / num_rows * 100, 2)}%")
 
             selected_post = random.choice(post)
-            area_name_dashed = f"{country[selected_post].split("/")[0].upper()} - {country[selected_post].split("/")[1].upper()}"
+            if (country[selected_post] == "Switzerland/Geneva Pm/Pcg"):
+                area_name_dashed = "switzerland - geneva pm pcg".upper()
+            else:
+                area_name_dashed = f"{country[selected_post].split("/")[0].upper()} - {country[selected_post].split("/")[1].upper()}"
+                area_name_dashed.replace(".", "")
             email = f"user{_ +1}@gmail.com"
             # Randomly select data for each column
             row = [
