@@ -16,9 +16,11 @@ use crate::services::consolidation::zip::compress_folder_to_zip;
 use crate::services::database::get_hasura_pool;
 use crate::services::documents::upload_and_return_document_postgres;
 use crate::services::reports::utils::get_public_assets_path_env_var;
-use crate::services::tasks_execution::{update_complete, update_fail};
+use crate::services::tasks_execution::{update_complete, update_fail, update};
 use crate::types::error::Error;
 use crate::types::error::Result;
+use serde_json::json;
+use sequent_core::types::hasura::extra::TasksExecutionStatus;
 use anyhow::{anyhow, Context, Result as AnyhowResult};
 use celery::error::TaskError;
 use deadpool_postgres::{Client as DbClient, Transaction};
@@ -345,7 +347,20 @@ async fn generate_template_block(
     };
 
     let hasura_transaction = match db_client.transaction().await {
-        Ok(transaction) => transaction,
+        Ok(transaction) => {
+            if let Some(ref task_exec) = task_execution {
+                update(
+                    /* task_id: */ &task_exec.id,
+                    /* status: */ TasksExecutionStatus::IN_PROGRESS,
+                    /* logs: */ json!([]),
+                    /* annotations: */ HashMap::from([
+                        ("documentId".into(), document_id.clone()),
+                    ]),
+                )
+                .await?;
+            }
+            transaction
+        },
         Err(err) => {
             if let Some(ref task_exec) = task_execution {
                 update_fail(task_exec, "Failed to get Hasura DB pool").await?;
@@ -363,7 +378,8 @@ async fn generate_template_block(
             };
             Err(err)
         }
-    }?;
+    }
+    .context("Error generatingtemplate document")?;
 
     match hasura_transaction.commit().await {
         Ok(transaction) => {

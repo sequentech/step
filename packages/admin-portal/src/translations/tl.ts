@@ -84,6 +84,7 @@ const tagalogTranslation: TranslationType = {
             widget: {
                 taskTitle: "Gawain: {{title}}",
                 viewTask: "Tingnan Ang Gawain",
+                downloadDocument: "I-download ang File",
             },
             exportTasksExecution: {
                 success: "Matagumpay na natapos ang pag-export",

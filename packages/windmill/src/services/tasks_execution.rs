@@ -6,6 +6,7 @@ use crate::postgres::tasks_execution::{insert_tasks_execution, update_task_execu
 use crate::services::serialize_tasks_logs::*;
 use crate::types::tasks::ETasksExecution;
 use anyhow::{Context, Result};
+use std::collections::HashMap;
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::hasura::extra::TasksExecutionStatus;
 
@@ -34,17 +35,20 @@ pub async fn post(
     Ok(task)
 }
 
+// TODO filter also by tenant-id and document-id
 pub async fn update(
     task_id: &str,
     status: TasksExecutionStatus,
     logs: serde_json::Value,
+    annotations: HashMap<String, String>,
 ) -> Result<(), anyhow::Error> {
-    update_task_execution_status(task_id, status, Some(logs))
+    update_task_execution_status(task_id, status, Some(logs), annotations)
         .await
         .context("Failed to update task execution record")?;
     Ok(())
 }
 
+// TODO filter also by tenant-id and document-id
 pub async fn update_complete(task: &TasksExecution) -> Result<(), anyhow::Error> {
     let task_id = &task.id;
     let new_status = TasksExecutionStatus::SUCCESS;
@@ -52,12 +56,13 @@ pub async fn update_complete(task: &TasksExecution) -> Result<(), anyhow::Error>
     let new_msg = "Task completed successfully";
     let new_logs = serde_json::to_value(append_general_log(&logs, new_msg))?;
 
-    update(&task_id, new_status, new_logs)
+    update(&task_id, new_status, new_logs, Default::default())
         .await
         .context("Failed to update task execution record")?;
     Ok(())
 }
 
+// TODO filter also by tenant-id and document-id
 pub async fn update_fail(task: &TasksExecution, err_message: &str) -> Result<(), anyhow::Error> {
     let task_id = &task.id;
     let new_status = TasksExecutionStatus::FAILED;
@@ -67,7 +72,7 @@ pub async fn update_fail(task: &TasksExecution, err_message: &str) -> Result<(),
         &("Error: ".to_owned() + err_message),
     ))?;
 
-    update_task_execution_status(task_id, new_status, Some(new_logs))
+    update_task_execution_status(task_id, new_status, Some(new_logs), Default::default())
         .await
         .context("Failed to update task execution record with failure status")?;
 

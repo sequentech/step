@@ -51,6 +51,7 @@ const catalanTranslation: TranslationType = {
             widget: {
                 taskTitle: "Tasca: {{title}}",
                 viewTask: "Veure Tasca",
+                downloadDocument: "Descarregar Fitxer",
             },
             exportTasksExecution: {
                 success: "L'exportació s'ha completat amb èxit",

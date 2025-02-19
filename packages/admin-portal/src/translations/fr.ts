@@ -84,6 +84,7 @@ const frenchTranslation: TranslationType = {
             widget: {
                 taskTitle: "Tâche: {{title}}",
                 viewTask: "Voir Tâche",
+                downloadDocument: "Télécharger le Fichier",
             },
             exportTasksExecution: {
                 success: "L'exportation s'est terminée avec succès",

@@ -10,6 +10,7 @@ import {
     TableBody,
     TableRow,
 } from "@mui/material"
+import DownloadIcon from "@mui/icons-material/Download"
 import {
     TransparentTable,
     TransparentTableCell,
@@ -38,6 +39,8 @@ import {ViewTask} from "@/resources/Tasks/ViewTask"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import {GET_TASK_BY_ID} from "@/queries/GetTaskById"
 import {useQuery} from "@apollo/client"
+import {DownloadDocument} from "@/resources/User/DownloadDocument"
+import { Button } from "react-admin"
 
 interface LogTableProps {
     logs: ITaskLog[]
@@ -96,6 +99,8 @@ export const Widget: React.FC<WidgetProps> = ({
     const {globalSettings} = useContext(SettingsContext)
     const [expanded, setExpanded] = useState(false)
     const [openTaskModal, setOpenTaskModal] = useState(false)
+    const [exportDocumentId, setExportDocumentId] = useState<string | undefined>(undefined)
+    const [downloading, setDownloading] = useState<boolean>(false)
     const [taskDataType, setTaskDataType] = useState<ETasksExecution | undefined>(type)
     const [taskDataStatus, setTaskDataStatus] = useState<ETaskExecutionStatus>(status)
     const [taskDataLogs, setTaskDataLogs] = useState<Array<ITaskLog>>(logs || [])
@@ -197,6 +202,18 @@ export const Widget: React.FC<WidgetProps> = ({
                                 {t("tasksScreen.widget.viewTask")}
                             </ViewTaskTypography>
                         ) : null}
+                        {taskId && taskData?.election_event_id && taskData?.annotations?.documentId ? (
+                            <Button
+                                onClick={() => {
+                                    setDownloading(false)
+                                    setExportDocumentId(taskData?.annotations?.documentId)
+                                }}
+                                disabled={downloading}
+                                label={t("tasksScreen.widget.downloadDocument")}
+                            >
+                                <DownloadIcon />
+                            </Button>
+                        ) : null}
                     </AccordionDetails>
                 </Accordion>
             </WidgetContainer>
@@ -207,6 +224,19 @@ export const Widget: React.FC<WidgetProps> = ({
                     goBack={() => setOpenTaskModal(false)}
                     isModal={true}
                 />
+            )}
+            {exportDocumentId && (
+                <>
+                    <DownloadDocument
+                        documentId={exportDocumentId ?? ""}
+                        electionEventId={taskData?.election_event_id ?? ""}
+                        fileName={null}
+                        onDownload={() => {
+                            setDownloading(false)
+                            setExportDocumentId(undefined)
+                        }}
+                    />
+                </>
             )}
         </>
     )

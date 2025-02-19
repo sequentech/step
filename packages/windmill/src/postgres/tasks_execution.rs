@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::database::get_hasura_pool;
+use std::collections::HashMap;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::services::date::ISO8601;
@@ -121,6 +122,7 @@ pub async fn update_task_execution_status(
     task_execution_id: &str,
     new_status: TasksExecutionStatus,
     new_logs: Option<Value>,
+    annotations: HashMap<String, String>,
 ) -> Result<()> {
     let db_client: DbClient = get_hasura_pool()
         .await
@@ -131,6 +133,10 @@ pub async fn update_task_execution_status(
     let task_execution_uuid =
         Uuid::parse_str(task_execution_id).context("Failed to parse task_execution_id as UUID")?;
 
+
+    let new_annotations_value = serde_json::to_value(annotations)
+        .map_err(|err| anyhow!("Error converting annotations to Json: {err}"))?;
+
     let statement = db_client
         .prepare(
             r#"
@@ -140,9 +146,10 @@ pub async fn update_task_execution_status(
                 logs = $2,
                 end_at = CASE
                     WHEN $1 != 'IN_PROGRESS' THEN now()
-                    ELSE end_at
+                    ELSE end_at,
+                annotations = COALESCE(annotations, '{}'::jsonb) || $3::jsonb
                 END
-            WHERE id = $3;
+            WHERE id = $4;
             "#,
         )
         .await
@@ -152,10 +159,65 @@ pub async fn update_task_execution_status(
     db_client
         .execute(
             &statement,
-            &[&new_status.to_string(), &new_logs, &task_execution_uuid],
+            &[
+                &new_status.to_string(),
+                &new_logs,
+                &new_annotations_value,
+                &task_execution_uuid
+            ],
         )
         .await
         .context("Failed to execute update task execution status query")?;
+
+    Ok(())
+}
+
+pub async fn update_task_annotations(
+    tenant_id: &str,
+    task_execution_id: &str,
+    annotations: HashMap<String, String>,
+) -> Result<()> {
+    let db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .context("Failed to get database client from pool")?;
+
+    let task_execution_uuid =
+        Uuid::parse_str(task_execution_id).context("Failed to parse task_execution_id as UUID")?;
+
+    let tenant_uuid =
+        Uuid::parse_str(tenant_id).map_err(|err| anyhow!("Error parsing tenant UUID: {err}"))?;
+
+    let new_annotations_value = serde_json::to_value(annotations)
+        .map_err(|err| anyhow!("Error converting annotations to Json: {err}"))?;
+
+    let statement = db_client
+        .prepare(
+            r#"
+            UPDATE sequent_backend.tasks_execution
+            SET 
+                annotations = COALESCE(annotations, '{}'::jsonb) || $1::jsonb
+            WHERE
+                tenant_id = $2,
+                AND id = $3;
+            "#,
+        )
+        .await
+        .context("Failed to prepare SQL statement")?;
+
+    // Execute the update statement
+    db_client
+        .execute(
+            &statement,
+            &[
+                &new_annotations_value,
+                &task_execution_uuid,
+                &tenant_uuid,
+            ],
+        )
+        .await
+        .context("Failed to execute update task annotations query")?;
 
     Ok(())
 }
