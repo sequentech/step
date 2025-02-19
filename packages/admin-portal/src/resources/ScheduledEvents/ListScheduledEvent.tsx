@@ -103,7 +103,7 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
     const {data: elections} = useGetList<Sequent_Backend_Election>(
         "sequent_backend_election",
         {
-            pagination: {page: 1, perPage: 100},
+            pagination: {page: 1, perPage: 200},
             sort: {field: "created_at", order: "DESC"},
             filter: {
                 tenant_id: tenantId,
