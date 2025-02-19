@@ -1932,6 +1932,7 @@ const englishTranslation = {
                 votingClosed: "Posts with Voting Closed",
                 votingStarted: "Posts with Voting Started",
                 voterTurnout: "Voter Turnout",
+                votingKioskClosed: "Posts with Kiosk Voting Closed",
             },
             tally: {
                 title: "Tally",

@@ -14,6 +14,7 @@ export interface PollsStatsProps {
     eligibleVotersCount: number | string
     enrolledVotersCount: number | string
     electionsCount: number | string
+    electionsWithKioskCount: number | string
     startedVoteCount: number | string
     notStartedVotesCount: number | string
     openVotesCount: number | string
@@ -23,6 +24,8 @@ export interface PollsStatsProps {
     initializeCount: number | string
     notInitializeCount: number | string
     votingStats: VotingStats
+    kioskClosedVotesCount: number | string
+    kioskNotClosedVotesCount: number | string
 }
 
 const usePollsStats = (props: PollsStatsProps) => {
@@ -30,6 +33,7 @@ const usePollsStats = (props: PollsStatsProps) => {
         eligibleVotersCount,
         enrolledVotersCount,
         electionsCount,
+        electionsWithKioskCount,
         startedVoteCount,
         notStartedVotesCount,
         openVotesCount,
@@ -39,6 +43,8 @@ const usePollsStats = (props: PollsStatsProps) => {
         initializeCount,
         notInitializeCount,
         votingStats,
+        kioskClosedVotesCount,
+        kioskNotClosedVotesCount,
     } = props
 
     const {t} = useTranslation()
@@ -71,6 +77,11 @@ const usePollsStats = (props: PollsStatsProps) => {
         authContext.tenantId,
         IPermissions.MONITOR_VOTERS_WHO_VOTED
     )
+    const showKioskClosed = authContext.isAuthorized(
+        true,
+        authContext.tenantId,
+        IPermissions.MONITOR_POSTS_KIOSK_CLOSED_VOTING
+    )
 
     const pollsSection = useMemo(() => {
         return {
@@ -79,7 +90,8 @@ const usePollsStats = (props: PollsStatsProps) => {
                 showPostsOpenedVoting ||
                 showPostsClosedVoting ||
                 showPostsStartVoting ||
-                showVotersVoted,
+                showVotersVoted ||
+                showKioskClosed,
             title: t("monitoringDashboardScreen.polls.title"),
             stats: [
                 {
@@ -148,6 +160,28 @@ const usePollsStats = (props: PollsStatsProps) => {
                     ],
                 },
                 {
+                    show: showKioskClosed,
+                    title: t("monitoringDashboardScreen.polls.votingKioskClosed"),
+                    items: [
+                        {
+                            icon: <CheckCircleOutlineIcon />,
+                            count: kioskClosedVotesCount,
+                            percentage: calcPrecentage(
+                                kioskClosedVotesCount,
+                                electionsWithKioskCount
+                            ),
+                        },
+                        {
+                            icon: <CancelOutlinedIcon />,
+                            count: kioskNotClosedVotesCount,
+                            percentage: calcPrecentage(
+                                kioskNotClosedVotesCount,
+                                electionsWithKioskCount
+                            ),
+                        },
+                    ],
+                },
+                {
                     show: showVotersVoted,
                     title: t("monitoringDashboardScreen.polls.voterTurnout"),
                     items: [
@@ -166,6 +200,7 @@ const usePollsStats = (props: PollsStatsProps) => {
         showPostsClosedVoting,
         showPostsStartVoting,
         showVotersVoted,
+        showKioskClosed,
         votingStats,
         eligibleVotersCount,
         electionsCount,
@@ -177,6 +212,8 @@ const usePollsStats = (props: PollsStatsProps) => {
         notClosedVotesCount,
         initializeCount,
         notInitializeCount,
+        kioskClosedVotesCount,
+        kioskNotClosedVotesCount,
     ])
 
     return {pollsSection}

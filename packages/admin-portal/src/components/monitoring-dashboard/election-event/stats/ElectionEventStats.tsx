@@ -37,12 +37,15 @@ export interface ElectionEventStatsProps {
     eligibleVotersCount: number | string
     enrolledVotersCount: number | string
     electionsCount: number | string
+    electionsWithKioskCount: number | string
     startedVoteCount: number | string
     notStartedVotesCount: number | string
     openVotesCount: number | string
     notOpenVotesCount: number | string
     closedVotesCount: number | string
     notClosedVotesCount: number | string
+    kioskClosedVotesCount: number | string
+    kioskNotClosedVotesCount: number | string
     startCountingVotesCount: number | string
     notStartCountingVotesCount: number | string
     initializeCount: number | string
@@ -65,12 +68,15 @@ const ElectionEventStats = (props: ElectionEventStatsProps) => {
         eligibleVotersCount,
         enrolledVotersCount,
         electionsCount,
+        electionsWithKioskCount,
         startedVoteCount,
         notStartedVotesCount,
         openVotesCount,
         notOpenVotesCount,
         closedVotesCount,
         notClosedVotesCount,
+        kioskClosedVotesCount,
+        kioskNotClosedVotesCount,
         startCountingVotesCount,
         notStartCountingVotesCount,
         initializeCount,
@@ -94,6 +100,7 @@ const ElectionEventStats = (props: ElectionEventStatsProps) => {
         eligibleVotersCount,
         enrolledVotersCount,
         electionsCount,
+        electionsWithKioskCount,
         startedVoteCount,
         notStartedVotesCount,
         openVotesCount,
@@ -103,6 +110,8 @@ const ElectionEventStats = (props: ElectionEventStatsProps) => {
         initializeCount,
         notInitializeCount,
         votingStats,
+        kioskClosedVotesCount,
+        kioskNotClosedVotesCount,
     })
 
     const {tallySection} = useTallyStats({

@@ -1469,12 +1469,15 @@ type ElectionEventStatsMonitoringOutput {
     total_eligible_voters: Int
     total_enrolled_voters: Int
     total_elections: Int
+    total_elections_with_kiosk: Int
     total_started_votes: Int
     total_not_started_votes: Int
     total_open_votes: Int
     total_not_open_votes: Int
     total_closed_votes: Int
     total_not_closed_votes: Int
+    total_kiosk_closed_votes: Int
+    total_kiosk_not_closed_votes: Int
     total_start_counting_votes: Int
     total_not_start_counting_votes: Int
     total_initialize: Int

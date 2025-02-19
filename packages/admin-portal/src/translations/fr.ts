@@ -1961,6 +1961,7 @@ const frenchTranslation: TranslationType = {
                 votingClosed: "Publications avec Votations Closes",
                 votingStarted: "Publications avec Votations Commencées",
                 voterTurnout: "Taux de Participation des Électeurs",
+                votingKioskClosed: "Publications avec Votations sur Kiosque Closes",
             },
             tally: {
                 title: "Comptage",

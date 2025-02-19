@@ -34,12 +34,15 @@ pub struct ElectionEventMonitoringOutput {
     total_eligible_voters: i32,
     total_enrolled_voters: i64,
     total_elections: i64,
+    total_elections_with_kiosk: i64,
     total_started_votes: i64,
     total_open_votes: i64,
     total_not_open_votes: i64,
     total_not_started_votes: i64,
     total_closed_votes: i64,
     total_not_closed_votes: i64,
+    total_kiosk_closed_votes: i64,
+    total_kiosk_not_closed_votes: i64,
     total_start_counting_votes: i64,
     total_not_start_counting_votes: i64,
     total_initialize: i64,
@@ -144,14 +147,19 @@ pub async fn get_election_event_monitoring_f(
 
     Ok(Json(ElectionEventMonitoringOutput {
         total_eligible_voters,
+        total_enrolled_voters: election_event_data.total_enrolled_voters,
+        total_elections: election_event_data.total_elections,
+        total_elections_with_kiosk: election_event_data
+            .total_elections_with_kiosk,
         total_started_votes: election_event_data.total_started_votes,
         total_not_started_votes: election_event_data.total_not_started_votes,
         total_open_votes: election_event_data.total_open_votes,
         total_not_open_votes: election_event_data.total_not_open_votes,
         total_closed_votes: election_event_data.total_closed_votes,
         total_not_closed_votes: election_event_data.total_not_closed_votes,
-        total_enrolled_voters: election_event_data.total_enrolled_voters,
-        total_elections: election_event_data.total_elections,
+        total_kiosk_closed_votes: election_event_data.total_kiosk_closed_votes,
+        total_kiosk_not_closed_votes: election_event_data
+            .total_kiosk_not_closed_votes,
         total_start_counting_votes: election_event_data
             .total_start_counting_votes,
         total_not_start_counting_votes: election_event_data

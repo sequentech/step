@@ -1795,6 +1795,15 @@
         "clientRole": false,
         "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
         "attributes": {}
+      },
+      {
+        "id" : "19066a32-6bb5-4017-91db-e8854a016085",
+        "name" : "monitor-posts-kiosk-closed-voting",
+        "description" : "",
+        "composite" : false,
+        "clientRole" : false,
+        "containerId" : "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes" : { }
       }
     ],
     "client": {
@@ -2383,7 +2392,8 @@
         "election-dashboard-tab",
         "voter-voted-edit",
         "voter-email-tlf-edit",
-        "transmission-report-generate"
+        "transmission-report-generate",
+        "monitor-posts-kiosk-closed-voting"
       ],
       "clientRoles": {}
     },

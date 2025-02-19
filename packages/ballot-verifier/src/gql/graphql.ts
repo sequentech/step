@@ -216,10 +216,13 @@ export type ElectionEventStatsMonitoringOutput = {
     authentication_stats?: Maybe<MonitoringAuthentication>
     total_closed_votes?: Maybe<Scalars["Int"]["output"]>
     total_elections?: Maybe<Scalars["Int"]["output"]>
+    total_elections_with_kiosk?: Maybe<Scalars["Int"]["output"]>
     total_eligible_voters?: Maybe<Scalars["Int"]["output"]>
     total_enrolled_voters?: Maybe<Scalars["Int"]["output"]>
     total_genereated_tally?: Maybe<Scalars["Int"]["output"]>
     total_initialize?: Maybe<Scalars["Int"]["output"]>
+    total_kiosk_closed_votes?: Maybe<Scalars["Int"]["output"]>
+    total_kiosk_not_closed_votes?: Maybe<Scalars["Int"]["output"]>
     total_not_closed_votes?: Maybe<Scalars["Int"]["output"]>
     total_not_genereated_tally?: Maybe<Scalars["Int"]["output"]>
     total_not_initialize?: Maybe<Scalars["Int"]["output"]>

@@ -1954,6 +1954,7 @@ const tagalogTranslation: TranslationType = {
                 votingClosed: "Mga Post na may Saradong Pagboto",
                 votingStarted: "Mga Post na may Nagsimula nang Pagboto",
                 voterTurnout: "Pagdalo ng mga Botante",
+                votingKioskClosed: "Mga Post na may Saradong Pagboto sa Kiosko",
             },
             tally: {
                 title: "Pagbibilang",

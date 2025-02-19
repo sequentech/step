@@ -122,6 +122,7 @@ export enum IPermissions {
     MONITOR_MANUALLY_APPROVE_DISAPPROVE_VOTERS = "monitor-manually-approve-disapprove-voters",
     MONITOR_ENROLLED_OVERSEAS_VOTERS = "monitor-enrolled-overseas-voters",
     MONITOR_POSTS_ALREADY_CLOSED_VOTING = "monitor-posts-already-closed-voting",
+    MONITOR_POSTS_KIOSK_CLOSED_VOTING = "monitor-posts-kiosk-closed-voting",
     MONITOR_POSTS_ALREADY_GENERATED_ELECTION_RESULTS = "monitor-posts-already-generated-election-results",
     MONITOR_POSTS_ALREADY_OPENED_VOTING = "monitor-posts-already-opened-voting",
     MONITOR_POSTS_ALREADY_STARTED_COUNTING_VOTES = "monitor-posts-already-started-counting-votes",
