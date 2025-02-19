@@ -741,12 +741,15 @@ def gen_keycloak_context(excel_data, areas_dict):
             embassy = get_embassy(area["description"])
             embassy_set.add("\\\"" + embassy + "\\\"")
             country_set.add("\\\"" + country + "/" + embassy + "\\\"")
+
+    sorted_embassy_list = sorted(embassy_set)
+    sorted_country_list = sorted(country_set)
     
     keycloak_settings = [t for t in excel_data["parameters"] 
                          if t["type"] == "settings" and t["key"].startswith("keycloak")]
     keycloak_context = {
-        "embassy_list": ",".join(embassy_set),
-        "country_list": ",".join(country_set),
+        "embassy_list": ",".join(sorted_embassy_list),
+        "country_list": ",".join(sorted_country_list),
     }
 
     key_mappings = {
