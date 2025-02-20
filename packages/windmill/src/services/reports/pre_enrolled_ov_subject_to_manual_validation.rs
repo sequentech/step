@@ -179,7 +179,7 @@ impl TemplateRenderer for PreEnrolledManualUsersTemplate {
                     verified: None,
                 };
 
-                let voters_data = get_voters_data(
+                let (voters_data, _next_cursor) = get_voters_data(
                     hasura_transaction,
                     keycloak_transaction,
                     &realm,
@@ -189,6 +189,8 @@ impl TemplateRenderer for PreEnrolledManualUsersTemplate {
                     &area.id,
                     true,
                     voters_filters,
+                    None,
+                    None,
                 )
                 .await
                 .map_err(|e| anyhow!("Error getting voters data: {}", e))?;

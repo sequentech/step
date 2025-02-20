@@ -14,7 +14,7 @@ use crate::{
     postgres::application::get_applications, services::cast_votes::count_ballots_by_area_id,
 };
 use anyhow::{anyhow, Context, Result};
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Local, Utc};
 use deadpool_postgres::Transaction;
 use sequent_core::types::hasura::core::{Application, Area};
 use sequent_core::types::keycloak::AREA_ID_ATTR_NAME;
@@ -75,13 +75,17 @@ pub async fn get_enrolled_voters(
     election_event_id: &str,
     area_id: &str,
     filters: Option<EnrollmentFilters>,
-) -> Result<(Vec<Voter>, i64)> {
-    let applications: Vec<Application> = get_applications(
+    limit: Option<i64>,
+    last_seen: Option<(DateTime<Local>, String)>,
+) -> Result<(Vec<Voter>, i64, Option<(DateTime<Local>, String)>)> {
+    let (applications, next_cursor) = get_applications(
         &hasura_transaction,
         &tenant_id,
         &election_event_id,
         &area_id,
         filters.as_ref(),
+        limit,
+        last_seen,
     )
     .await
     .map_err(|err| anyhow!("{}", err))?;
@@ -165,7 +169,7 @@ pub async fn get_enrolled_voters(
 
     let count = users.len() as i64;
 
-    Ok((users, count))
+    Ok((users, count, next_cursor))
 }
 
 #[instrument(err, skip_all)]
@@ -449,7 +453,9 @@ pub async fn get_voters_data(
     area_id: &str,
     with_vote_info: bool,
     voters_filter: FilterListVoters,
-) -> Result<VotersData> {
+    limit: Option<i64>,
+    last_seen: Option<(DateTime<Local>, String)>,
+) -> Result<(VotersData, Option<(DateTime<Local>, String)>)> {
     let mut attributes: HashMap<String, AttributesFilterOption> = HashMap::new();
 
     match voters_filter.voters_sex {
@@ -513,7 +519,7 @@ pub async fn get_voters_data(
         None => {}
     };
 
-    let (voters, voters_count) = match voters_filter.enrolled {
+    let (voters, voters_count, next_cursor) = match voters_filter.enrolled {
         Some(_) => {
             get_enrolled_voters(
                 &hasura_transaction,
@@ -521,12 +527,16 @@ pub async fn get_voters_data(
                 &election_event_id,
                 &area_id,
                 voters_filter.enrolled,
+                limit,
+                last_seen,
             )
             .await?
         }
         None => {
-            get_voters_by_area_id(&keycloak_transaction, &realm, &area_id, attributes.clone())
-                .await?
+            let (voters, count) =
+                get_voters_by_area_id(&keycloak_transaction, &realm, &area_id, attributes.clone())
+                    .await?;
+            (voters, count, None)
         }
     };
 
@@ -557,13 +567,14 @@ pub async fn get_voters_data(
     sort_voters(&mut voters);
 
     let total_not_voted = voters_count - &voter_who_voted_count;
-
-    Ok(VotersData {
+    let voters_data = VotersData {
         total_voters: voters_count,
         total_voted: voter_who_voted_count,
         total_not_voted,
         voters,
-    })
+    };
+
+    Ok((voters_data, next_cursor))
 }
 
 // Helper function to generate the sorting key for a voter

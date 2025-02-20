@@ -200,7 +200,7 @@ impl TemplateRenderer for OverseasVotersReport {
                 verified: None,
             };
 
-            let voters_data = get_voters_data(
+            let (voters_data, _next_cursor) = get_voters_data(
                 &hasura_transaction,
                 &keycloak_transaction,
                 &realm,
@@ -210,6 +210,8 @@ impl TemplateRenderer for OverseasVotersReport {
                 &area.id,
                 true,
                 filtered_voters,
+                None,
+                None,
             )
             .await
             .map_err(|err| anyhow!("Error get_voters_data {err}"))?;
