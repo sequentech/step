@@ -7,7 +7,7 @@ import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline"
 import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
-import {calcPrecentage} from "../election-event/stats/ElectionEventStats"
+import {calcPrecentage, calcTotalApproved} from "../election-event/stats/ElectionEventStats"
 import Stats, {StatSection} from "../Stats"
 import {useTranslation} from "react-i18next"
 
@@ -121,7 +121,10 @@ const ElectionStats = (props: ElectionStatsProps) => {
                             count: approvalStats.approvedCount,
                             percentage: calcPrecentage(
                                 approvalStats.approvedCount,
-                                eligibleVotersCount
+                                calcTotalApproved(
+                                    approvalStats.approvedCount,
+                                    approvalStats.disapprovedCount
+                                )
                             ),
                         },
                         {
@@ -129,7 +132,10 @@ const ElectionStats = (props: ElectionStatsProps) => {
                             count: approvalStats.disapprovedCount,
                             percentage: calcPrecentage(
                                 approvalStats.disapprovedCount,
-                                eligibleVotersCount
+                                calcTotalApproved(
+                                    approvalStats.approvedCount,
+                                    approvalStats.disapprovedCount
+                                )
                             ),
                         },
                     ],
@@ -143,7 +149,10 @@ const ElectionStats = (props: ElectionStatsProps) => {
                             count: approvalStats.manualApprovedCount,
                             percentage: calcPrecentage(
                                 approvalStats.manualApprovedCount,
-                                eligibleVotersCount
+                                calcTotalApproved(
+                                    approvalStats.manualApprovedCount,
+                                    approvalStats.manualDisapprovedCount
+                                )
                             ),
                         },
                         {
@@ -151,7 +160,10 @@ const ElectionStats = (props: ElectionStatsProps) => {
                             count: approvalStats.manualDisapprovedCount,
                             percentage: calcPrecentage(
                                 approvalStats.manualDisapprovedCount,
-                                eligibleVotersCount
+                                calcTotalApproved(
+                                    approvalStats.manualApprovedCount,
+                                    approvalStats.manualDisapprovedCount
+                                )
                             ),
                         },
                     ],
@@ -165,7 +177,10 @@ const ElectionStats = (props: ElectionStatsProps) => {
                             count: approvalStats.automatedApprovedCount,
                             percentage: calcPrecentage(
                                 approvalStats.automatedApprovedCount,
-                                eligibleVotersCount
+                                calcTotalApproved(
+                                    approvalStats.automatedApprovedCount,
+                                    approvalStats.automatedDisapprovedCount
+                                )
                             ),
                         },
                         {
@@ -173,7 +188,10 @@ const ElectionStats = (props: ElectionStatsProps) => {
                             count: approvalStats.automatedDisapprovedCount,
                             percentage: calcPrecentage(
                                 approvalStats.automatedDisapprovedCount,
-                                eligibleVotersCount
+                                calcTotalApproved(
+                                    approvalStats.automatedApprovedCount,
+                                    approvalStats.automatedDisapprovedCount
+                                )
                             ),
                         },
                     ],
