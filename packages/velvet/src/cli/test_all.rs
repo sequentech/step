@@ -5,7 +5,7 @@
 use crate::fixtures::ballot_styles::generate_ballot_style;
 use crate::fixtures::TestFixture;
 use crate::pipes::pipe_inputs::BALLOTS_FILE;
-use anyhow::{Error, Result};
+use anyhow::{anyhow, Error, Result};
 use sequent_core::ballot::*;
 use sequent_core::ballot_codec::multi_ballot::{BallotChoices, ContestChoices};
 use sequent_core::ballot_codec::BigUIntCodec;
@@ -120,6 +120,7 @@ pub fn generate_ballots(
                     let mut plaintext_prepare = DecodedVoteContest {
                         contest_id: contest.id.clone(),
                         is_explicit_invalid: false,
+                        is_explicit_blank: false,
                         invalid_errors: vec![],
                         invalid_alerts: vec![],
                         choices: vec![],
@@ -283,6 +284,7 @@ pub fn generate_mcballots(
                     let mut plaintext_prepare = DecodedVoteContest {
                         contest_id: contest.id.clone(),
                         is_explicit_invalid: false,
+                        is_explicit_blank: false,
                         invalid_errors: vec![],
                         invalid_alerts: vec![],
                         choices: vec![],
@@ -339,10 +341,20 @@ pub fn generate_mcballots(
 
         let mut ballots = vec![];
         for (key, choices) in dvcs_by_area {
+            let contests_map: HashMap<String, Contest> = contests
+                .iter()
+                .map(|contest| (contest.id.clone(), contest.clone()))
+                .collect();
+
             let contest_choices = choices
                 .iter()
-                .map(ContestChoices::from_decoded_vote_contest)
-                .collect();
+                .map(|choice| -> Result<ContestChoices> {
+                    let contest = contests_map
+                        .get(&choice.contest_id)
+                        .ok_or(anyhow!("Can't find contest"))?;
+                    Ok(ContestChoices::from_decoded_vote_contest(choice, contest))
+                })
+                .collect::<Result<Vec<_>>>()?;
             let ballot = BallotChoices::new(false, contest_choices);
 
             let ballot_style = generate_ballot_style(
@@ -836,6 +848,7 @@ mod tests {
             let mut plaintext_prepare = DecodedVoteContest {
                 contest_id: contest.id.clone(),
                 is_explicit_invalid: false,
+                is_explicit_blank: false,
                 invalid_errors: vec![],
                 invalid_alerts: vec![],
                 choices: vec![],
@@ -938,6 +951,7 @@ mod tests {
             let mut plaintext_prepare = DecodedVoteContest {
                 contest_id: contest.id.clone(),
                 is_explicit_invalid: false,
+                is_explicit_blank: false,
                 invalid_errors: vec![],
                 invalid_alerts: vec![],
                 choices: vec![],
@@ -1045,6 +1059,7 @@ mod tests {
             let mut plaintext_prepare = DecodedVoteContest {
                 contest_id: contest.id.clone(),
                 is_explicit_invalid: false,
+                is_explicit_blank: false,
                 invalid_errors: vec![],
                 invalid_alerts: vec![],
                 choices: vec![],
@@ -1372,6 +1387,7 @@ mod tests {
             let mut plaintext_prepare = DecodedVoteContest {
                 contest_id: contest.id.clone(),
                 is_explicit_invalid: false,
+                is_explicit_blank: false,
                 invalid_errors: vec![],
                 invalid_alerts: vec![],
                 choices: vec![],
@@ -1529,6 +1545,7 @@ mod tests {
             let mut plaintext_prepare = DecodedVoteContest {
                 contest_id: contest.id.clone(),
                 is_explicit_invalid: false,
+                is_explicit_blank: false,
                 invalid_errors: vec![],
                 invalid_alerts: vec![],
                 choices: vec![],
@@ -1722,6 +1739,7 @@ mod tests {
                 let plaintext_prepare = DecodedVoteContest {
                     contest_id: contest.id.clone(),
                     is_explicit_invalid: false,
+                    is_explicit_blank: false,
                     invalid_errors: vec![],
                     invalid_alerts: vec![],
                     choices: choices,

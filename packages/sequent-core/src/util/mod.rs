@@ -7,6 +7,7 @@ pub mod date_time;
 pub mod integrity_check;
 pub mod mime;
 pub mod normalize_vote;
+#[cfg(feature = "reports")]
 pub mod temp_path;
 
 #[cfg(feature = "reports")]

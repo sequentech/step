@@ -71,16 +71,32 @@ impl ContestChoices {
     ///
     /// Used in testing when generating ballots with the non-sparse
     /// encoding (non multi-contest ballots)
-    pub fn from_decoded_vote_contest(dcv: &DecodedVoteContest) -> Self {
+    pub fn from_decoded_vote_contest(
+        dcv: &DecodedVoteContest,
+        contest: &Contest,
+    ) -> Self {
+        let explicit_blank_candidate_ids = if dcv.is_explicit_blank {
+            contest
+                .candidates
+                .iter()
+                .filter(|candidate| candidate.is_explicit_blank())
+                .map(|candidate| candidate.id.clone())
+                .collect()
+        } else {
+            vec![]
+        };
         let choices: Vec<ContestChoice> = dcv
             .choices
             .iter()
             // Only values > -1 are interpreted as set values
             // Values not present will be automatically interpreted as unset
-            .filter(|dc| dc.selected > -1)
+            .filter(|dc| {
+                dc.is_selected()
+                    || explicit_blank_candidate_ids.contains(&dc.id)
+            })
             .map(|dc| ContestChoice {
                 candidate_id: dc.id.clone(),
-                selected: dc.selected,
+                selected: if dc.is_selected() { dc.selected } else { 0 },
             })
             .collect();
 

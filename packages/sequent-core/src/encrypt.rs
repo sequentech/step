@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use std::collections::HashMap;
+
 use strand::backend::ristretto::RistrettoCtx;
 use strand::context::Ctx;
 use strand::elgamal::*;
@@ -155,10 +157,21 @@ pub fn encode_to_plaintext_decoded_multi_contest(
         )));
     }
 
+    let contests_map: HashMap<String, Contest> = config
+        .contests
+        .iter()
+        .map(|contest| (contest.id.clone(), contest.clone()))
+        .collect();
+
     let contest_choices = decoded_contests
         .iter()
-        .map(ContestChoices::from_decoded_vote_contest)
-        .collect();
+        .map(|choice| -> Result<ContestChoices, BallotError> {
+            let contest = contests_map.get(&choice.contest_id).ok_or(
+                BallotError::ConsistencyCheck(format!("Can't find contest")),
+            )?;
+            Ok(ContestChoices::from_decoded_vote_contest(choice, contest))
+        })
+        .collect::<Result<Vec<_>, BallotError>>()?;
 
     let ballot_choices = BallotChoices::new(false, contest_choices);
 
@@ -186,10 +199,21 @@ pub fn encrypt_decoded_multi_contest<C: Ctx<P = [u8; 30]>>(
         )));
     }
 
+    let contests_map: HashMap<String, Contest> = config
+        .contests
+        .iter()
+        .map(|contest| (contest.id.clone(), contest.clone()))
+        .collect();
+
     let contest_choices = decoded_contests
         .iter()
-        .map(ContestChoices::from_decoded_vote_contest)
-        .collect();
+        .map(|choice| -> Result<ContestChoices, BallotError> {
+            let contest = contests_map.get(&choice.contest_id).ok_or(
+                BallotError::ConsistencyCheck(format!("Can't find contest")),
+            )?;
+            Ok(ContestChoices::from_decoded_vote_contest(choice, contest))
+        })
+        .collect::<Result<Vec<_>, BallotError>>()?;
 
     let ballot = BallotChoices::new(false, contest_choices);
 
@@ -480,6 +504,18 @@ mod tests {
                 &invalid_candidate_ids,
             )
         );
+    }
+
+    fn get_multi_reencoding_fixture() -> Result<()> {
+        let ballot_selection_str = "[{\"contest_id\":\"3708000c-333b-4f5b-ae9d-eed052af9aff\",\"is_explicit_invalid\":false,\"is_explicit_blank\":true,\"invalid_errors\":[],\"invalid_alerts\":[],\"choices\":[{\"id\":\"53afa394-910b-444a-b119-696ad77d5b22\",\"selected\":-1},{\"id\":\"83590954-a4ab-47e3-bda2-dda883e5840f\",\"selected\":-1},{\"id\":\"b1ba31fa-be0c-49fa-b5fc-fa5c94c959c5\",\"selected\":-1},{\"id\":\"c6010d28-b7de-41d2-af01-63b386833dc2\",\"selected\":-1}]}]";
+        let ballot_eml_str = "{\"area_id\":\"c555c0ab-ee22-4b22-8df6-c8ffff032054\",\"contests\":[{\"alias\":\"\",\"alias_i18n\":{},\"annotations\":null,\"candidates\":[{\"alias\":null,\"alias_i18n\":{},\"annotations\":null,\"candidate_type\":null,\"contest_id\":\"3708000c-333b-4f5b-ae9d-eed052af9aff\",\"description\":null,\"description_i18n\":{},\"election_event_id\":\"5fca3d60-86de-4fee-8d39-f6622a6d1f87\",\"election_id\":\"17745b23-469d-4c21-a396-74bff608fd85\",\"id\":\"53afa394-910b-444a-b119-696ad77d5b22\",\"name\":\"A\",\"name_i18n\":{\"cat\":\"A\",\"en\":\"A\",\"es\":\"A\",\"fr\":\"A\",\"tl\":\"A\"},\"presentation\":{\"i18n\":{\"cat\":{\"name\":\"A\"},\"en\":{\"name\":\"A\"},\"es\":{\"name\":\"A\"},\"fr\":{\"name\":\"A\"},\"tl\":{\"name\":\"A\"}},\"invalid_vote_position\":null,\"is_category_list\":null,\"is_disabled\":null,\"is_explicit_blank\":null,\"is_explicit_invalid\":null,\"is_write_in\":null,\"sort_order\":null,\"subtype\":null,\"urls\":null},\"tenant_id\":\"90505c8a-23a9-4cdf-a26b-4e19f6a097d5\"},{\"alias\":\"\",\"alias_i18n\":{},\"annotations\":null,\"candidate_type\":null,\"contest_id\":\"3708000c-333b-4f5b-ae9d-eed052af9aff\",\"description\":\"\",\"description_i18n\":{},\"election_event_id\":\"5fca3d60-86de-4fee-8d39-f6622a6d1f87\",\"election_id\":\"17745b23-469d-4c21-a396-74bff608fd85\",\"id\":\"83590954-a4ab-47e3-bda2-dda883e5840f\",\"name\":\"Blank\",\"name_i18n\":{\"cat\":\"Blank\",\"en\":\"Blank\",\"es\":\"Blank\",\"fr\":\"Blank\",\"tl\":\"Blank\"},\"presentation\":{\"i18n\":{\"cat\":{\"name\":\"Blank\"},\"en\":{\"name\":\"Blank\"},\"es\":{\"name\":\"Blank\"},\"fr\":{\"name\":\"Blank\"},\"tl\":{\"name\":\"Blank\"}},\"invalid_vote_position\":null,\"is_category_list\":false,\"is_disabled\":false,\"is_explicit_blank\":true,\"is_explicit_invalid\":false,\"is_write_in\":false,\"sort_order\":null,\"subtype\":null,\"urls\":null},\"tenant_id\":\"90505c8a-23a9-4cdf-a26b-4e19f6a097d5\"},{\"alias\":null,\"alias_i18n\":{},\"annotations\":null,\"candidate_type\":null,\"contest_id\":\"3708000c-333b-4f5b-ae9d-eed052af9aff\",\"description\":null,\"description_i18n\":{},\"election_event_id\":\"5fca3d60-86de-4fee-8d39-f6622a6d1f87\",\"election_id\":\"17745b23-469d-4c21-a396-74bff608fd85\",\"id\":\"b1ba31fa-be0c-49fa-b5fc-fa5c94c959c5\",\"name\":\"B\",\"name_i18n\":{\"cat\":\"B\",\"en\":\"B\",\"es\":\"B\",\"fr\":\"B\",\"tl\":\"B\"},\"presentation\":{\"i18n\":{\"cat\":{\"name\":\"B\"},\"en\":{\"name\":\"B\"},\"es\":{\"name\":\"B\"},\"fr\":{\"name\":\"B\"},\"tl\":{\"name\":\"B\"}},\"invalid_vote_position\":null,\"is_category_list\":null,\"is_disabled\":null,\"is_explicit_blank\":null,\"is_explicit_invalid\":null,\"is_write_in\":null,\"sort_order\":null,\"subtype\":null,\"urls\":null},\"tenant_id\":\"90505c8a-23a9-4cdf-a26b-4e19f6a097d5\"},{\"alias\":\"\",\"alias_i18n\":{},\"annotations\":null,\"candidate_type\":null,\"contest_id\":\"3708000c-333b-4f5b-ae9d-eed052af9aff\",\"description\":\"\",\"description_i18n\":{},\"election_event_id\":\"5fca3d60-86de-4fee-8d39-f6622a6d1f87\",\"election_id\":\"17745b23-469d-4c21-a396-74bff608fd85\",\"id\":\"c6010d28-b7de-41d2-af01-63b386833dc2\",\"name\":\"Invalid\",\"name_i18n\":{\"cat\":\"Invalid\",\"en\":\"Invalid\",\"es\":\"Invalid\",\"fr\":\"Invalid\",\"tl\":\"Invalid\"},\"presentation\":{\"i18n\":{\"cat\":{\"name\":\"Invalid\"},\"en\":{\"name\":\"Invalid\"},\"es\":{\"name\":\"Invalid\"},\"fr\":{\"name\":\"Invalid\"},\"tl\":{\"name\":\"Invalid\"}},\"invalid_vote_position\":null,\"is_category_list\":false,\"is_disabled\":false,\"is_explicit_blank\":false,\"is_explicit_invalid\":true,\"is_write_in\":false,\"sort_order\":null,\"subtype\":null,\"urls\":null},\"tenant_id\":\"90505c8a-23a9-4cdf-a26b-4e19f6a097d5\"}],\"counting_algorithm\":\"plurality-at-large\",\"created_at\":\"2025-02-15T02:59:07.646934+00:00\",\"description\":\"\",\"description_i18n\":{},\"election_event_id\":\"5fca3d60-86de-4fee-8d39-f6622a6d1f87\",\"election_id\":\"17745b23-469d-4c21-a396-74bff608fd85\",\"id\":\"3708000c-333b-4f5b-ae9d-eed052af9aff\",\"is_encrypted\":true,\"max_votes\":1,\"min_votes\":1,\"name\":\"Contest\",\"name_i18n\":{\"cat\":\"Contest\",\"en\":\"Contest\",\"es\":\"Contest\",\"fr\":\"Contest\",\"tl\":\"Contest\"},\"presentation\":{\"allow_writeins\":null,\"base32_writeins\":null,\"blank_vote_policy\":\"not-allowed\",\"candidates_icon_checkbox_policy\":\"square-checkbox\",\"candidates_order\":\"alphabetical\",\"candidates_selection_policy\":null,\"columns\":null,\"cumulative_number_of_checkboxes\":null,\"enable_checkable_lists\":\"allow-selecting-candidates-and-lists\",\"i18n\":{\"cat\":{\"name\":\"Contest\"},\"en\":{\"name\":\"Contest\"},\"es\":{\"name\":\"Contest\"},\"fr\":{\"name\":\"Contest\"},\"tl\":{\"name\":\"Contest\"}},\"invalid_vote_policy\":\"warn-invalid-implicit-and-explicit\",\"max_selections_per_type\":null,\"over_vote_policy\":\"not-allowed-with-msg-and-disable\",\"pagination_policy\":\"\",\"show_points\":null,\"shuffle_categories\":null,\"shuffle_category_list\":null,\"sort_order\":null,\"types_presentation\":null,\"under_vote_policy\":\"warn-and-alert\"},\"tenant_id\":\"90505c8a-23a9-4cdf-a26b-4e19f6a097d5\",\"voting_type\":\"non-preferential\",\"winning_candidates_num\":1}],\"description\":null,\"election_annotations\":{},\"election_dates\":{\"first_paused_at\":null,\"first_started_at\":\"2025-02-15T03:10:41.494840572+00:00\",\"first_stopped_at\":null,\"last_paused_at\":null,\"last_started_at\":\"2025-02-15T03:10:41.494840572+00:00\",\"last_stopped_at\":null,\"scheduled_event_dates\":{}},\"election_event_annotations\":{},\"election_event_id\":\"5fca3d60-86de-4fee-8d39-f6622a6d1f87\",\"election_event_presentation\":{\"contest_encryption_policy\":null,\"css\":null,\"custom_urls\":null,\"elections_order\":null,\"enrollment\":null,\"i18n\":{\"cat\":{\"name\":\"Event\"},\"en\":{\"name\":\"Event\"},\"es\":{\"name\":\"Event\"},\"fr\":{\"name\":\"Event\"},\"tl\":{\"name\":\"Event\"}},\"keys_ceremony_policy\":null,\"language_conf\":{\"default_language_code\":\"en\",\"enabled_language_codes\":[\"en\"]},\"locked_down\":null,\"logo_url\":null,\"materials\":null,\"otp\":null,\"publish_policy\":null,\"redirect_finish_url\":null,\"show_user_profile\":null,\"skip_election_list\":null,\"voter_signing_policy\":null,\"voting_portal_countdown_policy\":null},\"election_id\":\"17745b23-469d-4c21-a396-74bff608fd85\",\"election_presentation\":{\"audit_button_cfg\":null,\"cast_vote_confirm\":null,\"contests_order\":null,\"dates\":null,\"grace_period_policy\":null,\"grace_period_secs\":null,\"i18n\":{\"cat\":{\"name\":\"Election\"},\"en\":{\"name\":\"Election\"},\"es\":{\"name\":\"Election\"},\"fr\":{\"name\":\"Election\"},\"tl\":{\"name\":\"Election\"}},\"init_report\":null,\"initialization_report_policy\":null,\"is_grace_priod\":null,\"language_conf\":{\"default_language_code\":\"en\",\"enabled_language_codes\":[\"en\"]},\"manual_start_voting_period\":null,\"sort_order\":null,\"tally\":null,\"voting_period_end\":null},\"id\":\"fd715a44-9803-46e2-9a5a-34325db1d2ae\",\"num_allowed_revotes\":null,\"public_key\":{\"is_demo\":false,\"public_key\":\"jIFQinnN0cYj3Q0H70DViHDS1AvaL/v3Y1VZGoTmhi8\"},\"tenant_id\":\"90505c8a-23a9-4cdf-a26b-4e19f6a097d5\"}";
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_test_multi_contest_reencoding_js() {
+        let fixture = get_multi_reencoding_fixture().unwrap();
     }
 
     /*
