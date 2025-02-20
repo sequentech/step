@@ -45,7 +45,7 @@ impl TryFrom<Row> for ApplicationWrapper {
     }
 }
 
-#[instrument(err, skip_all)]
+#[instrument(err, skip(hasura_transaction))]
 pub async fn get_permission_label_from_post(
     hasura_transaction: &Transaction<'_>,
     post_name: &str,
@@ -61,7 +61,7 @@ pub async fn get_permission_label_from_post(
             LEFT JOIN sequent_backend.election el ON con.election_id = el.id
         WHERE
             a.name ILIKE '%' || $1 || '%' AND
-            a.description ILIKE '%' || $2 || '%'
+            a.description ILIKE '%' || $2 || '%' AND
             a.tenant_id = $3 AND
             ac.tenant_id = $3 AND
             con.tenant_id = $3 AND
@@ -83,7 +83,7 @@ pub async fn get_permission_label_from_post(
             &statement,
             &[
                 &post_name,
-                &post_description
+                &post_description,
                 &Uuid::parse_str(tenant_id)?,
                 &Uuid::parse_str(election_event_id)?,
             ],
