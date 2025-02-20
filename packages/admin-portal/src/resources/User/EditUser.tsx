@@ -10,6 +10,7 @@ import {UserProfileAttribute} from "@/gql/graphql"
 interface EditUserProps {
     id?: string
     electionEventId?: string
+    electionId?: string
     close?: () => void
     rolesList: Array<IRole>
     userAttributes: UserProfileAttribute[]
@@ -20,6 +21,7 @@ export const EditUser: React.FC<EditUserProps> = ({
     id,
     close,
     electionEventId,
+    electionId,
     rolesList,
     userAttributes,
     record,

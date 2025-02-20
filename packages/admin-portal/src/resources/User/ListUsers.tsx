@@ -1150,6 +1150,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 <EditUser
                     id={recordIds[0] as string}
                     electionEventId={electionEventId}
+                    electionId={electionId}
                     close={handleClose}
                     rolesList={rolesList || []}
                     userAttributes={userAttributes?.get_user_profile_attributes || []}

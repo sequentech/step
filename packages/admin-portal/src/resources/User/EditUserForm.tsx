@@ -198,6 +198,7 @@ const convertRecordToUser = (record: RaRecord<Identifier>): IUser => {
 interface EditUserFormProps {
     id?: string
     electionEventId?: string
+    electionId?: string
     close?: () => void
     rolesList: Array<IRole>
     userAttributes: UserProfileAttribute[]
@@ -209,6 +210,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     id,
     close,
     electionEventId,
+    electionId,
     rolesList,
     userAttributes,
     createMode = false,
@@ -247,6 +249,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         })) || []
     )
     const [errorText, setErrorText] = useState("")
+    const [hasVoted, setHasVoted] = useState<boolean>(false)
 
     const equalToPassword = (allValues: any) => {
         if (!allValues.password || allValues.password.length == 0) {
@@ -261,6 +264,12 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         }
     }
 
+    const checkIsVoted = (record: IUser) => {
+        return record?.votes_info?.length
+            ? !electionId || record.votes_info.some((vote) => vote.election_id === electionId)
+            : false
+    }
+
     useEffect(() => {
         const userPermissionLabels = user?.attributes?.permission_labels as string[] | undefined
         if (userPermissionLabels?.length) {
@@ -270,8 +279,15 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                 name: label,
             }))
             setChoices([...transformedChoices])
+            setHasVoted(checkIsVoted(user as IUser))
         }
     }, [user])
+
+    useEffect(() => {
+        console.log("aa election event", electionEventId)
+        console.log("aa election ", electionId)
+        console.log("aa has voted", hasVoted)
+    }, [hasVoted])
 
     const {data: userRoles, refetch} = useQuery<ListUserRolesQuery>(LIST_USER_ROLES, {
         variables: {
