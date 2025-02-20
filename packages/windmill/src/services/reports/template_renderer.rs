@@ -306,10 +306,6 @@ pub trait TemplateRenderer: Debug {
             .map_err(|e| anyhow!("Error converting user data to map: {e:?}"))?;
 
         debug!("user data in template renderer: {user_data_map:#?}");
-        info!(
-            "imri generate_report_inner user_data_map: {:?}",
-            user_data_map
-        );
         let rendered_user_template =
             reports::render_template_text(&user_tpl_document, user_data_map)
                 .map_err(|e| anyhow!("Error rendering user template: {e:?}"))?;
@@ -321,7 +317,6 @@ pub trait TemplateRenderer: Debug {
             .map_err(|e| anyhow!("Error preparing system data: {e:?}"))?
             .to_map()
             .map_err(|e| anyhow!("Error converting system data to map: {e:?}"))?;
-        info!("imri generate_report_inner system_data: {:?}", system_data);
         let system_template = self
             .get_system_template()
             .await
@@ -357,7 +352,6 @@ pub trait TemplateRenderer: Debug {
             .map_err(|e| anyhow!("Error converting user data to map: {e:?}"))?;
 
         debug!("user data in template renderer: {user_data_map:#?}");
-        info!("imri generate_report user_data_map: {:?}", user_data_map);
 
         let rendered_user_template =
             reports::render_template_text(user_tpl_document, user_data_map)
