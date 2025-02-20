@@ -9635,6 +9635,7 @@ dependencies = [
  "lazy_static 1.5.0",
  "lettre",
  "num_cpus",
+ "once_cell",
  "openssl",
  "ordered-float 4.6.0",
  "postgres-openssl",
