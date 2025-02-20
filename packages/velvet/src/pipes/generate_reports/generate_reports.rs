@@ -102,7 +102,7 @@ impl GenerateReports {
         Ok(pipe_config)
     }
 
-    #[instrument(skip_all)]
+    #[instrument(err, skip_all)]
     pub fn compute_reports(
         &self,
         reports: Vec<ReportData>,
@@ -233,7 +233,7 @@ impl GenerateReports {
         Ok(reports)
     }
 
-    #[instrument(skip_all)]
+    #[instrument(err, skip_all)]
     pub fn generate_report(
         &self,
         reports: Vec<ReportData>,
@@ -389,7 +389,7 @@ impl GenerateReports {
         aggregate_path.exists() && aggregate_path.is_dir()
     }
 
-    #[instrument(skip(self))]
+    #[instrument(err, skip(self))]
     fn read_contest_result(
         &self,
         election_id: &Uuid,
@@ -426,7 +426,7 @@ impl GenerateReports {
         Ok(contest_result)
     }
 
-    #[instrument(skip(self))]
+    #[instrument(err, skip(self))]
     fn read_winners(
         &self,
         election_id: &Uuid,
@@ -464,7 +464,7 @@ impl GenerateReports {
         Ok(res)
     }
 
-    #[instrument(skip(self))]
+    #[instrument(err, skip(self))]
     pub fn read_reports(&self) -> Result<Vec<ElectionReportDataComputed>> {
         let mut election_reports: Vec<ElectionReportDataComputed> = vec![];
 
@@ -557,7 +557,7 @@ impl GenerateReports {
         Ok(election_reports)
     }
 
-    #[instrument(skip_all)]
+    #[instrument(err, skip_all)]
     fn read_breakdowns(
         &self,
         election_id: &Uuid,
@@ -664,6 +664,7 @@ impl GenerateReports {
         ),
         err
     )]
+    #[instrument(err, skip_all)]
     fn make_report(
         &self,
         election_id: &Uuid,
@@ -754,7 +755,7 @@ impl GenerateReports {
         Ok(report)
     }
 
-    #[instrument(skip(self, reports, areas_map), err)]
+    #[instrument(err, skip(self, reports, areas_map), err)]
     fn write_report(
         &self,
         election_id: &Uuid,
@@ -825,7 +826,7 @@ struct InputConfigAreaContest<'a> {
 }
 
 impl Pipe for GenerateReports {
-    #[instrument(skip_all, name = "GenerateReports::exec")]
+    #[instrument(err, skip_all, name = "GenerateReports::exec")]
     fn exec(&self) -> Result<()> {
         let mark_winners_dir = self
             .pipe_inputs
@@ -1149,6 +1150,7 @@ impl From<CandidateResultForReport> for Option<WinnerResult> {
     }
 }
 
+#[instrument(skip_all)]
 fn sort_candidates(candidates: &mut Vec<CandidateResult>, order_field: CandidatesOrder) {
     match order_field {
         CandidatesOrder::Alphabetical => {
