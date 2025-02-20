@@ -4,11 +4,20 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 package sequent.keycloak.inetum_authenticator;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auto.service.AutoService;
 import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
+import java.io.IOException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -16,6 +25,8 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.extern.jbosslog.JBossLog;
+import sequent.keycloak.authenticator.credential.MessageOTPCredentialModel;
+import sequent.keycloak.inetum_authenticator.Utils.EnrollmentStatus;
 import org.keycloak.Config;
 import org.keycloak.authentication.AuthenticationFlowError;
 import org.keycloak.authentication.AuthenticationFlowException;
@@ -24,6 +35,7 @@ import org.keycloak.authentication.FormActionFactory;
 import org.keycloak.authentication.FormContext;
 import org.keycloak.authentication.ValidationContext;
 import org.keycloak.authentication.forms.RegistrationPage;
+import org.keycloak.credential.CredentialModel;
 import org.keycloak.events.Details;
 import org.keycloak.events.Errors;
 import org.keycloak.forms.login.LoginFormsProvider;
@@ -49,6 +61,9 @@ import org.keycloak.userprofile.ValidationException;
 @JBossLog
 @AutoService(FormActionFactory.class)
 public class DeferredRegistrationUserCreation implements FormAction, FormActionFactory {
+
+  private String accessToken = null;
+  private String harvestUrl = System.getenv("HARVEST_DOMAIN");
 
   public static final String PROVIDER_ID = "deferred-registration-user-creation";
   public static final String SEARCH_ATTRIBUTES = "search-attributes";
@@ -320,7 +335,35 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
       return;
     }
     log.info("validate: success");
-    context.success();
+    // context.success();
+    // Checking if already enrolled
+    try {
+      EnrollmentStatus enrollmentStatus = getEnrollmentStatus(context);
+      switch (enrollmentStatus) {
+        case ACCEPTED:
+        // TODO handle accepted status
+        log.info("validate: enroll status ACCEPTED");
+          break;
+        case PENDING:
+          log.info("validate: enroll status PENDING");
+          // TODO handle pending status
+          break;
+        case REJECTED:
+        default:
+          log.info("validate: enroll status REJECTED | default: " + enrollmentStatus);
+          context.success();
+          break;
+      }
+    } catch (IOException | InterruptedException e) {
+      log.info("validate: enroll status e: " + e);
+      log.info("validate: enroll status REJECTED | default: " + e);
+      log.info("validate: enroll status REJECTED | default: " + e);
+      log.info("validate: enroll status REJECTED | default: " + e);
+      log.info("validate: enroll status REJECTED | default: " + e);
+      e.printStackTrace();
+      context.getEvent().error("Error generating approval: " + e.getMessage());
+      return;
+    }
   }
 
   private String getAnnotationValueFromProfile(
@@ -581,5 +624,96 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
       context.getEvent().detail("user_attributes", Utils.getUserAttributesString(user));
     }
     context.getEvent().detail(Utils.AUTHENTICATOR_CLASS_NAME, this.getClass().getSimpleName());
+  }
+    private EnrollmentStatus getEnrollmentStatus(ValidationContext context)
+      throws IOException, InterruptedException {
+
+    if (this.accessToken == null) {
+      this.accessToken = Utils.authenticate();
+    }
+    // Retrieve the configuration
+    AuthenticatorConfigModel config = context.getAuthenticatorConfig();
+    Map<String, String> configMap = config.getConfig();
+
+    // Extract the attributes to search and update from the configuration
+    String searchAttributes = configMap.get(SEARCH_ATTRIBUTES);
+    String unsetAttributes = configMap.get(UNSET_ATTRIBUTES);
+    String updateAttributes = configMap.get(LookupAndUpdateUser.UPDATE_ATTRIBUTES);
+    String sessionId = context.getAuthenticationSession().getParentSession().getId();
+    // Parse attributes lists
+
+    ObjectMapper om = new ObjectMapper();
+    String password =
+        context.getAuthenticationSession().getAuthNote(RegistrationPage.FIELD_PASSWORD);
+
+    CredentialModel passwordModel = Utils.buildPassword(context.getSession(), password);
+    CredentialModel otpCredential = MessageOTPCredentialModel.create(/* isSetup= */ true);
+    List<CredentialModel> credentials = Arrays.asList(passwordModel, otpCredential);
+
+    Map<String, Object> annotationsMap = new HashMap<>();
+    annotationsMap.put(SEARCH_ATTRIBUTES, searchAttributes);
+    annotationsMap.put(LookupAndUpdateUser.UPDATE_ATTRIBUTES, updateAttributes);
+    annotationsMap.put(UNSET_ATTRIBUTES, unsetAttributes);
+    annotationsMap.put("credentials", credentials);
+    annotationsMap.put("sessionId", sessionId);
+    Map<String, String> applicantDataMap =
+    Utils.buildApplicantData(context.getSession(), context.getAuthenticationSession());
+
+    HttpClient client = HttpClient.newHttpClient();
+    String url = "http://" + this.harvestUrl + "/get-application-status";
+    String requestBody =
+        String.format(
+          // TODO make sure what param is needed
+            "{\"tenant_id\": \"%s\", \"election_event_id\": \"%s\", \"area_id\": \"%s\", \"applicant_id\": \"%s\", \"applicant_data\" : %s, \"annotations\": %s, \"labels\": \"%s\"}",
+            Utils.escapeJson(Utils.tenantId),
+            Utils.escapeJson(Utils.getElectionEventId(context.getSession(), context.getRealm().getId())),
+            Utils.escapeJson(null),
+            Utils.escapeJson(null),
+            om.writeValueAsString(applicantDataMap),
+            om.writeValueAsString(annotationsMap),
+            null);
+    HttpRequest request =
+        HttpRequest.newBuilder()
+            .uri(URI.create(url))
+            .header("Content-Type", "application/json")
+            .header("Authorization", "Bearer " + this.accessToken)
+            .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+            .build();
+
+    HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+    log.infov("getUserEnrollmentStatus response: {0}", response);
+      // Recover data from response
+      JsonNode verificationResult = om.readTree(response.body());
+
+      // Check status
+      if (response.statusCode() != 200) {
+        String response_message = verificationResult.get("message").textValue();
+        // TODO handle error...
+        log.infov("getUserEnrollmentStatus response_message: {0}", response_message);
+        // TODO handle error...
+        // TODO handle error...
+        // context
+        //     .getEvent()
+        //     .detail("status_code", String.format("%d", response.statusCode()))
+        //     .detail("message", response_message)
+        //     .error("Error generating approval.");
+        // context.failureChallenge(
+        //     AuthenticationFlowError.INTERNAL_ERROR,
+        //     context
+        //         .form()
+        //         .setError(Utils.ERROR_GENERATING_APPROVAL, sessionId)
+        //         .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
+        return null;
+      }
+      EnrollmentStatus status;
+      String statusText = verificationResult.get("status").textValue();
+      try {
+        status = EnrollmentStatus.valueOf(statusText.toUpperCase());
+      } catch (IllegalArgumentException | NullPointerException e) {
+        status = null; // Or handle the default case
+        System.err.println("Invalid status: " + statusText);
+      }
+
+    return status;
   }
 }

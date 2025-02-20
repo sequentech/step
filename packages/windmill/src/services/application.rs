@@ -1110,6 +1110,76 @@ pub async fn send_application_communication_response(
 
     Ok(())
 }
+// IMRI
+// IMRI
+// IMRI
+// IMRI
+// IMRI
+// IMRI
+// IMRI
+// IMRI
+// IMRI
+// IMRI
+// IMRI
+// IMRI
+// IMRI
+// IMRI
+#[instrument(skip_all, err)]
+pub async fn get_applicant_status(
+    hasura_transaction: &Transaction<'_>,
+    keycloak_transaction: &Transaction<'_>,
+    applicant_id: &str,
+    tenant_id: &str,
+    election_event_id: &str,
+    email: Option<&str>,
+    phone_number: Option<&str>,
+    labels: &Option<Value>,
+    annotations: &ApplicationAnnotations,
+) -> Result<ApplicationStatus> {
+    // First, verify that the election event exists.
+    let _event = get_election_event_by_id(hasura_transaction, tenant_id, election_event_id).await?;
+    
+    // Check if an application already exists in Hasura using the provided email or phone.
+    if email.is_some() || phone_number.is_some() {
+        if let Some(applicant_status) = get_application_status(
+            hasura_transaction,
+            tenant_id,
+            election_event_id,
+            email,
+            phone_number,
+        )
+        .await?
+        {
+            info!("Found existing application with status: {:?}", existing_app.application_status);
+            return Ok(existing_app.application_status);
+        }
+    }
+    
+    Ok()
+}
+
+#[instrument(skip(hasura_transaction))]
+async fn get_application_status(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    email: Option<&str>,
+    phone_number: Option<&str>,
+) -> Result<Option<Application>> {
+
+    let query = "SELECT * FROM application 
+                 WHERE tenant_id = $1 
+                 AND election_event_id = $2 
+                 AND ((applicant_data->>'email' = $3) OR (applicant_data->>'phone' = $4))
+                 LIMIT 1";
+    let row = hasura_transaction.query_opt(query, &[&tenant_id, &election_event_id, &email.unwrap_or(""), &phone_number.unwrap_or("")]).await?;
+    if let Some(row) = row {
+        let application: Application = row.try_into()?;
+        return Ok(Some(application));
+    }
+    
+    Ok(None)
+}
 
 #[instrument(err, skip_all)]
 pub async fn get_group_names(realm: &str, user_id: &str) -> Result<Vec<String>> {
@@ -1294,3 +1364,4 @@ mod tests {
         );
     }
 }
+

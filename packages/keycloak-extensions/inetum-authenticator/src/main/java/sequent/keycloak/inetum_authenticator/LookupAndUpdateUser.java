@@ -116,10 +116,6 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     }
   }
 
-  private String keycloakUrl = System.getenv("KEYCLOAK_URL");
-  private String tenantId = System.getenv("SUPER_ADMIN_TENANT_ID");
-  private String clientId = System.getenv("KEYCLOAK_CLIENT_ID");
-  private String clientSecret = System.getenv("KEYCLOAK_CLIENT_SECRET");
   private String harvestUrl = System.getenv("HARVEST_DOMAIN");
   private String access_token;
 
@@ -183,7 +179,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       return;
     }
 
-    authenticate();
+    this.access_token =  Utils.authenticate();
 
     // Retrieve the configuration
     AuthenticatorConfigModel config = context.getAuthenticatorConfig();
@@ -244,7 +240,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       HttpResponse<String> verificationResponse =
           verifyApplication(
               getTenantId(context.getSession(), realmId),
-              getElectionEventId(context.getSession(), realmId),
+              Utils.getElectionEventId(context.getSession(), realmId),
               null,
               null,
               om.writeValueAsString(applicantDataMap),
@@ -984,59 +980,6 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     log.infov("Verification response: {0}", response);
 
     return response;
-  }
-
-  public void authenticate() {
-    HttpClient client = HttpClient.newHttpClient();
-    String url =
-        this.keycloakUrl
-            + "/realms/"
-            + getTenantRealmName(this.tenantId)
-            + "/protocol/openid-connect/token";
-    Map<Object, Object> data = new HashMap<>();
-    data.put("client_id", this.clientId);
-    data.put("scope", "openid");
-    data.put("client_secret", this.clientSecret);
-    data.put("grant_type", "client_credentials");
-
-    String form =
-        data.entrySet().stream()
-            .map(entry -> entry.getKey() + "=" + entry.getValue())
-            .reduce((entry1, entry2) -> entry1 + "&" + entry2)
-            .orElse("");
-    log.info(form);
-    HttpRequest request =
-        HttpRequest.newBuilder()
-            .uri(URI.create(url))
-            .header("Content-Type", "application/x-www-form-urlencoded")
-            .POST(HttpRequest.BodyPublishers.ofString(form))
-            .build();
-
-    CompletableFuture<HttpResponse<String>> responseFuture;
-    responseFuture = client.sendAsync(request, HttpResponse.BodyHandlers.ofString());
-    String responseBody = responseFuture.join().body();
-    Object accessToken;
-    try {
-      log.info("responseBody " + responseBody);
-      accessToken = JsonSerialization.readValue(responseBody, Map.class).get("access_token");
-      log.info("authenticate " + accessToken.toString());
-      this.access_token = accessToken.toString();
-    } catch (IOException e) {
-      e.printStackTrace();
-    }
-  }
-
-  private String getTenantRealmName(String realmName) {
-    return "tenant-" + tenantId;
-  }
-
-  private String getElectionEventId(KeycloakSession session, String realmId) {
-    String realmName = session.realms().getRealm(realmId).getName();
-    String[] parts = realmName.split("event-");
-    if (parts.length > 1) {
-      return parts[1];
-    }
-    return null;
   }
 
   /**

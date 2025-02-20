@@ -317,3 +317,105 @@ pub async fn change_application_status(
         error: None,
     }))
 }
+
+#[derive(Deserialize, Debug)]
+pub struct ApplicationEnrollmentStatusBody {
+    applicant_id: String,
+    applicant_data: HashMap<String, String>,
+    tenant_id: String,
+    election_event_id: String,
+    area_id: Option<String>,
+    labels: Option<Value>,
+    annotations: ApplicationAnnotations,
+}
+
+#[instrument(skip(claims))]
+#[post("/get-application-status", format = "json", data = "<body>")]
+pub async fn get_application_status_(
+    claims: jwt::JwtClaims,
+    body: Json<ApplicationEnrollmentStatusBody>,
+) -> Result<Json<ApplicationVerificationResult>, JsonError> {
+    let input: ApplicationEnrollmentStatusBody = body.into_inner();
+
+    info!("Verifiying application: {input:?}");
+
+    let required_perm: Permissions = Permissions::SERVICE_ACCOUNT;
+
+    authorize(
+        &claims,
+        true,
+        Some(input.tenant_id.clone()),
+        vec![required_perm],
+    )
+    .map_err(|e| {
+        ErrorResponse::new(
+            Status::Unauthorized,
+            &format!("{:?}", e),
+            ErrorCode::Unauthorized,
+        )
+    })?;
+
+    let mut hasura_db_client: DbClient =
+        get_hasura_pool().await.get().await.map_err(|e| {
+            ErrorResponse::new(
+                Status::InternalServerError,
+                &format!("{:?}", e),
+                ErrorCode::InternalServerError,
+            )
+        })?;
+
+    let hasura_transaction =
+        hasura_db_client.transaction().await.map_err(|e| {
+            ErrorResponse::new(
+                Status::InternalServerError,
+                &format!("{:?}", e),
+                ErrorCode::GetTransactionFailed,
+            )
+        })?;
+
+    let mut keycloak_db_client: DbClient =
+        get_keycloak_pool().await.get().await.map_err(|e| {
+            ErrorResponse::new(
+                Status::InternalServerError,
+                &format!("{:?}", e),
+                ErrorCode::GetTransactionFailed,
+            )
+        })?;
+    let keycloak_transaction =
+        keycloak_db_client.transaction().await.map_err(|e| {
+            ErrorResponse::new(
+                Status::InternalServerError,
+                &format!("{:?}", e),
+                ErrorCode::GetTransactionFailed,
+            )
+        })?;
+
+    let result = verify_application(
+        &hasura_transaction,
+        &keycloak_transaction,
+        &input.applicant_id,
+        &input.applicant_data,
+        &input.tenant_id,
+        &input.election_event_id,
+        &input.labels,
+        &input.annotations,
+    )
+    .await
+    .map_err(|e| {
+        ErrorResponse::new(
+            Status::InternalServerError,
+            &format!("{:?}", e),
+            ErrorCode::InternalServerError,
+        )
+    })?;
+
+    let _commit = hasura_transaction.commit().await.map_err(|e| {
+        ErrorResponse::new(
+            Status::InternalServerError,
+            &format!("commit failed: {e:?}"),
+            ErrorCode::InternalServerError,
+        )
+    })?;
+
+    Ok(Json(result))
+}
