@@ -39,6 +39,7 @@ export const EditUser: React.FC<EditUserProps> = ({
             <EditUserForm
                 id={id}
                 electionEventId={electionEventId}
+                electionId={electionId}
                 close={close}
                 rolesList={rolesList}
                 userAttributes={userAttributes}

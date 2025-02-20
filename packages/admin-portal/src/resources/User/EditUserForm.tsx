@@ -582,6 +582,8 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                 const value = isCustomAttribute
                     ? user?.attributes?.[attr.name]
                     : user && user[attr.name as keyof IUser]
+                console.log("aa value", value)
+
                 const displayName = attr.display_name ?? ""
                 const isRequired = isFieldRequired(attr)
                 if (attr.annotations?.inputType === "select") {
@@ -599,6 +601,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                 onChange={handleSelectChange(attr.name)}
                                 required={isRequired}
                                 disabled={
+                                    hasVoted ||
                                     !(
                                         createMode ||
                                         !electionEventId ||
@@ -640,6 +643,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                             control={
                                                 <Checkbox
                                                     disabled={
+                                                        hasVoted ||
                                                         !(
                                                             createMode ||
                                                             !electionEventId ||
@@ -672,6 +676,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                             onChange={handleAttrChange(attr.name)}
                             label={getTranslationLabel(attr.name, attr.display_name, t)}
                             disabled={
+                                hasVoted ||
                                 !(
                                     createMode ||
                                     !electionEventId ||
@@ -690,6 +695,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                             fullWidth
                             initialValue={value}
                             disabled={
+                                hasVoted ||
                                 !(
                                     createMode ||
                                     !electionEventId ||
@@ -714,23 +720,26 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                     )
                 } else if (attr.name.toLowerCase().includes("authorized-election-ids")) {
                     return (
-                        <FormStyles.AutocompleteArrayInput
-                            label={getTranslationLabel(attr.name, attr.display_name, t)}
-                            className="elections-selector"
-                            fullWidth
-                            choices={electionsList || []}
-                            source="attributes.authorized-election-ids"
-                            optionValue="alias"
-                            optionText={aliasRenderer}
-                            onChange={handleArraySelectChange}
-                            disabled={
-                                !(
-                                    createMode ||
-                                    !electionEventId ||
-                                    (enabledByVoteNum && canEditVoters)
-                                )
-                            }
-                        />
+                        <>
+                            <FormStyles.AutocompleteArrayInput
+                                label={getTranslationLabel(attr.name, attr.display_name, t)}
+                                className="elections-selector"
+                                fullWidth
+                                choices={electionsList || []}
+                                source="attributes.authorized-election-ids"
+                                optionValue="alias"
+                                optionText={aliasRenderer}
+                                onChange={handleArraySelectChange}
+                                disabled={
+                                    hasVoted ||
+                                    !(
+                                        createMode ||
+                                        !electionEventId ||
+                                        (enabledByVoteNum && canEditVoters)
+                                    )
+                                }
+                            />
+                        </>
                     )
                 } else if (attr.name.toLowerCase().includes("permission_labels")) {
                     return (
@@ -758,6 +767,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                             choices={choices}
                             freeSolo={true}
                             disabled={
+                                hasVoted ||
                                 !(
                                     createMode ||
                                     !electionEventId ||
@@ -793,6 +803,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                 value={value}
                                 onChange={handleAttrChange(attr.name)}
                                 disabled={
+                                    hasVoted ||
                                     !(
                                         createMode ||
                                         !electionEventId ||
@@ -808,6 +819,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                 source={attr.name}
                                 required={isFieldRequired(attr)}
                                 disabled={
+                                    hasVoted ||
                                     (attr.name === "username" && !createMode) ||
                                     !(
                                         !electionEventId ||
@@ -890,6 +902,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                         control={
                             <Checkbox
                                 disabled={
+                                    hasVoted ||
                                     !(
                                         createMode ||
                                         !electionEventId ||
@@ -917,6 +930,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                 label=""
                                 isRequired={true}
                                 disabled={
+                                    hasVoted ||
                                     !(
                                         createMode ||
                                         !electionEventId ||
@@ -942,6 +956,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                 onChange={handleChange}
                                 error={!!errorText}
                                 disabled={
+                                    hasVoted ||
                                     !(
                                         createMode ||
                                         !electionEventId ||
@@ -961,6 +976,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                 helperText={errorText}
                                 error={!!errorText}
                                 disabled={
+                                    hasVoted ||
                                     !(
                                         createMode ||
                                         !electionEventId ||
@@ -985,6 +1001,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                 onChange={(e) => setTemportay(!temporary)}
                                 checked={temporary}
                                 disabled={
+                                    hasVoted ||
                                     !(
                                         createMode ||
                                         !electionEventId ||
