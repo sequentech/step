@@ -14,6 +14,7 @@ import {
     BooleanInput,
     useGetList,
     SelectArrayInput,
+    TextField,
 } from "react-admin"
 import {useMutation, useQuery} from "@apollo/client"
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
@@ -31,6 +32,7 @@ import {
     FormGroup,
     FormLabel,
     Box,
+    Autocomplete,
 } from "@mui/material"
 import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
 import {
@@ -66,6 +68,7 @@ import {InputContainerStyle, InputLabelStyle, PasswordInputStyle} from "./EditPa
 import IconTooltip from "@/components/IconTooltip"
 import {faInfoCircle} from "@fortawesome/free-solid-svg-icons"
 import {useUsersPermissions} from "./useUsersPermissions"
+import debounce from "lodash/debounce"
 
 interface ListUserRolesProps {
     userId?: string
@@ -455,17 +458,24 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
 
     const handleAttrChange =
         (attrName: string) => async (e: React.ChangeEvent<HTMLInputElement>) => {
-            const {value} = e.target
+            const {name, value} = e.target
+            debouncedHandleChange(name, value)
+        }
+
+    const debouncedHandleChange = useCallback(
+        debounce((name: string, value: string) => {
             setUser((prev) => {
                 return {
                     ...prev,
                     attributes: {
                         ...(prev?.attributes ?? {}),
-                        [attrName]: [value],
+                        [name]: [value],
                     },
                 }
             })
-        }
+        }, 300),
+        [user, equalToPassword]
+    )
 
     const handleSelectChange = (attrName: string) => async (e: SelectChangeEvent) => {
         setUser((prev) => {
@@ -570,37 +580,43 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                 const isRequired = isFieldRequired(attr)
                 if (attr.annotations?.inputType === "select") {
                     return (
-                        <FormControl fullWidth>
-                            <InputLabel id="select-label" required={isRequired}>
-                                {getTranslationLabel(attr.name, attr.display_name, t)}
-                            </InputLabel>
-                            <Select
-                                name={displayName}
-                                defaultValue={value}
-                                labelId="select-label"
-                                label={getTranslationLabel(attr.name, attr.display_name, t)}
-                                value={value}
-                                onChange={handleSelectChange(attr.name)}
-                                required={isRequired}
-                                disabled={
-                                    !(
-                                        createMode ||
-                                        !electionEventId ||
-                                        (enabledByVoteNum && canEditVoters)
-                                    )
+                        <Box sx={{overflow: "visible", zIndex: 9999}}>
+                            {/* <Autocomplete
+                                options={["Option1", "Option2", "Option3"]}
+                                getOptionLabel={(option) => t(option || "")}
+                                value={
+                                    ["Option1", "Option2", "Option3"].includes(value) ? value : null
                                 }
-                            >
-                                {attr.validations.options?.options
-                                    ? [...attr.validations.options.options]
-                                          .sort()
-                                          .map((option: string) => (
-                                              <MenuItem key={option} value={option}>
-                                                  {t(option)}
-                                              </MenuItem>
-                                          ))
-                                    : null}
-                            </Select>
-                        </FormControl>
+                                onChange={(_, newValue) =>
+                                    handleSelectChange(attr.name || "")({
+                                        target: {value: newValue, name: attr.name || ""},
+                                    } as React.ChangeEvent<HTMLInputElement>)
+                                }
+                                slotProps={{
+                                    popper: {
+                                        modifiers: [{name: "preventOverflow", enabled: false}],
+                                    },
+                                }}
+                                renderInput={(params) => (
+                                    <TextField
+                                        {...params}
+                                        name={displayName}
+                                        label={getTranslationLabel(attr.name, attr.display_name, t)}
+                                        required={isRequired}
+                                        fullWidth
+                                        size="small"
+                                        margin="normal"
+                                        disabled={
+                                            !(
+                                                createMode ||
+                                                !electionEventId ||
+                                                (enabledByVoteNum && canEditVoters)
+                                            )
+                                        }
+                                    />
+                                )}
+                            /> */}
+                        </Box>
                     )
                 } else if (
                     attr.annotations?.inputType === "multiselect-checkboxes" &&
