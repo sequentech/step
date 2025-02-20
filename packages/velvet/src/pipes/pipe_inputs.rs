@@ -47,6 +47,7 @@ pub struct PipeInputs {
 }
 
 impl PipeInputs {
+    #[instrument(err, skip_all, name = "PipeInputs::new")]
     pub fn new(cli: CliRun, stage: Stage) -> Result<Self> {
         let root_path_config = &cli.input_dir.join(DEFAULT_DIR_CONFIGS);
         let root_path_ballots = &cli.input_dir.join(DEFAULT_DIR_BALLOTS);
@@ -63,6 +64,7 @@ impl PipeInputs {
         })
     }
 
+    #[instrument(skip_all)]
     pub fn build_path(
         root: &Path,
         election_id: &Uuid,
@@ -85,6 +87,7 @@ impl PipeInputs {
         path
     }
 
+    #[instrument(skip_all)]
     pub fn build_path_by_area(
         root: &Path,
         election_id: &Uuid,
@@ -112,6 +115,8 @@ impl PipeInputs {
     ///
     /// This path is used both to find input ballots and to output decoded
     /// ballots.
+    ///
+    #[instrument(skip_all)]
     pub fn mcballots_path(root: &Path, election_id: &Uuid, area_id: &Uuid) -> PathBuf {
         let mut path = PathBuf::new();
 
@@ -122,6 +127,7 @@ impl PipeInputs {
         path
     }
 
+    #[instrument(skip_all)]
     pub fn build_tally_sheet_path(root: &Path, tally_sheet_id: &str) -> PathBuf {
         let mut path = PathBuf::new();
 
@@ -130,6 +136,7 @@ impl PipeInputs {
         path
     }
 
+    #[instrument(skip_all)]
     pub fn get_tally_sheet_id_from_path(path: &Path) -> Option<String> {
         let Some(folder_name) = get_folder_name(path) else {
             return None;
@@ -293,6 +300,7 @@ pub struct AreaContest {
 }
 
 impl InputElectionConfig {
+    #[instrument(skip_all)]
     pub(crate) fn get_area_contest_map(&self) -> HashMap<Uuid, AreaContest> {
         let mut ret: HashMap<Uuid, AreaContest> = HashMap::new();
 
