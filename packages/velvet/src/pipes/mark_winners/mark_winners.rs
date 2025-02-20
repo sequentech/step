@@ -59,6 +59,7 @@ impl MarkWinners {
             .collect()
     }
 
+    #[instrument(err, skip_all)]
     fn create_breakdown_winners(
         &self,
         base_input_path: &PathBuf,
@@ -87,7 +88,7 @@ impl MarkWinners {
 }
 
 impl Pipe for MarkWinners {
-    #[instrument(skip_all, name = "MarkWinners::new")]
+    #[instrument(err, skip_all, name = "MarkWinners::new")]
     fn exec(&self) -> Result<()> {
         let input_dir = self
             .pipe_inputs

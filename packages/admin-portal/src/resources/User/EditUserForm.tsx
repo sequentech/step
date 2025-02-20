@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useCallback, useContext, useEffect, useMemo, useState} from "react"
+import React, {useCallback, useContext, useEffect, useMemo, useRef, useState} from "react"
 import {
     Identifier,
     RaRecord,
@@ -13,6 +13,7 @@ import {
     ReferenceArrayInput,
     BooleanInput,
     useGetList,
+    SelectArrayInput,
 } from "react-admin"
 import {useMutation, useQuery} from "@apollo/client"
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
@@ -38,6 +39,7 @@ import {
     EditUsersInput,
     ListUserRolesQuery,
     Sequent_Backend_Cast_Vote,
+    Sequent_Backend_Election,
     SetUserRoleMutation,
     UserProfileAttribute,
 } from "@/gql/graphql"
@@ -60,7 +62,6 @@ import SelectArea from "@/components/area/SelectArea"
 import SelectActedTrustee from "./SelectActedTrustee"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
-import {useLocation} from "react-router"
 import {InputContainerStyle, InputLabelStyle, PasswordInputStyle} from "./EditPassword"
 import IconTooltip from "@/components/IconTooltip"
 import {faInfoCircle} from "@fortawesome/free-solid-svg-icons"
@@ -296,6 +297,21 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         }
     )
 
+    const {data: electionsList} = useGetList<Sequent_Backend_Election>(
+        "sequent_backend_election",
+        {
+            pagination: {page: 1, perPage: 300},
+            sort: {field: "name", order: "DESC"},
+            filter: {
+                tenant_id: tenantId,
+                election_event_id: electionEventId,
+            },
+        },
+        {
+            enabled: !!electionEventId,
+        }
+    )
+
     // true if not affected by canEditVotersWhoVoted
     // which happens if the voter has not voted
     // or if current admin user has the permission canEditVotersWhoVoted
@@ -463,13 +479,13 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         })
     }
 
-    const handleArraySelectChange = (attrName: string) => async (value: string[]) => {
+    const handleArraySelectChange = (value: string[]) => {
         setUser((prev) => {
             return {
                 ...prev,
                 attributes: {
                     ...prev?.attributes,
-                    [attrName]: value,
+                    "authorized-election-ids": value,
                 },
             }
         })
@@ -534,11 +550,13 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
 
     const aliasRenderer = useAliasRenderer()
 
+    const searched = useRef("")
+
     const electionFilterToQuery = (searchText: string) => {
-        if (!searchText || searchText.length == 0) {
-            return {name: ""}
+        if (searchText && searchText.length > 0) {
+            searched.current = searchText.trim()
         }
-        return {"name@_ilike,alias@_ilike": searchText.trim()}
+        return {"name@_ilike,alias@_ilike": searched.current}
     }
 
     const renderFormField = useCallback(
@@ -572,11 +590,15 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                     )
                                 }
                             >
-                                {attr.validations.options?.options?.map((option: string) => (
-                                    <MenuItem key={option} value={option}>
-                                        {t(option)}
-                                    </MenuItem>
-                                ))}
+                                {attr.validations.options?.options
+                                    ? [...attr.validations.options.options]
+                                          .sort()
+                                          .map((option: string) => (
+                                              <MenuItem key={option} value={option}>
+                                                  {t(option)}
+                                              </MenuItem>
+                                          ))
+                                    : null}
                             </Select>
                         </FormControl>
                     )
@@ -676,32 +698,23 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                     )
                 } else if (attr.name.toLowerCase().includes("authorized-election-ids")) {
                     return (
-                        <ReferenceArrayInput
-                            reference="sequent_backend_election"
+                        <FormStyles.AutocompleteArrayInput
+                            label={getTranslationLabel(attr.name, attr.display_name, t)}
+                            className="elections-selector"
+                            fullWidth
+                            choices={electionsList || []}
                             source="attributes.authorized-election-ids"
-                            filter={{
-                                tenant_id: tenantId,
-                                election_event_id: electionEventId,
-                            }}
-                            enableGetChoices={({q}) => q && q.length >= 3}
-                        >
-                            <FormStyles.AutocompleteArrayInput
-                                label={getTranslationLabel(attr.name, attr.display_name, t)}
-                                className="elections-selector"
-                                fullWidth={true}
-                                optionValue="alias"
-                                optionText={aliasRenderer}
-                                filterToQuery={electionFilterToQuery}
-                                onChange={handleArraySelectChange(attr.name)}
-                                disabled={
-                                    !(
-                                        createMode ||
-                                        !electionEventId ||
-                                        (enabledByVoteNum && canEditVoters)
-                                    )
-                                }
-                            />
-                        </ReferenceArrayInput>
+                            optionValue="alias"
+                            optionText={aliasRenderer}
+                            onChange={handleArraySelectChange}
+                            disabled={
+                                !(
+                                    createMode ||
+                                    !electionEventId ||
+                                    (enabledByVoteNum && canEditVoters)
+                                )
+                            }
+                        />
                     )
                 } else if (attr.name.toLowerCase().includes("permission_labels")) {
                     return (
