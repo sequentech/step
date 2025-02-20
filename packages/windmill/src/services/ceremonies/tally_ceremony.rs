@@ -517,7 +517,7 @@ pub async fn update_tally_ceremony(
         tenant_id.clone(),
         election_event_id.clone(),
         tally_session.id.clone(),
-        tally_session.election_ids.clone().unwrap_or_default()
+        tally_session.election_ids.clone().unwrap_or_default(),
     )
     .await?
     else {
@@ -626,7 +626,7 @@ pub async fn set_private_key(
         tenant_id.to_string(),
         election_event_id.to_string(),
         tally_session_id.to_string(),
-        tally_session.election_ids.clone().unwrap_or_default()
+        tally_session.election_ids.clone().unwrap_or_default(),
     )
     .await?
     else {

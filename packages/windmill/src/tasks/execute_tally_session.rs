@@ -1152,14 +1152,15 @@ pub async fn execute_tally_session_wrapped(
     tally_type: Option<String>,
     election_ids: Option<Vec<String>>,
 ) -> Result<()> {
-    let Some((tally_session_execution, tally_session, tally_session_data)) = find_last_tally_session_execution(
-        auth_headers.clone(),
-        tenant_id.clone(),
-        election_event_id.clone(),
-        tally_session_id.clone(),
-        election_ids.unwrap_or(vec![]),
-    )
-    .await?
+    let Some((tally_session_execution, tally_session, tally_session_data)) =
+        find_last_tally_session_execution(
+            auth_headers.clone(),
+            tenant_id.clone(),
+            election_event_id.clone(),
+            tally_session_id.clone(),
+            election_ids.clone().unwrap_or(vec![]),
+        )
+        .await?
     else {
         event!(Level::INFO, "Can't find last execution status, skipping");
         return Ok(());
