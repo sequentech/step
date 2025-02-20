@@ -10,11 +10,8 @@ import {
     useNotify,
     useRefresh,
     AutocompleteArrayInput,
-    ReferenceArrayInput,
     BooleanInput,
     useGetList,
-    SelectArrayInput,
-    TextField,
 } from "react-admin"
 import {useMutation, useQuery} from "@apollo/client"
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
@@ -23,16 +20,14 @@ import {useTenantStore} from "@/providers/TenantContextProvider"
 import {IRole, IUser} from "@sequentech/ui-core"
 import {
     FormControl,
-    MenuItem,
-    Select,
-    SelectChangeEvent,
     FormControlLabel,
     Checkbox,
-    InputLabel,
     FormGroup,
     FormLabel,
     Box,
     Autocomplete,
+    Grid,
+    TextField,
 } from "@mui/material"
 import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
 import {
@@ -477,13 +472,13 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         [user, equalToPassword]
     )
 
-    const handleSelectChange = (attrName: string) => async (e: SelectChangeEvent) => {
+    const handleSelectChange = (attrName: string) => async (e: string) => {
         setUser((prev) => {
             return {
                 ...prev,
                 attributes: {
                     ...prev?.attributes,
-                    [attrName]: [e.target.value],
+                    [attrName]: [e],
                 },
             }
         })
@@ -580,43 +575,57 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                 const isRequired = isFieldRequired(attr)
                 if (attr.annotations?.inputType === "select") {
                     return (
-                        <Box sx={{overflow: "visible", zIndex: 9999}}>
-                            {/* <Autocomplete
-                                options={["Option1", "Option2", "Option3"]}
-                                getOptionLabel={(option) => t(option || "")}
-                                value={
-                                    ["Option1", "Option2", "Option3"].includes(value) ? value : null
-                                }
-                                onChange={(_, newValue) =>
-                                    handleSelectChange(attr.name || "")({
-                                        target: {value: newValue, name: attr.name || ""},
-                                    } as React.ChangeEvent<HTMLInputElement>)
-                                }
-                                slotProps={{
-                                    popper: {
-                                        modifiers: [{name: "preventOverflow", enabled: false}],
-                                    },
-                                }}
-                                renderInput={(params) => (
-                                    <TextField
-                                        {...params}
-                                        name={displayName}
-                                        label={getTranslationLabel(attr.name, attr.display_name, t)}
-                                        required={isRequired}
-                                        fullWidth
-                                        size="small"
-                                        margin="normal"
-                                        disabled={
-                                            !(
-                                                createMode ||
-                                                !electionEventId ||
-                                                (enabledByVoteNum && canEditVoters)
-                                            )
+                        <Grid container spacing={2}>
+                            <Grid item xs={12}>
+                                <FormControl fullWidth>
+                                    <Autocomplete
+                                        defaultValue={value || null}
+                                        value={value || null}
+                                        onChange={(event, newValue) => {
+                                            const fieldName = attr.name || ""
+                                            const selectedValue = newValue || ""
+                                            handleSelectChange(fieldName)(selectedValue)
+                                        }}
+                                        options={
+                                            attr.validations.options?.options
+                                                ? [...attr.validations.options.options].sort()
+                                                : ["-"]
                                         }
+                                        getOptionLabel={(option) => t(option) || String(option)}
+                                        renderInput={(params) => (
+                                            <TextField
+                                                {...params} // Spread all params provided by Autocomplete
+                                                label={
+                                                    getTranslationLabel(
+                                                        attr.name,
+                                                        attr.display_name,
+                                                        t
+                                                    ) || "Default Label"
+                                                }
+                                                inputProps={{
+                                                    ...params.inputProps,
+                                                    id: "autocomplete-input",
+                                                    required: isRequired,
+                                                    name: displayName,
+                                                }}
+                                                disabled={
+                                                    !(
+                                                        createMode ||
+                                                        !electionEventId ||
+                                                        (enabledByVoteNum && canEditVoters)
+                                                    )
+                                                }
+                                                fullWidth
+                                                style={{
+                                                    display: "block",
+                                                    visibility: "visible",
+                                                }}
+                                            />
+                                        )}
                                     />
-                                )}
-                            /> */}
-                        </Box>
+                                </FormControl>
+                            </Grid>
+                        </Grid>
                     )
                 } else if (
                     attr.annotations?.inputType === "multiselect-checkboxes" &&
