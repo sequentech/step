@@ -190,7 +190,7 @@ impl TemplateRenderer for OVTurnoutPerAboardAndSexPercentageReport {
         )
     }
 
-    #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
+    #[instrument(err, skip_all)]
     async fn prepare_user_data(
         &self,
         hasura_transaction: &Transaction<'_>,
@@ -393,6 +393,7 @@ impl TemplateRenderer for OVTurnoutPerAboardAndSexPercentageReport {
     }
 }
 
+#[instrument(err, skip_all)]
 async fn get_voters_per_aboard_and_sex_data_by_area(
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,

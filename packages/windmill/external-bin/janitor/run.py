@@ -798,6 +798,7 @@ def gen_tree(excel_data, miru_data, script_idr, multiply_factor):
         if precinct_id not in miru_data:
             raise Exception(f"precinct with 'id' = {precinct_id} not found in miru acf")
         miru_precinct = miru_data[precinct_id]
+        registered_voters = miru_precinct["REGISTERED_VOTERS"]
 
         region_code = str(area_context["region_code_overwrite"] if "region_code_overwrite" in area_context and area_context["region_code_overwrite"] is not None else row["pop_POLLCENTER_CODE"])
 
@@ -832,7 +833,8 @@ def gen_tree(excel_data, miru_data, script_idr, multiply_factor):
             "miru": {
                 "ccs_servers": ccs_servers_str,
                 "sbei_ids": sbei_ids_str,
-                "country": row["DB_ALLMUN_AREA_NAME"]
+                "country": row["DB_ALLMUN_AREA_NAME"],
+                "registered_voters": registered_voters
             }
         }
         if region_code not in areas:
@@ -870,7 +872,6 @@ def gen_tree(excel_data, miru_data, script_idr, multiply_factor):
         if precinct_id not in miru_data:
             raise Exception(f"precinct with 'id' = {precinct_id} not found in miru acf")
         miru_precinct = miru_data[precinct_id]
-        registered_voters = miru_precinct["REGISTERED_VOTERS"]
 
         if not election:
             contest_id = row["DB_SEAT_DISTRICTCODE"]
@@ -886,7 +887,6 @@ def gen_tree(excel_data, miru_data, script_idr, multiply_factor):
                 "contests": [],
                 "scheduled_events": [],
                 "reports": [],
-                "registered_voters": registered_voters,
                 "miru": {
                     "election_id": "1",
                     "name": miru_contest["NAME_ABBR"],
