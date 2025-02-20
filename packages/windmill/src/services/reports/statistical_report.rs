@@ -133,7 +133,7 @@ impl TemplateRenderer for StatisticalReportTemplate {
         ReportType::STATISTICAL_REPORT
     }
 
-    #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
+    #[instrument(err, skip_all)]
     async fn prepare_user_data(
         &self,
         hasura_transaction: &Transaction<'_>,
@@ -369,7 +369,7 @@ impl TemplateRenderer for StatisticalReportTemplate {
     }
 }
 
-#[instrument(err, skip_all)]
+#[instrument(err, skip(contest))]
 pub async fn generate_total_number_of_expected_votes_for_contest(
     contest: &Contest,
     registered_voters: &i64,
@@ -394,7 +394,7 @@ pub async fn generate_fill_up_rate(num_of_expected_votes: &i64, total_votes: &i6
 }
 
 //generate data for specific contest
-#[instrument(err)]
+#[instrument(err, skip_all)]
 pub async fn generate_contest_results_data(
     contest: &Contest,
     results_area_contest: &ResultsAreaContest,

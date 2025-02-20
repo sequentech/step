@@ -58,7 +58,6 @@
         }
       },
       "election_annotations": {
-        "registered_voters": "10",
         "geographical_region": "Asia/Pacific",
         "post": "Bangkok PE",
         "clustered_precint_id": "E1"
@@ -302,7 +301,6 @@
         }
       },
       "election_annotations": {
-        "registered_voters": "10",
         "geographical_region": "Asia/Pacific",
         "post": "Bangkok PE",
         "clustered_precint_id": "E1"
