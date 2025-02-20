@@ -23,7 +23,7 @@ from pathlib import Path
 from patch import parse_table_sheet, parse_parameters, patch_json_with_excel
 import re
 
-IS_DEBUG = False
+IS_DEBUG = True
 
 def is_valid_regex(pattern):
     try:
