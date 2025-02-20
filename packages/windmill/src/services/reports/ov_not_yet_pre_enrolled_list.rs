@@ -101,7 +101,7 @@ impl TemplateRenderer for NotPreEnrolledListTemplate {
         self.ids.election_id.clone()
     }
 
-    #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
+    #[instrument(err, skip_all)]
     async fn prepare_user_data(
         &self,
         hasura_transaction: &Transaction<'_>,
@@ -223,7 +223,7 @@ impl TemplateRenderer for NotPreEnrolledListTemplate {
         })
     }
 
-    #[instrument]
+    #[instrument(err, skip_all)]
     async fn prepare_system_data(
         &self,
         rendered_user_template: String,
