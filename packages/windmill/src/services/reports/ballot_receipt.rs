@@ -158,7 +158,7 @@ impl TemplateRenderer for BallotTemplate {
         })
     }
 
-    #[instrument(err, skip(self, rendered_user_template))]
+    #[instrument(err, skip_all)]
     async fn prepare_system_data(
         &self,
         rendered_user_template: String,
