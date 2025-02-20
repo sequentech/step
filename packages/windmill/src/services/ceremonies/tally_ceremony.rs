@@ -65,10 +65,12 @@ pub async fn find_last_tally_session_execution(
     tenant_id: String,
     election_event_id: String,
     tally_session_id: String,
+    election_ids: Vec<String>,
 ) -> Result<
     Option<(
         GetLastTallySessionExecutionSequentBackendTallySessionExecution,
         GetLastTallySessionExecutionSequentBackendTallySession,
+        get_last_tally_session_execution::ResponseData,
     )>,
 > {
     // get all data for the execution: the last tally session execution,
@@ -78,6 +80,7 @@ pub async fn find_last_tally_session_execution(
         tenant_id.clone(),
         election_event_id.clone(),
         tally_session_id.clone(),
+        election_ids,
     )
     .await?
     .data
@@ -95,6 +98,7 @@ pub async fn find_last_tally_session_execution(
     Ok(Some((
         data.sequent_backend_tally_session_execution[0].clone(),
         data.sequent_backend_tally_session[0].clone(),
+        data,
     )))
 }
 
@@ -508,7 +512,7 @@ pub async fn update_tally_ceremony(
         return Err(anyhow!("Unexpected status"));
     }
 
-    let Some((tally_session_execution, _)) = find_last_tally_session_execution(
+    let Some((tally_session_execution, _, _)) = find_last_tally_session_execution(
         auth_headers.clone(),
         tenant_id.clone(),
         election_event_id.clone(),
@@ -608,7 +612,7 @@ pub async fn set_private_key(
         .clone()
         .ok_or(anyhow!("trustee name not found"))?;
 
-    let Some((tally_session_execution, tally_session)) = find_last_tally_session_execution(
+    let Some((tally_session_execution, tally_session, _)) = find_last_tally_session_execution(
         auth_headers.clone(),
         tenant_id.to_string(),
         election_event_id.to_string(),
