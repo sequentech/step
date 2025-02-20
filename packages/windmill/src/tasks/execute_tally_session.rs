@@ -1157,7 +1157,7 @@ pub async fn execute_tally_session_wrapped(
         tenant_id.clone(),
         election_event_id.clone(),
         tally_session_id.clone(),
-        election_id.unwrap_or(vec![]),
+        election_ids.unwrap_or(vec![]),
     )
     .await?
     else {

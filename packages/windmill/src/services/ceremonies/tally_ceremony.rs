@@ -517,6 +517,7 @@ pub async fn update_tally_ceremony(
         tenant_id.clone(),
         election_event_id.clone(),
         tally_session.id.clone(),
+        tally_session.election_ids.clone().unwrap_or_default()
     )
     .await?
     else {
@@ -606,6 +607,14 @@ pub async fn set_private_key(
 ) -> Result<bool> {
     let auth_headers = keycloak::get_client_credentials().await?;
 
+    let (tally_session, _tally_session_contests) = get_tally_session(
+        auth_headers.clone(),
+        tenant_id.to_string(),
+        election_event_id.to_string(),
+        tally_session_id.to_string(),
+    )
+    .await?;
+
     // The trustee name is simply the username of the user
     let trustee_name = claims
         .trustee
@@ -617,6 +626,7 @@ pub async fn set_private_key(
         tenant_id.to_string(),
         election_event_id.to_string(),
         tally_session_id.to_string(),
+        tally_session.election_ids.clone().unwrap_or_default()
     )
     .await?
     else {
