@@ -317,7 +317,7 @@ public class UsernamePasswordFormWithExpiry extends AbstractUsernameFormAuthenti
         }
 
         // If username is one of the attributes use specific query
-        if ("username".equalsIgnoreCase(attribute) && username.indexOf('@') != -1) {
+        if ("username".equalsIgnoreCase(attribute)) {
           UserModel user = session.users().getUserByUsername(realm, username);
           if (user != null) {
             return user;
