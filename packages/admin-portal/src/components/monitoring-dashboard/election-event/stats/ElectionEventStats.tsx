@@ -55,7 +55,7 @@ export interface ElectionEventStatsProps {
     authenticationStats: AuthenticationStats
 }
 
-export const calcTotalApproved = (approved: number | string, disapproved: number | string) =>
+export const calcTotalApplications = (approved: number | string, disapproved: number | string) =>
     typeof approved === "string" || typeof disapproved === "string" ? 0 : disapproved + approved
 
 export const calcPrecentage = (part: number | string, total: number | string) =>

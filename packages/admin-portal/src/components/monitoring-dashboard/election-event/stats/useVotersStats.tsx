@@ -8,7 +8,7 @@ import {
     ApprovalStats,
     AuthenticationStats,
     calcPrecentage,
-    calcTotalApproved,
+    calcTotalApplications,
 } from "./ElectionEventStats"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
@@ -97,7 +97,7 @@ const useVotersStats = (props: VotersStatsProps) => {
                             count: approvalStats.approvedCount,
                             percentage: calcPrecentage(
                                 approvalStats.approvedCount,
-                                calcTotalApproved(
+                                calcTotalApplications(
                                     approvalStats.approvedCount,
                                     approvalStats.disapprovedCount
                                 )
@@ -108,7 +108,7 @@ const useVotersStats = (props: VotersStatsProps) => {
                             count: approvalStats.disapprovedCount,
                             percentage: calcPrecentage(
                                 approvalStats.disapprovedCount,
-                                calcTotalApproved(
+                                calcTotalApplications(
                                     approvalStats.approvedCount,
                                     approvalStats.disapprovedCount
                                 )
@@ -125,7 +125,7 @@ const useVotersStats = (props: VotersStatsProps) => {
                             count: approvalStats.manualApprovedCount,
                             percentage: calcPrecentage(
                                 approvalStats.manualApprovedCount,
-                                calcTotalApproved(
+                                calcTotalApplications(
                                     approvalStats.manualApprovedCount,
                                     approvalStats.manualDisapprovedCount
                                 )
@@ -136,7 +136,7 @@ const useVotersStats = (props: VotersStatsProps) => {
                             count: approvalStats.manualDisapprovedCount,
                             percentage: calcPrecentage(
                                 approvalStats.manualDisapprovedCount,
-                                calcTotalApproved(
+                                calcTotalApplications(
                                     approvalStats.manualApprovedCount,
                                     approvalStats.manualDisapprovedCount
                                 )
@@ -153,7 +153,7 @@ const useVotersStats = (props: VotersStatsProps) => {
                             count: approvalStats.automatedApprovedCount,
                             percentage: calcPrecentage(
                                 approvalStats.automatedApprovedCount,
-                                calcTotalApproved(
+                                calcTotalApplications(
                                     approvalStats.automatedApprovedCount,
                                     approvalStats.automatedDisapprovedCount
                                 )
@@ -164,7 +164,7 @@ const useVotersStats = (props: VotersStatsProps) => {
                             count: approvalStats.automatedDisapprovedCount,
                             percentage: calcPrecentage(
                                 approvalStats.automatedDisapprovedCount,
-                                calcTotalApproved(
+                                calcTotalApplications(
                                     approvalStats.automatedApprovedCount,
                                     approvalStats.automatedDisapprovedCount
                                 )
