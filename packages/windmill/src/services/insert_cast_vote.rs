@@ -367,6 +367,7 @@ pub async fn try_insert_cast_vote(
                     ip,
                     country,
                     voter_id.to_string(),
+                    user.username.clone(),
                 )
                 .await;
 

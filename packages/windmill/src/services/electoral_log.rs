@@ -265,6 +265,7 @@ impl ElectoralLog {
         voter_ip: String,
         voter_country: String,
         voter_id: String,
+        voter_username: Option<String>,
     ) -> Result<()> {
         let event = EventIdString(event_id.clone());
         let election = ElectionIdString(election_id);
@@ -286,7 +287,7 @@ impl ElectoralLog {
             election_event_id: event_id,
             message_type: "cast_vote_error".to_string(),
             user_id: Some(voter_id),
-            username: None,
+            username: voter_username.clone(),
             tenant_id,
             body: message.to_string(),
         };
