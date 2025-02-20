@@ -303,8 +303,10 @@ impl TemplateRenderer for AuditLogsTemplate {
         };
         count_electoral_log(input).await.ok()
     }
-    #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
-    async fn prepare_user_data_batch(
+
+    #[instrument(err, skip_all)]
+    async fn prepare_user_data(
+
         &self,
         hasura_transaction: &Transaction<'_>,
         keycloak_transaction: &Transaction<'_>,

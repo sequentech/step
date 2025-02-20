@@ -32,18 +32,28 @@ psql \
     DO $$
     BEGIN
         IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'user_entity') THEN
-            -- Normalized User entity
+            -- Normalized User entity indexes
             CREATE INDEX IF NOT EXISTS idx_user_entity_first_name_normalize ON user_entity((normalize_text(first_name)));
             CREATE INDEX IF NOT EXISTS idx_user_entity_last_name_normalize ON user_entity((normalize_text(last_name)));
+
+            -- Index on user_entity.realm_id to optimize the join with realm
+            CREATE INDEX IF NOT EXISTS idx_user_entity_realm_id ON user_entity(realm_id);
+              
         END IF;
     END $$;
 
-    -- Check if user_attribute table exists and create index if it does
+    -- Check if user_attribute table exists and create indexes if it does
     DO $$
     BEGIN
         IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'user_attribute') THEN
-            -- Normalized attribute
+            -- Normalized attribute index
             CREATE INDEX IF NOT EXISTS idx_user_attribute_name_value_normalize_text ON user_attribute(name, (normalize_text(value)));
+
+            -- Index on user_attribute.user_id to optimize the lateral join and aggregation
+            CREATE INDEX IF NOT EXISTS idx_user_attribute_user_id ON user_attribute(user_id);
+              
+            -- A composite index on user_attribute for covering queries on user_id, name, and value
+            CREATE INDEX IF NOT EXISTS idx_user_attribute_userid_name_value ON user_attribute(user_id, name, value);
         END IF;
     END $$;
 EOSQL

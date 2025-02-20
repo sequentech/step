@@ -234,7 +234,7 @@ pub trait TemplateRenderer: Debug {
 
     /// Get the default ReportExtraConfig from the _extra_config file and
     /// for any passed option that is None its default value is filled.
-    #[instrument(err, skip(self))]
+    #[instrument(err, skip_all)]
     async fn fill_extra_config_with_default(
         &self,
         tpl_pdf_options: Option<PrintToPdfOptionsLocal>,
@@ -315,14 +315,53 @@ pub trait TemplateRenderer: Debug {
         Ok(data)
     }
 
-    #[instrument(
-        err,
-        skip(self, hasura_transaction, keycloak_transaction, user_tpl_document)
-    )]
-    #[instrument(
-        err,
-        skip(self, hasura_transaction, keycloak_transaction, user_tpl_document)
-    )]
+    #[instrument(err, skip_all)]
+    async fn generate_report_inner(
+        &self,
+        generate_mode: GenerateReportMode,
+        hasura_transaction: &Transaction<'_>,
+        keycloak_transaction: &Transaction<'_>,
+        user_tpl_document: &str,
+    ) -> Result<String> {
+        // Prepare user data either preview or real
+        let user_data = if generate_mode == GenerateReportMode::PREVIEW {
+            self.prepare_preview_data()
+                .await
+                .map_err(|e| anyhow!("Error preparing preview user data: {e:?}"))?
+        } else {
+            self.prepare_user_data(hasura_transaction, keycloak_transaction)
+                .await
+                .map_err(|e| anyhow!("Error preparing user data: {e:?}"))?
+        };
+
+        let user_data_map = user_data
+            .to_map()
+            .map_err(|e| anyhow!("Error converting user data to map: {e:?}"))?;
+
+        debug!("user data in template renderer: {user_data_map:#?}");
+        let rendered_user_template =
+            reports::render_template_text(&user_tpl_document, user_data_map)
+                .map_err(|e| anyhow!("Error rendering user template: {e:?}"))?;
+
+        // Prepare system data
+        let system_data = self
+            .prepare_system_data(rendered_user_template)
+            .await
+            .map_err(|e| anyhow!("Error preparing system data: {e:?}"))?
+            .to_map()
+            .map_err(|e| anyhow!("Error converting system data to map: {e:?}"))?;
+        let system_template = self
+            .get_system_template()
+            .await
+            .map_err(|e| anyhow!("Error getting the system template: {e:?}"))?;
+
+        let rendered_system_template = reports::render_template_text(&system_template, system_data)
+            .map_err(|e| anyhow!("Error rendering system template: {e:?}"))?;
+
+        Ok(rendered_system_template)
+    }
+
+    #[instrument(err, skip_all)]
     async fn generate_report(
         &self,
         generate_mode: GenerateReportMode,

@@ -298,11 +298,11 @@ pub async fn create_transmission_package_service(
         .ok_or_else(|| anyhow!("Can't find area {}", area_id))?;
     let area_annotations = area.get_annotations()?;
 
-    let area_station_id = area_annotations.station_id;
+    let area_station_id = area_annotations.station_id.clone();
 
-    let threshold = area_annotations.threshold;
+    let threshold = area_annotations.threshold.clone();
 
-    let ccs_servers = area_annotations.ccs_servers;
+    let ccs_servers = area_annotations.ccs_servers.clone();
 
     let tar_gz_file = download_tally_tar_gz_to_file(
         &hasura_transaction,
@@ -354,6 +354,7 @@ pub async fn create_transmission_package_service(
         now_utc.clone(),
         &election_event_annotations,
         &election_annotations,
+        &area_annotations,
         &reports,
     )
     .await?;
