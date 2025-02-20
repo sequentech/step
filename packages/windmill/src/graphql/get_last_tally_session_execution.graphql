@@ -74,7 +74,7 @@ query GetLastTallySessionExecution(
         where: {
             election_event_id: {_eq: $electionEventId},
             tenant_id: {_eq: $tenantId},
-            election_id: {_id: $electionIds},
+            election_id: {_in: $electionIds},
             deleted_at: {_is_null: true}
         }
     ) {
