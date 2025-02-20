@@ -127,7 +127,7 @@ impl VoteReceipts {
         Ok((bytes_pdf, bytes_html.into_bytes()))
     }
 
-    #[instrument(skip_all)]
+    #[instrument(err, skip_all)]
     pub fn get_config(&self) -> Result<PipeConfigVoteReceipts> {
         let pipe_config: PipeConfigVoteReceipts = self
             .pipe_inputs
@@ -160,7 +160,7 @@ fn get_pipe_data(pipe_type: VoteReceiptPipeType) -> VoteReceiptsPipeData {
 }
 
 impl Pipe for VoteReceipts {
-    #[instrument(skip_all, name = "VoteReceipts::exec")]
+    #[instrument(err, skip_all, name = "VoteReceipts::exec")]
     fn exec(&self) -> Result<()> {
         let input_dir = self
             .pipe_inputs
@@ -282,6 +282,7 @@ pub struct DecodedChoice {
     pub candidate: Option<Candidate>,
 }
 
+#[instrument(skip_all)]
 fn compute_data(data: TemplateData) -> ComputedTemplateData {
     let receipts = data
         .ballots
