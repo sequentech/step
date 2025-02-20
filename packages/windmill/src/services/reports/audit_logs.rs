@@ -305,8 +305,7 @@ impl TemplateRenderer for AuditLogsTemplate {
     }
 
     #[instrument(err, skip_all)]
-    async fn prepare_user_data(
-
+    async fn prepare_user_data_batch(
         &self,
         hasura_transaction: &Transaction<'_>,
         keycloak_transaction: &Transaction<'_>,
