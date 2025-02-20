@@ -654,7 +654,16 @@ impl GenerateReports {
         Ok(reports)
     }
 
-    #[instrument(skip(self, contest), err)]
+    #[instrument(
+        skip(
+            self,
+            contest,
+            election_annotations,
+            election_event_annotations,
+            areas_map
+        ),
+        err
+    )]
     fn make_report(
         &self,
         election_id: &Uuid,
@@ -745,7 +754,7 @@ impl GenerateReports {
         Ok(report)
     }
 
-    #[instrument(skip(self, reports), err)]
+    #[instrument(skip(self, reports, areas_map), err)]
     fn write_report(
         &self,
         election_id: &Uuid,
