@@ -2805,6 +2805,7 @@ dependencies = [
  "immudb-rs",
  "log",
  "serde",
+ "serde_json",
  "serial_test",
  "strand",
  "strum 0.25.0",

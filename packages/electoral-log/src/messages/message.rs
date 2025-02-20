@@ -17,7 +17,7 @@ use crate::messages::statement::StatementBody;
 use crate::messages::statement::StatementHead;
 
 use crate::messages::newtypes::EventIdString;
-
+use std::fmt;
 use super::newtypes::*;
 
 /// We use this when the statement is not related to any election event
@@ -35,6 +35,16 @@ pub struct Message {
     pub user_id: Option<String>,
     pub username: Option<String>,
 }
+
+impl fmt::Display for Message {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match serde_json::to_string(self) {
+            Ok(json_str) => write!(f, "{}", json_str),
+            Err(_) => Err(fmt::Error),
+        }
+    }
+}
+
 impl Message {
     pub fn cast_vote_message(
         event: EventIdString,

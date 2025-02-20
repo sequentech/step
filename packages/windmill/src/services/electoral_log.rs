@@ -8,8 +8,9 @@ use crate::services::protocol_manager::get_event_board;
 use crate::services::protocol_manager::get_protocol_manager;
 use crate::services::protocol_manager::{create_named_param, get_board_client, get_immudb_client};
 use crate::services::vault;
+use crate::tasks::electoral_log::enqueue_electoral_log_event;
+use crate::tasks::electoral_log::LogEventInput;
 use crate::types::resources::{Aggregate, DataList, OrderDirection, TotalAggregate};
-
 use anyhow::{anyhow, Context, Result};
 use b3::messages::message::{self, Signer as _};
 use base64::engine::general_purpose;
@@ -236,8 +237,17 @@ impl ElectoralLog {
             Some(voter_id),
             voter_username,
         )?;
-
-        self.post(&message).await
+        let input = LogEventInput {
+            election_event_id: event_id,
+            message_type: "cast_vote".to_string(),
+            user_id: Some(voter_id),
+            username: voter_username,
+            tenant_id: "".to_string(),
+            body: message.to_string(),
+        };
+        info!("post_cast_vote input = {:?}, message = {:?}", input, message);
+        // TODO await ?
+        enqueue_electoral_log_event(input).await?
     }
 
     #[instrument(skip(self, pseudonym_h))]
@@ -267,8 +277,17 @@ impl ElectoralLog {
             country,
             Some(voter_id),
         )?;
-
-        self.post(&message).await
+        let input = LogEventInput {
+            election_event_id: event_id,
+            message_type: "cast_vote_error".to_string(),
+            user_id: Some(voter_id),
+            username: None,
+            tenant_id: "".to_string(),
+            body: message.to_string(),
+        };
+         // TODO await ?
+         info!("post_cast_vote_error input = ?: {input}, message = ?: {message}");
+         enqueue_electoral_log_event(input).await
     }
 
     #[instrument(skip(self))]
