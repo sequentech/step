@@ -123,9 +123,13 @@ pub async fn verify_application(
         manual_verify_reason: result.manual_verify_reason.clone(),
     };
 
-    let (mut permission_label, area_id) =
-        get_permission_label_and_area_from_applicant_data(hasura_transaction, applicant_data)
-            .await?;
+    let (mut permission_label, area_id) = get_permission_label_and_area_from_applicant_data(
+        hasura_transaction,
+        applicant_data,
+        tenant_id,
+        election_event_id,
+    )
+    .await?;
     // Add a permission label only if the embassy matches the voter in db
     if !matches!(
         result
@@ -162,6 +166,8 @@ pub async fn verify_application(
 async fn get_permission_label_and_area_from_applicant_data(
     hasura_transaction: &Transaction<'_>,
     applicant_data: &HashMap<String, String>,
+    tenant_id: &str,
+    election_event_id: &str,
 ) -> Result<(Option<String>, Option<Uuid>)> {
     let post_name = applicant_data
         .get("country")
@@ -175,7 +181,14 @@ async fn get_permission_label_and_area_from_applicant_data(
     info!("Found post: {:?}", &post_name);
     info!("Found embassy: {:?}", &post_description);
 
-    return get_permission_label_from_post(hasura_transaction, &post_name, &post_description).await;
+    return get_permission_label_from_post(
+        hasura_transaction,
+        &post_name,
+        &post_description,
+        tenant_id,
+        election_event_id,
+    )
+    .await;
 }
 
 #[instrument(err, skip_all)]
