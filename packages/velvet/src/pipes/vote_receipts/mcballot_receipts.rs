@@ -47,6 +47,8 @@ pub struct VoteReceiptsPipeData {
 
 // QR code = containing header of the report and voted candidates per position
 // (if no votes, the content of QR code should be header of the report and "ABSTENTION")
+
+#[instrument(skip_all)]
 pub fn qr_encode_choices(contests: &Vec<ContestData>, title: &str) -> String {
     let is_blank: bool = contests.iter().all(|contest| contest.is_blank());
     let mut data = vec![title.to_string()];
@@ -72,6 +74,7 @@ pub fn qr_encode_choices(contests: &Vec<ContestData>, title: &str) -> String {
     data.join(":")
 }
 
+#[instrument(skip_all)]
 fn sort_candidates(candidates: &mut Vec<DecodedChoice>, order_field: CandidatesOrder) {
     match order_field {
         CandidatesOrder::Alphabetical => candidates.sort_by(|a, b| {
@@ -349,6 +352,7 @@ fn get_pipe_data(pipe_type: VoteReceiptPipeType) -> VoteReceiptsPipeData {
     }
 }
 
+#[instrument(err, skip_all)]
 fn generate_hashed_filename(
     path: &PathBuf,
     name: &str,
@@ -405,7 +409,7 @@ struct BallotCsvData {
     pub hash: String,
 }
 impl Pipe for MCBallotReceipts {
-    #[instrument(skip_all, name = "MultiBallotReceipts::exec")]
+    #[instrument(err, skip_all, name = "MultiBallotReceipts::exec")]
     fn exec(&self) -> Result<()> {
         let pipe_config: PipeConfigVoteReceipts = self.get_config()?;
         let pipe_data = get_pipe_data(pipe_config.pipe_type.clone());

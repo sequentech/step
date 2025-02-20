@@ -110,7 +110,7 @@ const ActionsPopUp: React.FC<ActionsPopUpProps> = ({actions, report, canWriteRep
         const isShowAction = (action: Action) => {
             return (
                 !action.key ||
-                !reportConfig.actions.includes(action.key as ReportActions) ||
+                !reportConfig?.actions.includes(action.key as ReportActions) ||
                 ((action.key === ReportActions.EDIT || action.key === ReportActions.DELETE) &&
                     !canWriteReport)
             )

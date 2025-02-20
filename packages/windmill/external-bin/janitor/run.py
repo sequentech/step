@@ -23,7 +23,7 @@ from pathlib import Path
 from patch import parse_table_sheet, parse_parameters, patch_json_with_excel
 import re
 
-IS_DEBUG = False
+IS_DEBUG = True
 
 def is_valid_regex(pattern):
     try:
@@ -605,6 +605,8 @@ def process_excel_users(users, csv_data):
         ):
             continue
 
+        # deduplicate permission labels
+        user_data["permission_labels"] = list(set(user_data["permission_labels"]))
         csv_data.append([
             user_data["enabled"],
             user_data["first_name"],
@@ -627,7 +629,8 @@ def process_sbei_users(sbei_users, csv_data):
             users_map[username].append(permission_label)
     
     for key_username in users_map.keys():
-        permission_labels = users_map[key_username]
+        # deduplicate permission labels
+        permission_labels = list(set(users_map[key_username]))
         csv_data.append([
             True,
             key_username,
@@ -741,12 +744,15 @@ def gen_keycloak_context(excel_data, areas_dict):
             embassy = get_embassy(area["description"])
             embassy_set.add("\\\"" + embassy + "\\\"")
             country_set.add("\\\"" + country + "/" + embassy + "\\\"")
+
+    sorted_embassy_list = sorted(embassy_set)
+    sorted_country_list = sorted(country_set)
     
     keycloak_settings = [t for t in excel_data["parameters"] 
                          if t["type"] == "settings" and t["key"].startswith("keycloak")]
     keycloak_context = {
-        "embassy_list": ",".join(embassy_set),
-        "country_list": ",".join(country_set),
+        "embassy_list": ",".join(sorted_embassy_list),
+        "country_list": ",".join(sorted_country_list),
     }
 
     key_mappings = {
