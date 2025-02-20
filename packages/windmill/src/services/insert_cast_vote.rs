@@ -338,6 +338,7 @@ pub async fn try_insert_cast_vote(
 
             let log_result = electoral_log
                 .post_cast_vote(
+                    tenant_id.to_string(),
                     election_event_id.to_string(),
                     Some(election_id_string),
                     pseudonym_h,
@@ -358,6 +359,7 @@ pub async fn try_insert_cast_vote(
 
             let log_result = electoral_log
                 .post_cast_vote_error(
+                    tenant_id.to_string(),
                     election_event_id.to_string(),
                     Some(election_id_string),
                     pseudonym_h,

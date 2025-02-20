@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::services::celery_app::get_celery_app;
 use crate::services::database::PgConfig;
 use crate::services::insert_cast_vote::hash_voter_id;
 use crate::services::protocol_manager::get_event_board;
@@ -212,6 +213,7 @@ impl ElectoralLog {
     #[instrument(skip(self, pseudonym_h, vote_h))]
     pub async fn post_cast_vote(
         &self,
+        tenant_id: String,
         event_id: String,
         election_id: Option<String>,
         pseudonym_h: PseudonymHash,
@@ -221,7 +223,7 @@ impl ElectoralLog {
         voter_id: String,
         voter_username: Option<String>,
     ) -> Result<()> {
-        let event = EventIdString(event_id);
+        let event = EventIdString(event_id.clone());
         let election = ElectionIdString(election_id);
         let ip = VoterIpString(voter_ip);
         let country = VoterCountryString(voter_country);
@@ -234,25 +236,29 @@ impl ElectoralLog {
             &self.sd,
             ip,
             country,
-            Some(voter_id),
-            voter_username,
+            Some(voter_id.clone()),
+            voter_username.clone(),
         )?;
         let input = LogEventInput {
             election_event_id: event_id,
             message_type: "cast_vote".to_string(),
             user_id: Some(voter_id),
             username: voter_username,
-            tenant_id: "".to_string(),
+            tenant_id,
             body: message.to_string(),
         };
         info!("post_cast_vote input = {:?}, message = {:?}", input, message);
         // TODO await ?
-        enqueue_electoral_log_event(input).await?
+        let celery_app = get_celery_app().await;
+        celery_app
+            .send_task(enqueue_electoral_log_event::new(input)).await?;
+        Ok(())
     }
 
     #[instrument(skip(self, pseudonym_h))]
     pub async fn post_cast_vote_error(
         &self,
+        tenant_id: String,
         event_id: String,
         election_id: Option<String>,
         pseudonym_h: PseudonymHash,
@@ -261,7 +267,7 @@ impl ElectoralLog {
         voter_country: String,
         voter_id: String,
     ) -> Result<()> {
-        let event = EventIdString(event_id);
+        let event = EventIdString(event_id.clone());
         let election = ElectionIdString(election_id);
         let error = CastVoteErrorString(error);
         let ip = VoterIpString(voter_ip);
@@ -275,19 +281,21 @@ impl ElectoralLog {
             &self.sd,
             ip,
             country,
-            Some(voter_id),
+            Some(voter_id.clone()),
         )?;
         let input = LogEventInput {
             election_event_id: event_id,
             message_type: "cast_vote_error".to_string(),
             user_id: Some(voter_id),
             username: None,
-            tenant_id: "".to_string(),
+            tenant_id,
             body: message.to_string(),
         };
-         // TODO await ?
-         info!("post_cast_vote_error input = ?: {input}, message = ?: {message}");
-         enqueue_electoral_log_event(input).await
+         info!("post_cast_vote input = {:?}, message = {:?}", input, message);
+         let celery_app = get_celery_app().await;
+         celery_app
+             .send_task(enqueue_electoral_log_event::new(input)).await?;
+         Ok(())
     }
 
     #[instrument(skip(self))]
