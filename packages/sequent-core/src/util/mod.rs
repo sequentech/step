@@ -23,5 +23,5 @@ pub mod float;
 pub mod path;
 pub mod voting_screen;
 
-#[cfg(feature = "probe")]
+#[cfg(any(feature = "probe", feature = "reports"))]
 pub mod retry;

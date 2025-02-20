@@ -225,7 +225,7 @@ impl TemplateRenderer for ActivityLogsTemplate {
         })
     }
 
-    #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
+    #[instrument(err, skip_all)]
     async fn execute_report(
         &self,
         document_id: &str,
