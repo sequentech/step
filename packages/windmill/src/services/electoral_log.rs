@@ -247,11 +247,10 @@ impl ElectoralLog {
             tenant_id,
             body: message.to_string(),
         };
-        info!("post_cast_vote input = {:?}, message = {:?}", input, message);
-        // TODO await ?
         let celery_app = get_celery_app().await;
         celery_app
-            .send_task(enqueue_electoral_log_event::new(input)).await?;
+            .send_task(enqueue_electoral_log_event::new(input))
+            .await?;
         Ok(())
     }
 
@@ -291,11 +290,11 @@ impl ElectoralLog {
             tenant_id,
             body: message.to_string(),
         };
-         info!("post_cast_vote input = {:?}, message = {:?}", input, message);
-         let celery_app = get_celery_app().await;
-         celery_app
-             .send_task(enqueue_electoral_log_event::new(input)).await?;
-         Ok(())
+        let celery_app = get_celery_app().await;
+        celery_app
+            .send_task(enqueue_electoral_log_event::new(input))
+            .await?;
+        Ok(())
     }
 
     #[instrument(skip(self))]

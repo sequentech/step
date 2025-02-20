@@ -16,9 +16,9 @@ use crate::messages::statement::Statement;
 use crate::messages::statement::StatementBody;
 use crate::messages::statement::StatementHead;
 
+use super::newtypes::*;
 use crate::messages::newtypes::EventIdString;
 use std::fmt;
-use super::newtypes::*;
 
 /// We use this when the statement is not related to any election event
 /// For the moment the only case is admin_public_key_message, which is
