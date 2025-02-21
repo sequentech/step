@@ -12,13 +12,13 @@ use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::cast_votes::get_voter_signing_key;
 use crate::services::cast_votes::CastVote;
 use crate::services::election_event_board::get_election_event_board;
-use crate::services::election_event_status::get_election_status;
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::protocol_manager::get_protocol_manager;
+use crate::services::users::get_username_by_id;
 use crate::services::vault;
 use crate::{
     hasura::election_event::get_election_event::GetElectionEventSequentBackendElectionEvent,
-    services::database::get_hasura_pool,
+    services::database::{get_hasura_pool, get_keycloak_pool},
 };
 use anyhow::{anyhow, Context, Result};
 use b3::messages::message::Signer;
@@ -52,6 +52,7 @@ use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::types::hasura::core::{ElectionEvent, VotingChannels};
 use sequent_core::types::scheduled_event::*;
 use serde::{Deserialize, Serialize};
+use std::time::Instant;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::hash::{hash_to_array, Hash, HashWrapper};
 use strand::serialization::StrandSerialize;
@@ -195,6 +196,7 @@ pub async fn try_insert_cast_vote(
     voter_ip: &Option<String>,
     voter_country: &Option<String>,
 ) -> Result<InsertCastVoteOutput, CastVoteError> {
+    let start = Instant::now();
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
         .get()
@@ -204,6 +206,16 @@ pub async fn try_insert_cast_vote(
         .transaction()
         .await
         .map_err(|e| CastVoteError::GetTransactionFailed(e.to_string()))?;
+
+    let mut keycloak_db_client: DbClient = get_keycloak_pool().await.get().await.map_err(|e| {
+        error!("Error getting keycloak db client {}", e);
+        CastVoteError::GetDbClientFailed(e.to_string())
+    })?;
+
+    let keycloak_transaction = keycloak_db_client.transaction().await.map_err(|e| {
+        error!("Error getting keycloak transaction {}", e);
+        CastVoteError::GetDbClientFailed(e.to_string())
+    })?;
 
     let area_opt = get_area_by_id(&hasura_transaction, tenant_id, area_id)
         .await
@@ -218,14 +230,24 @@ pub async fn try_insert_cast_vote(
 
     let realm = get_event_realm(tenant_id, election_event_id);
 
-    let client = KeycloakAdminClient::new().await.map_err(|err| {
-        CastVoteError::UnknownError(format!("Error obtaining keycloak admin client: {}", err))
-    })?;
-
-    let user = client
-        .get_user(&realm, voter_id)
+    let username: Option<String> = match get_username_by_id(&keycloak_transaction, &realm, voter_id)
         .await
-        .map_err(|err| CastVoteError::UnknownError(format!("Error getting the user:  {}", err)))?;
+        .map_err(|e| CastVoteError::UnknownError(format!("Error get_username_by_id {e:?}")))?
+    {
+        Some(username) => Some(username),
+        None => {
+            return Err(CastVoteError::UnknownError(format!(
+                "Voter not found with id {voter_id}"
+            )));
+        }
+    };
+
+    let duration = start.elapsed();
+    info!(
+        "Till get_username_by_id took {} ms to complete.",
+        duration.as_millis()
+    );
+    let start = Instant::now();
 
     let election_event =
         get_election_event_by_id(&hasura_transaction, tenant_id, election_event_id)
@@ -235,12 +257,6 @@ pub async fn try_insert_cast_vote(
     let presentation_opt = election_event
         .get_presentation()
         .map_err(|e| CastVoteError::ElectionEventNotFound(e.to_string()))?;
-
-    let voter_signing_policy = presentation_opt
-        .clone()
-        .unwrap_or_default()
-        .voter_signing_policy
-        .unwrap_or_default();
 
     let is_multi_contest = if let Some(presentation) = presentation_opt.clone() {
         presentation.contest_encryption_policy == Some(ContestEncryptionPolicy::MULTIPLE_CONTESTS)
@@ -253,6 +269,13 @@ pub async fn try_insert_cast_vote(
     } else {
         deserialize_and_check_ballot(&input.content, voter_id)?
     };
+
+    let duration = start.elapsed();
+    info!(
+        "... deserialize_and_check_ballot took {} ms to complete.",
+        duration.as_millis()
+    );
+    let start = Instant::now();
 
     let (electoral_log, signing_key) = get_electoral_log(&election_event)
         .await
@@ -277,6 +300,13 @@ pub async fn try_insert_cast_vote(
 
     info!("voter signing policy {voter_signing_policy}");
 
+    let duration = start.elapsed();
+    info!(
+        "...get_electoral_log etc took {} ms to complete.",
+        duration.as_millis()
+    );
+    let start = Instant::now();
+
     let voter_signing_key: Option<StrandSignatureSk> = if VoterSigningPolicy::WITH_SIGNATURE
         == voter_signing_policy
     {
@@ -297,6 +327,13 @@ pub async fn try_insert_cast_vote(
         None
     };
 
+    let duration = start.elapsed();
+    info!(
+        "get_election_event_board and get_voter_signing_key took {} ms to complete.",
+        duration.as_millis()
+    );
+    let start = Instant::now();
+
     let result = insert_cast_vote_and_commit(
         input,
         hasura_transaction,
@@ -310,6 +347,12 @@ pub async fn try_insert_cast_vote(
         &voter_signing_key,
     )
     .await;
+
+    let duration = start.elapsed();
+    info!(
+        "insert_cast_vote_and_commit took {} ms to complete.",
+        duration.as_millis()
+    );
 
     let ip = format!("ip: {}", voter_ip.as_deref().unwrap_or("").to_string(),);
     let country = format!(
@@ -346,7 +389,7 @@ pub async fn try_insert_cast_vote(
                     ip,
                     country,
                     voter_id.to_string(),
-                    user.username.clone(),
+                    username.clone(),
                 )
                 .await;
             if let Err(log_err) = log_result {
@@ -367,7 +410,7 @@ pub async fn try_insert_cast_vote(
                     ip,
                     country,
                     voter_id.to_string(),
-                    user.username.clone(),
+                    username,
                 )
                 .await;
 
