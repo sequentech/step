@@ -9,8 +9,9 @@ use crate::services::protocol_manager::get_event_board;
 use crate::services::protocol_manager::get_protocol_manager;
 use crate::services::protocol_manager::{create_named_param, get_board_client, get_immudb_client};
 use crate::services::vault;
-use crate::tasks::electoral_log::enqueue_electoral_log_event;
-use crate::tasks::electoral_log::LogEventInput;
+use crate::tasks::electoral_log::{
+    enqueue_electoral_log_event, LogEventInput, INTERNAL_MESSAGE_TYPE,
+};
 use crate::types::resources::{Aggregate, DataList, OrderDirection, TotalAggregate};
 use anyhow::{anyhow, Context, Result};
 use b3::messages::message::{self, Signer as _};
@@ -239,13 +240,17 @@ impl ElectoralLog {
             Some(voter_id.clone()),
             voter_username.clone(),
         )?;
+        let board_message: ElectoralLogMessage = (&message).try_into().with_context(|| {
+            "Error converting Message::cast_vote_message into ElectoralLogMessage"
+        })?;
         let input = LogEventInput {
             election_event_id: event_id,
-            message_type: "cast_vote".to_string(),
+            message_type: INTERNAL_MESSAGE_TYPE.into(),
             user_id: Some(voter_id),
             username: voter_username,
             tenant_id,
-            body: message.to_string(),
+            body: serde_json::to_string(&board_message)
+                .with_context(|| "Error serializing ElectoralLogMessage")?,
         };
         let celery_app = get_celery_app().await;
         celery_app
@@ -283,13 +288,17 @@ impl ElectoralLog {
             country,
             Some(voter_id.clone()),
         )?;
+        let board_message: ElectoralLogMessage = (&message).try_into().with_context(|| {
+            "Error converting Message::cast_vote_error_message into ElectoralLogMessage"
+        })?;
         let input = LogEventInput {
             election_event_id: event_id,
-            message_type: "cast_vote_error".to_string(),
+            message_type: INTERNAL_MESSAGE_TYPE.into(),
             user_id: Some(voter_id),
             username: voter_username.clone(),
             tenant_id,
-            body: message.to_string(),
+            body: serde_json::to_string(&board_message)
+                .with_context(|| "Error serializing post cast vote")?,
         };
         let celery_app = get_celery_app().await;
         celery_app

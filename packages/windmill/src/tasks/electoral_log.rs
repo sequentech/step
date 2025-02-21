@@ -14,6 +14,7 @@ use anyhow::{anyhow, Context};
 use celery::error::TaskError;
 use deadpool_postgres::Client as DbClient;
 use electoral_log::client::board_client::ElectoralLogMessage;
+use electoral_log::messages::message::Message;
 use immudb_rs::TxMode;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -25,6 +26,7 @@ use lapin::{
 };
 
 const EVENT_TYPE_COMMUNICATIONS: &str = "communications";
+pub const INTERNAL_MESSAGE_TYPE: &str = "internal";
 
 /// Represents an incoming log event.
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -86,41 +88,50 @@ pub async fn process_electoral_log_events_batch(events: Vec<LogEventInput>) -> R
             .await
             .with_context(|| "Error initializing electoral log")?;
 
-        let keycloak_msg = electoral_log
-            .build_keycloak_event_message(
-                input.election_event_id.clone(),
-                input.message_type.clone(),
-                input.body.clone(),
-                Some(user_id.clone()),
-                username.clone(),
-            )
-            .with_context(|| "Error building keycloak event message")?;
+        let event_message = match input.message_type.as_str() {
+            INTERNAL_MESSAGE_TYPE => {
+                let message: ElectoralLogMessage = serde_json::from_str(&input.body)
+                    .with_context(|| "Error parsing input.body into a ElectoralLogMessage")?;
+                message
+            }
+            _ => {
+                if input.body.contains(EVENT_TYPE_COMMUNICATIONS) {
+                    let template_body = input
+                        .body
+                        .replace(EVENT_TYPE_COMMUNICATIONS, "")
+                        .trim()
+                        .to_string();
+                    let send_template_msg = electoral_log
+                        .build_send_template_message(
+                            Some(template_body),
+                            input.election_event_id.clone(),
+                            Some(user_id.clone()),
+                            username.clone(),
+                            None,
+                        )
+                        .with_context(|| "Error building send template message")?;
+                    messages_by_board
+                        .entry(board_name.clone())
+                        .or_insert_with(Vec::new)
+                        .push(send_template_msg);
+                }
+
+                electoral_log
+                    .build_keycloak_event_message(
+                        input.election_event_id.clone(),
+                        input.message_type.clone(),
+                        input.body.clone(),
+                        Some(user_id.clone()),
+                        username.clone(),
+                    )
+                    .with_context(|| "Error building keycloak event message")?
+            }
+        };
 
         messages_by_board
             .entry(board_name.clone())
             .or_insert_with(Vec::new)
-            .push(keycloak_msg);
-
-        if input.body.contains(EVENT_TYPE_COMMUNICATIONS) {
-            let template_body = input
-                .body
-                .replace(EVENT_TYPE_COMMUNICATIONS, "")
-                .trim()
-                .to_string();
-            let send_template_msg = electoral_log
-                .build_send_template_message(
-                    Some(template_body),
-                    input.election_event_id.clone(),
-                    Some(user_id.clone()),
-                    username.clone(),
-                    None,
-                )
-                .with_context(|| "Error building send template message")?;
-            messages_by_board
-                .entry(board_name.clone())
-                .or_insert_with(Vec::new)
-                .push(send_template_msg);
-        }
+            .push(event_message);
     }
 
     hasura_tx
