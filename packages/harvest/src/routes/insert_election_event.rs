@@ -273,7 +273,9 @@ pub async fn import_election_event_f(
 
     let check_only = input.check_only.unwrap_or(false);
     if check_only {
-        let _res = update_complete(&task_execution).await;
+        let _res =
+            update_complete(&task_execution, Some(input.document_id.clone()))
+                .await;
         return Ok(Json(ImportElectionEventOutput {
             id: Some(id),
             message: Some("Import document checked".to_string()),
