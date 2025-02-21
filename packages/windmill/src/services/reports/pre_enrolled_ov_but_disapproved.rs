@@ -134,13 +134,14 @@ impl PreEnrolledDisapprovedTemplate {
         user_tpl_document: &str,
         user_data: UserData,
         area: UserDataArea,
-        limit: i64,
+        per_report_limit: i64,
         batch_index: i64,
         ext_cfg: &ReportExtraConfig,
         reports_folder: &Path,
     ) -> Result<()> {
+        info!("inside generate_report_area");
         // Prepare user data either preview or real
-        let mut page = 1;
+        let mut batch = 1;
         let mut offset: i64 = 0;
         loop {
             let user_data: Option<UserData> = if generate_mode == GenerateReportMode::PREVIEW {
@@ -149,14 +150,13 @@ impl PreEnrolledDisapprovedTemplate {
                     .await
                     .map_err(|e| anyhow!("Error preparing preview user data: {e:?}"))?)
             } else {
-
                 let (data, next_offset): (UserData, Option<i64>) = self
                     .prepare_data_batch(
                         hasura_transaction,
                         keycloak_transaction,
                         area.clone(),
                         user_data.clone(),
-                        limit,
+                        per_report_limit,
                         offset,
                     )
                     .await
@@ -165,14 +165,17 @@ impl PreEnrolledDisapprovedTemplate {
                     offset = new_offset;
                     Some(data)
                 } else {
-                    None
+                    offset = 0;
+                    Some(data)
                 }
             };
-            
-            if user_data.is_none() {
+
+            // if this is not the first batch and the offset is 0, we don't a 
+            // new batch
+            if batch > 1 && offset == 0 {
                 break;
             }
-            
+
             let user_data_map = user_data
                 .with_context(|| "Error getting user data")?
                 .to_map()
@@ -220,7 +223,7 @@ impl PreEnrolledDisapprovedTemplate {
 
             let batch_file_name = format!(
                 "{}-_area_{}_{}{}",
-                prefix, area.area_id, page, file_suffix
+                prefix, area.area_id, batch, file_suffix
             );
             info!(
                 "Batch {} => batch_file_name: {}",
@@ -232,7 +235,13 @@ impl PreEnrolledDisapprovedTemplate {
             info!("final_path {:?}", &final_path);
 
             fs::write(&final_path, &pdf_bytes)?;
-            page += 1;
+            batch += 1;
+
+            // if this is the first batch and offset is 0, we already rendered
+            // it but we don't need any more batches so we stop here
+            if batch == 1 && offset == 0 {
+                break;
+            }
         }
         Ok(())
     }
@@ -613,11 +622,14 @@ impl TemplateRenderer for PreEnrolledDisapprovedTemplate {
         let _ = batch_pool.install(|| {
             (0..num_batches)
                 .into_par_iter()
-                .map(|batch_index| -> Result<(), anyhow::Error>{
+                .map(|batch_index| -> Result<(), anyhow::Error> {
+                    info!("processing batch {batch_index}");
+
                     let area_id = &areas[batch_index].clone().area_id;
                     let election_id = &areas[batch_index].clone().election_id;
                     GLOBAL_RT
                         .block_on(async {
+                            info!("processing batch {batch_index}: inside the GLOBAL_RT.block_on");
                             self.generate_report_area(
                                 generate_mode.clone(),
                                 &hasura_transaction,
