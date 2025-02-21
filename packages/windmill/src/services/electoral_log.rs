@@ -145,23 +145,24 @@ impl ElectoralLog {
             Some(user_id.to_string()),
             None, /* username */
         )?;
-
-        let elog = ElectoralLog {
-            sd,
-            elog_database: elog_database.to_string(),
+        let board_message: ElectoralLogMessage = (&message).try_into().with_context(|| {
+            "Error converting Message::cast_vote_message into ElectoralLogMessage"
+        })?;
+        let input = LogEventInput {
+            election_event_id: event_id.to_string(),
+            message_type: INTERNAL_MESSAGE_TYPE.into(),
+            user_id: Some(user_id.to_string()),
+            username: None,
+            tenant_id: tenant_id.to_string(),
+            body: serde_json::to_string(&board_message)
+                .with_context(|| "Error serializing ElectoralLogMessage")?,
         };
 
-        let ret = elog.post(&message).await;
-
-        if ret.is_err() {
-            tracing::error!(
-                "Unable to post public key for voter {:?}, {:?}",
-                message,
-                ret
-            );
-        }
-
-        ret
+        let celery_app = get_celery_app().await;
+        celery_app
+            .send_task(enqueue_electoral_log_event::new(input))
+            .await?;
+        Ok(())
     }
 
     /// Posts an admin user's public key
