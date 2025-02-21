@@ -627,6 +627,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                                     name: displayName,
                                                 }}
                                                 disabled={
+                                                    hasVoted ||
                                                     !(
                                                         createMode ||
                                                         !electionEventId ||
