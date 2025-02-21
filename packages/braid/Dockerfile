@@ -11,6 +11,7 @@ COPY ./braid ./braid
 COPY ./b3 ./b3
 COPY ./strand ./strand
 COPY ./Cargo.lock ./Cargo.lock
+COPY ./.cargo ./.cargo
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     protobuf-compiler \

@@ -408,14 +408,22 @@ impl PdfRenderer {
 
                     #[cfg(feature = "s3")]
                     {
-                        s3::upload_data_to_s3(
-                            html.clone().into_bytes().into(),
-                            input_filename.clone(),
-                            false,
-                            s3_private_bucket()
-                                .ok_or_else(|| anyhow!("missing bucket"))?,
-                            "text/plain".to_string(),
-                            None,
+                        retry_with_exponential_backoff(
+                            || async {
+                                s3::upload_data_to_s3(
+                                    html.clone().into_bytes().into(),
+                                    input_filename.clone(),
+                                    false,
+                                    s3_private_bucket().ok_or_else(|| {
+                                        anyhow!("missing bucket")
+                                    })?,
+                                    "text/plain".to_string(),
+                                    None,
+                                )
+                                .await
+                            },
+                            3,
+                            Duration::from_millis(100),
                         )
                         .await
                         .map_err(|err| {
@@ -446,7 +454,7 @@ impl PdfRenderer {
                 };
 
                 let client = reqwest::Client::builder()
-                    .pool_max_idle_per_host(0)
+                    .pool_idle_timeout(None)
                     .build()?;
                 let mut request_builder =
                     client.post(endpoint.clone()).json(&payload);
@@ -461,11 +469,14 @@ impl PdfRenderer {
 
                 let response = retry_with_exponential_backoff(
                     || async {
-                        request_builder
+                        info!("Sending the request with client={client:#?}");
+                        let output = request_builder
                             .try_clone()
                             .expect("failed to clone request builder")
                             .send()
-                            .await
+                            .await;
+                        info!("Request sent!");
+                        output
                     },
                     3,
                     Duration::from_millis(100),
@@ -500,10 +511,19 @@ impl PdfRenderer {
                     PdfTransport::AWSLambda { .. } => {
                         let html_sha256 = sha256::digest(&html);
                         let output_filename = format!("output-{html_sha256:?}");
-                        get_file_from_s3(
-                            s3_private_bucket()
-                                .ok_or_else(|| anyhow!("missing bucket"))?,
-                            output_filename,
+
+                        retry_with_exponential_backoff(
+                            || async {
+                                get_file_from_s3(
+                                    s3_private_bucket().ok_or_else(|| {
+                                        anyhow!("missing bucket")
+                                    })?,
+                                    output_filename.clone(),
+                                )
+                                .await
+                            },
+                            3,
+                            Duration::from_millis(100),
                         )
                         .await
                     }
