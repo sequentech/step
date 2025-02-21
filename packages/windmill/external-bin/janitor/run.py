@@ -312,6 +312,7 @@ def generate_election_event(excel_data, base_context, miru_data, results):
     sbei_users = []
     sbei_users_with_permission_labels = []
     precinct_to_region = {}
+    region_to_precincts = {}
 
     excel_areas_by_precinct_id = set(str(area["precinct_id"]) for area in excel_data["areas"])
 
@@ -324,6 +325,24 @@ def generate_election_event(excel_data, base_context, miru_data, results):
 
         if precinct_id not in precinct_to_region:
             precinct_to_region[precinct_id] = region_code
+        
+        if region_code not in region_to_precincts:
+            region_to_precincts[region_code] = set()
+        region_to_precincts[region_code].add(precinct_id)
+
+
+    trustees_by_region = {}
+    for precinct_id in miru_data.keys():
+        if precinct_id not in excel_areas_by_precinct_id:
+            continue
+        region_code = precinct_to_region[precinct_id]
+
+        if region_code not in trustees_by_region:
+            region_precincts = region_to_precincts[region_code]
+            excel_election = next((e for e in excel_data["elections"] if str(e["precinct_id"]) in region_precincts), None)
+            if excel_election is not None:
+                election_trustees = excel_election["trustees"].split("|")
+                trustees_by_region[region_code] = election_trustees
 
     for precinct_id in miru_data.keys():
         if precinct_id not in excel_areas_by_precinct_id:
@@ -336,6 +355,9 @@ def generate_election_event(excel_data, base_context, miru_data, results):
             raise Exception(f"precinct with 'id' = {precinct_id} not found in precinct_to_region")
 
         region_code = precinct_to_region[precinct_id]
+        if region_code not in trustees_by_region:
+            raise Exception(f"trustees not found for region = {region_code} and 'precinct_id' = {precinct_id}")
+        election_trustees = trustees_by_region[region_code]
         
         for user in precinct["USERS"]:
             base_user = {
@@ -354,6 +376,11 @@ def generate_election_event(excel_data, base_context, miru_data, results):
                 perm_labels_list.append(add_perm_label)
                 perm_labels = "|".join(list(set(perm_labels_list)))
 
+                trustee_id = ""
+                if is_trustee and election_trustees:
+                    role_idx = int(user["ROLE"]) - 1
+                    trustee_id = election_trustees[role_idx]
+
                 sbei_users_with_permission_labels.append({
                     "permission_label": perm_labels,
                     "username": new_user["username"],
@@ -361,7 +388,8 @@ def generate_election_event(excel_data, base_context, miru_data, results):
                     "miru_role": user["ROLE"],
                     "miru_name": user["NAME"],
                     "miru_election_id": miru_election_id,
-                    "trustee": "trustee" if is_trustee else ""
+                    "trustee": "trustee" if is_trustee else "",
+                    "trustee_id": trustee_id
                 })
 
     sbei_users_str = json.dumps(sbei_users)
@@ -637,20 +665,23 @@ def process_excel_users(users, csv_data):
             user_data["trustee"]
         ])
 
-
 def process_sbei_users(sbei_users, csv_data):
     users_map = {}
     for user in sbei_users:
         username = user["username"]
         if not username in users_map:
-            users_map[username] = []
+            users_map[username] = {
+               "permission_label": [],
+               "trustee_id": user["trustee_id"]
+            }
         permission_label = user["permission_label"] 
         if permission_label:
-            users_map[username].append(permission_label)
+            users_map[username]["permission_label"].append(permission_label)
     
     for key_username in users_map.keys():
         # deduplicate permission labels
-        permission_labels = list(set(users_map[key_username]))
+        permission_labels = list(set(users_map[key_username]["permission_label"]))
+        trustee_id = users_map[key_username]["trustee_id"]
         csv_data.append([
             True,
             key_username,
@@ -658,7 +689,7 @@ def process_sbei_users(sbei_users, csv_data):
             "|".join(permission_labels),
             key_username,
             "trustee" if key_username.startswith("trustee") else "sbei",
-            "trustee" + str(int(key_username.split("-")[2])) if key_username.startswith("trustee") else "",
+            trustee_id,
         ])
 
 def create_permissions_file(data):
