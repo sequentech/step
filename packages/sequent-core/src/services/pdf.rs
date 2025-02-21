@@ -454,7 +454,7 @@ impl PdfRenderer {
                 };
 
                 let client = reqwest::Client::builder()
-                    .pool_max_idle_per_host(0)
+                    .pool_idle_timeout(None)
                     .build()?;
                 let mut request_builder =
                     client.post(endpoint.clone()).json(&payload);
@@ -469,11 +469,14 @@ impl PdfRenderer {
 
                 let response = retry_with_exponential_backoff(
                     || async {
-                        request_builder
+                        info!("Sending the request with client={client:#?}");
+                        let output = request_builder
                             .try_clone()
                             .expect("failed to clone request builder")
                             .send()
-                            .await
+                            .await;
+                        info!("Request sent!");
+                        output
                     },
                     3,
                     Duration::from_millis(100),
