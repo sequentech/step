@@ -402,6 +402,146 @@ fn get_sort_clause_and_field_param(
 }
 
 #[instrument(skip(hasura_transaction, keycloak_transaction), err)]
+pub async fn count_keycloak_users(
+    hasura_transaction: &Transaction<'_>,
+    keycloak_transaction: &Transaction<'_>,
+    filter: ListUsersFilter,
+) -> Result<i32> {
+    // Start by setting up the base parameters: realm and user_ids.
+    let mut params: Vec<&(dyn ToSql + Sync)> = vec![&filter.realm, &filter.user_ids];
+    let mut next_param_number = 3;
+
+    // Build filter clauses for basic fields.
+    let mut filters_clause = String::new();
+    let mut filter_params: Vec<String> = Vec::new();
+    for (col_name, filter_option) in [
+        ("email", &filter.email),
+        ("first_name", &filter.first_name),
+        ("last_name", &filter.last_name),
+        ("username", &filter.username),
+    ] {
+        if let Some(filter_obj) = filter_option {
+            let (clause, param) =
+                filter_obj.get_sql_filter_clause(col_name, next_param_number, " AND");
+            filters_clause.push_str(&clause);
+            if let Some(param) = param {
+                next_param_number += 1;
+                filter_params.push(param.to_string());
+            }
+        }
+    }
+    for filt_param in filter_params.iter() {
+        params.push(filt_param);
+    }
+
+    // Add area-related joins/filters.
+    let (area_ids, area_ids_join_clause, area_ids_where_clause) = get_area_ids(
+        hasura_transaction,
+        filter.election_id.clone(),
+        filter.area_id.clone(),
+        next_param_number,
+    )
+    .await?;
+    if let Some(area_ids) = &area_ids {
+        params.push(area_ids);
+        next_param_number += 1;
+    }
+
+    // Handle optional authorized election alias filtering.
+    let (election_alias, authorized_alias_join_clause, authorized_alias_where_clause) = match filter
+        .authorized_to_election_alias
+    {
+        Some(election_alias) => (
+            Some(election_alias),
+            format!(
+                r#"
+                    LEFT JOIN 
+                        user_attribute AS authorization_attr ON u.id = authorization_attr.user_id AND authorization_attr.name = ${}
+                    "#,
+                next_param_number
+            ),
+            format!(
+                r#"
+                    AND (authorization_attr.value = ${} OR authorization_attr.user_id IS NULL)
+                    "#,
+                next_param_number + 1
+            ),
+        ),
+        None => (None, String::new(), String::new()),
+    };
+    if election_alias.is_some() {
+        params.push(&AUTHORIZED_ELECTION_IDS_NAME);
+        params.push(&election_alias);
+        next_param_number += 2;
+    }
+
+    // Append boolean conditions.
+    let enabled_condition = get_query_bool_condition("enabled", filter.enabled);
+    let email_verified_condition =
+        get_query_bool_condition("email_verified", filter.email_verified);
+
+    // Process dynamic attribute filters if any.
+    let mut dynamic_attr_conditions: Vec<String> = Vec::new();
+    let mut dynamic_attr_params: Vec<Option<String>> = Vec::new();
+    if let Some(attributes) = &filter.attributes {
+        for (key, value) in attributes {
+            dynamic_attr_conditions.push(format!(
+                r#"EXISTS (
+                    SELECT 1 FROM user_attribute ua 
+                    WHERE ua.user_id = u.id 
+                      AND ua.name = ${} 
+                      AND UNACCENT(ua.value) ILIKE ${}
+                )"#,
+                next_param_number,
+                next_param_number + 1
+            ));
+            dynamic_attr_params.push(Some(key.trim_matches('\'').to_string()));
+            dynamic_attr_params.push(Some(format!("%{value}%")));
+            next_param_number += 2;
+        }
+    }
+    for param in &dynamic_attr_params {
+        params.push(param);
+    }
+    let dynamic_attr_clause = if dynamic_attr_conditions.is_empty() {
+        String::new()
+    } else {
+        format!("AND ({})", dynamic_attr_conditions.join(" OR "))
+    };
+
+    // Build the count query using only the necessary filtering clauses.
+    let count_query = format!(
+        r#"
+        SELECT COUNT(*) AS total_count
+        FROM user_entity AS u
+        INNER JOIN realm AS ra ON ra.id = u.realm_id
+        {area_ids_join_clause}
+        {authorized_alias_join_clause}
+        WHERE
+            ra.name = $1 AND
+            {filters_clause}
+            (u.id = ANY($2) OR $2 IS NULL)
+            {area_ids_where_clause}
+            {authorized_alias_where_clause}
+            {enabled_condition}
+            {email_verified_condition}
+            {dynamic_attr_clause}
+        "#,
+    );
+    debug!("Count query: {count_query:?}");
+
+    // Prepare and execute the count query.
+    let stmt = keycloak_transaction.prepare(&count_query).await?;
+    let row: Row = keycloak_transaction
+        .query_one(&stmt, &params)
+        .await
+        .map_err(|err| anyhow!("{}", err))?;
+    let count: i32 = row.try_get::<&str, i64>("total_count")?.try_into()?;
+    info!("Total eligible users: {count}");
+    Ok(count)
+}
+
+#[instrument(skip(hasura_transaction, keycloak_transaction), err)]
 pub async fn list_users(
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
