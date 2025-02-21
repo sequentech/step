@@ -135,17 +135,21 @@ impl PreEnrolledDisapprovedTemplate {
         user_data: UserData,
         area: UserDataArea,
         limit: i64,
-    ) -> Result<Vec<String>> {
+        batch_index: i64,
+        ext_cfg: &ReportExtraConfig,
+        reports_folder: &Path,
+    ) -> Result<()> {
         // Prepare user data either preview or real
-        let multiple_user_data: Vec<UserData> = if generate_mode == GenerateReportMode::PREVIEW {
-            vec![self
-                .prepare_preview_data()
-                .await
-                .map_err(|e| anyhow!("Error preparing preview user data: {e:?}"))?]
-        } else {
-            let mut offset: i64 = 0;
-            let mut area_report_data: Vec<UserData> = Vec::new();
-            loop {
+        let mut page = 1;
+        let mut offset: i64 = 0;
+        loop {
+            let user_data: Option<UserData> = if generate_mode == GenerateReportMode::PREVIEW {
+                Some(self
+                    .prepare_preview_data()
+                    .await
+                    .map_err(|e| anyhow!("Error preparing preview user data: {e:?}"))?)
+            } else {
+
                 let (data, next_offset): (UserData, Option<i64>) = self
                     .prepare_data_batch(
                         hasura_transaction,
@@ -157,20 +161,20 @@ impl PreEnrolledDisapprovedTemplate {
                     )
                     .await
                     .map_err(|e| anyhow!("Error preparing batched user data: {e:?}"))?;
-
-
                 if let Some(new_offset) = next_offset {
-                    area_report_data.push(data);
                     offset = new_offset;
+                    Some(data)
                 } else {
-                    break area_report_data
+                    None
                 }
+            };
+            
+            if user_data.is_none() {
+                break;
             }
-        };
-
-        let mut rendered_system_templates = vec![];
-        for user_data in multiple_user_data {
+            
             let user_data_map = user_data
+                .with_context(|| "Error getting user data")?
                 .to_map()
                 .map_err(|e| anyhow!("Error converting user data to map: {e:?}"))?;
 
@@ -197,10 +201,40 @@ impl PreEnrolledDisapprovedTemplate {
                 reports::render_template_text(&system_template, system_data)
                     .map_err(|e| anyhow!("Error rendering system template: {e:?}"))?;
 
-            rendered_system_templates.push(rendered_system_template)
-        }
+            // Render to PDF bytes
+            let pdf_bytes = GLOBAL_RT
+                .block_on(async {
+                    pdf::PdfRenderer::render_pdf(
+                        rendered_system_template,
+                        Some(ext_cfg.pdf_options.to_print_to_pdf_options()),
+                    )
+                    .await
+                })
+                .with_context(|| {
+                    format!("Error rendering PDF for batch {}", batch_index)
+                })?;
 
-        Ok(rendered_system_templates)
+            let prefix = self.prefix();
+            let extension_suffix = "pdf";
+            let file_suffix = format!(".{}", extension_suffix);
+
+            let batch_file_name = format!(
+                "{}-_area_{}_{}{}",
+                prefix, area.area_id, page, file_suffix
+            );
+            info!(
+                "Batch {} => batch_file_name: {}",
+                batch_index, batch_file_name
+            );
+
+            // Build the final path inside `reports_folder`:
+            let final_path = reports_folder.join(&batch_file_name);
+            info!("final_path {:?}", &final_path);
+
+            fs::write(&final_path, &pdf_bytes)?;
+            page += 1;
+        }
+        Ok(())
     }
 
     #[instrument(err)]
@@ -553,7 +587,7 @@ impl TemplateRenderer for PreEnrolledDisapprovedTemplate {
 
         let common_data = self.prepare_user_data_common().await?;
         // let items_count = areas.
-        let report_options = ext_cfg.report_options;
+        let report_options = ext_cfg.report_options.clone();
         let per_report_limit = report_options
             .max_items_per_report
             .unwrap_or(DEFAULT_ITEMS_PER_REPORT_LIMIT) as i64;
@@ -576,13 +610,13 @@ impl TemplateRenderer for PreEnrolledDisapprovedTemplate {
             .with_context(|| "Failed to build thread pool")?;
 
         // Process batches concurrently.
-        let batch_file_paths: Vec<PathBuf> = batch_pool.install(|| {
+        let _ = batch_pool.install(|| {
             (0..num_batches)
                 .into_par_iter()
-                .map(|batch_index| -> Result<Vec<PathBuf>, anyhow::Error> {
+                .map(|batch_index| -> Result<(), anyhow::Error>{
                     let area_id = &areas[batch_index].clone().area_id;
                     let election_id = &areas[batch_index].clone().election_id;
-                    let rendered_system_templates = GLOBAL_RT
+                    GLOBAL_RT
                         .block_on(async {
                             self.generate_report_area(
                                 generate_mode.clone(),
@@ -592,6 +626,9 @@ impl TemplateRenderer for PreEnrolledDisapprovedTemplate {
                                 common_data.clone(),
                                 areas[batch_index].clone(),
                                 per_report_limit,
+                                batch_index as i64,
+                                &ext_cfg,
+                                &reports_folder,
                             )
                             .await
                         })
@@ -601,59 +638,9 @@ impl TemplateRenderer for PreEnrolledDisapprovedTemplate {
                                 election_id, area_id
                             )
                         })?;
-
-                    let mut page = 1;
-                    let mut file_paths = Vec::new();
-
-                    println!("START HANDLE TEMPLATES");
-
-                    for rendered_system_template in rendered_system_templates {
-                        println!("in HANDLE TEMPLATES");
-                        // Render to PDF bytes
-                        let pdf_bytes = GLOBAL_RT
-                            .block_on(async {
-                                pdf::PdfRenderer::render_pdf(
-                                    rendered_system_template,
-                                    Some(ext_cfg.pdf_options.to_print_to_pdf_options()),
-                                )
-                                .await
-                            })
-                            .with_context(|| {
-                                format!("Error rendering PDF for batch {}", batch_index)
-                            })?;
-
-                        let prefix = self.prefix();
-                        let extension_suffix = "pdf";
-                        let file_suffix = format!(".{}", extension_suffix);
-
-                        let batch_file_name = format!(
-                            "{}-_election_{}_area_{}_{}{}",
-                            prefix, election_id, area_id, page, file_suffix
-                        );
-                        info!(
-                            "Batch {} => batch_file_name: {}",
-                            batch_index, batch_file_name
-                        );
-
-                        // Build the final path inside `reports_folder`:
-                        let final_path = reports_folder.join(&batch_file_name);
-                        info!("final_path {:?}", &final_path);
-
-                        fs::write(&final_path, &pdf_bytes)?;
-                        file_paths.push(final_path);
-
-                        page += 1;
-                    }
-
-                    Ok(file_paths)
+                    Ok(())
                 })
-                .collect::<Result<Vec<Vec<PathBuf>>, anyhow::Error>>()
-                .map(|nested| nested.into_iter().flatten().collect()) // flatten the nested Vec
-        })?;
-
-        // Now you have a `Vec<PathBuf>` of all the PDFs created in parallel.
-        let some_paths = batch_file_paths.into_iter().take(10).collect::<Vec<_>>();
-        info!("first 10 batch_file_paths = {:?}", some_paths);
+        });
 
         let zip_filename = format!("{}_final.zip", self.prefix());
 
@@ -803,4 +790,352 @@ impl TemplateRenderer for PreEnrolledDisapprovedTemplate {
         }
         Ok(())
     }
+    // async fn execute_report_inner_old(
+    //     &self,
+    //     document_id: &str,
+    //     tenant_id: &str,
+    //     election_event_id: &str,
+    //     is_scheduled_task: bool,
+    //     recipients: Vec<String>,
+    //     generate_mode: GenerateReportMode,
+    //     report: Option<Report>,
+    //     hasura_transaction: &Transaction<'_>,
+    //     keycloak_transaction: &Transaction<'_>,
+    //     task_execution: Option<TasksExecution>,
+    // ) -> Result<()> {
+    //     let task_execution_ref = task_execution.as_ref();
+    //     let (user_tpl_document, ext_cfg) = self
+    //         .user_tpl_and_extra_cfg_provider(hasura_transaction)
+    //         .await
+    //         .map_err(|e| {
+    //             if let Some(task) = task_execution_ref {
+    //                 // Using block_on here is acceptable since this call is outside our batch pool.
+    //                 block_on(update_fail(
+    //                     task,
+    //                     &format!("Failed to provide user template and extra config: {e:?}"),
+    //                 ))
+    //                 .ok();
+    //             }
+    //             anyhow!("Error providing the user template and extra config: {e:?}")
+    //         })?;
+
+    //     let elections: Vec<Election> = match &self.ids.election_id {
+    //         Some(election_id) => {
+    //             match get_election_by_id(
+    //                 &hasura_transaction,
+    //                 &self.ids.tenant_id,
+    //                 &self.ids.election_event_id,
+    //                 &election_id,
+    //             )
+    //             .await
+    //             .with_context(|| "Error getting election by id")?
+    //             {
+    //                 Some(election) => vec![election],
+    //                 None => vec![],
+    //             }
+    //         }
+    //         None => get_elections(
+    //             &hasura_transaction,
+    //             &self.ids.tenant_id,
+    //             &self.ids.election_event_id,
+    //             Some(false),
+    //         )
+    //         .await
+    //         .map_err(|e| anyhow::anyhow!("Error in get_elections: {}", e))?,
+    //     };
+
+    //     let scheduled_events = find_scheduled_event_by_election_event_id(
+    //         &hasura_transaction,
+    //         &self.ids.tenant_id,
+    //         &self.ids.election_event_id,
+    //     )
+    //     .await
+    //     .map_err(|e| {
+    //         anyhow::anyhow!("Error getting scheduled events by election event_id: {}", e)
+    //     })?;
+
+    //     let mut areas: Vec<UserDataArea> = vec![];
+    //     for election in elections {
+    //         let election_general_data = extract_election_data(&election)
+    //             .await
+    //             .map_err(|err| anyhow!("Error extract election annotations {err}"))?;
+
+    //         let election_dates = get_election_dates(&election, scheduled_events.clone())
+    //             .map_err(|e| anyhow::anyhow!("Error getting election dates {e}"))?;
+
+    //         let election_id = election.id.clone();
+    //         let election_areas = get_areas_by_election_id(
+    //             &hasura_transaction,
+    //             &self.ids.tenant_id,
+    //             &self.ids.election_event_id,
+    //             &election_id,
+    //         )
+    //         .await
+    //         .map_err(|err| anyhow!("Error at get_areas_by_election_id: {err:?}"))?;
+
+    //         for area in election_areas.iter() {
+    //             areas.push(UserDataArea {
+    //                 election_id: election_id.clone(),
+    //                 area_id: area.id.clone(),
+    //                 election_title: election.alias.clone().unwrap_or(election.name.clone()),
+    //                 election_dates: election_dates.clone(),
+    //                 post: election_general_data.post.clone(),
+    //                 area_name: area.clone().name.unwrap_or("-".to_string()),
+    //                 voters: vec![],
+    //             })
+    //         }
+    //     }
+
+    //     let common_data = self.prepare_user_data_common().await?;
+    //     // let items_count = areas.
+    //     let report_options = ext_cfg.report_options;
+    //     let per_report_limit = report_options
+    //         .max_items_per_report
+    //         .unwrap_or(DEFAULT_ITEMS_PER_REPORT_LIMIT) as i64;
+
+    //     let zip_temp_dir = tempdir()?;
+    //     let zip_temp_dir_path = zip_temp_dir.path();
+
+    //     // Calculate the number of batches needed.
+    //     let num_batches = areas.len();
+    //     info!("Number of batches: {:?}", num_batches);
+
+    //     // Define a temporary reports folder (this folder will later be compressed)
+    //     let temp_dir = tempdir()?;
+    //     let reports_folder = temp_dir.path();
+
+    //     // Build a Rayon pool for batch processing.
+    //     let batch_pool = ThreadPoolBuilder::new()
+    //         .num_threads(report_options.max_threads.unwrap_or(get_worker_threads()))
+    //         .build()
+    //         .with_context(|| "Failed to build thread pool")?;
+
+    //     // Process batches concurrently.
+    //     let batch_file_paths: Vec<PathBuf> = batch_pool.install(|| {
+    //         (0..num_batches)
+    //             .into_par_iter()
+    //             .map(|batch_index| -> Result<Vec<PathBuf>, anyhow::Error> {
+    //                 let area_id = &areas[batch_index].clone().area_id;
+    //                 let election_id = &areas[batch_index].clone().election_id;
+    //                 let rendered_system_templates = GLOBAL_RT
+    //                     .block_on(async {
+    //                         self.generate_report_area(
+    //                             generate_mode.clone(),
+    //                             &hasura_transaction,
+    //                             &keycloak_transaction,
+    //                             &user_tpl_document,
+    //                             common_data.clone(),
+    //                             areas[batch_index].clone(),
+    //                             per_report_limit,
+    //                         )
+    //                         .await
+    //                     })
+    //                     .with_context(|| {
+    //                         format!(
+    //                             "Error rendering report for batch election {} area {}",
+    //                             election_id, area_id
+    //                         )
+    //                     })?;
+
+    //                 let mut page = 1;
+    //                 let mut file_paths = Vec::new();
+
+    //                 println!("START HANDLE TEMPLATES");
+
+    //                 for rendered_system_template in rendered_system_templates {
+    //                     println!("in HANDLE TEMPLATES");
+    //                     // Render to PDF bytes
+    //                     let pdf_bytes = GLOBAL_RT
+    //                         .block_on(async {
+    //                             pdf::PdfRenderer::render_pdf(
+    //                                 rendered_system_template,
+    //                                 Some(ext_cfg.pdf_options.to_print_to_pdf_options()),
+    //                             )
+    //                             .await
+    //                         })
+    //                         .with_context(|| {
+    //                             format!("Error rendering PDF for batch {}", batch_index)
+    //                         })?;
+
+    //                     let prefix = self.prefix();
+    //                     let extension_suffix = "pdf";
+    //                     let file_suffix = format!(".{}", extension_suffix);
+
+    //                     let batch_file_name = format!(
+    //                         "{}-_election_{}_area_{}_{}{}",
+    //                         prefix, election_id, area_id, page, file_suffix
+    //                     );
+    //                     info!(
+    //                         "Batch {} => batch_file_name: {}",
+    //                         batch_index, batch_file_name
+    //                     );
+
+    //                     // Build the final path inside `reports_folder`:
+    //                     let final_path = reports_folder.join(&batch_file_name);
+    //                     info!("final_path {:?}", &final_path);
+
+    //                     fs::write(&final_path, &pdf_bytes)?;
+    //                     file_paths.push(final_path);
+
+    //                     page += 1;
+    //                 }
+
+    //                 Ok(file_paths)
+    //             })
+    //             .collect::<Result<Vec<Vec<PathBuf>>, anyhow::Error>>()
+    //             .map(|nested| nested.into_iter().flatten().collect()) // flatten the nested Vec
+    //     })?;
+
+    //     // Now you have a `Vec<PathBuf>` of all the PDFs created in parallel.
+    //     let some_paths = batch_file_paths.into_iter().take(10).collect::<Vec<_>>();
+    //     info!("first 10 batch_file_paths = {:?}", some_paths);
+
+    //     let zip_filename = format!("{}_final.zip", self.prefix());
+
+    //     let dst_zip = zip_temp_dir_path.join(&zip_filename);
+
+    //     compress_folder_to_zip(reports_folder, &dst_zip)
+    //         .with_context(|| "Error compressing folder")?;
+
+    //     let zip_file_size = get_file_size(&dst_zip.to_string_lossy())
+    //         .with_context(|| "Error obtaining file size for zip file")?;
+
+    //     let final_file_path = dst_zip.to_string_lossy().to_string();
+    //     let file_size = zip_file_size;
+    //     let mimetype = "application/zip".to_string();
+    //     let final_report_name = zip_filename;
+
+    //     info!(
+    //         "Final file info: path = {}, size = {}, name = {}, mimetype = {}",
+    //         final_file_path, file_size, final_report_name, mimetype
+    //     );
+
+    //     let auth_headers = keycloak::get_client_credentials()
+    //         .await
+    //         .map_err(|err| anyhow!("Error getting client credentials: {err:?}"))?;
+
+    //     let encrypted_temp_data: Option<TempPath> = if let Some(report) = &report {
+    //         if report.encryption_policy == EReportEncryption::ConfiguredPassword {
+    //             let secret_key =
+    //                 get_report_secret_key(&tenant_id, &election_event_id, Some(report.id.clone()));
+    //             let encryption_password = vault::read_secret(secret_key.clone())
+    //                 .await?
+    //                 .ok_or_else(|| anyhow!("Encryption password not found"))?;
+
+    //             let enc_file: NamedTempFile =
+    //                 generate_temp_file(self.base_name().as_str(), ".epdf")
+    //                     .with_context(|| "Error creating named temp file")?;
+
+    //             let enc_temp_path = enc_file.into_temp_path();
+    //             let encrypted_temp_path = enc_temp_path.to_string_lossy().to_string();
+
+    //             encrypt_file_aes_256_cbc(
+    //                 &final_file_path,
+    //                 &encrypted_temp_path,
+    //                 &encryption_password,
+    //             )
+    //             .map_err(|err| anyhow!("Error encrypting file: {err:?}"))?;
+
+    //             Some(enc_temp_path)
+    //         } else {
+    //             None
+    //         }
+    //     } else {
+    //         None
+    //     };
+
+    //     if let Some(enc_temp_path) = encrypted_temp_data {
+    //         let encrypted_temp_path = enc_temp_path.to_string_lossy().to_string();
+    //         let enc_temp_size = get_file_size(encrypted_temp_path.as_str())
+    //             .with_context(|| "Error obtaining file size")?;
+    //         let enc_report_name: String = format!("{}.epdf", self.prefix());
+    //         let _document = upload_and_return_document(
+    //             encrypted_temp_path,
+    //             enc_temp_size,
+    //             mimetype.clone(),
+    //             auth_headers.clone(),
+    //             tenant_id.to_string(),
+    //             election_event_id.to_string(),
+    //             enc_report_name.clone(),
+    //             Some(document_id.to_string()),
+    //             true,
+    //         )
+    //         .await
+    //         .map_err(|err| anyhow!("Error uploading document: {err:?}"))?;
+
+    //         if self.should_send_email(is_scheduled_task) {
+    //             let email_config = ext_cfg.communication_templates.email_config;
+    //             let email_recipients = self
+    //                 .get_email_recipients(recipients, tenant_id, election_event_id)
+    //                 .await
+    //                 .map_err(|err| anyhow!("Error getting email receiver: {err:?}"))?;
+    //             let email_sender = EmailSender::new()
+    //                 .await
+    //                 .map_err(|e| anyhow!(format!("Error getting email sender {e:?}")))?;
+    //             let enc_report_bytes = read_temp_path(&enc_temp_path)?;
+    //             email_sender
+    //                 .send(
+    //                     email_recipients,
+    //                     email_config.subject,
+    //                     email_config.plaintext_body,
+    //                     email_config.html_body,
+    //                     vec![Attachment {
+    //                         filename: enc_report_name,
+    //                         mimetype: "application/octet-stream".into(),
+    //                         content: enc_report_bytes,
+    //                     }],
+    //                 )
+    //                 .await
+    //                 .map_err(|err| anyhow!("Error sending email: {err:?}"))?;
+    //         }
+    //     } else {
+    //         let _document = upload_and_return_document(
+    //             final_file_path.clone(),
+    //             file_size,
+    //             mimetype.clone(),
+    //             auth_headers.clone(),
+    //             tenant_id.to_string(),
+    //             election_event_id.to_string(),
+    //             final_report_name.clone(),
+    //             Some(document_id.to_string()),
+    //             true,
+    //         )
+    //         .await
+    //         .map_err(|err| anyhow!("Error uploading document: {err:?}"))?;
+
+    //         if self.should_send_email(is_scheduled_task) {
+    //             let email_config = ext_cfg.communication_templates.email_config;
+    //             let email_recipients = self
+    //                 .get_email_recipients(recipients, tenant_id, election_event_id)
+    //                 .await
+    //                 .map_err(|err| anyhow!("Error getting email receiver: {err:?}"))?;
+    //             let email_sender = EmailSender::new()
+    //                 .await
+    //                 .map_err(|e| anyhow!(format!("Error getting email sender {e:?}")))?;
+    //             let final_file_bytes = std::fs::read(&final_file_path)
+    //                 .map_err(|e| anyhow!("Error reading final file: {e:?}"))?;
+    //             email_sender
+    //                 .send(
+    //                     email_recipients,
+    //                     email_config.subject,
+    //                     email_config.plaintext_body,
+    //                     email_config.html_body,
+    //                     vec![Attachment {
+    //                         filename: final_report_name,
+    //                         mimetype: mimetype,
+    //                         content: final_file_bytes,
+    //                     }],
+    //                 )
+    //                 .await
+    //                 .map_err(|err| anyhow!("Error sending email: {err:?}"))?;
+    //         }
+    //     }
+
+    //     if let Some(task) = task_execution_ref {
+    //         update_complete(task)
+    //             .await
+    //             .context("Failed to update task execution status to COMPLETED")?;
+    //     }
+    //     Ok(())
+    // }
 }

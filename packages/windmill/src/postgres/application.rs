@@ -348,7 +348,6 @@ pub async fn get_applications(
         query.push_str(&format!(" OFFSET ${}", param_index));
         off = offset.clone();
         params.push(&off);
-        param_index += 1;
     }
 
     let statement = hasura_transaction
@@ -360,20 +359,20 @@ pub async fn get_applications(
         .query(&statement, &params)
         .await
         .map_err(|err| anyhow!("Error querying applications: {err}"))?;
-atabase rows to Application structs
+
     let results: Vec<Application> = rows
         .iter()
         .map(|row| {
             ApplicationWrapper::try_from(row.clone())
                 .map(|wrapper| wrapper.0)
-                .map_err(|err| anyhow!(err)) // Convert Infallible to anyhow::Error
+                .map_err(|err| anyhow!(err))
         })
         .collect::<Result<Vec<Application>>>()?;
 
     let last_offset = if results.is_empty() {
         None
     } else {
-        Some(offset.unwrap_or(0) + results.len() as i64)  // ✅ Return next offset
+        Some(offset.unwrap_or(0) + results.len() as i64)
     };
 
     Ok((results, last_offset))
