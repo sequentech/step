@@ -93,7 +93,8 @@ pub async fn export_application_route(
         Ok(task) => task,
     };
 
-    let _res = update_complete(&task_execution).await;
+    let _res =
+        update_complete(&task_execution, Some(document_id.clone())).await;
 
     let output = ExportApplicationOutput {
         document_id,
