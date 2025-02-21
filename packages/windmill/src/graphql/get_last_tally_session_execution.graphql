@@ -1,7 +1,8 @@
 query GetLastTallySessionExecution(
   $tenantId: uuid!,
   $electionEventId: uuid!,
-  $tallySessionId: uuid!
+  $tallySessionId: uuid!,
+  $electionIds: [uuid!]!,
 ) {
     sequent_backend_tally_session_execution(
         where: {
@@ -72,7 +73,8 @@ query GetLastTallySessionExecution(
     sequent_backend_ballot_style(
         where: {
             election_event_id: {_eq: $electionEventId},
-            tenant_id: {_eq: $tenantId}
+            tenant_id: {_eq: $tenantId},
+            election_id: {_in: $electionIds},
             deleted_at: {_is_null: true}
         }
     ) {

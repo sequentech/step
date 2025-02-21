@@ -205,3 +205,19 @@ Steps to configure the tenant and election event:
 2. Import new client _datafix-account.json_ into Sequent Admin Portal > Clients
 
 3. Set the election event annotations column in database - Hasura - as indicated in one of the examples: _election-event-annotations-example1.json_ or _election-event-annotations-example2.json_
+
+## ✨ Postgres add indexes
+
+Look into the file [init.sh](https://github.com/sequentech/step/blame/main/.devcontainer/postgresql/init.sh) to see which indexes
+are missing and need to be deployed. It looks like this PR [added new indexes](https://github.com/sequentech/step/pull/1628):
+
+```
+-- Index on user_entity.realm_id to optimize the join with realm
+CREATE INDEX IF NOT EXISTS idx_user_entity_realm_id ON user_entity(realm_id);
+
+-- Index on user_attribute.user_id to optimize the lateral join and aggregation
+CREATE INDEX IF NOT EXISTS idx_user_attribute_user_id ON user_attribute(user_id);
+  
+-- A composite index on user_attribute for covering queries on user_id, name, and value
+CREATE INDEX IF NOT EXISTS idx_user_attribute_userid_name_value ON user_attribute(user_id, name, value);
+```
