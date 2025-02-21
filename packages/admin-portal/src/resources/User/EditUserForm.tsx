@@ -10,10 +10,8 @@ import {
     useNotify,
     useRefresh,
     AutocompleteArrayInput,
-    ReferenceArrayInput,
     BooleanInput,
     useGetList,
-    SelectArrayInput,
 } from "react-admin"
 import {useMutation, useQuery} from "@apollo/client"
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
@@ -22,15 +20,14 @@ import {useTenantStore} from "@/providers/TenantContextProvider"
 import {IRole, IUser} from "@sequentech/ui-core"
 import {
     FormControl,
-    MenuItem,
-    Select,
-    SelectChangeEvent,
     FormControlLabel,
     Checkbox,
-    InputLabel,
     FormGroup,
     FormLabel,
     Box,
+    Autocomplete,
+    Grid,
+    TextField,
 } from "@mui/material"
 import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
 import {
@@ -66,6 +63,7 @@ import {InputContainerStyle, InputLabelStyle, PasswordInputStyle} from "./EditPa
 import IconTooltip from "@/components/IconTooltip"
 import {faInfoCircle} from "@fortawesome/free-solid-svg-icons"
 import {useUsersPermissions} from "./useUsersPermissions"
+import debounce from "lodash/debounce"
 
 interface ListUserRolesProps {
     userId?: string
@@ -455,25 +453,32 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
 
     const handleAttrChange =
         (attrName: string) => async (e: React.ChangeEvent<HTMLInputElement>) => {
-            const {value} = e.target
+            const {name, value} = e.target
+            debouncedHandleChange(name, value)
+        }
+
+    const debouncedHandleChange = useCallback(
+        debounce((name: string, value: string) => {
             setUser((prev) => {
                 return {
                     ...prev,
                     attributes: {
                         ...(prev?.attributes ?? {}),
-                        [attrName]: [value],
+                        [name]: [value],
                     },
                 }
             })
-        }
+        }, 300),
+        [user, equalToPassword]
+    )
 
-    const handleSelectChange = (attrName: string) => async (e: SelectChangeEvent) => {
+    const handleSelectChange = (attrName: string) => async (e: string) => {
         setUser((prev) => {
             return {
                 ...prev,
                 attributes: {
                     ...prev?.attributes,
-                    [attrName]: [e.target.value],
+                    [attrName]: [e],
                 },
             }
         })
@@ -570,37 +575,57 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                 const isRequired = isFieldRequired(attr)
                 if (attr.annotations?.inputType === "select") {
                     return (
-                        <FormControl fullWidth>
-                            <InputLabel id="select-label" required={isRequired}>
-                                {getTranslationLabel(attr.name, attr.display_name, t)}
-                            </InputLabel>
-                            <Select
-                                name={displayName}
-                                defaultValue={value}
-                                labelId="select-label"
-                                label={getTranslationLabel(attr.name, attr.display_name, t)}
-                                value={value}
-                                onChange={handleSelectChange(attr.name)}
-                                required={isRequired}
-                                disabled={
-                                    !(
-                                        createMode ||
-                                        !electionEventId ||
-                                        (enabledByVoteNum && canEditVoters)
-                                    )
-                                }
-                            >
-                                {attr.validations.options?.options
-                                    ? [...attr.validations.options.options]
-                                          .sort()
-                                          .map((option: string) => (
-                                              <MenuItem key={option} value={option}>
-                                                  {t(option)}
-                                              </MenuItem>
-                                          ))
-                                    : null}
-                            </Select>
-                        </FormControl>
+                        <Grid container spacing={2}>
+                            <Grid item xs={12}>
+                                <FormControl fullWidth>
+                                    <Autocomplete
+                                        defaultValue={value || null}
+                                        value={value || null}
+                                        onChange={(event, newValue) => {
+                                            const fieldName = attr.name || ""
+                                            const selectedValue = newValue || ""
+                                            handleSelectChange(fieldName)(selectedValue)
+                                        }}
+                                        options={
+                                            attr.validations.options?.options
+                                                ? [...attr.validations.options.options].sort()
+                                                : ["-"]
+                                        }
+                                        getOptionLabel={(option) => t(option) || String(option)}
+                                        renderInput={(params) => (
+                                            <TextField
+                                                {...params} // Spread all params provided by Autocomplete
+                                                label={
+                                                    getTranslationLabel(
+                                                        attr.name,
+                                                        attr.display_name,
+                                                        t
+                                                    ) || "Default Label"
+                                                }
+                                                inputProps={{
+                                                    ...params.inputProps,
+                                                    id: "autocomplete-input",
+                                                    required: isRequired,
+                                                    name: displayName,
+                                                }}
+                                                disabled={
+                                                    !(
+                                                        createMode ||
+                                                        !electionEventId ||
+                                                        (enabledByVoteNum && canEditVoters)
+                                                    )
+                                                }
+                                                fullWidth
+                                                style={{
+                                                    display: "block",
+                                                    visibility: "visible",
+                                                }}
+                                            />
+                                        )}
+                                    />
+                                </FormControl>
+                            </Grid>
+                        </Grid>
                     )
                 } else if (
                     attr.annotations?.inputType === "multiselect-checkboxes" &&

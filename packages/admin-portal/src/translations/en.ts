@@ -83,6 +83,7 @@ const englishTranslation = {
             widget: {
                 taskTitle: "Task: {{title}}",
                 viewTask: "View Task",
+                downloadDocument: "Download File",
             },
             exportTasksExecution: {
                 success: "Export finished successfully",

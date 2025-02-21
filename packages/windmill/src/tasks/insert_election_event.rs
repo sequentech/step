@@ -84,7 +84,7 @@ pub async fn insert_election_event_anyhow(
         }
     };
 
-    update_complete(&task_execution)
+    update_complete(&task_execution, None)
         .await
         .context("Failed to update task execution status to COMPLETED")
 }
