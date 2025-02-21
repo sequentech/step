@@ -46,7 +46,7 @@ pub async fn import_tenant_config(
         }
     };
 
-    update_complete(&task_execution)
+    update_complete(&task_execution, Some(document_id.to_string()))
         .await
         .context("Failed to update task execution status to COMPLETED")?;
 

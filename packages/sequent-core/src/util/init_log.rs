@@ -15,7 +15,7 @@ pub fn init_log(set_global: bool) -> Handle<LevelFilter, Registry> {
         .with_indent_lines(true)
         .with_indent_amount(3)
         .with_thread_names(false)
-        .with_thread_ids(false)
+        .with_thread_ids(true)
         .with_verbose_exit(false)
         .with_verbose_entry(false)
         .with_targets(false);

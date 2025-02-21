@@ -277,7 +277,7 @@ impl ValidateAnnotations for ElectionEvent {
             use_root_ca: "true" == use_root_ca.as_str(),
         })
     }
-    #[instrument(err)]
+    #[instrument(err, skip_all)]
     fn get_annotations_or_empty_values(&self) -> Result<Self::Item> {
         let annotations_js = self
             .annotations
@@ -403,6 +403,7 @@ impl ValidateAnnotations for core::Election {
         })
     }
 
+    #[instrument(err, skip_all)]
     fn get_annotations_or_empty_values(&self) -> Result<Self::Item> {
         let annotations_js = self
             .annotations
@@ -545,7 +546,7 @@ impl ValidateAnnotations for core::Area {
         })
     }
 
-    #[instrument(err)]
+    #[instrument(err, skip_all)]
     fn get_annotations_or_empty_values(&self) -> Result<Self::Item> {
         let annotations_js = self
             .annotations
@@ -618,6 +619,7 @@ impl ValidateAnnotations for core::TallySession {
         Ok(tally_session_data)
     }
 
+    #[instrument(err, skip_all)]
     fn get_annotations_or_empty_values(&self) -> Result<Self::Item> {
         let annotations_js = self
             .annotations

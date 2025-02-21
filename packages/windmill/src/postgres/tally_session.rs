@@ -170,7 +170,7 @@ pub async fn get_tally_sessions_by_election_event_id(
     "#,
         if only_active {
             r#" AND is_execution_completed IS FALSE
-                AND execution_status IS 'IN_PROGRESS'"#
+                AND execution_status = 'IN_PROGRESS'"#
         } else {
             ""
         }

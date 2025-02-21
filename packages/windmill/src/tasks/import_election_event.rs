@@ -51,7 +51,7 @@ pub async fn import_election_event(
 
     match &result {
         Ok(_) => {
-            let _ = update_complete(&task_execution).await;
+            let _ = update_complete(&task_execution, Some(object.document_id.clone())).await;
             Ok(())
         }
         Err(error) => {

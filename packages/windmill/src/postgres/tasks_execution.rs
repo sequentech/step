@@ -10,6 +10,7 @@ use sequent_core::types::{
     hasura::{core::TasksExecution, extra::TasksExecutionStatus},
 };
 use serde_json::value::Value;
+use std::collections::HashMap;
 use tokio_postgres::row::Row;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
@@ -118,9 +119,11 @@ pub async fn insert_tasks_execution(
 }
 
 pub async fn update_task_execution_status(
+    tenant_id: &str,
     task_execution_id: &str,
     new_status: TasksExecutionStatus,
     new_logs: Option<Value>,
+    annotations: Value,
 ) -> Result<()> {
     let db_client: DbClient = get_hasura_pool()
         .await
@@ -130,6 +133,8 @@ pub async fn update_task_execution_status(
 
     let task_execution_uuid =
         Uuid::parse_str(task_execution_id).context("Failed to parse task_execution_id as UUID")?;
+
+    let tenant_uuid = Uuid::parse_str(tenant_id).context("Failed to parse tenant_id as UUID")?;
 
     let statement = db_client
         .prepare(
@@ -141,8 +146,11 @@ pub async fn update_task_execution_status(
                 end_at = CASE
                     WHEN $1 != 'IN_PROGRESS' THEN now()
                     ELSE end_at
-                END
-            WHERE id = $3;
+                END,
+                    annotations = COALESCE(annotations, '{}'::jsonb) || $3::jsonb
+            WHERE
+                id = $4 AND
+                tenant_id = $5;
             "#,
         )
         .await
@@ -152,7 +160,13 @@ pub async fn update_task_execution_status(
     db_client
         .execute(
             &statement,
-            &[&new_status.to_string(), &new_logs, &task_execution_uuid],
+            &[
+                &new_status.to_string(),
+                &new_logs,
+                &annotations,
+                &task_execution_uuid,
+                &tenant_uuid,
+            ],
         )
         .await
         .context("Failed to execute update task execution status query")?;
