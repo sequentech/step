@@ -145,10 +145,11 @@ impl PreEnrolledDisapprovedTemplate {
         let mut offset: i64 = 0;
         loop {
             let user_data: Option<UserData> = if generate_mode == GenerateReportMode::PREVIEW {
-                Some(self
-                    .prepare_preview_data()
-                    .await
-                    .map_err(|e| anyhow!("Error preparing preview user data: {e:?}"))?)
+                Some(
+                    self.prepare_preview_data()
+                        .await
+                        .map_err(|e| anyhow!("Error preparing preview user data: {e:?}"))?,
+                )
             } else {
                 let (data, next_offset): (UserData, Option<i64>) = self
                     .prepare_data_batch(
@@ -170,7 +171,7 @@ impl PreEnrolledDisapprovedTemplate {
                 }
             };
 
-            // if this is not the first batch and the offset is 0, we don't a 
+            // if this is not the first batch and the offset is 0, we don't a
             // new batch
             if batch > 1 && offset == 0 {
                 break;
@@ -213,18 +214,14 @@ impl PreEnrolledDisapprovedTemplate {
                     )
                     .await
                 })
-                .with_context(|| {
-                    format!("Error rendering PDF for batch {}", batch_index)
-                })?;
+                .with_context(|| format!("Error rendering PDF for batch {}", batch_index))?;
 
             let prefix = self.prefix();
             let extension_suffix = "pdf";
             let file_suffix = format!(".{}", extension_suffix);
 
-            let batch_file_name = format!(
-                "{}-_area_{}_{}{}",
-                prefix, area.area_id, batch, file_suffix
-            );
+            let batch_file_name =
+                format!("{}-_area_{}_{}{}", prefix, area.area_id, batch, file_suffix);
             info!(
                 "Batch {} => batch_file_name: {}",
                 batch_index, batch_file_name
