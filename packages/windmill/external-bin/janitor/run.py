@@ -333,14 +333,13 @@ def generate_election_event(excel_data, base_context, miru_data, results):
         election_permission_label = next((e["permission_label"] for e in excel_data["elections"] if str(e["precinct_id"]) == str(precinct_id)), None)
 
         if precinct_id not in precinct_to_region:
-            breakpoint()
             raise Exception(f"precinct with 'id' = {precinct_id} not found in precinct_to_region")
 
         region_code = precinct_to_region[precinct_id]
         
         for user in precinct["USERS"]:
             base_user = {
-            "miru_id": user["ID"],
+            "miru_id": f"{region_code}-{user["ROLE"]}",
             "miru_role": user["ROLE"],
             "miru_name": user["NAME"],
             "miru_election_id": miru_election_id
@@ -845,7 +844,7 @@ def gen_tree(excel_data, miru_data, results, multiply_factor):
             "send_logs": "CENTRAL" == server["TYPE"],
         } for server in miru_precinct["SERVERS"].values()]
 
-        sbei_ids = [user["ID"] for user in miru_precinct["USERS"]]
+        sbei_ids = [f"{region_code}-{user['ROLE']}" for user in miru_precinct["USERS"]]
         sbei_ids_str = json.dumps(sbei_ids)
         sbei_ids_str = sbei_ids_str.replace('"', '\\"')
 
