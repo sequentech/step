@@ -171,11 +171,11 @@ export const ViewTask: React.FC<ViewTaskProps> = ({
                             {t("common.label.back")}
                         </CancelButton>
                     ) : null}
-                    {task?.election_event_id && task?.annotations?.documentId ? (
+                    {task?.election_event_id && task?.annotations?.document_id ? (
                         <Button
                             onClick={() => {
                                 setDownloading(true)
-                                setExportDocumentId(task?.annotations?.documentId)
+                                setExportDocumentId(task?.annotations?.document_id)
                             }}
                             disabled={downloading}
                             label={t("tasksScreen.widget.downloadDocument")}
