@@ -26,6 +26,7 @@ pub async fn get_last_tally_session_execution(
     tenant_id: String,
     election_event_id: String,
     tally_session_id: String,
+    election_ids: Vec<String>,
 ) -> Result<Response<get_last_tally_session_execution::ResponseData>> {
     let hasura_endpoint =
         env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
@@ -34,6 +35,7 @@ pub async fn get_last_tally_session_execution(
         tenant_id,
         election_event_id,
         tally_session_id,
+        election_ids,
     };
 
     let request_body = GetLastTallySessionExecution::build_query(variables);

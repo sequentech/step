@@ -103,7 +103,7 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
         )
     }
 
-    #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
+    #[instrument(err, skip_all)]
     async fn prepare_user_data(
         &self,
         hasura_transaction: &Transaction<'_>,
@@ -228,7 +228,7 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
         })
     }
 
-    #[instrument(err, skip(self))]
+    #[instrument(err, skip_all)]
     async fn prepare_system_data(
         &self,
         rendered_user_template: String,

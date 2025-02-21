@@ -84,6 +84,7 @@ const tagalogTranslation: TranslationType = {
             widget: {
                 taskTitle: "Gawain: {{title}}",
                 viewTask: "Tingnan Ang Gawain",
+                downloadDocument: "I-download ang File",
             },
             exportTasksExecution: {
                 success: "Matagumpay na natapos ang pag-export",
@@ -1917,11 +1918,11 @@ const tagalogTranslation: TranslationType = {
                 rejectReason: "Dahilan ng Pagtanggi",
                 messageRequired: "Kinakailangan ang mensahe ng pagtanggi para sa opsyon na 'Iba'",
                 reasons: {
-                    undefined: "-",
-                    INSUFFICIENT_INFORMATION: "Kulang na Datos",
-                    NO_VOTER: "Walang Tumutugma na Botante",
-                    ALREADY_APPROVED: "Naaprubahan Na",
-                    OTHER: "Iba Pa",
+                    "undefined": "-",
+                    "insufficient-information": "Kulang na Datos",
+                    "no-matching-voter": "Walang Tumutugma na Botante",
+                    "voter-already-approved": "Naaprubahan Na",
+                    "other": "Iba Pa",
                 },
             },
             notifications: {

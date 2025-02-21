@@ -614,34 +614,6 @@
             "topLevel": true
         },
         {
-            "alias": "reset.subflow",
-            "authenticationExecutions": [
-                {
-                    "authenticator": "conditional-user-attr",
-                    "authenticatorConfig": "reset.has.tlf",
-                    "authenticatorFlow": false,
-                    "autheticatorFlow": false,
-                    "priority": 0,
-                    "requirement": "REQUIRED",
-                    "userSetupAllowed": false
-                },
-                {
-                    "authenticator": "message-otp-authenticator",
-                    "authenticatorConfig": "reset.send.otp.tlf",
-                    "authenticatorFlow": false,
-                    "autheticatorFlow": false,
-                    "priority": 1,
-                    "requirement": "REQUIRED",
-                    "userSetupAllowed": false
-                }
-            ],
-            "builtIn": false,
-            "description": "",
-            "id": "25512b71-6726-4eeb-87a9-931a6f6c338a",
-            "providerId": "basic-flow",
-            "topLevel": false
-        },
-        {
             "alias": "saml ecp",
             "authenticationExecutions": [
                 {
@@ -751,19 +723,12 @@
                     "userSetupAllowed": false
                 },
                 {
-                    "authenticator": "reset-credential-notification",
+                    "authenticator": "message-otp-authenticator",
+                    "authenticatorConfig": "reset.send.otp.tlf",
                     "authenticatorFlow": false,
                     "autheticatorFlow": false,
-                    "priority": 21,
                     "requirement": "REQUIRED",
-                    "userSetupAllowed": false
-                },
-                {
-                    "authenticatorFlow": true,
-                    "autheticatorFlow": true,
-                    "flowAlias": "reset.subflow",
                     "priority": 22,
-                    "requirement": "CONDITIONAL",
                     "userSetupAllowed": false
                 },
                 {
@@ -1207,7 +1172,7 @@
             "alias": "reset.send.otp.tlf",
             "config": {
                 "length": "6",
-                "messageCourierAttribute": "SMS",
+                "messageCourierAttribute": "BOTH",
                 "senderId": "Keycloak",
                 "telUserAttribute": "sequent.read-only.mobile-number",
                 "resendCoudActivationTimer": "60",

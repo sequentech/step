@@ -83,6 +83,7 @@ const englishTranslation = {
             widget: {
                 taskTitle: "Task: {{title}}",
                 viewTask: "View Task",
+                downloadDocument: "Download File",
             },
             exportTasksExecution: {
                 success: "Export finished successfully",
@@ -1895,11 +1896,11 @@ const englishTranslation = {
                 message: "Write here the disapproval reason",
                 messageRequired: "A rejection message is required for the 'Other' option.",
                 reasons: {
-                    undefined: "-",
-                    INSUFFICIENT_INFORMATION: "Missing Data",
-                    NO_VOTER: "No Matching Voter",
-                    ALREADY_APPROVED: "Already Approved",
-                    OTHER: "Other",
+                    "undefined": "-",
+                    "insufficient-information": "Missing Data",
+                    "no-matching-voter": "No Matching Voter",
+                    "voter-already-approved": "Already Approved",
+                    "other": "Other",
                 },
             },
             notifications: {
