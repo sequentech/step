@@ -143,31 +143,27 @@ impl PreEnrolledDisapprovedTemplate {
                 .await
                 .map_err(|e| anyhow!("Error preparing preview user data: {e:?}"))?]
         } else {
-            let mut last_seen: Option<(DateTime<Local>, String)> = None;
+            let mut offset: i64 = 0;
             let mut area_report_data: Vec<UserData> = Vec::new();
             loop {
-                let (data, next_cursor): (UserData, Option<(DateTime<Local>, String)>) = self
+                let (data, next_offset): (UserData, Option<i64>) = self
                     .prepare_data_batch(
                         hasura_transaction,
                         keycloak_transaction,
                         area.clone(),
                         user_data.clone(),
                         limit,
-                        last_seen,
+                        offset,
                     )
                     .await
                     .map_err(|e| anyhow!("Error preparing batched user data: {e:?}"))?;
 
-                if data.areas[0].voters.is_empty() {
-                    break vec![]; // Stop when no more results
-                }
 
-                area_report_data.push(data);
-                println!("FIND DATA!");
-                last_seen = next_cursor; // Update cursor for next page
-
-                if last_seen.is_none() {
-                    break vec![];
+                if let Some(new_offset) = next_offset {
+                    area_report_data.push(data);
+                    offset = new_offset;
+                } else {
+                    break area_report_data
                 }
             }
         };
@@ -215,8 +211,8 @@ impl PreEnrolledDisapprovedTemplate {
         area: UserDataArea,
         user_data: UserData,
         limit: i64,
-        last_seen: Option<(DateTime<Local>, String)>,
-    ) -> Result<(UserData, Option<(DateTime<Local>, String)>)> {
+        offset: i64,
+    ) -> Result<(UserData, Option<i64>)> {
         let realm = get_event_realm(&self.ids.tenant_id, &self.ids.election_event_id);
 
         let enrollment_filters = EnrollmentFilters {
@@ -233,7 +229,7 @@ impl PreEnrolledDisapprovedTemplate {
             verified: None,
         };
 
-        let (voters_data, next_cursor) = get_voters_data(
+        let (voters_data, next_offset) = get_voters_data(
             hasura_transaction,
             keycloak_transaction,
             &realm,
@@ -244,7 +240,7 @@ impl PreEnrolledDisapprovedTemplate {
             true,
             voters_filters,
             Some(limit),
-            last_seen,
+            Some(offset),
         )
         .await
         .map_err(|e| anyhow!("Error getting voters data: {}", e))?;
@@ -262,7 +258,7 @@ impl PreEnrolledDisapprovedTemplate {
             execution_annotations: user_data.execution_annotations.clone(),
         };
 
-        Ok((area_final_data, next_cursor))
+        Ok((area_final_data, next_offset))
     }
 }
 

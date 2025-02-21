@@ -76,16 +76,16 @@ pub async fn get_enrolled_voters(
     area_id: &str,
     filters: Option<EnrollmentFilters>,
     limit: Option<i64>,
-    last_seen: Option<(DateTime<Local>, String)>,
-) -> Result<(Vec<Voter>, i64, Option<(DateTime<Local>, String)>)> {
-    let (applications, next_cursor) = get_applications(
+    offset: Option<i64>,
+) -> Result<(Vec<Voter>, i64, Option<i64>)> {
+    let (applications, next_offset) = get_applications(
         &hasura_transaction,
         &tenant_id,
         &election_event_id,
         &area_id,
         filters.as_ref(),
         limit,
-        last_seen,
+        offset,
     )
     .await
     .map_err(|err| anyhow!("{}", err))?;
@@ -169,7 +169,7 @@ pub async fn get_enrolled_voters(
 
     let count = users.len() as i64;
 
-    Ok((users, count, next_cursor))
+    Ok((users, count, next_offset))
 }
 
 #[instrument(err, skip_all)]
@@ -454,8 +454,8 @@ pub async fn get_voters_data(
     with_vote_info: bool,
     voters_filter: FilterListVoters,
     limit: Option<i64>,
-    last_seen: Option<(DateTime<Local>, String)>,
-) -> Result<(VotersData, Option<(DateTime<Local>, String)>)> {
+    offset: Option<i64>,
+) -> Result<(VotersData, Option<i64>)> {
     let mut attributes: HashMap<String, AttributesFilterOption> = HashMap::new();
 
     match voters_filter.voters_sex {
@@ -519,7 +519,7 @@ pub async fn get_voters_data(
         None => {}
     };
 
-    let (voters, voters_count, next_cursor) = match voters_filter.enrolled {
+    let (voters, voters_count, next_offset) = match voters_filter.enrolled {
         Some(_) => {
             get_enrolled_voters(
                 &hasura_transaction,
@@ -528,7 +528,7 @@ pub async fn get_voters_data(
                 &area_id,
                 voters_filter.enrolled,
                 limit,
-                last_seen,
+                offset,
             )
             .await?
         }
@@ -574,7 +574,7 @@ pub async fn get_voters_data(
         voters,
     };
 
-    Ok((voters_data, next_cursor))
+    Ok((voters_data, next_offset))
 }
 
 // Helper function to generate the sorting key for a voter

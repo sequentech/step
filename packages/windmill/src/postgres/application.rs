@@ -286,6 +286,7 @@ pub async fn update_application_status(
     Ok(application)
 }
 
+#[instrument(err, skip_all)]
 pub async fn get_applications(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -293,8 +294,8 @@ pub async fn get_applications(
     area_id: &str,
     filters: Option<&EnrollmentFilters>,
     limit: Option<i64>,
-    last_seen: Option<(DateTime<Local>, String)>,
-) -> Result<(Vec<Application>, Option<(DateTime<Local>, String)>)> {
+    offset: Option<i64>,
+) -> Result<(Vec<Application>, Option<i64>)> {
     let mut query = r#"
         SELECT *
         FROM sequent_backend.applications
@@ -333,28 +334,20 @@ pub async fn get_applications(
             param_index += 1;
         }
     }
-    let parsed_last_id;
-
-    if let Some((last_created_at, last_id)) = &last_seen {
-        query.push_str(&format!(
-            " AND (created_at > ${} OR (created_at = ${} AND id > ${}))",
-            param_index,
-            param_index,
-            param_index + 1
-        ));
-        params.push(last_created_at);
-        parsed_last_id = Uuid::parse_str(&last_id.clone())?;
-        params.push(&parsed_last_id);
-        param_index += 2;
-    }
 
     query.push_str(" ORDER BY created_at ASC, id ASC");
     let lim;
-
     if let Some(limit) = limit {
         query.push_str(&format!(" LIMIT ${}", param_index));
         lim = limit.clone();
         params.push(&lim);
+        param_index += 1;
+    }
+    let off;
+    if let Some(offset) = offset {
+        query.push_str(&format!(" OFFSET ${}", param_index));
+        off = offset.clone();
+        params.push(&off);
         param_index += 1;
     }
 
@@ -367,29 +360,23 @@ pub async fn get_applications(
         .query(&statement, &params)
         .await
         .map_err(|err| anyhow!("Error querying applications: {err}"))?;
-
+atabase rows to Application structs
     let results: Vec<Application> = rows
         .iter()
         .map(|row| {
             ApplicationWrapper::try_from(row.clone())
                 .map(|wrapper| wrapper.0)
-                .map_err(|err| anyhow!(err))
+                .map_err(|err| anyhow!(err)) // Convert Infallible to anyhow::Error
         })
         .collect::<Result<Vec<Application>>>()?;
 
-    // Track the last visited application (created_at, id)
-    let last_cursor = results
-        .last()
-        .map(|application| {
-            let created_at = application
-                .created_at
-                .ok_or_else(|| anyhow!("Missing created_at"))?; // Ensure it's not None
+    let last_offset = if results.is_empty() {
+        None
+    } else {
+        Some(offset.unwrap_or(0) + results.len() as i64)  // ✅ Return next offset
+    };
 
-            Ok::<(DateTime<Local>, String), anyhow::Error>((created_at, application.id.clone()))
-        })
-        .transpose()?;
-
-    Ok((results, last_cursor))
+    Ok((results, last_offset))
 }
 
 #[instrument(err, skip_all)]
