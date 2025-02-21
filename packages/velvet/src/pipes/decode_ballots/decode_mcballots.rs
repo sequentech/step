@@ -38,7 +38,7 @@ impl DecodeMCBallots {
 }
 
 impl DecodeMCBallots {
-    #[instrument(skip(contests))]
+    #[instrument(err, skip(contests))]
     fn decode_ballots(
         path: &Path,
         contests: &Vec<Contest>,
@@ -76,6 +76,7 @@ impl DecodeMCBallots {
     }
 
     // contest_id -> (area_id -> dvc)
+    #[instrument(skip_all)]
     fn get_contest_dvc_map(
         election_input: &InputElectionConfig,
     ) -> HashMap<String, HashMap<String, DecodedVoteChoice>> {
@@ -101,7 +102,7 @@ impl DecodeMCBallots {
 
 impl Pipe for DecodeMCBallots {
     // FIXME This method is horrid
-    #[instrument(skip_all, name = "DecodeMultiBallots::exec")]
+    #[instrument(err, skip_all, name = "DecodeMultiBallots::exec")]
     fn exec(&self) -> Result<()> {
         let mut serial_number_counter = 1;
         for election_input in &self.pipe_inputs.election_list {

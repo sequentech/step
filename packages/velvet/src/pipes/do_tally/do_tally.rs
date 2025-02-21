@@ -60,7 +60,7 @@ pub fn list_tally_sheet_subfolders(path: &Path) -> Vec<PathBuf> {
 }
 
 impl DoTally {
-    #[instrument(skip_all)]
+    #[instrument(err, skip_all)]
     fn save_tally_sheets_breakdown(
         &self,
         tally_sheet_results: &Vec<(ContestResult, TallySheet)>,
@@ -93,7 +93,7 @@ impl DoTally {
 }
 
 impl Pipe for DoTally {
-    #[instrument(skip_all, name = "DoTally::new")]
+    #[instrument(err, skip_all, name = "DoTally::new")]
     fn exec(&self) -> Result<()> {
         let input_dir = self
             .pipe_inputs

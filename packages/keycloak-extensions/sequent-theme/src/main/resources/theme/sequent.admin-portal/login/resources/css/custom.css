@@ -19,7 +19,8 @@ SPDX-License-Identifier: AGPL-3.0-only
     --pf-global--link--TextDecoration: underline;
 }
 
-html, body {
+html,
+body {
     overflow-x: hidden;
     width: 100%;
 }
@@ -55,7 +56,7 @@ html, body {
 #kc-header-wrapper {
     display: flex;
     width: 100%;
-    align-items:center;
+    align-items: center;
     max-width: 1170px;
     margin: 0 auto;
     padding: 0 8px;
@@ -76,7 +77,8 @@ html, body {
 }
 
 #kc-header-wrapper .version {
-    margin-inline: 0px; word-break: keep-all;
+    margin-inline: 0px;
+    word-break: keep-all;
     overflow-wrap: break-word;
     font-family: Roboto, Helvetica, Arial, sans-serif;
     font-weight: 500;
@@ -90,7 +92,7 @@ html, body {
     display: inline-block;
 }
 
-#kc-header-wrapper > #kc-locale {
+#kc-header-wrapper>#kc-locale {
     width: initial !important;
 }
 
@@ -103,7 +105,8 @@ html, body {
         gap: 11px;
     }
 
-    #kc-header-wrapper .version, #kc-header-wrapper .version .title {
+    #kc-header-wrapper .version,
+    #kc-header-wrapper .version .title {
         display: none;
     }
 }
@@ -224,7 +227,7 @@ html, body {
     margin: auto;
 }
 
-.menu-button-links{
+.menu-button-links {
     margin-left: auto;
 }
 
@@ -254,7 +257,7 @@ button#kc-current-locale-link img {
 }
 
 @media (max-width: 969px) {
-    .menu-button-links span{
+    .menu-button-links span {
         display: none;
     }
 }
@@ -305,7 +308,7 @@ button#kc-current-locale-link img {
     font-size: 12px;
 }
 
-.pf-c-check__label{
+.pf-c-check__label {
     font-size: 12px;
 }
 
@@ -347,7 +350,8 @@ button#resend-otp-btn:hover {
     font-size: 14px;
 }
 
-.last-page-text, .last-page-text li {
+.last-page-text,
+.last-page-text li {
     font-size: 16px;
     color: #72767b;
 }
@@ -383,11 +387,11 @@ button#resend-otp-btn:hover {
     margin: 0;
     user-select: none;
     text-decoration: none;
-    font-family: "Roboto","Helvetica","Arial",sans-serif;
+    font-family: "Roboto", "Helvetica", "Arial", sans-serif;
     line-height: 1.75;
     letter-spacing: 0.02857em;
     min-width: 64px;
-    transition: background-color 250ms cubic-bezier(0.4, 0, 0.2, 1) 0ms,box-shadow 250ms cubic-bezier(0.4, 0, 0.2, 1) 0ms,border-color 250ms cubic-bezier(0.4, 0, 0.2, 1) 0ms,color 250ms cubic-bezier(0.4, 0, 0.2, 1) 0ms;
+    transition: background-color 250ms cubic-bezier(0.4, 0, 0.2, 1) 0ms, box-shadow 250ms cubic-bezier(0.4, 0, 0.2, 1) 0ms, border-color 250ms cubic-bezier(0.4, 0, 0.2, 1) 0ms, color 250ms cubic-bezier(0.4, 0, 0.2, 1) 0ms;
     flex-direction: row;
     gap: 4px;
     min-height: 44px;
@@ -405,12 +409,12 @@ button#resend-otp-btn:hover {
     border: none;
     color: #0F054C;
     border-color: transparent;
-    opacity: 1!important;
+    opacity: 1 !important;
 }
 
 .button-version-div {
     user-select: none;
-    font-family: "Roboto","Helvetica","Arial",sans-serif;
+    font-family: "Roboto", "Helvetica", "Arial", sans-serif;
     line-height: 1.75;
     letter-spacing: 0.02857em;
     font-weight: 500;
@@ -437,4 +441,25 @@ button#resend-otp-btn:hover {
     line-height: inherit;
     cursor: default;
     box-sizing: border-box;
+}
+
+@media (max-width: 767px) {
+    #kc-title {
+        display: none;
+    }
+}
+
+@media (max-width: 767px) {
+    #kc-page-title {
+        font-weight: bold;
+        font-size: 20px;
+    }
+}
+
+.pf-c-check {
+    align-items: center;
+}
+
+.col-md-10 {
+    width: 100% !important;
 }

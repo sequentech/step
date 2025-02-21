@@ -152,7 +152,7 @@ pub async fn import_users(body: ImportUsersBody, task_execution: TasksExecution)
         }
     }
 
-    update_complete(&task_execution)
+    update_complete(&task_execution, Some(body.document_id.clone()))
         .await
         .context("Failed to update task execution status to COMPLETED")?;
 
