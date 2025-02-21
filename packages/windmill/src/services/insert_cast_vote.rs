@@ -26,6 +26,7 @@ use chrono::{DateTime, Duration, Local, NaiveDateTime, Utc};
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
 use electoral_log::messages::newtypes::*;
+use futures::try_join;
 use rocket::futures::TryFutureExt;
 use sequent_core::ballot::ContestEncryptionPolicy;
 use sequent_core::ballot::EGracePeriodPolicy;
@@ -52,7 +53,6 @@ use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::types::hasura::core::{ElectionEvent, VotingChannels};
 use sequent_core::types::scheduled_event::*;
 use serde::{Deserialize, Serialize};
-use std::time::Instant;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::hash::{hash_to_array, Hash, HashWrapper};
 use strand::serialization::StrandSerialize;
@@ -196,7 +196,6 @@ pub async fn try_insert_cast_vote(
     voter_ip: &Option<String>,
     voter_country: &Option<String>,
 ) -> Result<InsertCastVoteOutput, CastVoteError> {
-    let start = Instant::now();
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
         .get()
@@ -242,13 +241,6 @@ pub async fn try_insert_cast_vote(
         }
     };
 
-    let duration = start.elapsed();
-    info!(
-        "Till get_username_by_id took {} ms to complete.",
-        duration.as_millis()
-    );
-    let start = Instant::now();
-
     let election_event =
         get_election_event_by_id(&hasura_transaction, tenant_id, election_event_id)
             .await
@@ -269,13 +261,6 @@ pub async fn try_insert_cast_vote(
     } else {
         deserialize_and_check_ballot(&input.content, voter_id)?
     };
-
-    let duration = start.elapsed();
-    info!(
-        "... deserialize_and_check_ballot took {} ms to complete.",
-        duration.as_millis()
-    );
-    let start = Instant::now();
 
     let (electoral_log, signing_key) = get_electoral_log(&election_event)
         .await
@@ -300,13 +285,6 @@ pub async fn try_insert_cast_vote(
 
     info!("voter signing policy {voter_signing_policy}");
 
-    let duration = start.elapsed();
-    info!(
-        "...get_electoral_log etc took {} ms to complete.",
-        duration.as_millis()
-    );
-    let start = Instant::now();
-
     let voter_signing_key: Option<StrandSignatureSk> = if VoterSigningPolicy::WITH_SIGNATURE
         == voter_signing_policy
     {
@@ -327,13 +305,6 @@ pub async fn try_insert_cast_vote(
         None
     };
 
-    let duration = start.elapsed();
-    info!(
-        "get_election_event_board and get_voter_signing_key took {} ms to complete.",
-        duration.as_millis()
-    );
-    let start = Instant::now();
-
     let result = insert_cast_vote_and_commit(
         input,
         hasura_transaction,
@@ -347,12 +318,6 @@ pub async fn try_insert_cast_vote(
         &voter_signing_key,
     )
     .await;
-
-    let duration = start.elapsed();
-    info!(
-        "insert_cast_vote_and_commit took {} ms to complete.",
-        duration.as_millis()
-    );
 
     let ip = format!("ip: {}", voter_ip.as_deref().unwrap_or("").to_string(),);
     let country = format!(
@@ -479,6 +444,29 @@ pub fn deserialize_and_check_multi_ballot(
     Ok((pseudonym_h, vote_h))
 }
 
+#[instrument(skip(input, signing_key, voter_signing_key), err)]
+pub async fn get_ballot_signature(
+    input: &InsertCastVoteInput,
+    voter_signing_key: &Option<StrandSignatureSk>,
+    signing_key: StrandSignatureSk,
+) -> Result<Vec<u8>, CastVoteError> {
+    // These are unhashed bytes, the signing code will hash it first.
+    let ballot_bytes = input.get_bytes_for_signing();
+
+    if let Some(voter_signing_key) = voter_signing_key.clone() {
+        // TODO do something with this
+        let voter_ballot_signature = voter_signing_key
+            .sign(&ballot_bytes)
+            .map_err(|e| CastVoteError::BallotVoterSignatureFailed(e.to_string()))?;
+    };
+
+    let ballot_signature = signing_key
+        .sign(&ballot_bytes)
+        .map_err(|e| CastVoteError::BallotSignFailed(e.to_string()))?;
+
+    Ok(ballot_signature.to_bytes().to_vec())
+}
+
 #[instrument(
     skip(
         input,
@@ -503,43 +491,6 @@ pub async fn insert_cast_vote_and_commit<'a>(
 ) -> Result<CastVote, CastVoteError> {
     let election_id_string = input.election_id.to_string();
     let election_id = election_id_string.as_str();
-
-    let check_status = check_status(
-        ids.tenant_id,
-        ids.election_event_id,
-        election_id,
-        &hasura_transaction,
-        &election_event,
-        auth_time,
-        voting_channel,
-    );
-
-    // Transaction isolation begins at this future (unless above methods are
-    // switched from hasura to direct sql)
-    let check_previous_votes = check_previous_votes(
-        ids.voter_id,
-        ids.tenant_id,
-        ids.election_event_id,
-        election_id,
-        ids.area_id,
-        &hasura_transaction,
-    );
-
-    // These are unhashed bytes, the signing code will hash it first.
-    let ballot_bytes = input.get_bytes_for_signing();
-
-    if let Some(voter_signing_key) = voter_signing_key.clone() {
-        // TODO do something with this
-        let voter_ballot_signature = voter_signing_key
-            .sign(&ballot_bytes)
-            .map_err(|e| CastVoteError::BallotVoterSignatureFailed(e.to_string()))?;
-    };
-
-    let ballot_signature = signing_key
-        .sign(&ballot_bytes)
-        .map_err(|e| CastVoteError::BallotSignFailed(e.to_string()))?;
-
-    let ballot_signature = ballot_signature.to_bytes().to_vec();
     let tenant_uuid = Uuid::parse_str(ids.tenant_id)
         .map_err(|e| CastVoteError::UuidParseFailed(e.to_string(), "tenant_id".to_string()))?;
     let election_event_uuid = Uuid::parse_str(ids.election_event_id).map_err(|e| {
@@ -549,6 +500,32 @@ pub async fn insert_cast_vote_and_commit<'a>(
         .map_err(|e| CastVoteError::UuidParseFailed(e.to_string(), "election_id".to_string()))?;
     let area_uuid = Uuid::parse_str(ids.area_id)
         .map_err(|e| CastVoteError::UuidParseFailed(e.to_string(), "area_id".to_string()))?;
+    let (check_status, check_previous_votes, ballot_signature) = try_join!(
+        check_status(
+            ids.tenant_id,
+            ids.election_event_id,
+            election_id,
+            &hasura_transaction,
+            &election_event,
+            auth_time,
+            voting_channel,
+        ),
+        // Transaction isolation begins at this future (unless above methods are
+        // switched from hasura to direct sql)
+        check_previous_votes(
+            ids.voter_id,
+            ids.tenant_id,
+            ids.election_event_id,
+            election_id,
+            ids.area_id,
+            &hasura_transaction,
+            &tenant_uuid,
+            &election_event_uuid,
+            &election_uuid,
+        ),
+        get_ballot_signature(&input, voter_signing_key, signing_key)
+    )?;
+
     let insert = postgres::cast_vote::insert_cast_vote(
         &hasura_transaction,
         &tenant_uuid,
@@ -563,13 +540,10 @@ pub async fn insert_cast_vote_and_commit<'a>(
         &voter_country,
     );
 
-    check_status.await?;
-    check_previous_votes
-        .await
-        .map_err(|e| CastVoteError::CheckPreviousVotesFailed(e.to_string()))?;
     let cast_vote = insert
         .await
         .map_err(|e| CastVoteError::InsertFailed(e.to_string()))?;
+
     hasura_transaction
         .commit()
         .await
@@ -801,23 +775,26 @@ async fn check_previous_votes(
     election_id: &str,
     area_id: &str,
     hasura_transaction: &Transaction<'_>,
-) -> anyhow::Result<()> {
-    let max_revotes = get_election_max_revotes(
-        hasura_transaction,
-        tenant_id,
-        election_event_id,
-        election_id,
+    tenant_uuid: &Uuid,
+    election_event_uuid: &Uuid,
+    election_uuid: &Uuid,
+) -> Result<(), CastVoteError> {
+    let (max_revotes, result) = try_join!(
+        get_election_max_revotes(
+            hasura_transaction,
+            tenant_id,
+            election_event_id,
+            election_id,
+        ),
+        postgres::cast_vote::get_cast_votes(
+            &hasura_transaction,
+            tenant_uuid,
+            election_event_uuid,
+            election_uuid,
+            voter_id_string,
+        )
     )
-    .await?;
-
-    let result = postgres::cast_vote::get_cast_votes(
-        &hasura_transaction,
-        &Uuid::parse_str(tenant_id)?,
-        &Uuid::parse_str(election_event_id)?,
-        &Uuid::parse_str(election_id)?,
-        voter_id_string,
-    )
-    .await?;
+    .map_err(|e| CastVoteError::CheckPreviousVotesFailed(e.to_string()))?;
 
     let (same, other): (Vec<Uuid>, Vec<Uuid>) = result
         .into_iter()
@@ -828,20 +805,18 @@ async fn check_previous_votes(
 
     // Skip max votes check if max_revotes is 0, allowing unlimited votes
     if max_revotes > 0 && same.len() >= max_revotes {
-        return Err(anyhow!(
+        return Err(CastVoteError::CheckPreviousVotesFailed(format!(
             "Cannot insert cast vote, maximum votes reached ({}, {})",
             voter_id_string,
             same.len()
-        ));
+        )));
     }
     if other.len() > 0 {
-        return Err(anyhow!(
+        return Err(CastVoteError::CheckPreviousVotesFailed(format!(
             "Cannot insert cast vote, votes already present in other area(s) ({}, {:?})",
-            voter_id_string,
-            other
-        ));
+            voter_id_string, other
+        )));
     }
-
     Ok(())
 }
 
