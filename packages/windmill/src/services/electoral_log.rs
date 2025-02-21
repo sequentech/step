@@ -3,34 +3,34 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::database::PgConfig;
+use crate::services::insert_cast_vote::hash_voter_id;
+use crate::services::protocol_manager::get_event_board;
 use crate::services::protocol_manager::get_protocol_manager;
 use crate::services::protocol_manager::{create_named_param, get_board_client, get_immudb_client};
+use crate::services::vault;
 use crate::types::resources::{Aggregate, DataList, OrderDirection, TotalAggregate};
+
 use anyhow::{anyhow, Context, Result};
+use b3::messages::message::{self, Signer as _};
 use base64::engine::general_purpose;
 use base64::Engine;
+use electoral_log::assign_value;
 use electoral_log::messages::message::Message;
 use electoral_log::messages::message::SigningData;
 use electoral_log::messages::newtypes::ErrorMessageString;
 use electoral_log::messages::newtypes::KeycloakEventTypeString;
 use electoral_log::messages::newtypes::*;
 use electoral_log::messages::statement::StatementHead;
+use electoral_log::ElectoralLogMessage;
+use immudb_rs::{sql_value::Value, Client, NamedParam, Row, SqlValue, TxMode};
 use sequent_core::ballot::VotingStatusChannel;
+use sequent_core::serialization::base64::{Base64Deserialize, Base64Serialize};
 use sequent_core::serialization::deserialize_with_path;
 use sequent_core::services::date::ISO8601;
-use strand::hash::HashWrapper;
-
-use crate::services::insert_cast_vote::hash_voter_id;
-use crate::services::protocol_manager::get_event_board;
-use crate::services::vault;
-use b3::messages::message::{self, Signer as _};
-use electoral_log::assign_value;
-use electoral_log::ElectoralLogMessage;
-use immudb_rs::{sql_value::Value, Client, NamedParam, Row, SqlValue};
-use sequent_core::serialization::base64::{Base64Deserialize, Base64Serialize};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use strand::backend::ristretto::RistrettoCtx;
+use strand::hash::HashWrapper;
 use strand::serialization::StrandDeserialize;
 use strand::signature::StrandSignatureSk;
 use strum_macros::{Display, EnumString, ToString};
@@ -499,34 +499,87 @@ impl ElectoralLog {
             .await
     }
 
+    /// Builds a keycloak event message and returns the resulting ElectoralLogMessage.
+    pub fn build_keycloak_event_message(
+        &self,
+        event_id: String,
+        event_type: String,
+        error_message: String,
+        user_id: Option<String>,
+        username: Option<String>,
+    ) -> Result<ElectoralLogMessage> {
+        let event = EventIdString(event_id);
+        let error_message = ErrorMessageString(error_message);
+        let event_type = KeycloakEventTypeString(event_type);
+        let message = &Message::keycloak_user_event(
+            event,
+            event_type,
+            error_message,
+            user_id,
+            username,
+            &self.sd,
+        )?;
+        let board_message: ElectoralLogMessage = message.try_into()?;
+        Ok(board_message)
+    }
+
+    /// Builds a send-template message and returns the resulting ElectoralLogMessage.
+    pub fn build_send_template_message(
+        &self,
+        message_body: Option<String>,
+        event_id: String,
+        user_id: Option<String>,
+        username: Option<String>,
+        election_id: Option<String>,
+    ) -> Result<ElectoralLogMessage> {
+        let event = EventIdString(event_id);
+        let election = ElectionIdString(election_id);
+        let message =
+            &Message::send_template(event, election, &self.sd, user_id, username, message_body)
+                .map_err(|e| anyhow!("Error creating send template message: {:?}", e))?;
+        let board_message: ElectoralLogMessage = message.try_into()?;
+        Ok(board_message)
+    }
+
     #[instrument(skip(self))]
     pub async fn import_from_csv(&self, logs_file: &NamedTempFile) -> Result<()> {
-        let mut client = get_board_client().await?;
-        let mut rows = Vec::new();
-
+        let batch_size: usize = PgConfig::from_env()?.default_sql_batch_size.try_into()?;
         let mut rdr = csv::Reader::from_reader(logs_file);
+
+        let mut client = get_board_client().await?;
+        client.open_session(self.elog_database.as_str()).await?;
+        let tx = client.new_tx(TxMode::ReadWrite).await?;
+
+        // Allocate a vector with capacity equal to the batch size.
+        let mut messages: Vec<ElectoralLogMessage> = Vec::with_capacity(batch_size);
 
         for result in rdr.deserialize() {
             let row: ElectoralLogRow =
                 result.map_err(|err| anyhow::Error::new(err).context("Failed to read CSV row"))?;
-            rows.push(row);
-        }
-
-        for log in rows {
             let message: &Message =
-                &Message::strand_deserialize(&general_purpose::STANDARD_NO_PAD.decode(&log.data)?)
+                &Message::strand_deserialize(&general_purpose::STANDARD_NO_PAD.decode(&row.data)?)
                     .map_err(|err| anyhow!("Failed to deserialize message: {:?}", err))?;
             let electoral_log_message: ElectoralLogMessage = message.try_into()?;
+            messages.push(electoral_log_message);
 
-            client
-                .insert_electoral_log_messages(
-                    self.elog_database.as_str(),
-                    &vec![electoral_log_message],
-                )
-                .await
-                .map_err(|err| anyhow!("Failed to insert log message: {:?}", err))?;
+            // Once we reach the batch size, flush the batch.
+            if messages.len() >= batch_size {
+                client
+                    .insert_electoral_log_messages_batch(&tx, &messages)
+                    .await?;
+                messages.clear();
+            }
         }
 
+        // Flush any remaining messages that didn't complete a full batch.
+        if !messages.is_empty() {
+            client
+                .insert_electoral_log_messages_batch(&tx, &messages)
+                .await?;
+        }
+
+        client.commit(&tx).await?;
+        client.close_session().await?;
         Ok(())
     }
 }
@@ -790,7 +843,7 @@ pub const IMMUDB_ROWS_LIMIT: usize = 2500;
 
 #[instrument(err)]
 pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<ElectoralLogRow>> {
-    let mut client = get_immudb_client().await?;
+    let mut client: Client = get_immudb_client().await?;
     let board_name = get_event_board(input.tenant_id.as_str(), input.election_event_id.as_str());
 
     event!(Level::INFO, "database name = {board_name}");
@@ -814,6 +867,7 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
         {clauses}
         "#,
     );
+    info!("query: {sql}");
     let sql_query_response = client.sql_query(&sql, params).await?;
     let items = sql_query_response
         .get_ref()
@@ -850,4 +904,38 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
             aggregate: aggregate,
         },
     })
+}
+
+#[instrument(err)]
+pub async fn count_electoral_log(input: GetElectoralLogBody) -> Result<i64> {
+    let mut client = get_immudb_client().await?;
+    let board_name = get_event_board(input.tenant_id.as_str(), input.election_event_id.as_str());
+
+    info!("board name: {board_name}");
+    client.open_session(&board_name).await?;
+
+    let (clauses_to_count, count_params) = input.as_sql(true)?;
+    let sql = format!(
+        r#"
+        SELECT COUNT(*)
+        FROM electoral_log_messages
+        {clauses_to_count}
+        "#,
+    );
+
+    info!("query: {sql}");
+
+    let sql_query_response = client.sql_query(&sql, count_params).await?;
+
+    let mut rows_iter = sql_query_response
+        .get_ref()
+        .rows
+        .iter()
+        .map(Aggregate::try_from);
+    let aggregate = rows_iter
+        .next()
+        .ok_or_else(|| anyhow!("No aggregate found"))??;
+
+    client.close_session().await?;
+    Ok(aggregate.count as i64)
 }

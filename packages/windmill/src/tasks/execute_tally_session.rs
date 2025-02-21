@@ -737,6 +737,7 @@ async fn map_plaintext_data(
     tally_session_id: String,
     ceremony_status: TallyCeremonyStatus,
     keys_ceremony: &KeysCeremony,
+    tally_session_data: get_last_tally_session_execution::ResponseData,
 ) -> Result<
     Option<(
         Vec<AreaContestDataType>,
@@ -778,18 +779,6 @@ async fn map_plaintext_data(
         keys_ceremony,
     )
     .await?;
-
-    // get all data for the execution: the last tally session execution,
-    // the list of tally_session_contest, and the ballot styles
-    let tally_session_data = get_last_tally_session_execution(
-        auth_headers.clone(),
-        tenant_id.clone(),
-        election_event_id.clone(),
-        tally_session_id.clone(),
-    )
-    .await?
-    .data
-    .expect("expected data");
 
     let tally_session = &tally_session_data.sequent_backend_tally_session[0];
     let tally_session_created_at_timestamp_secs =
@@ -1163,13 +1152,15 @@ pub async fn execute_tally_session_wrapped(
     tally_type: Option<String>,
     election_ids: Option<Vec<String>>,
 ) -> Result<()> {
-    let Some((tally_session_execution, tally_session)) = find_last_tally_session_execution(
-        auth_headers.clone(),
-        tenant_id.clone(),
-        election_event_id.clone(),
-        tally_session_id.clone(),
-    )
-    .await?
+    let Some((tally_session_execution, tally_session, tally_session_data)) =
+        find_last_tally_session_execution(
+            auth_headers.clone(),
+            tenant_id.clone(),
+            election_event_id.clone(),
+            tally_session_id.clone(),
+            election_ids.clone().unwrap_or(vec![]),
+        )
+        .await?
     else {
         event!(Level::INFO, "Can't find last execution status, skipping");
         return Ok(());
@@ -1213,6 +1204,7 @@ pub async fn execute_tally_session_wrapped(
         tally_session_id.clone(),
         status,
         &keys_ceremony,
+        tally_session_data,
     )
     .await?;
 
@@ -1409,7 +1401,7 @@ pub async fn transactions_wrapper(
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(time_limit = 1200000, max_retries = 0)]
+#[celery::task(time_limit = 1200000, max_retries = 0, expires = 15)]
 pub async fn execute_tally_session(
     tenant_id: String,
     election_event_id: String,

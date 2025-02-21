@@ -37,6 +37,8 @@ import {MessageField} from "./MessageField"
 
 enum ExportFormat {
     CSV = "CSV",
+
+    // turns out that the pdf is zipped
     PDF = "PDF",
 }
 
@@ -115,7 +117,7 @@ const ExportDialog: React.FC<ExportWrapperProps> = ({
                     <DownloadDocument
                         documentId={exportDocumentId ?? ""}
                         electionEventId={electionEventId}
-                        fileName={`election-event-logs-${electionEventId}-export.${exportFormat.toLowerCase()}`}
+                        fileName={null}
                         onDownload={() => {
                             setExportDocumentId(undefined)
                         }}
