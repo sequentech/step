@@ -501,6 +501,7 @@ pub async fn insert_cast_vote_and_commit<'a>(
     let area_uuid = Uuid::parse_str(ids.area_id)
         .map_err(|e| CastVoteError::UuidParseFailed(e.to_string(), "area_id".to_string()))?;
     let (check_status, check_previous_votes, ballot_signature) = try_join!(
+        // Check status is the most expensive call here, it takes around 2/3 of the time of the whole insert_cast_vote
         check_status(
             ids.tenant_id,
             ids.election_event_id,
@@ -763,7 +764,6 @@ async fn check_status(
             format!("Voting Status for voting_channel={voting_channel:?} is {current_voting_status:?} instead of Open"),
         ));
     }
-
     Ok(())
 }
 
