@@ -41,6 +41,7 @@ import {GET_TASK_BY_ID} from "@/queries/GetTaskById"
 import {useQuery} from "@apollo/client"
 import {DownloadDocument} from "@/resources/User/DownloadDocument"
 import {Button} from "react-admin"
+import {GetTaskByIdQuery} from "@/gql/graphql"
 
 interface LogTableProps {
     logs: ITaskLog[]
@@ -109,7 +110,7 @@ export const Widget: React.FC<WidgetProps> = ({
         {created_date: new Date().toLocaleString(), log_text: "Task started"},
     ]
 
-    const {data: taskData} = useQuery(GET_TASK_BY_ID, {
+    const {data: taskData} = useQuery<GetTaskByIdQuery>(GET_TASK_BY_ID, {
         variables: {task_id: taskId},
         skip: !taskId,
         pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
@@ -118,8 +119,8 @@ export const Widget: React.FC<WidgetProps> = ({
     useEffect(() => {
         if (taskData && taskData.sequent_backend_tasks_execution.length > 0) {
             const task = taskData.sequent_backend_tasks_execution[0]
-            setTaskDataType(task.type)
-            setTaskDataStatus(task.execution_status)
+            setTaskDataType(task.type as ETasksExecution)
+            setTaskDataStatus(task.execution_status as ETaskExecutionStatus)
             setTaskDataLogs(task.logs)
         }
     }, [taskData])
@@ -137,6 +138,8 @@ export const Widget: React.FC<WidgetProps> = ({
         event.stopPropagation()
         setOpenTaskModal(!openTaskModal)
     }
+
+    const lastTask = taskData?.sequent_backend_tasks_execution?.[0]
 
     return (
         <>
@@ -203,12 +206,12 @@ export const Widget: React.FC<WidgetProps> = ({
                             </ViewTaskTypography>
                         ) : null}
                         {taskId &&
-                        taskData?.election_event_id &&
-                        taskData?.annotations?.documentId ? (
+                        lastTask?.election_event_id &&
+                        lastTask?.annotations?.document_id ? (
                             <Button
                                 onClick={() => {
                                     setDownloading(false)
-                                    setExportDocumentId(taskData?.annotations?.documentId)
+                                    setExportDocumentId(lastTask?.annotations?.document_id)
                                 }}
                                 disabled={downloading}
                                 label={t("tasksScreen.widget.downloadDocument")}
@@ -231,7 +234,7 @@ export const Widget: React.FC<WidgetProps> = ({
                 <>
                     <DownloadDocument
                         documentId={exportDocumentId ?? ""}
-                        electionEventId={taskData?.election_event_id ?? ""}
+                        electionEventId={lastTask?.election_event_id ?? ""}
                         fileName={null}
                         onDownload={() => {
                             setDownloading(false)

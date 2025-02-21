@@ -350,11 +350,12 @@ async fn generate_template_block(
         Ok(transaction) => {
             if let Some(ref task_exec) = task_execution {
                 update(
+                    /* tenant_id: */ &tenant_id,
                     /* task_id: */ &task_exec.id,
                     /* status: */ TasksExecutionStatus::IN_PROGRESS,
                     /* logs: */ json!([]),
                     /* annotations: */
-                    HashMap::from([("documentId".into(), document_id.clone())]),
+                    Some(document_id.clone()),
                 )
                 .await?;
             }
@@ -383,7 +384,7 @@ async fn generate_template_block(
     match hasura_transaction.commit().await {
         Ok(transaction) => {
             if let Some(ref task_exec) = task_execution {
-                update_complete(task_exec).await?;
+                update_complete(task_exec, Some(document_id.clone())).await?;
             }
             Ok(transaction)
         }
