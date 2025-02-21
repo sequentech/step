@@ -35,39 +35,48 @@ COPY ./e2e/src/mock_server/Cargo.toml ./e2e/src/mock_server/Cargo.toml
 COPY ./step-cli/Cargo.toml ./step-cli/Cargo.toml
 COPY ./wrap-map-err/Cargo.toml ./wrap-map-err/Cargo.toml
 COPY ./braid/scripts/Cargo.toml ./braid/scripts/Cargo.toml
+COPY ./orare/Cargo.toml ./orare/Cargo.toml
+COPY ./orare/doc_renderer/Cargo.toml ./orare/doc_renderer/Cargo.toml
 COPY ./Cargo.toml ./Cargo.toml
 COPY ./Cargo.lock ./Cargo.lock
-RUN mkdir ./harvest/src \
+COPY ./.cargo ./.cargo
+RUN mkdir -p ./harvest/src \
     && echo "// dummy file" > ./harvest/src/lib.rs
-RUN mkdir ./immu-board/src \
+RUN mkdir -p ./immu-board/src \
     && echo "// dummy file" > ./immu-board/src/lib.rs
-RUN mkdir ./immudb-rs/src \
+RUN mkdir -p ./immudb-rs/src \
     && echo "// dummy file" > ./immudb-rs/src/lib.rs
-RUN mkdir ./windmill/src \
+RUN mkdir -p ./windmill/src \
     && echo "// dummy file" > ./windmill/src/lib.rs
-RUN mkdir ./e2e/src \
+RUN mkdir -p ./e2e/src \
     && echo "// dummy file" > ./e2e/src/lib.rs
-RUN mkdir ./e2e/src/mock_server/src \
+RUN mkdir -p ./e2e/src/mock_server/src \
     && echo "// dummy file" > ./e2e/src/mock_server/src/lib.rs
-RUN mkdir ./velvet/src ./velvet/benches \
+RUN mkdir -p ./velvet/src ./velvet/benches \
     && echo "// dummy file" > ./velvet/src/lib.rs \
     && echo "// dummy file" > ./velvet/benches/pdf_generation.rs
-RUN mkdir ./strand/src \
+RUN mkdir -p ./strand/src \
     && echo "// dummy file" > ./strand/src/lib.rs
-RUN mkdir ./strand/benches \
+RUN mkdir -p ./strand/benches \
     && echo "// dummy file" > ./strand/benches/encrypt.rs \
     && echo "// dummy file" > ./strand/benches/shuffle.rs \
     && echo "// dummy file" > ./strand/benches/verify_ballot.rs
-RUN mkdir ./b3/src \
+RUN mkdir -p ./b3/src \
     && echo "// dummy file" > ./b3/src/lib.rs
-RUN mkdir ./electoral-log/src \
+RUN mkdir -p ./electoral-log/src \
     && echo "// dummy file" > ./electoral-log/src/lib.rs
-RUN mkdir ./sequent-core/src \
-    && echo "// dummy file" > ./sequent-core/src/lib.rs
-RUN mkdir ./wrap-map-err/src \
+RUN mkdir -p ./sequent-core/src \
+    mkdir -p ./sequent-core/examples \
+    && echo "// dummy file" > ./sequent-core/src/lib.rs \
+    && echo "// dummy file" > ./sequent-core/examples/render_pdf.rs
+RUN mkdir -p ./wrap-map-err/src \
     && echo "// dummy file" > ./wrap-map-err/src/lib.rs
-RUN mkdir ./braid/src \
+RUN mkdir -p ./braid/src \
     && echo "// dummy file" > ./braid/src/lib.rs
+RUN mkdir -p ./orare/src \
+    && echo "// dummy file" > ./orare/src/lib.rs
+RUN mkdir -p ./orare/doc_renderer/src \
+    && echo "// dummy file" > ./orare/doc_renderer/src/lib.rs
 
 WORKDIR /app/windmill
 RUN cargo fetch --locked

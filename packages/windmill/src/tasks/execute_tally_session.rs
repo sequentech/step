@@ -26,9 +26,9 @@ use crate::services::ceremonies::insert_ballots::{
 };
 use crate::services::ceremonies::keys_ceremony::get_keys_ceremony_board;
 use crate::services::ceremonies::results::populate_results_tables;
-use crate::services::ceremonies::serialize_logs::generate_logs;
-use crate::services::ceremonies::serialize_logs::print_messages;
-use crate::services::ceremonies::serialize_logs::sort_logs;
+use crate::services::ceremonies::serialize_logs::{
+    append_tally_finished, generate_logs, print_messages, sort_logs,
+};
 use crate::services::ceremonies::tally_ceremony::find_last_tally_session_execution;
 use crate::services::ceremonies::tally_ceremony::get_tally_ceremony_status;
 use crate::services::ceremonies::tally_progress::generate_tally_progress;
@@ -955,9 +955,11 @@ async fn map_plaintext_data(
 
     new_status.elections_status = new_tally_progress;
 
-    let mut logs = new_status.logs.clone();
-    logs.append(&mut new_logs);
-    new_status.logs = sort_logs(&logs);
+    {
+        let mut logs = new_status.logs.clone();
+        logs.append(&mut new_logs);
+        new_status.logs = sort_logs(&logs);
+    }
 
     // get ballot styles, from where we'll get the Contest(s)
     let ballot_styles: Vec<BallotStyle> = get_ballot_styles(&tally_session_data)?;
@@ -1212,7 +1214,7 @@ pub async fn execute_tally_session_wrapped(
         plaintexts_data,
         newest_message_id,
         is_execution_completed,
-        new_status,
+        mut new_status,
         session_ids,
         cast_votes_count,
         tally_sheets,
@@ -1276,6 +1278,9 @@ pub async fn execute_tally_session_wrapped(
     let session_ids_i32: Option<Vec<i32>> = session_ids
         .clone()
         .map(|values| values.clone().into_iter().map(|int| int as i32).collect());
+
+    new_status.logs =
+        append_tally_finished(&new_status.logs, &election_ids.clone().unwrap_or(vec![]));
 
     // insert tally_session_execution
     insert_tally_session_execution(
@@ -1401,7 +1406,7 @@ pub async fn transactions_wrapper(
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(time_limit = 1200000, max_retries = 0)]
+#[celery::task(time_limit = 1200000, max_retries = 0, expires = 15)]
 pub async fn execute_tally_session(
     tenant_id: String,
     election_event_id: String,
