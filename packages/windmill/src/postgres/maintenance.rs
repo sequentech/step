@@ -16,22 +16,22 @@ pub async fn vacuum_analyze_direct() -> Result<()> {
         .await
         .get()
         .await
-        .map_err(|error| anyhow!("Error obtaining db connection to hasura db"))?;
+        .map_err(|error| anyhow!("Error obtaining db connection to hasura db: {error:?}"))?;
     let mut keycloak_db_clitn: DbClient = get_keycloak_pool()
         .await
         .get()
         .await
-        .map_err(|error| anyhow!("Error obtaining db connection to keycloak db"))?;
+        .map_err(|error| anyhow!("Error obtaining db connection to keycloak db: {error:?}"))?;
 
     // Execute database maintenance
     hasura_db_client
         .batch_execute("VACUUM ANALYZE")
         .await
-        .map_err(|error| anyhow!("Error running VACUUM ANALYZE on hasura db"))?;
+        .map_err(|error| anyhow!("Error running VACUUM ANALYZE on hasura db: {error:?}"))?;
     keycloak_db_clitn
         .batch_execute("VACUUM ANALYZE")
         .await
-        .map_err(|error| anyhow!("Error running VACUUM ANALYZE on keycloak db"))?;
+        .map_err(|error| anyhow!("Error running VACUUM ANALYZE on keycloak db: {error:?}"))?;
 
     info!("Mainteinance complete.");
     Ok(())
