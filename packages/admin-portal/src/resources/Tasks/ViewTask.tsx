@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {Sequent_Backend_Election_Event} from "@/gql/graphql"
+import {GetTaskByIdQuery, Sequent_Backend_Election_Event} from "@/gql/graphql"
 import React, {useContext, useState} from "react"
 import DownloadIcon from "@mui/icons-material/Download"
 import {useTranslation} from "react-i18next"
@@ -62,7 +62,7 @@ export const ViewTask: React.FC<ViewTaskProps> = ({
 
     const {showTasksBackButton} = useTasksPermissions()
 
-    const {data: taskData} = useQuery(GET_TASK_BY_ID, {
+    const {data: taskData} = useQuery<GetTaskByIdQuery>(GET_TASK_BY_ID, {
         variables: {task_id: currTaskId},
         skip: !currTaskId,
         pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,

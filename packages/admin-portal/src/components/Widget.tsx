@@ -210,7 +210,7 @@ export const Widget: React.FC<WidgetProps> = ({
                         lastTask?.annotations?.document_id ? (
                             <Button
                                 onClick={() => {
-                                    setDownloading(false)
+                                    setDownloading(true)
                                     setExportDocumentId(lastTask?.annotations?.document_id)
                                 }}
                                 disabled={downloading}
@@ -230,10 +230,10 @@ export const Widget: React.FC<WidgetProps> = ({
                     isModal={true}
                 />
             )}
-            {exportDocumentId && (
+            {exportDocumentId && downloading && (
                 <>
                     <DownloadDocument
-                        documentId={exportDocumentId ?? ""}
+                        documentId={(downloading && exportDocumentId) || ""}
                         electionEventId={lastTask?.election_event_id ?? ""}
                         fileName={null}
                         onDownload={() => {
