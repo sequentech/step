@@ -30,12 +30,13 @@ pub async fn import_applications(
     task_execution: TasksExecution,
 ) -> Result<()> {
     let result = provide_hasura_transaction(|hasura_transaction| {
+        let document_copy = document_id.clone();
         Box::pin(async move {
             import_applications_task(
                 hasura_transaction,
                 tenant_id,
                 election_event_id,
-                document_id,
+                document_copy.clone(),
                 sha256,
             )
             .await
@@ -45,7 +46,7 @@ pub async fn import_applications(
 
     match result {
         Ok(_) => {
-            let _res = update_complete(&task_execution).await;
+            let _res = update_complete(&task_execution, Some(document_id.clone())).await;
             Ok(())
         }
         Err(err) => {
