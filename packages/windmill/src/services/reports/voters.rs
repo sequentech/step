@@ -178,7 +178,9 @@ pub async fn get_voters_by_area_id(
     realm: &str,
     area_id: &str,
     attributes: HashMap<String, AttributesFilterOption>,
-) -> Result<(Vec<Voter>, i64)> {
+    limit: Option<i64>,
+    offset: Option<i64>,
+) -> Result<(Vec<Voter>, i64, Option<i64>)> {
     let mut params: Vec<&(dyn ToSql + Sync)> = vec![&realm, &area_id];
     let mut dynamic_attr_conditions: Vec<String> = Vec::new();
 
@@ -186,7 +188,6 @@ pub async fn get_voters_by_area_id(
         let clause = attr_value.get_sql_filter_clause(params.len() + 2);
         params.push(attr_name);
         params.push(&attr_value.value);
-
         dynamic_attr_conditions.push(clause);
     }
 
@@ -196,9 +197,8 @@ pub async fn get_voters_by_area_id(
         "1=1".to_string() // Always true if no dynamic attributes are specified
     };
 
-    let statement = keycloak_transaction
-        .prepare(&format!(
-            r#"
+    let mut sql = format!(
+        r#"
         SELECT
             u.id,
             u.first_name,
@@ -229,9 +229,18 @@ pub async fn get_voters_by_area_id(
                 AND ua.value = $2
             )
             AND ({dynamic_attr_clause})
-        "#,
-        ))
-        .await?;
+        "#
+    );
+
+    // Append pagination clauses if provided.
+    if let Some(lim) = limit {
+        sql.push_str(&format!(" LIMIT {}", lim));
+    }
+    if let Some(off) = offset {
+        sql.push_str(&format!(" OFFSET {}", off));
+    }
+
+    let statement = keycloak_transaction.prepare(&sql).await?;
 
     let rows: Vec<Row> = keycloak_transaction
         .query(&statement, &params.as_slice())
@@ -247,32 +256,44 @@ pub async fn get_voters_by_area_id(
     let users = rows
         .into_iter()
         .map(|row| {
-            let validate_id = row.get("validate_id");
-            let status = match validate_id {
+            let validate_id: Option<String> = row.get("validate_id");
+            let status = match validate_id.as_deref() {
                 Some(VALIDATE_ID_REGISTERED_VOTER) => None,
                 _ => Some(VoterStatus::DidNotPreEnrolled.to_string()),
             };
-            println!("**** row: {:?}", row);
-            let user = Voter {
+            info!("Row: {:?}", row);
+            Voter {
                 id: row.get("id"),
                 middle_name: row.get("middle_name"),
                 first_name: row.get("first_name"),
                 last_name: row.get("last_name"),
                 suffix: row.get("suffix"),
                 username: row.get("username"),
-                status: status,
+                status,
                 date_voted: None,
                 enrollment_date: None,
                 verification_date: None,
                 verified_by: None,
                 disapproval_reason: None,
                 manual_verify_reason: None,
-            };
-            user
+            }
         })
         .collect::<Vec<Voter>>();
 
-    Ok((users, count))
+    // Compute next_offset only if a limit was provided.
+    let current_offset = offset.unwrap_or(0);
+    let next_offset = if let Some(lim) = limit {
+        let new_offset = current_offset + (users.len() as i64);
+        if new_offset < count {
+            Some(new_offset)
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
+    Ok((users, count, next_offset))
 }
 
 /*Fill voters with voting info */
@@ -533,10 +554,16 @@ pub async fn get_voters_data(
             .await?
         }
         None => {
-            let (voters, count) =
-                get_voters_by_area_id(&keycloak_transaction, &realm, &area_id, attributes.clone())
-                    .await?;
-            (voters, count, None)
+            let (voters, count, next_offset) = get_voters_by_area_id(
+                &keycloak_transaction,
+                &realm,
+                &area_id,
+                attributes.clone(),
+                limit,
+                offset,
+            )
+            .await?;
+            (voters, count, next_offset)
         }
     };
 
@@ -687,8 +714,15 @@ pub async fn get_not_enrolled_voters_by_area_id(
         },
     );
 
-    let (voters, _voters_count) =
-        get_voters_by_area_id(&keycloak_transaction, &realm, &area_id, attributes.clone()).await?;
+    let (voters, _voters_count, _next_offset) = get_voters_by_area_id(
+        &keycloak_transaction,
+        &realm,
+        &area_id,
+        attributes.clone(),
+        None,
+        None,
+    )
+    .await?;
 
     Ok(voters)
 }
