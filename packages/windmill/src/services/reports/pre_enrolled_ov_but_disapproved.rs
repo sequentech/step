@@ -206,13 +206,12 @@ impl PreEnrolledDisapprovedTemplate {
                     .map_err(|e| anyhow!("Error rendering system template: {e:?}"))?;
 
             // Render to PDF bytes
-            let pdf_bytes = 
-                    pdf::PdfRenderer::render_pdf(
-                        rendered_system_template,
-                        Some(ext_cfg.pdf_options.to_print_to_pdf_options()),
-                    )
-                .await
-                .with_context(|| format!("Error rendering PDF for batch {}", batch_index))?;
+            let pdf_bytes = pdf::PdfRenderer::render_pdf(
+                rendered_system_template,
+                Some(ext_cfg.pdf_options.to_print_to_pdf_options()),
+            )
+            .await
+            .with_context(|| format!("Error rendering PDF for batch {}", batch_index))?;
 
             let prefix = self.prefix();
             let extension_suffix = "pdf";
@@ -646,7 +645,8 @@ impl TemplateRenderer for PreEnrolledDisapprovedTemplate {
                             )
                         })?;
                     Ok(())
-                }).collect::<Result<Vec<()>, anyhow::Error>>()
+                })
+                .collect::<Result<Vec<()>, anyhow::Error>>()
         });
 
         let zip_filename = format!("{}_final.zip", self.prefix());
