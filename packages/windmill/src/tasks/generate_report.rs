@@ -262,6 +262,10 @@ pub async fn generate_report(
     executer_username: Option<String>,
     tally_session_id: Option<String>,
 ) -> Result<()> {
+    /*let a = 1;
+    if a > 0 {
+        return Ok(());
+    }*/
     // Spawn the task using an async block
     let handle = tokio::task::spawn_blocking({
         move || {

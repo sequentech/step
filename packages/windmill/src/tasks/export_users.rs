@@ -145,7 +145,7 @@ pub async fn export_users(
         media_type,
         size as i64,
         false,
-        Some(document_id),
+        Some(document_id.clone()),
     )
     .await?
     .data
@@ -155,7 +155,7 @@ pub async fn export_users(
     .returning[0];
 
     if let Some(task_execution) = &task_execution {
-        update_complete(&task_execution)
+        update_complete(&task_execution, Some(document_id.to_string()))
             .await
             .context("Failed to update task execution status to COMPLETED")?;
     }

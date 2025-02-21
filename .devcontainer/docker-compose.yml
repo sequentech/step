@@ -52,6 +52,8 @@ services:
 
   postgres:
     profiles: ["full", "base"]
+    # Required by VACUUM ANALYZE to work properly
+    shm_size: 256m
     image: sequentech.local/postgresql
     container_name: postgres
     build:
@@ -230,6 +232,8 @@ services:
 
   postgres-keycloak:
     profiles: ["full", "base"]
+    # Required by VACUUM ANALYZE to work properly
+    shm_size: 256m
     image: sequentech.local/postgresql
     container_name: postgres-keycloak
     restart: unless-stopped
@@ -813,7 +817,7 @@ services:
       "--ignore",
       "rust-local-target/",
       "-x",
-      "run --bin main consume -q beat short_queue tally_queue reports_queue communication_queue import_export_queue electoral_log_batch_queue electoral_log_beat_queue"
+      "run --bin main consume -q beat short_queue tally_queue reports_queue communication_queue import_export_queue electoral_log_batch_queue electoral_log_beat_queue --acks-late --prefetch-count 1"
     ]
     volumes_from:
       - devcontainer
