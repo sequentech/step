@@ -408,14 +408,22 @@ impl PdfRenderer {
 
                     #[cfg(feature = "s3")]
                     {
-                        s3::upload_data_to_s3(
-                            html.clone().into_bytes().into(),
-                            input_filename.clone(),
-                            false,
-                            s3_private_bucket()
-                                .ok_or_else(|| anyhow!("missing bucket"))?,
-                            "text/plain".to_string(),
-                            None,
+                        retry_with_exponential_backoff(
+                            || async {
+                                s3::upload_data_to_s3(
+                                    html.clone().into_bytes().into(),
+                                    input_filename.clone(),
+                                    false,
+                                    s3_private_bucket().ok_or_else(|| {
+                                        anyhow!("missing bucket")
+                                    })?,
+                                    "text/plain".to_string(),
+                                    None,
+                                )
+                                .await
+                            },
+                            3,
+                            Duration::from_millis(100),
                         )
                         .await
                         .map_err(|err| {
@@ -500,10 +508,19 @@ impl PdfRenderer {
                     PdfTransport::AWSLambda { .. } => {
                         let html_sha256 = sha256::digest(&html);
                         let output_filename = format!("output-{html_sha256:?}");
-                        get_file_from_s3(
-                            s3_private_bucket()
-                                .ok_or_else(|| anyhow!("missing bucket"))?,
-                            output_filename,
+
+                        retry_with_exponential_backoff(
+                            || async {
+                                get_file_from_s3(
+                                    s3_private_bucket().ok_or_else(|| {
+                                        anyhow!("missing bucket")
+                                    })?,
+                                    output_filename.clone(),
+                                )
+                                .await
+                            },
+                            3,
+                            Duration::from_millis(100),
                         )
                         .await
                     }
