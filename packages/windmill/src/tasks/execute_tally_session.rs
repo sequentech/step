@@ -1401,7 +1401,7 @@ pub async fn transactions_wrapper(
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(time_limit = 1200000, max_retries = 0)]
+#[celery::task(time_limit = 1200000, max_retries = 0, expires = 15)]
 pub async fn execute_tally_session(
     tenant_id: String,
     election_event_id: String,
