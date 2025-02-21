@@ -565,7 +565,7 @@ pub enum TransmissionStatus {
     NotTransmitted,
 }
 
-#[instrument(skip(hasura_transaction), err)]
+#[instrument(skip(hasura_transaction, election), err)]
 pub async fn get_monitoring_transmission_status(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,

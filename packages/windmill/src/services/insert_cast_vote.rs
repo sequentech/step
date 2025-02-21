@@ -409,7 +409,7 @@ pub fn deserialize_and_check_ballot(
     Ok((pseudonym_h, vote_h))
 }
 
-#[instrument(err)]
+#[instrument(skip(content), err)]
 pub fn deserialize_and_check_multi_ballot(
     content: &str,
     voter_id: &str,
