@@ -373,6 +373,10 @@ pub trait TemplateRenderer: Debug {
     ) -> Result<String> {
         // Prepare user data either preview or real
         let user_data = if generate_mode == GenerateReportMode::PREVIEW {
+            // Increase offset when using batching
+            if let Some(o) = offset {
+                *o += 1;
+            }
             self.prepare_preview_data()
                 .await
                 .map_err(|e| anyhow!("Error preparing preview user data: {e:?}"))?
@@ -608,6 +612,14 @@ pub trait TemplateRenderer: Debug {
             let mut offset = Some(0i64);
             let mut i = 0;
             let mut batch_file_paths: Vec<PathBuf> = vec![];
+
+            // If preview mode only add 1 file to zip
+            let items_count = if generate_mode == GenerateReportMode::PREVIEW {
+                1
+            } else {
+                items_count
+            };
+
             while offset.map_or(false, |current_offset| current_offset < items_count) {
                 info!("while offset:{:?}, items_count:{}", offset, items_count);
                 let rendered_system_template = self
