@@ -101,6 +101,31 @@ export type CheckPrivateKeyOutput = {
   is_valid: Scalars['Boolean']['output'];
 };
 
+export type CountUsersInput = {
+  attributes?: InputMaybe<Scalars['jsonb']['input']>;
+  authorized_to_election_alias?: InputMaybe<Scalars['String']['input']>;
+  election_event_id?: InputMaybe<Scalars['uuid']['input']>;
+  election_id?: InputMaybe<Scalars['uuid']['input']>;
+  email?: InputMaybe<Scalars['jsonb']['input']>;
+  email_verified?: InputMaybe<Scalars['Boolean']['input']>;
+  enabled?: InputMaybe<Scalars['Boolean']['input']>;
+  first_name?: InputMaybe<Scalars['jsonb']['input']>;
+  has_voted?: InputMaybe<Scalars['Boolean']['input']>;
+  last_name?: InputMaybe<Scalars['jsonb']['input']>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  search?: InputMaybe<Scalars['String']['input']>;
+  show_votes_info?: InputMaybe<Scalars['Boolean']['input']>;
+  sort?: InputMaybe<Scalars['jsonb']['input']>;
+  tenant_id: Scalars['uuid']['input'];
+  username?: InputMaybe<Scalars['jsonb']['input']>;
+};
+
+export type CountUsersOutput = {
+  __typename?: 'CountUsersOutput';
+  count: Scalars['Int']['output'];
+};
+
 export type CreateElectionEventInput = {
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
   audit_election_event_id?: InputMaybe<Scalars['String']['input']>;
@@ -4163,6 +4188,7 @@ export enum Order_By {
 
 export type Query_Root = {
   __typename?: 'query_root';
+  count_users: CountUsersOutput;
   /** fetch document */
   fetchDocument?: Maybe<FetchDocumentOutput>;
   /** get election event stats */
@@ -4395,6 +4421,11 @@ export type Query_Root = {
   sequent_backend_trustee_aggregate: Sequent_Backend_Trustee_Aggregate;
   /** fetch data from the table: "sequent_backend.trustee" using primary key columns */
   sequent_backend_trustee_by_pk?: Maybe<Sequent_Backend_Trustee>;
+};
+
+
+export type Query_RootCount_UsersArgs = {
+  body: CountUsersInput;
 };
 
 
