@@ -372,7 +372,6 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
       String alias = election.hasNonNull("alias") ? election.get("alias").asText() : null;
       String key = (alias != null && !alias.isEmpty()) ? alias : id;
 
-      
       keyAreaLog.append(String.format("Key: %s, Id: %s, Alias: %s\t", key, id, alias));
 
       if (electionIds.containsKey(key)) {
