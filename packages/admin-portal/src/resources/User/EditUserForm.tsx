@@ -324,7 +324,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     }, [canEditVotersWhoVoted, voterCastVotes])
 
     const hasVoted = useMemo(() => {
-        return !(voterCastVotes && voterCastVotes?.length > 0)
+        return voterCastVotes && voterCastVotes?.length > 0
     }, [voterCastVotes])
 
     const handleSelectedRolesOnCreate = useCallback(
