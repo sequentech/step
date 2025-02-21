@@ -23,7 +23,7 @@ from pathlib import Path
 from patch import parse_table_sheet, parse_parameters, patch_json_with_excel
 import re
 
-IS_DEBUG = False
+IS_DEBUG = True
 
 def is_valid_regex(pattern):
     try:
@@ -786,6 +786,9 @@ def gen_tree(excel_data, miru_data, script_idr, multiply_factor):
 
     ccs_servers = {}
 
+    # map from region code to precinct id
+    sbei_users_map = {}
+
     # areas, indexed by region code
     areas = {}
     for row in results:
@@ -1254,7 +1257,8 @@ def parse_posts(sheet):
         allowed_keys=[
             "^precinct_id$",
             "^description$",
-            "^permission_label$"
+            "^permission_label$",
+            "^trustees$",
         ]
     )
     return data
