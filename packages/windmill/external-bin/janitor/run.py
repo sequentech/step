@@ -897,7 +897,7 @@ def gen_tree(excel_data, miru_data, results, multiply_factor):
                 "sbei_ids": sbei_ids_str,
                 "country": row["DB_ALLMUN_AREA_NAME"],
                 "registered_voters": registered_voters,
-                "precinct_code": row["DB_PRECINCT_ESTABLISHED_CODE"]
+                "station_name": row["DB_PRECINCT_ESTABLISHED_CODE"]
             }
         }
         if region_code not in areas:

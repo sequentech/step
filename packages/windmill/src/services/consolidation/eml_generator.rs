@@ -36,6 +36,7 @@ const MIRU_CANDIDATE_AFFILIATION_REGISTERED_NAME: &str = "candidate-affiliation-
 const MIRU_CANDIDATE_AFFILIATION_PARTY: &str = "candidate-affiliation-party";
 pub const MIRU_AREA_CCS_SERVERS: &str = "area-ccs-servers";
 pub const MIRU_AREA_STATION_ID: &str = "area-station-id";
+pub const MIRU_AREA_STATION_NAME: &str = "area-station-name";
 pub const MIRU_AREA_THRESHOLD: &str = "area-threshold";
 pub const MIRU_AREA_TRUSTEE_USERS: &str = "area-trustee-users";
 pub const MIRU_AREA_COUNTRY: &str = "area-country";
@@ -447,10 +448,12 @@ impl ValidateAnnotations for core::Election {
 pub struct MiruAreaAnnotations {
     pub ccs_servers: Vec<MiruCcsServer>,
     pub station_id: String,
+    pub station_name: String,
     pub threshold: i64,
     pub sbei_ids: Vec<String>, // the miru id of the sbei user, the election event has their annotations
     pub country: String,
     pub registered_voters: i64, // registered voters at a given precinct id
+    pub precinct_code: String,
 }
 
 impl ValidateAnnotations for core::Area {
@@ -469,6 +472,7 @@ impl ValidateAnnotations for core::Area {
             vec![
                 prepend_miru_annotation(MIRU_AREA_CCS_SERVERS),
                 prepend_miru_annotation(MIRU_AREA_STATION_ID),
+                prepend_miru_annotation(MIRU_AREA_STATION_CODE),
                 prepend_miru_annotation(MIRU_AREA_THRESHOLD),
                 prepend_miru_annotation(MIRU_AREA_TRUSTEE_USERS),
                 prepend_miru_annotation(MIRU_AREA_COUNTRY),
@@ -483,6 +487,14 @@ impl ValidateAnnotations for core::Area {
                 format!(
                     "Missing area annotation: '{}:{}'",
                     MIRU_PLUGIN_PREPEND, MIRU_AREA_STATION_ID
+                )
+            })?;
+
+        let station_name = find_miru_annotation(MIRU_AREA_STATION_NAME, &annotations)
+            .with_context(|| {
+                format!(
+                    "Missing area annotation: '{}:{}'",
+                    MIRU_PLUGIN_PREPEND, MIRU_AREA_STATION_NAME
                 )
             })?;
 
@@ -539,6 +551,7 @@ impl ValidateAnnotations for core::Area {
         Ok(MiruAreaAnnotations {
             ccs_servers,
             station_id,
+            station_name,
             threshold,
             sbei_ids: sbei_usernames,
             country,
@@ -556,6 +569,9 @@ impl ValidateAnnotations for core::Area {
         let annotations: Annotations = deserialize_value(annotations_js).unwrap_or_default();
 
         let station_id = find_miru_annotation_opt(MIRU_AREA_STATION_ID, &annotations)?
+            .unwrap_or("-".to_string());
+
+        let station_name = find_miru_annotation_opt(MIRU_AREA_STATION_NAME, &annotations)?
             .unwrap_or("-".to_string());
 
         let threshold = find_miru_annotation_opt(MIRU_AREA_THRESHOLD, &annotations)?
@@ -585,6 +601,7 @@ impl ValidateAnnotations for core::Area {
         Ok(MiruAreaAnnotations {
             ccs_servers,
             station_id,
+            station_name,
             threshold,
             sbei_ids: sbei_usernames,
             country,

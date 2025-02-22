@@ -73,7 +73,7 @@ pub fn generate_acm_json(
     date_time: DateTime<Utc>,
     election_event_annotations: &MiruElectionEventAnnotations,
     election_annotations: &MiruElectionAnnotations,
-    area_station_id: &str,
+    area_annotations: &MiruAreaAnnotations,
     server_signatures: &Vec<ACMTrustee>,
 ) -> Result<ACMJson> {
     let er_datetime = generate_timestamp(
@@ -84,8 +84,8 @@ pub fn generate_acm_json(
     Ok(ACMJson {
         device_id: get_miru_device_id(),
         serial_number: get_miru_serial_number(),
-        station_id: area_station_id.to_string(),
-        station_name: election_annotations.precinct_code.clone(),
+        station_id: area_annotations.station_id.to_string(),
+        station_name: area_annotations.station_name.clone(),
         event_id: election_event_annotations.event_id.clone(),
         event_name: election_event_annotations.event_name.clone(),
         sha256_hash: sha256_hash.into(),
