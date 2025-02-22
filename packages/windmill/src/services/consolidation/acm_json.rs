@@ -3,8 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::{
     eml_generator::{
-        find_miru_annotation, MiruElectionAnnotations, MiruElectionEventAnnotations,
-        MIRU_ELECTION_EVENT_ID, MIRU_ELECTION_EVENT_NAME, MIRU_PLUGIN_PREPEND,
+        find_miru_annotation, MiruAreaAnnotations, MiruElectionAnnotations,
+        MiruElectionEventAnnotations, MIRU_ELECTION_EVENT_ID, MIRU_ELECTION_EVENT_NAME,
+        MIRU_PLUGIN_PREPEND,
     },
     eml_types::ACMJson,
 };
@@ -73,7 +74,7 @@ pub fn generate_acm_json(
     date_time: DateTime<Utc>,
     election_event_annotations: &MiruElectionEventAnnotations,
     election_annotations: &MiruElectionAnnotations,
-    area_station_id: &str,
+    area_annotations: &MiruAreaAnnotations,
     server_signatures: &Vec<ACMTrustee>,
 ) -> Result<ACMJson> {
     let er_datetime = generate_timestamp(
@@ -84,8 +85,8 @@ pub fn generate_acm_json(
     Ok(ACMJson {
         device_id: get_miru_device_id(),
         serial_number: get_miru_serial_number(),
-        station_id: area_station_id.to_string(),
-        station_name: election_annotations.precinct_code.clone(),
+        station_id: area_annotations.station_id.to_string(),
+        station_name: area_annotations.station_name.clone(),
         event_id: election_event_annotations.event_id.clone(),
         event_name: election_event_annotations.event_name.clone(),
         sha256_hash: sha256_hash.into(),
