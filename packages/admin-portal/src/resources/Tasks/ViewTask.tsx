@@ -26,6 +26,7 @@ import {GET_TASK_BY_ID} from "@/queries/GetTaskById"
 import {CancelButton} from "../Tally/styles"
 import {useTasksPermissions} from "./useTasksPermissions"
 import {DownloadDocument} from "../User/DownloadDocument"
+import {DownloaButton} from "@/components/styles/WidgetStyle"
 
 export const statusColor: (status: string) => string = (status) => {
     if (status === ETaskExecutionStatus.STARTED) {
@@ -172,16 +173,19 @@ export const ViewTask: React.FC<ViewTaskProps> = ({
                         </CancelButton>
                     ) : null}
                     {task?.election_event_id && task?.annotations?.document_id ? (
-                        <Button
+                        <DownloaButton
                             onClick={() => {
                                 setDownloading(true)
                                 setExportDocumentId(task?.annotations?.document_id)
                             }}
-                            disabled={downloading}
+                            disabled={
+                                downloading ||
+                                task?.execution_status !== ETaskExecutionStatus.SUCCESS
+                            }
                             label={t("tasksScreen.widget.downloadDocument")}
                         >
                             <DownloadIcon />
-                        </Button>
+                        </DownloaButton>
                     ) : null}
                 </WizardStyles.StyledFooter>
 
