@@ -22,7 +22,7 @@ use crate::services::electoral_log::{
 use crate::postgres::reports::ReportType;
 use crate::services::reports::report_variables::get_report_hash;
 use crate::services::temp_path::*;
-use crate::services::users::{list_users, ListUsersFilter};
+use crate::services::users::{list_users, list_users_ids, ListUsersFilter};
 use crate::types::resources::{Aggregate, DataList, TotalAggregate};
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
@@ -365,6 +365,52 @@ impl TemplateRenderer for AuditLogsTemplate {
                 None
             }
         };
+
+        // Get all user ids
+        let admins_filter = ListUsersFilter {
+            tenant_id: self.get_tenant_id(),
+            realm: tenant_realm_name.clone(),
+            attributes: perm_lbl_attributes.clone(),
+            // user_ids: Some(election_user_ids.clone()),
+            ..Default::default() // Fill the options that are left to None
+        };
+        let users = list_users_ids(
+            &hasura_transaction,
+            &keycloak_transaction,
+            ListUsersFilter {
+                ..admins_filter.clone()
+            },
+        )
+        .await
+        .with_context(|| "Failed to fetch list_users")?;
+
+        let election_batch_admin_ids: HashSet<String> = users
+            .into_iter()
+            .collect();
+
+        let voters_filter = ListUsersFilter {
+            tenant_id: self.get_tenant_id(),
+            realm: event_realm_name.clone(),
+            election_event_id: Some(String::from(&self.get_election_event_id())),
+            election_id: Some(election_id.clone()),
+            // area_id: None, // To fill below
+            // user_ids: Some(election_user_ids.clone()),
+            ..Default::default() // Fill the options that are left to None
+        };
+        let users = list_users_ids(
+            &hasura_transaction,
+            &keycloak_transaction,
+            ListUsersFilter {
+                ..voters_filter.clone()
+            },
+        )
+        .await
+        .with_context(|| "Failed to fetch list_users")?;
+
+        let election_batch_voters_ids: HashSet<String> = users
+            .into_iter()
+            .collect();
+
         let mut sequences: Vec<AuditLogEntry> = Vec::new();
         let mut logs_visited: i64 = 0;
         while sequences.len() < limit as usize {
@@ -381,56 +427,6 @@ impl TemplateRenderer for AuditLogsTemplate {
             if electoral_logs_batch.items.len() == 0 {
                 break;
             }
-            let mut election_user_ids: Vec<String> = Vec::new();
-            for item in &electoral_logs_batch.items {
-                election_user_ids.push(item.user_id.clone().unwrap_or_default());
-            }
-
-            let admins_filter = ListUsersFilter {
-                tenant_id: self.get_tenant_id(),
-                realm: tenant_realm_name.clone(),
-                attributes: perm_lbl_attributes.clone(),
-                user_ids: Some(election_user_ids.clone()),
-                ..Default::default() // Fill the options that are left to None
-            };
-            let (users, _total_count) = list_users(
-                &hasura_transaction,
-                &keycloak_transaction,
-                ListUsersFilter {
-                    ..admins_filter.clone()
-                },
-            )
-            .await
-            .with_context(|| "Failed to fetch list_users")?;
-
-            let election_batch_admin_ids: HashSet<String> = users
-                .into_iter()
-                .filter_map(|user| user.id) // Extract `id` if Some
-                .collect();
-
-            let voters_filter = ListUsersFilter {
-                tenant_id: self.get_tenant_id(),
-                realm: event_realm_name.clone(),
-                election_event_id: Some(String::from(&self.get_election_event_id())),
-                election_id: Some(election_id.clone()),
-                area_id: None, // To fill below
-                user_ids: Some(election_user_ids.clone()),
-                ..Default::default() // Fill the options that are left to None
-            };
-            let (users, _total_count) = list_users(
-                &hasura_transaction,
-                &keycloak_transaction,
-                ListUsersFilter {
-                    ..voters_filter.clone()
-                },
-            )
-            .await
-            .with_context(|| "Failed to fetch list_users")?;
-
-            let election_batch_voters_ids: HashSet<String> = users
-                .into_iter()
-                .filter_map(|user| user.id) // Extract `id` if Some
-                .collect();
 
             for item in &electoral_logs_batch.items {
                 logs_visited += 1;
