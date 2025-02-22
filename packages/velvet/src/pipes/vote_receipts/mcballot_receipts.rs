@@ -466,7 +466,7 @@ impl Pipe for MCBallotReceipts {
 
                     let result: Result<(), Error> = pool.install(|| {
                         chunks
-                            .into_iter()
+                            .into_par_iter()
                             .enumerate()
                             .try_for_each(|(chunk_index, chunk)| {
                                 let (bytes_pdf, bytes_html) = self.print_vote_receipts(
