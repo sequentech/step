@@ -791,7 +791,7 @@ impl TemplateRenderer for PreEnrolledManualUsersTemplate {
         }
 
         if let Some(task) = task_execution_ref {
-            update_complete(task)
+            update_complete(task, Some(document_id.to_string()))
                 .await
                 .context("Failed to update task execution status to COMPLETED")?;
         }
