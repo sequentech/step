@@ -79,15 +79,19 @@ pub async fn generate_template(
 
     let document_id: String = Uuid::new_v4().to_string();
     let celery_app = get_celery_app().await;
-    let election_id: String = match input.clone() {
-        EGenerateTemplate::BallotImages { election_id, .. } => election_id,
-        EGenerateTemplate::VoteReceipts { election_id, .. } => election_id,
+    let election_event_id: String = match input.clone() {
+        EGenerateTemplate::BallotImages {
+            election_event_id, ..
+        } => election_event_id,
+        EGenerateTemplate::VoteReceipts {
+            election_event_id, ..
+        } => election_event_id,
     };
 
     // Insert the task execution record
     let task_execution = post(
         &claims.hasura_claims.tenant_id,
-        Some(&election_id),
+        Some(&election_event_id),
         ETasksExecution::GENERATE_REPORT,
         &executer_name,
     )

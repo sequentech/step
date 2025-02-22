@@ -68,7 +68,7 @@ export default function DashboardElection() {
     const stats = dataStats?.election?.[0]?.statistics as IElectionStatistics | null
 
     const metrics = {
-        eligibleVotersCount: (dataStats?.users as any)?.total?.aggregate?.count ?? "-",
+        eligibleVotersCount: (dataStats?.users as any)?.count ?? "-",
         votersCount: dataStats?.stats?.total_distinct_voters ?? "-",
         areasCount: dataStats?.stats?.total_areas ?? "-",
         emailsSentCount: stats?.num_emails_sent ?? "-",

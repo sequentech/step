@@ -36,6 +36,6 @@ aws_lambda_events = "0.16"
 lambda_runtime = { version = "0.13", features = ["anyhow"] }
 
 [features]
-default = []
+default = ["openwhisk"]
 aws_lambda = ["orare/aws_lambda", "sequent-core/s3"]
 openwhisk = ["orare/openwhisk"]

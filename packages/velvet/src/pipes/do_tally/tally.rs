@@ -29,7 +29,7 @@ pub struct Tally {
 }
 
 impl Tally {
-    #[instrument(skip(contest), name = "Tally::new")]
+    #[instrument(err, skip(contest), name = "Tally::new")]
     pub fn new(
         contest: &Contest,
         ballots_files: Vec<PathBuf>,
@@ -51,7 +51,7 @@ impl Tally {
         })
     }
 
-    #[instrument(skip_all)]
+    #[instrument(err, skip_all)]
     fn get_tally_type(contest: &Contest) -> Result<TallyType> {
         if let Some(val) = &contest.counting_algorithm {
             if val == "plurality-at-large" {
@@ -64,7 +64,7 @@ impl Tally {
         Err(Box::new(Error::TallyTypeNotFound))
     }
 
-    #[instrument(skip_all)]
+    #[instrument(err, skip_all)]
     fn get_ballots(files: Vec<PathBuf>) -> Result<Vec<DecodedVoteContest>> {
         let mut res = vec![];
 
@@ -81,6 +81,7 @@ impl Tally {
     }
 }
 
+#[instrument(err, skip_all)]
 pub fn process_tally_sheet(tally_sheet: &TallySheet, contest: &Contest) -> Result<ContestResult> {
     let Some(content) = tally_sheet.content.clone() else {
         return Err("missing tally sheet content".into());
@@ -144,7 +145,7 @@ pub fn process_tally_sheet(tally_sheet: &TallySheet, contest: &Contest) -> Resul
     Ok(contest_result.calculate_percentages())
 }
 
-#[instrument(skip_all)]
+#[instrument(err, skip_all)]
 pub fn create_tally(
     contest: &Contest,
     ballots_files: Vec<PathBuf>,

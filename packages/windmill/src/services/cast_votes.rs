@@ -285,7 +285,7 @@ pub async fn get_count_votes_per_day(
     Ok(cast_votes_by_day)
 }
 
-#[instrument(skip(hasura_transaction), err)]
+#[instrument(skip(hasura_transaction, users), err)]
 pub async fn get_users_with_vote_info(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,

@@ -36,6 +36,7 @@ COPY ./wrap-map-err ./wrap-map-err
 COPY ./braid/scripts ./braid/scripts
 COPY ./Cargo.toml ./Cargo.toml
 COPY ./Cargo.lock ./Cargo.lock
+COPY ./.cargo ./.cargo
 
 RUN cp /app/windmill/external-bin/ecies-tool.jar /usr/local/bin/
 
