@@ -446,7 +446,7 @@ impl Pipe for MCBallotReceipts {
                         })?;
 
                     let max_items_per_report =
-                        report_options.max_items_per_report.unwrap_or_else(|| 1_000);
+                        report_options.max_items_per_report.unwrap_or_else(|| 100);
 
                     let path = PipeInputs::mcballots_path(
                         &self
@@ -461,14 +461,19 @@ impl Pipe for MCBallotReceipts {
 
                     let chunks: Vec<&[Bridge]> = match ballots.is_empty() {
                         true => vec![&[] as &[Bridge]],
-                        false => ballots.chunks(max_items_per_report).collect(),
+                        false => {
+                            info!("ballots len = {len}", len = ballots.len());
+                            ballots.chunks(max_items_per_report).collect()
+                        }
                     };
 
                     let result: Result<(), Error> = pool.install(|| {
-                        chunks
-                            .into_par_iter()
-                            .enumerate()
-                            .try_for_each(|(chunk_index, chunk)| {
+                        chunks.into_par_iter().enumerate().try_for_each(
+                            |(chunk_index, chunk)| {
+                                info!(
+                                    "processing batch {chunk_index} len = {len}",
+                                    len = chunk.len()
+                                );
                                 let (bytes_pdf, bytes_html) = self.print_vote_receipts(
                                     chunk,
                                     &area_contests.contests,
@@ -568,7 +573,8 @@ impl Pipe for MCBallotReceipts {
                                     .open(file)?;
                                 file.write_all(&bytes_html)?;
                                 Ok::<(), Error>(())
-                            })?;
+                            },
+                        )?;
 
                         // Write the CSV file of file names and hashes ONLY for `ballot` type
                         if (pipe_data.output_file.clone() == BALLOT_IMAGES_OUTPUT_FILE) {
@@ -684,8 +690,8 @@ impl Bridge {
     }
 }
 
-// We are reusing some functionality from the standard receipts pipe/template, so it helps
-// to convert mcballots to dcv format
+// We are reusing some functionality from the standard receipts pipe/template,
+// so it helps to convert mcballots to dcv format
 fn convert_ballots(
     election_input: &InputElectionConfig,
     mcballots: Vec<DecodedBallotChoices>,
@@ -725,7 +731,6 @@ fn convert_ballots(
                     invalid_errors: vec![],
                     choices: values,
                 };
-
                 ballot_dvcs.push(marked_contest);
             } else {
                 return Err(Error::UnexpectedError(format!(
@@ -733,7 +738,6 @@ fn convert_ballots(
                 )));
             }
         }
-
         ret.push(Bridge::new(dbc, ballot_dvcs));
     }
 
