@@ -475,6 +475,20 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         [user, equalToPassword]
     )
 
+    const handleDateChange =
+        (attrName: string) => async (e: React.ChangeEvent<HTMLInputElement>) => {
+            const {value} = e.target
+            setUser((prev) => {
+                return {
+                    ...prev,
+                    attributes: {
+                        ...(prev?.attributes ?? {}),
+                        [attrName]: [value],
+                    },
+                }
+            })
+        }
+
     const handleSelectChange = (attrName: string) => async (e: string) => {
         setUser((prev) => {
             return {
@@ -690,7 +704,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                     return (
                         <FormStyles.DateInput
                             source={`attributes.${attr.name}`}
-                            onChange={handleAttrChange(attr.name)}
+                            onChange={handleDateChange(attr.name)}
                             label={getTranslationLabel(attr.name, attr.display_name, t)}
                             disabled={
                                 !(
