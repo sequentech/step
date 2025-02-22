@@ -64,6 +64,7 @@ import IconTooltip from "@/components/IconTooltip"
 import {faInfoCircle} from "@fortawesome/free-solid-svg-icons"
 import {useUsersPermissions} from "./useUsersPermissions"
 import debounce from "lodash/debounce"
+import type {ChangeEvent} from "react"
 
 interface ListUserRolesProps {
     userId?: string
@@ -474,6 +475,18 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         }, 300),
         [user, equalToPassword]
     )
+
+    // const handleDateChange =
+    //     (attrName: string) => (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    //         const date = event.target.value
+    //         setUser((prev) => ({
+    //             ...prev,
+    //             attributes: {
+    //                 ...prev?.attributes,
+    //                 [attrName]: date,
+    //             },
+    //         }))
+    //     }
 
     const handleDateChange =
         (attrName: string) => async (e: React.ChangeEvent<HTMLInputElement>) => {
