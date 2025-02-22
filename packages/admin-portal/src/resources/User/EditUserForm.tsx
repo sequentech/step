@@ -599,11 +599,11 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                             <TextField
                                                 {...params} // Spread all params provided by Autocomplete
                                                 label={
-                                                    getTranslationLabel(
+                                                    `${getTranslationLabel(
                                                         attr.name,
                                                         attr.display_name,
                                                         t
-                                                    ) || "Default Label"
+                                                    )} ${isRequired ? "*" : ""}` || "-"
                                                 }
                                                 inputProps={{
                                                     ...params.inputProps,
