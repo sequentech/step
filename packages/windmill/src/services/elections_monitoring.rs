@@ -9,7 +9,7 @@ use sequent_core::types::keycloak::AREA_ID_ATTR_NAME;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::str::FromStr;
-use tracing::instrument;
+use tracing::{info, instrument};
 
 use crate::postgres::application::count_applications;
 use crate::postgres::area::get_areas_by_election_id;
@@ -293,7 +293,7 @@ pub async fn get_election_monitoring(
         let area_authentication_stats = get_monitoring_authentication(
             &keycloak_transaction,
             &realm,
-            total_enrolled_voters.clone(),
+            area_enrolled_voters, // Total VERIFIED voters in this area
             Some(&area.id),
         )
         .await
