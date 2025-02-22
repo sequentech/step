@@ -11,6 +11,7 @@ use crate::postgres::area::get_areas_by_election_id;
 use crate::postgres::election::{get_election_by_id, get_elections};
 use crate::postgres::reports::{Report, ReportType};
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
+use crate::services::celery_app::get_worker_threads;
 use crate::services::election_dates::get_election_dates;
 use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::services::temp_path::PUBLIC_ASSETS_QRCODE_LIB;
@@ -497,12 +498,10 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
         let temp_dir = tempdir()?;
         let reports_folder = temp_dir.path();
 
+        let num_threads = report_options.max_threads.unwrap_or(get_worker_threads());
+        info!("Parallelization configuration: num_threads = {num_threads}");
         let batch_pool = ThreadPoolBuilder::new()
-            .num_threads(
-                report_options
-                    .max_threads
-                    .unwrap_or(crate::services::celery_app::get_worker_threads()),
-            )
+            .num_threads(num_threads)
             .build()
             .with_context(|| "Failed to build thread pool")?;
 

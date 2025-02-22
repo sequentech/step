@@ -526,8 +526,10 @@ impl TemplateRenderer for OverseasVotersReport {
         let reports_folder = temp_dir.path();
 
         // Build a Rayon pool for batch processing.
+        let num_threads = report_options.max_threads.unwrap_or(get_worker_threads());
+        info!("Parallelization configuration: num_threads = {num_threads}");
         let batch_pool = ThreadPoolBuilder::new()
-            .num_threads(report_options.max_threads.unwrap_or(get_worker_threads()))
+            .num_threads(num_threads)
             .build()
             .with_context(|| "Failed to build thread pool")?;
 

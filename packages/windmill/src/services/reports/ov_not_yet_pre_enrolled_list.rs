@@ -247,13 +247,18 @@ impl NotPreEnrolledListTemplate {
     ) -> Result<(UserData, Option<i64>)> {
         let realm = get_event_realm(&self.ids.tenant_id, &self.ids.election_event_id);
 
+        let enrollment_filters = EnrollmentFilters {
+            status: ApplicationStatus::ACCEPTED,
+            verification_type: None,
+        };
+
         let voters_filters = FilterListVoters {
-            enrolled: None,
-            has_voted: Some(false),
+            enrolled: Some(enrollment_filters),
+            has_voted: None,
             voters_sex: None,
             post: None,
             landbased_or_seafarer: None,
-            verified: Some(false),
+            verified: None,
         };
 
         let (voters_data, next_offset) = get_voters_data(
@@ -461,8 +466,10 @@ impl TemplateRenderer for NotPreEnrolledListTemplate {
         let reports_folder = temp_dir.path();
 
         // Build a Rayon pool for batch processing.
+        let num_threads = report_options.max_threads.unwrap_or(get_worker_threads());
+        info!("Parallelization configuration: num_threads = {num_threads}");
         let batch_pool = ThreadPoolBuilder::new()
-            .num_threads(report_options.max_threads.unwrap_or(get_worker_threads()))
+            .num_threads(num_threads)
             .build()
             .with_context(|| "Failed to build thread pool")?;
 
