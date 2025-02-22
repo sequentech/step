@@ -699,34 +699,6 @@ pub async fn count_voters_by_area_id(
     Ok(total_not_pre_enrolled)
 }
 
-#[instrument(err, skip_all)]
-pub async fn get_not_enrolled_voters_by_area_id(
-    keycloak_transaction: &Transaction<'_>,
-    realm: &str,
-    area_id: &str,
-) -> Result<Vec<Voter>> {
-    let mut attributes: HashMap<String, AttributesFilterOption> = HashMap::new();
-    attributes.insert(
-        VALIDATE_ID_ATTR_NAME.to_string(),
-        AttributesFilterOption {
-            value: VALIDATE_ID_REGISTERED_VOTER.to_string(),
-            filter_by: AttributesFilterBy::NotExist,
-        },
-    );
-
-    let (voters, _voters_count, _next_offset) = get_voters_by_area_id(
-        &keycloak_transaction,
-        &realm,
-        &area_id,
-        attributes.clone(),
-        None,
-        None,
-    )
-    .await?;
-
-    Ok(voters)
-}
-
 pub struct VotersBySex {
     pub total_female: i64,
     pub total_male: i64,
