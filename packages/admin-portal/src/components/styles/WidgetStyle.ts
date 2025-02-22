@@ -146,7 +146,6 @@ export const DownloaButton = muiStyled(Button)(({theme}) => ({
     },
 }))
 
-
 export const TransparentTable = styled(Table)({
     "backgroundColor": "transparent",
     "& th, & td": {

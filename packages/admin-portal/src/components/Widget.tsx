@@ -202,14 +202,15 @@ export const Widget: React.FC<WidgetProps> = ({
                                 status={taskDataStatus || status}
                             />
                         </LogsBox>
-                        <Box
-                            sx={{display: "flex", flexDirection: "row-reverse"}}
-                        >
+                        <Box sx={{display: "flex", flexDirection: "row-reverse"}}>
                             {taskId ? (
                                 <>
-                                <ViewTaskTypography className="view-icon" onClick={onSetViewTask}>
-                                    {t("tasksScreen.widget.viewTask")}
-                                </ViewTaskTypography>
+                                    <ViewTaskTypography
+                                        className="view-icon"
+                                        onClick={onSetViewTask}
+                                    >
+                                        {t("tasksScreen.widget.viewTask")}
+                                    </ViewTaskTypography>
                                 </>
                             ) : null}
                             {taskId &&
@@ -220,7 +221,10 @@ export const Widget: React.FC<WidgetProps> = ({
                                         setDownloading(true)
                                         setExportDocumentId(lastTask?.annotations?.document_id)
                                     }}
-                                    disabled={downloading || lastTask?.execution_status !== ETaskExecutionStatus.SUCCESS}
+                                    disabled={
+                                        downloading ||
+                                        lastTask?.execution_status !== ETaskExecutionStatus.SUCCESS
+                                    }
                                     label={t("tasksScreen.widget.downloadDocument")}
                                 >
                                     <DownloadIcon />
