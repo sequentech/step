@@ -73,7 +73,7 @@ async fn update_election_event_sbei_users(
     let mut new_sbei_users: Vec<_> = sbei_users
         .clone()
         .into_iter()
-        .filter(|user| user.username != sbei_user.username && user.miru_id != sbei_user.miru_id)
+        .filter(|user| !(user.username == sbei_user.username && user.miru_id == sbei_user.miru_id))
         .collect();
     let mut new_sbei_user = sbei_user.clone();
     new_sbei_user.certificate_fingerprint = Some(certificate_fingerprint.to_string());
@@ -452,7 +452,7 @@ pub async fn upload_transmission_package_signature_service(
         &eml,
         compressed_xml,
         &area_annotations.ccs_servers,
-        &area_annotations.station_id,
+        &area_annotations,
         &election_event_annotations,
         &election_event.id,
         tenant_id,

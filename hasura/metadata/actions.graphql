@@ -12,6 +12,10 @@ type Mutation {
     check_private_key(object: CheckPrivateKeyInput!): CheckPrivateKeyOutput
 }
 
+type Query {
+    count_users(body: CountUsersInput!): CountUsersOutput!
+}
+
 type Mutation {
     createScheduledEvent(
         tenant_id: String!
@@ -892,6 +896,26 @@ input ImportOptions {
     include_roles: Boolean
 }
 
+input CountUsersInput {
+    tenant_id: uuid!
+    election_event_id: uuid
+    election_id: uuid
+    search: String
+    first_name: jsonb
+    last_name: jsonb
+    email: jsonb
+    username: jsonb
+    limit: Int
+    offset: Int
+    show_votes_info: Boolean
+    attributes: jsonb
+    enabled: Boolean
+    email_verified: Boolean
+    sort: jsonb
+    has_voted: Boolean
+    authorized_to_election_alias: String
+}
+
 type GetManualVerificationOutput {
     document_id: String
     status: String
@@ -1530,4 +1554,8 @@ type GenerateTemplateOutput {
 type ApplicationChangeStatusOutput {
     message: String
     error: String
+}
+
+type CountUsersOutput {
+    count: Int!
 }
