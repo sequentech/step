@@ -166,19 +166,22 @@ export const TallyCeremony: React.FC = () => {
         "tally-miru-servers": false,
     })
 
-    const {data: tallySession} = useGetOne<Sequent_Backend_Tally_Session>(
-        "sequent_backend_tally_session",
-        {
-            id: localTallyId || tallyId,
-        },
-        {
-            refetchInterval: isTallyCompleted ? undefined : globalSettings.QUERY_POLL_INTERVAL_MS,
-            refetchIntervalInBackground: true,
-            refetchOnWindowFocus: false,
-            refetchOnReconnect: false,
-            refetchOnMount: false,
-        }
-    )
+    const {data: tallySession, refetch: refetchTallySession} =
+        useGetOne<Sequent_Backend_Tally_Session>(
+            "sequent_backend_tally_session",
+            {
+                id: localTallyId || tallyId,
+            },
+            {
+                refetchInterval: isTallyCompleted
+                    ? undefined
+                    : globalSettings.QUERY_POLL_INTERVAL_MS,
+                refetchIntervalInBackground: true,
+                refetchOnWindowFocus: false,
+                refetchOnReconnect: false,
+                refetchOnMount: false,
+            }
+        )
 
     const {data: keysCeremonies} = useQuery<ListKeysCeremonyQuery>(LIST_KEYS_CEREMONY, {
         variables: {
@@ -521,6 +524,7 @@ export const TallyCeremony: React.FC = () => {
     }
 
     const confirmCeremonyAction = async () => {
+        setIsButtonDisabled(true)
         try {
             const {data: nextStatus, errors} = await UpdateTallyCeremonyMutation({
                 variables: {
@@ -532,14 +536,18 @@ export const TallyCeremony: React.FC = () => {
 
             if (errors) {
                 notify(t("tally.startTallyError"), {type: "error"})
+                setIsButtonDisabled(false)
                 return
             }
 
             if (nextStatus) {
                 notify(t("tally.startTallySuccess"), {type: "success"})
+                refetchTallySession()
+                setIsButtonDisabled(false)
                 setCreatingFlag(null)
             }
         } catch (error) {
+            setIsButtonDisabled(false)
             notify(t("tally.startTallyError"), {type: "error"})
         }
     }
