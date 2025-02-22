@@ -213,8 +213,10 @@ impl PreEnrolledManualUsersTemplate {
             let extension_suffix = "pdf";
             let file_suffix = format!(".{}", extension_suffix);
 
-            let batch_file_name =
-                format!("{}-_area_{}_{}{}", prefix, area.area_id, batch, file_suffix);
+            let batch_file_name = format!(
+                "{}_area_{:.15}_{}{}",
+                prefix, area.area_name, batch, file_suffix
+            );
             info!(
                 "Batch {} => batch_file_name: {}",
                 batch_index, batch_file_name
@@ -292,6 +294,14 @@ impl PreEnrolledManualUsersTemplate {
 
         Ok((area_final_data, next_offset))
     }
+
+    fn zip_filename(&self) -> String {
+        format!(
+            "pre_enrolled_manual_ov_{}_{}_final.zip",
+            self.ids.election_event_id,
+            self.ids.election_id.clone().unwrap_or_default()
+        )
+    }
 }
 
 #[async_trait]
@@ -329,7 +339,7 @@ impl TemplateRenderer for PreEnrolledManualUsersTemplate {
 
     fn prefix(&self) -> String {
         format!(
-            "pre_enrolled_ov_{}_{}_{}",
+            "pre_enrolled_manual_ov_{}_{}_{}",
             self.ids.tenant_id,
             self.ids.election_event_id,
             self.ids.election_id.clone().unwrap_or_default()
@@ -649,7 +659,7 @@ impl TemplateRenderer for PreEnrolledManualUsersTemplate {
                 .collect::<Result<Vec<()>, anyhow::Error>>()
         });
 
-        let zip_filename = format!("{}_final.zip", self.prefix());
+        let zip_filename = self.zip_filename();
 
         let dst_zip = zip_temp_dir_path.join(&zip_filename);
 
