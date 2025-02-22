@@ -153,7 +153,7 @@ pub async fn create_logs_package(
     election_annotations: &MiruElectionAnnotations,
     acm_key_pair: &EciesKeyPair,
     ccs_public_key_pem_str: &str,
-    area_station_id: &str,
+    area_annotations: &MiruAreaAnnotations,
     output_file_path: &Path,
     server_signatures: &Vec<ACMTrustee>,
     logs: &Vec<Log>,
@@ -193,13 +193,13 @@ pub async fn create_logs_package(
         date_time,
         election_event_annotations,
         election_annotations,
-        area_station_id,
+        area_annotations,
         &logs_servers,
     )?;
     generate_er_final_zip(
         exz_temp_file_bytes,
         acm_json,
-        area_station_id,
+        &area_annotations.station_id,
         output_file_path,
         true,
     )?;
@@ -217,7 +217,7 @@ pub async fn create_transmission_package(
     compressed_xml: Vec<u8>,
     acm_key_pair: &EciesKeyPair,
     ccs_public_key_pem_str: &str,
-    area_station_id: &str,
+    area_annotations: &MiruAreaAnnotations,
     output_file_path: &Path,
     server_signatures: &Vec<ACMTrustee>,
     election_annotations: &MiruElectionAnnotations,
@@ -243,13 +243,13 @@ pub async fn create_transmission_package(
         date_time,
         election_event_annotations,
         election_annotations,
-        area_station_id,
+        area_annotations,
         server_signatures,
     )?;
     generate_er_final_zip(
         exz_temp_file_bytes,
         acm_json,
-        area_station_id,
+        &area_annotations.station_id,
         output_file_path,
         false,
     )?;
