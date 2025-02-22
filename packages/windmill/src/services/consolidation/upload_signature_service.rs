@@ -452,7 +452,7 @@ pub async fn upload_transmission_package_signature_service(
         &eml,
         compressed_xml,
         &area_annotations.ccs_servers,
-        &area_annotations.station_id,
+        &area_annotations,
         &election_event_annotations,
         &election_event.id,
         tenant_id,

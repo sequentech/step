@@ -453,7 +453,6 @@ pub struct MiruAreaAnnotations {
     pub sbei_ids: Vec<String>, // the miru id of the sbei user, the election event has their annotations
     pub country: String,
     pub registered_voters: i64, // registered voters at a given precinct id
-    pub precinct_code: String,
 }
 
 impl ValidateAnnotations for core::Area {
@@ -472,7 +471,7 @@ impl ValidateAnnotations for core::Area {
             vec![
                 prepend_miru_annotation(MIRU_AREA_CCS_SERVERS),
                 prepend_miru_annotation(MIRU_AREA_STATION_ID),
-                prepend_miru_annotation(MIRU_AREA_STATION_CODE),
+                prepend_miru_annotation(MIRU_AREA_STATION_NAME),
                 prepend_miru_annotation(MIRU_AREA_THRESHOLD),
                 prepend_miru_annotation(MIRU_AREA_TRUSTEE_USERS),
                 prepend_miru_annotation(MIRU_AREA_COUNTRY),

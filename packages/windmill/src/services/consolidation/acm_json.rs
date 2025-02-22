@@ -3,8 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::{
     eml_generator::{
-        find_miru_annotation, MiruElectionAnnotations, MiruElectionEventAnnotations,
-        MIRU_ELECTION_EVENT_ID, MIRU_ELECTION_EVENT_NAME, MIRU_PLUGIN_PREPEND,
+        find_miru_annotation, MiruAreaAnnotations, MiruElectionAnnotations,
+        MiruElectionEventAnnotations, MIRU_ELECTION_EVENT_ID, MIRU_ELECTION_EVENT_NAME,
+        MIRU_PLUGIN_PREPEND,
     },
     eml_types::ACMJson,
 };
