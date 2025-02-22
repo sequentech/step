@@ -64,7 +64,7 @@ pub async fn insert_cast_vote(
                 &area_id,
                 &voting_channel,
                 &claims.auth_time,
-                &user_info.ip.clone().map(|ip| ip.to_string()),
+                &user_info.ip.map(|ip| ip.to_string()),
                 &user_info
                     .country_code
                     .clone()

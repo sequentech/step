@@ -821,7 +821,7 @@ pub async fn list_users(
     }
 }
 
-#[instrument(skip(hasura_transaction, keycloak_transaction), err)]
+#[instrument(skip(hasura_transaction, keycloak_transaction, filter), err)]
 pub async fn list_users_with_vote_info(
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
@@ -1252,4 +1252,51 @@ pub async fn get_users_by_username(
         .collect::<Vec<String>>();
 
     Ok(user_ids)
+}
+
+/// Returns the username of the user id or None if it does not exist.
+#[instrument(err, skip(keycloak_transaction))]
+pub async fn get_username_by_id(
+    keycloak_transaction: &Transaction<'_>,
+    realm: &str,
+    user_id: &str,
+) -> Result<Option<String>> {
+    let params: Vec<&(dyn ToSql + Sync)> = vec![&realm, &user_id];
+
+    let statement = keycloak_transaction
+        .prepare(&format!(
+            r#"
+        SELECT
+            u.username
+        FROM
+            user_entity u
+        INNER JOIN
+            realm AS ra ON ra.id = u.realm_id
+        LEFT JOIN LATERAL (
+            SELECT
+                json_object_agg(ua.name, ua.value) AS attributes
+            FROM user_attribute ua
+            WHERE ua.user_id = u.id
+            GROUP BY ua.user_id
+        ) attr_json ON true
+        WHERE
+            ra.name = $1
+            AND u.id = $2
+        "#,
+        ))
+        .await?;
+
+    let rows: Vec<Row> = keycloak_transaction
+        .query(&statement, &params.as_slice())
+        .await
+        .map_err(|err| anyhow!("{err:?}"))?;
+
+    let user_ids = rows
+        .into_iter()
+        .filter_map(|row| row.get("username"))
+        .collect::<Vec<String>>();
+    match user_ids.is_empty() {
+        true => Ok(None),
+        false => Ok(Some(user_ids[0].clone())),
+    }
 }
