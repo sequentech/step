@@ -144,7 +144,7 @@ pub mod sync {
             basic_auth: Option<String>,
         ) -> Result<reqwest::blocking::Response> {
             let client = reqwest::blocking::Client::builder()
-                .pool_max_idle_per_host(0)
+                .pool_idle_timeout(None)
                 .build()?;
             let mut retries = 3;
             let mut delay = Duration::from_millis(100);
