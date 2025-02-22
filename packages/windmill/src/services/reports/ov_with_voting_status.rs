@@ -250,13 +250,8 @@ impl OVWithVotingStatusTemplate {
     ) -> Result<(UserData, Option<i64>)> {
         let realm = get_event_realm(&self.ids.tenant_id, &self.ids.election_event_id);
 
-        let enrollment_filters = EnrollmentFilters {
-            status: ApplicationStatus::REJECTED,
-            verification_type: None,
-        };
-
         let voters_filters = FilterListVoters {
-            enrolled: Some(enrollment_filters),
+            enrolled: None,
             has_voted: None,
             voters_sex: None,
             post: None,
@@ -280,6 +275,16 @@ impl OVWithVotingStatusTemplate {
         .await
         .map_err(|e| anyhow!("Error getting voters data: {}", e))?;
 
+        let not_pre_enrolled = count_voters_by_area_id(
+            &keycloak_transaction,
+            &realm,
+            &area.area_id,
+            None,
+            Some(false),
+        )
+        .await
+        .map_err(|err| anyhow!("Error at count_voters_by_area_id not pre enrolled {err}"))?;
+
         let area_final_data = UserData {
             areas: vec![UserDataArea {
                 election_id: area.election_id.clone(),
@@ -289,11 +294,11 @@ impl OVWithVotingStatusTemplate {
                 post: area.post.clone(),
                 area_name: area.area_name.clone(),
                 voters: voters_data.voters.clone(),
-                voted: voters_data.total_voted,
-                not_voted: voters_data.total_not_voted,
-                not_pre_enrolled: 0,
-                voting_privilege_voted: 0,
-                total: 0,
+                voted: voters_data.total_voted.clone(),
+                not_voted: voters_data.total_not_voted.clone(),
+                not_pre_enrolled: not_pre_enrolled,
+                voting_privilege_voted: 0, //TODO: fix mock data
+                total: voters_data.total_voters.clone(),
             }],
             execution_annotations: user_data.execution_annotations.clone(),
         };
@@ -695,8 +700,7 @@ impl TemplateRenderer for OVWithVotingStatusTemplate {
         }
 
         if let Some(task) = task_execution_ref {
-            update_complete(task)
-                .await
+            block_on(update_complete(task, Some(document_id.to_string())))
                 .context("Failed to update task execution status to COMPLETED")?;
         }
         Ok(())
