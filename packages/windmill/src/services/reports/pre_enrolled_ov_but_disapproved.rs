@@ -218,7 +218,7 @@ impl PreEnrolledDisapprovedTemplate {
             let file_suffix = format!(".{}", extension_suffix);
 
             let batch_file_name = format!(
-                "{}_area_{:.15}_{}{}",
+                "{}_area_{:.20}_{}{}",
                 prefix, area.area_name, batch, file_suffix
             );
             info!(

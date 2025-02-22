@@ -260,7 +260,7 @@ impl OVUsersWhoVotedTemplate {
             let prefix = self.prefix();
             let file_suffix = ".pdf";
             let batch_file_name = format!(
-                "{}_area_{:.15}_{}{}",
+                "{}_area_{:.20}_{}{}",
                 prefix, area.area_name, batch, file_suffix
             );
             info!(
@@ -278,6 +278,178 @@ impl OVUsersWhoVotedTemplate {
             }
         }
         Ok(())
+    }
+}
+
+#[async_trait]
+impl TemplateRenderer for OVUsersWhoVotedTemplate {
+    type UserData = UserData;
+    type SystemData = SystemData;
+
+    fn get_report_type(&self) -> ReportType {
+        ReportType::OV_WHO_VOTED
+    }
+
+    fn get_tenant_id(&self) -> String {
+        self.ids.tenant_id.clone()
+    }
+
+    fn get_election_event_id(&self) -> String {
+        self.ids.election_event_id.clone()
+    }
+
+    fn get_initial_template_alias(&self) -> Option<String> {
+        self.ids.template_alias.clone()
+    }
+
+    fn get_report_origin(&self) -> ReportOriginatedFrom {
+        self.ids.report_origin
+    }
+
+    fn get_election_id(&self) -> Option<String> {
+        self.ids.election_id.clone()
+    }
+
+    fn base_name(&self) -> String {
+        "ov_who_voted".to_string()
+    }
+
+    fn prefix(&self) -> String {
+        format!(
+            "ov_who_voted_{}_{}_{}",
+            self.ids.tenant_id,
+            self.ids.election_event_id,
+            self.ids.election_id.clone().unwrap_or_default()
+        )
+    }
+
+    #[instrument(err, skip_all)]
+    async fn prepare_user_data(
+        &self,
+        hasura_transaction: &Transaction<'_>,
+        keycloak_transaction: &Transaction<'_>,
+    ) -> Result<Self::UserData> {
+        let realm = get_event_realm(&self.ids.tenant_id, &self.ids.election_event_id);
+        let mut common_data = self.prepare_user_data_common().await?;
+
+        let elections: Vec<Election> = match &self.ids.election_id {
+            Some(election_id) => {
+                match get_election_by_id(
+                    &hasura_transaction,
+                    &self.ids.tenant_id,
+                    &self.ids.election_event_id,
+                    &election_id,
+                )
+                .await
+                .with_context(|| "Error getting election by id")?
+                {
+                    Some(election) => vec![election],
+                    None => vec![],
+                }
+            }
+            None => get_elections(
+                &hasura_transaction,
+                &self.ids.tenant_id,
+                &self.ids.election_event_id,
+                Some(false),
+            )
+            .await
+            .map_err(|e| anyhow!("Error in get_elections: {}", e))?,
+        };
+
+        let scheduled_events = find_scheduled_event_by_election_event_id(
+            &hasura_transaction,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
+        )
+        .await
+        .map_err(|e| anyhow!("Error getting scheduled events by election event_id: {}", e))?;
+
+        let mut areas: Vec<UserDataArea> = vec![];
+        for election in elections {
+            let election_general_data = extract_election_data(&election)
+                .await
+                .map_err(|err| anyhow!("Error extracting election annotations: {err}"))?;
+            let election_dates = get_election_dates(&election, scheduled_events.clone())
+                .map_err(|e| anyhow!("Error getting election dates: {e}"))?;
+            let election_id = election.id.clone();
+            let election_areas = get_areas_by_election_id(
+                &hasura_transaction,
+                &self.ids.tenant_id,
+                &self.ids.election_event_id,
+                &election_id,
+            )
+            .await
+            .map_err(|err| anyhow!("Error at get_areas_by_election_id: {err:?}"))?;
+            for area in election_areas.iter() {
+                let voters_filters = FilterListVoters {
+                    enrolled: None,
+                    has_voted: Some(true),
+                    voters_sex: None,
+                    post: None,
+                    landbased_or_seafarer: None,
+                    verified: None,
+                };
+
+                let (voters_data, _next_cursor) = get_voters_data(
+                    hasura_transaction,
+                    keycloak_transaction,
+                    &realm,
+                    &self.ids.tenant_id,
+                    &self.ids.election_event_id,
+                    &election_id,
+                    &area.id,
+                    true,
+                    voters_filters,
+                    None,
+                    None,
+                )
+                .await
+                .map_err(|e| anyhow!("Error getting voters data: {}", e))?;
+
+                let area_name = area.clone().name.unwrap_or("-".to_string());
+                areas.push(UserDataArea {
+                    election_title: election.alias.clone().unwrap_or(election.name.clone()),
+                    election_dates: election_dates.clone(),
+                    post: election_general_data.post.clone(),
+                    area_name,
+                    voters: voters_data.voters.clone(),
+                    voted: voters_data.total_voted.clone(),
+                    not_voted: voters_data.total_not_voted.clone(),
+                    voting_privilege_voted: 0, // TODO: update as needed
+                    total: voters_data.total_voters.clone(),
+                    election_id: election.id.clone(),
+                    area_id: area.id.clone(),
+                })
+            }
+        }
+
+        common_data.areas = areas;
+        Ok(common_data)
+    }
+
+    #[instrument(err, skip_all)]
+    async fn prepare_system_data(
+        &self,
+        rendered_user_template: String,
+    ) -> Result<Self::SystemData> {
+        if pdf::doc_renderer_backend() == pdf::DocRendererBackend::InPlace {
+            let public_asset_path = get_public_assets_path_env_var()?;
+            let minio_endpoint_base =
+                get_minio_url().with_context(|| "Error getting minio endpoint")?;
+            Ok(SystemData {
+                rendered_user_template,
+                file_qrcode_lib: format!(
+                    "{}/{}/{}",
+                    minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_QRCODE_LIB
+                ),
+            })
+        } else {
+            Ok(SystemData {
+                rendered_user_template,
+                file_qrcode_lib: "/assets/qrcode.min.js".to_string(),
+            })
+        }
     }
 
     /// Executes the complete report generation process:
@@ -604,177 +776,5 @@ impl OVUsersWhoVotedTemplate {
                 .context("Failed to update task execution status to COMPLETED")?;
         }
         Ok(())
-    }
-}
-
-#[async_trait]
-impl TemplateRenderer for OVUsersWhoVotedTemplate {
-    type UserData = UserData;
-    type SystemData = SystemData;
-
-    fn get_report_type(&self) -> ReportType {
-        ReportType::OV_WHO_VOTED
-    }
-
-    fn get_tenant_id(&self) -> String {
-        self.ids.tenant_id.clone()
-    }
-
-    fn get_election_event_id(&self) -> String {
-        self.ids.election_event_id.clone()
-    }
-
-    fn get_initial_template_alias(&self) -> Option<String> {
-        self.ids.template_alias.clone()
-    }
-
-    fn get_report_origin(&self) -> ReportOriginatedFrom {
-        self.ids.report_origin
-    }
-
-    fn get_election_id(&self) -> Option<String> {
-        self.ids.election_id.clone()
-    }
-
-    fn base_name(&self) -> String {
-        "ov_who_voted".to_string()
-    }
-
-    fn prefix(&self) -> String {
-        format!(
-            "ov_who_voted_{}_{}_{}",
-            self.ids.tenant_id,
-            self.ids.election_event_id,
-            self.ids.election_id.clone().unwrap_or_default()
-        )
-    }
-
-    #[instrument(err, skip_all)]
-    async fn prepare_user_data(
-        &self,
-        hasura_transaction: &Transaction<'_>,
-        keycloak_transaction: &Transaction<'_>,
-    ) -> Result<Self::UserData> {
-        let realm = get_event_realm(&self.ids.tenant_id, &self.ids.election_event_id);
-        let mut common_data = self.prepare_user_data_common().await?;
-
-        let elections: Vec<Election> = match &self.ids.election_id {
-            Some(election_id) => {
-                match get_election_by_id(
-                    &hasura_transaction,
-                    &self.ids.tenant_id,
-                    &self.ids.election_event_id,
-                    &election_id,
-                )
-                .await
-                .with_context(|| "Error getting election by id")?
-                {
-                    Some(election) => vec![election],
-                    None => vec![],
-                }
-            }
-            None => get_elections(
-                &hasura_transaction,
-                &self.ids.tenant_id,
-                &self.ids.election_event_id,
-                Some(false),
-            )
-            .await
-            .map_err(|e| anyhow!("Error in get_elections: {}", e))?,
-        };
-
-        let scheduled_events = find_scheduled_event_by_election_event_id(
-            &hasura_transaction,
-            &self.ids.tenant_id,
-            &self.ids.election_event_id,
-        )
-        .await
-        .map_err(|e| anyhow!("Error getting scheduled events by election event_id: {}", e))?;
-
-        let mut areas: Vec<UserDataArea> = vec![];
-        for election in elections {
-            let election_general_data = extract_election_data(&election)
-                .await
-                .map_err(|err| anyhow!("Error extracting election annotations: {err}"))?;
-            let election_dates = get_election_dates(&election, scheduled_events.clone())
-                .map_err(|e| anyhow!("Error getting election dates: {e}"))?;
-            let election_id = election.id.clone();
-            let election_areas = get_areas_by_election_id(
-                &hasura_transaction,
-                &self.ids.tenant_id,
-                &self.ids.election_event_id,
-                &election_id,
-            )
-            .await
-            .map_err(|err| anyhow!("Error at get_areas_by_election_id: {err:?}"))?;
-            for area in election_areas.iter() {
-                let voters_filters = FilterListVoters {
-                    enrolled: None,
-                    has_voted: Some(true),
-                    voters_sex: None,
-                    post: None,
-                    landbased_or_seafarer: None,
-                    verified: None,
-                };
-
-                let (voters_data, _next_cursor) = get_voters_data(
-                    hasura_transaction,
-                    keycloak_transaction,
-                    &realm,
-                    &self.ids.tenant_id,
-                    &self.ids.election_event_id,
-                    &election_id,
-                    &area.id,
-                    true,
-                    voters_filters,
-                    None,
-                    None,
-                )
-                .await
-                .map_err(|e| anyhow!("Error getting voters data: {}", e))?;
-
-                let area_name = area.clone().name.unwrap_or("-".to_string());
-                areas.push(UserDataArea {
-                    election_title: election.alias.clone().unwrap_or(election.name.clone()),
-                    election_dates: election_dates.clone(),
-                    post: election_general_data.post.clone(),
-                    area_name,
-                    voters: voters_data.voters.clone(),
-                    voted: voters_data.total_voted.clone(),
-                    not_voted: voters_data.total_not_voted.clone(),
-                    voting_privilege_voted: 0, // TODO: update as needed
-                    total: voters_data.total_voters.clone(),
-                    election_id: election.id.clone(),
-                    area_id: area.id.clone(),
-                })
-            }
-        }
-
-        common_data.areas = areas;
-        Ok(common_data)
-    }
-
-    #[instrument(err, skip_all)]
-    async fn prepare_system_data(
-        &self,
-        rendered_user_template: String,
-    ) -> Result<Self::SystemData> {
-        if pdf::doc_renderer_backend() == pdf::DocRendererBackend::InPlace {
-            let public_asset_path = get_public_assets_path_env_var()?;
-            let minio_endpoint_base =
-                get_minio_url().with_context(|| "Error getting minio endpoint")?;
-            Ok(SystemData {
-                rendered_user_template,
-                file_qrcode_lib: format!(
-                    "{}/{}/{}",
-                    minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_QRCODE_LIB
-                ),
-            })
-        } else {
-            Ok(SystemData {
-                rendered_user_template,
-                file_qrcode_lib: "/assets/qrcode.min.js".to_string(),
-            })
-        }
     }
 }
