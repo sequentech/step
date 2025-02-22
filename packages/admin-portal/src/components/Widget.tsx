@@ -5,6 +5,7 @@ import React, {useContext, useEffect, useState} from "react"
 import {
     Accordion,
     AccordionDetails,
+    Box,
     Divider,
     LinearProgress,
     TableBody,
@@ -25,6 +26,7 @@ import {
     LogsBox,
     CustomAccordionSummary,
     ViewTaskTypography,
+    DownloaButton,
     StatusIconsBox,
 } from "./styles/WidgetStyle"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
@@ -200,25 +202,35 @@ export const Widget: React.FC<WidgetProps> = ({
                                 status={taskDataStatus || status}
                             />
                         </LogsBox>
-                        {taskId ? (
-                            <ViewTaskTypography className="view-icon" onClick={onSetViewTask}>
-                                {t("tasksScreen.widget.viewTask")}
-                            </ViewTaskTypography>
-                        ) : null}
-                        {taskId &&
-                        lastTask?.election_event_id &&
-                        lastTask?.annotations?.document_id ? (
-                            <Button
-                                onClick={() => {
-                                    setDownloading(true)
-                                    setExportDocumentId(lastTask?.annotations?.document_id)
-                                }}
-                                disabled={downloading}
-                                label={t("tasksScreen.widget.downloadDocument")}
-                            >
-                                <DownloadIcon />
-                            </Button>
-                        ) : null}
+                        <Box sx={{display: "flex", flexDirection: "row-reverse"}}>
+                            {taskId ? (
+                                <>
+                                    <ViewTaskTypography
+                                        className="view-icon"
+                                        onClick={onSetViewTask}
+                                    >
+                                        {t("tasksScreen.widget.viewTask")}
+                                    </ViewTaskTypography>
+                                </>
+                            ) : null}
+                            {taskId &&
+                            lastTask?.election_event_id &&
+                            lastTask?.annotations?.document_id ? (
+                                <DownloaButton
+                                    onClick={() => {
+                                        setDownloading(true)
+                                        setExportDocumentId(lastTask?.annotations?.document_id)
+                                    }}
+                                    disabled={
+                                        downloading ||
+                                        lastTask?.execution_status !== ETaskExecutionStatus.SUCCESS
+                                    }
+                                    label={t("tasksScreen.widget.downloadDocument")}
+                                >
+                                    <DownloadIcon />
+                                </DownloaButton>
+                            ) : null}
+                        </Box>
                     </AccordionDetails>
                 </Accordion>
             </WidgetContainer>
