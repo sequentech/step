@@ -332,6 +332,7 @@ def generate_election_event(excel_data, base_context, miru_data, results):
 
 
     trustees_by_region = {}
+    perm_labels_by_region = {}
     for precinct_id in miru_data.keys():
         if precinct_id not in excel_areas_by_precinct_id:
             continue
@@ -344,12 +345,18 @@ def generate_election_event(excel_data, base_context, miru_data, results):
                 election_trustees = excel_election["trustees"].split("|")
                 trustees_by_region[region_code] = election_trustees
 
+                election_permission_label = excel_election["permission_label"]
+                if election_permission_label:
+                    if region_code not in perm_labels_by_region:
+                        perm_labels_by_region[region_code] = set()
+                    perm_labels_by_region[region_code].add(election_permission_label)
+
+
     for precinct_id in miru_data.keys():
         if precinct_id not in excel_areas_by_precinct_id:
             continue
         precinct = miru_data[precinct_id]
         miru_election_id = "1"
-        election_permission_label = next((e["permission_label"] for e in excel_data["elections"] if str(e["precinct_id"]) == str(precinct_id)), None)
 
         if precinct_id not in precinct_to_region:
             raise Exception(f"precinct with 'id' = {precinct_id} not found in precinct_to_region")
@@ -358,6 +365,8 @@ def generate_election_event(excel_data, base_context, miru_data, results):
         if region_code not in trustees_by_region:
             raise Exception(f"trustees not found for region = {region_code} and 'precinct_id' = {precinct_id}")
         election_trustees = trustees_by_region[region_code]
+
+        region_perm_labels = list(perm_labels_by_region.get(region_code, set()))
         
         for user in precinct["USERS"]:
             base_user = {
@@ -372,9 +381,10 @@ def generate_election_event(excel_data, base_context, miru_data, results):
                 sbei_users.append(new_user)
                 is_trustee = get_username == get_trustee_username
                 add_perm_label = "OFOV" if is_trustee else "SBEI"
-                perm_labels_list = (election_permission_label if election_permission_label else "").split()
-                perm_labels_list.append(add_perm_label)
-                perm_labels = "|".join(list(set(perm_labels_list)))
+                user_perm_labels = region_perm_labels.copy()
+                user_perm_labels.append(add_perm_label)
+
+                perm_labels = list(set(user_perm_labels))
 
                 trustee_id = ""
                 if is_trustee and election_trustees:
@@ -669,14 +679,7 @@ def process_sbei_users(sbei_users, csv_data):
     users_map = {}
     for user in sbei_users:
         username = user["username"]
-        if not username in users_map:
-            users_map[username] = {
-               "permission_label": [],
-               "trustee_id": user["trustee_id"]
-            }
-        permission_label = user["permission_label"] 
-        if permission_label:
-            users_map[username]["permission_label"].append(permission_label)
+        users_map[username] = user
     
     for key_username in users_map.keys():
         # deduplicate permission labels
