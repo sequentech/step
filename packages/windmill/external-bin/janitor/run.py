@@ -430,7 +430,7 @@ def get_embassy(embassy):
     without_parentheses = re.sub(r"\(.*?\)", "", embassy)
     words = without_parentheses.split()
 
-    special_words = ["DC", "MAN", "SEE", "SAR", "ROC"]
+    special_words = ["DC", "SAR", "ROC"]
     
     # Capitalize each word, and handle the last word conditionally
     formatted_words = [word.title() if word.upper() not in special_words else word.upper()  for word in words[:-1]]
