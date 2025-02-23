@@ -617,7 +617,8 @@ pub trait TemplateRenderer: Debug {
                 task_execution.clone(),
                 &ext_cfg,
             )
-            .await?
+            .await
+            .map_err(|e| anyhow::anyhow!("Error in generate_single_report: {}", e))?
         };
 
         info!(

@@ -395,8 +395,8 @@ impl TemplateRenderer for PreEnrolledManualUsersTemplate {
         let zip_temp_dir_path = zip_temp_dir.path();
 
         let (final_file_path, file_size, final_report_name, mimetype) = match generate_mode {
-            GenerateReportMode::PREVIEW => {
-                self.generate_single_report(
+            GenerateReportMode::PREVIEW => self
+                .generate_single_report(
                     hasura_transaction,
                     keycloak_transaction,
                     &user_tpl_document,
@@ -404,8 +404,8 @@ impl TemplateRenderer for PreEnrolledManualUsersTemplate {
                     task_execution.clone(),
                     &ext_cfg,
                 )
-                .await?
-            }
+                .await
+                .map_err(|e| anyhow::anyhow!("Error in generate_single_report: {}", e))?,
             GenerateReportMode::REAL => {
                 let elections: Vec<Election> = match &self.ids.election_id {
                     Some(election_id) => {

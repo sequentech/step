@@ -129,7 +129,7 @@ impl OVWithVotingStatusTemplate {
         reports_folder: &Path,
     ) -> Result<()> {
         info!("inside generate_report_area");
-        // Prepare user data either preview or real
+        // Prepare real user data
         let mut batch = 1;
         let mut offset: i64 = 0;
         loop {
@@ -409,8 +409,8 @@ impl TemplateRenderer for OVWithVotingStatusTemplate {
         let zip_temp_dir_path = zip_temp_dir.path();
 
         let (final_file_path, file_size, final_report_name, mimetype) = match generate_mode {
-            GenerateReportMode::PREVIEW => {
-                self.generate_single_report(
+            GenerateReportMode::PREVIEW => self
+                .generate_single_report(
                     hasura_transaction,
                     keycloak_transaction,
                     &user_tpl_document,
@@ -418,8 +418,8 @@ impl TemplateRenderer for OVWithVotingStatusTemplate {
                     task_execution.clone(),
                     &ext_cfg,
                 )
-                .await?
-            }
+                .await
+                .map_err(|e| anyhow::anyhow!("Error in generate_single_report: {}", e))?,
             GenerateReportMode::REAL => {
                 let elections: Vec<Election> = match &self.ids.election_id {
                     Some(election_id) => {
