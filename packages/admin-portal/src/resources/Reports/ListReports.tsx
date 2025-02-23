@@ -110,7 +110,7 @@ const ActionsPopUp: React.FC<ActionsPopUpProps> = ({actions, report, canWriteRep
         const isShowAction = (action: Action) => {
             return (
                 !action.key ||
-                !reportConfig.actions.includes(action.key as ReportActions) ||
+                !reportConfig?.actions.includes(action.key as ReportActions) ||
                 ((action.key === ReportActions.EDIT || action.key === ReportActions.DELETE) &&
                     !canWriteReport)
             )
@@ -249,7 +249,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
     const {data: elections} = useGetList<Sequent_Backend_Election>(
         "sequent_backend_election",
         {
-            pagination: {page: 1, perPage: 100},
+            pagination: {page: 1, perPage: 200},
             sort: {field: "created_at", order: "DESC"},
             filter: {
                 tenant_id: tenantId,

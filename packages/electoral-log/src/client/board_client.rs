@@ -4,6 +4,7 @@
 
 use anyhow::{anyhow, Context, Result};
 use log::info;
+use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
 
 use crate::assign_value;
@@ -21,7 +22,7 @@ pub struct BoardClient {
     client: Client,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ElectoralLogMessage {
     pub id: i64,
     pub created: i64,

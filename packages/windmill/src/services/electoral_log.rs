@@ -2,14 +2,17 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::services::celery_app::get_celery_app;
 use crate::services::database::PgConfig;
 use crate::services::insert_cast_vote::hash_voter_id;
 use crate::services::protocol_manager::get_event_board;
 use crate::services::protocol_manager::get_protocol_manager;
 use crate::services::protocol_manager::{create_named_param, get_board_client, get_immudb_client};
 use crate::services::vault;
+use crate::tasks::electoral_log::{
+    enqueue_electoral_log_event, LogEventInput, INTERNAL_MESSAGE_TYPE,
+};
 use crate::types::resources::{Aggregate, DataList, OrderDirection, TotalAggregate};
-
 use anyhow::{anyhow, Context, Result};
 use b3::messages::message::{self, Signer as _};
 use base64::engine::general_purpose;
@@ -142,23 +145,24 @@ impl ElectoralLog {
             Some(user_id.to_string()),
             None, /* username */
         )?;
-
-        let elog = ElectoralLog {
-            sd,
-            elog_database: elog_database.to_string(),
+        let board_message: ElectoralLogMessage = (&message).try_into().with_context(|| {
+            "Error converting Message::cast_vote_message into ElectoralLogMessage"
+        })?;
+        let input = LogEventInput {
+            election_event_id: event_id.to_string(),
+            message_type: INTERNAL_MESSAGE_TYPE.into(),
+            user_id: Some(user_id.to_string()),
+            username: None,
+            tenant_id: tenant_id.to_string(),
+            body: serde_json::to_string(&board_message)
+                .with_context(|| "Error serializing ElectoralLogMessage")?,
         };
 
-        let ret = elog.post(&message).await;
-
-        if ret.is_err() {
-            tracing::error!(
-                "Unable to post public key for voter {:?}, {:?}",
-                message,
-                ret
-            );
-        }
-
-        ret
+        let celery_app = get_celery_app().await;
+        celery_app
+            .send_task(enqueue_electoral_log_event::new(input))
+            .await?;
+        Ok(())
     }
 
     /// Posts an admin user's public key
@@ -211,6 +215,7 @@ impl ElectoralLog {
     #[instrument(skip(self, pseudonym_h, vote_h))]
     pub async fn post_cast_vote(
         &self,
+        tenant_id: String,
         event_id: String,
         election_id: Option<String>,
         pseudonym_h: PseudonymHash,
@@ -220,7 +225,7 @@ impl ElectoralLog {
         voter_id: String,
         voter_username: Option<String>,
     ) -> Result<()> {
-        let event = EventIdString(event_id);
+        let event = EventIdString(event_id.clone());
         let election = ElectionIdString(election_id);
         let ip = VoterIpString(voter_ip);
         let country = VoterCountryString(voter_country);
@@ -233,16 +238,32 @@ impl ElectoralLog {
             &self.sd,
             ip,
             country,
-            Some(voter_id),
-            voter_username,
+            Some(voter_id.clone()),
+            voter_username.clone(),
         )?;
-
-        self.post(&message).await
+        let board_message: ElectoralLogMessage = (&message).try_into().with_context(|| {
+            "Error converting Message::cast_vote_message into ElectoralLogMessage"
+        })?;
+        let input = LogEventInput {
+            election_event_id: event_id,
+            message_type: INTERNAL_MESSAGE_TYPE.into(),
+            user_id: Some(voter_id),
+            username: voter_username,
+            tenant_id,
+            body: serde_json::to_string(&board_message)
+                .with_context(|| "Error serializing ElectoralLogMessage")?,
+        };
+        let celery_app = get_celery_app().await;
+        celery_app
+            .send_task(enqueue_electoral_log_event::new(input))
+            .await?;
+        Ok(())
     }
 
     #[instrument(skip(self, pseudonym_h))]
     pub async fn post_cast_vote_error(
         &self,
+        tenant_id: String,
         event_id: String,
         election_id: Option<String>,
         pseudonym_h: PseudonymHash,
@@ -250,8 +271,9 @@ impl ElectoralLog {
         voter_ip: String,
         voter_country: String,
         voter_id: String,
+        voter_username: Option<String>,
     ) -> Result<()> {
-        let event = EventIdString(event_id);
+        let event = EventIdString(event_id.clone());
         let election = ElectionIdString(election_id);
         let error = CastVoteErrorString(error);
         let ip = VoterIpString(voter_ip);
@@ -265,10 +287,25 @@ impl ElectoralLog {
             &self.sd,
             ip,
             country,
-            Some(voter_id),
+            Some(voter_id.clone()),
         )?;
-
-        self.post(&message).await
+        let board_message: ElectoralLogMessage = (&message).try_into().with_context(|| {
+            "Error converting Message::cast_vote_error_message into ElectoralLogMessage"
+        })?;
+        let input = LogEventInput {
+            election_event_id: event_id,
+            message_type: INTERNAL_MESSAGE_TYPE.into(),
+            user_id: Some(voter_id),
+            username: voter_username.clone(),
+            tenant_id,
+            body: serde_json::to_string(&board_message)
+                .with_context(|| "Error serializing post cast vote")?,
+        };
+        let celery_app = get_celery_app().await;
+        celery_app
+            .send_task(enqueue_electoral_log_event::new(input))
+            .await?;
+        Ok(())
     }
 
     #[instrument(skip(self))]
@@ -843,7 +880,7 @@ pub const IMMUDB_ROWS_LIMIT: usize = 2500;
 
 #[instrument(err)]
 pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<ElectoralLogRow>> {
-    let mut client = get_immudb_client().await?;
+    let mut client: Client = get_immudb_client().await?;
     let board_name = get_event_board(input.tenant_id.as_str(), input.election_event_id.as_str());
 
     event!(Level::INFO, "database name = {board_name}");
@@ -867,6 +904,7 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
         {clauses}
         "#,
     );
+    info!("query: {sql}");
     let sql_query_response = client.sql_query(&sql, params).await?;
     let items = sql_query_response
         .get_ref()
@@ -903,4 +941,38 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
             aggregate: aggregate,
         },
     })
+}
+
+#[instrument(err)]
+pub async fn count_electoral_log(input: GetElectoralLogBody) -> Result<i64> {
+    let mut client = get_immudb_client().await?;
+    let board_name = get_event_board(input.tenant_id.as_str(), input.election_event_id.as_str());
+
+    info!("board name: {board_name}");
+    client.open_session(&board_name).await?;
+
+    let (clauses_to_count, count_params) = input.as_sql(true)?;
+    let sql = format!(
+        r#"
+        SELECT COUNT(*)
+        FROM electoral_log_messages
+        {clauses_to_count}
+        "#,
+    );
+
+    info!("query: {sql}");
+
+    let sql_query_response = client.sql_query(&sql, count_params).await?;
+
+    let mut rows_iter = sql_query_response
+        .get_ref()
+        .rows
+        .iter()
+        .map(Aggregate::try_from);
+    let aggregate = rows_iter
+        .next()
+        .ok_or_else(|| anyhow!("No aggregate found"))??;
+
+    client.close_session().await?;
+    Ok(aggregate.count as i64)
 }

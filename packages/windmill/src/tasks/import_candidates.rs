@@ -439,7 +439,7 @@ pub async fn import_candidates_task(
         }
     };
 
-    update_complete(&task_execution)
+    update_complete(&task_execution, Some(document_id.clone()))
         .await
         .context("Failed to update task execution status to COMPLETED")?;
 

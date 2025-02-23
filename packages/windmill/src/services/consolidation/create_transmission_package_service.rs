@@ -4,7 +4,7 @@
 use super::acm_json::get_acm_key_pair;
 use super::acm_transaction::generate_transaction_id;
 use super::eml_generator::{
-    find_miru_annotation, prepend_miru_annotation, MiruElectionAnnotations,
+    find_miru_annotation, prepend_miru_annotation, MiruAreaAnnotations, MiruElectionAnnotations,
     MiruElectionEventAnnotations, ValidateAnnotations, MIRU_AREA_CCS_SERVERS, MIRU_AREA_STATION_ID,
     MIRU_AREA_THRESHOLD, MIRU_PLUGIN_PREPEND, MIRU_TALLY_SESSION_DATA,
 };
@@ -153,7 +153,7 @@ pub async fn generate_all_servers_document(
     eml: &str,
     compressed_xml_bytes: Vec<u8>,
     ccs_servers: &Vec<MiruCcsServer>,
-    area_station_id: &str,
+    area_annotations: &MiruAreaAnnotations,
     election_event_annotations: &MiruElectionEventAnnotations,
     election_event_id: &str,
     tenant_id: &str,
@@ -171,7 +171,7 @@ pub async fn generate_all_servers_document(
         let server_path = temp_dir_path.join(&ccs_server.tag);
         std::fs::create_dir(server_path.clone())
             .with_context(|| format!("Error generating directory {:?}", server_path.clone()))?;
-        let zip_file_path = server_path.join(format!("er_{}.zip", area_station_id));
+        let zip_file_path = server_path.join(format!("er_{}.zip", area_annotations.station_id));
         create_transmission_package(
             eml_hash,
             eml,
@@ -181,7 +181,7 @@ pub async fn generate_all_servers_document(
             compressed_xml_bytes.clone(),
             &acm_key_pair,
             &ccs_server.public_key_pem,
-            area_station_id,
+            area_annotations,
             &zip_file_path,
             &server_signatures,
             &election_annotations,
@@ -189,7 +189,7 @@ pub async fn generate_all_servers_document(
         .await?;
         let with_logs = ccs_server.send_logs.clone().unwrap_or_default();
         if with_logs {
-            let zip_file_path = server_path.join(format!("al_{}.zip", area_station_id));
+            let zip_file_path = server_path.join(format!("al_{}.zip", area_annotations.station_id));
             create_logs_package(
                 time_zone.clone(),
                 now_utc.clone(),
@@ -197,7 +197,7 @@ pub async fn generate_all_servers_document(
                 &election_annotations,
                 &acm_key_pair,
                 &ccs_server.public_key_pem,
-                area_station_id,
+                area_annotations,
                 &zip_file_path,
                 &server_signatures,
                 logs,
@@ -298,11 +298,11 @@ pub async fn create_transmission_package_service(
         .ok_or_else(|| anyhow!("Can't find area {}", area_id))?;
     let area_annotations = area.get_annotations()?;
 
-    let area_station_id = area_annotations.station_id;
+    let area_station_id = area_annotations.station_id.clone();
 
-    let threshold = area_annotations.threshold;
+    let threshold = area_annotations.threshold.clone();
 
-    let ccs_servers = area_annotations.ccs_servers;
+    let ccs_servers = area_annotations.ccs_servers.clone();
 
     let tar_gz_file = download_tally_tar_gz_to_file(
         &hasura_transaction,
@@ -354,6 +354,7 @@ pub async fn create_transmission_package_service(
         now_utc.clone(),
         &election_event_annotations,
         &election_annotations,
+        &area_annotations,
         &reports,
     )
     .await?;
@@ -412,7 +413,7 @@ pub async fn create_transmission_package_service(
         &eml,
         base_compressed_xml.clone(),
         &ccs_servers,
-        &area_station_id,
+        &area_annotations,
         &election_event_annotations,
         &election_event.id,
         tenant_id,

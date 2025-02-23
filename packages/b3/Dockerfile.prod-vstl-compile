@@ -23,8 +23,8 @@ COPY ./wrap-map-err ./wrap-map-err
 COPY ./braid/scripts ./braid/scripts
 COPY ./Cargo.toml ./Cargo.toml
 COPY ./Cargo.lock ./Cargo.lock
+COPY ./.cargo ./.cargo
 
 WORKDIR /app/b3
 #RUN cargo vendor
 RUN cargo build --features=server --release --locked --frozen --offline
-

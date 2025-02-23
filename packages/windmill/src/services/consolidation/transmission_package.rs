@@ -4,7 +4,9 @@
 use super::{
     acm_json::generate_acm_json,
     aes_256_cbc_encrypt::encrypt_file_aes_256_cbc,
-    eml_generator::{render_eml_file, MiruElectionAnnotations, MiruElectionEventAnnotations},
+    eml_generator::{
+        render_eml_file, MiruAreaAnnotations, MiruElectionAnnotations, MiruElectionEventAnnotations,
+    },
     eml_types::ACMJson,
     xz_compress::xz_compress,
     zip::compress_folder_to_zip,
@@ -58,6 +60,7 @@ pub async fn generate_base_compressed_xml(
     date_time: DateTime<Utc>,
     election_event_annotations: &MiruElectionEventAnnotations,
     election_annotations: &MiruElectionAnnotations,
+    area_annotations: &MiruAreaAnnotations,
     reports: &Vec<ReportData>,
 ) -> Result<(Vec<u8>, String, String)> {
     let eml_data = render_eml_file(
@@ -67,6 +70,7 @@ pub async fn generate_base_compressed_xml(
         date_time,
         &election_event_annotations,
         &election_annotations,
+        area_annotations,
         &reports,
     )?;
     let mut variables_map: Map<String, Value> = Map::new();
@@ -149,7 +153,7 @@ pub async fn create_logs_package(
     election_annotations: &MiruElectionAnnotations,
     acm_key_pair: &EciesKeyPair,
     ccs_public_key_pem_str: &str,
-    area_station_id: &str,
+    area_annotations: &MiruAreaAnnotations,
     output_file_path: &Path,
     server_signatures: &Vec<ACMTrustee>,
     logs: &Vec<Log>,
@@ -189,13 +193,13 @@ pub async fn create_logs_package(
         date_time,
         election_event_annotations,
         election_annotations,
-        area_station_id,
+        area_annotations,
         &logs_servers,
     )?;
     generate_er_final_zip(
         exz_temp_file_bytes,
         acm_json,
-        area_station_id,
+        &area_annotations.station_id,
         output_file_path,
         true,
     )?;
@@ -213,7 +217,7 @@ pub async fn create_transmission_package(
     compressed_xml: Vec<u8>,
     acm_key_pair: &EciesKeyPair,
     ccs_public_key_pem_str: &str,
-    area_station_id: &str,
+    area_annotations: &MiruAreaAnnotations,
     output_file_path: &Path,
     server_signatures: &Vec<ACMTrustee>,
     election_annotations: &MiruElectionAnnotations,
@@ -239,13 +243,13 @@ pub async fn create_transmission_package(
         date_time,
         election_event_annotations,
         election_annotations,
-        area_station_id,
+        area_annotations,
         server_signatures,
     )?;
     generate_er_final_zip(
         exz_temp_file_bytes,
         acm_json,
-        area_station_id,
+        &area_annotations.station_id,
         output_file_path,
         false,
     )?;
