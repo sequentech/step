@@ -104,6 +104,7 @@ pub async fn export_users(
         media_type.clone(),
         temp_path.to_string_lossy().to_string(),
         None,
+        Some(name.clone()),
     )
     .await
     {

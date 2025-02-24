@@ -215,6 +215,7 @@ pub mod sync {
                                     s3_private_bucket().ok_or_else(|| anyhow!("missing bucket"))?,
                                     "text/plain".to_string(),
                                     None,
+                                    None,
                                 )
                                 .await
                                 .map_err(|err| {
@@ -418,6 +419,7 @@ impl PdfRenderer {
                                         anyhow!("missing bucket")
                                     })?,
                                     "text/plain".to_string(),
+                                    None,
                                     None,
                                 )
                                 .await
