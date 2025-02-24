@@ -99,7 +99,7 @@ public class ECIESEncryptionTool {
                     System.exit(1);
                     return;
                 }
-                signBulk(args[1], args[2]);
+                signBulk(args[1], args[2], true);
                 break;
 
             case "verify":
@@ -253,10 +253,7 @@ public class ECIESEncryptionTool {
         return Base64.getEncoder().encodeToString(signatureBytes);
     }
 
-    private static void signBulk(String privateKeyFile, String folderPath) throws Exception {
-        // Assume ECDSA by default (same as the "sign" command).
-        // If needed, you can introduce logic to detect RSA vs. ECDSA.
-        boolean isECDSA = true;
+    private static void signBulk(String privateKeyFile, String folderPath, Boolean isECDSA) throws Exception {
         String algorithm = isECDSA ? "SHA256withECDSA" : "SHA256withRSA";
     
         // Load the private key from PEM
