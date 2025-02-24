@@ -377,10 +377,11 @@ pub async fn handle_election_vacuum_analyze(
             database_maintenance::new(
                 tenant_id.clone(),
                 election_event_id.clone(),
-                scheduled_event.id.clone(),)
-                .with_eta(datetime.with_timezone(&Utc))
-                // Expires in an hour
-                .with_expires_in(3600),
+                scheduled_event.id.clone(),
+            )
+            .with_eta(datetime.with_timezone(&Utc))
+            // Expires in an hour
+            .with_expires_in(3600),
         )
         .await
         .map_err(|e| anyhow!("Error sending task to celery {}", e))?;

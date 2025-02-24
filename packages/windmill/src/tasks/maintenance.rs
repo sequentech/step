@@ -3,16 +3,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::maintenance::vacuum_analyze_direct;
-use crate::types::error::Result;
-use celery::error::TaskError;
-use tracing::instrument;
-use tracing::info;
 use crate::postgres::scheduled_event::*;
 use crate::services::pg_lock::PgLock;
 use crate::services::providers::transactions_provider::provide_hasura_transaction;
+use crate::types::error::Result;
 use anyhow::{anyhow, Context, Result as AnyhowResult};
+use celery::error::TaskError;
 use chrono::Duration;
 use deadpool_postgres::Transaction;
+use tracing::info;
+use tracing::instrument;
 
 use sequent_core::services::date::ISO8601;
 use uuid::Uuid;
