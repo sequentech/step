@@ -11,7 +11,7 @@ use b3::messages::newtypes::PublicKeyHash;
 use b3::messages::newtypes::{TrusteeSet, MAX_TRUSTEES, NULL_TRUSTEE};
 use b3::messages::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
 use b3::messages::statement::StatementType;
-
+use deadpool_postgres::Transaction;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::context::Ctx;
 use strand::elgamal::Ciphertext;
@@ -35,18 +35,14 @@ pub fn get_protocol_manager_secret_path(board_name: &str) -> String {
     format!("boards/{board_name}/protocol-manager")
 }
 
-#[instrument(err)]
-pub async fn create_protocol_manager_keys(board_name: &str) -> Result<()> {
+pub async fn create_protocol_manager_keys( hasura_transaction: &Transaction<'_>,tenant_id: &str, election_event_id: &str, board_name: &str) -> Result<()> {
     // create protocol manager keys
     let protocol_manager = gen_protocol_manager::<RistrettoCtx>();
-
+    info!("Protocol Manager keys generated YO YO YO {},{},{}", tenant_id, election_event_id, board_name);
     // save protocol manager keys in vault
     let protocol_config = serialize_protocol_manager::<RistrettoCtx>(&protocol_manager);
-    vault::save_secret(
-        get_protocol_manager_secret_path(board_name),
-        protocol_config,
-    )
-    .await?;
+    let protocol_key = get_protocol_manager_secret_path(board_name);
+    vault::save_secret(hasura_transaction, tenant_id, Some(election_event_id), &protocol_key, &protocol_config).await?;
     Ok(())
 }
 

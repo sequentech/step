@@ -459,7 +459,7 @@ pub async fn create_tally_ceremony(
         .with_context(|| "missing bulletin board")?;
 
     // let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
-    let electoral_log = ElectoralLog::for_admin_user(&board_name, &tenant_id, user_id).await?;
+    let electoral_log = ElectoralLog::for_admin_user(transaction, &board_name, &tenant_id, user_id).await?;
     electoral_log
         .post_key_insertion_start(
             election_event_id.clone(),
@@ -752,7 +752,7 @@ pub async fn set_private_key(
     let username = &claims.preferred_username;
 
     // let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
-    let electoral_log = ElectoralLog::for_admin_user(&board_name, &tenant_id, user_id).await?;
+    let electoral_log = ElectoralLog::for_admin_user(transaction, &board_name, &tenant_id, user_id).await?;
     electoral_log
         .post_key_insertion(
             election_event_id.to_string(),

@@ -39,6 +39,7 @@ use strand::signature::StrandSignatureSk;
 use strum_macros::{Display, EnumString, ToString};
 use tempfile::NamedTempFile;
 use tracing::{event, info, instrument, Level};
+use deadpool_postgres::Transaction;
 pub struct ElectoralLog {
     pub(crate) sd: SigningData,
     pub(crate) elog_database: String,
@@ -107,6 +108,7 @@ impl ElectoralLog {
     /// a signing key.
     #[instrument(err)]
     pub async fn for_admin_user(
+        hasura_transaction: &Transaction<'_>,
         elog_database: &str,
         tenant_id: &str,
         user_id: &str,
@@ -114,7 +116,7 @@ impl ElectoralLog {
         let protocol_manager = get_protocol_manager::<RistrettoCtx>(elog_database).await?;
         let system_sk = protocol_manager.get_signing_key().clone();
 
-        let sk = vault::get_admin_user_signing_key(elog_database, tenant_id, user_id).await?;
+        let sk = vault::get_admin_user_signing_key(hasura_transaction, elog_database, tenant_id, user_id).await?;
 
         Ok(ElectoralLog {
             sd: SigningData::new(sk, "", system_sk),

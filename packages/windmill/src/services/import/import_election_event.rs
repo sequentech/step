@@ -104,6 +104,7 @@ pub struct ImportElectionEventSchema {
 
 #[instrument(err)]
 pub async fn upsert_b3_and_elog(
+    hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
     election_ids: &Vec<String>,
@@ -130,7 +131,7 @@ pub async fn upsert_b3_and_elog(
             "creating protocol manager keys for Election event {}",
             election_event_id
         );
-        create_protocol_manager_keys(&board_name).await?;
+        create_protocol_manager_keys(hasura_transaction, &tenant_id, &election_event_id, &board_name).await?;
     }
 
     // board was created, checking it is now present
@@ -159,7 +160,7 @@ pub async fn upsert_b3_and_elog(
                 "creating protocol manager keys for election {}",
                 election_id
             );
-            create_protocol_manager_keys(&board_name).await?;
+            create_protocol_manager_keys(hasura_transaction, tenant_id, election_event_id, &board_name).await?;
         }
         // board was created, checking it is now present
         board_client
@@ -393,14 +394,14 @@ pub async fn process_election_event_file(
     .await
     .with_context(|| format!("Error getting document for election event ID {election_event_id} and tenant ID {tenant_id}"))?;
 
-    let election_ids = data
+    let election_ids: Vec<String> = data
         .elections
         .clone()
         .into_iter()
         .map(|election| election.id.clone())
         .collect();
     // Upsert immutable board
-    let board = upsert_b3_and_elog(tenant_id.as_str(), &election_event_id, &election_ids, is_importing_keys)
+    let board = upsert_b3_and_elog(hasura_transaction, tenant_id.as_str(), &election_event_id, &election_ids, is_importing_keys)
         .await
         .with_context(|| format!("Error upserting b3 board for tenant ID {tenant_id} and election event ID {election_event_id}"))?;
 
@@ -647,6 +648,7 @@ pub async fn process_reports_file(
         {
             let cloned_report = report.clone();
             get_report_key_pair(
+                hasura_transaction,
                 cloned_report.tenant_id,
                 cloned_report.election_event_id,
                 Some(cloned_report.id),

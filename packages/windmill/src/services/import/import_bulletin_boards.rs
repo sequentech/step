@@ -160,7 +160,7 @@ pub async fn import_protocol_manager_keys(
     if let Some(value) = keys_map.get(&None).cloned() {
         let board_name = get_event_board(tenant_id, election_event_id);
         let protocol_manager_key = get_protocol_manager_secret_path(&board_name);
-        vault::save_secret(protocol_manager_key, value)
+        vault::save_secret(hasura_transaction, tenant_id, Some(election_event_id), &protocol_manager_key, &value)
             .await
             .context("protocol manager secret not saved")?
     } else {
@@ -172,7 +172,7 @@ pub async fn import_protocol_manager_keys(
         if let Some(value) = keys_map.get(&Some(election.id.clone())).cloned() {
             let board_name = get_election_board(tenant_id, &election.id);
             let protocol_manager_key = get_protocol_manager_secret_path(&board_name);
-            vault::save_secret(protocol_manager_key, value)
+            vault::save_secret(hasura_transaction, tenant_id, Some(election_event_id), &protocol_manager_key, &value)
                 .await
                 .context("protocol manager secret not saved")?
         } else {

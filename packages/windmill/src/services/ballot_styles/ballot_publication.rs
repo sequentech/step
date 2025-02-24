@@ -223,7 +223,7 @@ pub async fn update_publish_ballot(
         .with_context(|| "missing bulletin board")?;
 
     // let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
-    let electoral_log = ElectoralLog::for_admin_user(&board_name, &tenant_id, &user_id).await?;
+    let electoral_log = ElectoralLog::for_admin_user(hasura_transaction, &board_name, &tenant_id, &user_id).await?;
     electoral_log
         .post_election_published(
             election_event_id.clone(),

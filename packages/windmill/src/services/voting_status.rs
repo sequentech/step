@@ -110,6 +110,7 @@ pub async fn update_election_status(
             status.set_status_by_channel(voting_channel, VotingStatus::OPEN);
 
             update_board_on_status_change(
+                &hasura_transaction,
                 &tenant_id,
                 user_id,
                 username,
@@ -137,6 +138,7 @@ pub async fn update_election_status(
 
 #[instrument(err)]
 pub async fn update_board_on_status_change(
+    hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     user_id: Option<&str>,
     username: Option<&str>,
@@ -151,7 +153,7 @@ pub async fn update_board_on_status_change(
         get_election_event_board(board_reference).with_context(|| "missing bulletin board")?;
 
     let electoral_log = if let Some(user_id) = user_id {
-        ElectoralLog::for_admin_user(&board_name, tenant_id, user_id).await?
+        ElectoralLog::for_admin_user(hasura_transaction, &board_name, tenant_id, user_id).await?
     } else {
         ElectoralLog::new(board_name.as_str()).await?
     };
