@@ -207,7 +207,7 @@ pub async fn upload_file_to_s3(
     media_type: String,
     file_path: String,
     cache_control: Option<String>,
-    download_filename: Option<String>
+    download_filename: Option<String>,
 ) -> Result<()> {
     let data = ByteStream::from_path(&file_path).await.with_context(|| {
         anyhow!("Error creating bytestream from file path={file_path}")
@@ -220,7 +220,6 @@ pub async fn upload_file_to_s3(
         media_type,
         cache_control,
         download_filename,
-
     )
     .await
 }
@@ -250,10 +249,10 @@ pub async fn upload_data_to_s3(
         .body(data);
 
     if let Some(filename) = download_filename {
-            // e.g. "attachment; filename=\"myfile.ezip\""
-            let disposition = format!("attachment; filename=\"{filename}\"");
-            request = request.content_disposition(disposition);
-        }
+        // e.g. "attachment; filename=\"myfile.ezip\""
+        let disposition = format!("attachment; filename=\"{filename}\"");
+        request = request.content_disposition(disposition);
+    }
 
     let request = if let Some(cache_control_value) = cache_control {
         request.cache_control(cache_control_value)
