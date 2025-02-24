@@ -563,7 +563,7 @@ impl Pipe for MCBallotReceipts {
                     let f = fs::File::open(path_ballots.as_path())
                         .map_err(|e| Error::FileAccess(path_ballots.as_path().to_path_buf(), e))?;
                     let mut mcballots: Vec<DecodedBallotChoices> = crate::utils::parse_file(f)?;
-                    mcballots = (0..10_000).flat_map(|_| mcballots.clone()).collect();
+                    mcballots = (0..1_000).flat_map(|_| mcballots.clone()).collect();
                     let write_file = generate_temp_file("", "json").unwrap();
                     {
                         let file2 = write_file

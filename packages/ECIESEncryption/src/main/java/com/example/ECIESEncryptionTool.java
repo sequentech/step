@@ -298,12 +298,6 @@ public class ECIESEncryptionTool {
             // or "invoice.pdf" -> "invoice.pdf.sign"
             String signFilePath = inputFile.getAbsolutePath() + ".sign";
             writeFile(signFilePath, signatureBase64);
-    
-            System.out.println("Signed: " 
-                + inputFile.getName() 
-                + "  =>  "
-                + new File(signFilePath).getName()
-            );
         }
     }
 
