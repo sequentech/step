@@ -43,6 +43,7 @@ Files:
   packages/immudb-rs/proto/immudb/*
   packages/keycloak-extensions/message-otp-authenticator/src/main/resources/theme-resources/templates/*
   packages/keycloak-extensions/inetum-authenticator/src/main/resources/theme-resources/resources/inetum-sdk-4.0.3/*
+  packages/keycloak-extensions/inetum-authenticator/src/main/resources/theme-resources/resources/inetum-sdk-4.0.2/*
   packages/keycloak-extensions/conditional-authenticators/src/main/resources/META-INF/services/org.keycloak.protocol.ProtocolMapper
   docs/assets/*
   .devcontainer/minio/public-assets/*
