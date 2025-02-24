@@ -933,7 +933,7 @@ const spanishTranslation: TranslationType = {
                 START_LOCKDOWN_PERIOD: "Inicio del Período de Bloqueo de Datos Censales",
                 END_LOCKDOWN_PERIOD: "Fin del Período de Bloqueo de Datos Censales",
                 ALLOW_TALLY: "Permitir Recuento",
-                VACUUM_ANALYZE: "Mantenimiento de base de datos",
+                DATABASE_MAINTENANCE: "Mantenimiento de Base de Datos",
             },
             election: {
                 label: "Elección",

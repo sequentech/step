@@ -939,7 +939,7 @@ const frenchTranslation: TranslationType = {
                 START_LOCKDOWN_PERIOD: "Début de la période de blocage des données du recensement",
                 END_LOCKDOWN_PERIOD: "Fin de la période de blocage des données du recensement",
                 ALLOW_TALLY: "Autoriser le décompte",
-                VACUUM_ANALYZE: "Maintenance de base de données",
+                DATABASE_MAINTENANCE: "Maintenance de Base de Données",
             },
             election: {
                 label: "Élection",

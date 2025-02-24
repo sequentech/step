@@ -365,10 +365,19 @@ pub async fn handle_election_vacuum_analyze(
     let Some(datetime) = get_datetime(scheduled_event) else {
         return Ok(());
     };
+    let Some(tenant_id) = scheduled_event.tenant_id.clone() else {
+        return Ok(());
+    };
+    let Some(election_event_id) = scheduled_event.election_event_id.clone() else {
+        return Ok(());
+    };
     // run the actual task in a different async task
     let task = celery_app
         .send_task(
-            database_maintenance::new()
+            database_maintenance::new(
+                tenant_id.clone(),
+                election_event_id.clone(),
+                scheduled_event.id.clone(),)
                 .with_eta(datetime.with_timezone(&Utc))
                 // Expires in an hour
                 .with_expires_in(3600),
@@ -463,7 +472,7 @@ pub async fn scheduled_events() -> Result<()> {
                 // compile time error will happen notifying about the
                 // missing logic for handling that new variant.
             }
-            EventProcessors::VACUUM_ANALYZE => {
+            EventProcessors::DATABASE_MAINTENANCE => {
                 handle_election_vacuum_analyze(celery_app.clone(), scheduled_event).await?;
             }
         }

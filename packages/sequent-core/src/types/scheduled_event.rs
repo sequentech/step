@@ -50,8 +50,8 @@ pub enum EventProcessors {
     END_LOCKDOWN_PERIOD,
     #[strum(serialize = "ALLOW_TALLY")]
     ALLOW_TALLY,
-    #[strum(serialize = "VACUUM_ANALYZE")]
-    VACUUM_ANALYZE,
+    #[strum(serialize = "DATABASE_MAINTENANCE")]
+    DATABASE_MAINTENANCE,
 }
 
 #[derive(Serialize, Deserialize, Eq, PartialEq, Debug, Clone)]

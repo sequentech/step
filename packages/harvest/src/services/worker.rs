@@ -61,7 +61,7 @@ pub async fn process_scheduled_event(
         EventProcessors::START_LOCKDOWN_PERIOD => {}
         EventProcessors::END_LOCKDOWN_PERIOD => {}
         EventProcessors::ALLOW_TALLY => {}
-        EventProcessors::VACUUM_ANALYZE => {}
+        EventProcessors::DATABASE_MAINTENANCE => {}
     }
     Ok(element_id)
 }

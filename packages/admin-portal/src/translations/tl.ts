@@ -934,7 +934,7 @@ const tagalogTranslation: TranslationType = {
                 START_LOCKDOWN_PERIOD: "Simulan ang Lockdown Period",
                 END_LOCKDOWN_PERIOD: "Tapusin ang Panahon ng Lockdown",
                 ALLOW_TALLY: "Payagan ang tally",
-                VACUUM_ANALYZE: "Pagpapanatili ng database",
+                DATABASE_MAINTENANCE: "Pagpapanatili ng Database",
             },
             election: {
                 label: "Halalan",
