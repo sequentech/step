@@ -281,9 +281,15 @@ async fn on_success_send_message(
         let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
             .with_context(|| "missing bulletin board")?;
 
-        let electoral_log = ElectoralLog::for_admin_user(hasura_transaction, &board_name, tenant_id, admin_id)
-            .await
-            .map_err(|e| anyhow!("Error obtaining the electoral log: {e:?}"))?;
+        let electoral_log = ElectoralLog::for_admin_user(
+            hasura_transaction,
+            &board_name,
+            tenant_id,
+            &election_event.id,
+            admin_id,
+        )
+        .await
+        .map_err(|e| anyhow!("Error obtaining the electoral log: {e:?}"))?;
 
         electoral_log
             .post_send_template(

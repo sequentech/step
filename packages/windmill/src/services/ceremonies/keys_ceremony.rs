@@ -443,7 +443,14 @@ pub async fn create_keys_ceremony(
         .with_context(|| "missing bulletin board")?;
 
     // let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
-    let electoral_log = ElectoralLog::for_admin_user(&transaction, &board_name, &tenant_id, user_id).await?;
+    let electoral_log = ElectoralLog::for_admin_user(
+        &transaction,
+        &board_name,
+        &tenant_id,
+        &election_event.id,
+        user_id,
+    )
+    .await?;
     electoral_log
         .post_keygen(
             election_event_id.clone(),

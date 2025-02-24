@@ -84,9 +84,15 @@ pub async fn process_electoral_log_events_batch(events: Vec<LogEventInput>) -> R
         let username = input.username.clone();
         let tenant_id = input.tenant_id.clone();
 
-        let electoral_log = ElectoralLog::for_admin_user(&hasura_tx, &board_name, &tenant_id, &user_id)
-            .await
-            .with_context(|| "Error initializing electoral log")?;
+        let electoral_log = ElectoralLog::for_admin_user(
+            &hasura_tx,
+            &board_name,
+            &tenant_id,
+            &election_event.id,
+            &user_id,
+        )
+        .await
+        .with_context(|| "Error initializing electoral log")?;
 
         let event_message = match input.message_type.as_str() {
             INTERNAL_MESSAGE_TYPE => {

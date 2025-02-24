@@ -131,7 +131,13 @@ pub async fn upsert_b3_and_elog(
             "creating protocol manager keys for Election event {}",
             election_event_id
         );
-        create_protocol_manager_keys(hasura_transaction, &tenant_id, &election_event_id, &board_name).await?;
+        create_protocol_manager_keys(
+            hasura_transaction,
+            &tenant_id,
+            &election_event_id,
+            &board_name,
+        )
+        .await?;
     }
 
     // board was created, checking it is now present
@@ -160,7 +166,13 @@ pub async fn upsert_b3_and_elog(
                 "creating protocol manager keys for election {}",
                 election_id
             );
-            create_protocol_manager_keys(hasura_transaction, tenant_id, election_event_id, &board_name).await?;
+            create_protocol_manager_keys(
+                hasura_transaction,
+                tenant_id,
+                election_event_id,
+                &board_name,
+            )
+            .await?;
         }
         // board was created, checking it is now present
         board_client
@@ -675,13 +687,20 @@ pub async fn process_reports_file(
 
 #[instrument(err, skip(temp_file))]
 async fn process_activity_logs_file(
+    hasura_transaction: &Transaction<'_>,
     temp_file: &NamedTempFile,
     election_event: ElectionEvent,
 ) -> Result<()> {
     let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
         .with_context(|| "Missing bulletin board")?;
 
-    let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
+    let electoral_log = ElectoralLog::new(
+        hasura_transaction,
+        &election_event.tenant_id,
+        Some(&election_event.id),
+        board_name.as_str(),
+    )
+    .await?;
     electoral_log.import_from_csv(temp_file).await?;
 
     Ok(())
@@ -835,6 +854,7 @@ pub async fn process_document(
                 temp_file.as_file_mut().rewind()?;
 
                 process_activity_logs_file(
+                    hasura_transaction,
                     &temp_file,
                     election_event_schema.election_event.clone(),
                 )

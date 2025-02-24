@@ -42,11 +42,7 @@ pub async fn insert_election_event_anyhow(
     let mut db_client = match get_hasura_pool().await.get().await {
         Ok(client) => client,
         Err(err) => {
-            update_fail(
-                &task_execution,
-                "Failed to get Hasura DB pool",
-            )
-            .await?;
+            update_fail(&task_execution, "Failed to get Hasura DB pool").await?;
             return Err(anyhow!("Failed to get Hasura DB pool: {err}").into());
         }
     };
@@ -54,16 +50,19 @@ pub async fn insert_election_event_anyhow(
     let hasura_transaction = match db_client.transaction().await {
         Ok(transaction) => transaction,
         Err(err) => {
-            update_fail(
-                &task_execution,
-                "Failed to start Hasura transaction",
-            )
-            .await?;
+            update_fail(&task_execution, "Failed to start Hasura transaction").await?;
             return Err(anyhow!("Failed to start Hasura transaction: {err}").into());
         }
     };
 
-    let board = upsert_b3_and_elog(&hasura_transaction, tenant_id.as_str(), &id.as_ref(), &vec![], false).await?;
+    let board = upsert_b3_and_elog(
+        &hasura_transaction,
+        tenant_id.as_str(),
+        &id.as_ref(),
+        &vec![],
+        false,
+    )
+    .await?;
     final_object.bulletin_board_reference = Some(board);
     final_object.id = Some(id.clone());
 
@@ -112,11 +111,7 @@ pub async fn insert_election_event_anyhow(
     match hasura_transaction.commit().await {
         Ok(_) => (),
         Err(err) => {
-            update_fail(
-                &task_execution,
-                "Failed to commit Hasura transaction",
-            )
-            .await?;
+            update_fail(&task_execution, "Failed to commit Hasura transaction").await?;
             return Err(anyhow!("Failed to commit Hasura transaction: {err}").into());
         }
     };

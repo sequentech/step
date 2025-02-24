@@ -35,14 +35,25 @@ pub fn get_protocol_manager_secret_path(board_name: &str) -> String {
     format!("boards/{board_name}/protocol-manager")
 }
 
-pub async fn create_protocol_manager_keys( hasura_transaction: &Transaction<'_>,tenant_id: &str, election_event_id: &str, board_name: &str) -> Result<()> {
+pub async fn create_protocol_manager_keys(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    board_name: &str,
+) -> Result<()> {
     // create protocol manager keys
     let protocol_manager = gen_protocol_manager::<RistrettoCtx>();
-    info!("Protocol Manager keys generated YO YO YO {},{},{}", tenant_id, election_event_id, board_name);
     // save protocol manager keys in vault
     let protocol_config = serialize_protocol_manager::<RistrettoCtx>(&protocol_manager);
     let protocol_key = get_protocol_manager_secret_path(board_name);
-    vault::save_secret(hasura_transaction, tenant_id, Some(election_event_id), &protocol_key, &protocol_config).await?;
+    vault::save_secret(
+        hasura_transaction,
+        tenant_id,
+        Some(election_event_id),
+        &protocol_key,
+        &protocol_config,
+    )
+    .await?;
     Ok(())
 }
 
@@ -311,11 +322,21 @@ pub fn convert_b3(b3: &Vec<B3MessageRow>) -> Result<Vec<Message>> {
 }
 
 #[instrument(err)]
-pub async fn get_protocol_manager<C: Ctx>(board_name: &str) -> Result<ProtocolManager<C>> {
+pub async fn get_protocol_manager<C: Ctx>(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: Option<&str>,
+    board_name: &str,
+) -> Result<ProtocolManager<C>> {
     let protocol_manager_key = get_protocol_manager_secret_path(board_name);
-    let protocol_manager_data = vault::read_secret(protocol_manager_key)
-        .await?
-        .ok_or(anyhow!("protocol manager secret not found"))?;
+    let protocol_manager_data = vault::read_secret(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        &protocol_manager_key,
+    )
+    .await?
+    .ok_or(anyhow!("protocol manager secret not found"))?;
     Ok(deserialize_protocol_manager::<C>(protocol_manager_data))
 }
 

@@ -7,6 +7,7 @@ use crate::services::reports::template_renderer::EReportEncryption;
 use crate::services::reports_vault::get_report_secret_key;
 use crate::services::vault;
 use anyhow::{anyhow, Context, Result};
+use deadpool_postgres::Transaction;
 use regex::Regex;
 use std::fs::{self, File};
 use std::io::Read;
@@ -41,6 +42,7 @@ pub fn get_file_report_type(file_name: &str) -> Result<Option<ReportType>> {
 /// Encrypts all eligible files in a directory
 #[instrument(err, skip_all)]
 pub async fn traversal_encrypt_files(
+    hasura_transaction: &Transaction<'_>,
     folder_path: &Path,
     tenant_id: &str,
     election_event_id: &str,
@@ -75,6 +77,7 @@ pub async fn traversal_encrypt_files(
 
                 if report_type.is_some() {
                     encrypt_directory_contents(
+                        hasura_transaction,
                         tenant_id,
                         election_event_id,
                         Some(election_ids),
@@ -94,6 +97,7 @@ pub async fn traversal_encrypt_files(
 
 #[instrument(err, skip_all)]
 pub async fn encrypt_directory_contents(
+    hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
     election_ids: Option<Vec<String>>,
@@ -118,11 +122,19 @@ pub async fn encrypt_directory_contents(
         })
         .cloned();
 
-    let upload_path = encrypt_file(tenant_id, election_event_id, old_path, report.as_ref()).await?;
+    let upload_path = encrypt_file(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        old_path,
+        report.as_ref(),
+    )
+    .await?;
     Ok(upload_path)
 }
 #[instrument(err, skip_all)]
 pub async fn encrypt_file(
+    hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
     old_path: &str,
@@ -136,9 +148,14 @@ pub async fn encrypt_file(
             let secret_key =
                 get_report_secret_key(tenant_id, election_event_id, Some(report.id.clone()));
 
-            let encryption_password = vault::read_secret(secret_key.clone())
-                .await?
-                .ok_or_else(|| anyhow!("Encryption password not found"))?;
+            let encryption_password = vault::read_secret(
+                hasura_transaction,
+                tenant_id,
+                Some(election_event_id),
+                &secret_key,
+            )
+            .await?
+            .ok_or_else(|| anyhow!("Encryption password not found"))?;
 
             let new_path = format!("{}.enc", old_path);
 

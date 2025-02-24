@@ -724,6 +724,7 @@ pub async fn count_cast_votes_election_event(
 /// electorallog::post_voter_pk
 #[instrument(err)]
 pub async fn get_voter_signing_key(
+    hasura_transaction: &Transaction<'_>,
     elog_database: &str,
     tenant_id: &str,
     event_id: &str,
@@ -731,11 +732,18 @@ pub async fn get_voter_signing_key(
 ) -> Result<StrandSignatureSk> {
     info!("Generating private signing key for voter {}", user_id);
     let sk = StrandSignatureSk::gen()?;
-    let sk_string = sk.to_der_b64_string()?;
     let pk = StrandSignaturePk::from_sk(&sk)?;
     let pk = pk.to_der_b64_string()?;
 
-    ElectoralLog::post_voter_pk(elog_database, tenant_id, event_id, user_id, &pk).await?;
+    ElectoralLog::post_voter_pk(
+        hasura_transaction,
+        elog_database,
+        tenant_id,
+        event_id,
+        user_id,
+        &pk,
+    )
+    .await?;
 
     Ok(sk)
 }

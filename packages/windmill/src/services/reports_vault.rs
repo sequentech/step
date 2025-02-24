@@ -1,10 +1,10 @@
 // SPDX-FileCopyrightText: 2024 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::services::vault::{save_secret, vault::read_secret_new};
+use crate::services::vault::{read_secret, save_secret};
 use anyhow::anyhow;
-use tracing::instrument;
 use deadpool_postgres::Transaction;
+use tracing::instrument;
 
 pub fn get_report_secret_key(
     tenant_id: &str,
@@ -28,9 +28,14 @@ pub async fn get_password(
 ) -> Result<Option<String>, anyhow::Error> {
     let secret_key = get_report_secret_key(&tenant_id, &election_event_id, report_id);
 
-    let existing_key = read_secret_new(hasura_transaction,&tenant_id, Some(&election_event_id), &secret_key)
-        .await
-        .map_err(|err| anyhow!("Error reading secret for key '{}': {:?}", secret_key, err))?;
+    let existing_key = read_secret(
+        hasura_transaction,
+        &tenant_id,
+        Some(&election_event_id),
+        &secret_key,
+    )
+    .await
+    .map_err(|err| anyhow!("Error reading secret for key '{}': {:?}", secret_key, err))?;
 
     Ok(existing_key)
 }
@@ -45,7 +50,14 @@ pub async fn get_report_key_pair(
 ) -> Result<(), anyhow::Error> {
     let secret_key = get_report_secret_key(&tenant_id, &election_event_id, report_id);
 
-    save_secret(hasura_transaction, &tenant_id, Some(&election_event_id), &secret_key, &password).await?;
+    save_secret(
+        hasura_transaction,
+        &tenant_id,
+        Some(&election_event_id),
+        &secret_key,
+        &password,
+    )
+    .await?;
 
     Ok(())
 }

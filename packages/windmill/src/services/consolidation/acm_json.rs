@@ -13,6 +13,7 @@ use crate::services::consolidation::eml_types::ACMTrustee;
 use crate::services::vault;
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Utc};
+use deadpool_postgres::Transaction;
 use sequent_core::signatures::ecies_encrypt::{generate_ecies_key_pair, EciesKeyPair};
 use sequent_core::{
     ballot::Annotations, types::date_time::DateFormat, util::date_time::generate_timestamp,
@@ -22,7 +23,6 @@ use sequent_core::{
 };
 use std::env;
 use tracing::instrument;
-use deadpool_postgres::Transaction;
 
 const ACM_JSON_FORMAT: &str = "%m/%d/%Y %I:%M:%S %p";
 const DEFAULT_MIRU_DEVICE_ID: &str = "SQUNT420535311";
@@ -48,19 +48,37 @@ pub fn get_miru_mac_address() -> String {
 }
 
 #[instrument(err)]
-pub async fn get_acm_key_pair(  hasura_transaction: &Transaction<'_>,  tenant_id: &str, election_event_id: &str) -> Result<EciesKeyPair> {
+pub async fn get_acm_key_pair(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<EciesKeyPair> {
     let secret_key = format!(
         "acm-key-pair-{}-{}",
         get_miru_device_id(),
         get_miru_serial_number()
     );
 
-    if let Some(secret_str) = vault::read_secret_new(hasura_transaction, tenant_id, Some(election_event_id), &secret_key).await? {
+    if let Some(secret_str) = vault::read_secret(
+        hasura_transaction,
+        tenant_id,
+        Some(election_event_id),
+        &secret_key,
+    )
+    .await?
+    {
         deserialize_str(&secret_str).map_err(|err| anyhow!("{}", err))
     } else {
         let key_pair = generate_ecies_key_pair()?;
         let secret_str = serde_json::to_string(&key_pair)?;
-        vault::save_secret(hasura_transaction, tenant_id, Some(election_event_id), &secret_key, &secret_str).await?;
+        vault::save_secret(
+            hasura_transaction,
+            tenant_id,
+            Some(election_event_id),
+            &secret_key,
+            &secret_str,
+        )
+        .await?;
         Ok(key_pair)
     }
 }

@@ -153,9 +153,22 @@ pub async fn update_board_on_status_change(
         get_election_event_board(board_reference).with_context(|| "missing bulletin board")?;
 
     let electoral_log = if let Some(user_id) = user_id {
-        ElectoralLog::for_admin_user(hasura_transaction, &board_name, tenant_id, user_id).await?
+        ElectoralLog::for_admin_user(
+            hasura_transaction,
+            &board_name,
+            tenant_id,
+            &election_event_id,
+            user_id,
+        )
+        .await?
     } else {
-        ElectoralLog::new(board_name.as_str()).await?
+        ElectoralLog::new(
+            hasura_transaction,
+            tenant_id,
+            Some(&election_event_id),
+            board_name.as_str(),
+        )
+        .await?
     };
 
     let maybe_election_id = match election_id {

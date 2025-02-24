@@ -9,12 +9,12 @@ use crate::services::vault::{
 };
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
-use uuid::Uuid;
+use deadpool_postgres::Transaction;
 use std::str::FromStr;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 use strum_macros::EnumString;
 use tracing::{info, instrument};
-use deadpool_postgres::Transaction;
+use uuid::Uuid;
 
 #[derive(EnumString)]
 pub enum VaultManagerType {
@@ -42,19 +42,6 @@ pub fn get_vault() -> Result<Box<dyn Vault + Send>> {
     })
 }
 
-// TODO DELETE
-// TODO DELETE
-// TODO DELETE
-// TODO DELETE
-#[instrument(err)]
-pub async fn read_secret(key: String) -> Result<Option<String>> {
-    let vault = get_vault()?;
-
-    vault.read_secret(key).await
-}
-
-
-
 #[instrument(skip(value), err)]
 pub async fn save_secret(
     hasura_transaction: &Transaction<'_>,
@@ -66,12 +53,15 @@ pub async fn save_secret(
     let tenant_uuid = Uuid::parse_str(tenant_id)
         .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
     let election_event_uuid = match election_event_id {
-        Some(id) => Some(Uuid::parse_str(id).map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?),
+        Some(id) => Some(
+            Uuid::parse_str(id)
+                .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?,
+        ),
         None => None,
     };
 
     // Check if the secret already exists
-    if read_secret_new(&hasura_transaction, tenant_id, election_event_id, key)
+    if read_secret(&hasura_transaction, tenant_id, election_event_id, key)
         .await?
         .is_some()
     {
@@ -90,25 +80,21 @@ pub async fn save_secret(
     Ok(())
 }
 
-// #[instrument(err)]
-// pub async fn read_secret(key: String) -> Result<Option<String>> {
-//     let vault = get_vault()?;
-
-//     vault.read_secret(key).await
-// }
 #[instrument(skip(hasura_transaction), err)]
-pub async fn read_secret_new(
+pub async fn read_secret(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: Option<&str>,
-    key: &str
+    key: &str,
 ) -> Result<Option<String>> {
-
     let tenant_uuid = Uuid::parse_str(tenant_id)
         .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
 
     let election_event_uuid = match election_event_id {
-        Some(id) => Some(Uuid::parse_str(id).map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?),
+        Some(id) => Some(
+            Uuid::parse_str(id)
+                .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?,
+        ),
         None => None,
     };
 
@@ -119,7 +105,7 @@ pub async fn read_secret_new(
                AND key = $2 
                AND (election_event_id = $3 OR $3 IS NULL) 
              LIMIT 1",
-            &[&tenant_uuid, &key, &election_event_uuid]
+            &[&tenant_uuid, &key, &election_event_uuid],
         )
         .await
         .context("Error reading secret")?
@@ -148,7 +134,7 @@ pub async fn get_admin_user_signing_key(
     user_id: &str,
 ) -> Result<StrandSignatureSk> {
     let lookup_key = admin_vault_lookup_key(&tenant_id, &user_id);
-    let sk_der_b64 = read_secret(lookup_key.clone()).await?;
+    let sk_der_b64 = read_secret(hasura_transaction, tenant_id, None, &lookup_key).await?;
 
     let sk = if let Some(sk_der_b64) = sk_der_b64 {
         StrandSignatureSk::from_der_b64_string(&sk_der_b64)?
@@ -166,8 +152,9 @@ pub async fn get_admin_user_signing_key(
         // to minimize the chances that the second call fails while
         // while the first one succeeds. If this happens the
         // secret will exist but the pk notification will not.
-        save_secret(hasura_transaction, tenant_id,None ,&lookup_key, &sk_string).await?;
-        ElectoralLog::post_admin_pk(elog_database, tenant_id, user_id, &pk).await?;
+        save_secret(hasura_transaction, tenant_id, None, &lookup_key, &sk_string).await?;
+        ElectoralLog::post_admin_pk(hasura_transaction, elog_database, tenant_id, user_id, &pk)
+            .await?;
 
         sk
     };

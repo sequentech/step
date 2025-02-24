@@ -68,6 +68,7 @@ async fn generic_save_documents(
         .context("Error getting file report type")?;
 
     documents.pdf = process_and_upload_document(
+        hasura_transaction,
         document_paths.pdf.clone(),
         MIME_PDF,
         OUTPUT_PDF,
@@ -80,6 +81,7 @@ async fn generic_save_documents(
     .await?;
 
     documents.json = process_and_upload_document(
+        hasura_transaction,
         document_paths.json.clone(),
         MIME_JSON,
         OUTPUT_JSON,
@@ -92,6 +94,7 @@ async fn generic_save_documents(
     .await?;
 
     documents.vote_receipts_pdf = process_and_upload_document(
+        hasura_transaction,
         document_paths.vote_receipts_pdf.clone(),
         MIME_JSON,
         OUTPUT_JSON,
@@ -104,6 +107,7 @@ async fn generic_save_documents(
     .await?;
 
     documents.html = process_and_upload_document(
+        hasura_transaction,
         document_paths.html.clone(),
         MIME_HTML,
         OUTPUT_HTML,
@@ -121,6 +125,7 @@ async fn generic_save_documents(
 // Helper function for processing and uploading a document
 #[instrument(err, skip(auth_headers, all_reports))]
 async fn process_and_upload_document(
+    hasura_transaction: &Transaction<'_>,
     path_option: Option<String>,
     mime_type: &str,
     output_type: &str,
@@ -134,6 +139,7 @@ async fn process_and_upload_document(
         // Encrypt the file if necessary before uploading
         if let Some(report_type) = report_type {
             path = encrypt_directory_contents(
+                hasura_transaction,
                 tenant_id,
                 election_event_id,
                 None,
@@ -253,6 +259,7 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
             // Encrypt the tar.gz folder if necessary before uploading
             let mut upload_path = original_tarfile_path.clone();
             upload_path = encrypt_directory_contents(
+                hasura_transaction,
                 &tenant_id.clone(),
                 &election_event_id.clone(),
                 Some(elections_ids_clone.clone()),
@@ -279,28 +286,23 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
 
             // PART 2: renamed folders zip
             // Spawn the task
-            let handle = tokio::task::spawn_blocking(move || {
-                let path = Path::new(&tar_gz_path);
-                let temp_dir = copy_to_temp_dir(&path.to_path_buf())?;
-                let mut temp_dir_path = temp_dir.path().to_path_buf();
-                let renames = rename_map.unwrap_or(HashMap::new());
-                rename_folders(&renames, &temp_dir_path)?;
-                // Execute asynchronous encryption
-                tokio::runtime::Handle::current().block_on(async {
-                    traversal_encrypt_files(
-                        &temp_dir_path,
-                        &tenant_id_clone,
-                        &election_event_id_clone,
-                        &all_reports_clone,
-                    )
-                    .await
-                    .map_err(|err| anyhow!("Error encrypting file"))?;
+            let path = Path::new(&tar_gz_path);
+            let temp_dir = copy_to_temp_dir(&path.to_path_buf())?;
+            let temp_dir_path = temp_dir.path().to_path_buf();
+            let renames = rename_map.unwrap_or(HashMap::new());
+            rename_folders(&renames, &temp_dir_path)?;
 
-                    Ok::<_, anyhow::Error>(())
-                })?;
+            traversal_encrypt_files(
+                hasura_transaction,
+                &temp_dir_path,
+                &tenant_id_clone,
+                &election_event_id_clone,
+                &all_reports_clone,
+            )
+            .await
+            .map_err(|_| anyhow!("Error encrypting file"))?;
 
-                compress_folder(&temp_dir_path)
-            });
+            let handle = tokio::task::spawn_blocking(move || compress_folder(&temp_dir_path));
 
             // Await the result
             let result = handle.await??;
@@ -311,6 +313,7 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
 
             // Encrypt the tar.gz folder if necessary before uploading
             upload_path = encrypt_directory_contents(
+                hasura_transaction,
                 &tenant_id.clone(),
                 &election_event_id.clone(),
                 Some(elections_ids_clone),
