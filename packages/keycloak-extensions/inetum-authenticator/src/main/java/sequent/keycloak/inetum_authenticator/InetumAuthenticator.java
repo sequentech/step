@@ -123,7 +123,9 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
         context.success();
       } else {
         Map<String, String> transactionData = newTransaction(configMap, context);
-        log.infov("New transaction: TOKEN_DOB: {0} USER_ID: {1}", transactionData.get(Utils.FTL_TOKEN_DOB), transactionData.get(Utils.FTL_USER_ID));
+        log.infov(
+            "New transaction: TOKEN_DOB: {0} USER_ID: {1}",
+            transactionData.get(Utils.FTL_TOKEN_DOB), transactionData.get(Utils.FTL_USER_ID));
 
         // Save the transaction data into the auth session
         AuthenticationSessionModel sessionModel = context.getAuthenticationSession();
