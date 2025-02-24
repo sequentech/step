@@ -164,28 +164,30 @@
                       <tr>
                         <td
                         class="sequence-data"
-                        style="width: 80px; white-space: normal; overflow-wrap: break-word;"
+                        style="width: 40px; white-space: normal; overflow-wrap: break-word;"
                         >
                           <strong>Sequence Number (#)</strong>
                         </td>
                         <td
                           class="sequence-data"
+                          style="width: 60px; white-space: normal; overflow-wrap: break-word;"
                         >
                           <strong>Date and time</strong>
                         </td>
                         <td
                           class="sequence-data"
+                          style="width: 40px;"
                         >
                           <strong>User</strong>
                         </td>
                         <td
                           class="sequence-data"
+                          style="width: 30px; white-space: normal; overflow-wrap: break-word;"
                         >
                           <strong>User kind</strong>
                         </td>
                         <td
                           class="sequence-data"
-                          style="width: 100px;"
                         >
                           <strong>Activity</strong>
                         </td>
@@ -198,14 +200,16 @@
                         <td
                           class="sequence-data"
                         >
-                          {{datetime from_rfc3339=datetime output_format="%B %d, %Y" with_timezone="Asia/Manila"}}
+                          {{datetime from_rfc3339=datetime output_format="%B %d" with_timezone="Asia/Manila"}}
                           <br />
-                          {{datetime from_rfc3339=datetime output_format="%H:%M" with_timezone="Asia/Manila"}}
+                          {{datetime from_rfc3339=datetime output_format="%Y, %H:%M" with_timezone="Asia/Manila"}}
                         </td>
                         <td
                           class="sequence-data"
+                          style="white-space: normal; overflow-wrap: anywhere;"
+                          
                         >
-                          {{username}}
+                         {{username}}
                         </td>
                         <td
                           class="sequence-data"
@@ -214,7 +218,7 @@
                         </td>
                         <td
                           class="sequence-data"
-                          style="white-space: normal; overflow-wrap: anywhere; width: 120px;"
+                          style="white-space: normal; overflow-wrap: break-word;"
                         >
                           {{activity}}
                         </td>
