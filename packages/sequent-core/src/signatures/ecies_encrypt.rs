@@ -6,14 +6,14 @@ use crate::util::temp_path::generate_temp_file;
 use anyhow::{anyhow, Context, Result};
 use base64::{engine::general_purpose::STANDARD, Engine};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fs;
 use std::fs::File;
 use std::io::{self, Read, Seek, Write};
-use strand::hash::hash_sha256;
-use tracing::{info, instrument};
-use std::collections::HashMap;
 use std::path::PathBuf;
+use strand::hash::hash_sha256;
 use tempfile::tempdir;
+use tracing::{info, instrument};
 
 pub const ECIES_TOOL_PATH: &str = "/usr/local/bin/ecies-tool.jar";
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -118,7 +118,7 @@ pub fn ecies_sign_data(
             .context("Failed to write file")?;
     }
 
-    let command = format!( 
+    let command = format!(
         "java -jar {} sign {} {}",
         ECIES_TOOL_PATH, temp_pem_file_string, temp_data_file_string
     );
@@ -130,11 +130,10 @@ pub fn ecies_sign_data(
     Ok(encrypted_base64)
 }
 
-
 // A struct you can use to keep track of each item you want to sign
 pub struct SignRequest {
-    pub id: String,        // or any key you want, to correlate back
-    pub data: String,      // the sign_data string
+    pub id: String,   // or any key you want, to correlate back
+    pub data: String, // the sign_data string
 }
 
 #[instrument(skip_all, err)]
@@ -160,12 +159,12 @@ pub fn ecies_sign_data_bulk(
             .context("Failed to write private_key.pem")?;
     }
 
-    // 3. For each request, create a file with the sign_data content
-    //    E.g. "sign_0001.txt", "sign_0002.txt", etc.
-    //    We'll store a small structure to track (id -> filename).
+    // 3. For each request, create a file with the sign_data content E.g.
+    //    "sign_0001.txt", "sign_0002.txt", etc. We'll store a small structure
+    //    to track (id -> filename).
     let mut file_map: HashMap<String, PathBuf> = HashMap::new();
     for (i, req) in requests.iter().enumerate() {
-        let filename = format!("sign_{:04}.txt", i); 
+        let filename = format!("sign_{:04}.txt", i);
         let path = tmp_dir.path().join(&filename);
 
         {
@@ -178,25 +177,25 @@ pub fn ecies_sign_data_bulk(
         file_map.insert(req.id.clone(), path);
     }
 
-    // 4. Build the sign-bulk command (one call).
-    //    sign-bulk <private_key_file> <folder_to_sign>
+    // 4. Build the sign-bulk command (one call). sign-bulk <private_key_file>
+    //    <folder_to_sign>
     //
-    //    The second parameter is just the directory path; 
+    //    The second parameter is just the directory path;
     //    the Java tool will sign every file that doesn't end with .sign
     let cmd = format!(
-        "{ecies_tool_path} sign-bulk {key} {folder}",
+        "java -jar {ecies_tool_path} sign-bulk {key} {folder}",
         ecies_tool_path = ECIES_TOOL_PATH,
-        key   = private_key_path.to_string_lossy(),
-        folder= tmp_dir.path().to_string_lossy(),
+        key = private_key_path.to_string_lossy(),
+        folder = tmp_dir.path().to_string_lossy(),
     );
     info!("Running sign-bulk => {}", cmd);
 
     // 5. Execute the shell command (similar to your run_shell_command).
-    run_shell_command(&cmd)?.replace("\n", "");
+    run_shell_command(&cmd)?;
 
-    // 6. After sign-bulk finishes, we collect the results:
-    //    For each sign_xxxx.txt, the tool should have produced sign_xxxx.txt.sign
-    //    We'll read them into a map of (id -> signature_base64)
+    // 6. After sign-bulk finishes, we collect the results: For each
+    //    sign_xxxx.txt, the tool should have produced sign_xxxx.txt.sign We'll
+    //    read them into a map of (id -> signature_base64)
     let mut signature_map = HashMap::new();
     for (id, path) in file_map.iter() {
         // the Java tool will create the file with .sign appended
@@ -207,13 +206,12 @@ pub fn ecies_sign_data_bulk(
                 sign_file.display()
             ));
         }
-        let signature_b64 =
-            std::fs::read_to_string(&sign_file)
-                .with_context(|| {
-                    format!("Failed to read signature file {}", sign_file.display())
-                })?
-                .trim()
-                .to_string();
+        let signature_b64 = std::fs::read_to_string(&sign_file)
+            .with_context(|| {
+                format!("Failed to read signature file {}", sign_file.display())
+            })?
+            .trim()
+            .to_string();
 
         signature_map.insert(id.clone(), signature_b64);
     }

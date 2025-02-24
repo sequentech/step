@@ -17,6 +17,7 @@ use sequent_core::ballot::{Candidate, CandidatesOrder, Contest, StringifiedPerio
 use sequent_core::ballot_codec::multi_ballot::DecodedBallotChoices;
 use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
 use sequent_core::services::{pdf, reports};
+use sequent_core::signatures::ecies_encrypt::SignRequest;
 use sequent_core::signatures::ecies_encrypt::{ecies_sign_data, ecies_sign_data_bulk};
 use sequent_core::temp_path::generate_temp_file;
 use sequent_core::types::templates::VoteReceiptPipeType;
@@ -26,13 +27,12 @@ use serde_json::Map;
 use std::collections::HashMap;
 use std::fs;
 use std::fs::OpenOptions;
+use std::io::{self, BufWriter, Read, Seek, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use strand::hash::{hash_b64, hash_sha256};
 use tokio::runtime::Runtime;
 use tracing::{info, instrument};
-use std::io::{self, BufWriter, Read, Seek, Write};
-use sequent_core::signatures::ecies_encrypt::SignRequest;
 
 pub const VOTE_RECEIPTS_OUTPUT_FILE: &str = "vote_receipts";
 pub const BALLOT_IMAGES_OUTPUT_FILE: &str = "ballots";
@@ -149,7 +149,7 @@ impl MCBallotReceipts {
     ) -> Result<(Option<Vec<u8>>, Vec<u8>)> {
         // 1. Gather the sign_data for all ballots/contests
         let mut bulk_sign_requests = Vec::new();
-    
+
         // We'll store some structures that map from (ballotIndex, contestIndex, pageNum)
         // to the sign_data string, so later we can fill in the signatures.
         // Or you can store them directly if your final data structure has it.
@@ -192,9 +192,9 @@ impl MCBallotReceipts {
                 let contest = contest_map
                     .get(&contest_choices.contest_id)
                     .ok_or_else(|| Error::UnexpectedError("Can't get contest".into()))?;
-    
+
                 let mut choices = DecodedChoice::from_dvcs(contest_choices, contest);
-    
+
                 let candidates_order = contest
                     .presentation
                     .clone()
@@ -202,7 +202,7 @@ impl MCBallotReceipts {
                     .candidates_order
                     .unwrap_or_default();
                 sort_candidates(&mut choices, candidates_order.clone());
-    
+
                 let num_selected = choices.iter().filter(|can| can.is_selected()).count();
                 let undervotes = contest.max_votes - (num_selected as i64);
                 let overvotes = if (num_selected as i64) > contest.max_votes {
@@ -210,40 +210,41 @@ impl MCBallotReceipts {
                 } else {
                     0
                 };
-    
+
                 // Instead of calling ecies_sign_data here, we only CREATE the data
-                let (digital_signature, sign_data) = match (&pipe_config.acm_key, &pipe_config.pipe_type) {
-                    (Some(_acm_key), VoteReceiptPipeType::BALLOT_IMAGES) => {
-                        let data_str = format!(
-                            "{}:{}:{}:{}:{}",
-                            election_event_id,
-                            precint_id,
-                            ballot.mcballot.serial_number.clone().unwrap_or_default(),
-                            election_id,
-                            page_number.to_string()
-                        );
-                        // We'll push this into our bulk_sign_requests
-                        // We also need a unique ID to correlate the signature
-                        let sign_id = format!("b{}_c{}_p{}", b_idx, c_idx, page_number);
-    
-                        bulk_sign_requests.push(SignRequest {
-                            id: sign_id.clone(),
-                            data: data_str.clone(),
-                        });
-    
-                        // We'll store so we can insert the signature after we do the bulk sign
-                        locators.push(ContestLocator {
-                            sign_id: sign_id.clone(),
-                            ballot_index: b_idx,
-                            contest_index: c_idx,
-                        });
-    
-                        // We do not have a signature yet, so just placeholders
-                        (None, Some(data_str))
-                    }
-                    _ => (None, None),
-                };
-    
+                let (digital_signature, sign_data) =
+                    match (&pipe_config.acm_key, &pipe_config.pipe_type) {
+                        (Some(_acm_key), VoteReceiptPipeType::BALLOT_IMAGES) => {
+                            let data_str = format!(
+                                "{}:{}:{}:{}:{}",
+                                election_event_id,
+                                precint_id,
+                                ballot.mcballot.serial_number.clone().unwrap_or_default(),
+                                election_id,
+                                page_number.to_string()
+                            );
+                            // We'll push this into our bulk_sign_requests
+                            // We also need a unique ID to correlate the signature
+                            let sign_id = format!("b{}_c{}_p{}", b_idx, c_idx, page_number);
+
+                            bulk_sign_requests.push(SignRequest {
+                                id: sign_id.clone(),
+                                data: data_str.clone(),
+                            });
+
+                            // We'll store so we can insert the signature after we do the bulk sign
+                            locators.push(ContestLocator {
+                                sign_id: sign_id.clone(),
+                                ballot_index: b_idx,
+                                contest_index: c_idx,
+                            });
+
+                            // We do not have a signature yet, so just placeholders
+                            (None, Some(data_str))
+                        }
+                        _ => (None, None),
+                    };
+
                 let cd: ContestData = ContestData {
                     contest: contest.clone(),
                     decoded_choices: choices,
@@ -256,20 +257,20 @@ impl MCBallotReceipts {
                         _ => None,
                     },
                 };
-    
+
                 page_number += 1;
                 cds.push(cd);
             }
-    
+
             cds.sort_by(|a, b| b.contest.name.cmp(&a.contest.name));
-    
+
             let title = pipe_config.extra_data["title"]
                 .as_str()
                 .map(|val| val.to_string())
                 .unwrap_or(DEFAULT_MCBALLOT_TITLE.to_string());
             let encoded_vote = qr_encode_choices(&cds, &title);
             let is_blank = cds.iter().all(|choice| choice.is_blank());
-    
+
             let bd = BallotData {
                 id: ballot.mcballot.serial_number.clone().unwrap_or_default(),
                 encoded_vote,
@@ -277,27 +278,29 @@ impl MCBallotReceipts {
                 is_blank,
                 contest_choices: cds,
             };
-    
+
             ballot_data.push(bd);
             page_number += 1; // inc by one for summary page
         }
-    
+
         // 2. Now we do exactly one bulk sign if we have any sign_data
         let mut signatures_map: HashMap<String, String> = HashMap::new();
-        if let (Some(acm_key), VoteReceiptPipeType::BALLOT_IMAGES) = (&pipe_config.acm_key, &pipe_config.pipe_type) {
+        if let (Some(acm_key), VoteReceiptPipeType::BALLOT_IMAGES) =
+            (&pipe_config.acm_key, &pipe_config.pipe_type)
+        {
             if !bulk_sign_requests.is_empty() {
                 signatures_map = ecies_sign_data_bulk(acm_key, &bulk_sign_requests)
                     .map_err(|e| Error::UnexpectedError(format!("Error in bulk signing: {}", e)))?;
             }
         }
-    
+
         // 3. Use the `locators` array to stitch the signatures back into `ballot_data`
         for locator in locators {
             // get the actual signature from the map
             if let Some(sig_base64) = signatures_map.get(&locator.sign_id) {
                 let bd = &mut ballot_data[locator.ballot_index];
                 let cd = &mut bd.contest_choices[locator.contest_index];
-    
+
                 cd.digital_signature = Some(sig_base64.clone());
             }
         }
@@ -560,25 +563,25 @@ impl Pipe for MCBallotReceipts {
                     let f = fs::File::open(path_ballots.as_path())
                         .map_err(|e| Error::FileAccess(path_ballots.as_path().to_path_buf(), e))?;
                     let mut mcballots: Vec<DecodedBallotChoices> = crate::utils::parse_file(f)?;
-                    mcballots = (0..10_000)
-                        .flat_map(|_| mcballots.clone())
-                        .collect();
+                    mcballots = (0..10_000).flat_map(|_| mcballots.clone()).collect();
                     let write_file = generate_temp_file("", "json").unwrap();
                     {
                         let file2 = write_file
                             .reopen()
-                            .with_context(|| "Couldn't reopen file for writing").unwrap();
+                            .with_context(|| "Couldn't reopen file for writing")
+                            .unwrap();
                         let mut buf_writer = BufWriter::new(file2);
                         let write_str = serde_json::to_string(&mcballots)?;
                         buf_writer
                             .write(write_str.as_bytes())
-                            .with_context(|| "Error writing into named temp file").unwrap();
+                            .with_context(|| "Error writing into named temp file")
+                            .unwrap();
                         buf_writer
                             .flush()
-                            .with_context(|| "Error calling flush into named temp file").unwrap();
+                            .with_context(|| "Error calling flush into named temp file")
+                            .unwrap();
                     }
                     let temp_path = write_file.into_temp_path();
-                    let temp_path_string = temp_path.to_string_lossy().to_string();
                     let f = fs::File::open(temp_path)
                         .map_err(|e| Error::FileAccess(path_ballots.as_path().to_path_buf(), e))?;
                     let mcballots: Vec<DecodedBallotChoices> = crate::utils::parse_file(f)?;

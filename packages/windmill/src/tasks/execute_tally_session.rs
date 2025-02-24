@@ -1422,8 +1422,12 @@ pub async fn execute_tally_session(
         Uuid::new_v4().to_string(),
         ISO8601::now() + Duration::seconds(120),
     )
-    .await else {
-        info!("Skipping: tally in progress for event {} and session id {}",  election_event_id, tally_session_id);
+    .await
+    else {
+        info!(
+            "Skipping: tally in progress for event {} and session id {}",
+            election_event_id, tally_session_id
+        );
         return Ok(());
     };
     let mut interval = tokio::time::interval(ChronoDuration::from_secs(30));
