@@ -137,7 +137,7 @@ impl DecodedContestChoices {
     }
 }
 #[derive(
-    Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone, Hash,
+    Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone, Hash
 )]
 /// A decoded contest choice contains the candidate_id as a String.
 pub struct DecodedContestChoice(pub String);

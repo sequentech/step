@@ -18,6 +18,7 @@ use sequent_core::ballot_codec::multi_ballot::DecodedBallotChoices;
 use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
 use sequent_core::services::{pdf, reports};
 use sequent_core::signatures::ecies_encrypt::ecies_sign_data;
+use sequent_core::temp_path::generate_temp_file;
 use sequent_core::types::templates::VoteReceiptPipeType;
 use sequent_core::util::date_time::get_date_and_time;
 use serde::Serialize;
@@ -25,12 +26,12 @@ use serde_json::Map;
 use std::collections::HashMap;
 use std::fs;
 use std::fs::OpenOptions;
-use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use strand::hash::{hash_b64, hash_sha256};
 use tokio::runtime::Runtime;
 use tracing::{info, instrument};
+use std::io::{self, BufWriter, Read, Seek, Write};
 
 pub const VOTE_RECEIPTS_OUTPUT_FILE: &str = "vote_receipts";
 pub const BALLOT_IMAGES_OUTPUT_FILE: &str = "ballots";
@@ -167,14 +168,6 @@ impl MCBallotReceipts {
             .get("miru:election-id")
             .map(|s| s.as_str())
             .unwrap_or_default();
-
-        info!(
-            "election_event_annotations {:?}",
-            election_input.election_event_annotations
-        );
-        info!("election annotations {:?}", election_input.annotations);
-
-        info!("event {election_event_id} election {election_id} precint_id {precint_id}");
 
         let mut ballot_data = vec![];
         for ballot in ballots {
@@ -434,7 +427,30 @@ impl Pipe for MCBallotReceipts {
                 if path_ballots.exists() {
                     let f = fs::File::open(path_ballots.as_path())
                         .map_err(|e| Error::FileAccess(path_ballots.as_path().to_path_buf(), e))?;
+                    let mut mcballots: Vec<DecodedBallotChoices> = crate::utils::parse_file(f)?;
+                    mcballots = (0..10_000)
+                        .flat_map(|_| mcballots.clone())
+                        .collect();
+                    let write_file = generate_temp_file("", "json").unwrap();
+                    {
+                        let file2 = write_file
+                            .reopen()
+                            .with_context(|| "Couldn't reopen file for writing").unwrap();
+                        let mut buf_writer = BufWriter::new(file2);
+                        let write_str = serde_json::to_string(&mcballots)?;
+                        buf_writer
+                            .write(write_str.as_bytes())
+                            .with_context(|| "Error writing into named temp file").unwrap();
+                        buf_writer
+                            .flush()
+                            .with_context(|| "Error calling flush into named temp file").unwrap();
+                    }
+                    let temp_path = write_file.into_temp_path();
+                    let temp_path_string = temp_path.to_string_lossy().to_string();
+                    let f = fs::File::open(temp_path)
+                        .map_err(|e| Error::FileAccess(path_ballots.as_path().to_path_buf(), e))?;
                     let mcballots: Vec<DecodedBallotChoices> = crate::utils::parse_file(f)?;
+
                     let ballots = convert_ballots(election_input, mcballots)?;
                     let report_options = pipe_config.report_options.clone().unwrap_or_default();
                     let max_threads = report_options.max_threads.unwrap_or_else(|| 3);
@@ -692,6 +708,7 @@ impl Bridge {
 
 // We are reusing some functionality from the standard receipts pipe/template,
 // so it helps to convert mcballots to dcv format
+#[instrument(err, skip_all)]
 fn convert_ballots(
     election_input: &InputElectionConfig,
     mcballots: Vec<DecodedBallotChoices>,

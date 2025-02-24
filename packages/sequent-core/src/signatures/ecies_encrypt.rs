@@ -115,8 +115,7 @@ pub fn ecies_sign_data(
             .context("Failed to write file")?;
     }
 
-    let command = format!(
-        "java -jar {} sign {} {}",
+    let command = format!( 
         ECIES_TOOL_PATH, temp_pem_file_string, temp_data_file_string
     );
 
