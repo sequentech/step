@@ -2,6 +2,7 @@ use crate::hasura::scheduled_event;
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::postgres::maintenance::vacuum_analyze_direct;
 use crate::postgres::{
     election::{get_election_by_id, update_election_presentation},
     scheduled_event::find_all_active_events,
@@ -12,7 +13,7 @@ use crate::services::{
     tasks_execution::update_fail,
 };
 use crate::tasks::{
-    manage_election_allow_tally::manage_election_allow_tally,
+    maintenance::database_maintenance, manage_election_allow_tally::manage_election_allow_tally,
     manage_election_dates::manage_election_date,
     manage_election_event_date::manage_election_event_date,
     manage_election_event_enrollment::manage_election_event_enrollment,
@@ -357,6 +358,31 @@ pub async fn handle_election_allow_tally(
     Ok(())
 }
 
+pub async fn handle_election_vacuum_analyze(
+    celery_app: Arc<Celery>,
+    scheduled_event: &ScheduledEvent,
+) -> Result<()> {
+    let Some(datetime) = get_datetime(scheduled_event) else {
+        return Ok(());
+    };
+    // run the actual task in a different async task
+    let task = celery_app
+        .send_task(
+            database_maintenance::new()
+                .with_eta(datetime.with_timezone(&Utc))
+                // Expires in an hour
+                .with_expires_in(3600),
+        )
+        .await
+        .map_err(|e| anyhow!("Error sending task to celery {}", e))?;
+    event!(
+        Level::INFO,
+        "Sent database_maintennance task {}",
+        task.task_id
+    );
+    Ok(())
+}
+
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(time_limit = 10, max_retries = 0, expires = 30)]
@@ -436,6 +462,9 @@ pub async fn scheduled_events() -> Result<()> {
                 // new variants are added to `EventProcessors`, a
                 // compile time error will happen notifying about the
                 // missing logic for handling that new variant.
+            }
+            EventProcessors::VACUUM_ANALYZE => {
+                handle_election_vacuum_analyze(celery_app.clone(), scheduled_event).await?;
             }
         }
     }

@@ -921,6 +921,7 @@ const englishTranslation = {
                 START_LOCKDOWN_PERIOD: "Start Lockdown Period",
                 END_LOCKDOWN_PERIOD: "End Lockdown Period",
                 ALLOW_TALLY: "Allow Tally",
+                VACUUM_ANALYZE: "Database maintenance",
             },
             election: {
                 label: "Election",

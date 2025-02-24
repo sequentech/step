@@ -53,6 +53,7 @@ export enum EventProcessors {
     START_LOCKDOWN_PERIOD = "START_LOCKDOWN_PERIOD",
     END_LOCKDOWN_PERIOD = "END_LOCKDOWN_PERIOD",
     ALLOW_TALLY = "ALLOW_TALLY",
+    VACUUM_ANALYZE = "VACUUM_ANALYZE",
 }
 
 const CreateEvent: FC<CreateEventProps> = ({
@@ -122,6 +123,7 @@ const CreateEvent: FC<CreateEventProps> = ({
             case EventProcessors.END_ENROLLMENT_PERIOD:
             case EventProcessors.START_LOCKDOWN_PERIOD:
             case EventProcessors.END_LOCKDOWN_PERIOD:
+            case EventProcessors.VACUUM_ANALYZE:
                 return false
         }
     }
@@ -212,6 +214,9 @@ const CreateEvent: FC<CreateEventProps> = ({
                         </MenuItem>
                         <MenuItem value={EventProcessors.ALLOW_TALLY}>
                             {t("eventsScreen.eventType.ALLOW_TALLY")}
+                        </MenuItem>
+                        <MenuItem value={EventProcessors.VACUUM_ANALYZE}>
+                            {t("eventsScreen.eventType.VACUUM_ANALYZE")}
                         </MenuItem>
                     </Select>
                 </FormControl>
