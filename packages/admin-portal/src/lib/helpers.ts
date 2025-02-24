@@ -28,6 +28,7 @@ export const getPreferenceKey = (key: string, subkey: string) => {
     return `${key.replaceAll("/", "_").replaceAll("-", "_")}_${subkey}`
 }
 
+// function to convert null values to void string for comparison
 const customSortComparator = (
     a: Record<string, any>,
     b: Record<string, any>,

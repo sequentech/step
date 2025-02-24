@@ -99,6 +99,7 @@ export const buildWrappedHasuraProvider = async (apolloClient: any): Promise<Dat
                 // Create a new sort object ensuring proper literal types for order.
                 let sortedData = response.data
 
+                // params.sort is undefined for non well defined list column fields (ex: FunctionFields )
                 if (params.sort) {
                     const sort: {field: string; order: "ASC" | "DESC"} = {
                         field: params.sort.field,
