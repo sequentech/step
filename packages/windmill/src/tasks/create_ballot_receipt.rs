@@ -7,6 +7,7 @@ use crate::services::reports::ballot_receipt::{BallotData, BallotTemplate};
 use crate::services::reports::template_renderer::{
     GenerateReportMode, ReportOriginatedFrom, ReportOrigins, TemplateRenderer,
 };
+use crate::services::tasks_semaphore::acquire_semaphore;
 use crate::types::error::Error;
 use crate::types::error::Result;
 use anyhow::{anyhow, Context};
@@ -30,6 +31,7 @@ pub async fn create_ballot_receipt(
     time_zone: Option<TimeZone>,
     date_format: Option<DateFormat>,
 ) -> Result<()> {
+    let _permit = acquire_semaphore().await?;
     // Spawn the task using an async block
     let handle = tokio::task::spawn_blocking({
         move || {

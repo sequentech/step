@@ -18,6 +18,7 @@ use tokio::runtime::Builder;
 use tracing::{event, Level};
 use windmill::services::celery_app::*;
 use windmill::services::probe::{setup_probe, AppName};
+use windmill::services::tasks_semaphore::init_semaphore;
 
 #[derive(Debug, StructOpt, Clone)]
 #[structopt(
@@ -101,6 +102,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 async fn async_main(opt: CeleryOpt) -> Result<()> {
     init_log(true);
     setup_probe(AppName::WINDMILL).await;
+
+    let cpus = get_worker_threads();
+    init_semaphore(cpus);
 
     match opt.clone() {
         CeleryOpt::Consume {
