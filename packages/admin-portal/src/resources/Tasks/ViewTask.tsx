@@ -66,7 +66,7 @@ export const ViewTask: React.FC<ViewTaskProps> = ({
     const {data: taskData} = useQuery<GetTaskByIdQuery>(GET_TASK_BY_ID, {
         variables: {task_id: currTaskId},
         skip: !currTaskId,
-        pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+        pollInterval: globalSettings.QUERY_FAST_POLL_INTERVAL_MS,
     })
 
     const task = taskData?.sequent_backend_tasks_execution[0]
