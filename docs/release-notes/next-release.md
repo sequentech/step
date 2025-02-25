@@ -221,3 +221,9 @@ CREATE INDEX IF NOT EXISTS idx_user_attribute_user_id ON user_attribute(user_id)
 -- A composite index on user_attribute for covering queries on user_id, name, and value
 CREATE INDEX IF NOT EXISTS idx_user_attribute_userid_name_value ON user_attribute(user_id, name, value);
 ```
+
+## ✨ Create PostgreSQL constraint on number of allowed revotes
+A new migration has been added in Hasura that must be deployed in the production environment:
+```
+hasura/migrations/backend-db/1740496567000_create_trigger_sequent_backend_cast_vote
+```
