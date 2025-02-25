@@ -1415,7 +1415,7 @@ pub async fn execute_tally_session(
     tally_type: Option<String>,
     election_ids: Option<Vec<String>>,
 ) -> Result<()> {
-    let lock = PgLock::acquire(
+    let Ok(lock) = PgLock::acquire(
         format!(
             "execute_tally_session-{}-{}-{}",
             tenant_id, election_event_id, tally_session_id
@@ -1423,7 +1423,14 @@ pub async fn execute_tally_session(
         Uuid::new_v4().to_string(),
         ISO8601::now() + Duration::seconds(120),
     )
-    .await?;
+    .await
+    else {
+        info!(
+            "Skipping: tally in progress for event {} and session id {}",
+            election_event_id, tally_session_id
+        );
+        return Ok(());
+    };
     let mut interval = tokio::time::interval(ChronoDuration::from_secs(30));
     let mut current_task = tokio::spawn(transactions_wrapper(
         tenant_id.clone(),
