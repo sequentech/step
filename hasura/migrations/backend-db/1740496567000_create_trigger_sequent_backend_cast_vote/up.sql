@@ -20,7 +20,7 @@ BEGIN
     AND cv.tenant_id = NEW.tenant_id
     AND cv.election_event_id = NEW.election_event_id
   ) >= allowed_revotes THEN
-    RAISE EXCEPTION 'Exceeds revote limit';
+    RAISE EXCEPTION 'insert_failed_exceeds_allowed_revotes';
   END IF;
   RETURN NEW;
 END;
