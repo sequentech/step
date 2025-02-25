@@ -13,6 +13,7 @@ import {
     Sequent_Backend_Election,
     Sequent_Backend_Contest,
     Sequent_Backend_Candidate,
+    Sequent_Backend_Tenant,
 } from "@/gql/graphql"
 import {
     ICandidatePresentation,
@@ -53,7 +54,7 @@ import {
 } from "@/queries/GetElectionEventsTree"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {sortCandidatesInContest, sortContestList, sortElectionList} from "@sequentech/ui-core"
-import { SettingsContext } from "@/providers/SettingsContextProvider"
+import {SettingsContext} from "@/providers/SettingsContextProvider"
 
 const MenuItem = styled(Menu.Item)`
     color: ${adminTheme.palette.brandColor};
@@ -240,6 +241,22 @@ export default function ElectionEvents() {
     const {globalSettings} = useContext(SettingsContext)
 
     const {getCandidateIdFlag} = useElectionEventTallyStore()
+
+    const {data: tenant} = useGetOne<Sequent_Backend_Tenant>(
+        "sequent_backend_tenant",
+        {
+            id: tenantId,
+        },
+        {
+            enabled: !!tenantId,
+            onError: (error: any) => {
+                console.log(`error fetching image doc: ${error.message}`)
+            },
+            onSuccess: () => {
+                console.log(`success fetching image doc`)
+            },
+        }
+    )
 
     /**
      * Hooks to load data for entities
@@ -626,6 +643,7 @@ export default function ElectionEvents() {
     finalResultData = filterTree(finalResultData, searchInput)
 
     const reloadTreeMenu = () => {
+        console.log("aa IS RELOADING TREE MENU =====")
         candidateTreeRefetch()
         contestTreeRefetch()
         electionTreeRefetch()
@@ -658,6 +676,7 @@ export default function ElectionEvents() {
             isArchivedElectionEvents={isArchivedElectionEvents}
             onArchiveElectionEventsSelect={changeArchiveSelection}
             reloadTree={reloadTreeMenu}
+            hasRefreshMenu={tenant?.settings?.hasRefreshMenu ?? false}
         />
     )
 

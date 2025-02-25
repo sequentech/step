@@ -30,7 +30,7 @@ import {translateElection} from "@sequentech/ui-core"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {Box, Menu, MenuItem} from "@mui/material"
 import {MenuStyles, TreeMenuItemContainer} from "@/components/styles/Menu"
-import {Sequent_Backend_Document} from "@/gql/graphql"
+import {Sequent_Backend_Document, Sequent_Backend_Tenant} from "@/gql/graphql"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {useCreateElectionEventStore} from "@/providers/CreateElectionEventContextProvider"
 import {useNavigate} from "react-router-dom"
@@ -516,12 +516,14 @@ export function TreeMenu({
     isArchivedElectionEvents,
     onArchiveElectionEventsSelect,
     reloadTree,
+    hasRefreshMenu = false,
 }: {
     data: DynEntityType
     treeResourceNames: ResourceName[]
     isArchivedElectionEvents: boolean
     onArchiveElectionEventsSelect: (val: number) => void
     reloadTree: () => void
+    hasRefreshMenu?: boolean
 }) {
     const {t} = useTranslation()
     const isEmpty =
@@ -541,9 +543,11 @@ export function TreeMenu({
                 >
                     {t("sideMenu.archived")}
                 </MenuStyles.SideMenuArchiveItem>
-                <MenuStyles.RefreshAction>
-                    <RefreshIcon onClick={reloadTree} />
-                </MenuStyles.RefreshAction>
+                {hasRefreshMenu ? (
+                    <MenuStyles.RefreshAction>
+                        <RefreshIcon onClick={reloadTree} />
+                    </MenuStyles.RefreshAction>
+                ) : null}
             </MenuStyles.SideMenuContainer>
             <Box sx={{paddingY: 1}}>
                 {isEmpty ? (
