@@ -17,7 +17,9 @@ use sequent_core::ballot::{Candidate, CandidatesOrder, Contest, StringifiedPerio
 use sequent_core::ballot_codec::multi_ballot::DecodedBallotChoices;
 use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
 use sequent_core::services::{pdf, reports};
-use sequent_core::signatures::ecies_encrypt::ecies_sign_data;
+use sequent_core::signatures::ecies_encrypt::ecies_sign_data_bulk;
+use sequent_core::signatures::ecies_encrypt::SignRequest;
+use sequent_core::temp_path::generate_temp_file;
 use sequent_core::types::templates::VoteReceiptPipeType;
 use sequent_core::util::date_time::get_date_and_time;
 use serde::Serialize;
@@ -25,7 +27,7 @@ use serde_json::Map;
 use std::collections::HashMap;
 use std::fs;
 use std::fs::OpenOptions;
-use std::io::Write;
+use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use strand::hash::{hash_b64, hash_sha256};
@@ -145,6 +147,18 @@ impl MCBallotReceipts {
         pipe_config: &PipeConfigVoteReceipts,
         area_name: &str,
     ) -> Result<(Option<Vec<u8>>, Vec<u8>)> {
+        // 1. Gather the sign_data for all ballots/contests
+        let mut bulk_sign_requests = Vec::new();
+
+        // We'll store some structures that map from (ballotIndex, contestIndex, pageNum)
+        // to the sign_data string, so later we can fill in the signatures.
+        struct ContestLocator {
+            sign_id: String,
+            ballot_index: usize,
+            contest_index: usize,
+        }
+        let mut locators = Vec::new();
+
         let contest_map: HashMap<String, Contest> = contests
             .iter()
             .map(|c| (c.id.to_string(), c.clone()))
@@ -168,22 +182,15 @@ impl MCBallotReceipts {
             .map(|s| s.as_str())
             .unwrap_or_default();
 
-        info!(
-            "election_event_annotations {:?}",
-            election_input.election_event_annotations
-        );
-        info!("election annotations {:?}", election_input.annotations);
-
-        info!("event {election_event_id} election {election_id} precint_id {precint_id}");
-
         let mut ballot_data = vec![];
-        for ballot in ballots {
+        for (b_idx, ballot) in ballots.iter().enumerate() {
             let mut cds = vec![];
-            for contest_choices in &ballot.choices {
+            for (c_idx, contest_choices) in ballot.choices.iter().enumerate() {
                 let contest = contest_map
                     .get(&contest_choices.contest_id)
-                    .ok_or(Error::UnexpectedError("Can't get contest".into()))?;
-                let mut choices = DecodedChoice::from_dvcs(&contest_choices, &contest);
+                    .ok_or_else(|| Error::UnexpectedError("Can't get contest".into()))?;
+
+                let mut choices = DecodedChoice::from_dvcs(contest_choices, contest);
 
                 let candidates_order = contest
                     .presentation
@@ -191,37 +198,50 @@ impl MCBallotReceipts {
                     .unwrap_or_default()
                     .candidates_order
                     .unwrap_or_default();
-
                 sort_candidates(&mut choices, candidates_order.clone());
 
                 let num_selected = choices.iter().filter(|can| can.is_selected()).count();
-
                 let undervotes = contest.max_votes - (num_selected as i64);
-                let mut overvotes = 0;
-                if (num_selected as i64) > contest.max_votes {
-                    overvotes = (num_selected as i64) - contest.max_votes;
-                }
+                let overvotes = if (num_selected as i64) > contest.max_votes {
+                    (num_selected as i64) - contest.max_votes
+                } else {
+                    0
+                };
 
+                // Instead of calling ecies_sign_data here, we only CREATE the data
                 let (digital_signature, sign_data) =
                     match (&pipe_config.acm_key, &pipe_config.pipe_type) {
-                        (Some(acm_key), VoteReceiptPipeType::BALLOT_IMAGES) => {
-                            let sign_data = format!(
+                        (Some(_acm_key), VoteReceiptPipeType::BALLOT_IMAGES) => {
+                            let data_str = format!(
                                 "{}:{}:{}:{}:{}",
                                 election_event_id,
-                                &precint_id,
+                                precint_id,
                                 ballot.mcballot.serial_number.clone().unwrap_or_default(),
                                 election_id,
                                 page_number.to_string()
                             );
-                            let signature = ecies_sign_data(&acm_key, &sign_data).map_err(|e| {
-                                Error::UnexpectedError(format!("Error sign data: {}", e))
-                            })?;
-                            (Some(signature), Some(sign_data))
+                            // We'll push this into our bulk_sign_requests
+                            // We also need a unique ID to correlate the signature
+                            let sign_id = format!("b{}_c{}_p{}", b_idx, c_idx, page_number);
+
+                            bulk_sign_requests.push(SignRequest {
+                                id: sign_id.clone(),
+                                data: data_str.clone(),
+                            });
+
+                            // We'll store so we can insert the signature after we do the bulk sign
+                            locators.push(ContestLocator {
+                                sign_id: sign_id.clone(),
+                                ballot_index: b_idx,
+                                contest_index: c_idx,
+                            });
+
+                            // We do not have a signature yet, so just placeholders
+                            (None, Some(data_str))
                         }
                         _ => (None, None),
                     };
 
-                // contest.
                 let cd: ContestData = ContestData {
                     contest: contest.clone(),
                     decoded_choices: choices,
@@ -250,14 +270,50 @@ impl MCBallotReceipts {
 
             let bd = BallotData {
                 id: ballot.mcballot.serial_number.clone().unwrap_or_default(),
-                encoded_vote: encoded_vote,
+                encoded_vote,
                 is_invalid: ballot.mcballot.is_explicit_invalid,
-                is_blank: is_blank,
+                is_blank,
                 contest_choices: cds,
             };
 
             ballot_data.push(bd);
-            page_number += 1; //inc by one for summary page
+            page_number += 1; // inc by one for summary page
+        }
+
+        // 2. Now we do exactly one bulk sign if we have any sign_data
+        let mut signatures_map: HashMap<String, String> = HashMap::new();
+        if let (Some(acm_key), VoteReceiptPipeType::BALLOT_IMAGES) =
+            (&pipe_config.acm_key, &pipe_config.pipe_type)
+        {
+            if !bulk_sign_requests.is_empty() {
+                signatures_map = ecies_sign_data_bulk(acm_key, &bulk_sign_requests)
+                    .map_err(|e| Error::UnexpectedError(format!("Error in bulk signing: {}", e)))?;
+            }
+        }
+
+        // 3. Use the `locators` array to stitch the signatures back into `ballot_data`
+        for locator in locators {
+            // get the actual signature from the map
+            if let Some(sig_base64) = signatures_map.get(&locator.sign_id) {
+                if ballot_data.len() <= locator.ballot_index {
+                    return Err(Error::UnexpectedError(format!(
+                        "index out of bounds for ballot_index {} and length {}",
+                        locator.ballot_index,
+                        ballot_data.len()
+                    )));
+                }
+                let bd = &mut ballot_data[locator.ballot_index];
+                if bd.contest_choices.len() <= locator.contest_index {
+                    return Err(Error::UnexpectedError(format!(
+                        "index out of bounds for contest_index {} and length {}",
+                        locator.contest_index,
+                        bd.contest_choices.len()
+                    )));
+                }
+                let cd = &mut bd.contest_choices[locator.contest_index];
+
+                cd.digital_signature = Some(sig_base64.clone());
+            }
         }
 
         let td = TemplateData {
@@ -435,6 +491,7 @@ impl Pipe for MCBallotReceipts {
                     let f = fs::File::open(path_ballots.as_path())
                         .map_err(|e| Error::FileAccess(path_ballots.as_path().to_path_buf(), e))?;
                     let mcballots: Vec<DecodedBallotChoices> = crate::utils::parse_file(f)?;
+
                     let ballots = convert_ballots(election_input, mcballots)?;
                     let report_options = pipe_config.report_options.clone().unwrap_or_default();
                     let max_threads = report_options.max_threads.unwrap_or_else(|| 3);
@@ -692,6 +749,7 @@ impl Bridge {
 
 // We are reusing some functionality from the standard receipts pipe/template,
 // so it helps to convert mcballots to dcv format
+#[instrument(err, skip_all)]
 fn convert_ballots(
     election_input: &InputElectionConfig,
     mcballots: Vec<DecodedBallotChoices>,

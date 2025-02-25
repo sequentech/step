@@ -139,9 +139,16 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
     const refresh = useRefresh()
     const aliasRenderer = useAliasRenderer()
 
-    const {data: report} = useGetOne<Sequent_Backend_Report>("sequent_backend_report", {
-        id: selectedReportId,
-    })
+    const {data: report} = useGetOne<Sequent_Backend_Report>(
+        "sequent_backend_report",
+        {
+            id: selectedReportId,
+        },
+        {
+            enabled: !!selectedReportId,
+            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+        }
+    )
 
     const {
         canReadReports,

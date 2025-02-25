@@ -115,7 +115,11 @@ export const Widget: React.FC<WidgetProps> = ({
     const {data: taskData} = useQuery<GetTaskByIdQuery>(GET_TASK_BY_ID, {
         variables: {task_id: taskId},
         skip: !taskId,
-        pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+        pollInterval: [ETaskExecutionStatus.STARTED, ETaskExecutionStatus.IN_PROGRESS].includes(
+            taskDataStatus
+        )
+            ? globalSettings.QUERY_FAST_POLL_INTERVAL_MS
+            : globalSettings.QUERY_POLL_INTERVAL_MS,
     })
 
     useEffect(() => {
