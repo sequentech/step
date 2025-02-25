@@ -1164,6 +1164,11 @@ pub async fn lookup_users(
         ),
         score_matches AS (
             SELECT mu.id, count(*) as match_score FROM matched_ids mu
+            LEFT JOIN user_entity u ON u.id = mu.id
+            LEFT JOIN realm ra ON ra.id = u.realm_id
+            WHERE
+                ra.name = $1
+                {enabled_condition}
             GROUP BY mu.id
         )
         SELECT match_score, u.id, u.email, u.email_verified, u.enabled, u.first_name, u.last_name, u.realm_id, u.username, u.created_timestamp, COALESCE(
@@ -1172,7 +1177,6 @@ pub async fn lookup_users(
         FROM
             score_matches rm
         INNER JOIN user_entity u ON u.id = rm.id
-        INNER JOIN realm ra ON ra.id = u.realm_id
         LEFT JOIN LATERAL (
             SELECT json_object_agg(attr.name, attr.values_array) AS attributes
             FROM (
@@ -1188,8 +1192,6 @@ pub async fn lookup_users(
                 SELECT MAX(match_score)
                 FROM score_matches
             )
-            AND ra.name = $1
-            {enabled_condition}
         LIMIT $2
         "#
     );
