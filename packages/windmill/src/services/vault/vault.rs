@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::database::get_hasura_pool;
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::vault::{
     aws_secret_manager::AwsSecretManager, hashicorp_vault::HashiCorpVault,
@@ -10,9 +9,13 @@ use crate::services::vault::{
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
+use lazy_static::lazy_static;
 use std::str::FromStr;
+use strand::serialization::{StrandDeserialize, StrandSerialize};
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
+use strand::symm::{decrypt, encrypt, gen_key, EncryptionData, SymmetricKey};
 use strum_macros::EnumString;
+use tokio;
 use tracing::{info, instrument};
 use uuid::Uuid;
 
@@ -20,6 +23,33 @@ use uuid::Uuid;
 pub enum VaultManagerType {
     HashiCorpVault,
     AwsSecretManager,
+}
+
+lazy_static! {
+    static ref MASTER_SECRET: SymmetricKey = {
+        let vault = get_vault().expect("Failed to initialize vault");
+        tokio::runtime::Runtime::new()
+            .expect("Failed to create runtime")
+            .block_on(async {
+                let key = "master_secret".to_string();
+                match vault.read_secret(key.clone()).await {
+                    Ok(Some(secret)) => {
+                        let bytes = hex::decode(secret).expect("Failed to decode master secret");
+                        SymmetricKey::from_slice(&bytes).to_owned()
+                    }
+                    Ok(None) => {
+                        let new_key = gen_key();
+                        let hex_key = hex::encode(new_key.as_slice());
+                        vault
+                            .save_secret(key, hex_key.clone())
+                            .await
+                            .expect("Failed to save master secret");
+                        new_key
+                    }
+                    Err(e) => panic!("Failed to access vault for master secret: {}", e),
+                }
+            })
+    };
 }
 
 #[async_trait]
@@ -57,10 +87,9 @@ pub async fn save_secret(
             Uuid::parse_str(id)
                 .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?,
         ),
-        None => None,
+        _ => None,
     };
 
-    // Check if the secret already exists
     if read_secret(&hasura_transaction, tenant_id, election_event_id, key)
         .await?
         .is_some()
@@ -68,11 +97,17 @@ pub async fn save_secret(
         return Err(anyhow!("Unexpected: key already exists"));
     }
 
+    let encrypted_data =
+        encrypt(*MASTER_SECRET, value.as_bytes()).context("Error encrypting secret")?;
+    let encrypted_bytes = encrypted_data
+        .strand_serialize()
+        .context("Error serializing encrypted data")?;
+
     hasura_transaction
         .execute(
             "INSERT INTO sequent_backend.secret (tenant_id, key, value, election_event_id) 
              VALUES ($1, $2, $3, $4)",
-            &[&tenant_uuid, &key, &value, &election_event_uuid],
+            &[&tenant_uuid, &key, &encrypted_bytes, &election_event_uuid],
         )
         .await
         .context("Error saving secret")?;
@@ -98,7 +133,7 @@ pub async fn read_secret(
         None => None,
     };
 
-    let result: Option<String> = hasura_transaction
+    let result: Option<Vec<u8>> = hasura_transaction
         .query_opt(
             "SELECT value FROM sequent_backend.secret 
              WHERE tenant_id = $1 
@@ -109,23 +144,22 @@ pub async fn read_secret(
         )
         .await
         .context("Error reading secret")?
-        .map(|row| row.get(0));
+        .map(|row| row.get::<_, &[u8]>(0).into());
 
-    // TODO Decrypt the value before returning
-
-    Ok(result)
+    match result {
+        Some(encrypted_value) => {
+            let encrypted_data = EncryptionData::strand_deserialize(&encrypted_value)
+                .context("Error deserializing encrypted data")?;
+            let decrypted_bytes =
+                decrypt(&MASTER_SECRET, &encrypted_data).context("Error decrypting secret")?;
+            let decrypted_str = String::from_utf8(decrypted_bytes)
+                .context("Error converting decrypted bytes to string")?;
+            Ok(Some(decrypted_str))
+        }
+        None => Ok(None),
+    }
 }
 
-/// Returns the private signing key for the given admin user.
-///
-/// The private key is obtained from the vault.
-/// If no such key exists, it is generated and a log post
-/// is published with the corresponding public key
-/// (with StatementBody::AdminPublicKey).
-///
-/// There is a possibility that the private key is saved
-/// but the notification fails. This is logged in
-/// electorallog::post_admin_pk
 #[instrument(err)]
 pub async fn get_admin_user_signing_key(
     hasura_transaction: &Transaction<'_>,
@@ -148,10 +182,6 @@ pub async fn get_admin_user_signing_key(
         let pk = StrandSignaturePk::from_sk(&sk)?;
         let pk = pk.to_der_b64_string()?;
 
-        // We save the secret right before notifying the public key
-        // to minimize the chances that the second call fails while
-        // while the first one succeeds. If this happens the
-        // secret will exist but the pk notification will not.
         save_secret(hasura_transaction, tenant_id, None, &lookup_key, &sk_string).await?;
         ElectoralLog::post_admin_pk(hasura_transaction, elog_database, tenant_id, user_id, &pk)
             .await?;
@@ -162,12 +192,10 @@ pub async fn get_admin_user_signing_key(
     Ok(sk)
 }
 
-/// Returns the vault lookup key for a voters private signing key
 fn voter_vault_lookup_key(tenant_id: &str, event_id: &str, user_id: &str) -> String {
     format!("voter_signing_key-{}-{}-{}", tenant_id, event_id, user_id)
 }
 
-/// Returns the vault lookup key for an admin user's private signing key
 fn admin_vault_lookup_key(tenant_id: &str, user_id: &str) -> String {
     format!("admin_signing_key-{}-{}", tenant_id, user_id)
 }
