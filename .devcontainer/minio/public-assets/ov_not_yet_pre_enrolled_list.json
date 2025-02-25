@@ -9,6 +9,8 @@
   },
   "areas": [
     {
+      "election_id": "a0c9be51-c7b0-4fba-a1e3-3f97c4deae4b",
+      "area_id": "9a75844d-9935-46b7-8742-1b5e173dc51b",
       "election_title": "TOKYO PE - General Election",
       "election_dates": {
         "first_started_at": "2024-11-08T00:00:00Z",
