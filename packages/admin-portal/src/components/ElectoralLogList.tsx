@@ -34,6 +34,7 @@ import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import {ETasksExecution} from "@/types/tasksExecution"
 import {useLogsPermissions} from "@/resources/ElectionEvent/useLogsPermissions"
 import {MessageField} from "./MessageField"
+import {use} from "i18next"
 
 enum ExportFormat {
     CSV = "CSV",
@@ -71,6 +72,7 @@ const ExportDialog: React.FC<ExportWrapperProps> = ({
                 variables: {
                     electionEventId,
                     format: exportFormat,
+                    userTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
                 },
             })
             if (errors) {

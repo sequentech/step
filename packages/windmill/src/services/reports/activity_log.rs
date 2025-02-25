@@ -51,6 +51,7 @@ pub struct ActivityLogRow {
 pub struct UserData {
     pub act_log: Vec<ActivityLogRow>,
     pub electoral_log: Vec<ElectoralLogRow>,
+    pub user_timezone: Option<String>,
 }
 
 /// Struct for System Data
@@ -210,6 +211,7 @@ impl TemplateRenderer for ActivityLogsTemplate {
         Ok(UserData {
             act_log,
             electoral_log: elect_logs,
+            user_timezone: self.ids.user_timezone.clone(),
         })
     }
     #[instrument(err, skip_all)]
@@ -271,6 +273,7 @@ impl TemplateRenderer for ActivityLogsTemplate {
         Ok(UserData {
             act_log,
             electoral_log: elect_logs,
+            user_timezone: self.ids.user_timezone.clone(),
         })
     }
 

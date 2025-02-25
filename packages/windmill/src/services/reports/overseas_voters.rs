@@ -116,6 +116,7 @@ impl OverseasVotersReport {
                 app_hash,
                 executer_username: self.ids.executer_username.clone(),
                 results_hash: None,
+                user_timezone: self.ids.user_timezone.clone(),
             },
         })
     }
@@ -123,7 +124,6 @@ impl OverseasVotersReport {
     #[instrument(err, skip_all)]
     async fn generate_report_area(
         &self,
-        generate_mode: GenerateReportMode,
         hasura_transaction: &Transaction<'_>,
         keycloak_transaction: &Transaction<'_>,
         user_tpl_document: &str,
@@ -548,7 +548,6 @@ impl TemplateRenderer for OverseasVotersReport {
                                     .block_on(async {
                                         info!("processing batch {batch_index}: inside the GLOBAL_RT.block_on");
                                         self.generate_report_area(
-                                            generate_mode.clone(),
                                             &hasura_transaction,
                                             &keycloak_transaction,
                                             &user_tpl_document,

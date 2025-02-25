@@ -55,6 +55,7 @@ pub async fn generate_report(
         report_origin: ReportOriginatedFrom::ExportFunction,
         executer_username: None, //TODO: fix?
         tally_session_id: None,
+        user_timezone: None,
     });
 
     report

@@ -263,6 +263,7 @@ impl AuditLogsTemplate {
                 app_hash,
                 executer_username: self.ids.executer_username.clone(),
                 results_hash: Some(results_hash),
+                user_timezone: None,
             },
         })
     }
