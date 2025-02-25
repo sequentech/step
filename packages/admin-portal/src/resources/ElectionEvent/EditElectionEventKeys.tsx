@@ -136,7 +136,7 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
             tenantId: tenantId,
             electionEventId: electionEvent?.id ?? "",
         },
-        pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+        pollInterval: globalSettings.QUERY_FAST_POLL_INTERVAL_MS,
         context: {
             headers: {
                 "x-hasura-role": isTrustee
