@@ -27,8 +27,7 @@ pub async fn create_ballot_receipt(
     election_id: String,
     area_id: String,
     voter_id: String,
-    time_zone: Option<TimeZone>,
-    date_format: Option<DateFormat>,
+    timezone: String,
 ) -> Result<()> {
     // Spawn the task using an async block
     let handle = tokio::task::spawn_blocking({
@@ -70,15 +69,13 @@ pub async fn create_ballot_receipt(
                         report_origin: ReportOriginatedFrom::VotingPortal,
                         executer_username: None,
                         tally_session_id: None,
-                        user_timezone: None,
+                        user_timezone: Some(timezone),
                     },
                     Some(BallotData {
                         area_id,
                         voter_id,
                         ballot_id,
                         ballot_tracker_url,
-                        time_zone,
-                        date_format,
                     }),
                 );
 

@@ -22,8 +22,7 @@ pub struct createBallotReceiptInput {
     tenant_id: String,
     election_event_id: String,
     election_id: String,
-    time_zone: Option<TimeZone>,
-    date_format: Option<DateFormat>,
+    user_timezone: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -72,8 +71,7 @@ pub async fn create_ballot_receipt(
                 input.election_id,
                 area_id,
                 voter_id,
-                input.time_zone,
-                input.date_format,
+                input.user_timezone,
             ),
         )
         .await;

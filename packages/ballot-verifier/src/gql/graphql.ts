@@ -1709,6 +1709,7 @@ export type Mutation_RootCreate_Ballot_ReceiptArgs = {
     election_event_id: Scalars["uuid"]["input"]
     election_id: Scalars["uuid"]["input"]
     tenant_id: Scalars["uuid"]["input"]
+    user_timezone: Scalars["String"]["input"]
 }
 
 /** mutation root */
