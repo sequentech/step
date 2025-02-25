@@ -2314,6 +2314,7 @@ export type Mutation_RootExport_Election_EventArgs = {
 export type Mutation_RootExport_Election_Event_LogsArgs = {
     election_event_id: Scalars["String"]["input"]
     format: Scalars["String"]["input"]
+    user_timezone: Scalars["String"]["input"]
 }
 
 /** mutation root */
@@ -2363,6 +2364,7 @@ export type Mutation_RootGenerate_ReportArgs = {
     report_id: Scalars["String"]["input"]
     report_mode: Scalars["String"]["input"]
     tenant_id: Scalars["String"]["input"]
+    user_timezone: Scalars["String"]["input"]
 }
 
 /** mutation root */

@@ -128,19 +128,19 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
                   {{country}}
                 </td>
                 <td>
-                  {{datetime from_rfc3339=testing_date output_format="%B %d, %Y"}}
+                  {{datetime from_rfc3339=testing_date output_format="%B %d, %Y" with_timezone=../../execution_annotations.user_timezone}}
                 </td>
                 <td>
-                  {{datetime from_rfc3339=initialization_date output_format="%B %d, %Y %H:%M"}}
+                  {{datetime from_rfc3339=initialization_date output_format="%B %d, %Y %H:%M GMT %:z" with_timezone=../../execution_annotations.user_timezone}}
                 </td>
                 <td>
-                  {{datetime from_rfc3339=opening_date output_format="%B %d, %Y %H:%M"}}
+                  {{datetime from_rfc3339=opening_date output_format="%B %d, %Y %H:%M GMT %:z" with_timezone=../../execution_annotations.user_timezone}}
                 </td>
                 <td>
-                  {{datetime from_rfc3339=closing_date output_format="%B %d, %Y %H:%M"}}
+                  {{datetime from_rfc3339=closing_date output_format="%B %d, %Y %H:%M GMT %:z" with_timezone=../../execution_annotations.user_timezone}}
                 </td>
                 <td>
-                  {{datetime from_rfc3339=transmission_date output_format="%B %d, %Y %H:%M"}}
+                  {{datetime from_rfc3339=transmission_date output_format="%B %d, %Y %H:%M GMT %:z" with_timezone=../../execution_annotations.user_timezone}}
                 </td>
                 <td>
                   {{transmission_status}}
