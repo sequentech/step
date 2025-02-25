@@ -986,8 +986,10 @@ def gen_tree(excel_data, miru_data, results, multiply_factor):
             raise Exception(f"candidate with 'id' = {candidate_id} and precinct = {precinct_id} not found in miru acf")
         miru_candidate = miru_precinct["CANDIDATES"][candidate_id]
 
-        if not candidate_name.startswith(str(miru_candidate["DISPLAY_ORDER"]) + " "):
-            candidate_name = str(miru_candidate["DISPLAY_ORDER"]) + " " + candidate_name
+        starts1 = str(miru_candidate["DISPLAY_ORDER"]) + " "
+        starts2 = str(miru_candidate["DISPLAY_ORDER"]) + ". "
+        if not (candidate_name.startswith(starts1) or candidate_name.startswith(starts2)):
+            candidate_name = str(miru_candidate["DISPLAY_ORDER"]) + ". " + candidate_name
 
         candidate = {
             "code": candidate_id,
