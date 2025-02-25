@@ -31,7 +31,7 @@ lazy_static! {
         tokio::runtime::Runtime::new()
             .expect("Failed to create runtime")
             .block_on(async {
-                let key = "master_secret".to_string();
+                let key = "db_secrets_master_secret".to_string();
                 match vault.read_secret(key.clone()).await {
                     Ok(Some(secret)) => {
                         let bytes = hex::decode(secret).expect("Failed to decode master secret");
