@@ -22,6 +22,7 @@ use windmill::types::tasks::ETasksExecution;
 pub struct ExportElectionEventInput {
     election_event_id: String,
     format: String,
+    user_timezone: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -94,6 +95,7 @@ pub async fn export_election_event_logs_route(
                 document_id.clone(),
                 report_fmt,
                 None,
+                body.user_timezone.clone(),
             ),
         )
         .await;

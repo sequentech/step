@@ -513,6 +513,7 @@ pub async fn build_vote_receipe_pipe_config(
         report_origin: ReportOriginatedFrom::ExportFunction,
         executer_username: None,
         tally_session_id: None,
+        user_timezone: None,
     });
 
     let (user_tpl_document, ext_cfg) = vote_receipt_renderer
@@ -579,6 +580,7 @@ pub async fn build_ballot_images_pipe_config(
         report_origin: ReportOriginatedFrom::ExportFunction,
         executer_username: None,
         tally_session_id: None,
+        user_timezone: None,
     });
 
     let (user_tpl_document, ext_cfg) = ballot_images_renderer

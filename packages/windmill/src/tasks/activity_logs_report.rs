@@ -30,6 +30,7 @@ pub async fn generate_activity_logs_report(
     document_id: String,
     format: ReportFormat,
     report_clone: Option<Report>,
+    user_timezone: String,
 ) -> Result<()> {
     let _permit = acquire_semaphore().await?;
     let mut db_client: DbClient = get_hasura_pool()
@@ -64,6 +65,7 @@ pub async fn generate_activity_logs_report(
             report_origin: ReportOriginatedFrom::ExportFunction,
             executer_username: None,
             tally_session_id: None,
+            user_timezone: Some(user_timezone),
         },
         format,
     );

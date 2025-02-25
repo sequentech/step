@@ -122,11 +122,10 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
                   {{status}}
                 </td>
                 <td>
-                  {{datetime from_rfc3339=date_voted output_format="%B %d, %Y"}}
-
+                  {{datetime from_rfc3339=date_voted output_format="%B %d, %Y" with_timezone=../../execution_annotations.user_timezone}}
                 </td>
                 <td>
-                  {{datetime from_rfc3339=date_voted output_format="%H:%M"}}
+                  {{datetime from_rfc3339=date_voted output_format="%H:%M GMT %:z" with_timezone=../../execution_annotations.user_timezone}}
                 </td>
               </tr>
               {{/each}}
