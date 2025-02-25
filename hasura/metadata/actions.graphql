@@ -34,6 +34,7 @@ type Mutation {
         tenant_id: uuid!
         election_event_id: uuid!
         election_id: uuid!
+        user_timezone: String!
     ): createBallotReceiptOutput
 }
 

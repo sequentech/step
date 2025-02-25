@@ -35,7 +35,7 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
           </p>
           <div class="key">
             Timestamp:
-            <span class="value" class="timestamp-content">{{timestamp}}</span>
+            <span class="value" class="timestamp-content">{{datetime from_rfc3339=timestamp output_format="%B %d, %Y %H:%M GMT %:z" with_timezone=timezone}}</span>
           </div>
         </div>
       </p>
