@@ -10,12 +10,14 @@ export const GENERATE_REPORT = gql`
         $reportMode: String!
         $tenantId: String!
         $electionEventId: String
+        $userTimezone: String!
     ) {
         generate_report(
             report_id: $reportId
             report_mode: $reportMode
             tenant_id: $tenantId
             election_event_id: $electionEventId
+            user_timezone: $userTimezone
         ) {
             document_id
             encryption_policy
