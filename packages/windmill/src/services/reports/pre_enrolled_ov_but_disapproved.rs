@@ -111,7 +111,6 @@ impl PreEnrolledDisapprovedTemplate {
                 app_hash,
                 executer_username: self.ids.executer_username.clone(),
                 results_hash: None,
-                user_timezone: None,
             },
         })
     }

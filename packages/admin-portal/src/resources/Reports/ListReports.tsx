@@ -212,7 +212,6 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                     tenantId: tenantId,
                     reportMode: mode,
                     electionEventId: electionEventId,
-                    userTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
                 },
             })
             let response = generateReportResponse.data?.generate_report
