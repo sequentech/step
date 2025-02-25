@@ -9,7 +9,7 @@ import {
     DropFile,
     theme,
 } from "@sequentech/ui-essentials"
-import ChevronRightIcon from "@mui/icons-material/ChevronRight" 
+import ChevronRightIcon from "@mui/icons-material/ChevronRight"
 import {useTranslation} from "react-i18next"
 import ElectionHeader from "@/components/ElectionHeader"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
