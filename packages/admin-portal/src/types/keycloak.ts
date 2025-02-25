@@ -81,6 +81,7 @@ export enum IPermissions {
     CANDIDATE_DELETE = "candidate-delete",
     PERMISSION_LABEL_WRITE = "permission-label-write",
     SCHEDULED_EVENT_WRITE = "scheduled-event-write",
+    SCHEDULED_EVENT_DATABASE_MAINTENANCE = "scheduled-event-database-maintenance",
     REPORT_READ = "report-read",
     REPORT_WRITE = "report-write",
     CLOUDFLARE_WRITE = "cloudflare-write",

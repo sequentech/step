@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {FC, useEffect, useMemo, useState} from "react"
+import React, {FC, useEffect, useMemo, useContext, useState} from "react"
 import {
     Create,
     DateTimeInput,
@@ -34,6 +34,7 @@ import {MANAGE_ELECTION_DATES} from "@/queries/ManageElectionDates"
 import {IPermissions} from "@/types/keycloak"
 import {ICronConfig, IManageElectionDatePayload} from "@/types/scheduledEvents"
 import SelectElection from "@/components/election/SelectElection"
+import {AuthContext} from "@/providers/AuthContextProvider"
 
 interface CreateEventProps {
     electionEventId: string
@@ -80,6 +81,12 @@ const CreateEvent: FC<CreateEventProps> = ({
             },
         },
     })
+    const authContext = useContext(AuthContext)
+    const canCreateMaintenanceEvent = authContext.isAuthorized(
+        true,
+        tenantId,
+        IPermissions.SCHEDULED_EVENT_DATABASE_MAINTENANCE
+    )
     const [electionId, setElectionId] = useState<string | null>(
         isEditEvent ? selectedEvent?.event_payload.election_id : null
     )
@@ -215,9 +222,11 @@ const CreateEvent: FC<CreateEventProps> = ({
                         <MenuItem value={EventProcessors.ALLOW_TALLY}>
                             {t("eventsScreen.eventType.ALLOW_TALLY")}
                         </MenuItem>
-                        <MenuItem value={EventProcessors.DATABASE_MAINTENANCE}>
-                            {t("eventsScreen.eventType.DATABASE_MAINTENANCE")}
-                        </MenuItem>
+                        {canCreateMaintenanceEvent && (
+                            <MenuItem value={EventProcessors.DATABASE_MAINTENANCE}>
+                                {t("eventsScreen.eventType.DATABASE_MAINTENANCE")}
+                            </MenuItem>
+                        )}
                     </Select>
                 </FormControl>
                 <FormControl fullWidth>
