@@ -942,15 +942,24 @@ export const TallyCeremony: React.FC = () => {
                             <Accordion
                                 sx={{width: "100%"}}
                                 expanded={expandedResults["tally-results-results"]}
-                                onChange={() =>
-                                    setExpandedResults((prev: IExpanded) => ({
-                                        ...prev,
-                                        "tally-results-results": !prev["tally-results-results"],
-                                    }))
-                                }
+                                onChange={() => {}}
                             >
                                 <AccordionSummary
-                                    expandIcon={<ExpandMoreIcon id="tally-data-results" />}
+                                    expandIcon={
+                                        <div
+                                            onClick={(e) => {
+                                                e.stopPropagation()
+                                                setExpandedResults((prev: IExpanded) => ({
+                                                    ...prev,
+                                                    "tally-results-results":
+                                                        !prev["tally-results-results"],
+                                                }))
+                                            }}
+                                        >
+                                            <ExpandMoreIcon id="tally-data-results" />
+                                        </div>
+                                    }
+                                    onClick={(e) => e.stopPropagation()}
                                 >
                                     <WizardStyles.AccordionTitle>
                                         {t("tally.resultsTitle")}
