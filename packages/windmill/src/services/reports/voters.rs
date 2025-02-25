@@ -1060,3 +1060,35 @@ pub async fn count_applications_by_status_and_roles(
         total_sbei_disapproved,
     ))
 }
+
+#[instrument(err, skip_all)]
+pub async fn get_not_enrolled_voters_by_area_id(
+    keycloak_transaction: &Transaction<'_>,
+    realm: &str,
+    area_id: &str,
+    limit: Option<i64>,
+    offset: Option<i64>,
+) -> Result<(Vec<Voter>, Option<i64>)> {
+    let mut attributes: HashMap<String, AttributesFilterOption> = HashMap::new();
+    attributes.insert(
+        VALIDATE_ID_ATTR_NAME.to_string(),
+        AttributesFilterOption {
+            value: VALIDATE_ID_REGISTERED_VOTER.to_string(),
+            filter_by: AttributesFilterBy::NotExist,
+        },
+    );
+
+    let (mut voters, _voters_count, next_offset) = get_voters_by_area_id(
+        &keycloak_transaction,
+        &realm,
+        &area_id,
+        attributes.clone(),
+        limit,
+        offset,
+    )
+    .await?;
+
+    sort_voters(&mut voters);
+
+    Ok((voters, next_offset))
+}
