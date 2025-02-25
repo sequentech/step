@@ -31,6 +31,8 @@ import {addDefaultTranslationsToElement} from "@/services/i18n"
 import {ETasksExecution} from "@/types/tasksExecution"
 import {INSERT_ELECTION_EVENT} from "@/queries/InsertElectionEvent"
 import {useTenantStore} from "./TenantContextProvider"
+import {useAtom} from "jotai"
+import archivedElectionEventSelection from "@/atoms/archived-election-event-selection"
 
 interface IElectionSubmit {
     description: string
@@ -128,6 +130,10 @@ export const CreateElectionEventProvider = ({children}: any) => {
     const {setLastCreatedResource} = useContext(NewResourceContext)
     const {refetch: refetchTreeMenu} = useTreeMenuData(false)
 
+    const [isArchivedElectionEvents, setArchivedElectionEvents] = useAtom(
+        archivedElectionEventSelection
+    )
+
     const postDefaultValues = () => ({id: v4()})
 
     const {data: tenant} = useGetOne("sequent_backend_tenant", {
@@ -167,7 +173,6 @@ export const CreateElectionEventProvider = ({children}: any) => {
         isLoading: boolean
         error: any
     }) => {
-        console.log({error, isOneLoading, newElectionEvent})
         if (isNull(newId)) {
             setIsLoading(false)
             return
@@ -228,12 +233,10 @@ export const CreateElectionEventProvider = ({children}: any) => {
                 setLastCreatedResource({id: newId, type: "sequent_backend_election_event"})
                 setIsLoading(true)
             } else {
-                console.log(`Error creating Election Event ${errors}`)
                 updateWidgetFail(currWidget.identifier)
                 setIsLoading(false)
             }
         } catch (error) {
-            console.log(`Error creating Election Event ${error}`)
             setIsLoading(false)
             updateWidgetFail(currWidget.identifier)
         }
@@ -274,7 +277,6 @@ export const CreateElectionEventProvider = ({children}: any) => {
         setErrors(null)
 
         const currWidget = addWidget(ETasksExecution.IMPORT_ELECTION_EVENT)
-        console.log({documentId})
 
         try {
             let {data, errors} = await importElectionEvent({
@@ -299,6 +301,7 @@ export const CreateElectionEventProvider = ({children}: any) => {
                 )
                 setNewId(id)
                 setLastCreatedResource({id, type: "sequent_backend_election_event"})
+                setArchivedElectionEvents(false)
             }
         } catch (err) {
             updateWidgetFail(currWidget.identifier)
@@ -332,16 +335,3 @@ export const CreateElectionEventProvider = ({children}: any) => {
 
 //hook
 export const useCreateElectionEventStore = () => useContext(CreateElectionEventContext)
-
-//hoc
-// export const withCreateElectionEventProvider = (Component: React.FC<any>) => {
-//     const HasCreateElectionEventProvider = () => {
-//         return (
-//             <CreateElectionEventProvider>
-//                 <Component />
-//             </CreateElectionEventProvider>
-//         )
-//     }
-
-//     return HasCreateElectionEventProvider
-// }

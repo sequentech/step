@@ -20,9 +20,10 @@ use chrono::offset::TimeZone;
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::StringifiedPeriodDates;
 use sequent_core::services::keycloak::get_event_realm;
+use sequent_core::services::pdf;
 use sequent_core::services::s3::get_minio_url;
-use sequent_core::signatures::temp_path::*;
 use sequent_core::types::scheduled_event::generate_voting_period_dates;
+use sequent_core::util::temp_path::*;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
@@ -121,7 +122,7 @@ impl TemplateRenderer for OVTurnoutPercentageReport {
         )
     }
 
-    #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
+    #[instrument(err, skip_all)]
     async fn prepare_user_data(
         &self,
         hasura_transaction: &Transaction<'_>,
@@ -217,7 +218,7 @@ impl TemplateRenderer for OVTurnoutPercentageReport {
                 verified: None,
             };
 
-            let female_voters_data = get_voters_data(
+            let (female_voters_data, _next_cursor) = get_voters_data(
                 &hasura_transaction,
                 &keycloak_transaction,
                 &realm,
@@ -227,13 +228,15 @@ impl TemplateRenderer for OVTurnoutPercentageReport {
                 &area.id,
                 true,
                 filtered_voters.clone(),
+                None,
+                None,
             )
             .await
             .map_err(|err| anyhow!("Error get_voters_data {err}"))?;
 
             filtered_voters.voters_sex = Some(MALE_VALE.to_string());
 
-            let male_voters_data = get_voters_data(
+            let (male_voters_data, _next_cursor) = get_voters_data(
                 &hasura_transaction,
                 &keycloak_transaction,
                 &realm,
@@ -243,13 +246,15 @@ impl TemplateRenderer for OVTurnoutPercentageReport {
                 &area.id,
                 true,
                 filtered_voters.clone(),
+                None,
+                None,
             )
             .await
             .map_err(|err| anyhow!("Error get_voters_data {err}"))?;
 
             filtered_voters.voters_sex = None;
 
-            let voters_data = get_voters_data(
+            let (voters_data, _next_cursor) = get_voters_data(
                 &hasura_transaction,
                 &keycloak_transaction,
                 &realm,
@@ -259,6 +264,8 @@ impl TemplateRenderer for OVTurnoutPercentageReport {
                 &area.id,
                 true,
                 filtered_voters.clone(),
+                None,
+                None,
             )
             .await
             .map_err(|err| anyhow!("Error get_voters_data {err}"))?;
@@ -338,7 +345,7 @@ impl TemplateRenderer for OVTurnoutPercentageReport {
         &self,
         rendered_user_template: String,
     ) -> Result<Self::SystemData> {
-        if std::env::var_os("DOC_RENDERER_BACKEND") == Some("inplace".into()) {
+        if pdf::doc_renderer_backend() == pdf::DocRendererBackend::InPlace {
             let public_asset_path = get_public_assets_path_env_var()?;
             let minio_endpoint_base =
                 get_minio_url().with_context(|| "Error getting minio endpoint")?;

@@ -114,14 +114,10 @@ impl VoteReceipts {
 
         let bytes_pdf = if pipe_config.enable_pdfs {
             let bytes_html = bytes_html.clone();
-            let rt = tokio::runtime::Runtime::new().unwrap();
-            let bytes_pdf = rt
-                .block_on(async move {
-                    pdf::sync::PdfRenderer::render_pdf(bytes_html, pdf_options).map_err(|e| {
-                        Error::UnexpectedError(format!("Error during PDF rendering: {}", e))
-                    })
-                })
-                .unwrap();
+            let bytes_pdf =
+                pdf::sync::PdfRenderer::render_pdf(bytes_html, pdf_options).map_err(|e| {
+                    Error::UnexpectedError(format!("Error during PDF rendering: {}", e))
+                })?;
 
             Some(bytes_pdf)
         } else {
@@ -131,7 +127,7 @@ impl VoteReceipts {
         Ok((bytes_pdf, bytes_html.into_bytes()))
     }
 
-    #[instrument(skip_all)]
+    #[instrument(err, skip_all)]
     pub fn get_config(&self) -> Result<PipeConfigVoteReceipts> {
         let pipe_config: PipeConfigVoteReceipts = self
             .pipe_inputs
@@ -164,10 +160,8 @@ fn get_pipe_data(pipe_type: VoteReceiptPipeType) -> VoteReceiptsPipeData {
 }
 
 impl Pipe for VoteReceipts {
-    #[instrument(skip_all, name = "VoteReceipts::exec")]
+    #[instrument(err, skip_all, name = "VoteReceipts::exec")]
     fn exec(&self) -> Result<()> {
-        let rt = tokio::runtime::Runtime::new().unwrap();
-
         let input_dir = self
             .pipe_inputs
             .cli
@@ -288,6 +282,7 @@ pub struct DecodedChoice {
     pub candidate: Option<Candidate>,
 }
 
+#[instrument(skip_all)]
 fn compute_data(data: TemplateData) -> ComputedTemplateData {
     let receipts = data
         .ballots

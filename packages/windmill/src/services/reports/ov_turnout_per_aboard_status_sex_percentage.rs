@@ -23,9 +23,10 @@ use async_trait::async_trait;
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::StringifiedPeriodDates;
 use sequent_core::services::keycloak::get_event_realm;
+use sequent_core::services::pdf;
 use sequent_core::services::s3::get_minio_url;
-use sequent_core::signatures::temp_path::*;
 use sequent_core::types::hasura::core::Election;
+use sequent_core::util::temp_path::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tracing::instrument;
@@ -189,7 +190,7 @@ impl TemplateRenderer for OVTurnoutPerAboardAndSexPercentageReport {
         )
     }
 
-    #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
+    #[instrument(err, skip_all)]
     async fn prepare_user_data(
         &self,
         hasura_transaction: &Transaction<'_>,
@@ -369,7 +370,7 @@ impl TemplateRenderer for OVTurnoutPerAboardAndSexPercentageReport {
         &self,
         rendered_user_template: String,
     ) -> Result<Self::SystemData> {
-        if std::env::var_os("DOC_RENDERER_BACKEND") == Some("inplace".into()) {
+        if pdf::doc_renderer_backend() == pdf::DocRendererBackend::InPlace {
             let public_asset_path = get_public_assets_path_env_var()?;
             let minio_endpoint_base =
                 get_minio_url().with_context(|| "Error getting minio endpoint")?;
@@ -392,6 +393,7 @@ impl TemplateRenderer for OVTurnoutPerAboardAndSexPercentageReport {
     }
 }
 
+#[instrument(err, skip_all)]
 async fn get_voters_per_aboard_and_sex_data_by_area(
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
@@ -411,7 +413,7 @@ async fn get_voters_per_aboard_and_sex_data_by_area(
         verified: Some(true),
     };
 
-    let landbased_voters_data = get_voters_data(
+    let (landbased_voters_data, _next_cursor) = get_voters_data(
         hasura_transaction,
         keycloak_transaction,
         &realm,
@@ -421,13 +423,15 @@ async fn get_voters_per_aboard_and_sex_data_by_area(
         &area_id,
         true,
         voters_filters.clone(),
+        None,
+        None,
     )
     .await
     .map_err(|e| anyhow!("Error getting voters data: {}", e))?;
 
     voters_filters.voters_sex = Some(MALE_VALE.to_string());
 
-    let male_landbased_voters_data = get_voters_data(
+    let (male_landbased_voters_data, _next_cursor) = get_voters_data(
         hasura_transaction,
         keycloak_transaction,
         &realm,
@@ -437,13 +441,15 @@ async fn get_voters_per_aboard_and_sex_data_by_area(
         &area_id,
         true,
         voters_filters.clone(),
+        None,
+        None,
     )
     .await
     .map_err(|e| anyhow!("Error getting voters data: {}", e))?;
 
     voters_filters.voters_sex = Some(FEMALE_VALE.to_string());
 
-    let female_landbased_voters_data = get_voters_data(
+    let (female_landbased_voters_data, _next_cursor) = get_voters_data(
         hasura_transaction,
         keycloak_transaction,
         &realm,
@@ -453,6 +459,8 @@ async fn get_voters_per_aboard_and_sex_data_by_area(
         &area_id,
         true,
         voters_filters.clone(),
+        None,
+        None,
     )
     .await
     .map_err(|e| anyhow!("Error getting voters data: {}", e))?;
@@ -472,7 +480,7 @@ async fn get_voters_per_aboard_and_sex_data_by_area(
 
     voters_filters.landbased_or_seafarer = Some(SEAFARER_VALUE.to_string());
 
-    let female_seafarer_voters_data = get_voters_data(
+    let (female_seafarer_voters_data, _next_cursor) = get_voters_data(
         hasura_transaction,
         keycloak_transaction,
         &realm,
@@ -482,13 +490,15 @@ async fn get_voters_per_aboard_and_sex_data_by_area(
         &area_id,
         true,
         voters_filters.clone(),
+        None,
+        None,
     )
     .await
     .map_err(|e| anyhow!("Error getting voters data: {}", e))?;
 
     voters_filters.voters_sex = Some(MALE_VALE.to_string());
 
-    let male_seafarer_voters_data = get_voters_data(
+    let (male_seafarer_voters_data, _next_cursor) = get_voters_data(
         hasura_transaction,
         keycloak_transaction,
         &realm,
@@ -498,13 +508,15 @@ async fn get_voters_per_aboard_and_sex_data_by_area(
         &area_id,
         true,
         voters_filters.clone(),
+        None,
+        None,
     )
     .await
     .map_err(|e| anyhow!("Error getting voters data: {}", e))?;
 
     voters_filters.voters_sex = None;
 
-    let seafarer_voters_data = get_voters_data(
+    let (seafarer_voters_data, _next_cursor) = get_voters_data(
         hasura_transaction,
         keycloak_transaction,
         &realm,
@@ -514,6 +526,8 @@ async fn get_voters_per_aboard_and_sex_data_by_area(
         &area_id,
         true,
         voters_filters.clone(),
+        None,
+        None,
     )
     .await
     .map_err(|e| anyhow!("Error getting voters data: {}", e))?;

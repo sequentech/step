@@ -7,8 +7,9 @@ use crate::services::temp_path::*;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
+use sequent_core::services::pdf;
 use sequent_core::services::s3::get_minio_url;
-use sequent_core::signatures::temp_path::*;
+use sequent_core::util::temp_path::*;
 use serde::{Deserialize, Serialize};
 use std::env;
 use tracing::{info, instrument};
@@ -86,7 +87,7 @@ impl TemplateRenderer for ManualVerificationTemplate {
         )
     }
 
-    #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
+    #[instrument(err, skip_all)]
     async fn prepare_user_data(
         &self,
         hasura_transaction: &Transaction<'_>,
@@ -115,7 +116,7 @@ impl TemplateRenderer for ManualVerificationTemplate {
         let public_asset_path = get_public_assets_path_env_var()?;
         let minio_endpoint_base =
             get_minio_url().with_context(|| "Error getting minio endpoint")?;
-        if std::env::var_os("DOC_RENDERER_BACKEND") == Some("inplace".into()) {
+        if pdf::doc_renderer_backend() == pdf::DocRendererBackend::InPlace {
             Ok(SystemData {
                 rendered_user_template,
                 file_logo: format!(

@@ -321,14 +321,19 @@ function TreeMenuItem({
     const {i18n} = useTranslation()
     const {globalSettings} = useContext(SettingsContext)
 
-    const [open, setOpen] = useState(true)
+    const [open, setOpen] = useState(false)
 
     const location = useLocation()
     const {setTallyId, setTaskId, setCustomFilter} = useElectionEventTallyStore()
 
-    const onClick = () => {
+    const onClick = (isLabel: boolean) => {
+        if (isLabel && open) {
+            return
+        }
+        if (!open) {
+            reloadTree()
+        }
         setOpen(!open)
-        reloadTree()
     }
     /**
      * control the tree menu open state
@@ -379,10 +384,22 @@ function TreeMenuItem({
 
     let imageDocumentId = (resource as ElectionType).image_document_id ?? null
 
-    const {data: imageData} = useGetOne<Sequent_Backend_Document>("sequent_backend_document", {
-        id: imageDocumentId,
-        meta: {tenant_id: tenantId},
-    })
+    const {data: imageData} = useGetOne<Sequent_Backend_Document>(
+        "sequent_backend_document",
+        {
+            id: imageDocumentId,
+            meta: {tenant_id: tenantId},
+        },
+        {
+            enabled: !!imageDocumentId && !!tenantId,
+            onError: (error: any) => {
+                console.log(`error fetching image doc: ${error.message}`)
+            },
+            onSuccess: () => {
+                console.log(`success fetching image doc`)
+            },
+        }
+    )
 
     let item: React.ReactNode
     if (treeResourceNames[0] === "sequent_backend_election_event") {
@@ -428,7 +445,7 @@ function TreeMenuItem({
         <Box sx={{backgroundColor: adminTheme.palette.white}}>
             <TreeMenuItemContainer ref={menuItemRef} isClicked={isClicked}>
                 {canShowMenu ? (
-                    <MenuStyles.TreeMenuIconContaier onClick={onClick}>
+                    <MenuStyles.TreeMenuIconContaier onClick={() => onClick(false)}>
                         {resource?.active && open ? (
                             <ExpandMoreIcon className="menu-item-expanded" />
                         ) : (
@@ -448,7 +465,8 @@ function TreeMenuItem({
                 )}
                 {isOpenSidebar && (
                     <MenuStyles.StyledSideBarNavLink
-                        onClick={onClick}
+                        multiline={treeResourceNames[0] === "sequent_backend_election"}
+                        onClick={() => onClick(true)}
                         title={name}
                         className={({isActive}) =>
                             isActive ? `active menu-item-${treeResourceNames[0]}` : ``

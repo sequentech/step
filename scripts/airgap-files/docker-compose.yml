@@ -66,6 +66,12 @@ services:
       - MINIO_ACCESS_KEY=${AWS_S3_ACCESS_KEY}
       - MINIO_ACCESS_SECRET=${AWS_S3_ACCESS_SECRET}
     command: server --console-address ":9001" /data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://minio:9000/minio/health/live"]
+      interval: 5s
+      timeout: 10s
+      retries: 25
+      start_period: 5s
 
   # used to add headers to minio
   minio-proxy:
@@ -86,7 +92,8 @@ services:
     image: sequentech.local/configure-minio
     pull_policy: never
     depends_on:
-      - minio
+      minio:
+        condition: service_healthy
     environment:
       - MINIO_ROOT_USER=${AWS_S3_ROOT_USER}
       - MINIO_ROOT_PASSWORD=${AWS_S3_ROOT_PASSWORD}
@@ -164,6 +171,10 @@ services:
         condition: service_healthy
       postgres:
         condition: service_healthy
+      minio:
+        condition: service_healthy
+      configure-minio:
+        condition: service_completed_successfully
 
   data-connector-agent:
     profiles: ["full", "base"]
@@ -395,6 +406,7 @@ services:
       B3_PG_USER: ${B3_PG_USER}
       B3_PG_PASSWORD: ${B3_PG_PASSWORD}
       B3_PG_DATABASE: ${B3_PG_DATABASE}
+      DOC_RENDERER_BACKEND: ${DOC_RENDERER_BACKEND}
     ports:
      - ${HARVEST_PORT}:${HARVEST_PORT}
 
@@ -687,6 +699,7 @@ services:
       B3_PG_USER: ${B3_PG_USER}
       B3_PG_PASSWORD: ${B3_PG_PASSWORD}
       B3_PG_DATABASE: ${B3_PG_DATABASE}
+      DOC_RENDERER_BACKEND: ${DOC_RENDERER_BACKEND}
 
   beat:
     profiles: ["full"]

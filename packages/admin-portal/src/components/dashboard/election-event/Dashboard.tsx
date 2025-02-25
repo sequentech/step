@@ -66,6 +66,9 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
         IPermissions.ADMIN_IP_ADDRESS_VIEW
     )
 
+    // Ensure required parameters are set before running the query.
+    const canQuery = Boolean(tenantId && record?.id)
+
     const {
         loading,
         data: dataStats,
@@ -79,6 +82,7 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
             userTimezone,
         },
         pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+        skip: !canQuery,
     })
 
     const {data: keysCeremonies} = useQuery<ListKeysCeremonyQuery>(LIST_KEYS_CEREMONY, {
@@ -86,6 +90,7 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
             tenantId: tenantId,
             electionEventId: record?.id,
         },
+        skip: !canQuery,
         context: {
             headers: {
                 "x-hasura-role": isTrustee
@@ -118,6 +123,7 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
             refetchOnWindowFocus: false,
             refetchOnReconnect: false,
             refetchOnMount: false,
+            enabled: canQuery,
         }
     )
 

@@ -6,7 +6,9 @@ use super::template_renderer::*;
 use crate::postgres::reports::{Report, ReportType};
 use crate::services::database::PgConfig;
 use crate::services::documents::upload_and_return_document;
-use crate::services::electoral_log::{list_electoral_log, ElectoralLogRow, GetElectoralLogBody};
+use crate::services::electoral_log::{
+    count_electoral_log, list_electoral_log, ElectoralLogRow, GetElectoralLogBody,
+};
 use crate::services::providers::email_sender::{Attachment, EmailSender};
 use crate::services::temp_path::*;
 use crate::types::resources::DataList;
@@ -17,9 +19,9 @@ use deadpool_postgres::Transaction;
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak::{self};
 use sequent_core::services::s3::get_minio_url;
-use sequent_core::signatures::temp_path::*;
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::templates::{ReportExtraConfig, SendTemplateBody};
+use sequent_core::util::temp_path::*;
 use serde::{Deserialize, Serialize};
 use strum_macros::EnumString;
 use tempfile::NamedTempFile;
@@ -49,14 +51,12 @@ pub struct ActivityLogRow {
 pub struct UserData {
     pub act_log: Vec<ActivityLogRow>,
     pub electoral_log: Vec<ElectoralLogRow>,
-    pub logo: String,
 }
 
 /// Struct for System Data
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SystemData {
     pub rendered_user_template: String,
-    pub file_logo: String,
 }
 
 /// Implementation of TemplateRenderer for Activity Logs
@@ -150,7 +150,68 @@ impl TemplateRenderer for ActivityLogsTemplate {
     fn prefix(&self) -> String {
         format!("activity_logs_{}", rand::random::<u64>())
     }
+    async fn count_items(&self) -> Option<i64> {
+        let input = GetElectoralLogBody {
+            tenant_id: self.ids.tenant_id.clone(),
+            election_event_id: self.ids.election_event_id.clone(),
+            limit: None,
+            offset: None,
+            filter: None,
+            order_by: None,
+        };
+        count_electoral_log(input).await.ok()
+    }
+    #[instrument(err, skip_all)]
+    async fn prepare_user_data_batch(
+        &self,
+        _hasura_transaction: &Transaction<'_>,
+        _keycloak_transaction: &Transaction<'_>,
+        offset: &mut i64,
+        limit: i64,
+    ) -> Result<Self::UserData> {
+        let mut act_log: Vec<ActivityLogRow> = vec![];
+        let mut elect_logs: Vec<ElectoralLogRow> = vec![];
 
+        let electoral_logs: DataList<ElectoralLogRow> = list_electoral_log(GetElectoralLogBody {
+            tenant_id: self.ids.tenant_id.clone(),
+            election_event_id: self.ids.election_event_id.clone(),
+            limit: Some(limit),
+            offset: Some(*offset),
+            filter: None,
+            order_by: None,
+        })
+        .await
+        .map_err(|e| anyhow!("Error listing electoral logs: {e:?}"))?;
+
+        let is_empty = electoral_logs.items.is_empty();
+
+        for electoral_log in electoral_logs.items {
+            elect_logs.push(electoral_log.clone());
+            let head_data = electoral_log
+                .statement_head_data()
+                .with_context(|| "Error to get head data.")?;
+            let event_type = head_data.event_type;
+            let log_type = head_data.log_type;
+            let description = head_data.description;
+            let activity_log = electoral_log.try_into()?;
+            info!("activity_log = {activity_log:?}");
+            let activity_log = ActivityLogRow {
+                event_type,
+                log_type,
+                description,
+                ..activity_log
+            };
+            info!("activity_log = {activity_log:?}");
+            act_log.push(activity_log);
+        }
+
+        let total = electoral_logs.total.aggregate.count;
+
+        Ok(UserData {
+            act_log,
+            electoral_log: elect_logs,
+        })
+    }
     #[instrument(err, skip_all)]
     async fn prepare_user_data(
         &self,
@@ -210,7 +271,6 @@ impl TemplateRenderer for ActivityLogsTemplate {
         Ok(UserData {
             act_log,
             electoral_log: elect_logs,
-            logo: LOGO_TEMPLATE.to_string(),
         })
     }
 
@@ -225,14 +285,10 @@ impl TemplateRenderer for ActivityLogsTemplate {
 
         Ok(SystemData {
             rendered_user_template,
-            file_logo: format!(
-                "{}/{}/{}",
-                minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_LOGO_IMG
-            ),
         })
     }
 
-    #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
+    #[instrument(err, skip_all)]
     async fn execute_report(
         &self,
         document_id: &str,

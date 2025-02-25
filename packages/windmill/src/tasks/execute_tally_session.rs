@@ -26,9 +26,9 @@ use crate::services::ceremonies::insert_ballots::{
 };
 use crate::services::ceremonies::keys_ceremony::get_keys_ceremony_board;
 use crate::services::ceremonies::results::populate_results_tables;
-use crate::services::ceremonies::serialize_logs::generate_logs;
-use crate::services::ceremonies::serialize_logs::print_messages;
-use crate::services::ceremonies::serialize_logs::sort_logs;
+use crate::services::ceremonies::serialize_logs::{
+    append_tally_finished, generate_logs, print_messages, sort_logs,
+};
 use crate::services::ceremonies::tally_ceremony::find_last_tally_session_execution;
 use crate::services::ceremonies::tally_ceremony::get_tally_ceremony_status;
 use crate::services::ceremonies::tally_progress::generate_tally_progress;
@@ -737,6 +737,7 @@ async fn map_plaintext_data(
     tally_session_id: String,
     ceremony_status: TallyCeremonyStatus,
     keys_ceremony: &KeysCeremony,
+    tally_session_data: get_last_tally_session_execution::ResponseData,
 ) -> Result<
     Option<(
         Vec<AreaContestDataType>,
@@ -778,18 +779,6 @@ async fn map_plaintext_data(
         keys_ceremony,
     )
     .await?;
-
-    // get all data for the execution: the last tally session execution,
-    // the list of tally_session_contest, and the ballot styles
-    let tally_session_data = get_last_tally_session_execution(
-        auth_headers.clone(),
-        tenant_id.clone(),
-        election_event_id.clone(),
-        tally_session_id.clone(),
-    )
-    .await?
-    .data
-    .expect("expected data");
 
     let tally_session = &tally_session_data.sequent_backend_tally_session[0];
     let tally_session_created_at_timestamp_secs =
@@ -966,9 +955,11 @@ async fn map_plaintext_data(
 
     new_status.elections_status = new_tally_progress;
 
-    let mut logs = new_status.logs.clone();
-    logs.append(&mut new_logs);
-    new_status.logs = sort_logs(&logs);
+    {
+        let mut logs = new_status.logs.clone();
+        logs.append(&mut new_logs);
+        new_status.logs = sort_logs(&logs);
+    }
 
     // get ballot styles, from where we'll get the Contest(s)
     let ballot_styles: Vec<BallotStyle> = get_ballot_styles(&tally_session_data)?;
@@ -1163,13 +1154,15 @@ pub async fn execute_tally_session_wrapped(
     tally_type: Option<String>,
     election_ids: Option<Vec<String>>,
 ) -> Result<()> {
-    let Some((tally_session_execution, tally_session)) = find_last_tally_session_execution(
-        auth_headers.clone(),
-        tenant_id.clone(),
-        election_event_id.clone(),
-        tally_session_id.clone(),
-    )
-    .await?
+    let Some((tally_session_execution, tally_session, tally_session_data)) =
+        find_last_tally_session_execution(
+            auth_headers.clone(),
+            tenant_id.clone(),
+            election_event_id.clone(),
+            tally_session_id.clone(),
+            election_ids.clone().unwrap_or(vec![]),
+        )
+        .await?
     else {
         event!(Level::INFO, "Can't find last execution status, skipping");
         return Ok(());
@@ -1213,6 +1206,7 @@ pub async fn execute_tally_session_wrapped(
         tally_session_id.clone(),
         status,
         &keys_ceremony,
+        tally_session_data,
     )
     .await?;
 
@@ -1220,7 +1214,7 @@ pub async fn execute_tally_session_wrapped(
         plaintexts_data,
         newest_message_id,
         is_execution_completed,
-        new_status,
+        mut new_status,
         session_ids,
         cast_votes_count,
         tally_sheets,
@@ -1284,6 +1278,9 @@ pub async fn execute_tally_session_wrapped(
     let session_ids_i32: Option<Vec<i32>> = session_ids
         .clone()
         .map(|values| values.clone().into_iter().map(|int| int as i32).collect());
+
+    new_status.logs =
+        append_tally_finished(&new_status.logs, &election_ids.clone().unwrap_or(vec![]));
 
     // insert tally_session_execution
     insert_tally_session_execution(
@@ -1409,7 +1406,7 @@ pub async fn transactions_wrapper(
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(time_limit = 1200000, max_retries = 0)]
+#[celery::task(time_limit = 1200000, max_retries = 0, expires = 15)]
 pub async fn execute_tally_session(
     tenant_id: String,
     election_event_id: String,
@@ -1417,7 +1414,7 @@ pub async fn execute_tally_session(
     tally_type: Option<String>,
     election_ids: Option<Vec<String>>,
 ) -> Result<()> {
-    let lock = PgLock::acquire(
+    let Ok(lock) = PgLock::acquire(
         format!(
             "execute_tally_session-{}-{}-{}",
             tenant_id, election_event_id, tally_session_id
@@ -1425,7 +1422,14 @@ pub async fn execute_tally_session(
         Uuid::new_v4().to_string(),
         ISO8601::now() + Duration::seconds(120),
     )
-    .await?;
+    .await
+    else {
+        info!(
+            "Skipping: tally in progress for event {} and session id {}",
+            election_event_id, tally_session_id
+        );
+        return Ok(());
+    };
     let mut interval = tokio::time::interval(ChronoDuration::from_secs(30));
     let mut current_task = tokio::spawn(transactions_wrapper(
         tenant_id.clone(),

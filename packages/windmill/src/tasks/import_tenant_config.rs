@@ -29,6 +29,7 @@ pub async fn import_tenant_config(
     object: ImportOptions,
     tenant_id: String,
     document_id: String,
+    sha256: Option<String>,
     task_execution: TasksExecution,
 ) -> Result<()> {
     let task_execution_clone = task_execution.clone();
@@ -37,15 +38,15 @@ pub async fn import_tenant_config(
     let tenant_id = tenant_id.clone();
     let task_execution = task_execution_clone.clone();
 
-    match import_tenant_config_zip(object, &tenant_id, &document_id).await {
+    match import_tenant_config_zip(object, &tenant_id, &document_id, sha256).await {
         Ok(_) => (),
         Err(err) => {
-            update_fail(&task_execution, &format!("{:?}", err)).await?;
+            update_fail(&task_execution, &err.to_string()).await?;
             return Err(anyhow!("Error process tenant configuration documents: {:?}", err).into());
         }
     };
 
-    update_complete(&task_execution)
+    update_complete(&task_execution, Some(document_id.to_string()))
         .await
         .context("Failed to update task execution status to COMPLETED")?;
 

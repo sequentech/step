@@ -1,19 +1,61 @@
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-
 use crate::postgres::application::insert_applications;
+use crate::services::providers::transactions_provider::provide_hasura_transaction;
 use crate::{
     postgres::document::get_document,
-    services::{database::get_hasura_pool, documents::get_document_as_temp_file},
+    services::documents::get_document_as_temp_file,
+    services::tasks_execution::{update_complete, update_fail},
+    types::error::Result,
 };
-use anyhow::{anyhow, Context, Result};
-use csv::StringRecord;
+use anyhow::{anyhow, Context, Result as AnyhowResult};
+use celery::error::TaskError;
 use deadpool_postgres::Transaction;
 use sequent_core::types::hasura::core::Application;
+use sequent_core::types::hasura::core::TasksExecution;
+use sequent_core::util::integrity_check::{integrity_check, HashFileVerifyError};
 use std::io::Seek;
-use tracing::instrument;
+use tracing::{info, instrument};
 use uuid::Uuid;
+
+#[instrument(err)]
+#[wrap_map_err::wrap_map_err(TaskError)]
+#[celery::task(max_retries = 2)]
+pub async fn import_applications(
+    tenant_id: String,
+    election_event_id: String,
+    document_id: String,
+    sha256: Option<String>,
+    task_execution: TasksExecution,
+) -> Result<()> {
+    let result = provide_hasura_transaction(|hasura_transaction| {
+        let document_copy = document_id.clone();
+        Box::pin(async move {
+            import_applications_task(
+                hasura_transaction,
+                tenant_id,
+                election_event_id,
+                document_copy.clone(),
+                sha256,
+            )
+            .await
+        })
+    })
+    .await;
+
+    match result {
+        Ok(_) => {
+            let _res = update_complete(&task_execution, Some(document_id.clone())).await;
+            Ok(())
+        }
+        Err(err) => {
+            let err_str = format!("Error importing applications: {err:?}");
+            let _res = update_fail(&task_execution, &err.to_string()).await;
+            Err(err_str.into())
+        }
+    }
+}
 
 #[instrument(err)]
 pub async fn import_applications_task(
@@ -21,14 +63,34 @@ pub async fn import_applications_task(
     tenant_id: String,
     election_event_id: String,
     document_id: String,
-) -> Result<()> {
-    let document = get_document(&hasura_transaction, &tenant_id, None, &document_id)
+    sha256: Option<String>,
+) -> AnyhowResult<()> {
+    let document = get_document(hasura_transaction, &tenant_id, None, &document_id)
         .await
         .with_context(|| "Error obtaining the document")?
         .ok_or(anyhow!("document not found"))?;
 
     let mut temp_file = get_document_as_temp_file(&tenant_id, &document).await?;
     temp_file.rewind()?;
+
+    match sha256 {
+        Some(hash) if !hash.is_empty() => match integrity_check(&temp_file, hash) {
+            Ok(_) => {
+                info!("Hash verified !");
+            }
+            Err(HashFileVerifyError::HashMismatch(input_hash, gen_hash)) => {
+                let err_str = format!("Failed to verify the integrity: Hash of voters file: {gen_hash} does not match with the input hash: {input_hash}");
+                return Err(anyhow!(err_str));
+            }
+            Err(err) => {
+                let err_str = format!("Failed to verify the integrity: {err:?}");
+                return Err(anyhow!(err_str));
+            }
+        },
+        _ => {
+            info!("No hash provided, skipping integrity check");
+        }
+    }
 
     let mut rdr = csv::ReaderBuilder::new()
         .delimiter(b',')
@@ -79,7 +141,7 @@ pub async fn import_applications_task(
         });
     }
 
-    insert_applications(&hasura_transaction, &applications).await?;
+    insert_applications(hasura_transaction, &applications).await?;
 
     Ok(())
 }

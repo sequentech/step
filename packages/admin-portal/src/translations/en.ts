@@ -83,6 +83,7 @@ const englishTranslation = {
             widget: {
                 taskTitle: "Task: {{title}}",
                 viewTask: "View Task",
+                downloadDocument: "Download File",
             },
             exportTasksExecution: {
                 success: "Export finished successfully",
@@ -387,6 +388,7 @@ const englishTranslation = {
                 elections: "Elections",
                 electionNumber: "Number Elections",
                 trustees: "Trustees",
+                permissionLabels: "Permission Labels",
                 status: "Status",
                 tallyType: {
                     label: "Tally Type",
@@ -442,6 +444,8 @@ const englishTranslation = {
                 fileUploadError: "Error uploading file",
                 importVotersSuccess: "Voters Import Scheduled Successfully",
                 importVotersError: "Error importing Voters",
+                importElectionEventSuccess: "Election event imported Successfully",
+                importElectionEventError: "Error importing election event",
                 shaDialog: {
                     ok: "Yes, Import without Integrity Check",
                     cancel: "Go Back",
@@ -1079,6 +1083,7 @@ const englishTranslation = {
             election: "Import an Election",
             contest: "Import a Contest",
             candidate: "Import a Candidate",
+            ImportHashMismatch: "Hashes don't match. Integrity check failure.",
         },
         sideMenu: {
             electionEvents: "Election Events",
@@ -1875,7 +1880,7 @@ const englishTranslation = {
                 verificationType: "Verification Type",
                 createdAt: "Created At",
                 updatedAt: "Updated At",
-                approved_by: "Approved By",
+                verified_by: "Verified By",
             },
             approvalRequest: "Approval Request",
             title: "Voters",

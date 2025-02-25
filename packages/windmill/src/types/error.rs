@@ -6,6 +6,7 @@ use celery;
 use celery::prelude::TaskError;
 use handlebars;
 use keycloak;
+use sequent_core::util::integrity_check::HashFileVerifyError;
 use serde_json;
 use strand::util::StrandError;
 quick_error! {
@@ -30,6 +31,10 @@ quick_error! {
         TryFromIntError(err: std::num::TryFromIntError) {
             from()
         }
+        HashFileVerifyError(err: HashFileVerifyError) {
+            from()
+            display("{}", err.to_string())
+        }
     }
 }
 
@@ -46,6 +51,7 @@ impl From<Error> for TaskError {
                 err
             )),
             Error::TryFromIntError(err) => TaskError::UnexpectedError(format!("{err:?}")),
+            Error::HashFileVerifyError(err) => TaskError::UnexpectedError(format!("{err:?}")),
         }
     }
 }
@@ -88,6 +94,12 @@ impl From<std::io::Error> for Error {
 
 impl From<keycloak::KeycloakError> for Error {
     fn from(err: keycloak::KeycloakError) -> Self {
+        Error::String(format!("{:?}", err))
+    }
+}
+
+impl From<lapin::Error> for Error {
+    fn from(err: lapin::Error) -> Self {
         Error::String(format!("{:?}", err))
     }
 }

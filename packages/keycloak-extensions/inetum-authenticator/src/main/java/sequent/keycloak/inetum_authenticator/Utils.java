@@ -86,6 +86,7 @@ public class Utils {
   public final String FTL_ERROR_AUTH_INVALID = "internalInetumError";
   public final String FTL_ERROR_INVALID_SCORE = "scoringInetumError";
   public final String FTL_ERROR_INVALID_ATTRIBUTES = "attributesInetumError";
+  public final String FTL_ERROR_MAX_RETRIES = "maxRetriesError";
 
   private static final String KEYS_USERDATA = "keyUserdata";
   private static final String KEYS_USERDATA_SEPARATOR = ";";
@@ -116,6 +117,9 @@ public class Utils {
   public static final int DEFAULT_MAX_RETRIES = 3;
   public static final int BASE_RETRY_DELAY = 1_000;
   public static final String ERROR_GENERATING_APPROVAL = "approvalGenerationError";
+  public static final String SDK_VERSION = "sdk-version";
+  public static final String FTL_SDK_VERSION = "sdk_version";
+  public static final String DEFAULT_SDK_VERSION = "4.0.3";
 
   String escapeJson(String value) {
     return value != null

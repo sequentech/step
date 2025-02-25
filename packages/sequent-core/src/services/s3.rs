@@ -3,13 +3,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::signatures::temp_path::{
-    generate_temp_file, get_public_assets_path_env_var,
-};
 use crate::util::aws::{
     get_fetch_expiration_secs, get_s3_aws_config, get_upload_expiration_secs,
 };
-
+use crate::util::temp_path::{
+    generate_temp_file, get_public_assets_path_env_var,
+};
 use anyhow::{anyhow, Context, Result};
 use aws_sdk_s3 as s3;
 use aws_smithy_types::byte_stream::ByteStream;
@@ -208,10 +207,33 @@ pub async fn upload_file_to_s3(
     media_type: String,
     file_path: String,
     cache_control: Option<String>,
+    download_filename: Option<String>,
 ) -> Result<()> {
-    let body = ByteStream::from_path(&file_path).await.with_context(|| {
+    let data = ByteStream::from_path(&file_path).await.with_context(|| {
         anyhow!("Error creating bytestream from file path={file_path}")
     })?;
+    upload_data_to_s3(
+        data,
+        key,
+        is_public,
+        s3_bucket,
+        media_type,
+        cache_control,
+        download_filename,
+    )
+    .await
+}
+
+#[instrument(err, skip_all)]
+pub async fn upload_data_to_s3(
+    data: ByteStream,
+    key: String,
+    is_public: bool,
+    s3_bucket: String,
+    media_type: String,
+    cache_control: Option<String>,
+    download_filename: Option<String>,
+) -> Result<()> {
     let config = get_s3_aws_config(!is_public)
         .await
         .with_context(|| "Error getting s3 aws config")?;
@@ -219,12 +241,18 @@ pub async fn upload_file_to_s3(
         .await
         .with_context(|| "Error getting s3 client")?;
 
-    let request = client
+    let mut request = client
         .put_object()
         .bucket(s3_bucket)
         .key(key)
         .content_type(media_type)
-        .body(body);
+        .body(data);
+
+    if let Some(filename) = download_filename {
+        // e.g. "attachment; filename=\"myfile.ezip\""
+        let disposition = format!("attachment; filename=\"{filename}\"");
+        request = request.content_disposition(disposition);
+    }
 
     let request = if let Some(cache_control_value) = cache_control {
         request.cache_control(cache_control_value)
@@ -326,6 +354,35 @@ pub async fn delete_files_from_s3(
     }
 
     Ok(())
+}
+
+#[instrument(err)]
+pub async fn get_file_from_s3(
+    s3_bucket: String,
+    path: String,
+) -> Result<Vec<u8>> {
+    let config = get_s3_aws_config(true)
+        .await
+        .with_context(|| "Error getting s3 aws config")?;
+    let client = get_s3_client(config.clone())
+        .await
+        .with_context(|| "Error getting s3 client")?;
+
+    let mut object = client
+        .get_object()
+        .bucket(s3_bucket.clone())
+        .key(path)
+        .send()
+        .await?;
+
+    let mut result: Vec<u8> = Vec::new();
+    while let Some(bytes) = object.body.try_next().await.map_err(|err| {
+        anyhow!("Failed to read from S3 download stream: {err:?}")
+    })? {
+        result.extend(&bytes);
+    }
+
+    Ok(result)
 }
 
 #[instrument(err)]

@@ -12,6 +12,10 @@ type Mutation {
     check_private_key(object: CheckPrivateKeyInput!): CheckPrivateKeyOutput
 }
 
+type Query {
+    count_users(body: CountUsersInput!): CountUsersOutput!
+}
+
 type Mutation {
     createScheduledEvent(
         tenant_id: String!
@@ -349,17 +353,23 @@ type Mutation {
         election_event_id: String
         election_id: String
         document_id: String!
+        sha256: String
     ): applicationOutput
 }
 
 type Mutation {
-    import_areas(election_event_id: String!, document_id: String!): OptionalId
+    import_areas(
+        election_event_id: String!
+        document_id: String!
+        sha256: String
+    ): OptionalId
 }
 
 type Mutation {
     import_candidates(
         election_event_id: String!
         document_id: String!
+        sha256: String
     ): documentTaskOutput
 }
 
@@ -369,11 +379,16 @@ type Mutation {
         document_id: String!
         password: String
         check_only: Boolean
+        sha256: String
     ): OptionalImportEvent
 }
 
 type Mutation {
-    import_templates(tenant_id: String!, document_id: String!): templateOutput
+    import_templates(
+        tenant_id: String!
+        document_id: String!
+        sha256: String
+    ): templateOutput
 }
 
 type Mutation {
@@ -381,6 +396,7 @@ type Mutation {
         tenant_id: String!
         document_id: String!
         import_configurations: ImportOptions
+        sha256: String
     ): ImportTenantOutput
 }
 
@@ -389,6 +405,7 @@ type Mutation {
         tenant_id: String!
         election_event_id: String
         document_id: String!
+        sha256: String
     ): taskOutput
 }
 
@@ -877,6 +894,26 @@ input ImportOptions {
     include_tenant: Boolean
     include_keycloak: Boolean
     include_roles: Boolean
+}
+
+input CountUsersInput {
+    tenant_id: uuid!
+    election_event_id: uuid
+    election_id: uuid
+    search: String
+    first_name: jsonb
+    last_name: jsonb
+    email: jsonb
+    username: jsonb
+    limit: Int
+    offset: Int
+    show_votes_info: Boolean
+    attributes: jsonb
+    enabled: Boolean
+    email_verified: Boolean
+    sort: jsonb
+    has_voted: Boolean
+    authorized_to_election_alias: String
 }
 
 type GetManualVerificationOutput {
@@ -1393,6 +1430,7 @@ type KeysCeremony {
     name: String
     settings: jsonb
     is_default: Boolean
+    permission_label: [String]
 }
 
 type generateReportOutput {
@@ -1482,6 +1520,7 @@ type ExportApplicationOutput {
 type applicationOutput {
     error_msg: String
     document_id: String
+    task_execution: tasks_execution_type
 }
 
 type ExportTrusteesOutput {
@@ -1515,4 +1554,8 @@ type GenerateTemplateOutput {
 type ApplicationChangeStatusOutput {
     message: String
     error: String
+}
+
+type CountUsersOutput {
+    count: Int!
 }

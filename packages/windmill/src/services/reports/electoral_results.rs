@@ -8,8 +8,9 @@ use anyhow::{Context, Result};
 use async_trait::async_trait;
 use chrono::{Local, TimeZone};
 use deadpool_postgres::{Client as DbClient, Transaction};
+use sequent_core::services::pdf;
 use sequent_core::services::s3::get_minio_url;
-use sequent_core::signatures::temp_path::*;
+use sequent_core::util::temp_path::*;
 use serde::{Deserialize, Serialize};
 use tracing::{info, instrument};
 use velvet::pipes::generate_reports::TemplateData;
@@ -73,7 +74,7 @@ impl TemplateRenderer for ElectoralResults {
         )
     }
 
-    #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
+    #[instrument(err, skip_all)]
     async fn prepare_user_data(
         &self,
         hasura_transaction: &Transaction<'_>,
@@ -87,7 +88,7 @@ impl TemplateRenderer for ElectoralResults {
         &self,
         rendered_user_template: String,
     ) -> Result<Self::SystemData> {
-        if std::env::var_os("DOC_RENDERER_BACKEND") == Some("inplace".into()) {
+        if pdf::doc_renderer_backend() == pdf::DocRendererBackend::InPlace {
             let public_asset_path = get_public_assets_path_env_var()?;
             let minio_endpoint_base =
                 get_minio_url().with_context(|| "Error getting minio endpoint")?;

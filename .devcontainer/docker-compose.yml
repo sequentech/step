@@ -52,6 +52,8 @@ services:
 
   postgres:
     profiles: ["full", "base"]
+    # Required by VACUUM ANALYZE to work properly
+    shm_size: 256m
     image: sequentech.local/postgresql
     container_name: postgres
     build:
@@ -97,6 +99,12 @@ services:
     #restart: always
     #depends_on:
     #  - graphql-engine
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://minio:9000/minio/health/live"]
+      interval: 5s
+      timeout: 10s
+      retries: 25
+      start_period: 5s
 
   # used to add headers to minio
   minio-proxy:
@@ -118,7 +126,8 @@ services:
       context: ./minio
       dockerfile: Dockerfile
     depends_on:
-      - minio
+      minio:
+        condition: service_healthy
     environment:
       - MINIO_ROOT_USER=${AWS_S3_ROOT_USER}
       - MINIO_ROOT_PASSWORD=${AWS_S3_ROOT_PASSWORD}
@@ -197,6 +206,10 @@ services:
         condition: service_healthy
       postgres:
         condition: service_healthy
+      minio:
+        condition: service_healthy
+      configure-minio:
+        condition: service_completed_successfully
 
   data-connector-agent:
     profiles: ["full", "base"]
@@ -219,6 +232,8 @@ services:
 
   postgres-keycloak:
     profiles: ["full", "base"]
+    # Required by VACUUM ANALYZE to work properly
+    shm_size: 256m
     image: sequentech.local/postgresql
     container_name: postgres-keycloak
     restart: unless-stopped
@@ -252,6 +267,7 @@ services:
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
     environment:
+      AMQP_ADDR: ${AMQP_ADDR}
       KC_HOSTNAME: ${KC_HOSTNAME}
       KC_HOSTNAME_STRICT: ${KC_HOSTNAME_STRICT}
       KC_HTTP_PORT: ${KC_HTTP_PORT}
@@ -372,6 +388,33 @@ services:
     depends_on:
       - immudb-init
 
+  mock_server:
+    profiles: ["full"]
+    stdin_open: true
+    image: sequentech.local/cargo-packages
+    container_name: mock_server
+    volumes_from:
+      - devcontainer
+    depends_on:
+      - devcontainer
+    working_dir: /workspaces/step/packages/e2e/src/mock_server
+    entrypoint: [
+      "cargo",
+      "watch",
+      "--why",
+      # ignoring rust-local-target/ since it's used for local builds and
+      # otherwise triggers a rebuild all the time (probably rust analyzer)
+      "--ignore",
+      "rust-local-target/",
+      "-x",
+      "run"
+    ]
+    environment:
+      ROCKET_ADDRESS: ${ROCKET_ADDRESS}
+      ROCKET_PORT: ${MOCK_SERVER_PORT}
+      MOCK_SERVER_PORT: ${MOCK_SERVER_PORT}
+    ports:
+     - ${MOCK_SERVER_PORT}:${MOCK_SERVER_PORT}
   harvest:
     profiles: ["full", "base"]
     stdin_open: true
@@ -472,6 +515,7 @@ services:
       B3_PG_USER: ${B3_PG_USER}
       B3_PG_PASSWORD: ${B3_PG_PASSWORD}
       B3_PG_DATABASE: ${B3_PG_DATABASE}
+      DOC_RENDERER_BACKEND: ${DOC_RENDERER_BACKEND}
 
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
@@ -773,7 +817,7 @@ services:
       "--ignore",
       "rust-local-target/",
       "-x",
-      "run --bin main consume -q short_queue tally_queue reports_queue beat communication_queue import_export_queue"
+      "run --bin main consume -q beat short_queue tally_queue reports_queue communication_queue import_export_queue electoral_log_batch_queue electoral_log_beat_queue --prefetch-count 1"
     ]
     volumes_from:
       - devcontainer
@@ -858,6 +902,7 @@ services:
       B3_PG_USER: ${B3_PG_USER}
       B3_PG_PASSWORD: ${B3_PG_PASSWORD}
       B3_PG_DATABASE: ${B3_PG_DATABASE}
+      DOC_RENDERER_BACKEND: ${DOC_RENDERER_BACKEND}
 
   beat:
     profiles: ["full"]

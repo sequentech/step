@@ -1,3 +1,4 @@
+use crate::postgres::area::{get_area_by_id, get_areas_by_election_id};
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
@@ -16,13 +17,13 @@ use crate::services::users::{
     AttributesFilterOption,
 };
 use crate::types::miru_plugin::MiruSbeiUser;
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::StringifiedPeriodDates;
-use sequent_core::signatures::temp_path::*;
 use sequent_core::types::hasura::core::{Area, Election, ElectionEvent};
 use sequent_core::types::keycloak::AREA_ID_ATTR_NAME;
 use sequent_core::types::scheduled_event::ScheduledEvent;
+use sequent_core::util::temp_path::*;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
@@ -70,18 +71,24 @@ pub async fn generate_election_votes_data(
     election_event_id: &str,
     election_id: &str,
 ) -> Result<ElectionVotesData> {
-    let election = get_election_by_id(
+    let areas = get_areas_by_election_id(
         hasura_transaction,
         tenant_id,
         election_event_id,
         election_id,
     )
-    .await?
-    .ok_or(anyhow!("Can't find election"))?;
-    let registered_voters = election
-        .get_annotations_or_empty_values()
-        .map(|annotations| annotations.registered_voters)
-        .ok();
+    .await
+    .with_context(|| "Can't find areas")?;
+
+    let registered_voters: i64 = areas
+        .iter()
+        .map(|area| {
+            area.get_annotations_or_empty_values()
+                .map(|annotations| annotations.registered_voters)
+        })
+        .collect::<Result<Vec<i64>>>()?
+        .iter()
+        .sum();
     // Fetch last election results created from tally session
     let election_results = get_election_results(
         hasura_transaction,
@@ -94,16 +101,14 @@ pub async fn generate_election_votes_data(
 
     if let Some(result) = election_results.get(0) {
         let total_ballots = result.total_voters;
-        let voters_turnout = if let (Some(registered_voters), Some(total_ballots)) =
-            (registered_voters.clone(), total_ballots)
-        {
+        let voters_turnout = if let Some(total_ballots) = total_ballots {
             calc_voters_turnout(total_ballots, registered_voters)?
         } else {
             None
         };
 
         Ok(ElectionVotesData {
-            registered_voters,
+            registered_voters: Some(registered_voters),
             total_ballots,
             voters_turnout,
         })
@@ -125,15 +130,10 @@ pub async fn generate_election_area_votes_data(
     area_id: &str,
     contest_id: Option<&str>,
 ) -> Result<ElectionVotesData> {
-    let election = get_election_by_id(
-        hasura_transaction,
-        tenant_id,
-        election_event_id,
-        election_id,
-    )
-    .await?
-    .ok_or(anyhow!("Can't find election"))?;
-    let registered_voters = election
+    let area = get_area_by_id(hasura_transaction, tenant_id, area_id)
+        .await?
+        .ok_or(anyhow!("Can't find election"))?;
+    let registered_voters = area
         .get_annotations_or_empty_values()
         .map(|annotations| annotations.registered_voters)
         .ok();
@@ -227,7 +227,6 @@ pub async fn get_total_number_of_registered_voters(
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ElectionData {
-    pub registered_voters: String,
     pub geographical_region: String,
     pub voting_center: String,
     pub precinct_code: String,
@@ -240,7 +239,6 @@ pub async fn extract_election_data(election: &Election) -> Result<ElectionData> 
         election.get_annotations_or_empty_values()?;
 
     Ok(ElectionData {
-        registered_voters: annotations.registered_voters.to_string(),
         geographical_region: annotations.geographical_area.clone(),
         voting_center: annotations.post.clone(),
         precinct_code: annotations.precinct_code.clone(),
@@ -272,6 +270,7 @@ pub struct InspectorData {
 
 pub struct AreaData {
     pub inspectors: Vec<InspectorData>,
+    pub registered_voters: i64,
 }
 
 #[instrument(err, skip_all)]
@@ -287,19 +286,24 @@ pub async fn extract_area_data(
         area_sbei_ids.is_empty(),
         election_event_sbei_users.is_empty(),
     ) {
-        (false, false) => election_event_sbei_users
-            .into_iter()
-            .filter_map(|user: MiruSbeiUser| {
-                if area_sbei_ids.contains(&user.miru_id) {
-                    Some(InspectorData {
-                        role: user.miru_name.clone(),
-                        name: user.miru_name,
-                    })
-                } else {
-                    None
-                }
-            })
-            .collect(),
+        (false, false) => {
+            let mut seen_ids = HashSet::new();
+            election_event_sbei_users
+                .into_iter()
+                .filter_map(|user| {
+                    if area_sbei_ids.contains(&user.miru_id)
+                        && seen_ids.insert(user.miru_id.clone())
+                    {
+                        Some(InspectorData {
+                            role: user.miru_name.clone(),
+                            name: user.miru_name,
+                        })
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<_>>()
+        }
         _ => vec![
             InspectorData {
                 role: "".to_string(),
@@ -316,7 +320,10 @@ pub async fn extract_area_data(
         ],
     };
 
-    Ok(AreaData { inspectors })
+    Ok(AreaData {
+        inspectors,
+        registered_voters: annotations.registered_voters,
+    })
 }
 
 #[instrument(err, skip(hasura_transaction))]
@@ -417,6 +424,7 @@ pub struct UserDataElections {
     pub elections: Vec<UserDataElection>,
 }
 
+#[instrument(err, skip_all)]
 pub async fn process_elections(
     elections: Vec<Election>,
     scheduled_events: Vec<ScheduledEvent>,

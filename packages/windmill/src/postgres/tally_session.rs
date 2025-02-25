@@ -56,6 +56,7 @@ impl TryFrom<Row> for TallySessionWrapper {
                 .map(|val| deserialize_value(val))
                 .transpose()?,
             tally_type: item.try_get("tally_type")?,
+            permission_label: item.get::<_, Option<Vec<String>>>("permission_label"),
         }))
     }
 }
@@ -74,6 +75,7 @@ pub async fn insert_tally_session(
     configuration: Option<TallySessionConfiguration>,
     tally_type: &str,
     annotations: Value,
+    permission_label: Vec<String>,
 ) -> Result<TallySession> {
     let configuration_json: Option<Value> = configuration
         .map(|value| serde_json::to_value(&value))
@@ -91,7 +93,7 @@ pub async fn insert_tally_session(
             r#"
                 INSERT INTO
                     sequent_backend.tally_session
-                (tenant_id, election_event_id, election_ids, area_ids, id, keys_ceremony_id, execution_status, threshold, configuration, tally_type, annotations)
+                (tenant_id, election_event_id, election_ids, area_ids, id, keys_ceremony_id, execution_status, threshold, configuration, tally_type, annotations, permission_label)
                 VALUES(
                     $1,
                     $2,
@@ -103,7 +105,8 @@ pub async fn insert_tally_session(
                     $8,
                     $9,
                     $10,
-                    $11
+                    $11,
+                    $12
                 )
                 RETURNING
                     *;
@@ -125,6 +128,7 @@ pub async fn insert_tally_session(
                 &configuration_json,
                 &tally_type.to_string(),
                 &annotations,
+                &permission_label,
             ],
         )
         .await
@@ -165,7 +169,8 @@ pub async fn get_tally_sessions_by_election_event_id(
             created_at DESC;
     "#,
         if only_active {
-            " AND is_execution_completed IS FALSE"
+            r#" AND is_execution_completed IS FALSE
+                AND execution_status = 'IN_PROGRESS'"#
         } else {
             ""
         }
@@ -277,4 +282,48 @@ pub async fn update_tally_session_annotation(
         .map_err(|err| anyhow!("Error running query: {err}"))?;
 
     Ok(())
+}
+
+#[instrument(err, skip(hasura_transaction))]
+pub async fn get_tally_sessions_by_election_id(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: &str,
+) -> Result<Vec<TallySession>> {
+    let query = format!(
+        r#"
+        SELECT
+            *
+        FROM
+            sequent_backend.tally_session
+        WHERE
+            tenant_id = $1
+            AND election_event_id = $2
+            AND $3 = ANY(election_ids)
+        ORDER BY
+            created_at DESC;
+        "#
+    );
+
+    let statement = hasura_transaction.prepare(&query).await?;
+
+    // Note: tenant_id is parsed as a UUID while election_id is a string.
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(&election_event_id)?,
+                &Uuid::parse_str(&election_id)?,
+            ],
+        )
+        .await?;
+
+    let tally_sessions: Vec<TallySession> = rows
+        .into_iter()
+        .map(|row| -> Result<TallySession> { row.try_into().map(|res: TallySessionWrapper| res.0) })
+        .collect::<Result<Vec<TallySession>>>()?;
+
+    Ok(tally_sessions)
 }

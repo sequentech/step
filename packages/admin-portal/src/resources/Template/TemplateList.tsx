@@ -43,6 +43,7 @@ import {DownloadDocument} from "../User/DownloadDocument"
 import {ExportTemplateMutation, ImportTemplatesMutation} from "@/gql/graphql"
 import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
 import {IMPORT_TEMPLATES} from "@/queries/ImportTemplate"
+import {EIntegrityCheckError} from "@/types/templates"
 
 const TemplateEmpty = styled(Box)`
     display: flex;
@@ -164,8 +165,19 @@ export const TemplateList: React.FC = () => {
                 variables: {
                     tenantId,
                     documentId,
+                    sha256,
                 },
             })
+            let errMsg = data?.import_templates?.error_msg
+            if (errMsg) {
+                let errType = errMsg as EIntegrityCheckError
+                if (errType == EIntegrityCheckError.HASH_MISSMATCH) {
+                    notify(t("importResource.ImportHashMismatch"), {type: "error"})
+                } else {
+                    notify("Error importing templates", {type: "error"})
+                }
+                return
+            }
             notify("Templates imported successfully", {type: "success"})
             refresh()
         } catch (err) {

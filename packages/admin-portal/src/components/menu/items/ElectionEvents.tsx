@@ -41,7 +41,7 @@ import {AuthContext} from "@/providers/AuthContextProvider"
 import {useTranslation} from "react-i18next"
 import {IPermissions} from "../../../types/keycloak"
 import {useTreeMenuData} from "./use-tree-menu-hook"
-import {cloneDeep} from "lodash"
+import {cloneDeep, debounce} from "lodash"
 import {useUrlParams} from "@/hooks/useUrlParams"
 import {useCreateElectionEventStore} from "@/providers/CreateElectionEventContextProvider"
 import {useLazyQuery} from "@apollo/client"
@@ -191,7 +191,10 @@ function filterTree(tree: any, filterName: string): any {
         return tree.map((subTree) => filterTree(subTree, filterName)).filter((v) => v !== null)
     } else if (typeof tree === "object" && tree !== null) {
         for (let key in tree) {
-            if (tree.name?.toLowerCase().search(filterName.toLowerCase()) > -1) {
+            if (
+                tree.name?.toLowerCase().search(filterName.toLowerCase()) > -1 ||
+                tree.alias?.toLowerCase().search(filterName.toLowerCase()) > -1
+            ) {
                 return tree
             } else if (ENTITY_FIELD_NAMES.includes(key as EntityFieldName)) {
                 let filteredSubTree = filterTree(tree[key], filterName)
@@ -210,6 +213,7 @@ function filterTree(tree: any, filterName: string): any {
 export default function ElectionEvents() {
     const [tenantId] = useTenantStore()
     const [isOpenSidebar] = useSidebarState()
+    const [instantSearchInput, setInstantSearchInput] = useState<string>("")
     const [searchInput, setSearchInput] = useState<string>("")
     const navigate = useNavigate()
 
@@ -295,42 +299,110 @@ export default function ElectionEvents() {
     )
     // Get subtrees
     const [
-        _getElectionEventTree,
-        {data: electionEventTreeData, refetch: electionEventTreeRefetch},
-    ] = useLazyQuery(FETCH_ELECTION_EVENTS_TREE, {
-        variables: {
-            tenantId,
-            isArchived: isArchivedElectionEvents,
-        },
-    })
+        getElectionEventTree,
+        {data: electionEventTreeData, refetch: _electionEventTreeRefetch},
+    ] = useLazyQuery(FETCH_ELECTION_EVENTS_TREE)
 
-    const [getElectionTree, {data: electionTreeData, refetch: electionTreeRefetch}] = useLazyQuery(
-        FETCH_ELECTIONS_TREE,
-        {
-            variables: {
-                tenantId,
-                electionEventId,
-            },
+    const [getElectionTree, {data: electionTreeData, refetch: _electionTreeRefetch}] =
+        useLazyQuery(FETCH_ELECTIONS_TREE)
+
+    const [getContestTree, {data: contestTreeData, refetch: _contestTreeRefetch}] =
+        useLazyQuery(FETCH_CONTEST_TREE)
+
+    const [getCandidateTree, {data: candidateTreeData, refetch: _candidateTreeRefetch}] =
+        useLazyQuery(FETCH_CANDIDATE_TREE)
+
+    // Wrapper refetch functions: only call the internal refetch if variables
+    // are set
+    const electionEventTreeRefetch = () => {
+        if (tenantId && electionEventId) {
+            _electionEventTreeRefetch({
+                variables: {
+                    tenantId,
+                    isArchived: isArchivedElectionEvents,
+                },
+            })
         }
-    )
+    }
 
-    const [getContestTree, {data: contestTreeData, refetch: contestTreeRefetch}] = useLazyQuery(
-        FETCH_CONTEST_TREE,
-        {
-            variables: {
-                tenantId,
-                electionId,
-            },
+    const electionTreeRefetch = () => {
+        if (tenantId && electionEventId) {
+            _electionTreeRefetch({
+                variables: {
+                    tenantId,
+                    electionEventId,
+                },
+            })
         }
-    )
+    }
 
-    const [getCandidateTree, {data: candidateTreeData, refetch: candidateTreeRefetch}] =
-        useLazyQuery(FETCH_CANDIDATE_TREE, {
-            variables: {
-                tenantId,
-                contestId,
-            },
-        })
+    const contestTreeRefetch = () => {
+        if (tenantId && electionId) {
+            _contestTreeRefetch({
+                variables: {
+                    tenantId,
+                    electionId,
+                },
+            })
+        }
+    }
+
+    const candidateTreeRefetch = () => {
+        if (tenantId && contestId) {
+            _candidateTreeRefetch({
+                variables: {
+                    tenantId,
+                    contestId,
+                },
+            })
+        }
+    }
+
+    // Instead of setting variables in the options, we now call the lazy queries
+    // only when variables exist.
+    useEffect(() => {
+        if (tenantId) {
+            getElectionEventTree({
+                variables: {
+                    tenantId,
+                    isArchived: isArchivedElectionEvents,
+                },
+            })
+        }
+    }, [tenantId, isArchivedElectionEvents, getElectionEventTree])
+
+    useEffect(() => {
+        if (tenantId && electionEventId) {
+            getElectionTree({
+                variables: {
+                    tenantId,
+                    electionEventId,
+                },
+            })
+        }
+    }, [tenantId, electionEventId, getElectionTree])
+
+    useEffect(() => {
+        if (tenantId && electionId) {
+            getContestTree({
+                variables: {
+                    tenantId,
+                    electionId,
+                },
+            })
+        }
+    }, [tenantId, electionId, getContestTree])
+
+    useEffect(() => {
+        if (tenantId && contestId) {
+            getCandidateTree({
+                variables: {
+                    tenantId,
+                    contestId,
+                },
+            })
+        }
+    }, [tenantId, contestId, candidateId, getCandidateTree])
 
     const location = useLocation()
     const isElectionEventActive = TREE_RESOURCE_NAMES.some(
@@ -350,18 +422,9 @@ export default function ElectionEvents() {
             candidateData()
             candidateTreeRefetch()
         } else {
-            electionEventDataRefetch()
+            // do nothing
         }
     }, [location])
-
-    useEffect(() => {
-        getElectionTree({
-            variables: {
-                tenantId,
-                electionEventId,
-            },
-        })
-    }, [electionEventId])
 
     useEffect(() => {
         const hasCandidateIdFlag = location.pathname
@@ -380,51 +443,18 @@ export default function ElectionEvents() {
     }, [getCandidateIdFlag, candidate_id])
 
     useEffect(() => {
-        if (electionId !== "") {
-            getContestTree({
-                variables: {
-                    tenantId,
-                    electionId,
-                },
-            })
-        }
-    }, [electionId])
-
-    useEffect(() => {
-        if (contestId !== "") {
-            getCandidateTree({
-                variables: {
-                    tenantId,
-                    contestId,
-                },
-            })
-        }
-    }, [contestId])
-
-    useEffect(() => {
-        if (contestId !== "") {
-            getCandidateTree({
-                variables: {
-                    tenantId,
-                    contestId,
-                },
-            })
-        }
-    }, [candidateId])
-
-    useEffect(() => {
         if (!electionEventData || !electionEventId) return
         if (electionEventData?.id === electionEventId && electionEventData?.is_archived) {
             setArchivedElectionEvents(electionEventData?.is_archived ?? false)
         }
     }, [electionEventId, electionEventData, setArchivedElectionEvents])
 
-    function handleSearchChange(searchInput: string) {
-        setSearchInput(searchInput)
-    }
+    let resultData = {...data}
 
     function changeArchiveSelection(val: number) {
         setArchivedElectionEvents(val === 1)
+        resultData = {}
+        navigate("/sequent_backend_election_event/")
     }
 
     const handleOpenCreateElectionEventMenu = (e: React.MouseEvent<HTMLElement>) => {
@@ -477,14 +507,10 @@ export default function ElectionEvents() {
         })
     }
 
-    let resultData = {...data}
     if (!loading && data && data.sequent_backend_election_event) {
-        resultData = filterTree(
-            {
-                electionEvents: [...(data.sequent_backend_election_event ?? [])],
-            },
-            searchInput
-        )
+        resultData = {
+            electionEvents: [...(data.sequent_backend_election_event ?? [])],
+        }
     }
 
     let finalResultData = useMemo(() => {
@@ -594,7 +620,10 @@ export default function ElectionEvents() {
         contestTreeData,
         candidateTreeData,
         data,
+        searchInput,
     ])
+
+    finalResultData = filterTree(finalResultData, searchInput)
 
     const reloadTreeMenu = () => {
         candidateTreeRefetch()
@@ -605,6 +634,20 @@ export default function ElectionEvents() {
         originalRefetch()
         navigate("/sequent_backend_election_event/")
     }
+
+    const debouncedSearchChange = useMemo(() => {
+        const debouncedFn = debounce((value) => {
+            console.log(`edu: debounce: ${value}`)
+            // Expensive operation or API call
+            setSearchInput(value)
+        }, 300)
+
+        return (value: any) => {
+            // Update state immediately
+            setInstantSearchInput(value)
+            debouncedFn(value)
+        }
+    }, [])
 
     const treeMenu = loading ? (
         <CircularProgress />
@@ -655,8 +698,8 @@ export default function ElectionEvents() {
                                 dir={i18n.dir(i18n.language)}
                                 label={t("sideMenu.search")}
                                 size="small"
-                                value={searchInput}
-                                onChange={(e) => handleSearchChange(e.target.value)}
+                                value={instantSearchInput}
+                                onChange={(e) => debouncedSearchChange(e.target.value)}
                             />
                             <SearchIcon />
                         </SideBarContainer>

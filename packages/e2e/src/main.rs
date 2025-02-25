@@ -5,7 +5,7 @@
 mod services;
 
 use clap::Parser;
-use services::enrollment::run_enrollment_test;
+use services::{enrollment::run_enrollment_test, login::run_login_test, voting::run_voting_test};
 
 #[derive(Parser, Debug)]
 #[command(
@@ -29,10 +29,10 @@ pub struct Args {
 fn main() {
     let args = Args::parse();
 
-    match args.test_type.as_str() {
-        "enrollment" => {
-            run_enrollment_test(&args);
-        }
+    let result = match args.test_type.as_str() {
+        "enrollment" => run_enrollment_test(&args),
+        "voting" => run_voting_test(&args),
+        "login" => run_login_test(&args),
         _ => {
             eprintln!("Unknown test type: {}", args.test_type);
             std::process::exit(1);

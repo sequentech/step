@@ -3,12 +3,14 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::database::PgConfig;
+use crate::postgres::election_event::is_datafix_election_event;
 use crate::services::electoral_log::ElectoralLog;
 use anyhow::{anyhow, Context, Result};
 use chrono::NaiveDate;
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Transaction;
 use sequent_core::types::keycloak::{User, VotesInfo};
+use sequent_core::types::keycloak::{ATTR_RESET_VALUE, VOTED_CHANNEL};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
@@ -55,7 +57,6 @@ impl TryFrom<Row> for CastVote {
 }
 
 #[instrument(err)]
-// TODO Make it possible to use pagination
 pub async fn find_area_ballots(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -284,13 +285,13 @@ pub async fn get_count_votes_per_day(
     Ok(cast_votes_by_day)
 }
 
-#[instrument(skip(hasura_transaction), err)]
+#[instrument(skip(hasura_transaction, users), err)]
 pub async fn get_users_with_vote_info(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
     election_id: Option<String>,
-    users: Vec<User>,
+    mut users: Vec<User>,
     filter_by_has_voted: Option<bool>,
 ) -> Result<Vec<User>> {
     let tenant_uuid =
@@ -299,11 +300,19 @@ pub async fn get_users_with_vote_info(
         .with_context(|| "Error parsing election_event_id as UUID")?;
 
     let election_uuid = match election_id {
-        Some(ref election_id_r) => Some(Uuid::parse_str(election_id_r.as_str())?),
+        Some(ref election_id_s) => Some(
+            Uuid::parse_str(election_id_s)
+                .with_context(|| format!("Error parsing election_id {election_id_s} as UUID"))?,
+        ),
         None => None,
     };
 
-    // Prepare the list of user IDs for the query
+    let is_datafix_event =
+        is_datafix_election_event(hasura_transaction, tenant_id, election_event_id)
+            .await
+            .with_context(|| "Error checking if is datafix election event")?;
+
+    // Collect user IDs (and verify all have an ID)
     let user_ids: Vec<String> = users
         .iter()
         .map(|user| {
@@ -314,27 +323,30 @@ pub async fn get_users_with_vote_info(
         .collect::<Result<Vec<String>>>()
         .with_context(|| "Error extracting user IDs")?;
 
+    // If no users, we can return early
+    if user_ids.is_empty() {
+        return Ok(vec![]);
+    }
+
     let vote_info_statement = hasura_transaction
         .prepare(
             r#"
-            SELECT 
-                v.voter_id_string AS voter_id_string, 
-                v.election_id AS election_id, 
-                COUNT(v.id) AS num_votes, 
-                MAX(v.created_at) AS last_voted_at
-            FROM 
-                sequent_backend.cast_vote v
-            WHERE 
-                v.tenant_id = $1 AND
-                v.election_event_id = $2 AND
-                v.voter_id_string = ANY($3) AND
-                (v.election_id = $4 OR $4 IS NULL)
-            GROUP BY 
-                v.voter_id_string, v.election_id;
-            "#,
+        SELECT
+            v.voter_id_string AS voter_id_string,
+            v.election_id     AS election_id,
+            COUNT(v.id)       AS num_votes,
+            MAX(v.created_at) AS last_voted_at
+        FROM sequent_backend.cast_vote v
+        WHERE
+            v.tenant_id        = $1::uuid
+            AND v.election_event_id = $2::uuid
+            AND v.voter_id_string   = ANY($3::text[])
+            AND ($4::uuid IS NULL OR v.election_id = $4::uuid)
+        GROUP BY
+            v.voter_id_string, v.election_id
+        "#,
         )
-        .await
-        .with_context(|| "Error preparing the vote info statement")?;
+        .await?;
 
     let rows = hasura_transaction
         .query(
@@ -349,17 +361,8 @@ pub async fn get_users_with_vote_info(
         .await
         .with_context(|| "Error executing the vote info query")?;
 
-    let mut user_votes_map: HashMap<String, Vec<VotesInfo>> = users
-        .iter()
-        .map(|user| {
-            let user_id = user
-                .id
-                .clone()
-                .ok_or_else(|| anyhow!("Encountered a user without an ID"))?;
-            Ok((user_id, vec![]))
-        })
-        .collect::<Result<_>>()
-        .with_context(|| "Error processing users for user_votes_map")?;
+    // Build a map from user_id -> Vec<VotesInfo> only for users who have votes
+    let mut user_votes_map = HashMap::<String, Vec<VotesInfo>>::with_capacity(rows.len());
 
     for row in rows {
         let voter_id_string: String = row
@@ -375,46 +378,61 @@ pub async fn get_users_with_vote_info(
             .try_get("last_voted_at")
             .with_context(|| "Error getting last_voted_at from row")?;
 
-        if let Some(user_votes_info) = user_votes_map.get_mut(&voter_id_string) {
-            user_votes_info.push(VotesInfo {
+        user_votes_map
+            .entry(voter_id_string)
+            .or_insert_with(Vec::new)
+            .push(VotesInfo {
                 election_id: election_id.to_string(),
                 num_votes: num_votes as usize,
                 last_voted_at: last_voted_at.to_string(),
             });
-        } else {
-            return Err(anyhow!("Not found user for voter-id={voter_id_string}"));
-        }
     }
 
-    // Construct the final Vec<User> in the same order as the input users
-    let mut filtered_users: Vec<User> = Vec::new();
-    for user in users.iter() {
+    // Attach votes_info to each user in-place. Then do datafix logic if needed.
+    // keep the same user order by iterating in place.
+    for user in &mut users {
         let user_id = user
             .id
-            .clone()
+            .as_ref()
             .ok_or_else(|| anyhow!("Encountered a user without an ID"))?;
 
-        let votes_info = user_votes_map
-            .get(&user_id)
-            .cloned()
-            .ok_or_else(|| anyhow!("Missing vote info for user ID {}", user_id))?;
+        // Get the collected VotesInfo from the map, or empty Vec if none
+        let mut votes_info = user_votes_map.remove(user_id).unwrap_or_default();
 
-        match filter_by_has_voted {
-            Some(has_voted) => {
-                if (has_voted && votes_info.len() > 0) || (!has_voted && votes_info.len() == 0) {
-                    filtered_users.push(User {
-                        votes_info: Some(votes_info),
-                        ..user.clone()
-                    });
+        // If this is a "datafix" event, adjust the votes_info by checking the user's attributes
+        if is_datafix_event {
+            if let Some(attributes) = &user.attributes {
+                if let Some(channels) = attributes.get(VOTED_CHANNEL) {
+                    if let Some(channel) = channels.last() {
+                        // Overwrite with a single “voted” entry if the channel isn't reset/empty
+                        if channel != ATTR_RESET_VALUE && !channel.is_empty() {
+                            votes_info = vec![VotesInfo {
+                                election_id: "".to_string(),
+                                num_votes: 1,
+                                last_voted_at: "".to_string(),
+                            }];
+                        }
+                    }
                 }
             }
-            None => filtered_users.push(User {
-                votes_info: Some(votes_info),
-                ..user.clone()
-            }),
         }
+
+        user.votes_info = Some(votes_info);
     }
-    Ok(filtered_users)
+
+    // filter by has_voted, if needed - keep only users with at least one vote
+    if let Some(has_voted) = filter_by_has_voted {
+        users.retain(|user| {
+            let info_count = user.votes_info.as_ref().map(|v| v.len()).unwrap_or(0);
+            if has_voted {
+                info_count > 0
+            } else {
+                info_count == 0
+            }
+        });
+    }
+
+    Ok(users)
 }
 
 #[derive(Debug, Serialize, Deserialize)]

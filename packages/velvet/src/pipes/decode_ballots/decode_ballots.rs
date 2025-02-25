@@ -33,7 +33,7 @@ impl DecodeBallots {
 }
 
 impl DecodeBallots {
-    #[instrument(skip(contest))]
+    #[instrument(err, skip(contest))]
     fn decode_ballots(path: &Path, contest: &Contest) -> Result<Vec<DecodedVoteContest>> {
         let file = fs::File::open(path).map_err(|e| Error::FileAccess(path.to_path_buf(), e))?;
         let reader = std::io::BufReader::new(file);
@@ -65,7 +65,7 @@ impl DecodeBallots {
 }
 
 impl Pipe for DecodeBallots {
-    #[instrument(skip_all, name = "DecodeBallots::exec")]
+    #[instrument(err, skip_all, name = "DecodeBallots::exec")]
     fn exec(&self) -> Result<()> {
         for election_input in &self.pipe_inputs.election_list {
             for contest_input in &election_input.contest_list {

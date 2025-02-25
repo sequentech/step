@@ -7,6 +7,7 @@
 extern crate rocket;
 
 use dotenv::dotenv;
+use sequent_core::services::connection::LastAccessToken;
 use sequent_core::util::init_log::init_log;
 use windmill::services::{
     celery_app::set_is_app_active,
@@ -35,6 +36,17 @@ async fn rocket() -> _ {
             ],
         )
         .mount(
+            "/api/datafix",
+            routes![
+                routes::api_datafix::add_voter,
+                routes::api_datafix::update_voter,
+                routes::api_datafix::delete_voter,
+                routes::api_datafix::unmark_voted,
+                routes::api_datafix::mark_voted,
+                routes::api_datafix::replace_pin,
+            ],
+        )
+        .mount(
             "/",
             routes![
                 routes::ballot_publication::get_ballot_publication_changes,
@@ -50,7 +62,6 @@ async fn rocket() -> _ {
                 routes::import_areas::import_areas_route,
                 routes::import_areas::upsert_areas_route,
                 routes::electoral_log::list_electoral_log,
-                routes::electoral_log::create_electoral_log,
                 routes::export_election_event::export_election_event_route,
                 routes::export_election_event_logs::export_election_event_logs_route,
                 routes::insert_election_event::insert_election_event_f,
@@ -67,6 +78,7 @@ async fn rocket() -> _ {
                 routes::users::delete_user,
                 routes::users::delete_users,
                 routes::users::get_users,
+                routes::users::count_users,
                 routes::users::get_user,
                 routes::users::edit_user,
                 routes::users::get_user_profile_attributes,
@@ -121,4 +133,5 @@ async fn rocket() -> _ {
                 routes::set_voter_authentication::set_voter_authentication,
             ],
         )
+        .manage(LastAccessToken::init())
 }

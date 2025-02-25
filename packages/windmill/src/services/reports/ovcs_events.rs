@@ -7,6 +7,7 @@ use super::report_variables::{
 };
 use super::template_renderer::*;
 use crate::postgres::election_event::get_election_event_by_id;
+use crate::postgres::tally_session::get_tally_sessions_by_election_id;
 use crate::postgres::{
     area::get_areas_by_election_id,
     election::{get_election_by_id, get_elections},
@@ -15,6 +16,7 @@ use crate::postgres::{
 };
 use crate::services::consolidation::eml_generator::ValidateAnnotations;
 use crate::services::election_dates::get_election_dates;
+use crate::services::election_event_status::get_election_status;
 use crate::services::temp_path::*;
 use crate::services::transmission::{
     get_transmission_data_from_tally_session_by_area, get_transmission_servers_data,
@@ -23,7 +25,9 @@ use crate::{postgres::keys_ceremony::get_keys_ceremony_by_id, services::temp_pat
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
-use sequent_core::signatures::temp_path::get_public_assets_path_env_var;
+use sequent_core::services::pdf;
+use sequent_core::types::ceremonies::TallyType;
+use sequent_core::util::temp_path::get_public_assets_path_env_var;
 use sequent_core::{
     ballot::StringifiedPeriodDates, services::s3::get_minio_url, types::hasura::core::Election,
 };
@@ -37,8 +41,8 @@ struct Event {
     country: String,
     testing_date: String,
     initialization_date: Option<String>,
-    opening_date: String,
-    closing_date: String,
+    opening_date: Option<String>,
+    closing_date: Option<String>,
     transmission_date: String,
     transmission_status: String,
     remarks: Option<String>,
@@ -120,7 +124,7 @@ impl TemplateRenderer for OVCSEventsTemplate {
         self.ids.election_id.clone()
     }
 
-    #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
+    #[instrument(err, skip_all)]
     async fn prepare_user_data(
         &self,
         hasura_transaction: &Transaction<'_>,
@@ -198,6 +202,36 @@ impl TemplateRenderer for OVCSEventsTemplate {
             .await
             .map_err(|err| anyhow!("Error at get_areas_by_election_id: {err:?}"))?;
 
+            // Get OVCS status
+            let status = get_election_status(election.status.clone()).unwrap_or_default();
+
+            let tally_sessions = get_tally_sessions_by_election_id(
+                hasura_transaction,
+                &self.ids.tenant_id,
+                &self.ids.election_event_id,
+                &election.id,
+            )
+            .await
+            .map_err(|e| anyhow!("Error getting tally sessions by election id: {e}"))?;
+
+            let initialization_date = tally_sessions
+                .into_iter()
+                .filter(|tally: &sequent_core::types::hasura::core::TallySession| {
+                    tally.tally_type == Some(TallyType::INITIALIZATION_REPORT.to_string())
+                })
+                .filter_map(|tally| tally.created_at)
+                .max()
+                .map(|dt| dt.to_rfc3339().to_string());
+
+            let opening_date = status
+                .voting_period_dates
+                .first_started_at
+                .map(|dt| dt.to_rfc3339().to_string());
+            let closing_date = status
+                .voting_period_dates
+                .last_stopped_at
+                .map(|dt| dt.to_rfc3339().to_string());
+
             for area in election_areas.iter() {
                 let area_name = area.clone().name.unwrap_or("-".to_string());
 
@@ -222,32 +256,13 @@ impl TemplateRenderer for OVCSEventsTemplate {
                     transmission_data.total_transmitted, transmission_data.total_not_transmitted
                 );
 
-                let initialization_date: Option<String> = match &election.keys_ceremony_id {
-                    Some(keys_ceremony_id) => {
-                        let keys_ceremony = get_keys_ceremony_by_id(
-                            &hasura_transaction,
-                            &self.ids.tenant_id,
-                            &self.ids.election_event_id,
-                            &keys_ceremony_id,
-                        )
-                        .await
-                        .map_err(|err| anyhow!("Error get_transmission_servers_data: {err:?}"))?;
-                        let date = keys_ceremony
-                            .created_at
-                            .map(|d| d.format("%Y-%m-%d %H:%M:%S").to_string())
-                            .unwrap_or_default();
-                        Some(date)
-                    }
-                    None => None,
-                };
-
                 let event = Event {
                     post: election_general_data.post.clone(),
                     country: area_name,
                     testing_date: "-".to_string(),
-                    initialization_date,
-                    opening_date: election_dates.first_started_at.clone().unwrap_or_default(),
-                    closing_date: election_dates.last_stopped_at.clone().unwrap_or_default(),
+                    initialization_date: initialization_date.clone(),
+                    opening_date: opening_date.clone(),
+                    closing_date: closing_date.clone(),
                     transmission_date: transmission_data.last_date_transmitted,
                     transmission_status,
                     remarks: None,
@@ -296,7 +311,7 @@ impl TemplateRenderer for OVCSEventsTemplate {
         &self,
         rendered_user_template: String,
     ) -> Result<Self::SystemData> {
-        if std::env::var_os("DOC_RENDERER_BACKEND") == Some("inplace".into()) {
+        if pdf::doc_renderer_backend() == pdf::DocRendererBackend::InPlace {
             let public_asset_path = get_public_assets_path_env_var()?;
             let minio_endpoint_base =
                 get_minio_url().with_context(|| "Error getting minio endpoint")?;

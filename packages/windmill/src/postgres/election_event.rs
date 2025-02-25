@@ -11,6 +11,7 @@ use tokio_postgres::row::Row;
 use tracing::{event, info, instrument, Level};
 use uuid::Uuid;
 
+pub struct ElectionEventDatafix(pub ElectionEventData);
 pub struct ElectionEventWrapper(pub ElectionEventData);
 
 impl TryFrom<Row> for ElectionEventWrapper {
@@ -137,6 +138,40 @@ pub async fn get_election_event_by_id(
         .get(0)
         .map(|election_event| election_event.clone())
         .ok_or(anyhow!("Election event {election_event_id} not found"))
+}
+
+/// Returns all the Election events as ElectionEventDatafix
+#[instrument(err, skip_all)]
+pub async fn get_all_tenant_election_events(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+) -> Result<Vec<ElectionEventDatafix>> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT
+                    id, created_at, updated_at, labels, annotations, tenant_id, name, description, presentation, bulletin_board_reference, is_archived, voting_channels, status, user_boards, encryption_protocol, is_audit, audit_election_event_id, public_key, alias, statistics
+                FROM
+                    sequent_backend.election_event
+                WHERE
+                    tenant_id = $1
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(&statement, &[&Uuid::parse_str(tenant_id)?])
+        .await?;
+
+    let election_events: Vec<ElectionEventDatafix> = rows
+        .into_iter()
+        .map(|row| -> Result<ElectionEventDatafix> {
+            row.try_into()
+                .map(|res: ElectionEventWrapper| ElectionEventDatafix(res.0))
+        })
+        .collect::<Result<Vec<ElectionEventDatafix>>>()?;
+
+    Ok(election_events)
 }
 
 pub async fn update_election_event_annotations(
@@ -432,4 +467,22 @@ pub async fn delete_election_event(
         .map_err(|err| anyhow!("Error executing the delete query: {err}"))?;
 
     Ok(())
+}
+
+/// Get the ElectionEvent, check if its DATAFIX event (has DATAFIX annotations).
+#[instrument(skip(hasura_transaction), err)]
+pub async fn is_datafix_election_event(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<bool> {
+    let election_event = get_election_event_by_id(hasura_transaction, tenant_id, election_event_id)
+        .await
+        .map_err(|e| anyhow!("{:?}", e))?;
+
+    let datafix_object = election_event
+        .annotations
+        .as_ref()
+        .and_then(|v| v.get("DATAFIX"));
+    Ok(datafix_object.is_some())
 }

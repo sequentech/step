@@ -13,34 +13,34 @@ use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::reports::ReportType;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::cast_votes::count_ballots_by_area_id;
+use crate::services::election_dates::get_election_dates;
 use crate::services::temp_path::PUBLIC_ASSETS_QRCODE_LIB;
-use crate::services::temp_path::*;
 use crate::services::transmission::{
     get_transmission_data_from_tally_session_by_area, get_transmission_servers_data, ServerData,
 };
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
+use sequent_core::ballot::StringifiedPeriodDates;
 use sequent_core::services::keycloak::get_event_realm;
+use sequent_core::services::pdf;
 use sequent_core::services::s3::get_minio_url;
-use sequent_core::signatures::temp_path::*;
 use sequent_core::types::scheduled_event::generate_voting_period_dates;
+use sequent_core::util::temp_path::*;
 use serde::{Deserialize, Serialize};
 use tracing::{info, instrument};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
     pub areas: Vec<UserDataArea>,
+    pub election_dates: StringifiedPeriodDates,
     pub execution_annotations: ExecutionAnnotations,
 }
 
 /// Struct for Transition Report Data
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserDataArea {
-    pub election_date: String,
     pub election_title: String,
-    pub voting_period_start: String,
-    pub voting_period_end: String,
     pub geographical_region: String,
     pub post: String,
     pub country: String,
@@ -113,7 +113,7 @@ impl TemplateRenderer for TransmissionReport {
         )
     }
 
-    #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
+    #[instrument(err, skip_all)]
     /// Prepare user data by fetching the relevant details
     async fn prepare_user_data(
         &self,
@@ -165,21 +165,6 @@ impl TemplateRenderer for TransmissionReport {
         )
         .await?;
 
-        // Fetch election's voting periods
-        let voting_period_dates = generate_voting_period_dates(
-            scheduled_events,
-            &self.ids.tenant_id,
-            &self.ids.election_event_id,
-            Some(&election_id),
-        )?;
-
-        // extract start date from voting period
-        let voting_period_start_date = voting_period_dates.start_date.unwrap_or_default();
-        // extract end date from voting period
-        let voting_period_end_date = voting_period_dates.end_date.unwrap_or_default();
-
-        let election_date = &voting_period_start_date.to_string();
-
         let date_printed = get_date_and_time();
         let election_title = election_event.name.clone();
 
@@ -215,6 +200,19 @@ impl TemplateRenderer for TransmissionReport {
         let report_hash = get_report_hash(&ReportType::TRANSMISSION_REPORT.to_string())
             .await
             .unwrap_or("-".to_string());
+
+        let scheduled_events = find_scheduled_event_by_election_event_id(
+            &hasura_transaction,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
+        )
+        .await
+        .map_err(|e| {
+            anyhow::anyhow!("Error getting scheduled events by election event_id: {}", e)
+        })?;
+
+        let election_dates = get_election_dates(&election, scheduled_events)
+            .map_err(|e| anyhow::anyhow!("Error getting election dates {e}"))?;
 
         for area in election_areas.iter() {
             let country = area.clone().name.unwrap_or('-'.to_string());
@@ -264,9 +262,6 @@ impl TemplateRenderer for TransmissionReport {
 
             let area_data = UserDataArea {
                 election_title: election_title.clone(),
-                election_date: election_date.clone(),
-                voting_period_start: voting_period_start_date.clone(),
-                voting_period_end: voting_period_end_date.clone(),
                 geographical_region: election_general_data.geographical_region.clone(),
                 post: election_general_data.post.clone(),
                 country: country,
@@ -284,6 +279,7 @@ impl TemplateRenderer for TransmissionReport {
 
         Ok(UserData {
             areas,
+            election_dates,
             execution_annotations: ExecutionAnnotations {
                 date_printed,
                 report_hash,
@@ -296,12 +292,12 @@ impl TemplateRenderer for TransmissionReport {
         })
     }
 
-    #[instrument]
+    #[instrument(err, skip_all)]
     async fn prepare_system_data(
         &self,
         rendered_user_template: String,
     ) -> Result<Self::SystemData> {
-        if std::env::var_os("DOC_RENDERER_BACKEND") == Some("inplace".into()) {
+        if pdf::doc_renderer_backend() == pdf::DocRendererBackend::InPlace {
             let public_asset_path = get_public_assets_path_env_var()?;
             let minio_endpoint_base =
                 get_minio_url().with_context(|| "Error getting minio endpoint")?;

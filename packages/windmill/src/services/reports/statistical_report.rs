@@ -15,18 +15,21 @@ use crate::postgres::reports::{ReportCronConfig, ReportType};
 use crate::postgres::results_area_contest::get_results_area_contest;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::cast_votes::count_ballots_by_area_id;
+use crate::services::election_dates::get_election_dates;
 use crate::services::temp_path::*;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
+use sequent_core::ballot::StringifiedPeriodDates;
 use sequent_core::services::keycloak::get_event_realm;
+use sequent_core::services::pdf;
 use sequent_core::services::s3::get_minio_url;
-use sequent_core::signatures::temp_path::*;
 use sequent_core::types::hasura::core::Contest;
 use sequent_core::types::results::ResultsAreaContest;
 use sequent_core::types::results::*;
 use sequent_core::types::results::*;
 use sequent_core::types::scheduled_event::generate_voting_period_dates;
+use sequent_core::util::temp_path::*;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
@@ -47,9 +50,6 @@ pub struct SystemData {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserDataArea {
     pub election_title: String,
-    pub voting_period_start: String,
-    pub voting_period_end: String,
-    pub election_date: String,
     pub post: String,
     pub country: String,
     pub geographical_region: String,
@@ -66,6 +66,7 @@ pub struct UserDataArea {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
     pub areas: Vec<UserDataArea>,
+    pub election_dates: StringifiedPeriodDates,
     pub execution_annotations: ExecutionAnnotations,
 }
 
@@ -132,7 +133,7 @@ impl TemplateRenderer for StatisticalReportTemplate {
         ReportType::STATISTICAL_REPORT
     }
 
-    #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
+    #[instrument(err, skip_all)]
     async fn prepare_user_data(
         &self,
         hasura_transaction: &Transaction<'_>,
@@ -197,13 +198,6 @@ impl TemplateRenderer for StatisticalReportTemplate {
         )
         .map_err(|e| anyhow!(format!("Error generating voting period dates {e:?}")))?;
 
-        // extract start date from voting period
-        let voting_period_start_date = voting_period_dates.start_date.unwrap_or_default();
-        // extract end date from voting period
-        let voting_period_end_date = voting_period_dates.end_date.unwrap_or_default();
-
-        let election_date: String = voting_period_start_date.clone();
-
         let election_areas = get_areas_by_election_id(
             &hasura_transaction,
             &self.ids.tenant_id,
@@ -227,6 +221,19 @@ impl TemplateRenderer for StatisticalReportTemplate {
         let report_hash = get_report_hash(&ReportType::STATISTICAL_REPORT.to_string())
             .await
             .unwrap_or("-".to_string());
+
+        let scheduled_events = find_scheduled_event_by_election_event_id(
+            &hasura_transaction,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
+        )
+        .await
+        .map_err(|e| {
+            anyhow::anyhow!("Error getting scheduled events by election event_id: {}", e)
+        })?;
+
+        let election_dates = get_election_dates(&election, scheduled_events)
+            .map_err(|e| anyhow::anyhow!("Error getting election dates {e}"))?;
 
         let mut areas: Vec<UserDataArea> = vec![];
 
@@ -306,9 +313,6 @@ impl TemplateRenderer for StatisticalReportTemplate {
 
             areas.push(UserDataArea {
                 election_title: election_title.clone(),
-                voting_period_start: voting_period_start_date.clone(),
-                voting_period_end: voting_period_end_date.clone(),
-                election_date: election_date.clone(),
                 post: election_general_data.post.clone(),
                 country: country,
                 geographical_region: election_general_data.geographical_region.clone(),
@@ -324,6 +328,7 @@ impl TemplateRenderer for StatisticalReportTemplate {
 
         Ok(UserData {
             areas,
+            election_dates,
             execution_annotations: ExecutionAnnotations {
                 date_printed,
                 report_hash,
@@ -341,7 +346,7 @@ impl TemplateRenderer for StatisticalReportTemplate {
         &self,
         rendered_user_template: String,
     ) -> Result<Self::SystemData> {
-        if std::env::var_os("DOC_RENDERER_BACKEND") == Some("inplace".into()) {
+        if pdf::doc_renderer_backend() == pdf::DocRendererBackend::InPlace {
             let public_asset_path = get_public_assets_path_env_var()?;
             let minio_endpoint_base =
                 get_minio_url().with_context(|| "Error getting minio endpoint")?;
@@ -364,7 +369,7 @@ impl TemplateRenderer for StatisticalReportTemplate {
     }
 }
 
-#[instrument(err, skip_all)]
+#[instrument(err, skip(contest))]
 pub async fn generate_total_number_of_expected_votes_for_contest(
     contest: &Contest,
     registered_voters: &i64,
@@ -389,7 +394,7 @@ pub async fn generate_fill_up_rate(num_of_expected_votes: &i64, total_votes: &i6
 }
 
 //generate data for specific contest
-#[instrument(err)]
+#[instrument(err, skip_all)]
 pub async fn generate_contest_results_data(
     contest: &Contest,
     results_area_contest: &ResultsAreaContest,

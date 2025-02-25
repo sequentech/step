@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::users::{lookup_users, FilterOption, ListUsersFilter};
 use crate::postgres::application::get_permission_label_from_post;
+use crate::postgres::area::get_event_areas;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::services::celery_app::get_celery_app;
 use crate::services::providers::{email_sender::EmailSender, sms_sender::SmsSender};
@@ -79,7 +80,6 @@ pub async fn verify_application(
     applicant_data: &HashMap<String, String>,
     tenant_id: &str,
     election_event_id: &str,
-    area_id: &Option<String>,
     labels: &Option<Value>,
     annotations: &ApplicationAnnotations,
 ) -> Result<ApplicationVerificationResult> {
@@ -102,7 +102,6 @@ pub async fn verify_application(
 
     // Uses applicant data to lookup possible users
     let users = lookup_users(hasura_transaction, keycloak_transaction, filter).await?;
-
     debug!("Found users before verification: {:?}", users);
 
     // Finds an user from the list of found possible users
@@ -124,16 +123,23 @@ pub async fn verify_application(
         manual_verify_reason: result.manual_verify_reason.clone(),
     };
 
+    let (mut permission_label, area_id) = get_permission_label_and_area_from_applicant_data(
+        hasura_transaction,
+        applicant_data,
+        tenant_id,
+        election_event_id,
+    )
+    .await?;
     // Add a permission label only if the embassy matches the voter in db
-    let (permission_label, area_id) = if let Some(true) = result
-        .fields_match
-        .as_ref()
-        .and_then(|value| value.get("embassy"))
-    {
-        get_permission_label_from_applicant_data(hasura_transaction, applicant_data).await?
-    } else {
-        (None, None)
-    };
+    if !matches!(
+        result
+            .fields_match
+            .as_ref()
+            .and_then(|value| value.get("embassy")),
+        Some(true)
+    ) {
+        permission_label = None;
+    }
 
     let mut final_applicant_data = applicant_data.clone();
     final_applicant_data.insert("username".to_string(), result.username.clone());
@@ -157,17 +163,32 @@ pub async fn verify_application(
 }
 
 #[instrument(err, skip_all)]
-async fn get_permission_label_from_applicant_data(
+async fn get_permission_label_and_area_from_applicant_data(
     hasura_transaction: &Transaction<'_>,
     applicant_data: &HashMap<String, String>,
+    tenant_id: &str,
+    election_event_id: &str,
 ) -> Result<(Option<String>, Option<Uuid>)> {
-    let post = applicant_data
+    let post_name = applicant_data
+        .get("country")
+        .and_then(|country| country.split('/').next())
+        .ok_or(anyhow!("Error with applicant country"))?;
+
+    let post_description = applicant_data
         .get("embassy")
-        .ok_or(anyhow!("Error converting applicant_data to map"))?;
+        .ok_or(anyhow!("Error with applicant embassy"))?;
 
-    info!("Found post: {:?}", post);
+    info!("Found post: {:?}", &post_name);
+    info!("Found embassy: {:?}", &post_description);
 
-    return get_permission_label_from_post(hasura_transaction, post).await;
+    return get_permission_label_from_post(
+        hasura_transaction,
+        &post_name,
+        &post_description,
+        tenant_id,
+        election_event_id,
+    )
+    .await;
 }
 
 #[instrument(err, skip_all)]
