@@ -39,7 +39,7 @@ impl TryFrom<Row> for BallotStyleWrapper {
     }
 }
 
-#[instrument(err, skip(hasura_transaction))]
+#[instrument(err, skip(hasura_transaction, ballot_eml))]
 pub async fn insert_ballot_style(
     hasura_transaction: &Transaction<'_>,
     ballot_style_id: &str,

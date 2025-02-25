@@ -77,7 +77,7 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
             id: currentCeremonyId ?? null,
         },
         {
-            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+            refetchInterval: globalSettings.QUERY_FAST_POLL_INTERVAL_MS,
             onSuccess: (data) => {
                 setCurrentCeremony && setCurrentCeremony(data)
             },

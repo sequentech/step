@@ -9,7 +9,7 @@ import {
     DropFile,
     theme,
 } from "@sequentech/ui-essentials"
-import ChevronRightIcon from "@mui/icons-material/ChevronRight"
+import ChevronRightIcon from "@mui/icons-material/ChevronRight" 
 import {useTranslation} from "react-i18next"
 import ElectionHeader from "@/components/ElectionHeader"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
@@ -181,7 +181,7 @@ export const TallyCeremony: React.FC = () => {
             {
                 refetchInterval: isTallyCompleted
                     ? undefined
-                    : globalSettings.QUERY_POLL_INTERVAL_MS,
+                    : globalSettings.QUERY_FAST_POLL_INTERVAL_MS,
                 refetchIntervalInBackground: true,
                 refetchOnWindowFocus: false,
                 refetchOnReconnect: false,
@@ -245,7 +245,9 @@ export const TallyCeremony: React.FC = () => {
             },
         },
         {
-            refetchInterval: isTallyCompleted ? undefined : globalSettings.QUERY_POLL_INTERVAL_MS,
+            refetchInterval: isTallyCompleted
+                ? undefined
+                : globalSettings.QUERY_FAST_POLL_INTERVAL_MS,
             refetchOnWindowFocus: false,
             refetchOnReconnect: false,
             refetchOnMount: false,
@@ -263,7 +265,9 @@ export const TallyCeremony: React.FC = () => {
             },
         },
         {
-            refetchInterval: isTallyCompleted ? undefined : globalSettings.QUERY_POLL_INTERVAL_MS,
+            refetchInterval: isTallyCompleted
+                ? undefined
+                : globalSettings.QUERY_FAST_POLL_INTERVAL_MS,
             refetchOnWindowFocus: false,
             refetchOnReconnect: false,
             refetchOnMount: false,
@@ -615,7 +619,7 @@ export const TallyCeremony: React.FC = () => {
                 } else {
                     retry = retry + 1
                 }
-            }, globalSettings.QUERY_POLL_INTERVAL_MS)
+            }, globalSettings.QUERY_FAST_POLL_INTERVAL_MS)
         }
     }
 
