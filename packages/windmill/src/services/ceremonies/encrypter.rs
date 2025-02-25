@@ -122,16 +122,46 @@ pub async fn encrypt_directory_contents(
         })
         .cloned();
 
-    let upload_path = encrypt_file(
-        hasura_transaction,
-        tenant_id,
-        election_event_id,
-        old_path,
-        report.as_ref(),
-    )
-    .await?;
+    let upload_path = if let Some(report) = report {
+        if report.encryption_policy == EReportEncryption::ConfiguredPassword {
+            info!("Encrypting file: {:?}", old_path);
+
+            let secret_key =
+                get_report_secret_key(tenant_id, election_event_id, Some(report.id.clone()));
+
+            let encryption_password = vault::read_secret(
+                hasura_transaction,
+                tenant_id,
+                Some(election_event_id),
+                &secret_key,
+            )
+            .await?
+            .ok_or_else(|| anyhow!("Encryption password not found"))?;
+
+            let new_path = format!("{}.enc", old_path);
+
+            // Execute asynchronous encryption
+            tokio::runtime::Handle::current().block_on(async {
+                encrypt_file_aes_256_cbc(old_path, &new_path, &encryption_password)
+                    .map_err(|err| anyhow!("Error encrypting file: {err:?}"))?;
+
+                std::fs::remove_file(old_path)
+                    .map_err(|err| anyhow!("Error removing original file: {err:?}"))?;
+
+                Ok::<_, anyhow::Error>(())
+            })?;
+
+            new_path
+        } else {
+            old_path.to_string()
+        }
+    } else {
+        old_path.to_string()
+    };
+
     Ok(upload_path)
 }
+
 #[instrument(err, skip_all)]
 pub async fn encrypt_file(
     hasura_transaction: &Transaction<'_>,
