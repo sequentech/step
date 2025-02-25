@@ -476,18 +476,6 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         [user, equalToPassword]
     )
 
-    // const handleDateChange =
-    //     (attrName: string) => (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    //         const date = event.target.value
-    //         setUser((prev) => ({
-    //             ...prev,
-    //             attributes: {
-    //                 ...prev?.attributes,
-    //                 [attrName]: date,
-    //             },
-    //         }))
-    //     }
-
     const handleDateChange =
         (attrName: string) => async (e: React.ChangeEvent<HTMLInputElement>) => {
             const {value} = e.target
