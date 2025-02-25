@@ -38,6 +38,7 @@ use strand::serialization::StrandDeserialize;
 use strand::signature::StrandSignatureSk;
 use strum_macros::{Display, EnumString, ToString};
 use tempfile::NamedTempFile;
+use tokio_stream::{Stream, StreamExt};
 use tracing::{event, info, instrument, Level};
 pub struct ElectoralLog {
     pub(crate) sd: SigningData,
@@ -876,7 +877,7 @@ impl TryFrom<&Row> for ElectoralLogRow {
     }
 }
 
-pub const IMMUDB_ROWS_LIMIT: usize = 2500;
+pub const IMMUDB_ROWS_LIMIT: usize = 25_000;
 
 #[instrument(err)]
 pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<ElectoralLogRow>> {
@@ -905,13 +906,20 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
         "#,
     );
     info!("query: {sql}");
-    let sql_query_response = client.sql_query(&sql, params).await?;
-    let items = sql_query_response
-        .get_ref()
-        .rows
-        .iter()
-        .map(ElectoralLogRow::try_from)
-        .collect::<Result<Vec<ElectoralLogRow>>>()?;
+    let sql_query_response = client.streaming_sql_query(&sql, params).await?;
+
+    let limit: usize = input.limit.unwrap_or(IMMUDB_ROWS_LIMIT as i64).try_into()?;
+
+    let mut rows: Vec<ElectoralLogRow> = Vec::with_capacity(limit);
+    let mut resp_stream = sql_query_response.into_inner();
+    while let Some(streaming_batch) = resp_stream.next().await {
+        let items = streaming_batch?
+            .rows
+            .iter()
+            .map(ElectoralLogRow::try_from)
+            .collect::<Result<Vec<ElectoralLogRow>>>()?;
+        rows.extend(items);
+    }
 
     let sql = format!(
         r#"
@@ -936,7 +944,7 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
 
     client.close_session().await?;
     Ok(DataList {
-        items: items,
+        items: rows,
         total: TotalAggregate {
             aggregate: aggregate,
         },
