@@ -86,8 +86,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cpus = read_worker_threads(&opt);
     set_worker_threads(cpus);
 
-    init_semaphore(cpus);
-
     // 1) Build a custom runtime
     let rt = Builder::new_multi_thread()
         .enable_all()
@@ -104,6 +102,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 async fn async_main(opt: CeleryOpt) -> Result<()> {
     init_log(true);
     setup_probe(AppName::WINDMILL).await;
+
+    let cpus = get_worker_threads();
+    init_semaphore(cpus);
 
     match opt.clone() {
         CeleryOpt::Consume {
