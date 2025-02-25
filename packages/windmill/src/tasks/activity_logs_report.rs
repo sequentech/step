@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::services::tasks_semaphore::acquire_semaphore;
 use crate::{
     postgres::reports::Report,
     services::{
@@ -31,6 +32,7 @@ pub async fn generate_activity_logs_report(
     report_clone: Option<Report>,
     user_timezone: String,
 ) -> Result<()> {
+    let _permit = acquire_semaphore().await?;
     let mut db_client: DbClient = get_hasura_pool()
         .await
         .get()
