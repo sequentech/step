@@ -18,6 +18,7 @@ use tokio::runtime::Builder;
 use tracing::{event, Level};
 use windmill::services::celery_app::*;
 use windmill::services::probe::{setup_probe, AppName};
+use windmill::services::tasks_semaphore::init_semaphore;
 
 #[derive(Debug, StructOpt, Clone)]
 #[structopt(
@@ -84,6 +85,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let cpus = read_worker_threads(&opt);
     set_worker_threads(cpus);
+
+    init_semaphore(cpus);
 
     // 1) Build a custom runtime
     let rt = Builder::new_multi_thread()
