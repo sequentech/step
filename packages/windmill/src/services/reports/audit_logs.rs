@@ -788,7 +788,7 @@ impl TemplateRenderer for AuditLogsTemplate {
             })?;
 
         let items_count = self.count_items().await.unwrap_or(0);
-        let report_options = ext_cfg.report_options;
+        let report_options = ext_cfg.report_options.clone();
         let per_report_limit = report_options
             .max_items_per_report
             .unwrap_or(DEFAULT_ITEMS_PER_REPORT_LIMIT) as i64;
@@ -804,72 +804,88 @@ impl TemplateRenderer for AuditLogsTemplate {
         let mut i = 0;
         let mut batch_file_paths: Vec<PathBuf> = vec![];
 
-        // If preview mode only add 1 file to zip
-        let items_count = if generate_mode == GenerateReportMode::PREVIEW {
-            1
-        } else {
-            items_count
-        };
-
-        while offset.map_or(false, |current_offset| current_offset < items_count) {
-            info!("while offset:{:?}, items_count:{}", offset, items_count);
-            let rendered_system_template = self
-                .generate_report(
-                    generate_mode.clone(),
-                    hasura_transaction,
-                    keycloak_transaction,
-                    &user_tpl_document,
-                    &mut offset,
-                    Some(per_report_limit),
-                )
-                .await
-                .with_context(|| format!("Error rendering report for batch {:?}", offset))?;
-            // case no new data for the report
-            if offset.unwrap_or_default() < 0 {
-                break;
-            }
-
-            let pdf_bytes = pdf::PdfRenderer::render_pdf(
-                rendered_system_template,
-                Some(ext_cfg.pdf_options.to_print_to_pdf_options()),
+        let (final_file_path, file_size, final_report_name, mimetype) = if generate_mode
+            == GenerateReportMode::PREVIEW
+        {
+            self.generate_single_report(
+                hasura_transaction,
+                keycloak_transaction,
+                &user_tpl_document,
+                generate_mode,
+                task_execution.clone(),
+                &ext_cfg,
             )
             .await
-            .with_context(|| format!("Error rendering PDF for batch {:?}", offset))?;
+            .map_err(|e| anyhow::anyhow!("Error in generate_single_report: {}", e))?
+        } else {
+            //generate at least one report with empty data
+            let items_count = std::cmp::max(items_count, 1);
+            while offset.map_or(false, |current_offset| current_offset < items_count) {
+                info!("while offset:{:?}, items_count:{}", offset, items_count);
+                let rendered_system_template = self
+                    .generate_report(
+                        generate_mode.clone(),
+                        hasura_transaction,
+                        keycloak_transaction,
+                        &user_tpl_document,
+                        &mut offset,
+                        Some(per_report_limit),
+                    )
+                    .await
+                    .with_context(|| format!("Error rendering report for batch {:?}", offset))?;
 
-            // e.g., "my_prefix"
-            let prefix = self.prefix();
-            let extension_suffix = "pdf";
-            let file_suffix = format!(".{}", extension_suffix); // = ".pdf"
+                // case no new data for the report and already create at least one report
+                if i > 0 && offset.unwrap_or_default() < 0 {
+                    break;
+                }
 
-            // Create the actual final filename, e.g. "my_prefix-123.pdf"
-            let batch_file_name = format!("{}-{}{}", prefix, i, file_suffix);
-            info!("batch_file_name: {}", batch_file_name);
+                let pdf_bytes = pdf::PdfRenderer::render_pdf(
+                    rendered_system_template,
+                    Some(ext_cfg.pdf_options.to_print_to_pdf_options()),
+                )
+                .await
+                .with_context(|| format!("Error rendering PDF for batch {:?}", offset))?;
 
-            let final_path = reports_folder.join(&batch_file_name);
-            batch_file_paths.push(final_path.clone());
-            fs::write(&final_path, &pdf_bytes)?;
-            i += 1;
-        }
+                // e.g., "my_prefix"
+                let prefix = self.prefix();
+                let extension_suffix = "pdf";
+                let file_suffix = format!(".{}", extension_suffix); // = ".pdf"
 
-        let some_paths = batch_file_paths.into_iter().take(10).collect::<Vec<_>>();
-        info!("first 10 batch_file_paths = {:?}", some_paths);
+                // Create the actual final filename, e.g. "my_prefix-123.pdf"
+                let batch_file_name = format!("{}-{}{}", prefix, i, file_suffix);
+                info!("batch_file_name: {}", batch_file_name);
 
-        let zip_filename = format!("{}_final.zip", self.prefix());
+                let final_path = reports_folder.join(&batch_file_name);
+                batch_file_paths.push(final_path.clone());
+                fs::write(&final_path, &pdf_bytes)?;
 
-        let dst_zip = zip_temp_dir_path.join(&zip_filename);
+                // case no data for the report and done with creating at least one empty report
+                if i == 0 && offset.unwrap_or_default() < 0 {
+                    break;
+                }
 
-        compress_folder_to_zip(reports_folder, &dst_zip)
-            .with_context(|| "Error compressing folder")?;
+                i += 1;
+            }
 
-        let zip_file_size = get_file_size(&dst_zip.to_string_lossy())
-            .with_context(|| "Error obtaining file size for zip file")?;
+            let some_paths = batch_file_paths.into_iter().take(10).collect::<Vec<_>>();
+            info!("first 10 batch_file_paths = {:?}", some_paths);
 
-        let (final_file_path, file_size, final_report_name, mimetype) = (
-            dst_zip.to_string_lossy().to_string(),
-            zip_file_size,
-            zip_filename,
-            "application/zip".to_string(),
-        );
+            let zip_filename = format!("{}_final.zip", self.prefix());
+
+            let dst_zip = zip_temp_dir_path.join(&zip_filename);
+
+            compress_folder_to_zip(reports_folder, &dst_zip)
+                .with_context(|| "Error compressing folder")?;
+
+            let zip_file_size = get_file_size(&dst_zip.to_string_lossy())
+                .with_context(|| "Error obtaining file size for zip file")?;
+            (
+                dst_zip.to_string_lossy().to_string(),
+                zip_file_size,
+                zip_filename,
+                "application/zip".to_string(),
+            )
+        };
 
         info!(
             "Final file info: path = {}, size = {}, name = {}, mimetype = {}",

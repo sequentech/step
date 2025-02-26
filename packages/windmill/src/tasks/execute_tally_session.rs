@@ -47,6 +47,7 @@ use crate::services::reports::template_renderer::{
 };
 use crate::services::reports::utils::get_public_asset_template;
 use crate::services::tally_sheets::validation::validate_tally_sheet;
+use crate::services::tasks_semaphore::acquire_semaphore;
 use crate::services::temp_path::{
     PUBLIC_ASSETS_ELECTORAL_RESULTS_TEMPLATE_SYSTEM, PUBLIC_ASSETS_INITIALIZATION_TEMPLATE_SYSTEM,
 };
@@ -1415,6 +1416,7 @@ pub async fn execute_tally_session(
     tally_type: Option<String>,
     election_ids: Option<Vec<String>>,
 ) -> Result<()> {
+    let _permit = acquire_semaphore().await?;
     let Ok(lock) = PgLock::acquire(
         format!(
             "execute_tally_session-{}-{}-{}",
