@@ -653,11 +653,15 @@ async fn check_status(
     )
     .await
     .map_err(|e| CastVoteError::CheckStatusInternalFailed(e.to_string()))?;
+
+    // these dates are used to check by scheduled event date
+    // (even if the even hasn't been executed)
     let dates: VotingPeriodDates = generate_voting_period_dates(
         scheduled_events.clone(),
         &tenant_id,
         &election_event_id,
         Some(election_id),
+        voting_channel,
     )
     .unwrap_or(Default::default());
 
@@ -759,10 +763,25 @@ async fn check_status(
         }
 
     // if there's no closing date, election needs to be open to cast a vote
-    } else if current_voting_status != VotingStatus::OPEN {
-        return Err(CastVoteError::CheckStatusFailed(
-            format!("Voting Status for voting_channel={voting_channel:?} is {current_voting_status:?} instead of Open"),
-        ));
+    } else {
+        if current_voting_status != VotingStatus::OPEN {
+            return Err(CastVoteError::CheckStatusFailed(
+                format!("Voting Status for voting_channel={voting_channel:?} is {current_voting_status:?} instead of Open"),
+            ));
+        }
+        let last_stopped_at = dates_by_channel
+            .last_stopped_at
+            .map(|end_date_str| ISO8601::to_date(&end_date_str).ok())
+            .flatten();
+
+        if let Some(close_date) = last_stopped_at {
+            if now > close_date {
+                return Err(CastVoteError::CheckStatusFailed(format!(
+                    "Election close date passed for channel {}",
+                    voting_channel
+                )));
+            }
+        }
     }
     Ok(())
 }
