@@ -428,6 +428,7 @@ impl ElectoralLog {
             user_id,
             username,
             &self.sd,
+            None,
         )?;
         self.post(&message).await
     }
@@ -545,6 +546,7 @@ impl ElectoralLog {
         error_message: String,
         user_id: Option<String>,
         username: Option<String>,
+        area_id: Option<String>,
     ) -> Result<ElectoralLogMessage> {
         let event = EventIdString(event_id);
         let error_message = ErrorMessageString(error_message);
@@ -556,6 +558,7 @@ impl ElectoralLog {
             user_id,
             username,
             &self.sd,
+            area_id,
         )?;
         let board_message: ElectoralLogMessage = message.try_into()?;
         Ok(board_message)

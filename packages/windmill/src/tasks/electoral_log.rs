@@ -5,10 +5,12 @@ use crate::postgres::election_event::get_election_event_by_id;
 use crate::services::celery_app::get_celery_connection;
 use crate::services::celery_app::Queue;
 use crate::services::database::get_hasura_pool;
+use crate::services::database::get_keycloak_pool;
 use crate::services::database::PgConfig;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::protocol_manager::get_board_client;
+use crate::services::users::get_user_area_id;
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context};
 use celery::error::TaskError;
@@ -16,6 +18,7 @@ use deadpool_postgres::Client as DbClient;
 use electoral_log::client::board_client::ElectoralLogMessage;
 use electoral_log::messages::message::Message;
 use immudb_rs::TxMode;
+use sequent_core::services::keycloak::get_event_realm;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tracing::{event, info, instrument};
@@ -68,6 +71,16 @@ pub async fn process_electoral_log_events_batch(events: Vec<LogEventInput>) -> R
         .await
         .with_context(|| "Error starting Hasura transaction")?;
 
+    let mut keycloak_db_client: DbClient = get_keycloak_pool()
+        .await
+        .get()
+        .await
+        .with_context(|| "Error getting keycloak DB pool for batch processing")?;
+    let keycloak_transaction = keycloak_db_client
+        .transaction()
+        .await
+        .with_context(|| "Error starting keycloak transaction")?;
+
     for input in events.iter() {
         let election_event =
             get_election_event_by_id(&hasura_tx, &input.tenant_id, &input.election_event_id)
@@ -83,6 +96,7 @@ pub async fn process_electoral_log_events_batch(events: Vec<LogEventInput>) -> R
             .unwrap_or_else(|| "unknown_user".into());
         let username = input.username.clone();
         let tenant_id = input.tenant_id.clone();
+        let realm = get_event_realm(&input.tenant_id, &input.election_event_id);
 
         let electoral_log = ElectoralLog::for_admin_user(&board_name, &tenant_id, &user_id)
             .await
@@ -95,12 +109,17 @@ pub async fn process_electoral_log_events_batch(events: Vec<LogEventInput>) -> R
                 message
             }
             _ => {
+                let user_area_id = get_user_area_id(&keycloak_transaction, &realm, &user_id)
+                    .await
+                    .with_context(|| "Error getting user area id")?;
+
                 if input.body.contains(EVENT_TYPE_COMMUNICATIONS) {
                     let template_body = input
                         .body
                         .replace(EVENT_TYPE_COMMUNICATIONS, "")
                         .trim()
                         .to_string();
+                    //TODO: add area_id to send_template_message
                     let send_template_msg = electoral_log
                         .build_send_template_message(
                             Some(template_body),
@@ -123,6 +142,7 @@ pub async fn process_electoral_log_events_batch(events: Vec<LogEventInput>) -> R
                         input.body.clone(),
                         Some(user_id.clone()),
                         username.clone(),
+                        user_area_id,
                     )
                     .with_context(|| "Error building keycloak event message")?
             }
