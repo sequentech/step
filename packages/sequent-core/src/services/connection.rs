@@ -253,18 +253,12 @@ async fn request_access_token(
 ) -> AnyhowResult<TokenResponse> {
     let stamp: Instant = Instant::now(); // Capture the stamp before sending the request
     info!("Requesting access token");
-    let token_resp = match get_third_party_client_access_token(
+    let token_resp = get_third_party_client_access_token(
         client_id.clone(),
         client_secret.clone(),
         tenant_id.clone(),
     )
-    .await
-    {
-        Ok(token_resp) => token_resp,
-        Err(err) => {
-            return Err(err);
-        }
-    };
+    .await?;
 
     let mut write = match lst_acc_tkn.0.write() {
         Ok(write) => write,

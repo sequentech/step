@@ -254,7 +254,7 @@ pub async fn try_insert_cast_vote(
                 "Multiple users found with id {voter_id}"
             )));
         }
-        Err(e) => {
+        Err(_) => {
             return Err(CastVoteError::UnknownError(format!(
                 "Voter not found with id {voter_id}"
             )));
