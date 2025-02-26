@@ -7,7 +7,6 @@
 use crate::ballot::format_date;
 use crate::ballot::ScheduledEventDates;
 use crate::ballot::VotingPeriodDates;
-use crate::ballot::VotingStatusChannel;
 use anyhow::{anyhow, Result};
 use chrono::DateTime;
 use chrono::Utc;
@@ -123,7 +122,6 @@ pub fn generate_voting_period_dates(
     tenant_id: &str,
     election_event_id: &str,
     election_id: Option<&str>,
-    voting_channel: &VotingStatusChannel,
 ) -> Result<VotingPeriodDates> {
     let payload = ManageElectionDatePayload {
         election_id: election_id.map(|s| s.to_string()),
@@ -155,32 +153,23 @@ pub fn generate_voting_period_dates(
         election_id,
         &EventProcessors::END_VOTING_PERIOD,
     );
-    let end_date: Option<String> = match voting_channel {
-        VotingStatusChannel::ONLINE => {
-            let end_date =
-                scheduled_events.into_iter().find(|scheduled_event| {
-                    scheduled_event.tenant_id == Some(tenant_id.to_string())
-                        && scheduled_event.election_event_id
-                            == Some(election_event_id.to_string())
-                        && scheduled_event.task_id
-                            == Some(end_date_name.clone())
-                        && scheduled_event.event_payload
-                            == Some(payload_val.clone())
-                });
-            end_date
-                .map(|val| val.cron_config.map(|val| val.scheduled_date))
-                .flatten()
-                .flatten()
-        }
-        _ => None,
-    };
+    let end_date = scheduled_events.into_iter().find(|scheduled_event| {
+        scheduled_event.tenant_id == Some(tenant_id.to_string())
+            && scheduled_event.election_event_id
+                == Some(election_event_id.to_string())
+            && scheduled_event.task_id == Some(end_date_name.clone())
+            && scheduled_event.event_payload == Some(payload_val.clone())
+    });
 
     Ok(VotingPeriodDates {
         start_date: start_date
             .map(|val| val.cron_config.map(|val| val.scheduled_date))
             .flatten()
             .flatten(),
-        end_date,
+        end_date: end_date
+            .map(|val| val.cron_config.map(|val| val.scheduled_date))
+            .flatten()
+            .flatten(),
     })
 }
 
