@@ -18,6 +18,7 @@ use sequent_core::types::keycloak::{
 };
 use sequent_core::types::permissions::Permissions;
 use serde::Deserialize;
+use serde::Serialize;
 use std::collections::HashMap;
 use std::env;
 use tracing::instrument;
@@ -35,7 +36,9 @@ use windmill::services::export::export_users::{
 };
 use windmill::services::keycloak_events::list_keycloak_events_by_type;
 use windmill::services::tasks_execution::*;
-use windmill::services::users::{list_users, list_users_with_vote_info};
+use windmill::services::users::{
+    count_keycloak_users, list_users, list_users_with_vote_info,
+};
 use windmill::services::users::{FilterOption, ListUsersFilter};
 use windmill::tasks::export_users::{self, ExportUsersOutput};
 use windmill::tasks::import_users::{self, ImportUsersOutput};
@@ -153,6 +156,106 @@ pub struct GetUsersBody {
     sort: Option<HashMap<String, String>>,
     has_voted: Option<bool>,
     authorized_to_election_alias: Option<String>,
+}
+
+#[derive(Deserialize, Debug, Serialize)]
+pub struct CountUserOutput {
+    count: i64,
+}
+
+#[instrument(skip(claims), ret)]
+#[post("/count-users", format = "json", data = "<body>")]
+pub async fn count_users(
+    claims: jwt::JwtClaims,
+    body: Json<GetUsersBody>,
+) -> Result<Json<CountUserOutput>, (Status, String)> {
+    let input = body.into_inner();
+    let required_perm: Permissions = if input.election_event_id.is_some() {
+        Permissions::VOTER_READ
+    } else {
+        Permissions::USER_READ
+    };
+    authorize(
+        &claims,
+        true,
+        Some(input.tenant_id.clone()),
+        vec![required_perm],
+    )?;
+
+    let realm = match input.election_event_id {
+        Some(ref election_event_id) => {
+            get_event_realm(&input.tenant_id, &election_event_id)
+        }
+        None => get_tenant_realm(&input.tenant_id),
+    };
+
+    let mut keycloak_db_client: DbClient =
+        get_keycloak_pool().await.get().await.map_err(|e| {
+            (
+                Status::InternalServerError,
+                format!("Error acquiring keycloak db client from pool {:?}", e),
+            )
+        })?;
+    let keycloak_transaction =
+        keycloak_db_client.transaction().await.map_err(|e| {
+            (
+                Status::InternalServerError,
+                format!("Error acquiring keycloak transaction {:?}", e),
+            )
+        })?;
+    let mut hasura_db_client: DbClient =
+        get_hasura_pool().await.get().await.map_err(|e| {
+            (
+                Status::InternalServerError,
+                format!("Error acquiring hasura db client from pool {:?}", e),
+            )
+        })?;
+    let hasura_transaction =
+        hasura_db_client.transaction().await.map_err(|e| {
+            (
+                Status::InternalServerError,
+                format!("Error acquiring hasura transaction {:?}", e),
+            )
+        })?;
+
+    let filter = ListUsersFilter {
+        tenant_id: input.tenant_id.clone(),
+        election_event_id: input.election_event_id.clone(),
+        election_id: input.election_id.clone(),
+        area_id: None,
+        realm: realm.clone(),
+        search: input.search,
+        first_name: input.first_name,
+        last_name: input.last_name,
+        username: input.username,
+        email: input.email,
+        limit: input.limit,
+        offset: input.offset,
+        user_ids: None,
+        attributes: input.attributes,
+        enabled: input.enabled,
+        email_verified: input.email_verified,
+        sort: input.sort,
+        has_voted: input.has_voted,
+        authorized_to_election_alias: input.authorized_to_election_alias,
+    };
+
+    let count = count_keycloak_users(
+        &hasura_transaction,
+        &keycloak_transaction,
+        filter,
+    )
+    .await
+    .map_err(|e| {
+        (
+            Status::InternalServerError,
+            format!("Error counting users {:?}", e),
+        )
+    })?;
+
+    Ok(Json(CountUserOutput {
+        count: count.into(),
+    }))
 }
 
 #[instrument(skip(claims), ret)]

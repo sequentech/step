@@ -110,7 +110,7 @@ const ActionsPopUp: React.FC<ActionsPopUpProps> = ({actions, report, canWriteRep
         const isShowAction = (action: Action) => {
             return (
                 !action.key ||
-                !reportConfig.actions.includes(action.key as ReportActions) ||
+                !reportConfig?.actions.includes(action.key as ReportActions) ||
                 ((action.key === ReportActions.EDIT || action.key === ReportActions.DELETE) &&
                     !canWriteReport)
             )
@@ -139,9 +139,16 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
     const refresh = useRefresh()
     const aliasRenderer = useAliasRenderer()
 
-    const {data: report} = useGetOne<Sequent_Backend_Report>("sequent_backend_report", {
-        id: selectedReportId,
-    })
+    const {data: report} = useGetOne<Sequent_Backend_Report>(
+        "sequent_backend_report",
+        {
+            id: selectedReportId,
+        },
+        {
+            enabled: !!selectedReportId,
+            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+        }
+    )
 
     const {
         canReadReports,
@@ -249,7 +256,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
     const {data: elections} = useGetList<Sequent_Backend_Election>(
         "sequent_backend_election",
         {
-            pagination: {page: 1, perPage: 100},
+            pagination: {page: 1, perPage: 200},
             sort: {field: "created_at", order: "DESC"},
             filter: {
                 tenant_id: tenantId,

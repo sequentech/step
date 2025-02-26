@@ -16,7 +16,8 @@ use crate::services::consolidation::zip::compress_folder_to_zip;
 use crate::services::database::get_hasura_pool;
 use crate::services::documents::upload_and_return_document_postgres;
 use crate::services::reports::utils::get_public_assets_path_env_var;
-use crate::services::tasks_execution::{update_complete, update_fail};
+use crate::services::tasks_execution::{update, update_complete, update_fail};
+use crate::services::tasks_semaphore::acquire_semaphore;
 use crate::types::error::Error;
 use crate::types::error::Result;
 use anyhow::{anyhow, Context, Result as AnyhowResult};
@@ -28,10 +29,12 @@ use sequent_core::services::{pdf, s3};
 use sequent_core::types::ceremonies::TallyExecutionStatus;
 use sequent_core::types::hasura::core::TallySession;
 use sequent_core::types::hasura::core::TasksExecution;
+use sequent_core::types::hasura::extra::TasksExecutionStatus;
 use sequent_core::util::path::get_folder_name;
 use sequent_core::util::path::list_subfolders;
 use sequent_core::util::temp_path::*;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
@@ -345,7 +348,20 @@ async fn generate_template_block(
     };
 
     let hasura_transaction = match db_client.transaction().await {
-        Ok(transaction) => transaction,
+        Ok(transaction) => {
+            if let Some(ref task_exec) = task_execution {
+                update(
+                    /* tenant_id: */ &tenant_id,
+                    /* task_id: */ &task_exec.id,
+                    /* status: */ TasksExecutionStatus::IN_PROGRESS,
+                    /* logs: */ json!([]),
+                    /* annotations: */
+                    Some(document_id.clone()),
+                )
+                .await?;
+            }
+            transaction
+        }
         Err(err) => {
             if let Some(ref task_exec) = task_execution {
                 update_fail(task_exec, "Failed to get Hasura DB pool").await?;
@@ -363,12 +379,13 @@ async fn generate_template_block(
             };
             Err(err)
         }
-    }?;
+    }
+    .context("Error generatingtemplate document")?;
 
     match hasura_transaction.commit().await {
         Ok(transaction) => {
             if let Some(ref task_exec) = task_execution {
-                update_complete(task_exec).await?;
+                update_complete(task_exec, Some(document_id.clone())).await?;
             }
             Ok(transaction)
         }
@@ -393,6 +410,7 @@ pub async fn generate_template(
     task_execution: Option<TasksExecution>,
     executer_username: Option<String>,
 ) -> Result<()> {
+    let _permit = acquire_semaphore().await?;
     // Spawn the task using an async block
     let handle = tokio::task::spawn_blocking({
         move || {

@@ -39,7 +39,7 @@ pub async fn read_export_data(
     Ok(transformed_templates)
 }
 
-#[instrument(err, skip(transaction))]
+#[instrument(err, skip(transaction, data))]
 pub async fn write_export_document(
     transaction: &Transaction<'_>,
     data: Vec<Template>,
@@ -60,6 +60,7 @@ pub async fn write_export_document(
     ];
 
     let name = format!("template-{}", document_id);
+    let full_name = format!("{}.csv", name);
 
     let mut writer = Writer::from_writer(vec![]);
     writer.write_record(&headers)?;
@@ -96,7 +97,7 @@ pub async fn write_export_document(
             "text/csv",
             &first_template.tenant_id.to_string(),
             None,
-            &name,
+            &full_name,
             Some(document_id.to_string()),
             false,
         )
@@ -122,7 +123,6 @@ pub async fn process_export(tenant_id: &str, document_id: &str) -> Result<()> {
     let export_data = read_export_data(&hasura_transaction, tenant_id).await?;
     write_export_document(&hasura_transaction, export_data.clone(), document_id).await?;
 
-    info!("export_data {:?}", &export_data);
     let _commit = hasura_transaction
         .commit()
         .await

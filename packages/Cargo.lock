@@ -558,8 +558,7 @@ dependencies = [
 [[package]]
 name = "auto_generate_cdp"
 version = "0.4.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7af08ed49930c50104b2f1699d257e5053fb1809e370647bde9c58b31d65d417"
+source = "git+https://github.com/mdrokz/auto_generate_cdp?rev=634e636fd8edbe032d7191326527c721a2b51106#634e636fd8edbe032d7191326527c721a2b51106"
 dependencies = [
  "convert_case 0.4.0",
  "proc-macro2",
@@ -2805,6 +2804,7 @@ dependencies = [
  "immudb-rs",
  "log",
  "serde",
+ "serde_json",
  "serial_test",
  "strand",
  "strum 0.25.0",
@@ -5160,9 +5160,9 @@ dependencies = [
 
 [[package]]
 name = "once_cell"
-version = "1.20.2"
+version = "1.20.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1261fe7e33c73b354eab43b1273a57c8f967d0391e80353e51f764ac02cf6775"
+checksum = "945462a4b81e43c4e3ba96bd7b49d834c6f61198356aa858733bc4acf3cbe62e"
 
 [[package]]
 name = "oorandom"
@@ -9635,6 +9635,7 @@ dependencies = [
  "lazy_static 1.5.0",
  "lettre",
  "num_cpus",
+ "once_cell",
  "openssl",
  "ordered-float 4.6.0",
  "postgres-openssl",

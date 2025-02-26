@@ -108,13 +108,15 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
             let username = authContext.username
             let sbeiUsers: Array<{username: string; miru_id: string}> = JSON.parse(sbeiUsersStr)
 
-            let sbeiUser = sbeiUsers.find((user) => user.username === username)
+            let validSbeiUsers = sbeiUsers
+                .filter((user) => user.username === username)
+                .map((user) => user.miru_id)
 
-            if (!sbeiUser) {
+            if (!validSbeiUsers) {
                 return false
             }
-            let areaUsers = JSON.parse(areaUsersStr)
-            return areaUsers.includes(sbeiUser.miru_id)
+            let areaUsers: Array<string> = JSON.parse(areaUsersStr)
+            return areaUsers.some((areaUserId) => validSbeiUsers.includes(areaUserId))
         } catch (error) {
             console.log(error)
             return false
@@ -230,7 +232,7 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
             id: tallyId,
         },
         {
-            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+            refetchInterval: globalSettings.QUERY_FAST_POLL_INTERVAL_MS,
             refetchIntervalInBackground: true,
             refetchOnWindowFocus: false,
             refetchOnReconnect: false,
@@ -282,7 +284,7 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
             },
         },
         {
-            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+            refetchInterval: globalSettings.QUERY_FAST_POLL_INTERVAL_MS,
             refetchOnWindowFocus: false,
             refetchOnReconnect: false,
             refetchOnMount: false,
@@ -487,7 +489,7 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
                 } else {
                     retry = retry + 1
                 }
-            }, globalSettings.QUERY_POLL_INTERVAL_MS)
+            }, globalSettings.QUERY_FAST_POLL_INTERVAL_MS)
         }
     }
 

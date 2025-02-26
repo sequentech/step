@@ -332,7 +332,7 @@ pub async fn replace_voter_pin(
 
     // If a voter is disabled, do not generate a PIN
     let user_id = match list_users(hasura_transaction, keycloak_transaction, filter).await {
-        Ok((users, count)) if count == 1 => {
+        Ok((users, 1)) => {
             let user = users
                 .last()
                 .map(|val_ref| val_ref.to_owned())

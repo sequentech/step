@@ -7,8 +7,8 @@ use rand::thread_rng;
 use rayon::prelude::*;
 use sequent_core::{
     ballot::{Candidate, CandidatesOrder, Contest, StringifiedPeriodDates},
-    serialization::deserialize_with_path::deserialize_str,
-    services::{pdf, reports},
+    serialization::deserialize_with_path::{deserialize_str, deserialize_value},
+    services::{area_tree::TreeNodeArea, pdf, reports},
     types::to_map::ToMap,
     util::{date_time::get_date_and_time, path::list_subfolders},
 };
@@ -102,11 +102,32 @@ impl GenerateReports {
         Ok(pipe_config)
     }
 
-    #[instrument(skip_all)]
-    pub fn compute_reports(&self, reports: Vec<ReportData>) -> Result<Vec<ReportDataComputed>> {
+    #[instrument(err, skip_all)]
+    pub fn compute_reports(
+        &self,
+        reports: Vec<ReportData>,
+        areas_map: &HashMap<String, TreeNodeArea>,
+    ) -> Result<Vec<ReportDataComputed>> {
+        let default_area_annotations: HashMap<String, String> =
+            HashMap::from([("registered_voters".to_string(), "0".to_string())]);
         let mut reports = reports
             .iter()
             .map(|report| {
+                let area_annotations: HashMap<String, String> = report
+                    .area
+                    .clone()
+                    .map(|area| {
+                        areas_map
+                            .get(&area.id)
+                            .cloned()
+                            .map(|area| area.annotations)
+                    })
+                    .flatten()
+                    .flatten()
+                    .map(|annotations| deserialize_value::<HashMap<String, String>>(annotations))
+                    .transpose()
+                    .unwrap_or(Some(default_area_annotations.clone()))
+                    .unwrap_or(default_area_annotations.clone());
                 let map_winners: HashMap<_, _> = report
                     .winners
                     .iter()
@@ -193,6 +214,7 @@ impl GenerateReports {
                     contest: report.contest.clone(),
                     contest_result,
                     area: report.area.clone(),
+                    area_annotations,
                     candidate_result,
                     is_aggregate: false,
                     tally_sheet_id: None,
@@ -211,17 +233,18 @@ impl GenerateReports {
         Ok(reports)
     }
 
-    #[instrument(skip_all)]
+    #[instrument(err, skip_all)]
     pub fn generate_report(
         &self,
         reports: Vec<ReportData>,
         enable_pdfs: bool,
         election_hash: Option<String>,
+        areas_map: &HashMap<String, TreeNodeArea>,
     ) -> Result<(GeneratedReportsBytes, String)> {
         let config = self.get_config()?;
         let mut execution_annotations = config.execution_annotations;
 
-        let computed_reports = self.compute_reports(reports.clone())?;
+        let computed_reports = self.compute_reports(reports.clone(), areas_map)?;
         let template_data = TemplateData {
             execution_annotations: execution_annotations.clone(),
             reports: computed_reports.clone(),
@@ -366,7 +389,7 @@ impl GenerateReports {
         aggregate_path.exists() && aggregate_path.is_dir()
     }
 
-    #[instrument(skip(self))]
+    #[instrument(err, skip(self))]
     fn read_contest_result(
         &self,
         election_id: &Uuid,
@@ -403,7 +426,7 @@ impl GenerateReports {
         Ok(contest_result)
     }
 
-    #[instrument(skip(self))]
+    #[instrument(err, skip(self))]
     fn read_winners(
         &self,
         election_id: &Uuid,
@@ -441,12 +464,17 @@ impl GenerateReports {
         Ok(res)
     }
 
-    #[instrument(skip(self))]
+    #[instrument(err, skip(self))]
     pub fn read_reports(&self) -> Result<Vec<ElectionReportDataComputed>> {
         let mut election_reports: Vec<ElectionReportDataComputed> = vec![];
 
         for election_input in &self.pipe_inputs.election_list {
             let mut reports = vec![];
+            let areas_map: HashMap<String, TreeNodeArea> = election_input
+                .areas
+                .iter()
+                .map(|area| (area.id.clone(), area.clone()))
+                .collect();
             for contest_input in &election_input.contest_list {
                 let contest_result = self.read_contest_result(
                     &election_input.id,
@@ -516,7 +544,7 @@ impl GenerateReports {
                 }
             }
 
-            let computed_reports = self.compute_reports(reports)?;
+            let computed_reports = self.compute_reports(reports, &areas_map)?;
 
             election_reports.push(ElectionReportDataComputed {
                 election_id: election_input.id.clone().to_string(),
@@ -529,7 +557,7 @@ impl GenerateReports {
         Ok(election_reports)
     }
 
-    #[instrument(skip_all)]
+    #[instrument(err, skip_all)]
     fn read_breakdowns(
         &self,
         election_id: &Uuid,
@@ -626,7 +654,17 @@ impl GenerateReports {
         Ok(reports)
     }
 
-    #[instrument(skip(self, contest), err)]
+    #[instrument(
+        skip(
+            self,
+            contest,
+            election_annotations,
+            election_event_annotations,
+            areas_map
+        ),
+        err
+    )]
+    #[instrument(err, skip_all)]
     fn make_report(
         &self,
         election_id: &Uuid,
@@ -643,6 +681,7 @@ impl GenerateReports {
         enable_pdfs: bool,
         is_write: bool,
         election_hash: Option<String>,
+        areas_map: &HashMap<String, TreeNodeArea>,
     ) -> Result<ReportData> {
         let area_id = area
             .clone()
@@ -709,13 +748,14 @@ impl GenerateReports {
                 enable_pdfs,
                 false,
                 election_hash,
+                areas_map,
             )?;
         }
 
         Ok(report)
     }
 
-    #[instrument(skip(self, reports), err)]
+    #[instrument(err, skip(self, reports, areas_map), err)]
     fn write_report(
         &self,
         election_id: &Uuid,
@@ -727,8 +767,10 @@ impl GenerateReports {
         enable_pdfs: bool,
         area_based: bool,
         election_hash: Option<String>,
+        areas_map: &HashMap<String, TreeNodeArea>,
     ) -> Result<String> {
-        let (reports, result_hash) = self.generate_report(reports, enable_pdfs, election_hash)?;
+        let (reports, result_hash) =
+            self.generate_report(reports, enable_pdfs, election_hash, areas_map)?;
 
         let mut base_path = match area_based {
             true => {
@@ -784,7 +826,7 @@ struct InputConfigAreaContest<'a> {
 }
 
 impl Pipe for GenerateReports {
-    #[instrument(skip_all, name = "GenerateReports::exec")]
+    #[instrument(err, skip_all, name = "GenerateReports::exec")]
     fn exec(&self) -> Result<()> {
         let mark_winners_dir = self
             .pipe_inputs
@@ -799,6 +841,11 @@ impl Pipe for GenerateReports {
             .election_list
             .iter()
             .try_for_each(|election_input| {
+                let areas_map: HashMap<String, TreeNodeArea> = election_input
+                    .areas
+                    .iter()
+                    .map(|area| (area.id.clone(), area.clone()))
+                    .collect();
                 let contest_reports: Result<Vec<_>> = election_input
                     .contest_list
                     .iter()
@@ -849,6 +896,7 @@ impl Pipe for GenerateReports {
                                                 config.enable_pdfs,
                                                 true,
                                                 None,
+                                                &areas_map,
                                             )?;
                                         }
                                     }
@@ -875,6 +923,7 @@ impl Pipe for GenerateReports {
                                             config.enable_pdfs,
                                             true,
                                             None,
+                                            &areas_map,
                                         )?;
                                     }
                                     self.make_report(
@@ -892,6 +941,7 @@ impl Pipe for GenerateReports {
                                         config.enable_pdfs,
                                         true,
                                         None,
+                                        &areas_map,
                                     )
                                 })
                                 .collect::<Result<Vec<ReportData>>>()?;
@@ -912,6 +962,7 @@ impl Pipe for GenerateReports {
                             config.enable_pdfs,
                             true,
                             None,
+                            &areas_map,
                         )?;
 
                         Ok(contest_report)
@@ -929,6 +980,7 @@ impl Pipe for GenerateReports {
                     config.enable_pdfs,
                     false,
                     None,
+                    &areas_map,
                 )?;
 
                 // make area reports with all contests related to each area
@@ -972,6 +1024,7 @@ impl Pipe for GenerateReports {
                                     config.enable_pdfs,
                                     false,
                                     Some(result_hash.clone()),
+                                    &areas_map,
                                 )
                             })
                             .collect::<Result<Vec<ReportData>>>()?;
@@ -988,6 +1041,7 @@ impl Pipe for GenerateReports {
                         config.enable_pdfs,
                         true,
                         Some(result_hash.clone()),
+                        &areas_map,
                     )?;
                 }
 
@@ -1045,6 +1099,7 @@ pub struct ReportDataComputed {
     pub election_event_annotations: HashMap<String, String>,
     pub contest: Contest,
     pub area: Option<BasicArea>,
+    pub area_annotations: HashMap<String, String>,
     pub is_aggregate: bool,
     pub tally_sheet_id: Option<String>,
     pub contest_result: ContestResult,
@@ -1095,6 +1150,7 @@ impl From<CandidateResultForReport> for Option<WinnerResult> {
     }
 }
 
+#[instrument(skip_all)]
 fn sort_candidates(candidates: &mut Vec<CandidateResult>, order_field: CandidatesOrder) {
     match order_field {
         CandidatesOrder::Alphabetical => {
