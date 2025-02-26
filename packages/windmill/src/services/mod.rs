@@ -47,6 +47,7 @@ pub mod reports_vault;
 pub mod serialize_tasks_logs;
 pub mod tally_sheets;
 pub mod tasks_execution;
+pub mod tasks_semaphore;
 pub mod temp_path;
 pub mod to_result;
 pub mod transmission;
