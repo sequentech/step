@@ -39,7 +39,7 @@ pub async fn read_export_data(
     Ok(transformed_templates)
 }
 
-#[instrument(err, skip(transaction))]
+#[instrument(err, skip(transaction, data))]
 pub async fn write_export_document(
     transaction: &Transaction<'_>,
     data: Vec<Template>,
