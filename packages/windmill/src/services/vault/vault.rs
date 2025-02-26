@@ -16,9 +16,9 @@ use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 use strand::symm::{decrypt, encrypt, gen_key, EncryptionData, SymmetricKey};
 use strum_macros::EnumString;
 use tokio;
+use tokio::sync::OnceCell;
 use tracing::{info, instrument};
 use uuid::Uuid;
-use tokio::sync::OnceCell;
 
 #[derive(EnumString)]
 pub enum VaultManagerType {
@@ -51,9 +51,7 @@ async fn initialize_master_secret() -> SymmetricKey {
 }
 
 pub async fn get_master_secret() -> &'static SymmetricKey {
-    MASTER_SECRET
-        .get_or_init(initialize_master_secret)
-        .await
+    MASTER_SECRET.get_or_init(initialize_master_secret).await
 }
 
 #[async_trait]
