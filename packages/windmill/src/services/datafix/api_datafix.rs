@@ -308,6 +308,7 @@ pub async fn unmark_voter_as_voted(
 pub async fn replace_voter_pin(
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
+    client: KeycloakAdminClient,
     tenant_id: &str,
     datafix_event_id: &str,
     username: &str,
@@ -317,10 +318,6 @@ pub async fn replace_voter_pin(
             .await?;
     info!("election_event_id: {election_event_id}");
     let realm = get_event_realm(tenant_id, &election_event_id);
-    let client = KeycloakAdminClient::new().await.map_err(|e| {
-        error!("Error getting KeycloakAdminClient: {e:?}");
-        DatafixResponse::new(Status::InternalServerError)
-    })?;
 
     let filter = ListUsersFilter {
         tenant_id: tenant_id.to_string(),

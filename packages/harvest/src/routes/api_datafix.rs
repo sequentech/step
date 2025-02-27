@@ -332,11 +332,14 @@ pub async fn replace_pin(
             DatafixResponse::new(Status::InternalServerError)
         })?;
 
+    let tenant_id = claims.tenant_id.clone();
+    let datafix_event_id = claims.datafix_event_id.clone();
     let pin = services::datafix::api_datafix::replace_voter_pin(
         &hasura_transaction,
         &keycloak_transaction,
-        &claims.tenant_id,
-        &claims.datafix_event_id,
+        claims.keycloak_admin_client,
+        &tenant_id,
+        &datafix_event_id,
         &input.voter_id,
     )
     .await?;
