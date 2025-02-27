@@ -9,15 +9,36 @@ import {useContext} from "react"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
+import {Sequent_Backend_Tenant} from "@/gql/graphql"
+import {useGetOne} from "react-admin"
 
 export function useTreeMenuData(isArchivedElectionEvents: boolean) {
     const [tenantId] = useTenantStore()
+    const {globalSettings} = useContext(SettingsContext)
+
+    // get tenant to retrieve the refresh menu setting for activate/deactivate polling
+    const {data: tenant} = useGetOne<Sequent_Backend_Tenant>(
+        "sequent_backend_tenant",
+        {
+            id: tenantId,
+        },
+        {
+            enabled: !!tenantId,
+            onError: (error: any) => {
+                console.log(`error fetching image doc: ${error.message}`)
+            },
+            onSuccess: () => {
+                console.log(`success fetching image doc`)
+            },
+        }
+    )
 
     return useQuery(FETCH_ELECTION_EVENTS_TREE, {
         variables: {
             tenantId: tenantId,
             isArchived: isArchivedElectionEvents,
         },
+        pollInterval: tenant?.settings?.hasRefreshMenu ? 0 : globalSettings.QUERY_POLL_INTERVAL_MS,
     })
 }
 

@@ -200,8 +200,6 @@ export default function ElectionEvents() {
     const {openCreateDrawer, openImportDrawer} = useCreateElectionEventStore()
     const {election_event_id, election_id, contest_id, candidate_id} = useUrlParams()
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
-    const {data, loading, refetch: originalRefetch} = useTreeMenuData(isArchivedElectionEvents)
-
     const authContext = useContext(AuthContext)
     const showAddElectionEvent = authContext.isAuthorized(
         true,
@@ -215,6 +213,7 @@ export default function ElectionEvents() {
     const [contestId, setContestId] = useState<string | null>("")
     const [candidateId, setCandidateId] = useState<string | null>("")
     const {globalSettings} = useContext(SettingsContext)
+    const {data, loading, refetch: originalRefetch} = useTreeMenuData(isArchivedElectionEvents)
 
     const {getCandidateIdFlag} = useElectionEventTallyStore()
 
