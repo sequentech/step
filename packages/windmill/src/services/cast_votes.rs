@@ -728,6 +728,7 @@ pub async fn get_voter_signing_key(
     tenant_id: &str,
     event_id: &str,
     user_id: &str,
+    area_id: &str,
 ) -> Result<StrandSignatureSk> {
     info!("Generating private signing key for voter {}", user_id);
     let sk = StrandSignatureSk::gen()?;
@@ -735,7 +736,7 @@ pub async fn get_voter_signing_key(
     let pk = StrandSignaturePk::from_sk(&sk)?;
     let pk = pk.to_der_b64_string()?;
 
-    ElectoralLog::post_voter_pk(elog_database, tenant_id, event_id, user_id, &pk).await?;
+    ElectoralLog::post_voter_pk(elog_database, tenant_id, event_id, user_id, &pk, area_id).await?;
 
     Ok(sk)
 }

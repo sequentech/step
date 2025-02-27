@@ -76,6 +76,8 @@ pub async fn get_admin_user_signing_key(
     elog_database: &str,
     tenant_id: &str,
     user_id: &str,
+    elections_ids: Option<String>,
+    user_area_id: Option<String>,
 ) -> Result<StrandSignatureSk> {
     let lookup_key = admin_vault_lookup_key(&tenant_id, &user_id);
     let sk_der_b64 = read_secret(lookup_key.clone()).await?;
@@ -97,7 +99,15 @@ pub async fn get_admin_user_signing_key(
         // while the first one succeeds. If this happens the
         // secret will exist but the pk notification will not.
         save_secret(lookup_key.clone(), sk_string).await?;
-        ElectoralLog::post_admin_pk(elog_database, tenant_id, user_id, &pk).await?;
+        ElectoralLog::post_admin_pk(
+            elog_database,
+            tenant_id,
+            user_id,
+            &pk,
+            elections_ids,
+            user_area_id,
+        )
+        .await?;
 
         sk
     };

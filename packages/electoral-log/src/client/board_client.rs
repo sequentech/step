@@ -478,7 +478,9 @@ impl BoardClient {
                     message,
                     version,
                     user_id,
-                    username
+                    username,
+                    election_id,
+                    area_id
                 ) VALUES (
                     @created,
                     @sender_pk,
@@ -487,7 +489,9 @@ impl BoardClient {
                     @message,
                     @version,
                     @user_id,
-                    @username
+                    @username,
+                    @election_id,
+                    @area_id
                 );
             "#,
                 ELECTORAL_LOG_TABLE
@@ -543,6 +547,24 @@ impl BoardClient {
                     value: Some(SqlValue {
                         value: match message.username.clone() {
                             Some(username) => Some(Value::S(username)),
+                            None => None,
+                        },
+                    }),
+                },
+                NamedParam {
+                    name: String::from("election_id"),
+                    value: Some(SqlValue {
+                        value: match message.election_id.clone() {
+                            Some(election_id) => Some(Value::S(election_id)),
+                            None => None,
+                        },
+                    }),
+                },
+                NamedParam {
+                    name: String::from("area_id"),
+                    value: Some(SqlValue {
+                        value: match message.area_id.clone() {
+                            Some(area_id) => Some(Value::S(area_id)),
                             None => None,
                         },
                     }),

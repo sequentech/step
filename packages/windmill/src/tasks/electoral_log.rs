@@ -98,9 +98,19 @@ pub async fn process_electoral_log_events_batch(events: Vec<LogEventInput>) -> R
         let tenant_id = input.tenant_id.clone();
         let realm = get_event_realm(&input.tenant_id, &input.election_event_id);
 
-        let electoral_log = ElectoralLog::for_admin_user(&board_name, &tenant_id, &user_id)
+        let user_area_id = get_user_area_id(&keycloak_transaction, &realm, &user_id)
             .await
-            .with_context(|| "Error initializing electoral log")?;
+            .with_context(|| "Error getting user area id")?;
+
+        let electoral_log = ElectoralLog::for_admin_user(
+            &board_name,
+            &tenant_id,
+            &user_id,
+            None,
+            user_area_id.clone(),
+        )
+        .await
+        .with_context(|| "Error initializing electoral log")?;
 
         let event_message = match input.message_type.as_str() {
             INTERNAL_MESSAGE_TYPE => {
@@ -109,17 +119,12 @@ pub async fn process_electoral_log_events_batch(events: Vec<LogEventInput>) -> R
                 message
             }
             _ => {
-                let user_area_id = get_user_area_id(&keycloak_transaction, &realm, &user_id)
-                    .await
-                    .with_context(|| "Error getting user area id")?;
-
                 if input.body.contains(EVENT_TYPE_COMMUNICATIONS) {
                     let template_body = input
                         .body
                         .replace(EVENT_TYPE_COMMUNICATIONS, "")
                         .trim()
                         .to_string();
-                    //TODO: add area_id to send_template_message
                     let send_template_msg = electoral_log
                         .build_send_template_message(
                             Some(template_body),
@@ -127,6 +132,7 @@ pub async fn process_electoral_log_events_batch(events: Vec<LogEventInput>) -> R
                             Some(user_id.clone()),
                             username.clone(),
                             None,
+                            user_area_id.clone(),
                         )
                         .with_context(|| "Error building send template message")?;
                     messages_by_board

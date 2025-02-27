@@ -297,6 +297,7 @@ pub async fn try_insert_cast_vote(
             ids.tenant_id,
             ids.election_event_id,
             ids.voter_id,
+            area_id,
         )
         .await
         .map_err(|e| CastVoteError::BallotVoterSignatureFailed(e.to_string()))?;
@@ -355,6 +356,7 @@ pub async fn try_insert_cast_vote(
                     country,
                     voter_id.to_string(),
                     username.clone(),
+                    area_id.to_string().clone(),
                 )
                 .await;
             if let Err(log_err) = log_result {
@@ -376,6 +378,7 @@ pub async fn try_insert_cast_vote(
                     country,
                     voter_id.to_string(),
                     username,
+                    area_id.to_string().clone(),
                 )
                 .await;
 
