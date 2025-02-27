@@ -73,30 +73,6 @@ const StyledIconButton = styled(IconButton)`
     line-height: 1.5rem;
 `
 
-const StyledButton = styled(Button)(({theme}) => ({
-    "backgroundColor": "white",
-    "color": theme.palette.brandColor,
-    "border": "none",
-    "boxShadow": "none",
-    "&:hover": {
-        color: theme.palette.brandColor,
-        backgroundColor: "rgba(0, 0, 0, 0.04)",
-        boxShadow: "none",
-    },
-    "&:active": {
-        color: theme.palette.brandColor,
-        backgroundColor: "rgba(0, 0, 0, 0.04)",
-        border: "none",
-        boxShadow: "none",
-    },
-    "&:focus": {
-        color: theme.palette.brandColor,
-        backgroundColor: "rgba(0, 0, 0, 0.04)",
-        border: "none",
-        boxShadow: "none",
-    },
-}))
-
 const Container = styled("div")<{isActive?: boolean}>`
     background-color: ${({isActive}) => (isActive ? adminTheme.palette.green.light : "initial")};
 `
