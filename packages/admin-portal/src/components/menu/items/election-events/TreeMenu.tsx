@@ -30,10 +30,9 @@ import {translateElection} from "@sequentech/ui-core"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {Box, Menu, MenuItem} from "@mui/material"
 import {MenuStyles, TreeMenuItemContainer} from "@/components/styles/Menu"
-import {Sequent_Backend_Document, Sequent_Backend_Tenant} from "@/gql/graphql"
+import {Sequent_Backend_Document} from "@/gql/graphql"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {useCreateElectionEventStore} from "@/providers/CreateElectionEventContextProvider"
-import {useNavigate} from "react-router-dom"
 import RefreshIcon from "@mui/icons-material/Refresh"
 
 export const mapAddResource: Record<ResourceName, string> = {

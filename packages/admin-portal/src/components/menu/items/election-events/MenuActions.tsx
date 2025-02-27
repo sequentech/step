@@ -4,7 +4,7 @@
 
 import React, {RefObject} from "react"
 import {useNavigate} from "react-router-dom"
-import {useDelete, useNotify, useRedirect, useUpdate} from "react-admin"
+import {useDelete, useNotify, useUpdate} from "react-admin"
 import MoreHorizIcon from "@mui/icons-material/MoreHoriz"
 import AddCircleIcon from "@mui/icons-material/AddCircle"
 import DeleteIcon from "@mui/icons-material/Delete"
@@ -23,6 +23,8 @@ import {DELETE_ELECTION_EVENT} from "@/queries/DeleteElectionEvent"
 import {IPermissions} from "@/types/keycloak"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {useCreateElectionEventStore} from "@/providers/CreateElectionEventContextProvider"
+import {useAtom} from "jotai"
+import archivedElectionEventSelection from "@/atoms/archived-election-event-selection"
 
 const mapRemoveResource: Record<ResourceName, string> = {
     sequent_backend_election_event: "sideMenu.menuActions.remove.electionEvent",
@@ -71,7 +73,6 @@ export default function MenuAction({
     const {t, i18n} = useTranslation()
 
     const navigate = useNavigate()
-    const redirect = useRedirect()
 
     const [deleteOne] = useDelete()
     const [update] = useUpdate()
@@ -97,6 +98,9 @@ export default function MenuAction({
     const isItemElectionEventType = resourceType === "sequent_backend_election_event"
     const {setElectionEventIdFlag, setElectionIdFlag, setContestIdFlag, setCandidateIdFlag} =
         useElectionEventTallyStore()
+    const [isArchivedElectionEvents, setArchivedElectionEvents] = useAtom(
+        archivedElectionEventSelection
+    )
 
     function handleOpenItemActions(): void {
         setAnchorEl(menuItemRef.current)
@@ -141,7 +145,12 @@ export default function MenuAction({
                 },
                 {
                     onSuccess() {
-                        refetch()
+                        // refetch()
+                        setArchivedElectionEvents(true)
+                        setTimeout(() => {
+                            reloadTree()
+                        }, 400)
+
                         notify(t("sideMenu.menuActions.messages.notification.success.archive"), {
                             type: "success",
                         })
@@ -154,7 +163,7 @@ export default function MenuAction({
                 }
             )
         } else if (action === Action.Unarchive) {
-            await update(
+            update(
                 payload.type,
                 {
                     id: payload.id,
@@ -164,7 +173,12 @@ export default function MenuAction({
 
                 {
                     onSuccess() {
-                        refetch()
+                        // refetch()
+                        setArchivedElectionEvents(false)
+                        setTimeout(() => {
+                            reloadTree()
+                        }, 400)
+
                         notify(t("sideMenu.menuActions.messages.notification.success.unarchive"), {
                             type: "success",
                         })
