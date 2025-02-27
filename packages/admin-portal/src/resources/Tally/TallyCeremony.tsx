@@ -23,6 +23,7 @@ import {
     Button,
     Box,
     CircularProgress,
+    styled,
 } from "@mui/material"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
@@ -96,6 +97,10 @@ const WizardSteps = {
     Export: 4,
 }
 
+const StyledCircularProgress = styled(CircularProgress)`
+    width: 14px !important;
+    height: 14px !important;
+`
 export interface IExpanded {
     [key: string]: boolean
 }
@@ -137,6 +142,7 @@ export const TallyCeremony: React.FC = () => {
     const [keysCeremonyId, setKeysCeremonyId] = useState<string | null>(null)
     const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
     const [isTallyCompleted, setIsTallyCompleted] = useState<boolean>(false)
+    const [isConfirming, setIsConfirming] = useState<boolean>(false)
 
     const [CreateTallyCeremonyMutation] =
         useMutation<CreateTallyCeremonyMutation>(CREATE_TALLY_CEREMONY)
@@ -166,19 +172,22 @@ export const TallyCeremony: React.FC = () => {
         "tally-miru-servers": false,
     })
 
-    const {data: tallySession} = useGetOne<Sequent_Backend_Tally_Session>(
-        "sequent_backend_tally_session",
-        {
-            id: localTallyId || tallyId,
-        },
-        {
-            refetchInterval: isTallyCompleted ? undefined : globalSettings.QUERY_POLL_INTERVAL_MS,
-            refetchIntervalInBackground: true,
-            refetchOnWindowFocus: false,
-            refetchOnReconnect: false,
-            refetchOnMount: false,
-        }
-    )
+    const {data: tallySession, refetch: refetchTallySession} =
+        useGetOne<Sequent_Backend_Tally_Session>(
+            "sequent_backend_tally_session",
+            {
+                id: localTallyId || tallyId,
+            },
+            {
+                refetchInterval: isTallyCompleted
+                    ? undefined
+                    : globalSettings.QUERY_FAST_POLL_INTERVAL_MS,
+                refetchIntervalInBackground: true,
+                refetchOnWindowFocus: false,
+                refetchOnReconnect: false,
+                refetchOnMount: false,
+            }
+        )
 
     const {data: keysCeremonies} = useQuery<ListKeysCeremonyQuery>(LIST_KEYS_CEREMONY, {
         variables: {
@@ -236,7 +245,9 @@ export const TallyCeremony: React.FC = () => {
             },
         },
         {
-            refetchInterval: isTallyCompleted ? undefined : globalSettings.QUERY_POLL_INTERVAL_MS,
+            refetchInterval: isTallyCompleted
+                ? undefined
+                : globalSettings.QUERY_FAST_POLL_INTERVAL_MS,
             refetchOnWindowFocus: false,
             refetchOnReconnect: false,
             refetchOnMount: false,
@@ -254,7 +265,9 @@ export const TallyCeremony: React.FC = () => {
             },
         },
         {
-            refetchInterval: isTallyCompleted ? undefined : globalSettings.QUERY_POLL_INTERVAL_MS,
+            refetchInterval: isTallyCompleted
+                ? undefined
+                : globalSettings.QUERY_FAST_POLL_INTERVAL_MS,
             refetchOnWindowFocus: false,
             refetchOnReconnect: false,
             refetchOnMount: false,
@@ -521,6 +534,8 @@ export const TallyCeremony: React.FC = () => {
     }
 
     const confirmCeremonyAction = async () => {
+        setIsButtonDisabled(true)
+        setIsConfirming(true)
         try {
             const {data: nextStatus, errors} = await UpdateTallyCeremonyMutation({
                 variables: {
@@ -532,14 +547,21 @@ export const TallyCeremony: React.FC = () => {
 
             if (errors) {
                 notify(t("tally.startTallyError"), {type: "error"})
+                setIsConfirming(false)
+                setIsButtonDisabled(false)
                 return
             }
 
             if (nextStatus) {
                 notify(t("tally.startTallySuccess"), {type: "success"})
+                refetchTallySession()
+                setIsConfirming(false)
+                setIsButtonDisabled(false)
                 setCreatingFlag(null)
             }
         } catch (error) {
+            setIsConfirming(false)
+            setIsButtonDisabled(false)
             notify(t("tally.startTallyError"), {type: "error"})
         }
     }
@@ -597,7 +619,7 @@ export const TallyCeremony: React.FC = () => {
                 } else {
                     retry = retry + 1
                 }
-            }, globalSettings.QUERY_POLL_INTERVAL_MS)
+            }, globalSettings.QUERY_FAST_POLL_INTERVAL_MS)
         }
     }
 
@@ -1018,14 +1040,18 @@ export const TallyCeremony: React.FC = () => {
                                         : page === WizardSteps.Tally
                                         ? t("tally.common.results")
                                         : t("tally.common.next")}
-                                    <ChevronRightIcon
-                                        style={{
-                                            transform:
-                                                i18n.dir(i18n.language) === "rtl"
-                                                    ? "rotate(180deg)"
-                                                    : "rotate(0)",
-                                        }}
-                                    />
+                                    {isConfirming ? (
+                                        <StyledCircularProgress color="inherit" />
+                                    ) : (
+                                        <ChevronRightIcon
+                                            style={{
+                                                transform:
+                                                    i18n.dir(i18n.language) === "rtl"
+                                                        ? "rotate(180deg)"
+                                                        : "rotate(0)",
+                                            }}
+                                        />
+                                    )}
                                 </>
                             </NextButton>
                         )}

@@ -40,8 +40,8 @@ export const DownloadDocument: React.FC<DownloadDocumentProps> = ({
             id: documentId,
             tenantId: tenantId,
         },
-        skip: !documentId,
-        pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+        skip: !documentId || !tenantId || downloaded,
+        pollInterval: globalSettings.QUERY_FAST_POLL_INTERVAL_MS,
         onError: (error: any) => {
             console.log(`error downloading doc: ${error.message}`)
         },
@@ -61,7 +61,8 @@ export const DownloadDocument: React.FC<DownloadDocumentProps> = ({
             electionEventId,
             documentId,
         },
-        pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+        skip: !documentId || !tenantId || downloaded,
+        pollInterval: globalSettings.QUERY_FAST_POLL_INTERVAL_MS,
         onCompleted: () => {
             console.log(`completed fetching document`)
             harvestRefetch()
