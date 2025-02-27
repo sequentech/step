@@ -423,6 +423,7 @@ public class Utils {
   }
 
    public String authenticate() {
+    log.info("authenticate start");
     HttpClient client = HttpClient.newHttpClient();
     String url =
         keycloakUrl

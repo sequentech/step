@@ -627,6 +627,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
   }
     private EnrollmentStatus getEnrollmentStatus(ValidationContext context)
       throws IOException, InterruptedException {
+        log.info("getUserEnrollmentStatus: start");
 
     if (this.accessToken == null) {
       this.accessToken = Utils.authenticate();

@@ -25,7 +25,7 @@ use serde_json::Value;
 use tracing::instrument;
 use windmill::services::application::{
     confirm_application, get_group_names, reject_application,
-    verify_application, ApplicationAnnotations, ApplicationVerificationResult,
+    verify_application, get_application_status_by_email_or_phone, ApplicationAnnotations, ApplicationVerificationResult,
 };
 use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
 use windmill::services::users::check_is_user_verified;
@@ -320,27 +320,22 @@ pub async fn change_application_status(
 
 #[derive(Deserialize, Debug)]
 pub struct ApplicationEnrollmentStatusBody {
-    applicant_id: String,
     applicant_data: HashMap<String, String>,
     tenant_id: String,
     election_event_id: String,
-    area_id: Option<String>,
-    labels: Option<Value>,
-    annotations: ApplicationAnnotations,
 }
 
 #[instrument(skip(claims))]
 #[post("/get-application-status", format = "json", data = "<body>")]
-pub async fn get_application_status_(
+pub async fn get_application_status(
     claims: jwt::JwtClaims,
     body: Json<ApplicationEnrollmentStatusBody>,
-) -> Result<Json<ApplicationVerificationResult>, JsonError> {
+) -> Result<Json<Option<String>>, JsonError> {
     let input: ApplicationEnrollmentStatusBody = body.into_inner();
 
-    info!("Verifiying application: {input:?}");
+    info!("Get application status: {input:?}");
 
     let required_perm: Permissions = Permissions::SERVICE_ACCOUNT;
-
     authorize(
         &claims,
         true,
@@ -355,53 +350,7 @@ pub async fn get_application_status_(
         )
     })?;
 
-    let mut hasura_db_client: DbClient =
-        get_hasura_pool().await.get().await.map_err(|e| {
-            ErrorResponse::new(
-                Status::InternalServerError,
-                &format!("{:?}", e),
-                ErrorCode::InternalServerError,
-            )
-        })?;
-
-    let hasura_transaction =
-        hasura_db_client.transaction().await.map_err(|e| {
-            ErrorResponse::new(
-                Status::InternalServerError,
-                &format!("{:?}", e),
-                ErrorCode::GetTransactionFailed,
-            )
-        })?;
-
-    let mut keycloak_db_client: DbClient =
-        get_keycloak_pool().await.get().await.map_err(|e| {
-            ErrorResponse::new(
-                Status::InternalServerError,
-                &format!("{:?}", e),
-                ErrorCode::GetTransactionFailed,
-            )
-        })?;
-    let keycloak_transaction =
-        keycloak_db_client.transaction().await.map_err(|e| {
-            ErrorResponse::new(
-                Status::InternalServerError,
-                &format!("{:?}", e),
-                ErrorCode::GetTransactionFailed,
-            )
-        })?;
-
-    let result = verify_application(
-        &hasura_transaction,
-        &keycloak_transaction,
-        &input.applicant_id,
-        &input.applicant_data,
-        &input.tenant_id,
-        &input.election_event_id,
-        &input.labels,
-        &input.annotations,
-    )
-    .await
-    .map_err(|e| {
+    let mut hasura_db_client: DbClient = get_hasura_pool().await.get().await.map_err(|e| {
         ErrorResponse::new(
             Status::InternalServerError,
             &format!("{:?}", e),
@@ -409,10 +358,25 @@ pub async fn get_application_status_(
         )
     })?;
 
-    let _commit = hasura_transaction.commit().await.map_err(|e| {
+    let hasura_transaction = hasura_db_client.transaction().await.map_err(|e| {
         ErrorResponse::new(
             Status::InternalServerError,
-            &format!("commit failed: {e:?}"),
+            &format!("{:?}", e),
+            ErrorCode::GetTransactionFailed,
+        )
+    })?;
+
+    let result = get_application_status_by_email_or_phone(
+        &hasura_transaction,
+        &input.tenant_id,
+        &input.election_event_id,
+        &input.applicant_data,
+    )
+    .await
+    .map_err(|e| {
+        ErrorResponse::new(
+            Status::InternalServerError,
+            &format!("{:?}", e),
             ErrorCode::InternalServerError,
         )
     })?;
