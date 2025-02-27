@@ -85,6 +85,7 @@ const CreateElectionEventContext = createContext<{
     closeCreateDrawer?: () => void
     openImportDrawer: () => void
     closeImportDrawer: () => void
+    doRefreshMenu: () => void
     postDefaultValues: any
     handleElectionCreated: any
     uploadCallback: any
@@ -106,6 +107,7 @@ const CreateElectionEventContext = createContext<{
     closeCreateDrawer: console.log,
     openImportDrawer: console.log,
     closeImportDrawer: console.log,
+    doRefreshMenu: console.log,
     errors: null,
     isLoading: false,
     newId: false,
@@ -155,6 +157,10 @@ export const CreateElectionEventProvider = ({children}: any) => {
 
     const closeImportDrawer = () => {
         toggleImportDrawer(false)
+    }
+
+    const doRefreshMenu = () => {
+        refetchTreeMenu()
     }
 
     useEffect(() => {
@@ -228,7 +234,10 @@ export const CreateElectionEventProvider = ({children}: any) => {
                 setWidgetTaskId(
                     currWidget.identifier,
                     data?.insertElectionEvent?.task_execution?.id,
-                    () => navigate(`/sequent_backend_election_event/${newId}`)
+                    () => {
+                        doRefreshMenu()
+                        navigate(`/sequent_backend_election_event/${newId}`)
+                    }
                 )
                 setLastCreatedResource({id: newId, type: "sequent_backend_election_event"})
                 setIsLoading(true)
@@ -297,7 +306,10 @@ export const CreateElectionEventProvider = ({children}: any) => {
                 setWidgetTaskId(
                     currWidget.identifier,
                     data?.import_election_event?.task_execution?.id,
-                    () => navigate(`/sequent_backend_election_event/${id}`)
+                    () => {
+                        doRefreshMenu()
+                        navigate(`/sequent_backend_election_event/${id}`)
+                    }
                 )
                 setNewId(id)
                 setLastCreatedResource({id, type: "sequent_backend_election_event"})
@@ -317,6 +329,7 @@ export const CreateElectionEventProvider = ({children}: any) => {
                 closeCreateDrawer,
                 openImportDrawer,
                 closeImportDrawer,
+                doRefreshMenu,
                 postDefaultValues,
                 handleElectionCreated,
                 uploadCallback,
