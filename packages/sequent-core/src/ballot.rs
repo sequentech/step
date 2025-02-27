@@ -1711,6 +1711,18 @@ impl ElectionStatus {
         }
     }
 
+    pub fn dates_by_channel(
+        &self,
+        channel: &VotingStatusChannel,
+    ) -> PeriodDates {
+        match channel {
+            &VotingStatusChannel::ONLINE => self.voting_period_dates.clone(),
+            &VotingStatusChannel::KIOSK => {
+                self.kiosk_voting_period_dates.clone()
+            }
+        }
+    }
+
     pub fn set_status_by_channel(
         &mut self,
         channel: &VotingStatusChannel,
