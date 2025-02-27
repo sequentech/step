@@ -35,6 +35,9 @@ cat << EOF > '.vscode/settings.local.json'
         // echo \$RUST_SRC_PATH | sed 's|\(.*rustlib/src/\).*|\1|'
         "RUST_SRC_PATH": "$rust_src_path"
     },
+    "rust-analyzer.cargo": {
+        "sysroot": "discover",
+    },
 
     // echo /nix/store/*-openjdk-*/lib/openjdk
     "java.jdt.ls.java.home": "$java_home"

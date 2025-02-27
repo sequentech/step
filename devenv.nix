@@ -19,7 +19,9 @@
     # AWS
     (aws-sam-cli.overridePythonAttrs { doCheck = false; })
 
+    openssh
     git
+    glibc
     hasura-cli
     reuse
     openssl
