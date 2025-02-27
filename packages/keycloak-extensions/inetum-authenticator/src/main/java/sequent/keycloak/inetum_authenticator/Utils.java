@@ -124,6 +124,9 @@ public class Utils {
   public static final int DEFAULT_MAX_RETRIES = 3;
   public static final int BASE_RETRY_DELAY = 1_000;
   public static final String ERROR_GENERATING_APPROVAL = "approvalGenerationError";
+  public static final String SDK_VERSION = "sdk-version";
+  public static final String FTL_SDK_VERSION = "sdk_version";
+  public static final String DEFAULT_SDK_VERSION = "4.0.3";
 
   public static final String keycloakUrl = System.getenv("KEYCLOAK_URL");
   public static final String tenantId = System.getenv("SUPER_ADMIN_TENANT_ID");

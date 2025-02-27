@@ -986,11 +986,17 @@ def gen_tree(excel_data, miru_data, results, multiply_factor):
             raise Exception(f"candidate with 'id' = {candidate_id} and precinct = {precinct_id} not found in miru acf")
         miru_candidate = miru_precinct["CANDIDATES"][candidate_id]
 
+        starts1 = str(miru_candidate["DISPLAY_ORDER"]) + " "
+        starts2 = str(miru_candidate["DISPLAY_ORDER"]) + ". "
+        if not (candidate_name.startswith(starts1) or candidate_name.startswith(starts2)):
+            candidate_name = str(miru_candidate["DISPLAY_ORDER"]) + ". " + candidate_name
+
         candidate = {
             "code": candidate_id,
             "name_on_ballot": candidate_name,
             "party_short_name": miru_candidate["PARTY_NAME_ABBR"],
             "party_name": miru_candidate["PARTY_NAME"],
+            "DB_CANDIDATE_NAMEONBALLOT": row["DB_CANDIDATE_NAMEONBALLOT"],
             **base_context,
             "miru": {
                 "candidate_affiliation_id": miru_candidate["PARTY_ID"],
@@ -1188,7 +1194,6 @@ def replace_placeholder_database(excel_data, election_event_id, miru_data, resul
                     "tenant_id": base_config["tenant_id"],
                     "election_event_id": election_event_id,
                     "contest_id": contest_context["UUID"],
-                    "DB_CANDIDATE_NAMEONBALLOT": candidate["name_on_ballot"],
                     "sort_oder": candidate["sort_order"],
                 }
 
