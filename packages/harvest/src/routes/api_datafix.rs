@@ -297,6 +297,7 @@ pub async fn replace_pin(
 ) -> Result<Json<ReplacePinOutput>, JsonErrorResponse> {
     let input: VoterIdBody = body.into_inner();
     info!("Replace pin: {input:?}");
+
     let required_perm = vec![Permissions::DATAFIX_ACCOUNT];
     info!("{claims:?}");
     authorize(
@@ -337,7 +338,6 @@ pub async fn replace_pin(
     let pin = services::datafix::api_datafix::replace_voter_pin(
         &hasura_transaction,
         &keycloak_transaction,
-        claims.keycloak_admin_client,
         &tenant_id,
         &datafix_event_id,
         &input.voter_id,

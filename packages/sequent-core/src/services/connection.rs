@@ -119,7 +119,6 @@ pub struct DatafixClaims {
     pub tenant_id: String,
     /// Event ID matching the election event Datafix:id in annotations
     pub datafix_event_id: String,
-    pub keycloak_admin_client: KeycloakAdminClient,
 }
 
 #[derive(Debug)]
@@ -190,7 +189,6 @@ fn parse_datafix_headers(headers: &HeaderMap) -> Option<DatafixHeaders> {
 #[derive(Debug, Clone)]
 struct TokenResponseExtended {
     token_resp: PubKeycloakAdminToken,
-    url: String,
     stamp: Instant,
     client_id: String,
     client_secret: String,
@@ -223,7 +221,7 @@ async fn read_access_token(
     client_secret: &str,
     tenant_id: &str,
     lst_acc_tkn: &LastAccessToken,
-) -> Option<(PubKeycloakAdminToken, KeycloakAdminClient)> {
+) -> Option<PubKeycloakAdminToken> {
     let token_resp_ext_opt = match lst_acc_tkn.0.read() {
         Ok(read) => read.clone(),
         Err(err) => {
@@ -242,15 +240,7 @@ async fn read_access_token(
             && data.stamp.elapsed()
                 < Duration::from_secs(pre_expriration_time as u64)
         {
-            let keycloak_adm_tkn = data.token_resp.clone().try_into().unwrap(); // TODO: FIX type return of read_access_token
-            let req_client = reqwest::Client::new();
-            let keycloak_adm: KeycloakAdmin =
-                KeycloakAdmin::new(&data.url, keycloak_adm_tkn, req_client);
-            let keycloak_admin_client = KeycloakAdminClient {
-                client: keycloak_adm,
-            };
-
-            return Some((data.token_resp, keycloak_admin_client));
+            return Some(data.token_resp);
         }
     }
     return None;
@@ -263,25 +253,17 @@ async fn request_access_token(
     client_secret: String,
     tenant_id: String,
     lst_acc_tkn: &LastAccessToken,
-) -> AnyhowResult<(PubKeycloakAdminToken, KeycloakAdminClient)> {
+) -> AnyhowResult<PubKeycloakAdminToken> {
     let stamp: Instant = Instant::now(); // Capture the stamp before sending the request
     info!("Requesting access token");
-    let (keycloak_adm_tkn, url, req_client) =
-        get_third_party_client_access_token(
-            client_id.clone(),
-            client_secret.clone(),
-            tenant_id.clone(),
-        )
-        .await?;
-
-    let keycloak_adm: KeycloakAdmin =
-        KeycloakAdmin::new(&url, keycloak_adm_tkn.clone(), req_client);
-    let keycloak_admin_client = KeycloakAdminClient {
-        client: keycloak_adm,
-    };
+    let keycloak_adm_tkn = get_third_party_client_access_token(
+        client_id.clone(),
+        client_secret.clone(),
+        tenant_id.clone(),
+    )
+    .await?;
 
     let token_resp: PubKeycloakAdminToken = keycloak_adm_tkn.try_into()?;
-
     let mut write = match lst_acc_tkn.0.write() {
         Ok(write) => write,
         Err(err) => {
@@ -290,14 +272,13 @@ async fn request_access_token(
     };
     *write = Some(TokenResponseExtended {
         token_resp: token_resp.clone(),
-        url,
         stamp,
         client_id,
         client_secret,
         tenant_id,
     });
 
-    Ok((token_resp, keycloak_admin_client))
+    Ok(token_resp)
 } // release the lock
 
 #[rocket::async_trait]
@@ -324,7 +305,7 @@ impl<'r> FromRequest<'r> for DatafixClaims {
         // expired request a new one and write it to the cache.
         let lst_acc_tkn =
             try_outcome!(request.guard::<&State<LastAccessToken>>().await);
-        let (token_resp, keycloak_admin_client) = match read_access_token(
+        let token_resp = match read_access_token(
             &authorization.client_id,
             &authorization.client_secret,
             &tenant_id,
@@ -332,9 +313,7 @@ impl<'r> FromRequest<'r> for DatafixClaims {
         )
         .await
         {
-            Some((token_resp, keycloak_admin_client)) => {
-                (token_resp, keycloak_admin_client)
-            }
+            Some(token_resp) => token_resp,
             None => {
                 match request_access_token(
                     authorization.client_id,
@@ -344,9 +323,7 @@ impl<'r> FromRequest<'r> for DatafixClaims {
                 )
                 .await
                 {
-                    Ok((token_resp, keycloak_admin_client)) => {
-                        (token_resp, keycloak_admin_client)
-                    }
+                    Ok(token_resp) => token_resp,
                     Err(err) => {
                         error!("DatafixClaims guard: request_access_token error {err:?}");
                         return Outcome::Error((Status::Unauthorized, ()));
@@ -360,7 +337,6 @@ impl<'r> FromRequest<'r> for DatafixClaims {
                 jwt_claims,
                 tenant_id,
                 datafix_event_id,
-                keycloak_admin_client,
             }),
             Err(err) => {
                 warn!("DatafixClaims guard: decode_jwt error {err:?}");

@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 use serde_json;
 use std::convert::TryFrom;
 use std::env;
-use tracing::{event, instrument, Level};
+use tracing::{event, info, instrument, Level};
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct PubKeycloakAdminToken {
@@ -174,61 +174,20 @@ pub async fn get_third_party_client_access_token(
     client_id: String,
     client_secret: String,
     tenant_id: String,
-) -> Result<(KeycloakAdminToken, String, reqwest::Client)> {
+) -> Result<KeycloakAdminToken> {
     let login_config =
         KeycloakLoginConfig::new(client_id, client_secret, tenant_id);
-    let url = login_config.url.clone();
-    let realm = login_config.realm.clone();
-    let req_client = reqwest::Client::new();
 
-    // let (text) = get_credentials_inner(login_config).await?;
-
-    let response = req_client
-        .post(&format!(
-            "{url}/realms/{realm}/protocol/openid-connect/token",
-        ))
-        .header("Content-Type", "application/x-www-form-urlencoded")
-        .form(&[
-            ("client_id".to_string(), login_config.client_id.clone()),
-            ("scope".to_string(), "openid".to_string()),
-            (
-                "client_secret".to_string(),
-                login_config.client_secret.clone(),
-            ),
-            ("grant_type".to_string(), "client_credentials".to_string()),
-        ])
-        .send()
-        .await?;
-
-    if !response.status().is_success() {
-        let status = response.status().as_u16();
-        return Err(anyhow!(format!(
-            "status code: {status}, Response: {response:?}"
-        )));
-    }
-
-    let keycloak_adm_tkn: KeycloakAdminToken = response
-        .json()
-        .await
-        .map_err(|err| anyhow!(format!("{err:?}")))?;
-
-    // let keycloak_adm_tkn: KeycloakAdminToken = serde_json::from_str(&text)
-    //     .map_err(|err| anyhow!(format!("{:?}, Response: {}", err, text)))?;
+    let (text) = get_credentials_inner(login_config).await?;
+    let keycloak_adm_tkn: KeycloakAdminToken = serde_json::from_str(&text)
+        .map_err(|err| anyhow!(format!("{:?}, Response: {}", err, text)))?;
 
     event!(Level::INFO, "Successfully acquired credentials");
-
-    Ok((keycloak_adm_tkn, url, req_client))
+    Ok(keycloak_adm_tkn)
 }
 
 pub struct KeycloakAdminClient {
     pub client: KeycloakAdmin,
-}
-
-// KeycloakAdmin does not implement Debug, but it's in DatafixClaims which does
-impl std::fmt::Debug for KeycloakAdminClient {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "KeycloakAdminClient")
-    }
 }
 
 pub struct PubKeycloakAdmin {
@@ -254,6 +213,35 @@ impl KeycloakAdminClient {
         Ok(KeycloakAdminClient { client })
     }
 
+    #[instrument(err)]
+    pub async fn new_return_token(
+    ) -> Result<(KeycloakAdminClient, PubKeycloakAdminToken)> {
+        let login_config = get_keycloak_login_admin_config();
+        let client = reqwest::Client::new();
+        let admin_token = KeycloakAdminToken::acquire(
+            &login_config.url,
+            &login_config.client_id,
+            &login_config.client_secret,
+            &client,
+        )
+        .await?;
+        event!(Level::INFO, "Successfully acquired credentials");
+        let client =
+            KeycloakAdmin::new(&login_config.url, admin_token.clone(), client);
+        Ok((KeycloakAdminClient { client }, admin_token.try_into()?))
+    }
+
+    #[instrument(err)]
+    pub async fn new_with_token(
+        admin_token: KeycloakAdminToken,
+    ) -> Result<KeycloakAdminClient> {
+        let client = reqwest::Client::new();
+        let login_config = get_keycloak_login_admin_config();
+        let client = KeycloakAdmin::new(&login_config.url, admin_token, client);
+        Ok(KeycloakAdminClient { client })
+    }
+
+    #[instrument(err)]
     pub async fn pub_new() -> Result<PubKeycloakAdmin> {
         let login_config = get_keycloak_login_admin_config();
         let client = reqwest::Client::new();
