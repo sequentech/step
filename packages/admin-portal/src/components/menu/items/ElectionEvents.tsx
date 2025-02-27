@@ -619,7 +619,6 @@ export default function ElectionEvents() {
     finalResultData = filterTree(finalResultData, searchInput)
 
     const reloadTreeMenu = () => {
-        console.log("aa election events IS RELOADING TREE MENU =====")
         candidateTreeRefetch()
         contestTreeRefetch()
         electionTreeRefetch()

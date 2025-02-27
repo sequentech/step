@@ -145,7 +145,6 @@ export default function MenuAction({
                 },
                 {
                     onSuccess() {
-                        // refetch()
                         setArchivedElectionEvents(true)
                         setTimeout(() => {
                             reloadTree()
@@ -173,7 +172,6 @@ export default function MenuAction({
 
                 {
                     onSuccess() {
-                        // refetch()
                         setArchivedElectionEvents(false)
                         setTimeout(() => {
                             reloadTree()
