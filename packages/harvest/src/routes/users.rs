@@ -658,24 +658,22 @@ pub async fn edit_user(
         .edit_user(
             &realm,
             &input.user_id,
-            input.enabled.clone(),
+            input.enabled,
             Some(new_attributes),
             input.email.clone(),
             input.first_name.clone(),
             input.last_name.clone(),
             input.username.clone(),
             input.password.clone(),
-            input.temporary.clone(),
+            input.temporary,
         )
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
+    // If the user is disabled via EDIT: send a SetNotVoted request to
+    // VoterView, it is a Datafix requirement
     match (input.election_event_id, input.enabled) {
         (Some(election_event_id), Some(enabled)) if !enabled => {
-            // If the user is disabled via EDIT: send a SetNotVoted request to
-            // VoterView.
-            // ToTest:  This would not work if EDIT is not allowed when
-            // the user has voted.
             let election_event = get_election_event_by_id(
                 &hasura_transaction,
                 &input.tenant_id,
@@ -689,15 +687,13 @@ pub async fn edit_user(
                 )
             })?;
             if is_datafix_election_event(&election_event) {
-                if let Err(err) = datafix::voterview_requests::send(
+                let res = datafix::voterview_requests::send(
                     SoapRequest::SetNotVoted,
                     ElectionEventDatafix(election_event),
                     &user.username,
                 )
-                .await
-                {
-                    // TODO: Post the error in the electoral_log
-                }
+                .await;
+                // TODO: Post the result in the electoral_log
             }
         }
         _ => {}

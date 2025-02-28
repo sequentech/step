@@ -1,26 +1,21 @@
 // SPDX-FileCopyrightText: 2022 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::serialization::deserialize_with_path::{
-    deserialize_str, deserialize_value,
-};
+use crate::serialization::deserialize_with_path::deserialize_str;
 use crate::services::connection;
 use crate::services::keycloak::realm::get_tenant_realm;
 use anyhow::{anyhow, Result};
-use keycloak::{
-    KeycloakAdmin, KeycloakAdminToken, KeycloakError, KeycloakTokenSupplier,
-};
+use keycloak::{KeycloakAdmin, KeycloakAdminToken, KeycloakTokenSupplier};
 use reqwest;
-use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
+use reqwest_middleware::ClientBuilder;
 use reqwest_retry::{policies::ExponentialBackoff, RetryTransientMiddleware};
-use rocket::async_trait;
 use serde::{Deserialize, Serialize};
 use serde_json;
 use std::convert::TryFrom;
 use std::env;
 use std::sync::RwLock;
 use std::time::{Duration, Instant};
-use tracing::{error, event, info, instrument, warn, Level};
+use tracing::{event, info, instrument, warn, Level};
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct PubKeycloakAdminToken {
@@ -200,7 +195,7 @@ pub async fn get_third_party_client_access_token(
     let login_config =
         KeycloakLoginConfig::new(client_id, client_secret, tenant_id);
 
-    let (text) = get_credentials_inner(login_config).await?;
+    let text = get_credentials_inner(login_config).await?;
     let keycloak_adm_tkn: KeycloakAdminToken =
         deserialize_str(&text).map_err(|err| {
             anyhow!(format!(
@@ -250,7 +245,6 @@ async fn read_access_token() -> Option<(PubKeycloakAdminToken, String)> {
 
     if let Some(data) = token_resp_ext_opt {
         let pre_expriration_time: i64 = data.token_resp.expires_in as i64 - 5; // Renew the token 5 seconds before it expires
-
         if pre_expriration_time.is_positive()
             && data.timestamp.elapsed()
                 < Duration::from_secs(pre_expriration_time as u64)
@@ -300,7 +294,10 @@ impl KeycloakAdminClient {
                     &login_config.client_secret,
                     &client,
                 )
-                .await?;
+                .await
+                .map_err(|err| {
+                    anyhow!("KeycloakAdminToken::acquire error {err:?}")
+                })?;
                 info!("Successfully acquired credentials");
                 let token_resp: PubKeycloakAdminToken =
                     admin_token.clone().try_into()?;
@@ -335,7 +332,8 @@ impl KeycloakAdminClient {
             &login_config.client_secret,
             &client,
         )
-        .await?;
+        .await
+        .map_err(|err| anyhow!("KeycloakAdminToken::acquire error {err:?}"))?;
         info!("Successfully acquired credentials");
         let client = KeycloakAdmin::new(&login_config.url, admin_token, client);
         Ok(KeycloakAdminClient { client })
@@ -361,7 +359,8 @@ impl KeycloakAdminClient {
             &login_config.client_secret,
             &client,
         )
-        .await?;
+        .await
+        .map_err(|err| anyhow!("KeycloakAdminToken::acquire error {err:?}"))?;
         event!(Level::INFO, "Successfully acquired credentials");
         Ok(PubKeycloakAdmin {
             url: login_config.url,
