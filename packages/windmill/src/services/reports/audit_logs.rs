@@ -13,6 +13,7 @@ use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::cast_votes::count_ballots_by_election;
 use crate::services::consolidation::aes_256_cbc_encrypt::encrypt_file_aes_256_cbc;
+use crate::services::consolidation::eml_generator::ValidateAnnotations;
 use crate::services::consolidation::zip::compress_folder_to_zip;
 use crate::services::database::PgConfig;
 use crate::services::documents::upload_and_return_document;
@@ -60,7 +61,8 @@ pub struct UserData {
     pub geographical_region: String,
     pub post: String,
     pub voting_center: String,
-    pub precinct_code: String,
+    pub station_id: String,
+    pub station_name: String,
     pub registered_voters: Option<i64>,
     pub ballots_counted: Option<i64>,
     pub voters_turnout: Option<f64>,
@@ -233,6 +235,8 @@ impl AuditLogsTemplate {
         .await
         .map_err(|err| anyhow!("Error extract area data {err}"))?;
 
+        let area_annotations = election_areas[0].get_annotations_or_empty_values()?;
+
         let ballots_counted = count_ballots_by_election(
             hasura_transaction,
             &self.ids.tenant_id,
@@ -248,7 +252,8 @@ impl AuditLogsTemplate {
             geographical_region,
             post,
             voting_center,
-            precinct_code,
+            station_id: area_annotations.station_id.clone(),
+            station_name: area_annotations.station_name.clone(),
             registered_voters: votes_data.registered_voters,
             ballots_counted: Some(ballots_counted),
             voters_turnout: votes_data.voters_turnout,
