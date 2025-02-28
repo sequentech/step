@@ -18,6 +18,7 @@ use crate::services::consolidation::zip::compress_folder_to_zip;
 use crate::services::documents::upload_and_return_document;
 use crate::services::election_dates::get_election_dates;
 use crate::services::providers::email_sender::{Attachment, EmailSender};
+use crate::services::reports::pre_enrolled_ov_but_disapproved::first_n_codepoints;
 use crate::services::reports::voters::get_not_enrolled_voters_by_area_id;
 use crate::services::reports_vault::get_report_secret_key;
 use crate::services::tasks_execution::{update_complete, update_fail};

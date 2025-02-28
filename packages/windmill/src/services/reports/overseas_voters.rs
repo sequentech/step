@@ -14,7 +14,6 @@ use crate::postgres::reports::{Report, ReportType};
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::consolidation::zip::compress_folder_to_zip;
 use crate::services::election_dates::get_election_dates;
-use crate::services::reports::pre_enrolled_ov_but_disapproved::first_n_codepoints;
 use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::services::temp_path::PUBLIC_ASSETS_QRCODE_LIB;
 use anyhow::{anyhow, Context, Result};
@@ -44,9 +43,9 @@ use tokio::runtime::Runtime;
 
 use crate::services::celery_app::get_worker_threads;
 use crate::services::consolidation::aes_256_cbc_encrypt::encrypt_file_aes_256_cbc;
-
 use crate::services::documents::upload_and_return_document;
 use crate::services::providers::email_sender::{Attachment, EmailSender};
+use crate::services::reports::pre_enrolled_ov_but_disapproved::first_n_codepoints;
 use crate::services::reports_vault::get_report_secret_key;
 use crate::services::vault;
 
@@ -205,7 +204,7 @@ impl OverseasVotersReport {
             let area_id = first_n_codepoints(&area.area_id, 5);
 
             let batch_file_name = format!(
-                "{}_area_{}_{}{}",
+                "{}_area_{}{}_{}{}",
                 prefix, area.area_name, area_id, batch, file_suffix
             );
 
