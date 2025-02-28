@@ -308,6 +308,31 @@ export const customBuildQuery =
                 )
             }
 
+            const {filter} = params
+            const transformedRawParams = {...ret?.variables.where}
+            const transformedParams = ret?.variables.where["_and"]
+
+            Object.keys(filter).forEach((key) => {
+                // Check if this is a nested object with applicant_data
+                if (key === "applicant_data" && typeof filter[key] === "object") {
+                    Object.keys(filter[key]).forEach((fieldKey) => {
+                        const newField = fieldKey
+                        const newValue = filter[key][newField]
+
+                        // // Add the transformed filter in the format your API expects
+                        const output = {
+                            _contains: {
+                                [newField]: newValue["_ilike"],
+                            },
+                        }
+
+                        transformedParams.push({applicant_data: output})
+                    })
+                }
+            })
+
+            ret.variables.where = transformedRawParams
+
             return ret
         }
         return buildQuery(introspectionResults)(raFetchType, resourceName, params)
