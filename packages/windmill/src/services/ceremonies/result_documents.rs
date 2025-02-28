@@ -73,7 +73,7 @@ async fn generic_save_documents(
         OUTPUT_PDF,
         &all_reports,
         report_type.clone(),
-        auth_headers,
+        hasura_transaction,
         tenant_id,
         election_event_id,
     )
@@ -85,7 +85,7 @@ async fn generic_save_documents(
         OUTPUT_JSON,
         &all_reports,
         report_type.clone(),
-        auth_headers,
+        hasura_transaction,
         tenant_id,
         election_event_id,
     )
@@ -97,7 +97,7 @@ async fn generic_save_documents(
         OUTPUT_JSON,
         &all_reports,
         report_type.clone(),
-        auth_headers,
+        hasura_transaction,
         tenant_id,
         election_event_id,
     )
@@ -109,7 +109,7 @@ async fn generic_save_documents(
         OUTPUT_HTML,
         &all_reports,
         report_type.clone(),
-        auth_headers,
+        hasura_transaction,
         tenant_id,
         election_event_id,
     )
@@ -119,14 +119,14 @@ async fn generic_save_documents(
 }
 
 // Helper function for processing and uploading a document
-#[instrument(err, skip(auth_headers, all_reports))]
+#[instrument(err, skip(hasura_transaction, all_reports))]
 async fn process_and_upload_document(
     path_option: Option<String>,
     mime_type: &str,
     output_type: &str,
     all_reports: &Vec<Report>,
     report_type: Option<ReportType>,
-    auth_headers: &AuthHeaders,
+    hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<Option<String>> {
@@ -147,14 +147,14 @@ async fn process_and_upload_document(
 
         let file_size = get_file_size(&path)?;
 
-        let document = upload_and_return_document(
+        let document = upload_and_return_document_postgres(
+            hasura_transaction,
             path,
             file_size,
-            mime_type.to_string(),
-            auth_headers.clone(),
-            tenant_id.to_string(),
-            election_event_id.to_string(),
-            output_type.to_string(),
+            mime_type,
+            tenant_id,
+            election_event_id,
+            output_type,
             None,
             false,
         )
