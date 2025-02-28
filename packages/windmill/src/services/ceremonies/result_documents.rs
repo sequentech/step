@@ -149,11 +149,11 @@ async fn process_and_upload_document(
 
         let document = upload_and_return_document_postgres(
             hasura_transaction,
-            path,
+            &path,
             file_size,
             mime_type,
             tenant_id,
-            election_event_id,
+            Some(election_event_id.to_string()),
             output_type,
             None,
             false,
