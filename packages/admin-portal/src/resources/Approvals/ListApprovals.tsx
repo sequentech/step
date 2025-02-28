@@ -125,7 +125,7 @@ const ApprovalsList = (props: ApprovalsListProps) => {
                 return (
                     <FunctionField
                         key={attr.name}
-                        source={`applicant_data['${attr.name}']`}
+                        source={`applicant_data.${attr.name}`}
                         label={getTranslationLabel(attr.name, attr.display_name, t)}
                         render={(
                             record: Sequent_Backend_Applications,
@@ -147,7 +147,7 @@ const ApprovalsList = (props: ApprovalsListProps) => {
                 return (
                     <FunctionField
                         key={attr.name}
-                        source={`applicant_data[${attrMappedName}]` as any}
+                        source={`applicant_data.${attrMappedName}` as any}
                         label={getTranslationLabel(attr.name, attr.display_name, t)}
                         render={(record: Sequent_Backend_Applications) => {
                             let value = record?.applicant_data[attrMappedName]
@@ -545,7 +545,7 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
                             setExporting(false)
                             setOpenExport(false)
                             notify(t("approvalsScreen.export.success"), {
-                                type: "success",
+                                t   ype: "success",
                             })
                         }}
                     />
