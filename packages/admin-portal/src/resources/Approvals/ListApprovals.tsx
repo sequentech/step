@@ -87,7 +87,7 @@ interface ApprovalsListProps extends Omit<DatagridConfigurableProps, "children">
 const STATUS_FILTER_KEY = "approvals_status_filter"
 
 const ApprovalsList = (props: ApprovalsListProps) => {
-    const {filterValues, setFilters} = useListContext()
+    const {filterValues, setFilters, data} = useListContext()
     const location = useLocation()
 
     const {t} = useTranslation()
@@ -171,7 +171,8 @@ const ApprovalsList = (props: ApprovalsListProps) => {
                 return (
                     <FunctionField
                         key={attr.name}
-                        source={`applicant_data[${attrMappedName}]` as any}
+                        // source={`applicant_data[${attrMappedName}]` as any}
+                        source={`applicant_data.${attrMappedName}` as any}
                         label={getTranslationLabel(attr.name, attr.display_name, t)}
                         render={(record: Sequent_Backend_Applications) => {
                             const attributeValue = record?.applicant_data[attrMappedName]
@@ -181,6 +182,11 @@ const ApprovalsList = (props: ApprovalsListProps) => {
                             return <span>-</span>
                         }}
                     />
+                    // <TextField
+                    //     key={attr.name}
+                    //     source={`applicant_data.${attrMappedName}`}
+                    //     label={getTranslationLabel(attr.name, attr.display_name, t)}
+                    // />
                 )
             } else {
                 return null
@@ -209,6 +215,8 @@ const ApprovalsList = (props: ApprovalsListProps) => {
                 "approvals"
             )}.datagrid.availableColumns`
         )
+
+        console.log("ddd theFields", theFields)
 
         return theFields
     }, [listFields?.basicInfoFields, listFields?.attributesFields, location.pathname])
@@ -261,7 +269,8 @@ const ApprovalsList = (props: ApprovalsListProps) => {
 
 const generateFilters = (fields: UserProfileAttribute[], t: TFunction) => {
     return fields.map((attr) => {
-        const source = `applicant_data[${convertToCamelCase(getAttributeLabel(attr.name ?? ""))}]`
+        // const source = `applicant_data[${convertToCamelCase(getAttributeLabel(attr.name ?? ""))}]`
+        const source = `applicant_data.${convertToCamelCase(getAttributeLabel(attr.name ?? ""))}`
         const label = getTranslationLabel(attr.name, attr.display_name, t)
 
         if (attr.annotations?.inputType === "html5-date") {
@@ -269,13 +278,11 @@ const generateFilters = (fields: UserProfileAttribute[], t: TFunction) => {
         } else if (attr.multivalued) {
             return <TextInput key={source} source={source} label={label} />
         }
-        return <TextInput key={source} source={source} label={label} />
+        return <TextInput key={source} source={`${source}._ilike`} label={label} />
     })
 }
 
 const CustomFilters = (t: any, changeFilters: any, fields: UserProfileAttribute[]) => {
-    // const {t} = useTranslation()
-
     return [
         <SelectInput
             source="status"
@@ -308,7 +315,6 @@ const CustomFilters = (t: any, changeFilters: any, fields: UserProfileAttribute[
             source="applicant_id"
             label={t("approvalsScreen.column.applicantId")}
         />,
-        <TextInput key={"id_filter"} source="id" label={t("approvalsScreen.column.id")} />,
         <TextInput key={"id_filter"} source="id" label={t("approvalsScreen.column.id")} />,
         ...generateFilters(fields, t),
     ]
@@ -345,6 +351,8 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
             },
         },
     })
+
+    const {filterValues} = useListContext()
 
     // ✨ Admin Portal > Approvals: Add Approved By row #5050
 
