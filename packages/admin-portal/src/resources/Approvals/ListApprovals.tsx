@@ -545,7 +545,7 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
                             setExporting(false)
                             setOpenExport(false)
                             notify(t("approvalsScreen.export.success"), {
-                                t   ype: "success",
+                                type: "success",
                             })
                         }}
                     />
