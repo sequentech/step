@@ -36,20 +36,28 @@ pub struct PubKeycloakAdminToken {
 }
 
 impl TryFrom<KeycloakAdminToken> for PubKeycloakAdminToken {
-    type Error = serde_json::Error;
+    type Error = anyhow::Error;
 
     fn try_from(token: KeycloakAdminToken) -> Result<Self, Self::Error> {
-        let json = serde_json::to_string(&token)?;
-        serde_json::from_str(&json)
+        let json = serde_json::to_string(&token).map_err(|err| {
+            anyhow!(format!("Error serializing: {err:?}, Token: {token:?}"))
+        })?;
+        deserialize_str(&json).map_err(|err| {
+            anyhow!(format!("Error deserializing: {err:?}, Token: {json:?}"))
+        })
     }
 }
 
 impl TryFrom<PubKeycloakAdminToken> for KeycloakAdminToken {
-    type Error = serde_json::Error;
+    type Error = anyhow::Error;
 
     fn try_from(token: PubKeycloakAdminToken) -> Result<Self, Self::Error> {
-        let json = serde_json::to_string(&token)?;
-        serde_json::from_str(&json)
+        let json = serde_json::to_string(&token)
+            .map_err(|err| anyhow!(format!("{err:?}, Token: {token:?}")))?;
+
+        deserialize_str(&json).map_err(|err| {
+            anyhow!(format!("Error deserializing: {err:?}, Token: {json:?}"))
+        })
     }
 }
 
@@ -150,8 +158,13 @@ pub async fn get_credentials_inner(
 pub async fn get_client_credentials() -> Result<connection::AuthHeaders> {
     let login_config = get_keycloak_login_config();
     let text = get_credentials_inner(login_config).await?;
-    let credentials: KeycloakAdminToken = serde_json::from_str(&text)
-        .map_err(|err| anyhow!(format!("{:?}, Response: {}", err, text)))?;
+    let credentials: KeycloakAdminToken =
+        deserialize_str(&text).map_err(|err| {
+            anyhow!(format!(
+                "Error deserializing: {err:?}, Inner credentials: {text:?}"
+            ))
+        })?;
+
     event!(Level::INFO, "Successfully acquired credentials");
     Ok(connection::AuthHeaders {
         key: "authorization".into(),
@@ -166,8 +179,12 @@ pub async fn get_client_credentials() -> Result<connection::AuthHeaders> {
 pub async fn get_auth_credentials() -> Result<KeycloakAdminToken> {
     let login_config = get_keycloak_login_config();
     let text = get_credentials_inner(login_config).await?;
-    let credentials: KeycloakAdminToken = serde_json::from_str(&text)
-        .map_err(|err| anyhow!(format!("{:?}, Response: {}", err, text)))?;
+    let credentials: KeycloakAdminToken =
+        deserialize_str(&text).map_err(|err| {
+            anyhow!(format!(
+                "Error deserializing: {err:?}, Inner credentials: {text:?}"
+            ))
+        })?;
     event!(Level::INFO, "Successfully acquired credentials");
     Ok(credentials)
 }
@@ -184,8 +201,12 @@ pub async fn get_third_party_client_access_token(
         KeycloakLoginConfig::new(client_id, client_secret, tenant_id);
 
     let (text) = get_credentials_inner(login_config).await?;
-    let keycloak_adm_tkn: KeycloakAdminToken = serde_json::from_str(&text)
-        .map_err(|err| anyhow!(format!("{:?}, Response: {}", err, text)))?;
+    let keycloak_adm_tkn: KeycloakAdminToken =
+        deserialize_str(&text).map_err(|err| {
+            anyhow!(format!(
+                "Error deserializing: {err:?}, Inner credentials: {text:?}"
+            ))
+        })?;
 
     event!(Level::INFO, "Successfully acquired credentials");
     Ok(keycloak_adm_tkn)
@@ -201,8 +222,8 @@ pub struct PubKeycloakAdmin {
     pub token_supplier: KeycloakAdminToken,
 }
 
-/// TokenResponse, timestamp before sending the request and the credentials to
-/// make sure the requester is the same.
+/// TokenResponse, timestamp before sending the request and url to avoid having
+/// to retrieve it again from the ENV.
 #[derive(Debug, Clone)]
 struct TokenResponseAdminCli {
     token_resp: PubKeycloakAdminToken,
@@ -211,7 +232,7 @@ struct TokenResponseAdminCli {
 }
 
 /// Last access token can be reused if it´s not expired, this is to avoid
-/// Keycloak having to hold one token per Api request which could lead quickly
+/// requesting a new token to Keycloak everytime.
 type LastAdminCliToken = RwLock<Option<TokenResponseAdminCli>>;
 static LAST_ADMIN_CLI_TOKEN: LastAdminCliToken = RwLock::new(None);
 
@@ -261,7 +282,8 @@ async fn write_access_token(
 } // release the lock
 
 impl KeycloakAdminClient {
-    /// Tries to read the token from the cache otherwise requests it.
+    /// Tries to read the token from the cache, if expired requests it to
+    /// Keycloak.
     #[instrument(err)]
     pub async fn new() -> Result<KeycloakAdminClient> {
         match read_access_token().await {
@@ -302,6 +324,7 @@ impl KeycloakAdminClient {
         }
     }
 
+    /// Creates a KeycloakAdminClient via fresh token requesting to Keycloak
     #[instrument(err)]
     pub async fn new_requested() -> Result<KeycloakAdminClient> {
         let login_config = get_keycloak_login_admin_config();
