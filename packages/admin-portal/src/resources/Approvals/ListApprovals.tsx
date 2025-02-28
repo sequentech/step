@@ -182,11 +182,6 @@ const ApprovalsList = (props: ApprovalsListProps) => {
                             return <span>-</span>
                         }}
                     />
-                    // <TextField
-                    //     key={attr.name}
-                    //     source={`applicant_data.${attrMappedName}`}
-                    //     label={getTranslationLabel(attr.name, attr.display_name, t)}
-                    // />
                 )
             } else {
                 return null
@@ -215,8 +210,6 @@ const ApprovalsList = (props: ApprovalsListProps) => {
                 "approvals"
             )}.datagrid.availableColumns`
         )
-
-        console.log("ddd theFields", theFields)
 
         return theFields
     }, [listFields?.basicInfoFields, listFields?.attributesFields, location.pathname])
