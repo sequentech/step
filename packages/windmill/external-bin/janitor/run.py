@@ -429,7 +429,7 @@ def get_embassy(embassy):
     # Split the input string into words
     without_parentheses = re.sub(r"\(.*?\)", "", embassy)
     words = without_parentheses.split()
-    
+
     special_words = ["D.C.", "DC", "SAR", "ROC"]
     
     # Capitalize each word, and handle the last word conditionally
