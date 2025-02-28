@@ -120,7 +120,7 @@ pub async fn send(
         .await
         .map_err(|err| anyhow!("Failed to get SOAP response: {err}"))?;
 
-    let status = response.status().clone();
+    let status = response.status();
     let response_txt = response
         .text()
         .await

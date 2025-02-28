@@ -25,10 +25,9 @@ pub const DATAFIX_VOTERVIEW_REQ_KEY: &str = "datafix:voterview_request";
 #[instrument()]
 pub fn voted_via_internet(attributes: &HashMap<String, Vec<String>>) -> bool {
     match attributes.iter().find(|tupple| tupple.0.eq(VOTED_CHANNEL)) {
-        Some((_, v)) => match v.last() {
-            Some(channel) if channel.eq(VOTED_CHANNEL_INTERNET_VALUE) => true,
-            _ => false,
-        },
+        Some((_, v)) => {
+            matches!(v.last(), Some(channel) if channel.eq(VOTED_CHANNEL_INTERNET_VALUE))
+        }
         None => false,
     }
 }
@@ -38,16 +37,9 @@ pub fn voted_via_internet(attributes: &HashMap<String, Vec<String>>) -> bool {
 #[instrument()]
 pub fn voted_via_not_internet_channel(attributes: &HashMap<String, Vec<String>>) -> bool {
     match attributes.iter().find(|tupple| tupple.0.eq(VOTED_CHANNEL)) {
-        Some((_, v)) => match v.last() {
-            Some(channel)
-                if !channel.eq(ATTR_RESET_VALUE)
-                    && !channel.eq(VOTED_CHANNEL_INTERNET_VALUE)
-                    && !channel.is_empty() =>
-            {
-                true
-            }
-            _ => false,
-        },
+        Some((_, v)) => {
+            matches!(v.last(), Some(channel) if channel != ATTR_RESET_VALUE && channel != VOTED_CHANNEL_INTERNET_VALUE && !channel.is_empty())
+        }
         None => false,
     }
 }
@@ -113,11 +105,9 @@ pub async fn find_user_area_by_name(
 ) -> Result<UserArea, JsonErrorResponse> {
     // Compose the full area name from the voter information
     let mut area_concat: String = voter_info.ward.clone();
-    let area_childs = vec![voter_info.schoolboard.clone(), voter_info.poll.clone()];
-    for subarea in &area_childs {
-        if let Some(subarea) = subarea {
-            area_concat.push_str(format!("-{subarea}").as_str());
-        }
+    let area_childs = [voter_info.schoolboard.clone(), voter_info.poll.clone()];
+    for subarea in area_childs.iter().flatten() {
+        area_concat.push_str(format!("-{subarea}").as_str());
     }
     // Get the areas for this election_event_id
     let event_areas = get_event_areas(hasura_transaction, tenant_id, election_event_id)
@@ -138,7 +128,7 @@ pub async fn find_user_area_by_name(
                 false
             }
         })
-        .and_then(|area| Some(area.id.clone()));
+        .map(|area| area.id.clone());
 
     match area_id {
         Some(id) => Ok(UserArea {
@@ -159,7 +149,7 @@ pub async fn get_user_id(
     realm: &str,
     username: &str,
 ) -> Result<String, JsonErrorResponse> {
-    let user_ids = get_users_by_username(keycloak_transaction, &realm, username)
+    let user_ids = get_users_by_username(keycloak_transaction, realm, username)
         .await
         .map_err(|e| {
             error!("Error getting users by username: {e:?}");

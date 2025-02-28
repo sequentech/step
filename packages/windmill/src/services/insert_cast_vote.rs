@@ -20,23 +20,20 @@ use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::protocol_manager::get_protocol_manager;
 use crate::services::users::{get_username_by_id, list_users, ListUsersFilter};
-use crate::services::vault;
 use crate::{
     hasura::election_event::get_election_event::GetElectionEventSequentBackendElectionEvent,
     services::database::{get_hasura_pool, get_keycloak_pool},
 };
 use anyhow::{anyhow, Context, Result};
 use b3::messages::message::Signer;
-use chrono::{DateTime, Duration, Local, NaiveDateTime, Utc};
+use chrono::{DateTime, Duration, Local};
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
 use electoral_log::messages::newtypes::*;
 use futures::try_join;
-use rocket::futures::TryFutureExt;
 use sequent_core::ballot::ContestEncryptionPolicy;
 use sequent_core::ballot::EGracePeriodPolicy;
-use sequent_core::ballot::ElectionEventPresentation;
-use sequent_core::ballot::ElectionEventStatus;
+
 use sequent_core::ballot::ElectionPresentation;
 use sequent_core::ballot::ElectionStatus;
 use sequent_core::ballot::VoterSigningPolicy;
@@ -52,7 +49,6 @@ use sequent_core::multi_ballot::HashableMultiBallotContests;
 use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::connection::AuthHeaders;
 use sequent_core::services::date::ISO8601;
-use sequent_core::services::keycloak;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::types::hasura::core::{ElectionEvent, VotingChannels};
@@ -232,35 +228,6 @@ pub async fn try_insert_cast_vote(
         return Err(CastVoteError::AreaNotFound);
     };
     let election_event_id: &str = area.election_event_id.as_str();
-
-    let realm = get_event_realm(tenant_id, election_event_id);
-
-    let filter = ListUsersFilter {
-        tenant_id: tenant_id.to_string(),
-        election_event_id: Some(election_event_id.to_string()),
-        realm: realm.clone(),
-        user_ids: Some(vec![voter_id.to_string()]),
-        area_id: Some(area_id.to_string()),
-        ..ListUsersFilter::default()
-    };
-
-    let user = match list_users(&hasura_transaction, &keycloak_transaction, filter).await {
-        Ok((users, 1)) => users
-            .last()
-            .map(|val_ref| val_ref.to_owned())
-            .unwrap_or_default(),
-        Ok(_) => {
-            return Err(CastVoteError::UnknownError(format!(
-                "Multiple users found with id {voter_id}"
-            )));
-        }
-        Err(_) => {
-            return Err(CastVoteError::UnknownError(format!(
-                "Voter not found with id {voter_id}"
-            )));
-        }
-    };
-
     let election_event =
         get_election_event_by_id(&hasura_transaction, tenant_id, election_event_id)
             .await
@@ -341,6 +308,10 @@ pub async fn try_insert_cast_vote(
 
     let ip = format!("ip: {}", voter_ip.as_deref().unwrap_or(""),);
     let country = format!("country: {}", voter_country.as_deref().unwrap_or(""),);
+    let realm = get_event_realm(tenant_id, election_event_id);
+    let username = get_username_by_id(&keycloak_transaction, &realm, voter_id)
+        .await
+        .map_err(|e| CastVoteError::UnknownError(format!("Error get_username_by_id {e:?}")))?;
 
     match result {
         Ok(inserted_cast_vote) => {
@@ -349,19 +320,42 @@ pub async fn try_insert_cast_vote(
                 // However if the one failing is voterview_requests::send returning an error here would be problematic
                 // because the vote is already casted.
                 // But it will be a good idea to log the error in the electoral_log.
+                let filter = ListUsersFilter {
+                    tenant_id: tenant_id.to_string(),
+                    election_event_id: Some(election_event_id.to_string()),
+                    realm: realm.clone(),
+                    user_ids: Some(vec![voter_id.to_string()]),
+                    area_id: Some(area_id.to_string()),
+                    ..ListUsersFilter::default()
+                };
 
-                // Do not send the Soap Request if it was sent before because the user has voted already in other election.
+                let user =
+                    match list_users(&hasura_transaction, &keycloak_transaction, filter).await {
+                        Ok((users, 1)) => users
+                            .last()
+                            .map(|val_ref| val_ref.to_owned())
+                            .unwrap_or_default(),
+                        Ok(_) => {
+                            return Err(CastVoteError::UnknownError(format!(
+                                "Multiple users found with id {voter_id}"
+                            )));
+                        }
+                        Err(_) => {
+                            return Err(CastVoteError::UnknownError(format!(
+                                "Voter not found with id {voter_id}"
+                            )));
+                        }
+                    };
                 let attributes = user.attributes.clone().unwrap_or_default();
                 if !voted_via_internet(&attributes) {
-                    if let Err(err) = datafix::voterview_requests::send(
+                    let result = datafix::voterview_requests::send(
                         SoapRequest::SetVoted,
                         ElectionEventDatafix(election_event),
-                        &user.username,
+                        &username,
                     )
-                    .await
-                    {
-                        // TODO: Post the error in the electoral_log
-                    }
+                    .await;
+
+                    // TODO: Post the result in the electoral_log
 
                     let client = KeycloakAdminClient::new().await.map_err(|e| {
                         CastVoteError::UnknownError(format!(
@@ -413,14 +407,14 @@ pub async fn try_insert_cast_vote(
                     ip,
                     country,
                     voter_id.to_string(),
-                    user.username.clone(),
+                    username,
                 )
                 .await;
             if let Err(log_err) = log_result {
                 error!("Error posting to the electoral log {:?}", log_err);
             }
             Ok(inserted_cast_vote)
-        }
+        } // End of is_datafix_election_event
         Err(err) => {
             error!(err=?err);
             let log_result = electoral_log
@@ -433,7 +427,7 @@ pub async fn try_insert_cast_vote(
                     ip,
                     country,
                     voter_id.to_string(),
-                    user.username,
+                    username,
                 )
                 .await;
 
