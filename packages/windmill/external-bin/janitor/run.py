@@ -421,7 +421,7 @@ def generate_election_event(excel_data, base_context, miru_data, results):
 
 
 # "OSAKA PCG" -> "Osaka PCG"
-# WASHINGTON DC PE -> Washington DC PE
+# WASHINGTON D.C. PE -> Washington D.C .PE
 # ISLE OF MAN -> Isle Of Man
 # HOLY SEE -> Holy See
 # NEW YORK PGC -> New York PGC
@@ -430,7 +430,7 @@ def get_embassy(embassy):
     without_parentheses = re.sub(r"\(.*?\)", "", embassy)
     words = without_parentheses.split()
 
-    special_words = ["DC", "SAR", "ROC"]
+    special_words = ["D.C.", "DC", "SAR", "ROC"]
     
     # Capitalize each word, and handle the last word conditionally
     formatted_words = [word.title() if word.upper() not in special_words else word.upper()  for word in words[:-1]]
