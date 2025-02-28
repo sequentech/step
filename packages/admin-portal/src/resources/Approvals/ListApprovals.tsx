@@ -259,7 +259,21 @@ const ApprovalsList = (props: ApprovalsListProps) => {
     )
 }
 
-const CustomFilters = (t: any, changeFilters: any) => {
+const generateFilters = (fields: UserProfileAttribute[], t: TFunction) => {
+    return fields.map((attr) => {
+        const source = `applicant_data[${convertToCamelCase(getAttributeLabel(attr.name ?? ""))}]`
+        const label = getTranslationLabel(attr.name, attr.display_name, t)
+
+        if (attr.annotations?.inputType === "html5-date") {
+            return <TextInput key={source} source={source} label={label} type="date" />
+        } else if (attr.multivalued) {
+            return <TextInput key={source} source={source} label={label} />
+        }
+        return <TextInput key={source} source={source} label={label} />
+    })
+}
+
+const CustomFilters = (t: any, changeFilters: any, fields: UserProfileAttribute[]) => {
     // const {t} = useTranslation()
 
     return [
@@ -295,6 +309,8 @@ const CustomFilters = (t: any, changeFilters: any) => {
             label={t("approvalsScreen.column.applicantId")}
         />,
         <TextInput key={"id_filter"} source="id" label={t("approvalsScreen.column.id")} />,
+        <TextInput key={"id_filter"} source="id" label={t("approvalsScreen.column.id")} />,
+        ...generateFilters(fields, t),
     ]
 }
 
@@ -475,7 +491,11 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
                 }
                 // empty={false}
                 resource="sequent_backend_applications"
-                filters={CustomFilters(t, setDefaultFilters)}
+                filters={CustomFilters(
+                    t,
+                    setDefaultFilters,
+                    userAttributes?.get_user_profile_attributes || []
+                )}
                 filter={listFilter}
                 sort={{field: "created_at", order: "DESC"}}
                 perPage={10}
