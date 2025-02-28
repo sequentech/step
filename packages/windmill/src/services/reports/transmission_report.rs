@@ -18,6 +18,7 @@ use crate::services::temp_path::PUBLIC_ASSETS_QRCODE_LIB;
 use crate::services::transmission::{
     get_transmission_data_from_tally_session_by_area, get_transmission_servers_data, ServerData,
 };
+use crate::services::consolidation::eml_generator::ValidateAnnotations;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
@@ -45,7 +46,8 @@ pub struct UserDataArea {
     pub post: String,
     pub country: String,
     pub voting_center: String,
-    pub precinct_code: String,
+    pub station_id: String,
+    pub station_name: String,
     pub registered_voters: Option<i64>,
     pub ballots_counted: Option<i64>,
     pub voters_turnout: Option<f64>,
@@ -234,6 +236,8 @@ impl TemplateRenderer for TransmissionReport {
                     .await
                     .map_err(|err| anyhow!("Error extract area data {err}"))?;
 
+            let area_annotations = area.get_annotations_or_empty_values()?;
+
             let tally_session_data = get_transmission_data_from_tally_session_by_area(
                 &hasura_transaction,
                 &self.ids.tenant_id,
@@ -266,7 +270,8 @@ impl TemplateRenderer for TransmissionReport {
                 post: election_general_data.post.clone(),
                 country: country,
                 voting_center: election_general_data.voting_center.clone(),
-                precinct_code: election_general_data.precinct_code.clone(),
+                station_id: area_annotations.station_id.clone(),
+                station_name: area_annotations.station_name.clone(),
                 registered_voters: votes_data.registered_voters,
                 ballots_counted: Some(ballots_counted),
                 voters_turnout: votes_data.voters_turnout,
