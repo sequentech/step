@@ -191,13 +191,14 @@ impl NotPreEnrolledListTemplate {
             .await
             .with_context(|| format!("Error rendering PDF for batch {}", batch_index))?;
 
-            let prefix = self.prefix();
+            let prefix = first_n_codepoints(&self.prefix(), 5);
             let extension_suffix = "pdf";
             let file_suffix = format!(".{}", extension_suffix);
+            let area_id = first_n_codepoints(&area.area_id, 5);
 
             let batch_file_name = format!(
-                "{}_area_{:.20}_{}{}",
-                prefix, area.area_name, batch, file_suffix
+                "{}_area_{}{}_{}{}",
+                prefix, area.area_name, area_id, batch, file_suffix
             );
             info!(
                 "Batch {} => batch_file_name: {}",
