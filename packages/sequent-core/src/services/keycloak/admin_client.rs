@@ -1,6 +1,9 @@
 // SPDX-FileCopyrightText: 2022 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::serialization::deserialize_with_path::{
+    deserialize_str, deserialize_value,
+};
 use crate::services::connection;
 use crate::services::keycloak::realm::get_tenant_realm;
 use anyhow::{anyhow, Result};
@@ -15,7 +18,9 @@ use serde::{Deserialize, Serialize};
 use serde_json;
 use std::convert::TryFrom;
 use std::env;
-use tracing::{event, info, instrument, Level};
+use std::sync::RwLock;
+use std::time::{Duration, Instant};
+use tracing::{error, event, info, instrument, warn, Level};
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct PubKeycloakAdminToken {
@@ -196,9 +201,109 @@ pub struct PubKeycloakAdmin {
     pub token_supplier: KeycloakAdminToken,
 }
 
+/// TokenResponse, timestamp before sending the request and the credentials to
+/// make sure the requester is the same.
+#[derive(Debug, Clone)]
+struct TokenResponseAdminCli {
+    token_resp: PubKeycloakAdminToken,
+    timestamp: Instant,
+    url: String,
+}
+
+/// Last access token can be reused if it´s not expired, this is to avoid
+/// Keycloak having to hold one token per Api request which could lead quickly
+type LastAdminCliToken = RwLock<Option<TokenResponseAdminCli>>;
+static LAST_ADMIN_CLI_TOKEN: LastAdminCliToken = RwLock::new(None);
+
+/// Reads the access token if it has been requested successfully before and
+/// it is not expired.
+#[instrument(skip_all)]
+async fn read_access_token() -> Option<(PubKeycloakAdminToken, String)> {
+    let token_resp_ext_opt = match LAST_ADMIN_CLI_TOKEN.read() {
+        Ok(read) => read.clone(),
+        Err(err) => {
+            warn!("Error acquiring read lock {err:?}");
+            return None;
+        }
+    };
+
+    if let Some(data) = token_resp_ext_opt {
+        let pre_expriration_time: i64 = data.token_resp.expires_in as i64 - 5; // Renew the token 5 seconds before it expires
+
+        if pre_expriration_time.is_positive()
+            && data.timestamp.elapsed()
+                < Duration::from_secs(pre_expriration_time as u64)
+        {
+            return Some((data.token_resp, data.url));
+        }
+    }
+    return None;
+}
+
+/// Request a new access token and writes it to the cache
+#[instrument(err, skip_all)]
+async fn write_access_token(
+    token_resp: PubKeycloakAdminToken,
+    url: String,
+    timestamp: Instant,
+) -> Result<()> {
+    let mut write = LAST_ADMIN_CLI_TOKEN
+        .write()
+        .map_err(|err| anyhow!("Error acquiring write lock: {err:?}"))?;
+
+    *write = Some(TokenResponseAdminCli {
+        token_resp,
+        timestamp,
+        url,
+    });
+
+    Ok(())
+} // release the lock
+
 impl KeycloakAdminClient {
+    /// Tries to read the token from the cache otherwise requests it.
     #[instrument(err)]
     pub async fn new() -> Result<KeycloakAdminClient> {
+        match read_access_token().await {
+            Some((token_resp, url)) => {
+                Self::new_with(token_resp.try_into()?, &url).await
+            }
+            None => {
+                let login_config = get_keycloak_login_admin_config();
+                let timestamp: Instant = Instant::now(); // Capture the stamp before sending the request
+                let client = reqwest::Client::new();
+                let admin_token = KeycloakAdminToken::acquire(
+                    &login_config.url,
+                    &login_config.client_id,
+                    &login_config.client_secret,
+                    &client,
+                )
+                .await?;
+                info!("Successfully acquired credentials");
+                let token_resp: PubKeycloakAdminToken =
+                    admin_token.clone().try_into()?;
+                write_access_token(
+                    token_resp,
+                    login_config.url.clone(),
+                    timestamp,
+                )
+                .await
+                .map_err(|err| {
+                    anyhow!(
+                        "KeycloakAdminClient: write_access_token error {err:?}"
+                    )
+                })?;
+                let keycloak_admin =
+                    KeycloakAdmin::new(&login_config.url, admin_token, client);
+                Ok(KeycloakAdminClient {
+                    client: keycloak_admin,
+                })
+            }
+        }
+    }
+
+    #[instrument(err)]
+    pub async fn new_requested() -> Result<KeycloakAdminClient> {
         let login_config = get_keycloak_login_admin_config();
         let client = reqwest::Client::new();
         let admin_token = KeycloakAdminToken::acquire(
@@ -208,36 +313,18 @@ impl KeycloakAdminClient {
             &client,
         )
         .await?;
-        event!(Level::INFO, "Successfully acquired credentials");
+        info!("Successfully acquired credentials");
         let client = KeycloakAdmin::new(&login_config.url, admin_token, client);
         Ok(KeycloakAdminClient { client })
     }
 
-    #[instrument(err)]
-    pub async fn new_return_token(
-    ) -> Result<(KeycloakAdminClient, PubKeycloakAdminToken)> {
-        let login_config = get_keycloak_login_admin_config();
-        let client = reqwest::Client::new();
-        let admin_token = KeycloakAdminToken::acquire(
-            &login_config.url,
-            &login_config.client_id,
-            &login_config.client_secret,
-            &client,
-        )
-        .await?;
-        event!(Level::INFO, "Successfully acquired credentials");
-        let client =
-            KeycloakAdmin::new(&login_config.url, admin_token.clone(), client);
-        Ok((KeycloakAdminClient { client }, admin_token.try_into()?))
-    }
-
-    #[instrument(err)]
-    pub async fn new_with_token(
+    #[instrument(err, skip_all)]
+    async fn new_with(
         admin_token: KeycloakAdminToken,
+        url: &str,
     ) -> Result<KeycloakAdminClient> {
         let client = reqwest::Client::new();
-        let login_config = get_keycloak_login_admin_config();
-        let client = KeycloakAdmin::new(&login_config.url, admin_token, client);
+        let client = KeycloakAdmin::new(url, admin_token, client);
         Ok(KeycloakAdminClient { client })
     }
 

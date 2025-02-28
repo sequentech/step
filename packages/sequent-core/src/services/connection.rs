@@ -205,11 +205,11 @@ struct TokenResponseExtended {
 /// The same goes for scalability as each container can hold a different
 /// token being all valid.
 #[derive(Debug, Default)]
-pub struct LastAccessToken(RwLock<Option<TokenResponseExtended>>);
+pub struct LastDatafixAccessToken(RwLock<Option<TokenResponseExtended>>);
 
-impl LastAccessToken {
+impl LastDatafixAccessToken {
     pub fn init() -> Self {
-        LastAccessToken(RwLock::new(None))
+        LastDatafixAccessToken(RwLock::new(None))
     }
 }
 
@@ -220,7 +220,7 @@ async fn read_access_token(
     client_id: &str,
     client_secret: &str,
     tenant_id: &str,
-    lst_acc_tkn: &LastAccessToken,
+    lst_acc_tkn: &LastDatafixAccessToken,
 ) -> Option<PubKeycloakAdminToken> {
     let token_resp_ext_opt = match lst_acc_tkn.0.read() {
         Ok(read) => read.clone(),
@@ -252,7 +252,7 @@ async fn request_access_token(
     client_id: String,
     client_secret: String,
     tenant_id: String,
-    lst_acc_tkn: &LastAccessToken,
+    lst_acc_tkn: &LastDatafixAccessToken,
 ) -> AnyhowResult<PubKeycloakAdminToken> {
     let stamp: Instant = Instant::now(); // Capture the stamp before sending the request
     info!("Requesting access token");
@@ -303,8 +303,9 @@ impl<'r> FromRequest<'r> for DatafixClaims {
 
         // Try to read the access token from the cache, if it´s not there or
         // expired request a new one and write it to the cache.
-        let lst_acc_tkn =
-            try_outcome!(request.guard::<&State<LastAccessToken>>().await);
+        let lst_acc_tkn = try_outcome!(
+            request.guard::<&State<LastDatafixAccessToken>>().await
+        );
         let token_resp = match read_access_token(
             &authorization.client_id,
             &authorization.client_secret,
