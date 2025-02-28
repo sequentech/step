@@ -52,7 +52,7 @@ use tempfile::{NamedTempFile, TempPath};
 use tokio::runtime::Runtime;
 
 pub fn last_n_codepoints(s: &str, n: usize) -> String {
-    // Reverse the character iterator, take n, 
+    // Reverse the character iterator, take n,
     // then reverse back to preserve original order
     let collected: Vec<char> = s.chars().rev().take(n).collect();
     collected.into_iter().rev().collect()
@@ -207,7 +207,7 @@ impl PreEnrolledDisapprovedTemplate {
             let prefix = first_n_codepoints(&self.prefix(), 5);
             let extension_suffix = "pdf";
             let file_suffix = format!(".{}", extension_suffix);
-            let area_id  = last_n_codepoints(&area.area_id, 5);
+            let area_id = first_n_codepoints(&area.area_id, 5);
 
             let batch_file_name = format!(
                 "{}_area_{}{}_{}{}",
