@@ -328,7 +328,10 @@ pub async fn try_insert_cast_vote(
                     area_id: Some(area_id.to_string()),
                     ..ListUsersFilter::default()
                 };
-
+                let hasura_transaction = hasura_db_client
+                    .transaction()
+                    .await
+                    .map_err(|e| CastVoteError::GetTransactionFailed(e.to_string()))?;
                 let user =
                     match list_users(&hasura_transaction, &keycloak_transaction, filter).await {
                         Ok((users, 1)) => users
