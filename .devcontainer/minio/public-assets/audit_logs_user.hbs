@@ -114,7 +114,15 @@
                 <strong>Clustered Precinct ID:</strong>
               </td>
               <td class="value">
-                {{sanitize_html (expr precinct_code)}}
+                {{sanitize_html (expr station_id)}}
+              </td>
+            </tr>
+            <tr>
+              <td class="key">
+                <strong>Precincts in the Cluster:</strong>
+              </td>
+              <td class="value">
+                {{sanitize_html (expr station_name)}}
               </td>
             </tr>
           </table>
