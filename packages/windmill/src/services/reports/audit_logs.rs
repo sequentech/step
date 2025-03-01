@@ -193,6 +193,7 @@ impl AuditLogsTemplate {
         let geographical_region = election_general_data.geographical_region.clone();
         let voting_center = election_general_data.voting_center.clone();
         let precinct_code = election_general_data.precinct_code.clone();
+        let pollcenter_code = election_general_data.pollcenter_code.clone();
 
         let report_hash = get_report_hash(&ReportType::AUDIT_LOGS.to_string())
             .await
@@ -252,8 +253,8 @@ impl AuditLogsTemplate {
             geographical_region,
             post,
             voting_center,
-            station_id: area_annotations.station_id.clone(),
-            station_name: area_annotations.station_name.clone(),
+            station_id: pollcenter_code.clone(),
+            station_name: precinct_code.clone(),
             registered_voters: votes_data.registered_voters,
             ballots_counted: Some(ballots_counted),
             voters_turnout: votes_data.voters_turnout,
