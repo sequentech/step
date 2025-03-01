@@ -20,7 +20,7 @@ import {
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {ListActions} from "@/components/ListActions"
 import {useTranslation} from "react-i18next"
-import {Sequent_Backend_Election_Event} from "@/gql/graphql"
+import {Sequent_Backend_Election, Sequent_Backend_Election_Event} from "@/gql/graphql"
 import {Dialog} from "@sequentech/ui-essentials"
 import {FormStyles} from "./styles/FormStyles"
 import {DownloadDocument} from "@/resources/User/DownloadDocument"
@@ -132,6 +132,7 @@ export interface ElectoralLogListProps {
     aside?: ReactElement
     filterToShow?: ElectoralLogFilters
     filterValue?: string
+    electionEventId?: string
     showActions?: boolean
 }
 
@@ -145,9 +146,10 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
     aside,
     filterToShow,
     filterValue,
+    electionEventId,
     showActions = true,
 }) => {
-    const record = useRecordContext<Sequent_Backend_Election_Event>()
+    const record = useRecordContext<Sequent_Backend_Election_Event | Sequent_Backend_Election>()
     const {t} = useTranslation()
 
     const {canReadLogs, canExportLogs, showLogsColumns, showLogsFilters} = useLogsPermissions()
@@ -175,7 +177,7 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
     }
 
     const filterObject: {[key: string]: any} = {
-        election_event_id: record?.id || undefined,
+        election_event_id: electionEventId || record?.id || undefined,
     }
 
     if (filterToShow) {
