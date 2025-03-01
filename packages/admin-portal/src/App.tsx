@@ -80,13 +80,81 @@ const App: React.FC<AppProps> = () => {
 
     useEffect(() => {
         const buildDataProvider = async () => {
+            // Build the standard Hasura data provider
             const options = {
                 client: apolloClient as any,
                 buildQuery: customBuildQuery as any,
             }
             const buildGqlQueryOverrides = {}
-            const dataProviderHasura = await buildHasuraProvider(options, buildGqlQueryOverrides)
-            setDataProvider(() => dataProviderHasura as any)
+            const standardDataProvider = await buildHasuraProvider(options, buildGqlQueryOverrides)
+
+            const introspectionResults = (standardDataProvider as any).introspection
+
+            // Enhance the data provider with raw SQL support
+            const enhancedDataProvider: DataProvider = {
+                ...standardDataProvider,
+
+                // Override getList to handle raw SQL queries for JSONB filtering
+
+                getList: async (resource, params) => {
+                    let isSQL = false
+
+                    if (resource === "sequent_backend_applications") {
+                        try {
+                            // Use the custom build query function
+                            const queryInfo = customBuildQuery(introspectionResults)(
+                                "GET_LIST",
+                                resource,
+                                params
+                            )
+
+                            isSQL = queryInfo.sql ?? false
+
+                            if (!queryInfo.sql) {
+                                return standardDataProvider.getList(resource, params)
+                            }
+
+                            // Use fetch instead of Apollo client
+                            const response = await fetch("http://localhost:8080/v2/query", {
+                                method: "POST",
+                                headers: {
+                                    "Content-Type": "application/json",
+                                    "x-hasura-admin-secret": "admin",
+
+                                    // Add any necessary authorization headers here
+                                },
+                                body: JSON.stringify({
+                                    type: "run_sql",
+                                    args: {
+                                        source: "backend-db",
+                                        sql: queryInfo.variables.sql,
+                                    },
+                                }),
+                            })
+
+                            if (!response.ok) {
+                                throw new Error(`HTTP error! status: ${response.status}`)
+                            }
+
+                            const data = await response.json()
+
+                            // Use the parseResponse function from queryInfo
+                            return queryInfo.parseResponse(data.result)
+                        } catch (error) {
+                            if (!isSQL) {
+                                return standardDataProvider.getList(resource, params)
+                            } else {
+                                return {data: [], total: 0}
+                            }
+                        }
+                    }
+
+                    // For other resources, use the standard data provider
+                    return standardDataProvider.getList(resource, params)
+                },
+            }
+
+            setDataProvider(() => enhancedDataProvider as any)
         }
         buildDataProvider()
     }, [])

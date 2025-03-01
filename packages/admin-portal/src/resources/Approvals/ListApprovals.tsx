@@ -267,9 +267,9 @@ const generateFilters = (fields: UserProfileAttribute[], t: TFunction) => {
         const label = getTranslationLabel(attr.name, attr.display_name, t)
 
         if (attr.annotations?.inputType === "html5-date") {
-            return <TextInput key={source} source={source} label={label} type="date" />
+            return <TextInput key={source} source={`${source}._ilike`} label={label} type="date" />
         } else if (attr.multivalued) {
-            return <TextInput key={source} source={source} label={label} />
+            return <TextInput key={source} source={`${source}._ilike`} label={label} />
         }
         return <TextInput key={source} source={`${source}._ilike`} label={label} />
     })
