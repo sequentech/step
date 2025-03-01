@@ -677,8 +677,10 @@ export const TallyCeremony: React.FC = () => {
                     updateWidgetFail(currWidget.identifier)
                 } else if (nextStatus) {
                     const task_id = nextStatus?.create_transmission_package?.task_execution?.id
-                    setWidgetTaskId(currWidget.identifier, task_id)
-                    handleMiruExportSuccess?.({area_id, election_id})
+                    setWidgetTaskId(currWidget.identifier, task_id, () => {
+                        refetchTallySession()
+                        handleMiruExportSuccess?.({area_id, election_id})
+                    })
                 }
                 setTransmissionLoading(false)
             } catch (error) {
