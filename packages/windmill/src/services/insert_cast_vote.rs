@@ -614,6 +614,7 @@ async fn check_status(
             "Election event is archived".to_string(),
         ));
     }
+    let now = ISO8601::now();
 
     let auth_time_local: DateTime<Local> = if let Some(auth_time_int) = *auth_time {
         if let Ok(auth_time_parsed) = ISO8601::timestamp_ms_utc_to_date_opt(auth_time_int) {
@@ -656,13 +657,20 @@ async fn check_status(
     )
     .await
     .map_err(|e| CastVoteError::CheckStatusInternalFailed(e.to_string()))?;
-    let dates: VotingPeriodDates = generate_voting_period_dates(
+
+    // these dates are used to check by scheduled event date
+    // (even if the even hasn't been executed)
+    let mut dates: VotingPeriodDates = generate_voting_period_dates(
         scheduled_events.clone(),
         &tenant_id,
         &election_event_id,
         Some(election_id),
     )
     .unwrap_or(Default::default());
+
+    if VotingStatusChannel::ONLINE != voting_channel.clone() {
+        dates.end_date = None;
+    }
 
     let close_date_opt: Option<DateTime<Local>> = if let Some(end_date_str) = dates.end_date {
         match ISO8601::to_date(&end_date_str) {
@@ -706,6 +714,7 @@ async fn check_status(
     }
 
     let current_voting_status = election_status.status_by_channel(voting_channel);
+    let dates_by_channel = election_status.dates_by_channel(voting_channel);
 
     // calculate if we need to apply the grace period
     let grace_period_secs = election_presentation.grace_period_secs.unwrap_or(0);
@@ -724,7 +733,6 @@ async fn check_status(
             && current_voting_status != VotingStatus::PAUSED;
         let grace_period_duration = Duration::seconds(grace_period_secs as i64);
         let close_date_plus_grace_period = close_date + grace_period_duration;
-        let now = ISO8601::now();
 
         if apply_grace_period {
             // a voter cannot cast a vote after the grace period or if the voter
@@ -762,10 +770,24 @@ async fn check_status(
         }
 
     // if there's no closing date, election needs to be open to cast a vote
-    } else if current_voting_status != VotingStatus::OPEN {
-        return Err(CastVoteError::CheckStatusFailed(
-            format!("Voting Status for voting_channel={voting_channel:?} is {current_voting_status:?} instead of Open"),
-        ));
+    } else {
+        if current_voting_status != VotingStatus::OPEN {
+            return Err(CastVoteError::CheckStatusFailed(
+                format!("Voting Status for voting_channel={voting_channel:?} is {current_voting_status:?} instead of Open"),
+            ));
+        }
+        let last_stopped_at = dates_by_channel
+            .last_stopped_at
+            .map(|val| val.with_timezone(&Local));
+
+        if let Some(close_date) = last_stopped_at {
+            if now > close_date {
+                return Err(CastVoteError::CheckStatusFailed(format!(
+                    "Election close date passed for channel {}",
+                    voting_channel
+                )));
+            }
+        }
     }
     Ok(())
 }

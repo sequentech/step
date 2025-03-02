@@ -1305,6 +1305,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 handleClose={handleClose}
             >
                 <ElectoralLogList
+                    electionEventId={electionEventId}
                     showActions={false}
                     filterToShow={ElectoralLogFilters.USER_ID}
                     filterValue={recordIds[0]?.toString()}
