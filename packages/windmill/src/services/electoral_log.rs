@@ -691,13 +691,9 @@ pub struct GetElectoralLogBody {
     pub offset: Option<i64>,
     pub filter: Option<HashMap<OrderField, String>>,
     pub order_by: Option<HashMap<OrderField, OrderDirection>>,
-}
-
-#[derive(Deserialize, Debug)]
-pub struct GetElectoralLogFilter {
     pub election_id: Option<String>,
     pub area_ids: Option<Vec<String>>,
-    pub with_user: Option<bool>,
+    pub only_with_user: Option<bool>,
 }
 
 impl GetElectoralLogBody {
@@ -742,6 +738,76 @@ impl GetElectoralLogBody {
 
             if !where_clauses.is_empty() {
                 clauses.push(format!("WHERE {}", where_clauses.join(" AND ")));
+            }
+        };
+
+        // Build a single extra clause.
+        // This clause returns rows if:
+        // - @election_filter is non-empty and matches election_id, OR
+        // - @area_filter is non-empty and matches area_id, OR
+        // - Both election_id and area_id are either '' or NULL. (General to all elections log)
+        let mut extra_where_clauses = Vec::new();
+        if self.election_id.is_some() || self.area_ids.is_some() {
+            let mut conds = Vec::new();
+
+            if let Some(election) = &self.election_id {
+                if !election.is_empty() {
+                    params.push(create_named_param(
+                        "param_election".to_string(),
+                        Value::S(election.clone()),
+                    ));
+                    conds.push("election_id LIKE @param_election".to_string());
+                }
+            }
+
+            if let Some(area_ids) = &self.area_ids {
+                if !area_ids.is_empty() {
+                    let placeholders: Vec<String> = area_ids
+                        .iter()
+                        .enumerate()
+                        .map(|(i, _)| format!("@param_area{}", i))
+                        .collect();
+                    for (i, area) in area_ids.into_iter().enumerate() {
+                        let param_name = format!("param_area{}", i);
+                        params.push(create_named_param(
+                            param_name.clone(),
+                            Value::S(area.clone()),
+                        ));
+                    }
+                    conds.push(format!(
+                        "(@param_area0 <> '' AND area_id IN ({}))",
+                        placeholders.join(", ")
+                    ));
+                }
+            }
+
+            // if neither filter matches, return logs where both fields are empty or NULL.
+            conds.push(
+                "((election_id = '' OR election_id IS NULL) AND (area_id = '' OR area_id IS NULL))"
+                    .to_string(),
+            );
+
+            extra_where_clauses.push(format!("({})", conds.join(" OR ")));
+        }
+
+        // Handle only_with_user
+        if self.only_with_user.unwrap_or(false) {
+            extra_where_clauses.push("(user_id IS NOT NULL AND user_id <> '')".to_string());
+        }
+
+        if !extra_where_clauses.is_empty() {
+            match clauses.len() {
+                0 => {
+                    clauses.push(format!("WHERE {}", extra_where_clauses.join(" AND ")));
+                }
+                _ => {
+                    let where_clause = clauses.pop().unwrap();
+                    clauses.push(format!(
+                        "{} AND {}",
+                        where_clause,
+                        extra_where_clauses.join(" AND ")
+                    ));
+                }
             }
         }
 
@@ -998,153 +1064,6 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
         total: TotalAggregate {
             aggregate: aggregate,
         },
-    })
-}
-
-#[instrument(err)]
-pub async fn list_electoral_log_filter(
-    input: GetElectoralLogBody,
-    filter: GetElectoralLogFilter,
-) -> Result<DataList<ElectoralLogRow>> {
-    let mut client: Client = get_immudb_client().await?;
-    let board_name = get_event_board(input.tenant_id.as_str(), input.election_event_id.as_str());
-
-    event!(Level::INFO, "database name = {board_name}");
-    info!("input = {:?}", input);
-    client.open_session(&board_name).await?;
-
-    // Retrieve base clauses and parameters.
-    let (mut clauses, mut params) = input.as_sql(false)?;
-    let (mut clauses_to_count, mut count_params) = input.as_sql(true)?;
-
-    // Build a single extra clause.
-    // This clause returns rows if:
-    // - @election_filter is non-empty and matches election_id, OR
-    // - @area_filter is non-empty and matches area_id, OR
-    // - Both election_id and area_id are either '' or NULL.
-    let mut extra_conditions = Vec::new();
-
-    if filter.election_id.is_some() || filter.area_ids.is_some() {
-        let mut conds = Vec::new();
-
-        // Election filter: use equality (or change to LIKE if needed)
-        if let Some(election) = filter.election_id {
-            if !election.is_empty() {
-                params.push(create_named_param(
-                    "election_filter".to_string(),
-                    Value::S(election.clone()),
-                ));
-                count_params.push(create_named_param(
-                    "election_filter".to_string(),
-                    Value::S(election.clone()),
-                ));
-                conds.push("election_id LIKE @election_filter".to_string());
-            }
-        }
-
-        if let Some(area_ids) = filter.area_ids {
-            if !area_ids.is_empty() {
-                let placeholders: Vec<String> = area_ids
-                    .iter()
-                    .enumerate()
-                    .map(|(i, _)| format!("@area_filter{}", i))
-                    .collect();
-                for (i, area) in area_ids.into_iter().enumerate() {
-                    let param_name = format!("area_filter{}", i);
-                    params.push(create_named_param(
-                        param_name.clone(),
-                        Value::S(area.clone()),
-                    ));
-                    count_params.push(create_named_param(param_name, Value::S(area)));
-                }
-                conds.push(format!(
-                    "(@area_filter0 <> '' AND area_id IN ({}))",
-                    placeholders.join(", ")
-                ));
-            }
-        }
-
-        // if neither filter matches, return logs where both fields are empty or NULL.
-        conds.push(
-            "((election_id = '' OR election_id IS NULL) AND (area_id = '' OR area_id IS NULL))"
-                .to_string(),
-        );
-
-        extra_conditions.push(format!("({})", conds.join(" OR ")));
-    }
-
-    // Add condition for with_user if needed.
-    if filter.with_user.unwrap_or(false) {
-        extra_conditions.push("(user_id IS NOT NULL AND user_id <> '')".to_string());
-    }
-
-    // Append extra_sql to the clauses from as_sql.
-    if !extra_conditions.is_empty() {
-        let extra_sql = extra_conditions.join(" AND ");
-        if clauses.contains("WHERE") {
-            clauses = format!("{} AND {}", clauses, extra_sql);
-            clauses_to_count = format!("{} AND {}", clauses_to_count, extra_sql);
-        } else {
-            clauses = format!("WHERE {}", extra_sql);
-            clauses_to_count = format!("WHERE {}", extra_sql);
-        }
-    }
-
-    info!("Final clauses for select: {}", clauses);
-
-    let sql = format!(
-        r#"
-        SELECT
-            id,
-            created,
-            sender_pk,
-            statement_timestamp,
-            statement_kind,
-            message,
-            user_id,
-            username
-        FROM electoral_log_messages
-        {}
-        "#,
-        clauses,
-    );
-    info!("query: {}", sql);
-    let sql_query_response = client.streaming_sql_query(&sql, params).await?;
-
-    let limit: usize = input.limit.unwrap_or(IMMUDB_ROWS_LIMIT as i64).try_into()?;
-    let mut rows: Vec<ElectoralLogRow> = Vec::with_capacity(limit);
-    let mut resp_stream = sql_query_response.into_inner();
-    while let Some(streaming_batch) = resp_stream.next().await {
-        let items = streaming_batch?
-            .rows
-            .iter()
-            .map(ElectoralLogRow::try_from)
-            .collect::<Result<Vec<ElectoralLogRow>>>()?;
-        rows.extend(items);
-    }
-
-    let sql = format!(
-        r#"
-        SELECT
-            COUNT(*)
-        FROM electoral_log_messages
-        {}
-        "#,
-        clauses_to_count,
-    );
-    let sql_query_response = client.sql_query(&sql, count_params).await?;
-    let mut rows_iter = sql_query_response
-        .get_ref()
-        .rows
-        .iter()
-        .map(Aggregate::try_from);
-
-    let aggregate = rows_iter.next().ok_or(anyhow!("No aggregate found"))??;
-
-    client.close_session().await?;
-    Ok(DataList {
-        items: rows,
-        total: TotalAggregate { aggregate },
     })
 }
 
