@@ -1017,23 +1017,24 @@ pub async fn get_application_status_by_email_or_phone(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
-    applicant_data: &HashMap<String, String>,
+    email: Option<&str>,
+    phone_number: Option<&str>,
 ) -> Result<Option<String>> {
+    if email.is_none() && phone_number.is_none() {
+        return Err(anyhow!("Bad request: at least one of email or phone number must be provided"));
+    }
 
-    let email = applicant_data.get("email").map(String::from);
-
-    let phone_number: Option<String> = applicant_data.get(MOBILE_PHONE_ATTR_NAME).map(String::from);
-
+    // Call the underlying function that retrieves the applicant status
     let applicant_status = get_applicant_status(
         hasura_transaction,
         tenant_id,
         election_event_id,
-        email.as_deref(), 
-        phone_number.as_deref(),
+        email,
+        phone_number,
     )
     .await
-    .map_err(|err: anyhow::Error| anyhow!("Error sending communication response: {err}"))?;
-
+    .map_err(|err| anyhow!("Error sending communication response: {err}"))?;
+    
     Ok(applicant_status)
 }
 

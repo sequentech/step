@@ -319,19 +319,26 @@ pub async fn change_application_status(
 }
 
 #[derive(Deserialize, Debug)]
-pub struct ApplicationEnrollmentStatusBody {
-    applicant_data: HashMap<String, String>,
+pub struct ApplicantStatusBody {
     tenant_id: String,
     election_event_id: String,
+    email: Option<String>,
+    phone_number: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ApplicantStatusOutput {
+    status: Option<String>,
+    error: Option<String>,
 }
 
 #[instrument(skip(claims))]
-#[post("/get-application-status", format = "json", data = "<body>")]
+#[post("/get-applicant-status", format = "json", data = "<body>")]
 pub async fn get_application_status(
     claims: jwt::JwtClaims,
-    body: Json<ApplicationEnrollmentStatusBody>,
-) -> Result<Json<Option<String>>, JsonError> {
-    let input: ApplicationEnrollmentStatusBody = body.into_inner();
+    body: Json<ApplicantStatusBody>,
+) -> Result<Json<ApplicantStatusOutput>, JsonError> {
+    let input: ApplicantStatusBody = body.into_inner();
 
     info!("Get application status: {input:?}");
 
@@ -370,7 +377,8 @@ pub async fn get_application_status(
         &hasura_transaction,
         &input.tenant_id,
         &input.election_event_id,
-        &input.applicant_data,
+        input.email.as_deref(),
+        input.phone_number.as_deref(),
     )
     .await
     .map_err(|e| {
@@ -381,5 +389,8 @@ pub async fn get_application_status(
         )
     })?;
 
-    Ok(Json(result))
+    Ok(Json(ApplicantStatusOutput {
+        status: result,
+        error: None,
+    }))
 }

@@ -600,8 +600,8 @@ pub async fn get_applicant_status(
     let row = hasura_transaction.query_opt(
         query,
         &[
-            &tenant_id,
-            &election_event_id,
+            &Uuid::parse_str(tenant_id)?,
+            &Uuid::parse_str(election_event_id)?,
             &email.unwrap_or(""),
             &phone_number.unwrap_or(""),
         ],

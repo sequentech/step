@@ -139,6 +139,13 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     // Get the form data
     MultivaluedMap<String, String> formData = context.getHttpRequest().getDecodedFormParameters();
     context.getEvent().detail(Details.REGISTER_METHOD, "form");
+    String rawPassword = formData.getFirst(RegistrationPage.FIELD_PASSWORD);
+    log.info("DELETE DELETE validate: rawPassword: " + rawPassword);
+    log.info("DELETE DELETE validate: rawPassword: " + rawPassword);
+    if (rawPassword != null && !rawPassword.isBlank()) {
+      log.info("DELETE DELETE rawPassword != null && !rawPassword.isBlank validate: setAuthNote: " + rawPassword);
+        context.getAuthenticationSession().setAuthNote("raw_password", rawPassword);
+    }
     UserProfile profile = getOrCreateUserProfile(context, formData);
 
     UserModel user = null;
@@ -338,7 +345,8 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     // context.success();
     // Checking if already enrolled
     try {
-      EnrollmentStatus enrollmentStatus = getEnrollmentStatus(context);
+      EnrollmentStatus enrollmentStatus = getEnrollmentStatus(context, formData.getFirst(PHONE_NUMBER), formData.getFirst(UserModel.EMAIL));
+      log.info("validate: enroll status: " + enrollmentStatus);
       switch (enrollmentStatus) {
         case ACCEPTED:
         // TODO handle accepted status
@@ -625,95 +633,96 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     }
     context.getEvent().detail(Utils.AUTHENTICATOR_CLASS_NAME, this.getClass().getSimpleName());
   }
-    private EnrollmentStatus getEnrollmentStatus(ValidationContext context)
-      throws IOException, InterruptedException {
-        log.info("getUserEnrollmentStatus: start");
 
-    if (this.accessToken == null) {
-      this.accessToken = Utils.authenticate();
+  private EnrollmentStatus getEnrollmentStatus(ValidationContext context, String phoneNumber, String email)
+    throws IOException, InterruptedException {
+      log.info("getUserEnrollmentStatus: start");
+
+  if (this.accessToken == null) {
+    this.accessToken = Utils.authenticate();
+  }
+  log.info("getUserEnrollmentStatus: this.accessToken exists");
+  // Retrieve the configuration
+  AuthenticatorConfigModel config = context.getAuthenticatorConfig();
+  Map<String, String> configMap = config.getConfig();
+
+  // Extract the attributes to search and update from the configuration
+  String searchAttributes = configMap.get(SEARCH_ATTRIBUTES);
+  String unsetAttributes = configMap.get(UNSET_ATTRIBUTES);
+  String updateAttributes = configMap.get(LookupAndUpdateUser.UPDATE_ATTRIBUTES);
+  String sessionId = context.getAuthenticationSession().getParentSession().getId();
+  // Parse attributes lists
+  ObjectMapper om = new ObjectMapper();
+  String password = context.getAuthenticationSession().getAuthNote("raw_password");
+
+  log.info("Retrieved email from auth note: " + email);
+  log.info("Retrieved phoneNumber from auth note: " + phoneNumber);
+  log.info("Retrieved password from auth note: " + password);
+  CredentialModel passwordModel = Utils.buildPassword(context.getSession(), password);
+  context.getAuthenticationSession().removeAuthNote("raw_password");
+  CredentialModel otpCredential = MessageOTPCredentialModel.create(/* isSetup= */ true);
+  List<CredentialModel> credentials = Arrays.asList(passwordModel, otpCredential);
+
+  Map<String, Object> annotationsMap = new HashMap<>();
+  annotationsMap.put(SEARCH_ATTRIBUTES, searchAttributes);
+  annotationsMap.put(LookupAndUpdateUser.UPDATE_ATTRIBUTES, updateAttributes);
+  annotationsMap.put(UNSET_ATTRIBUTES, unsetAttributes);
+  annotationsMap.put("credentials", credentials);
+  annotationsMap.put("sessionId", sessionId);
+
+  HttpClient client = HttpClient.newHttpClient();
+  String url = "http://" + this.harvestUrl + "/get-applicant-status";
+  String requestBody =
+      String.format(
+        // TODO make sure what param is needed
+          "{\"tenant_id\": \"%s\", \"election_event_id\": \"%s\", \"email\" : %s, \"phone_number\" : %s, \"annotations\": %s}",
+          Utils.escapeJson(Utils.tenantId),
+          Utils.escapeJson(Utils.getElectionEventId(context.getSession(), context.getRealm().getId())),
+          om.writeValueAsString(email),
+          om.writeValueAsString(phoneNumber),
+          om.writeValueAsString(annotationsMap)
+        );
+  HttpRequest request =
+      HttpRequest.newBuilder()
+          .uri(URI.create(url))
+          .header("Content-Type", "application/json")
+          .header("Authorization", "Bearer " + this.accessToken)
+          .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+          .build();
+
+  HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+  log.infov("getUserEnrollmentStatus response: {0}", response);
+    // Recover data from response
+    JsonNode verificationResult = om.readTree(response.body());
+
+    // Check status
+    if (response.statusCode() != 200) {
+      String response_message = verificationResult.get("message").textValue();
+      // TODO handle error...
+      log.infov("getUserEnrollmentStatus response_message: {0}", response_message);
+      // TODO handle error...
+      // TODO handle error...
+      // context
+      //     .getEvent()
+      //     .detail("status_code", String.format("%d", response.statusCode()))
+      //     .detail("message", response_message)
+      //     .error("Error generating approval.");
+      // context.failureChallenge(
+      //     AuthenticationFlowError.INTERNAL_ERROR,
+      //     context
+      //         .form()
+      //         .setError(Utils.ERROR_GENERATING_APPROVAL, sessionId)
+      //         .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
+      return null;
     }
-    // Retrieve the configuration
-    AuthenticatorConfigModel config = context.getAuthenticatorConfig();
-    Map<String, String> configMap = config.getConfig();
-
-    // Extract the attributes to search and update from the configuration
-    String searchAttributes = configMap.get(SEARCH_ATTRIBUTES);
-    String unsetAttributes = configMap.get(UNSET_ATTRIBUTES);
-    String updateAttributes = configMap.get(LookupAndUpdateUser.UPDATE_ATTRIBUTES);
-    String sessionId = context.getAuthenticationSession().getParentSession().getId();
-    // Parse attributes lists
-
-    ObjectMapper om = new ObjectMapper();
-    String password =
-        context.getAuthenticationSession().getAuthNote(RegistrationPage.FIELD_PASSWORD);
-
-    CredentialModel passwordModel = Utils.buildPassword(context.getSession(), password);
-    CredentialModel otpCredential = MessageOTPCredentialModel.create(/* isSetup= */ true);
-    List<CredentialModel> credentials = Arrays.asList(passwordModel, otpCredential);
-
-    Map<String, Object> annotationsMap = new HashMap<>();
-    annotationsMap.put(SEARCH_ATTRIBUTES, searchAttributes);
-    annotationsMap.put(LookupAndUpdateUser.UPDATE_ATTRIBUTES, updateAttributes);
-    annotationsMap.put(UNSET_ATTRIBUTES, unsetAttributes);
-    annotationsMap.put("credentials", credentials);
-    annotationsMap.put("sessionId", sessionId);
-    Map<String, String> applicantDataMap =
-    Utils.buildApplicantData(context.getSession(), context.getAuthenticationSession());
-
-    HttpClient client = HttpClient.newHttpClient();
-    String url = "http://" + this.harvestUrl + "/get-application-status";
-    String requestBody =
-        String.format(
-          // TODO make sure what param is needed
-            "{\"tenant_id\": \"%s\", \"election_event_id\": \"%s\", \"area_id\": \"%s\", \"applicant_id\": \"%s\", \"applicant_data\" : %s, \"annotations\": %s, \"labels\": \"%s\"}",
-            Utils.escapeJson(Utils.tenantId),
-            Utils.escapeJson(Utils.getElectionEventId(context.getSession(), context.getRealm().getId())),
-            Utils.escapeJson(null),
-            Utils.escapeJson(null),
-            om.writeValueAsString(applicantDataMap),
-            om.writeValueAsString(annotationsMap),
-            null);
-    HttpRequest request =
-        HttpRequest.newBuilder()
-            .uri(URI.create(url))
-            .header("Content-Type", "application/json")
-            .header("Authorization", "Bearer " + this.accessToken)
-            .POST(HttpRequest.BodyPublishers.ofString(requestBody))
-            .build();
-
-    HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-    log.infov("getUserEnrollmentStatus response: {0}", response);
-      // Recover data from response
-      JsonNode verificationResult = om.readTree(response.body());
-
-      // Check status
-      if (response.statusCode() != 200) {
-        String response_message = verificationResult.get("message").textValue();
-        // TODO handle error...
-        log.infov("getUserEnrollmentStatus response_message: {0}", response_message);
-        // TODO handle error...
-        // TODO handle error...
-        // context
-        //     .getEvent()
-        //     .detail("status_code", String.format("%d", response.statusCode()))
-        //     .detail("message", response_message)
-        //     .error("Error generating approval.");
-        // context.failureChallenge(
-        //     AuthenticationFlowError.INTERNAL_ERROR,
-        //     context
-        //         .form()
-        //         .setError(Utils.ERROR_GENERATING_APPROVAL, sessionId)
-        //         .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
-        return null;
-      }
-      EnrollmentStatus status;
-      String statusText = verificationResult.get("status").textValue();
-      try {
-        status = EnrollmentStatus.valueOf(statusText.toUpperCase());
-      } catch (IllegalArgumentException | NullPointerException e) {
-        status = null; // Or handle the default case
-        System.err.println("Invalid status: " + statusText);
-      }
+    EnrollmentStatus status;
+    String statusText = verificationResult.get("status").textValue();
+    try {
+      status = EnrollmentStatus.valueOf(statusText.toUpperCase());
+    } catch (IllegalArgumentException | NullPointerException e) {
+      status = null; // Or handle the default case
+      System.err.println("Invalid status: " + statusText);
+    }
 
     return status;
   }

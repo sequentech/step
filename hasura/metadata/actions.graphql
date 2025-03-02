@@ -268,6 +268,10 @@ type Query {
     getElectionStats(object: ElectionStatsInput!): ElectionStatsOutput
 }
 
+type Query {
+    get_applicant_status(body: GetApplicantStatus): GetApplicantStatusOutput
+}
+
 type Mutation {
     get_ballot_publication_changes(
         election_event_id: uuid!
@@ -916,6 +920,13 @@ input CountUsersInput {
     authorized_to_election_alias: String
 }
 
+input GetApplicantStatus {
+    election_event_id: String
+    tenant_id: String
+    email: String
+    phone_number: String
+}
+
 type GetManualVerificationOutput {
     document_id: String
     status: String
@@ -1558,4 +1569,9 @@ type ApplicationChangeStatusOutput {
 
 type CountUsersOutput {
     count: Int!
+}
+
+type GetApplicantStatusOutput {
+    error: String
+    status: String
 }
