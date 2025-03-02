@@ -596,6 +596,18 @@ actions:
           - role: admin-dashboard-view
           - role: admin-user
       comment: get election event stats
+    - name: get_applicant_status
+      definition:
+          kind: ""
+          handler: http://{{HARVEST_DOMAIN}}/get-applicant-status
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input.body}}"
+              template_engine: Kriti
+              version: 2
+      comment: Retreive applicant status
     - name: get_ballot_publication_changes
       definition:
           kind: synchronous
@@ -1318,6 +1330,7 @@ custom_types:
         - name: ElectionStatsMonitoringInput
         - name: ImportOptions
         - name: CountUsersInput
+        - name: GetApplicantStatus
     objects:
         - name: GetManualVerificationOutput
         - name: CreateKeysCeremonyOutput
@@ -1420,4 +1433,5 @@ custom_types:
         - name: GenerateTemplateOutput
         - name: ApplicationChangeStatusOutput
         - name: CountUsersOutput
+        - name: GetApplicantStatusOutput
     scalars: []

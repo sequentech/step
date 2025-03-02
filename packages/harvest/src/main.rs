@@ -123,6 +123,7 @@ async fn rocket() -> _ {
                 routes::reports::encrypt_report_route,
                 routes::reports::generate_transmission_report,
                 routes::templates::get_user_template,
+                routes::applications::get_application_status,
                 routes::applications::verify_user_application,
                 routes::applications::change_application_status,
                 routes::election_event_monitoring::get_election_event_monitoring_f,

@@ -14,8 +14,13 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import freemarker.template.Template;
 import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
+import java.io.IOException;
 import java.io.StringWriter;
 import java.io.Writer;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -23,6 +28,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.experimental.UtilityClass;
@@ -45,6 +51,7 @@ import org.keycloak.sessions.AuthenticationSessionModel;
 import org.keycloak.userprofile.UserProfile;
 import org.keycloak.userprofile.UserProfileContext;
 import org.keycloak.userprofile.UserProfileProvider;
+import org.keycloak.util.JsonSerialization;
 
 @UtilityClass
 @JBossLog
@@ -120,6 +127,17 @@ public class Utils {
   public static final String SDK_VERSION = "sdk-version";
   public static final String FTL_SDK_VERSION = "sdk_version";
   public static final String DEFAULT_SDK_VERSION = "4.0.3";
+
+  public static final String keycloakUrl = System.getenv("KEYCLOAK_URL");
+  public static final String tenantId = System.getenv("SUPER_ADMIN_TENANT_ID");
+  public static final String clientId = System.getenv("KEYCLOAK_CLIENT_ID");
+  public static final String clientSecret = System.getenv("KEYCLOAK_CLIENT_SECRET");
+
+  public enum EnrollmentStatus {
+    ACCEPTED,
+    PENDING,
+    REJECTED;
+}
 
   String escapeJson(String value) {
     return value != null
@@ -402,5 +420,61 @@ public class Utils {
     } catch (NumberFormatException x) {
       return defaultValue;
     }
+  }
+
+   public String authenticate() {
+    log.info("authenticate start");
+    HttpClient client = HttpClient.newHttpClient();
+    String url =
+        keycloakUrl
+            + "/realms/"
+            + getTenantRealmName(tenantId)
+            + "/protocol/openid-connect/token";
+    Map<Object, Object> data = new HashMap<>();
+    data.put("client_id", clientId);
+    data.put("scope", "openid");
+    data.put("client_secret", clientSecret);
+    data.put("grant_type", "client_credentials");
+
+    String form =
+        data.entrySet().stream()
+            .map(entry -> entry.getKey() + "=" + entry.getValue())
+            .reduce((entry1, entry2) -> entry1 + "&" + entry2)
+            .orElse("");
+    log.info(form);
+    HttpRequest request =
+        HttpRequest.newBuilder()
+            .uri(URI.create(url))
+            .header("Content-Type", "application/x-www-form-urlencoded")
+            .POST(HttpRequest.BodyPublishers.ofString(form))
+            .build();
+
+    CompletableFuture<HttpResponse<String>> responseFuture;
+    responseFuture = client.sendAsync(request, HttpResponse.BodyHandlers.ofString());
+    String responseBody = responseFuture.join().body();
+    Object accessToken;
+    try {
+      log.info("responseBody " + responseBody);
+      accessToken = JsonSerialization.readValue(responseBody, Map.class).get("access_token");
+      log.info("authenticate " + accessToken.toString());
+      return accessToken.toString();
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
+    return null;
+  }
+
+  private String getTenantRealmName(String tenantId) {
+    return "tenant-" + tenantId;
+  }
+
+
+  public String getElectionEventId(KeycloakSession session, String realmId) {
+    String realmName = session.realms().getRealm(realmId).getName();
+    String[] parts = realmName.split("event-");
+    if (parts.length > 1) {
+      return parts[1];
+    }
+    return null;
   }
 }

@@ -25,7 +25,7 @@ use serde_json::Value;
 use tracing::instrument;
 use windmill::services::application::{
     confirm_application, get_group_names, reject_application,
-    verify_application, ApplicationAnnotations, ApplicationVerificationResult,
+    verify_application, get_application_status_by_email_or_phone, ApplicationAnnotations, ApplicationVerificationResult,
 };
 use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
 use windmill::services::users::check_is_user_verified;
@@ -314,6 +314,83 @@ pub async fn change_application_status(
 
     Ok(Json(ApplicationChangeStatusOutput {
         message: Some("Success".to_string()),
+        error: None,
+    }))
+}
+
+#[derive(Deserialize, Debug)]
+pub struct ApplicantStatusBody {
+    tenant_id: String,
+    election_event_id: String,
+    email: Option<String>,
+    phone_number: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ApplicantStatusOutput {
+    status: Option<String>,
+    error: Option<String>,
+}
+
+#[instrument(skip(claims))]
+#[post("/get-applicant-status", format = "json", data = "<body>")]
+pub async fn get_application_status(
+    claims: jwt::JwtClaims,
+    body: Json<ApplicantStatusBody>,
+) -> Result<Json<ApplicantStatusOutput>, JsonError> {
+    let input: ApplicantStatusBody = body.into_inner();
+
+    info!("Get application status: {input:?}");
+
+    let required_perm: Permissions = Permissions::SERVICE_ACCOUNT;
+    authorize(
+        &claims,
+        true,
+        Some(input.tenant_id.clone()),
+        vec![required_perm],
+    )
+    .map_err(|e| {
+        ErrorResponse::new(
+            Status::Unauthorized,
+            &format!("{:?}", e),
+            ErrorCode::Unauthorized,
+        )
+    })?;
+
+    let mut hasura_db_client: DbClient = get_hasura_pool().await.get().await.map_err(|e| {
+        ErrorResponse::new(
+            Status::InternalServerError,
+            &format!("{:?}", e),
+            ErrorCode::InternalServerError,
+        )
+    })?;
+
+    let hasura_transaction = hasura_db_client.transaction().await.map_err(|e| {
+        ErrorResponse::new(
+            Status::InternalServerError,
+            &format!("{:?}", e),
+            ErrorCode::GetTransactionFailed,
+        )
+    })?;
+
+    let result = get_application_status_by_email_or_phone(
+        &hasura_transaction,
+        &input.tenant_id,
+        &input.election_event_id,
+        input.email.as_deref(),
+        input.phone_number.as_deref(),
+    )
+    .await
+    .map_err(|e| {
+        ErrorResponse::new(
+            Status::InternalServerError,
+            &format!("{:?}", e),
+            ErrorCode::InternalServerError,
+        )
+    })?;
+
+    Ok(Json(ApplicantStatusOutput {
+        status: result,
         error: None,
     }))
 }

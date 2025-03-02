@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::users::{lookup_users, FilterOption, ListUsersFilter};
-use crate::postgres::application::get_permission_label_from_post;
+use crate::postgres::application::{get_applicant_status, get_permission_label_from_post};
 use crate::postgres::area::get_event_areas;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::services::celery_app::get_celery_app;
@@ -1010,8 +1010,32 @@ pub async fn reject_application(
     )
     .await
     .map_err(|err| anyhow!("Error sending communication response: {err}"))?;
-
     Ok(application)
+}
+#[instrument(skip(hasura_transaction), err)]
+pub async fn get_application_status_by_email_or_phone(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    email: Option<&str>,
+    phone_number: Option<&str>,
+) -> Result<Option<String>> {
+    if email.is_none() && phone_number.is_none() {
+        return Err(anyhow!("Bad request: at least one of email or phone number must be provided"));
+    }
+
+    // Call the underlying function that retrieves the applicant status
+    let applicant_status = get_applicant_status(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        email,
+        phone_number,
+    )
+    .await
+    .map_err(|err| anyhow!("Error sending communication response: {err}"))?;
+    
+    Ok(applicant_status)
 }
 
 #[instrument(err, skip_all)]
@@ -1297,3 +1321,4 @@ mod tests {
         );
     }
 }
+
