@@ -230,6 +230,7 @@ pub struct ElectionData {
     pub geographical_region: String,
     pub voting_center: String,
     pub precinct_code: String,
+    pub pollcenter_code: String,
     pub post: String,
 }
 
@@ -242,6 +243,7 @@ pub async fn extract_election_data(election: &Election) -> Result<ElectionData> 
         geographical_region: annotations.geographical_area.clone(),
         voting_center: annotations.post.clone(),
         precinct_code: annotations.precinct_code.clone(),
+        pollcenter_code: annotations.pollcenter_code.clone(),
         post: annotations.post.clone(),
     })
 }

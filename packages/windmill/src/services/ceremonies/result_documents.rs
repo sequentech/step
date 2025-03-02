@@ -49,7 +49,6 @@ pub type ResultDocumentPaths = ResultDocuments;
 
 #[instrument(err, skip_all)]
 async fn generic_save_documents(
-    auth_headers: &AuthHeaders,
     document_paths: &ResultDocumentPaths,
     tenant_id: &str,
     election_event_id: &str,
@@ -74,7 +73,7 @@ async fn generic_save_documents(
         OUTPUT_PDF,
         &all_reports,
         report_type.clone(),
-        auth_headers,
+        hasura_transaction,
         tenant_id,
         election_event_id,
     )
@@ -87,7 +86,7 @@ async fn generic_save_documents(
         OUTPUT_JSON,
         &all_reports,
         report_type.clone(),
-        auth_headers,
+        hasura_transaction,
         tenant_id,
         election_event_id,
     )
@@ -100,7 +99,7 @@ async fn generic_save_documents(
         OUTPUT_JSON,
         &all_reports,
         report_type.clone(),
-        auth_headers,
+        hasura_transaction,
         tenant_id,
         election_event_id,
     )
@@ -113,7 +112,7 @@ async fn generic_save_documents(
         OUTPUT_HTML,
         &all_reports,
         report_type.clone(),
-        auth_headers,
+        hasura_transaction,
         tenant_id,
         election_event_id,
     )
@@ -123,7 +122,7 @@ async fn generic_save_documents(
 }
 
 // Helper function for processing and uploading a document
-#[instrument(err, skip(auth_headers, all_reports))]
+#[instrument(err, skip(hasura_transaction, all_reports))]
 async fn process_and_upload_document(
     hasura_transaction: &Transaction<'_>,
     path_option: Option<String>,
@@ -131,7 +130,7 @@ async fn process_and_upload_document(
     output_type: &str,
     all_reports: &Vec<Report>,
     report_type: Option<ReportType>,
-    auth_headers: &AuthHeaders,
+    hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<Option<String>> {
@@ -153,14 +152,14 @@ async fn process_and_upload_document(
 
         let file_size = get_file_size(&path)?;
 
-        let document = upload_and_return_document(
-            path,
+        let document = upload_and_return_document_postgres(
+            hasura_transaction,
+            &path,
             file_size,
-            mime_type.to_string(),
-            auth_headers.clone(),
-            tenant_id.to_string(),
-            election_event_id.to_string(),
-            output_type.to_string(),
+            mime_type,
+            tenant_id,
+            Some(election_event_id.to_string()),
+            output_type,
             None,
             false,
         )
@@ -179,7 +178,6 @@ pub trait GenerateResultDocuments {
     ) -> ResultDocumentPaths;
     async fn save_documents(
         &self,
-        auth_headers: &AuthHeaders,
         hasura_transaction: &Transaction<'_>,
         tenant_id: &str,
         election_event_id: &str,
@@ -208,13 +206,12 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
     }
 
     #[instrument(
-        skip(self, auth_headers, rename_map),
+        skip(self, rename_map),
         err,
         name = "Vec<ElectionReportDataComputed>::save_documents"
     )]
     async fn save_documents(
         &self,
-        auth_headers: &AuthHeaders,
         hasura_transaction: &Transaction<'_>,
         tenant_id: &str,
         election_event_id: &str,
@@ -408,12 +405,11 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
 
     #[instrument(
         err,
-        skip(self, auth_headers, hasura_transaction),
+        skip(self, hasura_transaction),
         name = "ElectionReportDataComputed::save_documents"
     )]
     async fn save_documents(
         &self,
-        auth_headers: &AuthHeaders,
         hasura_transaction: &Transaction<'_>,
         tenant_id: &str,
         election_event_id: &str,
@@ -440,7 +436,6 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
 
         // Save election results documents to S3 and Hasura
         let documents = generic_save_documents(
-            auth_headers,
             document_paths,
             &contest.tenant_id.to_string(),
             &contest.election_event_id.to_string(),
@@ -522,14 +517,9 @@ impl GenerateResultDocuments for ReportDataComputed {
         }
     }
 
-    #[instrument(
-        err,
-        skip(self, auth_headers),
-        name = "ReportDataComputed::save_documents"
-    )]
+    #[instrument(err, skip(self), name = "ReportDataComputed::save_documents")]
     async fn save_documents(
         &self,
-        auth_headers: &AuthHeaders,
         hasura_transaction: &Transaction<'_>,
         tenant_id: &str,
         election_event_id: &str,
@@ -539,7 +529,6 @@ impl GenerateResultDocuments for ReportDataComputed {
         tally_type_enum: TallyType,
     ) -> Result<ResultDocuments> {
         let documents = generic_save_documents(
-            auth_headers,
             document_paths,
             &self.contest.tenant_id.to_string(),
             &self.contest.election_event_id.to_string(),
@@ -637,13 +626,10 @@ pub async fn save_result_documents(
     default_language: &str,
     tally_type_enum: TallyType,
 ) -> Result<()> {
-    let mut auth_headers = keycloak::get_client_credentials().await?;
-    let mut idx: usize = 0;
     let rename_map = generate_ids_map(&results, areas, default_language)?;
     let event_document_paths = results.get_document_paths(None, base_tally_path);
     results
         .save_documents(
-            &auth_headers,
             hasura_transaction,
             tenant_id,
             election_event_id,
@@ -659,13 +645,8 @@ pub async fn save_result_documents(
             election_report.area.clone().map(|value| value.id),
             base_tally_path,
         );
-        idx += 1;
-        if idx % 200 == 0 {
-            auth_headers = keycloak::get_client_credentials().await?;
-        }
         election_report
             .save_documents(
-                &auth_headers,
                 hasura_transaction,
                 tenant_id,
                 election_event_id,
@@ -686,13 +667,8 @@ pub async fn save_result_documents(
                 contest_report.area.clone().map(|value| value.id),
                 base_tally_path,
             );
-            idx += 1;
-            if idx % 200 == 0 {
-                auth_headers = keycloak::get_client_credentials().await?;
-            }
             contest_report
                 .save_documents(
-                    &auth_headers,
                     hasura_transaction,
                     tenant_id,
                     election_event_id,
@@ -717,7 +693,6 @@ pub async fn save_result_documents(
             );
 
             save_area_documents(
-                &auth_headers,
                 hasura_transaction,
                 &report_tenant_id,
                 &report_election_event_id,
@@ -770,9 +745,8 @@ fn get_area_document_paths(
     }
 }
 
-#[instrument(err, skip(auth_headers))]
+#[instrument(err, skip(hasura_transaction))]
 async fn save_area_documents(
-    auth_headers: &AuthHeaders,
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
@@ -784,7 +758,6 @@ async fn save_area_documents(
     tally_type_enum: TallyType,
 ) -> Result<ResultDocuments> {
     let documents = generic_save_documents(
-        auth_headers,
         document_paths,
         &tenant_id.to_string(),
         &election_event_id.to_string(),
