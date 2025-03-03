@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::application::insert_applications;
+use crate::postgres::election_event::update_bulletin_board;
 use crate::postgres::reports::insert_reports;
 use crate::postgres::reports::Report;
 use crate::postgres::trustee::get_all_trustees;
@@ -412,12 +413,7 @@ pub async fn process_election_event_file(
         .into_iter()
         .map(|election| election.id.clone())
         .collect();
-    // Upsert immutable board
-    let board = upsert_b3_and_elog(hasura_transaction, tenant_id.as_str(), &election_event_id, &election_ids, is_importing_keys)
-        .await
-        .with_context(|| format!("Error upserting b3 board for tenant ID {tenant_id} and election event ID {election_event_id}"))?;
 
-    data.election_event.bulletin_board_reference = Some(board);
     data.election_event.public_key = None;
     data.election_event.statistics = Some(
         serde_json::to_value(ElectionEventStatistics::default())
@@ -471,10 +467,25 @@ pub async fn process_election_event_file(
     )
     .await
     .with_context(|| format!("Error upserting Keycloak realm for tenant ID {tenant_id} and election event ID {election_event_id}"))?;
-
+    
     insert_election_event(hasura_transaction, &data)
         .await
         .with_context(|| "Error inserting election event")?;
+
+    // Upsert immutable board
+    let board = upsert_b3_and_elog(hasura_transaction, tenant_id.as_str(), &election_event_id, &election_ids, is_importing_keys)
+        .await
+        .with_context(|| format!("Error upserting b3 board for tenant ID {tenant_id} and election event ID {election_event_id}"))?;
+
+    update_bulletin_board(
+        hasura_transaction,
+        tenant_id.as_str(),
+        election_event_id.as_str(),
+        &board,
+    )
+    .await
+    .with_context(|| format!("Error updating bulletin board reference for tenant ID {} and election event ID {}", tenant_id, election_event_id))?;
+    
 
     if let Some(keys_ceremonies) = data.keys_ceremonies.clone() {
         let trustees = get_all_trustees(&hasura_transaction, &tenant_id).await?;
