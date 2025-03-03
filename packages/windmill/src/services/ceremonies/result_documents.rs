@@ -73,7 +73,6 @@ async fn generic_save_documents(
         OUTPUT_PDF,
         &all_reports,
         report_type.clone(),
-        hasura_transaction,
         tenant_id,
         election_event_id,
     )
@@ -86,7 +85,6 @@ async fn generic_save_documents(
         OUTPUT_JSON,
         &all_reports,
         report_type.clone(),
-        hasura_transaction,
         tenant_id,
         election_event_id,
     )
@@ -99,7 +97,6 @@ async fn generic_save_documents(
         OUTPUT_JSON,
         &all_reports,
         report_type.clone(),
-        hasura_transaction,
         tenant_id,
         election_event_id,
     )
@@ -112,7 +109,6 @@ async fn generic_save_documents(
         OUTPUT_HTML,
         &all_reports,
         report_type.clone(),
-        hasura_transaction,
         tenant_id,
         election_event_id,
     )
@@ -130,7 +126,6 @@ async fn process_and_upload_document(
     output_type: &str,
     all_reports: &Vec<Report>,
     report_type: Option<ReportType>,
-    hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<Option<String>> {
