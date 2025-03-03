@@ -145,6 +145,10 @@ pub async fn read_secret(
             &[&tenant_uuid, &key, &election_event_uuid],
         )
         .await
+        .map_err(|err| {
+            eprintln!("Error reading secret: {:?}", err);
+            err
+        })
         .context("Error reading secret")?
         .map(|row| row.get::<_, &[u8]>(0).into());
 
