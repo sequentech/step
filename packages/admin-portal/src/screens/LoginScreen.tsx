@@ -13,7 +13,9 @@ export const LoginScreen: React.FC = () => {
 
     useEffect(() => {
         if (authContext.isAuthenticated) {
-            navigate(`/test`)
+            console.log("aa LOGIN?")
+
+            // navigate(`/test`)
         }
     }, [authContext.isAuthenticated, navigate])
 

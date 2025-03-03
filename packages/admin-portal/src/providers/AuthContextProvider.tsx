@@ -62,6 +62,12 @@ export interface AuthContextValues {
      */
     getAccessToken: () => string | undefined
 
+    /**
+     * Check if it's a public route
+     */
+    isPublicRoute: (pathname: string) => boolean
+    initKeycloak: (name: string) => Promise<void>
+
     updateTokenAndPermissionLabels: () => void
 
     /**
@@ -100,6 +106,7 @@ const defaultAuthContextValues: AuthContextValues = {
     tenantId: "",
     trustee: "",
     logout: () => {},
+    initKeycloak: (name: string) => Promise.resolve(),
     hasRole: () => false,
     getAccessToken: () => undefined,
     isAuthorized: () => false,
@@ -108,6 +115,7 @@ const defaultAuthContextValues: AuthContextValues = {
     updateTokenAndPermissionLabels: () => {},
     isGoldUser: () => false,
     reauthWithGold: async () => {},
+    isPublicRoute: () => false,
 }
 
 /**
@@ -169,13 +177,13 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     }
 
     const operation = `
-        query GetAllTenants {
-        sequent_backend_tenant {
-            id
-            slug
+            query GetAllTenants {
+            sequent_backend_tenant {
+                id
+                slug
+            }
         }
-    }
-`
+    `
     const fetchGetTenant = async (): Promise<ExecutionResult<GetAllTenantsQuery>> => {
         return fetchGraphQL(operation, "GetTenant", {})
     }
@@ -245,22 +253,26 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
             setIsGetTenantChecked(true)
         }
 
-        if (location.pathname.includes("/admin/login")) {
+        // if (location.pathname.includes("/admin/login")) {
+        if (location.pathname.includes("admin/tenant/login")) {
             const slug = location.pathname.split("/").pop()
             if (slug) {
-                getTenant(slug || "")
+                // getTenant(slug || "")
+                navigate(`/`)
             }
         } else {
+            navigate(`/admin/tenant/login`)
             setIsGetTenantChecked(true)
-            createKeycloak()
+            // createKeycloak()
         }
     }, [])
 
     const createKeycloak = () => {
         if (keycloak) {
+            console.log("aa Keycloak instance already exists")
             return
         }
-        console.log("create Keycloak")
+        console.log("aa create Keycloak")
         /**
          * KeycloakConfig configures the connection to the Keycloak server.
          */
@@ -280,10 +292,10 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
 
     const initializeKeycloak = async () => {
         if (!keycloak) {
-            console.log("CAN'T initialize Keycloak")
+            console.log("aa CAN'T initialize Keycloak")
             return
         }
-        console.log("initialize Keycloak")
+        console.log("aa initialize Keycloak")
         try {
             /**
              * KeycloakInitOptions configures the Keycloak client.
@@ -296,7 +308,6 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 checkLoginIframe: false,
             }
             const isAuthenticatedResponse = await keycloak.init(keycloakInitOptions)
-
             // If the authentication was not successfull the user is send back to the Keycloak login form
             if (!isAuthenticatedResponse) {
                 console.log("user is not yet authenticated. forwarding user to login.")
@@ -315,25 +326,121 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
             console.log("user is authenticated")
             setIsKeycloakInitialized(true)
         } catch (error) {
-            console.log("error initializing Keycloak")
+            console.log("aa error initializing Keycloak")
             console.log(error)
             setAuthenticated(false)
         }
     }
 
-    useEffect(() => {
-        if (keycloak || !loaded || !isGetTenantChecked) {
-            return
+    const isPublicRoute = (pathname: string) => {
+        return pathname === "/admin/tenant/login"
+    }
+
+    const initKeycloak = async (name: string) => {
+        console.log("aa create Keycloak *****", name)
+        console.log("aa create Keycloak *****", globalSettings.KEYCLOAK_URL)
+
+        try {
+            // Clear existing authentication state
+            localStorage.removeItem("token")
+            sessionStorage.clear()
+
+            const keycloakConfig: KeycloakConfig = {
+                realm: name,
+                clientId: globalSettings.ONLINE_VOTING_CLIENT_ID,
+                url: globalSettings.KEYCLOAK_URL,
+            }
+
+            // Create the Keycloak client instance
+            const keycloak = new Keycloak(keycloakConfig)
+            console.log("aa create Keycloak *****", keycloak)
+            setKeycloak(keycloak)
+
+            // Normalize redirect URI
+            const baseUrl = window.location.origin.replace(/\/$/, "")
+            const redirectUri = `${baseUrl}/sequent_backend_election_event`
+
+            /**
+             * KeycloakInitOptions configures the Keycloak client.
+             */
+            // In initKeycloak function, modify redirectUri:
+            const initOptions: KeycloakInitOptions = {
+                onLoad: "login-required",
+                checkLoginIframe: false,
+                redirectUri: redirectUri,
+                pkceMethod: "S256",
+            }
+
+            console.log("aa isAuthenticateredirectUridResponse *****", initOptions)
+            const isAuthenticatedResponse = await keycloak.init(initOptions)
+            console.log("aa isAuthenticateredirectUridResponse *****", isAuthenticatedResponse)
+
+            // If the authentication was not successfull the user is send back to the Keycloak login form
+            if (!isAuthenticatedResponse) {
+                console.log("user is not yet authenticated. forwarding user to login.")
+                await keycloak.login()
+                return
+            }
+            if (!keycloak.token) {
+                console.log("error authenticating user")
+                console.log("error initializing Keycloak")
+                setAuthenticated(false)
+                return
+            }
+            // If we get here the user is authenticated and we can update the state accordingly
+            localStorage.setItem("token", keycloak.token)
+            setAuthenticated(true)
+            setTimeout(updateTokenPeriodically, 4e3)
+            console.log("aa user is authenticated")
+            // setIsKeycloakInitialized(true)
+            setKeycloak(keycloak)
+        } catch (error) {
+            console.log("aa error initializing Keycloak", error)
+            console.log(error)
+            setAuthenticated(false)
+            return Promise.reject(error)
         }
-        createKeycloak()
-    }, [loaded, keycloak, isGetTenantChecked])
+    }
 
     useEffect(() => {
-        if (!keycloak || isKeycloakInitialized) {
+        if (isAuthenticated && tenantId) {
+            // Navigate after Keycloak returns control
+            navigate(`sequent_backend_election_event/${tenantId}`)
+        }
+    }, [isAuthenticated, tenantId])
+
+    useEffect(() => {
+        if (!loaded || !globalSettings) return
+
+        const currentPath = window.location.pathname
+
+        if (isPublicRoute(currentPath)) {
+            setIsKeycloakInitialized(true)
             return
         }
-        initializeKeycloak()
-    }, [isKeycloakInitialized, keycloak])
+
+        // Only create Keycloak instance if none exists
+        if (!keycloak) {
+            createKeycloak()
+        } else if (!isKeycloakInitialized) {
+            const initialize = async () => {
+                try {
+                    await initializeKeycloak()
+                } catch (error) {
+                    navigate("/admin/tenant/login")
+                }
+            }
+            initialize()
+        }
+    }, [loaded, globalSettings, keycloak]) // Add keycloak to dependencies
+
+    // useEffect(() => {
+    //     if (!keycloak || isKeycloakInitialized || isPublicRoute(window.location.pathname)) {
+    //         return
+    //     }
+    //     // initializeKeycloak()
+    // }, [keycloak])
+    // // }, [isKeycloakInitialized, keycloak])
 
     const updateTokenPeriodically = async () => {
         if (keycloak) {
@@ -485,6 +592,27 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     }
 
     // Setup the context provider
+    console.log("aa AuthContextProvider value:", {
+        isAuthenticated,
+        userId,
+        username,
+        email,
+        firstName,
+        tenantId,
+        trustee,
+        logout,
+        hasRole,
+        getAccessToken,
+        isAuthorized,
+        openProfileLink,
+        permissionLabels,
+        updateTokenAndPermissionLabels,
+        isGoldUser,
+        reauthWithGold,
+        isPublicRoute,
+    })
+    console.log("aa AuthContextProvider about to render children")
+
     return (
         <AuthContext.Provider
             value={{
@@ -504,6 +632,8 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 updateTokenAndPermissionLabels,
                 isGoldUser,
                 reauthWithGold,
+                isPublicRoute,
+                initKeycloak,
             }}
         >
             {props.children}

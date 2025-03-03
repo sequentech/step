@@ -71,16 +71,21 @@ export const ApolloContextProvider = ({children, role}: ApolloContextProviderPro
     }
 
     useEffect(() => {
-        if (apolloClient || !isAuthenticated) {
+        // if (apolloClient || !isAuthenticated) {
+        if (apolloClient) {
             return
         }
-        let token = getAccessToken()
-        if (!token) {
-            return
-        }
+        // let token = getAccessToken()
+        // if (!token) {
+        //     return
+        // }
         let newClient = createApolloClient()
         setApolloClient(newClient)
     }, [isAuthenticated, apolloClient])
+
+    useEffect(() => {
+        console.log("aa apollo client", apolloClient)
+    }, [apolloClient])
 
     // Setup the context provider
     return (
