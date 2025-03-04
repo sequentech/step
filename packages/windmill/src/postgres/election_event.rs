@@ -504,7 +504,7 @@ pub async fn update_bulletin_board(
             "#,
         )
         .await?;
-    
+
     hasura_transaction
         .execute(
             &update_bulletin_board,
@@ -516,6 +516,6 @@ pub async fn update_bulletin_board(
         )
         .await
         .with_context(|| format!("Error updating election event with board reference for tenant ID {} and election event ID {}", tenant_id, election_event_id))?;
-    
+
     Ok(())
 }

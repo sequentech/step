@@ -467,7 +467,7 @@ pub async fn process_election_event_file(
     )
     .await
     .with_context(|| format!("Error upserting Keycloak realm for tenant ID {tenant_id} and election event ID {election_event_id}"))?;
-    
+
     insert_election_event(hasura_transaction, &data)
         .await
         .with_context(|| "Error inserting election event")?;
@@ -484,8 +484,12 @@ pub async fn process_election_event_file(
         &board,
     )
     .await
-    .with_context(|| format!("Error updating bulletin board reference for tenant ID {} and election event ID {}", tenant_id, election_event_id))?;
-    
+    .with_context(|| {
+        format!(
+            "Error updating bulletin board reference for tenant ID {} and election event ID {}",
+            tenant_id, election_event_id
+        )
+    })?;
 
     if let Some(keys_ceremonies) = data.keys_ceremonies.clone() {
         let trustees = get_all_trustees(&hasura_transaction, &tenant_id).await?;
