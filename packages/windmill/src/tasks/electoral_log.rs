@@ -69,6 +69,7 @@ pub async fn process_electoral_log_events_batch(events: Vec<LogEventInput>) -> R
         .with_context(|| "Error starting Hasura transaction")?;
 
     for input in events.iter() {
+        info!("input = {input:#?}");
         let election_event =
             get_election_event_by_id(&hasura_tx, &input.tenant_id, &input.election_event_id)
                 .await
