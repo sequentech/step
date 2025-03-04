@@ -8,21 +8,12 @@ import {SettingsContext} from "@/providers/SettingsContextProvider"
 import EditIcon from "@mui/icons-material/Edit"
 import DeleteIcon from "@mui/icons-material/Delete"
 import {Button, styled, Typography} from "@mui/material"
-import React, {
-    ReactElement,
-    useCallback,
-    useContext,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
-} from "react"
+import React, {ReactElement, useContext, useEffect, useMemo, useRef, useState} from "react"
 import moment from "moment-timezone"
 import {
     DatagridConfigurable,
     FunctionField,
     List,
-    ReferenceInput,
     SelectInput,
     TextField,
     TextInput,
@@ -31,7 +22,6 @@ import {
     useListContext,
     useNotify,
     useRefresh,
-    useSidebarState,
     WrapperField,
 } from "react-admin"
 import {useTranslation} from "react-i18next"
@@ -98,7 +88,6 @@ interface EditEventsProps {
 const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
     const {t} = useTranslation()
     const {globalSettings} = useContext(SettingsContext)
-    const [isOpenSidebar] = useSidebarState()
     const [tenantId] = useTenantStore()
     const refresh = useRefresh()
     const notify = useNotify()
@@ -108,7 +97,6 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
     const [openCreateEvent, setOpenCreateEvent] = useState(false)
     const [selectedEventId, setSelectedEventId] = useState<string | undefined>()
     const aliasRenderer = useAliasRenderer()
-    const lc = useListContext()
 
     const {
         canWriteScheduledEvent,
@@ -275,7 +263,7 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
     )
 
     // Define the filters as an array of elements
-    const filters = [
+    const Filters: Array<ReactElement> = [
         <SelectInput
             source="event_processor"
             key="event_processor_filter"
@@ -319,7 +307,7 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                         },
                     },
                 }}
-                filters={filters}
+                filters={Filters}
                 queryOptions={{
                     refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
                 }}
