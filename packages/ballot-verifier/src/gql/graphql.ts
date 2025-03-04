@@ -360,6 +360,7 @@ export type ExportOptions = {
     reports?: InputMaybe<Scalars["Boolean"]["input"]>
     s3_files?: InputMaybe<Scalars["Boolean"]["input"]>
     scheduled_events?: InputMaybe<Scalars["Boolean"]["input"]>
+    tally?: InputMaybe<Scalars["Boolean"]["input"]>
 }
 
 export type ExportTasksExecutionOutput = {

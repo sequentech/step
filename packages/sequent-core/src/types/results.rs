@@ -78,6 +78,20 @@ pub struct ResultsElection {
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
+pub struct ResultsElectionArea {
+    pub id: String,
+    pub tenant_id: String,
+    pub election_event_id: String,
+    pub election_id: String,
+    pub area_id: String,
+    pub results_event_id: String,
+    pub created_at: Option<DateTime<Local>>,
+    pub last_updated_at: Option<DateTime<Local>>,
+    pub documents: Option<ResultDocuments>,
+    pub name: Option<String>,
+}
+
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct ResultsContest {
     pub id: String,
     pub tenant_id: String,
