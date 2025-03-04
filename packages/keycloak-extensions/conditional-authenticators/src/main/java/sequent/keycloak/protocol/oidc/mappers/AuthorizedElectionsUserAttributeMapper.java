@@ -381,7 +381,7 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
             "Warning: Two elections found with the same alias: {0} id_1: {1} id_2: {2}",
             alias, electionIds.get(key), id);
       }
-      // log.info(keyAreaLog.toString());
+      log.info(keyAreaLog.toString());
       electionIds.put(key, id);
     }
 
