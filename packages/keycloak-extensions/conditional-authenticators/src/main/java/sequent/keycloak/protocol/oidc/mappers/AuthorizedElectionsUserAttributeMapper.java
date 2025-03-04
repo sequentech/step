@@ -51,7 +51,6 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
         TokenIntrospectionTokenMapper {
 
   private String keycloakUrl = System.getenv("KEYCLOAK_URL");
-  private String superAdmTenantId = System.getenv("SUPER_ADMIN_TENANT_ID");
   private String clientId = System.getenv("KEYCLOAK_CLIENT_ID");
   private String clientSecret = System.getenv("KEYCLOAK_CLIENT_SECRET");
   private String hasuraEndpoint = System.getenv("HASURA_ENDPOINT");
@@ -137,17 +136,15 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
     Collection<String> attributeValue =
         KeycloakModelUtils.resolveAttribute(user, attributeName, aggregateAttrs);
 
-    log.infov("Realm id: {0}", userSession.getRealm().getName());
-    String name = userSession.getRealm().getName();
-    String[] ids = name.replaceAll("tenant\\-", "").split("\\-event\\-");
-    String tenantId = ids[0];
-    String electionEventId = ids[1];
-    log.infov("Election Event id: {0}", electionEventId);
-    log.infov("Tenant Id: {0}", tenantId);
-    log.infov("Super admin Tenant Id: {0}", superAdmTenantId);
-
     Map<String, String> electionsAliasIds;
     try {
+      log.infov("Realm id: {0}", userSession.getRealm().getName());
+      String name = userSession.getRealm().getName();
+      String[] ids = name.replaceAll("tenant\\-", "").split("\\-event\\-");
+      String tenantId = ids[0];
+      String electionEventId = ids[1];
+      log.infov("Election Event id: {0}", electionEventId);
+      log.infov("Tenant Id: {0}", tenantId);
       electionsAliasIds = getAllElectionsFromElectionEvent(electionEventId, tenantId);
     } catch (Exception e) {
       e.printStackTrace();

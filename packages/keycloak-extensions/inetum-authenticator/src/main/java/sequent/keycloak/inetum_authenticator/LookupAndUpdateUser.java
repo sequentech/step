@@ -117,7 +117,6 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
   }
 
   private String keycloakUrl = System.getenv("KEYCLOAK_URL");
-  private String tenantId = System.getenv("SUPER_ADMIN_TENANT_ID");
   private String clientId = System.getenv("KEYCLOAK_CLIENT_ID");
   private String clientSecret = System.getenv("KEYCLOAK_CLIENT_SECRET");
   private String harvestUrl = System.getenv("HARVEST_DOMAIN");
@@ -183,7 +182,11 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       return;
     }
 
-    authenticate();
+    RealmModel realm = context.getRealm();
+    String realmId = realm.getId();
+    String tenantId = getTenantId(context.getSession(), realmId);
+
+    authenticate(tenantId);
 
     // Retrieve the configuration
     AuthenticatorConfigModel config = context.getAuthenticatorConfig();
@@ -221,8 +224,6 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
 
     UserModel user = null;
     String verificationStatus = null;
-    RealmModel realm = context.getRealm();
-    String realmId = realm.getId();
 
     // Build a new event for this authenticator
     Utils.buildEventDetails(
@@ -243,7 +244,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
           Utils.buildApplicantData(context.getSession(), context.getAuthenticationSession());
       HttpResponse<String> verificationResponse =
           verifyApplication(
-              getTenantId(context.getSession(), realmId),
+              tenantId,
               getElectionEventId(context.getSession(), realmId),
               null,
               null,
@@ -986,12 +987,12 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     return response;
   }
 
-  public void authenticate() {
+  public void authenticate(String tenantId) {
     HttpClient client = HttpClient.newHttpClient();
     String url =
         this.keycloakUrl
             + "/realms/"
-            + getTenantRealmName(this.tenantId)
+            + getTenantRealmName(tenantId)
             + "/protocol/openid-connect/token";
     Map<Object, Object> data = new HashMap<>();
     data.put("client_id", this.clientId);
@@ -1026,7 +1027,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     }
   }
 
-  private String getTenantRealmName(String realmName) {
+  private String getTenantRealmName(String tenantId) {
     return "tenant-" + tenantId;
   }
 
