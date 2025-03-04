@@ -34,6 +34,7 @@ import {
     useRefresh,
     WrapperField,
     FilterPayload,
+    SelectInput,
 } from "react-admin"
 import {useTranslation} from "react-i18next"
 import {AuthContext} from "@/providers/AuthContextProvider"
@@ -69,6 +70,7 @@ import {useReportsPermissions} from "./useReportsPermissions"
 import {set} from "lodash"
 import {isArray} from "@sequentech/ui-core"
 import {DecryptHelp} from "@/components/election-event/export-data/PasswordDialog"
+import {EventProcessors} from "../ScheduledEvents/CreateScheduledEvent"
 
 export const decryptionCommand = `openssl enc -d -aes-256-cbc -in <encrypted_file> -out <decrypted_file> -pass pass:<password>  -md md5`
 
@@ -297,7 +299,26 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
 
     const OMIT_FIELDS: Array<string> = ["id"]
 
-    const Filters: Array<ReactElement> = []
+    const Filters: Array<ReactElement> = [
+        <SelectInput
+            source="report_type"
+            key="event_processor_filter"
+            label={t("reportsScreen.fields.reportType")}
+            choices={Object.values(EReportType).map((eventType) => ({
+                id: eventType,
+                name: t(`template.type.${eventType}`),
+            }))}
+        />,
+        <SelectInput
+            source="election_id"
+            key="election_id_filter"
+            label={t("reportsScreen.fields.electionId")}
+            choices={elections?.map((election) => ({
+                id: election.id,
+                name: election.alias || election.name || "-",
+            }))}
+        />,
+    ]
 
     const handleCreateDrawer = () => {
         setSelectedReportId(null)
@@ -453,7 +474,6 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                         withColumns={showReportsColumns}
                         withImport={false}
                         withExport={false}
-                        withFilter={false}
                         open={openCreateReport}
                         setOpen={setOpenCreateReport}
                         Component={

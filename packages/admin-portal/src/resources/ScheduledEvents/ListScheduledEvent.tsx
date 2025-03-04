@@ -168,8 +168,6 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
 
     const OMIT_FIELDS: Array<string> = ["id"]
 
-    const Filters: Array<ReactElement> = []
-
     const editAction = (id: any) => {
         setOpenCreateEvent(true)
         setIsEditEvent(true)
