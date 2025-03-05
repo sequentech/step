@@ -16,7 +16,7 @@ use std::env;
 use std::fs;
 use tokio_postgres::row::Row;
 use tracing::{event, instrument, Level};
-
+use crate::postgres::election_event::update_bulletin_board;
 use crate::services::database::get_hasura_pool;
 use crate::services::tasks_execution::{update_complete, update_fail};
 use sequent_core::types::hasura::core::TasksExecution;
@@ -55,15 +55,6 @@ pub async fn insert_election_event_anyhow(
         }
     };
 
-    let board = upsert_b3_and_elog(
-        &hasura_transaction,
-        tenant_id.as_str(),
-        &id.as_ref(),
-        &vec![],
-        false,
-    )
-    .await?;
-    final_object.bulletin_board_reference = Some(board);
     final_object.id = Some(id.clone());
 
     match upsert_keycloak_realm(tenant_id.as_str(), &id.as_ref(), None).await {
@@ -107,6 +98,29 @@ pub async fn insert_election_event_anyhow(
             );
         }
     };
+
+    let board = upsert_b3_and_elog(
+        &hasura_transaction,
+        tenant_id.as_str(),
+        &id.as_ref(),
+        &vec![],
+        false,
+    )
+    .await?;
+
+    update_bulletin_board(
+        &hasura_transaction,
+        tenant_id.as_str(),
+        &id.as_ref(),
+        &board,
+    )
+    .await
+    .with_context(|| {
+        format!(
+            "Error updating bulletin board reference for tenant ID {} and election event ID {:?}",
+            tenant_id, &id,
+        )
+    })?;
 
     match hasura_transaction.commit().await {
         Ok(_) => (),
