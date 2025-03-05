@@ -2,25 +2,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useState, useEffect, useContext} from "react"
-import Keycloak from "keycloak-js"
-import {
-    Box,
-    Typography,
-    TextField,
-    Button,
-    Card,
-    CardContent,
-    InputAdornment,
-    IconButton,
-} from "@mui/material"
+import {Box, Typography, TextField, Button, Card, CardContent} from "@mui/material"
 import {styled} from "@mui/system"
-import VisibilityIcon from "@mui/icons-material/Visibility"
-import VisibilityOffIcon from "@mui/icons-material/VisibilityOff"
-import {adminTheme, Header} from "@sequentech/ui-essentials"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {useNavigate} from "react-router"
-import {useNotify} from "react-admin"
+import {Header} from "@sequentech/ui-essentials"
 
 // You would need to import your logo
 // import Logo from "../assets/logo.png"
@@ -115,15 +102,18 @@ const Footer = styled(Typography)({
 
 export const SelectTenant = () => {
     const {isAuthenticated, initKeycloak} = useContext(AuthContext)
+    const {globalSettings} = useContext(SettingsContext)
     const [tenant, setTenant] = useState("")
     const [isLoading, setIsLoading] = useState(false)
-    const {globalSettings} = useContext(SettingsContext)
     const [error, setError] = useState<string | null>(null)
     const navigate = useNavigate()
+    const {keycloak} = useContext(AuthContext)
 
     useEffect(() => {
-        console.log("aa is auth", isAuthenticated)
-    }, [isAuthenticated])
+        if (isAuthenticated) {
+            navigate("/") // Redirect to the app if already authenticated
+        }
+    }, [isAuthenticated, navigate])
 
     /**
      * Check if a Keycloak realm exists
@@ -141,6 +131,8 @@ export const SelectTenant = () => {
             const baseUrl = globalSettings.KEYCLOAK_URL.endsWith("/")
                 ? globalSettings.KEYCLOAK_URL.slice(0, -1)
                 : globalSettings.KEYCLOAK_URL
+
+            console.log("aa realm name", realmName)
 
             // Use the well-known configuration endpoint which is publicly accessible
             // This endpoint exists for all valid realms and doesn't trigger redirects
@@ -165,25 +157,58 @@ export const SelectTenant = () => {
         e.preventDefault()
         setIsLoading(true)
         setError(null)
-        const tenantName = tenant.trim()
+
+        const slug = tenant.trim()
+        if (!slug) {
+            setError("Please enter a tenant name")
+            setIsLoading(false)
+            return
+        }
 
         try {
-            const realmExists = await checkIfRealmExists(tenantName)
+            // First check if tenant exists in database
+            const response = await fetch(globalSettings.HASURA_URL, {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({
+                    query: `
+                    query GetTenantBySlug($slug: String!) {
+                        sequent_backend_tenant(where: {slug: {_eq: $slug}}) {
+                            id
+                            slug
+                        }
+                    }
+                `,
+                    variables: {slug},
+                }),
+            })
+            const {data, errors} = await response.json()
+
+            if (errors) throw new Error(errors[0].message)
+            if (!data?.sequent_backend_tenant?.length) throw new Error("Tenant not found")
+
+            const tenantId = data.sequent_backend_tenant[0].id
+
+            // Check if the realm exists
+            const realmExists = await checkIfRealmExists(`tenant-${tenantId}`)
             if (!realmExists) {
-                setError("Tenant does not exist")
-                return
+                throw new Error("Tenant realm not found")
             }
 
-            // Clear previous auth state
-            localStorage.removeItem("token")
-            sessionStorage.clear()
+            // Store tenant ID for after login
+            localStorage.setItem("selected-tenant-id", tenantId)
 
-            // Init Keycloak with selected tenant
-            await initKeycloak(tenantName)
-        } catch (err) {
-            setError("Authentication failed. Please try again.")
-            console.error("Login error:", err)
-        } finally {
+            // Initialize Keycloak without auto-redirect
+            const initSuccess = await initKeycloak(tenantId)
+
+            // If not already authenticated, manually redirect to login
+            if (!initSuccess && keycloak) {
+                await keycloak.login({
+                    redirectUri: window.location.origin + "/",
+                })
+            }
+        } catch (err: any) {
+            setError(err.message)
             setIsLoading(false)
         }
     }
@@ -193,15 +218,6 @@ export const SelectTenant = () => {
             <Header
                 appVersion={{main: globalSettings.APP_VERSION}}
                 appHash={{main: globalSettings.APP_HASH}}
-                // userProfile={{
-                //     firstName: authContext.firstName,
-                //     username: authContext.username,
-                //     email: authContext.email,
-                //     openLink: authContext.openProfileLink,
-                // }}
-                // logoutFn={authContext.isAuthenticated ? authContext.logout : undefined}
-                // languagesList={langList}
-                // logoUrl={logoImg}
             />
             <BackgroundWrapper>
                 <ContentWrapper>

@@ -21,7 +21,7 @@ import {ListDocument} from "./resources/Document/ListDocument"
 import {ListElection} from "./resources/Election/ListElection"
 import {ListTenant} from "./resources/Tenant/ListTenant"
 import {Messages} from "./screens/Messages"
-import {Navigate, Route} from "react-router-dom"
+import {Navigate, Route, useLocation} from "react-router-dom"
 import {ShowDocument} from "./resources/Document/ShowDocument"
 import {UserAndRoles} from "./screens/UserAndRoles"
 import buildHasuraProvider from "ra-data-hasura"
@@ -78,7 +78,8 @@ const App: React.FC<AppProps> = () => {
     const {i18n, t} = useTranslation()
     adminI18nProvider.changeLocale(i18n.language)
     i18n.on("languageChanged", (lng) => adminI18nProvider.changeLocale(lng))
-    const {isAuthenticated, isPublicRoute} = useContext(AuthContext)
+    const {isAuthenticated} = useContext(AuthContext)
+    const location = useLocation()
 
     useEffect(() => {
         const buildDataProvider = async () => {
@@ -95,7 +96,18 @@ const App: React.FC<AppProps> = () => {
 
     if (!dataProvider) return <p>{t("loadingDataProvider")}</p>
 
-    if (!isAuthenticated) return <SelectTenant />
+    // Check if we're on the select tenant page
+    if (location.pathname === "/select-tenant") {
+        return <SelectTenant />
+    }
+
+    // Check authentication
+    if (!isAuthenticated) {
+        // If we're not authenticated, show the SelectTenant screen
+        // This prevents automatic redirection to Keycloak login
+        console.log("User not authenticated, showing SelectTenant screen")
+        return <SelectTenant />
+    }
 
     console.log("aa App Rendering Admin")
     return (
