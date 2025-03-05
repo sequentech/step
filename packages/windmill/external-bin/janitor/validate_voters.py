@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# SPDX-FileCopyrightText: 2024 Sequent Legal <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
 """
 Script: validate_voters.py
 
