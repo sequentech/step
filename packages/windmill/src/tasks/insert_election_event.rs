@@ -3,6 +3,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::postgres::election_event::update_bulletin_board;
+use crate::services::database::get_hasura_pool;
+use crate::services::tasks_execution::{update_complete, update_fail};
 use anyhow::{anyhow, Context, Result as AnyhowResult};
 use celery::error::TaskError;
 use deadpool_postgres::Transaction;
@@ -11,15 +14,12 @@ use sequent_core;
 use sequent_core::services::connection;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::keycloak::{get_client_credentials, KeycloakAdminClient};
+use sequent_core::types::hasura::core::TasksExecution;
 use serde_json::{json, Value};
 use std::env;
 use std::fs;
 use tokio_postgres::row::Row;
 use tracing::{event, instrument, Level};
-use crate::postgres::election_event::update_bulletin_board;
-use crate::services::database::get_hasura_pool;
-use crate::services::tasks_execution::{update_complete, update_fail};
-use sequent_core::types::hasura::core::TasksExecution;
 
 use crate::hasura::election_event::insert_election_event::sequent_backend_election_event_insert_input as InsertElectionEventInput;
 use crate::hasura::election_event::{get_election_event, insert_election_event};
