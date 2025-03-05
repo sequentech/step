@@ -1,30 +1,29 @@
 import json
 import psycopg2
 from psycopg2.extras import execute_values
+import os
 
-# --- Load configuration from JSON file ---
+
 with open('duplicate_votes_data.json', 'r') as config_file:
     config = json.load(config_file)
 
-# Extract configuration values
 realm_name = config.get("realm_name")
-target_row_count = config.get("target_row_count", 100)  # default to 100 if not provided
+target_row_count = config.get("target_row_count", 100)
 row_id_to_clone = config.get("row_id_to_clone")
 
-# Connections
 keycloak_conn = psycopg2.connect(
-    dbname="postgres",        # <--- The name of your database
-    user="postgres",          # <--- The database user to authenticate as
-    password="postgrespassword",          # <--- The user’s password
-    host="postgres-keycloak", # <--- The hostname or IP
-    port=5432                 # <--- Port (if different, set your custom port)
+    dbname=os.getenv("KC_DB"),
+    user=os.getenv("KC_DB_USERNAME"),
+    password=os.getenv("KC_DB_PASSWORD"),
+    host=os.getenv("KC_DB_URL_HOST"),
+    port=os.getenv("KC_DB_URL_PORT")
 )
 hasura_conn = psycopg2.connect(
-    dbname="postgres",        # <--- The name of your database
-    user="postgres",          # <--- The database user to authenticate as
-    password="postgrespassword",          # <--- The user’s password
-    host="postgres", # <--- The hostname or IP
-    port=5432                 # <--- Port (if different, set your custom port)
+    dbname=os.getenv("HASURA_PG_DBNAME"),
+    user=os.getenv("HASURA_PG_USER"),
+    password=os.getenv("HASURA_PG_PASSWORD"),
+    host=os.getenv("HASURA_PG_HOST"),
+    port=os.getenv("HASURA_PG_PORT")
 )
 
 print("number of rows to clone: ", target_row_count)
