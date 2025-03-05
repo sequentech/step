@@ -134,6 +134,7 @@ const BallotLocator: React.FC = () => {
     })
     
     useUpdateTranslation({electionEvent: dataElectionEvent?.sequent_backend_election_event[0] as IElectionEvent}) // Overwrite translations
+    console.log("aa", dataElectionEvent?.sequent_backend_election_event[0]) // Overwrite translations
 
     useEffect(() => {
         if (dataBallotStyles && dataBallotStyles.sequent_backend_ballot_style.length > 0) {
@@ -164,7 +165,7 @@ const BallotLocator: React.FC = () => {
     }
 
     return (
-        <StyledApp css={ballotStyle?.ballot_eml.election_event_presentation?.css ?? ""}>
+        <StyledApp css={dataElectionEvent?.sequent_backend_election_event[0]?.presentation.css ?? ""}>
             <PageLimit maxWidth="lg" className="ballot-locator-screen screen">
                 <Box marginTop="48px">
                     <BreadCrumbSteps
