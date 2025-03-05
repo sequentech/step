@@ -59,7 +59,7 @@ pub async fn verify_user_application(
 
     authorize(
         &claims,
-        true,
+        false,
         Some(input.tenant_id.clone()),
         vec![required_perm],
     )

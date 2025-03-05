@@ -25,6 +25,8 @@ pub fn authorize(
         .clone()
         .map(|tenant_id| tenant_id == claims.hasura_claims.tenant_id)
         .unwrap_or(false);
+    info!("authorize: check_super_admin: {check_super_admin}, tenant_id_opt: {tenant_id_opt:?}, is_super_admin: {is_super_admin}, 
+        is_valid_tenant: {is_valid_tenant}, claims tenant_id: {}", claims.hasura_claims.tenant_id);
     if !((check_super_admin && is_super_admin)
         || (tenant_id_opt.is_some() && is_valid_tenant))
     {
