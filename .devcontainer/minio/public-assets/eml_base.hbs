@@ -16,7 +16,7 @@ SPDX-License-Identifier: AGPL-3.0-only
   {{#each data.counts as |count|}}
     <Count>
       <EventIdentifier IdNumber="{{count.identifier.id_number}}">
-        <EventName>{{{count.identifier.name}}}</EventName>
+        <EventName>{{count.identifier.name}}</EventName>
       </EventIdentifier>
       {{#each count.elections as |election|}}
         <Election>
