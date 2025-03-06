@@ -128,7 +128,7 @@ export const SelectTenant = () => {
             const attemptTime = new Date(nextAttempt)
             const diffMinutes = (now.getTime() - attemptTime.getTime()) / (1000 * 60)
 
-            if (diffMinutes < globalSettings.QUERY_FAST_POLL_INTERVAL_MS / 1000) {
+            if (diffMinutes < 5) {
                 setError("Too many attempts. Please try again later.")
                 setOpen(true)
                 setIsDisabled(true)
