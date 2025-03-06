@@ -188,6 +188,24 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     }
 `
 
+    /**
+     * Initializes the Keycloak instance for the specified tenant and handles authentication.
+     *
+     * @param {string} tenantId - The ID of the tenant to initialize Keycloak for.
+     * @returns {Promise<boolean>} - A promise that resolves to `true` if the user is authenticated, `false` otherwise.
+     *
+     * @throws {Error} - Throws an error if the initialization process fails.
+     *
+     * @remarks
+     * This function performs the following steps:
+     * 1. Creates a Keycloak instance with the specified tenant configuration.
+     * 2. Stores the tenant ID in local storage.
+     * 3. Attempts to initialize Keycloak with the `login-required` option to force login if not authenticated.
+     * 4. If the initial initialization fails, it retries with the `check-sso` option to check for an existing session.
+     * 5. Updates the state with the new Keycloak instance and authentication status.
+     * 6. Sets a timeout to periodically update the token.
+     * 7. Redirects to the home page on failure.
+     */
     const initKeycloak = async (tenantId: string) => {
         try {
             // Create the Keycloak instance with the specified tenant
@@ -197,24 +215,24 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 url: globalSettings.KEYCLOAK_URL,
             }
             const newKeycloak = new Keycloak(keycloakConfig)
-            
+
             // Store the tenant ID for initialization
             localStorage.setItem("selected-tenant-id", tenantId)
-            
+
             // Initialize Keycloak with login-required to force login if not authenticated
             const keycloakInitOptions: KeycloakInitOptions = {
                 onLoad: "login-required", // Force login if not authenticated
                 checkLoginIframe: false,
                 // redirectUri: window.location.origin // + "/?tenant=" + tenantId
             }
-            
+
             try {
                 // Initialize and get authentication status
                 const isAuthenticatedResponse = await newKeycloak.init(keycloakInitOptions)
-                
+
                 // Update state with the new Keycloak instance
                 setKeycloak(newKeycloak)
-                
+
                 // User should be authenticated now due to login-required
                 localStorage.setItem("token", newKeycloak.token || "")
                 setAuthenticated(true)
@@ -225,14 +243,14 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 // If initialization fails, try with check-sso instead
                 const fallbackOptions: KeycloakInitOptions = {
                     onLoad: "check-sso",
-                    checkLoginIframe: false
+                    checkLoginIframe: false,
                 }
-                
+
                 const fallbackResponse = await newKeycloak.init(fallbackOptions)
-                
+
                 // Update state with the new Keycloak instance
                 setKeycloak(newKeycloak)
-                
+
                 if (fallbackResponse) {
                     // User is authenticated
                     localStorage.setItem("token", newKeycloak.token || "")
@@ -323,7 +341,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 onLoad: "check-sso",
                 checkLoginIframe: false,
                 flow: "standard", // Use standard flow instead of implicit
-                responseMode: "fragment" // Use fragment response mode
+                responseMode: "fragment", // Use fragment response mode
             }
             const isAuthenticatedResponse = await keycloak.init(keycloakInitOptions)
 
@@ -405,7 +423,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
             if (!keycloak) {
                 return
             }
-            
+
             try {
                 const profile = await keycloak.loadUserProfile()
                 if (profile.id) {
@@ -420,7 +438,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 if (profile.username) {
                     setUsername(profile.username)
                 }
-                
+
                 const newTenantId: string | undefined = (profile as any)?.attributes[
                     "tenant-id"
                 ]?.[0]
@@ -464,7 +482,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
 
         // Redirect to the main route after logout
         keycloak.logout({
-            redirectUri: window.location.origin
+            redirectUri: window.location.origin,
         })
     }
 

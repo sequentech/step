@@ -11,9 +11,6 @@ import {Header} from "@sequentech/ui-essentials"
 import {useTranslation} from "react-i18next"
 import {useNotify} from "react-admin"
 
-// You would need to import your logo
-// import Logo from "../assets/logo.png"
-
 export const StyledButton = styled(Button)`
     z-index: 1;
     position: relative;
@@ -41,24 +38,10 @@ const StyledCard = styled(Card)(({theme}) => ({
     borderRadius: theme.spacing(1),
 }))
 
-const LogoWrapper = styled(Box)(({theme}) => ({
-    width: "100%",
-    display: "flex",
-    justifyContent: "center",
-    marginBottom: theme.spacing(2),
-}))
-
-const LogoImage = styled("img")({
-    width: 150,
-    height: 150,
-    objectFit: "contain",
-})
-
-const BackgroundWrapper = styled(Box)({
+const BackgroundWrapper = styled(Box)(({theme}) => ({
     width: "100%",
     height: "100vh",
-    background:
-        "linear-gradient(to bottom right, rgba(255, 255, 255, 0.8), rgba(200, 200, 200, 0.8))",
+    background: theme.palette.lightBackground,
     backgroundSize: "cover",
     display: "flex",
     flexDirection: "column",
@@ -66,18 +49,7 @@ const BackgroundWrapper = styled(Box)({
     alignItems: "center",
     position: "relative",
     overflow: "hidden",
-})
-
-const LogoBackground = styled(Box)({
-    position: "absolute",
-    width: "100%",
-    height: "100%",
-    opacity: 0.1,
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    zIndex: 0,
-})
+}))
 
 const ContentWrapper = styled(Box)({
     zIndex: 1,
@@ -88,13 +60,6 @@ const ContentWrapper = styled(Box)({
     maxWidth: 600,
 })
 
-const VersionInfo = styled(Typography)({
-    position: "absolute",
-    top: 20,
-    right: 20,
-    fontSize: 14,
-})
-
 const Footer = styled(Typography)({
     position: "absolute",
     bottom: 20,
@@ -102,6 +67,33 @@ const Footer = styled(Typography)({
     opacity: 0.7,
 })
 
+/**
+ * The `SelectTenant` component allows users to select a tenant by entering the tenant name.
+ *
+ * This component performs the following tasks:
+ * - Redirects to the main app if the user is already authenticated.
+ * - Provides a form for users to enter the tenant name.
+ * - Validates the tenant name and checks if the tenant exists in the database.
+ * - Checks if the Keycloak realm associated with the tenant exists.
+ * - Stores the tenant ID in local storage.
+ * - Initializes Keycloak without auto-redirect.
+ * - Redirects to the login page if not already authenticated.
+ * - Displays error messages if any step fails.
+ *
+ * @component
+ * @returns {JSX.Element} The rendered component.
+ *
+ * @example
+ * ```tsx
+ * import { SelectTenant } from './SelectTenant';
+ *
+ * function App() {
+ *   return <SelectTenant />;
+ * }
+ *
+ * export default App;
+ * ```
+ */
 export const SelectTenant = () => {
     const {t} = useTranslation()
     const notify = useNotify()
@@ -159,6 +151,26 @@ export const SelectTenant = () => {
         }
     }
 
+    /**
+     * Handles the form submission for selecting a tenant.
+     *
+     * @param {React.SyntheticEvent} e - The form submission event.
+     *
+     * This function performs the following steps:
+     * 1. Prevents the default form submission behavior.
+     * 2. Sets the loading state to true and clears any previous errors.
+     * 3. Trims the tenant name and checks if it is not empty.
+     * 4. Sends a GraphQL query to check if the tenant exists in the database.
+     * 5. If the tenant exists, retrieves the tenant ID.
+     * 6. Checks if the realm associated with the tenant exists.
+     * 7. Stores the tenant ID in local storage.
+     * 8. Initializes Keycloak without auto-redirect.
+     * 9. If not already authenticated, manually redirects to the login page.
+     *
+     * If any error occurs during these steps, it sets the error message, stops the loading state, and opens an error dialog.
+     *
+     * @throws {Error} If the tenant name is empty, tenant is not found, tenant realm is not found, or any other error occurs during the process.
+     */
     const handleSubmit = async (e: React.SyntheticEvent) => {
         e.preventDefault()
         setIsLoading(true)
@@ -190,32 +202,20 @@ export const SelectTenant = () => {
             })
             const {data, errors} = await response.json()
 
-            if (errors) {
-                setOpen(true)
-                throw new Error(errors[0].message)
-            }
+            if (errors) throw new Error(errors[0].message)
+
             if (!data?.sequent_backend_tenant?.length) throw new Error("Tenant not found")
 
+            // if we are here, a tenant with the name slug has been found
             const tenantId = data.sequent_backend_tenant[0].id
 
             // Check if the realm exists
             const realmExists = await checkIfRealmExists(`tenant-${tenantId}`)
-            if (!realmExists) {
-                throw new Error("Tenant realm not found")
-            }
 
-            // Store tenant ID for after login
-            localStorage.setItem("selected-tenant-id", tenantId)
+            if (!realmExists) throw new Error("Tenant realm not found")
 
             // Initialize Keycloak without auto-redirect
             const initSuccess = await initKeycloak(tenantId)
-
-            // If not already authenticated, manually redirect to login
-            if (!initSuccess && keycloak) {
-                await keycloak.login({
-                    redirectUri: window.location.origin + "/",
-                })
-            }
         } catch (err: any) {
             setError(err.message)
             setIsLoading(false)
@@ -233,10 +233,6 @@ export const SelectTenant = () => {
                 <ContentWrapper>
                     <StyledCard>
                         <CardContent>
-                            {/* <LogoWrapper>
-                            <LogoImage src={Logo} alt="OVCS Logo" />
-                        </LogoWrapper> */}
-
                             <Typography variant="h5" component="h1" align="center" gutterBottom>
                                 Sequent Admin Portal
                             </Typography>
