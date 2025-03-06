@@ -39,12 +39,12 @@ export const TenantContextProvider = (props: TenantContextProviderProps) => {
         setTenantId(tenantId)
     }
     const [tenant, setTenant] = useState<Sequent_Backend_Tenant | undefined>(undefined)
-    
+
     // Overwrites translations based on the settings config
     useEffect(() => {
         triggerOverrideTranslations((tenant?.settings as ITenantSettings | undefined)?.i18n ?? {})
     }, [tenant?.settings?.i18n])
-    
+
     const setTenantWrapper = (newTenant: Sequent_Backend_Tenant | undefined) => {
         setTenant(newTenant)
         if (newTenant?.id && newTenant.id !== tenantId) {
