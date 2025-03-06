@@ -110,14 +110,34 @@ export const SelectTenant = () => {
     const [tenant, setTenant] = useState("")
     const [loading, setLoading] = useState(true)
     const [isLoading, setIsLoading] = useState(false)
+    const [intents, setIntents] = useState(0)
     const [error, setError] = useState<string | null>(null)
     const [open, setOpen] = useState<boolean>(false)
+    const [isDisabled, setIsDisabled] = useState(false)
     const navigate = useNavigate()
 
     useEffect(() => {
         if (localStorage.getItem("token") !== null) {
             localStorage.setItem("has-token", "true")
         }
+
+        // Check for previous attempts
+        const nextAttempt = localStorage.getItem("next-tenant-attempt")
+        if (nextAttempt) {
+            const now = new Date()
+            const attemptTime = new Date(nextAttempt)
+            const diffMinutes = (now.getTime() - attemptTime.getTime()) / (1000 * 60)
+
+            if (diffMinutes < globalSettings.QUERY_FAST_POLL_INTERVAL_MS / 1000) {
+                setError("Too many attempts. Please try again later.")
+                setOpen(true)
+                setIsDisabled(true)
+            } else {
+                localStorage.removeItem("next-tenant-attempt")
+                setIsDisabled(false)
+            }
+        }
+
         setTimeout(() => {
             setLoading(false)
         }, 500)
@@ -193,6 +213,17 @@ export const SelectTenant = () => {
         setIsLoading(true)
         setError(null)
 
+        if (intents >= 5) {
+            setError("Too many attempts. Please try again later.")
+            setIsLoading(false)
+            setOpen(true)
+            setIsDisabled(true)
+            localStorage.setItem("next-tenant-attempt", new Date().toISOString())
+            return
+        } else {
+            setIntents(intents + 1)
+        }
+
         const slug = tenant.trim()
         if (!slug) {
             setError("Please enter a tenant name")
@@ -219,7 +250,9 @@ export const SelectTenant = () => {
             })
             const {data, errors} = await response.json()
 
-            if (errors) throw new Error(errors[0].message)
+            if (errors) {
+                throw new Error(errors[0].message)
+            }
 
             if (!data?.sequent_backend_tenant?.length) throw new Error("Tenant not found")
 
@@ -281,6 +314,7 @@ export const SelectTenant = () => {
                                             value={tenant}
                                             onChange={(e) => setTenant(e.target.value)}
                                             required
+                                            disabled={isDisabled}
                                             sx={{mb: 2}}
                                         />
 
