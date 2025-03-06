@@ -7,7 +7,7 @@ import {useAtom} from "jotai"
 import archivedElectionEventSelection from "@/atoms/archived-election-event-selection"
 import {useLocation, useNavigate} from "react-router-dom"
 import styled from "@emotion/styled"
-import {IconButton, adminTheme} from "@sequentech/ui-essentials"
+import {Dialog, IconButton, adminTheme} from "@sequentech/ui-essentials"
 import {
     Sequent_Backend_Election_Event,
     Sequent_Backend_Election,
@@ -239,6 +239,15 @@ export default function ElectionEvents() {
 
     const {getCandidateIdFlag} = useElectionEventTallyStore()
 
+    const [openModal, setOpenModal] = React.useState(false)
+
+    useEffect(() => {
+        console.log("aa in election event", localStorage.getItem("has-token"))
+        if (localStorage.getItem("has-token")) {
+            setOpenModal(true)
+        }
+    }, [])
+
     /**
      * Hooks to load data for entities
      */
@@ -362,10 +371,10 @@ export default function ElectionEvents() {
                     tenantId,
                     isArchived: isArchivedElectionEvents,
                 },
-            });
-            
+            })
+
             // Also reload other data that might depend on tenant ID
-            originalRefetch();
+            originalRefetch()
         }
     }, [tenantId, isArchivedElectionEvents, getElectionEventTree, originalRefetch])
 
@@ -755,6 +764,24 @@ export default function ElectionEvents() {
                     </Box>
                 </MMenuItem>
             </MMenu>
+            <Dialog
+                variant="info"
+                hasCloseButton={false}
+                open={openModal}
+                cancel={t("common.label.logout")}
+                ok={t("common.label.continue")}
+                title={t("common.label.warning")}
+                handleClose={(result: boolean) => {
+                    if (result) {
+                        localStorage.removeItem("has-token")
+                        setOpenModal(false)
+                    } else {
+                        authContext.logout()
+                    }
+                }}
+            >
+                {t("common.message.continueOrLogout")}
+            </Dialog>
         </>
     )
 }

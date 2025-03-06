@@ -169,15 +169,6 @@ export const ElectionEventTabs: React.FC = () => {
         setValue(newValue)
     }
 
-    const [openModal, setOpenModal] = React.useState(false)
-
-    useEffect(() => {
-        console.log("aa in election event", localStorage.getItem("has-token"))
-        if (localStorage.getItem("has-token")) {
-            setOpenModal(true)
-        }
-    }, [])
-
     useEffect(() => {
         if (record) {
             const locArr = location.pathname.split("/").slice(0, 3).join("/")
@@ -439,24 +430,6 @@ export const ElectionEventTabs: React.FC = () => {
                     ]}
                 />
             </Box>
-            <Dialog
-                variant="info"
-                hasCloseButton={false}
-                open={openModal}
-                cancel={t("common.label.logout")}
-                ok={t("common.label.continue")}
-                title={t("common.label.warning")}
-                handleClose={(result: boolean) => {
-                    if (result) {
-                        localStorage.removeItem("has-token")
-                        setOpenModal(false)
-                    } else {
-                        authContext.logout()
-                    }
-                }}
-            >
-                {t("common.message.continueOrLogout")}
-            </Dialog>
         </Box>
     )
 }
