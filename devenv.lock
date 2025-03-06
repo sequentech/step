@@ -17,6 +17,21 @@
         "type": "github"
       }
     },
+    "devpod": {
+      "locked": {
+        "lastModified": 1740849848,
+        "owner": "r-ryantm",
+        "repo": "nixpkgs",
+        "rev": "fbf9b98c8706d9330ec10fd3aae2b70911755e5b",
+        "type": "github"
+      },
+      "original": {
+        "owner": "r-ryantm",
+        "repo": "nixpkgs",
+        "rev": "fbf9b98c8706d9330ec10fd3aae2b70911755e5b",
+        "type": "github"
+      }
+    },
     "fenix": {
       "inputs": {
         "nixpkgs": [
@@ -133,6 +148,7 @@
     "root": {
       "inputs": {
         "devenv": "devenv",
+        "devpod": "devpod",
         "fenix": "fenix",
         "nixpkgs": "nixpkgs",
         "pre-commit-hooks": "pre-commit-hooks"

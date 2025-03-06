@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ pkgs, inputs, ... }:
 
 {
   # https://devenv.sh/basics/
@@ -15,7 +15,7 @@
   };
 
   # https://devenv.sh/packages/
-  packages = with pkgs; [
+  packages = (with pkgs; [
     # AWS
     (aws-sam-cli.overridePythonAttrs { doCheck = false; })
 
@@ -70,6 +70,8 @@
 
     # for parsing docker-compose.yml
     yq
+  ]) ++ [
+    inputs.devpod.legacyPackages.${pkgs.system}.devpod
   ];
 
   # https://devenv.sh/scripts/

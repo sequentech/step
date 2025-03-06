@@ -5,6 +5,8 @@
 inputs:
   nixpkgs:
     url: github:NixOS/nixpkgs/nixpkgs-unstable
+  devpod:
+    url: github:r-ryantm/nixpkgs/fbf9b98c8706d9330ec10fd3aae2b70911755e5b
   fenix:
     url: github:nix-community/fenix
     inputs:
