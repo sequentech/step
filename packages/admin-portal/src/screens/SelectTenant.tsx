@@ -278,8 +278,12 @@ export const SelectTenant = () => {
                 onClose={handleClose}
                 autoHideDuration={2000}
             >
-                <Alert severity="error" variant="filled" sx={{width: "100%", borderRadius: 2}}>
-                    <Box sx={{paddingX: 8}}>{error}</Box>
+                <Alert
+                    severity="error"
+                    variant="filled"
+                    sx={{width: "100%", borderRadius: 2, paddingX: 8}}
+                >
+                    <Box>{error}</Box>
                 </Alert>
             </Snackbar>
         </Box>
