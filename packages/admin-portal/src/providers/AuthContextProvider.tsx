@@ -477,6 +477,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
             return
         }
         localStorage.removeItem("token")
+        localStorage.removeItem("has-token")
         localStorage.removeItem("selected-tenant-id")
         sessionStorage.removeItem("selected-election-event-tally-id")
 

@@ -15,6 +15,7 @@ import {EPublishType} from "../Publish/EPublishType"
 import {EElectionEventLockedDown, i18n, translateElection} from "@sequentech/ui-core"
 import {Box, CircularProgress} from "@mui/material"
 import {Tabs} from "@/components/Tabs"
+import {Dialog} from "@sequentech/ui-essentials"
 
 // Lazy load the tab components
 const DashboardElectionEvent = lazy(() => import("@/components/dashboard/election-event/Dashboard"))
@@ -167,6 +168,15 @@ export const ElectionEventTabs: React.FC = () => {
     const handleChange = (event: React.SyntheticEvent, newValue: number) => {
         setValue(newValue)
     }
+
+    const [openModal, setOpenModal] = React.useState(false)
+
+    useEffect(() => {
+        console.log("aa in election event", localStorage.getItem("has-token"))
+        if (localStorage.getItem("has-token")) {
+            setOpenModal(true)
+        }
+    }, [])
 
     useEffect(() => {
         if (record) {
@@ -429,6 +439,24 @@ export const ElectionEventTabs: React.FC = () => {
                     ]}
                 />
             </Box>
+            <Dialog
+                variant="info"
+                hasCloseButton={false}
+                open={openModal}
+                cancel={t("common.label.logout")}
+                ok={t("common.label.continue")}
+                title={t("common.label.warning")}
+                handleClose={(result: boolean) => {
+                    if (result) {
+                        localStorage.removeItem("has-token")
+                        setOpenModal(false)
+                    } else {
+                        authContext.logout()
+                    }
+                }}
+            >
+                {t("common.message.continueOrLogout")}
+            </Dialog>
         </Box>
     )
 }

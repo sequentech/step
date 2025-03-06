@@ -1056,6 +1056,11 @@ const englishTranslation = {
                 kind: "File type",
                 filter: "Custom Filters",
                 approve: "Approve",
+                continue: "Continue",
+                logout: "Logout",
+                selectTenant: "Select Tenant",
+                processing: "Processing...",
+                tenantName: "Tenant Name",
             },
             language: {
                 es: "Spanish",
@@ -1070,6 +1075,7 @@ const englishTranslation = {
             },
             message: {
                 delete: "Are you sure you want to delete this item?",
+                continueOrLogout: "Do you want to continue connected to this tenant or logout?",
             },
         },
         createResource: {

@@ -2,14 +2,23 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useState, useEffect, useContext} from "react"
-import {Box, Typography, TextField, Button, Card, CardContent, Snackbar, Alert} from "@mui/material"
+import {
+    Box,
+    Typography,
+    TextField,
+    Button,
+    Card,
+    CardContent,
+    Snackbar,
+    Alert,
+    CircularProgress,
+} from "@mui/material"
 import {styled} from "@mui/system"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {useNavigate} from "react-router"
 import {Header} from "@sequentech/ui-essentials"
 import {useTranslation} from "react-i18next"
-import {useNotify} from "react-admin"
 
 export const StyledButton = styled(Button)`
     z-index: 1;
@@ -96,15 +105,23 @@ const Footer = styled(Typography)({
  */
 export const SelectTenant = () => {
     const {t} = useTranslation()
-    const notify = useNotify()
     const {isAuthenticated, initKeycloak} = useContext(AuthContext)
     const {globalSettings} = useContext(SettingsContext)
     const [tenant, setTenant] = useState("")
+    const [loading, setLoading] = useState(true)
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [open, setOpen] = useState<boolean>(false)
     const navigate = useNavigate()
-    const {keycloak} = useContext(AuthContext)
+
+    useEffect(() => {
+        if (localStorage.getItem("token") !== null) {
+            localStorage.setItem("has-token", "true")
+        }
+        setTimeout(() => {
+            setLoading(false)
+        }, 500)
+    }, [])
 
     useEffect(() => {
         if (isAuthenticated) {
@@ -224,65 +241,83 @@ export const SelectTenant = () => {
     }
 
     return (
-        <Box>
-            <Header
-                appVersion={{main: globalSettings.APP_VERSION}}
-                appHash={{main: globalSettings.APP_HASH}}
-            />
-            <BackgroundWrapper>
-                <ContentWrapper>
-                    <StyledCard>
-                        <CardContent>
-                            <Typography variant="h5" component="h1" align="center" gutterBottom>
-                                Sequent Admin Portal
-                            </Typography>
+        <>
+            {loading ? (
+                <CircularProgress />
+            ) : (
+                <Box>
+                    <Header
+                        appVersion={{main: globalSettings.APP_VERSION}}
+                        appHash={{main: globalSettings.APP_HASH}}
+                    />
+                    <BackgroundWrapper>
+                        <ContentWrapper>
+                            <StyledCard>
+                                <CardContent>
+                                    <Typography
+                                        variant="h5"
+                                        component="h1"
+                                        align="center"
+                                        gutterBottom
+                                    >
+                                        Sequent Admin Portal
+                                    </Typography>
 
-                            <Typography variant="h6" component="h2" align="center" gutterBottom>
-                                {t("common.selectTenant")}
-                            </Typography>
+                                    <Typography
+                                        variant="h6"
+                                        component="h2"
+                                        align="center"
+                                        gutterBottom
+                                    >
+                                        {t("common.label.selectTenant")}
+                                    </Typography>
 
-                            <Box component="form" onSubmit={handleSubmit} sx={{mt: 2}}>
-                                <TextField
-                                    fullWidth
-                                    label="Tenant Name"
-                                    variant="outlined"
-                                    margin="normal"
-                                    value={tenant}
-                                    onChange={(e) => setTenant(e.target.value)}
-                                    required
-                                    sx={{mb: 2}}
-                                />
+                                    <Box component="form" onSubmit={handleSubmit} sx={{mt: 2}}>
+                                        <TextField
+                                            fullWidth
+                                            label={t("common.label.tenantName")}
+                                            variant="outlined"
+                                            margin="normal"
+                                            value={tenant}
+                                            onChange={(e) => setTenant(e.target.value)}
+                                            required
+                                            sx={{mb: 2}}
+                                        />
 
-                                <StyledButton
-                                    fullWidth
-                                    variant="contained"
-                                    type="submit"
-                                    disabled={isLoading}
-                                >
-                                    {isLoading ? t("common.processing") : t("common.continue")}
-                                </StyledButton>
-                            </Box>
-                        </CardContent>
-                    </StyledCard>
-                </ContentWrapper>
+                                        <StyledButton
+                                            fullWidth
+                                            variant="contained"
+                                            type="submit"
+                                            disabled={isLoading}
+                                        >
+                                            {isLoading
+                                                ? t("common.label.processing")
+                                                : t("common.label.continue")}
+                                        </StyledButton>
+                                    </Box>
+                                </CardContent>
+                            </StyledCard>
+                        </ContentWrapper>
 
-                <Footer>Powered by Sequent Tech Inc</Footer>
-            </BackgroundWrapper>
-            <Snackbar
-                anchorOrigin={{vertical: "bottom", horizontal: "center"}}
-                open={open}
-                onClose={handleClose}
-                autoHideDuration={2000}
-            >
-                <Alert
-                    severity="error"
-                    variant="filled"
-                    sx={{width: "100%", borderRadius: 2, paddingX: 8}}
-                >
-                    <Box>{error}</Box>
-                </Alert>
-            </Snackbar>
-        </Box>
+                        <Footer>Powered by Sequent Tech Inc</Footer>
+                    </BackgroundWrapper>
+                    <Snackbar
+                        anchorOrigin={{vertical: "bottom", horizontal: "center"}}
+                        open={open}
+                        onClose={handleClose}
+                        autoHideDuration={2000}
+                    >
+                        <Alert
+                            severity="error"
+                            variant="filled"
+                            sx={{width: "100%", borderRadius: 2, paddingX: 8}}
+                        >
+                            <Box>{error}</Box>
+                        </Alert>
+                    </Snackbar>
+                </Box>
+            )}
+        </>
     )
 }
 

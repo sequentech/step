@@ -88,12 +88,12 @@ export const ApolloContextProvider = ({children, role}: ApolloContextProviderPro
         if (apolloClient) {
             return
         }
-        
+
         const token = getAccessToken()
         if (!token) {
             return
         }
-        
+
         let newClient = createApolloClient()
         setApolloClient(newClient)
     }, [isAuthenticated, apolloClient, getAccessToken])
@@ -113,13 +113,13 @@ export const ApolloContextProvider = ({children, role}: ApolloContextProviderPro
 
 export const ApolloWrapper: React.FC<PropsWithChildren> = ({children}) => {
     const {apolloClient} = useContext(ApolloContext)
-    const {isAuthenticated} = useContext(AuthContext)
-    
+    const {isAuthenticated, getAccessToken} = useContext(AuthContext)
+
     // Show SelectTenant when not authenticated
-    if (!isAuthenticated) {
+    if (!isAuthenticated && !getAccessToken()) {
         return <SelectTenant />
     }
-    
+
     // Show loading spinner while waiting for client
     if (null === apolloClient) {
         return (
@@ -128,7 +128,7 @@ export const ApolloWrapper: React.FC<PropsWithChildren> = ({children}) => {
             </Box>
         )
     }
-    
+
     // Show app content when authenticated and client is ready
     return <ApolloProvider client={apolloClient}>{children}</ApolloProvider>
 }
