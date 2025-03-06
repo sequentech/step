@@ -354,6 +354,7 @@ export default function ElectionEvents() {
 
     // Instead of setting variables in the options, we now call the lazy queries
     // only when variables exist.
+    // Force reload election event data when tenant ID changes or component mounts
     useEffect(() => {
         if (tenantId) {
             getElectionEventTree({
@@ -361,9 +362,12 @@ export default function ElectionEvents() {
                     tenantId,
                     isArchived: isArchivedElectionEvents,
                 },
-            })
+            });
+            
+            // Also reload other data that might depend on tenant ID
+            originalRefetch();
         }
-    }, [tenantId, isArchivedElectionEvents, getElectionEventTree])
+    }, [tenantId, isArchivedElectionEvents, getElectionEventTree, originalRefetch])
 
     useEffect(() => {
         if (tenantId && electionEventId) {

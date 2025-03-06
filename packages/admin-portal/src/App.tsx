@@ -29,7 +29,6 @@ import {customBuildQuery} from "./queries/customBuildQuery"
 import {fullAdminTheme} from "./services/AdminTheme"
 import {SettingsScreen} from "./screens/SettingsScreen"
 import {ListUsers} from "./resources/User/ListUsers"
-import {CreateElectionList} from "./resources/ElectionEvent/CreateElectionEvent"
 import {CustomLayout} from "./components/CustomLayout"
 import {EditBallotStyle} from "./resources/BallotStyle/EditBallotStyle"
 import {EditArea} from "./resources/Area/EditArea"
@@ -79,7 +78,6 @@ const App: React.FC<AppProps> = () => {
     adminI18nProvider.changeLocale(i18n.language)
     i18n.on("languageChanged", (lng) => adminI18nProvider.changeLocale(lng))
     const {isAuthenticated} = useContext(AuthContext)
-    const location = useLocation()
 
     useEffect(() => {
         const buildDataProvider = async () => {
@@ -96,20 +94,13 @@ const App: React.FC<AppProps> = () => {
 
     if (!dataProvider) return <p>{t("loadingDataProvider")}</p>
 
-    // Check if we're on the select tenant page
-    if (location.pathname === "/select-tenant") {
-        return <SelectTenant />
-    }
-
     // Check authentication
     if (!isAuthenticated) {
         // If we're not authenticated, show the SelectTenant screen
         // This prevents automatic redirection to Keycloak login
-        console.log("User not authenticated, showing SelectTenant screen")
         return <SelectTenant />
     }
 
-    console.log("aa App Rendering Admin")
     return (
         <StyledAppAtom>
             <Admin
@@ -118,29 +109,17 @@ const App: React.FC<AppProps> = () => {
                 theme={fullAdminTheme}
                 i18nProvider={adminI18nProvider}
             >
-                {/* <CustomRoutes noLayout>
-                    <Route path="/admin/tenant/login" element={<SelectTenant />} />
+                <CustomRoutes>
+                    {/* Default route - redirect to election events */}
                     <Route
                         path="/"
-                        element={
-                            isAuthenticated ? (
-                                <Navigate to="/sequent_backend_election_event" replace />
-                            ) : (
-                                <Navigate to="/admin/tenant/login" replace />
-                            )
-                        }
+                        element={<Navigate to="/sequent_backend_election_event" replace />}
+                        index
                     />
-                </CustomRoutes> */}
-
-                <CustomRoutes>
                     {/* <Route path="/logs" element={<Logs />} /> */}
                     <Route path="/user-roles" element={<UserAndRoles />} />
                     <Route path="/messages" element={<Messages />} />
                     <Route path="/settings/" element={<SettingsScreen />} />
-                    {/* <Route
-                        path="/admin/login/*"
-                        element={<Navigate to="/sequent_backend_election_event" replace />}
-                    /> */}
                 </CustomRoutes>
 
                 <Resource

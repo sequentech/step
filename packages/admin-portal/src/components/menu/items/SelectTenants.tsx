@@ -24,13 +24,17 @@ const SelectTenants: React.FC = () => {
 
     const showAddTenant = authContext.isAuthorized(true, null, IPermissions.TENANT_CREATE)
 
-    const {data} = useGetOne("sequent_backend_tenant", {
-        id: tenantId,
+    const [id, setId] = useState(tenantId)
+
+    const {data, isLoading, error} = useGetOne("sequent_backend_tenant", {
+        id,
     })
 
+   
     useEffect(() => {
         if (!tenantId && authContext.tenantId) {
             setTenantId(authContext.tenantId)
+            setId(authContext.tenantId)
         }
         if (data?.length === 1) {
             setTenantId(data[0].id)

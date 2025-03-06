@@ -2,12 +2,14 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useState, useEffect, useContext} from "react"
-import {Box, Typography, TextField, Button, Card, CardContent} from "@mui/material"
+import {Box, Typography, TextField, Button, Card, CardContent, Snackbar, Alert} from "@mui/material"
 import {styled} from "@mui/system"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {useNavigate} from "react-router"
 import {Header} from "@sequentech/ui-essentials"
+import {useTranslation} from "react-i18next"
+import {useNotify} from "react-admin"
 
 // You would need to import your logo
 // import Logo from "../assets/logo.png"
@@ -101,11 +103,14 @@ const Footer = styled(Typography)({
 })
 
 export const SelectTenant = () => {
+    const {t} = useTranslation()
+    const notify = useNotify()
     const {isAuthenticated, initKeycloak} = useContext(AuthContext)
     const {globalSettings} = useContext(SettingsContext)
     const [tenant, setTenant] = useState("")
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    const [open, setOpen] = useState<boolean>(false)
     const navigate = useNavigate()
     const {keycloak} = useContext(AuthContext)
 
@@ -114,6 +119,10 @@ export const SelectTenant = () => {
             navigate("/") // Redirect to the app if already authenticated
         }
     }, [isAuthenticated, navigate])
+
+    const handleClose = (event: React.SyntheticEvent | Event) => {
+        setOpen(false)
+    }
 
     /**
      * Check if a Keycloak realm exists
@@ -132,8 +141,6 @@ export const SelectTenant = () => {
                 ? globalSettings.KEYCLOAK_URL.slice(0, -1)
                 : globalSettings.KEYCLOAK_URL
 
-            console.log("aa realm name", realmName)
-
             // Use the well-known configuration endpoint which is publicly accessible
             // This endpoint exists for all valid realms and doesn't trigger redirects
             const configUrl = `${baseUrl}/realms/${realmName}/.well-known/openid-configuration`
@@ -148,7 +155,6 @@ export const SelectTenant = () => {
             // If we get a successful response, the realm exists
             return response.ok
         } catch (error) {
-            console.error("Error checking realm existence:", error)
             return false
         }
     }
@@ -184,7 +190,10 @@ export const SelectTenant = () => {
             })
             const {data, errors} = await response.json()
 
-            if (errors) throw new Error(errors[0].message)
+            if (errors) {
+                setOpen(true)
+                throw new Error(errors[0].message)
+            }
             if (!data?.sequent_backend_tenant?.length) throw new Error("Tenant not found")
 
             const tenantId = data.sequent_backend_tenant[0].id
@@ -210,6 +219,7 @@ export const SelectTenant = () => {
         } catch (err: any) {
             setError(err.message)
             setIsLoading(false)
+            setOpen(true)
         }
     }
 
@@ -228,11 +238,11 @@ export const SelectTenant = () => {
                         </LogoWrapper> */}
 
                             <Typography variant="h5" component="h1" align="center" gutterBottom>
-                                OVCS ADMIN PORTAL
+                                Sequent Admin Portal
                             </Typography>
 
                             <Typography variant="h6" component="h2" align="center" gutterBottom>
-                                Enter Tenant Name
+                                {t("common.selectTenant")}
                             </Typography>
 
                             <Box component="form" onSubmit={handleSubmit} sx={{mt: 2}}>
@@ -253,16 +263,25 @@ export const SelectTenant = () => {
                                     type="submit"
                                     disabled={isLoading}
                                 >
-                                    {isLoading ? "Processing..." : "Continue"}
+                                    {isLoading ? t("common.processing") : t("common.continue")}
                                 </StyledButton>
                             </Box>
-                            {error ? <div>{error}</div> : null}
                         </CardContent>
                     </StyledCard>
                 </ContentWrapper>
 
                 <Footer>Powered by Sequent Tech Inc</Footer>
             </BackgroundWrapper>
+            <Snackbar
+                anchorOrigin={{vertical: "bottom", horizontal: "center"}}
+                open={open}
+                onClose={handleClose}
+                autoHideDuration={2000}
+            >
+                <Alert severity="error" variant="filled" sx={{width: "100%", borderRadius: 2}}>
+                    <Box sx={{paddingX: 8}}>{error}</Box>
+                </Alert>
+            </Snackbar>
         </Box>
     )
 }
