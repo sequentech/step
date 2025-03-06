@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+mkdir -p ~/.devpod
+devpod up --ide=openvscode --ide-option=BIND_ADDRESS=0.0.0.0:9999 --devcontainer-path=.devcontainer/devcontainer.json --ssh-config=~/.devpod/ssh $@ .

@@ -9,6 +9,9 @@ services:
     container_name: devcontainer
     volumes:
     - type: bind
+      source: /run/user/1000/docker.sock
+      target: /var/run/docker.sock
+    - type: bind
       source: ../..
       target: /workspaces
       bind:
