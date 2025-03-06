@@ -5,4 +5,5 @@
 pub mod enrollment;
 pub mod loadero_service;
 pub mod login;
+pub mod reports;
 pub mod voting;
