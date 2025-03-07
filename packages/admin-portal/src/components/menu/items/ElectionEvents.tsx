@@ -647,7 +647,7 @@ export default function ElectionEvents() {
         isArchivedElectionEvents: isArchivedElectionEvents,
         onArchiveElectionEventsSelect: changeArchiveSelection,
         reloadTree: reloadTreeMenu,
-        hasRefreshMenu: tenant?.settings?.hasRefreshMenu ?? false,
+        hasRefreshMenu: tenant?.settings?.has_refresh_menu ?? false,
     }
 
     const treeMenu: JSX.Element = loading ? <CircularProgress /> : <TreeMenu {...treeMenuProps} />

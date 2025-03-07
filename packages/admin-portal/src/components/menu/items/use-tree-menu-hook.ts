@@ -32,7 +32,9 @@ export function useTreeMenuData(isArchivedElectionEvents: boolean) {
             tenantId: tenantId,
             isArchived: isArchivedElectionEvents,
         },
-        pollInterval: tenant?.settings?.hasRefreshMenu ? 0 : globalSettings.QUERY_POLL_INTERVAL_MS,
+        pollInterval: tenant?.settings?.has_refresh_menu
+            ? 0
+            : globalSettings.QUERY_POLL_INTERVAL_MS,
     })
 }
 
