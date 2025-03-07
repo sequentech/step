@@ -28,9 +28,8 @@ import {selectFirstBallotStyle} from "../store/ballotStyles/ballotStylesSlice"
 import useLanguage from "../hooks/useLanguage"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import useUpdateTranslation from "../hooks/useUpdateTranslation"
-import { GET_ELECTION_EVENT } from "../queries/GetElectionEvent"
+import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
 import {IElectionEvent} from "../store/electionEvents/electionEventsSlice"
-
 
 const StyledLink = styled(Link)`
     text-decoration: none;
@@ -122,18 +121,18 @@ const BallotLocator: React.FC = () => {
         },
         skip: globalSettings.DISABLE_AUTH, // Skip query if in demo mode
     })
-    
-    const {
-        data: dataElectionEvent,
-    } = useQuery<GetElectionEventQuery>(GET_ELECTION_EVENT, {
+
+    const {data: dataElectionEvent} = useQuery<GetElectionEventQuery>(GET_ELECTION_EVENT, {
         variables: {
             electionEventId: eventId,
             tenantId,
         },
         skip: globalSettings.DISABLE_AUTH, // Skip query if in demo mode
     })
-    
-    useUpdateTranslation({electionEvent: dataElectionEvent?.sequent_backend_election_event[0] as IElectionEvent}) // Overwrite translations
+
+    useUpdateTranslation({
+        electionEvent: dataElectionEvent?.sequent_backend_election_event[0] as IElectionEvent,
+    }) // Overwrite translations
 
     useEffect(() => {
         if (dataBallotStyles && dataBallotStyles.sequent_backend_ballot_style.length > 0) {
@@ -164,7 +163,9 @@ const BallotLocator: React.FC = () => {
     }
 
     return (
-        <StyledApp css={dataElectionEvent?.sequent_backend_election_event[0]?.presentation.css ?? ""}>
+        <StyledApp
+            css={dataElectionEvent?.sequent_backend_election_event[0]?.presentation?.css ?? ""}
+        >
             <PageLimit maxWidth="lg" className="ballot-locator-screen screen">
                 <Box marginTop="48px">
                     <BreadCrumbSteps
@@ -256,7 +257,6 @@ const BallotLocator: React.FC = () => {
                         )}
                     </>
                 )}
-
 
                 {hasBallotId && ballotContent && (
                     <>
