@@ -19,6 +19,10 @@ use std::sync::RwLock;
 use std::time::{Duration, Instant};
 use tracing::{error, info, instrument, warn};
 
+const TENANT_ID_HEADER: &str = "tenant-id";
+const EVENT_ID_HEADER: &str = "event-id";
+const AUTHORIZATION_HEADER: &str = "authorization";
+pub const PRE_EXPIRATION_SECS: i64 = 5;
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct AuthHeaders {
     pub key: String,
@@ -137,7 +141,8 @@ struct DatafixHeaders {
 /// Returns None if any of the required headers are missing or is incomplete
 #[instrument(skip_all)]
 fn parse_datafix_headers(headers: &HeaderMap) -> Option<DatafixHeaders> {
-    let required_headers = ["tenant-id", "event-id", "authorization"];
+    let required_headers =
+        [TENANT_ID_HEADER, EVENT_ID_HEADER, AUTHORIZATION_HEADER];
     let mut missing_headers = vec![];
     for header in required_headers {
         if !headers.contains(header) {
@@ -151,9 +156,9 @@ fn parse_datafix_headers(headers: &HeaderMap) -> Option<DatafixHeaders> {
     }
 
     let (tenant_id, event_id, authorization) = (
-        headers.get_one("tenant-id").unwrap_or_default(),
-        headers.get_one("event-id").unwrap_or_default(),
-        headers.get_one("authorization").unwrap_or_default(),
+        headers.get_one(TENANT_ID_HEADER).unwrap_or_default(),
+        headers.get_one(EVENT_ID_HEADER).unwrap_or_default(),
+        headers.get_one(AUTHORIZATION_HEADER).unwrap_or_default(),
     );
 
     info!(
@@ -231,14 +236,15 @@ async fn read_access_token(
     };
 
     if let Some(data) = token_resp_ext_opt {
-        let pre_expriration_time: i64 = data.token_resp.expires_in as i64 - 5; // Renew the token 5 seconds before it expires
+        let pre_expiration_time: i64 =
+            data.token_resp.expires_in as i64 - PRE_EXPIRATION_SECS; // Renew the token 5 seconds before it expires
 
         if data.client_id.eq(client_id)
             && data.client_secret.eq(client_secret)
             && data.tenant_id.eq(tenant_id)
-            && pre_expriration_time.is_positive()
+            && pre_expiration_time.is_positive()
             && data.stamp.elapsed()
-                < Duration::from_secs(pre_expriration_time as u64)
+                < Duration::from_secs(pre_expiration_time as u64)
         {
             return Some(data.token_resp);
         }

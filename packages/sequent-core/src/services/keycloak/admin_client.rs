@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::serialization::deserialize_with_path::deserialize_str;
 use crate::services::connection;
+use crate::services::connection::PRE_EXPIRATION_SECS;
 use crate::services::keycloak::realm::get_tenant_realm;
 use anyhow::{anyhow, Result};
 use keycloak::{KeycloakAdmin, KeycloakAdminToken, KeycloakTokenSupplier};
@@ -244,10 +245,11 @@ async fn read_access_token() -> Option<(PubKeycloakAdminToken, String)> {
     };
 
     if let Some(data) = token_resp_ext_opt {
-        let pre_expriration_time: i64 = data.token_resp.expires_in as i64 - 5; // Renew the token 5 seconds before it expires
-        if pre_expriration_time.is_positive()
+        let pre_expiration_time: i64 =
+            data.token_resp.expires_in as i64 - PRE_EXPIRATION_SECS; // Renew the token 5 seconds before it expires
+        if pre_expiration_time.is_positive()
             && data.timestamp.elapsed()
-                < Duration::from_secs(pre_expriration_time as u64)
+                < Duration::from_secs(pre_expiration_time as u64)
         {
             return Some((data.token_resp, data.url));
         }
