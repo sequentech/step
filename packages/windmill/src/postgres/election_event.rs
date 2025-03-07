@@ -1,7 +1,6 @@
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::services::datafix::utils::DATAFIX_ID_KEY;
 use crate::services::import::import_election_event::ImportElectionEventSchema;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
@@ -469,28 +468,4 @@ pub async fn delete_election_event(
         .map_err(|err| anyhow!("Error executing the delete query: {err}"))?;
 
     Ok(())
-}
-
-/// Get the ElectionEvent and check if its a datafix election event (has datafix:id annotations).
-#[instrument(skip(hasura_transaction), err)]
-pub async fn is_datafix_election_event_by_id(
-    hasura_transaction: &Transaction<'_>,
-    tenant_id: &str,
-    election_event_id: &str,
-) -> Result<bool> {
-    let election_event = get_election_event_by_id(hasura_transaction, tenant_id, election_event_id)
-        .await
-        .map_err(|e| anyhow!("{:?}", e))?;
-
-    Ok(is_datafix_election_event(&election_event))
-}
-
-/// Check if its a datafix election event (has datafix:id annotations).
-#[instrument(skip(election_event))]
-pub fn is_datafix_election_event(election_event: &ElectionEventData) -> bool {
-    let datafix_object = election_event
-        .annotations
-        .as_ref()
-        .and_then(|v| v.get(DATAFIX_ID_KEY));
-    datafix_object.is_some()
 }

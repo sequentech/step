@@ -3,12 +3,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::types::*;
 use crate::postgres::area::get_event_areas;
+use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::election_event::{get_all_tenant_election_events, ElectionEventDatafix};
 use crate::services::consolidation::eml_generator::ValidateAnnotations;
 use crate::services::users::get_users_by_username;
 use anyhow::Result;
 use deadpool_postgres::Transaction;
 use rocket::http::Status;
+use sequent_core::types::hasura::core::ElectionEvent;
 use sequent_core::types::keycloak::UserArea;
 use sequent_core::types::keycloak::{
     ATTR_RESET_VALUE, VOTED_CHANNEL, VOTED_CHANNEL_INTERNET_VALUE,
@@ -167,4 +169,24 @@ pub async fn get_user_id(
             return Err(DatafixResponse::new(Status::NotFound));
         }
     }
+}
+
+/// Get the ElectionEvent and check if its a datafix election event (has datafix:id annotations).
+#[instrument(skip(hasura_transaction), err)]
+pub async fn is_datafix_election_event_by_id(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<bool> {
+    let election_event =
+        get_election_event_by_id(hasura_transaction, tenant_id, election_event_id).await?;
+
+    Ok(is_datafix_election_event(&election_event))
+}
+
+/// Check if its a datafix election event (has datafix:id annotations).
+#[instrument(skip(election_event))]
+pub fn is_datafix_election_event(election_event: &ElectionEvent) -> bool {
+    let datafix_event = ElectionEventDatafix(election_event.clone());
+    datafix_event.get_annotations().ok().is_some()
 }

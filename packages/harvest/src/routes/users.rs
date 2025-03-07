@@ -12,6 +12,7 @@ use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
+use crate::services::datafix::utils::is_datafix_election_event;
 use sequent_core::services::keycloak::{GroupInfo, KeycloakAdminClient};
 use sequent_core::types::keycloak::{
     User, UserProfileAttribute, PERMISSION_LABELS, TENANT_ID_ATTR_NAME,
@@ -24,7 +25,7 @@ use std::env;
 use tracing::instrument;
 use uuid::Uuid;
 use windmill::postgres::election_event::{
-    get_election_event_by_id, is_datafix_election_event, ElectionEventDatafix,
+    get_election_event_by_id, ElectionEventDatafix,
 };
 use windmill::services::cast_votes::get_users_with_vote_info;
 use windmill::services::celery_app::get_celery_app;
