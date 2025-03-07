@@ -24,12 +24,6 @@ export function useTreeMenuData(isArchivedElectionEvents: boolean) {
         },
         {
             enabled: !!tenantId,
-            onError: (error: any) => {
-                console.log(`error fetching image doc: ${error.message}`)
-            },
-            onSuccess: () => {
-                console.log(`success fetching image doc`)
-            },
         }
     )
 

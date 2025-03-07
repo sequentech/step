@@ -85,7 +85,6 @@ const CreateElectionEventContext = createContext<{
     closeCreateDrawer?: () => void
     openImportDrawer: () => void
     closeImportDrawer: () => void
-    doRefreshMenu: () => void
     postDefaultValues: any
     handleElectionCreated: any
     uploadCallback: any
@@ -98,16 +97,15 @@ const CreateElectionEventContext = createContext<{
 }>({
     createDrawer: false,
     importDrawer: false,
-    postDefaultValues: console.log,
-    handleElectionCreated: console.log,
-    uploadCallback: console.log,
-    handleImportElectionEvent: console.log,
-    handleSubmit: console.log,
-    openCreateDrawer: console.log,
-    closeCreateDrawer: console.log,
-    openImportDrawer: console.log,
-    closeImportDrawer: console.log,
-    doRefreshMenu: console.log,
+    postDefaultValues: () => undefined,
+    handleElectionCreated: () => undefined,
+    uploadCallback: () => undefined,
+    handleImportElectionEvent: () => undefined,
+    handleSubmit: () => undefined,
+    openCreateDrawer: () => undefined,
+    closeCreateDrawer: () => undefined,
+    openImportDrawer: () => undefined,
+    closeImportDrawer: () => undefined,
     errors: null,
     isLoading: false,
     newId: false,
@@ -157,10 +155,6 @@ export const CreateElectionEventProvider = ({children}: any) => {
 
     const closeImportDrawer = () => {
         toggleImportDrawer(false)
-    }
-
-    const doRefreshMenu = () => {
-        refetchTreeMenu()
     }
 
     useEffect(() => {
@@ -235,7 +229,7 @@ export const CreateElectionEventProvider = ({children}: any) => {
                     currWidget.identifier,
                     data?.insertElectionEvent?.task_execution?.id,
                     () => {
-                        doRefreshMenu()
+                        refetchTreeMenu()
                         navigate(`/sequent_backend_election_event/${newId}`)
                     }
                 )
@@ -307,7 +301,7 @@ export const CreateElectionEventProvider = ({children}: any) => {
                     currWidget.identifier,
                     data?.import_election_event?.task_execution?.id,
                     () => {
-                        doRefreshMenu()
+                        refetchTreeMenu()
                         navigate(`/sequent_backend_election_event/${id}`)
                     }
                 )
@@ -329,7 +323,6 @@ export const CreateElectionEventProvider = ({children}: any) => {
                 closeCreateDrawer,
                 openImportDrawer,
                 closeImportDrawer,
-                doRefreshMenu,
                 postDefaultValues,
                 handleElectionCreated,
                 uploadCallback,

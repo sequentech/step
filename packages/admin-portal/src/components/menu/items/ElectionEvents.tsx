@@ -33,7 +33,7 @@ import {
     Menu as MMenu,
 } from "@mui/material"
 import {Menu, useGetOne, useNotify, useSidebarState} from "react-admin"
-import {TreeMenu} from "./election-events/TreeMenu"
+import {TreeMenu, TreeMenuProps} from "./election-events/TreeMenu"
 import {faPlusCircle} from "@fortawesome/free-solid-svg-icons"
 import WebIcon from "@mui/icons-material/Web"
 import {HorizontalBox} from "../../HorizontalBox"
@@ -641,18 +641,16 @@ export default function ElectionEvents() {
         }
     }, [])
 
-    const treeMenu = loading ? (
-        <CircularProgress />
-    ) : (
-        <TreeMenu
-            data={finalResultData}
-            treeResourceNames={TREE_RESOURCE_NAMES}
-            isArchivedElectionEvents={isArchivedElectionEvents}
-            onArchiveElectionEventsSelect={changeArchiveSelection}
-            reloadTree={reloadTreeMenu}
-            hasRefreshMenu={tenant?.settings?.hasRefreshMenu ?? false}
-        />
-    )
+    const treeMenuProps: TreeMenuProps = {
+        data: finalResultData,
+        treeResourceNames: TREE_RESOURCE_NAMES,
+        isArchivedElectionEvents: isArchivedElectionEvents,
+        onArchiveElectionEventsSelect: changeArchiveSelection,
+        reloadTree: reloadTreeMenu,
+        hasRefreshMenu: tenant?.settings?.hasRefreshMenu ?? false,
+    }
+
+    const treeMenu: JSX.Element = loading ? <CircularProgress /> : <TreeMenu {...treeMenuProps} />
 
     return (
         <>

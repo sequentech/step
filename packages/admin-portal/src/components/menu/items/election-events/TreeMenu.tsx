@@ -90,6 +90,15 @@ interface TreeLeavesProps {
     reloadTree: () => void
 }
 
+export interface TreeMenuProps {
+    data: DynEntityType
+    treeResourceNames: ResourceName[]
+    isArchivedElectionEvents: boolean
+    onArchiveElectionEventsSelect: (val: number) => void
+    reloadTree: () => void
+    hasRefreshMenu?: boolean
+}
+
 function TreeLeaves({
     data,
     parentData,
@@ -516,14 +525,7 @@ export function TreeMenu({
     onArchiveElectionEventsSelect,
     reloadTree,
     hasRefreshMenu = false,
-}: {
-    data: DynEntityType
-    treeResourceNames: ResourceName[]
-    isArchivedElectionEvents: boolean
-    onArchiveElectionEventsSelect: (val: number) => void
-    reloadTree: () => void
-    hasRefreshMenu?: boolean
-}) {
+}: TreeMenuProps) {
     const {t} = useTranslation()
     const isEmpty =
         (!data?.electionEvents || data.electionEvents.length === 0) && isArchivedElectionEvents
