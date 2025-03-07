@@ -14,7 +14,7 @@ client => {
     const submitButton = "*[type=submit]";
 
     const otpContainer = "*[id='otp-inputs']"
-    const finishButton = "*[id='loginContinueLink']"
+    const finishButton = "*[id='loginContinueLink']" 
     const embassy = ["Dubai PCG", "Athens PE", "New York PCG", "Washington D.C. PE", "Tokyo PE"]
 
     client.url(testUrl)
