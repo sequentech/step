@@ -22,6 +22,7 @@ import {
     IContest,
     IElection,
     ICandidate,
+    ITenantSettings,
 } from "@sequentech/ui-core"
 import SearchIcon from "@mui/icons-material/Search"
 import {
@@ -641,13 +642,16 @@ export default function ElectionEvents() {
         }
     }, [])
 
+    const defaultSettings: ITenantSettings = {has_refresh_menu: false}
+    const settings: ITenantSettings = tenant?.settings ?? defaultSettings
+
     const treeMenuProps: TreeMenuProps = {
         data: finalResultData,
         treeResourceNames: TREE_RESOURCE_NAMES,
         isArchivedElectionEvents: isArchivedElectionEvents,
         onArchiveElectionEventsSelect: changeArchiveSelection,
         reloadTree: reloadTreeMenu,
-        hasRefreshMenu: tenant?.settings?.has_refresh_menu ?? false,
+        hasRefreshMenu: settings.has_refresh_menu ?? false,
     }
 
     const treeMenu: JSX.Element = loading ? <CircularProgress /> : <TreeMenu {...treeMenuProps} />

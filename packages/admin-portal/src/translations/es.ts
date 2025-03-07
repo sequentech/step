@@ -146,6 +146,7 @@ const spanishTranslation: TranslationType = {
                 schedules: "EVENTOS PROGRAMADOS",
                 trustees: "AUTORIDADES",
                 BackupRestore: "COPIA DE SEGURIDAD / RESTAURAR",
+                Advanced: "Avanzado",
             },
         },
         trusteesSettingsScreen: {
@@ -1887,6 +1888,13 @@ const spanishTranslation: TranslationType = {
                     tenantConfigOption: "Importar configuraciones del inquilino",
                     keycloakConfigOption: "Importar configuraciones de Keycloak",
                     RolesConfigOption: "Importar configuraciones de roles y permisos",
+                },
+            },
+            advanced: {
+                title: "Configuración avanzada",
+                saveTenantSettings: {
+                    value: "Tiene menú de actualización",
+                    label: "Guardar configuración del inquilino",
                 },
             },
         },

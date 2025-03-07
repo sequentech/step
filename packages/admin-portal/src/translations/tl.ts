@@ -146,6 +146,7 @@ const tagalogTranslation: TranslationType = {
                 schedules: "NAISKEDYUL NA MGA KAGANAPAN",
                 trustees: "TAGAPANGALAGA",
                 BackupRestore: "Backup / Ibalik",
+                Advanced: "Advanced",
             },
         },
         trusteesSettingsScreen: {
@@ -1891,6 +1892,13 @@ const tagalogTranslation: TranslationType = {
                     tenantConfigOption: "Mag-import ng Mga Konfigurasyon ng Tenant",
                     keycloakConfigOption: "Mag-import ng Mga Konfigurasyon ng Keycloak",
                     RolesConfigOption: "Mag-import ng Mga Role at Pahintulot na Konfigurasyon",
+                },
+            },
+            advanced: {
+                title: "Mga Advanced na Setting",
+                saveTenantSettings: {
+                    value: "May menu ng pag-refresh",
+                    label: "I-save ang mga setting ng nangungupahan",
                 },
             },
         },

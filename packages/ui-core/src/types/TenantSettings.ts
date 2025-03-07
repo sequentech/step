@@ -24,4 +24,5 @@ export interface ITenantSettings {
     mail?: boolean
     schedules?: Array<ITenantScheduledEvent>
     schedulesIds?: Array<string>
+    has_refresh_menu: boolean
 }

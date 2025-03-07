@@ -146,6 +146,7 @@ const catalanTranslation: TranslationType = {
                 schedules: "ESDEVENIMENTS PROGRAMATS",
                 trustees: "AUTORITATS",
                 BackupRestore: "SAUVEGARDE / RESTAURATION",
+                Advanced: "CONFIGURACIÓ AVANÇADA",
             },
         },
         trusteesSettingsScreen: {
@@ -1897,6 +1898,13 @@ const catalanTranslation: TranslationType = {
                     tenantConfigOption: "Importa les configuracions del llogater",
                     keycloakConfigOption: "Importa les configuracions de Keycloak",
                     RolesConfigOption: "Importa les configuracions de rols i permisos",
+                },
+            },
+            advanced: {
+                title: "Configuració avançada",
+                saveTenantSettings: {
+                    value: "Té menú d'actualització",
+                    label: "Desa la configuració del llogater",
                 },
             },
         },

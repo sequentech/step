@@ -146,6 +146,7 @@ const frenchTranslation: TranslationType = {
                 schedules: "ÉVÉNEMENTS PROGRAMMÉS",
                 trustees: "AUTORITÉS",
                 BackupRestore: "SAUVEGARDE / RESTAURATION",
+                Advanced: "CONFIGURATION AVANCÉE",
             },
         },
         trusteesSettingsScreen: {
@@ -1898,6 +1899,13 @@ const frenchTranslation: TranslationType = {
                     tenantConfigOption: "Importer les configurations du locataire",
                     keycloakConfigOption: "Importer les configurations Keycloak",
                     RolesConfigOption: "Importer les configurations des rôles et des permissions",
+                },
+            },
+            advanced: {
+                title: "Paramètres avancés",
+                saveTenantSettings: {
+                    value: "A un menu de rafraîchissement",
+                    label: "Enregistrer les paramètres du locataire",
                 },
             },
         },

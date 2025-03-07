@@ -145,6 +145,7 @@ const englishTranslation = {
                 schedules: "SCHEDULED EVENTS",
                 trustees: "TRUSTEES",
                 BackupRestore: "Backup / Restore",
+                Advanced: "Advanced",
             },
         },
         trusteesSettingsScreen: {
@@ -1869,6 +1870,13 @@ const englishTranslation = {
                     tenantConfigOption: "Import Tenant Configurations",
                     keycloakConfigOption: "Import Keycloak Configurations",
                     RolesConfigOption: "Import Roles & Permissions Configurations",
+                },
+            },
+            advanced: {
+                title: "Advanced Settings",
+                saveTenantSettings: {
+                    value: "Has refresh menu",
+                    label: "Save Tenant Settings",
                 },
             },
         },

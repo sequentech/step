@@ -11,6 +11,7 @@ import {IPermissions} from "@/types/keycloak"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {Sequent_Backend_Tenant} from "@/gql/graphql"
 import {useGetOne} from "react-admin"
+import {ITenantSettings} from "@sequentech/ui-core"
 
 export function useTreeMenuData(isArchivedElectionEvents: boolean) {
     const [tenantId] = useTenantStore()
@@ -27,14 +28,15 @@ export function useTreeMenuData(isArchivedElectionEvents: boolean) {
         }
     )
 
+    const defaultSettings: ITenantSettings = {has_refresh_menu: false}
+    const settings: ITenantSettings = tenant?.settings ?? defaultSettings
+
     return useQuery(FETCH_ELECTION_EVENTS_TREE, {
         variables: {
             tenantId: tenantId,
             isArchived: isArchivedElectionEvents,
         },
-        pollInterval: tenant?.settings?.has_refresh_menu
-            ? 0
-            : globalSettings.QUERY_POLL_INTERVAL_MS,
+        pollInterval: settings.has_refresh_menu ? 0 : globalSettings.QUERY_POLL_INTERVAL_MS,
     })
 }
 
