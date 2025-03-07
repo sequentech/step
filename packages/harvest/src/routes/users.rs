@@ -12,7 +12,6 @@ use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
-use crate::services::datafix::utils::is_datafix_election_event;
 use sequent_core::services::keycloak::{GroupInfo, KeycloakAdminClient};
 use sequent_core::types::keycloak::{
     User, UserProfileAttribute, PERMISSION_LABELS, TENANT_ID_ATTR_NAME,
@@ -32,6 +31,7 @@ use windmill::services::celery_app::get_celery_app;
 use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
 use windmill::services::datafix;
 use windmill::services::datafix::types::SoapRequest;
+use windmill::services::datafix::utils::is_datafix_election_event;
 use windmill::services::export::export_users::{
     ExportBody, ExportTenantUsersBody, ExportUsersBody,
 };
