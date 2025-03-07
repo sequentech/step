@@ -618,14 +618,44 @@ export default function ElectionEvents() {
 
     finalResultData = filterTree(finalResultData, searchInput)
 
-    const reloadTreeMenu = () => {
-        candidateTreeRefetch()
-        contestTreeRefetch()
-        electionTreeRefetch()
-        electionEventTreeRefetch()
+    /**
+     * Reloads the tree menu by refetching data for various components concurrently.
+     *
+     * This function attempts to refetch data for candidate, contest, election,
+     * election event, and original components simultaneously. If any of the
+     * refetch operations fail, the error is captured and logged, but the function
+     * will still navigate to the current active route.
+     *
+     * @returns {Promise<void>} A promise that resolves when the refetch operations
+     * and navigation are complete.
+     *
+     * @throws {Error} Throws an error if any of the refetch operations fail,
+     * after navigation to the current active route is complete.
+     */
+    const reloadTreeMenu = async (): Promise<void> => {
+        let refetchError: Error | undefined
 
-        originalRefetch()
-        navigate("/sequent_backend_election_event/")
+        try {
+            // Execute all refetches concurrently
+            await Promise.all([
+                candidateTreeRefetch(),
+                contestTreeRefetch(),
+                electionTreeRefetch(),
+                electionEventTreeRefetch(),
+                originalRefetch(),
+            ])
+        } catch (error) {
+            // Capture the error but continue with navigation
+            refetchError = error instanceof Error ? error : new Error(String(error))
+        } finally {
+            // Always navigate to current active route regardless of success/failure
+            navigate(location.pathname)
+        }
+
+        // If there was an error, throw after navigation completes
+        if (refetchError) {
+            throw refetchError
+        }
     }
 
     const debouncedSearchChange = useMemo(() => {

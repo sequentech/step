@@ -29,11 +29,21 @@ import {adminTheme} from "@sequentech/ui-essentials"
 import {translateElection} from "@sequentech/ui-core"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {Box, Menu, MenuItem} from "@mui/material"
+import {keyframes} from "@emotion/react"
 import {MenuStyles, TreeMenuItemContainer} from "@/components/styles/Menu"
 import {Sequent_Backend_Document} from "@/gql/graphql"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {useCreateElectionEventStore} from "@/providers/CreateElectionEventContextProvider"
 import RefreshIcon from "@mui/icons-material/Refresh"
+
+const rotate = keyframes`
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+`
 
 export const mapAddResource: Record<ResourceName, string> = {
     sequent_backend_election_event: "createResource.electionEvent",
@@ -527,6 +537,35 @@ export function TreeMenu({
     hasRefreshMenu = false,
 }: TreeMenuProps) {
     const {t} = useTranslation()
+    const [isReloading, setIsReloading] = useState(false)
+
+    /**
+     * Callback function to reload the tree structure.
+     *
+     * This function shows the spinning icon by checking the `isReloading` state.
+     * It sets the `isReloading` state to `true` before attempting to reload the tree using the `reloadTree` function.
+     * If an error occurs during the reload, it logs the error to the console and shows an error state briefly before resetting.
+     * Finally, it sets the `isReloading` state back to `false`.
+     *
+     * @async
+     * @function reloadTreeCallback
+     * @returns {Promise<void>} A promise that resolves when the tree reload process is complete.
+     */
+    const reloadTreeCallback = useCallback(async () => {
+        if (isReloading) return // Prevent multiple simultaneous reloads
+
+        try {
+            setIsReloading(true)
+            await reloadTree()
+        } catch (error) {
+            console.error("Failed to reload tree:", error)
+            // Show error state briefly before resetting
+            await new Promise((resolve) => setTimeout(resolve, 1000))
+        } finally {
+            setIsReloading(false)
+        }
+    }, [reloadTree, isReloading])
+
     const isEmpty =
         (!data?.electionEvents || data.electionEvents.length === 0) && isArchivedElectionEvents
     return (
@@ -544,11 +583,20 @@ export function TreeMenu({
                 >
                     {t("sideMenu.archived")}
                 </MenuStyles.SideMenuArchiveItem>
-                {hasRefreshMenu ? (
+                {hasRefreshMenu && (
                     <MenuStyles.RefreshAction>
-                        <RefreshIcon onClick={reloadTree} />
+                        <RefreshIcon
+                            onClick={reloadTreeCallback}
+                            sx={{
+                                "animation": isReloading ? `${rotate} 1s linear infinite` : "none",
+                                "cursor": "pointer",
+                                "&:hover": {
+                                    opacity: 0.8,
+                                },
+                            }}
+                        />
                     </MenuStyles.RefreshAction>
-                ) : null}
+                )}
             </MenuStyles.SideMenuContainer>
             <Box sx={{paddingY: 1}}>
                 {isEmpty ? (
