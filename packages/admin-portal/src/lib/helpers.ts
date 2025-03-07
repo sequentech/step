@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import {ETemplateType} from "@/types/templates"
+
 export const convertToNumber = <T>(val: T) => {
     if (val === null || val === undefined) {
         return null
@@ -27,3 +29,28 @@ export const convertToNumber = <T>(val: T) => {
 export const getPreferenceKey = (key: string, subkey: string) => {
     return `${key.replaceAll("/", "_").replaceAll("-", "_")}_${subkey}`
 }
+
+/**
+ * This list contains all the template types that are used for sending
+ * automatic communication. If a template type is not in this list, it
+ * is considered a non-communication template and will not be used
+ * for sending automatic communication.
+ */
+const is_communication_template: ETemplateType[] = [
+    ETemplateType.PARTICIPATION_REPORT,
+    ETemplateType.TALLY_REPORT,
+    ETemplateType.BALLOT_RECEIPT,
+    ETemplateType.ELECTORAL_RESULTS,
+    ETemplateType.OTP,
+    ETemplateType.MANUAL_VERIFICATION_VOTER,
+    ETemplateType.MANUAL_VERIFICATION_APPROVAL,
+]
+
+/**
+ * This function takes a template type and returns a boolean indicating
+ * if the template type is a communication template or not.
+ * @param {ETemplateType} templateType - The template type to check.
+ * @returns {boolean} Whether the template type is a communication template or not.
+ */
+export const is_communication_template_type = (templateType: ETemplateType) =>
+    is_communication_template.includes(templateType)

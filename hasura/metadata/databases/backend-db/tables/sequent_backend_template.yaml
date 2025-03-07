@@ -8,6 +8,8 @@ insert_permissions:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
           columns:
+              - is_active
+              - is_communication
               - annotations
               - labels
               - template
@@ -28,6 +30,8 @@ insert_permissions:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
           columns:
+              - is_active
+              - is_communication
               - annotations
               - labels
               - template
@@ -46,6 +50,8 @@ insert_permissions:
       permission:
           check: {}
           columns:
+              - is_active
+              - is_communication
               - annotations
               - labels
               - template
@@ -63,6 +69,8 @@ select_permissions:
       permission:
           allow_aggregations: true
           columns:
+              - is_active
+              - is_communication
               - annotations
               - labels
               - template
@@ -82,6 +90,8 @@ select_permissions:
       permission:
           allow_aggregations: true
           columns:
+              - is_active
+              - is_communication
               - annotations
               - labels
               - template
@@ -101,6 +111,8 @@ select_permissions:
       permission:
           allow_aggregations: true
           columns:
+              - is_active
+              - is_communication
               - annotations
               - labels
               - template
@@ -120,6 +132,8 @@ select_permissions:
       permission:
           allow_aggregations: true
           columns:
+              - is_active
+              - is_communication
               - annotations
               - labels
               - template
@@ -140,6 +154,8 @@ update_permissions:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
           columns:
+              - is_active
+              - is_communication
               - annotations
               - labels
               - template
@@ -161,6 +177,8 @@ update_permissions:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
           columns:
+              - is_active
+              - is_communication
               - annotations
               - labels
               - template
@@ -182,6 +200,8 @@ update_permissions:
       permission:
           check: {}
           columns:
+              - is_active
+              - is_communication
               - alias
               - annotations
               - communication_method

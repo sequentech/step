@@ -37,6 +37,7 @@ import {ScheduledEventType} from "@/services/ScheduledEvent"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {ITemplateMethod, ETemplateType, IEmail, ISendTemplateBody} from "@/types/templates"
 import {useLocation} from "react-router"
+import {is_communication_template_type} from "@/lib/helpers"
 
 export enum AudienceSelection {
     ALL_USERS = "ALL_USERS",
@@ -160,6 +161,7 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
     const onSubmit: SubmitHandler<any> = async (formData: ITemplate) => {
         setErrors(null)
         setShowProgress(true)
+
         try {
             const {errors} = await createScheduledEvent({
                 variables: {
@@ -242,12 +244,9 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
     }
 
     const handleSelectAliasChange = async (e: any) => {
-        console.log("handleSelectAliasChange", e.target.value)
-
         const {value} = e.target
         var newTemplate = {...template}
         newTemplate.alias = value
-        console.log("handleSelectAliasChange newTemplate", newTemplate)
         setTemplate(newTemplate)
 
         const selectedReceipt = receipts?.filter(
@@ -258,10 +257,6 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
         )
 
         if (selectedReceipt && selectedReceipt.length > 0) {
-            console.log(
-                "selectedReceipt",
-                selectedReceipt[0]["template"][selectedMethod.toLowerCase()]
-            )
             if (selectedMethod === ITemplateMethod.EMAIL) {
                 let newEmail = selectedReceipt[0]["template"][
                     selectedMethod.toLowerCase()
@@ -279,10 +274,6 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
             }
         }
     }
-
-    useEffect(() => {
-        console.log("handleSelectAliasChange communication", template)
-    }, [template])
 
     const setEmail = async (newEmail: any, alias = "") => {
         var newTemplate = {...template, alias}
@@ -323,6 +314,8 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
         html_body: "",
     })*/
 
+    const [typesList, setTypesList] = useState<ETemplateType[]>([])
+
     const {data: receipts} = useGetList<Sequent_Backend_Template>("sequent_backend_template", {
         filter: {
             tenant_id: tenantId,
@@ -339,7 +332,42 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
             .map((receipt) => receipt.template)
 
         setSelectedList(selectedReceipts ?? null)
+
+        console.log("aa receipts", receipts)
+        console.log(
+            "aa receipts active",
+            receipts?.filter((receipt) => receipt.is_active)
+        )
+        console.log(
+            "aa receipts type",
+            receipts
+                ?.filter((receipt) => receipt.is_active)
+                .map((receipt) => receipt.type as ETemplateType)
+        )
+        console.log(
+            "aa set",
+            new Set(
+                receipts
+                    ?.filter((receipt) => receipt.is_active)
+                    .map((receipt) => receipt.type as ETemplateType)
+            )
+        )
+
+        // Get a list of unique template types
+        const uniqueTypes = Array.from(
+            new Set(
+                receipts
+                    ?.filter((receipt) => receipt.is_active)
+                    .map((receipt) => receipt.type as ETemplateType)
+            )
+        )
+        // Set the list of template types filtered by types in communication templates
+        setTypesList(uniqueTypes.filter(is_communication_template_type))
     }, [selectedMethod, selectedType, receipts])
+
+    useEffect(() => {
+        console.log("aa types list in effect", typesList)
+    }, [typesList])
 
     //const possibleLanguages = ["en", "es"]
     //const renderLangs = () => {
@@ -496,38 +524,42 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
                                     </MenuItem>
                                 ))}
                         </FormStyles.Select>
-                        <Typography variant="body2" sx={{margin: "0"}}>
-                            {t("sendCommunication.type")}
-                        </Typography>{" "}
-                        <FormStyles.Select
-                            name="voters.selection"
-                            value={template.type}
-                            onChange={handleSelectTypeChange}
-                        >
-                            {Object.values(ETemplateType)
-                                .filter((type) => type !== ETemplateType.MANUAL_VERIFICATION)
-                                .map((key) => (
-                                    <MenuItem key={key} value={key}>
-                                        {t(`sendCommunication.communicationType.${key}`)}
-                                    </MenuItem>
-                                ))}
-                        </FormStyles.Select>
-                        <Typography variant="body2" sx={{margin: "0"}}>
-                            {t("sendCommunication.alias")}
-                        </Typography>
-                        <FormStyles.Select
-                            name="alias"
-                            value={template.alias || ""}
-                            onChange={handleSelectAliasChange}
-                        >
-                            {selectedList
-                                ? selectedList?.map((key: ISendTemplateBody, index: number) => (
-                                      <MenuItem key={index} value={key.alias}>
-                                          {key.alias}
-                                      </MenuItem>
-                                  ))
-                                : null}
-                        </FormStyles.Select>
+                        {typesList?.length > 0 ? (
+                            <>
+                                <Typography variant="body2" sx={{margin: "0"}}>
+                                    {t("sendCommunication.type")}
+                                </Typography>
+                                <FormStyles.Select
+                                    name="voters.selection"
+                                    value={template.type}
+                                    onChange={handleSelectTypeChange}
+                                >
+                                    {typesList.map((key) => (
+                                        <MenuItem key={key} value={key}>
+                                            {t(`template.type.${key}`)}
+                                        </MenuItem>
+                                    ))}
+                                </FormStyles.Select>
+                                <Typography variant="body2" sx={{margin: "0"}}>
+                                    {t("sendCommunication.alias")}
+                                </Typography>
+                                <FormStyles.Select
+                                    name="alias"
+                                    value={template.alias || ""}
+                                    onChange={handleSelectAliasChange}
+                                >
+                                    {selectedList
+                                        ? selectedList?.map(
+                                              (key: ISendTemplateBody, index: number) => (
+                                                  <MenuItem key={index} value={key.alias}>
+                                                      {key.alias}
+                                                  </MenuItem>
+                                              )
+                                          )
+                                        : null}
+                                </FormStyles.Select>
+                            </>
+                        ) : null}
                         {template.communication_method === ITemplateMethod.EMAIL &&
                             template.i18n["en"].email && (
                                 <EmailEditor

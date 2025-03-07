@@ -1802,6 +1802,8 @@ const catalanTranslation: TranslationType = {
                 alias: "Àlies de la Plantilla",
                 type: "Tipus",
                 communicationMethod: "Mètode",
+                is_active: "Actiu",
+                is_communication: "Plantilla de Comunicació",
             },
             type: {
                 CREDENTIALS: "Credencials",

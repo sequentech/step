@@ -1804,6 +1804,8 @@ const frenchTranslation: TranslationType = {
                 alias: "Alias du Modèle",
                 type: "Type",
                 communicationMethod: "Méthode",
+                is_active: "Actif",
+                is_communication: "Modèle de communication",
             },
             type: {
                 CREDENTIALS: "Identifiants",
