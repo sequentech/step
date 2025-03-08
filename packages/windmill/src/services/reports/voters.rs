@@ -41,7 +41,7 @@ enum VoterStatus {
     Voted,
     #[strum(to_string = "Did Not Vote")]
     NotVoted,
-    #[strum(to_string = "Did Not Pre-enrolled")]
+    #[strum(to_string = "Did Not Pre-enroll")]
     DidNotPreEnrolled,
 }
 
