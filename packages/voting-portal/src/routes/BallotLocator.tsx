@@ -19,7 +19,7 @@ import {styled} from "@mui/material/styles"
 import {Link, useLocation, useNavigate, useParams} from "react-router-dom"
 import {GET_CAST_VOTE} from "../queries/GetCastVote"
 import {useQuery} from "@apollo/client"
-import {GetBallotStylesQuery, GetCastVoteQuery} from "../gql/graphql"
+import {GetBallotStylesQuery, GetCastVoteQuery, GetElectionEventQuery} from "../gql/graphql"
 import {faAngleLeft, faCircleQuestion} from "@fortawesome/free-solid-svg-icons"
 import {GET_BALLOT_STYLES} from "../queries/GetBallotStyles"
 import {updateBallotStyleAndSelection} from "../services/BallotStyles"
@@ -27,6 +27,9 @@ import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {selectFirstBallotStyle} from "../store/ballotStyles/ballotStylesSlice"
 import useLanguage from "../hooks/useLanguage"
 import {SettingsContext} from "../providers/SettingsContextProvider"
+import useUpdateTranslation from "../hooks/useUpdateTranslation"
+import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
+import {IElectionEvent} from "../store/electionEvents/electionEventsSlice"
 
 const StyledLink = styled(Link)`
     text-decoration: none;
@@ -119,6 +122,18 @@ const BallotLocator: React.FC = () => {
         skip: globalSettings.DISABLE_AUTH, // Skip query if in demo mode
     })
 
+    const {data: dataElectionEvent} = useQuery<GetElectionEventQuery>(GET_ELECTION_EVENT, {
+        variables: {
+            electionEventId: eventId,
+            tenantId,
+        },
+        skip: globalSettings.DISABLE_AUTH, // Skip query if in demo mode
+    })
+
+    useUpdateTranslation({
+        electionEvent: dataElectionEvent?.sequent_backend_election_event[0] as IElectionEvent,
+    }) // Overwrite translations
+
     useEffect(() => {
         if (dataBallotStyles && dataBallotStyles.sequent_backend_ballot_style.length > 0) {
             updateBallotStyleAndSelection(dataBallotStyles, dispatch)
@@ -148,7 +163,9 @@ const BallotLocator: React.FC = () => {
     }
 
     return (
-        <StyledApp css={ballotStyle?.ballot_eml.election_event_presentation?.css ?? ""}>
+        <StyledApp
+            css={dataElectionEvent?.sequent_backend_election_event[0]?.presentation?.css ?? ""}
+        >
             <PageLimit maxWidth="lg" className="ballot-locator-screen screen">
                 <Box marginTop="48px">
                     <BreadCrumbSteps
