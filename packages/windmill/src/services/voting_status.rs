@@ -158,8 +158,15 @@ pub async fn update_board_on_status_change(
     };
 
     let electoral_log = if let Some(user_id) = user_id {
-        ElectoralLog::for_admin_user(&board_name, tenant_id, user_id, elections_ids_str, None)
-            .await?
+        ElectoralLog::for_admin_user(
+            &board_name,
+            tenant_id,
+            user_id,
+            username.map(|val| val.to_string()),
+            elections_ids_str,
+            None,
+        )
+        .await?
     } else {
         ElectoralLog::new(board_name.as_str()).await?
     };

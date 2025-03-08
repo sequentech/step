@@ -111,6 +111,7 @@ impl ElectoralLog {
         elog_database: &str,
         tenant_id: &str,
         user_id: &str,
+        username: Option<String>,
         elections_ids: Option<String>,
         user_area_id: Option<String>,
     ) -> Result<Self> {
@@ -121,6 +122,7 @@ impl ElectoralLog {
             elog_database,
             tenant_id,
             user_id,
+            username,
             elections_ids,
             user_area_id,
         )
@@ -192,6 +194,7 @@ impl ElectoralLog {
         elog_database: &str,
         tenant_id: &str,
         user_id: &str,
+        username: Option<String>,
         pk_der_b64: &str,
         elections_ids: Option<String>,
         user_area_id: Option<String>,
@@ -203,7 +206,7 @@ impl ElectoralLog {
         let message = Message::admin_public_key_message(
             TenantIdString(tenant_id.to_string()),
             Some(user_id.to_string()),
-            None,
+            username,
             PublicKeyDerB64(pk_der_b64.to_string()),
             &sd,
             elections_ids,

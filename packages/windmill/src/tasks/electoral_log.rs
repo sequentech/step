@@ -106,6 +106,7 @@ pub async fn process_electoral_log_events_batch(events: Vec<LogEventInput>) -> R
             &board_name,
             &tenant_id,
             &user_id,
+            username.clone(),
             None,
             user_area_id.clone(),
         )

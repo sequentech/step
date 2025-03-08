@@ -465,6 +465,7 @@ pub async fn create_tally_ceremony(
         &board_name,
         &tenant_id,
         user_id,
+        Some(username.clone()),
         Some(election_ids_str.clone()),
         None,
     )
@@ -772,6 +773,7 @@ pub async fn set_private_key(
         &board_name,
         &tenant_id,
         user_id,
+        username.clone(),
         Some(tally_elections_ids.clone()),
         None,
     )

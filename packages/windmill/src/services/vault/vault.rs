@@ -76,6 +76,7 @@ pub async fn get_admin_user_signing_key(
     elog_database: &str,
     tenant_id: &str,
     user_id: &str,
+    username: Option<String>,
     elections_ids: Option<String>,
     user_area_id: Option<String>,
 ) -> Result<StrandSignatureSk> {
@@ -103,6 +104,7 @@ pub async fn get_admin_user_signing_key(
             elog_database,
             tenant_id,
             user_id,
+            username,
             &pk,
             elections_ids,
             user_area_id,

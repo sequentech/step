@@ -235,6 +235,7 @@ pub async fn update_publish_ballot(
         &board_name,
         &tenant_id,
         &user_id,
+        Some(username.clone()),
         election_ids_str.clone(),
         None,
     )
