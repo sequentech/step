@@ -16,18 +16,18 @@ SPDX-License-Identifier: AGPL-3.0-only
   {{#each data.counts as |count|}}
     <Count>
       <EventIdentifier IdNumber="{{count.identifier.id_number}}">
-        <EventName>{{{count.identifier.name}}}</EventName>
+        <EventName>{{count.identifier.name}}</EventName>
       </EventIdentifier>
       {{#each count.elections as |election|}}
         <Election>
           <ElectionIdentifier IdNumber="{{election.identifier.id_number}}">
-            <ElectionName>{{{election.identifier.name}}}</ElectionName>
+            <ElectionName>{{election.identifier.name}}</ElectionName>
           </ElectionIdentifier>
           <Contests>
             {{#each election.contests as |contest|}}
               <Contest>
                 <ContestIdentifier IdNumber="{{contest.identifier.id_number}}">
-                  <ContestName>{{{contest.identifier.name}}}</ContestName>
+                  <ContestName>{{contest.identifier.name}}</ContestName>
                 </ContestIdentifier>
                 <TotalVotes>
                   {{#each contest.total_votes.count_metrics as |metric|}}
@@ -38,7 +38,7 @@ SPDX-License-Identifier: AGPL-3.0-only
                       {{#each selection.candidates as |candidate|}}
                         <Candidate>
                           <CandidateIdentifier IdNumber="{{candidate.identifier.id_number}}">
-                            <CandidateName>{{{candidate.identifier.name}}}</CandidateName>
+                            <CandidateName>{{candidate.identifier.name}}</CandidateName>
                           </CandidateIdentifier>
                           <StatusDetails>
                             {{#each candidate.status_details as |status|}}
@@ -49,9 +49,9 @@ SPDX-License-Identifier: AGPL-3.0-only
                             {{#if (ne candidate.affiliation.identifier.id_number " ")}}
                               <Affiliation>
                                 <AffiliationIdentifier IdNumber="{{candidate.affiliation.identifier.id_number}}">
-                                    <RegisteredName>{{{candidate.affiliation.identifier.name}}}</RegisteredName>
+                                    <RegisteredName>{{candidate.affiliation.identifier.name}}</RegisteredName>
                                 </AffiliationIdentifier>
-                                <Type>{{{candidate.affiliation.party}}}</Type>
+                                <Type>{{candidate.affiliation.party}}</Type>
                               </Affiliation>
                             {{/if}}
                           {{/if}}

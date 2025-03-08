@@ -149,12 +149,19 @@
                 </tr>
                 <tr>
                   <td class="key">
-                    <strong>Clustered Precinct ID:</strong>
+                  <strong>Clustered Precinct ID:</strong>
                   </td>
                   <td class="value">
-                    {{sanitize_html (expr
-                    election_annotations.clustered_precint_id)}}
+                    {{sanitize_html (expr election_annotations.pollcenter_code)}}
                   </td>
+                </tr>
+                <tr>
+                   <td class="key">
+                <strong>Precincts in the Cluster:</strong>
+              </td>
+              <td class="value">
+                {{sanitize_html (expr election_annotations.clustered_precint_id)}}
+              </td>
                 </tr>
                 <tr>
                   <td class="key">
@@ -217,7 +224,7 @@
               >
               of {{sanitize_html (expr election_annotations.post)}}, and
               Clustered Precinct ID {{sanitize_html (expr
-              election_annotations.clustered_precint_id)}}, do hereby certify
+              election_annotations.pollcenter_code)}}, do hereby certify
               under oath that the Online Voting and Counting System for
               {{sanitize_html (expr area.name)}} has been initialized on
               {{datetime from_rfc3339=../execution_annotations.date_printed
@@ -350,8 +357,6 @@
               ../execution_annotations.report_hash)}}</span><br />
               Software version: {{sanitize_html (expr
               ../execution_annotations.app_version)}}<br />
-              OVCS version: {{sanitize_html (expr
-              ../execution_annotations.app_version)}}<br />
               System hash: <span class="hash">{{sanitize_html (expr
               ../execution_annotations.app_hash)}}</span>
             </div>
@@ -362,8 +367,8 @@
         <tr class="report-end">
           <td align="center">
             <div>
-              <hr />
               <p>End of Report</p>
+              <hr />
             </div>
           </td>
         </tr>
