@@ -1,0 +1,45 @@
+{
+    "json_file": "export_election_event-44955333-fe90-47d9-8150-dd87db3b4a83.json",
+    "csv_file": "generated_users.csv",
+    "fields": [
+      "username",
+      "last_name",
+      "first_name",
+      "middleName",
+      "dateOfBirth",
+      "sex",
+      "country",
+      "embassy",
+      "clusteredPrecinct",
+      "overseasReferences",
+      "area_name",
+      "authorized-election-ids",
+      "password",
+      "email",
+      "password_salt",
+      "hashed_password"
+    ],
+    "excluded_columns": ["password", "password_salt", "hashed_password"],
+    "email_prefix": "testsequent2025",
+    "domain": "mailinator.com",
+    "sequence_email_number": true,
+    "sequence_start_number": 0,
+    "voter_password": "Qwerty1234!",
+    "password_salt": "sppXH6/iePtmIgcXfTHmjPS2QpLfILVMfmmVOLPKlic=",
+    "hashed_password": "V0rb8+HmTneV64qto5f0G2+OY09x2RwPeqtK605EUz0=",
+    "date_range": {
+      "start_year": 1970,
+      "end_year": 2022
+    },
+    "overseas_reference": "B",
+    "first_names": ["Michael", "Christopher", "Jessica", "Matthew", "Ashley"],
+    "last_names": ["Smith", "Johnson", "Williams", "Brown", "Jones"],
+    "duplicate_votes": {
+      "realm_name": "tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-deb5b3ed-2ba6-4aa4-92d1-59df91354f51",
+      "target_row_count": 50000,
+      "row_id_to_clone": "6dd4b66f-e5bc-4950-94bb-9628240c7cf3"
+    },
+    "min_age": 18,
+    "max_age": 90
+  }
+  
