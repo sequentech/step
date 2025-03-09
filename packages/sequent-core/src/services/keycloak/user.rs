@@ -246,7 +246,7 @@ impl KeycloakAdminClient {
         Ok(current_user.into())
     }
 
-    #[instrument(skip(self), err)]
+    #[instrument(skip(self, password), err)]
     pub async fn edit_user(
         self,
         realm: &str,
@@ -294,7 +294,7 @@ impl KeycloakAdminClient {
         .await
     }
 
-    #[instrument(skip(self), err)]
+    #[instrument(skip(self, credentials), err)]
     pub async fn edit_user_with_credentials(
         self,
         realm: &str,
