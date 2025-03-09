@@ -36,8 +36,6 @@ interface StatsProps {
 
 export const Stats: React.FC<StatsProps> = ({metrics}) => {
     const {t} = useTranslation()
-    const [tenantId] = useTenantStore()
-
     const iconSize = 60
 
     return (

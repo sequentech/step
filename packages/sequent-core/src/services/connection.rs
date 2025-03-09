@@ -3,9 +3,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::jwt::*;
 use crate::services::keycloak::{
-    get_third_party_client_access_token, TokenResponse,
+    get_third_party_client_access_token, KeycloakAdminClient,
+    PubKeycloakAdminToken,
 };
 use anyhow::{anyhow, Result as AnyhowResult};
+use keycloak::{KeycloakAdmin, KeycloakAdminToken};
 use rocket::http::HeaderMap;
 use rocket::http::Status;
 use rocket::outcome::try_outcome;
@@ -16,6 +18,11 @@ use std::net::IpAddr;
 use std::sync::RwLock;
 use std::time::{Duration, Instant};
 use tracing::{error, info, instrument, warn};
+
+const TENANT_ID_HEADER: &str = "tenant-id";
+const EVENT_ID_HEADER: &str = "event-id";
+const AUTHORIZATION_HEADER: &str = "authorization";
+pub const PRE_EXPIRATION_SECS: i64 = 5;
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct AuthHeaders {
     pub key: String,
@@ -132,9 +139,10 @@ struct DatafixHeaders {
 }
 
 /// Returns None if any of the required headers are missing or is incomplete
-#[instrument]
+#[instrument(skip_all)]
 fn parse_datafix_headers(headers: &HeaderMap) -> Option<DatafixHeaders> {
-    let required_headers = ["tenant_id", "event_id", "authorization"];
+    let required_headers =
+        [TENANT_ID_HEADER, EVENT_ID_HEADER, AUTHORIZATION_HEADER];
     let mut missing_headers = vec![];
     for header in required_headers {
         if !headers.contains(header) {
@@ -148,13 +156,13 @@ fn parse_datafix_headers(headers: &HeaderMap) -> Option<DatafixHeaders> {
     }
 
     let (tenant_id, event_id, authorization) = (
-        headers.get_one("tenant_id").unwrap_or_default(),
-        headers.get_one("event_id").unwrap_or_default(),
-        headers.get_one("authorization").unwrap_or_default(),
+        headers.get_one(TENANT_ID_HEADER).unwrap_or_default(),
+        headers.get_one(EVENT_ID_HEADER).unwrap_or_default(),
+        headers.get_one(AUTHORIZATION_HEADER).unwrap_or_default(),
     );
 
     info!(
-        "tenant_id: {:?} event_id: {:?} authorization: {:?}",
+        "tenant-id: {:?} event-id: {:?} authorization: {:?}",
         tenant_id, event_id, authorization
     );
 
@@ -185,7 +193,7 @@ fn parse_datafix_headers(headers: &HeaderMap) -> Option<DatafixHeaders> {
 /// make sure the requester is the same.
 #[derive(Debug, Clone)]
 struct TokenResponseExtended {
-    token_resp: TokenResponse,
+    token_resp: PubKeycloakAdminToken,
     stamp: Instant,
     client_id: String,
     client_secret: String,
@@ -202,11 +210,11 @@ struct TokenResponseExtended {
 /// The same goes for scalability as each container can hold a different
 /// token being all valid.
 #[derive(Debug, Default)]
-pub struct LastAccessToken(RwLock<Option<TokenResponseExtended>>);
+pub struct LastDatafixAccessToken(RwLock<Option<TokenResponseExtended>>);
 
-impl LastAccessToken {
+impl LastDatafixAccessToken {
     pub fn init() -> Self {
-        LastAccessToken(RwLock::new(None))
+        LastDatafixAccessToken(RwLock::new(None))
     }
 }
 
@@ -217,8 +225,8 @@ async fn read_access_token(
     client_id: &str,
     client_secret: &str,
     tenant_id: &str,
-    lst_acc_tkn: &LastAccessToken,
-) -> Option<TokenResponse> {
+    lst_acc_tkn: &LastDatafixAccessToken,
+) -> Option<PubKeycloakAdminToken> {
     let token_resp_ext_opt = match lst_acc_tkn.0.read() {
         Ok(read) => read.clone(),
         Err(err) => {
@@ -228,14 +236,15 @@ async fn read_access_token(
     };
 
     if let Some(data) = token_resp_ext_opt {
-        let pre_expriration_time: i64 = data.token_resp.expires_in - 1; // Renew the token 1 second before it expires
+        let pre_expiration_time: i64 =
+            data.token_resp.expires_in as i64 - PRE_EXPIRATION_SECS; // Renew the token 5 seconds before it expires
 
         if data.client_id.eq(client_id)
             && data.client_secret.eq(client_secret)
             && data.tenant_id.eq(tenant_id)
-            && pre_expriration_time.is_positive()
+            && pre_expiration_time.is_positive()
             && data.stamp.elapsed()
-                < Duration::from_secs(pre_expriration_time as u64)
+                < Duration::from_secs(pre_expiration_time as u64)
         {
             return Some(data.token_resp);
         }
@@ -249,23 +258,18 @@ async fn request_access_token(
     client_id: String,
     client_secret: String,
     tenant_id: String,
-    lst_acc_tkn: &LastAccessToken,
-) -> AnyhowResult<TokenResponse> {
+    lst_acc_tkn: &LastDatafixAccessToken,
+) -> AnyhowResult<PubKeycloakAdminToken> {
     let stamp: Instant = Instant::now(); // Capture the stamp before sending the request
     info!("Requesting access token");
-    let token_resp = match get_third_party_client_access_token(
+    let keycloak_adm_tkn = get_third_party_client_access_token(
         client_id.clone(),
         client_secret.clone(),
         tenant_id.clone(),
     )
-    .await
-    {
-        Ok(token_resp) => token_resp,
-        Err(err) => {
-            return Err(err);
-        }
-    };
+    .await?;
 
+    let token_resp: PubKeycloakAdminToken = keycloak_adm_tkn.try_into()?;
     let mut write = match lst_acc_tkn.0.write() {
         Ok(write) => write,
         Err(err) => {
@@ -286,7 +290,7 @@ async fn request_access_token(
 #[rocket::async_trait]
 impl<'r> FromRequest<'r> for DatafixClaims {
     type Error = ();
-    #[instrument]
+    #[instrument(skip_all)]
     async fn from_request(
         request: &'r Request<'_>,
     ) -> Outcome<Self, Self::Error> {
@@ -305,8 +309,9 @@ impl<'r> FromRequest<'r> for DatafixClaims {
 
         // Try to read the access token from the cache, if it´s not there or
         // expired request a new one and write it to the cache.
-        let lst_acc_tkn =
-            try_outcome!(request.guard::<&State<LastAccessToken>>().await);
+        let lst_acc_tkn = try_outcome!(
+            request.guard::<&State<LastDatafixAccessToken>>().await
+        );
         let token_resp = match read_access_token(
             &authorization.client_id,
             &authorization.client_secret,

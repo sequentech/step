@@ -24,7 +24,7 @@ strum = { version = "0.26.3", features = ["derive"] }
 rayon = { version = "1.5" }
 
 # grpc client
-tonic = "0.12.1"
+tonic = "0.12"
 
 # trustee local store
 rusqlite = { version = "0.32.1", features = ["bundled"] }
