@@ -10,7 +10,7 @@ export const GET_ELECTION_STATS = gql`
         $electionId: uuid!
         $startDate: String!
         $endDate: String!
-        $electionAlias: String!
+        $electionAlias: String
         $userTimezone: String!
     ) {
         stats: getElectionStats(
