@@ -739,7 +739,7 @@ pub async fn get_voter_signing_key(
         event_id,
         user_id,
         &pk,
-        area_id
+        area_id,
     )
     .await?;
 

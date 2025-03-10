@@ -704,7 +704,7 @@ pub async fn process_reports_file(
 async fn process_activity_logs_file(
     hasura_transaction: &Transaction<'_>,
     temp_file: &NamedTempFile,
-    election_event_id:  &str,
+    election_event_id: &str,
     tenant_id: &str,
 ) -> Result<()> {
     let board_name = get_event_board(tenant_id, election_event_id);

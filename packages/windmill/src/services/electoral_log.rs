@@ -169,7 +169,7 @@ impl ElectoralLog {
             user_id,
             username,
             elections_ids,
-            user_area_id
+            user_area_id,
         )
         .await?;
 

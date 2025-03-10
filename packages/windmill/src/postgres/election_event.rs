@@ -472,23 +472,23 @@ pub async fn delete_election_event(
 }
 
 #[instrument(err, skip_all)]
- pub async fn update_bulletin_board(
-     hasura_transaction: &Transaction<'_>,
-     tenant_id: &str,
-     election_event_id: &str,
-     board: &serde_json::Value,
- ) -> Result<()> {
-     let update_bulletin_board = hasura_transaction
-         .prepare(
-             r#"
+pub async fn update_bulletin_board(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    board: &serde_json::Value,
+) -> Result<()> {
+    let update_bulletin_board = hasura_transaction
+        .prepare(
+            r#"
              UPDATE sequent_backend.election_event
              SET bulletin_board_reference = $1
              WHERE tenant_id = $2 AND id = $3;
              "#,
-         )
-         .await?;
-     
-     hasura_transaction
+        )
+        .await?;
+
+    hasura_transaction
          .execute(
              &update_bulletin_board,
              &[
@@ -499,6 +499,6 @@ pub async fn delete_election_event(
          )
          .await
          .with_context(|| format!("Error updating election event with board reference for tenant ID {} and election event ID {}", tenant_id, election_event_id))?;
-     
-     Ok(())
- }
+
+    Ok(())
+}

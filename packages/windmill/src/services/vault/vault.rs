@@ -192,8 +192,6 @@ pub async fn get_admin_user_signing_key(
         let pk = StrandSignaturePk::from_sk(&sk)?;
         let pk = pk.to_der_b64_string()?;
 
-
-
         // We save the secret right before notifying the public key
         // to minimize the chances that the second call fails while
         // while the first one succeeds. If this happens the
