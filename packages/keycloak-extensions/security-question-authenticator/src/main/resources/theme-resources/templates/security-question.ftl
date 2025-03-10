@@ -20,7 +20,7 @@ SPDX-License-Identifier: AGPL-3.0-only
                 </div>
 
                 <div class="${properties.kcInputWrapperClass!}">
-                    <input id="totp" name="security-answer" type="text" class="${properties.kcInputClass!}" />
+                    <input id="totp" name="security-answer" type="date" class="${properties.kcInputClass!}" />
                 </div>
             </div>
 

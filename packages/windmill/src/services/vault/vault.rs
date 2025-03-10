@@ -173,6 +173,9 @@ pub async fn get_admin_user_signing_key(
     elog_database: &str,
     tenant_id: &str,
     user_id: &str,
+    username: Option<String>,
+    elections_ids: Option<String>,
+    user_area_id: Option<String>,
 ) -> Result<StrandSignatureSk> {
     let lookup_key = admin_vault_lookup_key(&tenant_id, &user_id);
     let sk_der_b64 = read_secret(hasura_transaction, tenant_id, None, &lookup_key).await?;
@@ -189,9 +192,24 @@ pub async fn get_admin_user_signing_key(
         let pk = StrandSignaturePk::from_sk(&sk)?;
         let pk = pk.to_der_b64_string()?;
 
+
+
+        // We save the secret right before notifying the public key
+        // to minimize the chances that the second call fails while
+        // while the first one succeeds. If this happens the
+        // secret will exist but the pk notification will not.
         save_secret(hasura_transaction, tenant_id, None, &lookup_key, &sk_string).await?;
-        ElectoralLog::post_admin_pk(hasura_transaction, elog_database, tenant_id, user_id, &pk)
-            .await?;
+        ElectoralLog::post_admin_pk(
+            hasura_transaction,
+            elog_database,
+            tenant_id,
+            user_id,
+            username,
+            &pk,
+            elections_ids,
+            user_area_id,
+        )
+        .await?;
 
         sk
     };

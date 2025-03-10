@@ -458,6 +458,8 @@ pub async fn create_tally_ceremony(
     let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
         .with_context(|| "missing bulletin board")?;
 
+    let election_ids_str = election_ids.join(", ");
+
     // let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
     let electoral_log = ElectoralLog::for_admin_user(
         transaction,
@@ -465,6 +467,9 @@ pub async fn create_tally_ceremony(
         &tenant_id,
         &election_event_id,
         user_id,
+        Some(username.clone()),
+        Some(election_ids_str.clone()),
+        None,
     )
     .await?;
     electoral_log
@@ -472,6 +477,7 @@ pub async fn create_tally_ceremony(
             election_event_id.clone(),
             Some(user_id.to_string()),
             Some(username),
+            Some(election_ids_str),
         )
         .await
         .with_context(|| "error posting to the electoral log")?;
@@ -758,6 +764,12 @@ pub async fn set_private_key(
     let user_id = &claims.hasura_claims.user_id;
     let username = &claims.preferred_username;
 
+    let tally_elections_ids = tally_session
+        .election_ids
+        .clone()
+        .unwrap_or_default()
+        .join(", ");
+
     // let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
     let electoral_log = ElectoralLog::for_admin_user(
         transaction,
@@ -765,6 +777,9 @@ pub async fn set_private_key(
         &tenant_id,
         election_event_id,
         user_id,
+        username.clone(),
+        Some(tally_elections_ids.clone()),
+        None,
     )
     .await?;
     electoral_log
@@ -773,6 +788,7 @@ pub async fn set_private_key(
             found_trustee.name.clone(),
             Some(user_id.to_string()),
             username.clone(),
+            tally_elections_ids,
         )
         .await
         .with_context(|| "error posting to the electoral log")?;

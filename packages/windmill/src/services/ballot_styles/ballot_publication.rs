@@ -207,7 +207,7 @@ pub async fn update_publish_ballot(
 
     // Update elections status
     let election_ids = ballot_publication.election_ids.clone().unwrap_or(vec![]);
-    for election_id in election_ids {
+    for election_id in election_ids.clone() {
         update_election_status(
             &hasura_transaction,
             &election_id,
@@ -222,6 +222,14 @@ pub async fn update_publish_ballot(
     let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
         .with_context(|| "missing bulletin board")?;
 
+    let election_ids_str = match election_ids.len() > 1 {
+        true => None,
+        false => match election_ids.len() > 0 {
+            true => Some(election_ids[0].clone()),
+            false => None,
+        },
+    };
+
     // let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
     let electoral_log = ElectoralLog::for_admin_user(
         hasura_transaction,
@@ -229,12 +237,15 @@ pub async fn update_publish_ballot(
         &tenant_id,
         &election_event.id,
         &user_id,
+        Some(username.clone()),
+        election_ids_str.clone(),
+        None,
     )
     .await?;
     electoral_log
         .post_election_published(
             election_event_id.clone(),
-            None,
+            election_ids_str,
             ballot_publication_id.clone(),
             Some(user_id),
             Some(username),

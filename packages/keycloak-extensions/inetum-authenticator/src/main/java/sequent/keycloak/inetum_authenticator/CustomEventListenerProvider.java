@@ -113,7 +113,20 @@ public class CustomEventListenerProvider implements EventListenerProvider {
     String username =
         Optional.ofNullable(event.getDetails())
             .map(details -> details.get("username"))
-            .orElse("unknown");
+            .orElseGet(
+                () -> {
+                  if (event.getUserId() != null) {
+                    var user =
+                        session
+                            .users()
+                            .getUserById(
+                                session.realms().getRealm(event.getRealmId()), event.getUserId());
+                    if (user != null) {
+                      return user.getEmail();
+                    }
+                  }
+                  return "unknown";
+                });
 
     // Prepare message body based on event type.
     String body;

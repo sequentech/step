@@ -151,6 +151,13 @@ pub async fn update_board_on_status_change(
 ) -> Result<()> {
     let board_name =
         get_election_event_board(board_reference).with_context(|| "missing bulletin board")?;
+    let elections_ids_str = match election_id.clone() {
+        Some(election_id) => Some(election_id),
+        None => match elections_ids.clone() {
+            Some(elections_ids) => Some(elections_ids.join(",")),
+            None => None,
+        },
+    };
 
     let electoral_log = if let Some(user_id) = user_id {
         ElectoralLog::for_admin_user(
@@ -159,6 +166,9 @@ pub async fn update_board_on_status_change(
             tenant_id,
             &election_event_id,
             user_id,
+            username.map(|val| val.to_string()),
+            elections_ids_str,
+            None,
         )
         .await?
     } else {

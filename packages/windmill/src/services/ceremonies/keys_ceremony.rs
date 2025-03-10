@@ -449,6 +449,9 @@ pub async fn create_keys_ceremony(
         &tenant_id,
         &election_event.id,
         user_id,
+        Some(username.to_string()),
+        election_id.clone(),
+        None,
     )
     .await?;
     electoral_log
@@ -456,6 +459,7 @@ pub async fn create_keys_ceremony(
             election_event_id.clone(),
             Some(user_id.to_string()),
             Some(username.to_string()),
+            election_id.clone(),
         )
         .await
         .with_context(|| "error posting to the electoral log")?;
