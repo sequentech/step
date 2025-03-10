@@ -13,6 +13,7 @@ pub use headless_chrome::types::{PrintToPdfOptions, TransferMode};
 use headless_chrome::{Browser, LaunchOptionsBuilder};
 use reqwest;
 use serde_json::json;
+use sha256;
 use std::fs;
 use std::fs::File;
 use std::io::Write;

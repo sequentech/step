@@ -9,7 +9,6 @@ use std::fs::File;
 use std::io::{self, BufWriter, Read, Seek, Write};
 use tempfile::Builder;
 use tempfile::{NamedTempFile, TempPath};
-use tracing::{event, instrument, Level};
 
 pub fn get_public_assets_path_env_var() -> Result<String> {
     match env::var("PUBLIC_ASSETS_PATH") {
