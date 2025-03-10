@@ -704,15 +704,15 @@ pub async fn process_reports_file(
 async fn process_activity_logs_file(
     hasura_transaction: &Transaction<'_>,
     temp_file: &NamedTempFile,
-    election_event: ElectionEvent,
+    election_event_id:  &str,
+    tenant_id: &str,
 ) -> Result<()> {
-    let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
-        .with_context(|| "Missing bulletin board")?;
+    let board_name = get_event_board(tenant_id, election_event_id);
 
     let electoral_log = ElectoralLog::new(
         hasura_transaction,
-        &election_event.tenant_id,
-        Some(&election_event.id),
+        &tenant_id,
+        Some(&election_event_id),
         board_name.as_str(),
     )
     .await?;
@@ -841,13 +841,14 @@ pub async fn process_document(
         ))
     });
 
+    let election_event_id_clone = election_event_id.clone();
     let (election_event_schema, replacement_map) = process_election_event_file(
         hasura_transaction,
         &document_type,
         &file_election_event_schema,
         object,
-        election_event_id,
-        tenant_id,
+        election_event_id.clone(),
+        tenant_id.clone(),
         is_importing_keys,
     )
     .await
@@ -867,11 +868,11 @@ pub async fn process_document(
                 io::copy(&mut cursor, &mut temp_file)
                     .context("Failed to copy contents of activity logs to temporary file")?;
                 temp_file.as_file_mut().rewind()?;
-
                 process_activity_logs_file(
                     hasura_transaction,
                     &temp_file,
-                    election_event_schema.election_event.clone(),
+                    &election_event_id,
+                    &tenant_id,
                 )
                 .await
                 .context("Failed to import activity logs")?;
