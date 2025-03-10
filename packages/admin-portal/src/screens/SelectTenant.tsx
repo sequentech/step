@@ -129,6 +129,20 @@ export const SelectTenant = () => {
     const [logoImg, setLogoImg] = useState<string | undefined>(BlankLogoImg)
     const [css, setCss] = useState<string>("")
 
+    /**
+     * Fetches the default tenant's information from the backend and updates the logo and CSS state.
+     *
+     * This function sends a POST request to the HASURA_URL endpoint with a GraphQL query to fetch
+     * the tenant details by ID. It then extracts the logo URL and CSS from the tenant's annotations
+     * and updates the corresponding state variables.
+     *
+     * @async
+     * @function getDefaultTenant
+     *
+     * @returns {Promise<void>} A promise that resolves when the tenant information has been fetched and the state has been updated.
+     *
+     * @throws {Error} Throws an error if the fetch request fails or if the response contains errors.
+     */
     const getDefaultTenant = async () => {
         const response = await fetch(globalSettings.HASURA_URL, {
             method: "POST",
