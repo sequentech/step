@@ -12,16 +12,24 @@ import {
     Snackbar,
     Alert,
     CircularProgress,
+    Stack,
 } from "@mui/material"
 import {styled} from "@mui/system"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {useNavigate} from "react-router"
-import {Header} from "@sequentech/ui-essentials"
+import {adminTheme, Header} from "@sequentech/ui-essentials"
 import {useTranslation} from "react-i18next"
 import SequentLogo from "@sequentech/ui-essentials/public/Sequent_logo.svg"
 import BlankLogoImg from "@sequentech/ui-essentials/public/blank_logo.svg"
 import {ITenantTheme} from "@sequentech/ui-core"
+import {AppBar} from "react-admin"
+
+const StyledApp = styled(Stack)<{css: string}>`
+    min-height: 100vh;
+    min-width: 100vw;
+    ${({css}) => css}
+`
 
 export const StyledButton = styled(Button)`
     z-index: 1;
@@ -119,6 +127,7 @@ export const SelectTenant = () => {
     const [isDisabled, setIsDisabled] = useState(false)
     const navigate = useNavigate()
     const [logoImg, setLogoImg] = useState<string | undefined>(BlankLogoImg)
+    const [css, setCss] = useState<string>("")
 
     const getDefaultTenant = async () => {
         const response = await fetch(globalSettings.HASURA_URL, {
@@ -141,10 +150,10 @@ export const SelectTenant = () => {
         const newLogoState = (
             data?.sequent_backend_tenant[0].annotations as ITenantTheme | undefined
         )?.logo_url
-        console.log("aa defaults newLogoState", newLogoState)
-        console.log("aa defaults data", data)
-        console.log("aa defaults errors", errors)
+        const newCss = (data?.sequent_backend_tenant[0].annotations as ITenantTheme | undefined)
+            ?.css
         setLogoImg(errors?.length > 0 ? SequentLogo : newLogoState ?? SequentLogo)
+        setCss(newCss ?? "")
     }
 
     useEffect(() => {
@@ -185,10 +194,6 @@ export const SelectTenant = () => {
             getDefaultTenant() // Redirect to the app if already authenticated
         }
     }, [globalSettings])
-
-    useEffect(() => {
-        console.log("aa imgen", logoImg)
-    }, [logoImg])
 
     const handleClose = (event: React.SyntheticEvent | Event) => {
         setOpen(false)
@@ -319,7 +324,7 @@ export const SelectTenant = () => {
             {loading ? (
                 <CircularProgress />
             ) : (
-                <Box>
+                <StyledApp css={css}>
                     <Header
                         appVersion={{main: globalSettings.APP_VERSION}}
                         appHash={{main: globalSettings.APP_HASH}}
@@ -391,7 +396,7 @@ export const SelectTenant = () => {
                             <Box>{error}</Box>
                         </Alert>
                     </Snackbar>
-                </Box>
+                </StyledApp>
             )}
         </>
     )
