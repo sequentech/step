@@ -19,6 +19,9 @@ import {AuthContext} from "@/providers/AuthContextProvider"
 import {useNavigate} from "react-router"
 import {Header} from "@sequentech/ui-essentials"
 import {useTranslation} from "react-i18next"
+import SequentLogo from "@sequentech/ui-essentials/public/Sequent_logo.svg"
+import BlankLogoImg from "@sequentech/ui-essentials/public/blank_logo.svg"
+import {ITenantTheme} from "@sequentech/ui-core"
 
 export const StyledButton = styled(Button)`
     z-index: 1;
@@ -115,6 +118,34 @@ export const SelectTenant = () => {
     const [open, setOpen] = useState<boolean>(false)
     const [isDisabled, setIsDisabled] = useState(false)
     const navigate = useNavigate()
+    const [logoImg, setLogoImg] = useState<string | undefined>(BlankLogoImg)
+
+    const getDefaultTenant = async () => {
+        const response = await fetch(globalSettings.HASURA_URL, {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({
+                query: `
+                query GetTenantById($id: uuid!) {
+                    sequent_backend_tenant(where: {id: {_eq: $id}}) {
+                        id
+                        slug
+                        annotations
+                        }
+                        }
+                        `,
+                variables: {id: globalSettings.DEFAULT_TENANT_ID},
+            }),
+        })
+        const {data, errors} = await response.json()
+        const newLogoState = (
+            data?.sequent_backend_tenant[0].annotations as ITenantTheme | undefined
+        )?.logo_url
+        console.log("aa defaults newLogoState", newLogoState)
+        console.log("aa defaults data", data)
+        console.log("aa defaults errors", errors)
+        setLogoImg(errors?.length > 0 ? SequentLogo : newLogoState ?? SequentLogo)
+    }
 
     useEffect(() => {
         if (localStorage.getItem("token") !== null) {
@@ -148,6 +179,16 @@ export const SelectTenant = () => {
             navigate("/") // Redirect to the app if already authenticated
         }
     }, [isAuthenticated, navigate])
+
+    useEffect(() => {
+        if (globalSettings) {
+            getDefaultTenant() // Redirect to the app if already authenticated
+        }
+    }, [globalSettings])
+
+    useEffect(() => {
+        console.log("aa imgen", logoImg)
+    }, [logoImg])
 
     const handleClose = (event: React.SyntheticEvent | Event) => {
         setOpen(false)
@@ -282,6 +323,7 @@ export const SelectTenant = () => {
                     <Header
                         appVersion={{main: globalSettings.APP_VERSION}}
                         appHash={{main: globalSettings.APP_HASH}}
+                        logoUrl={logoImg}
                     />
                     <BackgroundWrapper>
                         <ContentWrapper>
