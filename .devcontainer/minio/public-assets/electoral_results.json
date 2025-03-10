@@ -60,7 +60,8 @@
       "election_annotations": {
         "geographical_region": "Asia/Pacific",
         "post": "Tokyo PE",
-        "clustered_precint_id": "E1"
+        "clustered_precint_id": "E1",
+        "pollcenter_code": "90010001"
       },
       "area_annotations": {
         "registered_voters": "10000000"
