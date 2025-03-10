@@ -1,3 +1,10 @@
+<!--
+SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
+
+SPDX-License-Identifier: AGPL-3.0-only
+
+-->
+
 # Load Testing Tool
 
 This tool is a Python-based load testing utility that performs various actions such as generating fake voter data, duplicating votes in a PostgreSQL database, and (in the future) generating applications and activity logs. Configuration for the tool is centralized in a `config.json` file located in a specified working directory.
