@@ -139,7 +139,7 @@ export const SelectTenant = () => {
      * @async
      * @function getDefaultTenant
      *
-     * @returns {Promise<void>} A promise that resolves when the tenant information has been fetched and the state has been updated.
+     * @returns {Promise<void>} A promise that reso lves when the tenant information has been fetched and the state has been updated.
      *
      * @throws {Error} Throws an error if the fetch request fails or if the response contains errors.
      */

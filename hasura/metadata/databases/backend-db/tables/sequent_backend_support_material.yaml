@@ -1,228 +1,228 @@
 table:
-  name: support_material
-  schema: sequent_backend
+    name: support_material
+    schema: sequent_backend
 insert_permissions:
-- comment: ""
-  permission:
-    check:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-    columns:
-    - is_hidden
-    - annotations
-    - data
-    - labels
-    - document_id
-    - kind
-    - created_at
-    - last_updated_at
-    - election_event_id
-    - id
-    - tenant_id
-  role: admin-user
-- comment: ""
-  permission:
-    check: {}
-    columns:
-    - is_hidden
-    - annotations
-    - data
-    - labels
-    - document_id
-    - kind
-    - created_at
-    - last_updated_at
-    - election_event_id
-    - id
-    - tenant_id
-  role: service-account
-- comment: ""
-  permission:
-    check:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-    columns:
-    - is_hidden
-    - annotations
-    - data
-    - labels
-    - document_id
-    - kind
-    - created_at
-    - last_updated_at
-    - election_event_id
-    - id
-    - tenant_id
-  role: support-material-write
+    - comment: ""
+      permission:
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          columns:
+              - is_hidden
+              - annotations
+              - data
+              - labels
+              - document_id
+              - kind
+              - created_at
+              - last_updated_at
+              - election_event_id
+              - id
+              - tenant_id
+      role: admin-user
+    - comment: ""
+      permission:
+          check: {}
+          columns:
+              - is_hidden
+              - annotations
+              - data
+              - labels
+              - document_id
+              - kind
+              - created_at
+              - last_updated_at
+              - election_event_id
+              - id
+              - tenant_id
+      role: service-account
+    - comment: ""
+      permission:
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          columns:
+              - is_hidden
+              - annotations
+              - data
+              - labels
+              - document_id
+              - kind
+              - created_at
+              - last_updated_at
+              - election_event_id
+              - id
+              - tenant_id
+      role: support-material-write
 select_permissions:
-- comment: ""
-  permission:
-    allow_aggregations: true
-    columns:
-    - is_hidden
-    - annotations
-    - data
-    - labels
-    - document_id
-    - kind
-    - created_at
-    - last_updated_at
-    - election_event_id
-    - id
-    - tenant_id
-    filter:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-  role: admin-user
-- comment: ""
-  permission:
-    allow_aggregations: true
-    columns:
-    - is_hidden
-    - annotations
-    - data
-    - labels
-    - document_id
-    - kind
-    - created_at
-    - last_updated_at
-    - election_event_id
-    - id
-    - tenant_id
-    filter: {}
-  role: service-account
-- comment: ""
-  permission:
-    allow_aggregations: true
-    columns:
-    - is_hidden
-    - annotations
-    - data
-    - labels
-    - document_id
-    - kind
-    - created_at
-    - last_updated_at
-    - election_event_id
-    - id
-    - tenant_id
-    filter:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-  role: support-material-read
-- comment: ""
-  permission:
-    allow_aggregations: true
-    columns:
-    - is_hidden
-    - annotations
-    - data
-    - labels
-    - document_id
-    - kind
-    - created_at
-    - last_updated_at
-    - election_event_id
-    - id
-    - tenant_id
-    filter:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-  role: support-material-write
-- comment: ""
-  permission:
-    allow_aggregations: true
-    columns:
-    - is_hidden
-    - annotations
-    - data
-    - labels
-    - document_id
-    - kind
-    - created_at
-    - last_updated_at
-    - election_event_id
-    - id
-    - tenant_id
-    filter:
-      _and:
-      - tenant_id:
-          _eq: X-Hasura-Tenant-Id
-  role: user
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - is_hidden
+              - annotations
+              - data
+              - labels
+              - document_id
+              - kind
+              - created_at
+              - last_updated_at
+              - election_event_id
+              - id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: admin-user
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - is_hidden
+              - annotations
+              - data
+              - labels
+              - document_id
+              - kind
+              - created_at
+              - last_updated_at
+              - election_event_id
+              - id
+              - tenant_id
+          filter: {}
+      role: service-account
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - is_hidden
+              - annotations
+              - data
+              - labels
+              - document_id
+              - kind
+              - created_at
+              - last_updated_at
+              - election_event_id
+              - id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: support-material-read
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - is_hidden
+              - annotations
+              - data
+              - labels
+              - document_id
+              - kind
+              - created_at
+              - last_updated_at
+              - election_event_id
+              - id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: support-material-write
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - is_hidden
+              - annotations
+              - data
+              - labels
+              - document_id
+              - kind
+              - created_at
+              - last_updated_at
+              - election_event_id
+              - id
+              - tenant_id
+          filter:
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+      role: user
 update_permissions:
-- comment: ""
-  permission:
-    check:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-    columns:
-    - is_hidden
-    - annotations
-    - data
-    - labels
-    - document_id
-    - kind
-    - created_at
-    - last_updated_at
-    - election_event_id
-    - id
-    - tenant_id
-    filter:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-  role: admin-user
-- comment: ""
-  permission:
-    check: {}
-    columns:
-    - is_hidden
-    - annotations
-    - data
-    - labels
-    - document_id
-    - kind
-    - created_at
-    - last_updated_at
-    - election_event_id
-    - id
-    - tenant_id
-    filter: {}
-  role: service-account
-- comment: ""
-  permission:
-    check:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-    columns:
-    - is_hidden
-    - annotations
-    - data
-    - labels
-    - document_id
-    - kind
-    - created_at
-    - last_updated_at
-    - election_event_id
-    - id
-    - tenant_id
-    filter:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-  role: support-material-write
+    - comment: ""
+      permission:
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          columns:
+              - is_hidden
+              - annotations
+              - data
+              - labels
+              - document_id
+              - kind
+              - created_at
+              - last_updated_at
+              - election_event_id
+              - id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: admin-user
+    - comment: ""
+      permission:
+          check: {}
+          columns:
+              - is_hidden
+              - annotations
+              - data
+              - labels
+              - document_id
+              - kind
+              - created_at
+              - last_updated_at
+              - election_event_id
+              - id
+              - tenant_id
+          filter: {}
+      role: service-account
+    - comment: ""
+      permission:
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          columns:
+              - is_hidden
+              - annotations
+              - data
+              - labels
+              - document_id
+              - kind
+              - created_at
+              - last_updated_at
+              - election_event_id
+              - id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: support-material-write
 delete_permissions:
-- comment: ""
-  permission:
-    filter:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-  role: admin-user
-- comment: ""
-  permission:
-    filter: {}
-  role: service-account
-- comment: ""
-  permission:
-    filter:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-  role: support-material-write
+    - comment: ""
+      permission:
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: admin-user
+    - comment: ""
+      permission:
+          filter: {}
+      role: service-account
+    - comment: ""
+      permission:
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: support-material-write
