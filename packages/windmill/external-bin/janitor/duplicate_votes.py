@@ -2,6 +2,9 @@ import json
 import psycopg2
 from psycopg2.extras import execute_values
 import os
+from datetime import datetime
+import csv
+import io
 
 
 with open('duplicate_votes_data.json', 'r') as config_file:
@@ -31,14 +34,14 @@ print("number of rows to clone: ", target_row_count)
 kc_cursor = keycloak_conn.cursor()
 hasura_cursor = hasura_conn.cursor()
 
-
+#Offset should start at 0 and can be changed if you want to add more votes
 get_user_ids_query = """
 SELECT ue.id, ue.username, r.name AS realm_name
 FROM user_entity AS ue
 JOIN realm AS r ON ue.realm_id = r.id
 WHERE r.name = %s
 LIMIT %s
-OFFSET 0;
+OFFSET 0; 
 """
 
 kc_cursor.execute(get_user_ids_query, (realm_name, target_row_count))
@@ -47,44 +50,73 @@ print("number of existing user ids: ", len(existing_user_ids))
 
 hasura_cursor.execute(
     """
-    SELECT election_id, tenant_id, area_id, content, cast_ballot_signature, election_event_id, ballot_id
+    SELECT election_id, tenant_id, area_id, annotations, content, cast_ballot_signature, election_event_id, ballot_id
         FROM sequent_backend.cast_vote WHERE id = %s""", (row_id_to_clone,))
 base_row = hasura_cursor.fetchone()
 
 if not base_row:
     print("No row found to clone.")
 else:
-    election_id, tenant_id, area_id, content, cast_ballot_signature, election_event_id, ballot_id = base_row
-    # annotations_json = json.dumps(annotations)
+    election_id, tenant_id, area_id,annotations, content, cast_ballot_signature, election_event_id, ballot_id = base_row
+    annotations_json = json.dumps(annotations)
 
     insert_query = """
     INSERT INTO sequent_backend.cast_vote (
-        voter_id_string, election_id, tenant_id, area_id, content,
+        voter_id_string, election_id, tenant_id, area_id,annotations, content,
         cast_ballot_signature, election_event_id, ballot_id
     )
     VALUES %s
 """
 
-    batch_size = 1000
+    batch_size = 100
     rows_to_insert = []
     for i in range(len(existing_user_ids)):
         uid = existing_user_ids[i]
         rows_to_insert.append((
-            uid, election_id, tenant_id, area_id, content,
+            uid, election_id, tenant_id, area_id,annotations_json, content,
             cast_ballot_signature, election_event_id, ballot_id
         ))
-        print("rows_to_insert", i)
     
         
-    # print("rows_to_insert", len(rows_to_insert))
+    print("rows_to_insert", len(rows_to_insert))
+
+    output = io.StringIO()
+    writer = csv.writer(output, delimiter='\t', quoting=csv.QUOTE_MINIMAL)
+    for row in rows_to_insert:
+        writer.writerow(row)
+    output.seek(0)
+
+    copy_sql = """
+    COPY sequent_backend.cast_vote (
+        voter_id_string, election_id, tenant_id, area_id, annotations, content,
+        cast_ballot_signature, election_event_id, ballot_id
+    )
+    FROM STDIN WITH (FORMAT csv, DELIMITER E'\t')
+    """
+
+    start_time = datetime.now()
+    print("Start time:", start_time)
+
+    hasura_cursor.copy_expert(copy_sql, output)
+    hasura_conn.commit()
+
+    end_time = datetime.now()
+    print("End time:", end_time)
+
+
+
+    # start_time = datetime.now()
+    # print("Start time:", start_time)
+
     # for i in range(0, len(rows_to_insert), batch_size):
+    #     print(f"batch number ${i} started")
     #     batch = rows_to_insert[i:i+batch_size]
     #     execute_values(hasura_cursor, insert_query, batch, template=None, page_size=batch_size)
     #     hasura_conn.commit()  # Commit after each batch
-
-    execute_values(hasura_cursor, insert_query, rows_to_insert, template=None, page_size=1000)
+    #     print(f"batch number ${i} finished")
     
-    hasura_conn.commit()
+    # end_time = datetime.now()
+    # print("End time:", end_time)
 
 # Cleanup
 kc_cursor.close()
