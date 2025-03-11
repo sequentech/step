@@ -54,10 +54,8 @@ impl ElectoralLog {
         election_event_id_opt: Option<&str>,
         elog_database: &str,
     ) -> Result<Self> {
-        let election_event_id = match election_event_id_opt {
-            Some(event_id) => event_id,
-            None => return Err(anyhow!("Election event id is required")),
-        };
+        let election_event_id = election_event_id_opt
+            .ok_or(anyhow!("Election event id is required"))?;
 
         let protocol_manager = get_protocol_manager::<RistrettoCtx>(
             hasura_transaction,
