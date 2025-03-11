@@ -7,6 +7,9 @@ services:
     profiles: ["full", "base"]
     image: ghcr.io/cachix/devenv:v1.0.7
     container_name: devcontainer
+    ports:
+      - "3000:3000"
+      - "3002:3002"
     volumes:
     - type: bind
       source: /run/user/1000/docker.sock
