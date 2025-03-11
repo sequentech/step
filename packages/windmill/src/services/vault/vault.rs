@@ -20,6 +20,8 @@ use tokio::sync::OnceCell;
 use tracing::{info, instrument};
 use uuid::Uuid;
 
+const MASTER_SECRET_KEY_NAME: &str = "master_secret";
+
 #[derive(EnumString)]
 pub enum VaultManagerType {
     HashiCorpVault,
@@ -28,11 +30,11 @@ pub enum VaultManagerType {
 
 static MASTER_SECRET: OnceCell<SymmetricKey> = OnceCell::const_new();
 
+#[instrument]
 async fn initialize_master_secret() -> SymmetricKey {
     let vault = get_vault().expect("Failed to initialize vault");
-    let key = "db_secrets_master_secret".to_string();
 
-    match vault.read_secret(key.clone()).await {
+    match vault.read_secret(MASTER_SECRET_KEY_NAME.to_string()).await {
         Ok(Some(secret)) => {
             let bytes = hex::decode(secret).expect("Failed to decode master secret");
             SymmetricKey::from_slice(&bytes).to_owned()
@@ -41,7 +43,7 @@ async fn initialize_master_secret() -> SymmetricKey {
             let new_key = gen_key();
             let hex_key = hex::encode(new_key.as_slice());
             vault
-                .save_secret(key, hex_key.clone())
+                .save_secret(MASTER_SECRET_KEY_NAME.to_string(), hex_key.clone())
                 .await
                 .expect("Failed to save master secret");
             new_key
@@ -49,7 +51,7 @@ async fn initialize_master_secret() -> SymmetricKey {
         Err(e) => panic!("Failed to access vault for master secret: {}", e),
     }
 }
-
+#[instrument]
 pub async fn get_master_secret() -> &'static SymmetricKey {
     MASTER_SECRET.get_or_init(initialize_master_secret).await
 }
@@ -61,6 +63,7 @@ pub trait Vault: Send {
     fn vault_type(&self) -> VaultManagerType;
 }
 
+#[instrument(err)]
 pub fn get_vault() -> Result<Box<dyn Vault + Send>> {
     let vault_name = std::env::var("SECRETS_BACKEND").unwrap_or("HashiCorpVault".to_string());
 
@@ -84,13 +87,12 @@ pub async fn save_secret(
 ) -> Result<()> {
     let tenant_uuid = Uuid::parse_str(tenant_id)
         .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
-    let election_event_uuid = match election_event_id {
-        Some(id) => Some(
+    let election_event_uuid = election_event_id
+        .map(|id| {
             Uuid::parse_str(id)
-                .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?,
-        ),
-        _ => None,
-    };
+                .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))
+        })
+        .transpose()?;
 
     if read_secret(&hasura_transaction, tenant_id, election_event_id, key)
         .await?
