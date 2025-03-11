@@ -5,11 +5,6 @@
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Local};
 use deadpool_postgres::Transaction;
-use sequent_core::types::scheduled_event::*;
-use sequent_core::{
-    serialization::deserialize_with_path::deserialize_value,
-    types::scheduled_event::{EventProcessors, ScheduledEvent},
-};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::str::FromStr;
@@ -97,5 +92,56 @@ pub async fn get_secret_by_key(
         return Err(anyhow!("Found too many secrets: {}", secrets.len()));
     } else {
         Ok(Some(secrets[0].clone()))
+    }
+}
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn insert_secret(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: Option<&str>,
+    key: &str,
+    encrypted_bytes: &Vec<u8>,
+) -> Result<Secret> {
+    let tenant_uuid = Uuid::parse_str(tenant_id)
+        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
+    let election_event_uuid = election_event_id
+        .map(|id| {
+            Uuid::parse_str(id)
+                .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))
+        })
+        .transpose()?;
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                INSERT INTO
+                    "sequent_backend".secret
+                (tenant_id, key, value, election_event_id) 
+                VALUES
+                    ($1, $2, $3, $4)
+                RETURNING
+                    *;
+            "#,
+        )
+        .await
+        .map_err(|err| anyhow!("Error preparing scheduled event statement: {}", err))?;
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[&tenant_uuid, &key, &encrypted_bytes, &election_event_uuid],
+        )
+        .await
+        .map_err(|err| anyhow!("Error inserting scheduled event: {}", err))?;
+
+    let rows: Vec<Secret> = rows
+        .into_iter()
+        .map(|row| -> Result<Secret> { row.try_into() })
+        .collect::<Result<Vec<Secret>>>()
+        .map_err(|err| anyhow!("Error deserializing secret: {}", err))?;
+
+    if 1 == rows.len() {
+        Ok(rows[0].clone())
+    } else {
+        Err(anyhow!("Unexpected rows affected {}", rows.len()))
     }
 }

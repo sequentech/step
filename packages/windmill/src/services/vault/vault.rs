@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::postgres::secret::get_secret_by_key;
+use crate::postgres::secret::{get_secret_by_key, insert_secret};
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::vault::{
     aws_secret_manager::AwsSecretManager, hashicorp_vault::HashiCorpVault,
@@ -78,7 +78,7 @@ pub fn get_vault() -> Result<Box<dyn Vault + Send>> {
     })
 }
 
-#[instrument(skip(value), err)]
+#[instrument(skip(hasura_transaction, value), err)]
 pub async fn save_secret(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -86,16 +86,7 @@ pub async fn save_secret(
     key: &str,
     value: &str,
 ) -> Result<()> {
-    let tenant_uuid = Uuid::parse_str(tenant_id)
-        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
-    let election_event_uuid = election_event_id
-        .map(|id| {
-            Uuid::parse_str(id)
-                .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))
-        })
-        .transpose()?;
-
-    if read_secret(&hasura_transaction, tenant_id, election_event_id, key)
+    if get_secret_by_key(hasura_transaction, tenant_id, election_event_id, key)
         .await?
         .is_some()
     {
@@ -108,14 +99,15 @@ pub async fn save_secret(
         .strand_serialize()
         .context("Error serializing encrypted data")?;
 
-    hasura_transaction
-        .execute(
-            "INSERT INTO sequent_backend.secret (tenant_id, key, value, election_event_id) 
-             VALUES ($1, $2, $3, $4)",
-            &[&tenant_uuid, &key, &encrypted_bytes, &election_event_uuid],
-        )
-        .await
-        .context("Error saving secret")?;
+    insert_secret(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        key,
+        &encrypted_bytes,
+    )
+    .await
+    .context("Error saving secret")?;
 
     Ok(())
 }
