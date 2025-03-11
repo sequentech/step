@@ -119,6 +119,35 @@ pub struct Verifier<C: Ctx> {
     board_name: String,
 }
 impl<C: Ctx> Verifier<C> {
+    pub async fn verify_ballot(&mut self, ballot_hash: &str) -> Result<()> {
+        let raw_messages = self.board.get_messages(&self.board_name, -1).await?;
+
+        let messages: Vec<(Message, i64)> = raw_messages
+            .iter()
+            .map(|m| (Message::strand_deserialize(&m.message).unwrap(), m.id))
+            .collect();
+
+        let ballot_messages: Vec<&Message> = messages
+            .iter()
+            .filter(|(msg, _)| msg.statement.get_kind() == StatementType::Ballots)
+            .map(|(msg, _)| msg)
+            .collect();
+
+        for ballot in ballot_messages {
+            if let Some(artifact) = &ballot.artifact {
+                let computed_hash = strand::hash::hash_to_array(artifact)?;
+                if hex::encode(computed_hash) == ballot_hash {
+                    info!("Ballot with hash {} found.", ballot_hash);
+                    return Ok(());
+                }
+            }
+        }
+        Err(anyhow::anyhow!(
+            "Ballot with hash {} not found.",
+            ballot_hash
+        ))
+    }
+
     pub fn new(trustee: Trustee<C>, board: GrpcB3, board_name: &str) -> Verifier<C> {
         Verifier {
             trustee,

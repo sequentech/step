@@ -61,7 +61,12 @@ async fn main() -> Result<()> {
     );
     let board = GrpcB3::new(&args.server_url);
     let mut session = Verifier::new(trustee, board, &args.board);
-    session.run().await?;
+
+    if let Some(ballot_hash) = args.ballot_hash {
+        session.verify_ballot(&ballot_hash).await?;
+    } else {
+        session.run().await?;
+    }
 
     Ok(())
 }
