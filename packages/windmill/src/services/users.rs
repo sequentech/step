@@ -312,7 +312,7 @@ impl<'de> Deserialize<'de> for FilterOption {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Default)]
+#[derive(Debug, PartialEq, Eq, Clone, Default, Deserialize)]
 pub struct ListUsersFilter {
     pub tenant_id: String,
     pub election_event_id: Option<String>,
