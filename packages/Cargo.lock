@@ -9414,7 +9414,6 @@ dependencies = [
  "aws-smithy-types",
  "b3",
  "base64 0.21.7",
- "borsh",
  "celery",
  "cfg-if",
  "chrono",

@@ -17,7 +17,6 @@ fips_core = ["dep:postgres-openssl", "dep:openssl", "dep:ecies"]
 fips_full = ["dep:postgres-openssl", "dep:openssl", "dep:ecies"]
 
 [dependencies]
-borsh = { version = "=1.5.1", features = ["derive"] }
 rocket = { version = "0.5.0", features = ["json"] }
 serde = { version = "1.0.190", features = ["derive"] }
 serde_json = "1.0.105"
