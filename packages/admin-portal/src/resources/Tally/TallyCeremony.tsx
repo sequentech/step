@@ -796,7 +796,6 @@ export const TallyCeremony: React.FC = () => {
                             {isButtonDisabled && (
                                 <Alert severity="warning">
                                     {t("electionEventScreen.tally.notify.cerermonyDisabled")}
-                                    {/* You cannot continue the ceremony because the tally session is not connected or the start of the ceremony is not allowed. */}
                                 </Alert>
                             )}
                             <TallyElectionsList
