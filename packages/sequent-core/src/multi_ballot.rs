@@ -4,6 +4,7 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
 
+use crate::encrypt::hash_ballot_style;
 use crate::error::BallotError;
 use crate::serialization::base64::{Base64Deserialize, Base64Serialize};
 use strand::elgamal::Ciphertext;
@@ -33,7 +34,7 @@ pub struct AuditableMultiBallotContests<C: Ctx> {
     pub proof: Schnorr<C>,
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct HashableMultiBallot {
     pub version: u32,
     pub issue_date: String,
@@ -42,7 +43,8 @@ pub struct HashableMultiBallot {
     // self::serialize_contests can be deserialized with
     // self::deserialize_contests
     pub contests: String,
-    pub config: BallotStyle,
+    pub ballot_style_id: String,
+    pub ballot_style_hash: String,
 }
 
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug, Clone)]
@@ -108,6 +110,9 @@ impl TryFrom<&AuditableMultiBallot> for HashableMultiBallot {
         let contests = value.deserialize_contests::<RistrettoCtx>()?;
         let hashable_ballot_contests =
             HashableMultiBallotContests::<RistrettoCtx>::from(&contests);
+        
+        let ballot_style_hash = hash_ballot_style(&value.config)
+            .map_err(|error| BallotError::Serialization(format!("Failed to hash ballot style: {}", error)))?;
 
         Ok(HashableMultiBallot {
             version: TYPES_VERSION,
@@ -115,7 +120,8 @@ impl TryFrom<&AuditableMultiBallot> for HashableMultiBallot {
             contests: HashableMultiBallot::serialize_contests::<RistrettoCtx>(
                 &hashable_ballot_contests,
             )?,
-            config: value.config.clone(),
+            ballot_style_id: value.config.id.clone(),
+            ballot_style_hash: ballot_style_hash,
         })
     }
 }

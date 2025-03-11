@@ -94,6 +94,7 @@ pub fn parse_public_key<C: Ctx>(
     Base64Deserialize::deserialize(public_key_config.public_key)
 }
 
+
 pub fn recreate_encrypt_cyphertext<C: Ctx>(
     ctx: &C,
     ballot: &AuditableBallot,
@@ -259,6 +260,20 @@ pub fn encrypt_decoded_contest<C: Ctx<P = [u8; 30]>>(
     Ok(auditable_ballot)
 }
 
+pub fn hash_ballot_style_sha512(
+    ballot_style: &BallotStyle,
+) -> Result<Hash, StrandError> {
+    let bytes = ballot_style.strand_serialize()?;
+    hash::hash_to_array(&bytes)
+}
+
+pub fn hash_ballot_style(ballot_style: &BallotStyle) -> Result<String, BallotError> {
+    let sha512_hash = hash_ballot_style_sha512(ballot_style)
+    .map_err(|error| BallotError::Serialization(error.to_string()))?;
+    let short_hash = shorten_hash(&sha512_hash);
+    Ok(hex::encode(short_hash))
+}
+
 pub fn hash_ballot_sha512(
     hashable_ballot: &HashableBallot,
 ) -> Result<Hash, StrandError> {
@@ -268,12 +283,6 @@ pub fn hash_ballot_sha512(
 
     let bytes = raw_hashable_ballot.strand_serialize()?;
     hash::hash_to_array(&bytes)
-}
-
-pub fn shorten_hash(hash: &Hash) -> ShortHash {
-    let mut shortened: ShortHash = [0u8; SHORT_SHA512_HASH_LENGTH_BYTES];
-    shortened.copy_from_slice(&hash[0..32]);
-    shortened
 }
 
 // hash ballot:
@@ -286,6 +295,12 @@ pub fn hash_ballot(
         .map_err(|error| BallotError::Serialization(error.to_string()))?;
     let short_hash = shorten_hash(&sha512_hash);
     Ok(hex::encode(short_hash))
+}
+
+pub fn shorten_hash(hash: &Hash) -> ShortHash {
+    let mut shortened: ShortHash = [0u8; SHORT_SHA512_HASH_LENGTH_BYTES];
+    shortened.copy_from_slice(&hash[0..32]);
+    shortened
 }
 
 ////////////////////////////////////////////////////////////////

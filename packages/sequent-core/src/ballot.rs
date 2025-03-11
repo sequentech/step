@@ -4,6 +4,7 @@
 #![allow(non_snake_case)]
 #![allow(dead_code)]
 use crate::ballot_codec::PlaintextCodec;
+use crate::encrypt::hash_ballot_style;
 use crate::error::BallotError;
 use crate::serialization::base64::{Base64Deserialize, Base64Serialize};
 use crate::serialization::deserialize_with_path::deserialize_value;
@@ -119,7 +120,8 @@ pub struct HashableBallot {
     pub version: u32,
     pub issue_date: String,
     pub contests: Vec<String>, // Vec<HashableBallotContest<C>>,
-    pub config: BallotStyle,
+    pub ballot_style_id: String, 
+    pub ballot_hash: String,
 }
 
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug, Clone)]
@@ -208,13 +210,16 @@ impl TryFrom<&AuditableBallot> for HashableBallot {
                 })
                 .collect();
 
+        let hashed_ballot_style = hash_ballot_style(&value.config)?;
+
         Ok(HashableBallot {
             version: TYPES_VERSION,
             issue_date: value.issue_date.clone(),
             contests: HashableBallot::serialize_contests::<RistrettoCtx>(
                 &hashable_ballot_contest,
             )?,
-            config: value.config.clone(),
+            ballot_style_id: value.config.id.clone(),
+            ballot_hash: hashed_ballot_style,
         })
     }
 }
@@ -1750,7 +1755,7 @@ impl ElectionStatus {
     PartialEq,
     Eq,
     Debug,
-    Clone,
+    Clone
 )]
 pub struct BallotStyle {
     pub id: String,

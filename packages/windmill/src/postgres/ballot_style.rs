@@ -149,6 +149,36 @@ pub async fn get_all_ballot_styles(
 }
 
 #[instrument(skip(hasura_transaction), err)]
+pub async fn get_ballot_style_by_id(
+    hasura_transaction: &Transaction<'_>,
+    ballot_style_id: &str,
+) -> Result<BallotStyle> {
+    let query: tokio_postgres::Statement = hasura_transaction
+        .prepare(
+            r#"
+            SELECT
+                *
+            FROM
+                sequent_backend.ballot_style
+            WHERE
+                id = $1 AND
+                deleted_at IS NULL;
+            "#,
+        )
+        .await?;
+
+    let row: Row = hasura_transaction
+        .query_one(&query, &[&Uuid::parse_str(ballot_style_id)?])
+        .await?;
+
+    let result: BallotStyle = row
+        .try_into()
+        .map(|res: BallotStyleWrapper| -> BallotStyle { res.0 })?;
+
+    Ok(result)
+}
+
+#[instrument(skip(hasura_transaction), err)]
 pub async fn get_ballot_styles_by_ballot_publication_by_id(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
