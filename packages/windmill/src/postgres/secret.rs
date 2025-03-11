@@ -7,9 +7,8 @@ use chrono::{DateTime, Local};
 use deadpool_postgres::Transaction;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::str::FromStr;
 use tokio_postgres::row::Row;
-use tracing::{info, instrument};
+use tracing::instrument;
 use uuid::Uuid;
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]

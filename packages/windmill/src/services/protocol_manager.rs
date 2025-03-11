@@ -35,6 +35,7 @@ pub fn get_protocol_manager_secret_path(board_name: &str) -> String {
     format!("boards/{board_name}/protocol-manager")
 }
 
+#[instrument(skip(hasura_transaction), err)]
 pub async fn create_protocol_manager_keys(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
