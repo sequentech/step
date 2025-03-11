@@ -11,9 +11,7 @@ services:
       - "3000:3000"
       - "3002:3002"
     volumes:
-    - type: bind
-      source: /run/user/1000/docker.sock
-      target: /var/run/docker.sock
+    - /run/user/1000/docker.sock:/var/run/docker.sock
     - type: bind
       source: ../..
       target: /workspaces
