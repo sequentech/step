@@ -24,6 +24,7 @@ import {
     Box,
     CircularProgress,
     styled,
+    Alert,
 } from "@mui/material"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
@@ -724,6 +725,17 @@ export const TallyCeremony: React.FC = () => {
                     ) : null}
                     {page === WizardSteps.Start && (
                         <>
+                            {/* 
+                            This code snippet determines whether the "Next" button should be
+                            disabled on the Start page of the wizard. The button is disabled if:
+                            1. The current page is the Start page and no elections are selected.
+                            2. The elections are not published. 
+                            */}
+                            {isButtonDisabled && (
+                                <Alert severity="warning">
+                                    {t("electionEventScreen.tally.notify.startDisabled")}
+                                </Alert>
+                            )}
                             <ElectionHeader
                                 title={
                                     isCreatingType === ETallyType.ELECTORAL_RESULTS
@@ -732,7 +744,6 @@ export const TallyCeremony: React.FC = () => {
                                 }
                                 subtitle={"tally.ceremonySubTitle"}
                             />
-
                             <TallyElectionsList
                                 elections={elections}
                                 update={(elections) => setSelectedElections(elections)}
@@ -774,6 +785,20 @@ export const TallyCeremony: React.FC = () => {
 
                     {page === WizardSteps.Ceremony && (
                         <>
+                            {/* 
+                            This code snippet determines whether the "Next" button should be
+                            disabled on the Ceremony page of the wizard. The button is disabled if:
+                            1. The tally object's execution_status is not equal to ITallyExecutionStatus.CONNECTED.
+                            2. The isStartAllowed variable is false.
+                            The tally session is not in the CONNECTED state or if the start of the ceremony 
+                            is not allowed based on the tally type and the status of the elections.
+                            */}
+                            {isButtonDisabled && (
+                                <Alert severity="warning">
+                                    {t("electionEventScreen.tally.notify.cerermonyDisabled")}
+                                    {/* You cannot continue the ceremony because the tally session is not connected or the start of the ceremony is not allowed. */}
+                                </Alert>
+                            )}
                             <TallyElectionsList
                                 elections={elections}
                                 electionEventId={record?.id}
