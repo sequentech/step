@@ -150,7 +150,7 @@ impl TemplateRenderer for ActivityLogsTemplate {
     fn prefix(&self) -> String {
         format!("activity_logs_{}", rand::random::<u64>())
     }
-    async fn count_items(&self) -> Option<i64> {
+    async fn count_items(&self, _hasura_transaction: &Transaction<'_>) -> Result<Option<i64>> {
         let input = GetElectoralLogBody {
             tenant_id: self.ids.tenant_id.clone(),
             election_event_id: self.ids.election_event_id.clone(),
@@ -158,8 +158,11 @@ impl TemplateRenderer for ActivityLogsTemplate {
             offset: None,
             filter: None,
             order_by: None,
+            area_ids: None,
+            only_with_user: None,
+            election_id: None,
         };
-        count_electoral_log(input).await.ok()
+        Ok(count_electoral_log(input).await.ok())
     }
     #[instrument(err, skip_all)]
     async fn prepare_user_data_batch(
@@ -179,6 +182,9 @@ impl TemplateRenderer for ActivityLogsTemplate {
             offset: Some(*offset),
             filter: None,
             order_by: None,
+            area_ids: None,
+            only_with_user: None,
+            election_id: None,
         })
         .await
         .map_err(|e| anyhow!("Error listing electoral logs: {e:?}"))?;
@@ -234,6 +240,9 @@ impl TemplateRenderer for ActivityLogsTemplate {
                     offset: Some(offset),
                     filter: None,
                     order_by: None,
+                    area_ids: None,
+                    only_with_user: None,
+                    election_id: None,
                 })
                 .await
                 .map_err(|e| anyhow!("Error listing electoral logs: {e:?}"))?;

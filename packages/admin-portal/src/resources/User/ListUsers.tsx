@@ -260,8 +260,8 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
      */
 
     const handleClose = () => {
-        setOpenUsersLogsModal(false)
         setRecordIds([])
+        setOpenUsersLogsModal(false)
         setOpenSendTemplate(false)
         setOpenDeleteModal(false)
         setOpenManualVerificationModal(false)
@@ -1304,12 +1304,16 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 open={openUsersLogsModal}
                 handleClose={handleClose}
             >
-                <ElectoralLogList
-                    electionEventId={electionEventId}
-                    showActions={false}
-                    filterToShow={ElectoralLogFilters.USER_ID}
-                    filterValue={recordIds[0]?.toString()}
-                />
+                {/* The conditional below prevents re-rendering and data
+                refetching when closing the dialog with no id */}
+                {recordIds && recordIds.length > 0 && (
+                    <ElectoralLogList
+                        electionEventId={electionEventId}
+                        showActions={false}
+                        filterToShow={ElectoralLogFilters.USER_ID}
+                        filterValue={recordIds[0]?.toString()}
+                    />
+                )}
             </Dialog>
             {openEditPassword && (
                 <EditPassword
