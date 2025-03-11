@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::postgres::secret::get_secret_by_key;
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::vault::{
     aws_secret_manager::AwsSecretManager, hashicorp_vault::HashiCorpVault,
@@ -126,47 +127,20 @@ pub async fn read_secret(
     election_event_id: Option<&str>,
     key: &str,
 ) -> Result<Option<String>> {
-    let tenant_uuid = Uuid::parse_str(tenant_id)
-        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
-
-    let election_event_uuid = match election_event_id {
-        Some(id) => Some(
-            Uuid::parse_str(id)
-                .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?,
-        ),
-        None => None,
+    let Some(secret) =
+        get_secret_by_key(hasura_transaction, tenant_id, election_event_id, key).await?
+    else {
+        return Ok(None);
     };
 
-    let result: Option<Vec<u8>> = hasura_transaction
-        .query_opt(
-            "SELECT value FROM sequent_backend.secret 
-             WHERE tenant_id = $1 
-               AND key = $2 
-               AND (election_event_id = $3 OR $3 IS NULL) 
-             LIMIT 1",
-            &[&tenant_uuid, &key, &election_event_uuid],
-        )
-        .await
-        .map_err(|err| {
-            eprintln!("Error reading secret: {:?}", err);
-            err
-        })
-        .context("Error reading secret")?
-        .map(|row| row.get::<_, &[u8]>(0).into());
-
-    match result {
-        Some(encrypted_value) => {
-            let encrypted_data = EncryptionData::strand_deserialize(&encrypted_value)
-                .context("Error deserializing encrypted data")?;
-            let master_secret = *get_master_secret().await;
-            let decrypted_bytes =
-                decrypt(&master_secret, &encrypted_data).context("Error decrypting secret")?;
-            let decrypted_str = String::from_utf8(decrypted_bytes)
-                .context("Error converting decrypted bytes to string")?;
-            Ok(Some(decrypted_str))
-        }
-        None => Ok(None),
-    }
+    let encrypted_data = EncryptionData::strand_deserialize(&secret.value)
+        .context("Error deserializing encrypted data")?;
+    let master_secret = *get_master_secret().await;
+    let decrypted_bytes =
+        decrypt(&master_secret, &encrypted_data).context("Error decrypting secret")?;
+    let decrypted_str =
+        String::from_utf8(decrypted_bytes).context("Error converting decrypted bytes to string")?;
+    Ok(Some(decrypted_str))
 }
 
 #[instrument(err)]
