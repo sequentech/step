@@ -331,6 +331,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         useEffect(() => {
             const executePendingActions = async () => {
                 let isGold = isGoldUser()
+
                 if (isGold) {
                     const pendingPublish = sessionStorage.getItem(
                         EPublishActions.PENDING_PUBLISH_ACTION
@@ -344,7 +345,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                 sessionStorage.removeItem(EPublishActions.PENDING_PUBLISH_ACTION)
             }
 
-            if (electionEventId && electionId) {
+            if (electionEventId || electionId) {
                 executePendingActions()
                 cleanup()
             }
