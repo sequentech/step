@@ -515,10 +515,12 @@ const FormContent: React.FC<CreateReportProps> = ({
         doCronActive?.(isCronActive)
     }, [isCronActive, doCronActive])
 
-    const reportTypeChoices = Object.values(EReportType).map((reportType) => ({
-        id: reportType,
-        name: t(`template.type.${reportType}`),
-    }))
+    const reportTypeChoices = Object.values(EReportType)
+        .sort()
+        .map((reportType) => ({
+            id: reportType,
+            name: t(`template.type.${reportType}`),
+        }))
 
     const electionPolicy = useMemo((): EReportElectionPolicy => {
         if (!reportType) {
