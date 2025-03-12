@@ -280,6 +280,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
             userId: id!,
             electionEventId: electionEventId,
         },
+        skip: !id || !tenantId || !electionEventId,
     })
 
     const {data: voterCastVotes} = useGetList<Sequent_Backend_Cast_Vote>(

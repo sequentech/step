@@ -154,7 +154,8 @@ pub async fn get_all_tenant_election_events(
                 FROM
                     sequent_backend.election_event
                 WHERE
-                    tenant_id = $1
+                    tenant_id = $1 AND
+                    is_archived = false
             "#,
         )
         .await?;
@@ -467,22 +468,4 @@ pub async fn delete_election_event(
         .map_err(|err| anyhow!("Error executing the delete query: {err}"))?;
 
     Ok(())
-}
-
-/// Get the ElectionEvent, check if its DATAFIX event (has DATAFIX annotations).
-#[instrument(skip(hasura_transaction), err)]
-pub async fn is_datafix_election_event(
-    hasura_transaction: &Transaction<'_>,
-    tenant_id: &str,
-    election_event_id: &str,
-) -> Result<bool> {
-    let election_event = get_election_event_by_id(hasura_transaction, tenant_id, election_event_id)
-        .await
-        .map_err(|e| anyhow!("{:?}", e))?;
-
-    let datafix_object = election_event
-        .annotations
-        .as_ref()
-        .and_then(|v| v.get("DATAFIX"));
-    Ok(datafix_object.is_some())
 }

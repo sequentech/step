@@ -17,18 +17,6 @@ use windmill::services::electoral_log::{
 };
 use windmill::types::resources::DataList;
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct LogEventInput {
-    election_event_id: String,
-    message_type: String,
-    user_id: Option<String>,
-    body: String,
-}
-#[derive(Serialize, Deserialize, Debug)]
-pub struct LogEventOutput {
-    id: String,
-}
-
 #[instrument]
 #[post("/immudb/electoral-log", format = "json", data = "<body>")]
 pub async fn list_electoral_log(

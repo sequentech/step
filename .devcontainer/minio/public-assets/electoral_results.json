@@ -60,7 +60,11 @@
       "election_annotations": {
         "geographical_region": "Asia/Pacific",
         "post": "Tokyo PE",
-        "clustered_precint_id": "E1"
+        "clustered_precint_id": "E1",
+        "pollcenter_code": "90010001"
+      },
+      "area_annotations": {
+        "registered_voters": "10000000"
       },
       "election_event_annotations": {},
       "contest": {
@@ -283,6 +287,9 @@
       "election_id": "1",
       "election_name": "NEW YORK PCG",
       "election_description": "",
+      "area_annotations": {
+        "registered_voters": "10000000"
+      },
       "election_dates": {
         "first_started_at": "2024-11-08T00:00:00Z",
         "last_started_at": "2024-11-08T12:00:00Z",

@@ -21,7 +21,7 @@ This document intends to define the Headers, Body and Errors of the Sequent´s e
 
 - The <code>datafix:id</code> will be stored in the annotations of the election events that belong to datafix.
 - Datafix should have as many ids as election events are configured for them.
-- Datafix should set the header field <code>event_id</code> for that.
+- Datafix should set the header field <code>event-id</code> for that.
 
 
 ##### Authetication:
@@ -62,8 +62,8 @@ This document intends to define the Headers, Body and Errors of the Sequent´s e
 > | name            |  type     | data type | description                                                                                 |
 > |-----------------|-----------|-----------|---------------------------------------------------------------------------------------------|
 > | authorization   |  required | string    | Client ID and Client secret respectively. Format e.g.: `"authorization":"123456:987654"`    |
-> | tenant_id       |  required | string    | Realm id for keycloak´s endpoint.                                                           |
-> | event_id        |  required | string    | Unique for each election event. Matches Datafix ID in election event annotations.           |
+> | tenant-id       |  required | string    | Realm id for keycloak´s endpoint.                                                           |
+> | event-id        |  required | string    | Unique for each election event. Matches Datafix ID in election event annotations.           |
 
 
 </details>
