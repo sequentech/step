@@ -81,10 +81,12 @@ export const TemplateFormContent: React.FC<TTemplateFormContent> = ({
     }
 
     const templateTypeChoices = () => {
-        return (Object.values(ETemplateType) as ETemplateType[]).map((value) => ({
-            id: value,
-            name: t(`template.type.${value}`),
-        }))
+        return (Object.values(ETemplateType) as ETemplateType[]).sort().map((value) => {
+            return {
+                id: value,
+                name: t(`template.type.${value}`),
+            }
+        })
     }
 
     useEffect(() => {
