@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2023, 2024 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::services::cast_votes::CastVoteStatus;
 use anyhow::Result;
 use deadpool_postgres::Transaction;
 use tokio_postgres::row::Row;
@@ -146,6 +147,7 @@ pub async fn get_count_distinct_voters(
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<i64> {
+    let status = CastVoteStatus::Valid.to_string();
     let total_distinct_voters_statement = transaction
         .prepare(
             r#"
@@ -155,7 +157,8 @@ pub async fn get_count_distinct_voters(
                 sequent_backend.cast_vote
             WHERE
                 tenant_id = $1 AND
-                election_event_id = $2;
+                election_event_id = $2 AND
+                status = $3;
             "#,
         )
         .await?;
@@ -166,6 +169,7 @@ pub async fn get_count_distinct_voters(
             &[
                 &Uuid::parse_str(tenant_id)?,
                 &Uuid::parse_str(election_event_id)?,
+                &status,
             ],
         )
         .await?;

@@ -6,6 +6,7 @@ use super::report_variables::{
     VALIDATE_ID_REGISTERED_VOTER,
 };
 use crate::postgres::application::count_applications;
+use crate::services::cast_votes::CastVoteStatus;
 use crate::services::users::{
     count_keycloak_enabled_users_by_attrs, AttributesFilterBy, AttributesFilterOption,
 };
@@ -309,7 +310,7 @@ pub async fn get_voters_with_vote_info(
         Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
     let election_event_uuid = Uuid::parse_str(election_event_id)
         .with_context(|| "Error parsing election_event_id as UUID")?;
-
+    let status = CastVoteStatus::Valid.to_string();
     // Prepare the list of user IDs for the query
     let user_ids: Vec<String> = users
         .iter()
@@ -332,7 +333,8 @@ pub async fn get_voters_with_vote_info(
             WHERE
                 v.tenant_id = $1 AND
                 v.election_event_id = $2 AND
-                v.voter_id_string = ANY($3)
+                v.voter_id_string = ANY($3) AND
+                v.status = $4;
             GROUP BY
                 v.voter_id_string, v.election_id;
             "#,
@@ -343,7 +345,7 @@ pub async fn get_voters_with_vote_info(
     let rows = hasura_transaction
         .query(
             &vote_info_statement,
-            &[&tenant_uuid, &election_event_uuid, &user_ids],
+            &[&tenant_uuid, &election_event_uuid, &user_ids, &status],
         )
         .await
         .with_context(|| "Error executing the vote info query")?;
