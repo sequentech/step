@@ -15,9 +15,23 @@ use sequent_core::types::keycloak::{User, VotesInfo};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
+use strum_macros::Display;
 use tokio_postgres::row::Row;
 use tracing::{info, instrument};
 use uuid::Uuid;
+
+#[derive(Serialize, Deserialize, Debug, Clone, Display)]
+pub enum CastVoteStatus {
+    #[serde(rename = "in-progress")]
+    #[strum(to_string = "in-progress")]
+    InProgress,
+    #[serde(rename = "valid")]
+    #[strum(to_string = "valid")]
+    Valid,
+    #[serde(rename = "discarded")]
+    #[strum(to_string = "discarded")]
+    Discarded,
+}
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct CastVote {
@@ -72,6 +86,7 @@ pub async fn find_area_ballots(
         .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
     let area_uuid: uuid::Uuid = Uuid::parse_str(area_id)
         .map_err(|err| anyhow!("Error parsing area_id as UUID: {}", err))?;
+    let status = CastVoteStatus::Valid.to_string();
     let areas_statement = hasura_transaction
         .prepare(
             r#"
@@ -91,7 +106,8 @@ pub async fn find_area_ballots(
                     WHERE
                         tenant_id = $1 AND
                         election_event_id = $2 AND
-                        area_id = $3
+                        area_id = $3 AND
+                        status = $6
                     ORDER BY election_id, voter_id_string, created_at DESC
                     LIMIT $4 OFFSET $5
                 "#,
@@ -106,6 +122,7 @@ pub async fn find_area_ballots(
                 &area_uuid,
                 &limit,
                 &offset,
+                &status,
             ],
         )
         .await

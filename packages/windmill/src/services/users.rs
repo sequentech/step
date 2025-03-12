@@ -151,7 +151,7 @@ pub async fn list_keycloak_enabled_users_by_area_id(
     Ok(found_user_ids)
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, EnumString, Display)]
+#[derive(Debug, Clone, PartialEq, Eq, EnumString, Display, Serialize)]
 pub enum FilterOption {
     /// Those elements that contain the string are returned.
     IsLike(String),
