@@ -7,19 +7,16 @@ use crate::postgres;
 use crate::postgres::area::get_area_by_id;
 use crate::postgres::election::get_election_by_id;
 use crate::postgres::election::get_election_max_revotes;
-use crate::postgres::election_event::{get_election_event_by_id, ElectionEventDatafix};
+use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::cast_votes::get_voter_signing_key;
 use crate::services::cast_votes::CastVote;
 use crate::services::celery_app::get_celery_app;
-use crate::services::datafix;
-use crate::services::datafix::types::SoapRequest;
 use crate::services::datafix::utils::is_datafix_election_event;
-use crate::services::datafix::utils::voted_via_internet;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::protocol_manager::get_protocol_manager;
-use crate::services::users::{get_username_by_id, list_users, ListUsersFilter};
+use crate::services::users::{get_username_by_id, ListUsersFilter};
 use crate::tasks::cast_vote_actions;
 use crate::{
     hasura::election_event::get_election_event::GetElectionEventSequentBackendElectionEvent,
@@ -51,7 +48,6 @@ use sequent_core::services::connection::AuthHeaders;
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::hasura::core::{ElectionEvent, VotingChannels};
-use sequent_core::types::keycloak::{VOTED_CHANNEL, VOTED_CHANNEL_INTERNET_VALUE};
 use sequent_core::types::scheduled_event::*;
 use serde::{Deserialize, Serialize};
 use strand::backend::ristretto::RistrettoCtx;
@@ -340,6 +336,7 @@ pub async fn try_insert_cast_vote(
                             "Error sending cast_vote_actions task: {e:?}"
                         ))
                     })?;
+                info!("Sent cast_vote_actions task {}", celery_task.task_id);
             }
             let electoral_log_res = ElectoralLog::for_voter(
                 &electoral_log.elog_database,

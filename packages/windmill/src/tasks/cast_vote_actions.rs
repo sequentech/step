@@ -3,38 +3,37 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::election_event::{get_election_event_by_id, ElectionEventDatafix};
+use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::datafix;
 use crate::services::datafix::types::SoapRequest;
 use crate::services::datafix::utils::voted_via_internet;
-use crate::services::election_event_board::get_election_event_board;
-use crate::services::electoral_log::ElectoralLog;
-use crate::services::protocol_manager::get_protocol_manager;
-use crate::services::users::{get_username_by_id, list_users, ListUsersFilter};
+use crate::services::users::{list_users, ListUsersFilter};
 use crate::types::error::Result;
-use crate::{
-    hasura::election_event::get_election_event::GetElectionEventSequentBackendElectionEvent,
-    services::database::{get_hasura_pool, get_keycloak_pool},
-};
-use anyhow::{anyhow, Context};
 use celery::error::TaskError;
 use deadpool_postgres::Client as DbClient;
 use sequent_core::services::keycloak::KeycloakAdminClient;
+use sequent_core::types::keycloak::{VOTED_CHANNEL, VOTED_CHANNEL_INTERNET_VALUE};
 use std::collections::HashMap;
-use tracing::{event, info, instrument, Level};
+use tracing::{error, info, instrument};
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(max_retries = 0)]
 pub async fn cast_vote_actions(filter: ListUsersFilter, username: Option<String>) -> Result<()> {
     // WIP
-    //..
-    let voter_id: String = filter
-        .user_ids
-        .map(|v| v.first())
-        .flatten()
-        .ok_or(0)
-        .map_err(|_| format!("Voter id not found"))?;
+    //.. LOCK THIS FUCNTION
 
+    let realm = filter.realm.clone();
+    let election_event_id: &str = filter
+        .election_event_id
+        .as_deref()
+        .ok_or("election_event_id not found".to_string())?;
+    let voter_id = filter
+        .user_ids
+        .as_deref()
+        .and_then(|ids| ids.get(0))
+        .map(|id| id.to_string())
+        .ok_or("user_id not found".to_string())?;
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
         .get()
@@ -56,6 +55,11 @@ pub async fn cast_vote_actions(filter: ListUsersFilter, username: Option<String>
         .transaction()
         .await
         .map_err(|e| format!("Error getting keycloak_transaction {e:?}"))?;
+
+    let election_event =
+        get_election_event_by_id(&hasura_transaction, &filter.tenant_id, election_event_id)
+            .await
+            .map_err(|e| format!("Error getting election event {e:?}"))?;
 
     let user = match list_users(&hasura_transaction, &keycloak_transaction, filter).await {
         Ok((users, 1)) => users
