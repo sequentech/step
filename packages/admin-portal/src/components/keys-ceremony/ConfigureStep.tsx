@@ -404,6 +404,7 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                                 },
                             }}
                             perPage={50}
+                            sort={{field: "alias", order: "ASC"}}
                         >
                             <AutocompleteInput
                                 className="election-selector"
