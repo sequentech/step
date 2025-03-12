@@ -17,7 +17,7 @@ use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::protocol_manager::get_protocol_manager;
 use crate::services::users::{get_username_by_id, ListUsersFilter};
-use crate::tasks::cast_vote_actions;
+use crate::tasks::process_cast_vote;
 use crate::{
     hasura::election_event::get_election_event::GetElectionEventSequentBackendElectionEvent,
     services::database::{get_hasura_pool, get_keycloak_pool},
@@ -326,7 +326,7 @@ pub async fn try_insert_cast_vote(
                 };
                 let celery_app = get_celery_app().await;
                 let celery_task = celery_app
-                    .send_task(cast_vote_actions::cast_vote_actions::new(
+                    .send_task(process_cast_vote::process_cast_vote::new(
                         filter,
                         username.clone(),
                     ))

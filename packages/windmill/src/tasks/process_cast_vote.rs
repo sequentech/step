@@ -19,7 +19,7 @@ use tracing::{error, info, instrument};
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(max_retries = 0)]
-pub async fn cast_vote_actions(filter: ListUsersFilter, username: Option<String>) -> Result<()> {
+pub async fn process_cast_vote(filter: ListUsersFilter, username: Option<String>) -> Result<()> {
     // WIP
     //.. LOCK THIS FUCNTION
 
@@ -31,7 +31,7 @@ pub async fn cast_vote_actions(filter: ListUsersFilter, username: Option<String>
     let voter_id = filter
         .user_ids
         .as_deref()
-        .and_then(|ids| ids.get(0))
+        .and_then(|ids| ids.first())
         .map(|id| id.to_string())
         .ok_or("user_id not found".to_string())?;
     let mut hasura_db_client: DbClient = get_hasura_pool()

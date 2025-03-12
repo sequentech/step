@@ -17,7 +17,6 @@ use tracing::{event, instrument, Level};
 
 use crate::postgres::cast_vote;
 use crate::tasks::activity_logs_report::generate_activity_logs_report;
-use crate::tasks::cast_vote_actions::cast_vote_actions;
 use crate::tasks::create_ballot_receipt::create_ballot_receipt;
 use crate::tasks::create_keys::create_keys;
 use crate::tasks::delete_election_event::delete_election_event_t;
@@ -52,6 +51,7 @@ use crate::tasks::manual_verification_report::generate_manual_verification_repor
 use crate::tasks::miru_plugin_tasks::create_transmission_package_task;
 use crate::tasks::miru_plugin_tasks::send_transmission_package_task;
 use crate::tasks::process_board::process_board;
+use crate::tasks::process_cast_vote::process_cast_vote;
 use crate::tasks::render_report::render_report;
 use crate::tasks::review_boards::review_boards;
 use crate::tasks::scheduled_events::scheduled_events;
@@ -220,7 +220,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             enqueue_electoral_log_event,
             process_electoral_log_events_batch,
             electoral_log_batch_dispatcher,
-            cast_vote_actions,
+            process_cast_vote,
         ],
         task_routes = [
             create_keys::NAME => Queue::Short.as_ref(),
@@ -265,7 +265,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             enqueue_electoral_log_event::NAME => Queue::ElectoralLogEvent.as_ref(),
             process_electoral_log_events_batch::NAME => Queue::ElectoralLogBatch.as_ref(),
             electoral_log_batch_dispatcher::NAME => Queue::ElectoralLogBeat.as_ref(),
-            cast_vote_actions::NAME => Queue::CastVoteActions.as_ref(),
+            process_cast_vote::NAME => Queue::CastVoteActions.as_ref(),
         ],
         prefetch_count = prefetch_count,
         acks_late = acks_late,
