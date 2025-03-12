@@ -275,17 +275,15 @@ pub async fn encrypt_directory_contents(
 
 #[instrument(err, skip_all)]
 pub fn encrypt_file_inner(old_path: &str, encryption_password: &str) -> Result<String> {
-    let mut upload_path = old_path.to_string();
     let new_path = format!("{}.enc", old_path);
 
     encrypt_file_aes_256_cbc(old_path, &new_path, encryption_password)
         .map_err(|err| anyhow!("Error encrypting file: {err:?}"))?;
 
-    upload_path = new_path;
     std::fs::remove_file(old_path)
         .map_err(|err| anyhow!("Error removing original file: {err:?}"))?;
 
-    return Ok(upload_path);
+    return Ok(new_path);
 }
 
 #[instrument(err, skip_all)]
