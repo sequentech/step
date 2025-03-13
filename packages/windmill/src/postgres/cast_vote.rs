@@ -101,6 +101,40 @@ pub async fn insert_cast_vote(
 }
 
 #[instrument(skip(hasura_transaction), err)]
+pub async fn update_cast_vote_status(
+    hasura_transaction: &Transaction<'_>,
+    cast_vote_id: &Uuid,
+    status: CastVoteStatus,
+) -> Result<()> {
+    let new_status = status.to_string();
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                UPDATE sequent_backend.cast_vote
+                SET status = $1, last_updated_at = NOW()
+                WHERE id = $2
+            "#,
+        )
+        .await?;
+
+    let rows_affected = hasura_transaction
+        .execute(&statement, &[&new_status, &cast_vote_id])
+        .await
+        .map_err(|err| {
+            anyhow!(
+                "Error at execute statement to update cast vote status: {}",
+                err
+            )
+        })?;
+
+    if rows_affected == 1 {
+        Ok(())
+    } else {
+        Err(anyhow!("Unexpected rows affected: {}", rows_affected))
+    }
+}
+
+#[instrument(skip(hasura_transaction), err)]
 pub async fn get_cast_votes(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &Uuid,

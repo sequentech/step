@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::postgres::cast_vote::update_cast_vote_status;
 use crate::postgres::election_event::{get_election_event_by_id, ElectionEventDatafix};
 use crate::services::cast_votes::{CastVote, CastVoteStatus};
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
@@ -19,6 +20,7 @@ use sequent_core::types::hasura::core::ElectionEvent;
 use sequent_core::types::keycloak::{VOTED_CHANNEL, VOTED_CHANNEL_INTERNET_VALUE};
 use std::collections::HashMap;
 use tracing::{error, info, instrument};
+use uuid::Uuid;
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
@@ -81,8 +83,13 @@ pub async fn process_cast_vote(cast_vote: CastVote) -> Result<()> {
         false => CastVoteStatus::Valid,
     };
 
+    let cast_vote_id = Uuid::parse_str(&cast_vote.id)
+        .map_err(|err| format!("Error parsing cast_vote_id: {err:?}"))?;
+
     if status != CastVoteStatus::InProgress {
-        // update cast_vote status on the table.
+        update_cast_vote_status(&hasura_transaction, &cast_vote_id, status)
+            .await
+            .map_err(|e| format!("Error updating cast vote status {e:?}"))?;
     }
 
     Ok(())

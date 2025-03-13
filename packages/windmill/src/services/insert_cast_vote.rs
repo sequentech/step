@@ -301,7 +301,7 @@ pub async fn try_insert_cast_vote(
 
     let ip = format!("ip: {}", voter_ip.as_deref().unwrap_or(""),);
     let country = format!("country: {}", voter_country.as_deref().unwrap_or(""),);
-    let realm = get_event_realm(&tenant_id, &election_event_id);
+    let realm = get_event_realm(tenant_id, election_event_id);
     let username = get_username_by_id(&keycloak_transaction, &realm, voter_id)
         .await
         .map_err(|e| CastVoteError::UnknownError(format!("Error get_username_by_id {e:?}")))?;
@@ -519,8 +519,8 @@ pub async fn insert_cast_vote_and_commit<'a>(
         ids.voter_id,
         &input.ballot_id,
         &ballot_signature,
-        &voter_ip,
-        &voter_country,
+        voter_ip,
+        voter_country,
     );
 
     let cast_vote = insert
