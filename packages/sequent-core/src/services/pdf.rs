@@ -14,6 +14,7 @@ use headless_chrome::{Browser, LaunchOptionsBuilder};
 use reqwest;
 use serde_json::json;
 use std::fs;
+use sha256;
 use std::fs::File;
 use std::io::Write;
 use std::thread::sleep;
