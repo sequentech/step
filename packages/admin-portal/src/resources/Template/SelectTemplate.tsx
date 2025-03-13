@@ -42,7 +42,7 @@ const SelectTemplate = ({
 
     const choices = templates
         ? templates
-              .sort((a, b) => a.alias - b.alias)
+              .sort((a, b) => a.alias.localeCompare(b.alias))
               .map((template) => ({
                   id: template.alias,
                   name: template.template.name,
