@@ -172,7 +172,7 @@ pub async fn traversal_encrypt_files(
     Ok(())
 }
 
-#[instrument(err, skip_all)]
+#[instrument(err, skip(hasura_transaction, election_ids, all_reports, old_path))]
 pub async fn encrypt_directory_contents_sql(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -198,6 +198,7 @@ pub async fn encrypt_directory_contents_sql(
             }
         })
         .cloned();
+    info!("Report: {:?}", report);
 
     let upload_path = if let Some(report) = report {
         if report.encryption_policy == EReportEncryption::ConfiguredPassword {
@@ -228,7 +229,7 @@ pub async fn encrypt_directory_contents_sql(
     Ok(upload_path)
 }
 
-#[instrument(err, skip_all)]
+#[instrument(err, skip(report_secrets_map, election_ids, all_reports, old_path))]
 pub async fn encrypt_directory_contents(
     report_secrets_map: &HashMap<String, String>,
     election_ids: Option<Vec<String>>,
@@ -252,6 +253,8 @@ pub async fn encrypt_directory_contents(
             }
         })
         .cloned();
+
+    info!("Report: {:?}", report);
 
     let upload_path = if let Some(report) = report {
         if report.encryption_policy == EReportEncryption::ConfiguredPassword {
