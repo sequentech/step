@@ -107,6 +107,12 @@ pub async fn process_cast_vote(cast_vote: CastVote) -> Result<()> {
             .await
             .map_err(|e| format!("Error updating cast vote status {e:?}"))?;
     }
+
+    let commit = hasura_transaction
+        .commit()
+        .await
+        .map_err(|e| format!("process_cast_vote: Commit failed {e:?}"));
+
     lock.release().await?;
     Ok(())
 }

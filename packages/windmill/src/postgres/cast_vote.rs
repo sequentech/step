@@ -117,7 +117,7 @@ pub async fn update_cast_vote_status(
         )
         .await?;
 
-    let rows_affected: Vec<Row> = hasura_transaction
+    hasura_transaction
         .query(&statement, &[&new_status, &cast_vote_id])
         .await
         .map_err(|err| anyhow!("Error updating cast vote: {}", err))?;
