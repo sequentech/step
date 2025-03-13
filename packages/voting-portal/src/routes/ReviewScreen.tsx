@@ -296,6 +296,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                 ? toHashableMultiBallot(auditableBallot as IAuditableMultiBallot)
                 : toHashableBallot(auditableBallot as IAuditableSingleBallot)
 
+            console.log("")
             let result = await insertCastVote({
                 variables: {
                     electionId: ballotStyle.election_id,

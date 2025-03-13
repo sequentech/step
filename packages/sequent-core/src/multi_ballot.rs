@@ -43,7 +43,7 @@ pub struct HashableMultiBallot {
     // self::serialize_contests can be deserialized with
     // self::deserialize_contests
     pub contests: String,
-    pub ballot_style_id: String,
+    pub config: String,
     pub ballot_style_hash: String,
 }
 
@@ -120,7 +120,7 @@ impl TryFrom<&AuditableMultiBallot> for HashableMultiBallot {
             contests: HashableMultiBallot::serialize_contests::<RistrettoCtx>(
                 &hashable_ballot_contests,
             )?,
-            ballot_style_id: value.config.id.clone(),
+            config: value.config.id.clone(),
             ballot_style_hash: ballot_style_hash,
         })
     }
