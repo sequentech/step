@@ -135,6 +135,51 @@ pub async fn find_area_ballots(
     Ok(cast_votes)
 }
 
+#[instrument(err)]
+pub async fn get_cast_votes_batch_by_status(
+    hasura_transaction: &Transaction<'_>,
+    status: CastVoteStatus,
+    limit: i64,
+    offset: i64,
+) -> Result<Option<Vec<CastVote>>> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                    SELECT DISTINCT ON (election_id, voter_id_string)
+                        id,
+                        tenant_id,
+                        election_id,
+                        area_id,
+                        created_at,
+                        last_updated_at,
+                        content,
+                        cast_ballot_signature,
+                        voter_id_string,
+                        election_event_id,
+                        ballot_id
+                    FROM "sequent_backend".cast_vote
+                    WHERE
+                        status = $1
+                    ORDER BY election_id, voter_id_string, created_at DESC
+                    LIMIT $2 OFFSET $3
+                "#,
+        )
+        .await?;
+    let rows: Vec<Row> = hasura_transaction
+        .query(&statement, &[&status.to_string(), &limit, &offset])
+        .await
+        .map_err(|err| anyhow!("Error running the CastVote query: {}", err))?;
+
+    let cast_votes = rows
+        .into_iter()
+        .map(|row| -> Result<CastVote> { row.try_into() })
+        .collect::<Result<Vec<CastVote>>>()?;
+    match cast_votes.is_empty() {
+        true => Ok(None),
+        false => Ok(Some(cast_votes)),
+    }
+}
+
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct ElectionCastVotes {
     pub election_id: String,

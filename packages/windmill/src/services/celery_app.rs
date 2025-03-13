@@ -54,6 +54,7 @@ use crate::tasks::process_board::process_board;
 use crate::tasks::process_cast_vote::process_cast_vote;
 use crate::tasks::render_report::render_report;
 use crate::tasks::review_boards::review_boards;
+use crate::tasks::review_cast_votes::review_cast_votes;
 use crate::tasks::scheduled_events::scheduled_events;
 use crate::tasks::scheduled_reports::scheduled_reports;
 use crate::tasks::send_template::send_template;
@@ -210,6 +211,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             delete_election_event_t,
             export_tasks_execution,
             scheduled_reports,
+            review_cast_votes,
             export_templates,
             export_ballot_publication,
             export_application,
@@ -249,6 +251,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             import_tenant_config::NAME => Queue::ImportExport.as_ref(),
             scheduled_events::NAME => Queue::Beat.as_ref(),
             scheduled_reports::NAME => Queue::Beat.as_ref(),
+            review_cast_votes::NAME => Queue::Beat.as_ref(),
             manage_election_date::NAME => Queue::Beat.as_ref(),
             manage_election_event_date::NAME => Queue::Beat.as_ref(),
             manage_election_event_enrollment::NAME => Queue::Beat.as_ref(),
