@@ -9,11 +9,14 @@ use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::datafix;
 use crate::services::datafix::types::{SoapRequest, SoapRequestResponse};
 use crate::services::datafix::utils::{is_datafix_election_event, voted_via_internet};
+use crate::services::pg_lock::PgLock;
 use crate::services::users::{get_username_by_id, list_users, ListUsersFilter};
 use crate::types::error::Result;
 use celery::error::TaskError;
+use chrono::Duration;
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
+use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::types::hasura::core::ElectionEvent;
@@ -26,9 +29,24 @@ use uuid::Uuid;
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(max_retries = 0)]
 pub async fn process_cast_vote(cast_vote: CastVote) -> Result<()> {
-    // WIP
-    //.. LOCK THIS FUCNTION
-
+    let voter_id = cast_vote
+        .voter_id_string
+        .clone()
+        .ok_or("Voter id not found")?;
+    let election_id = cast_vote
+        .election_id
+        .clone()
+        .ok_or("Election id not found")?;
+    let Ok(lock) = PgLock::acquire(
+        format!("process_cast_vote-{election_id}-{voter_id}"),
+        Uuid::new_v4().to_string(),
+        ISO8601::now() + Duration::seconds(120),
+    )
+    .await
+    else {
+        info!("Skipping: process_cast_vote for election id {election_id} and voter id {voter_id}");
+        return Ok(());
+    };
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
         .get()
@@ -53,10 +71,6 @@ pub async fn process_cast_vote(cast_vote: CastVote) -> Result<()> {
 
     let tenant_id = cast_vote.tenant_id.clone();
     let election_event_id = cast_vote.election_event_id.clone();
-    let voter_id = cast_vote
-        .voter_id_string
-        .clone()
-        .ok_or("Voter id not found")?;
     let realm = get_event_realm(&tenant_id, &election_event_id);
     let username = get_username_by_id(&keycloak_transaction, &realm, &voter_id)
         .await
@@ -91,7 +105,7 @@ pub async fn process_cast_vote(cast_vote: CastVote) -> Result<()> {
             .await
             .map_err(|e| format!("Error updating cast vote status {e:?}"))?;
     }
-
+    lock.release().await?;
     Ok(())
 }
 
@@ -137,7 +151,7 @@ pub async fn process_cast_vote_request_to_datafix(
         let result = datafix::voterview_requests::send(
             SoapRequest::SetVoted,
             ElectionEventDatafix(election_event),
-            &username,
+            username,
         )
         .await;
 
@@ -174,7 +188,7 @@ pub async fn process_cast_vote_request_to_datafix(
         let attributes = Some(hash_map);
         let _user = client
             .edit_user(
-                &realm, &voter_id, None, attributes, None, None, None, None, None, None,
+                realm, &voter_id, None, attributes, None, None, None, None, None, None,
             )
             .await
             .map_err(|e| {
