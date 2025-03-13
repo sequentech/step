@@ -88,24 +88,16 @@ pub async fn send(
         Some(DateFormat::Custom("%Y-%m-%dT%H:%M:%S.%3fZ".to_string())),
         None,
     );
-
-    let voter_id = match username.to_owned() {
-        Some(id) => id,
-        _ => {
-            return Err(anyhow!(
-                "Cannot send the request to datafix because the username is None"
-            ));
-        }
-    };
+    // Datafix voter_id is the username!
+    let voter_id = username.as_deref().ok_or(anyhow!("Username is None"))?;
     let annotations: DatafixAnnotations = election_event
         .get_annotations()
         .map_err(|err| anyhow!("Error getting election event annotations: {err}"))?;
 
-    let soap_body = req_type.get_body(&annotations, &voter_id, &timestamp);
+    let soap_body = req_type.get_body(&annotations, voter_id, &timestamp);
     let url = &annotations.voterview_request.url;
     info!("Soap body: {soap_body}");
     info!("URL: {url}");
-
     let http = reqwest::Client::new();
     let response = http
         .post(url)

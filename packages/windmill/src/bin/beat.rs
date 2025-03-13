@@ -34,7 +34,7 @@ struct CeleryOpt {
     schedule_events_interval: u64,
     #[structopt(short = "c", long, default_value = "10")]
     schedule_reports_interval: u64,
-    #[structopt(short = "v", long, default_value = "10")]
+    #[structopt(short = "v", long, default_value = "90")]
     review_cast_votes_interval: u64,
     #[structopt(short = "e", long, default_value = "5")]
     electoral_log_interval: u64,

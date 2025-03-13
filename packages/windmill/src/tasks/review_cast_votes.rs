@@ -34,6 +34,7 @@ pub async fn review_cast_votes() -> Result<()> {
     let mut offset = 0;
     let batch_size = PgConfig::from_env()?.default_sql_batch_size.into();
 
+    info!("review_cast_votes: Checking cast_votes in progress");
     while let Some(ballots_list) = get_cast_votes_batch_by_status(
         &hasura_transaction,
         CastVoteStatus::InProgress,
@@ -42,7 +43,10 @@ pub async fn review_cast_votes() -> Result<()> {
     )
     .await?
     {
-        info!("ballots_list len: {:?}", ballots_list.len());
+        info!(
+            "review_cast_votes: Processing {} cast votes",
+            ballots_list.len()
+        );
         // For this celery has to be propperly configured with acks_late=true and a ralistic value for prefetch_count which stablishes the number of tasks executed in parallel
         for ballot in ballots_list {
             celery_app

@@ -71,7 +71,7 @@ impl TryFrom<Row> for CastVote {
     }
 }
 
-#[instrument(err)]
+#[instrument(skip(hasura_transaction), err)]
 pub async fn find_area_ballots(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -135,7 +135,7 @@ pub async fn find_area_ballots(
     Ok(cast_votes)
 }
 
-#[instrument(err)]
+#[instrument(skip(hasura_transaction), err)]
 pub async fn get_cast_votes_batch_by_status(
     hasura_transaction: &Transaction<'_>,
     status: CastVoteStatus,

@@ -29,6 +29,7 @@ use uuid::Uuid;
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(max_retries = 0)]
 pub async fn process_cast_vote(cast_vote: CastVote) -> Result<()> {
+    info!("process_cast_vote: Processing cast vote {}", cast_vote.id);
     let voter_id = cast_vote
         .voter_id_string
         .clone()
@@ -47,6 +48,7 @@ pub async fn process_cast_vote(cast_vote: CastVote) -> Result<()> {
         info!("Skipping: process_cast_vote for election id {election_id} and voter id {voter_id}");
         return Ok(());
     };
+
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
         .get()
@@ -146,8 +148,8 @@ pub async fn process_cast_vote_request_to_datafix(
     };
     let attributes = user.attributes.clone().unwrap_or_default();
     if !voted_via_internet(&attributes) {
-        // Send the request only if the voter has not voted yet via internet, because it could be a re-vote or voting multiple times for different contests
-        // But we do not want to send more than one requst to Datafix, wich in turn would return HasVoted.
+        // Send the request only if the voter has not voted yet via internet, because it could be a re-vote or voting multiple times for different elections.
+        // But we do not want to send more than one request which would return HasVoted.
         let result = datafix::voterview_requests::send(
             SoapRequest::SetVoted,
             ElectionEventDatafix(election_event),

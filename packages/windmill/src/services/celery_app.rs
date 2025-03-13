@@ -75,8 +75,8 @@ pub enum Queue {
     Reports,
     #[strum(serialize = "import_export_queue")]
     ImportExport,
-    #[strum(serialize = "cast_vote_actions_queue")]
-    CastVoteActions,
+    #[strum(serialize = "process_cast_vote_queue")]
+    ProcessCastVote,
     #[strum(serialize = "electoral_log_beat_queue")]
     ElectoralLogBeat,
     #[strum(serialize = "electoral_log_batch_queue")]
@@ -268,7 +268,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             enqueue_electoral_log_event::NAME => Queue::ElectoralLogEvent.as_ref(),
             process_electoral_log_events_batch::NAME => Queue::ElectoralLogBatch.as_ref(),
             electoral_log_batch_dispatcher::NAME => Queue::ElectoralLogBeat.as_ref(),
-            process_cast_vote::NAME => Queue::CastVoteActions.as_ref(),
+            process_cast_vote::NAME => Queue::ProcessCastVote.as_ref(),
         ],
         prefetch_count = prefetch_count,
         acks_late = acks_late,
