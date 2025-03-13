@@ -48,7 +48,7 @@ pub async fn read_trustees_config_base(
             .clone()
             .ok_or(anyhow!("Missing trustee name"))?;
         let trustee_key = format!("{}{}_config", secret_prefix, trustee_name);
-        let secret = vault::read_secret(trustee_key.clone())
+        let secret = vault::read_secret(transaction, tenant_id, None, &trustee_key)
             .await?
             .ok_or(anyhow!(
                 "Missing vault secret for '{}'  and key '{}'",

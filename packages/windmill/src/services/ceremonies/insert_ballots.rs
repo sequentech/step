@@ -75,7 +75,13 @@ pub async fn insert_ballots_messages(
     );
 
     let realm = get_event_realm(&tenant_id, &election_event_id);
-    let protocol_manager = get_protocol_manager(board_name).await?;
+    let protocol_manager = get_protocol_manager(
+        hasura_transaction,
+        tenant_id,
+        Some(election_event_id),
+        board_name,
+    )
+    .await?;
     let mut board = get_b3_pgsql_client().await?;
     let board_messages: Vec<Message> =
         get_board_messages::<RistrettoCtx>(board_name, &mut board).await?;

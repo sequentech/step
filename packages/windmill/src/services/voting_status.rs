@@ -110,6 +110,7 @@ pub async fn update_election_status(
             status.set_status_by_channel(voting_channel, VotingStatus::OPEN);
 
             update_board_on_status_change(
+                &hasura_transaction,
                 &tenant_id,
                 user_id,
                 username,
@@ -137,6 +138,7 @@ pub async fn update_election_status(
 
 #[instrument(err)]
 pub async fn update_board_on_status_change(
+    hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     user_id: Option<&str>,
     username: Option<&str>,
@@ -159,8 +161,10 @@ pub async fn update_board_on_status_change(
 
     let electoral_log = if let Some(user_id) = user_id {
         ElectoralLog::for_admin_user(
+            hasura_transaction,
             &board_name,
             tenant_id,
+            &election_event_id,
             user_id,
             username.map(|val| val.to_string()),
             elections_ids_str,
@@ -168,7 +172,13 @@ pub async fn update_board_on_status_change(
         )
         .await?
     } else {
-        ElectoralLog::new(board_name.as_str()).await?
+        ElectoralLog::new(
+            hasura_transaction,
+            tenant_id,
+            Some(&election_event_id),
+            board_name.as_str(),
+        )
+        .await?
     };
 
     let maybe_election_id = match election_id {
