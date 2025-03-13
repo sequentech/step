@@ -345,6 +345,7 @@ const VotingScreen: React.FC = () => {
                 ? encryptMultiBallotSelection(selectionState, ballotStyle.ballot_eml)
                 : encryptBallotSelection(selectionState, ballotStyle.ballot_eml)
 
+            console.log("auditableBallot", auditableBallot)
             dispatch(
                 setAuditableBallot({
                     electionId: ballotStyle?.election_id ?? "",
