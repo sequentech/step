@@ -67,6 +67,7 @@ pub async fn create_election(
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
     upsert_b3_and_elog(
+        &hasura_transaction,
         &claims.hasura_claims.tenant_id,
         &body.election_event_id,
         &vec![election.id.clone()],

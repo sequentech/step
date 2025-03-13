@@ -238,7 +238,7 @@ async fn generate_template_document(
     }
 
     let first_pipe_id = create_config(
-        &hasura_transaction,
+        hasura_transaction,
         &tally_session,
         &tally_path_path,
         is_ballot_images,
@@ -291,6 +291,7 @@ async fn generate_template_document(
 
     // Encrypt the file if needed
     let final_zipped_file = encrypt_file(
+        hasura_transaction,
         tenant_id,
         &election_event_id,
         &output_zip_path.to_string_lossy(),
