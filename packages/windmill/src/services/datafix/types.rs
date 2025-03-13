@@ -155,3 +155,15 @@ pub enum SoapRequest {
     SetVoted,
     SetNotVoted,
 }
+
+#[derive(Display, Debug, Clone)]
+pub enum SoapRequestResponse {
+    Ok,
+    /// Some fields are missing or wrong in the request
+    Faultstring(String),
+    /// The requested voter has voted already
+    #[strum(to_string = "HasVoted")]
+    HasVotedErrorMsg,
+    /// Other kind of errors like voter not found, CountyMun is required, etc.
+    OtherErrorMsg(String),
+}

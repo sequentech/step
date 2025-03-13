@@ -20,7 +20,7 @@ use tokio_postgres::row::Row;
 use tracing::{info, instrument};
 use uuid::Uuid;
 
-#[derive(Serialize, Deserialize, Debug, Clone, Display)]
+#[derive(Serialize, Deserialize, Debug, Clone, Display, PartialEq)]
 pub enum CastVoteStatus {
     #[serde(rename = "in-progress")]
     #[strum(to_string = "in-progress")]

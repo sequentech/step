@@ -82,7 +82,7 @@ pub async fn send(
     req_type: SoapRequest,
     election_event: ElectionEventDatafix,
     username: &Option<String>,
-) -> Result<()> {
+) -> Result<SoapRequestResponse> {
     let timestamp = generate_timestamp(
         Some(TimeZone::UTC),
         Some(DateFormat::Custom("%Y-%m-%dT%H:%M:%S.%3fZ".to_string())),
@@ -140,11 +140,14 @@ pub async fn send(
     match success_element.as_str() {
         "true" => {
             info!("Request to VoterView {req_type} succeeded");
-            Ok(())
+            Ok(SoapRequestResponse::Ok)
         }
         "false" => {
             let error_message =
                 parse_tag("<ErrorMessage>", "</ErrorMessage>", &response_txt).unwrap_or_default();
+            if error_message.eq(&SoapRequestResponse::HasVotedErrorMsg.to_string()) {
+                return Ok(SoapRequestResponse::HasVotedErrorMsg);
+            }
             Err(anyhow!(
                 "Request to VoterView {req_type} failed with ErrorMessage: {error_message}"
             ))

@@ -7,6 +7,7 @@ use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::election_event::{get_all_tenant_election_events, ElectionEventDatafix};
 use crate::services::consolidation::eml_generator::ValidateAnnotations;
 use crate::services::users::get_users_by_username;
+use anyhow::anyhow;
 use anyhow::Result;
 use deadpool_postgres::Transaction;
 use rocket::http::Status;
@@ -17,7 +18,6 @@ use sequent_core::types::keycloak::{
 };
 use std::collections::HashMap;
 use tracing::{error, info, instrument, warn};
-
 pub const DATAFIX_ID_KEY: &str = "datafix:id";
 pub const DATAFIX_PSW_POLICY_KEY: &str = "datafix:password_policy";
 pub const DATAFIX_VOTERVIEW_REQ_KEY: &str = "datafix:voterview_request";
@@ -178,8 +178,9 @@ pub async fn is_datafix_election_event_by_id(
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<bool> {
-    let election_event =
-        get_election_event_by_id(hasura_transaction, tenant_id, election_event_id).await?;
+    let election_event = get_election_event_by_id(hasura_transaction, tenant_id, election_event_id)
+        .await
+        .map_err(|e| anyhow!("Error getting election event by id: {e:?}"))?;
 
     Ok(is_datafix_election_event(&election_event))
 }

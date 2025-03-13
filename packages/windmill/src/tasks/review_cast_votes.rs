@@ -4,17 +4,16 @@
 
 // use crate::postgres::election_event::{get_election_event_by_id, ElectionEventDatafix};
 
-use crate::services::database::PgConfig;
 use crate::services::{
-    cast_votes::{get_cast_votes_batch_by_status, CastVote, CastVoteStatus},
+    cast_votes::{get_cast_votes_batch_by_status, CastVoteStatus},
     celery_app::get_celery_app,
-    database::{get_hasura_pool, get_keycloak_pool},
+    database::{get_hasura_pool, PgConfig},
 };
+use crate::tasks::process_cast_vote::process_cast_vote;
 use crate::types::error::Result;
 use anyhow::anyhow;
 use celery::error::TaskError;
 use deadpool_postgres::Client as DbClient;
-use sequent_core::services::keycloak::KeycloakAdminClient;
 use tracing::{error, info, instrument};
 
 #[instrument(err)]
@@ -44,11 +43,13 @@ pub async fn review_cast_votes() -> Result<()> {
     .await?
     {
         info!("ballots_list len: {:?}", ballots_list.len());
-
+        // For this celery has to be propperly configured with acks_late=true and a ralistic value for prefetch_count which stablishes the number of tasks executed in parallel
         for ballot in ballots_list {
-            // Do stuff
+            celery_app
+                .send_task(process_cast_vote::new(ballot.clone()))
+                .await
+                .map_err(|e| anyhow!("Error sending cast_vote_actions task: {e:?}"))?;
         }
-
         // Move to next batch
         offset += batch_size;
     }

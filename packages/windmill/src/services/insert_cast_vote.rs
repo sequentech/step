@@ -11,13 +11,10 @@ use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::cast_votes::get_voter_signing_key;
 use crate::services::cast_votes::CastVote;
-use crate::services::celery_app::get_celery_app;
-use crate::services::datafix::utils::is_datafix_election_event;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::protocol_manager::get_protocol_manager;
-use crate::services::users::{get_username_by_id, ListUsersFilter};
-use crate::tasks::process_cast_vote;
+use crate::services::users::get_username_by_id;
 use crate::{
     hasura::election_event::get_election_event::GetElectionEventSequentBackendElectionEvent,
     services::database::{get_hasura_pool, get_keycloak_pool},
@@ -304,40 +301,13 @@ pub async fn try_insert_cast_vote(
 
     let ip = format!("ip: {}", voter_ip.as_deref().unwrap_or(""),);
     let country = format!("country: {}", voter_country.as_deref().unwrap_or(""),);
-    let realm = get_event_realm(tenant_id, election_event_id);
+    let realm = get_event_realm(&tenant_id, &election_event_id);
     let username = get_username_by_id(&keycloak_transaction, &realm, voter_id)
         .await
         .map_err(|e| CastVoteError::UnknownError(format!("Error get_username_by_id {e:?}")))?;
 
     match result {
         Ok(inserted_cast_vote) => {
-            if is_datafix_election_event(&election_event) {
-                // If insert_cast_vote_and_commit fails then we will not send SetVoted to VoterView.
-                // However if the one failing is voterview_requests::send returning an error here would be problematic
-                // because the vote is already casted.
-                // But it will be a good idea to log the error in the electoral_log.
-                let filter = ListUsersFilter {
-                    tenant_id: tenant_id.to_string(),
-                    election_event_id: Some(election_event_id.to_string()),
-                    realm: realm.clone(),
-                    user_ids: Some(vec![voter_id.to_string()]),
-                    area_id: Some(area_id.to_string()),
-                    ..ListUsersFilter::default()
-                };
-                let celery_app = get_celery_app().await;
-                let celery_task = celery_app
-                    .send_task(process_cast_vote::process_cast_vote::new(
-                        filter,
-                        username.clone(),
-                    ))
-                    .await
-                    .map_err(|e| {
-                        CastVoteError::UnknownError(format!(
-                            "Error sending cast_vote_actions task: {e:?}"
-                        ))
-                    })?;
-                info!("Sent cast_vote_actions task {}", celery_task.task_id);
-            }
             let electoral_log_res = ElectoralLog::for_voter(
                 &electoral_log.elog_database,
                 tenant_id,
@@ -373,7 +343,7 @@ pub async fn try_insert_cast_vote(
                 error!("Error posting to the electoral log {:?}", log_err);
             }
             Ok(inserted_cast_vote)
-        } // End of is_datafix_election_event
+        }
         Err(err) => {
             error!(err=?err);
             let log_result = electoral_log
