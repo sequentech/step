@@ -162,7 +162,7 @@ pub enum SoapRequestResponse {
     /// Some fields are missing or wrong in the request
     Faultstring(String),
     /// The requested voter has voted already
-    #[strum(to_string = "HasVoted")]
+    #[strum(to_string = "The voter has already voted.")]
     HasVotedErrorMsg,
     /// Other kind of errors like voter not found, CountyMun is required, etc.
     OtherErrorMsg(String),

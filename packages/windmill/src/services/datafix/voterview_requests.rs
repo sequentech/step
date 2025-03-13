@@ -9,7 +9,7 @@ use anyhow::{anyhow, Result};
 use reqwest;
 use sequent_core::types::date_time::{DateFormat, TimeZone};
 use sequent_core::util::date_time::generate_timestamp;
-use tracing::{info, instrument};
+use tracing::{error, info, instrument, warn};
 
 impl SoapRequest {
     fn get_set_not_voted_body(
@@ -123,9 +123,8 @@ pub async fn send(
             parse_tag("<faultcode>", "</faultcode>", &response_txt).unwrap_or_default();
         let faultstring: String =
             parse_tag("<faultstring>", "</faultstring>", &response_txt).unwrap_or_default();
-        return Err(anyhow!(
-            "Request to VoterView {req_type} failed with response status: {status}. Faultcode: {faultcode}, Faultstring: {faultstring}"
-        ));
+        error!("Request to VoterView {req_type} failed with response status: {status}. Faultcode: {faultcode}, Faultstring: {faultstring}");
+        return Ok(SoapRequestResponse::Faultstring(faultstring));
     }
 
     let success_element = parse_tag("<Success>", "</Success>", &response_txt).unwrap_or_default();
@@ -138,11 +137,11 @@ pub async fn send(
             let error_message =
                 parse_tag("<ErrorMessage>", "</ErrorMessage>", &response_txt).unwrap_or_default();
             if error_message.eq(&SoapRequestResponse::HasVotedErrorMsg.to_string()) {
-                return Ok(SoapRequestResponse::HasVotedErrorMsg);
+                Ok(SoapRequestResponse::HasVotedErrorMsg)
+            } else {
+                warn!("Request to VoterView {req_type} failed with ErrorMessage: {error_message}");
+                Ok(SoapRequestResponse::OtherErrorMsg(error_message))
             }
-            Err(anyhow!(
-                "Request to VoterView {req_type} failed with ErrorMessage: {error_message}"
-            ))
         }
         _ => Err(anyhow!("Failed to parse the response text: {response_txt}")),
     }
