@@ -3,6 +3,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
+use crate::services::vault::check_master_secret;
 use crate::{hasura::tenant::get_tenant, services::celery_app::get_celery_app};
 use core::time::Duration;
 use deadpool_postgres::Timeouts;
@@ -84,6 +85,21 @@ async fn check_keycloak_db(app_name: &AppName) -> Option<bool> {
 }
 
 #[instrument(ret)]
+async fn check_aws_secrets(app_name: &AppName) -> Option<bool> {
+    if AppName::BEAT == *app_name {
+        return None;
+    }
+
+    match check_master_secret().await {
+        Ok(_) => Some(true),
+        Err(error) => {
+            error!("aws secrets error: {error:?}");
+            Some(false)
+        }
+    }
+}
+
+#[instrument(ret)]
 async fn check_hasura_graphql(app_name: &AppName) -> Option<bool> {
     if AppName::BEAT == *app_name {
         return None;
@@ -106,19 +122,26 @@ async fn check_hasura_graphql(app_name: &AppName) -> Option<bool> {
 #[instrument(ret)]
 async fn readiness_test(app_name: &AppName) -> bool {
     // Use futures::join! to await multiple futures concurrently
-    let (celery_ok, hasura_db_ok, keycloak_db_ok, hasura_graphql_ok) = join!(
+    let (celery_ok, hasura_db_ok, keycloak_db_ok, hasura_graphql_ok, aws_secrets_ok) = join!(
         check_celery(app_name),
         check_hasura_db(app_name),
         check_keycloak_db(app_name),
         check_hasura_graphql(app_name),
+        check_aws_secrets(app_name)
     );
 
     info!(
-        "celery: {:?}, hasura_db: {:?} , keycloak db: {:?}, hasura_graphql {:?}",
-        celery_ok, hasura_db_ok, keycloak_db_ok, hasura_graphql_ok
+        "celery: {:?}, hasura_db: {:?} , keycloak db: {:?}, hasura_graphql {:?}, aws_secrets_ok {:?}",
+        celery_ok, hasura_db_ok, keycloak_db_ok, hasura_graphql_ok, aws_secrets_ok
     );
 
-    let data = vec![celery_ok, hasura_db_ok, keycloak_db_ok, hasura_graphql_ok];
+    let data = vec![
+        celery_ok,
+        hasura_db_ok,
+        keycloak_db_ok,
+        hasura_graphql_ok,
+        aws_secrets_ok,
+    ];
 
     data.iter().all(|&x| x.is_none() || x == Some(true))
 }
