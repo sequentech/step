@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::jwks::get_jwks_secret_path;
+use crate::services::providers::sms_sender::{SmsSender, SmsTransport};
 use crate::services::vault::check_master_secret;
 use crate::{hasura::tenant::get_tenant, services::celery_app::get_celery_app};
 use core::time::Duration;
@@ -125,6 +126,41 @@ async fn check_s3(app_name: &AppName) -> Option<bool> {
 }
 
 #[instrument(ret)]
+async fn check_sms_sender(app_name: &AppName) -> Option<bool> {
+    if AppName::BEAT == *app_name {
+        return None;
+    }
+
+    // First try to initialize the SMS sender
+    let sms_sender = match SmsSender::new().await {
+        Ok(sender) => sender,
+        Err(error) => {
+            error!("sms sender initialization error: {error:?}");
+            return Some(false);
+        }
+    };
+
+    // Check if we're using AWS SNS and attempt a test connection
+    match &sms_sender.transport {
+        SmsTransport::AwsSns((aws_client, _)) => {
+            // Try a lightweight operation to verify connectivity
+            // For AWS SNS, we can use list_topics or get_sms_attributes which doesn't send actual SMS
+            match aws_client.get_sms_attributes().send().await {
+                Ok(_) => Some(true),
+                Err(error) => {
+                    error!("AWS SNS connection error: {error:?}");
+                    Some(false)
+                }
+            }
+        }
+        SmsTransport::Console => {
+            // Console transport always works
+            Some(true)
+        }
+    }
+}
+
+#[instrument(ret)]
 async fn check_hasura_graphql(app_name: &AppName) -> Option<bool> {
     if AppName::BEAT == *app_name {
         return None;
@@ -147,18 +183,27 @@ async fn check_hasura_graphql(app_name: &AppName) -> Option<bool> {
 #[instrument(ret)]
 async fn readiness_test(app_name: &AppName) -> bool {
     // Use futures::join! to await multiple futures concurrently
-    let (celery_ok, hasura_db_ok, keycloak_db_ok, hasura_graphql_ok, aws_secrets_ok, s3_ok) = join!(
+    let (
+        celery_ok,
+        hasura_db_ok,
+        keycloak_db_ok,
+        hasura_graphql_ok,
+        aws_secrets_ok,
+        s3_ok,
+        sms_sender_ok,
+    ) = join!(
         check_celery(app_name),
         check_hasura_db(app_name),
         check_keycloak_db(app_name),
         check_hasura_graphql(app_name),
         check_aws_secrets(app_name),
         check_s3(app_name),
+        check_sms_sender(app_name),
     );
 
     info!(
-        "celery: {:?}, hasura_db: {:?} , keycloak db: {:?}, hasura_graphql: {:?}, aws_secrets: {:?}, s3: {:?}",
-        celery_ok, hasura_db_ok, keycloak_db_ok, hasura_graphql_ok, aws_secrets_ok, s3_ok
+        "celery: {:?}, hasura_db: {:?} , keycloak db: {:?}, hasura_graphql: {:?}, aws_secrets: {:?}, s3: {:?}, sms_sender: {:?}",
+        celery_ok, hasura_db_ok, keycloak_db_ok, hasura_graphql_ok, aws_secrets_ok, s3_ok, sms_sender_ok
     );
 
     let data = vec![
@@ -168,6 +213,7 @@ async fn readiness_test(app_name: &AppName) -> bool {
         hasura_graphql_ok,
         aws_secrets_ok,
         s3_ok,
+        sms_sender_ok,
     ];
 
     data.iter().all(|&x| x.is_none() || x == Some(true))
