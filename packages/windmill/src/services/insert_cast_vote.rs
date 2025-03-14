@@ -310,6 +310,10 @@ pub async fn try_insert_cast_vote(
 
     match result {
         Ok(inserted_cast_vote) => {
+            let after_result_hasura_transaction = hasura_db_client
+                .transaction()
+                .await
+                .map_err(|e| CastVoteError::GetTransactionFailed(e.to_string()))?;
             let electoral_log_res = ElectoralLog::for_voter(
                 &after_result_hasura_transaction,
                 &electoral_log.elog_database,
