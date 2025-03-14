@@ -577,9 +577,14 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
                     &election_event_id,
                     Some(report.id.clone()),
                 );
-                let encryption_password = crate::services::vault::read_secret(secret_key.clone())
-                    .await?
-                    .ok_or_else(|| anyhow!("Encryption password not found"))?;
+                let encryption_password = crate::services::vault::read_secret(
+                    hasura_transaction,
+                    tenant_id,
+                    Some(election_event_id),
+                    &secret_key,
+                )
+                .await?
+                .ok_or_else(|| anyhow!("Encryption password not found"))?;
                 let enc_file = generate_temp_file(self.base_name().as_str(), ".epdf")
                     .with_context(|| "Error creating named temp file")?;
                 let enc_temp_path = enc_file.into_temp_path();

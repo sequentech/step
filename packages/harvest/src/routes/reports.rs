@@ -263,7 +263,19 @@ pub async fn encrypt_report_route(
         vec![Permissions::REPORT_WRITE],
     )?;
 
+    let mut hasura_db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    let hasura_transaction = hasura_db_client
+        .transaction()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
     get_report_key_pair(
+        &hasura_transaction,
         tenant_id,
         body.election_event_id.clone(),
         body.report_id.clone(),
@@ -280,6 +292,11 @@ pub async fn encrypt_report_route(
         document_id,
         error_msg: None,
     };
+
+    hasura_transaction
+        .commit()
+        .await
+        .map_err(|err| (Status::InternalServerError, err.to_string()))?;
 
     Ok(Json(output))
 }
