@@ -36,7 +36,9 @@
 	},
 
 	"features": {
-		"ghcr.io/devcontainers/features/docker-outside-of-docker:1": {},
+		"ghcr.io/devcontainers/features/docker-outside-of-docker:1": {
+            "dockerDashComposeVersion": "v2.32.3"
+		},
 		"ghcr.io/devcontainers/features/sshd:1": {
             "version": "latest"
         }
