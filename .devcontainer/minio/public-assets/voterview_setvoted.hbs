@@ -1,0 +1,18 @@
+{{!--
+SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
+
+SPDX-License-Identifier: AGPL-3.0-only
+--}}
+
+<soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+    <soap:Body>
+        <SetVoted xmlns="https://www.voterview.ca/MVVServices">
+            <CountyMun>{{county_mun}}</CountyMun>
+            <Username>{{usr}}</Username>
+            <Password>{{psw}}</Password>
+            <VoterID>{{voter_id}}</VoterID>
+            <Channel>INTERNET</Channel>
+            <DateTimeVoted>{{timestamp}}</DateTimeVoted>
+        </SetVoted>
+    </soap:Body>
+</soap:Envelope>

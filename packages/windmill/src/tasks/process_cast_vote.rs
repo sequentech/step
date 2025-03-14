@@ -25,7 +25,7 @@ use std::collections::HashMap;
 use tracing::{error, info, instrument};
 use uuid::Uuid;
 
-#[instrument(err)]
+#[instrument(skip(cast_vote), err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(max_retries = 0)]
 pub async fn process_cast_vote(cast_vote: CastVote) -> Result<()> {

@@ -167,3 +167,12 @@ pub enum SoapRequestResponse {
     /// Other kind of errors like voter not found, CountyMun is required, etc.
     OtherErrorMsg(String),
 }
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
+pub struct SoapRequestData {
+    pub county_mun: String,
+    pub usr: String,
+    pub psw: String,
+    pub voter_id: String,
+    pub timestamp: String,
+}
