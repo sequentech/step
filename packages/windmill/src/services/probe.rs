@@ -3,12 +3,14 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
+use crate::services::jwks::get_jwks_secret_path;
 use crate::services::vault::check_master_secret;
 use crate::{hasura::tenant::get_tenant, services::celery_app::get_celery_app};
 use core::time::Duration;
 use deadpool_postgres::Timeouts;
 use sequent_core::services::keycloak::get_client_credentials;
 use sequent_core::services::probe::ProbeHandler;
+use sequent_core::services::s3;
 use std::net::SocketAddr;
 use strum_macros::Display;
 use tokio::join;
@@ -100,6 +102,29 @@ async fn check_aws_secrets(app_name: &AppName) -> Option<bool> {
 }
 
 #[instrument(ret)]
+async fn check_s3(app_name: &AppName) -> Option<bool> {
+    if AppName::BEAT == *app_name {
+        return None;
+    }
+
+    let s3_bucket = match s3::get_public_bucket() {
+        Ok(s3_bucket) => s3_bucket,
+        Err(err) => {
+            error!("s3 error: {err:?}");
+            return Some(false);
+        }
+    };
+    let path = get_jwks_secret_path();
+    match s3::get_file_from_s3(s3_bucket, path).await {
+        Ok(_) => Some(true),
+        Err(error) => {
+            error!("s3 error: {error:?}");
+            Some(false)
+        }
+    }
+}
+
+#[instrument(ret)]
 async fn check_hasura_graphql(app_name: &AppName) -> Option<bool> {
     if AppName::BEAT == *app_name {
         return None;
@@ -122,17 +147,18 @@ async fn check_hasura_graphql(app_name: &AppName) -> Option<bool> {
 #[instrument(ret)]
 async fn readiness_test(app_name: &AppName) -> bool {
     // Use futures::join! to await multiple futures concurrently
-    let (celery_ok, hasura_db_ok, keycloak_db_ok, hasura_graphql_ok, aws_secrets_ok) = join!(
+    let (celery_ok, hasura_db_ok, keycloak_db_ok, hasura_graphql_ok, aws_secrets_ok, s3_ok) = join!(
         check_celery(app_name),
         check_hasura_db(app_name),
         check_keycloak_db(app_name),
         check_hasura_graphql(app_name),
-        check_aws_secrets(app_name)
+        check_aws_secrets(app_name),
+        check_s3(app_name),
     );
 
     info!(
-        "celery: {:?}, hasura_db: {:?} , keycloak db: {:?}, hasura_graphql {:?}, aws_secrets_ok {:?}",
-        celery_ok, hasura_db_ok, keycloak_db_ok, hasura_graphql_ok, aws_secrets_ok
+        "celery: {:?}, hasura_db: {:?} , keycloak db: {:?}, hasura_graphql: {:?}, aws_secrets: {:?}, s3: {:?}",
+        celery_ok, hasura_db_ok, keycloak_db_ok, hasura_graphql_ok, aws_secrets_ok, s3_ok
     );
 
     let data = vec![
@@ -141,6 +167,7 @@ async fn readiness_test(app_name: &AppName) -> bool {
         keycloak_db_ok,
         hasura_graphql_ok,
         aws_secrets_ok,
+        s3_ok,
     ];
 
     data.iter().all(|&x| x.is_none() || x == Some(true))
