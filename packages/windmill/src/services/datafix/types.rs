@@ -62,7 +62,7 @@ pub struct DatafixAnnotations {
     pub voterview_request: VoterviewRequest,
 }
 
-#[derive(Default, Display, Serialize, Deserialize, Debug, Clone, EnumString)]
+#[derive(Default, Display, Serialize, Deserialize, Debug, Clone, Copy, EnumString)]
 pub enum BasePolicy {
     #[strum(serialize = "id-password-concatenated")]
     #[serde(rename = "id-password-concatenated")]
@@ -73,7 +73,7 @@ pub enum BasePolicy {
     PswOnly,
 }
 
-#[derive(Default, Display, Serialize, Deserialize, Debug, Clone, EnumString)]
+#[derive(Default, Display, Serialize, Deserialize, Debug, Clone, Copy, EnumString)]
 pub enum CharactersPolicy {
     #[strum(serialize = "numeric")]
     #[serde(rename = "numeric")]
@@ -84,7 +84,7 @@ pub enum CharactersPolicy {
     Alphanumeric,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Copy, Clone)]
 pub struct PasswordPolicy {
     base: BasePolicy,
     size: usize,
@@ -175,4 +175,14 @@ pub struct SoapRequestData {
     pub psw: String,
     pub voter_id: String,
     pub timestamp: String,
+}
+
+#[derive(Debug, Display, Clone)]
+pub enum EndpointNames {
+    AddVoter,
+    UpdateVoter,
+    DeleteVoter,
+    UnmarkVoted,
+    MarkVoted,
+    ReplacePin,
 }

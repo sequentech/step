@@ -10,7 +10,6 @@ use deadpool_postgres::Transaction;
 
 use rocket::http::Status;
 use rocket::serde::json::Json;
-use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::types::keycloak::{
     User, AREA_ID_ATTR_NAME, ATTR_RESET_VALUE, DATE_OF_BIRTH, DISABLE_COMMENT,
@@ -29,18 +28,14 @@ pub async fn disable_datafix_voter(
     tenant_id: &str,
     datafix_event_id: &str,
     username: &str,
+    realm: &str,
 ) -> Result<Json<DatafixResponse>, JsonErrorResponse> {
-    let (election_event_id, _) =
-        get_event_id_and_datafix_annotations(hasura_transaction, tenant_id, datafix_event_id)
-            .await?;
-    info!("election_event_id: {election_event_id}");
-    let realm = get_event_realm(tenant_id, &election_event_id);
     let client = KeycloakAdminClient::new().await.map_err(|e| {
         error!("Error getting KeycloakAdminClient: {e:?}");
         DatafixResponse::new(Status::InternalServerError)
     })?;
 
-    let user_id = get_user_id(keycloak_transaction, &realm, username).await?;
+    let user_id = get_user_id(keycloak_transaction, realm, username).await?;
     let mut hash_map = HashMap::new();
     hash_map.insert(
         DISABLE_COMMENT.to_string(),
@@ -50,7 +45,7 @@ pub async fn disable_datafix_voter(
 
     let _user = client
         .edit_user(
-            &realm,
+            realm,
             &user_id,
             Some(false),
             attributes,
@@ -76,25 +71,17 @@ pub async fn add_datafix_voter(
     tenant_id: &str,
     datafix_event_id: &str,
     voter_info: &VoterInformationBody,
+    election_event_id: &str,
+    realm: &str,
 ) -> Result<Json<DatafixResponse>, JsonErrorResponse> {
     let username = &voter_info.voter_id;
-    let (election_event_id, _) =
-        get_event_id_and_datafix_annotations(hasura_transaction, tenant_id, datafix_event_id)
-            .await?;
-
-    let realm = get_event_realm(tenant_id, &election_event_id);
     let client = KeycloakAdminClient::new().await.map_err(|e| {
         error!("Error getting KeycloakAdminClient: {e:?}");
         DatafixResponse::new(Status::InternalServerError)
     })?;
 
-    let area = find_user_area_by_name(
-        hasura_transaction,
-        tenant_id,
-        &election_event_id,
-        voter_info,
-    )
-    .await?;
+    let area = find_user_area_by_name(hasura_transaction, tenant_id, election_event_id, voter_info)
+        .await?;
 
     // Both area and birthdate have to go into the attributes HashMap. They will be taken from there but not from the User struct.
     let mut hash_map = HashMap::new();
@@ -124,7 +111,7 @@ pub async fn add_datafix_voter(
         DatafixResponse::new(Status::InternalServerError)
     })?;
     let _user = client
-        .create_user(&realm, &user, attributes, Some(vec![voter_group_name]))
+        .create_user(realm, &user, attributes, Some(vec![voter_group_name]))
         .await
         .map_err(|e| {
             error!("Error creating user: {e:?}");
@@ -142,25 +129,17 @@ pub async fn update_datafix_voter(
     tenant_id: &str,
     datafix_event_id: &str,
     voter_info: &VoterInformationBody,
+    election_event_id: &str,
+    realm: &str,
 ) -> Result<Json<DatafixResponse>, JsonErrorResponse> {
     let username = voter_info.voter_id.clone();
-    let (election_event_id, _) =
-        get_event_id_and_datafix_annotations(hasura_transaction, tenant_id, datafix_event_id)
-            .await?;
-
-    let realm = get_event_realm(tenant_id, &election_event_id);
     let client = KeycloakAdminClient::new().await.map_err(|e| {
         error!("Error getting KeycloakAdminClient: {e:?}");
         DatafixResponse::new(Status::InternalServerError)
     })?;
 
-    let area = find_user_area_by_name(
-        hasura_transaction,
-        tenant_id,
-        &election_event_id,
-        voter_info,
-    )
-    .await?;
+    let area = find_user_area_by_name(hasura_transaction, tenant_id, election_event_id, voter_info)
+        .await?;
     // Both area and birthdate have to go into the attributes HashMap. They will be taken from there but not from the User struct.
     let mut hash_map = HashMap::new();
     hash_map.insert(
@@ -177,10 +156,10 @@ pub async fn update_datafix_voter(
     }
     let attributes = Some(hash_map);
 
-    let user_id = get_user_id(keycloak_transaction, &realm, &username).await?;
+    let user_id = get_user_id(keycloak_transaction, realm, &username).await?;
     let _user = client
         .edit_user(
-            &realm,
+            realm,
             &user_id,
             None,
             attributes,
@@ -208,13 +187,9 @@ pub async fn mark_as_voted_via_channel(
     tenant_id: &str,
     datafix_event_id: &str,
     voter_body: &MarkVotedBody,
+    realm: &str,
 ) -> Result<Json<DatafixResponse>, JsonErrorResponse> {
     let username = voter_body.voter_id.clone();
-    let (election_event_id, _) =
-        get_event_id_and_datafix_annotations(hasura_transaction, tenant_id, datafix_event_id)
-            .await?;
-
-    let realm = get_event_realm(tenant_id, &election_event_id);
     let client = KeycloakAdminClient::new().await.map_err(|e| {
         error!("Error getting KeycloakAdminClient: {e:?}");
         DatafixResponse::new(Status::InternalServerError)
@@ -228,10 +203,10 @@ pub async fn mark_as_voted_via_channel(
     );
     let attributes = Some(hash_map);
 
-    let user_id = get_user_id(keycloak_transaction, &realm, &username).await?;
+    let user_id = get_user_id(keycloak_transaction, realm, &username).await?;
     let _user = client
         .edit_user(
-            &realm,
+            realm,
             &user_id,
             Some(false), // Disable the voter
             attributes,
@@ -259,13 +234,9 @@ pub async fn unmark_voter_as_voted(
     tenant_id: &str,
     datafix_event_id: &str,
     voter_id: &str,
+    realm: &str,
 ) -> Result<Json<DatafixResponse>, JsonErrorResponse> {
     let username = voter_id.to_string();
-    let (election_event_id, _) =
-        get_event_id_and_datafix_annotations(hasura_transaction, tenant_id, datafix_event_id)
-            .await?;
-
-    let realm = get_event_realm(tenant_id, &election_event_id);
     let client = KeycloakAdminClient::new().await.map_err(|e| {
         error!("Error getting KeycloakAdminClient: {e:?}");
         DatafixResponse::new(Status::InternalServerError)
@@ -281,10 +252,10 @@ pub async fn unmark_voter_as_voted(
         vec![ATTR_RESET_VALUE.to_string()],
     );
     let attributes = Some(hash_map);
-    let user_id = get_user_id(keycloak_transaction, &realm, &username).await?;
+    let user_id = get_user_id(keycloak_transaction, realm, &username).await?;
     let _user = client
         .edit_user(
-            &realm,
+            realm,
             &user_id,
             Some(true), // Enable the voter again
             attributes,
@@ -304,24 +275,21 @@ pub async fn unmark_voter_as_voted(
 }
 
 /// Generate a new password.
-#[instrument(skip(hasura_transaction, keycloak_transaction))]
+#[instrument(skip(hasura_transaction, keycloak_transaction, datafix_annotations))]
 pub async fn replace_voter_pin(
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
     tenant_id: &str,
     datafix_event_id: &str,
     username: &str,
+    election_event_id: &str,
+    realm: &str,
+    datafix_annotations: &DatafixAnnotations,
 ) -> Result<String, JsonErrorResponse> {
-    let (election_event_id, datafix_annotations) =
-        get_event_id_and_datafix_annotations(hasura_transaction, tenant_id, datafix_event_id)
-            .await?;
-    info!("election_event_id: {election_event_id}");
-    let realm = get_event_realm(tenant_id, &election_event_id);
-
     let filter = ListUsersFilter {
         tenant_id: tenant_id.to_string(),
-        election_event_id: Some(election_event_id),
-        realm: realm.clone(),
+        election_event_id: Some(election_event_id.to_string()),
+        realm: realm.to_string(),
         username: Some(FilterOption::IsEqual(username.to_string())),
         ..ListUsersFilter::default()
     };
@@ -351,7 +319,7 @@ pub async fn replace_voter_pin(
 
     let pin = datafix_annotations
         .password_policy
-        .generate_password(&username);
+        .generate_password(username);
     let password = Some(pin.clone());
 
     let client = KeycloakAdminClient::new().await.map_err(|e| {
@@ -361,7 +329,7 @@ pub async fn replace_voter_pin(
 
     let _user = client
         .edit_user(
-            &realm, &user_id, None, // Enable/disable
+            realm, &user_id, None, // Enable/disable
             None, // attributes
             None, None, None, None, password, None,
         )

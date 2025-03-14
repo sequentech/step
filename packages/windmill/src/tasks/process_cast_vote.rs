@@ -8,7 +8,9 @@ use crate::services::cast_votes::{CastVote, CastVoteStatus};
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::datafix;
 use crate::services::datafix::types::{SoapRequest, SoapRequestResponse};
-use crate::services::datafix::utils::{is_datafix_election_event, voted_via_internet};
+use crate::services::datafix::utils::{
+    is_datafix_election_event, post_operation_result_to_electoral_log, voted_via_internet,
+};
 use crate::services::pg_lock::PgLock;
 use crate::services::users::{get_username_by_id, list_users, ListUsersFilter};
 use crate::types::error::Result;
@@ -16,6 +18,7 @@ use celery::error::TaskError;
 use chrono::Duration;
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
+use electoral_log::messages::newtypes::ExtApiRequestDirection;
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::keycloak::KeycloakAdminClient;
@@ -86,7 +89,7 @@ pub async fn process_cast_vote(cast_vote: CastVote) -> Result<()> {
     // In the future we should have an enum for all special election event types.
     let status = match is_datafix_election_event(&election_event) {
         true => {
-            process_cast_vote_request_to_datafix(
+            process_soap_request_to_datafix(
                 &hasura_transaction,
                 &keycloak_transaction,
                 &realm,
@@ -108,7 +111,7 @@ pub async fn process_cast_vote(cast_vote: CastVote) -> Result<()> {
             .map_err(|e| format!("Error updating cast vote status {e:?}"))?;
     }
 
-    let commit = hasura_transaction
+    let _commit = hasura_transaction
         .commit()
         .await
         .map_err(|e| format!("process_cast_vote: Commit failed {e:?}"));
@@ -117,8 +120,8 @@ pub async fn process_cast_vote(cast_vote: CastVote) -> Result<()> {
     Ok(())
 }
 
-#[instrument(skip(hasura_transaction), err)]
-pub async fn process_cast_vote_request_to_datafix(
+#[instrument(skip(hasura_transaction, keycloak_transaction, election_event), err)]
+pub async fn process_soap_request_to_datafix(
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
     realm: &str,
@@ -163,45 +166,60 @@ pub async fn process_cast_vote_request_to_datafix(
         )
         .await;
 
-        // TODO: Post the result in the electoral_log
-        match result {
-            Ok(SoapRequestResponse::Ok) => {} // Continue processing
+        let req_type = SoapRequest::SetVoted;
+        let (result, operation) = match result {
+            Ok(SoapRequestResponse::Ok) => {
+                let client = KeycloakAdminClient::new()
+                    .await
+                    .map_err(|e| format!("Error obtaining keycloak admin client {e:?}"))?;
+
+                // Set the attribute to avoid sending it again on the next vote.
+                let mut hash_map = HashMap::new();
+                hash_map.insert(
+                    VOTED_CHANNEL.to_string(),
+                    vec![VOTED_CHANNEL_INTERNET_VALUE.to_string()],
+                );
+                let attributes = Some(hash_map);
+                let _user = client
+                    .edit_user(
+                        realm, &voter_id, None, attributes, None, None, None, None, None, None,
+                    )
+                    .await
+                    .map_err(|e| {
+                        error!("Error editing user Internet channel: {e:?}");
+                    });
+                (Ok(CastVoteStatus::Valid), format!("{req_type} Succeded"))
+            }
             Ok(SoapRequestResponse::HasVotedErrorMsg) => {
-                return Ok(CastVoteStatus::Discarded);
+                (Ok(CastVoteStatus::Discarded), format!("{req_type} Failed"))
             }
             Ok(SoapRequestResponse::OtherErrorMsg(msg)) => {
                 error!("Error sending request to Datafix: {msg:?}");
-                return Ok(CastVoteStatus::InProgress);
+                (Ok(CastVoteStatus::InProgress), format!("{req_type} Failed"))
             }
             Ok(SoapRequestResponse::Faultstring(msg)) => {
                 error!("Error sending request to Datafix: {msg:?}");
-                return Ok(CastVoteStatus::InProgress);
+                (Ok(CastVoteStatus::InProgress), format!("{req_type} Failed"))
             }
             Err(e) => {
                 error!("Error sending request to Datafix: {e:?}");
-                return Ok(CastVoteStatus::InProgress);
+                (Ok(CastVoteStatus::InProgress), format!("{req_type} Failed"))
             }
         };
 
-        let client = KeycloakAdminClient::new()
-            .await
-            .map_err(|e| format!("Error obtaining keycloak admin client {e:?}"))?;
-
-        // Set the attribute to avoid sending it again on the next vote.
-        let mut hash_map = HashMap::new();
-        hash_map.insert(
-            VOTED_CHANNEL.to_string(),
-            vec![VOTED_CHANNEL_INTERNET_VALUE.to_string()],
+        let username_str = username.as_deref().ok_or("Username is None")?;
+        post_operation_result_to_electoral_log(
+            hasura_transaction,
+            &cast_vote.tenant_id,
+            &cast_vote.election_event_id,
+            &voter_id,
+            username_str,
+            ExtApiRequestDirection::Outbound,
+            operation,
         );
-        let attributes = Some(hash_map);
-        let _user = client
-            .edit_user(
-                realm, &voter_id, None, attributes, None, None, None, None, None, None,
-            )
-            .await
-            .map_err(|e| {
-                error!("Error editing user Internet channel: {e:?}");
-            });
+
+        result
+    } else {
+        Ok(CastVoteStatus::Valid)
     }
-    Ok(CastVoteStatus::Valid)
 }

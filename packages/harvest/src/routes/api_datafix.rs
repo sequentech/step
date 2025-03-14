@@ -8,6 +8,8 @@ use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::connection::DatafixClaims;
 
+use electoral_log::messages::newtypes::{ExtApiName, ExtApiRequestDirection};
+use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::permissions::Permissions;
 use serde::Deserialize;
 use serde::Serialize;
@@ -15,6 +17,10 @@ use tracing::{error, info, instrument};
 use windmill::services;
 use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
 use windmill::services::datafix::types::*;
+use windmill::services::datafix::utils::{
+    get_event_id_and_datafix_annotations, get_user_id,
+    post_operation_result_to_electoral_log,
+};
 
 #[instrument(skip(claims))]
 #[post("/add-voter", format = "json", data = "<body>")]
@@ -50,13 +56,55 @@ pub async fn add_voter(
             DatafixResponse::new(Status::InternalServerError)
         })?;
 
-    services::datafix::api_datafix::add_datafix_voter(
+    let mut keycloak_db_client: DbClient =
+        get_keycloak_pool().await.get().await.map_err(|e| {
+            error!("Error getting keycloak client {}", e);
+            DatafixResponse::new(Status::InternalServerError)
+        })?;
+    let keycloak_transaction =
+        keycloak_db_client.transaction().await.map_err(|e| {
+            error!("Error starting keycloak transaction {}", e);
+            DatafixResponse::new(Status::InternalServerError)
+        })?;
+
+    let (election_event_id, _) = get_event_id_and_datafix_annotations(
         &hasura_transaction,
         &claims.tenant_id,
         &claims.datafix_event_id,
-        &input,
     )
-    .await
+    .await?;
+    let realm = get_event_realm(&claims.tenant_id, &election_event_id);
+    let user_id =
+        get_user_id(&keycloak_transaction, &realm, &input.voter_id).await?;
+
+    let endpoint_name = EndpointNames::AddVoter;
+    let (result, operation) =
+        match services::datafix::api_datafix::add_datafix_voter(
+            &hasura_transaction,
+            &claims.tenant_id,
+            &claims.datafix_event_id,
+            &input,
+            &election_event_id,
+            &realm,
+        )
+        .await
+        {
+            Ok(json_response) => {
+                (Ok(json_response), format!("{endpoint_name} Succeeded"))
+            }
+            Err(err) => (Err(err), format!("{endpoint_name} Failed")),
+        };
+
+    post_operation_result_to_electoral_log(
+        &hasura_transaction,
+        &claims.tenant_id,
+        &election_event_id,
+        &user_id,
+        &input.voter_id,
+        ExtApiRequestDirection::Inbound,
+        operation,
+    );
+    result
 }
 
 #[instrument(skip(claims))]
@@ -104,14 +152,45 @@ pub async fn update_voter(
             DatafixResponse::new(Status::InternalServerError)
         })?;
 
-    services::datafix::api_datafix::update_datafix_voter(
+    let (election_event_id, _) = get_event_id_and_datafix_annotations(
         &hasura_transaction,
-        &keycloak_transaction,
         &claims.tenant_id,
         &claims.datafix_event_id,
-        &input,
     )
-    .await
+    .await?;
+    let realm = get_event_realm(&claims.tenant_id, &election_event_id);
+    let user_id =
+        get_user_id(&keycloak_transaction, &realm, &input.voter_id).await?;
+
+    let endpoint_name = EndpointNames::UpdateVoter;
+    let (result, operation) =
+        match services::datafix::api_datafix::update_datafix_voter(
+            &hasura_transaction,
+            &keycloak_transaction,
+            &claims.tenant_id,
+            &claims.datafix_event_id,
+            &input,
+            &election_event_id,
+            &realm,
+        )
+        .await
+        {
+            Ok(json_response) => {
+                (Ok(json_response), format!("{endpoint_name} Succeeded"))
+            }
+            Err(err) => (Err(err), format!("{endpoint_name} Failed")),
+        };
+
+    post_operation_result_to_electoral_log(
+        &hasura_transaction,
+        &claims.tenant_id,
+        &election_event_id,
+        &user_id,
+        &input.voter_id,
+        ExtApiRequestDirection::Inbound,
+        operation,
+    );
+    result
 }
 
 #[derive(Deserialize, Debug)]
@@ -164,14 +243,44 @@ pub async fn delete_voter(
             DatafixResponse::new(Status::InternalServerError)
         })?;
 
-    services::datafix::api_datafix::disable_datafix_voter(
+    let (election_event_id, _) = get_event_id_and_datafix_annotations(
         &hasura_transaction,
-        &keycloak_transaction,
         &claims.tenant_id,
         &claims.datafix_event_id,
-        &input.voter_id,
     )
-    .await
+    .await?;
+    let realm = get_event_realm(&claims.tenant_id, &election_event_id);
+    let user_id =
+        get_user_id(&keycloak_transaction, &realm, &input.voter_id).await?;
+
+    let endpoint_name = EndpointNames::DeleteVoter;
+    let (result, operation) =
+        match services::datafix::api_datafix::disable_datafix_voter(
+            &hasura_transaction,
+            &keycloak_transaction,
+            &claims.tenant_id,
+            &claims.datafix_event_id,
+            &input.voter_id,
+            &realm,
+        )
+        .await
+        {
+            Ok(json_response) => {
+                (Ok(json_response), format!("{endpoint_name} Succeeded"))
+            }
+            Err(err) => (Err(err), format!("{endpoint_name} Failed")),
+        };
+
+    post_operation_result_to_electoral_log(
+        &hasura_transaction,
+        &claims.tenant_id,
+        &election_event_id,
+        &user_id,
+        &input.voter_id,
+        ExtApiRequestDirection::Inbound,
+        operation,
+    );
+    result
 }
 
 #[instrument(skip(claims))]
@@ -219,14 +328,44 @@ pub async fn unmark_voted(
             DatafixResponse::new(Status::InternalServerError)
         })?;
 
-    services::datafix::api_datafix::unmark_voter_as_voted(
+    let (election_event_id, _) = get_event_id_and_datafix_annotations(
         &hasura_transaction,
-        &keycloak_transaction,
         &claims.tenant_id,
         &claims.datafix_event_id,
-        &input.voter_id,
     )
-    .await
+    .await?;
+    let realm = get_event_realm(&claims.tenant_id, &election_event_id);
+    let user_id =
+        get_user_id(&keycloak_transaction, &realm, &input.voter_id).await?;
+
+    let endpoint_name = EndpointNames::UnmarkVoted;
+    let (result, operation) =
+        match services::datafix::api_datafix::unmark_voter_as_voted(
+            &hasura_transaction,
+            &keycloak_transaction,
+            &claims.tenant_id,
+            &claims.datafix_event_id,
+            &input.voter_id,
+            &realm,
+        )
+        .await
+        {
+            Ok(json_response) => {
+                (Ok(json_response), format!("{endpoint_name} Succeeded"))
+            }
+            Err(err) => (Err(err), format!("{endpoint_name} Failed")),
+        };
+
+    post_operation_result_to_electoral_log(
+        &hasura_transaction,
+        &claims.tenant_id,
+        &election_event_id,
+        &user_id,
+        &input.voter_id,
+        ExtApiRequestDirection::Inbound,
+        operation,
+    );
+    result
 }
 
 #[instrument(skip(claims))]
@@ -274,14 +413,44 @@ pub async fn mark_voted(
             DatafixResponse::new(Status::InternalServerError)
         })?;
 
-    services::datafix::api_datafix::mark_as_voted_via_channel(
+    let (election_event_id, _) = get_event_id_and_datafix_annotations(
         &hasura_transaction,
-        &keycloak_transaction,
         &claims.tenant_id,
         &claims.datafix_event_id,
-        &input,
     )
-    .await
+    .await?;
+    let realm = get_event_realm(&claims.tenant_id, &election_event_id);
+    let user_id =
+        get_user_id(&keycloak_transaction, &realm, &input.voter_id).await?;
+
+    let endpoint_name = EndpointNames::MarkVoted;
+    let (result, operation) =
+        match services::datafix::api_datafix::mark_as_voted_via_channel(
+            &hasura_transaction,
+            &keycloak_transaction,
+            &claims.tenant_id,
+            &claims.datafix_event_id,
+            &input,
+            &realm,
+        )
+        .await
+        {
+            Ok(json_response) => {
+                (Ok(json_response), format!("{endpoint_name} Succeeded"))
+            }
+            Err(err) => (Err(err), format!("{endpoint_name} Failed")),
+        };
+
+    post_operation_result_to_electoral_log(
+        &hasura_transaction,
+        &claims.tenant_id,
+        &election_event_id,
+        &user_id,
+        &input.voter_id,
+        ExtApiRequestDirection::Inbound,
+        operation,
+    );
+    result
 }
 
 #[derive(Serialize, Debug)]
@@ -333,14 +502,44 @@ pub async fn replace_pin(
             DatafixResponse::new(Status::InternalServerError)
         })?;
 
-    let pin = services::datafix::api_datafix::replace_voter_pin(
-        &hasura_transaction,
-        &keycloak_transaction,
-        &claims.tenant_id,
-        &claims.datafix_event_id,
-        &input.voter_id,
-    )
-    .await?;
+    let (election_event_id, datafix_annotations) =
+        get_event_id_and_datafix_annotations(
+            &hasura_transaction,
+            &claims.tenant_id,
+            &claims.datafix_event_id,
+        )
+        .await?;
+    let realm = get_event_realm(&claims.tenant_id, &election_event_id);
+    let user_id =
+        get_user_id(&keycloak_transaction, &realm, &input.voter_id).await?;
 
+    let endpoint_name = EndpointNames::ReplacePin;
+    let (pin_result, operation) =
+        match services::datafix::api_datafix::replace_voter_pin(
+            &hasura_transaction,
+            &keycloak_transaction,
+            &claims.tenant_id,
+            &claims.datafix_event_id,
+            &input.voter_id,
+            &election_event_id,
+            &realm,
+            &datafix_annotations,
+        )
+        .await
+        {
+            Ok(pin) => (Ok(pin), format!("{endpoint_name} Succeeded")),
+            Err(err) => (Err(err), format!("{endpoint_name} Failed")),
+        };
+
+    post_operation_result_to_electoral_log(
+        &hasura_transaction,
+        &claims.tenant_id,
+        &election_event_id,
+        &user_id,
+        &input.voter_id,
+        ExtApiRequestDirection::Inbound,
+        operation,
+    );
+    let pin = pin_result?;
     Ok(Json(ReplacePinOutput { pin }))
 }

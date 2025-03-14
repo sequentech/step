@@ -242,7 +242,7 @@ pub async fn try_insert_cast_vote(
     };
 
     let (electoral_log, signing_key) =
-        get_electoral_log(&hasura_transaction, &tenant_id, &election_event)
+        get_electoral_log(&hasura_transaction, tenant_id, &election_event)
             .await
             .map_err(|e| CastVoteError::ElectoralLogNotFound(e.to_string()))?;
 
@@ -327,7 +327,7 @@ pub async fn try_insert_cast_vote(
             let electoral_log = match electoral_log_res {
                 Ok(electoral_log) => electoral_log,
                 Err(err) => {
-                    error!("Error posting to the electoral log {:?}", err);
+                    error!("Error getting the electoral log for voter. Error: {:?}", err);
                     return Ok(inserted_cast_vote);
                 }
             };
