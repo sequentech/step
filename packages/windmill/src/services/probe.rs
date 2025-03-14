@@ -127,7 +127,7 @@ async fn check_s3(app_name: &AppName) -> Option<bool> {
 
 #[instrument(ret)]
 async fn check_sms_sender(app_name: &AppName) -> Option<bool> {
-    if AppName::BEAT == *app_name {
+    if AppName::BEAT == *app_name || AppName::HARVEST == *app_name {
         return None;
     }
 
