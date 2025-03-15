@@ -10,7 +10,6 @@ use crate::services::vault::{
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
-use lazy_static::lazy_static;
 use std::str::FromStr;
 use strand::serialization::{StrandDeserialize, StrandSerialize};
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
@@ -19,7 +18,6 @@ use strum_macros::EnumString;
 use tokio;
 use tokio::sync::OnceCell;
 use tracing::{info, instrument};
-use uuid::Uuid;
 
 const MASTER_SECRET_KEY_NAME: &str = "master_secret";
 
@@ -32,13 +30,24 @@ pub enum VaultManagerType {
 static MASTER_SECRET: OnceCell<SymmetricKey> = OnceCell::const_new();
 
 #[instrument]
-async fn initialize_master_secret() -> SymmetricKey {
-    let vault = get_vault().expect("Failed to initialize vault");
+pub async fn check_master_secret() -> Result<()> {
+    let vault = get_vault()?;
+
+    vault
+        .read_secret(MASTER_SECRET_KEY_NAME.to_string())
+        .await?;
+
+    Ok(())
+}
+
+#[instrument]
+async fn initialize_master_secret() -> Result<SymmetricKey> {
+    let vault = get_vault().with_context(|| "Failed to initialize vault")?;
 
     match vault.read_secret(MASTER_SECRET_KEY_NAME.to_string()).await {
         Ok(Some(secret)) => {
             let bytes = hex::decode(secret).expect("Failed to decode master secret");
-            SymmetricKey::from_slice(&bytes).to_owned()
+            Ok(SymmetricKey::from_slice(&bytes).to_owned())
         }
         Ok(None) => {
             let new_key = gen_key();
@@ -46,15 +55,18 @@ async fn initialize_master_secret() -> SymmetricKey {
             vault
                 .save_secret(MASTER_SECRET_KEY_NAME.to_string(), hex_key.clone())
                 .await
-                .expect("Failed to save master secret");
-            new_key
+                .with_context(|| "Failed to save master secret")?;
+            Ok(new_key)
         }
-        Err(e) => panic!("Failed to access vault for master secret: {}", e),
+        Err(e) => Err(e).with_context(|| "Failed to access vault for master secret"),
     }
 }
 #[instrument]
-pub async fn get_master_secret() -> &'static SymmetricKey {
-    MASTER_SECRET.get_or_init(initialize_master_secret).await
+pub async fn get_master_secret() -> Result<SymmetricKey> {
+    if let Some(secret) = MASTER_SECRET.get() {
+        return Ok(secret.clone());
+    }
+    initialize_master_secret().await
 }
 
 #[async_trait]
@@ -92,7 +104,7 @@ pub async fn save_secret(
     {
         return Err(anyhow!("Unexpected: key already exists"));
     }
-    let master_secret = *get_master_secret().await;
+    let master_secret = get_master_secret().await?;
     let encrypted_data =
         encrypt(master_secret, value.as_bytes()).context("Error encrypting secret")?;
     let encrypted_bytes = encrypted_data
@@ -127,7 +139,7 @@ pub async fn read_secret(
 
     let encrypted_data = EncryptionData::strand_deserialize(&secret.value)
         .context("Error deserializing encrypted data")?;
-    let master_secret = *get_master_secret().await;
+    let master_secret = get_master_secret().await?;
     let decrypted_bytes =
         decrypt(&master_secret, &encrypted_data).context("Error decrypting secret")?;
     let decrypted_str =
