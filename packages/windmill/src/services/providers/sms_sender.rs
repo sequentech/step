@@ -18,7 +18,7 @@ pub enum SmsTransport {
 }
 
 pub struct SmsSender {
-    transport: SmsTransport,
+    pub transport: SmsTransport,
 }
 
 impl SmsSender {
