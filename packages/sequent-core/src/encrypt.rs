@@ -266,9 +266,11 @@ pub fn hash_ballot_style_sha512(
     hash::hash_to_array(&bytes)
 }
 
-pub fn hash_ballot_style(ballot_style: &BallotStyle) -> Result<String, BallotError> {
+pub fn hash_ballot_style(
+    ballot_style: &BallotStyle,
+) -> Result<String, BallotError> {
     let sha512_hash = hash_ballot_style_sha512(ballot_style)
-    .map_err(|error| BallotError::Serialization(error.to_string()))?;
+        .map_err(|error| BallotError::Serialization(error.to_string()))?;
     let short_hash = shorten_hash(&sha512_hash);
     Ok(hex::encode(short_hash))
 }

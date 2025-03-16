@@ -44,7 +44,7 @@ pub struct HashableMultiBallot {
     // self::deserialize_contests
     pub contests: String,
     pub config: String,
-    pub ballot_style_hash: String
+    pub ballot_style_hash: String,
 }
 
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug, Clone)]
@@ -111,8 +111,13 @@ impl TryFrom<&AuditableMultiBallot> for HashableMultiBallot {
         let hashable_ballot_contests =
             HashableMultiBallotContests::<RistrettoCtx>::from(&contests);
 
-        let ballot_style_hash = hash_ballot_style(&value.config)
-            .map_err(|error| BallotError::Serialization(format!("Failed to hash ballot style: {}", error)))?;
+        let ballot_style_hash =
+            hash_ballot_style(&value.config).map_err(|error| {
+                BallotError::Serialization(format!(
+                    "Failed to hash ballot style: {}",
+                    error
+                ))
+            })?;
 
         Ok(HashableMultiBallot {
             version: TYPES_VERSION,
@@ -121,7 +126,7 @@ impl TryFrom<&AuditableMultiBallot> for HashableMultiBallot {
                 &hashable_ballot_contests,
             )?,
             config: value.config.id.clone(),
-            ballot_style_hash: ballot_style_hash
+            ballot_style_hash: ballot_style_hash,
         })
     }
 }
