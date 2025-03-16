@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::application::insert_applications;
+use crate::postgres::election_event::update_bulletin_board;
 use crate::postgres::reports::insert_reports;
 use crate::postgres::reports::Report;
 use crate::postgres::trustee::get_all_trustees;
@@ -104,6 +105,7 @@ pub struct ImportElectionEventSchema {
 
 #[instrument(err)]
 pub async fn upsert_b3_and_elog(
+    hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
     election_ids: &Vec<String>,
@@ -130,7 +132,13 @@ pub async fn upsert_b3_and_elog(
             "creating protocol manager keys for Election event {}",
             election_event_id
         );
-        create_protocol_manager_keys(&board_name).await?;
+        create_protocol_manager_keys(
+            hasura_transaction,
+            &tenant_id,
+            &election_event_id,
+            &board_name,
+        )
+        .await?;
     }
 
     // board was created, checking it is now present
@@ -159,7 +167,13 @@ pub async fn upsert_b3_and_elog(
                 "creating protocol manager keys for election {}",
                 election_id
             );
-            create_protocol_manager_keys(&board_name).await?;
+            create_protocol_manager_keys(
+                hasura_transaction,
+                tenant_id,
+                election_event_id,
+                &board_name,
+            )
+            .await?;
         }
         // board was created, checking it is now present
         board_client
@@ -393,18 +407,13 @@ pub async fn process_election_event_file(
     .await
     .with_context(|| format!("Error getting document for election event ID {election_event_id} and tenant ID {tenant_id}"))?;
 
-    let election_ids = data
+    let election_ids: Vec<String> = data
         .elections
         .clone()
         .into_iter()
         .map(|election| election.id.clone())
         .collect();
-    // Upsert immutable board
-    let board = upsert_b3_and_elog(tenant_id.as_str(), &election_event_id, &election_ids, is_importing_keys)
-        .await
-        .with_context(|| format!("Error upserting b3 board for tenant ID {tenant_id} and election event ID {election_event_id}"))?;
 
-    data.election_event.bulletin_board_reference = Some(board);
     data.election_event.public_key = None;
     data.election_event.statistics = Some(
         serde_json::to_value(ElectionEventStatistics::default())
@@ -462,6 +471,25 @@ pub async fn process_election_event_file(
     insert_election_event(hasura_transaction, &data)
         .await
         .with_context(|| "Error inserting election event")?;
+
+    // Upsert immutable board
+    let board = upsert_b3_and_elog(hasura_transaction, tenant_id.as_str(), &election_event_id, &election_ids, is_importing_keys)
+        .await
+        .with_context(|| format!("Error upserting b3 board for tenant ID {tenant_id} and election event ID {election_event_id}"))?;
+
+    update_bulletin_board(
+        hasura_transaction,
+        tenant_id.as_str(),
+        election_event_id.as_str(),
+        &board,
+    )
+    .await
+    .with_context(|| {
+        format!(
+            "Error updating bulletin board reference for tenant ID {} and election event ID {}",
+            tenant_id, election_event_id
+        )
+    })?;
 
     if let Some(keys_ceremonies) = data.keys_ceremonies.clone() {
         let trustees = get_all_trustees(&hasura_transaction, &tenant_id).await?;
@@ -647,6 +675,7 @@ pub async fn process_reports_file(
         {
             let cloned_report = report.clone();
             get_report_key_pair(
+                hasura_transaction,
                 cloned_report.tenant_id,
                 cloned_report.election_event_id,
                 Some(cloned_report.id),
@@ -673,13 +702,20 @@ pub async fn process_reports_file(
 
 #[instrument(err, skip(temp_file))]
 async fn process_activity_logs_file(
+    hasura_transaction: &Transaction<'_>,
     temp_file: &NamedTempFile,
-    election_event: ElectionEvent,
+    election_event_id: &str,
+    tenant_id: &str,
 ) -> Result<()> {
-    let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
-        .with_context(|| "Missing bulletin board")?;
+    let board_name = get_event_board(tenant_id, election_event_id);
 
-    let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
+    let electoral_log = ElectoralLog::new(
+        hasura_transaction,
+        &tenant_id,
+        Some(&election_event_id),
+        board_name.as_str(),
+    )
+    .await?;
     electoral_log.import_from_csv(temp_file).await?;
 
     Ok(())
@@ -805,13 +841,14 @@ pub async fn process_document(
         ))
     });
 
+    let election_event_id_clone = election_event_id.clone();
     let (election_event_schema, replacement_map) = process_election_event_file(
         hasura_transaction,
         &document_type,
         &file_election_event_schema,
         object,
-        election_event_id,
-        tenant_id,
+        election_event_id.clone(),
+        tenant_id.clone(),
         is_importing_keys,
     )
     .await
@@ -831,10 +868,11 @@ pub async fn process_document(
                 io::copy(&mut cursor, &mut temp_file)
                     .context("Failed to copy contents of activity logs to temporary file")?;
                 temp_file.as_file_mut().rewind()?;
-
                 process_activity_logs_file(
+                    hasura_transaction,
                     &temp_file,
-                    election_event_schema.election_event.clone(),
+                    &election_event_id,
+                    &tenant_id,
                 )
                 .await
                 .context("Failed to import activity logs")?;

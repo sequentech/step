@@ -392,6 +392,7 @@ pub async fn delete_election_event(
     election_event_id: &str,
 ) -> Result<()> {
     let related_tables = vec![
+        "secret",
         "area_contest",
         "results_election_area",
         "results_area_contest_candidate",
@@ -466,6 +467,38 @@ pub async fn delete_election_event(
         )
         .await
         .map_err(|err| anyhow!("Error executing the delete query: {err}"))?;
+
+    Ok(())
+}
+
+#[instrument(err, skip_all)]
+pub async fn update_bulletin_board(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    board: &serde_json::Value,
+) -> Result<()> {
+    let update_bulletin_board = hasura_transaction
+        .prepare(
+            r#"
+             UPDATE sequent_backend.election_event
+             SET bulletin_board_reference = $1
+             WHERE tenant_id = $2 AND id = $3;
+             "#,
+        )
+        .await?;
+
+    hasura_transaction
+         .execute(
+             &update_bulletin_board,
+             &[
+                 &board,
+                 &Uuid::parse_str(tenant_id)?,
+                 &Uuid::parse_str(election_event_id)?,
+             ],
+         )
+         .await
+         .with_context(|| format!("Error updating election event with board reference for tenant ID {} and election event ID {}", tenant_id, election_event_id))?;
 
     Ok(())
 }

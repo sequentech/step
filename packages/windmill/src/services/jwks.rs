@@ -27,7 +27,7 @@ pub struct JwksOutput {
     pub keys: Vec<JWKKey>,
 }
 
-fn get_jwks_secret_path() -> String {
+pub fn get_jwks_secret_path() -> String {
     "certs.json".to_string()
 }
 
