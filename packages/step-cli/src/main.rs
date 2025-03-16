@@ -162,24 +162,30 @@
 
 // TODO: MOVE ACTIONS TO COMMANDS FOLDER
 
-use anyhow::{Ok, Result};
+use anyhow::{Context, Ok, Result};
 use chrono::{Local, Utc};
 use clap::{Parser, Subcommand};
 use csv::Writer;
+use electoral_log::messages::message::{Message, Sender};
+use electoral_log::messages::newtypes::EventIdString;
+use electoral_log::messages::statement::{
+    Statement, StatementBody, StatementEventType, StatementHead, StatementLogType, StatementType,
+};
+use electoral_log::ElectoralLogMessage;
 use fake::faker::internet::raw::Username;
 use fake::faker::name::raw::{FirstName, LastName};
 use fake::faker::number::raw::NumberWithFormat;
 use fake::locales::EN;
 use fake::Fake;
 use rand::seq::SliceRandom;
-use serde_json::{json, Value};
+use serde_json::Value;
 use std::collections::HashSet;
-use std::env;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::PathBuf;
+use std::{env, u8};
 
-use strand::signature::StrandSignature;
+use strand::signature::{StrandSignature, StrandSignaturePk, StrandSignatureSk};
 
 use chrono::{Duration, NaiveDate};
 use rand::Rng;
@@ -1050,12 +1056,6 @@ pub async fn get_immudb_client() -> Result<ImmudbClient> {
     Ok(client)
 }
 
-fn fake_sha256() -> String {
-    let mut bytes = [0u8; 32];
-    rand::thread_rng().fill(&mut bytes);
-    hex::encode(bytes)
-}
-
 pub fn get_event_board(tenant_id: &str, election_event_id: &str) -> String {
     let tenant: String = tenant_id
         .to_string()
@@ -1079,45 +1079,49 @@ fn generate_log_message(
     election_event_id: &str,
     election_id: &str,
     area_id: &str,
-    sender_pk: String,
-    statement_timestamp: i64,
-    statement_kind: String,
     user_id: Option<String>,
     username: Option<String>,
-) -> Vec<u8> {
+) -> Result<ElectoralLogMessage> {
+    let created = Utc::now().timestamp();
+    let statement_timestamp = created;
+
     let dummy_bytes = [0u8; 64];
     let sender_signature = StrandSignature::from_bytes(dummy_bytes.clone())
         .expect("Dummy signature conversion failed");
     let system_signature =
         StrandSignature::from_bytes(dummy_bytes).expect("Dummy signature conversion failed");
 
-    // Build the JSON object with the given username.
-    let message_obj = json!({
-        "sender": {
-            "name": username, // use the provided username for the sender name
-            "pk": sender_pk,
+    let dummy_bytes = [0u8; 32];
+    let sender_pk = StrandSignaturePk::from_bytes(dummy_bytes)
+        .with_context(|| "Error in create Dummy StrandSignaturePk")?;
+
+    let message = &Message {
+        sender: Sender {
+            name: username.clone().unwrap_or_default(),
+            pk: sender_pk,
         },
-        "sender_signature": sender_signature,
-        "system_signature": system_signature,
-        "statement": {
-            "head": {
-                "event": election_event_id,
-                "kind": statement_kind,
-                "timestamp": statement_timestamp,
-                "event_type": "SYSTEM",
-                "log_type": "INFO",
-                "description": "Creating keys ceremony."
+        sender_signature: sender_signature,
+        system_signature: system_signature,
+        statement: Statement {
+            head: StatementHead {
+                event: EventIdString(election_event_id.to_string()),
+                kind: StatementType::SendCommunications,
+                timestamp: statement_timestamp as u64,
+                event_type: StatementEventType::SYSTEM,
+                log_type: StatementLogType::INFO,
+                description: "Send Communications.".to_string(),
             },
-            "body": statement_kind
+            body: StatementBody::SendCommunications(None),
         },
-        "artifact": null,
-        "user_id": user_id,
-        "username": username,
-        "election_id": election_id,
-        "area_id": area_id,
-    });
-    // Convert the JSON object into a String then into bytes.
-    message_obj.to_string().into_bytes()
+        artifact: None,
+        user_id: user_id,
+        username: username.clone(),
+        election_id: Some(election_id.to_string()),
+        area_id: Some(area_id.to_string()),
+    };
+
+    let board_message: ElectoralLogMessage = message.try_into().with_context(|| "")?;
+    Ok(board_message)
 }
 
 async fn run_generate_activity_logs(working_dir: &str, num_logs: usize) -> Result<()> {
@@ -1137,74 +1141,89 @@ async fn run_generate_activity_logs(working_dir: &str, num_logs: usize) -> Resul
         .unwrap_or("");
     let immudb_db = get_event_board(&tenant_id, &election_event_id);
     let area_id = config.get("area_id").and_then(Value::as_str).unwrap_or("");
+    let realm_name = config
+        .get("realm_name")
+        .and_then(Value::as_str)
+        .unwrap_or("");
 
     println!("immudb_db: {}", &immudb_db);
 
+    let kc_client = get_keyckloak_pool()
+        .await?
+        .get()
+        .await
+        .map_err(|e| anyhow::anyhow!("Error getting hasura client: {}", e.to_string()))?;
+
+    let keycloak_query = "\
+        SELECT ue.id FROM user_entity AS ue \
+        JOIN realm AS r ON ue.realm_id = r.id \
+        JOIN user_attribute AS ua ON ue.id = ua.user_id \
+        WHERE r.name = $1 AND ua.name = 'area-id' AND ua.value = $2 \
+        LIMIT 1 OFFSET 0";
+
+    let kc_row = kc_client
+        .query_one(keycloak_query, &[&realm_name, &area_id])
+        .await?;
+    let existing_user_id = kc_row.get::<_, Option<String>>(0);
+
+    let user_id: Option<String> =
+        Some(existing_user_id.unwrap_or(uuid::Uuid::new_v4().to_string()));
+
     let mut logs_params: Vec<Vec<NamedParam>> = Vec::new();
     for _ in 0..num_logs {
-        let created = Utc::now().timestamp();
-        let sender_pk = fake_sha256();
-        let statement_timestamp = created; // using the same timestamp for simplicity
-        let statement_kind = ["INFO", "WARN", "ERROR"]
-            .choose(&mut rand::thread_rng())
-            .unwrap()
-            .to_string();
-        // For message, we simply use a fixed fake message. You can replace this with a real generator.
-        let version = "1.0".to_string();
-        let user_id = Some(uuid::Uuid::new_v4().to_string());
         let username = Some(Username(EN).fake());
-        let message_bytes = generate_log_message(
+        let user_id_cloned = user_id.clone();
+
+        let message: ElectoralLogMessage = generate_log_message(
             &election_event_id,
             &election_id,
             &area_id,
-            sender_pk.clone(),
-            statement_timestamp.clone(),
-            statement_kind.clone(),
-            user_id.clone(),
+            user_id_cloned.clone(),
             username.clone(),
-        );
+        )
+        .with_context(|| "Error generating log message")?;
 
         let params = vec![
             NamedParam {
                 name: "created".to_string(),
                 value: Some(SqlValue {
-                    value: Some(ImmudbValue::Ts(created)),
+                    value: Some(ImmudbValue::Ts(message.created)),
                 }),
             },
             NamedParam {
                 name: "sender_pk".to_string(),
                 value: Some(SqlValue {
-                    value: Some(ImmudbValue::S(sender_pk)),
+                    value: Some(ImmudbValue::S(message.sender_pk)),
                 }),
             },
             NamedParam {
                 name: "statement_kind".to_string(),
                 value: Some(SqlValue {
-                    value: Some(ImmudbValue::S(statement_kind)),
+                    value: Some(ImmudbValue::S(message.statement_kind)),
                 }),
             },
             NamedParam {
                 name: "statement_timestamp".to_string(),
                 value: Some(SqlValue {
-                    value: Some(ImmudbValue::Ts(statement_timestamp)),
+                    value: Some(ImmudbValue::Ts(message.statement_timestamp)),
                 }),
             },
             NamedParam {
                 name: "message".to_string(),
                 value: Some(SqlValue {
-                    value: Some(ImmudbValue::Bs(message_bytes)),
+                    value: Some(ImmudbValue::Bs(message.message)),
                 }),
             },
             NamedParam {
                 name: "version".to_string(),
                 value: Some(SqlValue {
-                    value: Some(ImmudbValue::S(version)),
+                    value: Some(ImmudbValue::S(message.version)),
                 }),
             },
             NamedParam {
                 name: "user_id".to_string(),
                 value: Some(SqlValue {
-                    value: user_id.map(ImmudbValue::S),
+                    value: user_id_cloned.map(ImmudbValue::S),
                 }),
             },
             NamedParam {
@@ -1231,11 +1250,14 @@ async fn run_generate_activity_logs(working_dir: &str, num_logs: usize) -> Resul
 
     let mut client: ImmudbClient = get_immudb_client().await?;
     client.open_session(immudb_db.as_str()).await?;
-    let tx_id = client.new_tx(TxMode::ReadWrite).await?;
 
     // We'll batch the logs into groups (e.g., 1000 per batch).
+    // We'll use a batch size (e.g., 100 logs per batch)
     let batch_size = 1000;
     for batch in logs_params.chunks(batch_size) {
+        // Start a new transaction for this batch.
+        let tx_id = client.new_tx(TxMode::ReadWrite).await?;
+
         // Build the multi-row INSERT query.
         let mut query = String::from("INSERT INTO electoral_log_messages (created, sender_pk, statement_kind, statement_timestamp, message, version, user_id, username, election_id, area_id) VALUES ");
         let mut values_clauses = Vec::new();
@@ -1257,14 +1279,14 @@ async fn run_generate_activity_logs(working_dir: &str, num_logs: usize) -> Resul
             values_clauses.push(format!("({})", clause_parts.join(", ")));
         }
         query.push_str(&values_clauses.join(", "));
-        // Execute the batched INSERT.
+        // Execute the batched INSERT in this transaction.
         client.tx_sql_exec(&query, &tx_id, all_params).await?;
+        // Commit this batch's transaction.
+        client.commit(&tx_id).await?;
     }
 
-    client.commit(&tx_id).await?;
     client.close_session().await?;
-
-    println!("Inserted {} logs.", &num_logs);
+    println!("Inserted {} logs.", num_logs);
 
     Ok(())
 }

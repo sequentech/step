@@ -7910,6 +7910,7 @@ dependencies = [
  "clap 4.5.23",
  "csv",
  "deadpool-postgres",
+ "electoral-log",
  "fake",
  "graphql_client",
  "hex",
