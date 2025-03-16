@@ -303,6 +303,7 @@ pub async fn process_export_zip(
             .map_err(|e| anyhow!("Error writing CSV header: {e:?}"))?;
             for report in reports_data {
                 let password = get_password(
+                    &hasura_transaction,
                     report.tenant_id,
                     report.election_event_id,
                     Some(report.id.clone()),
