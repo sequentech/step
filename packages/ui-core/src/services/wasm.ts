@@ -122,7 +122,9 @@ export const toHashableMultiBallot = (
     auditableMultiBallot: IAuditableMultiBallot
 ): IHashableMultiBallot => {
     try {
-        return to_hashable_multi_ballot_js(auditableMultiBallot)
+        const ballot = to_hashable_multi_ballot_js(auditableMultiBallot)
+        console.log("toHashableMultiBallot", ballot)
+        return ballot
     } catch (error) {
         console.log(error)
         throw error

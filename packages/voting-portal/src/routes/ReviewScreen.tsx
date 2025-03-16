@@ -292,9 +292,12 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                 auditableBallot?.config.election_event_presentation?.contest_encryption_policy ==
                 EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
 
-            const hashableBallot = isMultiContest
+            let hashableBallot = isMultiContest
                 ? toHashableMultiBallot(auditableBallot as IAuditableMultiBallot)
                 : toHashableBallot(auditableBallot as IAuditableSingleBallot)
+
+            console.log("hashableBallot", hashableBallot)
+            
 
             let result = await insertCastVote({
                 variables: {
