@@ -59,7 +59,7 @@ impl Message {
         operation: String,
     ) -> Result<Self> {
         let body =
-            StatementBody::ExternalApiRequest(election_id.clone(), direction, api_name, operation);
+            StatementBody::ExternalApiRequest(event_id.clone(), direction, api_name, operation);
         Self::from_body(
             event_id,
             body,

@@ -103,7 +103,8 @@ pub async fn add_voter(
         &input.voter_id,
         ExtApiRequestDirection::Inbound,
         operation,
-    );
+    )
+    .await;
     result
 }
 
@@ -189,7 +190,8 @@ pub async fn update_voter(
         &input.voter_id,
         ExtApiRequestDirection::Inbound,
         operation,
-    );
+    )
+    .await;
     result
 }
 
@@ -279,7 +281,8 @@ pub async fn delete_voter(
         &input.voter_id,
         ExtApiRequestDirection::Inbound,
         operation,
-    );
+    )
+    .await;
     result
 }
 
@@ -364,7 +367,8 @@ pub async fn unmark_voted(
         &input.voter_id,
         ExtApiRequestDirection::Inbound,
         operation,
-    );
+    )
+    .await;
     result
 }
 
@@ -449,7 +453,8 @@ pub async fn mark_voted(
         &input.voter_id,
         ExtApiRequestDirection::Inbound,
         operation,
-    );
+    )
+    .await;
     result
 }
 
@@ -539,7 +544,8 @@ pub async fn replace_pin(
         &input.voter_id,
         ExtApiRequestDirection::Inbound,
         operation,
-    );
+    )
+    .await;
     let pin = pin_result?;
     Ok(Json(ReplacePinOutput { pin }))
 }

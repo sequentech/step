@@ -57,7 +57,7 @@ impl StatementHead {
             StatementBody::ExternalApiRequest(election_id, direction, api_name, operation) => StatementHead {
                 kind: StatementType::ExternalApiRequest,
                 description: format!(
-                    "{api_name} api {direction} request for election event {election_id:?} to do {operation}",
+                    "{api_name} api {direction} request for election event {election_id:?} to {operation}.",
                 ),
                 ..default_head
             },
@@ -201,7 +201,7 @@ pub enum StatementBody {
         VoterCountryString,
     ),
     /// The last String indicates the operation.
-    ExternalApiRequest(ElectionIdString, ExtApiRequestDirection, ExtApiName, String),
+    ExternalApiRequest(EventIdString, ExtApiRequestDirection, ExtApiName, String),
     // /workspaces/step/packages/harvest/src/main.rs
     //    routes::ballot_publication::publish_ballot
     //
