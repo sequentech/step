@@ -718,7 +718,8 @@ pub async fn edit_user(
                     &username_str,
                     ExtApiRequestDirection::Outbound,
                     operation,
-                );
+                )
+                .await;
             }
         }
         _ => {}

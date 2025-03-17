@@ -216,7 +216,8 @@ pub async fn process_soap_request_to_datafix(
             username_str,
             ExtApiRequestDirection::Outbound,
             operation,
-        );
+        )
+        .await;
 
         result
     } else {
