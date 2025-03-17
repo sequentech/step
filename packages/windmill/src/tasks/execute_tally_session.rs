@@ -1300,6 +1300,7 @@ pub async fn execute_tally_session_wrapped(
         // update tally session to flag it as completed
         set_tally_session_completed(
             auth_headers.clone(),
+            hasura_transaction,
             tenant_id.clone(),
             election_event_id.clone(),
             tally_session_id.clone(),

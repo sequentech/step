@@ -269,6 +269,7 @@ async fn update_stats(
 }
 
 async fn on_success_send_message(
+    hasura_transaction: &Transaction<'_>,
     election_event: Option<GetElectionEventSequentBackendElectionEvent>,
     user_id: Option<String>,
     username: Option<String>,
@@ -282,8 +283,10 @@ async fn on_success_send_message(
             .with_context(|| "missing bulletin board")?;
 
         let electoral_log = ElectoralLog::for_admin_user(
+            hasura_transaction,
             &board_name,
             tenant_id,
+            &election_event.id,
             admin_id,
             username.clone(),
             None,
@@ -473,6 +476,7 @@ pub async fn send_template(
 
         for user in filtered_users.iter() {
             let success = send_template_email_or_sms(
+                &hasura_transaction,
                 &user,
                 &election_event,
                 &tenant_id,
@@ -533,6 +537,7 @@ pub async fn send_template(
 /// All the fields are required.
 #[instrument(err, skip(election_event, email_sender, sms_sender))]
 pub async fn send_template_email_or_sms(
+    hasura_transaction: &Transaction<'_>,
     user: &User,
     election_event: &Option<GetElectionEventSequentBackendElectionEvent>,
     tenant_id: &str,
@@ -575,6 +580,7 @@ pub async fn send_template_email_or_sms(
                 Ok(Some(message)) if user.id.is_some() => {
                     let admin_id = admin_id.unwrap();
                     if let Err(e) = on_success_send_message(
+                        hasura_transaction,
                         election_event.clone(),
                         user.id.clone(),
                         user.username.clone(),
@@ -612,6 +618,7 @@ pub async fn send_template_email_or_sms(
                 Ok(Some(message)) if user.id.is_some() => {
                     let admin_id = admin_id.unwrap();
                     if let Err(e) = on_success_send_message(
+                        hasura_transaction,
                         election_event.clone(),
                         user.id.clone(),
                         None,

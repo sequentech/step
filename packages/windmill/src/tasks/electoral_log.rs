@@ -103,8 +103,10 @@ pub async fn process_electoral_log_events_batch(events: Vec<LogEventInput>) -> R
             .with_context(|| "Error getting user area id")?;
 
         let electoral_log = ElectoralLog::for_admin_user(
+            &hasura_tx,
             &board_name,
             &tenant_id,
+            &election_event.id,
             &user_id,
             username.clone(),
             None,
