@@ -327,7 +327,7 @@ pub async fn try_insert_cast_vote(
             let electoral_log = match electoral_log_res {
                 Ok(electoral_log) => electoral_log,
                 Err(err) => {
-                    error!("Error getting the electoral log for voter. Error: {:?}", err);
+                    error!("Error getting the electoral log for voter. Error: {err:?}");
                     return Ok(inserted_cast_vote);
                 }
             };

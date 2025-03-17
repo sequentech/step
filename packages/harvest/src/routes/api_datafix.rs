@@ -22,18 +22,9 @@ use windmill::services::datafix::utils::{
     post_operation_result_to_electoral_log,
 };
 
-#[instrument(skip(claims))]
-#[post("/add-voter", format = "json", data = "<body>")]
-pub async fn add_voter(
-    claims: DatafixClaims,
-    body: Json<VoterInformationBody>,
-) -> Result<Json<DatafixResponse>, JsonErrorResponse> {
-    let input: VoterInformationBody = body.into_inner();
-
-    info!("Add voter: {input:?}");
-
+#[instrument(skip_all)]
+fn authorize_user(claims: &DatafixClaims) -> Result<(), JsonErrorResponse> {
     let required_perm = vec![Permissions::DATAFIX_ACCOUNT];
-    info!("{claims:?}");
     authorize(
         &claims.jwt_claims,
         true,
@@ -43,7 +34,17 @@ pub async fn add_voter(
     .map_err(|e| {
         error!("Error authorizing {e:?}");
         DatafixResponse::new(Status::Unauthorized)
-    })?;
+    })
+}
+
+#[instrument(skip(claims))]
+#[post("/add-voter", format = "json", data = "<body>")]
+pub async fn add_voter(
+    claims: DatafixClaims,
+    body: Json<VoterInformationBody>,
+) -> Result<Json<DatafixResponse>, JsonErrorResponse> {
+    let input: VoterInformationBody = body.into_inner();
+    authorize_user(&claims)?;
 
     let mut hasura_db_client: DbClient =
         get_hasura_pool().await.get().await.map_err(|e| {
@@ -115,21 +116,7 @@ pub async fn update_voter(
     body: Json<VoterInformationBody>,
 ) -> Result<Json<DatafixResponse>, JsonErrorResponse> {
     let input: VoterInformationBody = body.into_inner();
-
-    info!("Update voter: {input:?}");
-
-    let required_perm = vec![Permissions::DATAFIX_ACCOUNT];
-    info!("{claims:?}");
-    authorize(
-        &claims.jwt_claims,
-        true,
-        Some(claims.tenant_id.clone()),
-        required_perm,
-    )
-    .map_err(|e| {
-        error!("Error authorizing {e:?}");
-        DatafixResponse::new(Status::Unauthorized)
-    })?;
+    authorize_user(&claims)?;
 
     let mut hasura_db_client: DbClient =
         get_hasura_pool().await.get().await.map_err(|e| {
@@ -207,21 +194,7 @@ pub async fn delete_voter(
     body: Json<VoterIdBody>,
 ) -> Result<Json<DatafixResponse>, JsonErrorResponse> {
     let input: VoterIdBody = body.into_inner();
-
-    info!("Delete voter: {input:?}");
-
-    let required_perm = vec![Permissions::DATAFIX_ACCOUNT];
-    info!("{claims:?}");
-    authorize(
-        &claims.jwt_claims,
-        true,
-        Some(claims.tenant_id.clone()),
-        required_perm,
-    )
-    .map_err(|e| {
-        error!("Error authorizing {e:?}");
-        DatafixResponse::new(Status::Unauthorized)
-    })?;
+    authorize_user(&claims)?;
 
     let mut hasura_db_client: DbClient =
         get_hasura_pool().await.get().await.map_err(|e| {
@@ -293,21 +266,7 @@ pub async fn unmark_voted(
     body: Json<VoterIdBody>,
 ) -> Result<Json<DatafixResponse>, JsonErrorResponse> {
     let input: VoterIdBody = body.into_inner();
-
-    info!("Unmark voter as voted {input:?}");
-
-    let required_perm = vec![Permissions::DATAFIX_ACCOUNT];
-    info!("{claims:?}");
-    authorize(
-        &claims.jwt_claims,
-        true,
-        Some(claims.tenant_id.clone()),
-        required_perm,
-    )
-    .map_err(|e| {
-        error!("Error authorizing {e:?}");
-        DatafixResponse::new(Status::Unauthorized)
-    })?;
+    authorize_user(&claims)?;
 
     let mut hasura_db_client: DbClient =
         get_hasura_pool().await.get().await.map_err(|e| {
@@ -379,21 +338,7 @@ pub async fn mark_voted(
     body: Json<MarkVotedBody>,
 ) -> Result<Json<DatafixResponse>, JsonErrorResponse> {
     let input: MarkVotedBody = body.into_inner();
-
-    info!("Mark voter as voted: {input:?}");
-
-    let required_perm = vec![Permissions::DATAFIX_ACCOUNT];
-    info!("{claims:?}");
-    authorize(
-        &claims.jwt_claims,
-        true,
-        Some(claims.tenant_id.clone()),
-        required_perm,
-    )
-    .map_err(|e| {
-        error!("Error authorizing {e:?}");
-        DatafixResponse::new(Status::Unauthorized)
-    })?;
+    authorize_user(&claims)?;
 
     let mut hasura_db_client: DbClient =
         get_hasura_pool().await.get().await.map_err(|e| {
@@ -470,20 +415,7 @@ pub async fn replace_pin(
     body: Json<VoterIdBody>,
 ) -> Result<Json<ReplacePinOutput>, JsonErrorResponse> {
     let input: VoterIdBody = body.into_inner();
-    info!("Replace pin: {input:?}");
-
-    let required_perm = vec![Permissions::DATAFIX_ACCOUNT];
-    info!("{claims:?}");
-    authorize(
-        &claims.jwt_claims,
-        true,
-        Some(claims.tenant_id.clone()),
-        required_perm,
-    )
-    .map_err(|e| {
-        error!("Error authorizing {e:?}");
-        DatafixResponse::new(Status::Unauthorized)
-    })?;
+    authorize_user(&claims)?;
 
     let mut hasura_db_client: DbClient =
         get_hasura_pool().await.get().await.map_err(|e| {
