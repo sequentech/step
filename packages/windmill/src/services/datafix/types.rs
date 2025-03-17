@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::utils::{DATAFIX_ID_KEY, DATAFIX_PSW_POLICY_KEY, DATAFIX_VOTERVIEW_REQ_KEY};
+use crate::postgres::election_event::ElectionEventDatafix;
+use crate::services::consolidation::eml_generator::ValidateAnnotations;
 use anyhow::{anyhow, Result};
 use rand::{distributions, Rng};
 use rocket::http::Status;
@@ -12,8 +14,11 @@ use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumString};
 use tracing::{instrument, warn};
 
-use crate::postgres::election_event::ElectionEventDatafix;
-use crate::services::consolidation::eml_generator::ValidateAnnotations;
+#[derive(Deserialize, Debug)]
+pub struct VoterIdBody {
+    pub voter_id: String,
+}
+
 #[derive(Deserialize, Debug)]
 pub struct VoterInformationBody {
     pub voter_id: String,
@@ -27,6 +32,13 @@ pub struct VoterInformationBody {
 pub struct MarkVotedBody {
     pub voter_id: String,
     pub channel: String,
+}
+
+#[derive(Deserialize, Debug)]
+pub enum VoterOperationInput {
+    VoterInfo(VoterInformationBody),
+    VoterId(VoterIdBody),
+    MarkVoted(MarkVotedBody),
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -177,7 +189,7 @@ pub struct SoapRequestData {
     pub timestamp: String,
 }
 
-#[derive(Debug, Display, Clone)]
+#[derive(Debug, Display, Clone, Copy)]
 pub enum EndpointNames {
     AddVoter,
     UpdateVoter,
