@@ -327,6 +327,8 @@ export const customBuildQuery =
                 sort = {field: "created_at", order: "DESC"},
             } = params
 
+            console.log("aa IN CUSOM FILTERS")
+
             // Extract JSONB filters
             const jsonbFilters: {[key: string]: string} = {}
             const regularFilters: {[key: string]: string} = {}
@@ -348,6 +350,9 @@ export const customBuildQuery =
                 }
             })
 
+            console.log("aa jsonbFilters", jsonbFilters)
+            console.log("aa regularFilters", regularFilters)
+
             const hasJsonbFilters = Object.keys(jsonbFilters).length > 0
 
             // If no JSONB filters are present, use the standard approach
@@ -356,172 +361,172 @@ export const customBuildQuery =
             }
 
             // Build SQL query dynamically
-            let sql = `
-    SELECT 
-        id, 
-        applicant_id, 
-        verification_type, 
-        status,
-        created_at,
-        updated_at,
-        applicant_data,
-        annotations,
-        area_id,
-        election_event_id,
-        tenant_id,
-        labels,
-        permission_label
-    FROM 
-        sequent_backend.applications
-    WHERE 1=1
-            `
+            let sql = ""
+            //     let sql = `
+            // SELECT
+            //     id,
+            //     applicant_id,
+            //     verification_type,
+            //     status,
+            //     created_at,
+            //     updated_at,
+            //     applicant_data,
+            //     annotations,
+            //     area_id,
+            //     election_event_id,
+            //     tenant_id,
+            //     labels,
+            //     permission_label
+            // FROM
+            //     sequent_backend.applications
+            // WHERE 1=1
+            //         `
 
-            // Array to hold parameter values
-            const paramValues: string[] = []
-            let paramCounter = 1
+            //         // Array to hold parameter values
+            //         const paramValues: string[] = []
+            //         let paramCounter = 1
 
-            // Add regular column filters
-            Object.entries(regularFilters).forEach(([key, value]) => {
-                if (key === "id" || key === "applicant_id") {
-                    sql += ` AND ${key} = $${paramCounter}`
-                    paramValues.push(value)
-                    paramCounter++
-                } else {
-                    sql += ` AND ${key} ILIKE $${paramCounter}`
-                    paramValues.push(`%${value}%`)
-                    paramCounter++
-                }
-            })
+            //         // Add regular column filters
+            //         Object.entries(regularFilters).forEach(([key, value]) => {
+            //             if (key === "id" || key === "applicant_id") {
+            //                 sql += ` AND ${key} = $${paramCounter}`
+            //                 paramValues.push(value)
+            //                 paramCounter++
+            //             } else {
+            //                 sql += ` AND ${key} ILIKE $${paramCounter}`
+            //                 paramValues.push(`%${value}%`)
+            //                 paramCounter++
+            //             }
+            //         })
 
-            // Add JSONB filters
-            Object.entries(jsonbFilters).forEach(([key, value]) => {
-                // For date fields, use exact match
-                if (key === "dateOfBirth") {
-                    sql += ` AND applicant_data->>'${key}' = $${paramCounter}`
-                    paramValues.push(value)
-                } else {
-                    // For text fields, use ILIKE
-                    sql += ` AND applicant_data->>'${key}' ILIKE $${paramCounter}`
-                    paramValues.push(`%${value}%`)
-                }
-                paramCounter++
-            })
+            //         // Add JSONB filters
+            //         Object.entries(jsonbFilters).forEach(([key, value]) => {
+            //             // For date fields, use exact match
+            //             if (key === "dateOfBirth") {
+            //                 sql += ` AND applicant_data->>'${key}' = $${paramCounter}`
+            //                 paramValues.push(value)
+            //             } else {
+            //                 // For text fields, use ILIKE
+            //                 sql += ` AND applicant_data->>'${key}' ILIKE $${paramCounter}`
+            //                 paramValues.push(`%${value}%`)
+            //             }
+            //             paramCounter++
+            //         })
 
-            // Add count query for pagination
-            const countSql = `
-                SELECT COUNT(*)
-                FROM (${sql}) AS filtered_results
-            `
+            //         // Add count query for pagination
+            //         const countSql = `
+            //             SELECT COUNT(*)
+            //             FROM (${sql}) AS filtered_results
+            //         `
 
-            // Add order and pagination to the main query
-            const orderByField =
-                sort.field === "id" || sort.field === "created_at" || sort.field === "updated_at"
-                    ? sort.field
-                    : "created_at"
+            //         // Add order and pagination to the main query
+            //         const orderByField =
+            //             sort.field === "id" || sort.field === "created_at" || sort.field === "updated_at"
+            //                 ? sort.field
+            //                 : "created_at"
 
-            sql += ` ORDER BY ${orderByField} ${sort.order}`
-            sql += ` LIMIT ${pagination.perPage} OFFSET ${
-                (pagination.page - 1) * pagination.perPage
-            }`
+            //         sql += ` ORDER BY ${orderByField} ${sort.order}`
+            //         sql += ` LIMIT ${pagination.perPage} OFFSET ${
+            //             (pagination.page - 1) * pagination.perPage
+            //         }`
 
-            const mainQuery = gql`
-                mutation ExecuteRawQuery($sql: String!, $args: [String!]) {
-                    run_sql(sql: $sql) {
-                        rows
-                    }
-                }
-            `
+            //         const mainQuery = gql`
+            //             mutation ExecuteRawQuery($sql: String!, $args: [String!]) {
+            //                 run_sql(sql: $sql) {
+            //                     rows
+            //                 }
+            //             }
+            //         `
 
-            const countQuery = gql`
-                mutation ExecuteCountQuery($countSql: String!, $args: [String!]) {
-                    run_sql(sql: $countSql) {
-                        rows
-                    }
-                }
-            `
+            // const countQuery = gql`
+            //     mutation ExecuteCountQuery($countSql: String!, $args: [String!]) {
+            //         run_sql(sql: $countSql) {
+            //             rows
+            //         }
+            //     }
+            // `
 
-            sql = removeNewlines(injectSqlVariables(sql, ...paramValues))
+            // sql = removeNewlines(injectSqlVariables(sql, ...paramValues))
 
-            return {
-                sql: true,
-                query: mainQuery,
-                countQuery: countQuery,
-                variables: {sql},
-                // variables: {sql, countSql, args: paramValues},
-                parseResponse: (res: any) => {
-                    // Defensive checks to prevent undefined errors
-                    if (!res) {
-                        return {data: [], total: 0}
-                    }
+            // return {
+            //     sql: true,
+            //     query: mainQuery,
+            //     countQuery: countQuery,
+            //     variables: {sql},
+            //     parseResponse: (res: any) => {
+            //         // Defensive checks to prevent undefined errors
+            //         if (!res) {
+            //             return {data: [], total: 0}
+            //         }
 
-                    // For v2 API, the response should be under run_sql
-                    const runSqlResult = res
+            //         // For v2 API, the response should be under run_sql
+            //         const runSqlResult = res
 
-                    if (!runSqlResult) {
-                        return {data: [], total: 0}
-                    }
+            //         if (!runSqlResult) {
+            //             return {data: [], total: 0}
+            //         }
 
-                    let rows: any[] = [...res]
+            //         let rows: any[] = [...res]
 
-                    if (!Array.isArray(rows)) {
-                        return {data: [], total: 0}
-                    }
+            //         if (!Array.isArray(rows)) {
+            //             return {data: [], total: 0}
+            //         }
 
-                    const numRows = res.length - 1
+            //         const numRows = res.length - 1
 
-                    let data: any[] = []
+            //         let data: any[] = []
 
-                    rows = rows.slice(1)
+            //         rows = rows.slice(1)
 
-                    if (numRows > 0) {
-                        // Now safe to map over rows
-                        data = rows.map((row: any[], index: number) => {
-                            // Add additional safety checks for each row
-                            if (!Array.isArray(row) || row.length < 13) {
-                                // Return a default object with required fields
-                                return {
-                                    id: `unknown-${index}`,
-                                    __typename: "sequent_backend_applications",
-                                }
-                            }
+            //         if (numRows > 0) {
+            //             // Now safe to map over rows
+            //             data = rows.map((row: any[], index: number) => {
+            //                 // Add additional safety checks for each row
+            //                 if (!Array.isArray(row) || row.length < 13) {
+            //                     // Return a default object with required fields
+            //                     return {
+            //                         id: `unknown-${index}`,
+            //                         __typename: "sequent_backend_applications",
+            //                     }
+            //                 }
 
-                            // Safely parse JSON fields
-                            const safeParseJson = (value: any) => {
-                                if (typeof value === "string") {
-                                    try {
-                                        return JSON.parse(value)
-                                    } catch (e) {
-                                        return {}
-                                    }
-                                }
-                                return value || {}
-                            }
+            //                 // Safely parse JSON fields
+            //                 const safeParseJson = (value: any) => {
+            //                     if (typeof value === "string") {
+            //                         try {
+            //                             return JSON.parse(value)
+            //                         } catch (e) {
+            //                             return {}
+            //                         }
+            //                     }
+            //                     return value || {}
+            //                 }
 
-                            return {
-                                id: row[0] || `unknown-${index}`,
-                                applicant_id: row[1] || null,
-                                verification_type: row[2] || null,
-                                status: row[3] || null,
-                                created_at: row[4] || null,
-                                updated_at: row[5] || null,
-                                applicant_data: safeParseJson(row[6]),
-                                annotations: safeParseJson(row[7]),
-                                area_id: row[8] || null,
-                                election_event_id: row[9] || null,
-                                tenant_id: row[10] || null,
-                                labels: safeParseJson(row[11]),
-                                permission_label: row[12] || null,
-                                __typename: "sequent_backend_applications",
-                            }
-                        })
-                    }
+            //                 return {
+            //                     id: row[0] || `unknown-${index}`,
+            //                     applicant_id: row[1] || null,
+            //                     verification_type: row[2] || null,
+            //                     status: row[3] || null,
+            //                     created_at: row[4] || null,
+            //                     updated_at: row[5] || null,
+            //                     applicant_data: safeParseJson(row[6]),
+            //                     annotations: safeParseJson(row[7]),
+            //                     area_id: row[8] || null,
+            //                     election_event_id: row[9] || null,
+            //                     tenant_id: row[10] || null,
+            //                     labels: safeParseJson(row[11]),
+            //                     permission_label: row[12] || null,
+            //                     __typename: "sequent_backend_applications",
+            //                 }
+            //             })
+            //         }
 
-                    return {
-                        data,
-                        total: data.length, // Will be set in App.tsx
-                    }
-                },
-            }
+            //         return {
+            //             data,
+            //             total: data.length, // Will be set in App.tsx
+            //         }
+            //     },
+            // }
         }
         return buildQuery(introspectionResults)(raFetchType, resourceName, params)
     }
