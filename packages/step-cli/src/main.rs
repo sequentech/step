@@ -580,26 +580,28 @@ fn run_generate_voters(working_dir: &str, num_users: usize) -> Result<()> {
         }
     }
 
-    // Prepare to generate users.
-    let mut users: Vec<serde_json::Map<String, Value>> = Vec::new();
-    let mut username_counter = 20001;
+    let final_fields: Vec<String> = fields
+    .into_iter()
+    .filter(|f| !excluded_columns.contains(f))
+    .collect();
+    let mut wtr = Writer::from_path(&csv_file_path)?;
+    wtr.write_record(&final_fields)?;
+
+    let mut username_counter = 0;
     let mut area_cycle = areas.iter().cycle();
 
     for i in 0..num_users {
         let area = area_cycle.next().unwrap_or(&Value::Null);
         let area_id = area.get("id").and_then(Value::as_str).unwrap_or("Unknown");
-        let area_name = area
-            .get("name")
-            .and_then(Value::as_str)
-            .unwrap_or("Unknown");
+        let area_name = area.get("name").and_then(Value::as_str).unwrap_or("Unknown");
 
         let assigned_cids = area_contest_map
             .get(area_id)
             .map(|v| v.as_slice())
             .unwrap_or(&[]);
 
-        let mut election_aliases: Vec<String> = Vec::new();
-        let mut precincts: Vec<String> = Vec::new();
+        let mut election_aliases = Vec::new();
+        let mut precincts = Vec::new();
 
         for cid in assigned_cids {
             let unknown_e_id = "Unknown".to_string();
@@ -653,7 +655,7 @@ fn run_generate_voters(working_dir: &str, num_users: usize) -> Result<()> {
             format!(
                 "{}+{}@{}",
                 email_prefix,
-                i as u64 + 20000 + sequence_start_number,
+                i as u64 + sequence_start_number,
                 domain
             )
         } else {
@@ -661,76 +663,46 @@ fn run_generate_voters(working_dir: &str, num_users: usize) -> Result<()> {
             format!("{}+{}@{}", email_prefix, random_num, domain)
         };
 
-        let mut user_record = serde_json::Map::new();
-        user_record.insert(
-            "username".to_string(),
-            Value::String(username_counter.to_string()),
-        );
-        user_record.insert(
-            "first_name".to_string(),
-            Value::String(FirstName(EN).fake()),
-        );
-        user_record.insert("last_name".to_string(), Value::String(LastName(EN).fake()));
-        user_record.insert("middleName".to_string(), Value::String(String::new()));
-        user_record.insert("dateOfBirth".to_string(), Value::String(dob_str));
-        let sex = if *[true, false].choose(&mut rand::thread_rng()).unwrap() {
-            "M"
-        } else {
-            "F"
-        };
-        user_record.insert("sex".to_string(), Value::String(sex.to_string()));
-        user_record.insert(
-            "country".to_string(),
-            Value::String(format!("{}/{}", official_country, official_embassy)),
-        );
-        user_record.insert("embassy".to_string(), Value::String(official_embassy));
-        user_record.insert(
-            "clusteredPrecinct".to_string(),
-            Value::String(joined_precincts),
-        );
-        user_record.insert(
-            "overseasReferences".to_string(),
-            Value::String(overseas_reference.to_string()),
-        );
-        user_record.insert(
-            "area_name".to_string(),
-            Value::String(area_name.to_string()),
-        );
-        user_record.insert(
-            "authorized-election-ids".to_string(),
-            Value::String(joined_aliases),
-        );
-        user_record.insert(
-            "password".to_string(),
-            Value::String(voter_password.to_string()),
-        );
-        user_record.insert("email".to_string(), Value::String(email));
-        user_record.insert(
-            "password_salt".to_string(),
-            Value::String(password_salt.to_string()),
-        );
-        user_record.insert(
-            "hashed_password".to_string(),
-            Value::String(hashed_password.to_string()),
-        );
-
-        users.push(user_record);
-        username_counter += 1;
-    }
-
-    let final_fields: Vec<String> = fields
-        .into_iter()
-        .filter(|f| !excluded_columns.contains(f))
-        .collect();
-    let mut wtr = Writer::from_path(&csv_file_path)?;
-    wtr.write_record(&final_fields)?;
-    for user in users {
-        let mut record = Vec::new();
+        // Instead of storing the user record in a vector, we build the CSV record directly.
+        let mut record = Vec::with_capacity(final_fields.len());
+        // For each expected field, extract its value from our generated data.
         for field in &final_fields {
-            let value = user.get(field).and_then(Value::as_str).unwrap_or("");
+            let value = match field.as_str() {
+                "username" => username_counter.to_string(),
+                "first_name" => FirstName(EN).fake(),
+                "last_name" => LastName(EN).fake(),
+                "middleName" => String::new(),
+                "dateOfBirth" => dob_str.clone(),
+                "sex" => {
+                    if *[true, false].choose(&mut rand::thread_rng()).unwrap() {
+                        "M".to_string()
+                    } else {
+                        "F".to_string()
+                    }
+                }
+                "country" => format!("{}/{}", official_country, official_embassy),
+                "embassy" => official_embassy.clone(),
+                "clusteredPrecinct" => joined_precincts.clone(),
+                "overseasReferences" => overseas_reference.to_string(),
+                "area_name" => area_name.to_string(),
+                "authorized-election-ids" => joined_aliases.clone(),
+                "password" => voter_password.to_string(),
+                "email" => email.clone(),
+                "password_salt" => password_salt.to_string(),
+                "hashed_password" => hashed_password.to_string(),
+                _ => "".to_string(), // default empty if field not recognized
+            };
             record.push(value);
         }
+
+        // Write the record to the CSV file.
         wtr.write_record(&record)?;
+        username_counter += 1;
+
+        // Optionally, log progress every so often rather than every record.
+        if i % 10000 == 0 {
+            println!("Generated {} users...", i);
+        }
     }
     wtr.flush()?;
 
