@@ -262,7 +262,7 @@ pub async fn count_users(
     }))
 }
 
-#[instrument(skip(claims), ret)]
+#[instrument(skip(claims))]
 #[post("/get-users", format = "json", data = "<body>")]
 pub async fn get_users(
     claims: jwt::JwtClaims,
@@ -707,15 +707,15 @@ pub async fn edit_user(
                     }
                 };
 
-                let username_str = input.username.clone().unwrap_or_default();
-                let election_event_id_str =
-                    input.election_event_id.clone().unwrap_or_default();
+                let username_ref = user.username.as_deref().unwrap_or_default();
+                let election_event_id_ref =
+                    input.election_event_id.as_deref().unwrap_or_default();
                 post_operation_result_to_electoral_log(
                     &hasura_transaction,
                     &input.tenant_id,
-                    &election_event_id_str,
+                    election_event_id_ref,
                     &input.user_id,
-                    &username_str,
+                    username_ref,
                     ExtApiRequestDirection::Outbound,
                     operation,
                 )
