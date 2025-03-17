@@ -17,6 +17,7 @@ use crate::services::consolidation::zip::compress_folder_to_zip;
 use crate::services::documents::upload_and_return_document;
 use crate::services::election_dates::get_election_dates;
 use crate::services::providers::email_sender::{Attachment, EmailSender};
+use crate::services::reports::pre_enrolled_ov_but_disapproved::first_n_codepoints;
 use crate::services::reports::voters::count_voters_by_area_id;
 use crate::services::reports_vault::get_report_secret_key;
 use crate::services::tasks_execution::{update_complete, update_fail};
@@ -191,13 +192,14 @@ impl OVWithVotingStatusTemplate {
             .await
             .with_context(|| format!("Error rendering PDF for batch {}", batch_index))?;
 
-            let prefix = self.prefix();
+            let prefix = first_n_codepoints(&self.prefix(), 5);
             let extension_suffix = "pdf";
             let file_suffix = format!(".{}", extension_suffix);
+            let area_id = first_n_codepoints(&area.area_id, 5);
 
             let batch_file_name = format!(
-                "{}_area_{:.20}_{}{}",
-                prefix, area.area_name, batch, file_suffix
+                "{}_area_{}{}_{}{}",
+                prefix, area.area_name, area_id, batch, file_suffix
             );
             info!(
                 "Batch {} => batch_file_name: {}",
@@ -581,9 +583,14 @@ impl TemplateRenderer for OVWithVotingStatusTemplate {
             if report.encryption_policy == EReportEncryption::ConfiguredPassword {
                 let secret_key =
                     get_report_secret_key(&tenant_id, &election_event_id, Some(report.id.clone()));
-                let encryption_password = vault::read_secret(secret_key.clone())
-                    .await?
-                    .ok_or_else(|| anyhow!("Encryption password not found"))?;
+                let encryption_password = vault::read_secret(
+                    hasura_transaction,
+                    tenant_id,
+                    Some(election_event_id),
+                    &secret_key,
+                )
+                .await?
+                .ok_or_else(|| anyhow!("Encryption password not found"))?;
 
                 let enc_file: NamedTempFile =
                     generate_temp_file(self.base_name().as_str(), ".epdf")

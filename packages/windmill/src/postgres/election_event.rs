@@ -154,7 +154,8 @@ pub async fn get_all_tenant_election_events(
                 FROM
                     sequent_backend.election_event
                 WHERE
-                    tenant_id = $1
+                    tenant_id = $1 AND
+                    is_archived = false
             "#,
         )
         .await?;
@@ -391,6 +392,7 @@ pub async fn delete_election_event(
     election_event_id: &str,
 ) -> Result<()> {
     let related_tables = vec![
+        "secret",
         "area_contest",
         "results_election_area",
         "results_area_contest_candidate",
@@ -469,20 +471,34 @@ pub async fn delete_election_event(
     Ok(())
 }
 
-/// Get the ElectionEvent, check if its DATAFIX event (has DATAFIX annotations).
-#[instrument(skip(hasura_transaction), err)]
-pub async fn is_datafix_election_event(
+#[instrument(err, skip_all)]
+pub async fn update_bulletin_board(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
-) -> Result<bool> {
-    let election_event = get_election_event_by_id(hasura_transaction, tenant_id, election_event_id)
-        .await
-        .map_err(|e| anyhow!("{:?}", e))?;
+    board: &serde_json::Value,
+) -> Result<()> {
+    let update_bulletin_board = hasura_transaction
+        .prepare(
+            r#"
+             UPDATE sequent_backend.election_event
+             SET bulletin_board_reference = $1
+             WHERE tenant_id = $2 AND id = $3;
+             "#,
+        )
+        .await?;
 
-    let datafix_object = election_event
-        .annotations
-        .as_ref()
-        .and_then(|v| v.get("DATAFIX"));
-    Ok(datafix_object.is_some())
+    hasura_transaction
+         .execute(
+             &update_bulletin_board,
+             &[
+                 &board,
+                 &Uuid::parse_str(tenant_id)?,
+                 &Uuid::parse_str(election_event_id)?,
+             ],
+         )
+         .await
+         .with_context(|| format!("Error updating election event with board reference for tenant ID {} and election event ID {}", tenant_id, election_event_id))?;
+
+    Ok(())
 }

@@ -163,7 +163,7 @@ pub async fn generate_all_servers_document(
     logs: &Vec<Log>,
     election_annotations: &MiruElectionAnnotations,
 ) -> Result<Document> {
-    let acm_key_pair = get_acm_key_pair().await?;
+    let acm_key_pair = get_acm_key_pair(hasura_transaction, tenant_id, election_event_id).await?;
     let temp_dir = tempdir().with_context(|| "Error generating temp directory")?;
     let temp_dir_path = temp_dir.path();
 

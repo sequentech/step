@@ -111,8 +111,8 @@ pub trait TemplateRenderer: Debug {
     /// or from other place than the reports TAB.
     fn get_initial_template_alias(&self) -> Option<String>;
 
-    async fn count_items(&self) -> Option<i64> {
-        None
+    async fn count_items(&self, hasura_transaction: &Transaction<'_>) -> Result<Option<i64>> {
+        Ok(None)
     }
     async fn prepare_user_data_batch(
         &self,
@@ -499,7 +499,7 @@ pub trait TemplateRenderer: Debug {
                 anyhow!("Error providing the user template and extra config: {e:?}")
             })?;
 
-        let items_count = self.count_items().await.unwrap_or(0);
+        let items_count = self.count_items(&hasura_transaction).await?.unwrap_or(0);
         let report_options = ext_cfg.report_options.clone();
         let per_report_limit = report_options
             .max_items_per_report
@@ -634,9 +634,14 @@ pub trait TemplateRenderer: Debug {
             if report.encryption_policy == EReportEncryption::ConfiguredPassword {
                 let secret_key =
                     get_report_secret_key(&tenant_id, &election_event_id, Some(report.id.clone()));
-                let encryption_password = vault::read_secret(secret_key.clone())
-                    .await?
-                    .ok_or_else(|| anyhow!("Encryption password not found"))?;
+                let encryption_password = vault::read_secret(
+                    hasura_transaction,
+                    tenant_id,
+                    Some(election_event_id),
+                    &secret_key,
+                )
+                .await?
+                .ok_or_else(|| anyhow!("Encryption password not found"))?;
 
                 let enc_file: NamedTempFile =
                     generate_temp_file(self.base_name().as_str(), ".epdf")

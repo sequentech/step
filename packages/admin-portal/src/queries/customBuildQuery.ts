@@ -95,6 +95,7 @@ export const customBuildQuery =
             let validFilters = [
                 "election_event_id",
                 "user_id",
+                "username",
                 "created",
                 "statement_timestamp",
                 "statement_kind",

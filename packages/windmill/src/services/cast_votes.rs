@@ -3,14 +3,15 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::database::PgConfig;
-use crate::postgres::election_event::is_datafix_election_event;
+use crate::services::datafix::utils::{
+    is_datafix_election_event_by_id, voted_via_not_internet_channel,
+};
 use crate::services::electoral_log::ElectoralLog;
 use anyhow::{anyhow, Context, Result};
 use chrono::NaiveDate;
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Transaction;
 use sequent_core::types::keycloak::{User, VotesInfo};
-use sequent_core::types::keycloak::{ATTR_RESET_VALUE, VOTED_CHANNEL};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
@@ -308,7 +309,7 @@ pub async fn get_users_with_vote_info(
     };
 
     let is_datafix_event =
-        is_datafix_election_event(hasura_transaction, tenant_id, election_event_id)
+        is_datafix_election_event_by_id(hasura_transaction, tenant_id, election_event_id)
             .await
             .with_context(|| "Error checking if is datafix election event")?;
 
@@ -402,17 +403,12 @@ pub async fn get_users_with_vote_info(
         // If this is a "datafix" event, adjust the votes_info by checking the user's attributes
         if is_datafix_event {
             if let Some(attributes) = &user.attributes {
-                if let Some(channels) = attributes.get(VOTED_CHANNEL) {
-                    if let Some(channel) = channels.last() {
-                        // Overwrite with a single “voted” entry if the channel isn't reset/empty
-                        if channel != ATTR_RESET_VALUE && !channel.is_empty() {
-                            votes_info = vec![VotesInfo {
-                                election_id: "".to_string(),
-                                num_votes: 1,
-                                last_voted_at: "".to_string(),
-                            }];
-                        }
-                    }
+                if voted_via_not_internet_channel(&attributes) {
+                    votes_info = vec![VotesInfo {
+                        election_id: "".to_string(), // Not used for datafix
+                        num_votes: 1,
+                        last_voted_at: "".to_string(), // Not used for datafix
+                    }];
                 }
             }
         }
@@ -724,18 +720,28 @@ pub async fn count_cast_votes_election_event(
 /// electorallog::post_voter_pk
 #[instrument(err)]
 pub async fn get_voter_signing_key(
+    hasura_transaction: &Transaction<'_>,
     elog_database: &str,
     tenant_id: &str,
     event_id: &str,
     user_id: &str,
+    area_id: &str,
 ) -> Result<StrandSignatureSk> {
     info!("Generating private signing key for voter {}", user_id);
     let sk = StrandSignatureSk::gen()?;
-    let sk_string = sk.to_der_b64_string()?;
     let pk = StrandSignaturePk::from_sk(&sk)?;
     let pk = pk.to_der_b64_string()?;
 
-    ElectoralLog::post_voter_pk(elog_database, tenant_id, event_id, user_id, &pk).await?;
+    ElectoralLog::post_voter_pk(
+        hasura_transaction,
+        elog_database,
+        tenant_id,
+        event_id,
+        user_id,
+        &pk,
+        area_id,
+    )
+    .await?;
 
     Ok(sk)
 }

@@ -1478,3 +1478,51 @@ pub async fn get_username_by_id(
         false => Ok(Some(user_ids[0].clone())),
     }
 }
+
+#[instrument(err, skip_all(keycloak_transaction))]
+pub async fn get_user_area_id(
+    keycloak_transaction: &Transaction<'_>,
+    realm: &str,
+    user_id: &str,
+) -> Result<Option<String>> {
+    let params: Vec<&(dyn ToSql + Sync)> = vec![&realm, &user_id];
+
+    let statement = keycloak_transaction
+        .prepare(&format!(
+            r#"
+        SELECT
+             attr_json.attributes ->> '{AREA_ID_ATTR_NAME}' AS area_id
+        FROM
+            user_entity u
+        INNER JOIN
+            realm AS ra ON ra.id = u.realm_id
+        LEFT JOIN LATERAL (
+            SELECT
+                json_object_agg(ua.name, ua.value) AS attributes
+            FROM
+                user_attribute ua
+            WHERE
+                ua.user_id = u.id
+            GROUP BY
+                ua.user_id
+        ) attr_json ON true
+        WHERE
+            ra.name = $1
+            AND u.id = $2
+        "#
+        ))
+        .await?;
+
+    let rows: Vec<Row> = keycloak_transaction
+        .query(&statement, &params.as_slice())
+        .await
+        .map_err(|err| anyhow!("{err:?}"))?;
+
+    // Assuming there is at most one matching row, we extract the area_id (which might be null)
+    if let Some(row) = rows.into_iter().next() {
+        let area_id: Option<String> = row.get("area_id");
+        Ok(area_id)
+    } else {
+        Ok(None)
+    }
+}
