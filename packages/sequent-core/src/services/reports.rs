@@ -366,7 +366,7 @@ impl HelperDef for sum {
         _rc: &mut RenderContext<'reg, 'rc>,
     ) -> Result<ScopedJson<'rc>, RenderError> {
         // Iterates through all parameters of the helper.
-        // Parses each parameter as a f64 value.
+        // Parses each parameter as a u64 value.
         // Accumulates the parsed values into a sum.
         let result: u64 = helper
             .params()
