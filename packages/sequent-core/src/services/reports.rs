@@ -371,8 +371,13 @@ impl HelperDef for sum {
         let result: u64 = helper
             .params()
             .iter()
-            .map(|p| p.value().as_u64()
-            .ok_or(RenderErrorReason::InvalidParamType("couldn't parse as u64")))
+            .map(|p| {
+                p.value()
+                    .as_u64()
+                    .ok_or(RenderErrorReason::InvalidParamType(
+                        "couldn't parse as u64",
+                    ))
+            })
             .sum::<Result<u64, RenderErrorReason>>()?;
 
         // Returns the sum as a ScopedJson.
