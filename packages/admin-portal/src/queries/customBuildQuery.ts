@@ -356,9 +356,9 @@ export const customBuildQuery =
             const hasJsonbFilters = Object.keys(jsonbFilters).length > 0
 
             // If no JSONB filters are present, use the standard approach
-            if (!hasJsonbFilters) {
-                return buildQuery(introspectionResults)(raFetchType, resourceName, params)
-            }
+            // if (!hasJsonbFilters) {
+            //     return buildQuery(introspectionResults)(raFetchType, resourceName, params)
+            // }
 
             // Build SQL query dynamically
             let sql = ""
