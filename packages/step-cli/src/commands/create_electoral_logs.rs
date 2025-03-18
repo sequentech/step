@@ -22,7 +22,7 @@ use serde_json::Value;
 use std::env;
 use strand::signature::{StrandSignature, StrandSignaturePk};
 
-/// Render a handlebars-rs template with variables
+
 #[derive(Args)]
 #[command(about)]
 pub struct CreateElectoralLogs {

@@ -20,7 +20,6 @@ use rand::Rng;
 
 use crate::utils::read_config::load_config;
 
-/// Render a handlebars-rs template with variables
 #[derive(Args)]
 #[command(about)]
 pub struct GenerateVoters {
@@ -101,7 +100,7 @@ impl GenerateVoters {
             .and_then(|v| v.as_array())
             .map(|arr| {
                 arr.iter()
-                    .filter_map(|v| Some(v.as_str().map(String::from)).unwrap())
+                    .filter_map(|v| v.as_str().map(String::from))
                     .collect()
             })
             .unwrap_or_else(|| {

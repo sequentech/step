@@ -15,7 +15,6 @@ use serde_json::Value;
 use std::collections::HashMap;
 use uuid::Uuid;
 
-/// Render a handlebars-rs template with variables
 #[derive(Args)]
 #[command(about)]
 pub struct CreateApplications {
