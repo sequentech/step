@@ -24,7 +24,7 @@ impl SoapRequest {
             r#"
             <soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
                 <soap:Body>
-                    <SetNotVoted xmlns="https://www.voterview.ca/MVVServices/">
+                    <SetNotVoted xmlns="https://www.voterview.ca/MVVServices">
                         <CountyMun>{county_mun}</CountyMun>
                         <Username>{usr}</Username>
                         <Password>{psw}</Password>
@@ -33,7 +33,7 @@ impl SoapRequest {
                     </SetNotVoted>
                 </soap:Body>
             </soap:Envelope>
-        "#
+            "#
         )
     }
     fn get_set_voted_body(
@@ -48,18 +48,17 @@ impl SoapRequest {
             r#"
             <soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
                 <soap:Body>
-                    <SetVoted xmlns="https://www.voterview.ca/MVVServices/">
+                    <SetVoted xmlns="https://www.voterview.ca/MVVServices">
                         <CountyMun>{county_mun}</CountyMun>
                         <Username>{usr}</Username>
                         <Password>{psw}</Password>
                         <VoterID>{voter_id}</VoterID>
-                        <Channel>Internet</Channel>
+                        <Channel>INTERNET</Channel>
                         <DateTimeVoted>{timestamp}</DateTimeVoted>
                     </SetVoted>
                 </soap:Body>
             </soap:Envelope>
-
-        "#
+            "#
         )
     }
 

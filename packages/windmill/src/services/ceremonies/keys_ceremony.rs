@@ -444,8 +444,10 @@ pub async fn create_keys_ceremony(
 
     // let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
     let electoral_log = ElectoralLog::for_admin_user(
+        &transaction,
         &board_name,
         &tenant_id,
+        &election_event.id,
         user_id,
         Some(username.to_string()),
         election_id.clone(),
