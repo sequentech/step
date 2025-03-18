@@ -22,7 +22,6 @@ use serde_json::Value;
 use std::env;
 use strand::signature::{StrandSignature, StrandSignaturePk};
 
-
 #[derive(Args)]
 #[command(about)]
 pub struct CreateElectoralLogs {
