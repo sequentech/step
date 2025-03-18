@@ -3,9 +3,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use serde_json;
+use serde_json::Value;
 use std::env;
 use std::error::Error;
 use std::fs;
+use std::fs::File;
+use std::io::BufReader;
 use std::path::PathBuf;
 
 use crate::types::config::ConfigData;
@@ -26,5 +29,13 @@ pub fn read_config() -> Result<ConfigData, Box<dyn Error>> {
         "Failed to read config file, Please make sure to run `sequent config` first"
     })?;
     let config = serde_json::from_str(&json_data).map_err(|_| "Failed to parse config file")?;
+    Ok(config)
+}
+
+pub fn load_config(working_dir: &str) -> Result<Value, Box<dyn Error>> {
+    let config_path = PathBuf::from(working_dir).join("config.json");
+    let file = File::open(config_path)?;
+    let reader = BufReader::new(file);
+    let config = serde_json::from_reader(reader)?;
     Ok(config)
 }

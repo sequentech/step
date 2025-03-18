@@ -4,6 +4,7 @@
 
 pub mod areas;
 pub mod elections;
+pub mod hasura;
 pub mod keycloak;
 pub mod publication;
 pub mod read_config;

@@ -2,11 +2,13 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use deadpool_postgres::{Config as PgConfig, Pool, Runtime};
 use serde_json;
 use std::env;
 use std::error::Error;
 use std::fs;
 use std::path::PathBuf;
+use tokio_postgres::NoTls;
 
 use crate::types::keycloak::KeycloakTokenResponse;
 
@@ -97,4 +99,14 @@ pub fn read_token() -> Result<KeycloakTokenResponse, Box<dyn std::error::Error>>
         .expect("Failed to read auth file, Plase make sure to run `sequent generate-auth` first");
     let auth_data = serde_json::from_str(&json_data).expect("Failed to parse auth file");
     Ok(auth_data)
+}
+
+pub async fn get_keyckloak_pool() -> Result<Pool, Box<dyn std::error::Error>> {
+    let mut kc_cfg = PgConfig::default();
+    kc_cfg.host = Some(env::var("KC_DB_URL_HOST")?);
+    kc_cfg.port = Some(env::var("KC_DB_URL_PORT")?.parse::<u16>()?);
+    kc_cfg.user = Some(env::var("KC_DB_USERNAME")?);
+    kc_cfg.password = Some(env::var("KC_DB_PASSWORD")?);
+    kc_cfg.dbname = Some(env::var("KC_DB")?);
+    Ok(kc_cfg.create_pool(Some(Runtime::Tokio1), NoTls)?)
 }
