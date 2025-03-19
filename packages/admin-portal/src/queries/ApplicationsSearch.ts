@@ -36,7 +36,6 @@ export const GET_APPLICATION_BY_ID = gql`
 `
 
 export const GetApplications = (params: any) => {
-    console.log("aa IN GetApplications", params)
     return SEARCH_APPLICATIONS
 }
 
@@ -75,8 +74,7 @@ export const buildApplicationsVariables = (params: any) => {
     const sortBy: string | null = sort.field || null
     const sortOrder: string | null = sort.order || "ASC"
 
-    console.log("aa GetApplications jsonbFilters", jsonbFilters)
-    console.log("aa GetApplications regularFilters", regularFilters)
+    console.log("aa jsonbFilters", jsonbFilters)
 
     return {
         regularFilters,

@@ -87,7 +87,7 @@ interface ApprovalsListProps extends Omit<DatagridConfigurableProps, "children">
 const STATUS_FILTER_KEY = "approvals_status_filter"
 
 const ApprovalsList = (props: ApprovalsListProps) => {
-    const {filterValues, setFilters, data} = useListContext()
+    const {filterValues, setFilters} = useListContext()
     const location = useLocation()
 
     const {t} = useTranslation()
@@ -262,9 +262,10 @@ const ApprovalsList = (props: ApprovalsListProps) => {
 
 const generateFilters = (fields: UserProfileAttribute[], t: TFunction) => {
     return fields.map((attr) => {
-        // const source = `applicant_data[${convertToCamelCase(getAttributeLabel(attr.name ?? ""))}]`
         const source = `applicant_data.${convertToCamelCase(getAttributeLabel(attr.name ?? ""))}`
         const label = getTranslationLabel(attr.name, attr.display_name, t)
+
+        console.log("aa fields", convertToCamelCase(getAttributeLabel(attr.name ?? "")))
 
         if (attr.annotations?.inputType === "html5-date") {
             return <TextInput key={source} source={source} label={label} type="date" />
@@ -344,8 +345,6 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
             },
         },
     })
-
-    const {filterValues} = useListContext()
 
     // ✨ Admin Portal > Approvals: Add Approved By row #5050
 
