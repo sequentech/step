@@ -1234,7 +1234,7 @@ pub async fn execute_tally_session_wrapped(
 
     let areas: Vec<Area> =
         get_event_areas(hasura_transaction, &tenant_id, &election_event_id).await?;
-
+    event!(Level::INFO, "Omri - monitor tally - start velvet tally - {:?}", Utc::now());
     let status = if !plaintexts_data.is_empty() {
         Some(
             run_velvet_tally(
@@ -1256,8 +1256,10 @@ pub async fn execute_tally_session_wrapped(
     } else {
         None
     };
+    event!(Level::INFO, "Omri - monitor tally - end velvet tally - {:?}", Utc::now());
 
     let default_language = election_event.get_default_language();
+    event!(Level::INFO, "Omri - monitor tally - start results tally - {:?}", Utc::now());
 
     let results_event_id = populate_results_tables(
         hasura_transaction,
@@ -1272,6 +1274,8 @@ pub async fn execute_tally_session_wrapped(
         tally_type_enum.clone(),
     )
     .await?;
+    event!(Level::INFO, "Omri - monitor tally - end results tally - {:?}", Utc::now());
+
     // map_plaintext_data also calls this but at this point the credentials
     // could be expired
     let auth_headers = keycloak::get_client_credentials().await?;
