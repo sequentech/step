@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
 import React, {useContext, useEffect, useMemo, useState} from "react"
 import {
     List,
@@ -18,8 +19,6 @@ import {
     useSidebarState,
     useGetOne,
     useRemoveFromStore,
-    useListController,
-    ListContextProvider,
 } from "react-admin"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {TFunction, useTranslation} from "react-i18next"
@@ -39,7 +38,7 @@ import {StatusApplicationChip} from "@/components/StatusApplicationChip"
 import {Dialog} from "@sequentech/ui-essentials"
 import {FormStyles} from "@/components/styles/FormStyles"
 import {DownloadDocument} from "../User/DownloadDocument"
-import {gql, useMutation, useQuery} from "@apollo/client"
+import {useMutation} from "@apollo/client"
 import {EXPORT_APPLICATION} from "@/queries/ExportApplication"
 import {IPermissions} from "@/types/keycloak"
 import {WidgetProps} from "@/components/Widget"
@@ -48,8 +47,8 @@ import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
 import {IMPORT_APPLICATION} from "@/queries/ImportApplication"
 import {useTenantStore} from "@/providers/TenantContextProvider"
+import {useQuery} from "@apollo/client"
 import {USER_PROFILE_ATTRIBUTES} from "@/queries/GetUserProfileAttributes"
-import {SEARCH_APPLICATIONS, COUNT_APPLICATIONS} from "@/queries/ApplicationsSearch"
 import {styled} from "@mui/material/styles"
 import eStyled from "@emotion/styled"
 import {Chip} from "@mui/material"
@@ -268,19 +267,15 @@ const generateFilters = (fields: UserProfileAttribute[], t: TFunction) => {
         const label = getTranslationLabel(attr.name, attr.display_name, t)
 
         if (attr.annotations?.inputType === "html5-date") {
-            return <TextInput key={source} source={`${source}._ilike`} label={label} type="date" />
+            return <TextInput key={source} source={source} label={label} type="date" />
         } else if (attr.multivalued) {
-            return <TextInput key={source} source={`${source}._ilike`} label={label} />
+            return <TextInput key={source} source={source} label={label} />
         }
         return <TextInput key={source} source={`${source}._ilike`} label={label} />
     })
 }
 
-const CustomFilters = (
-    t: TFunction,
-    changeFilters: (newStatus: string) => void,
-    fields: UserProfileAttribute[]
-) => {
+const CustomFilters = (t: any, changeFilters: any, fields: UserProfileAttribute[]) => {
     return [
         <SelectInput
             source="status"
@@ -326,24 +321,14 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
 }) => {
     const {t} = useTranslation()
     const location = useLocation()
-    const notify = useNotify()
-    const refresh = useRefresh()
 
-    // State for pagination, sorting, and filtering
-    const [page, setPage] = useState(1)
-    const [perPage, setPerPage] = useState(10)
-    const [sort, setSort] = useState({field: "created_at", order: "DESC"})
-    const [filter, setFilter] = useState<Record<string, any>>({
-        status: localStorage.getItem(STATUS_FILTER_KEY) || "pending",
-    })
-
-    // Export/Import related state
+    const OMIT_FIELDS: string[] = []
     const [openExport, setOpenExport] = useState(false)
     const [exporting, setExporting] = useState(false)
     const [exportDocumentId, setExportDocumentId] = useState<string | undefined>()
+    const notify = useNotify()
     const [openImportDrawer, setOpenImportDrawer] = useState<boolean>(false)
-
-    // Hooks for widgets and mutations
+    const refresh = useRefresh()
     const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
     const [exportApplication] = useMutation<ExportApplicationMutation>(EXPORT_APPLICATION, {
         context: {
@@ -360,7 +345,10 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
         },
     })
 
-    // Clean up preferences on component mount
+    const {filterValues} = useListContext()
+
+    // ✨ Admin Portal > Approvals: Add Approved By row #5050
+
     useEffect(() => {
         localStorage.removeItem(
             `RaStore.preferences.${getPreferenceKey(
@@ -370,138 +358,13 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
         )
     }, [])
 
-    // Get election for permission_label
+    // Move the useGetOne hook here and handle the undefined case
     const {data: election} = useGetOne<Sequent_Backend_Election>(
         "sequent_backend_election",
         {id: electionId || ""},
-        {enabled: !!electionId}
+        {enabled: !!electionId} // Only fetch when electionId exists
     )
 
-    // Tenant info and user attributes
-    const [tenantId] = useTenantStore()
-    const {data: userAttributes, loading: userAttributesLoading} =
-        useQuery<GetUserProfileAttributesQuery>(USER_PROFILE_ATTRIBUTES, {
-            variables: {
-                tenantId: tenantId,
-                electionEventId: electionEventId,
-            },
-        })
-
-    // Prepare filter objects for the GraphQL queries based on the example
-    const prepareFilters = () => {
-        // Regular filters for standard columns
-        const regularFilters: Record<string, any> = {}
-
-        // JSONB filters for applicant_data fields
-        const jsonbFilters: Record<string, any> = {}
-
-        // Process all filter values
-        Object.entries(filter || {}).forEach(([key, value]) => {
-            if (value) {
-                if (["id", "applicant_id", "verification_type", "status"].includes(key)) {
-                    // Standard column filters go to regularFilters
-                    regularFilters[key] = value
-                } else if (key.startsWith("applicant_data.")) {
-                    // Extract the field name from applicant_data.field._ilike format
-                    const fullPath = key.substring("applicant_data.".length)
-                    let fieldName
-
-                    if (fullPath.includes("._ilike")) {
-                        fieldName = fullPath.substring(0, fullPath.indexOf("._ilike"))
-                        jsonbFilters[fieldName] = value
-                    } else {
-                        fieldName = fullPath
-                        jsonbFilters[fieldName] = value
-                    }
-                }
-            }
-        })
-
-        return {regularFilters, jsonbFilters}
-    }
-
-    const {regularFilters, jsonbFilters} = useMemo(() => prepareFilters(), [filter])
-
-    // Execute the custom GraphQL queries
-    const {
-        data: searchData,
-        loading: searchLoading,
-        error: searchError,
-    } = useQuery(SEARCH_APPLICATIONS, {
-        variables: {
-            jsonb_filters: jsonbFilters,
-            regular_filters: regularFilters,
-            election_event_id: electionEventId,
-            per_page: perPage,
-            sort_field: sort.field,
-            sort_order: sort.order,
-            offset: (page - 1) * perPage,
-            permission_label: election?.permission_label,
-        },
-        fetchPolicy: "network-only",
-    })
-
-    const {
-        data: countData,
-        loading: countLoading,
-        error: countError,
-    } = useQuery(COUNT_APPLICATIONS, {
-        variables: {
-            jsonb_filters: jsonbFilters,
-            regular_filters: regularFilters,
-            election_event_id: electionEventId,
-            permission_label: election?.permission_label,
-        },
-        fetchPolicy: "network-only",
-    })
-
-    // Process data for React Admin
-    const applications = (searchData?.search_applications || []) as Sequent_Backend_Applications[]
-    const totalCount = countData?.count_applications || 0
-
-    // Create a proper List context for React Admin
-    const controllerProps = useListController({
-        resource: "sequent_backend_applications",
-        filterDefaultValues: {status: localStorage.getItem(STATUS_FILTER_KEY) || "pending"},
-        sort: {field: "created_at", order: "DESC"},
-        perPage: 10,
-    })
-
-    // Create a data array for React Admin (it expects an array, not an object)
-    const dataArray = applications.map((item) => item)
-
-    // Create a type-safe list context
-    const listContext = {
-        ...controllerProps,
-        data: dataArray,
-        ids: applications.map((item: Sequent_Backend_Applications) => item.id),
-        total: totalCount,
-        loading: searchLoading || countLoading || userAttributesLoading,
-        page,
-        perPage,
-        setPage,
-        setPerPage,
-        sort,
-        setSort,
-        filterValues: filter,
-        setFilters: (newFilters: any) => {
-            // Ensure we always maintain the status property
-            const updatedFilter = {
-                ...filter,
-                ...newFilters,
-            }
-
-            setFilter(updatedFilter)
-            setPage(1) // Reset to first page on filter change
-
-            // Save status filter to localStorage when it changes
-            if (newFilters?.status) {
-                localStorage.setItem(STATUS_FILTER_KEY, newFilters.status)
-            }
-        },
-    } as any // Type assertion to handle complex ListContext type
-
-    // Action handlers
     const handleExport = () => {
         setExporting(false)
         setExportDocumentId(undefined)
@@ -579,58 +442,75 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
         },
     ]
 
+    const [tenantId] = useTenantStore()
+    const {data: userAttributes, loading: userAttributesLoading} =
+        useQuery<GetUserProfileAttributesQuery>(USER_PROFILE_ATTRIBUTES, {
+            variables: {
+                tenantId: tenantId,
+                electionEventId: electionEventId,
+            },
+        })
+
+    // Get initial status from localStorage or use "pending" as default
+    // const defaultFilters = localStorage.getItem(STATUS_FILTER_KEY) // || "pending"
+    const [defaultFilters, setDefaultFilters] = useState<string | null>(
+        localStorage.getItem(STATUS_FILTER_KEY) || "pending"
+    )
+
+    const listFilter = useMemo(() => {
+        const filter: Record<string, any> = {
+            election_event_id: electionEventId || undefined,
+        }
+
+        if (election?.permission_label) {
+            filter.permission_label = election.permission_label
+        }
+
+        return filter
+    }, [electionEventId, election?.permission_label, defaultFilters])
+
     const authContext = useContext(AuthContext)
     const canExport = authContext.isAuthorized(true, tenantId, IPermissions.APPLICATION_EXPORT)
     const canImport = authContext.isAuthorized(true, tenantId, IPermissions.APPLICATION_IMPORT)
 
-    // Show loading state while data is being fetched
+    // add election level
     if (userAttributesLoading) {
         return null
     }
 
-    // Show error state
-    if (searchError || countError) {
-        return (
-            <div style={{padding: "1rem", color: "red"}}>
-                Error: {searchError?.message || countError?.message || "An unknown error occurred"}
-            </div>
-        )
-    }
-
     return (
         <>
-            <ListContextProvider value={listContext}>
-                <List
-                    actions={
-                        <ListActions
-                            preferenceKey={getPreferenceKey(location.pathname, "approvals")}
-                            withImport={canImport}
-                            withExport={canExport}
-                            doImport={handleImport}
-                            doExport={handleExport}
-                        />
-                    }
-                    resource="sequent_backend_applications"
-                    filters={CustomFilters(
-                        t,
-                        (newStatus: string) => {
-                            setFilter((prevFilter) => ({...prevFilter, status: newStatus}))
-                            setPage(1)
-                        },
-                        userAttributes?.get_user_profile_attributes || []
-                    )}
-                    pagination={false}
-                    disableSyncWithLocation
-                >
-                    <ApprovalsList
-                        omit={[]}
-                        actions={actions}
-                        t={t}
-                        userAttributes={userAttributes}
-                        defaultFilters={filter.status}
+            <List
+                actions={
+                    <ListActions
+                        preferenceKey={getPreferenceKey(location.pathname, "approvals")}
+                        withImport={canImport}
+                        withExport={canExport}
+                        doImport={handleImport}
+                        doExport={handleExport}
                     />
-                </List>
-            </ListContextProvider>
+                }
+                // empty={false}
+                resource="applications"
+                filters={CustomFilters(
+                    t,
+                    setDefaultFilters,
+                    userAttributes?.get_user_profile_attributes || []
+                )}
+                filter={listFilter}
+                sort={{field: "created_at", order: "DESC"}}
+                perPage={10}
+                filterDefaultValues={{status: defaultFilters}}
+                disableSyncWithLocation
+            >
+                <ApprovalsList
+                    omit={OMIT_FIELDS}
+                    actions={actions}
+                    t={t}
+                    userAttributes={userAttributes}
+                    defaultFilters={defaultFilters}
+                />
+            </List>
 
             <Dialog
                 variant="info"

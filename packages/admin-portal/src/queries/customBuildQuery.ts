@@ -12,6 +12,7 @@ import {isString} from "lodash"
 import {COLUMNS_MAP} from "@/types/query"
 import {GetCastVotesByIp} from "./GetCastVotesByIp"
 import {gql} from "@apollo/client"
+import {GetApplications, buildApplicationsVariables} from "./ApplicationsSearch"
 
 export interface ParamsSort {
     field: string
@@ -320,213 +321,20 @@ export const customBuildQuery =
                     return output
                 },
             }
-        } else if (resourceName === "sequent_backend_applications" && raFetchType === "GET_LIST") {
-            const {
-                filter = {},
-                pagination = {page: 1, perPage: 20},
-                sort = {field: "created_at", order: "DESC"},
-            } = params
-
-            console.log("aa IN CUSOM FILTERS")
-
-            // Extract JSONB filters
-            const jsonbFilters: {[key: string]: string} = {}
-            const regularFilters: {[key: string]: string} = {}
-
-            // Check which filters are for JSONB fields and which are for regular columns
-            Object.entries(filter).forEach(([key, value]) => {
-                if (key.startsWith("applicant_data")) {
-                    // Extract the field name after 'applicant_data.'
-                    // const fieldName = key.split(".")[1]
-                    Object.keys(filter[key]).forEach((fieldKey) => {
-                        const newField = fieldKey
-                        const newValue = filter[key][newField]
-                        jsonbFilters[newField] = newValue["_ilike"]
-                    })
-                } else if (["verification_type", "applicant_id", "id", "status"].includes(key)) {
-                    if (value && typeof value === "string" && value.trim() !== "") {
-                        regularFilters[key as string] = value
+        } else if (resourceName === "applications" && raFetchType === "GET_LIST") {
+            return {
+                query: GetApplications(params),
+                variables: buildApplicationsVariables(params),
+                parseResponse: (res: any) => {
+                    // The response structure from SEARCH_APPLICATIONS query
+                    // sequent_backend_search_applications_func is an array of application objects
+                    // total is an object with aggregate.count
+                    return {
+                        data: res.data.sequent_backend_search_applications_func,
+                        total: res.data.total.aggregate.count,
                     }
-                }
-            })
-
-            console.log("aa jsonbFilters", jsonbFilters)
-            console.log("aa regularFilters", regularFilters)
-
-            const hasJsonbFilters = Object.keys(jsonbFilters).length > 0
-
-            // If no JSONB filters are present, use the standard approach
-            // if (!hasJsonbFilters) {
-            //     return buildQuery(introspectionResults)(raFetchType, resourceName, params)
-            // }
-
-            // Build SQL query dynamically
-            let sql = ""
-            //     let sql = `
-            // SELECT
-            //     id,
-            //     applicant_id,
-            //     verification_type,
-            //     status,
-            //     created_at,
-            //     updated_at,
-            //     applicant_data,
-            //     annotations,
-            //     area_id,
-            //     election_event_id,
-            //     tenant_id,
-            //     labels,
-            //     permission_label
-            // FROM
-            //     sequent_backend.applications
-            // WHERE 1=1
-            //         `
-
-            //         // Array to hold parameter values
-            //         const paramValues: string[] = []
-            //         let paramCounter = 1
-
-            //         // Add regular column filters
-            //         Object.entries(regularFilters).forEach(([key, value]) => {
-            //             if (key === "id" || key === "applicant_id") {
-            //                 sql += ` AND ${key} = $${paramCounter}`
-            //                 paramValues.push(value)
-            //                 paramCounter++
-            //             } else {
-            //                 sql += ` AND ${key} ILIKE $${paramCounter}`
-            //                 paramValues.push(`%${value}%`)
-            //                 paramCounter++
-            //             }
-            //         })
-
-            //         // Add JSONB filters
-            //         Object.entries(jsonbFilters).forEach(([key, value]) => {
-            //             // For date fields, use exact match
-            //             if (key === "dateOfBirth") {
-            //                 sql += ` AND applicant_data->>'${key}' = $${paramCounter}`
-            //                 paramValues.push(value)
-            //             } else {
-            //                 // For text fields, use ILIKE
-            //                 sql += ` AND applicant_data->>'${key}' ILIKE $${paramCounter}`
-            //                 paramValues.push(`%${value}%`)
-            //             }
-            //             paramCounter++
-            //         })
-
-            //         // Add count query for pagination
-            //         const countSql = `
-            //             SELECT COUNT(*)
-            //             FROM (${sql}) AS filtered_results
-            //         `
-
-            //         // Add order and pagination to the main query
-            //         const orderByField =
-            //             sort.field === "id" || sort.field === "created_at" || sort.field === "updated_at"
-            //                 ? sort.field
-            //                 : "created_at"
-
-            //         sql += ` ORDER BY ${orderByField} ${sort.order}`
-            //         sql += ` LIMIT ${pagination.perPage} OFFSET ${
-            //             (pagination.page - 1) * pagination.perPage
-            //         }`
-
-            //         const mainQuery = gql`
-            //             mutation ExecuteRawQuery($sql: String!, $args: [String!]) {
-            //                 run_sql(sql: $sql) {
-            //                     rows
-            //                 }
-            //             }
-            //         `
-
-            // const countQuery = gql`
-            //     mutation ExecuteCountQuery($countSql: String!, $args: [String!]) {
-            //         run_sql(sql: $countSql) {
-            //             rows
-            //         }
-            //     }
-            // `
-
-            // sql = removeNewlines(injectSqlVariables(sql, ...paramValues))
-
-            // return {
-            //     sql: true,
-            //     query: mainQuery,
-            //     countQuery: countQuery,
-            //     variables: {sql},
-            //     parseResponse: (res: any) => {
-            //         // Defensive checks to prevent undefined errors
-            //         if (!res) {
-            //             return {data: [], total: 0}
-            //         }
-
-            //         // For v2 API, the response should be under run_sql
-            //         const runSqlResult = res
-
-            //         if (!runSqlResult) {
-            //             return {data: [], total: 0}
-            //         }
-
-            //         let rows: any[] = [...res]
-
-            //         if (!Array.isArray(rows)) {
-            //             return {data: [], total: 0}
-            //         }
-
-            //         const numRows = res.length - 1
-
-            //         let data: any[] = []
-
-            //         rows = rows.slice(1)
-
-            //         if (numRows > 0) {
-            //             // Now safe to map over rows
-            //             data = rows.map((row: any[], index: number) => {
-            //                 // Add additional safety checks for each row
-            //                 if (!Array.isArray(row) || row.length < 13) {
-            //                     // Return a default object with required fields
-            //                     return {
-            //                         id: `unknown-${index}`,
-            //                         __typename: "sequent_backend_applications",
-            //                     }
-            //                 }
-
-            //                 // Safely parse JSON fields
-            //                 const safeParseJson = (value: any) => {
-            //                     if (typeof value === "string") {
-            //                         try {
-            //                             return JSON.parse(value)
-            //                         } catch (e) {
-            //                             return {}
-            //                         }
-            //                     }
-            //                     return value || {}
-            //                 }
-
-            //                 return {
-            //                     id: row[0] || `unknown-${index}`,
-            //                     applicant_id: row[1] || null,
-            //                     verification_type: row[2] || null,
-            //                     status: row[3] || null,
-            //                     created_at: row[4] || null,
-            //                     updated_at: row[5] || null,
-            //                     applicant_data: safeParseJson(row[6]),
-            //                     annotations: safeParseJson(row[7]),
-            //                     area_id: row[8] || null,
-            //                     election_event_id: row[9] || null,
-            //                     tenant_id: row[10] || null,
-            //                     labels: safeParseJson(row[11]),
-            //                     permission_label: row[12] || null,
-            //                     __typename: "sequent_backend_applications",
-            //                 }
-            //             })
-            //         }
-
-            //         return {
-            //             data,
-            //             total: data.length, // Will be set in App.tsx
-            //         }
-            //     },
-            // }
+                },
+            }
         }
         return buildQuery(introspectionResults)(raFetchType, resourceName, params)
     }

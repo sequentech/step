@@ -35,6 +35,61 @@ export const GET_APPLICATION_BY_ID = gql`
     }
 `
 
+export const GetApplications = (params: any) => {
+    console.log("aa IN GetApplications", params)
+    return SEARCH_APPLICATIONS
+}
+
+// Function to build variables for the SEARCH_APPLICATIONS query
+export const buildApplicationsVariables = (params: any) => {
+    const {
+        filter = {},
+        pagination = {page: 1, perPage: 20},
+        sort = {field: "created_at", order: "DESC"},
+    } = params
+
+    // Extract JSONB filters
+    const jsonbFilters: {[key: string]: string} = {}
+    const regularFilters: {[key: string]: string} = {}
+
+    // Check which filters are for JSONB fields and which are for regular columns
+    Object.entries(filter).forEach(([key, value]) => {
+        if (key.startsWith("applicant_data")) {
+            // Extract the field name after 'applicant_data.'
+            // const fieldName = key.split(".")[1]
+            Object.keys(filter[key]).forEach((fieldKey) => {
+                const newField = fieldKey
+                const newValue = filter[key][newField]
+                jsonbFilters[newField] = newValue["_ilike"]
+            })
+        } else if (["verification_type", "applicant_id", "id", "status"].includes(key)) {
+            if (value && typeof value === "string" && value.trim() !== "") {
+                regularFilters[key as string] = value
+            }
+        }
+    })
+
+    const offset: number | null =
+        pagination?.page && pagination?.perPage ? (pagination.page - 1) * pagination.perPage : null
+    const limit: number | null = pagination?.perPage ? pagination?.perPage : null
+    const sortBy: string | null = sort.field || null
+    const sortOrder: string | null = sort.order || "ASC"
+
+    console.log("aa GetApplications jsonbFilters", jsonbFilters)
+    console.log("aa GetApplications regularFilters", regularFilters)
+
+    return {
+        regularFilters,
+        jsonbFilters,
+        sortField: sortBy || "created_at",
+        sortOrder: sortOrder || "ASC",
+        offsetValue: offset || 0,
+        perPage: limit || 20,
+        electionEventId: filter.election_event_id,
+        permissionLabel: filter.permission_label || null,
+    }
+}
+
 export const SEARCH_APPLICATIONS = gql`
     query SearchApplications(
         $regularFilters: jsonb!
