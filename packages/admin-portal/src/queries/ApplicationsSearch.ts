@@ -4,27 +4,18 @@
 
 import {gql} from "@apollo/client"
 
-export const SEARCH_APPLICATIONS = gql`
-    query SearchApplications(
-        $jsonb_filters: jsonb!
-        $regular_filters: jsonb!
-        $election_event_id: uuid!
-        $per_page: Int!
-        $sort_field: String!
-        $sort_order: String!
-        $offset: Int!
-        $permission_label: String
-    ) {
-        search_applications(
+export const GET_APPLICATION_BY_ID = gql`
+    query GetApplicationById($id: String!, $electionEventId: uuid!, $permissionLabel: String) {
+        application: sequent_backend_search_applications_func(
             args: {
-                jsonb_filters: $jsonb_filters
-                regular_filters: $regular_filters
-                election_event_id: $election_event_id
-                per_page: $per_page
-                sort_field: $sort_field
-                sort_order: $sort_order
-                offset: $offset
-                permission_label: $permission_label
+                p_election_event_id: $electionEventId
+                permission_label: $permissionLabel
+                regular_filters: {id: $id}
+                jsonb_filters: {}
+                sort_field: "id"
+                sort_order: "ASC"
+                per_page: 1
+                offset_value: 0
             }
         ) {
             id
@@ -44,22 +35,76 @@ export const SEARCH_APPLICATIONS = gql`
     }
 `
 
-export const COUNT_APPLICATIONS = gql`
-    query CountApplications(
-        $jsonb_filters: jsonb!
-        $regular_filters: jsonb!
-        $election_event_id: uuid!
-        $permission_label: String
+export const SEARCH_APPLICATIONS = gql`
+    query SearchApplications(
+        $regularFilters: jsonb!
+        $jsonbFilters: jsonb!
+        $sortField: String!
+        $sortOrder: String!
+        $offsetValue: Int!
+        $perPage: Int!
+        $electionEventId: uuid!
+        $permissionLabel: String
     ) {
-        count_applications(
+        sequent_backend_search_applications_func(
             args: {
-                jsonb_filters: $jsonb_filters
-                regular_filters: $regular_filters
-                election_event_id: $election_event_id
-                permission_label: $permission_label
+                p_election_event_id: $electionEventId
+                per_page: $perPage
+                permission_label: $permissionLabel
+                regular_filters: $regularFilters
+                sort_order: $sortOrder
+                sort_field: $sortField
+                jsonb_filters: $jsonbFilters
+                offset_value: $offsetValue
             }
         ) {
-            count
+            id
+            applicant_id
+            verification_type
+            status
+            created_at
+            updated_at
+            applicant_data
+            annotations
+            area_id
+            election_event_id
+            tenant_id
+            labels
+            permission_label
+        }
+        total: sequent_backend_search_applications_func_aggregate(
+            args: {
+                p_election_event_id: $electionEventId
+                regular_filters: $regularFilters
+                jsonb_filters: $jsonbFilters
+                permission_label: $permissionLabel
+            }
+        ) {
+            aggregate {
+                count
+            }
+        }
+    }
+`
+
+export const COUNT_APPLICATIONS = gql`
+    query CountApplications(
+        $regularFilters: jsonb!
+        $jsonbFilters: jsonb!
+        $electionEventId: uuid!
+        $permissionLabel: String
+    ) {
+        count: sequent_backend_search_applications_func_aggregate(
+            args: {
+                p_election_event_id: $electionEventId
+                permission_label: $permissionLabel
+                regular_filters: $regularFilters
+                jsonb_filters: $jsonbFilters
+            }
+        ) {
+            aggregate {
+                count
+            }
         }
     }
 `
