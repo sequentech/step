@@ -11,7 +11,7 @@ on:
 
 jobs:
   reuse:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x86]
 
     steps:
     - name: Checkout code
