@@ -239,11 +239,11 @@ pub async fn count_cast_votes_election(
             LEFT JOIN (
                 SELECT DISTINCT election_id, voter_id_string
                 FROM sequent_backend.cast_vote
+                WHERE status = $3
             ) cv ON el.id = cv.election_id
             WHERE
                 el.tenant_id = $1 AND
                 el.election_event_id = $2
-                cv.status = $3
                 {test_elections_clause}
             GROUP BY
                 el.id
