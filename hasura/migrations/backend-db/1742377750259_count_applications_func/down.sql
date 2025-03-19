@@ -1,0 +1,31 @@
+-- Could not auto-generate a down migration.
+-- Please write an appropriate down migration for the SQL below:
+-- CREATE OR REPLACE FUNCTION sequent_backend.count_applications_func(
+--   election_event_id_param UUID,
+--   permission_label_param TEXT DEFAULT NULL,
+--   regular_filters JSON DEFAULT '{}'::json,
+--   jsonb_filters JSON DEFAULT '{}'::json
+-- )
+-- RETURNS TABLE(total BIGINT)
+-- LANGUAGE sql
+-- STABLE
+-- AS $$
+--   SELECT COUNT(*)::BIGINT AS total
+--   FROM sequent_backend.applications AS app
+--   WHERE
+--     app.election_event_id = election_event_id_param
+--     AND (permission_label_param IS NULL OR permission_label_param = app.permission_label)
+--     AND (regular_filters->>'id' IS NULL OR app.id::TEXT = regular_filters->>'id')
+--     AND (regular_filters->>'applicant_id' IS NULL OR app.applicant_id::TEXT = regular_filters->>'applicant_id')
+--     AND (regular_filters->>'verification_type' IS NULL OR app.verification_type ILIKE ('%' || (regular_filters->>'verification_type') || '%'))
+--     AND (regular_filters->>'status' IS NULL OR app.status ILIKE ('%' || (regular_filters->>'status') || '%'))
+--     AND (
+--       -- Convert both sides to JSONB for comparison
+--       jsonb_filters::jsonb = '{}'::jsonb OR
+--       (
+--         -- Cast the JSON parameter to JSONB for jsonb operations
+--         app.applicant_data @> (jsonb_filters::jsonb - 'dateOfBirth') AND
+--         (jsonb_filters->>'dateOfBirth' IS NULL OR app.applicant_data->>'dateOfBirth' = jsonb_filters->>'dateOfBirth')
+--       )
+--     );
+-- $$;

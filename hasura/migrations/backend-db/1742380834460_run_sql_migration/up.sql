@@ -1,0 +1,10 @@
+-- First, drop the existing function
+DROP FUNCTION IF EXISTS sequent_backend.count_applications_func;
+
+-- If the type already exists, drop it first
+DROP TYPE IF EXISTS sequent_backend.application_count_result;
+
+-- Create a custom type that has a clear field name
+CREATE TYPE sequent_backend.application_count_result AS (
+  total bigint
+);

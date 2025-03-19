@@ -1,0 +1,6 @@
+-- Could not auto-generate a down migration.
+-- Please write an appropriate down migration for the SQL below:
+-- -- Create composite type (if not exists)
+-- CREATE TYPE sequent_backend.application_count_type AS (
+--   total INTEGER
+-- );

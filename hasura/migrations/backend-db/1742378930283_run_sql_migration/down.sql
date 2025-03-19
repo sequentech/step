@@ -1,0 +1,6 @@
+-- Could not auto-generate a down migration.
+-- Please write an appropriate down migration for the SQL below:
+-- -- Remove conflicting objects
+-- DROP FUNCTION IF EXISTS sequent_backend.count_applications_func CASCADE;
+-- DROP FUNCTION IF EXISTS sequent_backend.count_applications CASCADE;
+-- DROP TYPE IF EXISTS sequent_backend.application_count CASCADE;
