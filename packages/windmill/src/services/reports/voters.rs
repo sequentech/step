@@ -311,6 +311,11 @@ pub async fn get_voters_with_vote_info(
     let election_event_uuid = Uuid::parse_str(election_event_id)
         .with_context(|| "Error parsing election_event_id as UUID")?;
 
+    let election_uuid_opt = election_id
+        .clone()
+        .map(|val| Uuid::parse_str(&val))
+        .transpose()?;
+
     // Prepare the list of user IDs for the query
     let user_ids: Vec<String> = users
         .iter()
@@ -334,7 +339,7 @@ pub async fn get_voters_with_vote_info(
                 v.tenant_id = $1 AND
                 v.election_event_id = $2 AND
                 v.voter_id_string = ANY($3) AND
-                ($4 IS NULL OR v.election_id = $4)
+                ($4::uuid IS NULL OR v.election_id = $4::uuid)
             GROUP BY
                 v.voter_id_string, v.election_id;
             "#,
@@ -345,7 +350,7 @@ pub async fn get_voters_with_vote_info(
     let rows = hasura_transaction
         .query(
             &vote_info_statement,
-            &[&tenant_uuid, &election_event_uuid, &user_ids, &election_id],
+            &[&tenant_uuid, &election_event_uuid, &user_ids, &election_uuid_opt],
         )
         .await
         .with_context(|| "Error executing the vote info query")?;
