@@ -262,6 +262,19 @@ pub async fn upload_multipart_data_to_s3(
     download_filename: Option<String>,
     file_size: u64,
 ) -> Result<()> {
+    let mut chunk_count = (file_size / MAX_CHUNK_SIZE) + 1;
+    let mut size_of_last_chunk = file_size % MAX_CHUNK_SIZE;
+    if size_of_last_chunk == 0 {
+        size_of_last_chunk = MAX_CHUNK_SIZE;
+        chunk_count -= 1;
+    }
+
+    if chunk_count > MAX_CHUNKS {
+        return Err(anyhow!(
+            "Too many chunks! Try increasing your chunk size."
+        ));
+    }
+
     let config = get_s3_aws_config(!is_public)
         .await
         .with_context(|| "Error getting s3 aws config")?;
@@ -276,7 +289,6 @@ pub async fn upload_multipart_data_to_s3(
         .content_type(media_type);
 
     if let Some(filename) = download_filename {
-        // e.g. "attachment; filename=\"myfile.ezip\""
         let disposition = format!("attachment; filename=\"{filename}\"");
         multipart_builder = multipart_builder.content_disposition(disposition);
     }
@@ -287,6 +299,7 @@ pub async fn upload_multipart_data_to_s3(
         multipart_builder
     };
 
+    // First we need to get the id to send it with each part.
     let multipart_upload_res: CreateMultipartUploadOutput = multipart_builder
         .send()
         .await
@@ -296,23 +309,9 @@ pub async fn upload_multipart_data_to_s3(
         .upload_id()
         .ok_or(anyhow!("Missing upload_id after CreateMultipartUpload",))?;
 
-    let mut chunk_count = (file_size / MAX_CHUNK_SIZE) + 1;
-    let mut size_of_last_chunk = file_size % MAX_CHUNK_SIZE;
-    if size_of_last_chunk == 0 {
-        size_of_last_chunk = MAX_CHUNK_SIZE;
-        chunk_count -= 1;
-    }
-
-    if chunk_count > MAX_CHUNKS {
-        return Err(anyhow!(
-            "Too many chunks! Try increasing your chunk size."
-        ));
-    }
-
     let mut upload_parts: Vec<aws_sdk_s3::types::CompletedPart> = Vec::new();
-
     for chunk_index in 0..chunk_count {
-        let this_chunk = if chunk_count - 1 == chunk_index {
+        let this_chunk = if chunk_index == chunk_count - 1 {
             size_of_last_chunk
         } else {
             MAX_CHUNK_SIZE
