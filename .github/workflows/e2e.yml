@@ -27,7 +27,7 @@ on:
 
 jobs:
   e2e:
-    runs-on: [self-hosted, linux, x86]
+    runs-on: [self-hosted, linux, x64]
     strategy:
       matrix:
         include:

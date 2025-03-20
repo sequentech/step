@@ -12,7 +12,7 @@ on:
 jobs:
   lint-prettify:
     name: Check frontend linting
-    runs-on: [self-hosted, linux, x86]
+    runs-on: [self-hosted, linux, x64]
     steps:
       - name: Check out code
         uses: actions/checkout@v4
@@ -54,7 +54,7 @@ jobs:
 
   lint-prettify-hasura:
     name: Check Hasura prettify
-    runs-on: [self-hosted, linux, x86]
+    runs-on: [self-hosted, linux, x64]
     steps:
       - name: Check out code
         uses: actions/checkout@v4
@@ -78,7 +78,7 @@ jobs:
 
   rust-fmt:
     name: Check Rust format 
-    runs-on: [self-hosted, linux, x86]
+    runs-on: [self-hosted, linux, x64]
     steps:
       - name: Check out code
         uses: actions/checkout@v4
@@ -96,7 +96,7 @@ jobs:
   
   java-spotless:
     name: Check Java format
-    runs-on: [self-hosted, linux, x86]
+    runs-on: [self-hosted, linux, x64]
     steps:
       - name: Check out code
         uses: actions/checkout@v4
