@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::utils::{DATAFIX_ID_KEY, DATAFIX_PSW_POLICY_KEY, DATAFIX_VOTERVIEW_REQ_KEY};
+use crate::postgres::election_event::ElectionEventDatafix;
+use crate::services::consolidation::eml_generator::ValidateAnnotations;
 use anyhow::{anyhow, Result};
 use rand::{distributions, Rng};
 use rocket::http::Status;
@@ -12,8 +14,11 @@ use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumString};
 use tracing::{instrument, warn};
 
-use crate::postgres::election_event::ElectionEventDatafix;
-use crate::services::consolidation::eml_generator::ValidateAnnotations;
+#[derive(Deserialize, Debug)]
+pub struct VoterIdBody {
+    pub voter_id: String,
+}
+
 #[derive(Deserialize, Debug)]
 pub struct VoterInformationBody {
     pub voter_id: String,
@@ -27,6 +32,13 @@ pub struct VoterInformationBody {
 pub struct MarkVotedBody {
     pub voter_id: String,
     pub channel: String,
+}
+
+#[derive(Deserialize, Debug)]
+pub enum VoterOperationInput {
+    VoterInfo(VoterInformationBody),
+    VoterId(VoterIdBody),
+    MarkVoted(MarkVotedBody),
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -62,7 +74,7 @@ pub struct DatafixAnnotations {
     pub voterview_request: VoterviewRequest,
 }
 
-#[derive(Default, Display, Serialize, Deserialize, Debug, Clone, EnumString)]
+#[derive(Default, Display, Serialize, Deserialize, Debug, Clone, Copy, EnumString)]
 pub enum BasePolicy {
     #[strum(serialize = "id-password-concatenated")]
     #[serde(rename = "id-password-concatenated")]
@@ -73,7 +85,7 @@ pub enum BasePolicy {
     PswOnly,
 }
 
-#[derive(Default, Display, Serialize, Deserialize, Debug, Clone, EnumString)]
+#[derive(Default, Display, Serialize, Deserialize, Debug, Clone, Copy, EnumString)]
 pub enum CharactersPolicy {
     #[strum(serialize = "numeric")]
     #[serde(rename = "numeric")]
@@ -84,7 +96,7 @@ pub enum CharactersPolicy {
     Alphanumeric,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Copy, Clone)]
 pub struct PasswordPolicy {
     base: BasePolicy,
     size: usize,
@@ -154,4 +166,35 @@ impl ValidateAnnotations for ElectionEventDatafix {
 pub enum SoapRequest {
     SetVoted,
     SetNotVoted,
+}
+
+#[derive(Display, Debug, Clone)]
+pub enum SoapRequestResponse {
+    Ok,
+    /// Some fields are missing or wrong in the request
+    Faultstring(String),
+    /// The requested voter has voted already
+    #[strum(to_string = "The voter has already voted.")]
+    HasVotedErrorMsg,
+    /// Other kind of errors like voter not found, CountyMun is required, etc.
+    OtherErrorMsg(String),
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
+pub struct SoapRequestData {
+    pub county_mun: String,
+    pub usr: String,
+    pub psw: String,
+    pub voter_id: String,
+    pub timestamp: String,
+}
+
+#[derive(Debug, Display, Clone, Copy)]
+pub enum EndpointNames {
+    AddVoter,
+    UpdateVoter,
+    DeleteVoter,
+    UnmarkVoted,
+    MarkVoted,
+    ReplacePin,
 }

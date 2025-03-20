@@ -15,6 +15,7 @@ use strum_macros::AsRefStr;
 use tokio::sync::{Mutex, RwLock};
 use tracing::{event, instrument, Level};
 
+use crate::postgres::cast_vote;
 use crate::tasks::activity_logs_report::generate_activity_logs_report;
 use crate::tasks::create_ballot_receipt::create_ballot_receipt;
 use crate::tasks::create_keys::create_keys;
@@ -50,8 +51,10 @@ use crate::tasks::manual_verification_report::generate_manual_verification_repor
 use crate::tasks::miru_plugin_tasks::create_transmission_package_task;
 use crate::tasks::miru_plugin_tasks::send_transmission_package_task;
 use crate::tasks::process_board::process_board;
+use crate::tasks::process_cast_vote::process_cast_vote;
 use crate::tasks::render_report::render_report;
 use crate::tasks::review_boards::review_boards;
+use crate::tasks::review_cast_votes::review_cast_votes;
 use crate::tasks::scheduled_events::scheduled_events;
 use crate::tasks::scheduled_reports::scheduled_reports;
 use crate::tasks::send_template::send_template;
@@ -72,7 +75,8 @@ pub enum Queue {
     Reports,
     #[strum(serialize = "import_export_queue")]
     ImportExport,
-
+    #[strum(serialize = "process_cast_vote_queue")]
+    ProcessCastVote,
     #[strum(serialize = "electoral_log_beat_queue")]
     ElectoralLogBeat,
     #[strum(serialize = "electoral_log_batch_queue")]
@@ -207,6 +211,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             delete_election_event_t,
             export_tasks_execution,
             scheduled_reports,
+            review_cast_votes,
             export_templates,
             export_ballot_publication,
             export_application,
@@ -217,6 +222,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             enqueue_electoral_log_event,
             process_electoral_log_events_batch,
             electoral_log_batch_dispatcher,
+            process_cast_vote,
         ],
         task_routes = [
             create_keys::NAME => Queue::Short.as_ref(),
@@ -245,6 +251,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             import_tenant_config::NAME => Queue::ImportExport.as_ref(),
             scheduled_events::NAME => Queue::Beat.as_ref(),
             scheduled_reports::NAME => Queue::Beat.as_ref(),
+            review_cast_votes::NAME => Queue::Beat.as_ref(),
             manage_election_date::NAME => Queue::Beat.as_ref(),
             manage_election_event_date::NAME => Queue::Beat.as_ref(),
             manage_election_event_enrollment::NAME => Queue::Beat.as_ref(),
@@ -261,6 +268,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             enqueue_electoral_log_event::NAME => Queue::ElectoralLogEvent.as_ref(),
             process_electoral_log_events_batch::NAME => Queue::ElectoralLogBatch.as_ref(),
             electoral_log_batch_dispatcher::NAME => Queue::ElectoralLogBeat.as_ref(),
+            process_cast_vote::NAME => Queue::ProcessCastVote.as_ref(),
         ],
         prefetch_count = prefetch_count,
         acks_late = acks_late,

@@ -7,18 +7,14 @@ use crate::postgres;
 use crate::postgres::area::get_area_by_id;
 use crate::postgres::election::get_election_by_id;
 use crate::postgres::election::get_election_max_revotes;
-use crate::postgres::election_event::{get_election_event_by_id, ElectionEventDatafix};
+use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::cast_votes::get_voter_signing_key;
 use crate::services::cast_votes::CastVote;
-use crate::services::datafix;
-use crate::services::datafix::types::SoapRequest;
-use crate::services::datafix::utils::is_datafix_election_event;
-use crate::services::datafix::utils::voted_via_internet;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::protocol_manager::get_protocol_manager;
-use crate::services::users::{get_username_by_id, list_users, ListUsersFilter};
+use crate::services::users::get_username_by_id;
 use crate::{
     hasura::election_event::get_election_event::GetElectionEventSequentBackendElectionEvent,
     services::database::{get_hasura_pool, get_keycloak_pool},
@@ -32,7 +28,6 @@ use electoral_log::messages::newtypes::*;
 use futures::try_join;
 use sequent_core::ballot::ContestEncryptionPolicy;
 use sequent_core::ballot::EGracePeriodPolicy;
-
 use sequent_core::ballot::ElectionPresentation;
 use sequent_core::ballot::ElectionStatus;
 use sequent_core::ballot::VoterSigningPolicy;
@@ -49,12 +44,9 @@ use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::connection::AuthHeaders;
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak::get_event_realm;
-use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::types::hasura::core::{ElectionEvent, VotingChannels};
-use sequent_core::types::keycloak::{VOTED_CHANNEL, VOTED_CHANNEL_INTERNET_VALUE};
 use sequent_core::types::scheduled_event::*;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::hash::{hash_to_array, Hash, HashWrapper};
 use strand::serialization::StrandSerialize;
@@ -64,6 +56,7 @@ use strand::zkp::Zkp;
 use tracing::info;
 use tracing::{error, event, instrument, Level};
 use uuid::Uuid;
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct InsertCastVoteInput {
     pub ballot_id: String,
@@ -249,7 +242,7 @@ pub async fn try_insert_cast_vote(
     };
 
     let (electoral_log, signing_key) =
-        get_electoral_log(&hasura_transaction, &tenant_id, &election_event)
+        get_electoral_log(&hasura_transaction, tenant_id, &election_event)
             .await
             .map_err(|e| CastVoteError::ElectoralLogNotFound(e.to_string()))?;
 
@@ -317,84 +310,10 @@ pub async fn try_insert_cast_vote(
 
     match result {
         Ok(inserted_cast_vote) => {
-            let mut after_result_hasura_client: DbClient = get_hasura_pool()
-                .await
-                .get()
-                .await
-                .map_err(|e| CastVoteError::GetDbClientFailed(e.to_string()))?;
-            let after_result_hasura_transaction = after_result_hasura_client
+            let after_result_hasura_transaction = hasura_db_client
                 .transaction()
                 .await
                 .map_err(|e| CastVoteError::GetTransactionFailed(e.to_string()))?;
-
-            if is_datafix_election_event(&election_event) {
-                // If insert_cast_vote_and_commit fails then we will not send SetVoted to VoterView.
-                // However if the one failing is voterview_requests::send returning an error here would be problematic
-                // because the vote is already casted.
-                // But it will be a good idea to log the error in the electoral_log.
-                let filter = ListUsersFilter {
-                    tenant_id: tenant_id.to_string(),
-                    election_event_id: Some(election_event_id.to_string()),
-                    realm: realm.clone(),
-                    user_ids: Some(vec![voter_id.to_string()]),
-                    area_id: Some(area_id.to_string()),
-                    ..ListUsersFilter::default()
-                };
-                let hasura_transaction = hasura_db_client
-                    .transaction()
-                    .await
-                    .map_err(|e| CastVoteError::GetTransactionFailed(e.to_string()))?;
-                let user =
-                    match list_users(&hasura_transaction, &keycloak_transaction, filter).await {
-                        Ok((users, 1)) => users
-                            .last()
-                            .map(|val_ref| val_ref.to_owned())
-                            .unwrap_or_default(),
-                        Ok(_) => {
-                            return Err(CastVoteError::UnknownError(format!(
-                                "Multiple users found with id {voter_id}"
-                            )));
-                        }
-                        Err(_) => {
-                            return Err(CastVoteError::UnknownError(format!(
-                                "Voter not found with id {voter_id}"
-                            )));
-                        }
-                    };
-                let attributes = user.attributes.clone().unwrap_or_default();
-                if !voted_via_internet(&attributes) {
-                    let result = datafix::voterview_requests::send(
-                        SoapRequest::SetVoted,
-                        ElectionEventDatafix(election_event),
-                        &username,
-                    )
-                    .await;
-
-                    // TODO: Post the result in the electoral_log
-
-                    let client = KeycloakAdminClient::new().await.map_err(|e| {
-                        CastVoteError::UnknownError(format!(
-                            "Error obtaining keycloak admin client: {e:?}"
-                        ))
-                    })?;
-
-                    // Set the attribute to avoid sending it again on the next vote.
-                    let mut hash_map = HashMap::new();
-                    hash_map.insert(
-                        VOTED_CHANNEL.to_string(),
-                        vec![VOTED_CHANNEL_INTERNET_VALUE.to_string()],
-                    );
-                    let attributes = Some(hash_map);
-                    let _user = client
-                        .edit_user(
-                            &realm, voter_id, None, attributes, None, None, None, None, None, None,
-                        )
-                        .await
-                        .map_err(|e| {
-                            error!("Error editing user Internet channel: {e:?}");
-                        });
-                }
-            }
             let electoral_log_res = ElectoralLog::for_voter(
                 &after_result_hasura_transaction,
                 &electoral_log.elog_database,
@@ -408,7 +327,7 @@ pub async fn try_insert_cast_vote(
             let electoral_log = match electoral_log_res {
                 Ok(electoral_log) => electoral_log,
                 Err(err) => {
-                    error!("Error posting to the electoral log {:?}", err);
+                    error!("Error getting the electoral log for voter. Error: {err:?}");
                     return Ok(inserted_cast_vote);
                 }
             };
@@ -431,7 +350,7 @@ pub async fn try_insert_cast_vote(
                 error!("Error posting to the electoral log {:?}", log_err);
             }
             Ok(inserted_cast_vote)
-        } // End of is_datafix_election_event
+        }
         Err(err) => {
             error!(err=?err);
             let log_result = electoral_log
@@ -607,8 +526,8 @@ pub async fn insert_cast_vote_and_commit<'a>(
         ids.voter_id,
         &input.ballot_id,
         &ballot_signature,
-        &voter_ip,
-        &voter_country,
+        voter_ip,
+        voter_country,
     );
 
     let cast_vote = insert

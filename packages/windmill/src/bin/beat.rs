@@ -17,6 +17,7 @@ use windmill::services::celery_app::{set_is_app_active, Queue};
 use windmill::services::probe::{setup_probe, AppName};
 use windmill::tasks::electoral_log::electoral_log_batch_dispatcher;
 use windmill::tasks::review_boards::review_boards;
+use windmill::tasks::review_cast_votes::review_cast_votes;
 use windmill::tasks::scheduled_events::scheduled_events;
 use windmill::tasks::scheduled_reports::scheduled_reports;
 
@@ -33,6 +34,8 @@ struct CeleryOpt {
     schedule_events_interval: u64,
     #[structopt(short = "c", long, default_value = "10")]
     schedule_reports_interval: u64,
+    #[structopt(short = "v", long, default_value = "90")]
+    review_cast_votes_interval: u64,
     #[structopt(short = "e", long, default_value = "5")]
     electoral_log_interval: u64,
 }
@@ -61,6 +64,11 @@ async fn main() -> Result<()> {
                 schedule = DeltaSchedule::new(Duration::from_secs(CeleryOpt::from_args().schedule_reports_interval)),
                 args = (),
             },
+            review_cast_votes::NAME => {
+                review_cast_votes,
+                schedule = DeltaSchedule::new(Duration::from_secs(CeleryOpt::from_args().review_cast_votes_interval)),
+                args = (),
+            },
             electoral_log_batch_dispatcher::NAME => {
                 electoral_log_batch_dispatcher,
                 schedule = DeltaSchedule::new(Duration::from_secs(CeleryOpt::from_args().electoral_log_interval)),
@@ -71,6 +79,7 @@ async fn main() -> Result<()> {
             review_boards::NAME => Queue::Beat.as_ref(),
             scheduled_events::NAME => Queue::Beat.as_ref(),
             scheduled_reports::NAME => Queue::Beat.as_ref(),
+            review_cast_votes::NAME => Queue::Beat.as_ref(),
             electoral_log_batch_dispatcher::NAME => Queue::ElectoralLogBeat.as_ref(),
         ],
     ).await?;

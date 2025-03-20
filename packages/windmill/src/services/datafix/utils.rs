@@ -6,9 +6,13 @@ use crate::postgres::area::get_event_areas;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::election_event::{get_all_tenant_election_events, ElectionEventDatafix};
 use crate::services::consolidation::eml_generator::ValidateAnnotations;
+use crate::services::electoral_log::ElectoralLog;
+use crate::services::protocol_manager::get_event_board;
 use crate::services::users::get_users_by_username;
+use anyhow::anyhow;
 use anyhow::Result;
 use deadpool_postgres::Transaction;
+use electoral_log::messages::newtypes::{ExtApiName, ExtApiRequestDirection};
 use rocket::http::Status;
 use sequent_core::types::hasura::core::ElectionEvent;
 use sequent_core::types::keycloak::UserArea;
@@ -178,8 +182,9 @@ pub async fn is_datafix_election_event_by_id(
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<bool> {
-    let election_event =
-        get_election_event_by_id(hasura_transaction, tenant_id, election_event_id).await?;
+    let election_event = get_election_event_by_id(hasura_transaction, tenant_id, election_event_id)
+        .await
+        .map_err(|e| anyhow!("Error getting election event by id: {e:?}"))?;
 
     Ok(is_datafix_election_event(&election_event))
 }
@@ -189,4 +194,49 @@ pub async fn is_datafix_election_event_by_id(
 pub fn is_datafix_election_event(election_event: &ElectionEvent) -> bool {
     let datafix_event = ElectionEventDatafix(election_event.clone());
     datafix_event.get_annotations().ok().is_some()
+}
+
+#[instrument(skip(hasura_transaction))]
+pub async fn post_operation_result_to_electoral_log(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    user_id: &str,
+    username: &str,
+    direction: ExtApiRequestDirection,
+    operation: String,
+) {
+    let board_name = get_event_board(tenant_id, election_event_id);
+    let electoral_log_res = ElectoralLog::new(
+        hasura_transaction,
+        tenant_id,
+        Some(election_event_id),
+        board_name.as_str(),
+    )
+    .await;
+
+    let electoral_log = match electoral_log_res {
+        Ok(electoral_log) => electoral_log,
+        Err(err) => {
+            error!("Error getting the electoral log. Error: {err:?}");
+            return;
+        }
+    };
+
+    let log_result = electoral_log
+        .post_external_api_request(
+            tenant_id.to_string(),
+            election_event_id.to_string(),
+            None,
+            user_id.to_string(),
+            Some(username.to_string()),
+            direction,
+            ExtApiName::Datafix,
+            operation,
+        )
+        .await;
+
+    if let Err(log_err) = log_result {
+        error!("Error posting to the electoral log {log_err:?}");
+    }
 }

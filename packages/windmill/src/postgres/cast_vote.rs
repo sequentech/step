@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::services::cast_votes::CastVote;
+use crate::services::cast_votes::{CastVote, CastVoteStatus};
 use anyhow::{anyhow, Result};
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Transaction;
@@ -25,12 +25,13 @@ pub async fn insert_cast_vote(
     voter_ip: &Option<String>,
     voter_country: &Option<String>,
 ) -> Result<CastVote> {
+    let status = CastVoteStatus::InProgress.to_string();
     let statement = hasura_transaction
         .prepare(
             r#"
                 INSERT INTO
                     sequent_backend.cast_vote
-                (tenant_id, election_event_id, election_id, area_id, voter_id_string, ballot_id, content, cast_ballot_signature, annotations)
+                (tenant_id, election_event_id, election_id, area_id, voter_id_string, ballot_id, content, cast_ballot_signature, annotations, status)
                 VALUES(
                     $1,
                     $2,
@@ -40,7 +41,8 @@ pub async fn insert_cast_vote(
                     $6,
                     $7,
                     $8,
-                    COALESCE($9::jsonb, '{}')
+                    COALESCE($9::jsonb, '{}'),
+                    $10
                 )
                 RETURNING
                     id,
@@ -80,6 +82,7 @@ pub async fn insert_cast_vote(
                 &content,
                 &cast_ballot_signature,
                 &annotations,
+                &status,
             ],
         )
         .await
@@ -98,6 +101,31 @@ pub async fn insert_cast_vote(
 }
 
 #[instrument(skip(hasura_transaction), err)]
+pub async fn update_cast_vote_status(
+    hasura_transaction: &Transaction<'_>,
+    cast_vote_id: &Uuid,
+    status: CastVoteStatus,
+) -> Result<()> {
+    let new_status = status.to_string();
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                UPDATE sequent_backend.cast_vote
+                SET status = $1, last_updated_at = NOW()
+                WHERE id = $2
+            "#,
+        )
+        .await?;
+
+    hasura_transaction
+        .query(&statement, &[&new_status, &cast_vote_id])
+        .await
+        .map_err(|err| anyhow!("Error updating cast vote: {}", err))?;
+
+    Ok(())
+}
+
+#[instrument(skip(hasura_transaction), err)]
 pub async fn get_cast_votes(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &Uuid,
@@ -105,6 +133,7 @@ pub async fn get_cast_votes(
     election_id: &Uuid,
     voter_id_string: &str,
 ) -> Result<Vec<CastVote>> {
+    let status = CastVoteStatus::Valid.to_string();
     let statement = hasura_transaction
         .prepare(
             r#"
@@ -130,7 +159,8 @@ pub async fn get_cast_votes(
                     tenant_id = $1 AND
                     election_event_id = $2 AND
                     election_id = $3 AND
-                    voter_id_string = $4
+                    voter_id_string = $4 AND
+                    status = $5
                 ;
             "#,
         )
@@ -144,6 +174,7 @@ pub async fn get_cast_votes(
                 &election_event_id,
                 &election_id,
                 &voter_id_string,
+                &status,
             ],
         )
         .await
@@ -164,6 +195,7 @@ pub async fn get_cast_votes_by_election_id(
     election_event_id: &str,
     election_id: &str,
 ) -> Result<Vec<CastVote>> {
+    let status = CastVoteStatus::Valid.to_string();
     let statement = hasura_transaction
         .prepare(
             r#"
@@ -174,7 +206,8 @@ pub async fn get_cast_votes_by_election_id(
                 WHERE
                     tenant_id = $1 AND
                     election_event_id = $2 AND
-                    election_id = $3;
+                    election_id = $3 AND
+                    status = $4
             "#,
         )
         .await?;
@@ -186,6 +219,7 @@ pub async fn get_cast_votes_by_election_id(
                 &Uuid::parse_str(tenant_id)?,
                 &Uuid::parse_str(election_event_id)?,
                 &Uuid::parse_str(election_id)?,
+                &status,
             ],
         )
         .await

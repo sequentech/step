@@ -48,6 +48,28 @@ impl fmt::Display for Message {
 }
 
 impl Message {
+    pub fn external_api_request_message(
+        event_id: EventIdString,
+        election_id: ElectionIdString,
+        sd: &SigningData,
+        voter_id: Option<String>,
+        voter_username: Option<String>,
+        direction: ExtApiRequestDirection,
+        api_name: ExtApiName,
+        operation: String,
+    ) -> Result<Self> {
+        let body =
+            StatementBody::ExternalApiRequest(event_id.clone(), direction, api_name, operation);
+        Self::from_body(
+            event_id,
+            body,
+            sd,
+            voter_id.clone(),
+            voter_username.clone(), /* username */
+            election_id.0,
+            None,
+        )
+    }
     pub fn cast_vote_message(
         event: EventIdString,
         election: ElectionIdString,

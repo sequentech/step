@@ -7,6 +7,7 @@
 use crate::services::authorization::authorize_voter_election;
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use anyhow::Result;
+use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::connection::UserLocation;
@@ -16,10 +17,14 @@ use sequent_core::util::retry::retry_with_exponential_backoff;
 use std::time::Duration;
 use std::time::Instant;
 use tracing::{debug, error, info, instrument};
+use windmill::services::celery_app::get_celery_app;
+use windmill::services::database::get_hasura_pool;
+use windmill::services::datafix::utils::is_datafix_election_event_by_id;
 use windmill::services::insert_cast_vote::{
     try_insert_cast_vote, CastVoteError, InsertCastVoteInput,
     InsertCastVoteOutput,
 };
+use windmill::tasks::process_cast_vote;
 
 /// API endpoint for inserting votes. POST coming from the
 /// frontend->Hasura->Harvest->Here.
@@ -178,20 +183,16 @@ pub async fn insert_cast_vote(
                     ErrorCode::DeserializeContestsFailed,
                 )
             }
-            CastVoteError::SerializeVoterIdFailed(_) => {
-                ErrorResponse::new(
-                    Status::InternalServerError,
-                    ErrorCode::InternalServerError.to_string().as_str(),
-                    ErrorCode::InternalServerError,
-                )
-            }
-            CastVoteError::SerializeBallotFailed(_) => {
-                ErrorResponse::new(
-                    Status::InternalServerError,
-                    ErrorCode::InternalServerError.to_string().as_str(),
-                    ErrorCode::InternalServerError,
-                )
-            }
+            CastVoteError::SerializeVoterIdFailed(_) => ErrorResponse::new(
+                Status::InternalServerError,
+                ErrorCode::InternalServerError.to_string().as_str(),
+                ErrorCode::InternalServerError,
+            ),
+            CastVoteError::SerializeBallotFailed(_) => ErrorResponse::new(
+                Status::InternalServerError,
+                ErrorCode::InternalServerError.to_string().as_str(),
+                ErrorCode::InternalServerError,
+            ),
             CastVoteError::PokValidationFailed(_) => {
                 ErrorResponse::new(
                     Status::BadRequest,
@@ -230,6 +231,39 @@ pub async fn insert_cast_vote(
         "insert-cast-vote took {} ms to complete and succeeded.",
         duration.as_millis()
     );
-    debug!(cast_vote = ?inserted_cast_vote, "CastVote inserted: ");
+
+    let mut hasura_db_client: DbClient =
+        get_hasura_pool().await.get().await.map_err(|_e| {
+            ErrorResponse::new(
+                Status::InternalServerError,
+                ErrorCode::InternalServerError.to_string().as_str(),
+                ErrorCode::InternalServerError,
+            )
+        })?;
+    let hasura_transaction =
+        hasura_db_client.transaction().await.map_err(|e| {
+            ErrorResponse::new(
+                Status::InternalServerError,
+                ErrorCode::InternalServerError.to_string().as_str(),
+                ErrorCode::GetTransactionFailed,
+            )
+        })?;
+
+    let celery_app = get_celery_app().await;
+    let celery_task = celery_app
+        .send_task(process_cast_vote::process_cast_vote::new(
+            inserted_cast_vote.clone(),
+        ))
+        .await
+        .map_err(|e| {
+            error!("Error sending cast_vote_actions task: {e:?}");
+            ErrorResponse::new(
+                Status::InternalServerError,
+                ErrorCode::UnknownError.to_string().as_str(),
+                ErrorCode::UnknownError,
+            )
+        })?;
+    info!("Sent process_cast_vote task {}", celery_task.task_id);
+
     Ok(Json(inserted_cast_vote))
 }

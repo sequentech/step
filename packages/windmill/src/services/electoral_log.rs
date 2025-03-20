@@ -389,6 +389,51 @@ impl ElectoralLog {
     }
 
     #[instrument(skip(self))]
+    pub async fn post_external_api_request(
+        &self,
+        tenant_id: String,
+        event_id: String,
+        election_id: Option<String>,
+        voter_id: String,
+        voter_username: Option<String>,
+        direction: ExtApiRequestDirection,
+        api_name: ExtApiName,
+        operation: String,
+    ) -> Result<()> {
+        let event = EventIdString(event_id.clone());
+        let election = ElectionIdString(election_id);
+
+        let message = Message::external_api_request_message(
+            event,
+            election,
+            &self.sd,
+            Some(voter_id.clone()),
+            voter_username.clone(),
+            direction,
+            api_name,
+            operation,
+        )?;
+
+        let board_message: ElectoralLogMessage = (&message).try_into().with_context(|| {
+            "Error converting Message::cast_vote_message into ElectoralLogMessage"
+        })?;
+        let input = LogEventInput {
+            election_event_id: event_id,
+            message_type: INTERNAL_MESSAGE_TYPE.into(),
+            user_id: Some(voter_id),
+            username: voter_username,
+            tenant_id,
+            body: serde_json::to_string(&board_message)
+                .with_context(|| "Error serializing ElectoralLogMessage")?,
+        };
+        let celery_app = get_celery_app().await;
+        celery_app
+            .send_task(enqueue_electoral_log_event::new(input))
+            .await?;
+        Ok(())
+    }
+
+    #[instrument(skip(self))]
     pub async fn post_election_published(
         &self,
         event_id: String,

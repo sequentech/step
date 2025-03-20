@@ -7,6 +7,7 @@ use crate::types::optional::OptionalId;
 use crate::types::resources::{Aggregate, DataList, TotalAggregate};
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Client as DbClient;
+use electoral_log::messages::newtypes::ExtApiRequestDirection;
 use rocket::futures::future::join_all;
 use rocket::http::Status;
 use rocket::serde::json::Json;
@@ -30,8 +31,10 @@ use windmill::services::cast_votes::get_users_with_vote_info;
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
 use windmill::services::datafix;
-use windmill::services::datafix::types::SoapRequest;
-use windmill::services::datafix::utils::is_datafix_election_event;
+use windmill::services::datafix::types::{SoapRequest, SoapRequestResponse};
+use windmill::services::datafix::utils::{
+    is_datafix_election_event, post_operation_result_to_electoral_log,
+};
 use windmill::services::export::export_users::{
     ExportBody, ExportTenantUsersBody, ExportUsersBody,
 };
@@ -259,7 +262,7 @@ pub async fn count_users(
     }))
 }
 
-#[instrument(skip(claims), ret)]
+#[instrument(skip(claims))]
 #[post("/get-users", format = "json", data = "<body>")]
 pub async fn get_users(
     claims: jwt::JwtClaims,
@@ -671,9 +674,9 @@ pub async fn edit_user(
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
-    // If the user is disabled via EDIT: send a SetNotVoted request to
-    // VoterView, it is a Datafix requirement
-    match (input.election_event_id, input.enabled) {
+    // If the user is disabled via EDIT: we send a SetNotVoted request to
+    // VoterView, it is a Datafix requirement.
+    match (input.election_event_id.clone(), input.enabled) {
         (Some(election_event_id), Some(enabled)) if !enabled => {
             let election_event = get_election_event_by_id(
                 &hasura_transaction,
@@ -694,7 +697,29 @@ pub async fn edit_user(
                     &user.username,
                 )
                 .await;
-                // TODO: Post the result in the electoral_log
+                let req_type = SoapRequest::SetNotVoted;
+                let operation = match res {
+                    Ok(SoapRequestResponse::Ok) => {
+                        format!("{req_type} Succeded")
+                    }
+                    _ => {
+                        format!("{req_type} Failed")
+                    }
+                };
+
+                let username_ref = user.username.as_deref().unwrap_or_default();
+                let election_event_id_ref =
+                    input.election_event_id.as_deref().unwrap_or_default();
+                post_operation_result_to_electoral_log(
+                    &hasura_transaction,
+                    &input.tenant_id,
+                    election_event_id_ref,
+                    &input.user_id,
+                    username_ref,
+                    ExtApiRequestDirection::Outbound,
+                    operation,
+                )
+                .await;
             }
         }
         _ => {}

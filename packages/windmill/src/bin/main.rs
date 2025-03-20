@@ -37,6 +37,7 @@ enum CeleryOpt {
             Queue::Reports.as_ref(),
             Queue::ImportExport.as_ref(),
             Queue::ElectoralLogBatch.as_ref(),
+            Queue::ProcessCastVote.as_ref(),
         ], default_value = Queue::Beat.as_ref())]
         queues: Vec<String>,
         #[structopt(short, long, default_value = "100")]

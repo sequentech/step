@@ -8,26 +8,22 @@ use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::connection::DatafixClaims;
 
+use electoral_log::messages::newtypes::ExtApiRequestDirection;
+use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::permissions::Permissions;
-use serde::Deserialize;
 use serde::Serialize;
 use tracing::{error, info, instrument};
 use windmill::services;
 use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
 use windmill::services::datafix::types::*;
+use windmill::services::datafix::utils::{
+    get_event_id_and_datafix_annotations, get_user_id,
+    post_operation_result_to_electoral_log,
+};
 
-#[instrument(skip(claims))]
-#[post("/add-voter", format = "json", data = "<body>")]
-pub async fn add_voter(
-    claims: DatafixClaims,
-    body: Json<VoterInformationBody>,
-) -> Result<Json<DatafixResponse>, JsonErrorResponse> {
-    let input: VoterInformationBody = body.into_inner();
-
-    info!("Add voter: {input:?}");
-
+#[instrument(skip_all)]
+fn authorize_user(claims: &DatafixClaims) -> Result<(), JsonErrorResponse> {
     let required_perm = vec![Permissions::DATAFIX_ACCOUNT];
-    info!("{claims:?}");
     authorize(
         &claims.jwt_claims,
         true,
@@ -37,24 +33,21 @@ pub async fn add_voter(
     .map_err(|e| {
         error!("Error authorizing {e:?}");
         DatafixResponse::new(Status::Unauthorized)
-    })?;
+    })
+}
 
-    let mut hasura_db_client: DbClient =
-        get_hasura_pool().await.get().await.map_err(|e| {
-            error!("Error getting hasura client {}", e);
-            DatafixResponse::new(Status::InternalServerError)
-        })?;
-    let hasura_transaction =
-        hasura_db_client.transaction().await.map_err(|e| {
-            error!("Error starting hasura transaction {}", e);
-            DatafixResponse::new(Status::InternalServerError)
-        })?;
-
-    services::datafix::api_datafix::add_datafix_voter(
-        &hasura_transaction,
-        &claims.tenant_id,
-        &claims.datafix_event_id,
-        &input,
+#[instrument(skip(claims))]
+#[post("/add-voter", format = "json", data = "<body>")]
+pub async fn add_voter(
+    claims: DatafixClaims,
+    body: Json<VoterInformationBody>,
+) -> Result<Json<DatafixResponse>, JsonErrorResponse> {
+    let input: VoterInformationBody = body.into_inner();
+    authorize_user(&claims)?;
+    handle_voter_operation(
+        EndpointNames::AddVoter,
+        &claims,
+        VoterOperationInput::VoterInfo(input),
     )
     .await
 }
@@ -66,57 +59,13 @@ pub async fn update_voter(
     body: Json<VoterInformationBody>,
 ) -> Result<Json<DatafixResponse>, JsonErrorResponse> {
     let input: VoterInformationBody = body.into_inner();
-
-    info!("Update voter: {input:?}");
-
-    let required_perm = vec![Permissions::DATAFIX_ACCOUNT];
-    info!("{claims:?}");
-    authorize(
-        &claims.jwt_claims,
-        true,
-        Some(claims.tenant_id.clone()),
-        required_perm,
-    )
-    .map_err(|e| {
-        error!("Error authorizing {e:?}");
-        DatafixResponse::new(Status::Unauthorized)
-    })?;
-
-    let mut hasura_db_client: DbClient =
-        get_hasura_pool().await.get().await.map_err(|e| {
-            error!("Error getting hasura client {}", e);
-            DatafixResponse::new(Status::InternalServerError)
-        })?;
-    let hasura_transaction =
-        hasura_db_client.transaction().await.map_err(|e| {
-            error!("Error starting hasura transaction {}", e);
-            DatafixResponse::new(Status::InternalServerError)
-        })?;
-
-    let mut keycloak_db_client: DbClient =
-        get_keycloak_pool().await.get().await.map_err(|e| {
-            error!("Error getting keycloak client {}", e);
-            DatafixResponse::new(Status::InternalServerError)
-        })?;
-    let keycloak_transaction =
-        keycloak_db_client.transaction().await.map_err(|e| {
-            error!("Error starting keycloak transaction {}", e);
-            DatafixResponse::new(Status::InternalServerError)
-        })?;
-
-    services::datafix::api_datafix::update_datafix_voter(
-        &hasura_transaction,
-        &keycloak_transaction,
-        &claims.tenant_id,
-        &claims.datafix_event_id,
-        &input,
+    authorize_user(&claims)?;
+    handle_voter_operation(
+        EndpointNames::UpdateVoter,
+        &claims,
+        VoterOperationInput::VoterInfo(input),
     )
     .await
-}
-
-#[derive(Deserialize, Debug)]
-pub struct VoterIdBody {
-    voter_id: String,
 }
 
 #[instrument(skip(claims))]
@@ -126,50 +75,11 @@ pub async fn delete_voter(
     body: Json<VoterIdBody>,
 ) -> Result<Json<DatafixResponse>, JsonErrorResponse> {
     let input: VoterIdBody = body.into_inner();
-
-    info!("Delete voter: {input:?}");
-
-    let required_perm = vec![Permissions::DATAFIX_ACCOUNT];
-    info!("{claims:?}");
-    authorize(
-        &claims.jwt_claims,
-        true,
-        Some(claims.tenant_id.clone()),
-        required_perm,
-    )
-    .map_err(|e| {
-        error!("Error authorizing {e:?}");
-        DatafixResponse::new(Status::Unauthorized)
-    })?;
-
-    let mut hasura_db_client: DbClient =
-        get_hasura_pool().await.get().await.map_err(|e| {
-            error!("Error getting hasura client {}", e);
-            DatafixResponse::new(Status::InternalServerError)
-        })?;
-    let hasura_transaction =
-        hasura_db_client.transaction().await.map_err(|e| {
-            error!("Error starting hasura transaction {}", e);
-            DatafixResponse::new(Status::InternalServerError)
-        })?;
-
-    let mut keycloak_db_client: DbClient =
-        get_keycloak_pool().await.get().await.map_err(|e| {
-            error!("Error getting keycloak client {}", e);
-            DatafixResponse::new(Status::InternalServerError)
-        })?;
-    let keycloak_transaction =
-        keycloak_db_client.transaction().await.map_err(|e| {
-            error!("Error starting keycloak transaction {}", e);
-            DatafixResponse::new(Status::InternalServerError)
-        })?;
-
-    services::datafix::api_datafix::disable_datafix_voter(
-        &hasura_transaction,
-        &keycloak_transaction,
-        &claims.tenant_id,
-        &claims.datafix_event_id,
-        &input.voter_id,
+    authorize_user(&claims)?;
+    handle_voter_operation(
+        EndpointNames::DeleteVoter,
+        &claims,
+        VoterOperationInput::VoterId(input),
     )
     .await
 }
@@ -181,50 +91,11 @@ pub async fn unmark_voted(
     body: Json<VoterIdBody>,
 ) -> Result<Json<DatafixResponse>, JsonErrorResponse> {
     let input: VoterIdBody = body.into_inner();
-
-    info!("Unmark voter as voted {input:?}");
-
-    let required_perm = vec![Permissions::DATAFIX_ACCOUNT];
-    info!("{claims:?}");
-    authorize(
-        &claims.jwt_claims,
-        true,
-        Some(claims.tenant_id.clone()),
-        required_perm,
-    )
-    .map_err(|e| {
-        error!("Error authorizing {e:?}");
-        DatafixResponse::new(Status::Unauthorized)
-    })?;
-
-    let mut hasura_db_client: DbClient =
-        get_hasura_pool().await.get().await.map_err(|e| {
-            error!("Error getting hasura client {}", e);
-            DatafixResponse::new(Status::InternalServerError)
-        })?;
-    let hasura_transaction =
-        hasura_db_client.transaction().await.map_err(|e| {
-            error!("Error starting hasura transaction {}", e);
-            DatafixResponse::new(Status::InternalServerError)
-        })?;
-
-    let mut keycloak_db_client: DbClient =
-        get_keycloak_pool().await.get().await.map_err(|e| {
-            error!("Error getting keycloak client {}", e);
-            DatafixResponse::new(Status::InternalServerError)
-        })?;
-    let keycloak_transaction =
-        keycloak_db_client.transaction().await.map_err(|e| {
-            error!("Error starting keycloak transaction {}", e);
-            DatafixResponse::new(Status::InternalServerError)
-        })?;
-
-    services::datafix::api_datafix::unmark_voter_as_voted(
-        &hasura_transaction,
-        &keycloak_transaction,
-        &claims.tenant_id,
-        &claims.datafix_event_id,
-        &input.voter_id,
+    authorize_user(&claims)?;
+    handle_voter_operation(
+        EndpointNames::UnmarkVoted,
+        &claims,
+        VoterOperationInput::VoterId(input),
     )
     .await
 }
@@ -236,50 +107,11 @@ pub async fn mark_voted(
     body: Json<MarkVotedBody>,
 ) -> Result<Json<DatafixResponse>, JsonErrorResponse> {
     let input: MarkVotedBody = body.into_inner();
-
-    info!("Mark voter as voted: {input:?}");
-
-    let required_perm = vec![Permissions::DATAFIX_ACCOUNT];
-    info!("{claims:?}");
-    authorize(
-        &claims.jwt_claims,
-        true,
-        Some(claims.tenant_id.clone()),
-        required_perm,
-    )
-    .map_err(|e| {
-        error!("Error authorizing {e:?}");
-        DatafixResponse::new(Status::Unauthorized)
-    })?;
-
-    let mut hasura_db_client: DbClient =
-        get_hasura_pool().await.get().await.map_err(|e| {
-            error!("Error getting hasura client {}", e);
-            DatafixResponse::new(Status::InternalServerError)
-        })?;
-    let hasura_transaction =
-        hasura_db_client.transaction().await.map_err(|e| {
-            error!("Error starting hasura transaction {}", e);
-            DatafixResponse::new(Status::InternalServerError)
-        })?;
-
-    let mut keycloak_db_client: DbClient =
-        get_keycloak_pool().await.get().await.map_err(|e| {
-            error!("Error getting keycloak client {}", e);
-            DatafixResponse::new(Status::InternalServerError)
-        })?;
-    let keycloak_transaction =
-        keycloak_db_client.transaction().await.map_err(|e| {
-            error!("Error starting keycloak transaction {}", e);
-            DatafixResponse::new(Status::InternalServerError)
-        })?;
-
-    services::datafix::api_datafix::mark_as_voted_via_channel(
-        &hasura_transaction,
-        &keycloak_transaction,
-        &claims.tenant_id,
-        &claims.datafix_event_id,
-        &input,
+    authorize_user(&claims)?;
+    handle_voter_operation(
+        EndpointNames::MarkVoted,
+        &claims,
+        VoterOperationInput::MarkVoted(input),
     )
     .await
 }
@@ -296,20 +128,7 @@ pub async fn replace_pin(
     body: Json<VoterIdBody>,
 ) -> Result<Json<ReplacePinOutput>, JsonErrorResponse> {
     let input: VoterIdBody = body.into_inner();
-    info!("Replace pin: {input:?}");
-
-    let required_perm = vec![Permissions::DATAFIX_ACCOUNT];
-    info!("{claims:?}");
-    authorize(
-        &claims.jwt_claims,
-        true,
-        Some(claims.tenant_id.clone()),
-        required_perm,
-    )
-    .map_err(|e| {
-        error!("Error authorizing {e:?}");
-        DatafixResponse::new(Status::Unauthorized)
-    })?;
+    authorize_user(&claims)?;
 
     let mut hasura_db_client: DbClient =
         get_hasura_pool().await.get().await.map_err(|e| {
@@ -333,14 +152,173 @@ pub async fn replace_pin(
             DatafixResponse::new(Status::InternalServerError)
         })?;
 
-    let pin = services::datafix::api_datafix::replace_voter_pin(
+    let (election_event_id, datafix_annotations) =
+        get_event_id_and_datafix_annotations(
+            &hasura_transaction,
+            &claims.tenant_id,
+            &claims.datafix_event_id,
+        )
+        .await?;
+    let realm = get_event_realm(&claims.tenant_id, &election_event_id);
+    let user_id =
+        get_user_id(&keycloak_transaction, &realm, &input.voter_id).await?;
+
+    let endpoint_name = EndpointNames::ReplacePin;
+    let (pin_result, operation) =
+        match services::datafix::api_datafix::replace_voter_pin(
+            &hasura_transaction,
+            &keycloak_transaction,
+            &claims.tenant_id,
+            &claims.datafix_event_id,
+            &input.voter_id,
+            &election_event_id,
+            &realm,
+            &datafix_annotations,
+        )
+        .await
+        {
+            Ok(pin) => (Ok(pin), format!("{endpoint_name} Succeeded")),
+            Err(err) => (Err(err), format!("{endpoint_name} Failed")),
+        };
+
+    post_operation_result_to_electoral_log(
         &hasura_transaction,
-        &keycloak_transaction,
+        &claims.tenant_id,
+        &election_event_id,
+        &user_id,
+        &input.voter_id,
+        ExtApiRequestDirection::Inbound,
+        operation,
+    )
+    .await;
+    let pin = pin_result?;
+    Ok(Json(ReplacePinOutput { pin }))
+}
+
+async fn handle_voter_operation(
+    endpoint_name: EndpointNames,
+    claims: &DatafixClaims,
+    input: VoterOperationInput,
+) -> Result<Json<DatafixResponse>, JsonErrorResponse> {
+    let mut hasura_db_client: DbClient =
+        get_hasura_pool().await.get().await.map_err(|e| {
+            error!("Error getting hasura client {}", e);
+            DatafixResponse::new(Status::InternalServerError)
+        })?;
+    let hasura_transaction =
+        hasura_db_client.transaction().await.map_err(|e| {
+            error!("Error starting hasura transaction {}", e);
+            DatafixResponse::new(Status::InternalServerError)
+        })?;
+
+    let mut keycloak_db_client: DbClient =
+        get_keycloak_pool().await.get().await.map_err(|e| {
+            error!("Error getting keycloak client {}", e);
+            DatafixResponse::new(Status::InternalServerError)
+        })?;
+    let keycloak_transaction =
+        keycloak_db_client.transaction().await.map_err(|e| {
+            error!("Error starting keycloak transaction {}", e);
+            DatafixResponse::new(Status::InternalServerError)
+        })?;
+
+    let (election_event_id, _) = get_event_id_and_datafix_annotations(
+        &hasura_transaction,
         &claims.tenant_id,
         &claims.datafix_event_id,
-        &input.voter_id,
     )
     .await?;
+    let realm = get_event_realm(&claims.tenant_id, &election_event_id);
 
-    Ok(Json(ReplacePinOutput { pin }))
+    let (result, username) = match (endpoint_name, input) {
+        (EndpointNames::AddVoter, VoterOperationInput::VoterInfo(input)) => (
+            services::datafix::api_datafix::add_datafix_voter(
+                &hasura_transaction,
+                &claims.tenant_id,
+                &claims.datafix_event_id,
+                &input,
+                &election_event_id,
+                &realm,
+            )
+            .await,
+            input.voter_id,
+        ),
+
+        (EndpointNames::UpdateVoter, VoterOperationInput::VoterInfo(input)) => {
+            (
+                services::datafix::api_datafix::update_datafix_voter(
+                    &hasura_transaction,
+                    &keycloak_transaction,
+                    &claims.tenant_id,
+                    &claims.datafix_event_id,
+                    &input,
+                    &election_event_id,
+                    &realm,
+                )
+                .await,
+                input.voter_id,
+            )
+        }
+
+        (EndpointNames::DeleteVoter, VoterOperationInput::VoterId(input)) => (
+            services::datafix::api_datafix::disable_datafix_voter(
+                &hasura_transaction,
+                &keycloak_transaction,
+                &claims.tenant_id,
+                &claims.datafix_event_id,
+                &input.voter_id,
+                &realm,
+            )
+            .await,
+            input.voter_id,
+        ),
+
+        (EndpointNames::UnmarkVoted, VoterOperationInput::VoterId(input)) => (
+            services::datafix::api_datafix::unmark_voter_as_voted(
+                &hasura_transaction,
+                &keycloak_transaction,
+                &claims.tenant_id,
+                &claims.datafix_event_id,
+                &input.voter_id,
+                &realm,
+            )
+            .await,
+            input.voter_id,
+        ),
+
+        (EndpointNames::MarkVoted, VoterOperationInput::MarkVoted(input)) => (
+            services::datafix::api_datafix::mark_as_voted_via_channel(
+                &hasura_transaction,
+                &keycloak_transaction,
+                &claims.tenant_id,
+                &claims.datafix_event_id,
+                &input,
+                &realm,
+            )
+            .await,
+            input.voter_id,
+        ),
+
+        _ => return Err(DatafixResponse::new(Status::InternalServerError)),
+    };
+
+    let user_id = get_user_id(&keycloak_transaction, &realm, &username).await?;
+
+    let operation = match result.is_ok() {
+        true => format!("{endpoint_name} Succeeded"),
+        false => format!("{endpoint_name} Failed"),
+    };
+
+    post_operation_result_to_electoral_log(
+        &hasura_transaction,
+        &claims.tenant_id,
+        &election_event_id,
+        &user_id,
+        &username,
+        ExtApiRequestDirection::Inbound,
+        operation,
+    )
+    .await;
+
+    result
 }

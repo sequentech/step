@@ -5,6 +5,7 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
 use strand::hash::{Hash, HashWrapper};
+use strum_macros::Display;
 
 #[derive(
     BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
@@ -104,3 +105,37 @@ pub struct VoterCountryString(pub String);
     BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
 )]
 pub struct VotingChannelString(pub String);
+
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Deserialize,
+    Serialize,
+    Clone,
+    PartialEq,
+    Eq,
+    Hash,
+    Debug,
+    Display,
+)]
+pub enum ExtApiRequestDirection {
+    Inbound,
+    Outbound,
+}
+
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Deserialize,
+    Serialize,
+    Clone,
+    PartialEq,
+    Eq,
+    Hash,
+    Debug,
+    Display,
+)]
+pub enum ExtApiName {
+    Datafix,
+    Other,
+}

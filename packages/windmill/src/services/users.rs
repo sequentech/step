@@ -14,7 +14,7 @@ use keycloak::KeycloakError;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::keycloak::{KeycloakAdminClient, PubKeycloakAdmin};
 use sequent_core::types::keycloak::*;
-use serde::{Deserialize, Deserializer};
+use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
 use std::str::FromStr;
 use std::{
@@ -151,7 +151,7 @@ pub async fn list_keycloak_enabled_users_by_area_id(
     Ok(found_user_ids)
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, EnumString, Display)]
+#[derive(Debug, Clone, PartialEq, Eq, EnumString, Display, Serialize)]
 pub enum FilterOption {
     /// Those elements that contain the string are returned.
     IsLike(String),
@@ -312,7 +312,7 @@ impl<'de> Deserialize<'de> for FilterOption {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Default)]
+#[derive(Debug, PartialEq, Eq, Clone, Default, Deserialize, Serialize)]
 pub struct ListUsersFilter {
     pub tenant_id: String,
     pub election_event_id: Option<String>,

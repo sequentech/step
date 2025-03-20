@@ -54,6 +54,13 @@ impl StatementHead {
                 description: "Error inserting cast vote.".to_string(),
                 ..default_head
             },
+            StatementBody::ExternalApiRequest(election_id, direction, api_name, operation) => StatementHead {
+                kind: StatementType::ExternalApiRequest,
+                description: format!(
+                    "{api_name} api {direction} request for election event {election_id:?} to {operation}.",
+                ),
+                ..default_head
+            },
             StatementBody::ElectionPublish(_, _) => StatementHead {
                 kind: StatementType::ElectionPublish,
                 description: "Election published.".to_string(),
@@ -193,6 +200,8 @@ pub enum StatementBody {
         VoterIpString,
         VoterCountryString,
     ),
+    /// The last String indicates the operation.
+    ExternalApiRequest(EventIdString, ExtApiRequestDirection, ExtApiName, String),
     // /workspaces/step/packages/harvest/src/main.rs
     //    routes::ballot_publication::publish_ballot
     //
@@ -257,6 +266,7 @@ pub enum StatementType {
     Unknown,
     CastVote,
     CastVoteError,
+    ExternalApiRequest,
     ElectionPublish,
     ElectionVotingPeriodOpen,
     ElectionVotingPeriodClose,
