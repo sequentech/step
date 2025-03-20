@@ -11,7 +11,9 @@ use crate::util::temp_path::{
 };
 use anyhow::{anyhow, Context, Result};
 use aws_sdk_s3 as s3;
-use aws_smithy_types::byte_stream::ByteStream;
+use aws_sdk_s3::operation::create_multipart_upload::CreateMultipartUploadOutput;
+use aws_sdk_s3::types::{CompletedMultipartUpload, CompletedPart};
+use aws_smithy_types::byte_stream::{ByteStream, Length};
 use core::time::Duration;
 use s3::presigning::PresigningConfig;
 use std::fs::File;
@@ -21,6 +23,9 @@ use std::{env, error::Error};
 use tempfile::NamedTempFile;
 use tokio::io::AsyncReadExt;
 use tracing::{info, instrument};
+
+const MAX_CHUNKS: u64 = 100;
+const MAX_CHUNK_SIZE: u64 = 16 * 1024 * 1024;
 
 #[instrument(err, skip_all)]
 pub fn get_private_bucket() -> Result<String> {
@@ -209,19 +214,152 @@ pub async fn upload_file_to_s3(
     cache_control: Option<String>,
     download_filename: Option<String>,
 ) -> Result<()> {
-    let data = ByteStream::from_path(&file_path).await.with_context(|| {
-        anyhow!("Error creating bytestream from file path={file_path}")
-    })?;
-    upload_data_to_s3(
-        data,
-        key,
-        is_public,
-        s3_bucket,
-        media_type,
-        cache_control,
-        download_filename,
-    )
-    .await
+    let path = Path::new(&file_path);
+    let file_size = tokio::fs::metadata(path)
+        .await
+        .map_err(|e| anyhow!("Error getting file metadata: {e:?}"))?
+        .len();
+    info!("Uploading file of size {file_size} bytes to S3");
+
+    if file_size > MAX_CHUNK_SIZE {
+        upload_multipart_data_to_s3(
+            path,
+            key,
+            is_public,
+            s3_bucket,
+            media_type,
+            cache_control,
+            download_filename,
+            file_size,
+        )
+        .await
+    } else {
+        let data =
+            ByteStream::from_path(&file_path).await.with_context(|| {
+                anyhow!("Error creating bytestream from file path={file_path}")
+            })?;
+        upload_data_to_s3(
+            data,
+            key,
+            is_public,
+            s3_bucket,
+            media_type,
+            cache_control,
+            download_filename,
+        )
+        .await
+    }
+}
+
+#[instrument(err, skip_all)]
+pub async fn upload_multipart_data_to_s3(
+    path: &Path,
+    key: String,
+    is_public: bool,
+    s3_bucket: String,
+    media_type: String,
+    cache_control: Option<String>,
+    download_filename: Option<String>,
+    file_size: u64,
+) -> Result<()> {
+    let config = get_s3_aws_config(!is_public)
+        .await
+        .with_context(|| "Error getting s3 aws config")?;
+    let client = get_s3_client(config.clone())
+        .await
+        .with_context(|| "Error getting s3 client")?;
+
+    let mut multipart_builder = client
+        .create_multipart_upload()
+        .bucket(&s3_bucket)
+        .key(&key)
+        .content_type(media_type);
+
+    if let Some(filename) = download_filename {
+        // e.g. "attachment; filename=\"myfile.ezip\""
+        let disposition = format!("attachment; filename=\"{filename}\"");
+        multipart_builder = multipart_builder.content_disposition(disposition);
+    }
+
+    let multipart_builder = if let Some(cache_control_value) = cache_control {
+        multipart_builder.cache_control(cache_control_value)
+    } else {
+        multipart_builder
+    };
+
+    let multipart_upload_res: CreateMultipartUploadOutput = multipart_builder
+        .send()
+        .await
+        .map_err(|e| anyhow!("Error uploading file to S3: {e:?}"))?;
+
+    let upload_id = multipart_upload_res
+        .upload_id()
+        .ok_or(anyhow!("Missing upload_id after CreateMultipartUpload",))?;
+
+    let mut chunk_count = (file_size / MAX_CHUNK_SIZE) + 1;
+    let mut size_of_last_chunk = file_size % MAX_CHUNK_SIZE;
+    if size_of_last_chunk == 0 {
+        size_of_last_chunk = MAX_CHUNK_SIZE;
+        chunk_count -= 1;
+    }
+
+    if chunk_count > MAX_CHUNKS {
+        return Err(anyhow!(
+            "Too many chunks! Try increasing your chunk size."
+        ));
+    }
+
+    let mut upload_parts: Vec<aws_sdk_s3::types::CompletedPart> = Vec::new();
+
+    for chunk_index in 0..chunk_count {
+        let this_chunk = if chunk_count - 1 == chunk_index {
+            size_of_last_chunk
+        } else {
+            MAX_CHUNK_SIZE
+        };
+        let stream = ByteStream::read_from()
+            .path(path)
+            .offset(chunk_index * MAX_CHUNK_SIZE)
+            .length(Length::Exact(this_chunk))
+            .build()
+            .await
+            .unwrap();
+
+        // Chunk index needs to start at 0, but part numbers start at 1.
+        let part_number = (chunk_index as i32) + 1;
+        let upload_part_res = client
+            .upload_part()
+            .key(&key)
+            .bucket(&s3_bucket)
+            .upload_id(upload_id)
+            .body(stream)
+            .part_number(part_number)
+            .send()
+            .await?;
+
+        upload_parts.push(
+            CompletedPart::builder()
+                .e_tag(upload_part_res.e_tag.unwrap_or_default())
+                .part_number(part_number)
+                .build(),
+        );
+    }
+
+    let completed_multipart_upload: CompletedMultipartUpload =
+        CompletedMultipartUpload::builder()
+            .set_parts(Some(upload_parts))
+            .build();
+
+    let _complete_multipart_upload_res = client
+        .complete_multipart_upload()
+        .bucket(&s3_bucket)
+        .key(&key)
+        .multipart_upload(completed_multipart_upload)
+        .upload_id(upload_id)
+        .send()
+        .await?;
+
+    Ok(())
 }
 
 #[instrument(err, skip_all)]
