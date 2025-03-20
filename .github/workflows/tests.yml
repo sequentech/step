@@ -12,7 +12,7 @@ on:
 jobs:
   run-tests:
     name: Run Rust tests
-    runs-on: [self-hosted, linux, x64]
+    runs-on: arc-custom-runners-sequentech
     strategy:
       matrix:
         include:

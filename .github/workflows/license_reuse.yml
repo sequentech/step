@@ -11,7 +11,7 @@ on:
 
 jobs:
   reuse:
-    runs-on: [self-hosted, linux, x64]
+    runs-on: arc-custom-runners-sequentech
 
     steps:
     - name: Checkout code

@@ -29,7 +29,7 @@ permissions:
 
 jobs:
   create-release-branch:
-    runs-on: [self-hosted, linux, x64]
+    runs-on: arc-custom-runners-sequentech
     outputs:
       NEW_RELEASE_BRANCH: ${{ steps.CreateReleaseBranch.outputs.NEW_RELEASE_BRANCH }}
       DEPLOYER_BRANCH: ${{ steps.CreateReleaseBranch.outputs.DEPLOYER_BRANCH }}
@@ -115,7 +115,7 @@ jobs:
         fi
 
   release:
-    runs-on: [self-hosted, linux, x64]
+    runs-on: arc-custom-runners-sequentech
     needs: create-release-branch
     outputs:
       VERSION: ${{ steps.Release.outputs.VERSION }}
@@ -224,7 +224,7 @@ jobs:
 
   trigger-beyond-release:
     needs: [release, build-and-push]
-    runs-on: [self-hosted, linux, x64]
+    runs-on: arc-custom-runners-sequentech
     steps:
     - name: Trigger Beyond Release Workflow
       uses: the-actions-org/workflow-dispatch@v4 # https://github.com/the-actions-org/workflow-dispatch
@@ -238,7 +238,7 @@ jobs:
 
   trigger-gitops-release:
     needs: [release, build-and-push]
-    runs-on: [self-hosted, linux, x64]
+    runs-on: arc-custom-runners-sequentech
     steps:
     - name: Trigger GitOps Release Workflow
       uses: the-actions-org/workflow-dispatch@v4 # https://github.com/the-actions-org/workflow-dispatch
@@ -252,7 +252,7 @@ jobs:
 
   trigger-deployer:
     needs: [release, create-release-branch, build-and-push, trigger-beyond-release, trigger-gitops-release]
-    runs-on: [self-hosted, linux, x64]
+    runs-on: arc-custom-runners-sequentech
     steps:
     - name: Trigger Deployer Workflow
       uses: the-actions-org/workflow-dispatch@v4 # https://github.com/the-actions-org/workflow-dispatch
@@ -267,7 +267,7 @@ jobs:
     if: failure()
     # Here define the depenency jobs
     needs: [release,build-and-push]
-    runs-on: [self-hosted, linux, x64]
+    runs-on: arc-custom-runners-sequentech
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -283,7 +283,7 @@ jobs:
 
   slack-report:
     needs: [release, build-and-push, trigger-deployer, cleanup]
-    runs-on: [self-hosted, linux, x64]
+    runs-on: arc-custom-runners-sequentech
     timeout-minutes: 20
     if: always()
     steps:
