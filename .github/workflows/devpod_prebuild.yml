@@ -3,14 +3,13 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 name: DevPod Prebuild
-runs-on: arc-custom-runners-sequentech
 on:
   push:
     branches: [ 'main', 'release/[0-9]+.[0-9]+' ]
 
 jobs:
   build:
-    runs-on: arc-custom-runners-sequentech
+    runs-on: [arc-custom-runners-sequentech, image=ubuntu24-full-x64]
 
     steps:
       - name: Checkout code

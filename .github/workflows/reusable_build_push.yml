@@ -18,7 +18,7 @@ on:
 
 jobs:
   build-and-push:
-    runs-on: arc-custom-runners-sequentech
+    runs-on: [arc-custom-runners-sequentech, image=ubuntu24-full-x64]
     strategy:
       matrix:
         include:
