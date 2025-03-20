@@ -26,7 +26,7 @@ use tracing::{info, instrument};
 // constant defining chunk size to 16 mb
 // this is the max supported by minio:
 // https://github.com/minio/minio/blob/42d4ab2a0ab56bf4953e6fb77a8268d478d2df32/cmd/streaming-signature-v4.go#L260
-const CHUNK_SIZE_16MB: usize = 16 << 20;
+const CHUNK_SIZE_16MB: usize = 15_784;//16 << 20;
 
 // variant of https://github.com/smithy-lang/smithy-rs/blob/0774950eabaccec6a48fb93495ac0fc1e2054116/rust-runtime/aws-smithy-types/src/byte_stream.rs#L408
 // that allows configuring the chunk size
@@ -218,7 +218,7 @@ pub async fn get_object_into_temp_file(
     Ok(temp_file)
 }
 
-#[instrument(err, skip_all)]
+#[instrument(err)]
 pub async fn upload_file_to_s3(
     key: String,
     is_public: bool,
