@@ -542,6 +542,7 @@ pub async fn import_users_file(
     pin_mut!(writer);
 
     let mut owned_data: Vec<String> = Vec::new();
+    let mut it = 0;
     for result in rdr.records() {
         let record = match result {
             Ok(record) => record,
@@ -549,8 +550,11 @@ pub async fn import_users_file(
                 return Err(Error::String(format!("Error reading CSV record: {err}")));
             }
         };
+        info!("Iteration {it}, record `{record:?}`");
+        if record.iter().all(|f| f.is_empty()) {
+            break;
+        }
         owned_data.clear();
-
         let mut password_salt: Option<String> = None;
         let mut hashed_password: Option<String> = None;
         for (data, column_name) in record.iter().zip(voters_table_input_columns_names.iter()) {
@@ -613,6 +617,7 @@ pub async fn import_users_file(
                 "Error writing to COPY IN transaction: {err}"
             )));
         }
+        it += 1;
     }
 
     if let Err(err) = writer.finish().await {
