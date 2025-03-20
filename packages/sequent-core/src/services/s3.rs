@@ -11,6 +11,7 @@ use crate::util::temp_path::{
 };
 use anyhow::{anyhow, Context, Result};
 use aws_sdk_s3 as s3;
+use aws_smithy_types::byte_stream;
 use aws_smithy_types::byte_stream::ByteStream;
 use core::time::Duration;
 use s3::presigning::PresigningConfig;
@@ -21,6 +22,24 @@ use std::{env, error::Error};
 use tempfile::NamedTempFile;
 use tokio::io::AsyncReadExt;
 use tracing::{info, instrument};
+
+// constant defining chunk size to 16 mb
+// this is the max supported by minio:
+// https://github.com/minio/minio/blob/42d4ab2a0ab56bf4953e6fb77a8268d478d2df32/cmd/streaming-signature-v4.go#L260
+const CHUNK_SIZE_16MB: usize = 16 << 20;
+
+// variant of https://github.com/smithy-lang/smithy-rs/blob/0774950eabaccec6a48fb93495ac0fc1e2054116/rust-runtime/aws-smithy-types/src/byte_stream.rs#L408
+// that allows configuring the chunk size
+pub async fn bytestream_from_path(
+    path: impl AsRef<std::path::Path>,
+    chunk_size: usize,
+) -> Result<ByteStream, byte_stream::error::Error> {
+    byte_stream::FsBuilder::new()
+        .buffer_size(chunk_size)
+        .path(path)
+        .build()
+        .await
+}
 
 #[instrument(err, skip_all)]
 pub fn get_private_bucket() -> Result<String> {
@@ -209,9 +228,11 @@ pub async fn upload_file_to_s3(
     cache_control: Option<String>,
     download_filename: Option<String>,
 ) -> Result<()> {
-    let data = ByteStream::from_path(&file_path).await.with_context(|| {
-        anyhow!("Error creating bytestream from file path={file_path}")
-    })?;
+    let data = bytestream_from_path(&file_path, CHUNK_SIZE_16MB)
+        .await
+        .with_context(|| {
+            anyhow!("Error creating bytestream from file path={file_path}")
+        })?;
     upload_data_to_s3(
         data,
         key,
