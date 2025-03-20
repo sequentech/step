@@ -302,6 +302,7 @@ pub async fn get_voters_with_vote_info(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
+    election_id: Option<&str>,
     users: Vec<Voter>,
     filter_by_has_voted: Option<bool>,
 ) -> Result<(Vec<Voter>, i64)> {
@@ -332,7 +333,8 @@ pub async fn get_voters_with_vote_info(
             WHERE
                 v.tenant_id = $1 AND
                 v.election_event_id = $2 AND
-                v.voter_id_string = ANY($3)
+                v.voter_id_string = ANY($3) AND
+                ($4 IS NULL OR v.election_id = $4)
             GROUP BY
                 v.voter_id_string, v.election_id;
             "#,
@@ -343,7 +345,7 @@ pub async fn get_voters_with_vote_info(
     let rows = hasura_transaction
         .query(
             &vote_info_statement,
-            &[&tenant_uuid, &election_event_uuid, &user_ids],
+            &[&tenant_uuid, &election_event_uuid, &user_ids, &election_id],
         )
         .await
         .with_context(|| "Error executing the vote info query")?;
@@ -566,6 +568,7 @@ pub async fn get_voters_data(
             (voters, count, next_offset)
         }
     };
+    //Does not receive election_id
 
     let (mut voters, voter_who_voted_count) = match with_vote_info {
         true => {
@@ -573,6 +576,7 @@ pub async fn get_voters_data(
                 &hasura_transaction,
                 &tenant_id,
                 &election_event_id,
+                Some(&election_id),
                 voters.clone(),
                 voters_filter.has_voted,
             )
