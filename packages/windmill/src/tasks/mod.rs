@@ -44,5 +44,6 @@ pub mod scheduled_events;
 pub mod scheduled_reports;
 pub mod send_template;
 pub mod set_public_key;
+pub mod update_election_event_ballot_publication;
 pub mod update_election_event_ballot_styles;
 pub mod upsert_areas;

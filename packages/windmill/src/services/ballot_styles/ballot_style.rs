@@ -41,6 +41,7 @@ use uuid::Uuid;
  * the election ids and contest ids related to an area,
  * taking into consideration the parent areas as well.
  */
+#[instrument(skip_all, err)]
 pub fn get_elections_contests_map_for_area(
     area: &Area,
     areas_tree: &TreeNode,
@@ -92,7 +93,8 @@ pub fn get_elections_contests_map_for_area(
     Ok(election_contest_map)
 }
 
-pub async fn create_ballot_style_s3_files(
+#[instrument(skip_all, err)]
+pub async fn create_ballot_style_postgres(
     transaction: &Transaction<'_>,
     area: &Area,
     areas_tree: &TreeNode,
@@ -166,51 +168,6 @@ pub async fn create_ballot_style_s3_files(
             public_key.clone(),
         )?;
         let election_dto_json_string = serde_json::to_string(&election_dto)?;
-        let election_event_id = election_event.id.clone();
-        let area_id = area.id.clone();
-        let s3_file_path = format!("tenant-{tenant_id}/event-{election_event_id}/{election_id}/ballot-style-{area_id}.json");
-        let ballot_style = BallotStyle::new(
-            ballot_style_id.to_string(),
-            tenant_id.to_string(),
-            election.id.to_string(),
-            Some(area.id.to_string()),
-            Some(Local::now()),
-            Some(Local::now()),
-            None,
-            None,
-            Some(election_dto_json_string.clone()),
-            None,
-            None,
-            election_event.id.to_string(),
-            None,
-            ballot_publication.id.to_string(),
-        );
-
-        let ballot_style_json = serde_json::to_string(&ballot_style)
-            .map_err(|err| anyhow!("Error serializing ballot style to json: {err:?}"))?;
-
-        let s3_bucket =
-            s3::get_private_bucket().map_err(|e| anyhow!("Missing bucket, error: {e:?}"))?;
-        retry_with_exponential_backoff(
-            || async {
-                s3::upload_data_to_s3(
-                    ballot_style_json.clone().into_bytes().into(),
-                    s3_file_path.clone(),
-                    false,
-                    s3_bucket.clone(),
-                    "text/plain".to_string(),
-                    None,
-                    None,
-                )
-                .await
-            },
-            3,
-            StdDuration::from_millis(100),
-        )
-        .await
-        .map_err(|err| anyhow!("Error uploading input document to S3, trying 3 times: {err:?}"))?;
-
-        // TODO: Remove the insertion.
         let _created_ballot_style = insert_ballot_style(
             transaction,
             &ballot_style_id.to_string(),
@@ -224,6 +181,60 @@ pub async fn create_ballot_style_s3_files(
         )
         .await?;
     }
+
+    Ok(())
+}
+
+#[instrument(err)]
+pub async fn update_election_event_ballot_publication(
+    tenant_id: &str,
+    election_event_id: &str,
+    ballot_publication_id: &str,
+) -> AnyhowResult<()> {
+    // TODO, fix signature
+    // TODO: get ballot style from db, uncomment below and fix.
+
+    // let election_dto_json_string = serde_json::to_string(&election_dto)?;
+    // let ballot_style = BallotStyle::new(
+    //     ballot_style_id.to_string(),
+    //     tenant_id.to_string(),
+    //     election.id.to_string(),
+    //     Some(area.id.to_string()),
+    //     Some(Local::now()),
+    //     Some(Local::now()),
+    //     None,
+    //     None,
+    //     Some(election_dto_json_string.clone()),
+    //     None,
+    //     None,
+    //     election_event.id.to_string(),
+    //     None,
+    //     ballot_publication.id.to_string(),
+    // );
+
+    // let ballot_style_json = serde_json::to_string(&ballot_style)
+    //     .map_err(|err| anyhow!("Error serializing ballot style to json: {err:?}"))?;
+
+    // let s3_bucket =
+    //     s3::get_private_bucket().map_err(|e| anyhow!("Missing bucket, error: {e:?}"))?;
+    // retry_with_exponential_backoff(
+    //     || async {
+    //         s3::upload_data_to_s3(
+    //             ballot_style_json.clone().into_bytes().into(),
+    //             "".to_string(), // TODO: s3::get_public_ballot_style_file_path
+    //             false,
+    //             s3_bucket.clone(),
+    //             "text/plain".to_string(),
+    //             None,
+    //             None,
+    //         )
+    //         .await
+    //     },
+    //     3,
+    //     StdDuration::from_millis(100),
+    // )
+    // .await
+    // .map_err(|err| anyhow!("Error uploading input document to S3, trying 3 times: {err:?}"))?;
 
     Ok(())
 }
@@ -310,7 +321,7 @@ pub async fn update_election_event_ballot_styles(
     let areas_tree = TreeNode::from_areas(basic_areas)?;
 
     for area in &areas {
-        create_ballot_style_s3_files(
+        create_ballot_style_postgres(
             &transaction,
             area,
             &areas_tree,

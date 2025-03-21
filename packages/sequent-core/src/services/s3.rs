@@ -104,6 +104,58 @@ pub fn get_document_key(
 }
 
 #[instrument(skip_all)]
+pub fn get_public_election_event_base_path(
+    tenant_id: &str,
+    election_event_id: &str,
+) -> String {
+    format!("tenant-{tenant_id}/event-{election_event_id}")
+}
+
+#[instrument(skip_all)]
+pub fn get_public_election_event_file_path(
+    tenant_id: &str,
+    election_event_id: &str,
+) -> String {
+    let base_path =
+        get_public_election_event_base_path(tenant_id, election_event_id);
+    format!("{base_path}/election-event.json")
+}
+
+#[instrument(skip_all)]
+pub fn get_public_area_base_path(
+    tenant_id: &str,
+    election_event_id: &str,
+    area_id: &str,
+) -> String {
+    let base_path =
+        get_public_election_event_base_path(tenant_id, election_event_id);
+    format!("{base_path}/area-{area_id}")
+}
+
+#[instrument(skip_all)]
+pub fn get_public_elections_file_path(
+    tenant_id: &str,
+    election_event_id: &str,
+    area_id: &str,
+) -> String {
+    let base_path =
+        get_public_area_base_path(tenant_id, election_event_id, area_id);
+    format!("{base_path}/elections.json")
+}
+
+#[instrument(skip_all)]
+pub fn get_public_ballot_style_file_path(
+    tenant_id: &str,
+    election_event_id: &str,
+    area_id: &str,
+    election_id: &str,
+) -> String {
+    let base_path =
+        get_public_area_base_path(tenant_id, election_event_id, area_id);
+    format!("{base_path}/ballot-style-election-{election_id}.json")
+}
+
+#[instrument(skip_all)]
 pub fn get_public_document_key(
     tenant_id: &str,
     document_id: &str,

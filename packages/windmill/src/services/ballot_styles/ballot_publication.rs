@@ -26,6 +26,7 @@ use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::connection;
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak::get_client_credentials;
+use sequent_core::types::hasura::core::BallotStyle;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::{event, instrument, Level};
@@ -136,6 +137,7 @@ pub async fn update_publish_ballot(
     election_event_id: String,
     ballot_publication_id: String,
 ) -> Result<()> {
+    // TODO: Move this to the celery task update_election_event_ballot_publication
     let auth_headers = get_client_credentials().await?;
 
     let ballot_publication = get_ballot_publication_by_id(
