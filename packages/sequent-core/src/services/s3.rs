@@ -11,8 +11,9 @@ use crate::util::temp_path::{
 };
 use anyhow::{anyhow, Context, Result};
 use aws_sdk_s3 as s3;
-use aws_smithy_types::byte_stream;
-use aws_smithy_types::byte_stream::ByteStream;
+use aws_sdk_s3::operation::create_multipart_upload::CreateMultipartUploadOutput;
+use aws_sdk_s3::types::{CompletedMultipartUpload, CompletedPart};
+use aws_smithy_types::byte_stream::{ByteStream, Length};
 use core::time::Duration;
 use s3::presigning::PresigningConfig;
 use std::fs::File;
@@ -23,23 +24,7 @@ use tempfile::NamedTempFile;
 use tokio::io::AsyncReadExt;
 use tracing::{info, instrument};
 
-// constant defining chunk size to 16 mb
-// this is the max supported by minio:
-// https://github.com/minio/minio/blob/42d4ab2a0ab56bf4953e6fb77a8268d478d2df32/cmd/streaming-signature-v4.go#L260
-const CHUNK_SIZE_16MB: usize = 15_784;//16 << 20;
-
-// variant of https://github.com/smithy-lang/smithy-rs/blob/0774950eabaccec6a48fb93495ac0fc1e2054116/rust-runtime/aws-smithy-types/src/byte_stream.rs#L408
-// that allows configuring the chunk size
-pub async fn bytestream_from_path(
-    path: impl AsRef<std::path::Path>,
-    chunk_size: usize,
-) -> Result<ByteStream, byte_stream::error::Error> {
-    byte_stream::FsBuilder::new()
-        .buffer_size(chunk_size)
-        .path(path)
-        .build()
-        .await
-}
+const MAX_CHUNK_SIZE: u64 = 16 * 1024 * 1024;
 
 #[instrument(err, skip_all)]
 pub fn get_private_bucket() -> Result<String> {
@@ -218,7 +203,7 @@ pub async fn get_object_into_temp_file(
     Ok(temp_file)
 }
 
-#[instrument(err)]
+#[instrument(err, skip_all)]
 pub async fn upload_file_to_s3(
     key: String,
     is_public: bool,
@@ -228,21 +213,146 @@ pub async fn upload_file_to_s3(
     cache_control: Option<String>,
     download_filename: Option<String>,
 ) -> Result<()> {
-    let data = bytestream_from_path(&file_path, CHUNK_SIZE_16MB)
+    let path = Path::new(&file_path);
+    let file_size = tokio::fs::metadata(path)
         .await
-        .with_context(|| {
-            anyhow!("Error creating bytestream from file path={file_path}")
-        })?;
-    upload_data_to_s3(
-        data,
-        key,
-        is_public,
-        s3_bucket,
-        media_type,
-        cache_control,
-        download_filename,
-    )
-    .await
+        .map_err(|e| anyhow!("Error getting file metadata: {e:?}"))?
+        .len();
+    info!("Uploading file of size {file_size} bytes to S3");
+
+    if file_size > MAX_CHUNK_SIZE {
+        upload_multipart_data_to_s3(
+            path,
+            key,
+            is_public,
+            s3_bucket,
+            media_type,
+            cache_control,
+            download_filename,
+            file_size,
+        )
+        .await
+    } else {
+        let data =
+            ByteStream::from_path(&file_path).await.with_context(|| {
+                anyhow!("Error creating bytestream from file path={file_path}")
+            })?;
+        upload_data_to_s3(
+            data,
+            key,
+            is_public,
+            s3_bucket,
+            media_type,
+            cache_control,
+            download_filename,
+        )
+        .await
+    }
+}
+
+#[instrument(err, skip_all)]
+pub async fn upload_multipart_data_to_s3(
+    path: &Path,
+    key: String,
+    is_public: bool,
+    s3_bucket: String,
+    media_type: String,
+    cache_control: Option<String>,
+    download_filename: Option<String>,
+    file_size: u64,
+) -> Result<()> {
+    let mut chunk_count = (file_size / MAX_CHUNK_SIZE) + 1;
+    let mut size_of_last_chunk = file_size % MAX_CHUNK_SIZE;
+    if size_of_last_chunk == 0 {
+        size_of_last_chunk = MAX_CHUNK_SIZE;
+        chunk_count -= 1;
+    }
+
+    let config = get_s3_aws_config(!is_public)
+        .await
+        .with_context(|| "Error getting s3 aws config")?;
+    let client = get_s3_client(config.clone())
+        .await
+        .with_context(|| "Error getting s3 client")?;
+
+    let mut multipart_builder = client
+        .create_multipart_upload()
+        .bucket(&s3_bucket)
+        .key(&key)
+        .content_type(media_type);
+
+    if let Some(filename) = download_filename {
+        let disposition = format!("attachment; filename=\"{filename}\"");
+        multipart_builder = multipart_builder.content_disposition(disposition);
+    }
+
+    let multipart_builder = if let Some(cache_control_value) = cache_control {
+        multipart_builder.cache_control(cache_control_value)
+    } else {
+        multipart_builder
+    };
+
+    // First we need to get the id to send it with each part.
+    let multipart_upload_res: CreateMultipartUploadOutput = multipart_builder
+        .send()
+        .await
+        .map_err(|e| anyhow!("Error uploading file to S3: {e:?}"))?;
+
+    let upload_id = multipart_upload_res
+        .upload_id()
+        .ok_or(anyhow!("Missing upload_id after CreateMultipartUpload",))?;
+
+    let mut upload_parts: Vec<aws_sdk_s3::types::CompletedPart> = Vec::new();
+    for chunk_index in 0..chunk_count {
+        info!("chunk {}", chunk_index);
+        let this_chunk = if chunk_index == chunk_count - 1 {
+            size_of_last_chunk
+        } else {
+            MAX_CHUNK_SIZE
+        };
+        let stream = ByteStream::read_from()
+            .path(path)
+            .offset(chunk_index * MAX_CHUNK_SIZE)
+            .length(Length::Exact(this_chunk))
+            .build()
+            .await
+            .unwrap();
+
+        // Chunk index needs to start at 0, but part numbers start at 1.
+        let part_number = (chunk_index as i32) + 1;
+        let upload_part_res = client
+            .upload_part()
+            .key(&key)
+            .bucket(&s3_bucket)
+            .upload_id(upload_id)
+            .body(stream)
+            .part_number(part_number)
+            .send()
+            .await?;
+
+        upload_parts.push(
+            CompletedPart::builder()
+                .e_tag(upload_part_res.e_tag.unwrap_or_default())
+                .part_number(part_number)
+                .build(),
+        );
+    }
+
+    let completed_multipart_upload: CompletedMultipartUpload =
+        CompletedMultipartUpload::builder()
+            .set_parts(Some(upload_parts))
+            .build();
+
+    let _complete_multipart_upload_res = client
+        .complete_multipart_upload()
+        .bucket(&s3_bucket)
+        .key(&key)
+        .multipart_upload(completed_multipart_upload)
+        .upload_id(upload_id)
+        .send()
+        .await?;
+
+    Ok(())
 }
 
 #[instrument(err, skip_all)]
