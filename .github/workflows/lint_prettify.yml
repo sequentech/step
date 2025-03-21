@@ -12,7 +12,8 @@ on:
 jobs:
   lint-prettify:
     name: Check frontend linting
-    runs-on: [arc-custom-runners-sequentech, image=ubuntu24-full-x64]
+    runs-on:
+     - arc-custom-runners-sequentech
     steps:
       - name: Check out code
         uses: actions/checkout@v4
@@ -54,7 +55,8 @@ jobs:
 
   lint-prettify-hasura:
     name: Check Hasura prettify
-    runs-on: [arc-custom-runners-sequentech, image=ubuntu24-full-x64]
+    runs-on:
+     - arc-custom-runners-sequentech
     steps:
       - name: Check out code
         uses: actions/checkout@v4
@@ -78,7 +80,8 @@ jobs:
 
   rust-fmt:
     name: Check Rust format 
-    runs-on: [arc-custom-runners-sequentech, image=ubuntu24-full-x64]
+    runs-on:
+     - arc-custom-runners-sequentech
     steps:
       - name: Check out code
         uses: actions/checkout@v4
@@ -96,7 +99,8 @@ jobs:
   
   java-spotless:
     name: Check Java format
-    runs-on: [arc-custom-runners-sequentech, image=ubuntu24-full-x64]
+    runs-on:
+     - arc-custom-runners-sequentech
     steps:
       - name: Check out code
         uses: actions/checkout@v4

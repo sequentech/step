@@ -11,7 +11,8 @@ on:
 
 jobs:
   build-and-test:
-    runs-on: [arc-custom-runners-sequentech, image=ubuntu24-full-x64]
+    runs-on:
+     - arc-custom-runners-sequentech
 
     steps:
     - uses: actions/checkout@v2

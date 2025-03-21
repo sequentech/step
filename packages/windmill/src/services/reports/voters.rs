@@ -302,6 +302,7 @@ pub async fn get_voters_with_vote_info(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
+    election_id: Option<&str>,
     users: Vec<Voter>,
     filter_by_has_voted: Option<bool>,
 ) -> Result<(Vec<Voter>, i64)> {
@@ -573,6 +574,7 @@ pub async fn get_voters_data(
                 &hasura_transaction,
                 &tenant_id,
                 &election_event_id,
+                Some(&election_id),
                 voters.clone(),
                 voters_filter.has_voted,
             )

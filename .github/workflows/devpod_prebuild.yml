@@ -9,7 +9,8 @@ on:
 
 jobs:
   build:
-    runs-on: [arc-custom-runners-sequentech, image=ubuntu24-full-x64]
+    runs-on:
+     - arc-custom-runners-sequentech
 
     steps:
       - name: Checkout code

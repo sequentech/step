@@ -12,7 +12,8 @@ on:
 jobs:
   run-tests:
     name: Run Rust tests
-    runs-on: [arc-custom-runners-sequentech, image=ubuntu24-full-x64]
+    runs-on:
+     - arc-custom-runners-sequentech
     strategy:
       matrix:
         include:
