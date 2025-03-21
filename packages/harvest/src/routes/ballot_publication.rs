@@ -6,7 +6,6 @@ use anyhow::Result;
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
-use sequent_core::types::hasura;
 use sequent_core::types::permissions::Permissions;
 use sequent_core::{
     ballot::{ElectionEventPresentation, LockedDown},
@@ -87,7 +86,7 @@ pub async fn generate_ballot_publication(
         {
             return Err((
                 Status::Forbidden,
-                format!("Election event is locked down"),
+                "Election event is locked down".to_string(),
             ));
         }
     }

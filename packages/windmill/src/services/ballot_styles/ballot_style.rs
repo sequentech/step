@@ -16,26 +16,25 @@ use crate::postgres::keys_ceremony::get_keys_ceremonies;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::database::get_hasura_pool;
 use crate::services::election_dates::get_election_dates;
+use crate::services::pg_lock::PgLock;
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context, Result as AnyhowResult};
-use chrono::Duration;
+use chrono::{Duration, Local};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use futures::try_join;
-use rocket::http::Status;
+use sequent_core::services::area_tree::TreeNode;
+use sequent_core::services::date::ISO8601;
+use sequent_core::services::s3;
 use sequent_core::types::hasura::core::{
     self as hasura_type, Area, AreaContest, BallotPublication, BallotStyle, Candidate, Contest,
     Election, ElectionEvent, KeysCeremony,
 };
 use sequent_core::types::scheduled_event::ScheduledEvent;
-
+use sequent_core::util::retry::retry_with_exponential_backoff;
 use std::collections::{HashMap, HashSet};
+use std::time::Duration as StdDuration;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
-
-use crate::services::pg_lock::PgLock;
-use sequent_core::services::date::ISO8601;
-
-use sequent_core::services::area_tree::TreeNode;
 
 /**
  * Returns a HashMap<election_id, set<contest_id>> with all
@@ -93,7 +92,7 @@ pub fn get_elections_contests_map_for_area(
     Ok(election_contest_map)
 }
 
-pub async fn create_ballot_style_postgres(
+pub async fn create_ballot_style_s3_files(
     transaction: &Transaction<'_>,
     area: &Area,
     areas_tree: &TreeNode,
@@ -167,6 +166,51 @@ pub async fn create_ballot_style_postgres(
             public_key.clone(),
         )?;
         let election_dto_json_string = serde_json::to_string(&election_dto)?;
+        let election_event_id = election_event.id.clone();
+        let area_id = area.id.clone();
+        let s3_file_path = format!("tenant-{tenant_id}/event-{election_event_id}/{election_id}/ballot-style-{area_id}.json");
+        let ballot_style = BallotStyle::new(
+            ballot_style_id.to_string(),
+            tenant_id.to_string(),
+            election.id.to_string(),
+            Some(area.id.to_string()),
+            Some(Local::now()),
+            Some(Local::now()),
+            None,
+            None,
+            Some(election_dto_json_string.clone()),
+            None,
+            None,
+            election_event.id.to_string(),
+            None,
+            ballot_publication.id.to_string(),
+        );
+
+        let ballot_style_json = serde_json::to_string(&ballot_style)
+            .map_err(|err| anyhow!("Error serializing ballot style to json: {err:?}"))?;
+
+        let s3_bucket =
+            s3::get_private_bucket().map_err(|e| anyhow!("Missing bucket, error: {e:?}"))?;
+        retry_with_exponential_backoff(
+            || async {
+                s3::upload_data_to_s3(
+                    ballot_style_json.clone().into_bytes().into(),
+                    s3_file_path.clone(),
+                    false,
+                    s3_bucket.clone(),
+                    "text/plain".to_string(),
+                    None,
+                    None,
+                )
+                .await
+            },
+            3,
+            StdDuration::from_millis(100),
+        )
+        .await
+        .map_err(|err| anyhow!("Error uploading input document to S3, trying 3 times: {err:?}"))?;
+
+        // TODO: Remove the insertion.
         let _created_ballot_style = insert_ballot_style(
             transaction,
             &ballot_style_id.to_string(),
@@ -266,7 +310,7 @@ pub async fn update_election_event_ballot_styles(
     let areas_tree = TreeNode::from_areas(basic_areas)?;
 
     for area in &areas {
-        create_ballot_style_postgres(
+        create_ballot_style_s3_files(
             &transaction,
             area,
             &areas_tree,
