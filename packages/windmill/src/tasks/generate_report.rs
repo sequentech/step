@@ -43,41 +43,11 @@ use crate::types::error::Result;
 use anyhow::{anyhow, Context};
 use celery::error::TaskError;
 use deadpool_postgres::Client as DbClient;
-use sequent_core::services::s3::upload_file_to_s3;
-use sequent_core::temp_path::generate_temp_file;
 use sequent_core::types::hasura::core::TasksExecution;
-use std::path::Path;
 use std::str::FromStr;
 use tracing::info;
 use tracing::instrument;
-use std::io;
-use std::io::{BufWriter, Write};
-use std::fs::File;
-use sequent_core::services::s3::get_public_bucket;
 
-#[instrument(err)]
-pub fn create_fixed_size_file(path: &Path, size: usize) -> io::Result<()> {
-    // Create or truncate the file
-    let file = File::create(path)?;
-    let mut writer = BufWriter::new(file);
-    
-    // Use a buffer with a fixed pattern
-    const BUFFER_SIZE: usize = 64 * 1024; // 64 KiB buffer
-    let buffer = [42u8; BUFFER_SIZE]; // Fill with the byte value 42
-    
-    let mut remaining = size;
-    while remaining > 0 {
-        let to_write = BUFFER_SIZE.min(remaining);
-        writer.write_all(&buffer[..to_write])?;
-        remaining -= to_write;
-    }
-    
-    writer.flush()?;
-    
-    Ok(())
-}
-
-#[instrument(err, skip_all)]
 pub async fn generate_report(
     report: Report,
     document_id: String,
@@ -87,21 +57,6 @@ pub async fn generate_report(
     executer_username: Option<String>,
     tally_session_id: Option<String>,
 ) -> Result<(), anyhow::Error> {
-    let test_tempfile = generate_temp_file("felix", "bin")?;
-    let test_path = test_tempfile.path();
-    let test_size: usize = 32 << 20;
-    create_fixed_size_file(test_path, test_size)?;
-    upload_file_to_s3(
-        "tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5/felix2.bin".to_string(),
-        false,
-        "public".to_string(),
-        "application/octet-stream".to_string(),
-        test_path.to_string_lossy().to_string(),
-        None,
-        Some("test.bin".to_string()),
-    ).await?;
-
-
     let tenant_id = report.tenant_id.clone();
     let election_event_id = report.election_event_id.clone();
     let report_type_str = report.report_type.clone();
