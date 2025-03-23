@@ -2,9 +2,19 @@
 
 # Script to restore a init report or tally to in progress
 
+# Check if tally session ID is provided
+if [ -z "$1" ]; then
+  echo "Error: Tally session ID is required"
+  echo "Usage: $0 <tally_session_id>"
+  exit 1
+fi
+
+# Set tally session ID from first argument
+TALLY_SESSION_ID="$1"
+
 # Check if script is run as root
 if [ "$EUID" -ne 0 ]; then
-  echo "This script must be run as root (use sudo)"
+  echo "This script must be run as root"
   exit 1
 fi
 
@@ -51,6 +61,23 @@ else
 fi
 
 echo "Querying database for election alias..."
+
+# Check if initialization report exists
+echo "Checking if initialization report exists..."
+INIT_REPORT_COUNT=$(psql -t postgresql://$HASURA_DB__USER:$HASURA_DB__PASSWORD@$HASURA_DB__HOST:$HASURA_DB__PORT/$HASURA_DB__DBNAME \
+  -c "SELECT COUNT(*)
+      FROM sequent_backend.tally_session
+      WHERE
+      id = '$TALLY_SESSION_ID'
+      AND tally_type = 'INITIALIZATION_REPORT'
+      AND is_execution_completed IS TRUE
+      AND execution_status != 'IN_PROGRESS';" 2>/dev/null | tr -d '[:space:]')
+
+if [ "$INIT_REPORT_COUNT" -eq "0" ]; then
+  echo "Error: No valid initialization report found for tally session ID: $TALLY_SESSION_ID"
+  exit 1
+fi
+
 # Run the query to get the election alias
 ELECTION_ALIAS=$(psql -t postgresql://$HASURA_DB__USER:$HASURA_DB__PASSWORD@$HASURA_DB__HOST:$HASURA_DB__PORT/$HASURA_DB__DBNAME \
   -c "SELECT election.alias
@@ -60,7 +87,7 @@ ELECTION_ALIAS=$(psql -t postgresql://$HASURA_DB__USER:$HASURA_DB__PASSWORD@$HAS
       WHERE tally_session.id = '$TALLY_SESSION_ID';" 2>/dev/null | tr -d '[:space:]')
 
 if [ -z "$ELECTION_ALIAS" ]; then
-  echo "Error: Could not find election alias for tally session ID: $TALLY_SESSION_ID"
+  echo "Error: Could not find election for tally session ID: $TALLY_SESSION_ID"
   exit 1
 fi
 
