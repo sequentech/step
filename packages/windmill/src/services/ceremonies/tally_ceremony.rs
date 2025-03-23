@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::hasura::election_event::get_election_event_helper;
-use crate::hasura::tally_session::{get_tally_session_by_id, update_tally_session_status};
 use crate::hasura::tally_session_execution::{
     get_last_tally_session_execution,
     insert_tally_session_execution as insert_tally_session_execution_hasura,
@@ -15,7 +14,9 @@ use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::keys_ceremony;
 use crate::postgres::keys_ceremony::get_keys_ceremonies;
 use crate::postgres::keys_ceremony::get_keys_ceremony_by_id;
-use crate::postgres::tally_session::insert_tally_session;
+use crate::postgres::tally_session::{
+    get_tally_session_by_id, insert_tally_session, update_tally_session_status,
+};
 use crate::postgres::tally_session_contest::{
     get_tally_session_highest_batch, insert_tally_session_contest,
 };
@@ -27,10 +28,6 @@ use crate::services::ceremonies::serialize_logs::{
 use crate::services::ceremonies::tally_ceremony::get_last_tally_session_execution::{
     GetLastTallySessionExecutionSequentBackendTallySession,
     GetLastTallySessionExecutionSequentBackendTallySessionExecution,
-};
-use crate::services::ceremonies::tally_ceremony::get_tally_session_by_id::{
-    GetTallySessionByIdSequentBackendTallySession,
-    GetTallySessionByIdSequentBackendTallySessionContest,
 };
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_status::get_election_status;
@@ -102,37 +99,35 @@ pub async fn find_last_tally_session_execution(
     )))
 }
 
-#[instrument(skip(auth_headers), err)]
-pub async fn get_tally_session(
-    auth_headers: connection::AuthHeaders,
-    tenant_id: String,
-    election_event_id: String,
-    tally_session_id: String,
-) -> Result<(
-    GetTallySessionByIdSequentBackendTallySession,
-    Vec<GetTallySessionByIdSequentBackendTallySessionContest>,
-)> {
-    // fetch tally_sessions
-    let data = get_tally_session_by_id(
-        auth_headers.clone(),
-        tenant_id.clone(),
-        election_event_id.clone(),
-        tally_session_id.clone(),
-    )
-    .await?
-    .data
-    .expect("expected data");
+// #[instrument(skip(auth_headers), err)]
+// pub async fn get_tally_session(
+//     auth_headers: connection::AuthHeaders,
+//     tenant_id: String,
+//     election_event_id: String,
+//     tally_session_id: String,
+// ) -> Result<(
+//     GetTallySessionByIdSequentBackendTallySession,
+//     Vec<GetTallySessionByIdSequentBackendTallySessionContest>,
+// )> {
+//     // fetch tally_sessions
+//     let data = get_tally_session_by_id(
+//         auth_headers.clone(),
+//         &tenant_id,
+//         &election_event_id,
+//         &tally_session_id,
+//     )
+//     .await.map_err(|err|format!("{e}"))?;
 
-    let tally_session = data
-        .sequent_backend_tally_session
-        .get(0)
-        .ok_or(anyhow!("Tally session not found"))?
-        .clone();
+//     let tally_session = data
+//         .sequent_backend_tally_session
+//         .get(0)
+//         .ok_or(anyhow!("Tally session not found"))?
+//         .clone();
 
-    let tally_session_contests = data.sequent_backend_tally_session_contest.clone();
+//     let tally_session_contests = data.sequent_backend_tally_session_contest.clone();
 
-    Ok((tally_session.clone(), tally_session_contests))
-}
+//     Ok((tally_session.clone(), tally_session_contests))
+// }
 
 #[instrument(skip_all, err)]
 pub fn get_tally_ceremony_status(input: Option<Value>) -> Result<TallyCeremonyStatus> {
@@ -495,11 +490,11 @@ pub async fn update_tally_ceremony(
 ) -> Result<()> {
     let auth_headers = keycloak::get_client_credentials().await?;
 
-    let (tally_session, _tally_session_contests) = get_tally_session(
-        auth_headers.clone(),
-        tenant_id.clone(),
-        election_event_id.clone(),
-        tally_session_id.clone(),
+    let tally_session = get_tally_session_by_id(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &tally_session_id,
     )
     .await?;
 
@@ -555,12 +550,12 @@ pub async fn update_tally_ceremony(
         ));
     }
 
-    update_tally_session_status(
-        auth_headers.clone(),
-        tenant_id.clone(),
-        election_event_id.clone(),
-        tally_session_id.clone(),
-        new_execution_status.clone(),
+    let _update = update_tally_session_status(
+        &hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &tally_session_id,
+        new_execution_status,
     )
     .await?;
 
@@ -620,11 +615,11 @@ pub async fn set_private_key(
 ) -> Result<bool> {
     let auth_headers = keycloak::get_client_credentials().await?;
 
-    let (tally_session, _tally_session_contests) = get_tally_session(
-        auth_headers.clone(),
-        tenant_id.to_string(),
-        election_event_id.to_string(),
-        tally_session_id.to_string(),
+    let tally_session = get_tally_session_by_id(
+        transaction,
+        &tenant_id,
+        &election_event_id,
+        &tally_session_id,
     )
     .await?;
 
@@ -740,10 +735,10 @@ pub async fn set_private_key(
     // enough trustees connected, so change tally execution status to connected
     if connected_trustees.len() as i64 >= keys_ceremony.threshold {
         update_tally_session_status(
-            auth_headers.clone(),
-            tenant_id.to_string(),
-            election_event_id.to_string(),
-            tally_session_id.to_string(),
+            transaction.clone(),
+            &tenant_id,
+            &election_event_id,
+            &tally_session_id,
             TallyExecutionStatus::CONNECTED,
         )
         .await?;
@@ -794,4 +789,55 @@ pub async fn set_private_key(
         .with_context(|| "error posting to the electoral log")?;
 
     Ok(true)
+}
+
+#[instrument(err)]
+pub async fn set_tally_session_completed(
+    auth_headers: connection::AuthHeaders,
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: String,
+    election_event_id: String,
+    tally_session_id: String,
+) -> Result<()> {
+    let execution_status = TallyExecutionStatus::SUCCESS;
+
+    let is_updated = match update_tally_session_status(
+        &hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &tally_session_id,
+        execution_status,
+    )
+    .await
+    {
+        Ok(_) => true,
+        Err(_) => false,
+    };
+
+    if is_updated {
+        let election_event = get_election_event_helper(
+            auth_headers.clone(),
+            tenant_id.clone(),
+            election_event_id.clone(),
+        )
+        .await?;
+
+        let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
+            .with_context(|| "missing bulletin board")?;
+
+        let electoral_log = ElectoralLog::new(
+            hasura_transaction,
+            &tenant_id,
+            Some(&election_event_id),
+            board_name.as_str(),
+        )
+        .await?;
+
+        electoral_log
+            .post_tally_close(election_event_id.to_string(), None, None, None)
+            .await
+            .with_context(|| "error posting to the electoral log")?;
+    }
+
+    Ok(())
 }

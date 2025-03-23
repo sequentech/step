@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::hasura::election::get_all_elections_for_event;
-use crate::hasura::tally_session::set_tally_session_completed;
 use crate::hasura::tally_session_execution::get_last_tally_session_execution::ResponseData;
 use crate::hasura::tally_session_execution::{
     get_last_tally_session_execution, insert_tally_session_execution,

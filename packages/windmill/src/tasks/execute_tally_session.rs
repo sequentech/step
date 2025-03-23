@@ -5,7 +5,6 @@ use crate::hasura;
 use crate::hasura::election_event::get_election_event_helper;
 use crate::hasura::election_event::update_election_event_status;
 use crate::hasura::keys_ceremony::get_keys_ceremonies;
-use crate::hasura::tally_session::set_tally_session_completed;
 use crate::hasura::tally_session_execution::get_last_tally_session_execution;
 use crate::hasura::tally_session_execution::get_last_tally_session_execution::ResponseData;
 use crate::postgres::area::get_event_areas;
@@ -29,8 +28,9 @@ use crate::services::ceremonies::results::populate_results_tables;
 use crate::services::ceremonies::serialize_logs::{
     append_tally_finished, generate_logs, print_messages, sort_logs,
 };
-use crate::services::ceremonies::tally_ceremony::find_last_tally_session_execution;
-use crate::services::ceremonies::tally_ceremony::get_tally_ceremony_status;
+use crate::services::ceremonies::tally_ceremony::{
+    find_last_tally_session_execution, get_tally_ceremony_status, set_tally_session_completed,
+};
 use crate::services::ceremonies::tally_progress::generate_tally_progress;
 use crate::services::ceremonies::tally_session_error::handle_tally_session_error;
 use crate::services::ceremonies::velvet_tally::run_velvet_tally;
