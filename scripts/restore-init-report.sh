@@ -100,5 +100,38 @@ if [ "$CONFIRMATION" != "yes" ]; then
   exit 0
 fi
 
+
+# Execute transaction to update tally session status and delete execution
+echo "Executing database transaction..."
+TRANSACTION_RESULT=$(psql -t postgresql://$HASURA_DB__USER:$HASURA_DB__PASSWORD@$HASURA_DB__HOST:$HASURA_DB__PORT/$HASURA_DB__DBNAME \
+  -c "BEGIN;
+      -- Delete the most recent tally session execution
+      DELETE FROM sequent_backend.tally_session_execution 
+      WHERE id = (
+        SELECT id 
+        FROM sequent_backend.tally_session_execution 
+        WHERE tally_session_id = '$TALLY_SESSION_ID' 
+        ORDER BY created_at DESC 
+        LIMIT 1
+      );
+      
+      -- Update tally session status to IN_PROGRESS
+      UPDATE sequent_backend.tally_session
+      SET is_execution_completed = FALSE,
+          execution_status = 'IN_PROGRESS'
+      WHERE id = '$TALLY_SESSION_ID';
+      
+      COMMIT;
+      
+      -- Return affected row to confirm
+      SELECT id FROM sequent_backend.tally_session WHERE id = '$TALLY_SESSION_ID';" 2>/dev/null | tr -d '[:space:]')
+
+if [ -z "$TRANSACTION_RESULT" ]; then
+  echo "Error: Transaction failed. No changes were made to the database."
+  exit 1
+else
+  echo "Transaction successful. Initialization report $TALLY_SESSION_ID has been reset to IN_PROGRESS state."
+fi
+
 echo "Proceeding with the operation..."
 echo "Done."
