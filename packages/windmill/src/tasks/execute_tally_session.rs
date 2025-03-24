@@ -1155,6 +1155,7 @@ pub async fn execute_tally_session_wrapped(
     tally_type: Option<String>,
     election_ids: Option<Vec<String>>,
 ) -> Result<()> {
+    event!(Level::INFO, "Omri - monitor tally - start tally exectusion - {:?}", Utc::now());
     let Some((tally_session_execution, tally_session, tally_session_data)) =
         find_last_tally_session_execution(
             auth_headers.clone(),
@@ -1168,7 +1169,7 @@ pub async fn execute_tally_session_wrapped(
         event!(Level::INFO, "Can't find last execution status, skipping");
         return Ok(());
     };
-
+    // for decrepting the vote
     let keys_ceremony = get_keys_ceremony_by_id(
         hasura_transaction,
         &tenant_id,
@@ -1274,15 +1275,18 @@ pub async fn execute_tally_session_wrapped(
         tally_type_enum.clone(),
     )
     .await?;
+
     event!(Level::INFO, "Omri - monitor tally - end results tally - {:?}", Utc::now());
 
     // could be expired
     let auth_headers = keycloak::get_client_credentials().await?;
-        .clone()
-        .map(|values| values.clone().into_iter().map(|int| int as i32).collect());
 
     new_status.logs =
         append_tally_finished(&new_status.logs, &election_ids.clone().unwrap_or(vec![]));
+
+    let session_ids_i32: Option<Vec<i32>> = session_ids
+        .clone()
+        .map(|values| values.clone().into_iter().map(|int| int as i32).collect());
 
     // insert tally_session_execution
     insert_tally_session_execution(
@@ -1337,7 +1341,7 @@ pub async fn execute_tally_session_wrapped(
             }
         }
     }
-
+    event!(Level::INFO, "Omri - monitor tally - end tally exectusion - {:?}", Utc::now());
     Ok(())
 }
 

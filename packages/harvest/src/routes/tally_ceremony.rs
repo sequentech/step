@@ -283,7 +283,7 @@ pub async fn restore_private_key(
                 format!("Error starting hasura transaction: {err}"),
             )
         })?;
-
+    
     let is_valid = tally_ceremony::set_private_key(
         &hasura_transaction,
         &claims,

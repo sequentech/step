@@ -53,6 +53,7 @@ pub async fn insert_ballots_messages(
     tally_session_contests: Vec<GetLastTallySessionExecutionSequentBackendTallySessionContest>,
     contest_encryption_policy: ContestEncryptionPolicy,
 ) -> Result<()> {
+    // 
     event!(Level::INFO, "Omri - monitor tally - start insert_ballots_messages - {:?}", Utc::now());
     let trustees = get_trustees_by_name(&auth_headers, &tenant_id, &trustee_names)
         .await?
@@ -91,6 +92,7 @@ pub async fn insert_ballots_messages(
     let selected_trustees: TrusteeSet =
         generate_trustee_set(&configuration, deserialized_trustee_pks.clone());
     event!(Level::INFO, "Omri - monitor tally - start tally session contests loop - {:?}", Utc::now());
+    // going by contests in the tally session
     for tally_session_contest in tally_session_contests {
         event!(
             Level::INFO,
@@ -135,7 +137,7 @@ pub async fn insert_ballots_messages(
             }
             for ballot in ballots_list {
                 let ballot_str = ballot.content.ok_or(anyhow!("Empty ballot content"))?;
-
+                // determine the contest encryption policy
                 let ciphertext: Ciphertext<RistrettoCtx> =
                     if ContestEncryptionPolicy::MULTIPLE_CONTESTS == contest_encryption_policy {
                         let hashable_multi_ballot: HashableMultiBallot =
@@ -202,7 +204,7 @@ pub async fn insert_ballots_messages(
         // Reset offset
         offset = 0;
         let batch_size = batch_size * 100;
-
+        // Review should this be inside the contests loop or not. 
         loop {
             let users_map = list_keycloak_enabled_users_by_area_id(
                 keycloak_transaction,
@@ -286,6 +288,7 @@ pub async fn insert_ballots_messages(
 
         let mut board = get_b3_pgsql_client().await?;
         let batch = tally_session_contest.session_id.clone() as BatchNumber;
+        //Sending the ballots to the board to be read by the trsutees 
         add_ballots_to_board(
             &protocol_manager,
             &mut board,
