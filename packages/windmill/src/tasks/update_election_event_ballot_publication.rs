@@ -101,12 +101,13 @@ pub async fn update_election_event_ballot_publication(
     }
 
     // WIP
-    // ballot_style::update_election_event_ballot_s3_files(
-    //     &tenant_id,
-    //     &election_event_id,
-    //     &ballot_publication_id,
-    // )
-    // .await?;
+    ballot_style::update_election_event_ballot_s3_files(
+        &hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &ballot_publication_id,
+    )
+    .await?;
 
     update_ballot_publication_d(
         auth_headers.clone(),
