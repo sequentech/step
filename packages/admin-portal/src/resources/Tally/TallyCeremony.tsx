@@ -139,7 +139,7 @@ export const TallyCeremony: React.FC = () => {
     const isTrustee = authContext.isAuthorized(true, tenantId, IPermissions.TRUSTEE_CEREMONY)
     const [selectedElections, setSelectedElections] = useState<string[]>([])
     const [selectedTrustees, setSelectedTrustees] = useState<boolean>(false)
-    const [keysCeremonyId, setKeysCeremonyId] = useState<string | null>(null)
+    const [keysCeremonyId, setKeysCeremonyId] = useState<string | undefined>(undefined)
     const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
     const [isTallyCompleted, setIsTallyCompleted] = useState<boolean>(false)
     const [isConfirming, setIsConfirming] = useState<boolean>(false)
@@ -755,7 +755,7 @@ export const TallyCeremony: React.FC = () => {
                                 update={(elections) => setSelectedElections(elections)}
                                 disabled={isTallyElectionListDisabled}
                                 electionEventId={record?.id}
-                                keysCeremonyId={keysCeremonyId}
+                                keysCeremonyId={keysCeremonyId ?? null}
                                 tallySession={tallySession}
                             />
                             <FormControl fullWidth>
@@ -766,7 +766,7 @@ export const TallyCeremony: React.FC = () => {
 
                                 <Select
                                     id="keys-ceremony-for-tally"
-                                    value={keysCeremonyId}
+                                    value={keysCeremonyId ?? ""}
                                     label={t("tally.keysCeremonyTitle")}
                                     placeholder={t("tally.keysCeremonyTitle")}
                                     onChange={(props) => {
@@ -796,7 +796,7 @@ export const TallyCeremony: React.FC = () => {
                                 electionEventId={record?.id}
                                 disabled={true}
                                 update={(elections) => setSelectedElections(elections)}
-                                keysCeremonyId={keysCeremonyId}
+                                keysCeremonyId={keysCeremonyId ?? null}
                                 tallySession={tallySession}
                             />
 
