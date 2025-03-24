@@ -91,11 +91,11 @@ export const Logs: React.FC<LogsProps> = ({logs}) => {
                                             {t("keysGeneration.ceremonyStep.logsHeader.entry")}
                                         </TableCell>
                                     </TableRow>
-                                </TableHead>
+                                </TableHead>    
                                 <TableBody>
-                                    {logs.map((log) => (
+                                    {logs.map((log, index) => (
                                         <TableRow
-                                            key={log?.created_date as any}
+                                            key={index}
                                             sx={{
                                                 "&:last-child td, &:last-child th": {
                                                     border: 0,
