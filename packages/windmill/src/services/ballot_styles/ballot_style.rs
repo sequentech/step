@@ -32,7 +32,6 @@ use sequent_core::types::hasura::core::{
 use sequent_core::types::scheduled_event::ScheduledEvent;
 use sequent_core::util::retry::retry_with_exponential_backoff;
 use std::collections::{HashMap, HashSet};
-use std::time::Duration as StdDuration;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
@@ -186,60 +185,6 @@ pub async fn create_ballot_style_postgres(
 }
 
 #[instrument(err)]
-pub async fn update_election_event_ballot_publication(
-    tenant_id: &str,
-    election_event_id: &str,
-    ballot_publication_id: &str,
-) -> AnyhowResult<()> {
-    // TODO, fix signature
-    // TODO: get ballot style from db, uncomment below and fix.
-
-    // let election_dto_json_string = serde_json::to_string(&election_dto)?;
-    // let ballot_style = BallotStyle::new(
-    //     ballot_style_id.to_string(),
-    //     tenant_id.to_string(),
-    //     election.id.to_string(),
-    //     Some(area.id.to_string()),
-    //     Some(Local::now()),
-    //     Some(Local::now()),
-    //     None,
-    //     None,
-    //     Some(election_dto_json_string.clone()),
-    //     None,
-    //     None,
-    //     election_event.id.to_string(),
-    //     None,
-    //     ballot_publication.id.to_string(),
-    // );
-
-    // let ballot_style_json = serde_json::to_string(&ballot_style)
-    //     .map_err(|err| anyhow!("Error serializing ballot style to json: {err:?}"))?;
-
-    // let s3_bucket =
-    //     s3::get_private_bucket().map_err(|e| anyhow!("Missing bucket, error: {e:?}"))?;
-    // retry_with_exponential_backoff(
-    //     || async {
-    //         s3::upload_data_to_s3(
-    //             ballot_style_json.clone().into_bytes().into(),
-    //             "".to_string(), // TODO: s3::get_public_ballot_style_file_path
-    //             false,
-    //             s3_bucket.clone(),
-    //             "text/plain".to_string(),
-    //             None,
-    //             None,
-    //         )
-    //         .await
-    //     },
-    //     3,
-    //     StdDuration::from_millis(100),
-    // )
-    // .await
-    // .map_err(|err| anyhow!("Error uploading input document to S3, trying 3 times: {err:?}"))?;
-
-    Ok(())
-}
-
-#[instrument(err)]
 pub async fn update_election_event_ballot_styles(
     tenant_id: &str,
     election_event_id: &str,
@@ -359,4 +304,58 @@ pub async fn get_ballot_styles_for_authorized_elections(
     authorized_election_ids: &Vec<String>,
 ) -> AnyhowResult<Vec<BallotStyle>> {
     todo!()
+}
+
+#[instrument(err)]
+pub async fn update_election_event_ballot_s3_files(
+    tenant_id: &str,
+    election_event_id: &str,
+    ballot_publication_id: &str,
+) -> AnyhowResult<()> {
+    // TODO, fix signature
+    // TODO: get ballot style from db, uncomment below and fix.
+
+    // let election_dto_json_string = serde_json::to_string(&election_dto)?;
+    // let ballot_style = BallotStyle::new(
+    //     ballot_style_id.to_string(),
+    //     tenant_id.to_string(),
+    //     election.id.to_string(),
+    //     Some(area.id.to_string()),
+    //     Some(Local::now()),
+    //     Some(Local::now()),
+    //     None,
+    //     None,
+    //     Some(election_dto_json_string.clone()),
+    //     None,
+    //     None,
+    //     election_event.id.to_string(),
+    //     None,
+    //     ballot_publication.id.to_string(),
+    // );
+
+    // let ballot_style_json = serde_json::to_string(&ballot_style)
+    //     .map_err(|err| anyhow!("Error serializing ballot style to json: {err:?}"))?;
+
+    // let s3_bucket =
+    //     s3::get_private_bucket().map_err(|e| anyhow!("Missing bucket, error: {e:?}"))?;
+    // retry_with_exponential_backoff(
+    //     || async {
+    //         s3::upload_data_to_s3(
+    //             ballot_style_json.clone().into_bytes().into(),
+    //             "".to_string(), // TODO: s3::get_public_ballot_style_file_path
+    //             false,
+    //             s3_bucket.clone(),
+    //             "text/plain".to_string(),
+    //             None,
+    //             None,
+    //         )
+    //         .await
+    //     },
+    //     3,
+    //     StdDuration::from_millis(100),
+    // )
+    // .await
+    // .map_err(|err| anyhow!("Error uploading input document to S3, trying 3 times: {err:?}"))?;
+
+    Ok(())
 }
