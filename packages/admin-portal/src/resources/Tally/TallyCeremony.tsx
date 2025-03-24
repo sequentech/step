@@ -326,11 +326,28 @@ export const TallyCeremony: React.FC = () => {
         }
     )
 
+    const [hasFinalResults, setHasFinalResults] = useState(false)
+
     useEffect(() => {
         if (tallySession?.is_execution_completed && !isTallyCompleted) {
-            setIsTallyCompleted(true)
+            // Only mark as completed if we have the resultsEventId
+            if (resultsEventId) {
+                setIsTallyCompleted(true)
+                setHasFinalResults(true)
+            } else {
+                // Force a refetch if we don't have resultsEventId yet
+                refetchTallySession()
+            }
         }
-    }, [tallySession?.is_execution_completed, isTallyCompleted])
+    }, [tallySession?.is_execution_completed, isTallyCompleted, resultsEventId])
+
+    useEffect(() => {
+        // Additional check in case resultsEventId comes after is_execution_completed
+        if (tallySession?.is_execution_completed && resultsEventId && !hasFinalResults) {
+            setIsTallyCompleted(true)
+            setHasFinalResults(true)
+        }
+    }, [resultsEventId, tallySession?.is_execution_completed, hasFinalResults])
 
     useEffect(() => {
         if (tallySession) {
