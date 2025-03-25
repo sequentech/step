@@ -25,15 +25,6 @@ if [ -z "$HASURA_DB__USER" ] || [ -z "$HASURA_DB__PASSWORD" ] || [ -z "$HASURA_D
   exit 1
 fi
 
-# Check database connection
-echo "Checking database connection..."
-if ! psql -c "\q" "postgresql://$HASURA_DB__USER:$HASURA_DB__PASSWORD@$HASURA_DB__HOST:$HASURA_DB__PORT/$HASURA_DB__DBNAME" &>/dev/null; then
-  echo "Error: Could not connect to the database. Please check your database credentials and connection."
-  exit 1
-else
-  echo "Database connection successful."
-fi
-
 # Check if postgresql-client is already installed
 echo "Checking if postgresql-client is installed..."
 if dpkg -l | grep -q postgresql-client; then
@@ -58,6 +49,15 @@ else
     echo "Failed to install postgresql-client. Exiting."
     exit 1
   fi
+fi
+
+# Check database connection
+echo "Checking database connection..."
+if ! psql -c "\q" "postgresql://$HASURA_DB__USER:$HASURA_DB__PASSWORD@$HASURA_DB__HOST:$HASURA_DB__PORT/$HASURA_DB__DBNAME" &>/dev/null; then
+  echo "Error: Could not connect to the database. Please check your database credentials and connection."
+  exit 1
+else
+  echo "Database connection successful."
 fi
 
 echo "Querying database for election alias..."
