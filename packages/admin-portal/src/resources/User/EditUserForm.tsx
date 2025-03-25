@@ -822,7 +822,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                 )
             }
         },
-        [user, permissionLabels, choices]
+        [user, permissionLabels, choices, electionsList]
     )
 
     const isFieldRequired = (config: UserProfileAttribute): boolean => {
@@ -839,7 +839,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     const formFields = useMemo(() => {
         // to check if fields are required
         return userAttributes?.map((attr) => renderFormField(attr))
-    }, [userAttributes, user, permissionLabels, choices])
+    }, [userAttributes, user, permissionLabels, choices, electionsList])
 
     if (!user && !createMode) {
         return null
