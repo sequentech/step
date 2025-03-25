@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2025 Félix Robles <felix@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
 import React, {useState, useRef, ChangeEvent, KeyboardEvent} from "react"
 import {Autocomplete, TextField, Chip} from "@mui/material"
 
