@@ -91,7 +91,7 @@ export const Logs: React.FC<LogsProps> = ({logs}) => {
                                             {t("keysGeneration.ceremonyStep.logsHeader.entry")}
                                         </TableCell>
                                     </TableRow>
-                                </TableHead>    
+                                </TableHead>
                                 <TableBody>
                                     {logs.map((log, index) => (
                                         <TableRow
