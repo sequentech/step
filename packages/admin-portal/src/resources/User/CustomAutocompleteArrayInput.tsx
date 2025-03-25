@@ -9,7 +9,7 @@ interface CustomAutocompleteArrayInputProps {
     label: string
     defaultValue?: string[]
     onChange: (value: string[]) => void
-    onCreate: (value: string) => void
+    onCreate?: (value: string) => void
     choices: Choice[]
     disabled?: boolean
 }
@@ -24,6 +24,7 @@ export const CustomAutocompleteArrayInput: React.FC<CustomAutocompleteArrayInput
 }) => {
     const [inputValue, setInputValue] = useState<string>("")
     const [selectedValues, setSelectedValues] = useState<string[]>(defaultValue || [])
+    const [updatedChoices, setUpdatedChoices] = useState<Choice[]>(choices)
     const inputRef = useRef<HTMLInputElement>(null)
 
     const handleInputChange = (event: ChangeEvent<{}>, newInputValue: string) => {
@@ -31,26 +32,41 @@ export const CustomAutocompleteArrayInput: React.FC<CustomAutocompleteArrayInput
     }
 
     const handleChange = (event: ChangeEvent<{}>, newValue: string[]) => {
-        setSelectedValues(newValue)
-        onChange(newValue)
+        const newLabels = newValue.flatMap((value) => value.split(/\s+/))
+        const uniqueLabels = Array.from(new Set(newLabels))
+        setSelectedValues(uniqueLabels)
+        onChange(uniqueLabels)
     }
 
     const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
         if (event.key === "Enter" && inputValue) {
             event.preventDefault()
             const newLabels = inputValue.trim().split(/\s+/)
+
             const updatedValues = [...selectedValues]
+            const newChoices = [...updatedChoices]
 
             newLabels.forEach((newLabel) => {
                 if (newLabel && !updatedValues.includes(newLabel)) {
                     updatedValues.push(newLabel)
-                    onCreate(newLabel)
+                    newChoices.push({name: newLabel})
                 }
             })
 
             setSelectedValues(updatedValues)
+            setUpdatedChoices(newChoices)
             setInputValue("")
             inputRef?.current?.focus()
+
+            // Call onCreate for each new label after updating state
+            newLabels.forEach((newLabel) => {
+                if (onCreate && newLabel && !selectedValues.includes(newLabel)) {
+                    onCreate(newLabel)
+                }
+            })
+
+            // Ensure all labels are saved correctly
+            onChange(updatedValues)
         }
     }
 
@@ -63,7 +79,7 @@ export const CustomAutocompleteArrayInput: React.FC<CustomAutocompleteArrayInput
             onChange={handleChange}
             inputValue={inputValue}
             onInputChange={handleInputChange}
-            options={choices.map((choice) => choice.name)}
+            options={updatedChoices.map((choice) => choice.name)}
             renderTags={(value, getTagProps) =>
                 value.map((option, index) => (
                     <Chip

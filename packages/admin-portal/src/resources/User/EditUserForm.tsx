@@ -241,8 +241,6 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     const [permissionLabels, setPermissionLabels] = useState<string[]>(
         (user?.attributes?.permission_labels as string[]) || []
     )
-    const permissionLabelsInputRef = useRef<HTMLInputElement | null>(null)
-
     const [temporary, setTemportay] = useState<boolean>(true)
     const [choices, setChoices] = useState<any[]>(
         (user?.attributes?.permission_labels as string[])?.map((label) => ({
@@ -518,21 +516,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         })
     }
 
-    const handlePermissionLabelRemoved = (value: string[]) => {
-        if (value?.length < permissionLabels?.length) {
-            setUser((prev) => {
-                return {
-                    ...prev,
-                    attributes: {
-                        ...prev?.attributes,
-                        permission_labels: value,
-                    },
-                }
-            })
-        }
-    }
-
-    const handlePermissionLabelAdded = (value: string[]) => {
+    const handlePermissionLabelChanged = (value: string[]) => {
         setUser((prev) => {
             return {
                 ...prev,
@@ -780,83 +764,10 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                     )
                 } else if (attr.name.toLowerCase().includes("permission_labels")) {
                     return (
-                        // <AutocompleteArrayInput
-                        //     key={user?.id || "create"}
-                        //     source={`attributes.${attr.name}`}
-                        //     label={t("usersAndRolesScreen.users.fields.permissionLabel")}
-                        //     defaultValue={permissionLabels}
-                        //     fullWidth
-                        //     onChange={handlePermissionLabelRemoved}
-                        //     onCreate={(newLabel) => {
-                        //         if (newLabel) {
-                        //             const updatedChoices = [
-                        //                 ...choices,
-                        //                 {id: newLabel, name: newLabel},
-                        //             ]
-                        //             const updatedLabels = [...permissionLabels, newLabel]
-                        //             setChoices(updatedChoices)
-                        //             setPermissionLabels(updatedLabels)
-                        //             handlePermissionLabelAdded(updatedLabels)
-
-                        //             // Refocus the input field
-                        //             setTimeout(() => permissionLabelsInputRef.current?.focus(), 0)
-
-                        //             return newLabel
-                        //         }
-                        //     }}
-                        //     optionText="name"
-                        //     choices={choices}
-                        //     freeSolo={true}
-                        //     disabled={
-                        //         !(
-                        //             createMode ||
-                        //             !electionEventId ||
-                        //             canEditVoters ||
-                        //             enabledByVoteNum
-                        //         )
-                        //     }
-                        //     onKeyDown={(e) => {
-                        //         if (e.key === "Enter") {
-                        //             e.preventDefault()
-                        //             const input = e.target as HTMLInputElement
-                        //             const newLabel = input.value
-                        //             if (newLabel) {
-                        //                 const updatedChoices = [
-                        //                     ...choices,
-                        //                     {id: newLabel, name: newLabel},
-                        //                 ]
-                        //                 const updatedLabels = [...permissionLabels, newLabel]
-                        //                 setChoices(updatedChoices)
-                        //                 setPermissionLabels(updatedLabels)
-                        //                 handlePermissionLabelAdded(updatedLabels)
-                        //                 input.value = ""
-
-                        //                 // Refocus the input field
-                        //                 setTimeout(
-                        //                     () => permissionLabelsInputRef.current?.focus(),
-                        //                     0
-                        //                 )
-                        //             }
-                        //         }
-                        //     }}
-                        //     ref={permissionLabelsInputRef}
-                        // />
                         <CustomAutocompleteArrayInput
                             label={t("usersAndRolesScreen.users.fields.permissionLabel")}
                             defaultValue={permissionLabels}
-                            onChange={handlePermissionLabelRemoved}
-                            onCreate={(newLabel: any) => {
-                                if (newLabel) {
-                                    const updatedChoices = [
-                                        ...choices,
-                                        {id: newLabel, name: newLabel},
-                                    ]
-                                    const updatedLabels = [...permissionLabels, newLabel]
-                                    setChoices(updatedChoices)
-                                    setPermissionLabels(updatedLabels)
-                                    handlePermissionLabelAdded(updatedLabels)
-                                }
-                            }}
+                            onChange={handlePermissionLabelChanged}
                             choices={choices}
                             disabled={
                                 !createMode &&
