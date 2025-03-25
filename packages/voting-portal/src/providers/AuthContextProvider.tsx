@@ -8,6 +8,7 @@ import {createContext, useEffect, useState} from "react"
 import {sleep} from "@sequentech/ui-core"
 import {SettingsContext} from "./SettingsContextProvider"
 import {getLanguageFromURL} from "../utils/queryParams"
+import {IPermissions} from "../types/keycloak"
 
 /**
  * AuthContextValues defines the structure for the default values of the {@link AuthContext}.
@@ -67,6 +68,10 @@ export interface AuthContextValues {
      * @returns
      */
     openProfileLink: () => Promise<void>
+
+    isGoldUser: () => boolean
+
+    reauthWithGold: (redirectUri: string) => Promise<void>
 }
 
 interface UserProfile {
@@ -93,6 +98,8 @@ const defaultAuthContextValues: AuthContextValues = {
     hasRole: () => false,
     isKiosk: () => false,
     openProfileLink: () => new Promise(() => undefined),
+    isGoldUser: () => false,
+    reauthWithGold: async () => {},
 }
 
 /**
@@ -305,6 +312,35 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         }
     }, [keycloak, isAuthenticated, isKeycloakInitialized, authType])
 
+    
+    /**
+     * Returns true only if the JWT has gold permissions and the JWT
+     * authentication is fresh, i.e. performed less than 60 seconds ago.
+     */
+    // TODO: This is duplicated from jwt.rs in sequent-core, we should just use
+    // the same WASM function if possible
+    const isGoldUser = () => {
+        const acr = keycloak?.tokenParsed?.acr ?? null
+        const isGold = acr === IPermissions.GOLD_PERMISSION
+
+        const authTimeTimestamp = keycloak?.tokenParsed?.auth_time ?? 0
+        const authTime = new Date(authTimeTimestamp * 1000)
+        const freshnessLimit = new Date(Date.now().valueOf() - 60 * 1000)
+        const isFresh = authTime > freshnessLimit
+        return isGold && isFresh
+    }
+
+    const reauthWithGold = async (redirectUri: string): Promise<void> => {
+        try {
+            await keycloak?.login({
+                acr: {essential: true, values: [IPermissions.GOLD_PERMISSION]},
+                redirectUri: redirectUri || window.location.href, // Use the passed URL or fallback to current URL
+            })
+        } catch (error) {
+            console.error("Re-authentication failed:", error)
+        }
+    }
+
     useEffect(() => {
         async function loadProfile() {
             if (!keycloak) {
@@ -432,6 +468,8 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 isKiosk,
                 openProfileLink,
                 keycloakAccessToken,
+                isGoldUser,
+                reauthWithGold,
             }}
         >
             {props.children}

@@ -65,6 +65,8 @@ import Stepper from "../components/Stepper"
 import {selectBallotSelectionByElectionId} from "../store/ballotSelections/ballotSelectionsSlice"
 import {sortContestList, hashBallot, hashMultiBallot} from "@sequentech/ui-core"
 import {SettingsContext} from "../providers/SettingsContextProvider"
+import {AuthContext} from "../providers/AuthContextProvider"
+
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -292,13 +294,19 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
             const isMultiContest =
                 auditableBallot?.config.election_event_presentation?.contest_encryption_policy ==
                 EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
-            const contestsStorage = isMultiContest ? 
-                (auditableBallot as IAuditableMultiBallot).contests
-                : (auditableBallot as IAuditableSingleBallot).contests
 
-            sessionStorage.setItem(
-                "contestsStorage", JSON.stringify(contestsStorage)
-            )
+            const isGoldenPolicy = true // TODO: Retrieve from election in ballot style?
+            if (!isGoldenPolicy) {
+                    
+                const contestsStorage = isMultiContest ? 
+                    (auditableBallot as IAuditableMultiBallot).contests
+                    : (auditableBallot as IAuditableSingleBallot).contests
+
+                sessionStorage.setItem(
+                    "contestsStorage", JSON.stringify(contestsStorage)
+                )
+                return submit(null, {method: "post"})
+            }
 
             const hashableBallot = isMultiContest
                 ? toHashableMultiBallot(auditableBallot as IAuditableMultiBallot)
@@ -398,6 +406,8 @@ export const ReviewScreen: React.FC = () => {
     const submit = useSubmit()
     const {tenantId, eventId} = useParams<TenantEventType>()
     const [errorMsg, setErrorMsg] = useState<CastBallotsErrorType>()
+    const authContext = useContext(AuthContext)
+    const {isGoldUser, reauthWithGold} = authContext
 
     const auditButtonCfg =
         ballotStyle?.ballot_eml?.election_presentation?.audit_button_cfg ??
@@ -461,16 +471,20 @@ export const ReviewScreen: React.FC = () => {
     }
 
     useEffect(() => {
-        const contestsStorage = sessionStorage.getItem(
-            "contestsStorage"
-        )
-        if (contestsStorage) {
-            alert("Works!")
-            // TODO: Remove alert and call to a new automaticCastBallotAction
-            sessionStorage.removeItem("testVote")
-        }
-        if (!ballotStyle || !auditableBallot || !selectionState) {
-            // navigate(`/tenant/${tenantId}/event/${eventId}/election-chooser`)
+        if (isGoldUser()) {
+            console.log("Gold user flow")
+            const contestsStorage = sessionStorage.getItem(
+                "contestsStorage"
+            )
+            if (contestsStorage) {
+                alert("Works!")
+                // TODO: Remove alert and call to a new automaticCastBallotAction
+                sessionStorage.removeItem("testVote")
+            }
+        } else if (!ballotStyle || !auditableBallot || !selectionState) {
+            navigate(`/tenant/${tenantId}/event/${eventId}/election-chooser`)
+        } else {
+            console.log("Normal flow")
         }
     }, [navigate, backLink, ballotStyle, selectionState, auditableBallot])
 
