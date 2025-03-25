@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::utils::keycloak::get_keyckloak_pool;
-use crate::utils::read_config::load_config;
+use crate::utils::read_config::load_external_config;
 use anyhow::{Context, Result};
 use chrono::Utc;
 use clap::Args;
@@ -46,8 +46,8 @@ impl CreateElectoralLogs {
         match runtime
             .block_on(self.run_create_electoral_logs(&self.working_directory, self.num_logs))
         {
-            Ok(_) => println!("Successfully generated the report"),
-            Err(err) => eprintln!("Error! Failed to generate the report: {err:?}"),
+            Ok(_) => println!("Successfully created electoral logs."),
+            Err(err) => eprintln!("Error! Failed to create electoral logs: {err:?}"),
         }
     }
 
@@ -137,25 +137,13 @@ impl CreateElectoralLogs {
         num_logs: usize,
     ) -> Result<(), Box<dyn std::error::Error>> {
         // --- Load configuration ---
-        let config = load_config(working_dir)?;
-        let tenant_id = config
-            .get("tenant_id")
-            .and_then(Value::as_str)
-            .unwrap_or("");
-        let election_event_id = config
-            .get("election_event_id")
-            .and_then(Value::as_str)
-            .unwrap_or("");
-        let election_id = config
-            .get("election_id")
-            .and_then(Value::as_str)
-            .unwrap_or("");
+        let config = load_external_config(working_dir)?;
+        let tenant_id = config.tenant_id;
+        let election_event_id = config.election_event_id;
+        let election_id = config.election_id;
         let immudb_db = self.get_event_board(&tenant_id, &election_event_id);
-        let area_id = config.get("area_id").and_then(Value::as_str).unwrap_or("");
-        let realm_name = config
-            .get("realm_name")
-            .and_then(Value::as_str)
-            .unwrap_or("");
+        let area_id = config.area_id;
+        let realm_name = config.realm_name;
 
         println!("immudb_db: {}", &immudb_db);
 
@@ -271,7 +259,10 @@ impl CreateElectoralLogs {
         let mut client: ImmudbClient = self.get_immudb_client().await?;
         client.open_session(immudb_db.as_str()).await?;
 
-        let batch_size = 1000;
+        let batch_size = env::var("DEFAULT_SQL_BATCH_SIZE")
+            .ok()
+            .and_then(|s| s.parse::<usize>().ok())
+            .unwrap_or(1000);
         for batch in logs_params.chunks(batch_size) {
             // Start a new transaction for this batch.
             let tx_id = client.new_tx(TxMode::ReadWrite).await?;

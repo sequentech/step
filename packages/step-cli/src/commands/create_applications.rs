@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::utils::hasura::get_hasura_pool;
 use crate::utils::keycloak::get_keyckloak_pool;
-use crate::utils::read_config::load_config;
+use crate::utils::read_config::load_external_config;
 use anyhow::Result;
 use clap::Args;
 use fake::faker::number::raw::NumberWithFormat;
@@ -44,8 +44,8 @@ impl CreateApplications {
             self.status.clone(),
             self.r#type.clone(),
         )) {
-            Ok(_) => println!("Successfully generated the report"),
-            Err(err) => eprintln!("Error! Failed to generate the report: {err:?}"),
+            Ok(_) => println!("Successfully created applications"),
+            Err(err) => eprintln!("Error! Failed to create applications: {err:?}"),
         }
     }
 
@@ -57,29 +57,13 @@ impl CreateApplications {
         verification_type: Option<String>,
     ) -> Result<(), Box<dyn std::error::Error>> {
         // --- Load configuration ---
-        let config = load_config(working_dir)?;
-        let realm_name = config
-            .get("realm_name")
-            .and_then(Value::as_str)
-            .unwrap_or("");
-        let tenant_id = config
-            .get("tenant_id")
-            .and_then(Value::as_str)
-            .unwrap_or("");
-        let election_event_id = config
-            .get("election_event_id")
-            .and_then(Value::as_str)
-            .unwrap_or("");
-        let generate_applications_config =
-            config.get("generate_applications").unwrap_or(&Value::Null);
-        let default_applicant_data = generate_applications_config
-            .get("applicant_data")
-            .cloned()
-            .unwrap_or(Value::Object(serde_json::Map::new()));
-        let annotations = generate_applications_config
-            .get("annotations")
-            .cloned()
-            .unwrap_or(Value::Null);
+        let config = load_external_config(working_dir)?;
+        let realm_name = config.realm_name;
+        let tenant_id = config.tenant_id;
+        let election_event_id = config.election_event_id;
+        let generate_applications_config = config.generate_applications;
+        let default_applicant_data = generate_applications_config.applicant_data;
+        let annotations = serde_json::to_value(&generate_applications_config.annotations)?;
 
         // --- Build Keycloak Pool ---
         let kc_client = get_keyckloak_pool()
@@ -171,11 +155,7 @@ impl CreateApplications {
             };
 
             // Merge default applicant data with user details.
-            let mut applicant_data = if let Value::Object(map) = default_applicant_data.clone() {
-                map
-            } else {
-                serde_json::Map::new()
-            };
+            let mut applicant_data = default_applicant_data.clone();
             applicant_data.insert("email".to_string(), Value::String(email.clone()));
             applicant_data.insert("firstName".to_string(), Value::String(first_name));
             applicant_data.insert("lastName".to_string(), Value::String(last_name));
@@ -198,7 +178,7 @@ impl CreateApplications {
                 "sequent.read-only.id-card-number".to_string(),
                 Value::String(id_card_number),
             );
-            let applicant_data_value = Value::Object(applicant_data);
+            let applicant_data_value = serde_json::to_value(&applicant_data)?;
             let area_id_value = area_id_opt.unwrap_or_default();
             let area_id = area_id_value.as_str();
 
@@ -208,8 +188,8 @@ impl CreateApplications {
                 let label = self
                     .get_permission_label(
                         &hasura_transaction,
-                        tenant_id,
-                        election_event_id,
+                        &tenant_id,
+                        &election_event_id,
                         &area_id,
                     )
                     .await?;
@@ -223,10 +203,10 @@ impl CreateApplications {
             params.push(Box::new(application_status));
             params.push(Box::new(verification_type.clone()));
             params.push(Box::new(applicant_data_value));
-            params.push(Box::new(Uuid::parse_str(tenant_id)?));
-            params.push(Box::new(Uuid::parse_str(election_event_id)?));
+            params.push(Box::new(Uuid::parse_str(&tenant_id)?));
+            params.push(Box::new(Uuid::parse_str(&election_event_id)?));
             params.push(Box::new(Uuid::parse_str(area_id)?));
-            params.push(Box::new(annotations.clone()));
+            params.push(Box::new(&annotations));
             params.push(Box::new(permission_label.clone()));
 
             users_params.push(params);

@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::utils::hasura::get_hasura_pool;
 use crate::utils::keycloak::get_keyckloak_pool;
-use crate::utils::read_config::load_config;
+use crate::utils::read_config::load_external_config;
 use anyhow::Result;
 use chrono::Local;
 use clap::Args;
@@ -26,8 +26,8 @@ impl DuplicateVotes {
     pub fn run(&self) {
         let runtime = tokio::runtime::Runtime::new().expect("Failed to create Tokio runtime");
         match runtime.block_on(self.run_duplicate_votes(&self.working_directory, self.num_votes)) {
-            Ok(_) => println!("Successfully generated the report"),
-            Err(err) => eprintln!("Error! Failed to generate the report: {err:?}"),
+            Ok(_) => println!("Successfully duplicate vote"),
+            Err(err) => eprintln!("Error! Failed to duplicate vote: {err:?}"),
         }
     }
 
@@ -36,16 +36,11 @@ impl DuplicateVotes {
         working_dir: &str,
         num_votes: usize,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let config = load_config(working_dir)?;
-        let realm_name = config
-            .get("realm_name")
-            .and_then(Value::as_str)
-            .unwrap_or("");
-        let duplicate_votes_config = config.get("duplicate_votes").unwrap_or(&Value::Null);
-        let row_id_to_clone = duplicate_votes_config
-            .get("row_id_to_clone")
-            .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("Missing row_id_to_clone in config"))?;
+        let config = load_external_config(working_dir)?;
+        let realm_name = config.realm_name;
+
+        let duplicate_votes_config = config.duplicate_votes;
+        let row_id_to_clone = duplicate_votes_config.row_id_to_clone;
 
         let kc_client = get_keyckloak_pool()
             .await?
@@ -85,7 +80,7 @@ impl DuplicateVotes {
         SELECT tenant_id, election_event_id, election_id, area_id, annotations, content, cast_ballot_signature, ballot_id \
             FROM sequent_backend.cast_vote WHERE id = $1";
         let base_row = hasura_transaction
-            .query_opt(base_query, &[&Uuid::parse_str(row_id_to_clone)?])
+            .query_opt(base_query, &[&Uuid::parse_str(&row_id_to_clone)?])
             .await?;
         if base_row.is_none() {
             println!("No row found to clone.");

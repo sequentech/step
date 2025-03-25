@@ -24,6 +24,7 @@
 - "!include sequent_backend_results_election_area.yaml"
 - "!include sequent_backend_results_event.yaml"
 - "!include sequent_backend_scheduled_event.yaml"
+- "!include sequent_backend_secret.yaml"
 - "!include sequent_backend_support_material.yaml"
 - "!include sequent_backend_tally_session.yaml"
 - "!include sequent_backend_tally_session_contest.yaml"
