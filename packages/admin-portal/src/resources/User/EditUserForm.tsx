@@ -65,7 +65,7 @@ import {faInfoCircle} from "@fortawesome/free-solid-svg-icons"
 import {useUsersPermissions} from "./useUsersPermissions"
 import debounce from "lodash/debounce"
 import type {ChangeEvent} from "react"
-import {CustomAutocompleteArrayInput} from "./CustomAutocompleteArrayInput"
+import {CustomAutocompleteArrayInput} from "../../components/CustomAutocompleteArrayInput"
 
 interface ListUserRolesProps {
     userId?: string
