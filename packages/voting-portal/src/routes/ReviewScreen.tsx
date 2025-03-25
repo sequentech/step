@@ -288,13 +288,22 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                 setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.ELECTION_EVENT_NOT_OPEN}`))
                 return submit({error: errorType.toString()}, {method: "post"})
             }
+
             const isMultiContest =
                 auditableBallot?.config.election_event_presentation?.contest_encryption_policy ==
                 EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
+            const contestsStorage = isMultiContest ? 
+                (auditableBallot as IAuditableMultiBallot).contests
+                : (auditableBallot as IAuditableSingleBallot).contests
+
+            sessionStorage.setItem(
+                "contestsStorage", JSON.stringify(contestsStorage)
+            )
 
             const hashableBallot = isMultiContest
                 ? toHashableMultiBallot(auditableBallot as IAuditableMultiBallot)
                 : toHashableBallot(auditableBallot as IAuditableSingleBallot)
+            console.log("castBallotAction hashableBallot:", hashableBallot)
 
             let result = await insertCastVote({
                 variables: {
@@ -399,9 +408,11 @@ export const ReviewScreen: React.FC = () => {
     const isMultiContest =
         auditableBallot?.config.election_event_presentation?.contest_encryption_policy ==
         EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
-    const hashableBallot = isMultiContest
+    const hashableBallot = auditableBallot ? (isMultiContest
         ? hashMultiBallot(auditableBallot as IAuditableMultiBallot)
-        : hashBallot(auditableBallot as IAuditableSingleBallot)
+        : hashBallot(auditableBallot as IAuditableSingleBallot))
+        : ""
+
     const ballotId = auditableBallot && hashableBallot
 
     const selectionState = useAppSelector(
@@ -417,7 +428,7 @@ export const ReviewScreen: React.FC = () => {
             : interpretContestSelection(selectionState, ballotStyle.ballot_eml)
     }, [selectionState, isMultiContest, ballotStyle?.ballot_eml])
 
-    if (ballotId && auditableBallot?.ballot_hash && ballotId !== auditableBallot.ballot_hash) {
+    if (ballotId && auditableBallot?.ballot_hash && ballotId !== auditableBallot?.ballot_hash) {
         setErrorMsg(
             t("errors.encoding.writeInCharsExceeded", {
                 ballotId,
@@ -450,14 +461,18 @@ export const ReviewScreen: React.FC = () => {
     }
 
     useEffect(() => {
-        if (!ballotStyle) {
-            navigate(`/tenant/${tenantId}/event/${eventId}/election-chooser`)
-        } else if (!auditableBallot) {
-            setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.NO_AUDITABLE_BALLOT}`))
-        } else if (!selectionState) {
-            setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.NO_BALLOT_SELECTION}`))
+        const contestsStorage = sessionStorage.getItem(
+            "contestsStorage"
+        )
+        if (contestsStorage) {
+            alert("Works!")
+            // TODO: Remove alert and call to a new automaticCastBallotAction
+            sessionStorage.removeItem("testVote")
         }
-    }, [])
+        if (!ballotStyle || !auditableBallot || !selectionState) {
+            // navigate(`/tenant/${tenantId}/event/${eventId}/election-chooser`)
+        }
+    }, [navigate, backLink, ballotStyle, selectionState, auditableBallot])
 
     if (!ballotStyle || !auditableBallot) {
         return errorMsg ? (

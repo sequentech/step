@@ -336,6 +336,8 @@ const VotingScreen: React.FC = () => {
         if (isUndefined(selectionState) || !ballotStyle) {
             return
         }
+        console.log("finallyEncryptAndReview selectionState:", selectionState)
+
         try {
             const isMultiContest =
                 ballotStyle.ballot_eml.election_event_presentation?.contest_encryption_policy ==
@@ -344,6 +346,7 @@ const VotingScreen: React.FC = () => {
             const auditableBallot = isMultiContest
                 ? encryptMultiBallotSelection(selectionState, ballotStyle.ballot_eml)
                 : encryptBallotSelection(selectionState, ballotStyle.ballot_eml)
+            console.log("finallyEncryptAndReview auditableBallot:", auditableBallot)
 
             dispatch(
                 setAuditableBallot({
