@@ -55,11 +55,12 @@ fn sanitize_db_key(key: &String) -> String {
     key.replace(".", "_").replace("-", "_")
 }
 
-fn hash_password(password: &String, salt: &[u8], iterations: NonZeroU32) -> Result<String> {
+fn hash_password(password: &String, salt: &[u8]) -> Result<String> {
+    
     let mut output: Credential = [0u8; CREDENTIAL_LEN];
     pbkdf2::derive(
         PBKDF2_ALGORITHM,
-        iterations,
+        *PBKDF2_ITERATIONS,
         salt,
         password.as_bytes(),
         &mut output,
@@ -634,7 +635,7 @@ pub async fn import_users_file(
 
             password_salt = Some(BASE64_STANDARD.encode(salt_bytes));
             hashed_password = Some(
-                hash_password(&some_password, &salt_bytes, iterations_value)
+                hash_password(&some_password, &salt_bytes)
                     .with_context(|| "Error generating hashed password")?,
             );
         }
@@ -643,7 +644,7 @@ pub async fn import_users_file(
             owned_data.push(password_salt.ok_or_else(|| anyhow!("Password salt empty"))?);
             owned_data.push(hashed_password.ok_or_else(|| anyhow!("Hashed password empty"))?);
             owned_data
-                .push(num_of_iterations.ok_or_else(|| anyhow!("Number of iterations empty"))?);
+                .push(num_of_iterations.get().to_string());
         }
 
         if !voters_table_input_columns_names.contains(&*USERNAME_COL_NAME) {
