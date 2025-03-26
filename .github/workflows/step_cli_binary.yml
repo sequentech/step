@@ -3,7 +3,7 @@ name: Build Multiplatform Step CLI Binary
 on:
   push:
     branches:
-      - feat/meta-6483A/main
+      - feat/meta-6483/main
 
 jobs:
   build-cli:
