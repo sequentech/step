@@ -31,6 +31,14 @@ jobs:
         if: runner.os == 'Windows'
         run: choco install protoc -y
 
+      - name: Install OpenSSL on Windows
+        if: runner.os == 'Windows'
+        run: choco install openssl.light -y
+
+      - name: Set OPENSSL_DIR for Windows
+        if: runner.os == 'Windows'
+        run: echo "OPENSSL_DIR=C:\Program Files\OpenSSL-Win64" >> $GITHUB_ENV
+
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
