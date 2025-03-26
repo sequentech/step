@@ -67,6 +67,10 @@ fn get_registry<'reg>() -> Handlebars<'reg> {
         "multiply",
         helper_wrapper_or(Box::new(multiply), String::from("-")),
     );
+    reg.register_helper(
+        "sum",
+        helper_wrapper_or(Box::new(sum), String::from("-")),
+    );
     reg
 }
 
@@ -346,6 +350,37 @@ impl HelperDef for divide {
         }
 
         let result = dividend / divisor;
+        Ok(ScopedJson::Derived(JsonValue::from(result)))
+    }
+}
+
+#[allow(non_camel_case_types)]
+pub struct sum;
+
+impl HelperDef for sum {
+    fn call_inner<'reg: 'rc, 'rc>(
+        &self,
+        helper: &Helper<'rc>,
+        _handlebars: &'reg Handlebars<'reg>,
+        _context: &'rc Context,
+        _rc: &mut RenderContext<'reg, 'rc>,
+    ) -> Result<ScopedJson<'rc>, RenderError> {
+        // Iterates through all parameters of the helper.
+        // Parses each parameter as a u64 value.
+        // Accumulates the parsed values into a sum.
+        let result: u64 = helper
+            .params()
+            .iter()
+            .map(|p| {
+                p.value()
+                    .as_u64()
+                    .ok_or(RenderErrorReason::InvalidParamType(
+                        "couldn't parse as u64",
+                    ))
+            })
+            .sum::<Result<u64, RenderErrorReason>>()?;
+
+        // Returns the sum as a ScopedJson.
         Ok(ScopedJson::Derived(JsonValue::from(result)))
     }
 }
