@@ -1095,6 +1095,7 @@ pub async fn send_application_communication_response(
             let email_sender = EmailSender::new().await?;
             let sms_sender = SmsSender::new().await?;
             send_template_email_or_sms(
+                hasura_transaction,
                 user,
                 &None,
                 tenant_id,

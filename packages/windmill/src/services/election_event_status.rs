@@ -134,6 +134,7 @@ pub async fn update_event_voting_status(
         }
 
         update_board_on_status_change(
+            hasura_transaction,
             &tenant_id,
             user_id,
             username,
@@ -282,6 +283,7 @@ pub async fn update_election_voting_status_impl(
     .with_context(|| "Error updating election voting status")?;
 
     update_board_on_status_change(
+        &hasura_transaction,
         &tenant_id,
         user_id,
         username,
