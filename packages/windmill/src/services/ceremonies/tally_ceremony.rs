@@ -2,12 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::hasura::election_event::get_election_event_helper;
-use crate::hasura::tally_session_execution::{
-    get_last_tally_session_execution,
-    insert_tally_session_execution as insert_tally_session_execution_hasura,
-};
+use crate::hasura::tally_session_execution::insert_tally_session_execution as insert_tally_session_execution_hasura;
 use crate::postgres::area::get_event_areas;
 use crate::postgres::area_contest::export_area_contests;
+use crate::postgres::ballot_style::get_ballot_styles_by_elections;
 use crate::postgres::contest::export_contests;
 use crate::postgres::election::{export_elections, get_election_by_id};
 use crate::postgres::election_event::get_election_event_by_id;
@@ -18,20 +16,20 @@ use crate::postgres::tally_session::{
     get_tally_session_by_id, insert_tally_session, update_tally_session_status,
 };
 use crate::postgres::tally_session_contest::{
-    get_tally_session_highest_batch, insert_tally_session_contest,
+    get_tally_session_contests, get_tally_session_highest_batch, insert_tally_session_contest,
 };
-use crate::postgres::tally_session_execution::insert_tally_session_execution;
+use crate::postgres::tally_session_execution::{
+    get_last_tally_session_execution as p_get_last_tally_session_execution,
+    insert_tally_session_execution,
+};
 use crate::services::ceremonies::keys_ceremony::find_trustee_private_key;
 use crate::services::ceremonies::serialize_logs::{
     append_tally_trustee_log, generate_tally_initial_log,
 };
-use crate::services::ceremonies::tally_ceremony::get_last_tally_session_execution::{
-    GetLastTallySessionExecutionSequentBackendTallySession,
-    GetLastTallySessionExecutionSequentBackendTallySessionExecution,
-};
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_status::get_election_status;
 use crate::services::electoral_log::ElectoralLog;
+use crate::services::tally_sheets::tally;
 use anyhow::{anyhow, Context, Result};
 use b3::messages::newtypes::BatchNumber;
 use deadpool_postgres::Transaction;
@@ -45,9 +43,11 @@ use sequent_core::services::connection;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::services::keycloak;
 use sequent_core::types::ceremonies::*;
-use sequent_core::types::hasura::core::Election;
 use sequent_core::types::hasura::core::KeysCeremony;
 use sequent_core::types::hasura::core::{AreaContest, TallySessionConfiguration};
+use sequent_core::types::hasura::core::{
+    BallotStyle, Election, TallySession, TallySessionContest, TallySessionExecution,
+};
 use sequent_core::types::hasura::core::{Contest, ElectionEvent};
 use serde_json::{json, Value};
 use std::collections::HashMap;
@@ -56,78 +56,70 @@ use std::str::FromStr;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
-#[instrument(skip(auth_headers), err)]
-pub async fn find_last_tally_session_execution(
-    auth_headers: connection::AuthHeaders,
+#[instrument(skip(hasura_transaction), err)]
+pub async fn find_last_tally_session_execution_and_all_related_data(
+    hasura_transaction: &Transaction<'_>,
     tenant_id: String,
     election_event_id: String,
     tally_session_id: String,
     election_ids: Vec<String>,
 ) -> Result<
     Option<(
-        GetLastTallySessionExecutionSequentBackendTallySessionExecution,
-        GetLastTallySessionExecutionSequentBackendTallySession,
-        get_last_tally_session_execution::ResponseData,
+        TallySessionExecution,
+        TallySession,
+        Vec<TallySessionContest>,
+        Vec<BallotStyle>,
     )>,
 > {
     // get all data for the execution: the last tally session execution,
     // the list of tally_session_contest, and the ballot styles
-    let data = get_last_tally_session_execution(
-        auth_headers.clone(),
-        tenant_id.clone(),
-        election_event_id.clone(),
-        tally_session_id.clone(),
-        election_ids,
+
+    let tally_session_execution = p_get_last_tally_session_execution(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &tally_session_id,
     )
-    .await?
-    .data
-    .expect("expected data");
+    .await?;
 
-    if data.sequent_backend_tally_session.len() == 0 {
-        event!(Level::INFO, "Missing tally session");
-        return Ok(None);
-    }
+    let tally_session_execution = match tally_session_execution {
+        Some(tally_session_execution) => tally_session_execution,
+        None => {
+            return Ok(None);
+        }
+    };
 
-    if data.sequent_backend_tally_session_execution.len() == 0 {
-        event!(Level::INFO, "Missing tally session execution");
-        return Ok(None);
-    }
+    let tally_session = get_tally_session_by_id(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &tally_session_id,
+    )
+    .await?;
+
+    let tally_session_contest = get_tally_session_contests(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &tally_session_id,
+    )
+    .await?;
+
+    let ballot_style = get_ballot_styles_by_elections(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &election_ids,
+    )
+    .await?;
+
     Ok(Some((
-        data.sequent_backend_tally_session_execution[0].clone(),
-        data.sequent_backend_tally_session[0].clone(),
-        data,
+        tally_session_execution,
+        tally_session,
+        tally_session_contest,
+        ballot_style,
     )))
 }
-
-// #[instrument(skip(auth_headers), err)]
-// pub async fn get_tally_session(
-//     auth_headers: connection::AuthHeaders,
-//     tenant_id: String,
-//     election_event_id: String,
-//     tally_session_id: String,
-// ) -> Result<(
-//     GetTallySessionByIdSequentBackendTallySession,
-//     Vec<GetTallySessionByIdSequentBackendTallySessionContest>,
-// )> {
-//     // fetch tally_sessions
-//     let data = get_tally_session_by_id(
-//         auth_headers.clone(),
-//         &tenant_id,
-//         &election_event_id,
-//         &tally_session_id,
-//     )
-//     .await.map_err(|err|format!("{e}"))?;
-
-//     let tally_session = data
-//         .sequent_backend_tally_session
-//         .get(0)
-//         .ok_or(anyhow!("Tally session not found"))?
-//         .clone();
-
-//     let tally_session_contests = data.sequent_backend_tally_session_contest.clone();
-
-//     Ok((tally_session.clone(), tally_session_contests))
-// }
 
 #[instrument(skip_all, err)]
 pub fn get_tally_ceremony_status(input: Option<Value>) -> Result<TallyCeremonyStatus> {
@@ -520,16 +512,18 @@ pub async fn update_tally_ceremony(
         return Err(anyhow!("Unexpected status"));
     }
 
-    let Some((tally_session_execution, _, _)) = find_last_tally_session_execution(
-        auth_headers.clone(),
-        tenant_id.clone(),
-        election_event_id.clone(),
-        tally_session.id.clone(),
-        tally_session.election_ids.clone().unwrap_or_default(),
-    )
-    .await?
+    let Some((tally_session_execution, _, _, _)) =
+        find_last_tally_session_execution_and_all_related_data(
+            hasura_transaction,
+            tenant_id.clone(),
+            election_event_id.clone(),
+            tally_session.id.clone(),
+            tally_session.election_ids.clone().unwrap_or_default(),
+        )
+        .await?
     else {
-        return Err(anyhow!("Can't find last execution status"));
+        event!(Level::INFO, "Can't find last execution status, skipping");
+        return Ok(());
     };
 
     let status = get_tally_ceremony_status(tally_session_execution.status)?;
@@ -550,7 +544,12 @@ pub async fn update_tally_ceremony(
         ));
     }
 
-    let _update = update_tally_session_status(
+    println!(
+        "Updating tally session execution status: {:?}",
+        &new_execution_status
+    );
+
+    update_tally_session_status(
         &hasura_transaction,
         &tenant_id,
         &election_event_id,
@@ -629,19 +628,21 @@ pub async fn set_private_key(
         .clone()
         .ok_or(anyhow!("trustee name not found"))?;
 
-    let Some((tally_session_execution, tally_session, _)) = find_last_tally_session_execution(
-        auth_headers.clone(),
-        tenant_id.to_string(),
-        election_event_id.to_string(),
-        tally_session_id.to_string(),
-        tally_session.election_ids.clone().unwrap_or_default(),
-    )
-    .await?
+    let Some((tally_session_execution, tally_session, _, _)) =
+        find_last_tally_session_execution_and_all_related_data(
+            transaction,
+            tenant_id.to_string(),
+            election_event_id.to_string(),
+            tally_session_id.to_string(),
+            tally_session.election_ids.clone().unwrap_or_default(),
+        )
+        .await?
     else {
         return Err(anyhow!(
             "Can't find tally session or tally session execution"
         ));
     };
+
     let current_status = tally_session
         .execution_status
         .map(|value| {
@@ -718,7 +719,7 @@ pub async fn set_private_key(
         auth_headers.clone(),
         tenant_id.to_string(),
         election_event_id.to_string(),
-        tally_session_execution.current_message_id,
+        tally_session_execution.current_message_id as i64,
         tally_session_id.to_string(),
         Some(new_status.clone()),
         None,
@@ -731,7 +732,8 @@ pub async fn set_private_key(
         .iter()
         .filter(|trustee| TallyTrusteeStatus::KEY_RESTORED == trustee.status)
         .collect::<Vec<_>>();
-
+    println!("connected_trustees {:?}", &connected_trustees);
+    println!("connected_trustees len {:?}", &connected_trustees.len());
     // enough trustees connected, so change tally execution status to connected
     if connected_trustees.len() as i64 >= keys_ceremony.threshold {
         update_tally_session_status(
@@ -743,7 +745,7 @@ pub async fn set_private_key(
         )
         .await?;
     }
-
+    println!("after update status");
     // get the election event
     let election_event = get_election_event_helper(
         auth_headers.clone(),

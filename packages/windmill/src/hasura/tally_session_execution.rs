@@ -12,48 +12,48 @@ use sequent_core::types::ceremonies::TallyCeremonyStatus;
 use std::env;
 use tracing::instrument;
 
-#[derive(GraphQLQuery)]
-#[graphql(
-    schema_path = "src/graphql/schema.json",
-    query_path = "src/graphql/get_last_tally_session_execution.graphql",
-    response_derives = "Debug,Clone,Deserialize,Serialize"
-)]
-pub struct GetLastTallySessionExecution;
+// #[derive(GraphQLQuery)]
+// #[graphql(
+//     schema_path = "src/graphql/schema.json",
+//     query_path = "src/graphql/get_last_tally_session_execution.graphql",
+//     response_derives = "Debug,Clone,Deserialize,Serialize"
+// )]
+// pub struct GetLastTallySessionExecution;
 
-#[instrument(skip(auth_headers), err)]
-pub async fn get_last_tally_session_execution(
-    auth_headers: connection::AuthHeaders,
-    tenant_id: String,
-    election_event_id: String,
-    tally_session_id: String,
-    election_ids: Vec<String>,
-) -> Result<Response<get_last_tally_session_execution::ResponseData>> {
-    let hasura_endpoint =
-        env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
+// #[instrument(skip(auth_headers), err)]
+// pub async fn get_last_tally_session_execution(
+//     auth_headers: connection::AuthHeaders,
+//     tenant_id: String,
+//     election_event_id: String,
+//     tally_session_id: String,
+//     election_ids: Vec<String>,
+// ) -> Result<Response<get_last_tally_session_execution::ResponseData>> {
+//     let hasura_endpoint =
+//         env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
 
-    let variables = get_last_tally_session_execution::Variables {
-        tenant_id,
-        election_event_id,
-        tally_session_id,
-        election_ids,
-    };
+//     let variables = get_last_tally_session_execution::Variables {
+//         tenant_id,
+//         election_event_id,
+//         tally_session_id,
+//         election_ids,
+//     };
 
-    let request_body = GetLastTallySessionExecution::build_query(variables);
+//     let request_body = GetLastTallySessionExecution::build_query(variables);
 
-    let client = reqwest::Client::new();
+//     let client = reqwest::Client::new();
 
-    let res = client
-        .post(hasura_endpoint)
-        .header(auth_headers.key, auth_headers.value)
-        .json(&request_body)
-        .send()
-        .await?;
+//     let res = client
+//         .post(hasura_endpoint)
+//         .header(auth_headers.key, auth_headers.value)
+//         .json(&request_body)
+//         .send()
+//         .await?;
 
-    let response_body: Response<get_last_tally_session_execution::ResponseData> =
-        res.json().await?;
+//     let response_body: Response<get_last_tally_session_execution::ResponseData> =
+//         res.json().await?;
 
-    response_body.ok()
-}
+//     response_body.ok()
+// }
 
 #[derive(GraphQLQuery)]
 #[graphql(

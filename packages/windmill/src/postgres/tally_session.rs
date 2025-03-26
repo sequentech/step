@@ -336,6 +336,7 @@ pub async fn update_tally_session_status(
     tally_session_id: &str,
     execution_status: TallyExecutionStatus,
 ) -> Result<()> {
+    println!("Updating tally session status:{:?}", &tally_session_id);
     let statement = hasura_transaction
         .prepare(
             r#"
@@ -351,7 +352,7 @@ pub async fn update_tally_session_status(
         )
         .await?;
 
-    let rows: Vec<Row> = hasura_transaction
+    let _rows: Vec<Row> = hasura_transaction
         .query(
             &statement,
             &[
@@ -362,14 +363,7 @@ pub async fn update_tally_session_status(
             ],
         )
         .await
-        .map_err(|err| anyhow!("Error running query: {err}"))?;
-    let tally_sessions = rows
-        .into_iter()
-        .map(|row| row.try_into())
-        .collect::<Result<Vec<TallySessionWrapper>>>()?;
-    if tally_sessions.is_empty() {
-        return Err(anyhow!("Tally Session {tally_session_id} not found"));
-    }
+        .map_err(|err| anyhow!("Error running query update tally sesstion status: {err}"))?;
 
     Ok(())
 }
