@@ -292,15 +292,19 @@ export default function ElectionEvents() {
         }
     )
     // Get subtrees
-    const [getElectionEventTree, {data: electionEventTreeData}] = useLazyQuery(
-        FETCH_ELECTION_EVENTS_TREE
-    )
+    const [
+        getElectionEventTree,
+        {data: electionEventTreeData, refetch: _electionEventTreeRefetch},
+    ] = useLazyQuery(FETCH_ELECTION_EVENTS_TREE)
 
-    const [getElectionTree, {data: electionTreeData}] = useLazyQuery(FETCH_ELECTIONS_TREE)
+    const [getElectionTree, {data: electionTreeData, refetch: _electionTreeRefetch}] =
+        useLazyQuery(FETCH_ELECTIONS_TREE)
 
-    const [getContestTree, {data: contestTreeData}] = useLazyQuery(FETCH_CONTEST_TREE)
+    const [getContestTree, {data: contestTreeData, refetch: _contestTreeRefetch}] =
+        useLazyQuery(FETCH_CONTEST_TREE)
 
-    const [getCandidateTree, {data: candidateTreeData}] = useLazyQuery(FETCH_CANDIDATE_TREE)
+    const [getCandidateTree, {data: candidateTreeData, refetch: _candidateTreeRefetch}] =
+        useLazyQuery(FETCH_CANDIDATE_TREE)
 
     // Wrapper refetch functions: only call the internal refetch if variables
     // are set
@@ -317,7 +321,7 @@ export default function ElectionEvents() {
 
     const electionTreeRefetch = () => {
         if (tenantId && electionEventId) {
-            getElectionTree({
+            _electionTreeRefetch({
                 variables: {
                     tenantId,
                     electionEventId,
@@ -328,7 +332,7 @@ export default function ElectionEvents() {
 
     const contestTreeRefetch = () => {
         if (tenantId && electionId) {
-            getContestTree({
+            _contestTreeRefetch({
                 variables: {
                     tenantId,
                     electionId,
@@ -339,7 +343,7 @@ export default function ElectionEvents() {
 
     const candidateTreeRefetch = () => {
         if (tenantId && contestId) {
-            getCandidateTree({
+            _candidateTreeRefetch({
                 variables: {
                     tenantId,
                     contestId,
