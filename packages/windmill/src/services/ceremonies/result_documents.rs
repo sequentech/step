@@ -1,7 +1,10 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use super::encrypter::{encrypt_directory_contents, get_file_report_type, traversal_encrypt_files};
+use super::encrypter::{
+    encrypt_directory_contents, encrypt_directory_contents_sql, get_file_report_type,
+    traversal_encrypt_files, traversal_find_secrets_for_files,
+};
 use super::renamer::rename_folders;
 use crate::postgres::document::get_document;
 use crate::postgres::reports::Report;
@@ -67,48 +70,48 @@ async fn generic_save_documents(
         .context("Error getting file report type")?;
 
     documents.pdf = process_and_upload_document(
+        hasura_transaction,
         document_paths.pdf.clone(),
         MIME_PDF,
         OUTPUT_PDF,
         &all_reports,
         report_type.clone(),
-        hasura_transaction,
         tenant_id,
         election_event_id,
     )
     .await?;
 
     documents.json = process_and_upload_document(
+        hasura_transaction,
         document_paths.json.clone(),
         MIME_JSON,
         OUTPUT_JSON,
         &all_reports,
         report_type.clone(),
-        hasura_transaction,
         tenant_id,
         election_event_id,
     )
     .await?;
 
     documents.vote_receipts_pdf = process_and_upload_document(
+        hasura_transaction,
         document_paths.vote_receipts_pdf.clone(),
         MIME_JSON,
         OUTPUT_JSON,
         &all_reports,
         report_type.clone(),
-        hasura_transaction,
         tenant_id,
         election_event_id,
     )
     .await?;
 
     documents.html = process_and_upload_document(
+        hasura_transaction,
         document_paths.html.clone(),
         MIME_HTML,
         OUTPUT_HTML,
         &all_reports,
         report_type.clone(),
-        hasura_transaction,
         tenant_id,
         election_event_id,
     )
@@ -120,19 +123,20 @@ async fn generic_save_documents(
 // Helper function for processing and uploading a document
 #[instrument(err, skip(hasura_transaction, all_reports))]
 async fn process_and_upload_document(
+    hasura_transaction: &Transaction<'_>,
     path_option: Option<String>,
     mime_type: &str,
     output_type: &str,
     all_reports: &Vec<Report>,
     report_type: Option<ReportType>,
-    hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<Option<String>> {
     if let Some(mut path) = path_option {
         // Encrypt the file if necessary before uploading
         if let Some(report_type) = report_type {
-            path = encrypt_directory_contents(
+            path = encrypt_directory_contents_sql(
+                hasura_transaction,
                 tenant_id,
                 election_event_id,
                 None,
@@ -249,13 +253,14 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
 
             // Encrypt the tar.gz folder if necessary before uploading
             let mut upload_path = original_tarfile_path.clone();
-            upload_path = encrypt_directory_contents(
-                &tenant_id.clone(),
-                &election_event_id.clone(),
+            upload_path = encrypt_directory_contents_sql(
+                hasura_transaction,
+                &tenant_id,
+                &election_event_id,
                 Some(elections_ids_clone.clone()),
                 dir_report_type.clone(),
                 &original_tarfile_path,
-                &all_reports.clone(),
+                &all_reports,
             )
             .await
             .map_err(|err| anyhow!("Error encrypting file: {err:?}"))?;
@@ -276,22 +281,29 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
 
             // PART 2: renamed folders zip
             // Spawn the task
+            let tgz_path = Path::new(&tar_gz_path);
+            let report_secrets_map = traversal_find_secrets_for_files(
+                hasura_transaction,
+                tgz_path,
+                &tenant_id_clone,
+                &election_event_id_clone,
+                &all_reports_clone,
+            )
+            .await
+            .map_err(|_| anyhow!("Error encrypting file"))?;
+
             let handle = tokio::task::spawn_blocking(move || {
                 let path = Path::new(&tar_gz_path);
                 let temp_dir = copy_to_temp_dir(&path.to_path_buf())?;
                 let mut temp_dir_path = temp_dir.path().to_path_buf();
                 let renames = rename_map.unwrap_or(HashMap::new());
+                let report_secrets_map = report_secrets_map.clone();
                 rename_folders(&renames, &temp_dir_path)?;
                 // Execute asynchronous encryption
                 tokio::runtime::Handle::current().block_on(async {
-                    traversal_encrypt_files(
-                        &temp_dir_path,
-                        &tenant_id_clone,
-                        &election_event_id_clone,
-                        &all_reports_clone,
-                    )
-                    .await
-                    .map_err(|err| anyhow!("Error encrypting file"))?;
+                    traversal_encrypt_files(report_secrets_map, &temp_dir_path, &all_reports_clone)
+                        .await
+                        .map_err(|err| anyhow!("Error encrypting file"))?;
 
                     Ok::<_, anyhow::Error>(())
                 })?;
@@ -307,13 +319,14 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
             let mut upload_path = tarfile_path.clone();
 
             // Encrypt the tar.gz folder if necessary before uploading
-            upload_path = encrypt_directory_contents(
-                &tenant_id.clone(),
-                &election_event_id.clone(),
+            upload_path = encrypt_directory_contents_sql(
+                hasura_transaction,
+                &tenant_id,
+                &election_event_id,
                 Some(elections_ids_clone),
                 dir_report_type,
                 &tarfile_path,
-                &all_reports.clone(),
+                &all_reports,
             )
             .await
             .map_err(|err| anyhow!("Error encrypting file: {err:?}"))?;

@@ -74,19 +74,16 @@
     {
       "name": "x-hasura-tenant-id",
       "protocol": "openid-connect",
-      "protocolMapper": "oidc-hardcoded-claim-mapper",
+      "protocolMapper": "oidc-usermodel-attribute-mapper",
       "consentRequired": false,
       "config": {
-        "introspection.token.claim": "true",
-        "claim.value": "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
         "userinfo.token.claim": "true",
+        "user.attribute": "tenant-id",
         "id.token.claim": "true",
-        "lightweight.claim": "false",
         "access.token.claim": "true",
         "claim.name": "https://hasura\\.io/jwt/claims.x-hasura-tenant-id",
-        "jsonType.label": "String",
-        "access.tokenResponse.claim": "false"
-      }
+        "jsonType.label": "String"
+    }
     },
     {
       "name": "Client ID",
