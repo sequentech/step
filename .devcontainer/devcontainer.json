@@ -11,7 +11,7 @@
 	// Fixes usage of LOCAL_WORKSPACE_FOLDER. See:
 	// https://github.com/microsoft/vscode-remote-release/issues/6844#issuecomment-1252288457
 	"initializeCommand": [
-		".devcontainer/scripts/initialize-command.sh"
+		"bash -c .devcontainer/scripts/initialize-command.sh"
 	],
 	// Use this environment variable if you need to bind mount your local source
 	// code into a new container
