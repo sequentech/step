@@ -3,7 +3,7 @@ name: Step CLI Binary
 on:
   push:
     branches:
-      - feat/meta-6483/main
+      - feat/meta-6483A/main
 
 jobs:
   build-cli:
@@ -28,6 +28,7 @@ jobs:
         run: |
           cd packages/step-cli
           cargo build --release
+          
 
       - name: Upload CLI binary artifact
         uses: actions/upload-artifact@v4
