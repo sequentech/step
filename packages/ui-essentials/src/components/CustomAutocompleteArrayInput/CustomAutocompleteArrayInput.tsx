@@ -4,7 +4,8 @@
 import React, {useState, useRef, ChangeEvent, KeyboardEvent} from "react"
 import {Autocomplete, TextField, Chip} from "@mui/material"
 
-interface Choice {
+export type Choice = {
+    id: string
     name: string
 }
 
@@ -13,11 +14,11 @@ interface CustomAutocompleteArrayInputProps {
     defaultValue?: string[]
     onChange: (value: string[]) => void
     onCreate?: (value: string) => void
-    choices: Choice[]
+    choices?: Choice[] | undefined
     disabled?: boolean
 }
 
-export const CustomAutocompleteArrayInput: React.FC<CustomAutocompleteArrayInputProps> = ({
+const CustomAutocompleteArrayInput: React.FC<CustomAutocompleteArrayInputProps> = ({
     label,
     defaultValue,
     onChange,
@@ -27,7 +28,7 @@ export const CustomAutocompleteArrayInput: React.FC<CustomAutocompleteArrayInput
 }) => {
     const [inputValue, setInputValue] = useState<string>("")
     const [selectedValues, setSelectedValues] = useState<string[]>(defaultValue || [])
-    const [updatedChoices, setUpdatedChoices] = useState<Choice[]>(choices)
+    const [updatedChoices, setUpdatedChoices] = useState<Choice[] | undefined>(choices)
     const inputRef = useRef<HTMLInputElement>(null)
 
     const handleInputChange = (event: ChangeEvent<{}>, newInputValue: string) => {
@@ -47,12 +48,12 @@ export const CustomAutocompleteArrayInput: React.FC<CustomAutocompleteArrayInput
             const newLabels = inputValue.trim().split(/\s+/)
 
             const updatedValues = [...selectedValues]
-            const newChoices = [...updatedChoices]
+            const newChoices = [...(updatedChoices || [])]
 
             newLabels.forEach((newLabel) => {
                 if (newLabel && !updatedValues.includes(newLabel)) {
                     updatedValues.push(newLabel)
-                    newChoices.push({name: newLabel})
+                    newChoices.push({id: newLabel, name: newLabel})
                 }
             })
 
@@ -78,11 +79,12 @@ export const CustomAutocompleteArrayInput: React.FC<CustomAutocompleteArrayInput
             multiple
             freeSolo
             fullWidth
+            disabled={disabled}
             value={selectedValues}
             onChange={handleChange}
             inputValue={inputValue}
             onInputChange={handleInputChange}
-            options={updatedChoices.map((choice) => choice.name)}
+            options={(updatedChoices || []).map((choice) => choice.name)}
             renderTags={(value, getTagProps) =>
                 value.map((option, index) => (
                     <Chip
@@ -106,3 +108,5 @@ export const CustomAutocompleteArrayInput: React.FC<CustomAutocompleteArrayInput
         />
     )
 }
+
+export default CustomAutocompleteArrayInput

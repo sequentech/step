@@ -9,7 +9,6 @@ import {
     SimpleForm,
     useNotify,
     useRefresh,
-    AutocompleteArrayInput,
     BooleanInput,
     useGetList,
 } from "react-admin"
@@ -64,8 +63,7 @@ import IconTooltip from "@/components/IconTooltip"
 import {faInfoCircle} from "@fortawesome/free-solid-svg-icons"
 import {useUsersPermissions} from "./useUsersPermissions"
 import debounce from "lodash/debounce"
-import type {ChangeEvent} from "react"
-import {CustomAutocompleteArrayInput} from "../../components/CustomAutocompleteArrayInput"
+import {CustomAutocompleteArrayInput} from "@sequentech/ui-essentials"
 
 interface ListUserRolesProps {
     userId?: string
