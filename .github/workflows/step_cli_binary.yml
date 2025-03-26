@@ -1,22 +1,35 @@
-name: Step CLI Binary
+name: Build Multiplatform Step CLI Binary
 
 on:
   push:
     branches:
-      - feat/meta-6483/main
+      - feat/meta-6483A/main
 
 jobs:
   build-cli:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     env:
       CARGO_TARGET_DIR: rust-local-target
-
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
-      
-      - name: Install protoc
-        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+
+      - name: Install protoc on Linux
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler
+
+      - name: Install protoc on macOS
+        if: runner.os == 'macOS'
+        run: brew install protobuf
+
+      - name: Install protoc on Windows
+        if: runner.os == 'Windows'
+        run: choco install protoc -y
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
@@ -30,12 +43,25 @@ jobs:
         working-directory: packages/step-cli
         run: cargo build --release
 
-      - name: List build output for debugging
+      - name: List build output (for debugging)
         working-directory: packages/step-cli
-        run: ls -lR rust-local-target/release
+        run: |
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            dir rust-local-target\\release
+          else
+            ls -lR rust-local-target/release
+          fi
 
       - name: Upload CLI binary artifact
         uses: actions/upload-artifact@v4
         with:
-            name: step-cli-binary
-            path: packages/step-cli/rust-local-target/release/seq
+              name: step-cli-binary
+              path: "${{ matrix.os == 'Windows' && 'packages/step-cli/rust-local-target\\release\\seq.exe' || 'packages/step-cli/rust-local-target/release/seq' }}"
+
+
+      # - name: Upload CLI binary artifact
+      #   working-directory: .
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: step-cli-binary-${{ matrix.os }}
+      #     path: "${{ matrix.os == 'Windows' ? 'packages/step-cli/rust-local-target\\release\\seq.exe' : 'packages/step-cli/rust-local-target/release/seq' }}"
