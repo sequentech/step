@@ -33,7 +33,9 @@ tokio-postgres = "0.7.10"
 deadpool-postgres = { version = "0.11.0", features = ["rt_tokio_1", "serde"] }
 
 hex = "0.4"
-
+ring = "0.17"
+sha2 = "0.10"
+base64 = "0.21.0"
 [[bin]]
 name = "seq"
 path = "src/main.rs"
