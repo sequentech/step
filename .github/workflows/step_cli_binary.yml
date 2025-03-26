@@ -9,7 +9,7 @@ jobs:
   build-cli:
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     env:
       CARGO_TARGET_DIR: rust-local-target
@@ -27,17 +27,17 @@ jobs:
         if: runner.os == 'macOS'
         run: brew install protobuf
 
-      - name: Install protoc on Windows
-        if: runner.os == 'Windows'
-        run: choco install protoc -y
+      # - name: Install protoc on Windows
+      #   if: runner.os == 'Windows'
+      #   run: choco install protoc -y
 
-      - name: Install OpenSSL on Windows
-        if: runner.os == 'Windows'
-        run: choco install openssl.light -y
+      # - name: Install OpenSSL on Windows
+      #   if: runner.os == 'Windows'
+      #   run: choco install openssl.light -y
 
-      - name: Set OPENSSL_DIR for Windows
-        if: runner.os == 'Windows'
-        run: echo "OPENSSL_DIR=C:\Program Files\OpenSSL-Win64" >> $GITHUB_ENV
+      # - name: Set OPENSSL_DIR for Windows
+      #   if: runner.os == 'Windows'
+      #   run: echo "OPENSSL_DIR=C:\Program Files\OpenSSL-Win64" >> $GITHUB_ENV
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
