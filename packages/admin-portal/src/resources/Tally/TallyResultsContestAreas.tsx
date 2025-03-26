@@ -123,10 +123,6 @@ export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> =
         setSelectedArea(null)
     }
 
-    // useEffect(() => {
-    //     console.log("TallyResultsContestAreas :: ", value)
-    // }, [value])
-
     let documents: IResultDocumentsData | null = useMemo(() => {
         const documents =
             !!contestId &&
