@@ -93,9 +93,9 @@ export const Logs: React.FC<LogsProps> = ({logs}) => {
                                     </TableRow>
                                 </TableHead>
                                 <TableBody>
-                                    {logs.map((log) => (
+                                    {logs.map((log, index) => (
                                         <TableRow
-                                            key={log?.created_date as any}
+                                            key={index}
                                             sx={{
                                                 "&:last-child td, &:last-child th": {
                                                     border: 0,
