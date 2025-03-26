@@ -8,6 +8,8 @@ on:
 jobs:
   debug-build:
     runs-on: ubuntu-latest
+    env:
+      CARGO_TARGET_DIR: rust-local-target  # Use your custom target directory
 
     steps:
       - name: Check out repository
@@ -24,31 +26,35 @@ jobs:
           components: rustfmt
           override: true
 
-      - name: Create a minimal "Hello World" crate
+      - name: Create a minimal "Hello World" crate outside the workspace
         run: |
-            mkdir -p packages/step-cli-minimal/src
-            echo '[package]
-            name = "step-cli-minimal"
-            version = "0.1.0"
-            edition = "2021"
+          mkdir -p packages/step-cli-minimal/src
+          cat > packages/step-cli-minimal/Cargo.toml <<EOF
+          [package]
+          name = "step-cli-minimal"
+          version = "0.1.0"
+          edition = "2021"
 
-            [dependencies]
-            ' > packages/step-cli-minimal/Cargo.toml
+          [dependencies]
 
-                    echo 'fn main() {
-                println!("Hello from minimal CLI!");
-            }' > packages/step-cli-minimal/src/main.rs
+          [workspace]
+          EOF
+          cat > packages/step-cli-minimal/src/main.rs <<EOF
+          fn main() {
+              println!("Hello from minimal CLI!");
+          }
+          EOF
 
       - name: Build minimal CLI
-        # We can explicitly set the cargo target dir to "rust-local-target"
-        # if that's how your workspace is configured. Otherwise, it defaults to "target/"
-        run: |
-          cd packages/step-cli-minimal
-          cargo build --release
-          ls -lR
+        working-directory: packages/step-cli-minimal
+        run: cargo build --release
+
+      - name: List all files (debugging)
+        run: ls -lR packages/step-cli-minimal
 
       - name: Upload minimal CLI artifact
         uses: actions/upload-artifact@v4
         with:
           name: step-cli-binary
-          path: workspace/step/packages/step-cli-minimal/target/release/step-cli-minimal
+          # Adjust the path if using the custom target directory:
+          path: packages/step-cli-minimal/rust-local-target/release/step-cli-minimal
