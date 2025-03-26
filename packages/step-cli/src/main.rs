@@ -84,7 +84,7 @@ fn main() {
             StepCommands::DuplicateVotes(render) => render.run(),
             StepCommands::CreateApplications(render) => render.run(),
             StepCommands::CreateElectoralLogs(render) => render.run(),
-            StepCommands::HashPassword(render) => render.run()
+            StepCommands::HashPassword(render) => render.run(),
         },
     }
 }
