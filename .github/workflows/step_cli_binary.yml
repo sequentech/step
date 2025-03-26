@@ -22,7 +22,9 @@ jobs:
           override: true
 
       - name: Build step-cli
-        run: cargo build --release -p step-cli
+        run: |
+          cd packages/step-cli
+          cargo build --release
 
       - name: Upload CLI binary artifact
         uses: actions/upload-artifact@v4
