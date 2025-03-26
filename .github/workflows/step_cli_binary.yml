@@ -25,7 +25,7 @@ jobs:
         run: cargo build --release -p step-cli
 
       - name: Upload CLI binary artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: step-cli-binary
           path: target/release/seq
