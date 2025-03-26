@@ -41,18 +41,14 @@ impl GenerateVoters {
     }
 
     fn generate_fake_dob(&self, min_age: i64, max_age: i64) -> NaiveDate {
-        // Get today's date
-        let today = Utc::today().naive_utc();
-        // Calculate the latest possible DOB (i.e. the person is min_age today)
+        let today = Utc::now().date_naive();
         let max_date = today - Duration::days(min_age * 365);
-        // Calculate the earliest possible DOB (i.e. the person is max_age today)
         let min_date = today - Duration::days(max_age * 365);
-        // Get the total number of days between the two dates
         let days_diff = (max_date - min_date).num_days();
-        // Generate a random number of days to add to min_date
         let random_days = rand::thread_rng().gen_range(0..=days_diff);
         min_date + Duration::days(random_days)
     }
+
     /// Deduplicate items while preserving order.
     fn deduplicate_preserve_order<T: std::hash::Hash + Eq + Clone>(&self, items: &[T]) -> Vec<T> {
         let mut seen = HashSet::new();
@@ -70,7 +66,6 @@ impl GenerateVoters {
         working_dir: &str,
         num_users: usize,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        // Load config file.
         let config = load_external_config(working_dir)?;
 
         // Get election event file path from config (or default).
@@ -84,7 +79,6 @@ impl GenerateVoters {
         let csv_file_name = format!("{}_{}.csv", voters_config.csv_file_name, num_users);
         let csv_file_path = PathBuf::from(working_dir).join(&csv_file_name);
 
-        // Fields and excluded columns.
         let fields: Vec<String> = voters_config.fields;
         let excluded_columns: Vec<String> = voters_config.excluded_columns;
 
@@ -124,7 +118,7 @@ impl GenerateVoters {
             .map(|v| v.as_slice())
             .unwrap_or(&[]);
 
-        // Build election map: election.id -> (alias, clusteredPrecinct)
+        // Build election mapping.
         let mut election_map = std::collections::HashMap::new();
         for el in elections {
             if let Some(e_id) = el.get("id").and_then(Value::as_str) {

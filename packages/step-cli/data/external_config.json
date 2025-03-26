@@ -3,7 +3,7 @@
   "realm_name": "tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-439e7d48-1061-4797-a321-6b1c436d55db",
   "tenant_id": "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
   "election_event_id": "439e7d48-1061-4797-a321-6b1c436d55db",
-  "area_id": "7266bdaa-742c-40d0-8bb2-a63e61436548",
+  "area_id": "a696a9ae-d772-4ab7-9eb6-4e58dfdee725",
   "election_id": "4caf065b-ba42-4312-ae98-7f36d981a217",
   "generate_voters": {
     "csv_file_name": "generated_users",
@@ -42,7 +42,7 @@
     "max_age": 90
   },
   "duplicate_votes": {
-    "row_id_to_clone": "da92e223-bec5-47a8-8c78-60dd06133e9f"
+    "row_id_to_clone": "4b2ab2fb-f562-475a-8872-6d4a01631d59"
   },
   "generate_applications": {
     "applicant_data": {

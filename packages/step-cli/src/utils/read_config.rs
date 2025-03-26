@@ -13,6 +13,9 @@ use std::path::PathBuf;
 
 use crate::types::config::{ConfigData, ExternalConfigData};
 
+pub const CREATE_CONFIG_FILE_NAME: &str = "configuration.json";
+pub const EXTERNAL_CONFIG_FILE_NAME: &str = "external_config.json";
+
 pub fn get_config_dir() -> Result<PathBuf, Box<dyn Error>> {
     let exe_path = env::current_exe().map_err(|_| "Failed to get current executable path")?;
     let parent_dir = exe_path
@@ -23,7 +26,7 @@ pub fn get_config_dir() -> Result<PathBuf, Box<dyn Error>> {
 
 pub fn read_config() -> Result<ConfigData, Box<dyn Error>> {
     let config_dir = get_config_dir()?;
-    let config_file = config_dir.join("configuration.json");
+    let config_file = config_dir.join(CREATE_CONFIG_FILE_NAME);
 
     let json_data = fs::read_to_string(&config_file).map_err(|_| {
         "Failed to read config file, Please make sure to run `sequent config` first"
@@ -33,7 +36,7 @@ pub fn read_config() -> Result<ConfigData, Box<dyn Error>> {
 }
 
 pub fn load_external_config(working_dir: &str) -> Result<ExternalConfigData, Box<dyn Error>> {
-    let config_path = PathBuf::from(working_dir).join("external_config.json");
+    let config_path = PathBuf::from(working_dir).join(EXTERNAL_CONFIG_FILE_NAME);
     let file = File::open(config_path)?;
     let reader = BufReader::new(file);
     let config = serde_json::from_reader(reader)?;
