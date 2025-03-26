@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2023-2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 use anyhow::Result;
 use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine as _};
 use clap::Args;
@@ -22,7 +26,7 @@ pub struct HashPasswords {
     #[arg(long)]
     output_file: String,
 
-    #[arg(long)]
+    #[arg(long, default_value_t = NonZeroU32::new(600000).unwrap())]
     iterations: NonZeroU32,
 }
 

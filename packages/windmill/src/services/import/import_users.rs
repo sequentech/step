@@ -56,7 +56,6 @@ fn sanitize_db_key(key: &String) -> String {
 }
 
 fn hash_password(password: &String, salt: &[u8]) -> Result<String> {
-    
     let mut output: Credential = [0u8; CREDENTIAL_LEN];
     pbkdf2::derive(
         PBKDF2_ALGORITHM,
@@ -643,8 +642,7 @@ pub async fn import_users_file(
         if voters_table_processed_columns_names.contains(&*HASHED_PASSWORD_COL_NAME) {
             owned_data.push(password_salt.ok_or_else(|| anyhow!("Password salt empty"))?);
             owned_data.push(hashed_password.ok_or_else(|| anyhow!("Hashed password empty"))?);
-            owned_data
-                .push(num_of_iterations.get().to_string());
+            owned_data.push(num_of_iterations.get().to_string());
         }
 
         if !voters_table_input_columns_names.contains(&*USERNAME_COL_NAME) {
