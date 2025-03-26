@@ -143,6 +143,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
             if (keycloak || !tenantId || !eventId) {
                 return
             }
+
             /**
              * Get the Keycloak URL. If there's a param `kiosk` in the URL, it
              * appends `-kiosk` to the subdomain (if it exists).

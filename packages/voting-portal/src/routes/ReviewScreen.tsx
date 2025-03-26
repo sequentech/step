@@ -216,6 +216,8 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     const submit = useSubmit()
     const isDemo = !!ballotStyle?.ballot_eml?.public_key?.is_demo
     const {globalSettings} = useContext(SettingsContext)
+    const authContext = useContext(AuthContext)
+    const {isGoldUser, reauthWithGold} = authContext
 
     const {refetch: refetchElectionEvent} = useQuery<GetElectionEventQuery>(GET_ELECTION_EVENT, {
         variables: {
@@ -296,16 +298,22 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                 EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
 
             const isGoldenPolicy = true // TODO: Retrieve from election in ballot style?
-            if (!isGoldenPolicy) {
-                    
+            if (isGoldenPolicy) {
+                // Save contests to session storage and perform reauthentication
                 const contestsStorage = isMultiContest ? 
                     (auditableBallot as IAuditableMultiBallot).contests
                     : (auditableBallot as IAuditableSingleBallot).contests
-
                 sessionStorage.setItem(
                     "contestsStorage", JSON.stringify(contestsStorage)
                 )
-                return submit(null, {method: "post"})
+                try {
+                    const baseUrl = new URL(window.location.href)
+                    await reauthWithGold(baseUrl.toString())
+                    return submit(null, {method: "post"})
+                } catch (error) {
+                    console.error("Re-authentication failed:", error)
+                    return submit({error: errorType}, {method: "post"})
+                }
             }
 
             const hashableBallot = isMultiContest
@@ -471,11 +479,11 @@ export const ReviewScreen: React.FC = () => {
     }
 
     useEffect(() => {
-        if (isGoldUser()) {
+        const isGoldenPolicy = true // TODO: Retrieve from election in ballot style?
+        // ballotStyle?.ballot_eml?.election_presentation?.grace_period_policy
+        if (isGoldenPolicy && isGoldUser()) {
             console.log("Gold user flow")
-            const contestsStorage = sessionStorage.getItem(
-                "contestsStorage"
-            )
+            const contestsStorage = sessionStorage.getItem("contestsStorage")
             if (contestsStorage) {
                 alert("Works!")
                 // TODO: Remove alert and call to a new automaticCastBallotAction
