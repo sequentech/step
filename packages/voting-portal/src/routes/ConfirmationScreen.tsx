@@ -42,6 +42,7 @@ import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortal
 import {GetElectionsQuery} from "../gql/graphql"
 import {GET_ELECTIONS} from "../queries/GetElections"
 import {downloadUrl} from "@sequentech/ui-core"
+import {SessionBallotData} from "../store/castVotes/castVotesSlice"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -282,23 +283,36 @@ const ConfirmationScreen: React.FC = () => {
     const [openConfirmationHelp, setOpenConfirmationHelp] = useState(false)
     const [openDemoBallotUrlHelp, setDemoBallotUrlHelp] = useState(false)
     const {hashBallot, hashMultiBallot} = provideBallotService()
+    const authContext = useContext(AuthContext)
+    const {isGoldUser, reauthWithGold} = authContext
+    const oneBallotStyle = useAppSelector(selectFirstBallotStyle)
+    const getStoredBallotId = (): { ballotId: string; isDemo: boolean | undefined } => {
+        if (isGoldUser()) {
+            const ballotData = JSON.parse(sessionStorage.getItem("ballotData") ?? "{}") as SessionBallotData | undefined
+            sessionStorage.removeItem("ballotData")
+            if (!ballotData) {
+              console.log("No stored ballot found")
+              throw new VotingPortalError(VotingPortalErrorType.INCONSISTENT_HASH)
+            }
+            return { ballotId: ballotData.ballotId, isDemo: false };
+        } else {
+            const isMultiContest =
+            auditableBallot?.config.election_event_presentation?.contest_encryption_policy ==
+            EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
+            const hashableBallot = isMultiContest
+                ? hashMultiBallot(auditableBallot as IAuditableMultiBallot)
+                : hashBallot(auditableBallot as IAuditableSingleBallot)
+            const ballotId = (auditableBallot && hashableBallot) || ""
+            const isDemo = oneBallotStyle?.ballot_eml.public_key?.is_demo
+          return { ballotId, isDemo };
+        }
+      }
 
-    const isMultiContest =
-        auditableBallot?.config.election_event_presentation?.contest_encryption_policy ==
-        EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
-    const hashableBallot = isMultiContest
-        ? hashMultiBallot(auditableBallot as IAuditableMultiBallot)
-        : hashBallot(auditableBallot as IAuditableSingleBallot)
-
-    const ballotId = (auditableBallot && hashableBallot) || ""
-
+    const { ballotId, isDemo } = getStoredBallotId()
     const ballotTrackerUrl = `${window.location.protocol}//${window.location.host}/tenant/${tenantId}/event/${eventId}/election/${electionId}/ballot-locator/${ballotId}`
-
     const backLink = useRootBackLink()
     const navigate = useNavigate()
     const [demoBallotIdHelp, setDemoBallotIdHelp] = useState<boolean>(false)
-    const oneBallotStyle = useAppSelector(selectFirstBallotStyle)
-    const isDemo = oneBallotStyle?.ballot_eml.public_key?.is_demo
 
     if (ballotId && auditableBallot?.ballot_hash && ballotId !== auditableBallot.ballot_hash) {
         console.log(

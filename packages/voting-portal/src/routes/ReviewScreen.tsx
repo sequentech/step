@@ -51,7 +51,7 @@ import {INSERT_CAST_VOTE} from "../queries/InsertCastVote"
 import {GetElectionEventQuery, InsertCastVoteMutation} from "../gql/graphql"
 import {CircularProgress} from "@mui/material"
 import {provideBallotService} from "../services/BallotService"
-import {ICastVote, addCastVotes} from "../store/castVotes/castVotesSlice"
+import {ICastVote, addCastVotes, SessionBallotData} from "../store/castVotes/castVotesSlice"
 import {TenantEventType} from ".."
 import {useRootBackLink} from "../hooks/root-back-link"
 import {
@@ -297,15 +297,23 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                 auditableBallot?.config.election_event_presentation?.contest_encryption_policy ==
                 EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
 
+            const hashableBallot = isMultiContest
+                ? toHashableMultiBallot(auditableBallot as IAuditableMultiBallot)
+                : toHashableBallot(auditableBallot as IAuditableSingleBallot)
+        
+            console.log("castBallotAction hashableBallot:", hashableBallot)
+
             const isGoldenPolicy = true // TODO: Retrieve from election in ballot style?
             if (isGoldenPolicy) {
                 // Save contests to session storage and perform reauthentication
-                const contestsStorage = isMultiContest ? 
-                    (auditableBallot as IAuditableMultiBallot).contests
-                    : (auditableBallot as IAuditableSingleBallot).contests
-                sessionStorage.setItem(
-                    "contestsStorage", JSON.stringify(contestsStorage)
-                )
+                const ballotData: SessionBallotData = {
+                    ballotId,
+                    electionId: ballotStyle.election_id,
+                    ballot: JSON.stringify(hashableBallot)
+                  };
+                  
+                  sessionStorage.setItem("ballotData", JSON.stringify(ballotData));
+
                 try {
                     const baseUrl = new URL(window.location.href)
                     await reauthWithGold(baseUrl.toString())
@@ -315,11 +323,6 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                     return submit({error: errorType}, {method: "post"})
                 }
             }
-
-            const hashableBallot = isMultiContest
-                ? toHashableMultiBallot(auditableBallot as IAuditableMultiBallot)
-                : toHashableBallot(auditableBallot as IAuditableSingleBallot)
-            console.log("castBallotAction hashableBallot:", hashableBallot)
 
             let result = await insertCastVote({
                 variables: {
@@ -416,6 +419,25 @@ export const ReviewScreen: React.FC = () => {
     const [errorMsg, setErrorMsg] = useState<CastBallotsErrorType>()
     const authContext = useContext(AuthContext)
     const {isGoldUser, reauthWithGold} = authContext
+    const [isCastingBallot, setIsCastingBallot] = React.useState<boolean>(false)
+    const {globalSettings} = useContext(SettingsContext)
+    const [insertCastVote] = useMutation<InsertCastVoteMutation>(INSERT_CAST_VOTE)
+    const dispatch = useAppDispatch()
+
+    const {refetch: refetchElectionEvent} = useQuery<GetElectionEventQuery>(GET_ELECTION_EVENT, {
+        variables: {
+            electionEventId: eventId,
+            tenantId,
+        },
+        skip: globalSettings.DISABLE_AUTH, // Skip query if in demo mode
+        onError: (error) => {
+            if (error.networkError) {
+                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.NETWORK_ERROR}`))
+            } else {
+                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.UNABLE_TO_FETCH_DATA}`))
+            }
+        },
+    })
 
     const auditButtonCfg =
         ballotStyle?.ballot_eml?.election_presentation?.audit_button_cfg ??
@@ -429,7 +451,7 @@ export const ReviewScreen: React.FC = () => {
     const hashableBallot = auditableBallot ? (isMultiContest
         ? hashMultiBallot(auditableBallot as IAuditableMultiBallot)
         : hashBallot(auditableBallot as IAuditableSingleBallot))
-        : ""
+        : undefined
 
     const ballotId = auditableBallot && hashableBallot
 
@@ -478,21 +500,91 @@ export const ReviewScreen: React.FC = () => {
         }
     }
 
+    
+    const automaticCastBallot = async () => {
+        const errorType = VotingPortalErrorType.UNABLE_TO_CAST_BALLOT
+        setIsCastingBallot(true)
+
+        const ballotData = JSON.parse(sessionStorage.getItem("ballotData") ?? "{}") as SessionBallotData | undefined
+        console.log("ballotData", ballotData)
+        
+        if (!ballotData) {
+            console.log("No stored ballot found")
+            setIsCastingBallot(false)
+            setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.UNABLE_TO_FETCH_DATA}`))
+            return submit({error: errorType}, {method: "post"})
+        }
+
+        try {
+            const {data} = await refetchElectionEvent()
+
+            if (!(data && data.sequent_backend_election_event.length > 0)) {
+                setIsCastingBallot(false)
+                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.LOAD_ELECTION_EVENT}`))
+                return submit({error: errorType}, {method: "post"})
+            }
+
+            const record = data?.sequent_backend_election_event?.[0]
+            const eventStatus = record?.status as IElectionEventStatus | undefined
+
+            if (eventStatus?.voting_status !== EVotingStatus.OPEN) {
+                setIsCastingBallot(false)
+                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.ELECTION_EVENT_NOT_OPEN}`))
+                return submit({error: errorType.toString()}, {method: "post"})
+            }
+            let result = await insertCastVote({
+                variables: {
+                    electionId: ballotData.electionId,
+                    ballotId: ballotData.ballotId,
+                    content: ballotData.ballot,
+                },
+            })
+
+            if (result.errors) {
+                // As the exception occurs above this error is not set, leading
+                // to unknown error.
+                console.log(result.errors.map((e) => e.message))
+                setIsCastingBallot(false)
+                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}`))
+                return submit({error: errorType}, {method: "post"})
+            }
+
+            let newCastVote = result.data?.insert_cast_vote
+            if (newCastVote) {
+                dispatch(addCastVotes([newCastVote]))
+            }
+
+            return submit(null, {method: "post"})
+        } catch (error) {
+            setIsCastingBallot(false)
+            let castError = error as IGraphQLActionError
+            if (castError?.graphQLErrors?.[0]?.extensions?.code) {
+                let errorCode = castError?.graphQLErrors?.[0]?.extensions?.code
+                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}_${errorCode}`))
+            } else {
+                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}`))
+            }
+            console.log(`error casting vote: ${electionId}`)
+            return submit({error: errorType}, {method: "post"})
+        }
+    }
+
     useEffect(() => {
         const isGoldenPolicy = true // TODO: Retrieve from election in ballot style?
         // ballotStyle?.ballot_eml?.election_presentation?.grace_period_policy
-        if (isGoldenPolicy && isGoldUser()) {
+        if (isGoldenPolicy && !isCastingBallot && isGoldUser()) {
             console.log("Gold user flow")
-            const contestsStorage = sessionStorage.getItem("contestsStorage")
-            if (contestsStorage) {
-                alert("Works!")
-                // TODO: Remove alert and call to a new automaticCastBallotAction
-                sessionStorage.removeItem("testVote")
-            }
+            automaticCastBallot().then(() => {
+                console.log("To navitage to confirmation")
+            }).catch((error) => {
+                sessionStorage.removeItem("ballotData");
+                console.error("Error casting ballot:", error);
+              });
         } else if (!ballotStyle || !auditableBallot || !selectionState) {
             navigate(`/tenant/${tenantId}/event/${eventId}/election-chooser`)
         } else {
             console.log("Normal flow")
+            setIsCastingBallot(false)
         }
     }, [navigate, backLink, ballotStyle, selectionState, auditableBallot])
 
@@ -597,14 +689,14 @@ export const ReviewScreen: React.FC = () => {
                     />
                 </Box>
             ))}
-            <ActionButtons
+            {!isCastingBallot && <ActionButtons
                 ballotStyle={ballotStyle}
                 auditableBallot={auditableBallot}
                 auditButtonCfg={auditButtonCfg}
                 castVoteConfirmModal={castVoteConfirmModal}
                 ballotId={ballotId ?? ""}
                 setErrorMsg={setErrorMsg}
-            />
+            />}
         </PageLimit>
     )
 }
