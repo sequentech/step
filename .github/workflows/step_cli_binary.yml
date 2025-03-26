@@ -33,4 +33,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: step-cli-binary
-          path: packages/step-cli/target/release/seq
+          path: packages/step-cli/rust-local-target/release/seq
