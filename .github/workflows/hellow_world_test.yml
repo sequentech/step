@@ -43,7 +43,7 @@ jobs:
         # We can explicitly set the cargo target dir to "rust-local-target"
         # if that's how your workspace is configured. Otherwise, it defaults to "target/"
         run: |
-          cd step/packages/step-cli-minimal
+          cd packages/step-cli-minimal
           cargo build --release
           ls -lR
 
