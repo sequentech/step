@@ -288,10 +288,11 @@ const ConfirmationScreen: React.FC = () => {
     const oneBallotStyle = useAppSelector(selectFirstBallotStyle)
     const getStoredBallotId = (): { ballotId: string; isDemo: boolean | undefined } => {
         if (isGoldUser()) {
-            const ballotData = JSON.parse(sessionStorage.getItem("ballotData") ?? "{}") as SessionBallotData | undefined
+            const ballotData = JSON.parse(sessionStorage.getItem("ballotData") ?? "{}") as SessionBallotData
+            console.log("ballotData", ballotData)
             sessionStorage.removeItem("ballotData")
-            if (!ballotData) {
-              console.log("No stored ballot found")
+            if (Object.keys(ballotData).length === 0) {
+              console.log("ballotData not found")
               throw new VotingPortalError(VotingPortalErrorType.INCONSISTENT_HASH)
             }
             return { ballotId: ballotData.ballotId, isDemo: false };
@@ -308,7 +309,10 @@ const ConfirmationScreen: React.FC = () => {
         }
       }
 
-    const { ballotId, isDemo } = getStoredBallotId()
+    const [ballotId, setBallotId] = useState<string | undefined>()
+    const [isDemo, setIsDemo] = useState<boolean | undefined>()
+
+    // const { ballotId, isDemo } = getStoredBallotId()
     const ballotTrackerUrl = `${window.location.protocol}//${window.location.host}/tenant/${tenantId}/event/${eventId}/election/${electionId}/ballot-locator/${ballotId}`
     const backLink = useRootBackLink()
     const navigate = useNavigate()
@@ -323,9 +327,18 @@ const ConfirmationScreen: React.FC = () => {
 
     useEffect(() => {
         if (!ballotId) {
-            navigate(backLink)
+            const { ballotId, isDemo } = getStoredBallotId()
+            setBallotId(ballotId)
+            setIsDemo(isDemo)
         }
-    })
+    }, [])
+
+    useEffect(() => {
+        if (!ballotId) {
+            console.log("No stored ballot found", backLink)
+            // navigate(backLink)
+        }
+    }, [ballotId, backLink])
 
     const handleBallotIdLinkClick = (event: React.MouseEvent<HTMLAnchorElement, MouseEvent>) => {
         if (isDemo) {
@@ -446,7 +459,7 @@ const ConfirmationScreen: React.FC = () => {
             <ActionButtons
                 ballotTrackerUrl={ballotTrackerUrl}
                 electionId={electionId}
-                ballotId={ballotId}
+                ballotId={ballotId??""}
             />
         </PageLimit>
     )
