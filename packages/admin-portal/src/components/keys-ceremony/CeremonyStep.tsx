@@ -47,6 +47,8 @@ export const statusColor: (status: EStatus) => string = (status) => {
     }
 }
 
+// could not reproduce https://github.com/sequentech/meta/issues/5673
+
 export interface CeremonyStepProps {
     message?: React.ReactNode
     currentCeremonyId: string
