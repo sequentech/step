@@ -32,6 +32,7 @@ jobs:
     runs-on:
       - runs-on=${{ github.run_id }}
       - runner=2cpu-linux-x64
+      - image=ubuntu24-full-x64
     outputs:
       NEW_RELEASE_BRANCH: ${{ steps.CreateReleaseBranch.outputs.NEW_RELEASE_BRANCH }}
       DEPLOYER_BRANCH: ${{ steps.CreateReleaseBranch.outputs.DEPLOYER_BRANCH }}
@@ -120,6 +121,7 @@ jobs:
     runs-on:
       - runs-on=${{ github.run_id }}
       - runner=2cpu-linux-x64
+      - image=ubuntu24-full-x64
     needs: create-release-branch
     outputs:
       VERSION: ${{ steps.Release.outputs.VERSION }}
@@ -231,6 +233,7 @@ jobs:
     runs-on:
       - runs-on=${{ github.run_id }}
       - runner=2cpu-linux-x64
+      - image=ubuntu24-full-x64
     steps:
     - name: Trigger Beyond Release Workflow
       uses: the-actions-org/workflow-dispatch@v4 # https://github.com/the-actions-org/workflow-dispatch
@@ -247,6 +250,7 @@ jobs:
     runs-on:
       - runs-on=${{ github.run_id }}
       - runner=2cpu-linux-x64
+      - image=ubuntu24-full-x64
     steps:
     - name: Trigger GitOps Release Workflow
       uses: the-actions-org/workflow-dispatch@v4 # https://github.com/the-actions-org/workflow-dispatch
@@ -263,6 +267,7 @@ jobs:
     runs-on:
       - runs-on=${{ github.run_id }}
       - runner=2cpu-linux-x64
+      - image=ubuntu24-full-x64
     steps:
     - name: Trigger Deployer Workflow
       uses: the-actions-org/workflow-dispatch@v4 # https://github.com/the-actions-org/workflow-dispatch
@@ -280,6 +285,7 @@ jobs:
     runs-on:
       - runs-on=${{ github.run_id }}
       - runner=2cpu-linux-x64
+      - image=ubuntu24-full-x64
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -298,6 +304,7 @@ jobs:
     runs-on:
       - runs-on=${{ github.run_id }}
       - runner=2cpu-linux-x64
+      - image=ubuntu24-full-x64
     timeout-minutes: 20
     if: always()
     steps:
