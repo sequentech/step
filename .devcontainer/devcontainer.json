@@ -19,7 +19,7 @@
 		"LOCAL_WORKSPACE_FOLDER": "${localWorkspaceFolder}"
 	},
 
-	"workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+	"workspaceFolder": "/workspaces/step",
 
 	"userEnvProbe": "loginShell",
 	"updateRemoteUserUID": true,
