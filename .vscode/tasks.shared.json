@@ -208,34 +208,6 @@
             "problemMatcher": []
         },
         {
-          "label": "logs.restart.simplesaml",
-          "command": "bash",
-          "args": [
-            "-c",
-            "docker compose stop simplesaml; docker compose build simplesaml && docker compose up -d --no-deps simplesaml && docker compose logs -f --tail 100 simplesaml"
-          ],
-          "options": {
-            "env": {
-              "COMPOSE_PROJECT_NAME": "step_devcontainer",
-              "COMPOSE_PROFILES": "base"
-            },
-            "cwd": "${workspaceFolder}/.devcontainer"
-          },
-          "presentation": {
-            "echo": true,
-            "reveal": "always",
-            "focus": false,
-            "panel": "dedicated",
-            "showReuseMessage": true,
-            "clear": false
-          },
-          "isBackground": true,
-          "runOptions": {
-            "runOn": "default"
-          },
-          "problemMatcher": []
-        },
-        {
             "label": "logs.restart.hasura",
             "command": "bash",
             "args": [
@@ -391,37 +363,6 @@
                 "--tail",
                 "200",
                 "keycloak",
-            ],
-            "options": {
-                "env": {
-                    "COMPOSE_PROJECT_NAME": "step_devcontainer",
-                    "COMPOSE_PROFILES": "base",
-                }
-            },
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "dedicated",
-                "showReuseMessage": true,
-                "clear": false
-            },
-            "isBackground": true,
-            "runOptions": {
-                "runOn": "default"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "logs.simplesaml",
-            "command": "docker",
-            "args": [
-                "compose",
-                "logs",
-                "-f",
-                "--tail",
-                "200",
-                "simplesaml",
             ],
             "options": {
                 "env": {

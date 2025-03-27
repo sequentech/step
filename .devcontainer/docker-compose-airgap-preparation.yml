@@ -3,14 +3,6 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 services:
-  simplesaml:
-    profiles: ["full"]
-    image: kenchan0130/simplesamlphp
-    platform: linux/amd64
-    container_name: simplesamlphp
-    ports:
-      - "8083:8080"
-
   # Needed to set up proper permissions for non root user in postgres
   postgres-volume-init:
     profiles: ["full", "base"]
