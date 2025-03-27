@@ -60,7 +60,6 @@ impl CreateApplications {
         num_applications: usize,
         status: Option<ApplicationStatus>,
         verification_type: Option<ApplicationType>,
-
     ) -> Result<(), Box<dyn std::error::Error>> {
         let config = load_external_config(working_dir)?;
         let realm_name = config.realm_name;
