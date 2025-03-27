@@ -69,7 +69,6 @@ impl HashPasswords {
             let mut new_record = record.clone();
 
             let password = record.get(password_index).unwrap_or("");
-            print!("password: {}", password);
 
             let mut salt_bytes: Credential = Default::default();
             thread_rng().fill(&mut salt_bytes);

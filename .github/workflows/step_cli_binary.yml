@@ -6,7 +6,7 @@ name: Build Multiplatform Step CLI Binary
 
 on:
   push:
-    branches:
+      branches:
       - feat/meta-6483/main
 
 jobs:
@@ -30,18 +30,6 @@ jobs:
       - name: Install protoc on macOS
         if: runner.os == 'macOS'
         run: brew install protobuf
-
-      # - name: Install protoc on Windows
-      #   if: runner.os == 'Windows'
-      #   run: choco install protoc -y
-
-      # - name: Install OpenSSL on Windows
-      #   if: runner.os == 'Windows'
-      #   run: choco install openssl.light -y
-
-      # - name: Set OPENSSL_DIR for Windows
-      #   if: runner.os == 'Windows'
-      #   run: echo "OPENSSL_DIR=C:\Program Files\OpenSSL-Win64" >> $GITHUB_ENV
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
@@ -68,4 +56,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
               name: step-cli-binary-${{ matrix.os }}
-              path: "${{ matrix.os == 'Windows' && 'packages/step-cli/rust-local-target\\release\\seq.exe' || 'packages/step-cli/rust-local-target/release/seq' }}"
+              path: "${{ 'packages/step-cli/rust-local-target/release/seq' }}"

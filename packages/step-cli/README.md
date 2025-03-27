@@ -218,3 +218,11 @@ Run ```step update-tally --election-event-id <ELECTION_EVENT_ID> --tally-id <TAL
 > Run ```step hash-passwords --input-file <PATH_FOR_INPUT_OUTPUT> --output-file <PATH_TO_OUTPUT_FILE> --iterations <NUMBER_OF_HASHING_ITERATIONS>```
 
 - iterations = number of iterations for the hashing where the default if 600000
+
+## Compiling and Using the CLI 
+
+> The CLI will be compilied using github action into a binray on every push/pull request or realease 
+> The CLI will be compiled to both MAC use or L
+> In order to run on Linux: 
+- go Open a terminal, navigate to the folder where the binary is located, and run: ```chmod +x seq ```
+-  Execute a commend by running by running: ```./seq <COMMAND> [OPTIONS]``` for Example: ```./seq step hash-passwords --input-file <PATH_FOR_INPUT_OUTPUT> --output-file <PATH_TO_OUTPUT_FILE> --iterations <NUMBER_OF_HASHING_ITERATIONS>```
