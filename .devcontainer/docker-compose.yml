@@ -10,7 +10,7 @@ services:
     volumes:
     - type: bind
       source: ../..
-      target: /workspaces
+      target: /workspaces/step
       bind:
         create_host_path: true
         selinux: z
