@@ -777,13 +777,16 @@ export const TallyCeremony: React.FC = () => {
                                         setKeysCeremonyId(props?.target?.value)
                                     }}
                                 >
-                                    {(keysCeremonies?.list_keys_ceremony?.items ?? []).map(
-                                        (keysCeremony) => (
+                                    {(keysCeremonies?.list_keys_ceremony?.items ?? [])
+                                        .sort((a, b) => {
+                                            if (!a?.name || !b?.name) return 0
+                                            return a.name.localeCompare(b.name)
+                                        })
+                                        .map((keysCeremony) => (
                                             <MenuItem key={keysCeremony.id} value={keysCeremony.id}>
                                                 {keysCeremony?.name}
                                             </MenuItem>
-                                        )
-                                    )}
+                                        ))}
                                 </Select>
                             </FormControl>
                         </>
