@@ -1,8 +1,13 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::services::election_event_board::get_election_event_board;
+use crate::services::electoral_log::ElectoralLog;
+use crate::services::to_result::ToResult;
+pub use crate::types::hasura_types::*;
 use anyhow::{anyhow, Context, Result};
 use b3::messages::newtypes::BatchNumber;
+use deadpool_postgres::Transaction;
 use graphql_client::{GraphQLQuery, Response};
 use reqwest;
 use sequent_core::services::connection;
@@ -10,11 +15,6 @@ use sequent_core::types::ceremonies::{TallyCeremonyStatus, TallyExecutionStatus}
 use serde_json;
 use std::env;
 use tracing::instrument;
-
-use crate::services::election_event_board::get_election_event_board;
-use crate::services::electoral_log::ElectoralLog;
-use crate::services::to_result::ToResult;
-pub use crate::types::hasura_types::*;
 
 use crate::hasura::election_event::get_election_event_helper;
 
@@ -184,6 +184,7 @@ pub struct SetTallySessionCompleted;
 #[instrument(skip(auth_headers), err)]
 pub async fn set_tally_session_completed(
     auth_headers: connection::AuthHeaders,
+    hasura_transaction: &Transaction<'_>,
     tenant_id: String,
     election_event_id: String,
     tally_session_id: String,
@@ -222,7 +223,13 @@ pub async fn set_tally_session_completed(
             .with_context(|| "missing bulletin board")?;
 
         // Cannot find a user_id with which to post this
-        let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
+        let electoral_log = ElectoralLog::new(
+            hasura_transaction,
+            &tenant_id,
+            Some(&election_event_id),
+            board_name.as_str(),
+        )
+        .await?;
         electoral_log
             .post_tally_close(election_event_id.to_string(), None, None, None)
             .await

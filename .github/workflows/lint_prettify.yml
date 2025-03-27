@@ -12,7 +12,10 @@ on:
 jobs:
   lint-prettify:
     name: Check frontend linting
-    runs-on: ubuntu-latest
+    runs-on:
+      - runs-on=${{ github.run_id }}
+      - runner=2cpu-linux-x64
+      - image=ubuntu24-full-x64
     steps:
       - name: Check out code
         uses: actions/checkout@v4
@@ -54,7 +57,10 @@ jobs:
 
   lint-prettify-hasura:
     name: Check Hasura prettify
-    runs-on: ubuntu-latest
+    runs-on:
+      - runs-on=${{ github.run_id }}
+      - runner=2cpu-linux-x64
+      - image=ubuntu24-full-x64
     steps:
       - name: Check out code
         uses: actions/checkout@v4
@@ -78,7 +84,10 @@ jobs:
 
   rust-fmt:
     name: Check Rust format 
-    runs-on: ubuntu-latest
+    runs-on:
+      - runs-on=${{ github.run_id }}
+      - runner=2cpu-linux-x64
+      - image=ubuntu24-full-x64
     steps:
       - name: Check out code
         uses: actions/checkout@v4
@@ -96,7 +105,10 @@ jobs:
   
   java-spotless:
     name: Check Java format
-    runs-on: ubuntu-latest
+    runs-on:
+      - runs-on=${{ github.run_id }}
+      - runner=2cpu-linux-x64
+      - image=ubuntu24-full-x64
     steps:
       - name: Check out code
         uses: actions/checkout@v4
