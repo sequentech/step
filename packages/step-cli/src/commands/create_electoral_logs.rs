@@ -2,8 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::utils::keycloak::get_keyckloak_pool;
-use crate::utils::read_config::load_config;
-use anyhow::{Context, Result};
+use crate::utils::read_config::load_external_config;
+use anyhow::{anyhow, Context, Result};
 use chrono::Utc;
 use clap::Args;
 use electoral_log::messages::message::{Message, Sender};
@@ -15,12 +15,11 @@ use electoral_log::ElectoralLogMessage;
 use fake::faker::internet::raw::Username;
 use fake::locales::EN;
 use fake::Fake;
-use immudb_rs::{
-    sql_value::Value as ImmudbValue, Client as ImmudbClient, NamedParam, SqlValue, TxMode,
-};
-use serde_json::Value;
+use immudb_rs::{sql_value::Value as ImmudbValue, Client as ImmudbClient, NamedParam, SqlValue};
 use std::env;
 use strand::signature::{StrandSignature, StrandSignaturePk};
+use windmill::services::protocol_manager::get_event_board;
+use windmill::services::providers::transactions_provider::provide_immudb_transaction;
 
 #[derive(Args)]
 #[command(about)]
@@ -46,39 +45,9 @@ impl CreateElectoralLogs {
         match runtime
             .block_on(self.run_create_electoral_logs(&self.working_directory, self.num_logs))
         {
-            Ok(_) => println!("Successfully generated the report"),
-            Err(err) => eprintln!("Error! Failed to generate the report: {err:?}"),
+            Ok(_) => println!("Successfully created electoral logs."),
+            Err(err) => eprintln!("Error! Failed to create electoral logs: {err:?}"),
         }
-    }
-
-    async fn get_immudb_client(&self) -> Result<ImmudbClient> {
-        let username = env::var("IMMUDB_USER")?;
-        let password = env::var("IMMUDB_PASSWORD")?;
-        let server_url = env::var("IMMUDB_SERVER_URL")?;
-
-        let mut client = ImmudbClient::new(&server_url, &username, &password).await?;
-        client.login().await?;
-
-        Ok(client)
-    }
-
-    fn get_event_board(&self, tenant_id: &str, election_event_id: &str) -> String {
-        let tenant: String = tenant_id
-            .to_string()
-            .chars()
-            .filter(|&c| c != '-')
-            .take(17)
-            .collect();
-        let event: String = election_event_id
-            .to_string()
-            .chars()
-            .filter(|&c| c != '-')
-            .collect();
-
-        format!("tenant{}event{}", tenant, event)
-            .chars()
-            .filter(|&c| c != '-')
-            .collect()
     }
 
     fn generate_log_message(
@@ -136,26 +105,13 @@ impl CreateElectoralLogs {
         working_dir: &str,
         num_logs: usize,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        // --- Load configuration ---
-        let config = load_config(working_dir)?;
-        let tenant_id = config
-            .get("tenant_id")
-            .and_then(Value::as_str)
-            .unwrap_or("");
-        let election_event_id = config
-            .get("election_event_id")
-            .and_then(Value::as_str)
-            .unwrap_or("");
-        let election_id = config
-            .get("election_id")
-            .and_then(Value::as_str)
-            .unwrap_or("");
-        let immudb_db = self.get_event_board(&tenant_id, &election_event_id);
-        let area_id = config.get("area_id").and_then(Value::as_str).unwrap_or("");
-        let realm_name = config
-            .get("realm_name")
-            .and_then(Value::as_str)
-            .unwrap_or("");
+        let config = load_external_config(working_dir)?;
+        let tenant_id = config.tenant_id;
+        let election_event_id = config.election_event_id;
+        let election_id = config.election_id;
+        let immudb_db = get_event_board(&tenant_id, &election_event_id);
+        let area_id = config.area_id;
+        let realm_name = config.realm_name;
 
         println!("immudb_db: {}", &immudb_db);
 
@@ -268,42 +224,57 @@ impl CreateElectoralLogs {
             logs_params.push(params);
         }
 
-        let mut client: ImmudbClient = self.get_immudb_client().await?;
-        client.open_session(immudb_db.as_str()).await?;
+        provide_immudb_transaction(
+            |client, tx_id| {
+                let logs_params = logs_params.clone();
+                Box::pin(async move { insert_logs(client, &tx_id, logs_params).await })
+            },
+            immudb_db.as_str(),
+        )
+        .await?;
 
-        let batch_size = 1000;
-        for batch in logs_params.chunks(batch_size) {
-            // Start a new transaction for this batch.
-            let tx_id = client.new_tx(TxMode::ReadWrite).await?;
-
-            // Build the multi-row INSERT query.
-            let mut query = String::from("INSERT INTO electoral_log_messages (created, sender_pk, statement_kind, statement_timestamp, message, version, user_id, username, election_id, area_id) VALUES ");
-            let mut values_clauses = Vec::new();
-            let mut all_params: Vec<NamedParam> = Vec::new();
-            let mut row_index = 1;
-            for row in batch {
-                let mut clause_parts = Vec::new();
-                for param in row {
-                    // Append the row index to the parameter name (e.g. created1, sender_pk1, etc.)
-                    let new_name = format!("{}{}", param.name, row_index);
-                    clause_parts.push(format!("@{}", new_name));
-                    // Add a new parameter with the renamed key.
-                    all_params.push(NamedParam {
-                        name: new_name,
-                        value: param.value.clone(),
-                    });
-                }
-                row_index += 1;
-                values_clauses.push(format!("({})", clause_parts.join(", ")));
-            }
-            query.push_str(&values_clauses.join(", "));
-            client.tx_sql_exec(&query, &tx_id, all_params).await?;
-            client.commit(&tx_id).await?;
-        }
-
-        client.close_session().await?;
         println!("Inserted {} logs.", num_logs);
 
         Ok(())
     }
+}
+
+async fn insert_logs(
+    client: &mut ImmudbClient,
+    tx_id: &str,
+    logs_params: Vec<Vec<NamedParam>>,
+) -> Result<()> {
+    let batch_size = env::var("DEFAULT_SQL_BATCH_SIZE")
+        .ok()
+        .and_then(|s| s.parse::<usize>().ok())
+        .unwrap_or(1000);
+
+    for batch in logs_params.chunks(batch_size) {
+        let mut query = String::from("INSERT INTO electoral_log_messages (created, sender_pk, statement_kind, statement_timestamp, message, version, user_id, username, election_id, area_id) VALUES ");
+        let mut values_clauses = Vec::new();
+        let mut all_params: Vec<NamedParam> = Vec::new();
+        let mut row_index = 1;
+
+        for row in batch {
+            let mut clause_parts = Vec::new();
+            for param in row {
+                let new_name = format!("{}{}", param.name, row_index);
+                clause_parts.push(format!("@{}", new_name));
+                all_params.push(NamedParam {
+                    name: new_name,
+                    value: param.value.clone(),
+                });
+            }
+            row_index += 1;
+            values_clauses.push(format!("({})", clause_parts.join(", ")));
+        }
+
+        query.push_str(&values_clauses.join(", "));
+        client
+            .tx_sql_exec(&query, &(tx_id.to_string()), all_params)
+            .await
+            .map_err(|e| anyhow!("Failed to execute query: {:?}", e))?;
+    }
+
+    Ok(())
 }

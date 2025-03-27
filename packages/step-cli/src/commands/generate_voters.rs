@@ -18,7 +18,7 @@ use std::path::PathBuf;
 use chrono::{Duration, NaiveDate};
 use rand::Rng;
 
-use crate::utils::read_config::load_config;
+use crate::utils::read_config::load_external_config;
 
 #[derive(Args)]
 #[command(about)]
@@ -35,24 +35,20 @@ impl GenerateVoters {
     /// Execute the rendering process
     pub fn run(&self) {
         match self.run_generate_voters(&self.working_directory, self.num_users) {
-            Ok(_) => println!("Successfully generated the report"),
-            Err(err) => eprintln!("Error! Failed to generate the report: {err:?}"),
+            Ok(_) => println!("Successfully generated voters into csv"),
+            Err(err) => eprintln!("Error! Failed to generate voters: {err:?}"),
         }
     }
 
     fn generate_fake_dob(&self, min_age: i64, max_age: i64) -> NaiveDate {
-        // Get today's date
-        let today = Utc::today().naive_utc();
-        // Calculate the latest possible DOB (i.e. the person is min_age today)
+        let today = Utc::now().date_naive();
         let max_date = today - Duration::days(min_age * 365);
-        // Calculate the earliest possible DOB (i.e. the person is max_age today)
         let min_date = today - Duration::days(max_age * 365);
-        // Get the total number of days between the two dates
         let days_diff = (max_date - min_date).num_days();
-        // Generate a random number of days to add to min_date
         let random_days = rand::thread_rng().gen_range(0..=days_diff);
         min_date + Duration::days(random_days)
     }
+
     /// Deduplicate items while preserving order.
     fn deduplicate_preserve_order<T: std::hash::Hash + Eq + Clone>(&self, items: &[T]) -> Vec<T> {
         let mut seen = HashSet::new();
@@ -70,113 +66,32 @@ impl GenerateVoters {
         working_dir: &str,
         num_users: usize,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        // Load config file.
-        println!("working_dir: {}", working_dir);
-        let config = load_config(working_dir)?;
+        let config = load_external_config(working_dir)?;
 
         // Get election event file path from config (or default).
-        let election_event_file = config
-            .get("election_event_json_file")
-            .and_then(Value::as_str)
-            .unwrap_or("export_election_event.json");
+        let election_event_file = config.election_event_json_file;
         let election_event_path = PathBuf::from(working_dir).join(election_event_file);
         let election_file = File::open(election_event_path)?;
         let election_data: Value = serde_json::from_reader(BufReader::new(election_file))?;
 
         // Get voters configuration with defaults.
-        let voters_config = config.get("generate_voters").unwrap_or(&Value::Null);
-        let csv_file_name = format!(
-            "{}_{}.csv",
-            voters_config
-                .get("csv_file_name")
-                .and_then(Value::as_str)
-                .unwrap_or("generated_users"),
-            num_users
-        );
+        let voters_config = config.generate_voters;
+        let csv_file_name = format!("{}_{}.csv", voters_config.csv_file_name, num_users);
         let csv_file_path = PathBuf::from(working_dir).join(&csv_file_name);
 
-        // Fields and excluded columns.
-        let fields: Vec<String> = voters_config
-            .get("fields")
-            .and_then(|v| v.as_array())
-            .map(|arr| {
-                arr.iter()
-                    .filter_map(|v| v.as_str().map(String::from))
-                    .collect()
-            })
-            .unwrap_or_else(|| {
-                vec![
-                    "username",
-                    "last_name",
-                    "first_name",
-                    "middleName",
-                    "dateOfBirth",
-                    "sex",
-                    "country",
-                    "embassy",
-                    "clusteredPrecinct",
-                    "overseasReferences",
-                    "area_name",
-                    "authorized-election-ids",
-                    "password",
-                    "email",
-                    "password_salt",
-                    "hashed_password",
-                ]
-                .iter()
-                .map(|s| s.to_string())
-                .collect()
-            });
-        let excluded_columns: HashSet<String> = voters_config
-            .get("excluded_columns")
-            .and_then(|v| v.as_array())
-            .map(|arr| {
-                arr.iter()
-                    .filter_map(|v| Some(v.as_str().map(String::from)).unwrap())
-                    .collect()
-            })
-            .unwrap_or_else(|| ["password"].iter().map(|s| s.to_string()).collect());
+        let fields: Vec<String> = voters_config.fields;
+        let excluded_columns: Vec<String> = voters_config.excluded_columns;
 
-        let email_prefix = voters_config
-            .get("email_prefix")
-            .and_then(Value::as_str)
-            .unwrap_or("testsequent2025");
-        let domain = voters_config
-            .get("domain")
-            .and_then(Value::as_str)
-            .unwrap_or("mailinator.com");
-        let sequence_email_number = voters_config
-            .get("sequence_email_number")
-            .and_then(Value::as_bool)
-            .unwrap_or(true);
-        let sequence_start_number = voters_config
-            .get("sequence_start_number")
-            .and_then(Value::as_u64)
-            .unwrap_or(0);
-        let voter_password = voters_config
-            .get("voter_password")
-            .and_then(Value::as_str)
-            .unwrap_or("Qwerty1234!");
-        let password_salt = voters_config
-            .get("password_salt")
-            .and_then(Value::as_str)
-            .unwrap_or("sppXH6/iePtmIgcXfTHmjPS2QpLfILVMfmmVOLPKlic=");
-        let hashed_password = voters_config
-            .get("hashed_password")
-            .and_then(Value::as_str)
-            .unwrap_or("V0rb8+HmTneV64qto5f0G2+OY09x2RwPeqtK605EUz0=");
-        let min_age = voters_config
-            .get("min_age")
-            .and_then(Value::as_u64)
-            .unwrap_or(18) as i64;
-        let max_age = voters_config
-            .get("max_age")
-            .and_then(Value::as_u64)
-            .unwrap_or(90) as i64;
-        let overseas_reference = voters_config
-            .get("overseas_reference")
-            .and_then(Value::as_str)
-            .unwrap_or("B");
+        let email_prefix = voters_config.email_prefix;
+        let domain = voters_config.domain;
+        let sequence_email_number = voters_config.sequence_email_number;
+        let sequence_start_number = voters_config.sequence_start_number;
+        let voter_password = voters_config.voter_password;
+        let password_salt = voters_config.password_salt;
+        let hashed_password = voters_config.hashed_password;
+        let min_age = voters_config.min_age;
+        let max_age = voters_config.max_age;
+        let overseas_reference = voters_config.overseas_reference;
 
         // Parse election event file parts.
         let areas: &[serde_json::Value] = election_data
@@ -203,7 +118,7 @@ impl GenerateVoters {
             .map(|v| v.as_slice())
             .unwrap_or(&[]);
 
-        // Build election map: election.id -> (alias, clusteredPrecinct)
+        // Build election mapping.
         let mut election_map = std::collections::HashMap::new();
         for el in elections {
             if let Some(e_id) = el.get("id").and_then(Value::as_str) {
@@ -400,14 +315,14 @@ impl GenerateVoters {
                 "Unknown".to_string()
             };
 
-            let dob = self.generate_fake_dob(18, 90);
+            let dob = self.generate_fake_dob(min_age, max_age);
             let dob_str = dob.format("%Y-%m-%d").to_string();
 
             let email = if sequence_email_number {
                 format!(
                     "{}+{}@{}",
                     email_prefix,
-                    i as u64 + sequence_start_number,
+                    i as i64 + sequence_start_number,
                     domain
                 )
             } else {

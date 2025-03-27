@@ -1,12 +1,12 @@
 {
-  "election_event_json_file": "export_election_event-30ab1fb0-2ecd-4659-a111-d12ab78d4754.json",
-  "realm_name": "tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-f511c702-6c87-4410-acbd-4f2664df35c1",
+  "election_event_json_file": "export_election_event-439e7d48-1061-4797-a321-6b1c436d55db.json",
+  "realm_name": "tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-439e7d48-1061-4797-a321-6b1c436d55db",
   "tenant_id": "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
-  "election_event_id": "bd339075-8d10-463a-bc09-620139fe6480",
-  "area_id": "0f585b59-7671-47a8-a490-b7e00eb9da48",
-  "election_id": "4f4a89ec-3b32-41b6-aa67-08241509e49f",
+  "election_event_id": "439e7d48-1061-4797-a321-6b1c436d55db",
+  "area_id": "a696a9ae-d772-4ab7-9eb6-4e58dfdee725",
+  "election_id": "4caf065b-ba42-4312-ae98-7f36d981a217",
   "generate_voters": {
-    "csv_file_name": "generated_users.csv",
+    "csv_file_name": "generated_users",
     "fields": [
       "username",
       "last_name",
@@ -42,7 +42,7 @@
     "max_age": 90
   },
   "duplicate_votes": {
-    "row_id_to_clone": "da92e223-bec5-47a8-8c78-60dd06133e9f"
+    "row_id_to_clone": "4b2ab2fb-f562-475a-8872-6d4a01631d59"
   },
   "generate_applications": {
     "applicant_data": {
