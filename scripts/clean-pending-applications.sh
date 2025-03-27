@@ -63,6 +63,7 @@ psql -t "postgresql://$HASURA_DB__USER:$HASURA_DB__PASSWORD@$HASURA_DB__HOST:$HA
       B.created_at,
       B.status,
       B.applicant_data->>'email' as email,
+      B.applicant_data->>'sequent.read-only.mobile-number' as phone,
       B.applicant_data->>'sequent.read-only.id-card-number' as id_card_number
     FROM sequent_backend.applications A
     JOIN sequent_backend.applications B
