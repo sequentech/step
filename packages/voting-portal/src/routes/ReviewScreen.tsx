@@ -32,6 +32,7 @@ import {
     IGraphQLActionError,
     IAuditableSingleBallot,
     IAuditableMultiBallot,
+    ECastVoteGoldLevelPolicy,
     EElectionEventContestEncryptionPolicy,
 } from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
@@ -298,18 +299,22 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                 auditableBallot?.config.election_event_presentation?.contest_encryption_policy ==
                 EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
 
+            console.log("castBallotAction auditableBallot:", auditableBallot as IAuditableSingleBallot)
+
             const hashableBallot = isMultiContest
                 ? toHashableMultiBallot(auditableBallot as IAuditableMultiBallot)
                 : toHashableBallot(auditableBallot as IAuditableSingleBallot)
         
             console.log("castBallotAction hashableBallot:", hashableBallot)
 
-            const isGoldenPolicy = true // TODO: Retrieve from election in ballot style?
+            const isGoldenPolicy = ballotStyle?.ballot_eml.election_presentation?.cast_vote_gold_level === ECastVoteGoldLevelPolicy.GOLD_LEVEL
+
             if (isGoldenPolicy) {
                 // Save contests to session storage and perform reauthentication
                 const ballotData: SessionBallotData = {
                     ballotId,
                     electionId: ballotStyle.election_id,
+                    isDemo,
                     ballot: JSON.stringify(hashableBallot)
                   };
                   
@@ -571,22 +576,10 @@ export const ReviewScreen: React.FC = () => {
         }
     }
 
-    // const [canVote, setCanVote] = useState(false)
-
-    // useEffect(() => {
-    //     const isGoldenPolicy = true // TODO: Retrieve from election in ballot style?
-    //     const ballotData = JSON.parse(sessionStorage.getItem("ballotData") ?? "{}") as SessionBallotData
-    //     if (isGoldenPolicy && Object.keys(ballotData).length > 0 && isGoldUser()) {
-    //         console.log("set canVote to true")
-    //         setCanVote(true)
-    //     }
-    // }, [])
-
     useEffect(() => {
-        // ballotStyle?.ballot_eml?.election_presentation?.grace_period_policy
         console.log("Use effect")
         if (!ballotStyle || !auditableBallot || !selectionState) {
-            const isGoldenPolicy = true // TODO: Retrieve from election in ballot style?
+            const isGoldenPolicy = ballotStyle?.ballot_eml.election_presentation?.cast_vote_gold_level === ECastVoteGoldLevelPolicy.GOLD_LEVEL
             const ballotData = JSON.parse(sessionStorage.getItem("ballotData") ?? "{}") as SessionBallotData
             if (isGoldenPolicy && Object.keys(ballotData).length > 0 && isGoldUser()) {
                 if (!isCastingBallot.current) {

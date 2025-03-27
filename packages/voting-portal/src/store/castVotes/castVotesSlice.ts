@@ -8,6 +8,7 @@ import {isUndefined} from "@sequentech/ui-core"
 export interface SessionBallotData {
     ballotId: string
     electionId: string
+    isDemo: boolean
     ballot: string
 }
 

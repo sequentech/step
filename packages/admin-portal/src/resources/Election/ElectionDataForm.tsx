@@ -54,6 +54,7 @@ import {CustomTabPanel} from "../../components/CustomTabPanel"
 import {ElectionStyles} from "../../components/styles/ElectionStyles"
 import {
     ContestsOrder,
+    ECastVoteGoldLevelPolicy,
     EGracePeriodPolicy,
     EVotingPortalAuditButtonCfg,
     IContestPresentation,
@@ -492,6 +493,13 @@ export const ElectionDataForm: React.FC = () => {
         }))
     }
 
+    const goldLevelChoices = (): Array<EnumChoice<ECastVoteGoldLevelPolicy>> => {
+        return Object.values(ECastVoteGoldLevelPolicy).map((value) => ({
+            id: value,
+            name: t(`castVoteGoldLevelPolicy.options.${value.toLowerCase()}`),
+        }))
+    }
+
     const auditButtonConfigChoices = (): Array<EnumChoice<EVotingPortalAuditButtonCfg>> => {
         return Object.values(EVotingPortalAuditButtonCfg).map((value) => ({
             id: value,
@@ -761,6 +769,12 @@ export const ElectionDataForm: React.FC = () => {
                                         source="permission_label"
                                     />
                                 )}
+                                <SelectInput
+                                    label={t("castVoteGoldLevelPolicy.label")}
+                                    source="presentation.cast_vote_gold_level"
+                                    choices={goldLevelChoices()}
+                                    validate={required()}
+                                />
                                 <FileJsonInput
                                     parsedValue={parsedValue}
                                     fileSource="configuration"

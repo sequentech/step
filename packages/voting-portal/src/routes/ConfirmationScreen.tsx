@@ -294,7 +294,7 @@ const ConfirmationScreen: React.FC = () => {
               console.log("ballotData not found in sessionStorage")
               return { ballotIdStored: undefined, isDemoStored: undefined };
             } else {
-                return { ballotIdStored: ballotData.ballotId, isDemoStored: false };
+                return { ballotIdStored: ballotData.ballotId, isDemoStored: ballotData.isDemo };
             }
         } else {
 

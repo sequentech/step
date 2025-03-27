@@ -15,6 +15,11 @@ export enum EVotingPeriodEnd {
     DISALLOWED = "disallowed",
 }
 
+export enum ECastVoteGoldLevelPolicy {
+    GOLD_LEVEL= "gold-level",
+    NO_GOLD_LEVEL = "no-gold-level",
+}
+
 export interface IScheduledEventDates {
     scheduled_at?: string
     stopped_at?: string
@@ -36,6 +41,7 @@ export interface IElectionPresentation {
     contests_order?: ContestsOrder
     sort_order?: number
     cast_vote_confirm?: boolean
+    cast_vote_gold_level?: ECastVoteGoldLevelPolicy
     audit_button_cfg?: EVotingPortalAuditButtonCfg
     is_grace_priod?: boolean
     grace_period_policy?: EGracePeriodPolicy
