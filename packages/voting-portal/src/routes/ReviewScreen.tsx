@@ -269,8 +269,31 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     })
 
     const castBallotAction = async () => {
+        const isGoldenPolicy =
+            ballotStyle?.ballot_eml.election_presentation?.cast_vote_gold_level ===
+            ECastVoteGoldLevelPolicy.GOLD_LEVEL
         const errorType = VotingPortalErrorType.UNABLE_TO_CAST_BALLOT
         if (isDemo || globalSettings.DISABLE_AUTH) {
+            if (isGoldenPolicy) {
+                // Save contests to session storage and perform reauthentication
+                const ballotData: SessionBallotData = {
+                    ballotId,
+                    electionId: ballotStyle.election_id,
+                    isDemo: true,
+                    ballot: JSON.stringify("{}"),
+                }
+
+                sessionStorage.setItem("ballotData", JSON.stringify(ballotData))
+
+                try {
+                    const baseUrl = new URL(window.location.href)
+                    await reauthWithGold(baseUrl.toString())
+                    return submit(null, {method: "post"})
+                } catch (error) {
+                    console.error("Re-authentication failed:", error)
+                    return submit({error: errorType}, {method: "post"})
+                }
+            }
             console.log("faking casting demo vote")
             const newCastVote = fakeCastVote()
             dispatch(addCastVotes([newCastVote]))
@@ -303,10 +326,6 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
             const hashableBallot = isMultiContest
                 ? toHashableMultiBallot(auditableBallot as IAuditableMultiBallot)
                 : toHashableBallot(auditableBallot as IAuditableSingleBallot)
-
-            const isGoldenPolicy =
-                ballotStyle?.ballot_eml.election_presentation?.cast_vote_gold_level ===
-                ECastVoteGoldLevelPolicy.GOLD_LEVEL
 
             if (isGoldenPolicy) {
                 // Save contests to session storage and perform reauthentication
@@ -451,6 +470,21 @@ export const ReviewScreen: React.FC = () => {
         skip: globalSettings.DISABLE_AUTH, // Skip query if in demo mode
     })
 
+    const fakeCastVote = (): ICastVote => ({
+        id: eventId ?? "",
+        tenant_id: tenantId ?? "",
+        election_id: eventId,
+        area_id: eventId,
+        created_at: null,
+        last_updated_at: null,
+        annotations: null,
+        labels: null,
+        content: "",
+        cast_ballot_signature: "",
+        voter_id_string: null,
+        election_event_id: eventId ?? "",
+    })
+
     const isGoldenPolicy = dataElections?.sequent_backend_election.some(
         (item) => item.presentation?.cast_vote_gold_level === ECastVoteGoldLevelPolicy.GOLD_LEVEL
     )
@@ -528,6 +562,13 @@ export const ReviewScreen: React.FC = () => {
             isCastingBallot.current = false
             setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.UNABLE_TO_FETCH_DATA}`))
             return submit({error: errorType}, {method: "post"})
+        }
+
+        if (ballotData?.isDemo) {
+            console.log("faking casting demo vote")
+            const newCastVote = fakeCastVote()
+            dispatch(addCastVotes([newCastVote]))
+            return submit(null, {method: "post"})
         }
 
         try {

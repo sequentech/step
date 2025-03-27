@@ -767,6 +767,7 @@ export const ElectionDataForm: React.FC = () => {
                                     label={t("electionScreen.castVoteGoldLevelPolicy.label")}
                                     source="presentation.cast_vote_gold_level"
                                     choices={goldLevelChoices()}
+                                    defaultValue={ECastVoteGoldLevelPolicy.NO_GOLD_LEVEL}
                                     validate={required()}
                                 />
                                 {canEditPermissionLabel && (
