@@ -211,7 +211,6 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     const navigate = useNavigate()
     const location = useLocation()
     const [auditBallotHelp, setAuditBallotHelp] = useState<boolean>(false)
-    // const [isCastingBallot, setIsCastingBallot] = React.useState<boolean>(false)
     const isCastingBallot = useRef<boolean>(false)
     const [isConfirmCastVoteModal, setConfirmCastVoteModal] = React.useState<boolean>(false)
     const {tenantId, eventId} = useParams<TenantEventType>()
@@ -282,9 +281,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                     isDemo: true,
                     ballot: JSON.stringify("{}"),
                 }
-
                 sessionStorage.setItem("ballotData", JSON.stringify(ballotData))
-
                 try {
                     const baseUrl = new URL(window.location.href)
                     await reauthWithGold(baseUrl.toString())
@@ -335,9 +332,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                     isDemo,
                     ballot: JSON.stringify(hashableBallot),
                 }
-
                 sessionStorage.setItem("ballotData", JSON.stringify(ballotData))
-
                 try {
                     const baseUrl = new URL(window.location.href)
                     await reauthWithGold(baseUrl.toString())

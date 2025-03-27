@@ -322,7 +322,6 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     const isGoldUser = () => {
         const acr = keycloak?.tokenParsed?.acr ?? null
         const isGold = acr === IPermissions.GOLD_PERMISSION
-
         const authTimeTimestamp = keycloak?.tokenParsed?.auth_time ?? 0
         const authTime = new Date(authTimeTimestamp * 1000)
         const freshnessLimit = new Date(Date.now().valueOf() - 60 * 1000)
