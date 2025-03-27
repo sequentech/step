@@ -1,6 +1,6 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
-//
-// SPDX-License-Identifier: AGPL-3.0-only
+// // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// //
+// // SPDX-License-Identifier: AGPL-3.0-only
 
 mod commands;
 mod tests;
@@ -48,6 +48,10 @@ enum StepCommands {
     UpdateTally(commands::update_tally_status::UpdateTallyStatus),
     ConfirmKeyTally(commands::confirm_tally_ceremoney_key::ConfirmKeyForTally),
     RenderTemplate(commands::render_template::RenderTemplate),
+    GenerateVoters(commands::generate_voters::GenerateVoters),
+    DuplicateVotes(commands::duplicate_votes::DuplicateVotes),
+    CreateApplications(commands::create_applications::CreateApplications),
+    CreateElectoralLogs(commands::create_electoral_logs::CreateElectoralLogs),
 }
 
 fn main() {
@@ -75,6 +79,10 @@ fn main() {
             StepCommands::UpdateTally(update) => update.run(),
             StepCommands::ConfirmKeyTally(confirm) => confirm.run(),
             StepCommands::RenderTemplate(render) => render.run(),
+            StepCommands::GenerateVoters(render) => render.run(),
+            StepCommands::DuplicateVotes(render) => render.run(),
+            StepCommands::CreateApplications(render) => render.run(),
+            StepCommands::CreateElectoralLogs(render) => render.run(),
         },
     }
 }
