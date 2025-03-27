@@ -950,7 +950,7 @@ impl Default for ElectionPresentation {
             audit_button_cfg: None,
             sort_order: None,
             cast_vote_confirm: None,
-            cast_vote_gold_level: Some(CastVoteGoldLevelPolicy::default()),
+            cast_vote_gold_level: Some(CastVoteGoldLevelPolicy::NoGoldLevel),
             is_grace_priod: None,
             grace_period_policy: None,
             grace_period_secs: None,
