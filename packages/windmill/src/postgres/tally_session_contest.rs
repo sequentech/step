@@ -154,7 +154,18 @@ pub async fn get_tally_session_contests(
         .prepare(
             r#"
                 SELECT
-                    id, session_id
+                    id,
+                    tenant_id,
+                    election_event_id,
+                    election_id,
+                    area_id,
+                    contest_id,
+                    session_id,
+                    created_at,
+                    last_updated_at,
+                    labels,
+                    annotations,
+                    tally_session_id
                 FROM
                     sequent_backend.tally_session_contest
                 WHERE
@@ -183,5 +194,6 @@ pub async fn get_tally_session_contests(
                 .map(|res: TallySessionContestWrapper| -> TallySessionContest { res.0 })
         })
         .collect::<Result<Vec<TallySessionContest>>>()?;
+
     Ok(values)
 }

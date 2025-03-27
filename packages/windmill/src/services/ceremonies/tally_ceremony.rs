@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::hasura::election_event::get_election_event_helper;
-use crate::hasura::tally_session_execution::insert_tally_session_execution as insert_tally_session_execution_hasura;
 use crate::postgres::area::get_event_areas;
 use crate::postgres::area_contest::export_area_contests;
 use crate::postgres::ballot_style::get_ballot_styles_by_elections;
@@ -19,8 +18,7 @@ use crate::postgres::tally_session_contest::{
     get_tally_session_contests, get_tally_session_highest_batch, insert_tally_session_contest,
 };
 use crate::postgres::tally_session_execution::{
-    get_last_tally_session_execution as p_get_last_tally_session_execution,
-    insert_tally_session_execution,
+    get_last_tally_session_execution, insert_tally_session_execution,
 };
 use crate::services::ceremonies::keys_ceremony::find_trustee_private_key;
 use crate::services::ceremonies::serialize_logs::{
@@ -74,7 +72,7 @@ pub async fn find_last_tally_session_execution_and_all_related_data(
     // get all data for the execution: the last tally session execution,
     // the list of tally_session_contest, and the ballot styles
 
-    let tally_session_execution = p_get_last_tally_session_execution(
+    let tally_session_execution = get_last_tally_session_execution(
         hasura_transaction,
         &tenant_id,
         &election_event_id,
@@ -477,19 +475,9 @@ pub async fn update_tally_ceremony(
     hasura_transaction: &Transaction<'_>,
     tenant_id: String,
     election_event_id: String,
-    tally_session_id: String,
+    tally_session: TallySession,
     new_execution_status: TallyExecutionStatus,
 ) -> Result<()> {
-    let auth_headers = keycloak::get_client_credentials().await?;
-
-    let tally_session = get_tally_session_by_id(
-        hasura_transaction,
-        &tenant_id,
-        &election_event_id,
-        &tally_session_id,
-    )
-    .await?;
-
     let current_status = tally_session
         .execution_status
         .map(|value| {
@@ -549,11 +537,13 @@ pub async fn update_tally_ceremony(
         &new_execution_status
     );
 
+    println!("new_execution_status:: {:?}", &new_execution_status);
+
     update_tally_session_status(
         &hasura_transaction,
         &tenant_id,
         &election_event_id,
-        &tally_session_id,
+        &tally_session.id,
         new_execution_status,
     )
     .await?;
@@ -715,12 +705,12 @@ pub async fn set_private_key(
             }
         })
         .collect();
-    insert_tally_session_execution_hasura(
-        auth_headers.clone(),
-        tenant_id.to_string(),
-        election_event_id.to_string(),
-        tally_session_execution.current_message_id as i64,
-        tally_session_id.to_string(),
+    insert_tally_session_execution(
+        transaction,
+        &tenant_id,
+        &election_event_id,
+        tally_session_execution.current_message_id,
+        &tally_session_id,
         Some(new_status.clone()),
         None,
         None,
@@ -732,8 +722,7 @@ pub async fn set_private_key(
         .iter()
         .filter(|trustee| TallyTrusteeStatus::KEY_RESTORED == trustee.status)
         .collect::<Vec<_>>();
-    println!("connected_trustees {:?}", &connected_trustees);
-    println!("connected_trustees len {:?}", &connected_trustees.len());
+
     // enough trustees connected, so change tally execution status to connected
     if connected_trustees.len() as i64 >= keys_ceremony.threshold {
         update_tally_session_status(

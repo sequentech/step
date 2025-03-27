@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::hasura::election::get_all_elections_for_event;
-use crate::hasura::tally_session_execution::insert_tally_session_execution;
 use crate::hasura::trustee::get_trustees_by_name;
 use crate::services::cast_votes::{find_area_ballots, CastVote};
 use crate::services::database::PgConfig;
