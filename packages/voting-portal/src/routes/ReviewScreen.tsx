@@ -49,7 +49,8 @@ import {selectAuditableBallot} from "../store/auditableBallots/auditableBallotsS
 import {Question} from "../components/Question/Question"
 import {useMutation, useQuery} from "@apollo/client"
 import {INSERT_CAST_VOTE} from "../queries/InsertCastVote"
-import {GetElectionEventQuery, InsertCastVoteMutation} from "../gql/graphql"
+import {GetElectionEventQuery, InsertCastVoteMutation, GetElectionsQuery} from "../gql/graphql"
+import {GET_ELECTIONS} from "../queries/GetElections"
 import {CircularProgress} from "@mui/material"
 import {provideBallotService} from "../services/BallotService"
 import {ICastVote, addCastVotes, SessionBallotData} from "../store/castVotes/castVotesSlice"
@@ -67,6 +68,7 @@ import {selectBallotSelectionByElectionId} from "../store/ballotSelections/ballo
 import {sortContestList, hashBallot, hashMultiBallot} from "@sequentech/ui-core"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import {AuthContext} from "../providers/AuthContextProvider"
+import { useGetOne } from "react-admin"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -298,16 +300,9 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                 auditableBallot?.config.election_event_presentation?.contest_encryption_policy ==
                 EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
 
-            console.log(
-                "castBallotAction auditableBallot:",
-                auditableBallot as IAuditableSingleBallot
-            )
-
             const hashableBallot = isMultiContest
                 ? toHashableMultiBallot(auditableBallot as IAuditableMultiBallot)
                 : toHashableBallot(auditableBallot as IAuditableSingleBallot)
-
-            console.log("castBallotAction hashableBallot:", hashableBallot)
 
             const isGoldenPolicy =
                 ballotStyle?.ballot_eml.election_presentation?.cast_vote_gold_level ===
@@ -430,7 +425,6 @@ export const ReviewScreen: React.FC = () => {
     const authContext = useContext(AuthContext)
     const {isGoldUser, reauthWithGold} = authContext
     const isCastingBallot = useRef<boolean>(false)
-    // const [isCastingBallot, setIsCastingBallot] = React.useState<boolean>(false)
     const {globalSettings} = useContext(SettingsContext)
     const [insertCastVote] = useMutation<InsertCastVoteMutation>(INSERT_CAST_VOTE)
     const dispatch = useAppDispatch()
@@ -449,6 +443,17 @@ export const ReviewScreen: React.FC = () => {
             }
         },
     })
+    
+    const {data: dataElections} = useQuery<GetElectionsQuery>(GET_ELECTIONS, {
+        variables: {
+            electionIds: electionId ? [electionId] : [],
+        },
+        skip: globalSettings.DISABLE_AUTH, // Skip query if in demo mode
+    })
+
+    const isGoldenPolicy = dataElections?.sequent_backend_election.some(
+        (item) => item.presentation?.cast_vote_gold_level === ECastVoteGoldLevelPolicy.GOLD_LEVEL
+    )
 
     const auditButtonCfg =
         ballotStyle?.ballot_eml?.election_presentation?.audit_button_cfg ??
@@ -517,7 +522,6 @@ export const ReviewScreen: React.FC = () => {
         const ballotData = JSON.parse(sessionStorage.getItem("ballotData") ?? "{}") as
             | SessionBallotData
             | undefined
-        console.log("ballotData", ballotData)
 
         if (!ballotData) {
             console.log("No stored ballot found")
@@ -550,9 +554,7 @@ export const ReviewScreen: React.FC = () => {
                     content: ballotData.ballot,
                 },
             })
-
-            console.log(result)
-
+            // cause error for testing
             if (result.errors) {
                 // As the exception occurs above this error is not set, leading
                 // to unknown error.
@@ -583,22 +585,14 @@ export const ReviewScreen: React.FC = () => {
     }
 
     useEffect(() => {
-        console.log("Use effect")
-        if (!ballotStyle || !auditableBallot || !selectionState) {
-            const isGoldenPolicy =
-                ballotStyle?.ballot_eml.election_presentation?.cast_vote_gold_level ===
-                ECastVoteGoldLevelPolicy.GOLD_LEVEL
-            const ballotData = JSON.parse(
-                sessionStorage.getItem("ballotData") ?? "{}"
-            ) as SessionBallotData
-            if (isGoldenPolicy && Object.keys(ballotData).length > 0 && isGoldUser()) {
+        if ( (!ballotStyle || !auditableBallot || !selectionState) && isGoldenPolicy) {
+            if (isGoldUser()) {
                 if (!isCastingBallot.current) {
-                    isCastingBallot.current = true
                     console.log("Gold user flow")
+                    isCastingBallot.current = true
                     automaticCastBallot()
                         .then(() => {
-                            console.log("To navitage to confirmation")
-                            // navigate(`/tenant/${tenantId}/event/${eventId}/election/${electionId}/confirmation`)
+                            console.log("automaticCastBallot succeeded. Navigating to confirmation")
                         })
                         .catch((error) => {
                             sessionStorage.removeItem("ballotData")
@@ -606,13 +600,13 @@ export const ReviewScreen: React.FC = () => {
                         })
                 }
             } else {
-                alert("Unable to cast ballot")
+                console.log("Navigating to election-chooser")
                 navigate(`/tenant/${tenantId}/event/${eventId}/election-chooser`)
             }
         } else {
             console.log("Normal flow")
         }
-    }, [ballotStyle, selectionState, auditableBallot])
+    }, [ballotStyle, selectionState, auditableBallot, isGoldenPolicy])
 
     if (!ballotStyle || !auditableBallot) {
         return errorMsg ? (

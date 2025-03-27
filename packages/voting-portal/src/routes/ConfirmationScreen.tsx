@@ -24,7 +24,6 @@ import {selectAuditableBallot} from "../store/auditableBallots/auditableBallotsS
 import {canVoteSomeElection} from "../store/castVotes/castVotesSlice"
 import {selectElectionEventById} from "../store/electionEvents/electionEventsSlice"
 import {TenantEventType} from ".."
-import {useRootBackLink} from "../hooks/root-back-link"
 import {clearBallot} from "../store/ballotSelections/ballotSelectionsSlice"
 import {
     selectBallotStyleByElectionId,
@@ -283,18 +282,15 @@ const ConfirmationScreen: React.FC = () => {
     const [openConfirmationHelp, setOpenConfirmationHelp] = useState(false)
     const [openDemoBallotUrlHelp, setDemoBallotUrlHelp] = useState(false)
     const {hashBallot, hashMultiBallot} = provideBallotService()
-    const authContext = useContext(AuthContext)
-    const {isGoldUser, reauthWithGold} = authContext
     const oneBallotStyle = useAppSelector(selectFirstBallotStyle)
     const getBallotId = (): {
         ballotIdStored: string | undefined
         isDemoStored: boolean | undefined
     } => {
-        if (isGoldUser()) {
+        if (!auditableBallot) {
             const ballotData = JSON.parse(
                 sessionStorage.getItem("ballotData") ?? "{}"
             ) as SessionBallotData
-            console.log("ballotData", ballotData)
             if (Object.keys(ballotData).length === 0) {
                 console.log("ballotData not found in sessionStorage")
                 return {ballotIdStored: undefined, isDemoStored: undefined}
@@ -306,6 +302,7 @@ const ConfirmationScreen: React.FC = () => {
                 console.log("auditableBallot is not there")
                 return {ballotIdStored: undefined, isDemoStored: undefined}
             }
+            console.log("auditableBallot is there")
             const isMultiContest =
                 auditableBallot?.config.election_event_presentation?.contest_encryption_policy ==
                 EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
@@ -320,8 +317,6 @@ const ConfirmationScreen: React.FC = () => {
 
     const ballotId = useRef<string | undefined>(undefined)
     const gotData = useRef<boolean | undefined>(false)
-
-    const backLink = useRootBackLink()
     const navigate = useNavigate()
     const [demoBallotIdHelp, setDemoBallotIdHelp] = useState<boolean>(false)
     const [isDemo, setIsDemo] = useState<boolean>(false)
@@ -345,15 +340,12 @@ const ConfirmationScreen: React.FC = () => {
             sessionStorage.removeItem("ballotData")
             if (!ballotIdStored) {
                 console.log(
-                    "No stored ballot found, navigating back. If reatuhentication is enabled and connection is too slow this can happen."
+                    "No stored ballot found, navigating to the election-chooser page."
                 )
-                navigate(backLink)
+                navigate(`/tenant/${tenantId}/event/${eventId}/election-chooser`)
             }
             ballotId.current = ballotIdStored
             setIsDemo(isDemoStored ?? false)
-            console.log(
-                `${window.location.protocol}//${window.location.host}/tenant/${tenantId}/event/${eventId}/election/${electionId}/ballot-locator/${ballotIdStored}`
-            )
             setBallotTrackerUrl(
                 `${window.location.protocol}//${window.location.host}/tenant/${tenantId}/event/${eventId}/election/${electionId}/ballot-locator/${ballotIdStored}`
             )
