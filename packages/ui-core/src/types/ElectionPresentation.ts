@@ -16,7 +16,7 @@ export enum EVotingPeriodEnd {
 }
 
 export enum ECastVoteGoldLevelPolicy {
-    GOLD_LEVEL= "gold-level",
+    GOLD_LEVEL = "gold-level",
     NO_GOLD_LEVEL = "no-gold-level",
 }
 

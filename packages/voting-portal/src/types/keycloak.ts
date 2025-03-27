@@ -4,5 +4,5 @@
 
 export enum IPermissions {
     GOLD_PERMISSION = "gold",
-    SILVER_PERMISSION  = "silver",
+    SILVER_PERMISSION = "silver",
 }

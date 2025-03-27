@@ -68,7 +68,6 @@ import {sortContestList, hashBallot, hashMultiBallot} from "@sequentech/ui-core"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import {AuthContext} from "../providers/AuthContextProvider"
 
-
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
     text-decoration: none;
@@ -299,15 +298,20 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                 auditableBallot?.config.election_event_presentation?.contest_encryption_policy ==
                 EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
 
-            console.log("castBallotAction auditableBallot:", auditableBallot as IAuditableSingleBallot)
+            console.log(
+                "castBallotAction auditableBallot:",
+                auditableBallot as IAuditableSingleBallot
+            )
 
             const hashableBallot = isMultiContest
                 ? toHashableMultiBallot(auditableBallot as IAuditableMultiBallot)
                 : toHashableBallot(auditableBallot as IAuditableSingleBallot)
-        
+
             console.log("castBallotAction hashableBallot:", hashableBallot)
 
-            const isGoldenPolicy = ballotStyle?.ballot_eml.election_presentation?.cast_vote_gold_level === ECastVoteGoldLevelPolicy.GOLD_LEVEL
+            const isGoldenPolicy =
+                ballotStyle?.ballot_eml.election_presentation?.cast_vote_gold_level ===
+                ECastVoteGoldLevelPolicy.GOLD_LEVEL
 
             if (isGoldenPolicy) {
                 // Save contests to session storage and perform reauthentication
@@ -315,10 +319,10 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                     ballotId,
                     electionId: ballotStyle.election_id,
                     isDemo,
-                    ballot: JSON.stringify(hashableBallot)
-                  };
-                  
-                  sessionStorage.setItem("ballotData", JSON.stringify(ballotData));
+                    ballot: JSON.stringify(hashableBallot),
+                }
+
+                sessionStorage.setItem("ballotData", JSON.stringify(ballotData))
 
                 try {
                     const baseUrl = new URL(window.location.href)
@@ -455,9 +459,10 @@ export const ReviewScreen: React.FC = () => {
     const isMultiContest =
         auditableBallot?.config.election_event_presentation?.contest_encryption_policy ==
         EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
-    const hashableBallot = auditableBallot ? (isMultiContest
-        ? hashMultiBallot(auditableBallot as IAuditableMultiBallot)
-        : hashBallot(auditableBallot as IAuditableSingleBallot))
+    const hashableBallot = auditableBallot
+        ? isMultiContest
+            ? hashMultiBallot(auditableBallot as IAuditableMultiBallot)
+            : hashBallot(auditableBallot as IAuditableSingleBallot)
         : undefined
 
     const ballotId = auditableBallot && hashableBallot
@@ -507,12 +512,13 @@ export const ReviewScreen: React.FC = () => {
         }
     }
 
-    
     const automaticCastBallot = async () => {
         const errorType = VotingPortalErrorType.UNABLE_TO_CAST_BALLOT
-        const ballotData = JSON.parse(sessionStorage.getItem("ballotData") ?? "{}") as SessionBallotData | undefined
+        const ballotData = JSON.parse(sessionStorage.getItem("ballotData") ?? "{}") as
+            | SessionBallotData
+            | undefined
         console.log("ballotData", ballotData)
-        
+
         if (!ballotData) {
             console.log("No stored ballot found")
             isCastingBallot.current = false
@@ -579,28 +585,33 @@ export const ReviewScreen: React.FC = () => {
     useEffect(() => {
         console.log("Use effect")
         if (!ballotStyle || !auditableBallot || !selectionState) {
-            const isGoldenPolicy = ballotStyle?.ballot_eml.election_presentation?.cast_vote_gold_level === ECastVoteGoldLevelPolicy.GOLD_LEVEL
-            const ballotData = JSON.parse(sessionStorage.getItem("ballotData") ?? "{}") as SessionBallotData
+            const isGoldenPolicy =
+                ballotStyle?.ballot_eml.election_presentation?.cast_vote_gold_level ===
+                ECastVoteGoldLevelPolicy.GOLD_LEVEL
+            const ballotData = JSON.parse(
+                sessionStorage.getItem("ballotData") ?? "{}"
+            ) as SessionBallotData
             if (isGoldenPolicy && Object.keys(ballotData).length > 0 && isGoldUser()) {
                 if (!isCastingBallot.current) {
                     isCastingBallot.current = true
                     console.log("Gold user flow")
-                    automaticCastBallot().then(() => {
-                        console.log("To navitage to confirmation")
-                        // navigate(`/tenant/${tenantId}/event/${eventId}/election/${electionId}/confirmation`)
-                    }).catch((error) => {
-                        sessionStorage.removeItem("ballotData");
-                        console.error("Error casting ballot:", error);
-                        });
+                    automaticCastBallot()
+                        .then(() => {
+                            console.log("To navitage to confirmation")
+                            // navigate(`/tenant/${tenantId}/event/${eventId}/election/${electionId}/confirmation`)
+                        })
+                        .catch((error) => {
+                            sessionStorage.removeItem("ballotData")
+                            console.error("Error casting ballot:", error)
+                        })
                 }
             } else {
                 alert("Unable to cast ballot")
-                navigate(`/tenant/${tenantId}/event/${eventId}/election-chooser`)   
+                navigate(`/tenant/${tenantId}/event/${eventId}/election-chooser`)
             }
         } else {
             console.log("Normal flow")
         }
-
     }, [ballotStyle, selectionState, auditableBallot])
 
     if (!ballotStyle || !auditableBallot) {
@@ -704,14 +715,16 @@ export const ReviewScreen: React.FC = () => {
                     />
                 </Box>
             ))}
-            {!isCastingBallot.current && <ActionButtons
-                ballotStyle={ballotStyle}
-                auditableBallot={auditableBallot}
-                auditButtonCfg={auditButtonCfg}
-                castVoteConfirmModal={castVoteConfirmModal}
-                ballotId={ballotId ?? ""}
-                setErrorMsg={setErrorMsg}
-            />}
+            {!isCastingBallot.current && (
+                <ActionButtons
+                    ballotStyle={ballotStyle}
+                    auditableBallot={auditableBallot}
+                    auditButtonCfg={auditButtonCfg}
+                    castVoteConfirmModal={castVoteConfirmModal}
+                    ballotId={ballotId ?? ""}
+                    setErrorMsg={setErrorMsg}
+                />
+            )}
         </PageLimit>
     )
 }

@@ -561,7 +561,7 @@ const spanishTranslation: TranslationType = {
                 "required": "Requerido",
             },
             castVoteGoldLevelPolicy: {
-                "label": "Gold level Authentication Policy",
+                label: "Gold level Authentication Policy",
                 options: {
                     "gold-level": "Gold level Authentication",
                     "no-gold-level": "No Gold level Authentication",

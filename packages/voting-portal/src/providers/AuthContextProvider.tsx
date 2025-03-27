@@ -313,7 +313,6 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         }
     }, [keycloak, isAuthenticated, isKeycloakInitialized, authType])
 
-    
     /**
      * Returns true only if the JWT has gold permissions and the JWT
      * authentication is fresh, i.e. performed less than 60 seconds ago.
