@@ -226,3 +226,4 @@ Run ```step update-tally --election-event-id <ELECTION_EVENT_ID> --tally-id <TAL
 > In order to run on Linux: 
 - go Open a terminal, navigate to the folder where the binary is located, and run: ```chmod +x seq ```
 -  Execute a commend by running by running: ```./seq <COMMAND> [OPTIONS]``` for Example: ```./seq step hash-passwords --input-file <PATH_FOR_INPUT_OUTPUT> --output-file <PATH_TO_OUTPUT_FILE> --iterations <NUMBER_OF_HASHING_ITERATIONS>```
+- num-logs - how much logs to create

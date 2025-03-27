@@ -14,10 +14,12 @@ use rand::thread_rng;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::env;
+use strum::VariantNames;
 use tokio_postgres::types::ToSql;
 use tokio_postgres::Row;
 use uuid::Uuid;
 use windmill::services::providers::transactions_provider::provide_hasura_transaction;
+use windmill::types::application::{ApplicationStatus, ApplicationType};
 #[derive(Args)]
 #[command(about)]
 pub struct CreateApplications {
@@ -30,11 +32,11 @@ pub struct CreateApplications {
 
     /// Optional status: PENDING, ACCEPTED or REJECTED
     #[arg(long)]
-    status: Option<String>,
+    status: Option<ApplicationStatus>,
 
     /// Optional verification type: AUTOMATIC or MANUAL
     #[arg(long)]
-    r#type: Option<String>,
+    r#type: Option<ApplicationType>,
 }
 
 impl CreateApplications {
@@ -56,8 +58,9 @@ impl CreateApplications {
         &self,
         working_dir: &str,
         num_applications: usize,
-        status: Option<String>,
-        verification_type: Option<String>,
+        status: Option<ApplicationStatus>,
+        verification_type: Option<ApplicationType>,
+
     ) -> Result<(), Box<dyn std::error::Error>> {
         let config = load_external_config(working_dir)?;
         let realm_name = config.realm_name;
@@ -167,8 +170,8 @@ async fn get_permission_label(
 async fn set_applications(
     hasura_transaction: &Transaction<'_>,
     users: Vec<Row>,
-    status: Option<String>,
-    verification_type: Option<String>,
+    status: Option<ApplicationStatus>,
+    verification_type: Option<ApplicationType>,
     tenant_id: String,
     election_event_id: String,
     default_applicant_data: HashMap<String, Value>,
@@ -198,25 +201,23 @@ async fn set_applications(
         let date_of_birth: Option<String> = user.get(8);
 
         let application_status = match status.clone() {
-            Some(status) => status,
-            None => {
-                let mut rng = thread_rng();
-                ["PENDING", "ACCEPTED", "REJECTED"]
-                    .choose(&mut rng)
-                    .unwrap()
-                    .to_string()
-            }
+            Some(status) => status.to_string(),
+            None => ApplicationStatus::VARIANTS
+                .choose(&mut thread_rng())
+                .unwrap()
+                .to_string(),
         };
 
         let verification_type = match verification_type.clone() {
-            Some(vt) => vt,
+            Some(vt) => vt.to_string(),
             None => {
-                if application_status == "PENDING" {
-                    "MANUAL".to_string()
+                if application_status == ApplicationStatus::PENDING.to_string() {
+                    println!("Setting verification type to MANUAL for PENDING application");
+                    ApplicationType::MANUAL.to_string()
                 } else {
-                    let mut rng = thread_rng();
-                    ["MANUAL", "AUTOMATIC"]
-                        .choose(&mut rng)
+                    println!("Setting verification no pendong");
+                    ApplicationType::VARIANTS
+                        .choose(&mut thread_rng())
                         .unwrap()
                         .to_string()
                 }
