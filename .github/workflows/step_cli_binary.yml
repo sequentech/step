@@ -67,13 +67,5 @@ jobs:
       - name: Upload CLI binary artifact
         uses: actions/upload-artifact@v4
         with:
-              name: step-cli-binary
+              name: step-cli-binary-${{ matrix.os }}
               path: "${{ matrix.os == 'Windows' && 'packages/step-cli/rust-local-target\\release\\seq.exe' || 'packages/step-cli/rust-local-target/release/seq' }}"
-
-
-      # - name: Upload CLI binary artifact
-      #   working-directory: .
-      #   uses: actions/upload-artifact@v4
-      #   with:
-      #     name: step-cli-binary-${{ matrix.os }}
-      #     path: "${{ matrix.os == 'Windows' ? 'packages/step-cli/rust-local-target\\release\\seq.exe' : 'packages/step-cli/rust-local-target/release/seq' }}"
