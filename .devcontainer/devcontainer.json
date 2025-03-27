@@ -19,7 +19,7 @@
 		"immudb:3325",
 		"rabbitmq:5672",
 		"rabbitmq:15672",
-		50051
+		"b3:50051"
 	],
 
 	// Fixes usage of LOCAL_WORKSPACE_FOLDER. See:
