@@ -68,7 +68,7 @@ import {selectBallotSelectionByElectionId} from "../store/ballotSelections/ballo
 import {sortContestList, hashBallot, hashMultiBallot} from "@sequentech/ui-core"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import {AuthContext} from "../providers/AuthContextProvider"
-import { useGetOne } from "react-admin"
+import {useGetOne} from "react-admin"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -443,7 +443,7 @@ export const ReviewScreen: React.FC = () => {
             }
         },
     })
-    
+
     const {data: dataElections} = useQuery<GetElectionsQuery>(GET_ELECTIONS, {
         variables: {
             electionIds: electionId ? [electionId] : [],
@@ -585,7 +585,7 @@ export const ReviewScreen: React.FC = () => {
     }
 
     useEffect(() => {
-        if ( (!ballotStyle || !auditableBallot || !selectionState) && isGoldenPolicy) {
+        if ((!ballotStyle || !auditableBallot || !selectionState) && isGoldenPolicy) {
             if (isGoldUser()) {
                 if (!isCastingBallot.current) {
                     console.log("Gold user flow")

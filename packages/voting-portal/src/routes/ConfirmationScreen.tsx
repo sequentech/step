@@ -339,9 +339,7 @@ const ConfirmationScreen: React.FC = () => {
             const {ballotIdStored, isDemoStored} = getBallotId()
             sessionStorage.removeItem("ballotData")
             if (!ballotIdStored) {
-                console.log(
-                    "No stored ballot found, navigating to the election-chooser page."
-                )
+                console.log("No stored ballot found, navigating to the election-chooser page.")
                 navigate(`/tenant/${tenantId}/event/${eventId}/election-chooser`)
             }
             ballotId.current = ballotIdStored
