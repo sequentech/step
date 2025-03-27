@@ -9,8 +9,8 @@ services:
     container_name: devcontainer
     volumes:
     - type: bind
-      source: ../..
-      target: /workspaces
+      source: ../
+      target: /workspaces/step
       bind:
         create_host_path: true
         selinux: z
