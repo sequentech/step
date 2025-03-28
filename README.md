@@ -682,12 +682,12 @@ Requires running both codespace instance as well as local instance at least for 
 
  ## Use devcontainers in Google Cloud
 
-First, login to Google Cloud and create an instance with at least 8 vcpus, 32GB memory (for example a
+First, login to Google Cloud and create a Debian instance with at least 8 vcpus, 32GB memory (for example a
 n2-standard-8)and 256GB of hard disk.
 
 Then install the google cloud shell using:
 
-```
+```bash
   curl https://sdk.cloud.google.com | bash
   gcloud auth login
   gcloud compute config-ssh --project <gcloud-project-name>
@@ -711,3 +711,69 @@ Then you need to have the VS Code extension "Remote - SSH" from Microsoft instal
 open a new VS Code instance, click on the bottom left blue corner, then select "Connect to Host..."
 and select the Google Cloud instance you created.
 
+After that you'll need to install git and docker engine. 
+
+For docker, following the [official Docker documentation](https://docs.docker.com/engine/install/debian/) for Debian:
+
+```bash
+sudo apt-get update
+sudo apt-get install ca-certificates curl
+sudo install -m 0755 -d /etc/apt/keyrings
+sudo curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
+sudo chmod a+r /etc/apt/keyrings/docker.asc
+
+# Add the repository to Apt sources:
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian \
+  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+sudo apt-get update
+```
+
+And then:
+
+```bash
+sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+```
+
+Then you need to add the current user to the docker group:
+
+```bash
+sudo usermod -aG docker $USER
+newgrp docker
+```
+
+Finally check that the user can run docker without sudo with:
+
+
+```bash
+docker run hello-world
+```
+
+For git:
+
+```bash
+sudo apt update && sudo apt install -y git
+```
+
+Then clone the step repo with:
+
+```bash
+git clone git@github.com:sequentech/step.git
+```
+
+Finally in VS Code on the Welcome tab, click on "Open..." and select the `step` folder.
+After it opens, click on "Reopen in Container".
+
+### Fix starting/restarting containers
+
+If you see an error when starting/restarting a container, remove the .docker folder:
+
+```bash
+rm -rf /home/vscode/.docker/
+```
+
+### Commiting with git
+
+Unfortunately commiting with git doesn't work from the devcontainer. To commit to git,
+ssh into the instance and cd into the step folder, then commit using git.
