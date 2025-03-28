@@ -945,7 +945,7 @@
       "client_credentials.use_refresh_token" : "false",
       "tls.client.certificate.bound.access.tokens" : "false",
       "require.pushed.authorization.requests" : "false",
-      "acr.loa.map" : "{}",
+      "acr.loa.map": "{\"silver\":\"1\",\"gold\":\"2\"}",
       "display.on.consent.screen" : "false",
       "account_theme" : "sequent.voting-portal",
       "token.response.type.bearer.lower-case" : "false",
@@ -1917,6 +1917,77 @@
       "userSetupAllowed" : false
     } ]
   }, {
+    "alias": "advanced / gold condition",
+    "authenticationExecutions": [{
+            "authenticator": "conditional-level-of-authentication",
+            "authenticatorConfig": "gold",
+            "authenticatorFlow": false,
+            "autheticatorFlow": false,
+            "priority": 0,
+            "requirement": "REQUIRED",
+            "userSetupAllowed": false
+        }, {
+            "authenticator": "auth-password-form",
+            "authenticatorFlow": false,
+            "autheticatorFlow": false,
+            "priority": 1,
+            "requirement": "REQUIRED",
+            "userSetupAllowed": false
+        }
+    ],
+    "builtIn": false,
+    "description": "",
+    "id": "3fc33f0b-ce4c-4e50-a951-bccafdd89a9d",
+    "providerId": "basic-flow",
+    "topLevel": false
+  }, {
+    "alias": "basic / silver condition",
+    "authenticationExecutions": [{
+            "authenticator": "conditional-level-of-authentication",
+            "authenticatorConfig": "silver",
+            "authenticatorFlow": false,
+            "autheticatorFlow": false,
+            "priority": 0,
+            "requirement": "REQUIRED",
+            "userSetupAllowed": false
+        }, {
+            "authenticator": "auth-username-password-form",
+            "authenticatorFlow": false,
+            "autheticatorFlow": false,
+            "priority": 1,
+            "requirement": "REQUIRED",
+            "userSetupAllowed": false
+        }, {
+            "authenticator": "user-session-limits",
+            "authenticatorConfig": "session-count-limit",
+            "authenticatorFlow": false,
+            "autheticatorFlow": false,
+            "priority": 2,
+            "requirement": "DISABLED",
+            "userSetupAllowed": false
+        }, {
+            "authenticatorFlow": true,
+            "autheticatorFlow": true,
+            "flowAlias": "message-otp-subflow",
+            "priority": 3,
+            "requirement": "DISABLED",
+            "userSetupAllowed": false
+        }, {
+            "authenticatorFlow": true,
+            "autheticatorFlow": true,
+            "flowAlias": "sequent browser flow Browser - Conditional OTP",
+            "priority": 4,
+            "requirement": "DISABLED",
+            "userSetupAllowed": false
+        }
+    ],
+    "builtIn": false,
+    "description": "",
+    "id": "7e75060c-2824-45ed-ae6a-3767490cb382",
+    "providerId": "basic-flow",
+    "topLevel": false
+  },
+  {
     "id" : "70ab4d06-64e6-4e53-b045-f42ed9c7f66b",
     "alias" : "browser",
     "description" : "browser based authentication",
