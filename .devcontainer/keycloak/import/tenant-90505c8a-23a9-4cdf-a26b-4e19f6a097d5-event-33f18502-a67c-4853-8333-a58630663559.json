@@ -2453,43 +2453,28 @@
       "userSetupAllowed" : false
     } ]
   }, {
-    "id" : "8dcc8b03-bcc1-46d1-b675-f2092fd67e4a",
-    "alias" : "sequent browser flow forms",
-    "description" : "Username, password, otp and other auth forms.",
-    "providerId" : "basic-flow",
-    "topLevel" : false,
-    "builtIn" : false,
-    "authenticationExecutions" : [ {
-      "authenticatorConfig" : "UPF-apec",
-      "authenticator" : "expiry-username-password-form",
-      "authenticatorFlow" : false,
-      "requirement" : "REQUIRED",
-      "priority" : 21,
-      "autheticatorFlow" : false,
-      "userSetupAllowed" : false
-    }, {
-      "authenticatorConfig" : "session-count-limit",
-      "authenticator" : "user-session-limits",
-      "authenticatorFlow" : false,
-      "requirement" : "REQUIRED",
-      "priority" : 25,
-      "autheticatorFlow" : false,
-      "userSetupAllowed" : false
-    }, {
-      "authenticatorFlow" : true,
-      "requirement" : "CONDITIONAL",
-      "priority" : 26,
-      "autheticatorFlow" : true,
-      "flowAlias" : "message-otp-subflow",
-      "userSetupAllowed" : false
-    }, {
-      "authenticatorFlow" : true,
-      "requirement" : "CONDITIONAL",
-      "priority" : 27,
-      "autheticatorFlow" : true,
-      "flowAlias" : "sequent browser flow Browser - Conditional OTP",
-      "userSetupAllowed" : false
-    } ]
+    "alias": "sequent browser flow forms",
+    "authenticationExecutions": [{
+            "authenticatorFlow": true,
+            "autheticatorFlow": true,
+            "flowAlias": "basic / silver condition",
+            "priority": 27,
+            "requirement": "CONDITIONAL",
+            "userSetupAllowed": false
+        }, {
+            "authenticatorFlow": true,
+            "autheticatorFlow": true,
+            "flowAlias": "advanced / gold condition",
+            "priority": 28,
+            "requirement": "CONDITIONAL",
+            "userSetupAllowed": false
+        }
+    ],
+    "builtIn": false,
+    "description": "Username, password, otp and other auth forms.",
+    "id": "c36d83e7-7e0b-4329-92a5-27d03e04d9f8",
+    "providerId": "basic-flow",
+    "topLevel": false
   }, {
     "id" : "840b9649-9551-418e-858b-29952b6cf501",
     "alias" : "sequent reset credentials",
