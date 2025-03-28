@@ -511,12 +511,6 @@ export const EditElectionEventDataForm: React.FC = () => {
                     ),
                     dns_prefix: customUrlsValues.enrollment,
                 },
-                {
-                    key: "saml",
-                    origin: `https://${customUrlsValues.saml}.${globalSettings.CUSTOM_URLS_DOMAIN_NAME}`,
-                    redirect_to: `${globalSettings.KEYCLOAK_URL}realms/tenant-${tenantId}-event-${recordId}/broker/simplesamlphp/endpoint`,
-                    dns_prefix: customUrlsValues.saml,
-                },
             ]
             setIsCustomUrlLoading(true)
             setIsCustomizeUrl(true)
