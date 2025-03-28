@@ -353,7 +353,7 @@ pub async fn update_election_event_ballot_s3_files(
                     ballot_publication_id,
                     &ballot_style.election_id,
                 ),
-                false,
+                true,
                 s3_bucket.clone(),
                 "text/plain".to_string(),
                 None,
