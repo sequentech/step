@@ -679,3 +679,35 @@ Requires running both codespace instance as well as local instance at least for 
  ### Running Nightwatch(Voting-Portal)
  refer to voting-portal/test/readme
  
+
+ ## Use devcontainers in Google Cloud
+
+First, login to Google Cloud and create an instance with at least 8 vcpus, 32GB memory (for example a
+n2-standard-8)and 256GB of hard disk.
+
+Then install the google cloud shell using:
+
+```
+  curl https://sdk.cloud.google.com | bash
+  gcloud auth login
+  gcloud compute config-ssh --project <gcloud-project-name>
+```
+
+After that, modify your `~/.ssh/config` to include `ForwardAgent yes` in the google cloud instance you
+want to use, leaving it as something like:
+
+```
+  Host instance-111111-22222.us-central1-f.gcloud-project-name
+      HostName 34.66.22.121
+      IdentityFile /Users/youruser/.ssh/google_compute_engine
+      UserKnownHostsFile=/Users/youruser/.ssh/google_compute_known_hosts
+      HostKeyAlias=compute.44470980835325324
+      IdentitiesOnly=yes
+      CheckHostIP=no
+      ForwardAgent yes
+```
+
+Then you need to have the VS Code extension "Remote - SSH" from Microsoft installed.  After that
+open a new VS Code instance, click on the bottom left blue corner, then select "Connect to Host..."
+and select the Google Cloud instance you created.
+
