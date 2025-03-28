@@ -68,8 +68,6 @@ const CustomAutocompleteArrayInput: React.FC<CustomAutocompleteArrayInputProps> 
             // Ensure inputValue is not blank
             const newLabels = inputValue.trim().split(/\s+/)
 
-            console.log("aa newLabels", newLabels)
-
             const updatedValues = [...selectedValues]
             const newChoices = [...(updatedChoices || [])]
 
