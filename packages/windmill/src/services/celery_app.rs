@@ -56,6 +56,7 @@ use crate::tasks::scheduled_events::scheduled_events;
 use crate::tasks::scheduled_reports::scheduled_reports;
 use crate::tasks::send_template::send_template;
 use crate::tasks::set_public_key::set_public_key;
+use crate::tasks::update_election_event_ballot_publication::update_election_event_ballot_publication;
 use crate::tasks::update_election_event_ballot_styles::update_election_event_ballot_styles;
 
 #[derive(AsRefStr, Debug)]
@@ -185,6 +186,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             set_public_key,
             execute_tally_session,
             update_election_event_ballot_styles,
+            update_election_event_ballot_publication,
             insert_election_event_t,
             insert_tenant,
             send_template,
@@ -230,6 +232,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             set_public_key::NAME => Queue::Short.as_ref(),
             execute_tally_session::NAME => Queue::Tally.as_ref(),
             update_election_event_ballot_styles::NAME => Queue::Short.as_ref(),
+            update_election_event_ballot_publication::NAME => Queue::Short.as_ref(),
             insert_election_event_t::NAME => Queue::Short.as_ref(),
             insert_tenant::NAME => Queue::Short.as_ref(),
             send_template::NAME => Queue::Communication.as_ref(),

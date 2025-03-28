@@ -35,7 +35,7 @@ use sequent_core::types::scheduled_event::ScheduledEvent;
 use sequent_core::util::retry::retry_with_exponential_backoff;
 use std::collections::{HashMap, HashSet};
 use std::time::Duration as StdDuration;
-use tracing::{event, instrument, Level};
+use tracing::{event, info, instrument, Level};
 use uuid::Uuid;
 
 /**
@@ -328,6 +328,7 @@ pub async fn update_election_event_ballot_s3_files(
         )
     })?;
 
+    info!("ballot_style_vec len: {}", ballot_style_vec.len());
     let ballot_style = ballot_style_vec.into_iter().next().unwrap(); // TODO: fix this
     let area_id = ballot_style
         .area_id
