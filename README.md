@@ -777,3 +777,13 @@ rm -rf /home/vscode/.docker/
 
 Unfortunately commiting with git doesn't work from the devcontainer. To commit to git,
 ssh into the instance and cd into the step folder, then commit using git.
+
+
+### Can't build sequent-core
+
+If you're getting a permission error when building sequent-core, do:
+
+```bash
+sudo mkdir /workspaces/step/packages/target
+sudo chown vscode:vscode /workspaces/step/packages/target -R
+```
