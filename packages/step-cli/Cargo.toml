@@ -14,6 +14,8 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 strum = "0.25"
 strum_macros = "0.25"
+base64 = "0.21.0"
+ring = "0.17"
 reqwest = { version = "0.12.5", features = ["blocking", "json"] }
 graphql_client = "0.13.0"
 
