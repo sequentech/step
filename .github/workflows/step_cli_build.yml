@@ -2,59 +2,65 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-name: Build Multiplatform Step CLI Binary
+name: Build Multiplatform STEP CLI with Cross
 
 on:
-  pull_request:
-  push:
-    branches: [ 'main', 'release/[0-9]+.[0-9]+' ]
   release:
     types: [published]
+  push:
+    branches: [ main ]
+  pull_request:
+
 jobs:
-  build-cli:
+  build:
     runs-on:
       - runs-on=${{ github.run_id }}
       - runner=2cpu-linux-x64
       - image=ubuntu24-full-x64
+    strategy:
+      matrix:
+        include:
+          # Linux targets using musl for static linking.
+          - target: x86_64-unknown-linux-musl
+            arch: amd64
+          - target: aarch64-unknown-linux-musl
+            arch: arm64
+          # Windows targets (GNU)
+          - target: x86_64-pc-windows-gnu
+            arch: amd64
+          - target: aarch64-pc-windows-gnu
+            arch: arm64
+          # macOS targets.
+          - target: x86_64-apple-darwin
+            arch: amd64
+          - target: aarch64-apple-darwin
+            arch: arm64
     env:
       CARGO_TARGET_DIR: rust-local-target
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Install protoc on Linux
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y protobuf-compiler
-
-      - name: Install protoc on macOS
-        if: runner.os == 'macOS'
-        run: brew install protobuf
-
-      - name: Install Rust
+      - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
+          toolchain: stable
           profile: minimal
-          toolchain: nightly
-          components: rustfmt
           override: true
 
-      - name: Build step-cli
-        working-directory: packages/step-cli
-        run: cargo build --release
+      - name: Install cross
+        run: cargo install cross
 
-      - name: List build output (for debugging)
+      - name: Build STEP CLI using cross
         working-directory: packages/step-cli
-        run: |
-          if [ "${{ runner.os }}" = "Windows" ]; then
-            dir rust-local-target\\release
-          else
-            ls -lR rust-local-target/release
-          fi
+        run: cross build --release --target ${{ matrix.target }}
+
+      # - name: List build output (for debugging)
+      #   working-directory: packages/step-cli
+      #   run: ls -lR target/${{ matrix.target }}/release
 
       - name: Upload CLI binary artifact
         uses: actions/upload-artifact@v4
         with:
-              name: step-cli-binary-${{ matrix.os }}
-              path: "packages/step-cli/rust-local-target/release/seq"
+          name: step-cli-${{ matrix.arch }}-${{ matrix.target }}
+          path: packages/step-cli/target/${{ matrix.target }}/release/seq*
