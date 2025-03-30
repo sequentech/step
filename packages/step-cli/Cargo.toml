@@ -38,6 +38,4 @@ sha2 = "0.10"
 base64 = "0.21.0"
 [[bin]]
 name = "seq"
-
-
 path = "src/main.rs"
