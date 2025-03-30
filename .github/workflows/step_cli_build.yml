@@ -1,0 +1,60 @@
+# SPDX-FileCopyrightText: 2023-2024 Sequent Tech <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+name: Build Multiplatform Step CLI Binary
+
+on:
+  pull_request:
+  push:
+    branches: [ 'main', 'release/[0-9]+.[0-9]+' ]
+  release:
+    types: [published]
+jobs:
+  build-cli:
+    runs-on:
+      - runs-on=${{ github.run_id }}
+      - runner=2cpu-linux-x64
+      - image=ubuntu24-full-x64
+    env:
+      CARGO_TARGET_DIR: rust-local-target
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install protoc on Linux
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler
+
+      - name: Install protoc on macOS
+        if: runner.os == 'macOS'
+        run: brew install protobuf
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly
+          components: rustfmt
+          override: true
+
+      - name: Build step-cli
+        working-directory: packages/step-cli
+        run: cargo build --release
+
+      - name: List build output (for debugging)
+        working-directory: packages/step-cli
+        run: |
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            dir rust-local-target\\release
+          else
+            ls -lR rust-local-target/release
+          fi
+
+      - name: Upload CLI binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+              name: step-cli-binary-${{ matrix.os }}
+              path: "packages/step-cli/rust-local-target/release/seq"
