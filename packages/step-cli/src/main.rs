@@ -52,6 +52,7 @@ enum StepCommands {
     DuplicateVotes(commands::duplicate_votes::DuplicateVotes),
     CreateApplications(commands::create_applications::CreateApplications),
     CreateElectoralLogs(commands::create_electoral_logs::CreateElectoralLogs),
+    HashPasswords(commands::hash_passwords::HashPasswords),
 }
 
 fn main() {
@@ -83,6 +84,7 @@ fn main() {
             StepCommands::DuplicateVotes(render) => render.run(),
             StepCommands::CreateApplications(render) => render.run(),
             StepCommands::CreateElectoralLogs(render) => render.run(),
+            StepCommands::HashPasswords(render) => render.run(),
         },
     }
 }
