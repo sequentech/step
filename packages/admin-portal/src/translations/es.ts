@@ -560,6 +560,13 @@ const spanishTranslation: TranslationType = {
                 "not-required": "No Requerido",
                 "required": "Requerido",
             },
+            castVoteGoldLevelPolicy: {
+                label: "Gold level Authentication Policy",
+                options: {
+                    "gold-level": "Gold level Authentication",
+                    "no-gold-level": "No Gold level Authentication",
+                },
+            },
         },
         tenantScreen: {
             common: {
