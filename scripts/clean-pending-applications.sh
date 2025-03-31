@@ -146,14 +146,20 @@ PENDING_APPLICATIONS=$(tail -n +2 applications.csv | cut -d',' -f1 | awk '{print
 
 echo "Found $PENDING_APPLICATIONS_COUNT pending applications."
 echo "The applications have been saved to applications.csv"
-echo -n "Do you want to delete these applications? (yes/no): "
+echo -n "Do you want to reject these applications? (yes/no): "
 read -r confirmation
 
 if [ "$confirmation" = "yes" ]; then
-  echo "Deleting applications..."
+  echo "Rejecting applications..."
   psql "postgresql://$HASURA_DB__USER:$HASURA_DB__PASSWORD@$HASURA_DB__HOST:$HASURA_DB__PORT/$HASURA_DB__DBNAME" \
-    -c "DELETE FROM sequent_backend.applications WHERE id IN ($PENDING_APPLICATIONS);"
-  echo "Applications deleted successfully."
+    -c "UPDATE
+          sequent_backend.applications
+        SET
+          status = 'REJECTED'
+        WHERE
+          id IN ($PENDING_APPLICATIONS)
+          AND status = 'PENDING';"
+  echo "Applications rejected successfully."
 else
-  echo "Operation cancelled. No applications were deleted."
+  echo "Operation cancelled. No applications were rejected."
 fi
