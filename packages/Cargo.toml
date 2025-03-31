@@ -21,7 +21,7 @@ members = [
     "e2e/src/mock_server",
     "e2e",
     "orare",
-    "orare/doc_renderer"
+    "orare/doc_renderer","sns-sms-proxy","loki_consumer"
 ]
 
 [patch.crates-io]
