@@ -557,6 +557,13 @@ const englishTranslation = {
                 "not-required": "Not Required",
                 "required": "Required",
             },
+            castVoteGoldLevelPolicy: {
+                label: "Gold level Authentication Policy",
+                options: {
+                    "gold-level": "Gold level Authentication",
+                    "no-gold-level": "No Gold level Authentication",
+                },
+            },
         },
         tenantScreen: {
             common: {
