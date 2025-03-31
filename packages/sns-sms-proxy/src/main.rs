@@ -1,16 +1,18 @@
 use axum::{
-    extract::{Form, State},
+    // Add ConnectInfo extractor
+    extract::{ConnectInfo, Form, State},
     http::{HeaderMap, StatusCode},
     response::{IntoResponse, Response},
     routing::post,
     Router,
 };
-// Use the non-blocking reqwest client
-use reqwest::Client as HttpClient; // <--- Changed this line
+use reqwest::Client as HttpClient; // Use the async client
 use serde::{Deserialize, Serialize};
+// Make sure SocketAddr is imported
 use std::{env, net::SocketAddr, sync::Arc};
 use thiserror::Error;
-use tracing::{error, info, instrument};
+// Make sure tracing macros are in scope
+use tracing::{error, info, instrument, Level};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 use uuid::Uuid;
 use serde_json;
@@ -19,7 +21,7 @@ use serde_json;
 #[derive(Clone)]
 struct AppState {
     config: AppConfig,
-    http_client: Arc<HttpClient>, // Now holds the async client
+    http_client: Arc<HttpClient>,
 }
 
 // --- Configuration ---
@@ -32,7 +34,7 @@ struct AppConfig {
 }
 
 // --- AWS SNS Request Mimic ---
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 #[serde(rename_all = "PascalCase")]
 struct SnsPublishRequest {
     action: String,
@@ -95,22 +97,18 @@ enum ProxyError {
     Config(String),
     #[error("Invalid incoming request: {0}")]
     BadRequest(String),
-    // reqwest::Error can be directly converted using #[from]
     #[error("Failed to call downstream SMS provider: {0}")]
     DownstreamHttp(#[from] reqwest::Error),
     #[error("Downstream SMS provider reported failure: {0}")]
     DownstreamApi(String),
     #[error("Internal server error: {0}")]
     Internal(String),
-    // JoinError is no longer needed as we removed spawn_blocking
-    // #[error("Task join error: {0}")]
-    // JoinError(#[from] tokio::task::JoinError),
 }
 
 // Implement IntoResponse for our custom error
 impl IntoResponse for ProxyError {
     fn into_response(self) -> Response {
-        error!("Error processing request: {}", self);
+        error!("Error processing request: {}", self); // Log errors
         let (status, body) = match self {
             ProxyError::BadRequest(msg) => (StatusCode::BAD_REQUEST, format!("BadRequest: {}", msg)),
             ProxyError::Config(msg) => (StatusCode::INTERNAL_SERVER_ERROR, format!("ConfigurationError: {}", msg)),
@@ -118,7 +116,6 @@ impl IntoResponse for ProxyError {
                 (StatusCode::SERVICE_UNAVAILABLE, "FailedDependency: Error communicating with downstream SMS provider".to_string())
             }
             ProxyError::Internal(msg) => (StatusCode::INTERNAL_SERVER_ERROR, format!("InternalError: {}", msg)),
-            // ProxyError::JoinError(_) => (StatusCode::INTERNAL_SERVER_ERROR, "InternalError: Background task failed".to_string()),
         };
         (status, body).into_response()
     }
@@ -126,64 +123,76 @@ impl IntoResponse for ProxyError {
 
 
 // --- Axum Handler ---
-#[instrument(skip(state, headers, form))]
+#[instrument(skip(state, headers, form), fields(source_ip))]
 async fn handle_sns_publish(
     State(state): State<Arc<AppState>>,
+    ConnectInfo(addr): ConnectInfo<SocketAddr>, // <-- Extract source address
     headers: HeaderMap,
     Form(form): Form<SnsPublishRequest>,
 ) -> Result<impl IntoResponse, ProxyError> {
 
-    info!("Received SNS Publish request for number: {}", form.phone_number);
-    if form.action != "Publish" {
-        return Err(ProxyError::BadRequest("Action must be Publish".to_string()));
-    }
-    // WARNING: No Signature V4 validation
+    tracing::Span::current().record("source_ip", &tracing::field::display(&addr));
 
-    // --- Call Downstream Provider (Twilio Example) directly using async client ---
+    info!(
+        source_ip = %addr,
+        action = %form.action,
+        target_phone_number = %form.phone_number,
+        message_length = %form.message.len(),
+        "Received SNS Publish request"
+    );
+
+    if form.action != "Publish" {
+         error!(action = %form.action, "Received request with invalid action");
+         return Err(ProxyError::BadRequest(format!("Action must be Publish, got: {}", form.action)));
+    }
+
     let twilio_api_url = format!(
         "{}/Accounts/{}/Messages.json",
         state.config.target_sms_provider_api_base.trim_end_matches('/'),
         state.config.target_sms_provider_account_sid
     );
 
-    // Create the request body - cloning strings here is fine
     let twilio_request = TwilioMessageRequest {
         to: form.phone_number.clone(),
         from: state.config.target_sms_provider_from_number.clone(),
         body: form.message.clone(),
     };
 
-    info!("Sending request to Twilio API: {}", twilio_api_url);
+    info!(downstream_url = %twilio_api_url, "Sending request to downstream SMS provider");
 
-    // Use the async client directly and .await the futures
-    let twilio_response = state.http_client // Access the async client from state
+    let twilio_response = state.http_client
         .post(&twilio_api_url)
         .basic_auth(&state.config.target_sms_provider_account_sid, Some(&state.config.target_sms_provider_auth_token))
         .form(&twilio_request)
         .send()
-        .await?; // <--- .await the send() future
-
-    info!("Received response from Twilio: status={}", twilio_response.status());
+        .await?;
 
     let response_status = twilio_response.status();
-    // Use .text() which is also async
-    let response_text = twilio_response.text().await?; // <--- .await the text() future
+    let response_text = twilio_response.text().await?;
+
+    info!(downstream_status = %response_status, "Received response from downstream SMS provider");
 
     if !response_status.is_success() {
-         error!("Twilio API Error: Status={}, Body={}", response_status, response_text);
+         error!(
+            downstream_status = %response_status,
+            downstream_body = %response_text,
+            "Downstream SMS provider API Error"
+        );
          return Err(ProxyError::DownstreamApi(format!(
-             "Twilio returned status {}",
+             "Downstream provider returned status {}",
              response_status
          )));
     }
 
     let twilio_message: TwilioMessageResponse = serde_json::from_str(&response_text)
-        .map_err(|e| ProxyError::DownstreamApi(format!("Failed to parse Twilio success response: {}. Body: {}", e, response_text)))?;
+        .map_err(|e| {
+            error!(error = %e, downstream_body = %response_text, "Failed to parse downstream success response");
+            ProxyError::DownstreamApi(format!("Failed to parse downstream success response: {}", e))
+        })?;
 
 
-    info!("Successfully sent message via Twilio. SID: {}", twilio_message.sid);
+    info!(message_sid = %twilio_message.sid, "Successfully processed request via downstream provider");
 
-    // --- Construct AWS SNS Mimic Response ---
     let response = SnsPublishResponse::new(
         twilio_message.sid,
         Uuid::new_v4().to_string(),
@@ -213,20 +222,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let config = AppConfig {
         target_sms_provider_account_sid: env::var("TWILIO_ACCOUNT_SID")
-            // .expect("TWILIO_ACCOUNT_SID not set"),
-            .unwrap_or_else(|_| "https://api.twilio.com/2010-04-01".to_string()),
+        .unwrap_or_else(|_| "https://api.twilio.com/2010-04-01".to_string()),
         target_sms_provider_auth_token: env::var("TWILIO_AUTH_TOKEN")
-            // .expect("TWILIO_AUTH_TOKEN not set"),
-            .unwrap_or_else(|_| "https://api.twilio.com/2010-04-01".to_string()),
+        .unwrap_or_else(|_| "https://api.twilio.com/2010-04-01".to_string()),
         target_sms_provider_from_number: env::var("TWILIO_FROM_NUMBER")
-            // .expect("TWILIO_FROM_NUMBER not set"),
-            .unwrap_or_else(|_| "https://api.twilio.com/2010-04-01".to_string()),
+        .unwrap_or_else(|_| "https://api.twilio.com/2010-04-01".to_string()),
         target_sms_provider_api_base: env::var("TWILIO_API_BASE")
             .unwrap_or_else(|_| "https://api.twilio.com/2010-04-01".to_string()),
     };
 
-    // Create the async reqwest client
-    let http_client = Arc::new(HttpClient::new()); // <--- Creates the async client
+
+    let http_client = Arc::new(HttpClient::new());
     let app_state = Arc::new(AppState { config, http_client });
 
     let app = Router::new()
@@ -240,7 +246,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!("SNS SMS Proxy listening on {}", addr);
 
     let listener = tokio::net::TcpListener::bind(addr).await?;
-    axum::serve(listener, app).await?;
+
+    // --- THIS IS THE FIX ---
+    // Use `into_make_service_with_connect_info` to provide client address info
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<SocketAddr>() // <-- Changed this line
+    ).await?;
 
     Ok(())
 }

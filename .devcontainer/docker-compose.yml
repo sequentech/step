@@ -294,7 +294,16 @@ services:
       TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN}
       TWILIO_SERVICE_SID: ${TWILIO_SERVICE_SID}
       AWS_ENDPOINT_URL: "http://sns-sms-proxy:7700"
+      AWS_ENDPOINT_URL_SNS: "http://sns-sms-proxy:7700"
       SMS_TRANSPORT_NAME: "AwsSns"
+      AWS_REGION: "us-east-1"
+      AWS_ACCESS_KEY_ID: "DUMMY_KEY_ID"           # <-- ADD DUMMY KEY ID
+      AWS_SECRET_ACCESS_KEY: "DUMMY_SECRET_KEY"   # <-- ADD DUMMY SECRET KEY
+      KC_LOG_LEVEL_SOFTWARE_AMAZON_AWSSDK: "trace"
+      KC_JAVA_OPTS: >-
+        -Daws.region=us-east-1
+        -Daws.endpointUrlSns=http://sns-sms-proxy:7700
+        -Daws.endpointUrl=http://sns-sms-proxy:7700 # <-- ADD Global Endpoint Override
     volumes:
       # https://www.keycloak.org/server/containers#_importing_a_realm_on_startup
       - ./keycloak/import:/opt/keycloak/data/import:z
@@ -318,6 +327,7 @@ services:
       --spi-sms-sender-dummy-enabled=false
       --spi-sms-sender-aws-enabled=true
       --import-realm
+      --spi-sms-sender-aws-enabled=true
     depends_on:
       postgres-keycloak:
         condition: service_healthy
@@ -971,6 +981,11 @@ services:
       BEAT_PROBE_ADDR: ${BEAT_PROBE_ADDR}
       BEAT_PROBE_LIVE_PATH: ${BEAT_PROBE_LIVE_PATH}
       BEAT_PROBE_READY_PATH: ${BEAT_PROBE_READY_PATH}
+      BEAT_PROBE_LIVE_PATH: ${BEAT_PROBE_LIVE_PATH}
+      BEAT_PROBE_READY_PATH: ${BEAT_PROBE_READY_PATH}
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN}
+      TWILIO_SERVICE_SID: ${TWILIO_SERVICE_SID}
 
   postgres-b3:
     profiles: ["full", "base"]
