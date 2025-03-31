@@ -1,0 +1,26 @@
+[package]
+name = "loki_consumer"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# HTTP client library
+reqwest = { version = "0.12", features = ["json"] } # Added "json" feature
+
+# Serialization/Deserialization framework
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0" # Specific JSON support
+
+# Timestamp handling
+chrono = "0.4"
+
+# URL parsing and manipulation
+url = "2.5"
+
+# Error handling helper
+thiserror = "1.0"
