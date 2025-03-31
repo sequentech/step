@@ -404,6 +404,23 @@
                     "userSetupAllowed": false
                 },
                 {
+                    "authenticatorFlow" : true,
+                    "requirement" : "CONDITIONAL",
+                    "priority" : 14,
+                    "autheticatorFlow" : true,
+                    "flowAlias" : "deferred-otp-subflow-email",
+                    "userSetupAllowed" : false
+                },
+                {
+                    "authenticatorConfig" : "deferred-otp-subflow-sms",
+                    "authenticatorFlow" : true,
+                    "requirement" : "CONDITIONAL",
+                    "priority" : 15,
+                    "autheticatorFlow" : true,
+                    "flowAlias" : "deferred-otp-subflow",
+                    "userSetupAllowed" : false
+                },
+                {
                     "authenticator": "message-otp-authenticator",
                     "authenticatorConfig": "otp",
                     "authenticatorFlow": false,
@@ -464,6 +481,61 @@
             "id": "4bde24b5-72b3-41c0-8df5-0420e2d69162",
             "providerId": "form-flow",
             "topLevel": false
+        },
+        {
+            "id" : "7b248f81-6142-4a51-abbf-d4ea838cdee6",
+            "alias" : "deferred-otp-subflow",
+            "description" : "",
+            "providerId" : "basic-flow",
+            "topLevel" : false,
+            "builtIn" : false,
+            "authenticationExecutions" : [
+                {
+                    "authenticatorConfig" : "cond-sms",
+                    "authenticator" : "conditional-auth-note",
+                    "authenticatorFlow" : false,
+                    "requirement" : "REQUIRED",
+                    "priority" : 3,
+                    "autheticatorFlow" : false,
+                    "userSetupAllowed" : false
+                },
+                {
+                    "authenticatorConfig" : "otp-sms",
+                    "authenticator" : "message-otp-authenticator",
+                    "authenticatorFlow" : false,
+                    "requirement" : "REQUIRED",
+                    "priority" : 4,
+                    "autheticatorFlow" : false,
+                    "userSetupAllowed" : false
+                }
+            ]
+        }, {
+            "id" : "ec150b9a-3bac-4e44-9a48-748e147335e9",
+            "alias" : "deferred-otp-subflow-email",
+            "description" : "",
+            "providerId" : "basic-flow",
+            "topLevel" : false,
+            "builtIn" : false,
+            "authenticationExecutions" : [
+                {
+                    "authenticatorConfig" : "cond-email",
+                    "authenticator" : "conditional-auth-note",
+                    "authenticatorFlow" : false,
+                    "requirement" : "REQUIRED",
+                    "priority" : 0,
+                    "autheticatorFlow" : false,
+                    "userSetupAllowed" : false
+                },
+                {
+                    "authenticatorConfig" : "otp-email",
+                    "authenticator" : "message-otp-authenticator",
+                    "authenticatorFlow" : false,
+                    "requirement" : "REQUIRED",
+                    "priority" : 1,
+                    "autheticatorFlow" : false,
+                    "userSetupAllowed" : false
+                }
+            ]
         },
         {
             "alias": "direct grant",
@@ -588,6 +660,33 @@
             "id": "a41c0378-3eb2-4a26-b07d-3438d1f0acd9",
             "providerId": "basic-flow",
             "topLevel": true
+        },
+        {
+            "id" : "6d2bbc26-4c5a-4312-bae6-aa6cc060cb17",
+            "alias" : "message-otp-subflow",
+            "description" : "",
+            "providerId" : "basic-flow",
+            "topLevel" : false,
+            "builtIn" : false,
+            "authenticationExecutions" : [
+                {
+                    "authenticator" : "conditional-user-configured",
+                    "authenticatorFlow" : false,
+                    "requirement" : "REQUIRED",
+                    "priority" : 1,
+                    "autheticatorFlow" : false,
+                    "userSetupAllowed" : false
+                },
+                {
+                    "authenticatorConfig" : "email-sms",
+                    "authenticator" : "message-otp-authenticator",
+                    "authenticatorFlow" : false,
+                    "requirement" : "REQUIRED",
+                    "priority" : 3,
+                    "autheticatorFlow" : false,
+                    "userSetupAllowed" : false
+                }
+            ]
         },
         {
             "alias": "registration",
