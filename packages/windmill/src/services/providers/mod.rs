@@ -5,3 +5,4 @@
 pub mod email_sender;
 pub mod sms_sender;
 pub mod transactions_provider;
+pub mod google_cloud_sms_sender;
