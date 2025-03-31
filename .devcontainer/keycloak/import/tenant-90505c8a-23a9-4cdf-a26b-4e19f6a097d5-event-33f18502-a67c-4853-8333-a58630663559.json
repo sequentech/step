@@ -2545,6 +2545,22 @@
     } ]
   } ],
   "authenticatorConfig" : [ {
+    "alias": "gold",
+    "config": {
+        "loa-max-age": "0",
+        "loa-condition-level": "2"
+    },
+    "id": "671af2c7-9e15-4ca0-a6a0-aa26cd9e7453"
+  },
+  {
+    "alias": "silver",
+    "config": {
+        "loa-condition-level": "1",
+        "loa-max-age": "36000"
+    },
+    "id": "597fd51e-3c01-4033-adf1-ae90cf7c03ba"
+  },
+  {
     "id" : "0558dfeb-9f6b-42fb-b11a-0066ed04049b",
     "alias" : "UPF-apec",
     "config" : {
