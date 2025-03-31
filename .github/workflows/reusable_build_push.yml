@@ -18,61 +18,131 @@ on:
 
 jobs:
   build-and-push:
-    runs-on:
-      - runs-on=${{ github.run_id }}
-      - runner=2cpu-linux-x64
-      - image=ubuntu24-full-x64
     strategy:
       matrix:
         include:
           - service: keycloak
             context: packages
+            runner: 2cpu-linux-x64
+            file: packages/Dockerfile.keycloak
+
+          - service: keycloak
+            context: packages
+            runner: 2cpu-linux-arm64
             file: packages/Dockerfile.keycloak
 
           - service: voting-portal
             context: packages
+            runner: 2cpu-linux-x64
+            file: packages/Dockerfile.prod
+            spa_name: "voting-portal"
+
+          - service: voting-portal
+            context: packages
+            runner: 2cpu-linux-arm64
             file: packages/Dockerfile.prod
             spa_name: "voting-portal"
 
           - service: admin-portal
             context: packages
+            runner: 2cpu-linux-x64
+            file: packages/Dockerfile.prod
+            spa_name: "admin-portal"
+
+          - service: admin-portal
+            context: packages
+            runner: 2cpu-linux-arm64
             file: packages/Dockerfile.prod
             spa_name: "admin-portal"
 
           - service: ballot-verifier
             context: packages
+            runner: 2cpu-linux-x64
+            file: packages/Dockerfile.prod
+            spa_name: "ballot-verifier"
+
+          - service: ballot-verifier
+            context: packages
+            runner: 2cpu-linux-arm64
             file: packages/Dockerfile.prod
             spa_name: "ballot-verifier"
 
           - service: harvest
             context: packages
+            runner: 2cpu-linux-x64
+            file: packages/harvest/Dockerfile.prod
+
+          - service: harvest
+            context: packages
+            runner: 2cpu-linux-arm64
             file: packages/harvest/Dockerfile.prod
 
           - service: b3
             context: packages
+            runner: 2cpu-linux-x64
+            file: packages/b3/Dockerfile.prod
+
+          - service: b3
+            context: packages
+            runner: 2cpu-linux-arm64
             file: packages/b3/Dockerfile.prod
 
           - service: braid
             context: packages
+            runner: 2cpu-linux-x64
+            file: packages/braid/Dockerfile.prod
+
+          - service: braid
+            context: packages
+            runner: 2cpu-linux-arm64
             file: packages/braid/Dockerfile.prod
 
           - service: windmill
             context: packages
+            runner: 2cpu-linux-x64
+            file: packages/windmill/Dockerfile.prod
+
+          - service: windmill
+            context: packages
+            runner: 2cpu-linux-arm64
             file: packages/windmill/Dockerfile.prod
 
           - service: immudb-init
             context: packages
+            runner: 2cpu-linux-x64
+            file: packages/Dockerfile.immudb-init.prod
+
+          - service: immudb-init
+            context: packages
+            runner: 2cpu-linux-arm64
             file: packages/Dockerfile.immudb-init.prod
 
           - service: immudb
             context: packages
+            runner: 2cpu-linux-x64
+            file: packages/Dockerfile.immudb
+
+          - service: immudb
+            context: packages
+            runner: 2cpu-linux-arm64
             file: packages/Dockerfile.immudb
 
           - service: mock_server
             context: packages/e2e/src/mock_server
+            runner: 2cpu-linux-x64
+            file: packages/e2e/src/mock_server/Dockerfile.prod
+
+          - service: mock_server
+            context: packages/e2e/src/mock_server
+            runner: 2cpu-linux-arm64
             file: packages/e2e/src/mock_server/Dockerfile.prod
 
       fail-fast: false
+
+    runs-on:
+      - runs-on=${{ github.run_id }}
+      - runner=${{ matrix.runner }}
+      - image=${{ contains(matrix.runner, 'x64') && 'ubuntu24-full-x64' || 'ubuntu24-full-arm64' }}
 
     steps:
     - name: Check Out Repo
