@@ -33,10 +33,15 @@ import {Cron} from "react-js-cron"
 import "react-js-cron/dist/styles.css"
 import {ENCRYPT_REPORT} from "@/queries/EncryptReport"
 import {IPermissions} from "@/types/keycloak"
-import {Dialog} from "@sequentech/ui-essentials"
+import {CustomAutocompleteArrayInput, Dialog} from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {FormStyles} from "@/components/styles/FormStyles"
+
+type Choice = {
+    id: string
+    name: string
+}
 
 interface CreateReportProps {
     close?: () => void
@@ -440,6 +445,64 @@ interface ReportTypeInputProps extends InputProps {
     onChange?: (newValue: any) => void // Add this line
 }
 
+interface PermissionLabelsInputProps extends InputProps {
+    label?: string
+    choices?: Choice[]
+    setChoices?: React.Dispatch<React.SetStateAction<Choice[]>>
+}
+
+const PermissionLabelsInput: React.FC<PermissionLabelsInputProps> = (props) => {
+    const {field, fieldState, isRequired, id} = useInput({
+        ...props,
+        source: "permission_label",
+    })
+
+    // Initialize local choices state if not provided in props
+    const [internalChoices, setInternalChoices] = useState<Choice[]>(props.choices || [])
+    const choices = props.choices || internalChoices
+
+    // Update form value when choices change
+    const handleChange = (newValue: string[]) => {
+        field.onChange(newValue)
+        // Also update choices if needed
+        if (props.setChoices) {
+            props.setChoices(newValue.map((label) => ({id: label, name: label})))
+        }
+    }
+
+    // Handle creating new entries
+    const handleCreate = (newValue: string) => {
+        if (newValue && !choices.find((choice: Choice) => choice.id === newValue)) {
+            const newChoice = {id: newValue, name: newValue}
+            const updatedChoices = [...choices, newChoice]
+
+            // Update local state if no external state management provided
+            if (!props.setChoices) {
+                setInternalChoices(updatedChoices)
+            } else {
+                props.setChoices(updatedChoices)
+            }
+
+            // Ensure the field value includes the new item
+            const currentValue = field.value || []
+            if (!currentValue.includes(newValue)) {
+                field.onChange([...currentValue, newValue])
+            }
+        }
+        return {id: newValue, name: newValue}
+    }
+
+    return (
+        <CustomAutocompleteArrayInput
+            label={props.label ?? ""}
+            defaultValue={field.value || []}
+            onChange={handleChange}
+            onCreate={handleCreate}
+            choices={choices}
+        />
+    )
+}
+
 const ReportTypeInput: React.FC<ReportTypeInputProps> = (props) => {
     const {field, fieldState, isRequired, id} = useInput(props)
 
@@ -460,7 +523,7 @@ const ReportTypeInput: React.FC<ReportTypeInputProps> = (props) => {
             renderInput={(params) => (
                 <TextField
                     {...params}
-                    label={label}
+                    label={label ?? ""}
                     variant="outlined"
                     required={isRequired}
                     error={fieldState.invalid}
@@ -580,17 +643,27 @@ const FormContent: React.FC<CreateReportProps> = ({
 
     const [permissionLabels, setPermissionLabels] = useState<string[]>([])
 
-    const [permissionLabelChoices, setPermissionLabelChoices] = useState<any[]>(
-        (report?.permission_label as string[])?.map((label) => ({
-            id: label,
-            name: label,
-        })) || []
-    )
+    const [permissionLabelChoices, setPermissionLabelChoices] = useState<Choice[]>([])
+
+    useEffect(() => {
+        if (report?.permission_label) {
+            const choices = (report.permission_label as string[]).map((label) => ({
+                id: label,
+                name: label,
+            }))
+            setPermissionLabelChoices(choices)
+        }
+    }, [report?.permission_label])
 
     const handlePermissionLabelRemoved = (value: string[]) => {
         if (value?.length < permissionLabels?.length) {
             setValue("permission_label", value)
         }
+    }
+
+    const handlePermissionLabelChanged = (value: string[]) => {
+        setValue("permission_label", value)
+        setPermissionLabels(value)
     }
 
     const handlePermissionLabelAdded = (value: string[]) => {
@@ -607,7 +680,6 @@ const FormContent: React.FC<CreateReportProps> = ({
                     ? t("reportsScreen.edit.subtitle")
                     : t("reportsScreen.create.subtitle")}
             </Typography>
-
             <ReportTypeInput
                 source="report_type"
                 label={t("template.form.type")}
@@ -615,7 +687,6 @@ const FormContent: React.FC<CreateReportProps> = ({
                 isRequired={true}
                 onChange={handleReportTypeChange}
             />
-
             <SelectElection
                 tenantId={tenantId}
                 electionEventId={electionEventId}
@@ -626,7 +697,6 @@ const FormContent: React.FC<CreateReportProps> = ({
                 isRequired={electionPolicy === EReportElectionPolicy.ELECTION_REQUIRED}
                 disabled={electionPolicy === EReportElectionPolicy.ELECTION_NOT_ALLOWED}
             />
-
             <SelectTemplate
                 tenantId={tenantId}
                 templateType={
@@ -642,46 +712,11 @@ const FormContent: React.FC<CreateReportProps> = ({
                 isRequired={isTemplateRequired}
             />
 
-            <AutocompleteArrayInput
-                source={"permission_label"}
+            <PermissionLabelsInput
                 label={t("usersAndRolesScreen.users.fields.permissionLabel")}
-                defaultValue={permissionLabels}
-                fullWidth
-                onChange={handlePermissionLabelRemoved}
-                onCreate={(newLabel) => {
-                    if (newLabel) {
-                        const updatedChoices = [
-                            ...permissionLabelChoices,
-                            {id: newLabel, name: newLabel},
-                        ]
-                        const updatedLabels = [...permissionLabels, newLabel]
-                        setPermissionLabelChoices(updatedChoices)
-                        setPermissionLabels(updatedLabels)
-                        handlePermissionLabelAdded(updatedLabels)
-                        return {id: newLabel, name: newLabel}
-                    }
-                }}
-                optionText="name"
                 choices={permissionLabelChoices}
-                freeSolo={true}
-                onKeyDown={(e) => {
-                    let input = (e.target as HTMLInputElement).value
-                    if (e.key === "Enter" && input.trim()) {
-                        e.preventDefault()
-                        const newLabel = input
-                        if (newLabel) {
-                            const updatedChoices = [
-                                ...permissionLabelChoices,
-                                {id: newLabel, name: newLabel},
-                            ]
-                            const updatedLabels = [...permissionLabels, newLabel]
-                            setPermissionLabelChoices(updatedChoices)
-                            setPermissionLabels(updatedLabels)
-                            handlePermissionLabelAdded(updatedLabels)
-                        }
-                    }
-                }}
-                value={permissionLabels}
+                setChoices={setPermissionLabelChoices}
+                source="permission_label"
             />
 
             {canGenerateReportScheduled && (
@@ -691,7 +726,6 @@ const FormContent: React.FC<CreateReportProps> = ({
                     onChange={handleCronToggle}
                 />
             )}
-
             {isCronActive && (
                 <>
                     <Cron
