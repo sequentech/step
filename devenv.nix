@@ -23,6 +23,8 @@
     hasura-cli
     reuse
     openssl
+    glibc
+    openssh
     postgresql_15
     python3
 
