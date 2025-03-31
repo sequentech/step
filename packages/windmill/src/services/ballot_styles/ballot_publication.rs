@@ -1,18 +1,16 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::hasura::ballot_publication::{
-    get_ballot_publication, get_previous_publication, get_previous_publication_election,
-    get_publication_ballot_styles, insert_ballot_publication,
-    soft_delete_other_ballot_publications, soft_delete_other_ballot_publications_election,
-    update_ballot_publication_d,
-};
 use crate::hasura::election::{self, get_all_elections_for_event};
 use crate::hasura::election_event::get_election_event_helper;
 use crate::hasura::election_event::update_election_event_status;
+use crate::postgres::ballot_publication::{
+    get_ballot_publication_by_id, get_previous_publication, get_previous_publication_election,
+    insert_ballot_publication, soft_delete_other_ballot_publications, update_ballot_publication,
+};
+use crate::postgres::ballot_style::get_publication_ballot_styles;
 use crate::postgres::election::update_election_status;
-use crate::services::ballot_styles::ballot_publication::get_ballot_publication::GetBallotPublicationSequentBackendBallotPublication;
-use crate::services::ballot_styles::ballot_publication::get_previous_publication::GetPreviousPublicationSequentBackendBallotPublication;
+// use crate::services::ballot_styles::ballot_publication::get_previous_publication::GetPreviousPublicationSequentBackendBallotPublication;
 use crate::services::celery_app::get_celery_app;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_status::get_election_event_status;
@@ -30,30 +28,34 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::{event, instrument, Level};
 
-#[instrument(skip(auth_headers), err)]
-async fn get_ballot_publication_by_id(
-    auth_headers: connection::AuthHeaders,
-    tenant_id: String,
-    election_event_id: String,
-    ballot_publication_id: String,
-) -> Result<GetBallotPublicationSequentBackendBallotPublication> {
-    let ballot_publication = (&get_ballot_publication(
-        auth_headers.clone(),
-        tenant_id.clone(),
-        election_event_id.clone(),
-        ballot_publication_id.clone(),
-    )
-    .await?
-    .data
-    .with_context(|| "can't find ballot publication")?
-    .sequent_backend_ballot_publication)
-        .get(0)
-        .clone()
-        .ok_or(anyhow!("Can't find ballot publication"))?
-        .clone();
+use super::ballot_style;
 
-    Ok(ballot_publication)
-}
+// #[instrument(skip(auth_headers), err)]
+// async fn get_ballot_publication_by_idd(
+//     auth_headers: connection::AuthHeaders,
+//     hasura_transaction: &Transaction<'_>,
+//     tenant_id: String,
+//     election_event_id: String,
+//     ballot_publication_id: String,
+// ) -> Result<GetBallotPublicationSequentBackendBallotPublication> {
+//     let ballot_publication = &get_ballot_publication_by_id(
+//         &hasura_transaction,
+//         tenant_id.clone(),
+//         election_event_id.clone(),
+//         ballot_publication_id.clone(),
+//     )
+//     .await?;
+
+//     // .data
+//     // .with_context(|| "can't find ballot publication")?
+//     // .sequent_backend_ballot_publication)
+//     //     .get(0)
+//     //     .clone()
+//     //     .ok_or(anyhow!("Can't find ballot publication"))?
+//     //     .clone();
+
+//     Ok(ballot_publication)
+// }
 
 #[instrument(skip(auth_headers), err)]
 async fn get_election_ids_for_publication(
@@ -80,6 +82,7 @@ async fn get_election_ids_for_publication(
 
 #[instrument(err)]
 pub async fn add_ballot_publication(
+    hasura_transaction: &Transaction<'_>,
     tenant_id: String,
     election_event_id: String,
     election_id: Option<String>,
@@ -96,20 +99,17 @@ pub async fn add_ballot_publication(
     )
     .await?;
 
-    let ballot_publication = &insert_ballot_publication(
-        auth_headers.clone(),
-        tenant_id.clone(),
-        election_event_id.clone(),
+    let ballot_publication = insert_ballot_publication(
+        hasura_transaction,
+        &tenant_id.clone(),
+        &election_event_id.clone(),
         election_ids.clone(),
         user_id.clone(),
         election_id.clone(),
     )
-    .await?
-    .data
-    .expect("expected data".into())
-    .insert_sequent_backend_ballot_publication
-    .with_context(|| "can't find inserted ballot publication")?
-    .returning[0];
+    .await
+    .unwrap()
+    .with_context(|| "can't find inserted ballot publication")?;
 
     let task = celery_app
         .send_task(update_election_event_ballot_styles::new(
@@ -139,14 +139,16 @@ pub async fn update_publish_ballot(
     let auth_headers = get_client_credentials().await?;
 
     let ballot_publication = get_ballot_publication_by_id(
-        auth_headers.clone(),
-        tenant_id.clone(),
-        election_event_id.clone(),
-        ballot_publication_id.clone(),
+        &hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &ballot_publication_id,
     )
-    .await?;
+    .await
+    .unwrap()
+    .with_context(|| "Can't find ballot publication")?;
 
-    if !ballot_publication.is_generated {
+    if ballot_publication.is_generated.unwrap_or(false) == false {
         return Err(anyhow!(
             "Ballot publication not generated yet, can't publish."
         ));
@@ -156,30 +158,20 @@ pub async fn update_publish_ballot(
         return Ok(());
     }
 
-    if let Some(election_id) = ballot_publication.election_id.clone() {
-        soft_delete_other_ballot_publications_election(
-            auth_headers.clone(),
-            tenant_id.clone(),
-            election_event_id.clone(),
-            ballot_publication_id.clone(),
-            election_id,
-        )
-        .await?;
-    } else {
-        soft_delete_other_ballot_publications(
-            auth_headers.clone(),
-            tenant_id.clone(),
-            election_event_id.clone(),
-            ballot_publication_id.clone(),
-        )
-        .await?;
-    }
+    let _result = soft_delete_other_ballot_publications(
+        &hasura_transaction,
+        &ballot_publication_id,
+        &election_event_id,
+        &tenant_id,
+        ballot_publication.election_id.clone(),
+    )
+    .await?;
 
-    update_ballot_publication_d(
-        auth_headers.clone(),
-        tenant_id.clone(),
-        election_event_id.clone(),
-        ballot_publication_id.clone(),
+    update_ballot_publication(
+        &hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &ballot_publication_id,
         true,
         Some(ISO8601::now()),
     )
@@ -252,39 +244,37 @@ pub async fn update_publish_ballot(
         )
         .await
         .with_context(|| "error posting to the electoral log")?;
-
     Ok(())
 }
 
-#[instrument(skip(auth_headers), err)]
+#[instrument(skip(hasura_transaction), err)]
 async fn get_publication_json(
-    auth_headers: connection::AuthHeaders,
+    hasura_transaction: &Transaction<'_>,
     tenant_id: String,
     election_event_id: String,
     ballot_publication_id: String,
     election_id: Option<String>,
     limit: Option<usize>,
 ) -> Result<Value> {
-    let ballot_style_strings: Vec<Option<String>> = get_publication_ballot_styles(
-        auth_headers,
-        tenant_id,
-        election_event_id,
-        ballot_publication_id,
+    let ballot_style = get_publication_ballot_styles(
+        &hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &ballot_publication_id,
         limit,
     )
-    .await?
-    .data
-    .with_context(|| "can't find ballot styles")?
-    .sequent_backend_ballot_style
-    .into_iter()
-    .filter(|ballot_style| {
-        election_id
-            .clone()
-            .map(|id| ballot_style.election_id == id)
-            .unwrap_or(true)
-    })
-    .map(|style| style.ballot_eml.clone())
-    .collect();
+    .await?;
+
+    let ballot_style_strings: Vec<Option<String>> = ballot_style
+        .into_iter()
+        .filter(|ballot_style| {
+            election_id
+                .clone()
+                .map(|id| ballot_style.election_id == id)
+                .unwrap_or(true)
+        })
+        .map(|style| style.ballot_eml.clone())
+        .collect();
 
     let val_arr: Vec<Value> = ballot_style_strings
         .iter()
@@ -310,51 +300,57 @@ pub struct PublicationDiff {
 
 #[instrument(err)]
 pub async fn get_ballot_publication_diff(
+    hasura_transaction: &Transaction<'_>,
     tenant_id: String,
     election_event_id: String,
     ballot_publication_id: String,
     limit: Option<usize>,
 ) -> Result<PublicationDiff> {
-    let auth_headers = get_client_credentials().await?;
-
     let ballot_publication = get_ballot_publication_by_id(
-        auth_headers.clone(),
-        tenant_id.clone(),
-        election_event_id.clone(),
-        ballot_publication_id.clone(),
+        &hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &ballot_publication_id,
     )
-    .await?;
+    .await
+    .unwrap()
+    .with_context(|| "Can't find ballot publication")?;
 
-    let previous_publication_id_opt =
-        if let Some(election_id) = ballot_publication.election_id.clone() {
-            let previous_publication_data = &get_previous_publication_election(
-                auth_headers.clone(),
-                tenant_id.clone(),
-                election_event_id.clone(),
-                ballot_publication.created_at.clone(),
-                election_id,
+    let previous_publication_id = if let Some(election_id) = ballot_publication.election_id.clone()
+    {
+        get_previous_publication_election(
+            &hasura_transaction,
+            &tenant_id,
+            &election_event_id,
+            ballot_publication.created_at.clone(),
+            &election_id,
+        )
+        .await?
+        .map(|pub_data| pub_data.id)
+        .ok_or_else(|| {
+            anyhow!(
+                "Can't find ballot publication for election id {}",
+                election_id
             )
-            .await?
-            .data
-            .with_context(|| "can't find ballot publication")?
-            .sequent_backend_ballot_publication;
-            previous_publication_data.get(0).map(|val| val.id.clone())
-        } else {
-            let previous_publication_data = &get_previous_publication(
-                auth_headers.clone(),
-                tenant_id.clone(),
-                election_event_id.clone(),
-                ballot_publication.created_at.clone(),
-            )
-            .await?
-            .data
-            .with_context(|| "can't find ballot publication")?
-            .sequent_backend_ballot_publication;
-            previous_publication_data.get(0).map(|val| val.id.clone())
-        };
+        })
+        .with_context(|| "Error retrieving previous ballot publication for election")
+        .ok()
+    } else {
+        get_previous_publication(
+            &hasura_transaction,
+            &tenant_id,
+            &election_event_id,
+            ballot_publication.created_at.clone(),
+        )
+        .await?
+        .map(|pub_data| pub_data.id)
+        .ok_or_else(|| anyhow!("Can't find ballot publication"))
+        .with_context(|| "Error retrieving previous ballot publication")
+        .ok()
+    };
 
     let current_json = get_publication_json(
-        auth_headers.clone(),
+        &hasura_transaction,
         tenant_id.clone(),
         election_event_id.clone(),
         ballot_publication.id.clone(),
@@ -368,9 +364,9 @@ pub async fn get_ballot_publication_diff(
         ballot_styles: current_json,
     };
 
-    let previous = if let Some(previous_publication_id) = previous_publication_id_opt {
+    let previous = if let Some(previous_publication_id) = previous_publication_id {
         let previous_json = get_publication_json(
-            auth_headers.clone(),
+            &hasura_transaction,
             tenant_id.clone(),
             election_event_id.clone(),
             previous_publication_id.clone(),
