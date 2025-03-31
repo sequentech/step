@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 name: E2E Tests
-
 on:
   workflow_dispatch:
     inputs:
@@ -28,7 +27,10 @@ on:
 
 jobs:
   e2e:
-    runs-on: ubuntu-latest
+    runs-on:
+      - runs-on=${{ github.run_id }}
+      - runner=2cpu-linux-x64
+      - image=ubuntu24-full-x64
     strategy:
       matrix:
         include:
