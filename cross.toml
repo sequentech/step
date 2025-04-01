@@ -1,4 +1,3 @@
-
 [target.x86_64-apple-darwin]
 image = "messense/osxcross:latest"
 

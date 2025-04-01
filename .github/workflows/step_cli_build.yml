@@ -51,11 +51,11 @@ jobs:
       - name: Add Rust targets
         run: rustup target add ${{ matrix.target }}
 
-      - name: Set up Cross.toml for macOS targets
-        if: contains(matrix.target, 'apple-darwin')
-        run: |
-          echo "[target.${{ matrix.target }}]" >> Cross.toml
-          echo "image = \"messense/osxcross:latest\"" >> Cross.toml
+      # - name: Set up Cross.toml for macOS targets
+      #   if: contains(matrix.target, 'apple-darwin')
+      #   run: |
+      #     echo "[target.${{ matrix.target }}]" >> Cross.toml
+      #     echo "image = \"messense/osxcross:latest\"" >> Cross.toml
 
       - name: Build STEP CLI using cross
         working-directory: packages/step-cli
