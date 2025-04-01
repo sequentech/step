@@ -66,12 +66,15 @@ jobs:
               println!("Hello from minimal CLI!");
           }' > packages/step-cli-minimal/src/main.rs
 
-                - name: Build minimal CLI
-        # We can explicitly set the cargo target dir to "rust-local-target"
-        # if that's how your workspace is configured. Otherwise, it defaults to "target/"
-          run: |
-            cd packages/step-cli-minimal
-            cargo build --release
+      - name: Build minimal CLI
+        working-directory: packages/step-cli-minimal
+        run: cargo build --release
+  
+      - name: List all files (debugging)
+        run: ls -lR packages/step-cli-minimal
+
+
+       
 
       # - name: Build STEP CLI using cross
       #   working-directory: packages/step-cli
