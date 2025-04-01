@@ -8,7 +8,7 @@ on:
   # pull_request:
   push:
     # branches: [ 'main', 'release/[0-9]+.[0-9]+' ]
-    branches: [ 'feat/meta-6843/main' ]
+    branches: [ 'feat/meta-6483/main' ]
   release:
     types: [published]
 # Run it also in a release but only if it a release add the result as an artifcat
