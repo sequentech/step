@@ -26,10 +26,10 @@ jobs:
           - target: aarch64-unknown-linux-musl
             arch: arm64
           # # Windows targets (GNU)
-          - target: x86_64-pc-windows-gnu
-            arch: amd64
-          - target: aarch64-pc-windows-gnu
-            arch: arm64
+          # - target: x86_64-pc-windows-gnu
+          #   arch: amd64
+          # - target: aarch64-pc-windows-msvc
+          #   arch: arm64
           # macOS targets.
           - target: x86_64-apple-darwin
             arch: amd64
