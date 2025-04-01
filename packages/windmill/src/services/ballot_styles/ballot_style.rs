@@ -37,7 +37,6 @@ use std::collections::{HashMap, HashSet};
 use std::time::Duration as StdDuration;
 use tracing::{event, info, instrument, Level};
 use uuid::Uuid;
-
 /**
  * Returns a HashMap<election_id, set<contest_id>> with all
  * the election ids and contest ids related to an area,
@@ -316,43 +315,61 @@ pub async fn update_election_event_ballot_s3_files(
     election_event_id: &str,
     ballot_publication_id: &str,
 ) -> Result<()> {
-    let ballot_style_vec = get_ballot_styles_by_ballot_publication_by_id(
+    let ballot_style = get_ballot_styles_by_ballot_publication_by_id(
         hasura_transaction,
         tenant_id,
         election_event_id,
         ballot_publication_id,
-    ).await
-    .map_err(|e| {
-        format!(
-            "Error getting ballot styles for election event {election_event_id} and ballot publication {ballot_publication_id}: {e:?}"
-        )
-    })?;
+    )
+    .await?;
 
-    info!("ballot_style_vec len: {}", ballot_style_vec.len());
-    let ballot_style = ballot_style_vec.into_iter().next().unwrap(); // TODO: fix this
     let area_id = ballot_style
         .area_id
         .as_deref()
         .ok_or("No area_id found".to_string())?;
 
-    let ballot_style_json = serde_json::to_string(&ballot_style)
+    let ballot_style_data = serde_json::to_string(&ballot_style)
         .map_err(|err| format!("Error serializing ballot style to json: {err:?}"))?;
 
     let s3_bucket =
         s3::get_private_bucket().map_err(|e| format!("Missing bucket, error: {e:?}"))?;
 
-    // WIP - Upload ballot_style file
+    // Upload ballot_style file
+    let ballot_style_path = s3::get_public_ballot_style_file_path(
+        tenant_id,
+        election_event_id,
+        area_id,
+        ballot_publication_id,
+        &ballot_style.election_id,
+    );
+    upload_data_to_s3_with_retry(ballot_style_data, ballot_style_path, s3_bucket.clone()).await?;
+
+    // Upload Election Event file
+    // s3::get_public_election_event_file_path
+    // id
+    // presentation
+    // status
+
+    // WIP - Upload...
+    // s3::get_public_elections_file_path
+
+    // WIP - Replace
+    // s3::get_public_ballot_publications_file_path
+
+    Ok(())
+}
+
+#[instrument(skip(data), err)]
+pub async fn upload_data_to_s3_with_retry(
+    data: String,
+    path: String,
+    s3_bucket: String,
+) -> Result<()> {
     retry_with_exponential_backoff(
         || async {
             s3::upload_data_to_s3(
-                ballot_style_json.clone().into_bytes().into(),
-                s3::get_public_ballot_style_file_path(
-                    tenant_id,
-                    election_event_id,
-                    area_id,
-                    ballot_publication_id,
-                    &ballot_style.election_id,
-                ),
+                data.clone().into_bytes().into(),
+                path.clone(),
                 true,
                 s3_bucket.clone(),
                 "text/plain".to_string(),
@@ -366,12 +383,5 @@ pub async fn update_election_event_ballot_s3_files(
     )
     .await
     .map_err(|err| format!("Error uploading input document to S3, trying 3 times: {err:?}"))?;
-
-    // WIP - Upload 2 more files
-    // s3::get_public_election_event_file_path
-    // s3::get_public_elections_file_path
-
-    // WIP - Replace s3::get_public_ballot_publications_file_path
-
     Ok(())
 }
