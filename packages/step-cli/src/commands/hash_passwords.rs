@@ -8,11 +8,11 @@ use clap::Args;
 use csv::{ReaderBuilder, StringRecord, WriterBuilder};
 use rand::thread_rng;
 use rand::Rng;
+use rayon::prelude::*;
 use ring::{digest, pbkdf2};
 use std::fs::File;
 use std::io::{BufReader, BufWriter};
 use std::num::NonZeroU32;
-use rayon::prelude::*;
 
 const CREDENTIAL_LEN: usize = digest::SHA256_OUTPUT_LEN;
 pub type Credential = [u8; CREDENTIAL_LEN];
@@ -67,33 +67,38 @@ impl HashPasswords {
 
         let records: Vec<StringRecord> = rdr.records().collect::<Result<Vec<_>, _>>()?;
 
-         let processed_records: Vec<anyhow::Result<StringRecord>> = records
-         .par_iter()
-         .map(|record| {
-             let password = record.get(password_index).unwrap_or("");
-             let mut salt_bytes: Credential = Default::default();
-             thread_rng().fill(&mut salt_bytes);
-             let password_salt = BASE64_STANDARD.encode(&salt_bytes);
-             let hashed_password =
-                 hash_password(&password.to_string(), &salt_bytes, &self.iterations)?;
-             let new_fields: Vec<&str> = record
-                 .iter()
-                 .enumerate()
-                 .filter_map(|(i, field)| if i != password_index { Some(field) } else { None })
-                 .collect();
-             let mut new_record = StringRecord::from(new_fields);
-             new_record.push_field(&password_salt);
-             new_record.push_field(&hashed_password);
-             new_record.push_field(&self.iterations.to_string());
-             Ok(new_record)
-         })
-         .collect();
+        let processed_records: Vec<anyhow::Result<StringRecord>> = records
+            .par_iter()
+            .map(|record| {
+                let password = record.get(password_index).unwrap_or("");
+                let mut salt_bytes: Credential = Default::default();
+                thread_rng().fill(&mut salt_bytes);
+                let password_salt = BASE64_STANDARD.encode(&salt_bytes);
+                let hashed_password =
+                    hash_password(&password.to_string(), &salt_bytes, &self.iterations)?;
+                let new_fields: Vec<&str> = record
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(i, field)| {
+                        if i != password_index {
+                            Some(field)
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
+                let mut new_record = StringRecord::from(new_fields);
+                new_record.push_field(&password_salt);
+                new_record.push_field(&hashed_password);
+                new_record.push_field(&self.iterations.to_string());
+                Ok(new_record)
+            })
+            .collect();
 
-     for record in processed_records {
-         let record = record?;
-         wtr.write_record(&record)?;
-     }
-
+        for record in processed_records {
+            let record = record?;
+            wtr.write_record(&record)?;
+        }
 
         wtr.flush()?;
         Ok(())

@@ -5,10 +5,9 @@
 name: Build Step CLI Binary
 
 on:
-  # pull_request:
+  pull_request:
   push:
-    # branches: [ 'main', 'release/[0-9]+.[0-9]+' ]
-    branches: [ 'feat/meta-6483/main' ]
+    branches: [ 'main', 'release/[0-9]+.[0-9]+' ]
   release:
     types: [published]
 
