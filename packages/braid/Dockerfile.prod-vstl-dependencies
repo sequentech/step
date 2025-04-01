@@ -32,6 +32,7 @@ COPY ./windmill/Cargo.toml ./windmill/Cargo.toml
 COPY ./e2e/Cargo.toml ./e2e/Cargo.toml
 COPY ./e2e/src/mock_server/Cargo.toml ./e2e/src/mock_server/Cargo.toml
 COPY ./step-cli/Cargo.toml ./step-cli/Cargo.toml
+COPY ./sms-sender/Cargo.toml  ./sms-sender/Cargo.toml
 COPY ./wrap-map-err/Cargo.toml ./wrap-map-err/Cargo.toml
 COPY ./braid/scripts/Cargo.toml ./braid/scripts/Cargo.toml
 COPY ./orare/Cargo.toml ./orare/Cargo.toml
