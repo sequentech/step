@@ -26,6 +26,22 @@ services:
       # as a data source. this can be removed/updated based on your needs
       PG_DATABASE_URL: ${HASURA_PG_DATABASE_URL}
 
+
+  localstack: # LocalStack container
+    profiles: ["full"]
+    container_name: localstack
+    image: sequentech.local/localstack
+    build:
+      context: ./localstack
+      dockerfile: Dockerfile
+    ports:
+      - "127.0.0.1:4566:4566"            # LocalStack Gateway
+      - "127.0.0.1:4510-4559:4510-4559"  # external services port range
+    environment:
+      DEBUG: "1"
+      SERVICES: "sns,ses"
+      SNS_SES_SENDER_ADDRESS: "no-reply@sequent.vote"
+
   simplesaml:
     profiles: ["full"]
     image: kenchan0130/simplesamlphp
@@ -267,6 +283,9 @@ services:
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
     environment:
+      AWS_ENDPOINT_URL: "http://localstack:4566"
+      #override endpoint only for sns
+      #AWS_ENDPOINT_URL_SNS: "http://localstack:4566"
       AMQP_ADDR: ${AMQP_ADDR}
       KC_HOSTNAME: ${KC_HOSTNAME}
       KC_HOSTNAME_STRICT: ${KC_HOSTNAME_STRICT}
@@ -312,9 +331,9 @@ services:
       --spi-email-sender-provider=dummy
       --spi-email-sender-dummy-enabled=true
       --spi-email-sender-default-enabled=false
-      --spi-sms-sender-provider=dummy
-      --spi-sms-sender-dummy-enabled=true
-      --spi-sms-sender-aws-enabled=false
+      --spi-sms-sender-provider=aws
+      --spi-sms-sender-dummy-enabled=false
+      --spi-sms-sender-aws-enabled=true
       --import-realm
     depends_on:
       postgres-keycloak:
