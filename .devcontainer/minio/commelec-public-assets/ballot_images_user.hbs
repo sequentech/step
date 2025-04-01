@@ -1,0 +1,266 @@
+{{let "qr_height" 250 }}
+{{let "qr_width" 250 }}
+  {{#with data}}
+<div class="content">      
+      {{#each ballot_data}}
+        {{let "ballot_index" @index}}
+          {{#with contest_choices.0}}
+            <div class="ballot">
+              <div class="inner-ballot">
+                <div class="ballot-data">
+                <div class="header">
+                      <div class="left">
+                        <div class='row'>
+                          <div class="qr-code" id="qrcode-0-{{ballot_index}}"></div>
+                            <img
+                              class="commissioner-logo.jpg image-url"
+                              alt="Electoral Commission Logo"
+                            />
+                          <div>
+                            <p class="election-name">{{../../election_name}}</p>
+                            <p class="election-name">{{../../area}}</p>
+                          </div>
+                        </div>
+                        <div>
+                        <p class="instructions-header">INSTRUCTIONS FOR VOTING</p>
+                        <ol>
+                            <li><div class="instruction" >Mark the inside of the circle <span><input type="checkbox" class="check-mark" checked disabled/></span>beside the name of the desired candidate.</div></li>
+                            <li>Only use the Marking pen provided to mark the circles.</li>
+                            <li>Do not mark more circles than what is intended.</li>
+                        </ol>
+                      </div>
+                    </div>
+                    <div class="right">
+                        <img
+                          class="printing-office-logo.jpg image-url circle"
+                        />
+                        <div>
+                          <div class="election-info">
+                              <span>Clustered Precinct ID:</span>
+                              <span>{{../../election_annotations.pollcenter_code}}</span>
+                          </div>
+                          <div class="election-info">
+                              <span>Precincts in Cluster:</span>
+                              <p class="election-info">{{../../election_annotations.clustered_precint_id}}</p>
+                          </div>
+                        </div>
+                    <div class="signature">Signature of Chairman</div>
+                  </div>
+                </div>
+                <div class="ballot-content">
+                    <div class="section">
+                        <div class="section-title green">
+                          {{sanitize_html this.contest.name}}
+                          <br>
+                          (Bumoto ng hindi hihigit sa 12)
+                        </div>
+                        
+                        <div class="candidates">
+                            {{#each this.decoded_choices}}
+                                <div class="candidate">
+                                  <div>
+                                    {{#if (gte this.choice.selected 0)}}
+                                        <input type="checkbox" class="check-mark" checked disabled/>
+                                    {{else}}
+                                        <input type="checkbox" class="check-mark" disabled/>
+                                    {{/if}}
+                                    <span class="candidate-name">{{this.candidate.name}}</span>
+                                  </div>
+                                </div>
+                            {{/each}}
+                        </div>
+                    </div>
+                </div>
+                <div class="footer">
+                        <img
+                          class="printing-office-logo.jpg image-url circle"
+                        />
+                    <div>
+                    FOR PARTY LIST CANDIDATES, CHECK THE BACK OF THIS BALLOT<br>
+                    Para sa mga kandidato ng Party List, tingnan ang likod ng balotang ito
+                    <br>
+                    <p>Page 1 of 2</p>
+                    </div>
+                    <div style="font-size: 2px; color:black;">THIS IS A SAMPLE MICROTEXT TO BE USED FOR LABORATORY TEST</div>
+                </div>
+                </div>
+            </div>
+            </div>
+          {{/with}}
+          {{#if contest_choices.1}}
+          {{#with contest_choices.1}}
+            <div class="ballot">
+              <div class="inner-ballot">
+                <div class="ballot-data">
+                <div class="header">
+                      <div class="left">
+                        <div class='row'>
+                          <div class="qr-code" id="qrcode-1-{{ballot_index}}"></div>
+                          <img
+                            class="commissioner-logo.jpg image-url"
+                            alt="Electoral Commission Logo"
+                          />
+                          <div>
+                            <p class="election-name">{{../../election_name}}</p>
+                            <p class="election-name">{{../../area}}</p>
+                          </div>
+                        </div>
+                        <div>
+                          <p class="instructions-header">PARAAN NG PAGBOTO</p>
+                          <ol>
+                              <li><div class="instruction" >Markahan ang loob ng bilog <span><input type="checkbox" class="check-mark" checked disabled/></span>sa tabi ng nais ibotong kandidato.</div></li>
+                              <li>Gamitin lamang ang marking pen na ibinigay para sa pagmarka ng mga bilog.</li>
+                              <li>Huwag markahan ng hihigit sa dapat.</li>
+                          </ol>
+                        </div>
+                    </div>
+                    <div class="right">
+                        <img
+                          class="comelec-2025-logo.jpg image-url" 
+                        />
+                        <div>
+                          <div class="election-info">
+                              <span>Clustered Precinct ID:</span>
+                              <span>{{../../election_annotations.pollcenter_code}}</span>
+                          </div>
+                          <div class="election-info">
+                              <span>Precincts in Cluster:</span>
+                              <p class="election-info">{{../../election_annotations.clustered_precint_id}}</p>
+                          </div>
+                        </div>
+                  </div>
+                </div>
+                <div class="ballot-content ">
+                    <div class="section">
+                        <div class="section-title green">
+                          {{sanitize_html this.contest.name}}
+                          <br>
+                          (Bumoto ng hindi hihigit sa 1)
+                        </div>
+                        <div class="candidates">
+                            {{#each this.decoded_choices}}
+                                <div class="candidate">
+                                  <div>
+                                    {{#if (gte this.choice.selected 0)}}
+                                        <input type="checkbox" class="check-mark" checked disabled/>
+                                    {{else}}
+                                        <input type="checkbox" class="check-mark" disabled/>
+                                    {{/if}}
+                                    <span class="candidate-name">{{this.candidate.name}}</span>
+                                    </div>
+                                </div>
+                            {{/each}}
+                        </div>
+                    </div>
+                </div>
+                <div class="footer">
+                        <img
+                          src="printing-office-logo.jpg image-url"
+                        />
+                    <div>
+                    FOR PARTY LIST CANDIDATES, CHECK THE BACK OF THIS BALLOT<br>
+                    Para sa mga kandidato ng Party List, tingnan ang likod ng balotang ito
+                    <br>
+                    <p>Page 2 of 2</p>
+                    </div>
+                    <div class="circle" style="opacity: 0;"></div>
+                </div>
+                </div>
+            </div>
+            </div>
+          {{/with}}
+          {{/if}}
+          <div class="summary-page next-page">
+            <div>
+              <div class="summary-title">BALLOT ID</div>
+              <p class="summary-content summary-text">{{this.id}}</p>
+            </div>
+            <div>
+              <div class="summary-title">ABSTENTION</div> 
+                {{#if this.is_blank}}
+                  <p class="summary-content summary-text">1</p>
+                {{else}}
+                  <p class="summary-content summary-text">0</p>
+                {{/if}}
+            </div>
+            <div>
+              <div class="summary-title">UNDER VOTE COUNT PER POSITION</div>
+              <div class="summary-content">
+                {{#each this.contest_choices}}
+                <div class="summary-text">{{contest.name}}: {{undervotes}}</div>
+                {{/each}}
+              </div>
+            </div>
+            <div>
+              <div class="summary-title">OVER VOTE COUNT PER POSITION</div>
+              <div class="summary-content">
+                {{#each this.contest_choices}}
+                <div class="summary-text">{{contest.name}}: {{overvotes}}</div>
+                {{/each}}
+              </div>
+            </div>
+            <div>
+              <div class="summary-title">CANDIDATE VOTED PER POSITION</div>
+              <div class="summary-content summary-candidates-section">
+                {{#each this.contest_choices}}
+                  <div class="summary-title">{{contest.name}}</div>
+                  {{#each decoded_choices}}
+                    {{#if (gte this.choice.selected 0)}}
+                      <div class="summary-inner-content summary-text">{{this.candidate.name}}</div>
+                    {{/if}}
+                  {{/each}}
+                  {{#if (gte undervotes 1)}}
+                  <div class="summary-inner-content summary-text">{{undervotes}} UNDER VOTE/S</div>
+                  {{/if}}
+                {{/each}}
+              </div>
+            </div>
+          </div>
+      {{/each}}
+    </div>
+  {{/with}}
+  <script>
+ window.onload = function () {
+      const ballotData = {{{to_json data.ballot_data}}};
+      const eventId = '{{expr data.ballot_data.0.contest_choices.0.contest.election_event_id}}';
+      const electionId = '{{expr data.ballot_data.0.contest_choices.0.contest.election_id}}';
+      const precientId = '{{expr data.election_annotations.clustered_precint_id}}';
+
+      ballotData.forEach((ballot, index) => {
+          let ballotId = `${ballot.id}`; 
+          ballot.contest_choices.forEach((contest, contest_index) => {
+            let pageNumber = `${contest.page_number}`; 
+            const qrcodeDiv = document.getElementById(`qrcode-${contest_index}-${index}`);
+            let qrText = `${contest.sign_data}:${contest.digital_signature}`;
+            let qrHeight = parseInt({{qr_height}}, 10);
+            let qrWidth = qrHeight = parseInt({{qr_width}}, 10);
+
+            new QRCode(qrcodeDiv, {
+              text: qrText,
+              width: qrWidth,
+              height: qrHeight,
+              colorDark: "#000000",
+              colorLight: "#ffffff",
+              correctLevel: QRCode.CorrectLevel.H,
+            });
+          });
+        }
+      );
+  };
+
+  document.addEventListener("DOMContentLoaded", () => {
+      const baseUrl = fileQrCodeLibUrl;
+      
+      document.querySelectorAll('.image-url').forEach(img => {
+          const filename = img.className.split(/\s+/)[0];
+
+          if (!filename) return; // Skip if no additional class
+
+          const imageUrl = `${baseUrl}/../${filename}`;
+          if (imageUrl) {
+              img.src = imageUrl;
+              img.alt = imageUrl;
+          }
+      });
+  });
+</script>

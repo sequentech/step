@@ -1,0 +1,144 @@
+{
+    "election_event_title": "General Election 2024",
+    "execution_annotations": {
+        "date_printed": "2024-10-09T14:30:00-04:00",
+        "report_hash": "a1b2c3d4e5",
+        "app_version": "1.0.0",
+        "app_hash": "z9y8x7w6v5",
+        "software_version": "1.0.0",
+        "executer_username":"User"
+    },
+    "overall_total": {
+        "total_male_landbased": 20,
+        "total_female_landbased": 22,
+        "total_landbased": 42,
+        "total_voted_male_landbased": 12,
+        "total_voted_female_landbased": 17,
+        "total_voted_landbased": 29,
+        "percentage_male_landbased": 60,
+        "percentage_female_landbased": 77.27,
+        "percentage_landbased": 69.04,
+        "total_male_seafarer": 10,
+        "total_female_seafarer": 5,
+        "total_seafarer": 15,
+        "total_voted_male_seafarer": 4,
+        "total_voted_female_seafarer": 3,
+        "total_voted_seafarer": 7,
+        "percentage_male_seafarer": 40,
+        "percentage_female_seafarer": 60,
+        "percentage_seafarer": 46.66,
+        "percentage_male": 53.33,
+        "percentage_female": 74.07,
+        "percentage_total": 63
+    },
+    "elections": [
+        {
+            "election_name": "General Election 2024",
+            "election_dates": {
+                "first_started_at": "2024-11-08T00:00:00Z",
+                "last_started_at": "2024-11-08T12:00:00Z",
+                "first_paused_at": "2024-11-08T13:00:00Z",
+                "last_paused_at": "2024-11-08T14:00:00Z",
+                "first_stopped_at": "2024-11-08T15:00:00Z",
+                "last_stopped_at": "2024-11-08T15:00:00Z",
+                "scheduled_event_dates": {
+                    "ALLOW_INIT_REPORT": {
+                        "scheduled_at": "2024-11-08T10:00:00Z",
+                        "stopped_at": "-"
+                    },
+                    "ALLOW_VOTING_PERIOD_END": {
+                        "scheduled_at": "2024-11-08T14:30:00Z",
+                        "stopped_at": "-"
+                    },
+                    "START_VOTING_PERIOD": {
+                        "scheduled_at": "2024-11-08T11:00:00Z",
+                        "stopped_at": "-"
+                    },
+                    "END_VOTING_PERIOD": {
+                        "scheduled_at": "2024-11-08T11:30:00Z",
+                        "stopped_at": "-"
+                    },
+                    "START_ENROLLMENT_PERIOD": {
+                        "scheduled_at": "2024-11-08T12:00:00Z",
+                        "stopped_at": "-"
+                    },
+                    "END_ENROLLMENT_PERIOD": {
+                        "scheduled_at": "2024-11-08T12:30:00Z",
+                        "stopped_at": "-"
+                    },
+                    "START_LOCKDOWN_PERIOD": {
+                        "scheduled_at": "2024-11-08T13:00:00Z",
+                        "stopped_at": "-"
+                    },
+                    "END_LOCKDOWN_PERIOD": {
+                        "scheduled_at": "2024-11-08T13:30:00Z",
+                        "stopped_at": "-"
+                    }
+                }
+            },
+            "election_annotations": {
+                "geographical_region": "Asia/Pacific",
+                "post": "Bangkok PE",
+                "voting_center": "Bankok",
+                "precinct_code": "BKK-PE-001"
+            }
+        }
+    ],
+    "regions": [
+        {
+            "geographical_region": "Asia/Pacific",
+            "posts": [
+                {
+                    "post": "New York PE",
+                    "area_name": "United States",
+                    "stats": {
+                        "total_male_landbased": 20,
+                        "total_female_landbased": 22,
+                        "total_landbased": 42,
+                        "total_voted_male_landbased": 12,
+                        "total_voted_female_landbased": 17,
+                        "total_voted_landbased": 29,
+                        "percentage_male_landbased": 60,
+                        "percentage_female_landbased": 77.27,
+                        "percentage_landbased": 69.04,
+                        "total_male_seafarer": 10,
+                        "total_female_seafarer": 5,
+                        "total_seafarer": 15,
+                        "total_voted_male_seafarer": 4,
+                        "total_voted_female_seafarer": 3,
+                        "total_voted_seafarer": 7,
+                        "percentage_male_seafarer": 40,
+                        "percentage_female_seafarer": 60,
+                        "percentage_seafarer": 46.66,
+                        "percentage_male": 53.33,
+                        "percentage_female": 74.07,
+                        "percentage_total": 63
+                    }
+                }
+            ],
+            "stats": {
+                "total_male_landbased": 20,
+                "total_female_landbased": 22,
+                "total_landbased": 42,
+                "total_voted_male_landbased": 12,
+                "total_voted_female_landbased": 17,
+                "total_voted_landbased": 29,
+                "percentage_male_landbased": 60,
+                "percentage_female_landbased": 77.27,
+                "percentage_landbased": 69.04,
+                "total_male_seafarer": 10,
+                "total_female_seafarer": 5,
+                "total_seafarer": 15,
+                "total_voted_male_seafarer": 4,
+                "total_voted_female_seafarer": 3,
+                "total_voted_seafarer": 7,
+                "percentage_male_seafarer": 40,
+                "percentage_female_seafarer": 60,
+                "percentage_seafarer": 46.66,
+                "percentage_male": 53.33,
+                "percentage_female": 74.07,
+                "percentage_total": 63
+            }
+        }
+    ]
+}
