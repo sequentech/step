@@ -34,3 +34,4 @@ export {default as SelectElection} from "./components/SelectElection/SelectElect
 export {default as Tree} from "./components/Tree/Tree"
 export {NotFoundScreen} from "./components/NotFoundScreen"
 export {default as BlankAnswer} from "./components/BlankAnswer/BlankAnswer"
+export {default as CustomAutocompleteArrayInput} from "./components/CustomAutocompleteArrayInput/CustomAutocompleteArrayInput"

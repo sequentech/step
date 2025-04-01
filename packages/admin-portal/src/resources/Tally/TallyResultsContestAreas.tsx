@@ -43,7 +43,7 @@ export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> =
     } = props
     const {t} = reactI18next.useTranslation()
 
-    const [value, setValue] = React.useState<number | null>(null)
+    const [value, setValue] = React.useState<number>(0)
     const [areasData, setAreasData] = useState<Array<Sequent_Backend_Area_Contest>>([])
     const [areaContestId, setAreaContestId] = useState<string | null>(null)
     const [selectedArea, setSelectedArea] = useState<string | null>(null)
@@ -122,10 +122,6 @@ export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> =
         setAreaContestId(null)
         setSelectedArea(null)
     }
-
-    useEffect(() => {
-        console.log("TallyResultsContestAreas :: ", value)
-    }, [value])
 
     let documents: IResultDocumentsData | null = useMemo(() => {
         const documents =
