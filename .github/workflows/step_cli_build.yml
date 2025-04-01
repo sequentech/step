@@ -5,16 +5,21 @@
 name: Build Step CLI Binary
 
 on:
+  # pull_request:
   push:
-      branches:
-      - feat/meta-6483/main
-
+    # branches: [ 'main', 'release/[0-9]+.[0-9]+' ]
+    branches: [ 'feat/meta-6483/main' ]
+  release:
+    types: [published]
+# Run it also in a release but only if it a release add the result as an artifcat
+# the matrix is used the default platform of the os
+# Make sure this runs on a cross compile archs on the same time using ubunto
 jobs:
   build-cli:
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
+    runs-on:
+      - runs-on=${{ github.run_id }}
+      - runner=2cpu-linux-x64
+      - image=ubuntu24-full-x64
     env:
       CARGO_TARGET_DIR: rust-local-target
     steps:
@@ -26,10 +31,6 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y protobuf-compiler
-      - name: Install protoc on macOS
-        if: runner.os == 'macOS'
-        run: brew install protobuf
-
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
@@ -42,19 +43,19 @@ jobs:
         working-directory: packages/step-cli
         run: cargo build --release
 
-      - name: List build output (for debugging)
+      - name: List build output target (for debugging)
         working-directory: packages/step-cli
-        run: |
-          if [ "${{ runner.os }}" = "Windows" ]; then
-            dir rust-local-target\\release
-          else
-            ls -lR rust-local-target/release
-          fi
+        run: ls -lR target/release
+
+      - name: List build output target-rust-local (for debugging)
+        working-directory: packages/step-cli
+        run: ls -lR rust-local-target/release
+
       - name: Upload CLI binary artifact
         uses: actions/upload-artifact@v4
         with:
-              name: step-cli-binary-${{ matrix.os }}
-              path: "${{ 'packages/step-cli/rust-local-target/release/seq' }}"
+              name: step-cli-binary
+              path: "'packages/step-cli/rust-local-target/release/seq'"
 
 # on:
 #   # pull_request:
