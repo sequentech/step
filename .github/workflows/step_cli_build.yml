@@ -26,10 +26,10 @@ jobs:
           - target: aarch64-unknown-linux-musl
             arch: arm64
           # # Windows targets (GNU)
-          # - target: x86_64-pc-windows-gnu
-          #   arch: amd64
-          # - target: aarch64-pc-windows-gnu
-          #   arch: arm64
+          - target: x86_64-pc-windows-gnu
+            arch: amd64
+          - target: aarch64-pc-windows-gnu
+            arch: arm64
           # macOS targets.
           - target: x86_64-apple-darwin
             arch: amd64
@@ -51,9 +51,31 @@ jobs:
       - name: Install cross
         run: cargo install cross
 
-      - name: Build STEP CLI using cross
-        working-directory: packages/step-cli
-        run: cross build --release --target ${{ matrix.target }}
+      - name: Create a minimal "Hello World" crate
+        run: |
+          mkdir -p packages/step-cli-minimal/src
+          echo '[package]
+          name = "step-cli-minimal"
+          version = "0.1.0"
+          edition = "2021"
+
+          [dependencies]
+          ' > packages/step-cli-minimal/Cargo.toml
+
+                    echo 'fn main() {
+              println!("Hello from minimal CLI!");
+          }' > packages/step-cli-minimal/src/main.rs
+
+                - name: Build minimal CLI
+        # We can explicitly set the cargo target dir to "rust-local-target"
+        # if that's how your workspace is configured. Otherwise, it defaults to "target/"
+          run: |
+            cd packages/step-cli-minimal
+            cargo build --release
+
+      # - name: Build STEP CLI using cross
+      #   working-directory: packages/step-cli
+      #   run: cross build --release --target ${{ matrix.target }}
 
       # - name: List build output (for debugging)
       #   working-directory: packages/step-cli
@@ -62,5 +84,5 @@ jobs:
       - name: Upload CLI binary artifact
         uses: actions/upload-artifact@v4
         with:
-          name: step-cli-${{ matrix.arch }}-${{ matrix.target }}
-          path: packages/step-cli/target/${{ matrix.target }}/release/seq*
+          name: step-cli-minimal-${{ matrix.arch }}-${{ matrix.target }}
+          path: packages/step-cli-minimal/target/release/step-cli-minimal
