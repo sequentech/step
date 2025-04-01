@@ -9,7 +9,6 @@ on:
     types: [published]
   push:
     branches: [ feat/meta-6483/main ]
-  pull_request:
 
 jobs:
   build:
