@@ -5,59 +5,111 @@
 name: Build Step CLI Binary
 
 on:
-  # pull_request:
   push:
-    # branches: [ 'main', 'release/[0-9]+.[0-9]+' ]
-    branches: [ 'feat/meta-6483/main' ]
-  release:
-    types: [published]
-# Run it also in a release but only if it a release add the result as an artifcat
-# the matrix is used the default platform of the os
-# Make sure this runs on a cross compile archs on the same time using ubunto
+      branches:
+      - feat/meta-6483/main
+
 jobs:
   build-cli:
-    runs-on:
-      - runs-on=${{ github.run_id }}
-      - runner=2cpu-linux-x64
-      - image=ubuntu24-full-x64
     strategy:
       matrix:
-        target: [ "x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu" ]
-
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     env:
       CARGO_TARGET_DIR: rust-local-target
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Install dependencies for cross-compiling
+      - name: Install protoc on Linux
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu
           sudo apt-get install -y protobuf-compiler
+      - name: Install protoc on macOS
+        if: runner.os == 'macOS'
+        run: brew install protobuf
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-            profile: minimal
-            toolchain: nightly
-            components: rustfmt
-            override: true
-
-      - name: Configure Cargo for aarch64 linker
-          # We only need to set the linker for the 'aarch64-unknown-linux-gnu' target
-        if: matrix.target == 'aarch64-unknown-linux-gnu'
-        run: |
-            mkdir -p .cargo
-            echo '[target.aarch64-unknown-linux-gnu]' >> .cargo/config.toml
-            echo 'linker = "aarch64-linux-gnu-gcc"' >> .cargo/config.toml
+          profile: minimal
+          toolchain: nightly
+          components: rustfmt
+          override: true
 
       - name: Build step-cli
         working-directory: packages/step-cli
-        run: cargo build --release --target ${{ matrix.target }}
+        run: cargo build --release
 
+      - name: List build output (for debugging)
+        working-directory: packages/step-cli
+        run: |
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            dir rust-local-target\\release
+          else
+            ls -lR rust-local-target/release
+          fi
       - name: Upload CLI binary artifact
         uses: actions/upload-artifact@v4
         with:
-          name: step-cli-${{ matrix.target }}
-          path: rust-local-target/${{ matrix.target }}/release/seq
+              name: step-cli-binary-${{ matrix.os }}
+              path: "${{ 'packages/step-cli/rust-local-target/release/seq' }}"
+
+# on:
+#   # pull_request:
+#   push:
+#     # branches: [ 'main', 'release/[0-9]+.[0-9]+' ]
+#     branches: [ 'feat/meta-6483/main' ]
+#   release:
+#     types: [published]
+# # Run it also in a release but only if it a release add the result as an artifcat
+# # the matrix is used the default platform of the os
+# # Make sure this runs on a cross compile archs on the same time using ubunto
+# jobs:
+#   build-cli:
+#     runs-on:
+#       - runs-on=${{ github.run_id }}
+#       - runner=2cpu-linux-x64
+#       - image=ubuntu24-full-x64
+#     strategy:
+#       matrix:
+#         target: [ "x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu" ]
+
+#     env:
+#       CARGO_TARGET_DIR: rust-local-target
+#     steps:
+#       - name: Check out repository
+#         uses: actions/checkout@v4
+
+#       - name: Install dependencies for cross-compiling
+#         run: |
+#           sudo apt-get update
+#           sudo apt-get install -y gcc-aarch64-linux-gnu
+#           sudo apt-get install -y protobuf-compiler
+
+#       - name: Install Rust
+#         uses: actions-rs/toolchain@v1
+#         with:
+#             profile: minimal
+#             toolchain: nightly
+#             components: rustfmt
+#             override: true
+
+#       - name: Configure Cargo for aarch64 linker
+#           # We only need to set the linker for the 'aarch64-unknown-linux-gnu' target
+#         if: matrix.target == 'aarch64-unknown-linux-gnu'
+#         run: |
+#             mkdir -p .cargo
+#             echo '[target.aarch64-unknown-linux-gnu]' >> .cargo/config.toml
+#             echo 'linker = "aarch64-linux-gnu-gcc"' >> .cargo/config.toml
+
+#       - name: Build step-cli
+#         working-directory: packages/step-cli
+#         run: cargo build --release --target ${{ matrix.target }}
+
+#       - name: Upload CLI binary artifact
+#         uses: actions/upload-artifact@v4
+#         with:
+#           name: step-cli-${{ matrix.target }}
+#           path: rust-local-target/${{ matrix.target }}/release/seq
