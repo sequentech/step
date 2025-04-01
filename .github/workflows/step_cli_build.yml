@@ -2,70 +2,50 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-name: Build Multiplatform STEP CLI with Cross
+name: Build Step CLI Binary
 
 on:
+  # pull_request:
+  push:
+    # branches: [ 'main', 'release/[0-9]+.[0-9]+' ]
+    branches: [ 'feat/meta-6843/main' ]
   release:
     types: [published]
-  push:
-    branches: [ feat/meta-6483/main ]
-
+# Run it also in a release but only if it a release add the result as an artifcat
+# the matrix is used the default platform of the os
+# Make sure this runs on a cross compile archs on the same time using ubunto
 jobs:
-  build:
+  build-cli:
     runs-on:
       - runs-on=${{ github.run_id }}
       - runner=2cpu-linux-x64
       - image=ubuntu24-full-x64
-    strategy:
-      matrix:
-        include:
-          - target: x86_64-unknown-linux-musl
-            arch: amd64
-          - target: aarch64-unknown-linux-musl
-            arch: arm64
-          - target: x86_64-pc-windows-gnu
-            arch: amd64
-          - target: aarch64-pc-windows-msvc
-            arch: arm64
-          - target: x86_64-apple-darwin
-            arch: amd64
-          - target: aarch64-apple-darwin
-            arch: arm64
     env:
       CARGO_TARGET_DIR: rust-local-target
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Install Rust toolchain
+      - name: Install protoc on Linux
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler
+
+      - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable
           profile: minimal
+          toolchain: nightly
+          components: rustfmt
           override: true
 
-      - name: Install cross
-        run: cargo install cross
-
-      - name: Add Rust targets
-        run: rustup target add ${{ matrix.target }}
-
-      - name: Set up Cross.toml for macOS targets
-        if: contains(matrix.target, 'apple-darwin')
-        run: |
-          echo "[target.${{ matrix.target }}]" >> Cross.toml
-          echo "image = "messense/osxcross:latest" >> Cross.toml
-
-      - name: Build STEP CLI using cross
+      - name: Build step-cli
         working-directory: packages/step-cli
-        run: cross build --release --target ${{ matrix.target }}
-
-      # - name: List build output (for debugging)
-      #   working-directory: packages/step-cli
-      #   run: ls -lR rust-local-target/${{ matrix.target }}/release
+        run: cargo build --release
 
       - name: Upload CLI binary artifact
         uses: actions/upload-artifact@v4
         with:
-          name: step-cli-${{ matrix.arch }}-${{ matrix.target }}
-          path: rust-local-target/${{ matrix.target }}/release/seq
+              name: step-cli-binary
+              path: "'packages/step-cli/rust-local-target/release/seq'"

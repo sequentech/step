@@ -8101,6 +8101,7 @@ dependencies = [
  "hex",
  "immudb-rs",
  "rand 0.8.5",
+ "rayon",
  "reqwest 0.12.7",
  "ring 0.17.8",
  "sequent-core",
