@@ -44,12 +44,15 @@ jobs:
           targets: ${{ matrix.target }}
           toolchain: stable
 
+      - name: Add Rust target
+        run: rustup target add ${{ matrix.target }}
+
       - name: Build step-cli
         working-directory: packages/step-cli
-        run: cargo build --release
+        run: cargo build --release --target ${{ matrix.target }}
 
       - name: Upload CLI binary artifact
         uses: actions/upload-artifact@v4
         with:
-              name: step-cli-binary
-              path: "'packages/step-cli/rust-local-target/release/seq'"
+          name: step-cli-${{ matrix.target }}
+          path: rust-local-target/${{ matrix.target }}/release/seq
