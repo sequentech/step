@@ -8,7 +8,7 @@ on:
   release:
     types: [published]
   push:
-    branches: [ main ]
+    branches: [ feat/meta-6483/main ]
   pull_request:
 
 jobs:
