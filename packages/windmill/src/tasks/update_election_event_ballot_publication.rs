@@ -12,6 +12,7 @@ use crate::hasura::election_event::get_election_event_helper;
 use crate::hasura::election_event::update_election_event_status;
 use crate::postgres::ballot_publication::get_ballot_publication_by_id;
 use crate::postgres::election::update_election_status;
+use crate::postgres::election_event::get_election_event_by_id;
 use crate::services::ballot_styles::ballot_style;
 use crate::services::database::get_hasura_pool;
 use crate::services::election_event_board::get_election_event_board;
@@ -100,12 +101,16 @@ pub async fn update_election_event_ballot_publication(
         .await?;
     }
 
+    let election_event =
+        get_election_event_by_id(&hasura_transaction, &tenant_id, &election_event_id).await?;
+
     // WIP
     ballot_style::update_election_event_ballot_s3_files(
         &hasura_transaction,
         &tenant_id,
         &election_event_id,
         &ballot_publication_id,
+        &election_event,
     )
     .await?;
 
@@ -116,13 +121,6 @@ pub async fn update_election_event_ballot_publication(
         ballot_publication_id.clone(),
         true,
         Some(ISO8601::now()),
-    )
-    .await?;
-
-    let election_event = get_election_event_helper(
-        auth_headers.clone(),
-        tenant_id.clone(),
-        election_event_id.clone(),
     )
     .await?;
 

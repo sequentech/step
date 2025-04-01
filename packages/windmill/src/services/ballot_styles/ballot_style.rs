@@ -12,7 +12,7 @@ use crate::postgres::ballot_style::{
 };
 use crate::postgres::candidate::export_candidates;
 use crate::postgres::contest::export_contests;
-use crate::postgres::election::export_elections;
+use crate::postgres::election::{export_elections, get_election_by_id};
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::keys_ceremony::get_keys_ceremonies;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
@@ -308,14 +308,26 @@ pub async fn get_ballot_styles_for_authorized_elections(
     todo!()
 }
 
+/// Uploads the files: elections.json, election-event.json, ballot-publications.json and ballot-style-election-{election_id}.json.
+///
+/// Only tenant-{tenant_id}/event-{election_event_id}/area-{area_id}/ballot-publications.json gets overwritten,
+/// all other files will land into a directory path under tenant-{tenant_id}/event-{election_event_id}/area-{area_id}/publication-{ballot_publication_id}/,
+/// like ballot-style-election-{election_id}.json, so a new file is added for every publication and area.
 #[instrument(err)]
 pub async fn update_election_event_ballot_s3_files(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
     ballot_publication_id: &str,
+    election_event: &ElectionEvent,
 ) -> Result<()> {
-    let ballot_style = get_ballot_styles_by_ballot_publication_by_id(
+    let s3_bucket =
+        s3::get_private_bucket().map_err(|e| format!("Missing bucket, error: {e:?}"))?;
+
+    let election_event_data = serde_json::to_string(&election_event)
+        .map_err(|err| format!("Error serializing ballot style to json: {err:?}"))?;
+
+    let ballot_styles = get_ballot_styles_by_ballot_publication_by_id(
         hasura_transaction,
         tenant_id,
         election_event_id,
@@ -323,55 +335,93 @@ pub async fn update_election_event_ballot_s3_files(
     )
     .await?;
 
-    let area_id = ballot_style
-        .area_id
-        .as_deref()
-        .ok_or("No area_id found".to_string())?;
+    let mut areas = HashSet::new();
+    let mut election_ids = HashSet::new();
 
-    let ballot_style_data = serde_json::to_string(&ballot_style)
+    // Upload ballot_style files and prepare the areas and election_ids
+    for ballot_style in &ballot_styles {
+        let area_id = ballot_style
+            .area_id
+            .as_deref()
+            .ok_or("No area_id found".to_string())?;
+        let election_id = &ballot_style.election_id;
+        areas.insert(area_id.to_string());
+        election_ids.insert(election_id.to_string());
+
+        let ballot_style_data = serde_json::to_string(ballot_style)
+            .map_err(|err| format!("Error serializing ballot style to json: {err:?}"))?;
+
+        let ballot_style_path = s3::get_public_ballot_style_file_path(
+            tenant_id,
+            election_event_id,
+            area_id,
+            ballot_publication_id,
+            election_id,
+        );
+        upload_data_to_s3_with_retry(&ballot_style_data, &ballot_style_path, &s3_bucket).await?;
+    }
+
+    let mut elections: Vec<Election> = vec![];
+    for election_id in &election_ids {
+        let election = get_election_by_id(
+            &hasura_transaction,
+            tenant_id,
+            election_event_id,
+            election_id,
+        )
+        .await?
+        .ok_or(anyhow!("can't find election: {election_id}"))?;
+        elections.push(election);
+    }
+
+    let elections_data = serde_json::to_string(&elections)
         .map_err(|err| format!("Error serializing ballot style to json: {err:?}"))?;
 
-    let s3_bucket =
-        s3::get_private_bucket().map_err(|e| format!("Missing bucket, error: {e:?}"))?;
+    // Get all the ballot publications
+    let ballot_publications_data = "".to_string(); // TODO: get_ballot_publication_by_id
 
-    // Upload ballot_style file
-    let ballot_style_path = s3::get_public_ballot_style_file_path(
-        tenant_id,
-        election_event_id,
-        area_id,
-        ballot_publication_id,
-        &ballot_style.election_id,
-    );
-    upload_data_to_s3_with_retry(ballot_style_data, ballot_style_path, s3_bucket.clone()).await?;
+    for area_id in &areas {
+        let election_event_path = s3::get_public_election_event_file_path(
+            tenant_id,
+            election_event_id,
+            area_id,
+            ballot_publication_id,
+        );
+        upload_data_to_s3_with_retry(&election_event_data, &election_event_path, &s3_bucket)
+            .await?;
 
-    // Upload Election Event file
-    // s3::get_public_election_event_file_path
-    // id
-    // presentation
-    // status
+        // Upload elections data:
+        let elections_file_path = s3::get_public_elections_file_path(
+            tenant_id,
+            election_event_id,
+            area_id,
+            ballot_publication_id,
+        );
+        upload_data_to_s3_with_retry(&elections_data, &elections_file_path, &s3_bucket).await?;
 
-    // WIP - Upload...
-    // s3::get_public_elections_file_path
-
-    // WIP - Replace
-    // s3::get_public_ballot_publications_file_path
+        // Upload ballot publications file or replace it if it exists.
+        let ballot_publications_file_path =
+            s3::get_public_ballot_publications_file_path(tenant_id, election_event_id, area_id);
+        upload_data_to_s3_with_retry(
+            &ballot_publications_data,
+            &ballot_publications_file_path,
+            &s3_bucket,
+        )
+        .await?;
+    }
 
     Ok(())
 }
 
 #[instrument(skip(data), err)]
-pub async fn upload_data_to_s3_with_retry(
-    data: String,
-    path: String,
-    s3_bucket: String,
-) -> Result<()> {
+pub async fn upload_data_to_s3_with_retry(data: &str, path: &str, s3_bucket: &str) -> Result<()> {
     retry_with_exponential_backoff(
         || async {
             s3::upload_data_to_s3(
-                data.clone().into_bytes().into(),
-                path.clone(),
+                data.to_string().into_bytes().into(),
+                path.to_string(),
                 true,
-                s3_bucket.clone(),
+                s3_bucket.to_string(),
                 "text/plain".to_string(),
                 None,
                 None,

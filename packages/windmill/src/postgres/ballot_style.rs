@@ -154,7 +154,7 @@ pub async fn get_ballot_styles_by_ballot_publication_by_id(
     tenant_id: &str,
     election_event_id: &str,
     ballot_publication_id: &str,
-) -> Result<BallotStyle> {
+) -> Result<Vec<BallotStyle>> {
     let query: tokio_postgres::Statement = hasura_transaction
         .prepare(
             r#"
@@ -190,12 +190,7 @@ pub async fn get_ballot_styles_by_ballot_publication_by_id(
         })
         .collect::<Result<Vec<BallotStyle>>>()?;
 
-    // Only one BallotStyle is expected
-    match results.len() {
-        1 => Ok(results[0].clone()),
-        0 => Err(anyhow!("No ballot styles found")),
-        _ => Err(anyhow!("Multiple ballot styles found")),
-    }
+    Ok(results)
 }
 
 #[instrument(skip(hasura_transaction), err)]
