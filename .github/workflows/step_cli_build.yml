@@ -20,25 +20,29 @@ jobs:
       - runs-on=${{ github.run_id }}
       - runner=2cpu-linux-x64
       - image=ubuntu24-full-x64
+    strategy:
+      matrix:
+        target: [ "x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu" ]
+
     env:
       CARGO_TARGET_DIR: rust-local-target
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Install protoc on Linux
-        if: runner.os == 'Linux'
+      - name: Install dependencies for cross-compiling
         run: |
           sudo apt-get update
+          # For cross-compiling to aarch64
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+          # If you need protoc for your project
           sudo apt-get install -y protobuf-compiler
 
       - name: Install Rust
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@master
         with:
-          profile: minimal
-          toolchain: nightly
-          components: rustfmt
-          override: true
+          targets: ${{ matrix.target }}
+          toolchain: stable
 
       - name: Build step-cli
         working-directory: packages/step-cli
