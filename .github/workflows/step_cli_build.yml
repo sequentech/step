@@ -54,17 +54,19 @@ jobs:
       - name: Create a minimal "Hello World" crate
         run: |
           mkdir -p packages/step-cli-minimal/src
-          echo '[package]
+          cat > packages/step-cli-minimal/Cargo.toml <<EOF
+          [package]
           name = "step-cli-minimal"
           version = "0.1.0"
           edition = "2021"
-
           [dependencies]
-          ' > packages/step-cli-minimal/Cargo.toml
-
-                    echo 'fn main() {
+          [workspace]
+          EOF
+          cat > packages/step-cli-minimal/src/main.rs <<EOF
+          fn main() {
               println!("Hello from minimal CLI!");
-          }' > packages/step-cli-minimal/src/main.rs
+          }
+          EOF
 
       - name: Build minimal CLI
         working-directory: packages/step-cli-minimal
