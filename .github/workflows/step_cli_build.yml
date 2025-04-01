@@ -20,17 +20,14 @@ jobs:
     strategy:
       matrix:
         include:
-          # Linux targets using musl for static linking.
           - target: x86_64-unknown-linux-musl
             arch: amd64
           - target: aarch64-unknown-linux-musl
             arch: arm64
-          # # Windows targets (GNU)
-          # - target: x86_64-pc-windows-gnu
-          #   arch: amd64
-          # - target: aarch64-pc-windows-msvc
-          #   arch: arm64
-          # macOS targets.
+          - target: x86_64-pc-windows-gnu
+            arch: amd64
+          - target: aarch64-pc-windows-msvc
+            arch: arm64
           - target: x86_64-apple-darwin
             arch: amd64
           - target: aarch64-apple-darwin
@@ -51,43 +48,25 @@ jobs:
       - name: Install cross
         run: cargo install cross
 
-      # - name: Create a minimal "Hello World" crate
-      #   run: |
-      #     mkdir -p packages/step-cli-minimal/src
-      #     cat > packages/step-cli-minimal/Cargo.toml <<EOF
-      #     [package]
-      #     name = "step-cli-minimal"
-      #     version = "0.1.0"
-      #     edition = "2021"
-      #     [dependencies]
-      #     [workspace]
-      #     EOF
-      #     cat > packages/step-cli-minimal/src/main.rs <<EOF
-      #     fn main() {
-      #         println!("Hello from minimal CLI!");
-      #     }
-      #     EOF
+      - name: Add Rust targets
+        run: rustup target add ${{ matrix.target }}
 
-      # - name: Build minimal CLI
-      #   working-directory: packages/step-cli-minimal
-      #   run: cargo build --release
-  
-      # - name: List all files (debugging)
-      #   run: ls -lR packages/step-cli-minimal
-
-
-       
+      - name: Set up Cross.toml for macOS targets
+        if: contains(matrix.target, 'apple-darwin')
+        run: |
+          echo "[target.${{ matrix.target }}]" >> Cross.toml
+          echo "image = \"messense/osxcross:latest\"" >> Cross.toml
 
       - name: Build STEP CLI using cross
         working-directory: packages/step-cli
         run: cross build --release --target ${{ matrix.target }}
 
-      - name: List build output (for debugging)
-        working-directory: packages/step-cli
-        run: ls -lR target/${{ matrix.target }}/release
+      # - name: List build output (for debugging)
+      #   working-directory: packages/step-cli
+      #   run: ls -lR rust-local-target/${{ matrix.target }}/release
 
       - name: Upload CLI binary artifact
         uses: actions/upload-artifact@v4
         with:
-          name: step-cli-minimal-${{ matrix.arch }}-${{ matrix.target }}
-          path: packages/step-cli/target/release/seq
+          name: step-cli-${{ matrix.arch }}-${{ matrix.target }}
+          path: rust-local-target/${{ matrix.target }}/release/seq
