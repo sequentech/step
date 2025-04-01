@@ -51,43 +51,43 @@ jobs:
       - name: Install cross
         run: cargo install cross
 
-      - name: Create a minimal "Hello World" crate
-        run: |
-          mkdir -p packages/step-cli-minimal/src
-          cat > packages/step-cli-minimal/Cargo.toml <<EOF
-          [package]
-          name = "step-cli-minimal"
-          version = "0.1.0"
-          edition = "2021"
-          [dependencies]
-          [workspace]
-          EOF
-          cat > packages/step-cli-minimal/src/main.rs <<EOF
-          fn main() {
-              println!("Hello from minimal CLI!");
-          }
-          EOF
+      # - name: Create a minimal "Hello World" crate
+      #   run: |
+      #     mkdir -p packages/step-cli-minimal/src
+      #     cat > packages/step-cli-minimal/Cargo.toml <<EOF
+      #     [package]
+      #     name = "step-cli-minimal"
+      #     version = "0.1.0"
+      #     edition = "2021"
+      #     [dependencies]
+      #     [workspace]
+      #     EOF
+      #     cat > packages/step-cli-minimal/src/main.rs <<EOF
+      #     fn main() {
+      #         println!("Hello from minimal CLI!");
+      #     }
+      #     EOF
 
-      - name: Build minimal CLI
-        working-directory: packages/step-cli-minimal
-        run: cargo build --release
+      # - name: Build minimal CLI
+      #   working-directory: packages/step-cli-minimal
+      #   run: cargo build --release
   
-      - name: List all files (debugging)
-        run: ls -lR packages/step-cli-minimal
+      # - name: List all files (debugging)
+      #   run: ls -lR packages/step-cli-minimal
 
 
        
 
-      # - name: Build STEP CLI using cross
-      #   working-directory: packages/step-cli
-      #   run: cross build --release --target ${{ matrix.target }}
+      - name: Build STEP CLI using cross
+        working-directory: packages/step-cli
+        run: cross build --release --target ${{ matrix.target }}
 
-      # - name: List build output (for debugging)
-      #   working-directory: packages/step-cli
-      #   run: ls -lR target/${{ matrix.target }}/release
+      - name: List build output (for debugging)
+        working-directory: packages/step-cli
+        run: ls -lR target/${{ matrix.target }}/release
 
       - name: Upload CLI binary artifact
         uses: actions/upload-artifact@v4
         with:
           name: step-cli-minimal-${{ matrix.arch }}-${{ matrix.target }}
-          path: packages/step-cli-minimal/target/release/step-cli-minimal
+          path: packages/step-cli/target/release/seq
