@@ -43,10 +43,6 @@ jobs:
         working-directory: packages/step-cli
         run: cargo build --release
 
-      - name: List build output target (for debugging)
-        working-directory: packages/step-cli
-        run: ls -lR target/release
-
       - name: List build output target-rust-local (for debugging)
         working-directory: packages/step-cli
         run: ls -lR rust-local-target/release
