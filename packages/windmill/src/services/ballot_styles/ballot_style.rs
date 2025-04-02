@@ -5,7 +5,7 @@
 use crate::postgres::area::get_event_areas;
 use crate::postgres::area_contest::export_area_contests;
 use crate::postgres::ballot_publication::{
-    get_ballot_publication_by_id, update_ballot_publication_status,
+    get_ballot_publication, get_ballot_publication_by_id, update_ballot_publication_status,
 };
 use crate::postgres::ballot_style::{
     get_ballot_styles_by_ballot_publication_by_id, insert_ballot_style,
@@ -308,12 +308,12 @@ pub async fn get_ballot_styles_for_authorized_elections(
     todo!()
 }
 
-/// Uploads the files: elections.json, election-event.json, ballot-publications.json and ballot-style-election-{election_id}.json.
+/// Upload the files of this ublication id into the public bucket under the base_path "tenant-{tenant_id}/event-{election_event_id}/area-{area_id}"
+/// elections.json, election-event.json, ballot-publications.json and ballot-style-election-{election_id}.json.
 ///
-/// Only tenant-{tenant_id}/event-{election_event_id}/area-{area_id}/ballot-publications.json gets overwritten,
-/// all other files will land into a directory path under tenant-{tenant_id}/event-{election_event_id}/area-{area_id}/publication-{ballot_publication_id}/,
-/// like ballot-style-election-{election_id}.json, so a new file is added for every publication and area.
-#[instrument(err)]
+/// Only ballot-publications.json gets overwritten.
+/// All other files will land under {base_path}/publication-{ballot_publication_id}, so a new file is added at every publication.
+#[instrument(skip(hasura_transaction, election_event), err)]
 pub async fn update_election_event_ballot_s3_files(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -321,11 +321,7 @@ pub async fn update_election_event_ballot_s3_files(
     ballot_publication_id: &str,
     election_event: &ElectionEvent,
 ) -> Result<()> {
-    let s3_bucket =
-        s3::get_private_bucket().map_err(|e| format!("Missing bucket, error: {e:?}"))?;
-
-    let election_event_data = serde_json::to_string(&election_event)
-        .map_err(|err| format!("Error serializing ballot style to json: {err:?}"))?;
+    let s3_bucket = s3::get_public_bucket()?;
 
     let ballot_styles = get_ballot_styles_by_ballot_publication_by_id(
         hasura_transaction,
@@ -338,7 +334,7 @@ pub async fn update_election_event_ballot_s3_files(
     let mut areas = HashSet::new();
     let mut election_ids = HashSet::new();
 
-    // Upload ballot_style files and prepare the areas and election_ids
+    // Upload ballot_style files and prepare the areas and election_ids to be unique.
     for ballot_style in &ballot_styles {
         let area_id = ballot_style
             .area_id
@@ -358,8 +354,17 @@ pub async fn update_election_event_ballot_s3_files(
             ballot_publication_id,
             election_id,
         );
-        upload_data_to_s3_with_retry(&ballot_style_data, &ballot_style_path, &s3_bucket).await?;
+        upload_ballot_publication_files_to_s3_with_retry(
+            &ballot_style_data,
+            &ballot_style_path,
+            &s3_bucket,
+        )
+        .await?;
     }
+
+    // Prepare the files to upload for each area.
+    let election_event_data = serde_json::to_string(&election_event)
+        .map_err(|err| format!("Error serializing election event to json: {err:?}"))?;
 
     let mut elections: Vec<Election> = vec![];
     for election_id in &election_ids {
@@ -375,10 +380,15 @@ pub async fn update_election_event_ballot_s3_files(
     }
 
     let elections_data = serde_json::to_string(&elections)
-        .map_err(|err| format!("Error serializing ballot style to json: {err:?}"))?;
+        .map_err(|err| format!("Error serializing elections to json: {err:?}"))?;
 
-    // Get all the ballot publications
-    let ballot_publications_data = "".to_string(); // TODO: get_ballot_publication_by_id
+    let ballot_publications: Vec<BallotPublication> =
+        get_ballot_publication(&hasura_transaction, tenant_id, election_event_id)
+            .await
+            .map_err(|e| anyhow!("Error reading ballot publications: {e:?}"))?;
+
+    let ballot_publications_data = serde_json::to_string(&ballot_publications)
+        .map_err(|err| format!("Error serializing ballot publications to json: {err:?}"))?;
 
     for area_id in &areas {
         let election_event_path = s3::get_public_election_event_file_path(
@@ -387,8 +397,12 @@ pub async fn update_election_event_ballot_s3_files(
             area_id,
             ballot_publication_id,
         );
-        upload_data_to_s3_with_retry(&election_event_data, &election_event_path, &s3_bucket)
-            .await?;
+        upload_ballot_publication_files_to_s3_with_retry(
+            &election_event_data,
+            &election_event_path,
+            &s3_bucket,
+        )
+        .await?;
 
         // Upload elections data:
         let elections_file_path = s3::get_public_elections_file_path(
@@ -397,12 +411,17 @@ pub async fn update_election_event_ballot_s3_files(
             area_id,
             ballot_publication_id,
         );
-        upload_data_to_s3_with_retry(&elections_data, &elections_file_path, &s3_bucket).await?;
+        upload_ballot_publication_files_to_s3_with_retry(
+            &elections_data,
+            &elections_file_path,
+            &s3_bucket,
+        )
+        .await?;
 
         // Upload ballot publications file or replace it if it exists.
         let ballot_publications_file_path =
             s3::get_public_ballot_publications_file_path(tenant_id, election_event_id, area_id);
-        upload_data_to_s3_with_retry(
+        upload_ballot_publication_files_to_s3_with_retry(
             &ballot_publications_data,
             &ballot_publications_file_path,
             &s3_bucket,
@@ -414,13 +433,17 @@ pub async fn update_election_event_ballot_s3_files(
 }
 
 #[instrument(skip(data), err)]
-pub async fn upload_data_to_s3_with_retry(data: &str, path: &str, s3_bucket: &str) -> Result<()> {
+pub async fn upload_ballot_publication_files_to_s3_with_retry(
+    data: &str,
+    path: &str,
+    s3_bucket: &str,
+) -> Result<()> {
     retry_with_exponential_backoff(
         || async {
             s3::upload_data_to_s3(
                 data.to_string().into_bytes().into(),
                 path.to_string(),
-                true,
+                false, // False because it's windmill uploading, not a public interface
                 s3_bucket.to_string(),
                 "text/plain".to_string(),
                 None,
