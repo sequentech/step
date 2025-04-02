@@ -34,6 +34,9 @@ public class AwsSmsSenderProvider implements SmsSenderProvider {
         "AWS.SNS.SMS.SMSType",
         MessageAttributeValue.builder().stringValue("Transactional").dataType("String").build());
 
+    log.infov("AWS_ENDPOINT_URL: {0}", System.getenv("AWS_ENDPOINT_URL"));
+    log.infov("AWS_ENDPOINT_URL_SNS: {0}", System.getenv("AWS_ENDPOINT_URL_SNS"));
+
     try {
       PublishResponse result =
           sns.publish(

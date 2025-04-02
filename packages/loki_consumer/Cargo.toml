@@ -9,8 +9,12 @@ edition = "2021"
 # Async runtime
 tokio = { version = "1", features = ["full"] }
 
-# HTTP client library
-reqwest = { version = "0.12", features = ["json"] } # Added "json" feature
+# WebSocket client library (replaces reqwest for tailing)
+# Make sure to enable the necessary TLS features if using wss://
+tokio-tungstenite = { version = "0.23", features = ["native-tls-vendored"] } # Or "rustls-tls-native-roots" or "rustls-tls-webpki-roots"
+
+# Async stream utilities
+futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
 
 # Serialization/Deserialization framework
 serde = { version = "1.0", features = ["derive"] }

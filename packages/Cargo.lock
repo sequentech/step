@@ -4799,11 +4799,12 @@ name = "loki_consumer"
 version = "0.1.0"
 dependencies = [
  "chrono",
- "reqwest 0.12.7",
+ "futures-util",
  "serde",
  "serde_json",
  "thiserror 1.0.69",
  "tokio",
+ "tokio-tungstenite 0.23.1",
  "url",
 ]
 
@@ -5372,6 +5373,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ff011a302c396a5197692431fc1948019154afc178baf7d8e37367442a4601cf"
 
 [[package]]
+name = "openssl-src"
+version = "300.4.2+3.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "168ce4e058f975fe43e89d9ccf78ca668601887ae736090aacc23ae353c298e2"
+dependencies = [
+ "cc",
+]
+
+[[package]]
 name = "openssl-sys"
 version = "0.9.104"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5379,6 +5389,7 @@ checksum = "45abf306cbf99debc8195b66b7346498d7b10c210de50418b5ccd7ceba08c741"
 dependencies = [
  "cc",
  "libc",
+ "openssl-src",
  "pkg-config",
  "vcpkg",
 ]
@@ -8002,6 +8013,7 @@ dependencies = [
  "serde_urlencoded",
  "thiserror 1.0.69",
  "tokio",
+ "tower-http",
  "tracing",
  "tracing-subscriber",
  "uuid",
@@ -8803,6 +8815,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "tokio-tungstenite"
+version = "0.23.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c6989540ced10490aaf14e6bad2e3d33728a2813310a0c71d1574304c49631cd"
+dependencies = [
+ "futures-util",
+ "log",
+ "native-tls",
+ "tokio",
+ "tokio-native-tls",
+ "tungstenite 0.23.0",
+]
+
+[[package]]
 name = "tokio-util"
 version = "0.7.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8973,6 +8999,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "tower-http"
+version = "0.5.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1e9cd434a998747dd2c4276bc96ee2e0c7a2eadf3cae88e52be55a05fa9053f5"
+dependencies = [
+ "bitflags 2.6.0",
+ "bytes",
+ "http 1.2.0",
+ "http-body 1.0.1",
+ "http-body-util",
+ "pin-project-lite",
+ "tower-layer",
+ "tower-service",
+ "tracing",
+]
+
+[[package]]
 name = "tower-layer"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9121,6 +9164,25 @@ dependencies = [
  "sha1",
  "thiserror 1.0.69",
  "url",
+ "utf-8",
+]
+
+[[package]]
+name = "tungstenite"
+version = "0.23.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6e2e2ce1e47ed2994fd43b04c8f618008d4cabdd5ee34027cf14f9d918edd9c8"
+dependencies = [
+ "byteorder",
+ "bytes",
+ "data-encoding",
+ "http 1.2.0",
+ "httparse",
+ "log",
+ "native-tls",
+ "rand 0.8.5",
+ "sha1",
+ "thiserror 1.0.69",
  "utf-8",
 ]
 
@@ -9480,7 +9542,7 @@ dependencies = [
  "serde_json",
  "serde_urlencoded",
  "tokio",
- "tokio-tungstenite",
+ "tokio-tungstenite 0.21.0",
  "tokio-util",
  "tower-service",
  "tracing",
