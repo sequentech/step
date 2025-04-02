@@ -360,6 +360,10 @@ impl TemplateRenderer for AuditLogsTemplate {
         offset: &mut i64,
         limit: i64,
     ) -> Result<Self::UserData> {
+        info!(
+            "Preparing data of audit logs report with {} {} ",
+            &offset, &limit
+        );
         let mut user_data = self
             .prepare_user_data_common(hasura_transaction, keycloak_transaction)
             .await?;
@@ -458,28 +462,34 @@ impl TemplateRenderer for AuditLogsTemplate {
         let area_ids: Vec<String> = election_areas.into_iter().map(|area| area.id).collect();
 
         let mut sequences: Vec<AuditLogEntry> = Vec::new();
-        let mut logs_visited: i64 = 0;
-        while sequences.len() < limit as usize {
-            let electoral_logs_batch = list_electoral_log(GetElectoralLogBody {
-                tenant_id: String::from(&self.get_tenant_id()),
-                election_event_id: String::from(&self.ids.election_event_id),
-                limit: Some(limit),
-                offset: Some(*offset),
+        let mut current_offset = *offset;
+
+        loop {
+            let input = GetElectoralLogBody {
+                tenant_id: self.ids.tenant_id.clone(),
+                election_event_id: self.ids.election_event_id.clone(),
+                limit: Some(limit), // request up to the full limit each time
+                offset: Some(current_offset),
                 filter: None,
                 order_by: None,
+                election_id: Some(election_id.clone()),
                 area_ids: Some(area_ids.clone()),
                 only_with_user: Some(true),
-                election_id: Some(election_id.clone()),
-            })
-            .await
-            .with_context(|| "Error in fetching list of electoral logs")?;
-            if electoral_logs_batch.items.len() == 0 {
+            };
+
+            let electoral_logs_batch = list_electoral_log(input)
+                .await
+                .with_context(|| "Error fetching electoral logs")?;
+            let batch_size = electoral_logs_batch.items.len();
+            if batch_size == 0 {
+                // No more logs available.
                 break;
             }
 
-            for item in &electoral_logs_batch.items {
-                logs_visited += 1;
-                // Discard the log entries that are not related to this election
+            // Process each returned log.
+            for item in electoral_logs_batch.items {
+                // With filtering applied in the SQL, these should all be relevant,
+                // but we still tag them as Admin or Voter.
                 let userkind = match &item.user_id {
                     Some(user_id) if election_batch_admin_ids.contains(user_id) => {
                         "Admin".to_string()
@@ -487,38 +497,16 @@ impl TemplateRenderer for AuditLogsTemplate {
                     Some(user_id) if election_batch_voters_ids.contains(user_id) => {
                         "Voter".to_string()
                     }
-                    Some(_) => continue, // Some user_id not belonging to this election
-                    None => continue,    // There is no user_id, ignore log entry
+                    _ => continue, // skip if it doesn't match expected types
                 };
 
-                let created_datetime: DateTime<Local> = if let Ok(created_datetime_parsed) =
-                    ISO8601::timestamp_secs_utc_to_date_opt(item.created)
-                {
-                    created_datetime_parsed
-                } else {
-                    return Err(anyhow!(
-                        "Invalid item created timestamp: {:?}",
-                        item.created
-                    ));
-                };
-                let formatted_datetime: String = created_datetime.to_rfc3339();
+                let created_datetime = ISO8601::timestamp_secs_utc_to_date_opt(item.created)
+                    .map_err(|_| anyhow!("Invalid created timestamp: {:?}", item.created))?;
+                let formatted_datetime = created_datetime.to_rfc3339();
+                let username = item.username.clone().unwrap_or_else(|| "-".to_string());
 
-                // Set default username if user_id is None
-                let username = item
-                    .username
-                    .clone()
-                    .map(|user| {
-                        if user == "null" {
-                            "-".to_string()
-                        } else {
-                            user
-                        }
-                    })
-                    .unwrap_or_else(|| "-".to_string());
-
-                // Map fields from `ElectoralLogRow` to `AuditLogEntry`
                 let audit_log_entry = AuditLogEntry {
-                    number: item.id, // Increment number for each item
+                    number: item.id,
                     datetime: formatted_datetime,
                     username,
                     userkind,
@@ -527,24 +515,20 @@ impl TemplateRenderer for AuditLogsTemplate {
                         .map(|head| head.description.clone())
                         .unwrap_or("-".to_string()),
                 };
-
-                // Push the constructed `AuditLogEntry` to the sequences array
                 sequences.push(audit_log_entry);
-                if sequences.len() == limit as usize {
+
+                if sequences.len() >= limit as usize {
                     break;
                 }
             }
-            *offset += logs_visited;
 
-            info!("offset {} logs_visited {}", offset, logs_visited);
-            if sequences.len() == limit as usize {
+            current_offset += batch_size as i64;
+            // If we reached the desired number of logs, exit.
+            if sequences.len() >= limit as usize {
                 break;
             }
         }
-        if (sequences.len() as i64) == 0 {
-            // signal no more logs for a new report
-            *offset = -1;
-        }
+
         user_data.sequences = sequences;
 
         Ok(user_data)
@@ -963,9 +947,14 @@ impl TemplateRenderer for AuditLogsTemplate {
             if report.encryption_policy == EReportEncryption::ConfiguredPassword {
                 let secret_key =
                     get_report_secret_key(&tenant_id, &election_event_id, Some(report.id.clone()));
-                let encryption_password = vault::read_secret(secret_key.clone())
-                    .await?
-                    .ok_or_else(|| anyhow!("Encryption password not found"))?;
+                let encryption_password = vault::read_secret(
+                    hasura_transaction,
+                    tenant_id,
+                    Some(election_event_id),
+                    &secret_key,
+                )
+                .await?
+                .ok_or_else(|| anyhow!("Encryption password not found"))?;
 
                 let enc_file: NamedTempFile =
                     generate_temp_file(self.base_name().as_str(), ".epdf")

@@ -3,3 +3,4 @@ openpyxl==3.1.5
 pyzipper==0.3.6
 psycopg2==2.9.10
 python-dotenv==1.0.1
+Faker==13.3.4

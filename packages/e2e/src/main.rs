@@ -5,7 +5,10 @@
 mod services;
 
 use clap::Parser;
-use services::{enrollment::run_enrollment_test, login::run_login_test, voting::run_voting_test};
+use services::{
+    enrollment::run_enrollment_test, login::run_login_test, reports::run_reports_test,
+    voting::run_voting_test,
+};
 
 #[derive(Parser, Debug)]
 #[command(
@@ -33,6 +36,7 @@ fn main() {
         "enrollment" => run_enrollment_test(&args),
         "voting" => run_voting_test(&args),
         "login" => run_login_test(&args),
+        "reports" => run_reports_test(&args),
         _ => {
             eprintln!("Unknown test type: {}", args.test_type);
             std::process::exit(1);

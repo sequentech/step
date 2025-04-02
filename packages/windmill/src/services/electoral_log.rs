@@ -17,6 +17,7 @@ use anyhow::{anyhow, Context, Result};
 use b3::messages::message::{self, Signer as _};
 use base64::engine::general_purpose;
 use base64::Engine;
+use deadpool_postgres::Transaction;
 use electoral_log::assign_value;
 use electoral_log::messages::message::Message;
 use electoral_log::messages::message::SigningData;
@@ -47,8 +48,22 @@ pub struct ElectoralLog {
 
 impl ElectoralLog {
     #[instrument(err, name = "ElectoralLog::new")]
-    pub async fn new(elog_database: &str) -> Result<Self> {
-        let protocol_manager = get_protocol_manager::<RistrettoCtx>(elog_database).await?;
+    pub async fn new(
+        hasura_transaction: &Transaction<'_>,
+        tenant_id: &str,
+        election_event_id_opt: Option<&str>,
+        elog_database: &str,
+    ) -> Result<Self> {
+        let election_event_id =
+            election_event_id_opt.ok_or(anyhow!("Election event id is required"))?;
+
+        let protocol_manager = get_protocol_manager::<RistrettoCtx>(
+            hasura_transaction,
+            tenant_id,
+            Some(election_event_id),
+            elog_database,
+        )
+        .await?;
 
         Ok(ElectoralLog {
             sd: SigningData::new(
@@ -61,8 +76,20 @@ impl ElectoralLog {
     }
 
     #[instrument(skip(sender_sk), err)]
-    pub async fn new_from_sk(elog_database: &str, sender_sk: &StrandSignatureSk) -> Result<Self> {
-        let protocol_manager = get_protocol_manager::<RistrettoCtx>(elog_database).await?;
+    pub async fn new_from_sk(
+        hasura_transaction: &Transaction<'_>,
+        tenant_id: &str,
+        election_event_id: &str,
+        elog_database: &str,
+        sender_sk: &StrandSignatureSk,
+    ) -> Result<Self> {
+        let protocol_manager = get_protocol_manager::<RistrettoCtx>(
+            hasura_transaction,
+            tenant_id,
+            Some(election_event_id),
+            elog_database,
+        )
+        .await?;
         let system_sk = protocol_manager.get_signing_key().clone();
 
         Ok(ElectoralLog {
@@ -81,13 +108,20 @@ impl ElectoralLog {
     /// a signing key.
     #[instrument(skip(voter_signing_key), err)]
     pub async fn for_voter(
+        hasura_transaction: &Transaction<'_>,
         elog_database: &str,
         tenant_id: &str,
         event_id: &str,
         user_id: &str,
         voter_signing_key: &Option<StrandSignatureSk>,
     ) -> Result<Self> {
-        let protocol_manager = get_protocol_manager::<RistrettoCtx>(elog_database).await?;
+        let protocol_manager = get_protocol_manager::<RistrettoCtx>(
+            hasura_transaction,
+            tenant_id,
+            Some(event_id),
+            elog_database,
+        )
+        .await?;
         let system_sk = protocol_manager.get_signing_key().clone();
 
         let sk = voter_signing_key.clone().unwrap_or(system_sk.clone());
@@ -108,17 +142,26 @@ impl ElectoralLog {
     /// a signing key.
     #[instrument(err)]
     pub async fn for_admin_user(
+        hasura_transaction: &Transaction<'_>,
         elog_database: &str,
         tenant_id: &str,
+        election_event_id: &str,
         user_id: &str,
         username: Option<String>,
         elections_ids: Option<String>,
         user_area_id: Option<String>,
     ) -> Result<Self> {
-        let protocol_manager = get_protocol_manager::<RistrettoCtx>(elog_database).await?;
+        let protocol_manager = get_protocol_manager::<RistrettoCtx>(
+            hasura_transaction,
+            tenant_id,
+            Some(election_event_id),
+            elog_database,
+        )
+        .await?;
         let system_sk = protocol_manager.get_signing_key().clone();
 
         let sk = vault::get_admin_user_signing_key(
+            hasura_transaction,
             elog_database,
             tenant_id,
             user_id,
@@ -137,6 +180,7 @@ impl ElectoralLog {
     /// Posts a voter's public key
     #[instrument(err)]
     pub async fn post_voter_pk(
+        hasura_transaction: &Transaction<'_>,
         elog_database: &str,
         tenant_id: &str,
         event_id: &str,
@@ -144,7 +188,13 @@ impl ElectoralLog {
         pk_der_b64: &str,
         area_id: &str,
     ) -> Result<()> {
-        let protocol_manager = get_protocol_manager::<RistrettoCtx>(elog_database).await?;
+        let protocol_manager = get_protocol_manager::<RistrettoCtx>(
+            hasura_transaction,
+            tenant_id,
+            Some(event_id),
+            elog_database,
+        )
+        .await?;
         let system_sk = protocol_manager.get_signing_key().clone();
         let sd = SigningData::new(system_sk.clone(), "", system_sk.clone());
 
@@ -191,6 +241,7 @@ impl ElectoralLog {
     /// be present in its log, even if the corresponding signing private key
     /// would be used in other events.
     pub async fn post_admin_pk(
+        hasura_transaction: &Transaction<'_>,
         elog_database: &str,
         tenant_id: &str,
         user_id: &str,
@@ -199,7 +250,13 @@ impl ElectoralLog {
         elections_ids: Option<String>,
         user_area_id: Option<String>,
     ) -> Result<()> {
-        let protocol_manager = get_protocol_manager::<RistrettoCtx>(elog_database).await?;
+        let protocol_manager = get_protocol_manager::<RistrettoCtx>(
+            hasura_transaction,
+            tenant_id,
+            None,
+            elog_database,
+        )
+        .await?;
         let system_sk = protocol_manager.get_signing_key().clone();
         let sd = SigningData::new(system_sk.clone(), "", system_sk.clone());
 
