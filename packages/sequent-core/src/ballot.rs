@@ -411,6 +411,30 @@ pub enum ContestsOrder {
     Alphabetical,
 }
 
+#[derive(
+    Debug,
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+    Clone,
+    EnumString,
+    Display,
+    Default,
+)]
+pub enum CastVoteGoldLevelPolicy {
+    #[strum(serialize = "gold-level")]
+    #[serde(rename = "gold-level")]
+    GoldLevel,
+    #[strum(serialize = "no-gold-level")]
+    #[serde(rename = "no-gold-level")]
+    #[default]
+    NoGoldLevel,
+}
+
 #[allow(non_camel_case_types)]
 #[derive(
     Debug,
@@ -898,6 +922,7 @@ pub struct ElectionPresentation {
     pub audit_button_cfg: Option<AuditButtonCfg>,
     pub sort_order: Option<i64>,
     pub cast_vote_confirm: Option<bool>,
+    pub cast_vote_gold_level: Option<CastVoteGoldLevelPolicy>,
     pub is_grace_priod: Option<bool>,
     pub grace_period_policy: Option<EGracePeriodPolicy>,
     pub grace_period_secs: Option<u64>,
@@ -934,6 +959,7 @@ impl Default for ElectionPresentation {
             audit_button_cfg: None,
             sort_order: None,
             cast_vote_confirm: None,
+            cast_vote_gold_level: Some(CastVoteGoldLevelPolicy::NoGoldLevel),
             is_grace_priod: None,
             grace_period_policy: None,
             grace_period_secs: None,
