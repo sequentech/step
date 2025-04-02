@@ -7,11 +7,14 @@ edition = "2021"
 
 [dependencies]
 # Async runtime
-tokio = { version = "1", features = ["full"] }
+tokio = { version = "1", features = ["full"] } # "full" enables fs, time, etc.
 
-# WebSocket client library (replaces reqwest for tailing)
+# WebSocket client library
 # Make sure to enable the necessary TLS features if using wss://
 tokio-tungstenite = { version = "0.23", features = ["native-tls-vendored"] } # Or "rustls-tls-native-roots" or "rustls-tls-webpki-roots"
+
+# HTTP client library (for query_range)
+reqwest = { version = "0.12", features = ["json"] }
 
 # Async stream utilities
 futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
