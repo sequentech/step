@@ -57,7 +57,7 @@ enum LokiError {
     WebSocketError(#[from] tokio_tungstenite::tungstenite::Error),
     #[error("HTTP request error: {0}")]
     HttpRequestError(#[from] reqwest::Error),
-    #[error("HTTP API Error: Status={status}, Body={body}")] // FIX: Added specific variant for HTTP errors
+    #[error("HTTP API Error: Status={status}, Body={body}")]
     HttpApiError { status: reqwest::StatusCode, body: String },
     #[error("URL parsing error: {0}")]
     UrlParseError(#[from] url::ParseError),
@@ -194,8 +194,14 @@ async fn fetch_historical_logs(
     print_raw_logs: bool,
     current_last_ts: u64, // The timestamp *before* starting catch-up
 ) -> Result<u64, LokiError> { // Return the updated last timestamp
+    // Avoid query if range is invalid or zero duration
+    if start_ns >= end_ns {
+         println!("Skipping historical fetch: start time {}ns is not before end time {}ns", start_ns, end_ns);
+         return Ok(current_last_ts);
+    }
+
     println!(
-        "Fetching historical logs from {} to {}...",
+        "Fetching historical logs from {}ns to {}ns...",
         start_ns, end_ns
     );
     let mut query_range_url = Url::parse(loki_base_url_str)?;
@@ -205,17 +211,15 @@ async fn fetch_historical_logs(
         .append_pair("query", loki_query)
         .append_pair("start", &start_ns.to_string())
         .append_pair("end", &end_ns.to_string())
-        .append_pair("limit", "5000"); // Adjust limit as needed
+        .append_pair("limit", "5000"); // Adjust limit as needed, max is often server-configured
 
     let response = http_client.get(query_range_url).send().await?;
 
     // Handle HTTP errors from Loki
     if !response.status().is_success() {
         let status = response.status();
-        // Read body text for error reporting *before* potentially consuming response with error_for_status
         let body_text = response.text().await.unwrap_or_else(|_| "Failed to read error body".to_string());
         eprintln!("Error response from query_range: {} - {}", status, body_text);
-        // FIX: Return the specific HttpApiError variant
         return Err(LokiError::HttpApiError { status, body: body_text });
     }
 
@@ -292,7 +296,6 @@ async fn connect_and_listen(
     let last_ts_clone = Arc::clone(&last_processed_ts);
 
     // Spawn a background task for saving state periodically
-    // FIX: Declare save_task as mutable
     let mut save_task = tokio::spawn(async move {
         loop {
             interval_timer.tick().await; // Wait for the next interval
@@ -369,7 +372,6 @@ async fn connect_and_listen(
                }
            }
            // Monitor the save task in case it finishes unexpectedly (e.g., panics)
-           // FIX: Use &mut save_task here (requires save_task to be mutable)
            _ = &mut save_task => {
                 eprintln!("Save state task completed unexpectedly.");
                 // This indicates a problem; return an error to the outer loop
@@ -424,54 +426,51 @@ async fn main() {
      // Use Arc<Mutex> for the timestamp shared between catch-up, websocket, and save tasks
     let last_processed_ts = Arc::new(Mutex::new(initial_timestamp_ns));
 
+    // Create the HTTP client once for potential catch-up calls
+    let http_client = HttpClient::new();
 
-    // --- Perform Historical Catch-up (if applicable) ---
-    let catch_up_start_ns = initial_timestamp_ns.saturating_add(1); // Start query just after last known state
-    let catch_up_end_ns = chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0) as u64;
+    // --- Perform Initial Historical Catch-up (if applicable) ---
+    let catch_up_start_ns_initial = initial_timestamp_ns.saturating_add(1);
+    let catch_up_end_ns_initial = chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0) as u64;
 
-    // Only run catch-up if the loaded state timestamp is meaningfully before the current time
-    if catch_up_start_ns < catch_up_end_ns {
-        println!("Performing historical catch-up...");
-        let http_client = HttpClient::new(); // Create HTTP client for query_range
+    if catch_up_start_ns_initial < catch_up_end_ns_initial {
+        println!("Performing initial historical catch-up...");
         match fetch_historical_logs(
-            &http_client,
+            &http_client, // Pass http client
             &loki_base_url_str,
             &loki_query,
-            catch_up_start_ns, // Start after last known
-            catch_up_end_ns,   // End now
+            catch_up_start_ns_initial,
+            catch_up_end_ns_initial,
             &consumers,
             print_raw_logs,
-            initial_timestamp_ns, // Pass the timestamp known *before* catch-up
+            initial_timestamp_ns,
         ).await {
             Ok(new_last_ts) => {
-                // Update the shared timestamp only if catch-up processed newer logs
                  if new_last_ts > initial_timestamp_ns {
                     let mut ts_guard = last_processed_ts.lock().await;
                     *ts_guard = new_last_ts;
-                    println!("Catch-up complete. Updated last timestamp to: {}", new_last_ts);
+                    println!("Initial catch-up complete. Updated last timestamp to: {}", new_last_ts);
+                    if let Err(e) = save_state(&state_file_path, new_last_ts).await {
+                         eprintln!("Error saving state after initial catch-up: {}", e);
+                    }
                  } else {
-                    println!("Catch-up complete. No new logs found in the historical range.");
-                 }
-                 // Save state immediately after successful catch-up
-                 if let Err(e) = save_state(&state_file_path, new_last_ts).await {
-                     eprintln!("Error saving state after catch-up: {}", e);
+                    println!("Initial catch-up complete. No new logs found.");
                  }
             }
             Err(e) => {
-                eprintln!("Error during historical catch-up: {}. Proceeding without catch-up.", e);
-                // Keep the initial_timestamp_ns in last_processed_ts if catch-up fails
+                eprintln!("Error during initial historical catch-up: {}. Proceeding without catch-up.", e);
             }
         }
         println!("---------------------");
     } else {
-         println!("No historical catch-up needed (state file timestamp is recent).");
+         println!("No initial historical catch-up needed.");
          println!("---------------------");
     }
 
 
     // --- Start Main WebSocket Loop ---
     println!("Starting WebSocket listener...");
-    loop { // Outer loop handles reconnections
+    loop { // Outer loop handles reconnections and error recovery
         let start_ts_for_ws = { *last_processed_ts.lock().await }; // Get latest timestamp for WS connection
 
         match connect_and_listen(
@@ -491,11 +490,48 @@ async fn main() {
                 sleep(Duration::from_secs(1)).await;
             }
             Err(e) => {
-                // If there was an error (e.g., connection drop), print it, wait, and try reconnecting.
-                eprintln!("Error in WebSocket connection/processing: {}. Attempting reconnect in {} seconds...", e, reconnect_delay_secs);
+                // If there was an error (e.g., connection drop), print it.
+                eprintln!("Error in WebSocket connection/processing: {}", e);
+                println!("Attempting historical catch-up due to error...");
+
+                // --- Perform Historical Catch-up on Error ---
+                let last_known_ts_before_error = { *last_processed_ts.lock().await };
+                let catch_up_start_ns_error = last_known_ts_before_error.saturating_add(1);
+                let catch_up_end_ns_error = chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0) as u64;
+
+                match fetch_historical_logs(
+                    &http_client, // Reuse http client
+                    &loki_base_url_str,
+                    &loki_query,
+                    catch_up_start_ns_error,
+                    catch_up_end_ns_error,
+                    &consumers,
+                    print_raw_logs,
+                    last_known_ts_before_error, // Pass timestamp before this catch-up
+                ).await {
+                    Ok(new_last_ts) => {
+                         if new_last_ts > last_known_ts_before_error {
+                            let mut ts_guard = last_processed_ts.lock().await;
+                            *ts_guard = new_last_ts;
+                            println!("Error recovery catch-up complete. Updated last timestamp to: {}", new_last_ts);
+                            // Save state immediately after successful catch-up
+                            if let Err(e_save) = save_state(&state_file_path, new_last_ts).await {
+                                eprintln!("Error saving state after error recovery catch-up: {}", e_save);
+                            }
+                         } else {
+                            println!("Error recovery catch-up complete. No new logs found.");
+                         }
+                    }
+                    Err(e_catchup) => {
+                        eprintln!("Error during error recovery catch-up: {}. Proceeding to reconnect.", e_catchup);
+                        // Do not update last_processed_ts if catch-up fails, rely on periodic save
+                    }
+                }
+                // Wait before attempting to reconnect the WebSocket
+                println!("Attempting WebSocket reconnect in {} seconds...", reconnect_delay_secs);
                 sleep(Duration::from_secs(reconnect_delay_secs)).await;
             }
         }
     }
-    // Main loop is infinite in this design, so code below is unreachable
+    // Main loop is infinite in this design
 }
