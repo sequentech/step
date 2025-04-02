@@ -5,6 +5,13 @@ import {createSlice, PayloadAction} from "@reduxjs/toolkit"
 import {RootState} from "../store"
 import {isUndefined} from "@sequentech/ui-core"
 
+export interface SessionBallotData {
+    ballotId: string
+    electionId: string
+    isDemo: boolean
+    ballot: string
+}
+
 export interface ICastVote {
     id: string
     tenant_id: string
