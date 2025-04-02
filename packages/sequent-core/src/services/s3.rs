@@ -113,7 +113,7 @@ pub fn get_public_ballot_publications_base_path(
 }
 
 #[instrument(skip_all)]
-pub fn get_public_ballot_publications_file_path(
+pub fn get_public_ballot_publication_file_path(
     tenant_id: &str,
     election_event_id: &str,
     area_id: &str,
@@ -123,7 +123,7 @@ pub fn get_public_ballot_publications_file_path(
         election_event_id,
         area_id,
     );
-    format!("{base_path}/ballot-publications.json")
+    format!("{base_path}/ballot-publication.json")
 }
 
 #[instrument(skip_all)]
@@ -146,17 +146,9 @@ pub fn get_public_ballot_style_file_path(
 pub fn get_public_election_event_file_path(
     tenant_id: &str,
     election_event_id: &str,
-    area_id: &str,
     ballot_publication_id: &str,
 ) -> String {
-    let base_path = get_public_ballot_publications_base_path(
-        tenant_id,
-        election_event_id,
-        area_id,
-    );
-    format!(
-        "{base_path}/publication-{ballot_publication_id}/election-event.json"
-    )
+    format!("tenant-{tenant_id}/event-{election_event_id}/publication-{ballot_publication_id}/election-event.json")
 }
 
 #[instrument(skip_all)]

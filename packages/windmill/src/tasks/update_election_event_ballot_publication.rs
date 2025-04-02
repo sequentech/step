@@ -108,7 +108,7 @@ pub async fn update_election_event_ballot_publication(
         &hasura_transaction,
         &tenant_id,
         &election_event_id,
-        &ballot_publication_id,
+        &ballot_publication,
         &election_event,
     )
     .await?;
