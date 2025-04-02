@@ -140,6 +140,50 @@ pub async fn get_election_event_by_id(
         .ok_or(anyhow!("Election event {election_event_id} not found"))
 }
 
+#[instrument(err, skip_all)]
+pub async fn get_election_event_by_id_if_exist(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<Option<ElectionEventData>> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT
+                    id, created_at, updated_at, labels, annotations, tenant_id, name, description, presentation, bulletin_board_reference, is_archived, voting_channels, status, user_boards, encryption_protocol, is_audit, audit_election_event_id, public_key, alias, statistics
+                FROM
+                    sequent_backend.election_event
+                WHERE
+                    tenant_id = $1 AND
+                    id = $2;
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(election_event_id)?,
+            ],
+        )
+        .await?;
+
+    let election_events: Vec<ElectionEventData> = rows
+        .into_iter()
+        .map(|row| -> Result<ElectionEventData> {
+            row.try_into()
+                .map(|res: ElectionEventWrapper| -> ElectionEventData { res.0 })
+        })
+        .collect::<Result<Vec<ElectionEventData>>>()?;
+
+    let election_event = election_events
+        .get(0)
+        .map(|election_event| election_event.clone());
+    Ok((election_event))
+}
+
 /// Returns all the Election events as ElectionEventDatafix
 #[instrument(err, skip_all)]
 pub async fn get_all_tenant_election_events(

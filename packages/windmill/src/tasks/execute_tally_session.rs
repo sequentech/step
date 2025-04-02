@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::hasura;
 use crate::hasura::election_event::get_election_event_helper;
-use crate::hasura::election_event::update_election_event_status;
 use crate::hasura::keys_ceremony::get_keys_ceremonies;
 use crate::hasura::tally_session::set_tally_session_completed;
 use crate::hasura::tally_session_execution::get_last_tally_session_execution;
@@ -11,7 +10,7 @@ use crate::hasura::tally_session_execution::get_last_tally_session_execution::Re
 use crate::postgres::area::get_event_areas;
 use crate::postgres::contest::export_contests;
 use crate::postgres::election::set_election_initialization_report_generated;
-use crate::postgres::election_event::get_election_event_by_id;
+use crate::postgres::election_event::{get_election_event_by_id, update_election_event_status};
 use crate::postgres::keys_ceremony::get_keys_ceremony_by_id;
 use crate::postgres::reports::get_template_alias_for_report;
 use crate::postgres::reports::ReportType;
@@ -1317,9 +1316,9 @@ pub async fn execute_tally_session_wrapped(
         let new_event_status = current_status.clone();
         let new_status_js = serde_json::to_value(new_event_status)?;
         update_election_event_status(
-            auth_headers.clone(),
-            tenant_id.clone(),
-            election_event_id.clone(),
+            hasura_transaction,
+            &tenant_id,
+            &election_event_id,
             new_status_js,
         )
         .await?;

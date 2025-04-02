@@ -85,7 +85,7 @@ pub async fn insert_election_event_anyhow(
         }
     };
 
-    match insert_election_event_db(&auth_headers, &final_object).await {
+    match insert_election_event_db(&hasura_transaction, &auth_headers, &final_object).await {
         Ok(_) => (),
         Err(err) => {
             update_fail(

@@ -620,13 +620,13 @@ impl TemplateRenderer for OVWithVotingStatusTemplate {
                 .with_context(|| "Error obtaining file size")?;
             let enc_report_name: String = format!("{}.epdf", self.prefix());
             let _document = upload_and_return_document(
-                encrypted_temp_path,
+                hasura_transaction,
+                &encrypted_temp_path,
                 enc_temp_size,
-                mimetype.clone(),
-                auth_headers.clone(),
-                tenant_id.to_string(),
-                election_event_id.to_string(),
-                enc_report_name.clone(),
+                &mimetype,
+                tenant_id,
+                Some(election_event_id.to_string()),
+                &enc_report_name,
                 Some(document_id.to_string()),
                 true,
             )
@@ -660,13 +660,13 @@ impl TemplateRenderer for OVWithVotingStatusTemplate {
             }
         } else {
             let _document = upload_and_return_document(
-                final_file_path.clone(),
+                hasura_transaction,
+                &final_file_path,
                 file_size,
-                mimetype.clone(),
-                auth_headers.clone(),
-                tenant_id.to_string(),
-                election_event_id.to_string(),
-                final_report_name.clone(),
+                &mimetype,
+                tenant_id,
+                Some(election_event_id.to_string()),
+                &final_report_name,
                 Some(document_id.to_string()),
                 true,
             )

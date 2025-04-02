@@ -659,29 +659,6 @@ async fn get_electoral_log(
 }
 
 #[instrument(skip_all, err)]
-async fn get_election_event(
-    auth_headers: &AuthHeaders,
-    tenant_id: &str,
-    election_event_id: &str,
-) -> Result<GetElectionEventSequentBackendElectionEvent> {
-    let hasura_response = hasura::election_event::get_election_event(
-        auth_headers.clone(),
-        tenant_id.to_string(),
-        election_event_id.to_string(),
-    )
-    .await
-    .context("Cannot retrieve election event data")?;
-
-    // TODO expect
-    let election_event = &hasura_response
-        .data
-        .expect("expected data".into())
-        .sequent_backend_election_event[0];
-
-    Ok(election_event.clone())
-}
-
-#[instrument(skip_all, err)]
 async fn check_status(
     tenant_id: &str,
     election_event_id: &str,

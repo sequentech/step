@@ -2,10 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-pub mod area;
-pub mod area_contest;
 pub mod ballot_publication;
-pub mod document;
 pub mod election;
 pub mod election_event;
 pub mod event_execution;

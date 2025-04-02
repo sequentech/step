@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::documents::upload_and_return_document_postgres;
+use crate::services::documents::upload_and_return_document;
 use crate::services::export::export_tenant;
 use crate::types::documents::EDocuments;
 use anyhow::{anyhow, Context, Result};
@@ -171,7 +171,7 @@ pub async fn process_export_zip(
         .len();
 
     // Upload the ZIP file to Hasura
-    let document = upload_and_return_document_postgres(
+    let document = upload_and_return_document(
         &hasura_transaction,
         upload_path.to_str().unwrap(),
         zip_size,

@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::application::insert_applications;
-use crate::postgres::election_event::update_bulletin_board;
+use crate::postgres::election_event::{get_election_event_by_id_if_exist, update_bulletin_board};
 use crate::postgres::reports::insert_reports;
 use crate::postgres::reports::Report;
 use crate::postgres::trustee::get_all_trustees;
@@ -56,7 +56,6 @@ use uuid::Uuid;
 use zip::read::ZipArchive;
 
 use super::import_users::import_users_file;
-use crate::hasura::election_event::get_election_event;
 use crate::hasura::election_event::insert_election_event as insert_election_event_hasura;
 use crate::hasura::election_event::insert_election_event::sequent_backend_election_event_insert_input as InsertElectionEventInput;
 use crate::postgres;
@@ -70,7 +69,7 @@ use crate::postgres::keys_ceremony;
 use crate::postgres::scheduled_event::insert_scheduled_event;
 use crate::services::consolidation::aes_256_cbc_encrypt::decrypt_file_aes_256_cbc;
 use crate::services::documents;
-use crate::services::documents::upload_and_return_document_postgres;
+use crate::services::documents::upload_and_return_document;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_board::BoardSerializable;
 use crate::services::electoral_log::ElectoralLog;
@@ -232,25 +231,23 @@ pub async fn upsert_keycloak_realm(
     Ok(())
 }
 
-#[instrument(skip(auth_headers), err)]
+#[instrument(skip(hasura_transaction), err)]
 pub async fn insert_election_event_db(
+    hasura_transaction: &Transaction<'_>,
     auth_headers: &connection::AuthHeaders,
     object: &InsertElectionEventInput,
 ) -> Result<()> {
     let election_event_id = object.id.clone().unwrap();
     let tenant_id = object.tenant_id.clone().unwrap();
     // fetch election_event
-    let found_election_event = get_election_event(
-        auth_headers.clone(),
-        tenant_id.clone(),
-        election_event_id.clone(),
+    let found_election_event = get_election_event_by_id_if_exist(
+        hasura_transaction,
+        &tenant_id.clone(),
+        &election_event_id.clone(),
     )
-    .await?
-    .data
-    .expect("expected data".into())
-    .sequent_backend_election_event;
+    .await?;
 
-    if found_election_event.len() > 0 {
+    if found_election_event.is_some() {
         event!(
             Level::INFO,
             "Election event {} for tenant {} already exists",
@@ -742,7 +739,7 @@ pub async fn process_s3_files(
     let document_type = get_mime_types(file_suffix)[0];
 
     // Upload the file and return the document
-    let _document = upload_and_return_document_postgres(
+    let _document = upload_and_return_document(
         hasura_transaction,
         &file_path_string.clone(),
         file_size,

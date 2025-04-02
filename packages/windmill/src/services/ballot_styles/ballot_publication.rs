@@ -2,14 +2,13 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::hasura::election::{self, get_all_elections_for_event};
-use crate::hasura::election_event::get_election_event_helper;
-use crate::hasura::election_event::update_election_event_status;
 use crate::postgres::ballot_publication::{
     get_ballot_publication_by_id, get_previous_publication, get_previous_publication_election,
     insert_ballot_publication, soft_delete_other_ballot_publications, update_ballot_publication,
 };
 use crate::postgres::ballot_style::get_publication_ballot_styles;
 use crate::postgres::election::update_election_status;
+use crate::postgres::election_event::{get_election_event_by_id, update_election_event_status};
 // use crate::services::ballot_styles::ballot_publication::get_previous_publication::GetPreviousPublicationSequentBackendBallotPublication;
 use crate::services::celery_app::get_celery_app;
 use crate::services::election_event_board::get_election_event_board;
@@ -29,33 +28,6 @@ use serde_json::Value;
 use tracing::{event, instrument, Level};
 
 use super::ballot_style;
-
-// #[instrument(skip(auth_headers), err)]
-// async fn get_ballot_publication_by_idd(
-//     auth_headers: connection::AuthHeaders,
-//     hasura_transaction: &Transaction<'_>,
-//     tenant_id: String,
-//     election_event_id: String,
-//     ballot_publication_id: String,
-// ) -> Result<GetBallotPublicationSequentBackendBallotPublication> {
-//     let ballot_publication = &get_ballot_publication_by_id(
-//         &hasura_transaction,
-//         tenant_id.clone(),
-//         election_event_id.clone(),
-//         ballot_publication_id.clone(),
-//     )
-//     .await?;
-
-//     // .data
-//     // .with_context(|| "can't find ballot publication")?
-//     // .sequent_backend_ballot_publication)
-//     //     .get(0)
-//     //     .clone()
-//     //     .ok_or(anyhow!("Can't find ballot publication"))?
-//     //     .clone();
-
-//     Ok(ballot_publication)
-// }
 
 #[instrument(skip(auth_headers), err)]
 async fn get_election_ids_for_publication(
@@ -168,7 +140,7 @@ pub async fn update_publish_ballot(
     .await?;
 
     update_ballot_publication(
-        &hasura_transaction,
+        hasura_transaction,
         &tenant_id,
         &election_event_id,
         &ballot_publication_id,
@@ -177,10 +149,10 @@ pub async fn update_publish_ballot(
     )
     .await?;
 
-    let election_event = get_election_event_helper(
-        auth_headers.clone(),
-        tenant_id.clone(),
-        election_event_id.clone(),
+    let election_event = get_election_event_by_id(
+        hasura_transaction,
+        &tenant_id.clone(),
+        &election_event_id.clone(),
     )
     .await?;
 
@@ -190,9 +162,9 @@ pub async fn update_publish_ballot(
     let new_status_js = serde_json::to_value(new_status)?;
 
     update_election_event_status(
-        auth_headers.clone(),
-        tenant_id.clone(),
-        election_event_id.clone(),
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
         new_status_js,
     )
     .await?;
