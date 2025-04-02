@@ -141,33 +141,33 @@ pub async fn get_election_event(
     response_body.ok()
 }
 
-#[instrument(skip_all, err)]
-pub async fn update_election_event_public_key(
-    auth_headers: connection::AuthHeaders,
-    tenant_id: String,
-    election_event_id: String,
-    public_key: String,
-) -> Result<Response<update_election_event_public_key::ResponseData>> {
-    let variables = update_election_event_public_key::Variables {
-        tenant_id: tenant_id,
-        election_event_id: election_event_id,
-        public_key: public_key,
-    };
-    let hasura_endpoint =
-        env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
-    let request_body = UpdateElectionEventPublicKey::build_query(variables);
+// #[instrument(skip_all, err)]
+// pub async fn update_election_event_public_key(
+//     auth_headers: connection::AuthHeaders,
+//     tenant_id: String,
+//     election_event_id: String,
+//     public_key: String,
+// ) -> Result<Response<update_election_event_public_key::ResponseData>> {
+//     let variables = update_election_event_public_key::Variables {
+//         tenant_id: tenant_id,
+//         election_event_id: election_event_id,
+//         public_key: public_key,
+//     };
+//     let hasura_endpoint =
+//         env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
+//     let request_body = UpdateElectionEventPublicKey::build_query(variables);
 
-    let client = reqwest::Client::new();
-    let res = client
-        .post(hasura_endpoint)
-        .header(auth_headers.key, auth_headers.value)
-        .json(&request_body)
-        .send()
-        .await?;
-    let response_body: Response<update_election_event_public_key::ResponseData> =
-        res.json().await?;
-    response_body.ok()
-}
+//     let client = reqwest::Client::new();
+//     let res = client
+//         .post(hasura_endpoint)
+//         .header(auth_headers.key, auth_headers.value)
+//         .json(&request_body)
+//         .send()
+//         .await?;
+//     let response_body: Response<update_election_event_public_key::ResponseData> =
+//         res.json().await?;
+//     response_body.ok()
+// }
 
 #[instrument(skip_all, err)]
 pub async fn insert_election_event(
@@ -191,55 +191,55 @@ pub async fn insert_election_event(
     response_body.ok()
 }
 
-#[instrument(skip_all, err)]
-pub async fn get_batch_election_events(
-    auth_headers: connection::AuthHeaders,
-    limit: i64,
-    offset: i64,
-) -> Result<Response<get_batch_election_events::ResponseData>> {
-    let variables = get_batch_election_events::Variables {
-        limit: limit,
-        offset: offset,
-    };
-    let hasura_endpoint =
-        env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
-    let request_body = GetBatchElectionEvents::build_query(variables);
+// #[instrument(skip_all, err)]
+// pub async fn get_batch_election_events(
+//     auth_headers: connection::AuthHeaders,
+//     limit: i64,
+//     offset: i64,
+// ) -> Result<Response<get_batch_election_events::ResponseData>> {
+//     let variables = get_batch_election_events::Variables {
+//         limit: limit,
+//         offset: offset,
+//     };
+//     let hasura_endpoint =
+//         env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
+//     let request_body = GetBatchElectionEvents::build_query(variables);
 
-    let client = reqwest::Client::new();
-    let res = client
-        .post(hasura_endpoint)
-        .header(auth_headers.key, auth_headers.value)
-        .json(&request_body)
-        .send()
-        .await?;
-    let response_body: Response<get_batch_election_events::ResponseData> = res.json().await?;
-    response_body.ok()
-}
+//     let client = reqwest::Client::new();
+//     let res = client
+//         .post(hasura_endpoint)
+//         .header(auth_headers.key, auth_headers.value)
+//         .json(&request_body)
+//         .send()
+//         .await?;
+//     let response_body: Response<get_batch_election_events::ResponseData> = res.json().await?;
+//     response_body.ok()
+// }
 
-#[instrument(skip(auth_headers), err)]
-pub async fn get_current_bulletin_board_message_id(
-    auth_headers: connection::AuthHeaders,
-    tenant_id: String,
-    election_event_id: String,
-) -> Result<Response<get_election_event::ResponseData>> {
-    let variables = get_election_event::Variables {
-        tenant_id: tenant_id,
-        election_event_id: election_event_id,
-    };
-    let hasura_endpoint =
-        env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
-    let request_body = GetElectionEvent::build_query(variables);
+// #[instrument(skip(auth_headers), err)]
+// pub async fn get_current_bulletin_board_message_id(
+//     auth_headers: connection::AuthHeaders,
+//     tenant_id: String,
+//     election_event_id: String,
+// ) -> Result<Response<get_election_event::ResponseData>> {
+//     let variables = get_election_event::Variables {
+//         tenant_id: tenant_id,
+//         election_event_id: election_event_id,
+//     };
+//     let hasura_endpoint =
+//         env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
+//     let request_body = GetElectionEvent::build_query(variables);
 
-    let client = reqwest::Client::new();
-    let res = client
-        .post(hasura_endpoint)
-        .header(auth_headers.key, auth_headers.value)
-        .json(&request_body)
-        .send()
-        .await?;
-    let response_body: Response<get_election_event::ResponseData> = res.json().await?;
-    response_body.ok()
-}
+//     let client = reqwest::Client::new();
+//     let res = client
+//         .post(hasura_endpoint)
+//         .header(auth_headers.key, auth_headers.value)
+//         .json(&request_body)
+//         .send()
+//         .await?;
+//     let response_body: Response<get_election_event::ResponseData> = res.json().await?;
+//     response_body.ok()
+// }
 
 #[instrument(skip_all, err)]
 pub async fn get_election_event_helper(
@@ -263,38 +263,38 @@ pub async fn get_election_event_helper(
     .cloned()
 }
 
-#[derive(GraphQLQuery)]
-#[graphql(
-    schema_path = "src/graphql/schema.json",
-    query_path = "src/graphql/update_election_event_statistics.graphql",
-    response_derives = "Debug"
-)]
-pub struct UpdateElectionEventStatistics;
+// #[derive(GraphQLQuery)]
+// #[graphql(
+//     schema_path = "src/graphql/schema.json",
+//     query_path = "src/graphql/update_election_event_statistics.graphql",
+//     response_derives = "Debug"
+// )]
+// pub struct UpdateElectionEventStatistics;
 
-#[instrument(skip_all, err)]
-pub async fn update_election_event_statistics(
-    auth_headers: connection::AuthHeaders,
-    tenant_id: String,
-    election_event_id: String,
-    statistics: Value,
-) -> Result<Response<update_election_event_statistics::ResponseData>> {
-    let variables = update_election_event_statistics::Variables {
-        tenant_id: tenant_id,
-        election_event_id: election_event_id,
-        statistics: statistics,
-    };
-    let hasura_endpoint =
-        env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
-    let request_body = UpdateElectionEventStatistics::build_query(variables);
+// #[instrument(skip_all, err)]
+// pub async fn update_election_event_statistics(
+//     auth_headers: connection::AuthHeaders,
+//     tenant_id: String,
+//     election_event_id: String,
+//     statistics: Value,
+// ) -> Result<Response<update_election_event_statistics::ResponseData>> {
+//     let variables = update_election_event_statistics::Variables {
+//         tenant_id: tenant_id,
+//         election_event_id: election_event_id,
+//         statistics: statistics,
+//     };
+//     let hasura_endpoint =
+//         env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
+//     let request_body = UpdateElectionEventStatistics::build_query(variables);
 
-    let client = reqwest::Client::new();
-    let res = client
-        .post(hasura_endpoint)
-        .header(auth_headers.key, auth_headers.value)
-        .json(&request_body)
-        .send()
-        .await?;
-    let response_body: Response<update_election_event_statistics::ResponseData> =
-        res.json().await?;
-    response_body.ok()
-}
+//     let client = reqwest::Client::new();
+//     let res = client
+//         .post(hasura_endpoint)
+//         .header(auth_headers.key, auth_headers.value)
+//         .json(&request_body)
+//         .send()
+//         .await?;
+//     let response_body: Response<update_election_event_statistics::ResponseData> =
+//         res.json().await?;
+//     response_body.ok()
+// }

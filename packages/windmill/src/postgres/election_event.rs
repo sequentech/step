@@ -546,3 +546,39 @@ pub async fn update_bulletin_board(
 
     Ok(())
 }
+
+#[instrument(err, skip_all)]
+pub async fn get_batch_election_events(
+    hasura_transaction: &Transaction<'_>,
+    limit: i64,
+    offset: i64,
+) -> Result<Vec<ElectionEventData>> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+            SELECT id,
+                tenant_id,
+                created_at
+            FROM sequent_backend_election_event
+            WHERE is_archived = false
+            ORDER BY created_at ASC
+            LIMIT $1
+            OFFSET $2;
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(&statement, &[&limit, &offset])
+        .await?;
+
+    let election_events: Vec<ElectionEventData> = rows
+        .into_iter()
+        .map(|row| -> Result<ElectionEventData> {
+            row.try_into()
+                .map(|res: ElectionEventWrapper| -> ElectionEventData { res.0 })
+        })
+        .collect::<Result<Vec<ElectionEventData>>>()?;
+
+    Ok(election_events)
+}

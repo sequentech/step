@@ -1,8 +1,6 @@
 // SPDX-FileCopyrightText: 2023 Kevin Nguyen <kevin@sequentech.io>, Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::hasura;
-use crate::hasura::election_event::get_election_event_helper;
 use crate::hasura::keys_ceremony::get_keys_ceremonies;
 use crate::hasura::tally_session::set_tally_session_completed;
 use crate::hasura::tally_session_execution::get_last_tally_session_execution;
@@ -1306,12 +1304,8 @@ pub async fn execute_tally_session_wrapped(
         )
         .await?;
         // get the election event
-        let election_event = get_election_event_helper(
-            auth_headers.clone(),
-            tenant_id.clone(),
-            election_event_id.clone(),
-        )
-        .await?;
+        let election_event =
+            get_election_event_by_id(hasura_transaction, &tenant_id, &election_event_id).await?;
         let current_status = get_election_event_status(election_event.status).unwrap();
         let new_event_status = current_status.clone();
         let new_status_js = serde_json::to_value(new_event_status)?;
