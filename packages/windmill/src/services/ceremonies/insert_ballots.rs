@@ -40,6 +40,7 @@ use strand::elgamal::Ciphertext;
 use strand::signature::StrandSignaturePk;
 use tempfile::NamedTempFile;
 use tracing::{event, instrument, Level};
+use std::time::Instant;
 
 #[instrument(skip_all, err)]
 pub async fn insert_ballots_messages(
@@ -53,8 +54,7 @@ pub async fn insert_ballots_messages(
     tally_session_contests: Vec<GetLastTallySessionExecutionSequentBackendTallySessionContest>,
     contest_encryption_policy: ContestEncryptionPolicy,
 ) -> Result<()> {
-    // 
-    event!(Level::INFO, "Omri - monitor tally - start insert_ballots_messages - {:?}", Utc::now());
+    let start_inset_ballots = Instant::now();
     let trustees = get_trustees_by_name(&auth_headers, &tenant_id, &trustee_names)
         .await?
         .data
@@ -91,7 +91,6 @@ pub async fn insert_ballots_messages(
     let public_key_hash = get_public_key_hash::<RistrettoCtx>(&board_messages)?;
     let selected_trustees: TrusteeSet =
         generate_trustee_set(&configuration, deserialized_trustee_pks.clone());
-    event!(Level::INFO, "Omri - monitor tally - start tally session contests loop - {:?}", Utc::now());
     // going by contests in the tally session
     for tally_session_contest in tally_session_contests {
         event!(
@@ -102,7 +101,7 @@ pub async fn insert_ballots_messages(
             tally_session_contest.area_id,
             tally_session_contest.session_id,
         );
-        event!(Level::INFO, "Omri - monitor tally - start writing ballots to a temp file - {:?}", Utc::now());
+        let start_ballot_temp_file = Instant::now();
         // Use find_area_ballots with pagination
         let mut offset = 0;
         let batch_size = PgConfig::from_env()?.default_sql_batch_size.into();
@@ -180,12 +179,18 @@ pub async fn insert_ballots_messages(
             // Move to next batch
             offset += batch_size;
         }
-
+        let ballot_temp_file_duration = start_ballot_temp_file.elapsed();
+        event!(
+            Level::INFO,
+            "Omri - monitor tally - insert ballots took {:?}",
+            ballot_temp_file_duration
+        );
         let ballots_temp_file = ballots_temp_file.reopen()?;
 
         // Use pagination and write the contents to a file
 
         // Create a temporary file (auto-deleted when dropped)
+        let start_users_temp_file = Instant::now();
         let users_temp_file = NamedTempFile::new()
             .map_err(|error| anyhow!("Failed to create temp file: {}", error))?;
         event!(
@@ -196,10 +201,6 @@ pub async fn insert_ballots_messages(
         let mut writer = WriterBuilder::new()
             .has_headers(false)
             .from_writer(&users_temp_file);
-
-        event!(Level::INFO, "Omri - monitor tally - end writing ballots to a temp file - {:?}", Utc::now());
-
-        event!(Level::INFO, "Omri - monitor tally - start list keycloak users by area for area {} - {}", &tally_session_contest.area_id ,Utc::now());
 
         // Reset offset
         offset = 0;
@@ -235,7 +236,12 @@ pub async fn insert_ballots_messages(
             offset += batch_size;
         }
 
-        event!(Level::INFO, "Omri - monitor tally - end list keycloak users by area for area {} - {}", &tally_session_contest.area_id ,Utc::now());
+        let users_temp_file_duration = start_users_temp_file.elapsed();
+        event!(
+            Level::INFO,
+            "Omri - monitor tally - insert users took {:?}",
+            users_temp_file_duration
+        );
 
         let users_temp_file = users_temp_file.reopen()?;
 
@@ -245,7 +251,7 @@ pub async fn insert_ballots_messages(
         let ballot_election_id_index = 1;
         let users_join_idexes = 0;
 
-        event!(Level::INFO, "Omri - monitor tally - start merge join csv - {:?}" ,Utc::now());
+        let start_merge_join_csv = Instant::now();
 
         let handle = tokio::task::spawn_blocking({
             move || {
@@ -270,7 +276,12 @@ pub async fn insert_ballots_messages(
             }
         });
 
-        event!(Level::INFO, "Omri - monitor tally - end merge join csv - {:?}" ,Utc::now());
+        let merge_join_csv_duration = start_merge_join_csv.elapsed();
+        event!(
+            Level::INFO,
+            "Omri - monitor tally - merge join took {:?}",
+            merge_join_csv_duration
+        );
 
         // Await the result and handle JoinError explicitly
         let insertable_ballots: Vec<Ciphertext<RistrettoCtx>> = match handle.await {
@@ -284,7 +295,7 @@ pub async fn insert_ballots_messages(
             insertable_ballots.len()
         );
 
-        event!(Level::INFO, "Omri - monitor tally - start add ballots to board - {:?}" ,Utc::now());
+        let start_add_ballots_to_board = Instant::now();
 
         let mut board = get_b3_pgsql_client().await?;
         let batch = tally_session_contest.session_id.clone() as BatchNumber;
@@ -302,10 +313,20 @@ pub async fn insert_ballots_messages(
         )
         .await?;
 
-        event!(Level::INFO, "Omri - monitor tally - start add ballots to board - {:?}" ,Utc::now());
+        let add_ballots_to_board_duration = start_add_ballots_to_board.elapsed();
+        event!(
+            Level::INFO,
+            "Omri - monitor tally - add ballots to board took {:?}",
+            add_ballots_to_board_duration
+        );
 
     }
-    event!(Level::INFO, "Omri - monitor tally - end insert_ballots_messages - {:?}", Utc::now());
+    let insert_ballots_duration = start_inset_ballots.elapsed();
+    event!(
+        Level::INFO,
+        "Omri - monitor tally - insert ballots took {:?}",
+        insert_ballots_duration
+    );
     Ok(())
 }
 

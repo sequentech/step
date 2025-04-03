@@ -98,6 +98,7 @@ use tempfile::tempdir;
 use tokio::time::Duration as ChronoDuration;
 use tracing::{event, info, instrument, warn, Level};
 use uuid::Uuid;
+use std::time::Instant;
 
 #[instrument(skip_all, err)]
 fn get_ballot_styles(tally_session_data: &ResponseData) -> Result<Vec<BallotStyle>> {
@@ -753,6 +754,7 @@ async fn map_plaintext_data(
     )>,
 > {
     // fetch election_event
+    let start_fetching_data = Instant::now();
     let Ok(election_event) =
         get_election_event_by_id(hasura_transaction, &tenant_id, &election_event_id).await
     else {
@@ -805,6 +807,9 @@ async fn map_plaintext_data(
     .with_context(|| "error listing existing keys ceremonies")?
     .sequent_backend_keys_ceremony;
 
+    let fetching_data_duration = start_fetching_data.elapsed();
+    event!(Level::INFO, "Omri - Tally monitoring - map_plaintext_data - fetching_data_duration: {:?}", fetching_data_duration);
+
     if keys_ceremonies.is_empty() {
         event!(
             Level::INFO,
@@ -813,7 +818,8 @@ async fn map_plaintext_data(
         );
         return Ok(None);
     }
-
+    let trustees_check_start = Instant::now();
+    
     let threshold = keys_ceremonies[0].threshold as usize;
     let mut available_trustees: Vec<String> = ceremony_status
         .trustees
@@ -843,6 +849,9 @@ async fn map_plaintext_data(
         trustee_names
     );
 
+    let trustee_check_duration = trustees_check_start.elapsed();
+    event!(Level::INFO, "Omri - Tally monitoring - map_plaintext_data - trustee_check_duration: {:?}", trustee_check_duration);
+
     if execution_status != TallyExecutionStatus::IN_PROGRESS {
         event!(
             Level::INFO,
@@ -866,10 +875,11 @@ async fn map_plaintext_data(
     };
 
     // get board messages
+    let start_getting_board_messages = Instant::now();
     let board_client = protocol_manager::get_b3_pgsql_client().await?;
     let board_messages = board_client.get_messages(&bulletin_board, -1).await?;
     event!(Level::INFO, "Num board_messages {}", board_messages.len());
-
+    
     // convert board messages into messages
     let messages: Vec<Message> = protocol_manager::convert_board_messages(&board_messages)?;
     print_messages(&messages, &bulletin_board)?;
@@ -887,6 +897,8 @@ async fn map_plaintext_data(
         &tally_session_hasura,
     )
     .await?;
+    let duration_getting_board_messages = start_getting_board_messages.elapsed();
+    event!(Level::INFO, "Omri - Tally monitoring - map_plaintext_data - duration_getting_board_messages and upsert ballot messages: {:?}", duration_getting_board_messages);
 
     if !new_ballots_messages.is_empty() {
         event!(
@@ -997,6 +1009,7 @@ async fn map_plaintext_data(
         .clone()
         .unwrap_or_default()
         .get_contest_encryption_policy();
+    let start_processing_plaintexts = Instant::now();
     let plaintexts_data: Vec<AreaContestDataType> = process_plaintexts(
         auth_headers.clone(),
         hasura_transaction,
@@ -1011,8 +1024,15 @@ async fn map_plaintext_data(
     )
     .await?;
     event!(Level::INFO, "Num plaintexts_data {}", plaintexts_data.len());
-    let tally_sheets = clean_tally_sheets(&tally_sheet_rows, &plaintexts_data)?;
+    let processing_plaintexts_duration = start_processing_plaintexts.elapsed();
+    event!(Level::INFO, "Omri - Tally monitoring - map_plaintext_data - processing_plaintexts_duration: {:?}", processing_plaintexts_duration);
 
+    let startclean_tally_sheets = Instant::now();
+    let tally_sheets = clean_tally_sheets(&tally_sheet_rows, &plaintexts_data)?;
+    let clean_tally_sheets_duration = startclean_tally_sheets.elapsed();
+    event!(Level::INFO, "Omri - Tally monitoring - map_plaintext_data - clean_tally_sheets_duration: {:?}", clean_tally_sheets_duration);
+
+    let start_count_cast_vote_census = Instant::now();
     let cast_votes_count = count_cast_votes_election_with_census(
         auth_headers.clone(),
         hasura_transaction,
@@ -1021,6 +1041,8 @@ async fn map_plaintext_data(
         &election_event_id,
     )
     .await?;
+    let count_cast_vote_census_duration = start_count_cast_vote_census.elapsed();
+    event!(Level::INFO, "Omri - Tally monitoring - map_plaintext_data - count_cast_vote_census_duration: {:?}", count_cast_vote_census_duration);
     Ok(Some((
         plaintexts_data,
         newest_message_id,
@@ -1155,7 +1177,7 @@ pub async fn execute_tally_session_wrapped(
     tally_type: Option<String>,
     election_ids: Option<Vec<String>>,
 ) -> Result<()> {
-    event!(Level::INFO, "Omri - monitor tally - start tally exectusion - {:?}", Utc::now());
+    let start_tally_execution = Instant::now();
     let Some((tally_session_execution, tally_session, tally_session_data)) =
         find_last_tally_session_execution(
             auth_headers.clone(),
@@ -1198,6 +1220,7 @@ pub async fn execute_tally_session_wrapped(
 
     let status = get_tally_ceremony_status(tally_session_execution.status.clone())?;
 
+    let start_map_plaintext_data = Instant::now();
     // map plaintexts to contests
     let plaintexts_data_opt = map_plaintext_data(
         auth_headers.clone(),
@@ -1211,7 +1234,8 @@ pub async fn execute_tally_session_wrapped(
         tally_session_data,
     )
     .await?;
-
+    let duration_map_plaintext_data = start_map_plaintext_data.elapsed();
+    event!(Level::INFO, "Omri - monitor tally - map_plaintext_data function time elasped - {:?}", duration_map_plaintext_data);
     let Some((
         plaintexts_data,
         newest_message_id,
@@ -1235,7 +1259,7 @@ pub async fn execute_tally_session_wrapped(
 
     let areas: Vec<Area> =
         get_event_areas(hasura_transaction, &tenant_id, &election_event_id).await?;
-    event!(Level::INFO, "Omri - monitor tally - start velvet tally - {:?}", Utc::now());
+    let velvet_start = Instant::now();
     let status = if !plaintexts_data.is_empty() {
         Some(
             run_velvet_tally(
@@ -1257,11 +1281,11 @@ pub async fn execute_tally_session_wrapped(
     } else {
         None
     };
-    event!(Level::INFO, "Omri - monitor tally - end velvet tally - {:?}", Utc::now());
+    let velet_duration = velvet_start.elapsed();
+    event!(Level::INFO, "Omri - monitor tally - velvet tally duration - {:?}", velet_duration);
 
     let default_language = election_event.get_default_language();
-    event!(Level::INFO, "Omri - monitor tally - start results tally - {:?}", Utc::now());
-
+    let result_start = Instant::now();
     let results_event_id = populate_results_tables(
         hasura_transaction,
         &base_tempdir.path().to_path_buf(),
@@ -1275,9 +1299,10 @@ pub async fn execute_tally_session_wrapped(
         tally_type_enum.clone(),
     )
     .await?;
+    let result_duration = result_start.elapsed();
+    event!(Level::INFO, "Omri - monitor tally - results tables duration - {:?}", result_duration);
 
-    event!(Level::INFO, "Omri - monitor tally - end results tally - {:?}", Utc::now());
-
+    let start_insert_and_update_tally_session_execution = Instant::now();
     // could be expired
     let auth_headers = keycloak::get_client_credentials().await?;
 
@@ -1311,6 +1336,8 @@ pub async fn execute_tally_session_wrapped(
             tally_session_id.clone(),
         )
         .await?;
+    let duration_insert_and_update_tally_session_execution = start_insert_and_update_tally_session_execution.elapsed();
+    event!(Level::INFO, "Omri - monitor tally - insert and update tally session execution function time elasped - {:?}", duration_insert_and_update_tally_session_execution);
         // get the election event
         let election_event = get_election_event_helper(
             auth_headers.clone(),
@@ -1341,7 +1368,8 @@ pub async fn execute_tally_session_wrapped(
             }
         }
     }
-    event!(Level::INFO, "Omri - monitor tally - end tally exectusion - {:?}", Utc::now());
+    let tally_exectution_duration = start_tally_execution.elapsed();
+    event!(Level::INFO, "Omri - monitor tally - tally execution function time elasped - {:?}", tally_exectution_duration);
     Ok(())
 }
 
