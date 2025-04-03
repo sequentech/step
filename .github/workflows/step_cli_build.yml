@@ -27,7 +27,8 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y protobuf-compiler
+          sudo apt-get install -y protobuf-compiler musl-tools
+
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
@@ -35,17 +36,18 @@ jobs:
           toolchain: nightly
           components: rustfmt
           override: true
+          target: x86_64-unknown-linux-musl
 
       - name: Build step-cli
         working-directory: packages/step-cli
-        run: RUSTFLAGS="-Ctarget-feature=+crt-static" cargo build --release
+        run: cargo build --release --target x86_64-unknown-linux-musl
 
       - name: List build output target-rust-local (for debugging)
         working-directory: packages/step-cli
-        run: ls -lR rust-local-target/release
+        run: ls -lR rust-local-target/x86_64-unknown-linux-musl/release
 
       - name: Upload CLI binary artifact
         uses: actions/upload-artifact@v4
         with:
               name: step-cli-binary
-              path: packages/step-cli/rust-local-target/release/seq
+              path: packages/step-cli/rust-local-target/x86_64-unknown-linux-musl/release/seq
