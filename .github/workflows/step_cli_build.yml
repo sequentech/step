@@ -19,7 +19,7 @@ jobs:
       - image=ubuntu24-full-x64
     env:
       CARGO_TARGET_DIR: rust-local-target
-      RUSTFLAGS: "-C target-feature=-crt-static -lgcc_eh -lunwind -lm"
+      RUSTFLAGS: "-C target-feature=-crt-static -lgcc_eh -lm"
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -28,7 +28,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y protobuf-compiler musl-tools libssl-dev pkg-config musl-dev 
+          sudo apt-get install -y protobuf-compiler musl-tools libssl-dev pkg-config musl-dev libunwind-dev
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
