@@ -38,7 +38,7 @@ jobs:
 
       - name: Build step-cli
         working-directory: packages/step-cli
-        run: cargo build --release
+        run: RUSTFLAGS="-Ctarget-feature=+crt-static" cargo build --release
 
       - name: List build output target-rust-local (for debugging)
         working-directory: packages/step-cli
