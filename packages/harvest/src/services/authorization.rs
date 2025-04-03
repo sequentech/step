@@ -51,10 +51,10 @@ pub fn authorize(
 
 // returns area_id
 #[instrument(skip(claims))]
-pub fn authorize_voter_election(
+pub fn authorize_voter(
     claims: &JwtClaims,
     permissions: Vec<VoterPermissions>,
-    election_id: &String,
+    election_id: Option<String>,
 ) -> Result<(String, VotingStatusChannel), (Status, String)> {
     let perms_str: Vec<String> = permissions
         .into_iter()
@@ -74,19 +74,20 @@ pub fn authorize_voter_election(
     };
 
     // Check election id checks
-    if claims.hasura_claims.authorized_election_ids.is_none()
-        || !claims
-            .hasura_claims
-            .authorized_election_ids
-            .as_ref()
-            .unwrap_or(&Vec::new())
-            .contains(election_id)
-    {
-        return Err((
-            Status::Unauthorized,
-            "Not authorized to election".into(),
-        ));
-    }
+    match (
+        election_id,
+        claims.hasura_claims.clone().authorized_election_ids,
+    ) {
+        (None, _) => {}
+        (Some(election_id), Some(authorized_election_ids))
+            if authorized_election_ids.contains(&election_id) => {}
+        _ => {
+            return Err((
+                Status::Unauthorized,
+                "Not authorized to election".into(),
+            ));
+        }
+    };
 
     match claims.azp.as_str() {
         "voting-portal" => Ok((area_id, VotingStatusChannel::ONLINE)),

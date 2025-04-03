@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::authorization::authorize_voter_election;
+use crate::services::authorization::authorize_voter;
 use anyhow::Result;
 use rocket::http::Status;
 use rocket::serde::json::Json;
@@ -40,16 +40,10 @@ pub async fn create_ballot_receipt(
     claims: JwtClaims,
 ) -> Result<Json<createBallotReceiptOutput>, (Status, String)> {
     let input = body.into_inner();
-    let tenant_id = claims.hasura_claims.tenant_id.clone();
-    let executer_name = claims
-        .name
-        .clone()
-        .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
-
-    let area_id = match authorize_voter_election(
+    let area_id = match authorize_voter(
         &claims,
-        vec![VoterPermissions::CAST_VOTE],
-        &input.election_id,
+        vec![VoterPermissions::USER_ROLE],
+        Some(input.election_id.clone()),
     ) {
         Ok((area_id, _)) => area_id,
         Err(error) => {

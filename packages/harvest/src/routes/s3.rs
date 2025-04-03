@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::services::authorization::authorize;
+use crate::services::authorization::authorize_voter;
 use anyhow::Result;
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
@@ -9,6 +9,7 @@ use rocket::serde::json::Json;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::services::s3;
 use sequent_core::types::permissions::Permissions;
+use sequent_core::types::permissions::VoterPermissions;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::instrument;
@@ -33,14 +34,11 @@ pub async fn get_signed_urls(
     body: Json<GetSignedUrlsInput>,
     claims: JwtClaims,
 ) -> Result<Json<GetSignedUrlsOutput>, (Status, String)> {
-    authorize(
-        &claims,
-        true,
-        Some(claims.hasura_claims.tenant_id.clone()),
-        vec![Permissions::DOCUMENT_DOWNLOAD], // TODO
-    )?;
+    info!("claims: {claims:?}");
     let input = body.into_inner();
     info!("input: {input:?}");
+
+    authorize_voter(&claims, vec![VoterPermissions::USER_ROLE], None)?;
 
     let election_event_id = input.election_event_id.clone();
     let tenant_id = claims.hasura_claims.tenant_id.clone();
@@ -62,6 +60,7 @@ pub async fn get_signed_urls(
     let url = s3::get_document_url(document_s3_key, s3_bucket.clone())
         .await
         .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+    info!("url: {url:?}");
     urls.push(url);
 
     Ok(Json(GetSignedUrlsOutput { urls }))
