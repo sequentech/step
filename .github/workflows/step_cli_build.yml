@@ -23,11 +23,11 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Install protoc on Linux
+      - name: Install protoc and OpenSSL dependencies on Linux
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y protobuf-compiler musl-tools
+          sudo apt-get install -y protobuf-compiler musl-tools libssl-dev pkg-config
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
@@ -40,6 +40,9 @@ jobs:
 
       - name: Build step-cli
         working-directory: packages/step-cli
+        env:
+          OPENSSL_DIR: /usr
+          OPENSSL_STATIC: 1
         run: cargo build --release --target x86_64-unknown-linux-musl
 
       - name: List build output target-rust-local (for debugging)
