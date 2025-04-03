@@ -294,7 +294,17 @@ pub async fn update_election_event_ballot_styles(
     )
     .await?;
 
+    upload_election_event_ballot_s3_files(
+        &transaction,
+        tenant_id,
+        election_event_id,
+        ballot_publication_id,
+        &election_event,
+    )
+    .await?;
+
     let _commit = transaction.commit().await.with_context(|| "Commit failed");
+
     lock.release().await?;
     Ok(())
 }
@@ -308,25 +318,20 @@ pub async fn get_ballot_styles_for_authorized_elections(
     todo!()
 }
 
-/// Upload the files of this publication id into the public bucket,
-/// Under the base_path "tenant-{tenant_id}/event-{election_event_id}/"
+/// Upload the files related to this publication id into the private bucket,
+/// Under the base_path "tenant-{tenant_id}/event-{election_event_id}/publication-{ballot_publication_id}"
 /// election-event.json
-/// Under the base_path "tenant-{tenant_id}/event-{election_event_id}/area-{area_id}/"
-/// elections.json, ballot-publication.json and ballot-style-election-{election_id}.json.
-///
-/// Only ballot-publication.json gets overwritten.
-/// All other files will land under {base_path}/publication-{ballot_publication_id}, so a new file is added at every publication.
+/// Under the base_path "tenant-{tenant_id}/event-{election_event_id}/area-{area_id}/publication-{ballot_publication_id}"
+/// elections.json and ballot-style-election-{election_id}.json.
 #[instrument(skip(hasura_transaction, election_event), err)]
-pub async fn update_election_event_ballot_s3_files(
+pub async fn upload_election_event_ballot_s3_files(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
-    ballot_publication: &BallotPublication,
+    ballot_publication_id: &str,
     election_event: &ElectionEvent,
 ) -> Result<()> {
-    let s3_bucket = s3::get_public_bucket()?;
-    let ballot_publication_id: &str = &ballot_publication.id;
-
+    let s3_bucket = s3::get_private_bucket()?;
     // Upload election event data
     let election_event_data = serde_json::to_string(&election_event)
         .map_err(|err| format!("Error serializing election event to json: {err:?}"))?;
@@ -335,12 +340,8 @@ pub async fn update_election_event_ballot_s3_files(
         election_event_id,
         ballot_publication_id,
     );
-    upload_ballot_publication_files_to_s3_with_retry(
-        &election_event_data,
-        &election_event_path,
-        &s3_bucket,
-    )
-    .await?;
+    upload_ballot_files_to_s3_with_retry(&election_event_data, &election_event_path, &s3_bucket)
+        .await?;
 
     let ballot_styles = get_ballot_styles_by_ballot_publication_by_id(
         hasura_transaction,
@@ -350,7 +351,7 @@ pub async fn update_election_event_ballot_s3_files(
     )
     .await?;
 
-    // Upload ballot_style files and prepare the areas and election_ids to be unique.
+    // Upload ballot_style files and prepare the areas to be unique.
     let mut areas = HashSet::new();
     for ballot_style in &ballot_styles {
         let area_id = ballot_style
@@ -370,19 +371,12 @@ pub async fn update_election_event_ballot_s3_files(
             ballot_publication_id,
             election_id,
         );
-        upload_ballot_publication_files_to_s3_with_retry(
-            &ballot_style_data,
-            &ballot_style_path,
-            &s3_bucket,
-        )
-        .await?;
+        upload_ballot_files_to_s3_with_retry(&ballot_style_data, &ballot_style_path, &s3_bucket)
+            .await?;
     }
 
     let election_ids_by_area_map =
-        get_elections_by_area(&hasura_transaction, tenant_id, election_event_id).await?;
-
-    let ballot_publications_data = serde_json::to_string(&ballot_publication)
-        .map_err(|err| format!("Error serializing ballot publications to json: {err:?}"))?;
+        get_elections_by_area(hasura_transaction, tenant_id, election_event_id).await?;
 
     for area_id in &areas {
         let election_ids = election_ids_by_area_map
@@ -392,7 +386,7 @@ pub async fn update_election_event_ballot_s3_files(
         let mut elections: Vec<Election> = vec![];
         for election_id in &election_ids {
             let election = get_election_by_id(
-                &hasura_transaction,
+                hasura_transaction,
                 tenant_id,
                 election_event_id,
                 election_id,
@@ -411,29 +405,57 @@ pub async fn update_election_event_ballot_s3_files(
             area_id,
             ballot_publication_id,
         );
-        upload_ballot_publication_files_to_s3_with_retry(
-            &elections_data,
-            &elections_file_path,
-            &s3_bucket,
-        )
-        .await?;
-
-        // Upload ballot publications file or replace it if it exists.
-        let ballot_publication_file_path =
-            s3::get_public_ballot_publication_file_path(tenant_id, election_event_id, area_id);
-        upload_ballot_publication_files_to_s3_with_retry(
-            &ballot_publications_data,
-            &ballot_publication_file_path,
-            &s3_bucket,
-        )
-        .await?;
+        upload_ballot_files_to_s3_with_retry(&elections_data, &elections_file_path, &s3_bucket)
+            .await?;
     }
 
     Ok(())
 }
 
+/// Replace ballot-publication.json files in the folder "tenant-{tenant_id}/event-{election_event_id}/area-{area_id}/"
+/// for each area. To have the last publication accessible in the private bucket.
+#[instrument(skip(hasura_transaction, ballot_publication), err)]
+pub async fn replace_ballot_publication_s3_files(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    ballot_publication: &BallotPublication,
+) -> Result<()> {
+    let s3_bucket = s3::get_private_bucket()?;
+    let ballot_publication_id: &str = &ballot_publication.id;
+
+    let areas: HashSet<String> = get_ballot_styles_by_ballot_publication_by_id(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        ballot_publication_id,
+    )
+    .await?
+    .iter()
+    .fold(HashSet::new(), |mut f, ballot_style| {
+        f.insert(ballot_style.area_id.clone().unwrap_or_default());
+        f
+    });
+
+    let ballot_publication_data = serde_json::to_string(&ballot_publication)
+        .map_err(|err| format!("Error serializing ballot publications to json: {err:?}"))?;
+
+    for area_id in &areas {
+        // Upload ballot publications file or replace it if it exists.
+        let ballot_publication_file_path =
+            s3::get_public_ballot_publication_file_path(tenant_id, election_event_id, area_id);
+        upload_ballot_files_to_s3_with_retry(
+            &ballot_publication_data,
+            &ballot_publication_file_path,
+            &s3_bucket,
+        )
+        .await?;
+    }
+    Ok(())
+}
+
 #[instrument(skip(data), err)]
-pub async fn upload_ballot_publication_files_to_s3_with_retry(
+pub async fn upload_ballot_files_to_s3_with_retry(
     data: &str,
     path: &str,
     s3_bucket: &str,

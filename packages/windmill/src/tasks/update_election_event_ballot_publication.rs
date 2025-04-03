@@ -104,12 +104,11 @@ pub async fn update_election_event_ballot_publication(
     let election_event =
         get_election_event_by_id(&hasura_transaction, &tenant_id, &election_event_id).await?;
 
-    ballot_style::update_election_event_ballot_s3_files(
+    ballot_style::replace_ballot_publication_s3_files(
         &hasura_transaction,
         &tenant_id,
         &election_event_id,
         &ballot_publication,
-        &election_event,
     )
     .await?;
 
