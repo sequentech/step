@@ -101,6 +101,20 @@ actions:
       permissions:
           - role: user
       comment: create_ballot_receipt
+    - name: get_signed_urls
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/get-signed-urls
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: user
+      comment: get_signed_urls
     - name: create_election
       definition:
           kind: synchronous

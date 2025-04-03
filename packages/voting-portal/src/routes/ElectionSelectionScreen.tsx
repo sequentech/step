@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {Box, Button, CircularProgress, Typography, Alert} from "@mui/material"
-import React, {useContext, useEffect, useMemo, useState} from "react"
+import React, {useContext, useEffect, useMemo, useState, useRef} from "react"
 import {useTranslation} from "react-i18next"
 import {Dialog, IconButton, PageLimit, SelectElection, theme} from "@sequentech/ui-essentials"
 import {
@@ -31,7 +31,7 @@ import {selectElectionById, setElection, selectElectionIds} from "../store/elect
 import {AppDispatch} from "../store/store"
 import {addCastVotes, selectCastVotesByElectionId} from "../store/castVotes/castVotesSlice"
 import {useLocation, useNavigate, useParams} from "react-router-dom"
-import {useQuery} from "@apollo/client"
+import {useMutation, useQuery} from "@apollo/client"
 import {GET_BALLOT_STYLES} from "../queries/GetBallotStyles"
 import {
     GetBallotStylesQuery,
@@ -62,6 +62,7 @@ import {clearIsVoted, selectBypassChooser, setBypassChooser} from "../store/extr
 import {updateBallotStyleAndSelection} from "../services/BallotStyles"
 import useUpdateTranslation from "../hooks/useUpdateTranslation"
 import {GET_SUPPORT_MATERIALS} from "../queries/GetSupportMaterials"
+import {GET_SIGNED_URLS} from "../queries/GetSignedUrls"
 import {setSupportMaterial} from "../store/supportMaterials/supportMaterialsSlice"
 
 const StyledTitle = styled(Typography)`
@@ -233,6 +234,8 @@ const ElectionSelectionScreen: React.FC = () => {
     const bypassChooser = useAppSelector(selectBypassChooser())
     const [errorMsg, setErrorMsg] = useState<VotingPortalErrorType | ElectionScreenErrorType>()
     const [alertMsg, setAlertMsg] = useState<ElectionScreenMsgType>()
+    const [getSignedUrls] = useMutation(GET_SIGNED_URLS)
+    const urls = useRef<string[] | undefined>(undefined)
 
     const {
         error: errorBallotStyles,
@@ -292,11 +295,36 @@ const ElectionSelectionScreen: React.FC = () => {
         [dataElectionEvent?.sequent_backend_election_event]
     )
 
+    async function setBallotPublicationUrl() {
+        console.log("getSignedUrls", eventId)
+        const res = await getSignedUrls({
+            variables: {
+                eventId,
+            },
+        })
+        let urls = res.data?.get_signed_urls?.urls
+        console.log("urls: ", urls)
+        urls.current = urls
+    }
+
+    useEffect(() => {
+        console.log("useEffect", eventId)
+        if (!urls.current && eventId) {
+            setBallotPublicationUrl()
+        }
+    }, [])
+    // const urls = useMemo(
+    //     () => {
+    //         console.log("urls: ", urls)
+    //         urls
+    //     },
+    //     []
+    // )
+
     useEffect(() => {
         if (!dataMaterials || globalSettings.DISABLE_AUTH || !isMaterialsActivated) {
             return
         }
-
         for (let material of dataMaterials.sequent_backend_support_material) {
             dispatch(setSupportMaterial(material))
         }
