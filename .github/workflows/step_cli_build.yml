@@ -11,7 +11,6 @@ on:
   release:
     types: [published]
 
-
 jobs:
   build-cli:
     runs-on:
@@ -20,16 +19,16 @@ jobs:
       - image=ubuntu24-full-x64
     env:
       CARGO_TARGET_DIR: rust-local-target
+      RUSTFLAGS: "-C target-feature=-crt-static -lgcc_eh -lunwind -lm"
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Install build dependencies on Linux
+      - name: Install protoc and OpenSSL dependencies on Linux
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y protobuf-compiler musl-tools libssl-dev pkg-config \
-            build-essential perl curl  # Added build tools for compiling OpenSSL
+          sudo apt-get install -y protobuf-compiler musl-tools libssl-dev pkg-config musl-dev 
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
@@ -40,18 +39,19 @@ jobs:
           override: true
           target: x86_64-unknown-linux-musl
 
-      - name: Link openssl headers (if still needed)
+      - name: Link openssl
         working-directory: packages/step-cli
-        run: |
-          sudo ln -sf /usr/include/x86_64-linux-gnu/openssl/opensslconf.h /usr/include/openssl/
-          sudo ln -sf /usr/include/x86_64-linux-gnu/openssl/configuration.h /usr/include/openssl/
+        run: sudo ln -s /usr/include/x86_64-linux-gnu/openssl/opensslconf.h /usr/include/openssl/opensslconf.h && sudo ln -s /usr/include/x86_64-linux-gnu/openssl/configuration.h /usr/include/openssl/configuration.h
 
-      - name: Build step-cli with vendored OpenSSL
+      - name: Build step-cli
         working-directory: packages/step-cli
         env:
+          OPENSSL_DIR: /usr
+          OPENSSL_LIB_DIR: /usr/lib/x86_64-linux-gnu
           OPENSSL_STATIC: 1
           PKG_CONFIG_ALLOW_CROSS: 1
-        run: cargo build --release --target x86_64-unknown-linux-musl --features openssl-sys/vendored  # Enable vendored feature
+          OPENSSL_NO_VENDOR: 0
+        run: cargo build --release --target x86_64-unknown-linux-musl
 
       - name: List build output target-rust-local (for debugging)
         working-directory: packages/step-cli
