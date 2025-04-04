@@ -997,9 +997,14 @@ export type GenerateReportOutput = {
     task_execution?: Maybe<Tasks_Execution_Type>
 }
 
-export type GetSignedUrlsOutput = {
-    __typename?: "getSignedUrlsOutput"
+export type GetBallotFilesUrlsOutput = {
+    __typename?: "getBallotFilesUrlsOutput"
     urls?: Maybe<Array<Maybe<Scalars["String"]["output"]>>>
+}
+
+export type GetBallotPublicationUrlOutput = {
+    __typename?: "getBallotPublicationUrlOutput"
+    url?: Maybe<Scalars["String"]["output"]>
 }
 
 /** Boolean expression to compare columns of type "json". All fields are combined with logical 'AND'. */
@@ -1233,12 +1238,14 @@ export type Mutation_Root = {
     generate_report?: Maybe<GenerateReportOutput>
     generate_template?: Maybe<GenerateTemplateOutput>
     generate_transmission_report?: Maybe<GenerateReportOutput>
+    /** get_ballot_files_urls */
+    get_ballot_files_urls?: Maybe<GetBallotFilesUrlsOutput>
     get_ballot_publication_changes?: Maybe<GetBallotPublicationChangesOutput>
+    /** get_ballot_publication_url */
+    get_ballot_publication_url?: Maybe<GetBallotPublicationUrlOutput>
     get_manual_verification_pdf?: Maybe<GetManualVerificationOutput>
     /** get private key */
     get_private_key?: Maybe<GetPrivateKeyOutput>
-    /** get_signed_urls */
-    get_signed_urls?: Maybe<GetSignedUrlsOutput>
     get_upload_url?: Maybe<GetUploadUrlOutput>
     get_user: KeycloakUser
     get_user_template?: Maybe<GetUserTemplateOutput>
@@ -2353,10 +2360,22 @@ export type Mutation_RootGenerate_Transmission_ReportArgs = {
 }
 
 /** mutation root */
+export type Mutation_RootGet_Ballot_Files_UrlsArgs = {
+    ballot_publication_id: Scalars["uuid"]["input"]
+    election_event_id: Scalars["uuid"]["input"]
+    election_id: Scalars["uuid"]["input"]
+}
+
+/** mutation root */
 export type Mutation_RootGet_Ballot_Publication_ChangesArgs = {
     ballot_publication_id: Scalars["uuid"]["input"]
     election_event_id: Scalars["uuid"]["input"]
     limit?: InputMaybe<Scalars["Int"]["input"]>
+}
+
+/** mutation root */
+export type Mutation_RootGet_Ballot_Publication_UrlArgs = {
+    election_event_id: Scalars["uuid"]["input"]
 }
 
 /** mutation root */
@@ -2367,11 +2386,6 @@ export type Mutation_RootGet_Manual_Verification_PdfArgs = {
 /** mutation root */
 export type Mutation_RootGet_Private_KeyArgs = {
     object: GetPrivateKeyInput
-}
-
-/** mutation root */
-export type Mutation_RootGet_Signed_UrlsArgs = {
-    election_event_id: Scalars["uuid"]["input"]
 }
 
 /** mutation root */

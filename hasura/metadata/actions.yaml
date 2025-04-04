@@ -101,10 +101,10 @@ actions:
       permissions:
           - role: user
       comment: create_ballot_receipt
-    - name: get_signed_urls
+    - name: get_ballot_publication_url
       definition:
           kind: synchronous
-          handler: http://{{HARVEST_DOMAIN}}/get-signed-urls
+          handler: http://{{HARVEST_DOMAIN}}/get-ballot-publication-url
           forward_client_headers: true
           request_transform:
               body:
@@ -114,7 +114,21 @@ actions:
               version: 2
       permissions:
           - role: user
-      comment: get_signed_urls
+      comment: get_ballot_publication_url
+    - name: get_ballot_files_urls
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/get-ballot-files-urls
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: user
+      comment: get_ballot_files_urls
     - name: create_election
       definition:
           kind: synchronous

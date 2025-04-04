@@ -62,7 +62,8 @@ import {clearIsVoted, selectBypassChooser, setBypassChooser} from "../store/extr
 import {updateBallotStyleAndSelection} from "../services/BallotStyles"
 import useUpdateTranslation from "../hooks/useUpdateTranslation"
 import {GET_SUPPORT_MATERIALS} from "../queries/GetSupportMaterials"
-import {GET_SIGNED_URLS} from "../queries/GetSignedUrls"
+import {GET_BALLOT_PUBLICATION_URL} from "../queries/GetBallotPublicationUrl"
+import {GET_BALLOT_FILES_URLS} from "../queries/GetBallotFilesUrls"
 import {setSupportMaterial} from "../store/supportMaterials/supportMaterialsSlice"
 
 const StyledTitle = styled(Typography)`
@@ -234,7 +235,7 @@ const ElectionSelectionScreen: React.FC = () => {
     const bypassChooser = useAppSelector(selectBypassChooser())
     const [errorMsg, setErrorMsg] = useState<VotingPortalErrorType | ElectionScreenErrorType>()
     const [alertMsg, setAlertMsg] = useState<ElectionScreenMsgType>()
-    const [getSignedUrls] = useMutation(GET_SIGNED_URLS)
+    const [getBallotPublicationUrl] = useMutation(GET_BALLOT_PUBLICATION_URL)
     const urls = useRef<string[] | undefined>(undefined)
     const gotSignedUrls = useRef<boolean>(false)
 
@@ -296,16 +297,15 @@ const ElectionSelectionScreen: React.FC = () => {
         [dataElectionEvent?.sequent_backend_election_event]
     )
 
-
     async function setBallotPublicationUrl() {
         console.log("getSignedUrls for event id: ", eventId)
         try {
-            const res = await getSignedUrls({
+            const res = await getBallotPublicationUrl({
                 variables: {
                     eventId,
                 },
             })
-            let urls = res.data?.get_signed_urls?.urls
+            let urls = res.data?.get_ballot_publication_url?.urls
             console.log("urls: ", urls)
             urls.current = urls
         } catch (error) {
@@ -314,7 +314,6 @@ const ElectionSelectionScreen: React.FC = () => {
             setAlertMsg(t(`electionSelectionScreen.alerts.${ElectionScreenMsgType.NOT_PUBLISHED}`))
         }
     }
-
 
     useEffect(() => {
         if (!urls.current && eventId && !gotSignedUrls.current) {

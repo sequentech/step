@@ -8452,7 +8452,7 @@
       },
       {
         "kind": "OBJECT",
-        "name": "getSignedUrlsOutput",
+        "name": "getBallotFilesUrlsOutput",
         "description": null,
         "fields": [
           {
@@ -8467,6 +8467,29 @@
                 "name": "String",
                 "ofType": null
               }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
+        "name": "getBallotPublicationUrlOutput",
+        "description": null,
+        "fields": [
+          {
+            "name": "url",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
             },
             "isDeprecated": false,
             "deprecationReason": null
@@ -13222,6 +13245,61 @@
             "deprecationReason": null
           },
           {
+            "name": "get_ballot_files_urls",
+            "description": "get_ballot_files_urls",
+            "args": [
+              {
+                "name": "ballot_publication_id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "uuid",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null
+              },
+              {
+                "name": "election_event_id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "uuid",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null
+              },
+              {
+                "name": "election_id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "uuid",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null
+              }
+            ],
+            "type": {
+              "kind": "OBJECT",
+              "name": "getBallotFilesUrlsOutput",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "get_ballot_publication_changes",
             "description": null,
             "args": [
@@ -13267,6 +13345,33 @@
             "type": {
               "kind": "OBJECT",
               "name": "GetBallotPublicationChangesOutput",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "get_ballot_publication_url",
+            "description": "get_ballot_publication_url",
+            "args": [
+              {
+                "name": "election_event_id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "uuid",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null
+              }
+            ],
+            "type": {
+              "kind": "OBJECT",
+              "name": "getBallotPublicationUrlOutput",
               "ofType": null
             },
             "isDeprecated": false,
@@ -13321,33 +13426,6 @@
             "type": {
               "kind": "OBJECT",
               "name": "GetPrivateKeyOutput",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "get_signed_urls",
-            "description": "get_signed_urls",
-            "args": [
-              {
-                "name": "election_event_id",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "SCALAR",
-                    "name": "uuid",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null
-              }
-            ],
-            "type": {
-              "kind": "OBJECT",
-              "name": "getSignedUrlsOutput",
               "ofType": null
             },
             "isDeprecated": false,
