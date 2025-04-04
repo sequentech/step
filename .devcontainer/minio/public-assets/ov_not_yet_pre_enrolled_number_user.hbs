@@ -32,13 +32,11 @@
               <td>
                 <table class="main-header">
                       <td width="23%" class="left" valign="top">
-                        {{#if left_logo_img}}
-                        <img src="{{left_logo_img}}" />
-                        {{/if}}
+                        <img src="sequent-logo.svg" />
                       </td>
                   <td width="54%" class="center">
-                    <div class="country">{{title}}</div>
-                    <div class="commission">{{subtitle}}</div>
+                    <div class="country">SEQUENT ONLINE VOTING</div>
+                    <div class="commission">COMMISSION ON ELECTIONS</div>
                     <!-- TODO: Use `election_date` instead -->
                     <div class="election-date">
                       {{datetime from_rfc3339=execution_annotations.date_printed output_format="%B %d, %Y"
@@ -59,9 +57,7 @@
 
                   </td>
                       <td width="23%" class="right" valign="top">
-                        {{#if right_logo_img}}
-                        <img src="{{right_logo_img}}"/>
-                        {{/if}}
+                        <img src=""/>
                       </td>
                 </table>
               </td>
