@@ -298,16 +298,18 @@ const ElectionSelectionScreen: React.FC = () => {
     )
 
     async function setBallotPublicationUrl() {
-        console.log("getSignedUrls for event id: ", eventId)
+        console.log("getBallotPublicationUrl for event id: ", eventId)
         try {
             const res = await getBallotPublicationUrl({
                 variables: {
                     eventId,
                 },
             })
-            let urls = res.data?.get_ballot_publication_url?.urls
-            console.log("urls: ", urls)
-            urls.current = urls
+            let url = res.data?.get_ballot_publication_url?.url
+            console.log("url: ", url)
+            // let urls = res.data?.get_ballot_files_urls?.urls
+            // console.log("urls: ", urls)
+            // urls.current = urls
         } catch (error) {
             console.log("Error getting signed urls", error)
             setErrorMsg(t(`electionSelectionScreen.errors.${ElectionScreenErrorType.NETWORK}`))
