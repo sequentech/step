@@ -258,7 +258,7 @@ pub async fn get_document_url(
         s3::get_private_bucket()?
     };
 
-    let url = s3::get_document_url(document_s3_key, true, bucket).await?;
+    let url = s3::get_document_url(document_s3_key, bucket).await?;
 
     Ok(Some(url))
 }

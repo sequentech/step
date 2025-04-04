@@ -380,6 +380,7 @@ pub async fn upload_election_event_ballot_s3_files(
             .get(area_id)
             .cloned()
             .unwrap_or(vec![]);
+        info!("area_id: {area_id}, election_ids: {election_ids:?}");
         let mut elections: Vec<Election> = vec![];
         for election_id in &election_ids {
             let election = get_election_by_id(

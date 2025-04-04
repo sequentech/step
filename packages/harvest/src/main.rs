@@ -52,7 +52,6 @@ async fn rocket() -> _ {
                 routes::ballot_publication::get_ballot_publication_changes,
                 routes::ballot_publication::generate_ballot_publication,
                 routes::ballot_publication::publish_ballot,
-                routes::s3::get_ballot_publication_url,
                 routes::s3::get_ballot_files_urls,
                 routes::insert_cast_vote::insert_cast_vote,
                 routes::fetch_document::fetch_document,

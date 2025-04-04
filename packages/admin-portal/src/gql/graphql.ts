@@ -1000,11 +1000,6 @@ export type GetBallotFilesUrlsOutput = {
   urls?: Maybe<Array<Maybe<Scalars['String']['output']>>>;
 };
 
-export type GetBallotPublicationUrlOutput = {
-  __typename?: 'getBallotPublicationUrlOutput';
-  url?: Maybe<Scalars['String']['output']>;
-};
-
 /** Boolean expression to compare columns of type "json". All fields are combined with logical 'AND'. */
 export type Json_Comparison_Exp = {
   _eq?: InputMaybe<Scalars['json']['input']>;
@@ -1239,8 +1234,6 @@ export type Mutation_Root = {
   /** get_ballot_files_urls */
   get_ballot_files_urls?: Maybe<GetBallotFilesUrlsOutput>;
   get_ballot_publication_changes?: Maybe<GetBallotPublicationChangesOutput>;
-  /** get_ballot_publication_url */
-  get_ballot_publication_url?: Maybe<GetBallotPublicationUrlOutput>;
   get_manual_verification_pdf?: Maybe<GetManualVerificationOutput>;
   /** get private key */
   get_private_key?: Maybe<GetPrivateKeyOutput>;
@@ -2400,9 +2393,7 @@ export type Mutation_RootGenerate_Transmission_ReportArgs = {
 
 /** mutation root */
 export type Mutation_RootGet_Ballot_Files_UrlsArgs = {
-  ballot_publication_id: Scalars['uuid']['input'];
   election_event_id: Scalars['uuid']['input'];
-  election_id: Scalars['uuid']['input'];
 };
 
 
@@ -2411,12 +2402,6 @@ export type Mutation_RootGet_Ballot_Publication_ChangesArgs = {
   ballot_publication_id: Scalars['uuid']['input'];
   election_event_id: Scalars['uuid']['input'];
   limit?: InputMaybe<Scalars['Int']['input']>;
-};
-
-
-/** mutation root */
-export type Mutation_RootGet_Ballot_Publication_UrlArgs = {
-  election_event_id: Scalars['uuid']['input'];
 };
 
 

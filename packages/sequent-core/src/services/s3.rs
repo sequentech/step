@@ -178,10 +178,9 @@ pub fn get_public_document_key(
 #[instrument(err)]
 pub async fn get_document_url(
     key: String,
-    is_public: bool,
     s3_bucket: String,
 ) -> Result<String> {
-    let config = get_s3_aws_config(/* private = */ !is_public).await?;
+    let config = get_s3_aws_config(/* private = */ false).await?;
     let client = get_s3_client(config).await?;
 
     let presigning_config = PresigningConfig::expires_in(Duration::from_secs(

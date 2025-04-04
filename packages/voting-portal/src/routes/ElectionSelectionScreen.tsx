@@ -62,7 +62,6 @@ import {clearIsVoted, selectBypassChooser, setBypassChooser} from "../store/extr
 import {updateBallotStyleAndSelection} from "../services/BallotStyles"
 import useUpdateTranslation from "../hooks/useUpdateTranslation"
 import {GET_SUPPORT_MATERIALS} from "../queries/GetSupportMaterials"
-import {GET_BALLOT_PUBLICATION_URL} from "../queries/GetBallotPublicationUrl"
 import {GET_BALLOT_FILES_URLS} from "../queries/GetBallotFilesUrls"
 import {setSupportMaterial} from "../store/supportMaterials/supportMaterialsSlice"
 
@@ -235,7 +234,7 @@ const ElectionSelectionScreen: React.FC = () => {
     const bypassChooser = useAppSelector(selectBypassChooser())
     const [errorMsg, setErrorMsg] = useState<VotingPortalErrorType | ElectionScreenErrorType>()
     const [alertMsg, setAlertMsg] = useState<ElectionScreenMsgType>()
-    const [getBallotPublicationUrl] = useMutation(GET_BALLOT_PUBLICATION_URL)
+    const [getBallotFilesUrls] = useMutation(GET_BALLOT_FILES_URLS)
     const urls = useRef<string[] | undefined>(undefined)
     const gotSignedUrls = useRef<boolean>(false)
 
@@ -297,19 +296,39 @@ const ElectionSelectionScreen: React.FC = () => {
         [dataElectionEvent?.sequent_backend_election_event]
     )
 
-    async function setBallotPublicationUrl() {
-        console.log("getBallotPublicationUrl for event id: ", eventId)
+    const fetchJson = async (url: string) => {
         try {
-            const res = await getBallotPublicationUrl({
+            const response = await fetch(url)
+            if (!response.ok) {
+                console.log(response)
+                throw new Error(`HTTP error! status: ${response.status}`)
+            }
+            const jsonData = await response.json()
+            return jsonData
+        } catch (error) {
+            console.error("Error fetching JSON:", error)
+            throw error
+        }
+    }
+
+    async function setBallotPublicationUrl() {
+        console.log("getBallotFilesUrls for event id: ", eventId)
+        try {
+            const res = await getBallotFilesUrls({
                 variables: {
                     eventId,
                 },
             })
-            let url = res.data?.get_ballot_publication_url?.url
-            console.log("url: ", url)
-            // let urls = res.data?.get_ballot_files_urls?.urls
-            // console.log("urls: ", urls)
-            // urls.current = urls
+            // TODO: get the ballotPublicationId from the content
+            let urls = res.data?.get_ballot_files_urls?.urls
+            console.log("urls: ", urls)
+            urls.current = urls
+            // iterate over the urls and get the content
+            // The election event file and the elections file are the first two urls followed by the ballot styles.
+            for (let url of urls) {
+                const content = await fetchJson(url)
+                console.log("content: ", content)
+            }
         } catch (error) {
             console.log("Error getting signed urls", error)
             setErrorMsg(t(`electionSelectionScreen.errors.${ElectionScreenErrorType.NETWORK}`))
