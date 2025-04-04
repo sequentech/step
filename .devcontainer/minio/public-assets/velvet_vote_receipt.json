@@ -1,4 +1,8 @@
 {
+  "title": "TITLE",
+  "subtitle": "SUBTITLE",
+  "left_logo_img": "sequent-logo.svg",
+  "right_logo_img": "sequent-logo.svg",
     "file_qrcode_lib": "",
     "contest": {
         "id": "1",
@@ -50,5 +54,6 @@
             "decoded_choices": []
         }
     ],
-    "election_name": "TOKYO - General Election"
+    "election_name": "TOKYO - General Election",
+    "comissioner_logo": "./sequent-logo.svg"
 }
