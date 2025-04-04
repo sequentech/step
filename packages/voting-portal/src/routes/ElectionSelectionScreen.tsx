@@ -236,6 +236,7 @@ const ElectionSelectionScreen: React.FC = () => {
     const [alertMsg, setAlertMsg] = useState<ElectionScreenMsgType>()
     const [getSignedUrls] = useMutation(GET_SIGNED_URLS)
     const urls = useRef<string[] | undefined>(undefined)
+    const gotSignedUrls = useRef<boolean>(false)
 
     const {
         error: errorBallotStyles,
@@ -295,31 +296,32 @@ const ElectionSelectionScreen: React.FC = () => {
         [dataElectionEvent?.sequent_backend_election_event]
     )
 
+
     async function setBallotPublicationUrl() {
-        console.log("getSignedUrls", eventId)
-        const res = await getSignedUrls({
-            variables: {
-                eventId,
-            },
-        })
-        let urls = res.data?.get_signed_urls?.urls
-        console.log("urls: ", urls)
-        urls.current = urls
+        console.log("getSignedUrls for event id: ", eventId)
+        try {
+            const res = await getSignedUrls({
+                variables: {
+                    eventId,
+                },
+            })
+            let urls = res.data?.get_signed_urls?.urls
+            console.log("urls: ", urls)
+            urls.current = urls
+        } catch (error) {
+            console.log("Error getting signed urls", error)
+            setErrorMsg(t(`electionSelectionScreen.errors.${ElectionScreenErrorType.NETWORK}`))
+            setAlertMsg(t(`electionSelectionScreen.alerts.${ElectionScreenMsgType.NOT_PUBLISHED}`))
+        }
     }
 
+
     useEffect(() => {
-        console.log("useEffect", eventId)
-        if (!urls.current && eventId) {
+        if (!urls.current && eventId && !gotSignedUrls.current) {
+            gotSignedUrls.current = true
             setBallotPublicationUrl()
         }
     }, [])
-    // const urls = useMemo(
-    //     () => {
-    //         console.log("urls: ", urls)
-    //         urls
-    //     },
-    //     []
-    // )
 
     useEffect(() => {
         if (!dataMaterials || globalSettings.DISABLE_AUTH || !isMaterialsActivated) {
