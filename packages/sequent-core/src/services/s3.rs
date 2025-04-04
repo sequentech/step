@@ -86,6 +86,69 @@ pub async fn get_s3_client(config: s3::Config) -> Result<s3::Client> {
     Ok(client)
 }
 
+#[instrument(skip_all)]
+pub fn get_ballot_publications_base_path(
+    tenant_id: &str,
+    election_event_id: &str,
+    area_id: &str,
+) -> String {
+    format!("tenant-{tenant_id}/event-{election_event_id}/area-{area_id}")
+}
+
+#[instrument(skip_all)]
+pub fn get_ballot_publication_file_path(
+    tenant_id: &str,
+    election_event_id: &str,
+    area_id: &str,
+) -> String {
+    let base_path = get_ballot_publications_base_path(
+        tenant_id,
+        election_event_id,
+        area_id,
+    );
+    format!("{base_path}/ballot-publication.json")
+}
+
+#[instrument(skip_all)]
+pub fn get_ballot_style_file_path(
+    tenant_id: &str,
+    election_event_id: &str,
+    area_id: &str,
+    ballot_publication_id: &str,
+    election_id: &str,
+) -> String {
+    let base_path = get_ballot_publications_base_path(
+        tenant_id,
+        election_event_id,
+        area_id,
+    );
+    format!("{base_path}/publication-{ballot_publication_id}/ballot-style-election-{election_id}.json")
+}
+
+#[instrument(skip_all)]
+pub fn get_election_event_file_path(
+    tenant_id: &str,
+    election_event_id: &str,
+    ballot_publication_id: &str,
+) -> String {
+    format!("tenant-{tenant_id}/event-{election_event_id}/publication-{ballot_publication_id}/election-event.json")
+}
+
+#[instrument(skip_all)]
+pub fn get_elections_file_path(
+    tenant_id: &str,
+    election_event_id: &str,
+    area_id: &str,
+    ballot_publication_id: &str,
+) -> String {
+    let base_path = get_ballot_publications_base_path(
+        tenant_id,
+        election_event_id,
+        area_id,
+    );
+    format!("{base_path}/publication-{ballot_publication_id}/elections.json")
+}
+
 #[instrument]
 pub fn get_document_key(
     tenant_id: &str,
@@ -104,69 +167,6 @@ pub fn get_document_key(
 }
 
 #[instrument(skip_all)]
-pub fn get_public_ballot_publications_base_path(
-    tenant_id: &str,
-    election_event_id: &str,
-    area_id: &str,
-) -> String {
-    format!("tenant-{tenant_id}/event-{election_event_id}/area-{area_id}")
-}
-
-#[instrument(skip_all)]
-pub fn get_public_ballot_publication_file_path(
-    tenant_id: &str,
-    election_event_id: &str,
-    area_id: &str,
-) -> String {
-    let base_path = get_public_ballot_publications_base_path(
-        tenant_id,
-        election_event_id,
-        area_id,
-    );
-    format!("{base_path}/ballot-publication.json")
-}
-
-#[instrument(skip_all)]
-pub fn get_public_ballot_style_file_path(
-    tenant_id: &str,
-    election_event_id: &str,
-    area_id: &str,
-    ballot_publication_id: &str,
-    election_id: &str,
-) -> String {
-    let base_path = get_public_ballot_publications_base_path(
-        tenant_id,
-        election_event_id,
-        area_id,
-    );
-    format!("{base_path}/publication-{ballot_publication_id}/ballot-style-election-{election_id}.json")
-}
-
-#[instrument(skip_all)]
-pub fn get_public_election_event_file_path(
-    tenant_id: &str,
-    election_event_id: &str,
-    ballot_publication_id: &str,
-) -> String {
-    format!("tenant-{tenant_id}/event-{election_event_id}/publication-{ballot_publication_id}/election-event.json")
-}
-
-#[instrument(skip_all)]
-pub fn get_public_elections_file_path(
-    tenant_id: &str,
-    election_event_id: &str,
-    area_id: &str,
-    ballot_publication_id: &str,
-) -> String {
-    let base_path = get_public_ballot_publications_base_path(
-        tenant_id,
-        election_event_id,
-        area_id,
-    );
-    format!("{base_path}/publication-{ballot_publication_id}/elections.json")
-}
-
-#[instrument(skip_all)]
 pub fn get_public_document_key(
     tenant_id: &str,
     document_id: &str,
@@ -178,9 +178,10 @@ pub fn get_public_document_key(
 #[instrument(err)]
 pub async fn get_document_url(
     key: String,
+    is_public: bool,
     s3_bucket: String,
 ) -> Result<String> {
-    let config = get_s3_aws_config(/* private = */ false).await?;
+    let config = get_s3_aws_config(/* private = */ !is_public).await?;
     let client = get_s3_client(config).await?;
 
     let presigning_config = PresigningConfig::expires_in(Duration::from_secs(

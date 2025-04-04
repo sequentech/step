@@ -335,11 +335,8 @@ pub async fn upload_election_event_ballot_s3_files(
     // Upload election event data
     let election_event_data = serde_json::to_string(&election_event)
         .map_err(|err| format!("Error serializing election event to json: {err:?}"))?;
-    let election_event_path = s3::get_public_election_event_file_path(
-        tenant_id,
-        election_event_id,
-        ballot_publication_id,
-    );
+    let election_event_path =
+        s3::get_election_event_file_path(tenant_id, election_event_id, ballot_publication_id);
     upload_ballot_files_to_s3_with_retry(&election_event_data, &election_event_path, &s3_bucket)
         .await?;
 
@@ -364,7 +361,7 @@ pub async fn upload_election_event_ballot_s3_files(
         let ballot_style_data = serde_json::to_string(ballot_style)
             .map_err(|err| format!("Error serializing ballot style to json: {err:?}"))?;
 
-        let ballot_style_path = s3::get_public_ballot_style_file_path(
+        let ballot_style_path = s3::get_ballot_style_file_path(
             tenant_id,
             election_event_id,
             area_id,
@@ -399,7 +396,7 @@ pub async fn upload_election_event_ballot_s3_files(
             .map_err(|err| format!("Error serializing elections to json: {err:?}"))?;
 
         // Upload elections data belonging to this area:
-        let elections_file_path = s3::get_public_elections_file_path(
+        let elections_file_path = s3::get_elections_file_path(
             tenant_id,
             election_event_id,
             area_id,
@@ -443,7 +440,7 @@ pub async fn replace_ballot_publication_s3_files(
     for area_id in &areas {
         // Upload ballot publications file or replace it if it exists.
         let ballot_publication_file_path =
-            s3::get_public_ballot_publication_file_path(tenant_id, election_event_id, area_id);
+            s3::get_ballot_publication_file_path(tenant_id, election_event_id, area_id);
         upload_ballot_files_to_s3_with_retry(
             &ballot_publication_data,
             &ballot_publication_file_path,

@@ -52,16 +52,23 @@ pub async fn get_signed_urls(
     let mut urls: Vec<String> = vec![];
 
     // WIP... get needed urls
-    let document_s3_key = s3::get_public_ballot_publication_file_path(
+    let document_s3_key = s3::get_ballot_publication_file_path(
         &tenant_id,
         &election_event_id,
         &area_id,
     );
-    let url = s3::get_document_url(document_s3_key, s3_bucket.clone())
+
+    let url = s3::get_document_url(document_s3_key, false, s3_bucket.clone())
         .await
         .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
     info!("url: {url:?}");
-    urls.push(url);
 
+    let test = s3::download_s3_file_to_string(&url)
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+
+    info!("test: {test:?}");
+
+    urls.push(url);
     Ok(Json(GetSignedUrlsOutput { urls }))
 }
