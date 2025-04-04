@@ -16,7 +16,7 @@
                             <p>
                               {{datetime from_rfc3339=execution_annotations.date_printed
                               output_format="%B %d, %Y %H:%M"
-                              with_timezone="UTC"}}
+                              with_timezone="Asia/Manila"}}
                             </p>
                           </div>
                         </td>
@@ -26,43 +26,59 @@
                 </tr>
                 <!-- End of report section -->
 
+                <!-- Logo printer block -->
+                <tr>
+                  <td>
+                    <table class="main-header">
+                      <tr>
+                        <td class="left logo-printer-block" valign="top">
+                          <img
+                            src=""
+                          />
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                <!-- Logo printer block -->
+
                 <!-- Document header block -->
                 <tr>
                   <td>
                     <table class="main-header">
                       <tr>
-                      <td width="23%" class="left" valign="top">
-                        {{#if left_logo_img}}
-                        <img src="{{left_logo_img}}" />
-                        {{/if}}
-                      </td>
+                        <td width="23%" class="left" valign="top">
+                          <img
+                            src=""
+                          />
+                        </td>
                         <td width="54%" class="center">
-                          <div class="country">{{title}}</div>
-                          <div class="commission">{{subtitle}}</div>
+                          <div class="country">REPUBLIC OF PHILIPPINES</div>
+                          <div class="commission">COMMISSION ON ELECTIONS</div>
                           <div class="election-date">
                             {{datetime
                             from_rfc3339=execution_annotations.date_printed
                             output_format="%B %d, %Y"
-                            with_timezone="UTC"}}
+                            with_timezone="Asia/Manila"}}
                           </div>
                           <div class="election-name">
-                            {{sanitize_html (expr reports.0.election_name)}}
+                            {{sanitize_html (expr (lookup reports 0).election_name)}}
                           </div>
                           <div class="online">
                             ONLINE VOTING AND COUNTING SYSTEM
                           </div>
                           <div class="voting-period">
-                            Voting Period: {{datetime from_rfc3339=reports.0.election_dates.scheduled_event_dates.ALLOW_INIT_REPORT.scheduled_at
-                            output_format="%d %B %Y" with_timezone="UTC"}} - {{datetime
-                            from_rfc3339=reports.0.election_dates.scheduled_event_dates.END_VOTING_PERIOD.scheduled_at output_format="%d %B %Y"
-                            with_timezone="UTC"}}
+                            Overseas Voting Period: {{datetime from_rfc3339=(lookup (lookup reports 0).election_dates.scheduled_event_dates "ALLOW_INIT_REPORT").scheduled_at
+                            output_format="%d %B %Y" with_timezone="Asia/Manila"}} - {{datetime
+                            from_rfc3339=(lookup (lookup reports 0).election_dates.scheduled_event_dates "END_VOTING_PERIOD").scheduled_at output_format="%d %B %Y"
+                            with_timezone="Asia/Manila"}}
                           </div>
                         </td>
-                      <td width="23%" class="right" valign="top">
-                        {{#if right_logo_img}}
-                        <img src="{{right_logo_img}}"/>
-                        {{/if}}
-                      </td>
+                        <td width="23%" class="right" valign="top">
+                          <img
+                            src=""
+                          />
+                        </td>
                       </tr>
                     </table>
                   </td>
@@ -84,7 +100,7 @@
         <!-- Main title -->
 
         <!-- Additional sections -->
-        {{#with (lookup reports.0)}}
+        {{#with (lookup reports 0) as |report|}}
         <tr>
           <td>
             <div>
@@ -99,7 +115,7 @@
                   </td>
                   <td class="value">
                     {{sanitize_html (expr
-                    election_annotations.geographical_region)}}
+                    report.election_annotations.geographical_region)}}
                   </td>
                 </tr>
                 <tr>
@@ -107,21 +123,21 @@
                     <strong>Post:</strong>
                   </td>
                   <td class="value">
-                    {{sanitize_html (expr election_annotations.post)}}
+                    {{sanitize_html (expr report.election_annotations.post)}}
                   </td>
                 </tr>
                 <tr>
                   <td class="key">
                     <strong>Country:</strong>
                   </td>
-                  <td class="value">{{sanitize_html (expr area.name)}}</td>
+                  <td class="value">{{sanitize_html (expr report.area.name)}}</td>
                 </tr>
                 <tr>
                   <td class="key">
                     <strong>Voting Center:</strong>
                   </td>
                   <td class="value">
-                    {{sanitize_html (expr election_annotations.post)}}
+                    {{sanitize_html (expr report.election_annotations.post)}}
                   </td>
                 </tr>
                 <tr>
@@ -129,7 +145,7 @@
                   <strong>Clustered Precinct ID:</strong>
                   </td>
                   <td class="value">
-                    {{sanitize_html (expr election_annotations.pollcenter_code)}}
+                    {{sanitize_html (expr report.election_annotations.pollcenter_code)}}
                   </td>
                 </tr>
                 <tr>
@@ -137,21 +153,21 @@
                 <strong>Precincts in the Cluster:</strong>
               </td>
               <td class="value">
-                {{sanitize_html (expr election_annotations.clustered_precint_id)}}
+                {{sanitize_html (expr report.election_annotations.clustered_precint_id)}}
               </td>
                 </tr>
                 <tr>
                   <td class="key">
                     <strong>Number of Registered Voters:</strong>
                   </td>
-                  <td class="value">{{expr area_annotations.registered_voters}}</td>
+                  <td class="value">{{expr report.area_annotations.registered_voters}}</td>
                 </tr>
                 <tr>
                   <td class="key">
                     <strong>Number of Ballots Counted:</strong>
                   </td>
                   <td class="value">
-                    {{format_u64 contest_result.total_votes}}
+                    {{format_u64 report.contest_result.total_votes}}
                   </td>
                 </tr>
               </table>
@@ -175,11 +191,11 @@
                 </tr>
               </thead>
               <tbody>
-                {{#each reports}}
+                {{#each reports as |report|}}
                 <tr class="contest-title">
-                  <td colspan="2">{{contest_result.contest.name}}</td>
+                  <td colspan="2">{{report.contest_result.contest.name}}</td>
                 </tr>
-                {{#each contest_result.candidate_result as |candidate|}}
+                {{#each report.contest_result.candidate_result as |candidate|}}
                 <tr>
                   <td>{{candidate.candidate.name}}</td>
                   <td class="votes">{{format_u64 candidate.total_count}}</td>
@@ -197,16 +213,17 @@
           <td align="left">
             <div>
               <strong
-                >WE, THE UNDERSIGNED MEMBERS OF THE BOARD OF ELECTION
+                >WE, THE UNDERSIGNED MEMBERS OF THE SPECIAL BOARD OF ELECTION
                 INSPECTORS</strong
               >
-              of {{sanitize_html (expr election_annotations.post)}}, and
+              of {{sanitize_html (expr report.election_annotations.post)}}, and
               Clustered Precinct ID {{sanitize_html (expr
-              election_annotations.pollcenter_code)}}, do hereby certify
+              report.election_annotations.pollcenter_code)}}, do hereby certify
               under oath that the Online Voting and Counting System for
-              {{sanitize_html (expr area.name)}} has been initialized on
+              {{sanitize_html (expr report.area.name)}} has been initialized on
               {{datetime from_rfc3339=execution_annotations.date_printed output_format="%B %d, %Y %H:%M"}} 
-              and is ready for voting and counting.
+              ({{datetime from_rfc3339=execution_annotations.date_printed output_format="%B %d, %Y %H:%M" with_timezone="Asia/Manila"}} in
+              the Philippines) and is ready for voting and counting.
             </div>
           </td>
         </tr>
@@ -216,7 +233,7 @@
           <td>
             <div>
               <p>
-                <strong>The Board of Election Inspectors</strong>
+                <strong>The Special Board of Election Inspectors</strong>
               </p>
             </div>
           </td>

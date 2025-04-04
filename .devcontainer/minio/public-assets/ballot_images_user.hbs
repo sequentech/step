@@ -12,10 +12,13 @@
                       <div class="left">
                         <div class='row'>
                           <div class="qr-code" id="qrcode-0-{{ballot_index}}"></div>
+                            {{#if left_logo_img}}
                             <img
-                              class="commissioner-logo.jpg image-url"
+                              src="{{left_logo_img}}"
+                              class="image-url"
                               alt="Electoral Commission Logo"
                             />
+                          {{/if}}
                           <div>
                             <p class="election-name">{{../../election_name}}</p>
                             <p class="election-name">{{../../area}}</p>
@@ -31,9 +34,12 @@
                       </div>
                     </div>
                     <div class="right">
+                        {{#if right_logo_img}}
                         <img
-                          class="printing-office-logo.jpg image-url circle"
+                          src="{{right_logo_img}}"
+                          class="image-url circle"
                         />
+                        {{/if}}
                         <div>
                           <div class="election-info">
                               <span>Clustered Precinct ID:</span>
@@ -73,12 +79,11 @@
                 </div>
                 <div class="footer">
                         <img
-                          class="printing-office-logo.jpg image-url circle"
+                          src"printing-office-logo.jpg"
+                          class="image-url circle"
                         />
                     <div>
                     FOR PARTY LIST CANDIDATES, CHECK THE BACK OF THIS BALLOT<br>
-                    Para sa mga kandidato ng Party List, tingnan ang likod ng balotang ito
-                    <br>
                     <p>Page 1 of 2</p>
                     </div>
                     <div style="font-size: 2px; color:black;">THIS IS A SAMPLE MICROTEXT TO BE USED FOR LABORATORY TEST</div>
@@ -96,28 +101,26 @@
                       <div class="left">
                         <div class='row'>
                           <div class="qr-code" id="qrcode-1-{{ballot_index}}"></div>
+                          {{#if left_logo_img}}
                           <img
-                            class="commissioner-logo.jpg image-url"
+                            src="{{left_logo_img}}"
+                            class="image-url"
                             alt="Electoral Commission Logo"
                           />
+                          {{/if}}
                           <div>
                             <p class="election-name">{{../../election_name}}</p>
                             <p class="election-name">{{../../area}}</p>
                           </div>
                         </div>
-                        <div>
-                          <p class="instructions-header">PARAAN NG PAGBOTO</p>
-                          <ol>
-                              <li><div class="instruction" >Markahan ang loob ng bilog <span><input type="checkbox" class="check-mark" checked disabled/></span>sa tabi ng nais ibotong kandidato.</div></li>
-                              <li>Gamitin lamang ang marking pen na ibinigay para sa pagmarka ng mga bilog.</li>
-                              <li>Huwag markahan ng hihigit sa dapat.</li>
-                          </ol>
-                        </div>
                     </div>
                     <div class="right">
+                          {{#if right_logo_img}}
                         <img
-                          class="comelec-2025-logo.jpg image-url" 
+                          src="{{right_logo_img}}" 
+                          class="image-url" 
                         />
+                        {{/if}}
                         <div>
                           <div class="election-info">
                               <span>Clustered Precinct ID:</span>
@@ -134,8 +137,6 @@
                     <div class="section">
                         <div class="section-title green">
                           {{sanitize_html this.contest.name}}
-                          <br>
-                          (Bumoto ng hindi hihigit sa 1)
                         </div>
                         <div class="candidates">
                             {{#each this.decoded_choices}}
@@ -154,13 +155,14 @@
                     </div>
                 </div>
                 <div class="footer">
+                        {{#if left_logo_img}}
                         <img
-                          src="printing-office-logo.jpg image-url"
+                          src="{{left_logo_img}}"
+                          class"image-url"
                         />
+                        {{/if}}
                     <div>
                     FOR PARTY LIST CANDIDATES, CHECK THE BACK OF THIS BALLOT<br>
-                    Para sa mga kandidato ng Party List, tingnan ang likod ng balotang ito
-                    <br>
                     <p>Page 2 of 2</p>
                     </div>
                     <div class="circle" style="opacity: 0;"></div>

@@ -1,4 +1,8 @@
 {
+  "title": "TITLE",
+  "subtitle": "SUBTITLE",
+  "left_logo_img": "sequent-logo.svg",
+  "right_logo_img": "sequent-logo.svg",
   "election_event_title": "National Elections",
   "execution_annotations": {
     "date_printed": "2024-10-09T14:30:00-04:00",
