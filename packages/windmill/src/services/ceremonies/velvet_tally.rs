@@ -1,7 +1,6 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::hasura::tally_session_execution::get_last_tally_session_execution::GetLastTallySessionExecutionSequentBackendTallySessionContest;
 use crate::postgres::election::export_elections;
 use crate::postgres::reports::ReportType;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
@@ -27,7 +26,9 @@ use sequent_core::services::s3;
 use sequent_core::services::translations::Name;
 use sequent_core::signatures::ecies_encrypt::EciesKeyPair;
 use sequent_core::types::ceremonies::TallyType;
-use sequent_core::types::hasura::core::{Area, Election, ElectionEvent, TallySession, TallySheet};
+use sequent_core::types::hasura::core::{
+    Area, Election, ElectionEvent, TallySession, TallySessionContest, TallySheet,
+};
 use sequent_core::types::scheduled_event::ScheduledEvent;
 use sequent_core::types::templates::{
     PrintToPdfOptionsLocal, ReportExtraConfig, SendTemplateBody, VoteReceiptPipeType,
@@ -52,7 +53,7 @@ use velvet::pipes::pipe_name::PipeName;
 #[derive(Debug, Clone)]
 pub struct AreaContestDataType {
     pub plaintexts: Vec<<RistrettoCtx as Ctx>::P>,
-    pub last_tally_session_execution: GetLastTallySessionExecutionSequentBackendTallySessionContest,
+    pub last_tally_session_execution: TallySessionContest,
     pub contest: Contest,
     pub ballot_style: BallotStyle,
     pub eligible_voters: u64,
