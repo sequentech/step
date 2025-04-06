@@ -35,6 +35,7 @@ use strand::elgamal::Ciphertext;
 use strand::signature::StrandSignaturePk;
 use tempfile::NamedTempFile;
 use tracing::{event, instrument, Level};
+use std::time::Instant;
 
 #[instrument(skip_all, err)]
 pub async fn insert_ballots_messages(
@@ -48,6 +49,7 @@ pub async fn insert_ballots_messages(
     tally_session_contests: Vec<TallySessionContest>,
     contest_encryption_policy: ContestEncryptionPolicy,
 ) -> Result<()> {
+    let start_inset_ballots = Instant::now();
     let trustees = get_trustees_by_name(&auth_headers, &tenant_id, &trustee_names)
         .await?
         .data
@@ -84,7 +86,7 @@ pub async fn insert_ballots_messages(
     let public_key_hash = get_public_key_hash::<RistrettoCtx>(&board_messages)?;
     let selected_trustees: TrusteeSet =
         generate_trustee_set(&configuration, deserialized_trustee_pks.clone());
-
+    // going by contests in the tally session
     for tally_session_contest in tally_session_contests {
         event!(
             Level::INFO,
@@ -94,7 +96,7 @@ pub async fn insert_ballots_messages(
             tally_session_contest.area_id,
             tally_session_contest.session_id,
         );
-
+        let start_ballot_temp_file = Instant::now();
         // Use find_area_ballots with pagination
         let mut offset = 0;
         let batch_size = PgConfig::from_env()?.default_sql_batch_size.into();
@@ -127,7 +129,7 @@ pub async fn insert_ballots_messages(
             if ballots_list.is_empty() {
                 break;
             }
-
+            // determine the contest encryption policy
             for ballot in ballots_list {
                 let ballot_str = ballot.content.ok_or(anyhow!("Empty ballot content"))?;
 
@@ -173,11 +175,17 @@ pub async fn insert_ballots_messages(
             // Move to next batch
             offset += batch_size;
         }
+        let ballot_temp_file_duration = start_ballot_temp_file.elapsed();
+        event!(
+            Level::INFO,
+            "Omri - monitor tally - insert ballots took {:?}",
+            ballot_temp_file_duration
+        );
 
         let ballots_temp_file = ballots_temp_file.reopen()?;
 
         // Use pagination and write the contents to a file
-
+        let start_users_temp_file = Instant::now();
         // Create a temporary file (auto-deleted when dropped)
         let users_temp_file = NamedTempFile::new()
             .map_err(|error| anyhow!("Failed to create temp file: {}", error))?;
@@ -223,7 +231,12 @@ pub async fn insert_ballots_messages(
             // Move to next batch
             offset += batch_size;
         }
-
+        let users_temp_file_duration = start_users_temp_file.elapsed();
+        event!(
+            Level::INFO,
+            "Omri - monitor tally - insert users took {:?}",
+            users_temp_file_duration
+        );
         let users_temp_file = users_temp_file.reopen()?;
 
         // Use a join function to filter and extract the ballot content
@@ -231,6 +244,8 @@ pub async fn insert_ballots_messages(
         let ballots_join_indexes = 0;
         let ballot_election_id_index = 1;
         let users_join_idexes = 0;
+
+        let start_merge_join_csv = Instant::now();
 
         let handle = tokio::task::spawn_blocking({
             move || {
@@ -255,6 +270,13 @@ pub async fn insert_ballots_messages(
             }
         });
 
+        let merge_join_csv_duration = start_merge_join_csv.elapsed();
+        event!(
+            Level::INFO,
+            "Omri - monitor tally - merge join took {:?}",
+            merge_join_csv_duration
+        );
+
         // Await the result and handle JoinError explicitly
         let insertable_ballots: Vec<Ciphertext<RistrettoCtx>> = match handle.await {
             Ok(inner_result) => inner_result.map_err(|err| anyhow!(err.context("Task failed"))),
@@ -266,7 +288,7 @@ pub async fn insert_ballots_messages(
             "insertable_ballots len: {:?}",
             insertable_ballots.len()
         );
-
+        let start_add_ballots_to_board = Instant::now();
         let mut board = get_b3_pgsql_client().await?;
         let batch = tally_session_contest.session_id.clone() as BatchNumber;
         add_ballots_to_board(
@@ -280,8 +302,21 @@ pub async fn insert_ballots_messages(
             insertable_ballots,
             batch,
         )
-        .await?
+        .await?;
+
+    let add_ballots_to_board_duration = start_add_ballots_to_board.elapsed();
+        event!(
+            Level::INFO,
+            "Omri - monitor tally - add ballots to board took {:?}",
+            add_ballots_to_board_duration
+        );
     }
+    let insert_ballots_duration = start_inset_ballots.elapsed();
+    event!(
+        Level::INFO,
+        "Omri - monitor tally - insert ballots took {:?}",
+        insert_ballots_duration
+    );
     Ok(())
 }
 
