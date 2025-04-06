@@ -42,64 +42,64 @@ pub async fn get_tenant(
     response_body.ok()
 }
 
-#[derive(GraphQLQuery)]
-#[graphql(
-    schema_path = "src/graphql/schema.json",
-    query_path = "src/graphql/insert_tenant.graphql",
-    response_derives = "Debug"
-)]
-pub struct InsertTenant;
+// #[derive(GraphQLQuery)]
+// #[graphql(
+//     schema_path = "src/graphql/schema.json",
+//     query_path = "src/graphql/insert_tenant.graphql",
+//     response_derives = "Debug"
+// )]
+// pub struct InsertTenant;
 
-#[instrument(skip_all, err)]
-pub async fn insert_tenant(
-    auth_headers: connection::AuthHeaders,
-    id: &str,
-    slug: &str,
-) -> Result<Response<insert_tenant::ResponseData>> {
-    let variables = insert_tenant::Variables {
-        id: id.to_string(),
-        slug: slug.to_string(),
-    };
-    let hasura_endpoint =
-        env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
-    let request_body = InsertTenant::build_query(variables);
+// #[instrument(skip_all, err)]
+// pub async fn insert_tenant(
+//     auth_headers: connection::AuthHeaders,
+//     id: &str,
+//     slug: &str,
+// ) -> Result<Response<insert_tenant::ResponseData>> {
+//     let variables = insert_tenant::Variables {
+//         id: id.to_string(),
+//         slug: slug.to_string(),
+//     };
+//     let hasura_endpoint =
+//         env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
+//     let request_body = InsertTenant::build_query(variables);
 
-    let client = reqwest::Client::new();
-    let res = client
-        .post(hasura_endpoint)
-        .header(auth_headers.key, auth_headers.value)
-        .json(&request_body)
-        .send()
-        .await?;
-    let response_body: Response<insert_tenant::ResponseData> = res.json().await?;
-    response_body.ok()
-}
+//     let client = reqwest::Client::new();
+//     let res = client
+//         .post(hasura_endpoint)
+//         .header(auth_headers.key, auth_headers.value)
+//         .json(&request_body)
+//         .send()
+//         .await?;
+//     let response_body: Response<insert_tenant::ResponseData> = res.json().await?;
+//     response_body.ok()
+// }
 
-#[derive(GraphQLQuery)]
-#[graphql(
-    schema_path = "src/graphql/schema.json",
-    query_path = "src/graphql/get_tenant_by_slug.graphql",
-    response_derives = "Debug"
-)]
-pub struct GetTenantBySlug;
+// #[derive(GraphQLQuery)]
+// #[graphql(
+//     schema_path = "src/graphql/schema.json",
+//     query_path = "src/graphql/get_tenant_by_slug.graphql",
+//     response_derives = "Debug"
+// )]
+// pub struct GetTenantBySlug;
 
-#[instrument(skip_all, err)]
-pub async fn get_tenant_by_slug(
-    auth_headers: connection::AuthHeaders,
-    slug: String,
-) -> Result<Response<get_tenant_by_slug::ResponseData>> {
-    let variables = get_tenant_by_slug::Variables { slug: slug };
-    let hasura_endpoint =
-        env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
-    let request_body = GetTenantBySlug::build_query(variables);
+// #[instrument(skip_all, err)]
+// pub async fn get_tenant_by_slug(
+//     auth_headers: connection::AuthHeaders,
+//     slug: String,
+// ) -> Result<Response<get_tenant_by_slug::ResponseData>> {
+//     let variables = get_tenant_by_slug::Variables { slug: slug };
+//     let hasura_endpoint =
+//         env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
+//     let request_body = GetTenantBySlug::build_query(variables);
 
-    let client = reqwest::Client::new();
-    let res = client
-        .post(hasura_endpoint)
-        .header(auth_headers.key, auth_headers.value)
-        .json(&request_body)
-        .send()
-        .await?;
-    let response_body: Response<get_tenant_by_slug::ResponseData> = res.json().await?;
-    response_body.ok()
-}
+//     let client = reqwest::Client::new();
+//     let res = client
+//         .post(hasura_endpoint)
+//         .header(auth_headers.key, auth_headers.value)
+//         .json(&request_body)
+//         .send()
+//         .await?;
+//     let response_body: Response<get_tenant_by_slug::ResponseData> = res.json().await?;
+//     response_body.ok()
+// }

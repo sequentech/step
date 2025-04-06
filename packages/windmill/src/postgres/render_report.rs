@@ -10,7 +10,7 @@ use serde_json::json;
 use serde_json::{Map, Value};
 use tracing::instrument;
 
-use crate::hasura;
+use crate::postgres::tenant::get_tenant_by_id;
 use crate::services::documents::upload_and_return_document;
 use crate::tasks::render_report::{FormatType, RenderTemplateBody};
 use sequent_core::util::temp_path::write_into_named_temp_file;
@@ -25,14 +25,10 @@ pub async fn render_report_task(
     let auth_headers = keycloak::get_client_credentials().await?;
 
     println!("auth headers: {:#?}", auth_headers);
-    let hasura_response =
-        hasura::tenant::get_tenant(auth_headers.clone(), tenant_id.clone()).await?;
-    let username = hasura_response
-        .data
-        .expect("expected data".into())
-        .sequent_backend_tenant[0]
-        .slug
-        .clone();
+
+    let tenant = get_tenant_by_id(hasura_transaction, &tenant_id).await?;
+
+    let username = tenant.slug.clone();
     let mut variables_map = input.variables.clone();
     if !variables_map.contains_key("username") {
         variables_map.insert("username".to_string(), json!(username));

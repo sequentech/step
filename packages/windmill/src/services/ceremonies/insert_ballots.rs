@@ -1,8 +1,9 @@
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::hasura::trustee::get_trustees_by_name;
+// use crate::hasura::trustee::get_trustees_by_name;
 use crate::postgres::election::get_elections;
+use crate::postgres::trustee::get_trustees_by_name;
 use crate::services::cast_votes::{find_area_ballots, CastVote};
 use crate::services::database::PgConfig;
 use crate::services::join::{count_unique_csv, merge_join_csv};
@@ -38,7 +39,6 @@ use tracing::{event, instrument, Level};
 
 #[instrument(skip_all, err)]
 pub async fn insert_ballots_messages(
-    auth_headers: &AuthHeaders,
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -48,11 +48,7 @@ pub async fn insert_ballots_messages(
     tally_session_contests: Vec<TallySessionContest>,
     contest_encryption_policy: ContestEncryptionPolicy,
 ) -> Result<()> {
-    let trustees = get_trustees_by_name(&auth_headers, &tenant_id, &trustee_names)
-        .await?
-        .data
-        .with_context(|| "can't find trustees")?
-        .sequent_backend_trustee;
+    let trustees = get_trustees_by_name(hasura_transaction, &tenant_id, &trustee_names).await?;
 
     event!(Level::INFO, "trustees len: {:?}", trustees.len());
 

@@ -1,12 +1,11 @@
 // SPDX-FileCopyrightText: 2023 Kevin Nguyen <kevin@sequentech.io>, Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::hasura::keys_ceremony::get_keys_ceremonies;
 use crate::postgres::area::get_event_areas;
 use crate::postgres::contest::export_contests;
 use crate::postgres::election::set_election_initialization_report_generated;
 use crate::postgres::election_event::{get_election_event_by_id, update_election_event_status};
-use crate::postgres::keys_ceremony::get_keys_ceremony_by_id;
+use crate::postgres::keys_ceremony::{get_keys_ceremonies, get_keys_ceremony_by_id};
 use crate::postgres::reports::get_template_alias_for_report;
 use crate::postgres::reports::ReportType;
 use crate::postgres::results_event::insert_results_event;
@@ -589,7 +588,6 @@ pub async fn get_eligible_voters(
 
 #[instrument(skip_all, err)]
 pub async fn upsert_ballots_messages(
-    auth_headers: &AuthHeaders,
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -638,7 +636,6 @@ pub async fn upsert_ballots_messages(
     );
     if missing_ballots_batches.len() > 0 {
         insert_ballots_messages(
-            &auth_headers,
             hasura_transaction,
             keycloak_transaction,
             tenant_id,
@@ -773,15 +770,9 @@ async fn map_plaintext_data(
         return Ok(None);
     };
 
-    let keys_ceremonies = get_keys_ceremonies(
-        auth_headers.clone(),
-        tenant_id.clone(),
-        election_event_id.clone(),
-    )
-    .await?
-    .data
-    .with_context(|| "error listing existing keys ceremonies")?
-    .sequent_backend_keys_ceremony;
+    let keys_ceremonies = get_keys_ceremonies(hasura_transaction, &tenant_id, &election_event_id)
+        .await
+        .with_context(|| "error listing existing keys ceremonies")?;
 
     if keys_ceremonies.is_empty() {
         event!(
@@ -834,15 +825,6 @@ async fn map_plaintext_data(
     }
 
     let last_message_id: i64 = tally_session_execution.current_message_id as i64;
-    // get last message id
-    // let last_message_id = if !tally_session_data
-    //     .sequent_backend_tally_session_execution
-    //     .is_empty()
-    // {
-    //     tally_session_data.sequent_backend_tally_session_execution[0].current_message_id
-    // } else {
-    //     -1
-    // };
 
     // get board messages
     let board_client = protocol_manager::get_b3_pgsql_client().await?;
@@ -854,7 +836,6 @@ async fn map_plaintext_data(
     print_messages(&messages, &bulletin_board)?;
 
     let new_ballots_messages = upsert_ballots_messages(
-        &auth_headers,
         hasura_transaction,
         keycloak_transaction,
         &tenant_id,
@@ -918,16 +899,6 @@ async fn map_plaintext_data(
     }
 
     let initial_status = tally_session_execution.status.clone();
-    // let initial_status = if tally_session_data
-    //     .sequent_backend_tally_session_execution
-    //     .is_empty()
-    // {
-    //     None
-    // } else {
-    //     tally_session_data.sequent_backend_tally_session_execution[0]
-    //         .status
-    //         .clone()
-    // };
 
     let mut new_status = get_tally_ceremony_status(initial_status)?;
 
