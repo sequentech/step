@@ -383,9 +383,10 @@ async fn process_plaintexts(
         filtered_area_contests.len()
     );
 
-    let elections_end_dates = get_elections_end_dates(&auth_headers, tenant_id, election_event_id)
-        .await
-        .with_context(|| "error getting elections end_date")?;
+    let elections_end_dates =
+        get_elections_end_dates(hasura_transaction, tenant_id, election_event_id)
+            .await
+            .with_context(|| "error getting elections end_date")?;
 
     let mut data: Vec<AreaContestDataType> = vec![];
 

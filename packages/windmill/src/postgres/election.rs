@@ -753,142 +753,43 @@ pub async fn update_election_status(
     Ok(results)
 }
 
-// #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
-// pub struct ElectionMonitorStatus {
-//     pub area_id: String,
-//     pub area_name: Option<String>,
-//     pub area_description: Option<String>,
-//     pub area_annotations: Option<String>,
-//     pub election: Election,
-//     pub is_generate_re: bool,
-// }
+#[instrument(skip(hasura_transaction), err)]
+pub async fn get_elections_ids(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<Vec<String>> {
+    let statement_str = format!(
+        r#"
+            SELECT
+                id
+            FROM
+                sequent_backend.election
+            WHERE
+                tenant_id = $1 AND
+                election_event_id = $2
+            "#
+    );
 
-// pub struct ElectionMonitorStatusWrapper(pub ElectionMonitorStatus);
+    let statement = hasura_transaction.prepare(statement_str.as_str()).await?;
 
-// impl TryFrom<Row> for ElectionMonitorStatusWrapper {
-//     type Error = anyhow::Error;
-//     fn try_from(item: Row) -> Result<Self> {
-//         let status = item.try_get("status")?;
-//         let election_status = get_election_status(status);
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(election_event_id)?,
+            ],
+        )
+        .await?;
 
-//         let election_annotations = item.try_get("election_annotations")
-//         .ok_or_else(|| anyhow!("Missing election  annotations"))?;
-//         let annotations: Annotations = deserialize_value(annotations_js)?;
+    let elections: Vec<String> = rows
+        .into_iter()
+        .map(|row| -> Result<String> {
+            let id: Uuid = row.try_get("id")?;
+            Ok(id.to_string())
+        })
+        .collect::<Result<Vec<String>>>()?;
 
-//         Ok(ElectionMonitorStatusWrapper(ElectionMonitorStatus {
-//             area_id: item.try_get::<_, Uuid>("id")?.to_string(),
-//             area_name: item.try_get("area_name")?,
-//             area_description: item.try_get("area_description")?,
-//             area_annotations: item.try_get("area_annotations")?,
-//             election: serde_json::from_value(item.try_get::<_, serde_json::Value>("election")?)?,
-//             is_generate_re: item.try_get::<_, Option<Uuid>>("results_election_id")?.is_some(),
-//         }))
-//     }
-// }
-
-// pub struct ElectionsMonitorFilter {
-//     pub area_name: Option<String>,
-//     pub precinct_code: Option<String>,
-//     pub voting_status: Option<String>,
-//     pub is_generate_re: Option<bool>,
-//     pub limit: Option<i32>,
-//     pub offset: Option<i32>,
-//     pub transmitted: Option<bool>,
-// }
-
-// /**
-//  * Returns a vec of the areas related to all elections with additional election info.
-//  */
-//  #[instrument(skip(hasura_transaction), err)]
-//  pub async fn get_elections_monitior(
-//      hasura_transaction: &Transaction<'_>,
-//      tenant_id: &str,
-//      election_event_id: &str,
-//      filter: ElectionsMonitorFilter,
-//  ) -> Result<Vec<AreaElection>> {
-//     let low_sql_limit = PgConfig::from_env()?.low_sql_limit;
-//     let default_sql_limit = PgConfig::from_env()?.default_sql_limit;
-//     let query_limit: i64 =
-//         std::cmp::min(low_sql_limit, filter.limit.unwrap_or(default_sql_limit)).into();
-//     let query_offset: i64 = if let Some(offset_val) = filter.offset {
-//         offset_val.into()
-//     } else {
-//         0
-//     };
-
-//     let area_name_filter_clause = if let Some(area_name_filter) = filter.area_name {
-//         format!("AND a.name ILIKE '{area_name_filter}'")
-//     } else {
-//         "".to_string()
-//     };
-
-//     let precinct_code_filter_clause = if let Some(precinct_code_filter) = filter.precinct_code {
-//        format!("AND e.annotations::jsonb ->> 'precinct_code' ILIKE '{precinct_code_filter}'")
-//     } else {
-//         "".to_string()
-//     };
-
-//     let voting_status_filter_clause = if let Some(voting_status_filter) = filter.voting_status {
-//          format!("AND e.status::jsonb ->> 'voting_status' ILIKE '{voting_status_filter}'")
-//      } else {
-//          "".to_string()
-//      };
-
-//      let is_generate_re_filter_clause = if let Some(is_generate_re_filter) = filter.is_generate_re {
-//         format!("AND ('{is_generate_re}'::boolean IS NULL OR ('{is_generate_re}'::boolean = TRUE AND re.id IS NOT NULL) OR ('{is_generate_re}'::boolean = FALSE AND re.id IS NULL))")
-//      } else {
-//          "".to_string()
-//      };
-
-//      let statement: tokio_postgres::Statement = hasura_transaction
-//          .prepare(
-//              r#"
-//              SELECT DISTINCT ON (a.id)
-//                  a.id as area_id,
-//                  a.name as area_name,
-//                  a.description as area_description,
-//                  a.description as area_description,
-//                 row_to_json(e.*) AS election,
-//                  re.id AS results_election_id
-//              FROM sequent_backend.area a
-//              JOIN sequent_backend.area_contest ac
-//                  ON a.id = ac.area_id
-//                  AND a.election_event_id = ac.election_event_id
-//                  AND a.tenant_id = ac.tenant_id
-//              JOIN sequent_backend.contest c
-//                  ON ac.contest_id = c.id
-//                  AND ac.election_event_id = c.election_event_id
-//                  AND ac.tenant_id = c.tenant_id
-//              JOIN sequent_backend.election e
-//                  ON c.election_id = e.id
-//              LEFT JOIN sequent_backend.results_election re
-//                  ON e.id = re.election_id
-//              WHERE c.tenant_id = $1
-//                AND c.election_event_id = $2;
-//                {area_name_filter_clause}
-//                {precinct_code_filter_clause}
-//                {voting_status_filter_clause}
-//                {is_generate_re_filter_clause}
-//                LIMIT $3 OFFSET $4;
-//              "#,
-//          )
-//          .await?;
-
-//          let mut params: Vec<&(dyn ToSql + Sync)> =
-//          vec![&Uuid::parse_str(tenant_id)?, &Uuid::parse_str(election_event_id)?,&query_limit, &query_offset];
-
-//      let rows: Vec<Row> = hasura_transaction
-//          .query(
-//              &statement,
-//              &params,
-//          )
-//          .await
-//          .map_err(|err| anyhow!("Error running get_areas_by_elections query: {err}"))?;
-
-//      let areas: Vec<ElectionMonitorStatus> = rows
-//          .into_iter()
-//          .map(|row| -> Result<ElectionMonitorStatus> { row.try_into().map(|res: ElectionMonitorStatusWrapper| res.0) })
-//          .collect::<Result<Vec<ElectionMonitorStatus>>>()?;
-
-//      Ok(areas)
-//  }
+    Ok(elections)
+}

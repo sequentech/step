@@ -1,13 +1,12 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::hasura::election::{self, get_all_elections_for_event};
 use crate::postgres::ballot_publication::{
     get_ballot_publication_by_id, get_previous_publication, get_previous_publication_election,
     insert_ballot_publication, soft_delete_other_ballot_publications, update_ballot_publication,
 };
 use crate::postgres::ballot_style::get_publication_ballot_styles;
-use crate::postgres::election::update_election_status;
+use crate::postgres::election::{get_elections_ids, update_election_status};
 use crate::postgres::election_event::{get_election_event_by_id, update_election_event_status};
 use crate::services::celery_app::get_celery_app;
 use crate::services::election_event_board::get_election_event_board;
@@ -28,9 +27,9 @@ use tracing::{event, instrument, Level};
 
 use super::ballot_style;
 
-#[instrument(skip(auth_headers), err)]
+#[instrument(skip(hasura_transaction), err)]
 async fn get_election_ids_for_publication(
-    auth_headers: connection::AuthHeaders,
+    hasura_transaction: &Transaction<'_>,
     tenant_id: String,
     election_event_id: String,
     election_id_opt: Option<String>,
@@ -38,17 +37,10 @@ async fn get_election_ids_for_publication(
     if election_id_opt.is_some() {
         return Ok(vec![election_id_opt.unwrap()]);
     }
-    let elections =
-        get_all_elections_for_event(auth_headers, tenant_id.clone(), election_event_id.clone())
-            .await?
-            .data
-            .expect("expected data")
-            .sequent_backend_election;
+    let elections_ids =
+        get_elections_ids(hasura_transaction, &tenant_id, &election_event_id).await?;
 
-    Ok(elections
-        .into_iter()
-        .map(|election| election.id.clone())
-        .collect())
+    Ok(elections_ids)
 }
 
 #[instrument(err)]
@@ -59,11 +51,10 @@ pub async fn add_ballot_publication(
     election_id: Option<String>,
     user_id: String,
 ) -> Result<String> {
-    let auth_headers = get_client_credentials().await?;
     let celery_app = get_celery_app().await;
 
     let election_ids = get_election_ids_for_publication(
-        auth_headers.clone(),
+        hasura_transaction,
         tenant_id.clone(),
         election_event_id.clone(),
         election_id.clone(),
