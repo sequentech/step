@@ -57,3 +57,4 @@ packages/ballot-verifier/logs
 
 # ignore artifacts for airgapped environments
 airgapped-artifacts
+packages/windmill/core
