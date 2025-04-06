@@ -11,6 +11,7 @@ use crate::postgres::election_event::{get_election_event_by_id, ElectionEventDat
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::cast_votes::get_voter_signing_key;
 use crate::services::cast_votes::CastVote;
+use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::datafix;
 use crate::services::datafix::types::SoapRequest;
 use crate::services::datafix::utils::is_datafix_election_event;
@@ -19,10 +20,6 @@ use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::protocol_manager::get_protocol_manager;
 use crate::services::users::{get_username_by_id, list_users, ListUsersFilter};
-use crate::{
-    hasura::election_event::get_election_event::GetElectionEventSequentBackendElectionEvent,
-    services::database::{get_hasura_pool, get_keycloak_pool},
-};
 use anyhow::{anyhow, Context, Result};
 use b3::messages::message::Signer;
 use chrono::{DateTime, Duration, Local};

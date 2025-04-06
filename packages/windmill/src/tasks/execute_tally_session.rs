@@ -1261,7 +1261,6 @@ pub async fn execute_tally_session_wrapped(
     .await?;
     // map_plaintext_data also calls this but at this point the credentials
     // could be expired
-    let auth_headers = keycloak::get_client_credentials().await?;
 
     let session_ids_i32: Option<Vec<i32>> = session_ids
         .clone()
@@ -1286,7 +1285,6 @@ pub async fn execute_tally_session_wrapped(
     if is_execution_completed {
         // update tally session to flag it as completed
         set_tally_session_completed(
-            auth_headers.clone(),
             hasura_transaction,
             tenant_id.clone(),
             election_event_id.clone(),

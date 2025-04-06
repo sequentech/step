@@ -13,6 +13,7 @@ use crate::services::protocol_manager::get_event_board;
 use crate::services::reports::template_renderer::EReportEncryption;
 use crate::services::reports_vault::get_report_key_pair;
 use crate::services::tasks_execution::update_fail;
+use crate::tasks::insert_election_event::CreateElectionEventInput;
 use ::keycloak::types::RealmRepresentation;
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Utc};
@@ -56,8 +57,6 @@ use uuid::Uuid;
 use zip::read::ZipArchive;
 
 use super::import_users::import_users_file;
-use crate::hasura::election_event::insert_election_event as insert_election_event_hasura;
-use crate::hasura::election_event::insert_election_event::sequent_backend_election_event_insert_input as InsertElectionEventInput;
 use crate::postgres;
 use crate::postgres::area::insert_areas;
 use crate::postgres::area_contest::insert_area_contests;
@@ -234,11 +233,10 @@ pub async fn upsert_keycloak_realm(
 #[instrument(skip(hasura_transaction), err)]
 pub async fn insert_election_event_db(
     hasura_transaction: &Transaction<'_>,
-    auth_headers: &connection::AuthHeaders,
-    object: &InsertElectionEventInput,
+    object: &CreateElectionEventInput,
 ) -> Result<()> {
     let election_event_id = object.id.clone().unwrap();
-    let tenant_id = object.tenant_id.clone().unwrap();
+    let tenant_id = object.tenant_id.clone();
     // fetch election_event
     let found_election_event = get_election_event_by_id_if_exist(
         hasura_transaction,
@@ -257,17 +255,36 @@ pub async fn insert_election_event_db(
         return Ok(());
     }
 
-    let new_election_input = InsertElectionEventInput {
+    let new_election_input = ElectionEvent {
+        id: object.id.clone().unwrap(),
+        tenant_id: object.tenant_id.clone(),
+        name: object.name.clone(),
+        description: object.description.clone(),
+        public_key: object.public_key.clone(),
+        status: object.status.clone(),
+        created_at: None,
+        updated_at: None,
+        labels: object.labels.clone(),
+        annotations: object.annotations.clone(),
+        presentation: object.presentation.clone(),
+        bulletin_board_reference: object.bulletin_board_reference.clone(),
+        is_archived: object.is_archived.unwrap_or(false),
+        voting_channels: object.voting_channels.clone(),
+        user_boards: object.user_boards.clone(),
+        encryption_protocol: object
+            .encryption_protocol
+            .clone()
+            .unwrap_or("RSA256".to_string()),
+        is_audit: object.is_audit.clone(),
+        audit_election_event_id: object.audit_election_event_id.clone(),
+        alias: object.alias.clone(),
         statistics: Some(json!({
             "num_emails_sent": 0,
             "num_sms_sent": 0
         })),
-        ..object.clone()
     };
 
-    let _hasura_response =
-        insert_election_event_hasura(auth_headers.clone(), new_election_input).await?;
-
+    insert_election_event(&hasura_transaction, &new_election_input).await?;
     Ok(())
 }
 
@@ -465,7 +482,7 @@ pub async fn process_election_event_file(
     .await
     .with_context(|| format!("Error upserting Keycloak realm for tenant ID {tenant_id} and election event ID {election_event_id}"))?;
 
-    insert_election_event(hasura_transaction, &data)
+    insert_election_event(hasura_transaction, &data.election_event)
         .await
         .with_context(|| "Error inserting election event")?;
 

@@ -47,9 +47,9 @@ impl TryFrom<Row> for ElectionEventWrapper {
 #[instrument(err, skip_all)]
 pub async fn insert_election_event(
     hasura_transaction: &Transaction<'_>,
-    data: &ImportElectionEventSchema,
+    election_event: &ElectionEventData,
 ) -> Result<()> {
-    data.election_event.validate()?;
+    election_event.validate()?;
 
     let statement = hasura_transaction
         .prepare(
@@ -62,32 +62,31 @@ pub async fn insert_election_event(
         )
         .await?;
 
-    let rows: Vec<Row> = hasura_transaction
+    let _rows: Vec<Row> = hasura_transaction
         .query(
             &statement,
             &[
-                &Uuid::parse_str(&data.election_event.id)?,
-                &data.election_event.labels,
-                &data.election_event.annotations,
-                &Uuid::parse_str(&data.election_event.tenant_id)?,
-                &data.election_event.name,
-                &data.election_event.description,
-                &data.election_event.presentation,
-                &data.election_event.bulletin_board_reference,
-                &data.election_event.is_archived,
-                &data.election_event.voting_channels,
-                &data.election_event.status,
-                &data.election_event.user_boards,
-                &data.election_event.encryption_protocol,
-                &data.election_event.is_audit,
-                &data
-                    .election_event
+                &Uuid::parse_str(&election_event.id)?,
+                &election_event.labels,
+                &election_event.annotations,
+                &Uuid::parse_str(&election_event.tenant_id)?,
+                &election_event.name,
+                &election_event.description,
+                &election_event.presentation,
+                &election_event.bulletin_board_reference,
+                &election_event.is_archived,
+                &election_event.voting_channels,
+                &election_event.status,
+                &election_event.user_boards,
+                &election_event.encryption_protocol,
+                &election_event.is_audit,
+                &election_event
                     .audit_election_event_id
                     .as_ref()
                     .and_then(|s| Uuid::parse_str(&s).ok()),
-                &data.election_event.public_key,
-                &data.election_event.alias,
-                &data.election_event.statistics,
+                &election_event.public_key,
+                &election_event.alias,
+                &election_event.statistics,
             ],
         )
         .await

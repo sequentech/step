@@ -1,7 +1,6 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::hasura::election_event::get_election_event_helper;
 use crate::postgres::area::get_event_areas;
 use crate::postgres::area_contest::export_area_contests;
 use crate::postgres::ballot_style::get_ballot_styles_by_elections;
@@ -602,8 +601,6 @@ pub async fn set_private_key(
     tally_session_id: &str,
     private_key_base64: &str,
 ) -> Result<bool> {
-    let auth_headers = keycloak::get_client_credentials().await?;
-
     let tally_session = get_tally_session_by_id(
         transaction,
         &tenant_id,
@@ -780,7 +777,6 @@ pub async fn set_private_key(
 
 #[instrument(err)]
 pub async fn set_tally_session_completed(
-    auth_headers: connection::AuthHeaders,
     hasura_transaction: &Transaction<'_>,
     tenant_id: String,
     election_event_id: String,
@@ -789,7 +785,7 @@ pub async fn set_tally_session_completed(
     let execution_status = TallyExecutionStatus::SUCCESS;
 
     let is_updated = match update_tally_session_status(
-        &hasura_transaction,
+        hasura_transaction,
         &tenant_id,
         &election_event_id,
         &tally_session_id,
@@ -802,12 +798,8 @@ pub async fn set_tally_session_completed(
     };
 
     if is_updated {
-        let election_event = get_election_event_helper(
-            auth_headers.clone(),
-            tenant_id.clone(),
-            election_event_id.clone(),
-        )
-        .await?;
+        let election_event =
+            get_election_event_by_id(hasura_transaction, &tenant_id, &election_event_id).await?;
 
         let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
             .with_context(|| "missing bulletin board")?;

@@ -29,38 +29,38 @@ use sequent_core::services::connection;
 // )]
 // pub struct UpdateElectionEventStatus;
 
-#[derive(GraphQLQuery)]
-#[graphql(
-    schema_path = "src/graphql/schema.json",
-    query_path = "src/graphql/update_election_event_public_key.graphql",
-    response_derives = "Debug"
-)]
-pub struct UpdateElectionEventPublicKey;
+// #[derive(GraphQLQuery)]
+// #[graphql(
+//     schema_path = "src/graphql/schema.json",
+//     query_path = "src/graphql/update_election_event_public_key.graphql",
+//     response_derives = "Debug"
+// )]
+// pub struct UpdateElectionEventPublicKey;
 
-#[derive(GraphQLQuery)]
-#[graphql(
-    schema_path = "src/graphql/schema.json",
-    query_path = "src/graphql/get_election_event.graphql",
-    response_derives = "Debug, Clone, Deserialize"
-)]
-pub struct GetElectionEvent;
+// #[derive(GraphQLQuery)]
+// #[graphql(
+//     schema_path = "src/graphql/schema.json",
+//     query_path = "src/graphql/get_election_event.graphql",
+//     response_derives = "Debug, Clone, Deserialize"
+// )]
+// pub struct GetElectionEvent;
 
-#[derive(GraphQLQuery)]
-#[graphql(
-    schema_path = "src/graphql/schema.json",
-    query_path = "src/graphql/insert_election_event.graphql",
-    response_derives = "Debug, Clone, Deserialize",
-    variables_derives = "Debug, Clone, Deserialize"
-)]
-pub struct InsertElectionEvent;
+// #[derive(GraphQLQuery)]
+// #[graphql(
+//     schema_path = "src/graphql/schema.json",
+//     query_path = "src/graphql/insert_election_event.graphql",
+//     response_derives = "Debug, Clone, Deserialize",
+//     variables_derives = "Debug, Clone, Deserialize"
+// )]
+// pub struct InsertElectionEvent;
 
-#[derive(GraphQLQuery)]
-#[graphql(
-    schema_path = "src/graphql/schema.json",
-    query_path = "src/graphql/get_batch_election_events.graphql",
-    response_derives = "Debug"
-)]
-pub struct GetBatchElectionEvents;
+// #[derive(GraphQLQuery)]
+// #[graphql(
+//     schema_path = "src/graphql/schema.json",
+//     query_path = "src/graphql/get_batch_election_events.graphql",
+//     response_derives = "Debug"
+// )]
+// pub struct GetBatchElectionEvents;
 
 // #[instrument(skip_all, err)]
 // pub async fn update_election_event_board(
@@ -116,30 +116,30 @@ pub struct GetBatchElectionEvents;
 //     response_body.ok()
 // }
 
-#[instrument(skip(auth_headers), err)]
-pub async fn get_election_event(
-    auth_headers: connection::AuthHeaders,
-    tenant_id: String,
-    election_event_id: String,
-) -> Result<Response<get_election_event::ResponseData>> {
-    let variables = get_election_event::Variables {
-        tenant_id: tenant_id,
-        election_event_id: election_event_id,
-    };
-    let hasura_endpoint =
-        env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
-    let request_body = GetElectionEvent::build_query(variables);
+// #[instrument(skip(auth_headers), err)]
+// pub async fn get_election_event(
+//     auth_headers: connection::AuthHeaders,
+//     tenant_id: String,
+//     election_event_id: String,
+// ) -> Result<Response<get_election_event::ResponseData>> {
+//     let variables = get_election_event::Variables {
+//         tenant_id: tenant_id,
+//         election_event_id: election_event_id,
+//     };
+//     let hasura_endpoint =
+//         env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
+//     let request_body = GetElectionEvent::build_query(variables);
 
-    let client = reqwest::Client::new();
-    let res = client
-        .post(hasura_endpoint)
-        .header(auth_headers.key, auth_headers.value)
-        .json(&request_body)
-        .send()
-        .await?;
-    let response_body: Response<get_election_event::ResponseData> = res.json().await?;
-    response_body.ok()
-}
+//     let client = reqwest::Client::new();
+//     let res = client
+//         .post(hasura_endpoint)
+//         .header(auth_headers.key, auth_headers.value)
+//         .json(&request_body)
+//         .send()
+//         .await?;
+//     let response_body: Response<get_election_event::ResponseData> = res.json().await?;
+//     response_body.ok()
+// }
 
 // #[instrument(skip_all, err)]
 // pub async fn update_election_event_public_key(
@@ -169,27 +169,27 @@ pub async fn get_election_event(
 //     response_body.ok()
 // }
 
-#[instrument(skip_all, err)]
-pub async fn insert_election_event(
-    auth_headers: connection::AuthHeaders,
-    object: insert_election_event::sequent_backend_election_event_insert_input,
-) -> Result<Response<insert_election_event::ResponseData>> {
-    use insert_election_event::*;
-    let variables = Variables { object };
-    let hasura_endpoint =
-        env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
-    let request_body = InsertElectionEvent::build_query(variables);
+// #[instrument(skip_all, err)]
+// pub async fn insert_election_event(
+//     auth_headers: connection::AuthHeaders,
+//     object: insert_election_event::sequent_backend_election_event_insert_input,
+// ) -> Result<Response<insert_election_event::ResponseData>> {
+//     use insert_election_event::*;
+//     let variables = Variables { object };
+//     let hasura_endpoint =
+//         env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
+//     let request_body = InsertElectionEvent::build_query(variables);
 
-    let client = reqwest::Client::new();
-    let res = client
-        .post(hasura_endpoint)
-        .header(auth_headers.key, auth_headers.value)
-        .json(&request_body)
-        .send()
-        .await?;
-    let response_body: Response<insert_election_event::ResponseData> = res.json().await?;
-    response_body.ok()
-}
+//     let client = reqwest::Client::new();
+//     let res = client
+//         .post(hasura_endpoint)
+//         .header(auth_headers.key, auth_headers.value)
+//         .json(&request_body)
+//         .send()
+//         .await?;
+//     let response_body: Response<insert_election_event::ResponseData> = res.json().await?;
+//     response_body.ok()
+// }
 
 // #[instrument(skip_all, err)]
 // pub async fn get_batch_election_events(
@@ -241,27 +241,27 @@ pub async fn insert_election_event(
 //     response_body.ok()
 // }
 
-#[instrument(skip_all, err)]
-pub async fn get_election_event_helper(
-    auth_headers: connection::AuthHeaders,
-    tenant_id: String,
-    election_event_id: String,
-) -> Result<get_election_event::GetElectionEventSequentBackendElectionEvent> {
-    get_election_event(
-        auth_headers.clone(),
-        tenant_id.clone(),
-        election_event_id.clone(),
-    )
-    .await
-    .with_context(|| "error fetching election event")?
-    .data
-    .with_context(|| "error fetching election event")?
-    .sequent_backend_election_event
-    .get(0)
-    .clone()
-    .ok_or(anyhow!("can't find election event"))
-    .cloned()
-}
+// #[instrument(skip_all, err)]
+// pub async fn get_election_event_helper(
+//     auth_headers: connection::AuthHeaders,
+//     tenant_id: String,
+//     election_event_id: String,
+// ) -> Result<get_election_event::GetElectionEventSequentBackendElectionEvent> {
+//     get_election_event(
+//         auth_headers.clone(),
+//         tenant_id.clone(),
+//         election_event_id.clone(),
+//     )
+//     .await
+//     .with_context(|| "error fetching election event")?
+//     .data
+//     .with_context(|| "error fetching election event")?
+//     .sequent_backend_election_event
+//     .get(0)
+//     .clone()
+//     .ok_or(anyhow!("can't find election event"))
+//     .cloned()
+// }
 
 // #[derive(GraphQLQuery)]
 // #[graphql(
