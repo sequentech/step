@@ -336,6 +336,7 @@ const VotingScreen: React.FC = () => {
         if (isUndefined(selectionState) || !ballotStyle) {
             return
         }
+
         try {
             const isMultiContest =
                 ballotStyle.ballot_eml.election_event_presentation?.contest_encryption_policy ==

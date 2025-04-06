@@ -9,7 +9,6 @@ use crate::postgres::ballot_publication::{
 use crate::postgres::ballot_style::get_publication_ballot_styles;
 use crate::postgres::election::update_election_status;
 use crate::postgres::election_event::{get_election_event_by_id, update_election_event_status};
-// use crate::services::ballot_styles::ballot_publication::get_previous_publication::GetPreviousPublicationSequentBackendBallotPublication;
 use crate::services::celery_app::get_celery_app;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_status::get_election_event_status;
