@@ -1163,6 +1163,7 @@ pub async fn execute_tally_session_wrapped(
     tally_type: Option<String>,
     election_ids: Option<Vec<String>>,
 ) -> Result<()> {
+    let start_tally_execution = Instant::now();
     let Some((tally_session_execution, tally_session, tally_session_contests, ballot_styles)) =
         find_last_tally_session_execution_and_all_related_data(
             hasura_transaction,
