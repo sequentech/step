@@ -8090,6 +8090,7 @@ name = "step-cli"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "base64 0.21.7",
  "chrono",
  "clap 4.5.23",
  "csv",
@@ -8100,10 +8101,13 @@ dependencies = [
  "hex",
  "immudb-rs",
  "rand 0.8.5",
+ "rayon",
  "reqwest 0.12.7",
+ "ring 0.17.8",
  "sequent-core",
  "serde",
  "serde_json",
+ "sha2",
  "strand",
  "strum 0.25.0",
  "strum_macros 0.25.3",
