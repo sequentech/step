@@ -379,7 +379,13 @@ pub async fn upload_election_event_ballot_s3_files(
         let election_ids = election_ids_by_area_map
             .get(area_id)
             .cloned()
-            .unwrap_or(vec![]);
+            .unwrap_or(vec![])
+            .iter() // Remove duplicates
+            .fold(HashSet::new(), |mut f, election_id| {
+                f.insert(election_id.clone());
+                f
+            });
+
         info!("area_id: {area_id}, election_ids: {election_ids:?}");
         let mut elections: Vec<Election> = vec![];
         for election_id in &election_ids {
