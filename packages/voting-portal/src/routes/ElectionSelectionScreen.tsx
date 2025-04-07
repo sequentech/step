@@ -64,6 +64,7 @@ import {
     updateBallotStyleAndSelection,
     updateBallotStyleAndSelection2,
 } from "../services/BallotStyles"
+import {fetchJson} from "../services/FetchS3BallotFiles"
 import useUpdateTranslation from "../hooks/useUpdateTranslation"
 import {GET_SUPPORT_MATERIALS} from "../queries/GetSupportMaterials"
 import {GET_BALLOT_FILES_URLS} from "../queries/GetBallotFilesUrls"
@@ -244,21 +245,6 @@ const ElectionSelectionScreen: React.FC = () => {
         [dataElectionEvent]
     )
 
-    const fetchJson = async (url: string) => {
-        try {
-            const response = await fetch(url)
-            if (!response.ok) {
-                console.log(response)
-                throw new Error(`HTTP error! status: ${response.status}`)
-            }
-            const jsonData = await response.json()
-            return jsonData
-        } catch (error) {
-            console.error("Error fetching JSON:", error)
-            throw error
-        }
-    }
-
     async function fetchS3Data() {
         console.log("getBallotFilesUrls for event id: ", eventId)
         try {
@@ -295,6 +281,7 @@ const ElectionSelectionScreen: React.FC = () => {
             console.log("Error getting signed urls", error)
             setErrorMsg(t(`electionSelectionScreen.errors.${ElectionScreenErrorType.NETWORK}`))
             setAlertMsg(t(`electionSelectionScreen.alerts.${ElectionScreenMsgType.NOT_PUBLISHED}`))
+            loadingS3Data.current = false
         }
     }
 
