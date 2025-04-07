@@ -14,6 +14,7 @@ import {
     IElectionEventStatus,
     isUndefined,
     IElectionStatus,
+    IElection,
 } from "@sequentech/ui-core"
 import {AuthContext} from "../providers/AuthContextProvider"
 import {faCircleQuestion} from "@fortawesome/free-solid-svg-icons"
@@ -59,7 +60,10 @@ import {
 import {TenantEventType} from ".."
 import Stepper from "../components/Stepper"
 import {clearIsVoted, selectBypassChooser, setBypassChooser} from "../store/extra/extraSlice"
-import {updateBallotStyleAndSelection} from "../services/BallotStyles"
+import {
+    updateBallotStyleAndSelection,
+    updateBallotStyleAndSelection2,
+} from "../services/BallotStyles"
 import useUpdateTranslation from "../hooks/useUpdateTranslation"
 import {GET_SUPPORT_MATERIALS} from "../queries/GetSupportMaterials"
 import {GET_BALLOT_FILES_URLS} from "../queries/GetBallotFilesUrls"
@@ -176,37 +180,6 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
     )
 }
 
-const fakeUpdateBallotStyleAndSelection = (dispatch: AppDispatch) => {
-    for (let election of ELECTIONS_LIST) {
-        try {
-            const formattedBallotStyle: IBallotStyle = {
-                id: election.id,
-                election_id: election.id,
-                election_event_id: election.id,
-                tenant_id: election.id,
-                ballot_eml: election,
-                ballot_signature: null,
-                created_at: "",
-                area_id: election.id,
-                annotations: null,
-                labels: null,
-                last_updated_at: "",
-            }
-            dispatch(setElection({...election, image_document_id: ""}))
-            dispatch(setBallotStyle(formattedBallotStyle))
-            dispatch(clearIsVoted())
-            dispatch(
-                resetBallotSelection({
-                    ballotStyle: formattedBallotStyle,
-                })
-            )
-        } catch (error) {
-            console.log(`Error loading fake EML: ${error}`, election)
-            throw new VotingPortalError(VotingPortalErrorType.INTERNAL_ERROR)
-        }
-    }
-}
-
 const ElectionSelectionScreen: React.FC = () => {
     const {t} = useTranslation()
     const navigate = useNavigate()
@@ -236,38 +209,13 @@ const ElectionSelectionScreen: React.FC = () => {
     const [alertMsg, setAlertMsg] = useState<ElectionScreenMsgType>()
     const [getBallotFilesUrls] = useMutation(GET_BALLOT_FILES_URLS)
     const urls = useRef<string[] | undefined>(undefined)
-    const gotSignedUrls = useRef<boolean>(false)
-
-    const {
-        error: errorBallotStyles,
-        data: dataBallotStyles,
-        loading: loadingBallotStyles,
-    } = useQuery<GetBallotStylesQuery>(GET_BALLOT_STYLES, {
-        skip: globalSettings.DISABLE_AUTH, // Skip query if in demo mode
-    })
-
-    const {
-        error: errorElections,
-        data: dataElections,
-        loading: loadingElections,
-    } = useQuery<GetElectionsQuery>(GET_ELECTIONS, {
-        variables: {
-            electionIds: ballotStyleElectionIds,
-        },
-        skip: globalSettings.DISABLE_AUTH, // Skip query if in demo mode
-    })
-
-    const {
-        error: errorElectionEvent,
-        data: dataElectionEvent,
-        loading: loadingElectionEvent,
-    } = useQuery<GetElectionEventQuery>(GET_ELECTION_EVENT, {
-        variables: {
-            electionEventId: eventId,
-            tenantId,
-        },
-        skip: globalSettings.DISABLE_AUTH, // Skip query if in demo mode
-    })
+    const requestingS3Data = useRef<boolean>(false)
+    const loadingS3Data = useRef<boolean>(true)
+    const [dataBallotStyles, setDataBallotStyles] = useState<IBallotStyle[] | undefined>(undefined)
+    const [dataElections, setDataElections] = useState<IElection[] | undefined>(undefined)
+    const [dataElectionEvent, setDataElectionEvent] = useState<IElectionEvent | undefined>(
+        undefined
+    )
 
     // Materials
     const {
@@ -290,10 +238,10 @@ const ElectionSelectionScreen: React.FC = () => {
         navigate(`/tenant/${tenantId}/event/${eventId}/materials${location.search}`)
     }
 
-    const hasNoElections = !loadingElections && dataElections?.sequent_backend_election.length === 0
+    const hasNoElections = !loadingS3Data.current && dataElections?.length === 0
     const isPublished = useMemo(
-        () => !!dataElectionEvent?.sequent_backend_election_event[0].status?.is_published,
-        [dataElectionEvent?.sequent_backend_election_event]
+        () => !!(dataElectionEvent?.status as IElectionEventStatus | undefined)?.is_published,
+        [dataElectionEvent]
     )
 
     const fetchJson = async (url: string) => {
@@ -311,7 +259,7 @@ const ElectionSelectionScreen: React.FC = () => {
         }
     }
 
-    async function setBallotPublicationUrl() {
+    async function fetchS3Data() {
         console.log("getBallotFilesUrls for event id: ", eventId)
         try {
             const res = await getBallotFilesUrls({
@@ -319,16 +267,30 @@ const ElectionSelectionScreen: React.FC = () => {
                     eventId,
                 },
             })
-            // TODO: get the ballotPublicationId from the content
-            let urls = res.data?.get_ballot_files_urls?.urls
-            console.log("urls: ", urls)
-            urls.current = urls
-            // iterate over the urls and get the content
-            // The election event file and the elections file are the first two urls followed by the ballot styles.
-            for (let url of urls) {
-                const content = await fetchJson(url)
-                console.log("content: ", content)
+            // The election event file and the elections file are the first two urls followed by as any urls as ballot styles.
+            let dataUrls = (res.data?.get_ballot_files_urls?.urls as string[]) ?? []
+            if (!dataUrls || dataUrls.length < 3) {
+                throw new Error("Not enough urls")
             }
+
+            urls.current = dataUrls
+            const contents = await Promise.all(
+                dataUrls.map(async (url) => {
+                    const content = await fetchJson(url)
+                    return {url, content}
+                })
+            )
+            if (!contents || contents.length < 3) {
+                throw new Error("Not enough contents")
+            }
+            setDataElectionEvent(contents[0].content as IElectionEvent)
+            setDataElections(contents[1].content as IElection[])
+            let ballotStyles: IBallotStyle[] = []
+            for (let i = 2; i < contents.length; i++) {
+                const ballotStyle = contents[i].content as IBallotStyle
+                ballotStyles.push(ballotStyle)
+            }
+            setDataBallotStyles(ballotStyles)
         } catch (error) {
             console.log("Error getting signed urls", error)
             setErrorMsg(t(`electionSelectionScreen.errors.${ElectionScreenErrorType.NETWORK}`))
@@ -337,9 +299,9 @@ const ElectionSelectionScreen: React.FC = () => {
     }
 
     useEffect(() => {
-        if (!urls.current && eventId && !gotSignedUrls.current) {
-            gotSignedUrls.current = true
-            setBallotPublicationUrl()
+        if (!urls.current && eventId && !requestingS3Data.current) {
+            requestingS3Data.current = true
+            fetchS3Data()
         }
     }, [])
 
@@ -357,22 +319,8 @@ const ElectionSelectionScreen: React.FC = () => {
         if (globalSettings.DISABLE_AUTH) {
             return
         }
-        if (errorElections || errorElectionEvent || errorBallotStyles || errorCastVote) {
-            if (errorBallotStyles?.message.includes("x-hasura-area-id")) {
-                setErrorMsg(t(`electionSelectionScreen.errors.${ElectionScreenErrorType.NO_AREA}`))
-            } else if (
-                errorElections?.networkError ||
-                errorElectionEvent?.networkError ||
-                errorBallotStyles?.networkError ||
-                errorCastVote?.networkError
-            ) {
-                setErrorMsg(t(`electionSelectionScreen.errors.${ElectionScreenErrorType.NETWORK}`))
-            } else {
-                setErrorMsg(
-                    t(`electionSelectionScreen.errors.${ElectionScreenErrorType.FETCH_DATA}`)
-                )
-            }
-        } else if (dataElectionEvent?.sequent_backend_election_event.length === 0) {
+
+        if (!dataElectionEvent) {
             setErrorMsg(
                 t(`electionSelectionScreen.errors.${ElectionScreenErrorType.NO_ELECTION_EVENT}`)
             )
@@ -395,34 +343,24 @@ const ElectionSelectionScreen: React.FC = () => {
             setAlertMsg(undefined)
             setErrorMsg(undefined)
         }
-    }, [
-        errorBallotStyles,
-        errorCastVote,
-        errorElectionEvent,
-        errorElections,
-        isPublished,
-        hasNoElections,
-        dataElectionEvent,
-        globalSettings.DISABLE_AUTH,
-    ])
+    }, [errorCastVote, isPublished, hasNoElections, dataElectionEvent, globalSettings.DISABLE_AUTH])
 
     useEffect(() => {
-        if (dataBallotStyles && dataBallotStyles.sequent_backend_ballot_style.length > 0) {
+        if (dataBallotStyles && dataBallotStyles.length > 0) {
+            loadingS3Data.current = false
             try {
-                updateBallotStyleAndSelection(dataBallotStyles, dispatch)
+                updateBallotStyleAndSelection2((dataBallotStyles as IBallotStyle[]) || [], dispatch)
             } catch {
                 setErrorMsg(
                     t(`electionSelectionScreen.errors.${ElectionScreenErrorType.BALLOT_STYLES_EML}`)
                 )
             }
-        } else if (globalSettings.DISABLE_AUTH) {
-            //fakeUpdateBallotStyleAndSelection(dispatch)
         }
     }, [globalSettings.DISABLE_AUTH, dataBallotStyles, dispatch])
 
     useEffect(() => {
-        if (dataElections && dataElections.sequent_backend_election.length > 0) {
-            for (let election of dataElections.sequent_backend_election) {
+        if (dataElections && dataElections.length > 0) {
+            for (let election of dataElections) {
                 dispatch(
                     setElection({
                         ...election,
@@ -434,8 +372,8 @@ const ElectionSelectionScreen: React.FC = () => {
                 )
             }
 
-            let foundTestElection = dataElections.sequent_backend_election.find((election) =>
-                election.name.includes("TEST")
+            let foundTestElection = dataElections.find((election) =>
+                election.name?.includes("TEST")
             )
 
             if (foundTestElection) {
@@ -454,7 +392,7 @@ const ElectionSelectionScreen: React.FC = () => {
     }, [castVotesTestElection, testElectionId, setCanVoteTest])
 
     useEffect(() => {
-        const record = dataElectionEvent?.sequent_backend_election_event?.[0]
+        const record = dataElectionEvent
         if (record) {
             dispatch(setElectionEvent(record))
         }
@@ -502,7 +440,7 @@ const ElectionSelectionScreen: React.FC = () => {
         }
     }, [isDemo])
 
-    if (loadingElectionEvent || loadingElections || loadingBallotStyles) return <CircularProgress />
+    if (loadingS3Data.current) return <CircularProgress />
 
     return (
         <PageLimit maxWidth="lg" className="election-selection-screen screen">
