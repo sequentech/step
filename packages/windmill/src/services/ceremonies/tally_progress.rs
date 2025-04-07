@@ -1,10 +1,12 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::hasura::tally_session_execution::get_last_tally_session_execution;
 use anyhow::{anyhow, Context, Result};
 use b3::messages::{artifact::Plaintexts, message::Message, statement::StatementType};
-use sequent_core::types::ceremonies::{TallyElection, TallyElectionStatus};
+use sequent_core::types::{
+    ceremonies::{TallyElection, TallyElectionStatus},
+    hasura::core::{TallySession, TallySessionContest},
+};
 use std::collections::{HashMap, HashSet};
 use tracing::{event, instrument, Level};
 
@@ -28,26 +30,27 @@ fn get_session_ids_by_type(messages: &Vec<Message>, kind: StatementType) -> Vec<
 
 #[instrument(skip_all, ret)]
 pub async fn generate_tally_progress(
-    tally_session_data: &get_last_tally_session_execution::ResponseData,
+    tally_session: TallySession,
+    tally_session_contest: Vec<TallySessionContest>,
     messages: &Vec<Message>,
 ) -> Result<Vec<TallyElection>> {
     let mut complete_map: HashMap<String, Vec<i64>> = HashMap::new();
-    let tally_session = tally_session_data
-        .sequent_backend_tally_session
-        .first()
-        .ok_or(anyhow!("Missing tally session"))?;
+    // let tally_session = tally_session_data
+    //     .sequent_backend_tally_session
+    //     .first()
+    //     .ok_or(anyhow!("Missing tally session"))?;
     let all_election_ids: HashSet<String> = tally_session
         .election_ids
         .clone()
         .unwrap_or(vec![])
         .into_iter()
         .collect();
-    for contest in &tally_session_data.sequent_backend_tally_session_contest {
+    for contest in &tally_session_contest {
         let mut batch_ids = complete_map
             .get(&contest.election_id)
             .map(|v| v.clone())
             .unwrap_or(vec![]);
-        batch_ids.push(contest.session_id);
+        batch_ids.push(contest.session_id as i64);
         complete_map.insert(contest.election_id.clone(), batch_ids.clone());
     }
     let finished_batch_ids: Vec<i64> = get_session_ids_by_type(messages, StatementType::Plaintexts);
