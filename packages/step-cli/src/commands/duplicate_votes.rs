@@ -6,10 +6,12 @@ use crate::utils::read_config::load_external_config;
 use anyhow::Result;
 use clap::Args;
 use serde_json::Value;
+use windmill::services::database::get_hasura_pool;
 use std::env;
-use tokio_postgres::Transaction;
+use tokio_postgres::{Row, Transaction};
 use uuid::Uuid;
 use windmill::services::providers::transactions_provider::provide_hasura_transaction;
+use deadpool_postgres::Client as DbClient;
 #[derive(Args)]
 #[command(about)]
 pub struct DuplicateVotes {
@@ -42,57 +44,80 @@ impl DuplicateVotes {
         let duplicate_votes_config = config.duplicate_votes;
         let row_id_to_clone = duplicate_votes_config.row_id_to_clone;
 
+        let mut hasura_db_client: DbClient = get_hasura_pool()
+    .await
+    .get()
+    .await
+    .map_err(|e| anyhow::anyhow!("Error getting DB client: {:?}", e))?;
+
+let hasura_transaction = hasura_db_client
+    .transaction()
+    .await
+    .map_err(|e| anyhow::anyhow!("Error starting transaction: {:?}", e))?;
+
+        let row = get_base_row(&hasura_transaction, row_id_to_clone).await?;
+        let area_id = row.try_get::<_, Uuid>(3)?;
         let kc_client = get_keyckloak_pool()
             .await?
             .get()
             .await
             .map_err(|e| anyhow::anyhow!("Error getting hasura client: {}", e.to_string()))?;
 
-        let keycloak_query = "\
-            SELECT ue.id FROM user_entity AS ue \
+            let keycloak_query = "\
+            SELECT ue.id, ue.username, r.name AS realm_name \
+            FROM user_entity AS ue \
             JOIN realm AS r ON ue.realm_id = r.id \
-            WHERE r.name = $1 LIMIT $2 OFFSET 0";
+            JOIN user_attribute AS ua ON ue.id = ua.user_id \
+            WHERE r.name = $1 \
+              AND ua.name = $2 \
+              AND ua.value = $3 \
+            LIMIT $4 \
+            OFFSET 0";
 
         let kc_rows = kc_client
-            .query(keycloak_query, &[&realm_name, &(num_votes as i64)])
+            .query(keycloak_query, &[&realm_name,&"area-id", &area_id,  &(num_votes as i64)])
             .await?;
         let existing_user_ids: Vec<String> = kc_rows
             .iter()
             .filter_map(|row| row.get::<_, Option<String>>(0))
             .collect();
-        println!("Number of existing user IDs::: {}", existing_user_ids.len());
+        println!("Number of existing user IDs::: {}", &existing_user_ids.len());
 
-        provide_hasura_transaction(|hasura_transaction| {
-            let existing_user_ids = existing_user_ids.clone();
-            let row_id_to_clone = row_id_to_clone.clone();
 
-            Box::pin(async move {
-                insert_votes(hasura_transaction, existing_user_ids, row_id_to_clone).await
-            })
-        })
-        .await?;
+        insert_votes(&hasura_transaction, existing_user_ids.as_ref(), &row).await?;
 
-        println!("Inserted {} duplicate votes.", &existing_user_ids.len());
+        let _commit = hasura_transaction.commit().await .map_err(|e| anyhow::anyhow!("Error commiting hasura client: {}", e.to_string()))?;
+
+        println!("Inserted {} duplicate votes.", existing_user_ids.len());
         Ok(())
     }
 }
 
-async fn insert_votes(
-    hasura_transaction: &Transaction<'_>,
-    existing_user_ids: Vec<String>,
-    row_id_to_clone: String,
-) -> Result<()> {
+async fn get_base_row(hasura_transaction: &Transaction<'_>, row_id_to_clone: String) -> Result<Row> {
     let base_query = "\
     SELECT tenant_id, election_event_id, election_id, area_id, annotations, content, cast_ballot_signature, ballot_id \
         FROM sequent_backend.cast_vote WHERE id = $1";
     let base_row = hasura_transaction
         .query_opt(base_query, &[&Uuid::parse_str(&row_id_to_clone)?])
-        .await?;
-    if base_row.is_none() {
-        println!("No row found to clone.");
-        return Ok(());
-    }
-    let row = base_row.unwrap();
+        .await
+        .map_err(|e| {
+            anyhow::anyhow!(
+                "Error querying base row: {}",
+                e.to_string()
+            )
+        })?;
+        if(base_row.is_none()) {
+            return Err(anyhow::anyhow!("No row found with ID: {}", row_id_to_clone));
+        }
+        let row = base_row.unwrap();
+    Ok(row)
+}
+
+async fn insert_votes(
+    hasura_transaction: &Transaction<'_>,
+    existing_user_ids: &Vec<String>,
+    row: &Row,
+) -> Result<()> {
     let tenant_id = row.try_get::<_, Uuid>(0)?;
     let election_event_id = row.try_get::<_, Uuid>(1)?;
     let election_id = row.try_get::<_, Uuid>(2)?;
