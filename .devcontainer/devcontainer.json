@@ -19,11 +19,10 @@
 		"immudb:3325",
 		"rabbitmq:5672",
 		"rabbitmq:15672",
-		"b3:50051"
+		"b3:50051",
+		"loki:3100",
+		"grafana:3200"
 	],
-
-
-
 
 	// Fixes usage of LOCAL_WORKSPACE_FOLDER. See:
 	// https://github.com/microsoft/vscode-remote-release/issues/6844#issuecomment-1252288457

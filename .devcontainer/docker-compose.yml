@@ -264,7 +264,6 @@ services:
     restart: always
     ports:
       - 8090:8090
-      - 8097:8097
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
     environment:
@@ -273,7 +272,7 @@ services:
       KC_HOSTNAME_STRICT: ${KC_HOSTNAME_STRICT}
       KC_HTTP_PORT: ${KC_HTTP_PORT}
       KC_DB: ${KC_DB}
-      KC_LOG_LEVEL: "debug"
+      KC_LOG_LEVEL: ${LOG_LEVEL}
       KC_DB_USERNAME: ${KC_DB_USERNAME}
       KC_DB_PASSWORD: ${KC_DB_PASSWORD}
       KC_DB_SCHEMA: ${KC_DB_SCHEMA}
@@ -294,22 +293,6 @@ services:
       TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID}
       TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN}
       TWILIO_SERVICE_SID: ${TWILIO_SERVICE_SID}
-      AWS_ENDPOINT_URL: "http://sns-sms-proxy:7700"
-      AWS_ENDPOINT_URL_SNS: "http://sns-sms-proxy:7700"
-      SMS_TRANSPORT_NAME: "AwsSns"
-      SDK_ENDPOINT: "http://sns-sms-proxy:7700"
-      HTTP_PROXY: "http://sns-sms-proxy:7700"
-      AWS_ENABLE_ENDPOINT_DISCOVERY: "false"
-      AWS_REGION: "us-east-1"
-      AWS_ACCESS_KEY_ID: "DUMMY_KEY_ID"           # <-- ADD DUMMY KEY ID
-      AWS_SECRET_ACCESS_KEY: "DUMMY_SECRET_KEY"   # <-- ADD DUMMY SECRET KEY
-      KC_LOG_LEVEL_SOFTWARE_AMAZON_AWSSDK: "trace"
-      KC_JAVA_OPTS: >-
-        -Daws.region=us-east-1
-        -Daws.endpointUrlSns=http://sns-sms-proxy:7700
-        -Daws.endpointUrl=http://sns-sms-proxy:7700 # <-- ADD Global Endpoint Override
-      DEBUG: "true"
-      DEBUG_PORT: "*:8097"
     volumes:
       # https://www.keycloak.org/server/containers#_importing_a_realm_on_startup
       - ./keycloak/import:/opt/keycloak/data/import:z
@@ -329,11 +312,10 @@ services:
       --spi-email-sender-provider=dummy
       --spi-email-sender-dummy-enabled=true
       --spi-email-sender-default-enabled=false
-      --spi-sms-sender-provider=aws
-      --spi-sms-sender-dummy-enabled=false
-      --spi-sms-sender-aws-enabled=true
+      --spi-sms-sender-provider=dummy
+      --spi-sms-sender-dummy-enabled=true
+      --spi-sms-sender-aws-enabled=false
       --import-realm
-      --spi-sms-sender-aws-enabled=true
     depends_on:
       postgres-keycloak:
         condition: service_healthy
@@ -991,6 +973,41 @@ services:
       TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN}
       TWILIO_SERVICE_SID: ${TWILIO_SERVICE_SID}
 
+  loki-consumer:
+    profiles: ["full"]
+    stdin_open: true
+    image: sequentech.local/cargo-packages
+    container_name: loki-consumer
+    volumes_from:
+      - devcontainer
+    working_dir: /workspaces/step/packages/loki_consumer
+    entrypoint: [
+      "cargo",
+      "watch",
+      "--why",
+      # ignoring rust-local-target/ since it's used for local builds and
+      # otherwise triggers a rebuild all the time (probably rust analyzer)
+      "--ignore",
+      "rust-local-target/",
+      "-x",
+      "run"
+    ]
+    environment:
+      RUSTFLAGS: ${RUSTFLAGS}
+      LOG_LEVEL: ${LOG_LEVEL}
+      CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
+      HASURA_ENDPOINT: ${HASURA_ENDPOINT}
+      AMQP_ADDR: ${AMQP_ADDR}
+      BEAT_PROBE_ADDR: ${BEAT_PROBE_ADDR}
+      BEAT_PROBE_LIVE_PATH: ${BEAT_PROBE_LIVE_PATH}
+      BEAT_PROBE_READY_PATH: ${BEAT_PROBE_READY_PATH}
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN}
+      TWILIO_SERVICE_SID: ${TWILIO_SERVICE_SID}
+      LOKI_URL: ${LOKI_URL}
+      LOKI_QUERY: ${LOKI_QUERY}
+      LOKI_TAIL_LIMIT: ${LOKI_TAIL_LIMIT}
+
   postgres-b3:
     profiles: ["full", "base"]
     image: sequentech.local/postgresql-b3
@@ -1056,6 +1073,60 @@ services:
       B3_PG_PASSWORD: ${B3_PG_PASSWORD}
       B3_PG_DATABASE: ${B3_PG_DATABASE}
       B3_BIND: ${B3_BIND}
+
+# Monitoring services
+  loki:
+    profiles: ["full", "base"]
+    container_name: loki
+    image: grafana/loki:latest
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    depends_on:
+      - promtail
+
+  promtail:
+    container_name: promtail
+    profiles: ["full", "base"]
+    image: grafana/promtail:latest
+    volumes:
+      - /var/log:/var/log
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./promtail/config.yml:/etc/promtail/config.yml
+    command: -config.file=/etc/promtail/config.yml
+
+  grafana:
+    container_name: grafana
+    profiles: ["full", "base"]
+    environment:
+      - GF_PATHS_PROVISIONING=/etc/grafana/provisioning
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_FEATURE_TOGGLES_ENABLE=alertingSimplifiedRouting,alertingQueryAndExpressionsStepMode
+    entrypoint:
+      - sh
+      - -euc
+      - |
+        mkdir -p /etc/grafana/provisioning/datasources
+        cat <<EOF > /etc/grafana/provisioning/datasources/ds.yaml
+        apiVersion: 1
+        datasources:
+        - name: Loki
+          type: loki
+          access: proxy 
+          orgId: 1
+          url: http://loki:3100
+          basicAuth: false
+          isDefault: true
+          version: 1
+          editable: false
+        EOF
+        /run.sh
+    image: grafana/grafana:latest
+    ports:
+      - "3200:3000"
+    depends_on:
+      - loki
 
 volumes:
   db_data:
