@@ -2,14 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::hasura::election::get_all_elections_for_event;
-use crate::hasura::tally_session::set_tally_session_completed;
-use crate::hasura::tally_session_execution::get_last_tally_session_execution::ResponseData;
-use crate::hasura::tally_session_execution::{
-    get_last_tally_session_execution, insert_tally_session_execution,
-};
 use crate::hasura::trustee::get_trustees_by_name;
 use crate::services::cast_votes::{find_area_ballots, CastVote};
-use crate::services::ceremonies::insert_ballots::get_last_tally_session_execution::GetLastTallySessionExecutionSequentBackendTallySessionContest;
 use crate::services::database::PgConfig;
 use crate::services::join::{count_unique_csv, merge_join_csv};
 use crate::services::protocol_manager::*;
@@ -34,6 +28,7 @@ use sequent_core::serialization::deserialize_with_path::{deserialize_str, deseri
 use sequent_core::services::connection::AuthHeaders;
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak::get_event_realm;
+use sequent_core::types::hasura::core::TallySessionContest;
 use std::collections::HashMap;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::elgamal::Ciphertext;
@@ -50,7 +45,7 @@ pub async fn insert_ballots_messages(
     election_event_id: &str,
     board_name: &str,
     trustee_names: Vec<String>,
-    tally_session_contests: Vec<GetLastTallySessionExecutionSequentBackendTallySessionContest>,
+    tally_session_contests: Vec<TallySessionContest>,
     contest_encryption_policy: ContestEncryptionPolicy,
 ) -> Result<()> {
     let trustees = get_trustees_by_name(&auth_headers, &tenant_id, &trustee_names)
@@ -75,7 +70,13 @@ pub async fn insert_ballots_messages(
     );
 
     let realm = get_event_realm(&tenant_id, &election_event_id);
-    let protocol_manager = get_protocol_manager(board_name).await?;
+    let protocol_manager = get_protocol_manager(
+        hasura_transaction,
+        tenant_id,
+        Some(election_event_id),
+        board_name,
+    )
+    .await?;
     let mut board = get_b3_pgsql_client().await?;
     let board_messages: Vec<Message> =
         get_board_messages::<RistrettoCtx>(board_name, &mut board).await?;

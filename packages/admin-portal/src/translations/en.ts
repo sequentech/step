@@ -557,6 +557,13 @@ const englishTranslation = {
                 "not-required": "Not Required",
                 "required": "Required",
             },
+            castVoteGoldLevelPolicy: {
+                label: "Gold level Authentication Policy",
+                options: {
+                    "gold-level": "Gold level Authentication",
+                    "no-gold-level": "No Gold level Authentication",
+                },
+            },
         },
         tenantScreen: {
             common: {
@@ -1929,8 +1936,8 @@ const englishTranslation = {
             polls: {
                 title: "Polls",
                 initializedSystems: "Posts with Initialized Systems",
-                votingOpened: "Posts with Voting Opened",
-                votingClosed: "Posts with Voting Closed",
+                votingOpened: "Posts with Online Voting Opened",
+                votingClosed: "Posts with Both Voting Channels Closed",
                 votingStarted: "Posts with Voting Started",
                 voterTurnout: "Voter Turnout",
             },

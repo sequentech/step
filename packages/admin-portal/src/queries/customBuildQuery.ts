@@ -65,6 +65,7 @@ export const customBuildQuery =
             let validFilters = [
                 "election_event_id",
                 "user_id",
+                "username",
                 "created",
                 "statement_timestamp",
                 "statement_kind",
@@ -312,21 +313,16 @@ export const customBuildQuery =
             const transformedRawParams = {...ret?.variables.where}
             const transformedParams = ret?.variables.where["_and"]
 
+            // Transform applicant_data
             Object.keys(filter).forEach((key) => {
-                // Check if this is a nested object with applicant_data
                 if (key === "applicant_data" && typeof filter[key] === "object") {
-                    Object.keys(filter[key]).forEach((fieldKey) => {
-                        const newField = fieldKey
-                        const newValue = filter[key][newField]
-
-                        // // Add the transformed filter in the format your API expects
-                        const output = {
-                            _contains: {
-                                [newField]: newValue["_ilike"],
+                    const flattened = flattenObject(filter[key])
+                    Object.keys(flattened).forEach((newField) => {
+                        transformedParams.push({
+                            applicant_data: {
+                                _contains: {[newField]: flattened[newField]},
                             },
-                        }
-
-                        transformedParams.push({applicant_data: output})
+                        })
                     })
                 }
             })
@@ -337,3 +333,20 @@ export const customBuildQuery =
         }
         return buildQuery(introspectionResults)(raFetchType, resourceName, params)
     }
+
+function flattenObject(obj: any, prefix = "") {
+    let result: any = {}
+
+    Object.keys(obj).forEach((key) => {
+        const newKey = prefix ? `${prefix}.${key}` : key
+        if (typeof obj[key] === "object" && obj[key] !== null && !("_ilike" in obj[key])) {
+            // Recursively flatten only if it's an object and doesn't have `_ilike`
+            Object.assign(result, flattenObject(obj[key], newKey))
+        } else if ("_ilike" in obj[key]) {
+            // Extract `_ilike` value
+            result[newKey] = obj[key]["_ilike"]
+        }
+    })
+
+    return result
+}

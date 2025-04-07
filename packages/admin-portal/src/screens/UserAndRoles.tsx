@@ -27,7 +27,6 @@ export const UserAndRoles: React.FC = () => {
     }
 
     const showUsersMenu = authContext.isAuthorized(true, tenantId, IPermissions.USERS_MENU)
-    console.log("aa showUsersMenu", showUsersMenu)
 
     if ((!showUsers && !showRoles) || !showUsersMenu) {
         return (
