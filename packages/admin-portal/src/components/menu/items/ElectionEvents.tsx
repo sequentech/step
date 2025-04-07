@@ -242,8 +242,15 @@ export default function ElectionEvents() {
     const [openModal, setOpenModal] = React.useState(false)
 
     useEffect(() => {
-        console.log("aa in election event", localStorage.getItem("has-token"))
-        if (localStorage.getItem("has-token")) {
+        const referrer = document.referrer
+        const baseUrl = window.location.origin
+        const isFromMainPath =
+            referrer === baseUrl ||
+            referrer === `${baseUrl}/` ||
+            window.location.href === baseUrl ||
+            window.location.href === `${baseUrl}/`
+
+        if (localStorage.getItem("has-token") && isFromMainPath) {
             setOpenModal(true)
         }
     }, [])
