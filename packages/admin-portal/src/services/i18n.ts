@@ -11,8 +11,6 @@ import i18next from "i18next"
 
 type I18N = Record<string, Record<string, string>>
 
-let languagesInitialized = false
-
 initializeLanguages({
     en: englishTranslation,
     es: spanishTranslation,
@@ -22,16 +20,13 @@ initializeLanguages({
 })
 
 export const triggerOverrideTranslations = (i18n: I18N) => {
-    if (!languagesInitialized) {
-        initializeLanguages({
-            en: englishTranslation,
-            es: spanishTranslation,
-            cat: catalanTranslation,
-            fr: frenchTranslation,
-            tl: tagalogTranslation,
-        })
-        languagesInitialized = true
-    }
+    // initializeLanguages({
+    //     en: englishTranslation,
+    //     es: spanishTranslation,
+    //     cat: catalanTranslation,
+    //     fr: frenchTranslation,
+    //     tl: tagalogTranslation,
+    // })
     overwriteTranslations({presentation: {i18n}})
 }
 
