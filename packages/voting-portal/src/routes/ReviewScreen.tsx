@@ -428,7 +428,7 @@ export const ReviewScreen: React.FC = () => {
     const navigate = useNavigate()
     const submit = useSubmit()
     const {tenantId, eventId} = useParams<TenantEventType>()
-    const electionEvent = useAppSelector(selectElectionEventById(eventId))    
+    const electionEvent = useAppSelector(selectElectionEventById(eventId))
     const [errorMsg, setErrorMsg] = useState<CastBallotsErrorType>()
     const authContext = useContext(AuthContext)
     const {isGoldUser, reauthWithGold} = authContext
@@ -438,15 +438,15 @@ export const ReviewScreen: React.FC = () => {
     const dispatch = useAppDispatch()
     const [getBallotFilesUrls] = useMutation(GET_BALLOT_FILES_URLS)
     const urls = useRef<string[] | undefined>(undefined)
-    const requestingS3Data = useRef<boolean>(false)
-    const loadingS3Data = useRef<boolean>(true)
+    const isGoldUserRef = useRef<boolean | undefined>(undefined)
+    const isGoldenPolicy = useRef<boolean | undefined>(undefined)
+    const loadingS3Data = useRef<boolean>(false)
     const [dataElections, setDataElections] = useState<IElection[] | undefined>(undefined)
     const [dataElectionEvent, setDataElectionEvent] = useState<IElectionEvent | undefined>(
         undefined
     )
 
     async function fetchS3Data() {
-        console.log("getBallotFilesUrls for event id: ", eventId)
         try {
             const res = await getBallotFilesUrls({
                 variables: {
@@ -494,12 +494,7 @@ export const ReviewScreen: React.FC = () => {
         election_event_id: eventId ?? "",
     })
 
-    const isGoldenPolicy = elections ? elections?.some(
-        (item) => item.presentation?.cast_vote_gold_level === ECastVoteGoldLevelPolicy.GOLD_LEVEL
-    )
-    : dataElections?.some(
-        (item) => item.presentation?.cast_vote_gold_level === ECastVoteGoldLevelPolicy.GOLD_LEVEL
-    )
+    const isRefreshedOrReauth = !(elections?.length > 0) && !electionEvent // When refreshing these values from Redux are lost.
 
     const auditButtonCfg =
         ballotStyle?.ballot_eml?.election_presentation?.audit_button_cfg ??
@@ -636,8 +631,22 @@ export const ReviewScreen: React.FC = () => {
     }
 
     useEffect(() => {
-        if ((!ballotStyle || !auditableBallot || !selectionState) && isGoldenPolicy) {
-            if (isGoldUser()) {
+        console.log("isRefreshed: ", isRefreshedOrReauth)
+        if (isGoldUserRef.current === undefined) {
+            isGoldUserRef.current = isGoldUser()
+        }
+
+        if (isRefreshedOrReauth && !loadingS3Data.current && isGoldUserRef.current) {
+            loadingS3Data.current = true
+            fetchS3Data() // sets dataElectionEvent and dataElections, needed only in case of gold reathentication
+        }
+
+        if (dataElectionEvent && dataElections) {
+            loadingS3Data.current = false
+        }
+
+        if ((!ballotStyle || !auditableBallot || !selectionState || isRefreshedOrReauth) && isGoldUserRef.current !== undefined) {
+            if (isGoldUserRef.current) {
                 if (!isCastingBallot.current) {
                     console.log("Gold user flow")
                     isCastingBallot.current = true
@@ -656,11 +665,8 @@ export const ReviewScreen: React.FC = () => {
             }
         } else {
             console.log("Normal flow")
-            if ( !elections && !electionEvent) {
-                fetchS3Data()
-            }
         }
-    }, [ballotStyle, selectionState, auditableBallot, isGoldenPolicy])
+    }, [ballotStyle, selectionState, auditableBallot, isGoldenPolicy, dataElectionEvent, dataElections])
 
     if (!ballotStyle || !auditableBallot) {
         return errorMsg ? (

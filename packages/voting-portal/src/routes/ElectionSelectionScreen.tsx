@@ -246,7 +246,6 @@ const ElectionSelectionScreen: React.FC = () => {
     )
 
     async function fetchS3Data() {
-        console.log("getBallotFilesUrls for event id: ", eventId)
         try {
             const res = await getBallotFilesUrls({
                 variables: {
