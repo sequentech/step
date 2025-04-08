@@ -31,6 +31,7 @@ import {
     useNotify,
     useGetOne,
     TextField,
+    TextInput as FilterTextInput,
     useRefresh,
     WrapperField,
     FilterPayload,
@@ -318,6 +319,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                 name: election.alias || election.name || "-",
             }))}
         />,
+        <FilterTextInput label="Template" source="template_alias" key={0} />,
     ]
 
     const handleCreateDrawer = () => {
@@ -474,6 +476,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                         withColumns={showReportsColumns}
                         withImport={false}
                         withExport={false}
+                        withFilter={true}
                         open={openCreateReport}
                         setOpen={setOpenCreateReport}
                         Component={

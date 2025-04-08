@@ -64,7 +64,8 @@ pub struct UserDataArea {
     pub election_dates: StringifiedPeriodDates,
     pub post: String,
     pub area_name: String,
-    pub precinct_code: String,
+    pub station_id: String,
+    pub station_name: String,
     pub voters: Vec<Voter>,       // Voter list field
     pub ov_voted: i64,            // Number of overseas voters who voted
     pub ov_not_voted: i64,        // Number of overseas voters who did not vote
@@ -282,7 +283,8 @@ impl OverseasVotersReport {
                 area_id: area.area_id.clone(),
                 election_title: area.election_title.clone(),
                 election_dates: area.election_dates.clone(),
-                precinct_code: area.precinct_code.clone(),
+                station_id: area.station_id.clone(),
+                station_name: area.station_name.clone(),
                 post: area.post.clone(),
                 inspectors: area.inspectors.clone(),
                 area_name: area.area_name.clone(),
@@ -500,7 +502,8 @@ impl TemplateRenderer for OverseasVotersReport {
                         area_id: area.id.clone(),
                         election_title: election.alias.clone().unwrap_or(election.name.clone()),
                         election_dates: election_dates.clone(),
-                        precinct_code: election_general_data.precinct_code.clone(),
+                        station_name: election_general_data.precinct_code.clone(),
+                        station_id: election_general_data.pollcenter_code.clone(),
                         post: election_general_data.post.clone(),
                         inspectors: area_general_data.inspectors,
                         area_name: area.clone().name.unwrap_or("-".to_string()),
@@ -602,9 +605,14 @@ impl TemplateRenderer for OverseasVotersReport {
             if report.encryption_policy == EReportEncryption::ConfiguredPassword {
                 let secret_key =
                     get_report_secret_key(&tenant_id, &election_event_id, Some(report.id.clone()));
-                let encryption_password = vault::read_secret(secret_key.clone())
-                    .await?
-                    .ok_or_else(|| anyhow!("Encryption password not found"))?;
+                let encryption_password = vault::read_secret(
+                    hasura_transaction,
+                    tenant_id,
+                    Some(election_event_id),
+                    &secret_key,
+                )
+                .await?
+                .ok_or_else(|| anyhow!("Encryption password not found"))?;
 
                 let enc_file: NamedTempFile =
                     generate_temp_file(self.base_name().as_str(), ".epdf")

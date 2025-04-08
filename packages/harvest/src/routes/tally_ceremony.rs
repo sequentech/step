@@ -22,6 +22,7 @@ use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
 use windmill::postgres::election::get_elections_by_ids;
 use windmill::postgres::tally_session::get_tally_session_by_id;
+use windmill::services::providers::transactions_provider::provide_hasura_transaction;
 use windmill::services::{
     ceremonies::tally_ceremony, database::get_hasura_pool,
 };
@@ -160,6 +161,7 @@ pub async fn update_tally_ceremony(
         )
     })?;
     let tally_type = tally_session
+        .clone()
         .tally_type
         .map(|val: String| {
             TallyType::try_from(val.as_str()).unwrap_or_default()
@@ -170,7 +172,7 @@ pub async fn update_tally_ceremony(
         &hasura_transaction,
         &tenant_id,
         &input.election_event_id,
-        &tally_session.election_ids.unwrap_or(vec![]),
+        &tally_session.election_ids.clone().unwrap_or(vec![]),
     )
     .await
     .map_err(|_| {
@@ -220,7 +222,7 @@ pub async fn update_tally_ceremony(
         &hasura_transaction,
         tenant_id,
         input.election_event_id.clone(),
-        input.tally_session_id.clone(),
+        tally_session.clone(),
         input.status.clone(),
     )
     .await
@@ -229,6 +231,10 @@ pub async fn update_tally_ceremony(
             Status::InternalServerError,
             format!("Error with update_tally_ceremony: {:?}", e),
         )
+    })?;
+
+    let _commit = hasura_transaction.commit().await.map_err(|err| {
+        (Status::InternalServerError, format!("Commit failed: {err}"))
     })?;
 
     Ok(Json(CreateTallyCeremonyOutput {

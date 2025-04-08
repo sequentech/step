@@ -152,7 +152,7 @@ export interface IAuditableMultiBallot extends IAuditableBallot {
 export interface IHashableBallot {
     version: number
     issue_date: string
-    config: IBallotStyle
+    config: string
 }
 export interface IHashableSingleBallot {
     contests: Array<string>

@@ -16,8 +16,8 @@ export const formatNumber = (value: number | string): string => {
     }
 
     // Return formatted number or handle invalid inputs gracefully
+    // This can happen when the string is for example `-`
     if (isNaN(numberValue)) {
-        console.error("Invalid number input:", value)
         return value.toString() // Fallback: return the original value
     }
 

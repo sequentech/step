@@ -53,6 +53,7 @@ const SelectElection = ({
             required={isRequired}
             value={value}
             defaultValue={value}
+            sort={{field: "alias", order: "ASC"}}
         >
             <AutocompleteInput
                 TextFieldProps={{required: isRequired}}

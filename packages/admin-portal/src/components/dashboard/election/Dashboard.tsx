@@ -43,9 +43,7 @@ export default function DashboardElection() {
     )
 
     // Ensure required parameters are set before running the query.
-    const canQueryStats = Boolean(
-        tenantId && record?.election_event_id && record?.id && record?.alias
-    )
+    const canQueryStats = Boolean(tenantId && record?.election_event_id && record?.id)
 
     const {loading, data: dataStats} = useQuery<GetElectionStatsQuery>(GET_ELECTION_STATS, {
         variables: {
@@ -54,7 +52,7 @@ export default function DashboardElection() {
             electionId: record?.id,
             startDate: formatDate(startDate),
             endDate: formatDate(endDate),
-            electionAlias: record?.alias,
+            electionAlias: record?.alias ?? undefined,
             userTimezone,
         },
         pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,

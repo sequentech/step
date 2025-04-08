@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {ReactElement, useContext, useMemo} from "react"
-import {DatagridConfigurable, List, TextField, useSidebarState} from "react-admin"
+import {DatagridConfigurable, FunctionField, List, TextField, useSidebarState} from "react-admin"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {Typography} from "@mui/material"
 import {styled} from "@mui/material/styles"
@@ -98,15 +98,17 @@ export const ListIpAddress: React.FC<ListIpAddressProps> = ({
                 actions={<ListActions withImport={false} defaultExport />}
             >
                 <DatagridConfigurable omit={["voters_id"]}>
-                    <TextField
+                    <FunctionField
                         source="ip"
                         sortable={false}
                         label={`${t(`dashboard.ipAddress.ip`)}`}
+                        render={(record: any) => (record.ip ? record.ip : "-")}
                     />
-                    <TextField
+                    <FunctionField
                         source="country"
                         sortable={false}
                         label={`${t(`dashboard.ipAddress.country`)}`}
+                        render={(record: any) => (record.ip ? record.ip : "-")}
                     />
                     <TextField
                         source="vote_count"
