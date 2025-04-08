@@ -61,7 +61,7 @@ pub async fn insert_ballots_messages(
         .clone()
         .into_iter()
         .map(|trustee| deserialize_public_key(trustee.public_key.unwrap()))
-        .collect();
+        .collect::<Result<_>>()?;
 
     event!(
         Level::INFO,
