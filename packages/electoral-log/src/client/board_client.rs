@@ -33,6 +33,8 @@ pub struct ElectoralLogMessage {
     pub version: String,
     pub user_id: Option<String>,
     pub username: Option<String>,
+    pub election_id: Option<String>,
+    pub area_id: Option<String>,
 }
 
 impl TryFrom<&Row> for ElectoralLogMessage {
@@ -48,6 +50,8 @@ impl TryFrom<&Row> for ElectoralLogMessage {
         let mut version = String::from("");
         let mut user_id: Option<String> = None;
         let mut username: Option<String> = None;
+        let mut election_id: Option<String> = None;
+        let mut area_id: Option<String> = None;
 
         for (column, value) in row.columns.iter().zip(row.values.iter()) {
             // FIXME for some reason columns names appear with parentheses
@@ -88,6 +92,28 @@ impl TryFrom<&Row> for ElectoralLogMessage {
                         ))
                     }
                 },
+                "election_id" => match value.value.as_ref() {
+                    Some(Value::S(inner)) => election_id = Some(inner.clone()),
+                    Some(Value::Null(_)) => election_id = None,
+                    None => election_id = None,
+                    _ => {
+                        return Err(anyhow!(
+                            "invalid column value for 'election_id': {:?}",
+                            value.value.as_ref()
+                        ))
+                    }
+                },
+                "area_id" => match value.value.as_ref() {
+                    Some(Value::S(inner)) => area_id = Some(inner.clone()),
+                    Some(Value::Null(_)) => area_id = None,
+                    None => area_id = None,
+                    _ => {
+                        return Err(anyhow!(
+                            "invalid column value for 'area_id': {:?}",
+                            value.value.as_ref()
+                        ))
+                    }
+                },
                 _ => return Err(anyhow!("invalid column found '{}'", bare_column)),
             }
         }
@@ -102,6 +128,8 @@ impl TryFrom<&Row> for ElectoralLogMessage {
             version,
             user_id,
             username,
+            election_id,
+            area_id,
         })
     }
 }
@@ -323,7 +351,9 @@ impl BoardClient {
                     message,
                     version,
                     user_id,
-                    username
+                    username,
+                    election_id,
+                    area_id
                 ) VALUES (
                     @created,
                     @sender_pk,
@@ -332,7 +362,9 @@ impl BoardClient {
                     @message,
                     @version,
                     @user_id,
-                    @username
+                    @username,
+                    @election_id,
+                    @area_id
                 );
             "#,
                 ELECTORAL_LOG_TABLE
@@ -388,6 +420,24 @@ impl BoardClient {
                     value: Some(SqlValue {
                         value: match message.username.clone() {
                             Some(username) => Some(Value::S(username)),
+                            None => None,
+                        },
+                    }),
+                },
+                NamedParam {
+                    name: String::from("election_id"),
+                    value: Some(SqlValue {
+                        value: match message.election_id.clone() {
+                            Some(election_id) => Some(Value::S(election_id)),
+                            None => None,
+                        },
+                    }),
+                },
+                NamedParam {
+                    name: String::from("area_id"),
+                    value: Some(SqlValue {
+                        value: match message.area_id.clone() {
+                            Some(area_id) => Some(Value::S(area_id)),
                             None => None,
                         },
                     }),
@@ -428,7 +478,9 @@ impl BoardClient {
                     message,
                     version,
                     user_id,
-                    username
+                    username,
+                    election_id,
+                    area_id
                 ) VALUES (
                     @created,
                     @sender_pk,
@@ -437,7 +489,9 @@ impl BoardClient {
                     @message,
                     @version,
                     @user_id,
-                    @username
+                    @username,
+                    @election_id,
+                    @area_id
                 );
             "#,
                 ELECTORAL_LOG_TABLE
@@ -493,6 +547,24 @@ impl BoardClient {
                     value: Some(SqlValue {
                         value: match message.username.clone() {
                             Some(username) => Some(Value::S(username)),
+                            None => None,
+                        },
+                    }),
+                },
+                NamedParam {
+                    name: String::from("election_id"),
+                    value: Some(SqlValue {
+                        value: match message.election_id.clone() {
+                            Some(election_id) => Some(Value::S(election_id)),
+                            None => None,
+                        },
+                    }),
+                },
+                NamedParam {
+                    name: String::from("area_id"),
+                    value: Some(SqlValue {
+                        value: match message.area_id.clone() {
+                            Some(area_id) => Some(Value::S(area_id)),
                             None => None,
                         },
                     }),
@@ -542,6 +614,8 @@ impl BoardClient {
             version VARCHAR,
             user_id VARCHAR,
             username VARCHAR,
+            election_id VARCHAR,
+            area_id VARCHAR,
             PRIMARY KEY id
         );
         "#,
@@ -619,6 +693,8 @@ pub(crate) mod tests {
             version: "".to_string(),
             user_id: None,
             username: None,
+            election_id: None,
+            area_id: None,
         };
         let messages = vec![electoral_log_message];
 

@@ -29,7 +29,7 @@ use sequent_core::services::generate_urls::get_auth_url;
 use sequent_core::services::generate_urls::AuthAction;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
 use sequent_core::services::{keycloak, reports};
-use sequent_core::types::keycloak::{User, UserArea};
+use sequent_core::types::keycloak::{User, UserArea, AREA_ID_ATTR_NAME};
 use sequent_core::types::templates::{
     AudienceSelection, EmailConfig, SendTemplateBody, SmsConfig, TemplateMethod,
 };
@@ -269,20 +269,31 @@ async fn update_stats(
 }
 
 async fn on_success_send_message(
+    hasura_transaction: &Transaction<'_>,
     election_event: Option<GetElectionEventSequentBackendElectionEvent>,
     user_id: Option<String>,
     username: Option<String>,
     message: &str,
     tenant_id: &str,
     admin_id: &str,
+    area_id: Option<String>,
 ) -> Result<()> {
     if let Some(election_event) = election_event {
         let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
             .with_context(|| "missing bulletin board")?;
 
-        let electoral_log = ElectoralLog::for_admin_user(&board_name, tenant_id, admin_id)
-            .await
-            .map_err(|e| anyhow!("Error obtaining the electoral log: {e:?}"))?;
+        let electoral_log = ElectoralLog::for_admin_user(
+            hasura_transaction,
+            &board_name,
+            tenant_id,
+            &election_event.id,
+            admin_id,
+            username.clone(),
+            None,
+            area_id.clone(),
+        )
+        .await
+        .map_err(|e| anyhow!("Error obtaining the electoral log: {e:?}"))?;
 
         electoral_log
             .post_send_template(
@@ -291,6 +302,7 @@ async fn on_success_send_message(
                 user_id,
                 username,
                 None,
+                area_id,
             )
             .await
             .map_err(|e| anyhow!("error posting to the electoral log: {e:?}"))?;
@@ -464,6 +476,7 @@ pub async fn send_template(
 
         for user in filtered_users.iter() {
             let success = send_template_email_or_sms(
+                &hasura_transaction,
                 &user,
                 &election_event,
                 &tenant_id,
@@ -524,6 +537,7 @@ pub async fn send_template(
 /// All the fields are required.
 #[instrument(err, skip(election_event, email_sender, sms_sender))]
 pub async fn send_template_email_or_sms(
+    hasura_transaction: &Transaction<'_>,
     user: &User,
     election_event: &Option<GetElectionEventSequentBackendElectionEvent>,
     tenant_id: &str,
@@ -546,6 +560,13 @@ pub async fn send_template_email_or_sms(
         tenant_id.to_string(),
         AuthAction::Login,
     )?;
+
+    let user_area_id = user.attributes.as_ref().and_then(|attributes| {
+        attributes
+            .get(AREA_ID_ATTR_NAME)
+            .and_then(|area_id| area_id.first().cloned())
+    });
+
     match communication_method {
         Some(TemplateMethod::EMAIL) => {
             let sending_result = send_template_email(
@@ -559,12 +580,14 @@ pub async fn send_template_email_or_sms(
                 Ok(Some(message)) if user.id.is_some() => {
                     let admin_id = admin_id.unwrap();
                     if let Err(e) = on_success_send_message(
+                        hasura_transaction,
                         election_event.clone(),
                         user.id.clone(),
                         user.username.clone(),
                         &message,
                         &tenant_id,
                         admin_id,
+                        user_area_id,
                     )
                     .await
                     {
@@ -595,12 +618,14 @@ pub async fn send_template_email_or_sms(
                 Ok(Some(message)) if user.id.is_some() => {
                     let admin_id = admin_id.unwrap();
                     if let Err(e) = on_success_send_message(
+                        hasura_transaction,
                         election_event.clone(),
                         user.id.clone(),
                         None,
                         &message,
                         tenant_id,
                         admin_id,
+                        user_area_id,
                     )
                     .await
                     {

@@ -147,9 +147,14 @@ pub async fn read_protocol_manager_keys(
     {
         let board_name = get_event_board(tenant_id, election_event_id);
         let protocol_manager_key = get_protocol_manager_secret_path(&board_name);
-        let protocol_manager_data = vault::read_secret(protocol_manager_key)
-            .await?
-            .ok_or(anyhow!("protocol manager secret not found"))?;
+        let protocol_manager_data = vault::read_secret(
+            transaction,
+            tenant_id,
+            Some(election_event_id),
+            &protocol_manager_key,
+        )
+        .await?
+        .ok_or(anyhow!("protocol manager secret not found"))?;
         let record = vec!["".into(), protocol_manager_data];
         writer
             .write_record(&record)
@@ -162,9 +167,14 @@ pub async fn read_protocol_manager_keys(
     for election in elections {
         let board_name = get_election_board(tenant_id, &election.id);
         let protocol_manager_key = get_protocol_manager_secret_path(&board_name);
-        let protocol_manager_data = vault::read_secret(protocol_manager_key)
-            .await?
-            .ok_or(anyhow!("protocol manager secret not found"))?;
+        let protocol_manager_data = vault::read_secret(
+            transaction,
+            tenant_id,
+            Some(election_event_id),
+            &protocol_manager_key,
+        )
+        .await?
+        .ok_or(anyhow!("protocol manager secret not found"))?;
         let record = vec![election.id.clone(), protocol_manager_data];
         writer
             .write_record(&record)

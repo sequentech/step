@@ -4,6 +4,7 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
 
+use crate::encrypt::hash_ballot_style;
 use crate::error::BallotError;
 use crate::serialization::base64::{Base64Deserialize, Base64Serialize};
 use strand::elgamal::Ciphertext;
@@ -42,7 +43,8 @@ pub struct HashableMultiBallot {
     // self::serialize_contests can be deserialized with
     // self::deserialize_contests
     pub contests: String,
-    pub config: BallotStyle,
+    pub config: String,
+    pub ballot_style_hash: String,
 }
 
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug, Clone)]
@@ -109,13 +111,22 @@ impl TryFrom<&AuditableMultiBallot> for HashableMultiBallot {
         let hashable_ballot_contests =
             HashableMultiBallotContests::<RistrettoCtx>::from(&contests);
 
+        let ballot_style_hash =
+            hash_ballot_style(&value.config).map_err(|error| {
+                BallotError::Serialization(format!(
+                    "Failed to hash ballot style: {}",
+                    error
+                ))
+            })?;
+
         Ok(HashableMultiBallot {
             version: TYPES_VERSION,
             issue_date: value.issue_date.clone(),
             contests: HashableMultiBallot::serialize_contests::<RistrettoCtx>(
                 &hashable_ballot_contests,
             )?,
-            config: value.config.clone(),
+            config: value.config.id.clone(),
+            ballot_style_hash: ballot_style_hash,
         })
     }
 }
