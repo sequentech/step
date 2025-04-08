@@ -1029,7 +1029,16 @@ export const TallyCeremony: React.FC = () => {
                                     }
                                     onClick={(e) => e.stopPropagation()}
                                 >
-                                    <WizardStyles.AccordionTitle>
+                                    <WizardStyles.AccordionTitle
+                                        onClick={(e) => {
+                                            e.stopPropagation()
+                                            setExpandedResults((prev: IExpanded) => ({
+                                                ...prev,
+                                                "tally-results-results":
+                                                    !prev["tally-results-results"],
+                                            }))
+                                        }}
+                                    >
                                         {t("tally.resultsTitle")}
                                     </WizardStyles.AccordionTitle>
                                     <TallyStyles.StyledSpacing>
