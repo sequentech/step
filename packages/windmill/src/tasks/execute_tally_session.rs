@@ -931,12 +931,8 @@ async fn map_plaintext_data(
         .map(|message| message.statement.get_batch_number() as i64)
         .collect();
 
-    println!("relevant_plaintexts.len() = {}", relevant_plaintexts.len());
-    println!("batch_ids.len() = {}", batch_ids.len());
     // we have all plaintexts
     let is_execution_completed = relevant_plaintexts.len() == batch_ids.len();
-
-    println!("is_execution_completed = {}", is_execution_completed);
 
     let areas = get_event_areas(hasura_transaction, &tenant_id, &election_event_id).await?;
 
