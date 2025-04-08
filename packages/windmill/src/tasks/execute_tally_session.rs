@@ -64,10 +64,7 @@ use sequent_core::ballot::ContestEncryptionPolicy;
 use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::area_tree::TreeNode;
 use sequent_core::services::area_tree::TreeNodeArea;
-use sequent_core::services::connection;
-use sequent_core::services::connection::AuthHeaders;
 use sequent_core::services::date::ISO8601;
-use sequent_core::services::keycloak;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::ceremonies::TallyCeremonyStatus;
 use sequent_core::types::ceremonies::TallyExecutionStatus;
@@ -308,7 +305,6 @@ fn generate_area_contests(
 
 #[instrument(skip_all, err)]
 async fn process_plaintexts(
-    auth_headers: AuthHeaders,
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
     relevant_plaintexts: Vec<&Message>,
@@ -408,7 +404,6 @@ async fn process_plaintexts(
         .to_string();
 
         let eligible_voters = get_eligible_voters(
-            auth_headers.clone(),
             &hasura_transaction,
             &keycloak_transaction,
             &area_contest.contest.tenant_id,
@@ -420,7 +415,6 @@ async fn process_plaintexts(
         .await?;
         let auditable_votes = count_auditable_ballots(
             &elections_end_dates,
-            &auth_headers,
             &hasura_transaction,
             &keycloak_transaction,
             &area_contest.contest.tenant_id,
@@ -486,7 +480,6 @@ fn get_execution_status(execution_status: Option<String>) -> Option<TallyExecuti
 
 #[instrument(skip_all, err)]
 pub async fn count_cast_votes_election_with_census(
-    auth_headers: AuthHeaders,
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -546,7 +539,6 @@ pub async fn count_cast_votes_election_with_census(
 
 #[instrument(skip_all, err)]
 pub async fn get_eligible_voters(
-    auth_headers: connection::AuthHeaders,
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -709,7 +701,6 @@ pub fn clean_tally_sheets(
 
 #[instrument(skip_all, err)]
 async fn map_plaintext_data(
-    auth_headers: AuthHeaders,
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
     tenant_id: String,
@@ -939,8 +930,13 @@ async fn map_plaintext_data(
         .iter()
         .map(|message| message.statement.get_batch_number() as i64)
         .collect();
+
+    println!("relevant_plaintexts.len() = {}", relevant_plaintexts.len());
+    println!("batch_ids.len() = {}", batch_ids.len());
     // we have all plaintexts
     let is_execution_completed = relevant_plaintexts.len() == batch_ids.len();
+
+    println!("is_execution_completed = {}", is_execution_completed);
 
     let areas = get_event_areas(hasura_transaction, &tenant_id, &election_event_id).await?;
 
@@ -954,7 +950,6 @@ async fn map_plaintext_data(
         .unwrap_or_default()
         .get_contest_encryption_policy();
     let plaintexts_data: Vec<AreaContestDataType> = process_plaintexts(
-        auth_headers.clone(),
         hasura_transaction,
         keycloak_transaction,
         relevant_plaintexts,
@@ -970,7 +965,6 @@ async fn map_plaintext_data(
     let tally_sheets = clean_tally_sheets(&tally_sheet_rows, &plaintexts_data)?;
 
     let cast_votes_count = count_cast_votes_election_with_census(
-        auth_headers.clone(),
         hasura_transaction,
         keycloak_transaction,
         &tenant_id,
@@ -1100,12 +1094,11 @@ async fn build_reports_template_data(
     Ok((report_content_template, report_system_template, pdf_options))
 }
 
-#[instrument(err, skip(auth_headers, hasura_transaction, keycloak_transaction))]
+#[instrument(err, skip(hasura_transaction, keycloak_transaction))]
 pub async fn execute_tally_session_wrapped(
     tenant_id: String,
     election_event_id: String,
     tally_session_id: String,
-    auth_headers: AuthHeaders,
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
     tally_type: Option<String>,
@@ -1155,7 +1148,6 @@ pub async fn execute_tally_session_wrapped(
 
     // map plaintexts to contests
     let plaintexts_data_opt = map_plaintext_data(
-        auth_headers.clone(),
         hasura_transaction,
         keycloak_transaction,
         tenant_id.clone(),
@@ -1301,7 +1293,6 @@ pub async fn transactions_wrapper(
     tally_type: Option<String>,
     election_ids: Option<Vec<String>>,
 ) -> Result<()> {
-    let auth_headers = keycloak::get_client_credentials().await?;
     let mut keycloak_db_client: DbClient = get_keycloak_pool()
         .await
         .get()
@@ -1325,7 +1316,6 @@ pub async fn transactions_wrapper(
         tenant_id.clone(),
         election_event_id.clone(),
         tally_session_id.clone(),
-        auth_headers.clone(),
         &hasura_transaction,
         &keycloak_transaction,
         tally_type.clone(),

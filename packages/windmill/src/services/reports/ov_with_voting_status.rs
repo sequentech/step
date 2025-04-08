@@ -575,10 +575,6 @@ impl TemplateRenderer for OVWithVotingStatusTemplate {
             final_file_path, file_size, final_report_name, mimetype
         );
 
-        let auth_headers = keycloak::get_client_credentials()
-            .await
-            .map_err(|err| anyhow!("Error getting client credentials: {err:?}"))?;
-
         let encrypted_temp_data: Option<TempPath> = if let Some(report) = &report {
             if report.encryption_policy == EReportEncryption::ConfiguredPassword {
                 let secret_key =

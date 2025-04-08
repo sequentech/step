@@ -325,7 +325,6 @@ pub async fn send_template(
     admin_id: String,
     election_event_id: Option<String>,
 ) -> Result<()> {
-    let auth_headers = keycloak::get_client_credentials().await?;
     let celery_app = get_celery_app().await;
     let realm = match election_event_id {
         Some(ref election_event_id) => get_event_realm(&tenant_id, &election_event_id),
@@ -389,19 +388,13 @@ pub async fn send_template(
 
     let elections_by_area = match election_event_id.clone() {
         None => HashMap::new(),
-        Some(ref election_event_id) => {
-            let hasura_transaction = hasura_db_client
-                .transaction()
-                .await
-                .with_context(|| "Error creating a transaction")?;
-            get_elections_by_area(
-                &hasura_transaction,
-                tenant_id.as_str(),
-                election_event_id.as_str(),
-            )
-            .await
-            .with_context(|| "Error listing elections by area")?
-        }
+        Some(ref election_event_id) => get_elections_by_area(
+            &hasura_transaction,
+            tenant_id.as_str(),
+            election_event_id.as_str(),
+        )
+        .await
+        .with_context(|| "Error listing elections by area")?,
     };
 
     loop {

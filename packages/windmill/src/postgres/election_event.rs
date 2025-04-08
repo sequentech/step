@@ -555,10 +555,9 @@ pub async fn get_batch_election_events(
     let statement = hasura_transaction
         .prepare(
             r#"
-            SELECT id,
-                tenant_id,
-                created_at
-            FROM sequent_backend_election_event
+            SELECT 
+                *
+            FROM sequent_backend.election_event
             WHERE is_archived = false
             ORDER BY created_at ASC
             LIMIT $1

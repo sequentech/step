@@ -11,7 +11,8 @@ use crate::postgres::keys_ceremony;
 use crate::postgres::keys_ceremony::get_keys_ceremonies;
 use crate::postgres::keys_ceremony::get_keys_ceremony_by_id;
 use crate::postgres::tally_session::{
-    get_tally_session_by_id, insert_tally_session, update_tally_session_status,
+    get_tally_session_by_id, insert_tally_session,
+    set_tally_session_completed as set_tally_session_completed_in_db, update_tally_session_status,
 };
 use crate::postgres::tally_session_contest::{
     get_tally_session_contests, get_tally_session_highest_batch, insert_tally_session_contest,
@@ -784,7 +785,7 @@ pub async fn set_tally_session_completed(
 ) -> Result<()> {
     let execution_status = TallyExecutionStatus::SUCCESS;
 
-    let is_updated = match update_tally_session_status(
+    let is_updated = match set_tally_session_completed_in_db(
         hasura_transaction,
         &tenant_id,
         &election_event_id,

@@ -26,7 +26,6 @@ use sequent_core::ballot::{ContestEncryptionPolicy, ElectionPresentation, Hashab
 use sequent_core::multi_ballot::HashableMultiBallot;
 use sequent_core::serialization::base64::{Base64Deserialize, Base64Serialize};
 use sequent_core::serialization::deserialize_with_path::{deserialize_str, deserialize_value};
-use sequent_core::services::connection::AuthHeaders;
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::hasura::core::TallySessionContest;
@@ -321,7 +320,6 @@ pub async fn get_elections_end_dates(
 #[instrument(skip_all, err, ret)]
 pub async fn count_auditable_ballots(
     elections_end_dates: &HashMap<String, Option<DateTime<Utc>>>,
-    auth_headers: &AuthHeaders,
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
     tenant_id: &str,

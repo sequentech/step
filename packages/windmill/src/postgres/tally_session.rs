@@ -367,3 +367,43 @@ pub async fn update_tally_session_status(
 
     Ok(())
 }
+
+#[instrument(err, skip_all)]
+pub async fn set_tally_session_completed(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    tally_session_id: &str,
+    execution_status: TallyExecutionStatus,
+) -> Result<()> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+            UPDATE
+                sequent_backend.tally_session
+            SET
+                execution_status = $1,
+                is_execution_completed = TRUE
+            WHERE
+                id = $2 AND
+                tenant_id = $3 AND
+                election_event_id = $4;
+        "#,
+        )
+        .await?;
+
+    let _rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &execution_status.to_string(),
+                &Uuid::parse_str(tally_session_id)?,
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(&election_event_id)?,
+            ],
+        )
+        .await
+        .map_err(|err| anyhow!("Error running query update tally sesstion status: {err}"))?;
+
+    Ok(())
+}

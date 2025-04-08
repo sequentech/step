@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
-use sequent_core::services::keycloak;
 use sequent_core::services::{pdf, reports};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -22,10 +21,6 @@ pub async fn render_report_task(
     tenant_id: String,
     election_event_id: String,
 ) -> Result<()> {
-    let auth_headers = keycloak::get_client_credentials().await?;
-
-    println!("auth headers: {:#?}", auth_headers);
-
     let tenant = get_tenant_by_id(hasura_transaction, &tenant_id).await?;
 
     let username = tenant.slug.clone();
