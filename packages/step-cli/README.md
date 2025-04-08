@@ -176,3 +176,54 @@ Run ```step update-tally --election-event-id <ELECTION_EVENT_ID> --tally-id <TAL
 - template = path to the handlebars-rs template file can be example.hbs
 - vars - path to variables file needs to be a json file containing the vars needed for the handlebars-rs file
 - output - where should the html file be written to
+
+
+## Generate voters
+> This can be used to create csv file with voters. 
+> this action require to have export_election_event-<id>.json file in working-directory.
+> Run ```step generate-voters --working-directory <PATH_FOR_INPUT_OUTPUT> --num-users <NUMBER_VOTERS_TO_GENERATE>```
+
+- working-directory = path to the config.json files and output directoty (workspaces/step/packages/step-cli/data)
+- num-users - how much voters to generate
+
+
+## Duplicate votes
+> This can be used to duplicate existing cast_vote row.
+> this required additional confituration at config.json in working-directory
+> Run ```step duplicate-votes --working-directory <PATH_FOR_INPUT_OUTPUT> --num-votes <NUMBER_VOTES_TO_DUPLICATE>```
+
+- working-directory = path to the config.json files and output directoty (workspaces/step/packages/step-cli/data)
+- num-votes - how much votes to duplicate
+
+## Create Applications
+> This can be used to create applicaiton.
+> this required additional confituration at config.json in working-directory
+> Run ```step create-applications --working-directory <PATH_FOR_INPUT_OUTPUT> --num-applications <NUMBER_APPLICATIONS_TO_CREATE> --status <STATUS> --type <TYPE>```
+
+- working-directory = path to the config.json files and output directoty (workspaces/step/packages/step-cli/data)
+- num-applications - how much applications to create
+- status: OPTIONAL, should be PENDING, ACCEPTED or REJECTED
+- type:  OPTIONAL, should be AUTOMATIC or MANUAL
+
+## Create Electoral Logs
+> This can be used to create electoral logs in immudb.
+> this required additional confituration at config.json in working-directory (like area_id and election_id)
+> Run ```step create-electoral-logs --working-directory <PATH_FOR_INPUT_OUTPUT> --num-logs <NUMBER_LOGS_TO_CREATE>```
+
+- working-directory = path to the config.json files and output directoty (workspaces/step/packages/step-cli/data)
+- num-logs - how much logs to create
+
+## Hash password csv
+>This takes a voter_list.csv as input where the input has password column and outputs a voter_list.csv with hashed passwords and salts for the passwords to make it faster to import. 
+> Run ```step hash-passwords --input-file <PATH_FOR_INPUT_OUTPUT> --output-file <PATH_TO_OUTPUT_FILE> --iterations <NUMBER_OF_HASHING_ITERATIONS>```
+
+- iterations = number of iterations for the hashing where the default if 600000
+
+## Compiling and Using the CLI 
+
+> The CLI will be compilied using github action into a binray on every push/pull request or realease 
+> The CLI will be compiled to both MAC use or L
+> In order to run on Linux: 
+- go Open a terminal, navigate to the folder where the binary is located, and run: ```chmod +x seq ```
+-  Execute a commend by running by running: ```./seq <COMMAND> [OPTIONS]``` for Example: ```./seq step hash-passwords --input-file <PATH_FOR_INPUT_OUTPUT> --output-file <PATH_TO_OUTPUT_FILE> --iterations <NUMBER_OF_HASHING_ITERATIONS>```
+- num-logs - how much logs to create

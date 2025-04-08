@@ -103,7 +103,8 @@
       "ov_not_pre_enrolled": 1,
       "eb_voted": 1,
       "ov_total": 5,
-      "precinct_code": "P12345",
+      "station_id": "91060001",
+      "station_name": "0034A",
       "inspectors": [
         {
           "name": "Juan Dela Cruz",
