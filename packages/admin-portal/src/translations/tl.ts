@@ -564,6 +564,13 @@ const tagalogTranslation: TranslationType = {
                 "not-required": "Hindi Kinakailangan",
                 "required": "Kinakailangan",
             },
+            castVoteGoldLevelPolicy: {
+                label: "Gold level Authentication Policy",
+                options: {
+                    "gold-level": "Gold level Authentication",
+                    "no-gold-level": "No Gold level Authentication",
+                },
+            },
         },
         tenantScreen: {
             common: {

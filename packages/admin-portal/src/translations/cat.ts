@@ -565,6 +565,13 @@ const catalanTranslation: TranslationType = {
                 "not-required": "No requereix",
                 "required": "Requerit",
             },
+            castVoteGoldLevelPolicy: {
+                label: "Gold level Authentication Policy",
+                options: {
+                    "gold-level": "Gold level Authentication",
+                    "no-gold-level": "No Gold level Authentication",
+                },
+            },
         },
         tenantScreen: {
             common: {
