@@ -20,7 +20,7 @@ import theme from "../../services/theme"
 import {EVotingPortalCountdownPolicy} from "@sequentech/ui-core"
 
 const Span = styled.span`
-    font-size: 14px;
+    fontsize: 14px;
     color: ${theme.palette.customGrey.dark};
 `
 
@@ -31,7 +31,7 @@ const Name = styled.span`
 export const StyledButtonTooltipText = styled(Typography)`
     padding: 0;
     margin: 0;
-    font-size: 12px;
+    fontsize: 12px;
 `
 
 const CountdownTooltipContent: React.FC<{timeLeft?: string}> = ({timeLeft = ""}) => {

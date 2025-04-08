@@ -19,7 +19,7 @@ const BorderBox = styled(Box)<{isopen: string; isactive: string}>`
         ${({isopen, theme}) =>
             "true" === isopen ? theme.palette.brandSuccess : theme.palette.customGrey.light};
     ${({isopen, theme}) =>
-        "true" === isopen ? `background-color: ${theme.palette.lightBackground};` : ""}
+        "true" === isopen ? `backgroundColor: ${theme.palette.lightBackground};` : ""}
     display: flex;
     flex-direction: row;
     padding: 19px 38px;
@@ -30,14 +30,14 @@ const BorderBox = styled(Box)<{isopen: string; isactive: string}>`
         "true" === isopen
             ? `
             &:hover {
-                box-shadow: 0 5px 5px rgba(0,0,0,.5);
-                background-color: ${theme.palette.customGrey.light};
+                boxShadow: 0 5px 5px rgba(0,0,0,.5);
+                backgroundColor: ${theme.palette.customGrey.light};
             }
             &:focus {
                 border: 2px solid ${theme.palette.brandColor};
             }
             &:active {
-                background-color: unset;
+                backgroundColor: unset;
             }
         `
             : ""}
@@ -98,13 +98,13 @@ const VotedContainer = styled(Box)<{hasvoted: string}>`
 `
 
 const StatusBanner = styled(Box)<{isopen: string}>`
-    font-size: 14px;
+    fontsize: 14px;
     line-height: 20px;
     font-weight: 700;
-    text-transform: uppercase;
+    texttransform: uppercase;
     min-width: 85px;
     text-align: center;
-    background-color: ${({isopen, theme}) =>
+    backgroundcolor: ${({isopen, theme}) =>
         "true" === isopen ? theme.palette.brandSuccess : theme.palette.errorColor};
     color: ${({isopen, theme}) => ("true" === isopen ? theme.palette.black : theme.palette.white)};
 
@@ -139,7 +139,7 @@ const DatesUrlWrap = styled(Box)`
 `
 
 const StyledTitle = styled(Typography)`
-    font-size: 18px;
+    fontsize: 18px;
     line-height: 20px;
     margin-top: 0;
     margin-bottom: 10px;

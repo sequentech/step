@@ -7,8 +7,11 @@ import spanishTranslation from "../translations/es"
 import catalanTranslation from "../translations/cat"
 import frenchTranslation from "../translations/fr"
 import tagalogTranslation from "../translations/tl"
+import i18next from "i18next"
 
 type I18N = Record<string, Record<string, string>>
+
+let languagesInitialized = false
 
 initializeLanguages({
     en: englishTranslation,
@@ -19,13 +22,16 @@ initializeLanguages({
 })
 
 export const triggerOverrideTranslations = (i18n: I18N) => {
-    initializeLanguages({
-        en: englishTranslation,
-        es: spanishTranslation,
-        cat: catalanTranslation,
-        fr: frenchTranslation,
-        tl: tagalogTranslation,
-    })
+    if (!languagesInitialized) {
+        initializeLanguages({
+            en: englishTranslation,
+            es: spanishTranslation,
+            cat: catalanTranslation,
+            fr: frenchTranslation,
+            tl: tagalogTranslation,
+        })
+        languagesInitialized = true
+    }
     overwriteTranslations({presentation: {i18n}})
 }
 
@@ -54,3 +60,5 @@ export const addDefaultTranslationsToElement = (data: {
     }
     return i18n
 }
+
+export default i18next

@@ -42,8 +42,10 @@ export const TenantContextProvider = (props: TenantContextProviderProps) => {
 
     // Overwrites translations based on the settings config
     useEffect(() => {
-        console.log(`triggering overriding of translations..`)
-        triggerOverrideTranslations((tenant?.settings as ITenantSettings | undefined)?.i18n ?? {})
+        const i18nSettings = (tenant?.settings as ITenantSettings | undefined)?.i18n
+        if (i18nSettings) {
+            triggerOverrideTranslations(i18nSettings)
+        }
     }, [tenant?.settings?.i18n])
 
     const setTenantWrapper = (newTenant: Sequent_Backend_Tenant | undefined) => {

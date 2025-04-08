@@ -8,7 +8,7 @@ const InfoDataBox = styled(Box)`
     word-break: break-word;
     hyphens: auto;
     padding: 15px;
-    background-color: #ecfdf5;
+    backgroundcolor: #ecfdf5;
     color: #000;
     border-radius: 4px;
     display: block;

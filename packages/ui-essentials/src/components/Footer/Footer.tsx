@@ -11,7 +11,7 @@ import {useTranslation} from "react-i18next"
 const StyledPaper = styled(Paper)(
     ({theme}) => `
         display: flex;
-        background-color: ${theme.palette.lightBackground};
+        backgroundColor: ${theme.palette.lightBackground};
         padding-top: 12px;
         padding-bottom: 12px;
         justify-content: center;

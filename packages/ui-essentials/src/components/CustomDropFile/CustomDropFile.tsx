@@ -36,7 +36,7 @@ const StyledLabel = styledEmotion.label<{dragActive: boolean}>`
     &:hover {
         cursor: pointer;
     }
-    background-color: ${({dragActive, theme}) =>
+    backgroundColor: ${({dragActive, theme}) =>
         dragActive ? theme.palette.customGreen.light : theme.palette.lightBackground};
 `
 

@@ -154,7 +154,7 @@ export const MenuStyles = {
         cursor: pointer;
         color: black;
     `,
-    StyledSideBarNavLink: styled(NavLink)<{multiline?: boolean}>`
+    StyledSideBarNavLink: styled(NavLink)<{multiline?: string | undefined}>`
         flex-grow: 1;
         padding-top: 0.375rem;
         padding-bottom: 0.375rem;
@@ -162,7 +162,7 @@ export const MenuStyles = {
         border-bottom: 2px solid white;
         cursor: pointer;
         ${(data) =>
-            data.multiline
+            data.multiline && data.multiline === "true"
                 ? `
             /* Allow up to two lines of text */
             display: -webkit-box;

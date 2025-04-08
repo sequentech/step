@@ -131,7 +131,6 @@ interface AuthContextProviderProps {
  * @param props
  */
 const AuthContextProvider = (props: AuthContextProviderProps) => {
-    console.log("rendering AuthContextProvider")
     const {loaded, globalSettings} = useContext(SettingsContext)
     const [keycloak, setKeycloak] = useState<Keycloak | null>()
     const [isKeycloakInitialized, setIsKeycloakInitialized] = useState<boolean>(false)
@@ -260,7 +259,6 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         if (keycloak) {
             return
         }
-        console.log("create Keycloak")
         /**
          * KeycloakConfig configures the connection to the Keycloak server.
          */
@@ -280,10 +278,8 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
 
     const initializeKeycloak = async () => {
         if (!keycloak) {
-            console.log("CAN'T initialize Keycloak")
             return
         }
-        console.log("initialize Keycloak")
         try {
             /**
              * KeycloakInitOptions configures the Keycloak client.
@@ -299,12 +295,9 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
 
             // If the authentication was not successfull the user is send back to the Keycloak login form
             if (!isAuthenticatedResponse) {
-                console.log("user is not yet authenticated. forwarding user to login.")
                 await keycloak.login()
             }
             if (!keycloak.token) {
-                console.log("error authenticating user")
-                console.log("error initializing Keycloak")
                 setAuthenticated(false)
                 return
             }
@@ -312,11 +305,8 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
             localStorage.setItem("token", keycloak.token)
             setAuthenticated(true)
             setTimeout(updateTokenPeriodically, 4e3)
-            console.log("user is authenticated")
             setIsKeycloakInitialized(true)
         } catch (error) {
-            console.log("error initializing Keycloak")
-            console.log(error)
             setAuthenticated(false)
         }
     }
@@ -339,7 +329,6 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         if (keycloak) {
             const refreshed = await keycloak.updateToken(sleepSecs + bufferSecs)
             if (!keycloak.token) {
-                console.log(`error updating token`)
                 return
             }
             if (refreshed) {
