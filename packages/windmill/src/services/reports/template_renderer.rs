@@ -111,8 +111,8 @@ pub trait TemplateRenderer: Debug {
     /// or from other place than the reports TAB.
     fn get_initial_template_alias(&self) -> Option<String>;
 
-    async fn count_items(&self) -> Option<i64> {
-        None
+    async fn count_items(&self, hasura_transaction: &Transaction<'_>) -> Result<Option<i64>> {
+        Ok(None)
     }
     async fn prepare_user_data_batch(
         &self,
@@ -169,6 +169,7 @@ pub trait TemplateRenderer: Debug {
 
     #[instrument(err, skip(self))]
     async fn prepare_preview_data(&self) -> Result<Self::UserData> {
+        println!("!!!!!prepare_preview_data");
         let json_data = self
             .get_preview_data_file()
             .await
@@ -498,8 +499,8 @@ pub trait TemplateRenderer: Debug {
                 anyhow!("Error providing the user template and extra config: {e:?}")
             })?;
 
-        let items_count = self.count_items().await.unwrap_or(0);
-        let report_options = ext_cfg.report_options;
+        let items_count = self.count_items(&hasura_transaction).await?.unwrap_or(0);
+        let report_options = ext_cfg.report_options.clone();
         let per_report_limit = report_options
             .max_items_per_report
             .unwrap_or(DEFAULT_ITEMS_PER_REPORT_LIMIT) as i64;
@@ -512,6 +513,7 @@ pub trait TemplateRenderer: Debug {
         // execute_report_inner() separated from execute_report()
         let (final_file_path, file_size, final_report_name, mimetype) = if self.get_report_type()
             == ReportType::ACTIVITY_LOGS
+            && generate_mode == GenerateReportMode::REAL
         {
             info!(
                 "Using batched processing because it's activity log: items_count ({}) > per_report_limit ({})",
@@ -607,50 +609,16 @@ pub trait TemplateRenderer: Debug {
             )
         } else {
             // All other report types
-            let rendered_system_template = match self
-                .generate_report(
-                    generate_mode,
-                    hasura_transaction,
-                    keycloak_transaction,
-                    &user_tpl_document,
-                    &mut None,
-                    None,
-                )
-                .await
-            {
-                Ok(template) => template,
-                Err(err) => {
-                    if let Some(task) = task_execution.as_ref() {
-                        update_fail(task, &format!("Failed to generate report {err:?}"))
-                            .await
-                            .ok();
-                    }
-                    return Err(anyhow!("Error rendering report: {err:?}"));
-                }
-            };
-
-            debug!("Report generated: {rendered_system_template}");
-            let extension_suffix = "pdf";
-            let content_bytes = pdf::PdfRenderer::render_pdf(
-                rendered_system_template.clone(),
-                Some(ext_cfg.pdf_options.to_print_to_pdf_options()),
+            self.generate_single_report(
+                hasura_transaction,
+                keycloak_transaction,
+                &user_tpl_document,
+                generate_mode,
+                task_execution.clone(),
+                &ext_cfg,
             )
             .await
-            .map_err(|err| anyhow!("Error rendering report to pdf: {err:?}"))?;
-
-            let fmt_extension = format!(".{extension_suffix}");
-            let report_name = format!("{}{}", self.prefix(), fmt_extension);
-
-            let final_path = format!("/tmp/{}", report_name);
-            fs::write(&final_path, &content_bytes)?;
-            let file_size = get_file_size(&final_path)
-                .with_context(|| "Error obtaining file size for zip file")?;
-            (
-                final_path,
-                file_size,
-                report_name.clone(),
-                format!("application/{}", extension_suffix),
-            )
+            .map_err(|e| anyhow::anyhow!("Error in generate_single_report: {}", e))?
         };
 
         info!(
@@ -666,9 +634,14 @@ pub trait TemplateRenderer: Debug {
             if report.encryption_policy == EReportEncryption::ConfiguredPassword {
                 let secret_key =
                     get_report_secret_key(&tenant_id, &election_event_id, Some(report.id.clone()));
-                let encryption_password = vault::read_secret(secret_key.clone())
-                    .await?
-                    .ok_or_else(|| anyhow!("Encryption password not found"))?;
+                let encryption_password = vault::read_secret(
+                    hasura_transaction,
+                    tenant_id,
+                    Some(election_event_id),
+                    &secret_key,
+                )
+                .await?
+                .ok_or_else(|| anyhow!("Encryption password not found"))?;
 
                 let enc_file: NamedTempFile =
                     generate_temp_file(self.base_name().as_str(), ".epdf")
@@ -786,6 +759,62 @@ pub trait TemplateRenderer: Debug {
         }
 
         Ok(())
+    }
+
+    async fn generate_single_report(
+        &self,
+        hasura_transaction: &Transaction<'_>,
+        keycloak_transaction: &Transaction<'_>,
+        user_tpl_document: &str,
+        generate_mode: GenerateReportMode,
+        task_execution: Option<TasksExecution>,
+        ext_cfg: &ReportExtraConfig,
+    ) -> Result<(String, u64, String, String)> {
+        let rendered_system_template = match self
+            .generate_report(
+                generate_mode,
+                hasura_transaction,
+                keycloak_transaction,
+                &user_tpl_document,
+                &mut None,
+                None,
+            )
+            .await
+        {
+            Ok(template) => template,
+            Err(err) => {
+                if let Some(task) = task_execution.as_ref() {
+                    update_fail(task, &format!("Failed to generate report {err:?}"))
+                        .await
+                        .ok();
+                }
+                return Err(anyhow!("Error rendering report: {err:?}"));
+            }
+        };
+
+        debug!("Report generated: {rendered_system_template}");
+        let extension_suffix = "pdf";
+        let content_bytes = pdf::PdfRenderer::render_pdf(
+            rendered_system_template.clone(),
+            Some(ext_cfg.pdf_options.to_print_to_pdf_options()),
+        )
+        .await
+        .map_err(|err| anyhow!("Error rendering report to pdf: {err:?}"))?;
+
+        let fmt_extension = format!(".{extension_suffix}");
+        let report_name = format!("{}{}", self.prefix(), fmt_extension);
+
+        let final_path = format!("/tmp/{}", report_name);
+        fs::write(&final_path, &content_bytes)?;
+        let file_size =
+            get_file_size(&final_path).with_context(|| "Error obtaining file size for zip file")?;
+
+        Ok((
+            final_path,
+            file_size,
+            report_name.clone(),
+            format!("application/{}", extension_suffix),
+        ))
     }
 
     #[instrument(err, skip_all)]

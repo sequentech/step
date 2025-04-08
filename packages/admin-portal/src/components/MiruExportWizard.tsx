@@ -232,7 +232,7 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
             id: tallyId,
         },
         {
-            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+            refetchInterval: globalSettings.QUERY_FAST_POLL_INTERVAL_MS,
             refetchIntervalInBackground: true,
             refetchOnWindowFocus: false,
             refetchOnReconnect: false,
@@ -284,7 +284,7 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
             },
         },
         {
-            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+            refetchInterval: globalSettings.QUERY_FAST_POLL_INTERVAL_MS,
             refetchOnWindowFocus: false,
             refetchOnReconnect: false,
             refetchOnMount: false,
@@ -489,7 +489,7 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
                 } else {
                     retry = retry + 1
                 }
-            }, globalSettings.QUERY_POLL_INTERVAL_MS)
+            }, globalSettings.QUERY_FAST_POLL_INTERVAL_MS)
         }
     }
 

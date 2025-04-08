@@ -10,7 +10,6 @@ use super::voters::Voter;
 use crate::postgres::area::get_areas_by_election_id;
 use crate::postgres::election::get_election_by_id;
 use crate::postgres::election::get_elections;
-use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::reports::{Report, ReportType};
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::celery_app::get_worker_threads;
@@ -19,13 +18,12 @@ use crate::services::consolidation::zip::compress_folder_to_zip;
 use crate::services::documents::upload_and_return_document;
 use crate::services::election_dates::get_election_dates;
 use crate::services::providers::email_sender::{Attachment, EmailSender};
-use crate::services::reports::voters::get_voters_data;
-use crate::services::reports::voters::{EnrollmentFilters, FilterListVoters};
+use crate::services::reports::pre_enrolled_ov_but_disapproved::first_n_codepoints;
+use crate::services::reports::voters::get_not_enrolled_voters_by_area_id;
 use crate::services::reports_vault::get_report_secret_key;
 use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::services::temp_path::PUBLIC_ASSETS_QRCODE_LIB;
 use crate::services::vault;
-use crate::types::application::ApplicationStatus;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
@@ -121,7 +119,6 @@ impl NotPreEnrolledListTemplate {
     #[instrument(err, skip_all)]
     async fn generate_report_area(
         &self,
-        generate_mode: GenerateReportMode,
         hasura_transaction: &Transaction<'_>,
         keycloak_transaction: &Transaction<'_>,
         user_tpl_document: &str,
@@ -133,36 +130,26 @@ impl NotPreEnrolledListTemplate {
         reports_folder: &Path,
     ) -> Result<()> {
         info!("inside generate_report_area for area {}", area.area_name);
-        // Prepare user data either preview or real
+        // Prepare real user data
         let mut batch = 1;
         let mut offset: i64 = 0;
         loop {
-            let user_data: Option<UserData> = if generate_mode == GenerateReportMode::PREVIEW {
-                Some(
-                    self.prepare_preview_data()
-                        .await
-                        .map_err(|e| anyhow!("Error preparing preview user data: {e:?}"))?,
+            let (user_data, next_offset): (UserData, Option<i64>) = self
+                .prepare_data_batch(
+                    hasura_transaction,
+                    keycloak_transaction,
+                    area.clone(),
+                    user_data.clone(),
+                    per_report_limit,
+                    offset,
                 )
+                .await
+                .map_err(|e| anyhow!("Error preparing batched user data: {e:?}"))?;
+            if let Some(new_offset) = next_offset {
+                offset = new_offset;
             } else {
-                let (data, next_offset): (UserData, Option<i64>) = self
-                    .prepare_data_batch(
-                        hasura_transaction,
-                        keycloak_transaction,
-                        area.clone(),
-                        user_data.clone(),
-                        per_report_limit,
-                        offset,
-                    )
-                    .await
-                    .map_err(|e| anyhow!("Error preparing batched user data: {e:?}"))?;
-                if let Some(new_offset) = next_offset {
-                    offset = new_offset;
-                    Some(data)
-                } else {
-                    offset = 0;
-                    Some(data)
-                }
-            };
+                offset = 0;
+            }
 
             // if this is not the first batch and the offset is 0, we don't a
             // new batch
@@ -171,7 +158,6 @@ impl NotPreEnrolledListTemplate {
             }
 
             let user_data_map = user_data
-                .with_context(|| "Error getting user data")?
                 .to_map()
                 .map_err(|e| anyhow!("Error converting user data to map: {e:?}"))?;
 
@@ -206,13 +192,14 @@ impl NotPreEnrolledListTemplate {
             .await
             .with_context(|| format!("Error rendering PDF for batch {}", batch_index))?;
 
-            let prefix = self.prefix();
+            let prefix = first_n_codepoints(&self.prefix(), 5);
             let extension_suffix = "pdf";
             let file_suffix = format!(".{}", extension_suffix);
+            let area_id = first_n_codepoints(&area.area_id, 5);
 
             let batch_file_name = format!(
-                "{}_area_{:.20}_{}{}",
-                prefix, area.area_name, batch, file_suffix
+                "{}_area_{}{}_{}{}",
+                prefix, area.area_name, area_id, batch, file_suffix
             );
             info!(
                 "Batch {} => batch_file_name: {}",
@@ -238,7 +225,7 @@ impl NotPreEnrolledListTemplate {
     #[instrument(err)]
     async fn prepare_data_batch(
         &self,
-        hasura_transaction: &Transaction<'_>,
+        _hasura_transaction: &Transaction<'_>,
         keycloak_transaction: &Transaction<'_>,
         area: UserDataArea,
         user_data: UserData,
@@ -247,35 +234,15 @@ impl NotPreEnrolledListTemplate {
     ) -> Result<(UserData, Option<i64>)> {
         let realm = get_event_realm(&self.ids.tenant_id, &self.ids.election_event_id);
 
-        let enrollment_filters = EnrollmentFilters {
-            status: ApplicationStatus::ACCEPTED,
-            verification_type: None,
-        };
-
-        let voters_filters = FilterListVoters {
-            enrolled: Some(enrollment_filters),
-            has_voted: None,
-            voters_sex: None,
-            post: None,
-            landbased_or_seafarer: None,
-            verified: None,
-        };
-
-        let (voters_data, next_offset) = get_voters_data(
-            hasura_transaction,
-            keycloak_transaction,
+        let (voters, next_offset) = get_not_enrolled_voters_by_area_id(
+            &keycloak_transaction,
             &realm,
-            &self.ids.tenant_id,
-            &self.ids.election_event_id,
-            &area.election_id,
             &area.area_id,
-            false,
-            voters_filters,
             Some(limit),
             Some(offset),
         )
         .await
-        .map_err(|e| anyhow!("Error getting voters data: {}", e))?;
+        .map_err(|e| anyhow::anyhow!("Error getting election dates {e}"))?;
 
         let area_final_data = UserData {
             areas: vec![UserDataArea {
@@ -285,7 +252,7 @@ impl NotPreEnrolledListTemplate {
                 election_dates: area.election_dates.clone(),
                 post: area.post.clone(),
                 area_name: area.area_name.clone(),
-                voters: voters_data.voters.clone(),
+                voters,
             }],
             execution_annotations: user_data.execution_annotations.clone(),
         };
@@ -380,150 +347,163 @@ impl TemplateRenderer for NotPreEnrolledListTemplate {
                 anyhow!("Error providing the user template and extra config: {e:?}")
             })?;
 
-        let elections: Vec<Election> = match &self.ids.election_id {
-            Some(election_id) => {
-                match get_election_by_id(
-                    &hasura_transaction,
-                    &self.ids.tenant_id,
-                    &self.ids.election_event_id,
-                    &election_id,
-                )
-                .await
-                .with_context(|| "Error getting election by id")?
-                {
-                    Some(election) => vec![election],
-                    None => vec![],
-                }
-            }
-            None => get_elections(
-                &hasura_transaction,
-                &self.ids.tenant_id,
-                &self.ids.election_event_id,
-                Some(false),
-            )
-            .await
-            .map_err(|e| anyhow::anyhow!("Error in get_elections: {}", e))?,
-        };
-
-        let scheduled_events = find_scheduled_event_by_election_event_id(
-            &hasura_transaction,
-            &self.ids.tenant_id,
-            &self.ids.election_event_id,
-        )
-        .await
-        .map_err(|e| {
-            anyhow::anyhow!("Error getting scheduled events by election event_id: {}", e)
-        })?;
-
-        let mut areas: Vec<UserDataArea> = vec![];
-        for election in elections {
-            let election_general_data = extract_election_data(&election)
-                .await
-                .map_err(|err| anyhow!("Error extract election annotations {err}"))?;
-
-            let election_dates = get_election_dates(&election, scheduled_events.clone())
-                .map_err(|e| anyhow::anyhow!("Error getting election dates {e}"))?;
-
-            let election_id = election.id.clone();
-            let election_areas = get_areas_by_election_id(
-                &hasura_transaction,
-                &self.ids.tenant_id,
-                &self.ids.election_event_id,
-                &election_id,
-            )
-            .await
-            .map_err(|err| anyhow!("Error at get_areas_by_election_id: {err:?}"))?;
-
-            for area in election_areas.iter() {
-                areas.push(UserDataArea {
-                    election_id: election_id.clone(),
-                    area_id: area.id.clone(),
-                    election_title: election.alias.clone().unwrap_or(election.name.clone()),
-                    election_dates: election_dates.clone(),
-                    post: election_general_data.post.clone(),
-                    area_name: area.clone().name.unwrap_or("-".to_string()),
-                    voters: vec![],
-                })
-            }
-        }
-
-        let common_data = self.prepare_user_data_common().await?;
-        // let items_count = areas.
-        let report_options = ext_cfg.report_options.clone();
-        let per_report_limit = report_options
-            .max_items_per_report
-            .unwrap_or(DEFAULT_ITEMS_PER_REPORT_LIMIT) as i64;
-
         let zip_temp_dir = tempdir()?;
         let zip_temp_dir_path = zip_temp_dir.path();
 
-        // Calculate the number of batches needed.
-        let num_batches = areas.len();
-        info!("Number of batches: {:?}", num_batches);
+        let (final_file_path, file_size, final_report_name, mimetype) = match generate_mode {
+            GenerateReportMode::PREVIEW => self
+                .generate_single_report(
+                    hasura_transaction,
+                    keycloak_transaction,
+                    &user_tpl_document,
+                    generate_mode,
+                    task_execution.clone(),
+                    &ext_cfg,
+                )
+                .await
+                .map_err(|e| anyhow::anyhow!("Error in generate_single_report: {}", e))?,
+            GenerateReportMode::REAL => {
+                let elections: Vec<Election> = match &self.ids.election_id {
+                    Some(election_id) => {
+                        match get_election_by_id(
+                            &hasura_transaction,
+                            &self.ids.tenant_id,
+                            &self.ids.election_event_id,
+                            &election_id,
+                        )
+                        .await
+                        .with_context(|| "Error getting election by id")?
+                        {
+                            Some(election) => vec![election],
+                            None => vec![],
+                        }
+                    }
+                    None => get_elections(
+                        &hasura_transaction,
+                        &self.ids.tenant_id,
+                        &self.ids.election_event_id,
+                        Some(false),
+                    )
+                    .await
+                    .map_err(|e| anyhow::anyhow!("Error in get_elections: {}", e))?,
+                };
 
-        // Define a temporary reports folder (this folder will later be compressed)
-        let temp_dir = tempdir()?;
-        let reports_folder = temp_dir.path();
+                let scheduled_events = find_scheduled_event_by_election_event_id(
+                    &hasura_transaction,
+                    &self.ids.tenant_id,
+                    &self.ids.election_event_id,
+                )
+                .await
+                .map_err(|e| {
+                    anyhow::anyhow!("Error getting scheduled events by election event_id: {}", e)
+                })?;
 
-        // Build a Rayon pool for batch processing.
-        let num_threads = report_options.max_threads.unwrap_or(get_worker_threads());
-        info!("Parallelization configuration: num_threads = {num_threads}");
-        let batch_pool = ThreadPoolBuilder::new()
-            .num_threads(num_threads)
-            .build()
-            .with_context(|| "Failed to build thread pool")?;
+                let mut areas: Vec<UserDataArea> = vec![];
+                for election in elections {
+                    let election_general_data = extract_election_data(&election)
+                        .await
+                        .map_err(|err| anyhow!("Error extract election annotations {err}"))?;
 
-        // Process batches concurrently.
-        let _ = batch_pool.install(|| {
-            (0..num_batches)
-                .into_par_iter()
-                .map(|batch_index| -> Result<(), anyhow::Error> {
-                    info!("processing batch {batch_index}");
+                    let election_dates = get_election_dates(&election, scheduled_events.clone())
+                        .map_err(|e| anyhow::anyhow!("Error getting election dates {e}"))?;
 
-                    let area_id = &areas[batch_index].clone().area_id;
-                    let election_id = &areas[batch_index].clone().election_id;
-                    GLOBAL_RT
-                        .block_on(async {
-                            info!("processing batch {batch_index}: inside the GLOBAL_RT.block_on");
-                            self.generate_report_area(
-                                generate_mode.clone(),
-                                &hasura_transaction,
-                                &keycloak_transaction,
-                                &user_tpl_document,
-                                common_data.clone(),
-                                areas[batch_index].clone(),
-                                per_report_limit,
-                                batch_index as i64,
-                                &ext_cfg,
-                                &reports_folder,
-                            )
-                            .await
+                    let election_id = election.id.clone();
+                    let election_areas = get_areas_by_election_id(
+                        &hasura_transaction,
+                        &self.ids.tenant_id,
+                        &self.ids.election_event_id,
+                        &election_id,
+                    )
+                    .await
+                    .map_err(|err| anyhow!("Error at get_areas_by_election_id: {err:?}"))?;
+
+                    for area in election_areas.iter() {
+                        areas.push(UserDataArea {
+                            election_id: election_id.clone(),
+                            area_id: area.id.clone(),
+                            election_title: election.alias.clone().unwrap_or(election.name.clone()),
+                            election_dates: election_dates.clone(),
+                            post: election_general_data.post.clone(),
+                            area_name: area.clone().name.unwrap_or("-".to_string()),
+                            voters: vec![],
                         })
-                        .with_context(|| {
-                            format!(
-                                "Error rendering report for batch election {} area {}",
-                                election_id, area_id
-                            )
-                        })?;
-                    Ok(())
-                })
-                .collect::<Result<Vec<()>, anyhow::Error>>()
-        });
+                    }
+                }
 
-        let zip_filename = self.zip_filename();
+                let common_data = self.prepare_user_data_common().await?;
+                // let items_count = areas.
+                let report_options = ext_cfg.report_options.clone();
+                let per_report_limit = report_options
+                    .max_items_per_report
+                    .unwrap_or(DEFAULT_ITEMS_PER_REPORT_LIMIT)
+                    as i64;
 
-        let dst_zip = zip_temp_dir_path.join(&zip_filename);
+                // Calculate the number of batches needed.
+                let num_batches = areas.len();
+                info!("Number of batches: {:?}", num_batches);
 
-        compress_folder_to_zip(reports_folder, &dst_zip)
-            .with_context(|| "Error compressing folder")?;
+                // Define a temporary reports folder (this folder will later be compressed)
+                let temp_dir = tempdir()?;
+                let reports_folder = temp_dir.path();
 
-        let zip_file_size = get_file_size(&dst_zip.to_string_lossy())
-            .with_context(|| "Error obtaining file size for zip file")?;
+                // Build a Rayon pool for batch processing.
+                let num_threads = report_options.max_threads.unwrap_or(get_worker_threads());
+                info!("Parallelization configuration: num_threads = {num_threads}");
+                let batch_pool = ThreadPoolBuilder::new()
+                    .num_threads(num_threads)
+                    .build()
+                    .with_context(|| "Failed to build thread pool")?;
 
-        let final_file_path = dst_zip.to_string_lossy().to_string();
-        let file_size = zip_file_size;
-        let mimetype = "application/zip".to_string();
-        let final_report_name = zip_filename;
+                // Process batches concurrently.
+                let _ = batch_pool.install(|| {
+                    (0..num_batches)
+                        .into_par_iter()
+                        .map(|batch_index| -> Result<(), anyhow::Error> {
+                            info!("processing batch {batch_index}");
+                            let area_id = &areas[batch_index].clone().area_id;
+                            let election_id = &areas[batch_index].clone().election_id;
+                            GLOBAL_RT
+                                .block_on(async {
+                                    info!("processing batch {batch_index}: inside the GLOBAL_RT.block_on");
+                                    self.generate_report_area(
+                                        &hasura_transaction,
+                                        &keycloak_transaction,
+                                        &user_tpl_document,
+                                        common_data.clone(),
+                                        areas[batch_index].clone(),
+                                        per_report_limit,
+                                        batch_index as i64,
+                                        &ext_cfg,
+                                        &reports_folder,
+                                    )
+                                    .await
+                                })
+                                .with_context(|| {
+                                    format!(
+                                        "Error rendering report for batch election {} area {}",
+                                        election_id, area_id
+                                    )
+                                })?;
+                            Ok(())
+                        })
+                        .collect::<Result<Vec<()>, anyhow::Error>>()
+                });
+
+                let zip_filename = self.zip_filename();
+
+                let dst_zip = zip_temp_dir_path.join(&zip_filename);
+
+                compress_folder_to_zip(reports_folder, &dst_zip)
+                    .with_context(|| "Error compressing folder")?;
+
+                let zip_file_size = get_file_size(&dst_zip.to_string_lossy())
+                    .with_context(|| "Error obtaining file size for zip file")?;
+
+                let final_file_path = dst_zip.to_string_lossy().to_string();
+                let mimetype = "application/zip".to_string();
+                (final_file_path, zip_file_size, zip_filename, mimetype)
+            }
+        };
 
         info!(
             "Final file info: path = {}, size = {}, name = {}, mimetype = {}",
@@ -538,9 +518,14 @@ impl TemplateRenderer for NotPreEnrolledListTemplate {
             if report.encryption_policy == EReportEncryption::ConfiguredPassword {
                 let secret_key =
                     get_report_secret_key(&tenant_id, &election_event_id, Some(report.id.clone()));
-                let encryption_password = vault::read_secret(secret_key.clone())
-                    .await?
-                    .ok_or_else(|| anyhow!("Encryption password not found"))?;
+                let encryption_password = vault::read_secret(
+                    hasura_transaction,
+                    tenant_id,
+                    Some(election_event_id),
+                    &secret_key,
+                )
+                .await?
+                .ok_or_else(|| anyhow!("Encryption password not found"))?;
 
                 let enc_file: NamedTempFile =
                     generate_temp_file(self.base_name().as_str(), ".epdf")

@@ -40,6 +40,7 @@ public class ECIESEncryptionTool {
             System.out.println("  encrypt <public-key-file> <plaintext-base64>");
             System.out.println("  decrypt <private-key-file> <encrypted-text>");
             System.out.println("  sign <private-key-file> <plaintext-file>");
+            System.out.println("  sign-bulk <private-key-file> <folder>");
             System.out.println("  verify <public-key-file> <plaintext-file> <signature-base64>");
             System.out.println("  sign-ec <p12-private-key-file> <plaintext-file> <p12-password>");
             System.out.println("  verify-ec <cert-file> <plaintext-file> <signature-base64> (<ca-cert-file>)");
@@ -90,6 +91,15 @@ public class ECIESEncryptionTool {
                 }
                 String signature = signText(args[1], args[2], true);
                 System.out.println(signature);
+                break;
+
+            case "sign-bulk":
+                if (args.length != 3) {
+                    System.out.println("Usage: sign-bulk <private-key-file> <folder>");
+                    System.exit(1);
+                    return;
+                }
+                signBulk(args[1], args[2], true);
                 break;
 
             case "verify":
@@ -241,6 +251,51 @@ public class ECIESEncryptionTool {
         byte[] signatureBytes = signature.sign();
     
         return Base64.getEncoder().encodeToString(signatureBytes);
+    }
+
+    private static void signBulk(String privateKeyFile, String folderPath, Boolean isECDSA) throws Exception {
+        String algorithm = isECDSA ? "SHA256withECDSA" : "SHA256withRSA";
+    
+        // Load the private key from PEM
+        PrivateKey privateKey = loadPrivateKeyFromPEM(readFile(privateKeyFile));
+    
+        // Validate that folderPath is indeed a directory
+        File folder = new File(folderPath);
+        if (!folder.isDirectory()) {
+            System.err.println("Error: " + folderPath + " is not a directory or does not exist.");
+            return;
+        }
+    
+        // Find all files that do NOT end with ".sign"
+        // Also skip subdirectories
+        File[] inputFiles = folder.listFiles(file -> 
+            file.isFile() && !file.getName().toLowerCase().endsWith(".sign")
+        );
+    
+        if (inputFiles == null || inputFiles.length == 0) {
+            System.out.println("No files found to sign in: " + folderPath);
+            return;
+        }
+    
+        for (File inputFile : inputFiles) {
+            // Read file bytes
+            byte[] fileContents = Files.readAllBytes(inputFile.toPath());
+    
+            // Initialize and create the signature
+            Signature signature = Signature.getInstance(algorithm, "SC");
+            signature.initSign(privateKey);
+            signature.update(fileContents);
+            byte[] signatureBytes = signature.sign();
+    
+            // Convert to Base64
+            String signatureBase64 = Base64.getEncoder().encodeToString(signatureBytes);
+    
+            // Create a .sign file next to the original file
+            // e.g. "message.eml" -> "message.eml.sign"
+            // or "invoice.pdf" -> "invoice.pdf.sign"
+            String signFilePath = inputFile.getAbsolutePath() + ".sign";
+            writeFile(signFilePath, signatureBase64);
+        }
     }
 
     private static String signTextP12(String p12FilePath, String plaintextFilePath, Boolean isECDSA, String password) throws Exception {

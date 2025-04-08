@@ -31,6 +31,7 @@ import {
     useNotify,
     useGetOne,
     TextField,
+    TextInput as FilterTextInput,
     useRefresh,
     WrapperField,
     FilterPayload,
@@ -139,9 +140,16 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
     const refresh = useRefresh()
     const aliasRenderer = useAliasRenderer()
 
-    const {data: report} = useGetOne<Sequent_Backend_Report>("sequent_backend_report", {
-        id: selectedReportId,
-    })
+    const {data: report} = useGetOne<Sequent_Backend_Report>(
+        "sequent_backend_report",
+        {
+            id: selectedReportId,
+        },
+        {
+            enabled: !!selectedReportId,
+            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+        }
+    )
 
     const {
         canReadReports,
@@ -290,7 +298,9 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
 
     const OMIT_FIELDS: Array<string> = ["id"]
 
-    const Filters: Array<ReactElement> = []
+    const Filters: Array<ReactElement> = [
+        <FilterTextInput label="Template" source="template_alias" key={0} />,
+    ]
 
     const handleCreateDrawer = () => {
         setSelectedReportId(null)
@@ -446,7 +456,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                         withColumns={showReportsColumns}
                         withImport={false}
                         withExport={false}
-                        withFilter={false}
+                        withFilter={true}
                         open={openCreateReport}
                         setOpen={setOpenCreateReport}
                         Component={

@@ -59,10 +59,10 @@ export const ResultsDataLoader: React.FC<ResultsDataLoaderProps> = ({
         } else {
             if (!isPolling) {
                 setIsPolling(true)
-                startPolling(globalSettings.QUERY_POLL_INTERVAL_MS)
+                startPolling(globalSettings.QUERY_FAST_POLL_INTERVAL_MS)
             }
         }
-    }, [startPolling, globalSettings.QUERY_POLL_INTERVAL_MS, isTallyCompleted, isPolling])
+    }, [startPolling, globalSettings.QUERY_FAST_POLL_INTERVAL_MS, isTallyCompleted, isPolling])
 
     return <></>
 }

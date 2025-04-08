@@ -421,7 +421,7 @@ def generate_election_event(excel_data, base_context, miru_data, results):
 
 
 # "OSAKA PCG" -> "Osaka PCG"
-# WASHINGTON DC PE -> Washington DC PE
+# WASHINGTON D.C. PE -> Washington D.C .PE
 # ISLE OF MAN -> Isle Of Man
 # HOLY SEE -> Holy See
 # NEW YORK PGC -> New York PGC
@@ -430,7 +430,7 @@ def get_embassy(embassy):
     without_parentheses = re.sub(r"\(.*?\)", "", embassy)
     words = without_parentheses.split()
 
-    special_words = ["DC", "SAR", "ROC"]
+    special_words = ["D.C.", "DC", "SAR", "ROC"]
     
     # Capitalize each word, and handle the last word conditionally
     formatted_words = [word.title() if word.upper() not in special_words else word.upper()  for word in words[:-1]]
@@ -956,7 +956,7 @@ def gen_tree(excel_data, miru_data, results, multiply_factor):
                     "post": row_election_post,
                     "geographical_region": miru_precinct["REGION"],
                     "precinct_code": row["DB_PRECINCT_ESTABLISHED_CODE"],
-                    "pollcenter_code": row["allbgy_ID_BARANGAY"]
+                    "pollcenter_code": row["DB_TRANS_SOURCE_ID"]
                 },
                 **base_context,
                 **election_context
@@ -986,11 +986,17 @@ def gen_tree(excel_data, miru_data, results, multiply_factor):
             raise Exception(f"candidate with 'id' = {candidate_id} and precinct = {precinct_id} not found in miru acf")
         miru_candidate = miru_precinct["CANDIDATES"][candidate_id]
 
+        starts1 = str(miru_candidate["DISPLAY_ORDER"]) + " "
+        starts2 = str(miru_candidate["DISPLAY_ORDER"]) + ". "
+        if not (candidate_name.startswith(starts1) or candidate_name.startswith(starts2)):
+            candidate_name = str(miru_candidate["DISPLAY_ORDER"]) + ". " + candidate_name
+
         candidate = {
             "code": candidate_id,
             "name_on_ballot": candidate_name,
             "party_short_name": miru_candidate["PARTY_NAME_ABBR"],
             "party_name": miru_candidate["PARTY_NAME"],
+            "DB_CANDIDATE_NAMEONBALLOT": row["DB_CANDIDATE_NAMEONBALLOT"],
             **base_context,
             "miru": {
                 "candidate_affiliation_id": miru_candidate["PARTY_ID"],
@@ -1188,7 +1194,6 @@ def replace_placeholder_database(excel_data, election_event_id, miru_data, resul
                     "tenant_id": base_config["tenant_id"],
                     "election_event_id": election_event_id,
                     "contest_id": contest_context["UUID"],
-                    "DB_CANDIDATE_NAMEONBALLOT": candidate["name_on_ballot"],
                     "sort_oder": candidate["sort_order"],
                 }
 

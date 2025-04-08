@@ -310,7 +310,7 @@ export default function ElectionEvents() {
     // are set
     const electionEventTreeRefetch = () => {
         if (tenantId && electionEventId) {
-            _electionEventTreeRefetch({
+            getElectionEventTree({
                 variables: {
                     tenantId,
                     isArchived: isArchivedElectionEvents,

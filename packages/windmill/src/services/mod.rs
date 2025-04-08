@@ -3,7 +3,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-pub mod api_datafix;
 pub mod application;
 pub mod ballot_styles;
 pub mod cast_votes;
@@ -14,6 +13,7 @@ pub mod compress;
 pub mod consolidation;
 pub mod custom_url;
 pub mod database;
+pub mod datafix;
 pub mod delete_election_event;
 pub mod documents;
 pub mod election;
@@ -47,6 +47,7 @@ pub mod reports_vault;
 pub mod serialize_tasks_logs;
 pub mod tally_sheets;
 pub mod tasks_execution;
+pub mod tasks_semaphore;
 pub mod temp_path;
 pub mod to_result;
 pub mod transmission;

@@ -17,6 +17,7 @@ use anyhow::{anyhow, Context, Result};
 use b3::messages::message::{self, Signer as _};
 use base64::engine::general_purpose;
 use base64::Engine;
+use deadpool_postgres::Transaction;
 use electoral_log::assign_value;
 use electoral_log::messages::message::Message;
 use electoral_log::messages::message::SigningData;
@@ -38,6 +39,7 @@ use strand::serialization::StrandDeserialize;
 use strand::signature::StrandSignatureSk;
 use strum_macros::{Display, EnumString, ToString};
 use tempfile::NamedTempFile;
+use tokio_stream::{Stream, StreamExt};
 use tracing::{event, info, instrument, Level};
 pub struct ElectoralLog {
     pub(crate) sd: SigningData,
@@ -46,8 +48,22 @@ pub struct ElectoralLog {
 
 impl ElectoralLog {
     #[instrument(err, name = "ElectoralLog::new")]
-    pub async fn new(elog_database: &str) -> Result<Self> {
-        let protocol_manager = get_protocol_manager::<RistrettoCtx>(elog_database).await?;
+    pub async fn new(
+        hasura_transaction: &Transaction<'_>,
+        tenant_id: &str,
+        election_event_id_opt: Option<&str>,
+        elog_database: &str,
+    ) -> Result<Self> {
+        let election_event_id =
+            election_event_id_opt.ok_or(anyhow!("Election event id is required"))?;
+
+        let protocol_manager = get_protocol_manager::<RistrettoCtx>(
+            hasura_transaction,
+            tenant_id,
+            Some(election_event_id),
+            elog_database,
+        )
+        .await?;
 
         Ok(ElectoralLog {
             sd: SigningData::new(
@@ -60,8 +76,20 @@ impl ElectoralLog {
     }
 
     #[instrument(skip(sender_sk), err)]
-    pub async fn new_from_sk(elog_database: &str, sender_sk: &StrandSignatureSk) -> Result<Self> {
-        let protocol_manager = get_protocol_manager::<RistrettoCtx>(elog_database).await?;
+    pub async fn new_from_sk(
+        hasura_transaction: &Transaction<'_>,
+        tenant_id: &str,
+        election_event_id: &str,
+        elog_database: &str,
+        sender_sk: &StrandSignatureSk,
+    ) -> Result<Self> {
+        let protocol_manager = get_protocol_manager::<RistrettoCtx>(
+            hasura_transaction,
+            tenant_id,
+            Some(election_event_id),
+            elog_database,
+        )
+        .await?;
         let system_sk = protocol_manager.get_signing_key().clone();
 
         Ok(ElectoralLog {
@@ -80,13 +108,20 @@ impl ElectoralLog {
     /// a signing key.
     #[instrument(skip(voter_signing_key), err)]
     pub async fn for_voter(
+        hasura_transaction: &Transaction<'_>,
         elog_database: &str,
         tenant_id: &str,
         event_id: &str,
         user_id: &str,
         voter_signing_key: &Option<StrandSignatureSk>,
     ) -> Result<Self> {
-        let protocol_manager = get_protocol_manager::<RistrettoCtx>(elog_database).await?;
+        let protocol_manager = get_protocol_manager::<RistrettoCtx>(
+            hasura_transaction,
+            tenant_id,
+            Some(event_id),
+            elog_database,
+        )
+        .await?;
         let system_sk = protocol_manager.get_signing_key().clone();
 
         let sk = voter_signing_key.clone().unwrap_or(system_sk.clone());
@@ -107,14 +142,34 @@ impl ElectoralLog {
     /// a signing key.
     #[instrument(err)]
     pub async fn for_admin_user(
+        hasura_transaction: &Transaction<'_>,
         elog_database: &str,
         tenant_id: &str,
+        election_event_id: &str,
         user_id: &str,
+        username: Option<String>,
+        elections_ids: Option<String>,
+        user_area_id: Option<String>,
     ) -> Result<Self> {
-        let protocol_manager = get_protocol_manager::<RistrettoCtx>(elog_database).await?;
+        let protocol_manager = get_protocol_manager::<RistrettoCtx>(
+            hasura_transaction,
+            tenant_id,
+            Some(election_event_id),
+            elog_database,
+        )
+        .await?;
         let system_sk = protocol_manager.get_signing_key().clone();
 
-        let sk = vault::get_admin_user_signing_key(elog_database, tenant_id, user_id).await?;
+        let sk = vault::get_admin_user_signing_key(
+            hasura_transaction,
+            elog_database,
+            tenant_id,
+            user_id,
+            username,
+            elections_ids,
+            user_area_id,
+        )
+        .await?;
 
         Ok(ElectoralLog {
             sd: SigningData::new(sk, "", system_sk),
@@ -125,13 +180,21 @@ impl ElectoralLog {
     /// Posts a voter's public key
     #[instrument(err)]
     pub async fn post_voter_pk(
+        hasura_transaction: &Transaction<'_>,
         elog_database: &str,
         tenant_id: &str,
         event_id: &str,
         user_id: &str,
         pk_der_b64: &str,
+        area_id: &str,
     ) -> Result<()> {
-        let protocol_manager = get_protocol_manager::<RistrettoCtx>(elog_database).await?;
+        let protocol_manager = get_protocol_manager::<RistrettoCtx>(
+            hasura_transaction,
+            tenant_id,
+            Some(event_id),
+            elog_database,
+        )
+        .await?;
         let system_sk = protocol_manager.get_signing_key().clone();
         let sd = SigningData::new(system_sk.clone(), "", system_sk.clone());
 
@@ -144,6 +207,7 @@ impl ElectoralLog {
             &sd,
             Some(user_id.to_string()),
             None, /* username */
+            Some(area_id.to_string()),
         )?;
         let board_message: ElectoralLogMessage = (&message).try_into().with_context(|| {
             "Error converting Message::cast_vote_message into ElectoralLogMessage"
@@ -177,21 +241,33 @@ impl ElectoralLog {
     /// be present in its log, even if the corresponding signing private key
     /// would be used in other events.
     pub async fn post_admin_pk(
+        hasura_transaction: &Transaction<'_>,
         elog_database: &str,
         tenant_id: &str,
         user_id: &str,
+        username: Option<String>,
         pk_der_b64: &str,
+        elections_ids: Option<String>,
+        user_area_id: Option<String>,
     ) -> Result<()> {
-        let protocol_manager = get_protocol_manager::<RistrettoCtx>(elog_database).await?;
+        let protocol_manager = get_protocol_manager::<RistrettoCtx>(
+            hasura_transaction,
+            tenant_id,
+            None,
+            elog_database,
+        )
+        .await?;
         let system_sk = protocol_manager.get_signing_key().clone();
         let sd = SigningData::new(system_sk.clone(), "", system_sk.clone());
 
         let message = Message::admin_public_key_message(
             TenantIdString(tenant_id.to_string()),
             Some(user_id.to_string()),
-            None,
+            username,
             PublicKeyDerB64(pk_der_b64.to_string()),
             &sd,
+            elections_ids,
+            user_area_id,
         )?;
 
         let elog = ElectoralLog {
@@ -224,6 +300,7 @@ impl ElectoralLog {
         voter_country: String,
         voter_id: String,
         voter_username: Option<String>,
+        area_id: String,
     ) -> Result<()> {
         let event = EventIdString(event_id.clone());
         let election = ElectionIdString(election_id);
@@ -240,6 +317,7 @@ impl ElectoralLog {
             country,
             Some(voter_id.clone()),
             voter_username.clone(),
+            area_id,
         )?;
         let board_message: ElectoralLogMessage = (&message).try_into().with_context(|| {
             "Error converting Message::cast_vote_message into ElectoralLogMessage"
@@ -272,6 +350,7 @@ impl ElectoralLog {
         voter_country: String,
         voter_id: String,
         voter_username: Option<String>,
+        area_id: String,
     ) -> Result<()> {
         let event = EventIdString(event_id.clone());
         let election = ElectionIdString(election_id);
@@ -288,6 +367,7 @@ impl ElectoralLog {
             ip,
             country,
             Some(voter_id.clone()),
+            area_id,
         )?;
         let board_message: ElectoralLogMessage = (&message).try_into().with_context(|| {
             "Error converting Message::cast_vote_error_message into ElectoralLogMessage"
@@ -318,7 +398,7 @@ impl ElectoralLog {
         username: Option<String>,
     ) -> Result<()> {
         let event = EventIdString(event_id);
-        let election = ElectionIdString(election_id);
+        let election = ElectionIdString(election_id.clone());
         let ballot_pub_id = BallotPublicationIdString(ballot_pub_id);
 
         let message = Message::election_published_message(
@@ -427,6 +507,7 @@ impl ElectoralLog {
             user_id,
             username,
             &self.sd,
+            None,
         )?;
         self.post(&message).await
     }
@@ -437,10 +518,11 @@ impl ElectoralLog {
         event_id: String,
         user_id: Option<String>,
         username: Option<String>,
+        election_id: Option<String>,
     ) -> Result<()> {
         let event = EventIdString(event_id);
 
-        let message = Message::keygen_message(event, &self.sd, user_id, username)?;
+        let message = Message::keygen_message(event, &self.sd, user_id, username, election_id)?;
 
         self.post(&message).await
     }
@@ -451,10 +533,12 @@ impl ElectoralLog {
         event_id: String,
         user_id: Option<String>,
         username: Option<String>,
+        elections_ids: Option<String>,
     ) -> Result<()> {
         let event = EventIdString(event_id);
 
-        let message = Message::key_insertion_start(event, &self.sd, user_id, username)?;
+        let message =
+            Message::key_insertion_start(event, &self.sd, user_id, username, elections_ids)?;
 
         self.post(&message).await
     }
@@ -466,12 +550,19 @@ impl ElectoralLog {
         trustee_name: String,
         user_id: Option<String>,
         username: Option<String>,
+        elections_ids: String,
     ) -> Result<()> {
         let event = EventIdString(event_id);
         let trustee_name = TrusteeNameString(trustee_name);
 
-        let message =
-            Message::key_insertion_message(event, trustee_name, &self.sd, user_id, username)?;
+        let message = Message::key_insertion_message(
+            event,
+            trustee_name,
+            &self.sd,
+            user_id,
+            username,
+            Some(elections_ids),
+        )?;
 
         self.post(&message).await
     }
@@ -516,12 +607,15 @@ impl ElectoralLog {
         user_id: Option<String>,
         username: Option<String>,
         election_id: Option<String>,
+        area_id: Option<String>,
     ) -> Result<()> {
         let event = EventIdString(event_id);
         let election = ElectionIdString(election_id);
 
-        let message = Message::send_template(event, election, &self.sd, user_id, username, message)
-            .map_err(|e| anyhow!("Error sending template: {e:?}"))?;
+        let message = Message::send_template(
+            event, election, &self.sd, user_id, username, message, area_id,
+        )
+        .map_err(|e| anyhow!("Error sending template: {e:?}"))?;
 
         self.post(&message).await
     }
@@ -544,6 +638,7 @@ impl ElectoralLog {
         error_message: String,
         user_id: Option<String>,
         username: Option<String>,
+        area_id: Option<String>,
     ) -> Result<ElectoralLogMessage> {
         let event = EventIdString(event_id);
         let error_message = ErrorMessageString(error_message);
@@ -555,6 +650,7 @@ impl ElectoralLog {
             user_id,
             username,
             &self.sd,
+            area_id,
         )?;
         let board_message: ElectoralLogMessage = message.try_into()?;
         Ok(board_message)
@@ -568,12 +664,20 @@ impl ElectoralLog {
         user_id: Option<String>,
         username: Option<String>,
         election_id: Option<String>,
+        area_id: Option<String>,
     ) -> Result<ElectoralLogMessage> {
         let event = EventIdString(event_id);
         let election = ElectionIdString(election_id);
-        let message =
-            &Message::send_template(event, election, &self.sd, user_id, username, message_body)
-                .map_err(|e| anyhow!("Error creating send template message: {:?}", e))?;
+        let message = &Message::send_template(
+            event,
+            election,
+            &self.sd,
+            user_id,
+            username,
+            message_body,
+            area_id,
+        )
+        .map_err(|e| anyhow!("Error creating send template message: {:?}", e))?;
         let board_message: ElectoralLogMessage = message.try_into()?;
         Ok(board_message)
     }
@@ -632,6 +736,7 @@ pub enum OrderField {
     StatementKind,
     Message,
     UserId,
+    Username,
     SenderPk,
     LogType,
     EventType,
@@ -647,6 +752,9 @@ pub struct GetElectoralLogBody {
     pub offset: Option<i64>,
     pub filter: Option<HashMap<OrderField, String>>,
     pub order_by: Option<HashMap<OrderField, OrderDirection>>,
+    pub election_id: Option<String>,
+    pub area_ids: Option<Vec<String>>,
+    pub only_with_user: Option<bool>,
 }
 
 impl GetElectoralLogBody {
@@ -669,7 +777,7 @@ impl GetElectoralLogBody {
                         where_clauses.push(format!("id = @{}", param_name));
                         params.push(create_named_param(param_name, Value::N(int_value)));
                     }
-                    OrderField::SenderPk | OrderField::UserId | OrderField::StatementKind | OrderField::Version => { // sql VARCHAR type
+                    OrderField::SenderPk | OrderField::UserId | OrderField::Username | OrderField::StatementKind | OrderField::Version => { // sql VARCHAR type
                         where_clauses.push(format!("{field} LIKE @{}", param_name));
                         params.push(create_named_param(param_name, Value::S(value.to_string())));
                     }
@@ -691,6 +799,76 @@ impl GetElectoralLogBody {
 
             if !where_clauses.is_empty() {
                 clauses.push(format!("WHERE {}", where_clauses.join(" AND ")));
+            }
+        };
+
+        // Build a single extra clause.
+        // This clause returns rows if:
+        // - @election_filter is non-empty and matches election_id, OR
+        // - @area_filter is non-empty and matches area_id, OR
+        // - Both election_id and area_id are either '' or NULL. (General to all elections log)
+        let mut extra_where_clauses = Vec::new();
+        if self.election_id.is_some() || self.area_ids.is_some() {
+            let mut conds = Vec::new();
+
+            if let Some(election) = &self.election_id {
+                if !election.is_empty() {
+                    params.push(create_named_param(
+                        "param_election".to_string(),
+                        Value::S(election.clone()),
+                    ));
+                    conds.push("election_id LIKE @param_election".to_string());
+                }
+            }
+
+            if let Some(area_ids) = &self.area_ids {
+                if !area_ids.is_empty() {
+                    let placeholders: Vec<String> = area_ids
+                        .iter()
+                        .enumerate()
+                        .map(|(i, _)| format!("@param_area{}", i))
+                        .collect();
+                    for (i, area) in area_ids.into_iter().enumerate() {
+                        let param_name = format!("param_area{}", i);
+                        params.push(create_named_param(
+                            param_name.clone(),
+                            Value::S(area.clone()),
+                        ));
+                    }
+                    conds.push(format!(
+                        "(@param_area0 <> '' AND area_id IN ({}))",
+                        placeholders.join(", ")
+                    ));
+                }
+            }
+
+            // if neither filter matches, return logs where both fields are empty or NULL.
+            conds.push(
+                "((election_id = '' OR election_id IS NULL) AND (area_id = '' OR area_id IS NULL))"
+                    .to_string(),
+            );
+
+            extra_where_clauses.push(format!("({})", conds.join(" OR ")));
+        }
+
+        // Handle only_with_user
+        if self.only_with_user.unwrap_or(false) {
+            extra_where_clauses.push("(user_id IS NOT NULL AND user_id <> '')".to_string());
+        }
+
+        if !extra_where_clauses.is_empty() {
+            match clauses.len() {
+                0 => {
+                    clauses.push(format!("WHERE {}", extra_where_clauses.join(" AND ")));
+                }
+                _ => {
+                    let where_clause = clauses.pop().unwrap();
+                    clauses.push(format!(
+                        "{} AND {}",
+                        where_clause,
+                        extra_where_clauses.join(" AND ")
+                    ));
+                }
             }
         }
 
@@ -876,7 +1054,7 @@ impl TryFrom<&Row> for ElectoralLogRow {
     }
 }
 
-pub const IMMUDB_ROWS_LIMIT: usize = 2500;
+pub const IMMUDB_ROWS_LIMIT: usize = 25_000;
 
 #[instrument(err)]
 pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<ElectoralLogRow>> {
@@ -905,13 +1083,20 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
         "#,
     );
     info!("query: {sql}");
-    let sql_query_response = client.sql_query(&sql, params).await?;
-    let items = sql_query_response
-        .get_ref()
-        .rows
-        .iter()
-        .map(ElectoralLogRow::try_from)
-        .collect::<Result<Vec<ElectoralLogRow>>>()?;
+    let sql_query_response = client.streaming_sql_query(&sql, params).await?;
+
+    let limit: usize = input.limit.unwrap_or(IMMUDB_ROWS_LIMIT as i64).try_into()?;
+
+    let mut rows: Vec<ElectoralLogRow> = Vec::with_capacity(limit);
+    let mut resp_stream = sql_query_response.into_inner();
+    while let Some(streaming_batch) = resp_stream.next().await {
+        let items = streaming_batch?
+            .rows
+            .iter()
+            .map(ElectoralLogRow::try_from)
+            .collect::<Result<Vec<ElectoralLogRow>>>()?;
+        rows.extend(items);
+    }
 
     let sql = format!(
         r#"
@@ -936,7 +1121,7 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
 
     client.close_session().await?;
     Ok(DataList {
-        items: items,
+        items: rows,
         total: TotalAggregate {
             aggregate: aggregate,
         },

@@ -12,7 +12,9 @@ use crate::postgres::election::get_election_by_id;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::cast_votes::count_ballots_by_election;
+use crate::services::celery_app::get_worker_threads;
 use crate::services::consolidation::aes_256_cbc_encrypt::encrypt_file_aes_256_cbc;
+use crate::services::consolidation::eml_generator::ValidateAnnotations;
 use crate::services::consolidation::zip::compress_folder_to_zip;
 use crate::services::database::PgConfig;
 use crate::services::documents::upload_and_return_document;
@@ -38,7 +40,10 @@ use async_trait::async_trait;
 use chrono::{DateTime, Local};
 use deadpool_postgres::Transaction;
 use futures::executor::block_on;
+use once_cell::sync::Lazy;
 use rand::seq;
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use rayon::ThreadPoolBuilder;
 use sequent_core::ballot::StringifiedPeriodDates;
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak::{self, get_event_realm, get_tenant_realm};
@@ -50,7 +55,15 @@ use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use tempfile::tempdir;
 use tempfile::{NamedTempFile, TempPath};
+use tokio::runtime::Runtime;
 use tracing::{info, instrument, warn};
+
+static GLOBAL_RT: Lazy<Runtime> = Lazy::new(|| {
+    tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .expect("Failed to build global Tokio runtime")
+});
 
 /// Struct for Audit Logs User Data
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -60,7 +73,8 @@ pub struct UserData {
     pub geographical_region: String,
     pub post: String,
     pub voting_center: String,
-    pub precinct_code: String,
+    pub station_id: String,
+    pub station_name: String,
     pub registered_voters: Option<i64>,
     pub ballots_counted: Option<i64>,
     pub voters_turnout: Option<f64>,
@@ -191,6 +205,7 @@ impl AuditLogsTemplate {
         let geographical_region = election_general_data.geographical_region.clone();
         let voting_center = election_general_data.voting_center.clone();
         let precinct_code = election_general_data.precinct_code.clone();
+        let pollcenter_code = election_general_data.pollcenter_code.clone();
 
         let report_hash = get_report_hash(&ReportType::AUDIT_LOGS.to_string())
             .await
@@ -233,6 +248,8 @@ impl AuditLogsTemplate {
         .await
         .map_err(|err| anyhow!("Error extract area data {err}"))?;
 
+        let area_annotations = election_areas[0].get_annotations_or_empty_values()?;
+
         let ballots_counted = count_ballots_by_election(
             hasura_transaction,
             &self.ids.tenant_id,
@@ -248,7 +265,8 @@ impl AuditLogsTemplate {
             geographical_region,
             post,
             voting_center,
-            precinct_code,
+            station_id: pollcenter_code.clone(),
+            station_name: precinct_code.clone(),
             registered_voters: votes_data.registered_voters,
             ballots_counted: Some(ballots_counted),
             voters_turnout: votes_data.voters_turnout,
@@ -304,7 +322,22 @@ impl TemplateRenderer for AuditLogsTemplate {
     fn prefix(&self) -> String {
         format!("audit_logs_{}", self.ids.election_event_id)
     }
-    async fn count_items(&self) -> Option<i64> {
+    async fn count_items(&self, hasura_transaction: &Transaction<'_>) -> Result<Option<i64>> {
+        let Some(election_id) = self.get_election_id() else {
+            return Err(anyhow!("Empty election_id"));
+        };
+
+        let election_areas = get_areas_by_election_id(
+            &hasura_transaction,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
+            &election_id,
+        )
+        .await
+        .with_context(|| "Error at get_areas_by_election_id")?;
+
+        let area_ids: Vec<String> = election_areas.into_iter().map(|area| area.id).collect();
+
         let input = GetElectoralLogBody {
             tenant_id: self.ids.tenant_id.clone(),
             election_event_id: self.ids.election_event_id.clone(),
@@ -312,8 +345,11 @@ impl TemplateRenderer for AuditLogsTemplate {
             offset: None,
             filter: None,
             order_by: None,
+            area_ids: Some(area_ids),
+            only_with_user: Some(true),
+            election_id: Some(election_id),
         };
-        count_electoral_log(input).await.ok()
+        Ok(count_electoral_log(input).await.ok())
     }
 
     #[instrument(err, skip_all)]
@@ -324,6 +360,10 @@ impl TemplateRenderer for AuditLogsTemplate {
         offset: &mut i64,
         limit: i64,
     ) -> Result<Self::UserData> {
+        info!(
+            "Preparing data of audit logs report with {} {} ",
+            &offset, &limit
+        );
         let mut user_data = self
             .prepare_user_data_common(hasura_transaction, keycloak_transaction)
             .await?;
@@ -419,26 +459,37 @@ impl TemplateRenderer for AuditLogsTemplate {
 
         let election_batch_voters_ids: HashSet<String> = users.into_iter().collect();
 
+        let area_ids: Vec<String> = election_areas.into_iter().map(|area| area.id).collect();
+
         let mut sequences: Vec<AuditLogEntry> = Vec::new();
-        let mut logs_visited: i64 = 0;
-        while sequences.len() < limit as usize {
-            let electoral_logs_batch = list_electoral_log(GetElectoralLogBody {
-                tenant_id: String::from(&self.get_tenant_id()),
-                election_event_id: String::from(&self.ids.election_event_id),
-                limit: Some(limit),
-                offset: Some(*offset),
+        let mut current_offset = *offset;
+
+        loop {
+            let input = GetElectoralLogBody {
+                tenant_id: self.ids.tenant_id.clone(),
+                election_event_id: self.ids.election_event_id.clone(),
+                limit: Some(limit), // request up to the full limit each time
+                offset: Some(current_offset),
                 filter: None,
                 order_by: None,
-            })
-            .await
-            .with_context(|| "Error in fetching list of electoral logs")?;
-            if electoral_logs_batch.items.len() == 0 {
+                election_id: Some(election_id.clone()),
+                area_ids: Some(area_ids.clone()),
+                only_with_user: Some(true),
+            };
+
+            let electoral_logs_batch = list_electoral_log(input)
+                .await
+                .with_context(|| "Error fetching electoral logs")?;
+            let batch_size = electoral_logs_batch.items.len();
+            if batch_size == 0 {
+                // No more logs available.
                 break;
             }
 
-            for item in &electoral_logs_batch.items {
-                logs_visited += 1;
-                // Discard the log entries that are not related to this election
+            // Process each returned log.
+            for item in electoral_logs_batch.items {
+                // With filtering applied in the SQL, these should all be relevant,
+                // but we still tag them as Admin or Voter.
                 let userkind = match &item.user_id {
                     Some(user_id) if election_batch_admin_ids.contains(user_id) => {
                         "Admin".to_string()
@@ -446,38 +497,16 @@ impl TemplateRenderer for AuditLogsTemplate {
                     Some(user_id) if election_batch_voters_ids.contains(user_id) => {
                         "Voter".to_string()
                     }
-                    Some(_) => continue, // Some user_id not belonging to this election
-                    None => continue,    // There is no user_id, ignore log entry
+                    _ => continue, // skip if it doesn't match expected types
                 };
 
-                let created_datetime: DateTime<Local> = if let Ok(created_datetime_parsed) =
-                    ISO8601::timestamp_secs_utc_to_date_opt(item.created)
-                {
-                    created_datetime_parsed
-                } else {
-                    return Err(anyhow!(
-                        "Invalid item created timestamp: {:?}",
-                        item.created
-                    ));
-                };
-                let formatted_datetime: String = created_datetime.to_rfc3339();
+                let created_datetime = ISO8601::timestamp_secs_utc_to_date_opt(item.created)
+                    .map_err(|_| anyhow!("Invalid created timestamp: {:?}", item.created))?;
+                let formatted_datetime = created_datetime.to_rfc3339();
+                let username = item.username.clone().unwrap_or_else(|| "-".to_string());
 
-                // Set default username if user_id is None
-                let username = item
-                    .username
-                    .clone()
-                    .map(|user| {
-                        if user == "null" {
-                            "-".to_string()
-                        } else {
-                            user
-                        }
-                    })
-                    .unwrap_or_else(|| "-".to_string());
-
-                // Map fields from `ElectoralLogRow` to `AuditLogEntry`
                 let audit_log_entry = AuditLogEntry {
-                    number: item.id, // Increment number for each item
+                    number: item.id,
                     datetime: formatted_datetime,
                     username,
                     userkind,
@@ -486,24 +515,20 @@ impl TemplateRenderer for AuditLogsTemplate {
                         .map(|head| head.description.clone())
                         .unwrap_or("-".to_string()),
                 };
-
-                // Push the constructed `AuditLogEntry` to the sequences array
                 sequences.push(audit_log_entry);
-                if sequences.len() == limit as usize {
+
+                if sequences.len() >= limit as usize {
                     break;
                 }
             }
-            *offset += logs_visited;
 
-            info!("offset {} logs_visited {}", offset, logs_visited);
-            if sequences.len() == limit as usize {
+            current_offset += batch_size as i64;
+            // If we reached the desired number of logs, exit.
+            if sequences.len() >= limit as usize {
                 break;
             }
         }
-        if (sequences.len() as i64) == 0 {
-            // signal no more logs for a new report
-            *offset = -1;
-        }
+
         user_data.sequences = sequences;
 
         Ok(user_data)
@@ -648,6 +673,7 @@ impl TemplateRenderer for AuditLogsTemplate {
                 aggregate: Aggregate { count: 0 },
             },
         };
+        let area_ids: Vec<String> = election_areas.into_iter().map(|area| area.id).collect();
 
         let mut offset: i64 = 0;
         loop {
@@ -658,6 +684,9 @@ impl TemplateRenderer for AuditLogsTemplate {
                 offset: Some(offset),
                 filter: None,
                 order_by: None,
+                area_ids: Some(area_ids.clone()),
+                only_with_user: Some(true),
+                election_id: Some(election_id.clone()),
             })
             .await
             .with_context(|| "Error in fetching list of electoral logs")?;
@@ -787,8 +816,8 @@ impl TemplateRenderer for AuditLogsTemplate {
                 anyhow!("Error providing the user template and extra config: {e:?}")
             })?;
 
-        let items_count = self.count_items().await.unwrap_or(0);
-        let report_options = ext_cfg.report_options;
+        let items_count = self.count_items(&hasura_transaction).await?.unwrap_or(0);
+        let report_options = ext_cfg.report_options.clone();
         let per_report_limit = report_options
             .max_items_per_report
             .unwrap_or(DEFAULT_ITEMS_PER_REPORT_LIMIT) as i64;
@@ -797,79 +826,113 @@ impl TemplateRenderer for AuditLogsTemplate {
         let zip_temp_dir = tempdir()?;
         let zip_temp_dir_path = zip_temp_dir.path();
 
-        let temp_dir = tempdir()?;
-        let reports_folder = temp_dir.path();
-
-        let mut offset = Some(0i64);
-        let mut i = 0;
-        let mut batch_file_paths: Vec<PathBuf> = vec![];
-
-        // If preview mode only add 1 file to zip
-        let items_count = if generate_mode == GenerateReportMode::PREVIEW {
-            1
-        } else {
-            items_count
-        };
-
-        while offset.map_or(false, |current_offset| current_offset < items_count) {
-            info!("while offset:{:?}, items_count:{}", offset, items_count);
-            let rendered_system_template = self
-                .generate_report(
-                    generate_mode.clone(),
-                    hasura_transaction,
-                    keycloak_transaction,
-                    &user_tpl_document,
-                    &mut offset,
-                    Some(per_report_limit),
-                )
-                .await
-                .with_context(|| format!("Error rendering report for batch {:?}", offset))?;
-            // case no new data for the report
-            if offset.unwrap_or_default() < 0 {
-                break;
-            }
-
-            let pdf_bytes = pdf::PdfRenderer::render_pdf(
-                rendered_system_template,
-                Some(ext_cfg.pdf_options.to_print_to_pdf_options()),
+        let (final_file_path, file_size, final_report_name, mimetype) = if generate_mode
+            == GenerateReportMode::PREVIEW
+        {
+            self.generate_single_report(
+                hasura_transaction,
+                keycloak_transaction,
+                &user_tpl_document,
+                generate_mode,
+                task_execution.clone(),
+                &ext_cfg,
             )
             .await
-            .with_context(|| format!("Error rendering PDF for batch {:?}", offset))?;
+            .map_err(|e| anyhow::anyhow!("Error in generate_single_report: {}", e))?
+        } else {
+            info!(
+                "Using batched processing because it's activity log: items_count ({}) > per_report_limit ({})",
+                items_count, per_report_limit
+            );
 
-            // e.g., "my_prefix"
-            let prefix = self.prefix();
-            let extension_suffix = "pdf";
-            let file_suffix = format!(".{}", extension_suffix); // = ".pdf"
+            // Calculate the number of batches needed.
+            let num_batches =
+                std::cmp::max((items_count + per_report_limit - 1) / per_report_limit, 1);
+            info!("Number of batches: {:?}", num_batches);
 
-            // Create the actual final filename, e.g. "my_prefix-123.pdf"
-            let batch_file_name = format!("{}-{}{}", prefix, i, file_suffix);
-            info!("batch_file_name: {}", batch_file_name);
+            // Define a temporary reports folder (this folder will later be compressed)
+            let temp_dir = tempdir()?;
+            let reports_folder = temp_dir.path();
 
-            let final_path = reports_folder.join(&batch_file_name);
-            batch_file_paths.push(final_path.clone());
-            fs::write(&final_path, &pdf_bytes)?;
-            i += 1;
-        }
+            // Build a Rayon pool for batch processing.
+            let batch_pool = ThreadPoolBuilder::new()
+                .num_threads(report_options.max_threads.unwrap_or(get_worker_threads()))
+                .build()
+                .with_context(|| "Failed to build thread pool")?;
 
-        let some_paths = batch_file_paths.into_iter().take(10).collect::<Vec<_>>();
-        info!("first 10 batch_file_paths = {:?}", some_paths);
+            // Process batches concurrently.
+            let batch_file_paths: Vec<PathBuf> = batch_pool.install(|| {
+                (0..num_batches)
+                    .into_par_iter()
+                    .map(|batch_index| -> Result<PathBuf, anyhow::Error> {
+                        let offset = batch_index * per_report_limit;
+                        let rendered_system_template = GLOBAL_RT
+                            .block_on(async {
+                                self.generate_report(
+                                    generate_mode.clone(),
+                                    hasura_transaction,
+                                    keycloak_transaction,
+                                    &user_tpl_document,
+                                    &mut Some(offset),
+                                    Some(per_report_limit),
+                                )
+                                .await
+                            })
+                            .with_context(|| {
+                                format!("Error rendering report for batch {}", offset)
+                            })?;
 
-        let zip_filename = format!("{}_final.zip", self.prefix());
+                        // Render to PDF bytes
+                        let pdf_bytes = GLOBAL_RT
+                            .block_on(async {
+                                pdf::PdfRenderer::render_pdf(
+                                    rendered_system_template,
+                                    Some(ext_cfg.pdf_options.to_print_to_pdf_options()),
+                                )
+                                .await
+                            })
+                            .with_context(|| format!("Error rendering PDF for batch {}", offset))?;
 
-        let dst_zip = zip_temp_dir_path.join(&zip_filename);
+                        let prefix = self.prefix();
+                        let extension_suffix = "pdf";
+                        let file_suffix = format!(".{}", extension_suffix);
 
-        compress_folder_to_zip(reports_folder, &dst_zip)
-            .with_context(|| "Error compressing folder")?;
+                        let batch_file_name = format!("{}-{}{}", prefix, offset, file_suffix);
+                        info!(
+                            "Batch {} => batch_file_name: {}",
+                            batch_index, batch_file_name
+                        );
 
-        let zip_file_size = get_file_size(&dst_zip.to_string_lossy())
-            .with_context(|| "Error obtaining file size for zip file")?;
+                        // Build the final path inside `reports_folder`:
+                        let final_path = reports_folder.join(&batch_file_name);
 
-        let (final_file_path, file_size, final_report_name, mimetype) = (
-            dst_zip.to_string_lossy().to_string(),
-            zip_file_size,
-            zip_filename,
-            "application/zip".to_string(),
-        );
+                        fs::write(&final_path, &pdf_bytes)?;
+                        Ok(final_path)
+                    })
+                    .collect::<Result<Vec<PathBuf>, anyhow::Error>>()
+            })?;
+
+            // Now you have a `Vec<PathBuf>` of all the PDFs created in parallel.
+            let some_paths = batch_file_paths.into_iter().take(10).collect::<Vec<_>>();
+            info!("first 10 batch_file_paths = {:?}", some_paths);
+
+            let zip_filename = format!("{}_final.zip", self.prefix());
+
+            let dst_zip = zip_temp_dir_path.join(&zip_filename);
+
+            compress_folder_to_zip(reports_folder, &dst_zip)
+                .with_context(|| "Error compressing folder")?;
+
+            let zip_file_size = get_file_size(&dst_zip.to_string_lossy())
+                .with_context(|| "Error obtaining file size for zip file")?;
+
+            (
+                dst_zip.to_string_lossy().to_string(),
+                zip_file_size,
+                zip_filename,
+                "application/zip".to_string(),
+            )
+        };
 
         info!(
             "Final file info: path = {}, size = {}, name = {}, mimetype = {}",
@@ -884,9 +947,14 @@ impl TemplateRenderer for AuditLogsTemplate {
             if report.encryption_policy == EReportEncryption::ConfiguredPassword {
                 let secret_key =
                     get_report_secret_key(&tenant_id, &election_event_id, Some(report.id.clone()));
-                let encryption_password = vault::read_secret(secret_key.clone())
-                    .await?
-                    .ok_or_else(|| anyhow!("Encryption password not found"))?;
+                let encryption_password = vault::read_secret(
+                    hasura_transaction,
+                    tenant_id,
+                    Some(election_event_id),
+                    &secret_key,
+                )
+                .await?
+                .ok_or_else(|| anyhow!("Encryption password not found"))?;
 
                 let enc_file: NamedTempFile =
                     generate_temp_file(self.base_name().as_str(), ".epdf")

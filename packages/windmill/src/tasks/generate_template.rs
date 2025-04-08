@@ -17,6 +17,7 @@ use crate::services::database::get_hasura_pool;
 use crate::services::documents::upload_and_return_document_postgres;
 use crate::services::reports::utils::get_public_assets_path_env_var;
 use crate::services::tasks_execution::{update, update_complete, update_fail};
+use crate::services::tasks_semaphore::acquire_semaphore;
 use crate::types::error::Error;
 use crate::types::error::Result;
 use anyhow::{anyhow, Context, Result as AnyhowResult};
@@ -237,7 +238,7 @@ async fn generate_template_document(
     }
 
     let first_pipe_id = create_config(
-        &hasura_transaction,
+        hasura_transaction,
         &tally_session,
         &tally_path_path,
         is_ballot_images,
@@ -290,6 +291,7 @@ async fn generate_template_document(
 
     // Encrypt the file if needed
     let final_zipped_file = encrypt_file(
+        hasura_transaction,
         tenant_id,
         &election_event_id,
         &output_zip_path.to_string_lossy(),
@@ -409,6 +411,7 @@ pub async fn generate_template(
     task_execution: Option<TasksExecution>,
     executer_username: Option<String>,
 ) -> Result<()> {
+    let _permit = acquire_semaphore().await?;
     // Spawn the task using an async block
     let handle = tokio::task::spawn_blocking({
         move || {

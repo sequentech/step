@@ -24,7 +24,7 @@
         "cibaInterval": "5",
         "realmReusableOtpCode": "false",
         "oauth2DeviceCodeLifespan": "600",
-        "acr.loa.map": "{}"
+        "acr.loa.map": "{\"silver\":\"1\",\"gold\":\"2\"}"
     },
     "authenticationFlows": [
         {
@@ -237,6 +237,77 @@
             "topLevel": false
         },
         {
+            "alias": "advanced / gold condition",
+            "authenticationExecutions": [{
+                    "authenticator": "conditional-level-of-authentication",
+                    "authenticatorConfig": "gold",
+                    "authenticatorFlow": false,
+                    "autheticatorFlow": false,
+                    "priority": 0,
+                    "requirement": "REQUIRED",
+                    "userSetupAllowed": false
+                }, {
+                    "authenticator": "auth-password-form",
+                    "authenticatorFlow": false,
+                    "autheticatorFlow": false,
+                    "priority": 1,
+                    "requirement": "REQUIRED",
+                    "userSetupAllowed": false
+                }
+            ],
+            "builtIn": false,
+            "description": "",
+            "id": "3fc33f0b-ce4c-4e50-a951-bccafdd89a9d",
+            "providerId": "basic-flow",
+            "topLevel": false
+        }, {
+            "alias": "basic / silver condition",
+            "authenticationExecutions": [{
+                    "authenticator": "conditional-level-of-authentication",
+                    "authenticatorConfig": "silver",
+                    "authenticatorFlow": false,
+                    "autheticatorFlow": false,
+                    "priority": 0,
+                    "requirement": "REQUIRED",
+                    "userSetupAllowed": false
+                }, {
+                    "authenticator": "auth-username-password-form",
+                    "authenticatorFlow": false,
+                    "autheticatorFlow": false,
+                    "priority": 1,
+                    "requirement": "REQUIRED",
+                    "userSetupAllowed": false
+                }, {
+                    "authenticator": "user-session-limits",
+                    "authenticatorConfig": "session-count-limit",
+                    "authenticatorFlow": false,
+                    "autheticatorFlow": false,
+                    "priority": 2,
+                    "requirement": "DISABLED",
+                    "userSetupAllowed": false
+                }, {
+                    "authenticatorFlow": true,
+                    "autheticatorFlow": true,
+                    "flowAlias": "message-otp-subflow",
+                    "priority": 3,
+                    "requirement": "DISABLED",
+                    "userSetupAllowed": false
+                }, {
+                    "authenticatorFlow": true,
+                    "autheticatorFlow": true,
+                    "flowAlias": "sequent browser flow Browser - Conditional OTP",
+                    "priority": 4,
+                    "requirement": "DISABLED",
+                    "userSetupAllowed": false
+                }
+            ],
+            "builtIn": false,
+            "description": "",
+            "id": "7e75060c-2824-45ed-ae6a-3767490cb382",
+            "providerId": "basic-flow",
+            "topLevel": false
+        },
+        {
             "alias": "browser",
             "authenticationExecutions": [
                 {
@@ -333,6 +404,23 @@
                     "userSetupAllowed": false
                 },
                 {
+                    "authenticatorFlow" : true,
+                    "requirement" : "CONDITIONAL",
+                    "priority" : 14,
+                    "autheticatorFlow" : true,
+                    "flowAlias" : "deferred-otp-subflow-email",
+                    "userSetupAllowed" : false
+                },
+                {
+                    "authenticatorConfig" : "deferred-otp-subflow-sms",
+                    "authenticatorFlow" : true,
+                    "requirement" : "CONDITIONAL",
+                    "priority" : 15,
+                    "autheticatorFlow" : true,
+                    "flowAlias" : "deferred-otp-subflow",
+                    "userSetupAllowed" : false
+                },
+                {
                     "authenticator": "message-otp-authenticator",
                     "authenticatorConfig": "otp",
                     "authenticatorFlow": false,
@@ -393,6 +481,61 @@
             "id": "4bde24b5-72b3-41c0-8df5-0420e2d69162",
             "providerId": "form-flow",
             "topLevel": false
+        },
+        {
+            "id" : "7b248f81-6142-4a51-abbf-d4ea838cdee6",
+            "alias" : "deferred-otp-subflow",
+            "description" : "",
+            "providerId" : "basic-flow",
+            "topLevel" : false,
+            "builtIn" : false,
+            "authenticationExecutions" : [
+                {
+                    "authenticatorConfig" : "cond-sms",
+                    "authenticator" : "conditional-auth-note",
+                    "authenticatorFlow" : false,
+                    "requirement" : "REQUIRED",
+                    "priority" : 3,
+                    "autheticatorFlow" : false,
+                    "userSetupAllowed" : false
+                },
+                {
+                    "authenticatorConfig" : "otp-sms",
+                    "authenticator" : "message-otp-authenticator",
+                    "authenticatorFlow" : false,
+                    "requirement" : "REQUIRED",
+                    "priority" : 4,
+                    "autheticatorFlow" : false,
+                    "userSetupAllowed" : false
+                }
+            ]
+        }, {
+            "id" : "ec150b9a-3bac-4e44-9a48-748e147335e9",
+            "alias" : "deferred-otp-subflow-email",
+            "description" : "",
+            "providerId" : "basic-flow",
+            "topLevel" : false,
+            "builtIn" : false,
+            "authenticationExecutions" : [
+                {
+                    "authenticatorConfig" : "cond-email",
+                    "authenticator" : "conditional-auth-note",
+                    "authenticatorFlow" : false,
+                    "requirement" : "REQUIRED",
+                    "priority" : 0,
+                    "autheticatorFlow" : false,
+                    "userSetupAllowed" : false
+                },
+                {
+                    "authenticatorConfig" : "otp-email",
+                    "authenticator" : "message-otp-authenticator",
+                    "authenticatorFlow" : false,
+                    "requirement" : "REQUIRED",
+                    "priority" : 1,
+                    "autheticatorFlow" : false,
+                    "userSetupAllowed" : false
+                }
+            ]
         },
         {
             "alias": "direct grant",
@@ -517,6 +660,33 @@
             "id": "a41c0378-3eb2-4a26-b07d-3438d1f0acd9",
             "providerId": "basic-flow",
             "topLevel": true
+        },
+        {
+            "id" : "6d2bbc26-4c5a-4312-bae6-aa6cc060cb17",
+            "alias" : "message-otp-subflow",
+            "description" : "",
+            "providerId" : "basic-flow",
+            "topLevel" : false,
+            "builtIn" : false,
+            "authenticationExecutions" : [
+                {
+                    "authenticator" : "conditional-user-configured",
+                    "authenticatorFlow" : false,
+                    "requirement" : "REQUIRED",
+                    "priority" : 1,
+                    "autheticatorFlow" : false,
+                    "userSetupAllowed" : false
+                },
+                {
+                    "authenticatorConfig" : "email-sms",
+                    "authenticator" : "message-otp-authenticator",
+                    "authenticatorFlow" : false,
+                    "requirement" : "REQUIRED",
+                    "priority" : 3,
+                    "autheticatorFlow" : false,
+                    "userSetupAllowed" : false
+                }
+            ]
         },
         {
             "alias": "registration",
@@ -674,39 +844,50 @@
             "topLevel": true
         },
         {
-            "alias": "sequent browser flow forms",
-            "authenticationExecutions": [
-                {
-                    "authenticator": "expiry-username-password-form",
-                    "authenticatorConfig": "UPF-apec",
+            "alias": "sequent browser flow Browser - Conditional OTP",
+            "authenticationExecutions": [{
+                    "authenticator": "conditional-user-configured",
                     "authenticatorFlow": false,
                     "autheticatorFlow": false,
                     "priority": 21,
                     "requirement": "REQUIRED",
                     "userSetupAllowed": false
-                },
-                {
-                    "authenticator": "user-session-limits",
-                    "authenticatorConfig": "session-count-limit",
+                }, {
+                    "authenticator": "auth-otp-form",
                     "authenticatorFlow": false,
                     "autheticatorFlow": false,
                     "priority": 25,
                     "requirement": "REQUIRED",
                     "userSetupAllowed": false
-                },
-                {
-                    "authenticator": "message-otp-authenticator",
-                    "authenticatorConfig": "login-tlf-otp",
-                    "authenticatorFlow": false,
-                    "autheticatorFlow": false,
-                    "priority": 26,
-                    "requirement": "REQUIRED",
+                }
+            ],
+            "builtIn": false,
+            "description": "Flow to determine if the OTP is required for the authentication",
+            "id": "b5170960-8148-4baa-835c-a7bda9628afb",
+            "providerId": "basic-flow",
+            "topLevel": false
+        },
+        {
+            "alias": "sequent browser flow forms",
+            "authenticationExecutions": [{
+                    "authenticatorFlow": true,
+                    "autheticatorFlow": true,
+                    "flowAlias": "basic / silver condition",
+                    "priority": 27,
+                    "requirement": "CONDITIONAL",
+                    "userSetupAllowed": false
+                }, {
+                    "authenticatorFlow": true,
+                    "autheticatorFlow": true,
+                    "flowAlias": "advanced / gold condition",
+                    "priority": 28,
+                    "requirement": "CONDITIONAL",
                     "userSetupAllowed": false
                 }
             ],
             "builtIn": false,
             "description": "Username, password, otp and other auth forms.",
-            "id": "bec3a378-e0f0-4bfb-aea0-3a288aa13475",
+            "id": "c36d83e7-7e0b-4329-92a5-27d03e04d9f8",
             "providerId": "basic-flow",
             "topLevel": false
         },
@@ -800,6 +981,22 @@
         }
     ],
     "authenticatorConfig": [
+        {
+            "alias": "gold",
+            "config": {
+                "loa-max-age": "0",
+                "loa-condition-level": "2"
+            },
+            "id": "671af2c7-9e15-4ca0-a6a0-aa26cd9e7453"
+        },
+        {
+            "alias": "silver",
+            "config": {
+                "loa-condition-level": "1",
+                "loa-max-age": "36000"
+            },
+            "id": "597fd51e-3c01-4033-adf1-ae90cf7c03ba"
+        },
         {
             "alias": "UPF-apec",
             "config": {
@@ -955,14 +1152,15 @@
             "config": {
                  "attributes-to-validate": "{\n    \"philSysID\": [\n        {\n            \"type\": \"equalValue\",\n            \"equalValue\": \"Identity Card\",\n            \"inetumAttributePath\": \"/response/docVerification/documentIdentification/0/type\",\n            \"errorMsg\": \"attributesInetumError\"\n        },\n        {\n            \"type\": \"equalValue\",\n            \"equalValue\": \"PHL\",\n            \"inetumAttributePath\": \"/response/ocr/issuing_state_code\",\n            \"errorMsg\": \"attributesInetumError\"\n        },\n        {\n            \"type\": \"intMinValue\",\n            \"intMinValue\": \"50\",\n            \"inetumAttributePath\": \"/response/resultData/scoreDocumental\",\n            \"errorMsg\": \"scoringInetumError\"\n        },\n        {\n            \"type\": \"intMinValue\",\n            \"intMinValue\": \"50\",\n            \"inetumAttributePath\": \"/response/resultData/scoreFacial\",\n            \"errorMsg\": \"scoringInetumError\"\n        },\n        {\n            \"type\": \"intMinValue\",\n            \"intMinValue\": \"1\",\n            \"inetumAttributePath\": \"/response/scoring\",\n            \"errorMsg\": \"scoringInetumError\"\n        },\n        {\n            \"type\": \"equalValue\",\n            \"equalValue\": \"true\",\n            \"inetumAttributePath\": \"/response/docVerification/documentalConfidence\",\n            \"errorMsg\": \"scoringInetumError\"\n        }\n    ],\n    \"seamanBook\": [\n        {\n            \"type\": \"equalValue\",\n            \"equalValue\": \"PHL\",\n            \"inetumAttributePath\": \"/response/mrz/issuing_state_code\",\n            \"errorMsg\": \"attributesInetumError\"\n        },\n        {\n            \"type\": \"intMinValue\",\n            \"intMinValue\": \"50\",\n            \"inetumAttributePath\": \"/response/resultData/scoreValCamposCriticos\",\n            \"errorMsg\": \"scoringInetumError\"\n        },\n        {\n            \"type\": \"intMinValue\",\n            \"intMinValue\": \"50\",\n            \"inetumAttributePath\": \"/response/resultData/scoreFacial\",\n            \"errorMsg\": \"scoringInetumError\"\n        },\n        {\n            \"type\": \"intMinValue\",\n            \"intMinValue\": \"1\",\n            \"inetumAttributePath\": \"/response/scoring\",\n            \"errorMsg\": \"scoringInetumError\"\n        },\n        {\n            \"type\": \"equalValue\",\n            \"equalValue\": \"true\",\n            \"inetumAttributePath\": \"/response/docVerification/documentalConfidence\",\n            \"errorMsg\": \"scoringInetumError\"\n        }\n        \n    ],\n    \"philippinePassport\": [\n        {\n            \"type\": \"equalValue\",\n            \"equalValue\": \"PHL\",\n            \"inetumAttributePath\": \"/response/mrz/issuing_state_code\",\n            \"errorMsg\": \"attributesInetumError\"\n        },\n        {\n            \"type\": \"intMinValue\",\n            \"intMinValue\": \"50\",\n            \"inetumAttributePath\": \"/response/resultData/scoreValCamposCriticos\",\n            \"errorMsg\": \"scoringInetumError\"\n        },\n        {\n            \"type\": \"intMinValue\",\n            \"intMinValue\": \"50\",\n            \"inetumAttributePath\": \"/response/resultData/scoreFacial\",\n            \"errorMsg\": \"scoringInetumError\"\n        },\n        {\n            \"type\": \"intMinValue\",\n            \"intMinValue\": \"1\",\n            \"inetumAttributePath\": \"/response/scoring\",\n            \"errorMsg\": \"scoringInetumError\"\n        },\n        {\n            \"type\": \"equalValue\",\n            \"equalValue\": \"true\",\n            \"inetumAttributePath\": \"/response/docVerification/documentalConfidence\",\n            \"errorMsg\": \"scoringInetumError\"\n        }\n    ],\n    \"driversLicense\": [\n        {\n            \"type\": \"equalValue\",\n            \"equalValue\": \"PHL\",\n            \"inetumAttributePath\": \"/response/ocr/issuing_state_code\",\n            \"errorMsg\": \"attributesInetumError\"\n        },\n        {\n            \"type\": \"intMinValue\",\n            \"intMinValue\": \"40\",\n            \"inetumAttributePath\": \"/response/resultData/scoreValCamposCriticos\",\n            \"errorMsg\": \"scoringInetumError\"\n        },\n        {\n            \"type\": \"intMinValue\",\n            \"intMinValue\": \"50\",\n            \"inetumAttributePath\": \"/response/resultData/scoreFacial\",\n            \"errorMsg\": \"scoringInetumError\"\n        },\n        {\n            \"type\": \"intMinValue\",\n            \"intMinValue\": \"1\",\n            \"inetumAttributePath\": \"/response/scoring\",\n            \"errorMsg\": \"scoringInetumError\"\n        },\n        {\n            \"type\": \"equalValue\",\n            \"equalValue\": \"true\",\n            \"inetumAttributePath\": \"/response/docVerification/documentalConfidence\",\n            \"errorMsg\": \"scoringInetumError\"\n        }\n    ],\n    \"iBP\": [\n        {\n            \"type\": \"intMinValue\",\n            \"intMinValue\": \"50\",\n            \"inetumAttributePath\": \"/response/resultData/scoreValCamposCriticos\",\n            \"errorMsg\": \"scoringInetumError\"\n        },\n        {\n            \"type\": \"intMinValue\",\n            \"intMinValue\": \"50\",\n            \"inetumAttributePath\": \"/response/resultData/scoreFacial\",\n            \"errorMsg\": \"scoringInetumError\"\n        },\n        {\n            \"type\": \"intMinValue\",\n            \"intMinValue\": \"1\",\n            \"inetumAttributePath\": \"/response/scoring\",\n            \"errorMsg\": \"scoringInetumError\"\n        },\n        {\n            \"type\": \"equalValue\",\n            \"equalValue\": \"true\",\n            \"inetumAttributePath\": \"/response/docVerification/documentalConfidence\",\n            \"errorMsg\": \"scoringInetumError\"\n        }\n    ]\n}",
                 "user-status": "sequent.read-only.id-card-number-validated",
-                "base-url": "https://des.digitalonboarding.es/dob-api/2.0.0",
-                "client-id": "demosequentech",
+                "base-url": "https://pro2.digitalonboarding.es/sequentech/dob-api/2.0.0",
+                "sdk-version": "4.0.3",
+                "client-id": "DOB_SEQUENTECH",
                 "doc-id": "sequent.read-only.id-card-number",
                 "attributes-to-store": "{\n\t\"philSysID\": [\n\t\t{\n\t\t\t\"UserAttribute\": \"firstName\",\n\t\t\t\"inetumAttributePath\": \"/response/ocr/given_names\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"middleName\",\n\t\t\t\"inetumAttributePath\": \"/response/ocr/middle_name\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"lastName\",\n\t\t\t\"inetumAttributePath\": \"/response/ocr/surname\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"sequent.read-only.id-card-number\",\n\t\t\t\"inetumAttributePath\": \"/response/ocr/personal_number\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"dateOfBirth\",\n\t\t\t\"inetumAttributePath\": \"/response/ocr/date_of_birth\",\n\t\t\t\"type\": \"date\",\n\t\t\t\"storeDateFormat\": \"yyyy-MM-dd\",\n\t\t\t\"inetumDateFormat\": \"dd/MM/yyyy\"\n\t\t}\n\t],\n\t\"seamanBook\": [\n\t\t{\n\t\t\t\"UserAttribute\": \"firstName\",\n\t\t\t\"inetumAttributePath\": \"/response/mrz/given_names\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"middleName\",\n\t\t\t\"inetumAttributePath\": \"/response/ocr/middle_name\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"lastName\",\n\t\t\t\"inetumAttributePath\": \"/response/mrz/surname\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"sequent.read-only.id-card-number\",\n\t\t\t\"inetumAttributePath\": \"/response/mrz/personal_number\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"dateOfBirth\",\n\t\t\t\"inetumAttributePath\": \"/response/mrz/date_of_birth\",\n\t\t\t\"type\": \"date\",\n\t\t\t\"storeDateFormat\": \"yyyy-MM-dd\",\n\t\t\t\"inetumDateFormat\": \"dd/MM/yyyy\"\n\t\t}\n\t],\n\t\"philippinePassport\": [\n\t\t{\n\t\t\t\"UserAttribute\": \"firstName\",\n\t\t\t\"inetumAttributePath\": \"/response/mrz/given_names\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"middleName\",\n\t\t\t\"inetumAttributePath\": \"/response/ocr/middle_name\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"lastName\",\n\t\t\t\"inetumAttributePath\": \"/response/mrz/surname\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"sequent.read-only.id-card-number\",\n\t\t\t\"inetumAttributePath\": \"/response/mrz/document_number\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"dateOfBirth\",\n\t\t\t\"inetumAttributePath\": \"/response/mrz/date_of_birth\",\n\t\t\t\"type\": \"date\",\n\t\t\t\"storeDateFormat\": \"yyyy-MM-dd\",\n\t\t\t\"inetumDateFormat\": \"dd/MM/yyyy\"\n\t\t}\n\t],\n\t\"driversLicense\": [\n\t\t{\n\t\t\t\"UserAttribute\": \"firstName\",\n\t\t\t\"inetumAttributePath\": \"/response/ocr/given_names\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"middleName\",\n\t\t\t\"inetumAttributePath\": \"/response/ocr/middle_name\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"lastName\",\n\t\t\t\"inetumAttributePath\": \"/response/ocr/surname\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"sequent.read-only.id-card-number\",\n\t\t\t\"inetumAttributePath\": \"/response/ocr/personal_number\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"dateOfBirth\",\n\t\t\t\"inetumAttributePath\": \"/response/ocr/date_of_birth\",\n\t\t\t\"type\": \"date\",\n\t\t\t\"storeDateFormat\": \"yyyy-MM-dd\",\n\t\t\t\"inetumDateFormat\": \"dd/MM/yyyy\"\n\t\t}\n\t],\n\t\"iBP\": [\n\t\t{\n\t\t\t\"UserAttribute\": \"firstName\",\n\t\t\t\"inetumAttributePath\": \"/response/mrz/given_names\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"middleName\",\n\t\t\t\"inetumAttributePath\": \"/response/ocr/middle_name\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"lastName\",\n\t\t\t\"inetumAttributePath\": \"/response/mrz/surname\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"sequent.read-only.id-card-number\",\n\t\t\t\"inetumAttributePath\": \"/response/mrz/personal_number\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"dateOfBirth\",\n\t\t\t\"inetumAttributePath\": \"/response/mrz/date_of_birth\",\n\t\t\t\"type\": \"date\",\n\t\t\t\"storeDateFormat\": \"yyyy-MM-dd\",\n\t\t\t\"inetumDateFormat\": \"dd/MM/yyyy\"\n\t\t}\n\t]\n}",
-                "api-key": "fd2280f6-4fb8-3ba3-b55f-5a425b64f07f",
+                "api-key": "289d42a8-39c4-3142-af00-d96ada617b40",
                 "sdk": "{}",
-                "app-id": "7349cfcc-b3a1-4dd7-b399-d135be0a2f43",
-                "env-config": "{\n\tenvironment: 0,\n\tisWebView: true,\n\tcustomTextsConfig: myStrings,\n\tuploadAndCheckIdentifiers: [\"ESP\"],\n\tshowLogs: false,\n\tlogTypes: ['ERROR', 'INFO'],\n\tdesign: design,\n\tbamEnabled: true,\n\tocrCountdown: false,\n\tvideoSelfieShowDNI: false,\n\tcancelProcessButton: true,\n\tshowPermissionsHelp: true,\n\tqrEnabled: false,\n\tvoiceEnabled: false,\n\tvoiceLanguage: VoiceLanguage.englishUS,\n\tcustomIOSBrowsersConfig: [IOSBrowser.safari, IOSBrowser.chrome, IOSBrowser.firefox],\n\totpEmailAddress: 'xxxxxxx@inetum.com',\n\totpPhoneNumber: 'xxxxxxxx',\n\tcountryCode: CountryCode.unitedStates,\n\tapplicationId: window.DOB_APP_ID,\n\tbroadcast: new LocalBroadcastManager(),\n\tsequent: {\n\t\tdisableStreaming: true\n\t}\n}",
+                "app-id": "24d98f6c-88ef-41ef-b252-444485f0588a",
+                "env-config": "{\n\tenvironment: 3,\n\tisWebView: true,\n\tcustomTextsConfig: myStrings,\n\tuploadAndCheckIdentifiers: [\"ESP\"],\n\tshowLogs: false,\n\tlogTypes: ['ERROR', 'INFO'],\n\tdesign: design,\n\tbamEnabled: true,\n\tocrCountdown: false,\n\tvideoSelfieShowDNI: false,\n\tcancelProcessButton: true,\n\tshowPermissionsHelp: true,\n\tqrEnabled: false,\n\tvoiceEnabled: false,\n\tvoiceLanguage: VoiceLanguage.englishUS,\n\tcustomIOSBrowsersConfig: [IOSBrowser.safari, IOSBrowser.chrome, IOSBrowser.firefox],\n\totpEmailAddress: 'xxxxxxx@inetum.com',\n\totpPhoneNumber: 'xxxxxxxx',\n\tcountryCode: CountryCode.unitedStates,\n\tapplicationId: window.DOB_APP_ID,\n\tbroadcast: new LocalBroadcastManager(),\n\tcustomProtocol: 'https',\n\tcustomHost: 'pro2.digitalonboarding.es',\n\tcustomPort: '443',\n\tclientContext: 'sequentech',\n\tsequent: {\n\t\tdisableStreaming: true,\n\t\tvideoStepLength: 22,\n\t\tphotoStepLength: 10,\n\t\tuserPhotoLength: 30,\n\t}\n}",
                 "transaction-new": "{\n\t\"wFtype_Facial\": true,\n\t\"wFtype_OCR\": true,\n\t\"wFtype_Video\": false,\n\t\"wFtype_Anti_Spoofing\": false,\n\t\"wFtype_Sign\": false,\n\t\"wFtype_VerifAvan\": false,\n\t\"wFtype_UECertificate\": false,\n\t\"docID\": \"\",\n\t\"name\": \"\",\n\t\"lastname1\": \"\",\n\t\"lastname2\": \"\",\n\t\"country\": \"\",\n\t\"mobilePhone\": \"\",\n\t\"eMail\": \"\",\n\t\"priority\": 3,\n\t\"maxRetries\": 3,\n\t\"maxProcessTime\": 30,\n\t\"application\": \"sequent-keycloak\",\n\t\"clienteID\": \"${client_id}\"\n}",
                 "doc-id-type": "sequent.read-only.id-card-type",
                 "max-retries": "5"

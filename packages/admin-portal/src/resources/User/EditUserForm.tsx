@@ -9,7 +9,6 @@ import {
     SimpleForm,
     useNotify,
     useRefresh,
-    AutocompleteArrayInput,
     BooleanInput,
     useGetList,
 } from "react-admin"
@@ -64,6 +63,7 @@ import IconTooltip from "@/components/IconTooltip"
 import {faInfoCircle} from "@fortawesome/free-solid-svg-icons"
 import {useUsersPermissions} from "./useUsersPermissions"
 import debounce from "lodash/debounce"
+import {CustomAutocompleteArrayInput} from "@sequentech/ui-essentials"
 
 interface ListUserRolesProps {
     userId?: string
@@ -279,6 +279,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
             userId: id!,
             electionEventId: electionEventId,
         },
+        skip: !id || !tenantId,
     })
 
     const {data: voterCastVotes} = useGetList<Sequent_Backend_Cast_Vote>(
@@ -475,6 +476,20 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         [user, equalToPassword]
     )
 
+    const handleDateChange =
+        (attrName: string) => async (e: React.ChangeEvent<HTMLInputElement>) => {
+            const {value} = e.target
+            setUser((prev) => {
+                return {
+                    ...prev,
+                    attributes: {
+                        ...(prev?.attributes ?? {}),
+                        [attrName]: [value],
+                    },
+                }
+            })
+        }
+
     const handleSelectChange = (attrName: string) => async (e: string) => {
         setUser((prev) => {
             return {
@@ -499,21 +514,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         })
     }
 
-    const handlePermissionLabelRemoved = (value: string[]) => {
-        if (value?.length < permissionLabels?.length) {
-            setUser((prev) => {
-                return {
-                    ...prev,
-                    attributes: {
-                        ...prev?.attributes,
-                        permission_labels: value,
-                    },
-                }
-            })
-        }
-    }
-
-    const handlePermissionLabelAdded = (value: string[]) => {
+    const handlePermissionLabelChanged = (value: string[]) => {
         setUser((prev) => {
             return {
                 ...prev,
@@ -599,11 +600,11 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                             <TextField
                                                 {...params} // Spread all params provided by Autocomplete
                                                 label={
-                                                    getTranslationLabel(
+                                                    `${getTranslationLabel(
                                                         attr.name,
                                                         attr.display_name,
                                                         t
-                                                    ) || "Default Label"
+                                                    )} ${isRequired ? "*" : ""}` || "-"
                                                 }
                                                 inputProps={{
                                                     ...params.inputProps,
@@ -690,7 +691,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                     return (
                         <FormStyles.DateInput
                             source={`attributes.${attr.name}`}
-                            onChange={handleAttrChange(attr.name)}
+                            onChange={handleDateChange(attr.name)}
                             label={getTranslationLabel(attr.name, attr.display_name, t)}
                             disabled={
                                 !(
@@ -761,55 +762,17 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                     )
                 } else if (attr.name.toLowerCase().includes("permission_labels")) {
                     return (
-                        <AutocompleteArrayInput
-                            key={user?.id || "create"}
-                            source={`attributes.${attr.name}`}
+                        <CustomAutocompleteArrayInput
                             label={t("usersAndRolesScreen.users.fields.permissionLabel")}
                             defaultValue={permissionLabels}
-                            fullWidth
-                            onChange={handlePermissionLabelRemoved}
-                            onCreate={(newLabel) => {
-                                if (newLabel) {
-                                    const updatedChoices = [
-                                        ...choices,
-                                        {id: newLabel, name: newLabel},
-                                    ]
-                                    const updatedLabels = [...permissionLabels, newLabel]
-                                    setChoices(updatedChoices)
-                                    setPermissionLabels(updatedLabels)
-                                    handlePermissionLabelAdded(updatedLabels)
-                                    return newLabel
-                                }
-                            }}
-                            optionText="name"
+                            onChange={handlePermissionLabelChanged}
                             choices={choices}
-                            freeSolo={true}
                             disabled={
-                                !(
-                                    createMode ||
-                                    !electionEventId ||
-                                    canEditVoters ||
-                                    enabledByVoteNum
-                                )
+                                !createMode &&
+                                !electionEventId &&
+                                !canEditVoters &&
+                                !enabledByVoteNum
                             }
-                            onKeyDown={(e) => {
-                                if (e.key === "Enter") {
-                                    e.preventDefault()
-                                    const input = e.target as HTMLInputElement
-                                    const newLabel = input.value
-                                    if (newLabel) {
-                                        const updatedChoices = [
-                                            ...choices,
-                                            {id: newLabel, name: newLabel},
-                                        ]
-                                        const updatedLabels = [...permissionLabels, newLabel]
-                                        setChoices(updatedChoices)
-                                        setPermissionLabels(updatedLabels)
-                                        handlePermissionLabelAdded(updatedLabels)
-                                        input.value = ""
-                                    }
-                                }
-                            }}
                         />
                     )
                 }
@@ -857,7 +820,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                 )
             }
         },
-        [user, permissionLabels, choices]
+        [user, permissionLabels, choices, electionsList]
     )
 
     const isFieldRequired = (config: UserProfileAttribute): boolean => {
@@ -874,7 +837,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     const formFields = useMemo(() => {
         // to check if fields are required
         return userAttributes?.map((attr) => renderFormField(attr))
-    }, [userAttributes, user, permissionLabels, choices])
+    }, [userAttributes, user, permissionLabels, choices, electionsList])
 
     if (!user && !createMode) {
         return null
