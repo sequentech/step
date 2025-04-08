@@ -139,13 +139,21 @@
                   {{sanitize_html (expr ../election_annotations.post)}}
                 </td>
               </tr>
-              <tr>
-                <td class="key">
-                  <strong>Clustered Precinct ID:</strong>
-                </td>
-                <td class="value">
-                  {{sanitize_html (expr ../election_annotations.clustered_precint_id)}}
-                </td>
+               <tr>
+                 <td class="key">
+                <strong>Clustered Precinct ID:</strong>
+              </td>
+              <td class="value">
+                {{sanitize_html (expr ../election_annotations.pollcenter_code)}}
+              </td>
+            </tr>
+            <tr>
+              <td class="key">
+                <strong>Precincts in the Cluster:</strong>
+              </td>
+              <td class="value">
+                {{sanitize_html (expr ../election_annotations.clustered_precint_id)}}
+              </td>
               </tr>
             </table>
           </div>
@@ -193,10 +201,10 @@
             </tbody>
           </table>
           {{#if  (gte this.overvotes 1)}}
-          <strong>OVERVOTE</strong>
+          <strong>{{this.overvotes}} OVERVOTE/S</strong>
           {{/if}}
           {{#if (gte this.undervotes 1)}}
-          <strong>UNDERVITE</strong>
+          <strong>{{this.undervotes}} UNDERVOTE/S</strong>
           {{/if}}
         </td>
         {{/if}}

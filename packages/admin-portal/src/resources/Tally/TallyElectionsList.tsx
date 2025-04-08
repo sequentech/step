@@ -43,6 +43,13 @@ export const TallyElectionsList: React.FC<TallyElectionsListProps> = (props) => 
     useEffect(() => {
         if (filteredElections) {
             const temp: Array<Sequent_Backend_Election_Extended> = (filteredElections || [])
+                .sort((a, b) => {
+                    if (a.alias && b.alias) {
+                        return a.alias.localeCompare(b.alias)
+                    } else {
+                        return a.name.localeCompare(b.name)
+                    }
+                })
                 .map((election, index) => ({
                     ...election,
                     rowId: index,

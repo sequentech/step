@@ -41,10 +41,12 @@ const SelectTemplate = ({
     })
 
     const choices = templates
-        ? templates.map((template) => ({
-              id: template.alias,
-              name: template.template.name,
-          }))
+        ? templates
+              .sort((a, b) => a.alias.localeCompare(b.alias))
+              .map((template) => ({
+                  id: template.alias,
+                  name: template.template.name,
+              }))
         : []
 
     const handleTemplateChange = (alias: string) => {

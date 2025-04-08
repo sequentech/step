@@ -41,7 +41,7 @@ enum VoterStatus {
     Voted,
     #[strum(to_string = "Did Not Vote")]
     NotVoted,
-    #[strum(to_string = "Did Not Pre-enrolled")]
+    #[strum(to_string = "Did Not Pre-enroll")]
     DidNotPreEnrolled,
 }
 
@@ -302,6 +302,7 @@ pub async fn get_voters_with_vote_info(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
+    election_id: Option<&str>,
     users: Vec<Voter>,
     filter_by_has_voted: Option<bool>,
 ) -> Result<(Vec<Voter>, i64)> {
@@ -309,6 +310,11 @@ pub async fn get_voters_with_vote_info(
         Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
     let election_event_uuid = Uuid::parse_str(election_event_id)
         .with_context(|| "Error parsing election_event_id as UUID")?;
+
+    let election_uuid_opt = election_id
+        .clone()
+        .map(|val| Uuid::parse_str(&val))
+        .transpose()?;
 
     // Prepare the list of user IDs for the query
     let user_ids: Vec<String> = users
@@ -332,7 +338,8 @@ pub async fn get_voters_with_vote_info(
             WHERE
                 v.tenant_id = $1 AND
                 v.election_event_id = $2 AND
-                v.voter_id_string = ANY($3)
+                v.voter_id_string = ANY($3) AND
+                ($4::uuid IS NULL OR v.election_id = $4::uuid)
             GROUP BY
                 v.voter_id_string, v.election_id;
             "#,
@@ -343,7 +350,12 @@ pub async fn get_voters_with_vote_info(
     let rows = hasura_transaction
         .query(
             &vote_info_statement,
-            &[&tenant_uuid, &election_event_uuid, &user_ids],
+            &[
+                &tenant_uuid,
+                &election_event_uuid,
+                &user_ids,
+                &election_uuid_opt,
+            ],
         )
         .await
         .with_context(|| "Error executing the vote info query")?;
@@ -573,6 +585,7 @@ pub async fn get_voters_data(
                 &hasura_transaction,
                 &tenant_id,
                 &election_event_id,
+                Some(&election_id),
                 voters.clone(),
                 voters_filter.has_voted,
             )
