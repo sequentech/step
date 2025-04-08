@@ -1,7 +1,6 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::hasura::tally_session_execution::get_last_tally_session_execution::GetLastTallySessionExecutionSequentBackendTallySessionExecution;
 use crate::postgres::results_area_contest::insert_results_area_contests;
 use crate::postgres::results_area_contest_candidate::insert_results_area_contest_candidates;
 use crate::postgres::results_contest::insert_results_contests;
@@ -15,6 +14,7 @@ use sequent_core::services::connection;
 use sequent_core::services::keycloak;
 use sequent_core::types::ceremonies::TallyType;
 use sequent_core::types::hasura::core::Area;
+use sequent_core::types::hasura::core::TallySessionExecution;
 use sequent_core::types::results::*;
 use serde_json::json;
 use std::cmp;
@@ -292,7 +292,7 @@ pub async fn generate_results_id_if_necessary(
     tenant_id: &str,
     election_event_id: &str,
     session_ids_opt: Option<Vec<i64>>,
-    previous_execution: GetLastTallySessionExecutionSequentBackendTallySessionExecution,
+    previous_execution: TallySessionExecution,
     state_opt: &Option<State>,
 ) -> Result<Option<String>> {
     if state_opt.is_none() {
@@ -317,7 +317,7 @@ pub async fn populate_results_tables(
     tenant_id: &str,
     election_event_id: &str,
     session_ids: Option<Vec<i64>>,
-    previous_execution: GetLastTallySessionExecutionSequentBackendTallySessionExecution,
+    previous_execution: TallySessionExecution,
     areas: &Vec<Area>,
     default_language: &str,
     tally_type_enum: TallyType,
