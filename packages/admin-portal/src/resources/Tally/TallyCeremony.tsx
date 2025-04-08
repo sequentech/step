@@ -815,7 +815,7 @@ export const TallyCeremony: React.FC = () => {
                             */}
                             {isButtonDisabled && (
                                 <Alert severity="warning">
-                                    {t("electionEventScreen.tally.notify.cerermonyDisabled")}
+                                    {t("electionEventScreen.tally.notify.ceremonyDisabled")}
                                 </Alert>
                             )}
                             <TallyElectionsList
