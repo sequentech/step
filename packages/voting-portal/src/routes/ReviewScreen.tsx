@@ -68,13 +68,8 @@ import {sortContestList, hashBallot, hashMultiBallot} from "@sequentech/ui-core"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import {AuthContext} from "../providers/AuthContextProvider"
 import {useGetOne} from "react-admin"
-import {
-    IElectionEvent,
-    selectElectionEventById,
-} from "../store/electionEvents/electionEventsSlice"
-import {
-    selectElections,
-} from "../store/elections/electionsSlice"
+import {IElectionEvent, selectElectionEventById} from "../store/electionEvents/electionEventsSlice"
+import {selectElections} from "../store/elections/electionsSlice"
 import {fetchJson} from "../services/FetchS3BallotFiles"
 import {GET_BALLOT_FILES_URLS} from "../queries/GetBallotFilesUrls"
 
@@ -478,7 +473,6 @@ export const ReviewScreen: React.FC = () => {
         }
     }
 
-
     const fakeCastVote = (): ICastVote => ({
         id: eventId ?? "",
         tenant_id: tenantId ?? "",
@@ -579,7 +573,6 @@ export const ReviewScreen: React.FC = () => {
         }
 
         try {
-
             if (!dataElectionEvent) {
                 isCastingBallot.current = false
                 setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.LOAD_ELECTION_EVENT}`))
@@ -645,7 +638,10 @@ export const ReviewScreen: React.FC = () => {
             loadingS3Data.current = false
         }
 
-        if ((!ballotStyle || !auditableBallot || !selectionState || isRefreshedOrReauth) && isGoldUserRef.current !== undefined) {
+        if (
+            (!ballotStyle || !auditableBallot || !selectionState || isRefreshedOrReauth) &&
+            isGoldUserRef.current !== undefined
+        ) {
             if (isGoldUserRef.current) {
                 if (!isCastingBallot.current) {
                     console.log("Gold user flow")
@@ -666,7 +662,14 @@ export const ReviewScreen: React.FC = () => {
         } else {
             console.log("Normal flow")
         }
-    }, [ballotStyle, selectionState, auditableBallot, isGoldenPolicy, dataElectionEvent, dataElections])
+    }, [
+        ballotStyle,
+        selectionState,
+        auditableBallot,
+        isGoldenPolicy,
+        dataElectionEvent,
+        dataElections,
+    ])
 
     if (!ballotStyle || !auditableBallot) {
         return errorMsg ? (

@@ -39,10 +39,7 @@ import Stepper from "../components/Stepper"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import {provideBallotService} from "../services/BallotService"
 import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortalError"
-import {
-    selectElections,
-    IElectionExtended,
-} from "../store/elections/electionsSlice"
+import {selectElections, IElectionExtended} from "../store/elections/electionsSlice"
 import {downloadUrl} from "@sequentech/ui-core"
 import {SessionBallotData} from "../store/castVotes/castVotesSlice"
 
