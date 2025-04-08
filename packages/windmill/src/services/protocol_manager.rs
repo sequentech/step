@@ -45,7 +45,7 @@ pub async fn create_protocol_manager_keys(
     // create protocol manager keys
     let protocol_manager = gen_protocol_manager::<RistrettoCtx>();
     // save protocol manager keys in vault
-    let protocol_config = serialize_protocol_manager::<RistrettoCtx>(&protocol_manager);
+    let protocol_config = serialize_protocol_manager::<RistrettoCtx>(&protocol_manager)?;
     let protocol_key = get_protocol_manager_secret_path(board_name);
     vault::save_secret(
         hasura_transaction,
@@ -70,16 +70,16 @@ pub fn gen_protocol_manager<C: Ctx>() -> ProtocolManager<C> {
 }
 
 #[instrument]
-pub fn serialize_protocol_manager<C: Ctx>(pm: &ProtocolManager<C>) -> String {
+pub fn serialize_protocol_manager<C: Ctx>(pm: &ProtocolManager<C>) -> Result<String> {
     let pmc = ProtocolManagerConfig::from(&pm);
-    toml::to_string(&pmc).unwrap()
+    toml::to_string(&pmc).map_err(|err| anyhow!("{:?}", err))
 }
 
-#[instrument]
-pub fn deserialize_protocol_manager<C: Ctx>(contents: String) -> ProtocolManager<C> {
-    let pmc: ProtocolManagerConfig = toml::from_str(&contents).unwrap();
-    let pmkey = pmc.get_signing_key().unwrap();
-    ProtocolManager::new(pmkey)
+#[instrument(err)]
+pub fn deserialize_protocol_manager<C: Ctx>(contents: String) -> Result<ProtocolManager<C>> {
+    let pmc: ProtocolManagerConfig = toml::from_str(&contents)?;
+    let pmkey = pmc.get_signing_key()?;
+    Ok(ProtocolManager::new(pmkey))
 }
 
 #[instrument(err, skip_all)]
@@ -338,7 +338,7 @@ pub async fn get_protocol_manager<C: Ctx>(
     )
     .await?
     .ok_or(anyhow!("protocol manager secret not found"))?;
-    Ok(deserialize_protocol_manager::<C>(protocol_manager_data))
+    deserialize_protocol_manager::<C>(protocol_manager_data)
 }
 
 #[instrument(skip(b3_client), err)]
