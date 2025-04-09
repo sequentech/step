@@ -393,6 +393,7 @@ pub async fn create_tally_ceremony(
 
     let annotations: Value = json!({
         "executer_username": username,
+        "executer_user_id": user_id,
     });
 
     let _tally_session = insert_tally_session(
@@ -477,7 +478,10 @@ pub async fn update_tally_ceremony(
     election_event_id: String,
     tally_session: TallySession,
     new_execution_status: TallyExecutionStatus,
+    user_id: String,
+    username: String,
 ) -> Result<()> {
+    let auth_headers = keycloak::get_client_credentials().await?;
     let current_status = tally_session
         .execution_status
         .map(|value| {
@@ -570,7 +574,7 @@ pub async fn update_tally_ceremony(
                 .await?;
             event!(Level::INFO, "Sent INSERT_BALLOTS task {}", task.task_id);
         }
-
+*/
         // get the election event
         let election_event = get_election_event_helper(
             auth_headers.clone(),
@@ -583,12 +587,12 @@ pub async fn update_tally_ceremony(
         let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
             .with_context(|| "missing bulletin board")?;
 
-        let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
+        let electoral_log = ElectoralLog::for_admin_user(&hasura_transaction, board_name.as_str(), &tenant_id,&election_event_id,&user_id,Some(username.clone()),None, None).await?;
         electoral_log
-            .post_tally_open(election_event_id.to_string(), None)
+            .post_tally_open(election_event_id.to_string(), None, Some(user_id), Some(username))
             .await
             .with_context(|| "error posting to the electoral log")?;
-    }*/
+    
 
     Ok(())
 }
@@ -813,6 +817,15 @@ pub async fn set_tally_session_completed(
         )
         .await?;
 
+    let tally_session = get_tally_session_by_id(hasura_transaction, &tenant_id, &election_event_id, &tally_session_id).await?;
+        
+        let annotations = match tally_session.annotations {
+            Some(annotations) => annotations,
+            None => json!({}),
+        };
+
+        let username = annotations.get("executer_username").and_then(|val| val.as_str().map(|s| s.to_string())); 
+        let user_id = annotations.get("executer_user_id").and_then(|val| val.as_str().map(|s| s.to_string()));
         let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
             .with_context(|| "missing bulletin board")?;
 
@@ -825,7 +838,7 @@ pub async fn set_tally_session_completed(
         .await?;
 
         electoral_log
-            .post_tally_close(election_event_id.to_string(), None, None, None)
+            .post_tally_close(election_event_id.to_string(), None, user_id, username)
             .await
             .with_context(|| "error posting to the electoral log")?;
     }
