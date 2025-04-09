@@ -101,6 +101,7 @@ use uuid::Uuid;
 
 #[instrument(skip_all, err)]
 fn get_ballot_styles(tally_session_data: &ResponseData) -> Result<Vec<BallotStyle>> {
+    info!("get_ballot_styles start at {} ", Utc::now().to_rfc3339());
     // get ballot styles, from where we'll get the Contest(s)
     tally_session_data
         .sequent_backend_ballot_style
@@ -129,6 +130,7 @@ async fn generate_area_contests_mc(
     tenant_id: &str,
     election_event_id: &str,
 ) -> AnyhowResult<Vec<AreaContestDataType>> {
+    info!("generate_area_contests_mc start at {} ", Utc::now().to_rfc3339());
     let all_contests = export_contests(hasura_transaction, tenant_id, election_event_id).await?;
     let areas_map: HashMap<String, Area> = areas
         .clone()
@@ -229,7 +231,7 @@ async fn generate_area_contests_mc(
             })
         }
     }
-
+    info!("generate_area_contests_mc finish at {} ", Utc::now().to_rfc3339());
     Ok(almost_vec)
 }
 
@@ -240,6 +242,7 @@ fn generate_area_contests(
     tally_session_data: &ResponseData,
     areas: &Vec<Area>,
 ) -> AnyhowResult<Vec<AreaContestDataType>> {
+    info!("generate_area_contests start at {} ", Utc::now().to_rfc3339());
     let areas_map: HashMap<String, Area> = areas
         .clone()
         .into_iter()
@@ -315,7 +318,7 @@ fn generate_area_contests(
             })
         })
         .collect();
-
+    info!("generate_area_contests finish at {} ", Utc::now().to_rfc3339());
     Ok(almost_vec)
 }
 
@@ -332,6 +335,7 @@ async fn process_plaintexts(
     election_event_id: &str,
     contest_encryption_policy: ContestEncryptionPolicy,
 ) -> Result<Vec<AreaContestDataType>> {
+    info!("process_plaintexts start at {} ", Utc::now().to_rfc3339());
     event!(
         Level::WARN,
         "Num sequent_backend_tally_session_contest = {}",
@@ -463,11 +467,13 @@ async fn process_plaintexts(
             .with_context(|| "Too many auditable ballots")?;
         data.push(area_contest);
     }
+    info!("process_plaintexts finish at {} ", Utc::now().to_rfc3339());
     Ok(data)
 }
 
 #[instrument]
 fn get_execution_status(execution_status: Option<String>) -> Option<TallyExecutionStatus> {
+    info!("get_execution_status start at {} ", Utc::now().to_rfc3339());
     let Some(execution_status_str) = execution_status.clone() else {
         event!(Level::INFO, "Missing execution status");
 
@@ -495,6 +501,7 @@ fn get_execution_status(execution_status: Option<String>) -> Option<TallyExecuti
 
         return None;
     };
+    info!("get_execution_status finish at {} ", Utc::now().to_rfc3339());
     Some(execution_status)
 }
 
@@ -506,6 +513,7 @@ pub async fn count_cast_votes_election_with_census(
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<Vec<ElectionCastVotes>> {
+    info!("count_cast_votes_election_with_census start at {} ", Utc::now().to_rfc3339());
     let mut cast_votes =
         count_cast_votes_election(&hasura_transaction, &tenant_id, &election_event_id, None)
             .await?;
@@ -554,7 +562,7 @@ pub async fn count_cast_votes_election_with_census(
         .await?;
         cast_vote.census = census as i64;
     }
-
+    info!("count_cast_votes_election_with_census finish at {} ", Utc::now().to_rfc3339());
     Ok(cast_votes)
 }
 
@@ -569,6 +577,8 @@ pub async fn get_eligible_voters(
     area_id: &str,
     election_alias: &str,
 ) -> Result<u64> {
+    info!("get_eligible_voters start at {} ", Utc::now().to_rfc3339());
+
     let realm = get_event_realm(tenant_id, election_event_id);
 
     let (_users, census) = list_users(
@@ -597,6 +607,7 @@ pub async fn get_eligible_voters(
         },
     )
     .await?;
+    info!("get_eligible_voters finish at {} ", Utc::now().to_rfc3339());
     Ok(census as u64)
 }
 
@@ -613,6 +624,7 @@ pub async fn upsert_ballots_messages(
     tally_session_contests: &Vec<GetLastTallySessionExecutionSequentBackendTallySessionContest>,
     tally_session_hasura: &TallySession,
 ) -> Result<Vec<GetLastTallySessionExecutionSequentBackendTallySessionContest>> {
+    info!("upsert_ballots_messages start at {} ", Utc::now().to_rfc3339());
     let contest_encryption_policy = tally_session_hasura
         .configuration
         .clone()
@@ -665,6 +677,7 @@ pub async fn upsert_ballots_messages(
         )
         .await?;
     }
+    info!("upsert_ballots_messages finish at {} ", Utc::now().to_rfc3339());
     Ok(missing_ballots_batches)
 }
 
@@ -685,6 +698,7 @@ pub fn clean_tally_sheets(
     tally_sheet_rows: &Vec<TallySheet>,
     plaintexts_data: &Vec<AreaContestDataType>,
 ) -> Result<Vec<TallySheet>> {
+    info!("clean_tally_sheets start at {} ", Utc::now().to_rfc3339());
     let contests_map: HashMap<String, Contest> = plaintexts_data
         .clone()
         .into_iter()
@@ -752,6 +766,7 @@ async fn map_plaintext_data(
         TallySession,
     )>,
 > {
+    info!("map_plaintext_data start at {} ", Utc::now().to_rfc3339());
     // fetch election_event
     let Ok(election_event) =
         get_election_event_by_id(hasura_transaction, &tenant_id, &election_event_id).await
@@ -964,6 +979,7 @@ async fn map_plaintext_data(
 
     // get ballot styles, from where we'll get the Contest(s)
     let ballot_styles: Vec<BallotStyle> = get_ballot_styles(&tally_session_data)?;
+    info!("get_ballot_styles finish at {} ", Utc::now().to_rfc3339());
     event!(Level::INFO, "Num ballot_styles {}", ballot_styles.len());
 
     // find all plaintexs (even with lower ids/timestamps) for this tally session/batch ids
@@ -1012,7 +1028,7 @@ async fn map_plaintext_data(
     .await?;
     event!(Level::INFO, "Num plaintexts_data {}", plaintexts_data.len());
     let tally_sheets = clean_tally_sheets(&tally_sheet_rows, &plaintexts_data)?;
-
+    info!("clean_tally_sheets finish at {} ", Utc::now().to_rfc3339());
     let cast_votes_count = count_cast_votes_election_with_census(
         auth_headers.clone(),
         hasura_transaction,
@@ -1021,6 +1037,7 @@ async fn map_plaintext_data(
         &election_event_id,
     )
     .await?;
+    info!("map_plaintext_data finish at {} ", Utc::now().to_rfc3339());
     Ok(Some((
         plaintexts_data,
         newest_message_id,
@@ -1054,6 +1071,7 @@ async fn build_reports_template_data(
     election_id: &str,
     hasura_transaction: &Transaction<'_>,
 ) -> Result<(Option<String>, String, Option<PrintToPdfOptionsLocal>)> {
+    info!("build_reports_template_data start at {} ", Utc::now().to_rfc3339());
     let (report_content_template, pdf_options): (Option<String>, Option<PrintToPdfOptionsLocal>) =
         match tally_type_enum {
             TallyType::INITIALIZATION_REPORT => {
@@ -1141,6 +1159,7 @@ async fn build_reports_template_data(
         }
         _ => get_public_asset_template(PUBLIC_ASSETS_ELECTORAL_RESULTS_TEMPLATE_SYSTEM).await?,
     };
+    info!("build_reports_template_data finish at {} ", Utc::now().to_rfc3339());
     Ok((report_content_template, report_system_template, pdf_options))
 }
 
@@ -1155,6 +1174,8 @@ pub async fn execute_tally_session_wrapped(
     tally_type: Option<String>,
     election_ids: Option<Vec<String>>,
 ) -> Result<()> {
+    info!("execute_tally_session_wrapped start at {} ", Utc::now().to_rfc3339());
+
     let Some((tally_session_execution, tally_session, tally_session_data)) =
         find_last_tally_session_execution(
             auth_headers.clone(),
@@ -1300,6 +1321,7 @@ pub async fn execute_tally_session_wrapped(
         // update tally session to flag it as completed
         set_tally_session_completed(
             auth_headers.clone(),
+            hasura_transaction,
             tenant_id.clone(),
             election_event_id.clone(),
             tally_session_id.clone(),
@@ -1335,7 +1357,7 @@ pub async fn execute_tally_session_wrapped(
             }
         }
     }
-
+    info!("execute_tally_session_wrapped finish at {} ", Utc::now().to_rfc3339());
     Ok(())
 }
 
@@ -1347,6 +1369,7 @@ pub async fn transactions_wrapper(
     tally_type: Option<String>,
     election_ids: Option<Vec<String>>,
 ) -> Result<()> {
+    info!("transactions_wrapper start at {} ", Utc::now().to_rfc3339());
     let auth_headers = keycloak::get_client_credentials().await?;
     let mut keycloak_db_client: DbClient = get_keycloak_pool()
         .await
@@ -1378,7 +1401,7 @@ pub async fn transactions_wrapper(
         election_ids.clone(),
     )
     .await;
-
+    info!("transactions_wrapper finish at {} ", Utc::now().to_rfc3339());
     match res {
         Ok(res) => {
             hasura_transaction
@@ -1415,6 +1438,7 @@ pub async fn execute_tally_session(
     tally_type: Option<String>,
     election_ids: Option<Vec<String>>,
 ) -> Result<()> {
+    info!("execute_tally_session start at {} ", Utc::now().to_rfc3339());
     let _permit = acquire_semaphore().await?;
     let Ok(lock) = PgLock::acquire(
         format!(
@@ -1453,5 +1477,6 @@ pub async fn execute_tally_session(
         }
     };
     lock.release().await?;
+    info!("execute_tally_session finish at {} ", Utc::now().to_rfc3339());
     res
 }

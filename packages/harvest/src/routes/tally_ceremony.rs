@@ -19,12 +19,14 @@ use sequent_core::{
     services::jwt::JwtClaims, types::hasura::core::TallySessionConfiguration,
 };
 use serde::{Deserialize, Serialize};
-use tracing::{event, instrument, Level};
+use tracing::{event, instrument, Level, info};
 use windmill::postgres::election::get_elections_by_ids;
 use windmill::postgres::tally_session::get_tally_session_by_id;
 use windmill::services::{
     ceremonies::tally_ceremony, database::get_hasura_pool,
 };
+
+use chrono::Utc;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CreateTallyCeremonyInput {
@@ -125,6 +127,7 @@ pub async fn update_tally_ceremony(
         vec![Permissions::ADMIN_CEREMONY],
     )?;
     let input = body.into_inner();
+    info!("Update Tally Ceremony. status:{}  at {}",input.status.clone(), Utc::now().to_rfc3339());
     let tenant_id = claims.hasura_claims.tenant_id.clone();
     let user_id = claims.clone().hasura_claims.user_id;
     let username = claims

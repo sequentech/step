@@ -462,8 +462,10 @@ pub async fn create_tally_ceremony(
 
     // let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
     let electoral_log = ElectoralLog::for_admin_user(
+        transaction,
         &board_name,
         &tenant_id,
+        &election_event_id,
         user_id,
         Some(username.clone()),
         Some(election_ids_str.clone()),
@@ -777,8 +779,10 @@ pub async fn set_private_key(
 
     // let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
     let electoral_log = ElectoralLog::for_admin_user(
+        transaction,
         &board_name,
         &tenant_id,
+        election_event_id,
         user_id,
         username.clone(),
         Some(tally_elections_ids.clone()),

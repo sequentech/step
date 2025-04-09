@@ -545,9 +545,12 @@ pub async fn build_ballot_images_pipe_config(
     minio_endpoint_base: String,
     public_asset_path: String,
 ) -> Result<PipeConfigVoteReceipts> {
+    let tenant_id = &tally_session.tenant_id;
+    let election_event_id = &tally_session.election_event_id;
+
     let ballot_images_renderer = BallotImagesTemplate::new(ReportOrigins {
-        tenant_id: tally_session.tenant_id.clone(),
-        election_event_id: tally_session.election_event_id.clone(),
+        tenant_id: tenant_id.to_string(),
+        election_event_id: election_event_id.to_string(),
         election_id: None,
         template_alias: None,
         voter_id: None,
@@ -578,7 +581,7 @@ pub async fn build_ballot_images_pipe_config(
         ),
     };
 
-    let acm_key = get_acm_key_pair().await?;
+    let acm_key = get_acm_key_pair(hasura_transaction, &tenant_id, &election_event_id).await?;
 
     let ballot_images_pipe_config = PipeConfigVoteReceipts {
         template: user_tpl_document,

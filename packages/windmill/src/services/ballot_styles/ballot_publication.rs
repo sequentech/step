@@ -232,8 +232,10 @@ pub async fn update_publish_ballot(
 
     // let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
     let electoral_log = ElectoralLog::for_admin_user(
+        hasura_transaction,
         &board_name,
         &tenant_id,
+        &election_event.id,
         &user_id,
         Some(username.clone()),
         election_ids_str.clone(),

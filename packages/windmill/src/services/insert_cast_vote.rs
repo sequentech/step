@@ -248,9 +248,10 @@ pub async fn try_insert_cast_vote(
         deserialize_and_check_ballot(&input.content, voter_id)?
     };
 
-    let (electoral_log, signing_key) = get_electoral_log(&election_event)
-        .await
-        .map_err(|e| CastVoteError::ElectoralLogNotFound(e.to_string()))?;
+    let (electoral_log, signing_key) =
+        get_electoral_log(&hasura_transaction, &tenant_id, &election_event)
+            .await
+            .map_err(|e| CastVoteError::ElectoralLogNotFound(e.to_string()))?;
 
     // From this point on, we have all variables needed to do post_cat_vote_error
     let election_id_string = input.election_id.to_string();
@@ -279,6 +280,7 @@ pub async fn try_insert_cast_vote(
             .map_err(|e| CastVoteError::BallotVoterSignatureFailed(e.to_string()))?;
 
         let voter_signing_key = get_voter_signing_key(
+            &hasura_transaction,
             &board_name,
             ids.tenant_id,
             ids.election_event_id,
@@ -315,6 +317,16 @@ pub async fn try_insert_cast_vote(
 
     match result {
         Ok(inserted_cast_vote) => {
+            let mut after_result_hasura_client: DbClient = get_hasura_pool()
+                .await
+                .get()
+                .await
+                .map_err(|e| CastVoteError::GetDbClientFailed(e.to_string()))?;
+            let after_result_hasura_transaction = after_result_hasura_client
+                .transaction()
+                .await
+                .map_err(|e| CastVoteError::GetTransactionFailed(e.to_string()))?;
+
             if is_datafix_election_event(&election_event) {
                 // If insert_cast_vote_and_commit fails then we will not send SetVoted to VoterView.
                 // However if the one failing is voterview_requests::send returning an error here would be problematic
@@ -384,6 +396,7 @@ pub async fn try_insert_cast_vote(
                 }
             }
             let electoral_log_res = ElectoralLog::for_voter(
+                &after_result_hasura_transaction,
                 &electoral_log.elog_database,
                 tenant_id,
                 election_event_id,
@@ -617,15 +630,30 @@ pub(crate) fn hash_voter_id(voter_id: &str) -> Result<Hash, StrandError> {
 
 #[instrument(skip_all, err)]
 async fn get_electoral_log(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
     election_event: &ElectionEvent,
 ) -> anyhow::Result<(ElectoralLog, StrandSignatureSk)> {
     let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
         .with_context(|| "missing bulletin board")?;
 
-    let protocol_manager = get_protocol_manager::<RistrettoCtx>(&board_name).await?;
+    let protocol_manager = get_protocol_manager::<RistrettoCtx>(
+        hasura_transaction,
+        tenant_id,
+        Some(&election_event.id),
+        &board_name,
+    )
+    .await?;
     let sk = protocol_manager.get_signing_key();
 
-    let electoral_log = ElectoralLog::new_from_sk(board_name.as_str(), &sk).await;
+    let electoral_log = ElectoralLog::new_from_sk(
+        hasura_transaction,
+        tenant_id,
+        &election_event.id,
+        board_name.as_str(),
+        &sk,
+    )
+    .await;
 
     Ok((electoral_log?, sk.clone()))
 }
