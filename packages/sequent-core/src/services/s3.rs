@@ -106,7 +106,7 @@ pub fn get_ballot_publication_file_path(
         election_event_id,
         area_id,
     );
-    format!("{base_path}/ballot-publication.json")
+    format!("{base_path}/ballot-publications.json")
 }
 
 #[instrument(skip_all)]

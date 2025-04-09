@@ -8,7 +8,7 @@ use crate::postgres::ballot_publication::{
     get_ballot_publication, get_ballot_publication_by_id, update_ballot_publication_status,
 };
 use crate::postgres::ballot_style::{
-    get_ballot_styles_by_ballot_publication_by_id, insert_ballot_style,
+    get_active_ballot_styles, get_ballot_styles_by_ballot_publication_by_id, insert_ballot_style,
 };
 use crate::postgres::candidate::export_candidates;
 use crate::postgres::contest::export_contests;
@@ -416,32 +416,44 @@ pub async fn upload_election_event_ballot_s3_files(
     Ok(())
 }
 
-/// Replace ballot-publication.json files in the folder "tenant-{tenant_id}/event-{election_event_id}/area-{area_id}/"
-/// for each area. To have the last publication accessible in the private bucket.
-#[instrument(skip(hasura_transaction, ballot_publication), err)]
+/// Replace ballot-publications.json files in the folder "tenant-{tenant_id}/event-{election_event_id}/area-{area_id}/"
+/// for each area. To have the active publications accessible in the private bucket.
+#[instrument(skip(hasura_transaction), err)]
 pub async fn replace_ballot_publication_s3_files(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
-    ballot_publication: &BallotPublication,
+    ballot_publication_id: &str,
+    election_id: Option<String>,
 ) -> Result<()> {
-    let s3_bucket = s3::get_private_bucket()?;
-    let ballot_publication_id: &str = &ballot_publication.id;
-
-    let areas: HashSet<String> = get_ballot_styles_by_ballot_publication_by_id(
+    // Set the publication ids (PUB IDs) in the S3 file ballot-publications.json, to have only the publications that are still active for each area.
+    // In case of publishing from the election level: there will be only one ballot style BUT
+    // the rest of the elections (its ballot styles) are needed as well and are in previous publication id folders,
+    // so we need to write in this file all the PUB IDs that are active - that is each not deleted ballot style row.
+    let mut ballot_publication_ids: HashSet<String> = HashSet::new();
+    let ballot_styles: Vec<BallotStyle> = get_active_ballot_styles(
         hasura_transaction,
         tenant_id,
         election_event_id,
-        ballot_publication_id,
+        election_id,
     )
-    .await?
-    .iter()
-    .fold(HashSet::new(), |mut f, ballot_style| {
-        f.insert(ballot_style.area_id.clone().unwrap_or_default());
-        f
-    });
+    .await
+    .map_err(|err| format!("Error getting active ballot styles: {err:?}"))?;
 
-    let ballot_publication_data = serde_json::to_string(&ballot_publication)
+    let s3_bucket = s3::get_private_bucket()?;
+    // WIP...
+    let mut areas = HashSet::new();
+    for ballot_style in &ballot_styles {
+        ballot_publication_ids.insert(ballot_style.ballot_publication_id.clone());
+        areas.insert(ballot_style.area_id.clone().unwrap_or_default());
+    }
+
+    // Since the previous PUB ID folders also contain an equally named ballot-style-{election_id} it is important to write this PUB ID first.
+    ballot_publication_ids.remove(ballot_publication_id);
+    let mut bp_data_vec = vec![ballot_publication_id.to_string()];
+    bp_data_vec.append(&mut ballot_publication_ids.iter().cloned().collect());
+
+    let ballot_publication_data = serde_json::to_string(&bp_data_vec)
         .map_err(|err| format!("Error serializing ballot publications to json: {err:?}"))?;
 
     for area_id in &areas {
