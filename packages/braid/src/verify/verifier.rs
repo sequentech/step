@@ -251,29 +251,29 @@ impl<C: Ctx> Verifier<C> {
 
         // check ballot
         if let Some(ballot) = self.ballot.clone() {
-            info!("ballot: \"{}\"", ballot.ballot);
+            info!("Searching ballot");
             let hashable_ballot_contest_bytes = general_purpose::STANDARD_NO_PAD
                 .decode(ballot.ballot.clone())
                 .unwrap();
-            let hashable_ballot_contest: HashableBallotContest<C> =
+            let hashable_ballot_contest: HashableMultiBallotContests<C> =
                 StrandDeserialize::strand_deserialize(&hashable_ballot_contest_bytes.as_slice())
                     .unwrap();
             let ballot_ciphertext_bytes = hashable_ballot_contest.ciphertext.strand_serialize()?;
-            let ballot_ciphertext_h = strand::hash::hash_to_array(&ballot_ciphertext_bytes)?; // sha512
 
             for message in &vmessages[1..] {
                 if message.statement.get_batch_number() == ballot.batch_number
                     && StatementType::Ballots == message.statement.get_kind()
                 {
-                    info!("Ballots 0");
+                    info!("Found Ballots message for batch {}", ballot.batch_number);
                     if let Some(bytes) = message.artifact.clone() {
                         let ballots = Ballots::<C>::strand_deserialize(&bytes).unwrap();
-                        info!("Ballots 1 num ciphertexts {}", ballots.ciphertexts.0.len());
+                        info!(
+                            "Num ciphertexts in Ballots message {}",
+                            ballots.ciphertexts.0.len()
+                        );
                         for ciphertext in ballots.ciphertexts.0 {
-                            info!("Ballots 2");
                             let ciphertext_bytes = ciphertext.strand_serialize()?;
-                            let ciphertext_h = strand::hash::hash_to_array(&ciphertext_bytes)?; // sha512
-                            if ballot_ciphertext_h == ciphertext_h {
+                            if ballot_ciphertext_bytes == ciphertext_bytes {
                                 info!(
                                     "Ciphertext found for ballot: {} and batch {}",
                                     ballot.ballot, ballot.batch_number
