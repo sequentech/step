@@ -240,3 +240,45 @@ pub async fn insert_results_area_contest_candidates(
 
     Ok(values)
 }
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn get_event_results_area_contest_candidates(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<Vec<ResultsAreaContestCandidate>> {
+    let tenant_uuid: uuid::Uuid = Uuid::parse_str(&tenant_id)
+        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
+    let election_event_uuid: uuid::Uuid = Uuid::parse_str(&election_event_id)
+        .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
+
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT
+                    *
+                FROM
+                    sequent_backend.results_area_contest_candidate
+                WHERE
+                    tenant_id = $1 AND
+                    election_event_id = $2;
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(&statement, &[&tenant_uuid, &election_event_uuid])
+        .await
+        .map_err(|err| anyhow!("Error running the areas query: {}", err))?;
+
+    let results_area_contest_candidate: Vec<ResultsAreaContestCandidate> = rows
+        .into_iter()
+        .map(|row| -> Result<ResultsAreaContestCandidate> {
+            row.try_into().map(
+                |res: ResultsAreaContestCandidateWrapper| -> ResultsAreaContestCandidate { res.0 },
+            )
+        })
+        .collect::<Result<Vec<ResultsAreaContestCandidate>>>()?;
+
+    Ok(results_area_contest_candidate)
+}

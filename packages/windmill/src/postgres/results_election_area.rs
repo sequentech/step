@@ -97,7 +97,7 @@ pub async fn insert_results_election_area_documents(
 }
 
 #[instrument(err)]
-pub async fn get_election_area_results_be_event_id(
+pub async fn get_event_results_election_area(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
@@ -116,7 +116,7 @@ pub async fn get_election_area_results_be_event_id(
                     sequent_backend.results_election_area
                 WHERE
                     tenant_id = $1 AND
-                    election_event_id = $2 AND
+                    election_event_id = $2;
             "#,
         )
         .await?;

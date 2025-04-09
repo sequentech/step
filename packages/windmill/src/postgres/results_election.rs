@@ -308,7 +308,7 @@ pub async fn get_results_election_by_results_event_id(
 }
 
 #[instrument(err)]
-pub async fn get_election_results_be_event_id(
+pub async fn get_event_results_election(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
@@ -327,7 +327,7 @@ pub async fn get_election_results_be_event_id(
                     sequent_backend.results_election
                 WHERE
                     tenant_id = $1 AND
-                    election_event_id = $2 AND
+                    election_event_id = $2;
             "#,
         )
         .await?;

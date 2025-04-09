@@ -144,7 +144,7 @@ pub async fn get_tally_session_highest_batch(
 }
 
 #[instrument(skip(hasura_transaction), err)]
-pub async fn get_event_tally_session(
+pub async fn get_event_tally_session_contest(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
@@ -157,7 +157,7 @@ pub async fn get_event_tally_session(
                     sequent_backend.tally_session_contest
                 WHERE
                     tenant_id = $1 AND
-                    election_event_id = $2
+                    election_event_id = $2;
             "#,
         )
         .await?;
