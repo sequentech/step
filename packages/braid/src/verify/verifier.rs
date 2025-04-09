@@ -5,6 +5,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::Result;
+use b3::messages::artifact::DkgPublicKey;
+use base64::engine::general_purpose;
+use base64::Engine;
 use colored::*;
 use serde::Serialize;
 use strum::Display;
@@ -27,6 +30,7 @@ use crate::verify::datalog::Verified;
 
 use strand::context::Ctx;
 use strand::serialization::StrandDeserialize;
+use strand::serialization::StrandSerialize;
 
 /*
 Verifies the election data published on the bulletin board to implement universal verifiability. The key elements
@@ -200,6 +204,15 @@ impl<C: Ctx> Verifier<C> {
         for message in &vmessages[1..] {
             let predicate =
                 Predicate::from_statement::<C>(&message.statement, message.signer_position, &cfg)?;
+
+            if let Predicate::PublicKey(_, hash, _, _, _) = predicate.clone() {
+                if let Some(bytes) = message.artifact.clone() {
+                    let dkg_public_key = DkgPublicKey::<C>::strand_deserialize(&bytes).unwrap();
+                    let pk_bytes = dkg_public_key.pk.strand_serialize().unwrap();
+                    let pk_b64 = general_purpose::STANDARD_NO_PAD.encode(pk_bytes);
+                    info!("Public Key found: {} {:?}", pk_b64, hash);
+                }
+            }
             predicates.push(predicate);
         }
         predicates.push(Predicate::get_verifier_bootstrap_predicate(&cfg).unwrap());
