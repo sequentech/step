@@ -178,7 +178,7 @@ pub async fn insert_ballots_messages(
         let ballot_temp_file_duration = start_ballot_temp_file.elapsed();
         event!(
             Level::INFO,
-            "Omri - monitor tally - insert ballots took {:?}",
+            "Omri - monitor tally - insert ballots to temp file {:?}",
             ballot_temp_file_duration
         );
 
@@ -234,7 +234,7 @@ pub async fn insert_ballots_messages(
         let users_temp_file_duration = start_users_temp_file.elapsed();
         event!(
             Level::INFO,
-            "Omri - monitor tally - insert users took {:?}",
+            "Omri - monitor tally - writing users to temp file {:?}",
             users_temp_file_duration
         );
         let users_temp_file = users_temp_file.reopen()?;

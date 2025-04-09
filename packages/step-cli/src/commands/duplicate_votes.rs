@@ -63,19 +63,19 @@ let hasura_transaction = hasura_db_client
             .await
             .map_err(|e| anyhow::anyhow!("Error getting hasura client: {}", e.to_string()))?;
 
-            let keycloak_query = "\
-            SELECT ue.id, ue.username, r.name AS realm_name \
-            FROM user_entity AS ue \
-            JOIN realm AS r ON ue.realm_id = r.id \
-            JOIN user_attribute AS ua ON ue.id = ua.user_id \
-            WHERE r.name = $1 \
-              AND ua.name = $2 \
-              AND ua.value = $3 \
-            LIMIT $4 \
+            let keycloak_query = "
+            SELECT ue.id, ue.username, r.name AS realm_name 
+            FROM user_entity AS ue 
+            JOIN realm AS r ON ue.realm_id = r.id 
+            JOIN user_attribute AS ua ON ue.id = ua.user_id 
+            WHERE r.name = $1 
+              AND ua.name = $2 
+              AND ua.value = $3 
+            LIMIT $4 
             OFFSET 0";
 
         let kc_rows = kc_client
-            .query(keycloak_query, &[&realm_name,&"area-id", &area_id,  &(num_votes as i64)])
+            .query(keycloak_query, &[&realm_name,&"area-id", &area_id.to_string(),  &(num_votes as i64)])
             .await?;
         let existing_user_ids: Vec<String> = kc_rows
             .iter()
