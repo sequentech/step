@@ -129,6 +129,11 @@ pub async fn update_tally_ceremony(
     let input = body.into_inner();
     info!("Update Tally Ceremony. status:{}  at {}",input.status.clone(), Utc::now().to_rfc3339());
     let tenant_id = claims.hasura_claims.tenant_id.clone();
+    let user_id = claims.clone().hasura_claims.user_id;
+    let username = claims
+        .clone()
+        .preferred_username
+        .unwrap_or(claims.name.clone().unwrap_or_else(|| user_id.clone()));
 
     let mut hasura_db_client: DbClient =
         get_hasura_pool().await.get().await.map_err(|err| {
@@ -225,6 +230,8 @@ pub async fn update_tally_ceremony(
         input.election_event_id.clone(),
         input.tally_session_id.clone(),
         input.status.clone(),
+        user_id.clone(),
+        username.clone(),
     )
     .await
     .map_err(|e| {

@@ -492,6 +492,8 @@ pub async fn update_tally_ceremony(
     election_event_id: String,
     tally_session_id: String,
     new_execution_status: TallyExecutionStatus,
+    user_id: String,
+    username: String,
 ) -> Result<()> {
     let auth_headers = keycloak::get_client_credentials().await?;
 
@@ -564,8 +566,8 @@ pub async fn update_tally_ceremony(
     )
     .await?;
 
-    /*
     if TallyExecutionStatus::IN_PROGRESS == new_execution_status {
+        /*
         let trustee_names: Vec<String> = status
             .trustees
             .iter()
@@ -586,7 +588,7 @@ pub async fn update_tally_ceremony(
                 .await?;
             event!(Level::INFO, "Sent INSERT_BALLOTS task {}", task.task_id);
         }
-
+        */
         // get the election event
         let election_event = get_election_event_helper(
             auth_headers.clone(),
@@ -601,10 +603,15 @@ pub async fn update_tally_ceremony(
 
         let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
         electoral_log
-            .post_tally_open(election_event_id.to_string(), None)
+            .post_tally_open(
+                election_event_id.to_string(),
+                None,
+                Some(user_id.clone()),
+                Some(username.clone()),
+            )
             .await
             .with_context(|| "error posting to the electoral log")?;
-    }*/
+    }
 
     Ok(())
 }
