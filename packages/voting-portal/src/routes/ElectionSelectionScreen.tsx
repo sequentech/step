@@ -7,7 +7,6 @@ import React, {useContext, useEffect, useMemo, useState, useRef} from "react"
 import {useTranslation} from "react-i18next"
 import {Dialog, IconButton, PageLimit, SelectElection, theme} from "@sequentech/ui-essentials"
 import {
-    isString,
     stringToHtml,
     translateElection,
     EVotingStatus,
@@ -25,26 +24,16 @@ import {
     selectBallotStyleByElectionId,
     selectBallotStyleElectionIds,
     selectFirstBallotStyle,
-    setBallotStyle,
 } from "../store/ballotStyles/ballotStylesSlice"
-import {resetBallotSelection} from "../store/ballotSelections/ballotSelectionsSlice"
 import {selectElectionById, setElection, selectElectionIds} from "../store/elections/electionsSlice"
-import {AppDispatch} from "../store/store"
 import {addCastVotes, selectCastVotesByElectionId} from "../store/castVotes/castVotesSlice"
 import {useLocation, useNavigate, useParams} from "react-router-dom"
 import {useMutation, useQuery} from "@apollo/client"
-import {GET_BALLOT_STYLES} from "../queries/GetBallotStyles"
 import {
-    GetBallotStylesQuery,
     GetCastVotesQuery,
-    GetElectionEventQuery,
-    GetElectionsQuery,
     GetSupportMaterialsQuery,
 } from "../gql/graphql"
-import {GET_ELECTIONS} from "../queries/GetElections"
-import {ELECTIONS_LIST} from "../fixtures/election"
 import {SettingsContext} from "../providers/SettingsContextProvider"
-import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
 import {GET_CAST_VOTES} from "../queries/GetCastVotes"
 import {
     ElectionScreenErrorType,
@@ -59,9 +48,8 @@ import {
 } from "../store/electionEvents/electionEventsSlice"
 import {TenantEventType} from ".."
 import Stepper from "../components/Stepper"
-import {clearIsVoted, selectBypassChooser, setBypassChooser} from "../store/extra/extraSlice"
+import {selectBypassChooser, setBypassChooser} from "../store/extra/extraSlice"
 import {
-    updateBallotStyleAndSelection,
     updateBallotStyleAndSelection2,
 } from "../services/BallotStyles"
 import {fetchJson} from "../services/FetchS3BallotFiles"
@@ -190,7 +178,6 @@ const ElectionSelectionScreen: React.FC = () => {
     const {eventId, tenantId} = useParams<{eventId?: string; tenantId?: string}>()
     const electionEvent = useAppSelector(selectElectionEventById(eventId))
     useUpdateTranslation({electionEvent}) // Overwrite translations
-    const ballotStyleElectionIds = useAppSelector(selectBallotStyleElectionIds)
     const electionIds = useAppSelector(selectElectionIds)
     const oneBallotStyle = useAppSelector(selectFirstBallotStyle)
     const dispatch = useAppDispatch()

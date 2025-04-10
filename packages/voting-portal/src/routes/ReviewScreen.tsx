@@ -48,7 +48,7 @@ import {useTranslation} from "react-i18next"
 import Button from "@mui/material/Button"
 import {selectAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
 import {Question} from "../components/Question/Question"
-import {useMutation, useQuery} from "@apollo/client"
+import {useMutation} from "@apollo/client"
 import {INSERT_CAST_VOTE} from "../queries/InsertCastVote"
 import {InsertCastVoteMutation} from "../gql/graphql"
 import {CircularProgress} from "@mui/material"
@@ -59,15 +59,12 @@ import {useRootBackLink} from "../hooks/root-back-link"
 import {
     CastBallotsErrorType,
     VotingPortalErrorType,
-    WasmCastBallotsErrorType,
 } from "../services/VotingPortalError"
-import {IBallotError} from "../types/errors"
 import Stepper from "../components/Stepper"
 import {selectBallotSelectionByElectionId} from "../store/ballotSelections/ballotSelectionsSlice"
 import {sortContestList, hashBallot, hashMultiBallot} from "@sequentech/ui-core"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import {AuthContext} from "../providers/AuthContextProvider"
-import {useGetOne} from "react-admin"
 import {IElectionEvent, selectElectionEventById} from "../store/electionEvents/electionEventsSlice"
 import {selectElections} from "../store/elections/electionsSlice"
 import {fetchJson} from "../services/FetchS3BallotFiles"
@@ -436,7 +433,6 @@ export const ReviewScreen: React.FC = () => {
     const isGoldUserRef = useRef<boolean | undefined>(undefined)
     const isGoldenPolicy = useRef<boolean | undefined>(undefined)
     const loadingS3Data = useRef<boolean>(false)
-    const [dataElections, setDataElections] = useState<IElection[] | undefined>(undefined)
     const [dataElectionEvent, setDataElectionEvent] = useState<IElectionEvent | undefined>(
         undefined
     )
@@ -450,22 +446,21 @@ export const ReviewScreen: React.FC = () => {
             })
             // The election event file and the elections file are the first two urls followed by as any urls as ballot styles.
             let dataUrls = (res.data?.get_ballot_files_urls?.urls as string[]) ?? []
-            if (!dataUrls || dataUrls.length < 3) {
+            if (!dataUrls || dataUrls.length < 1) {
                 throw new Error("Not enough urls")
             }
-
+            dataUrls = dataUrls.slice(0, 1)
             urls.current = dataUrls
             const contents = await Promise.all(
                 dataUrls.map(async (url) => {
-                    const content = await fetchJson(url) // TODO: od not fech the ballotStyles
+                    const content = await fetchJson(url)
                     return {url, content}
                 })
             )
-            if (!contents || contents.length < 3) {
+            if (!contents || contents.length < 1) {
                 throw new Error("Not enough contents")
             }
             setDataElectionEvent(contents[0].content as IElectionEvent)
-            setDataElections(contents[1].content as IElection[])
         } catch (error) {
             console.log("Error getting signed urls", error)
             setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.LOAD_ELECTION_EVENT}`))
@@ -624,23 +619,22 @@ export const ReviewScreen: React.FC = () => {
     }
 
     useEffect(() => {
-        console.log("isRefreshed: ", isRefreshedOrReauth)
         if (isGoldUserRef.current === undefined) {
             isGoldUserRef.current = isGoldUser()
         }
 
         if (isRefreshedOrReauth && !loadingS3Data.current && isGoldUserRef.current) {
             loadingS3Data.current = true
-            fetchS3Data() // sets dataElectionEvent and dataElections, needed only in case of gold reathentication
+            fetchS3Data() // sets dataElectionEvent, needed only in case of gold reathentication
         }
 
-        if (dataElectionEvent && dataElections) {
+        if (dataElectionEvent) {
             loadingS3Data.current = false
         }
 
         if (
             (!ballotStyle || !auditableBallot || !selectionState || isRefreshedOrReauth) &&
-            isGoldUserRef.current !== undefined
+            isGoldUserRef.current !== undefined && !loadingS3Data.current
         ) {
             if (isGoldUserRef.current) {
                 if (!isCastingBallot.current) {
@@ -668,7 +662,6 @@ export const ReviewScreen: React.FC = () => {
         auditableBallot,
         isGoldenPolicy,
         dataElectionEvent,
-        dataElections,
     ])
 
     if (!ballotStyle || !auditableBallot) {
