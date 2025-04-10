@@ -88,7 +88,6 @@ pub async fn create_tally_ceremony(
         input.tally_type.clone(),
         &permission_labels,
         username,
-        user_id,
     )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;

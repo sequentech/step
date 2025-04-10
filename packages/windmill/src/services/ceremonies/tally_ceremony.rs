@@ -553,46 +553,60 @@ pub async fn update_tally_ceremony(
     .await?;
 
     /*
-    if TallyExecutionStatus::IN_PROGRESS == new_execution_status {
-        let trustee_names: Vec<String> = status
-            .trustees
-            .iter()
-            .map(|trustee| trustee.name.clone())
-            .collect();
+        if TallyExecutionStatus::IN_PROGRESS == new_execution_status {
+            let trustee_names: Vec<String> = status
+                .trustees
+                .iter()
+                .map(|trustee| trustee.name.clone())
+                .collect();
 
-        for tally_session_contest in &tally_session_contests {
-            let task = celery_app
-                .send_task(insert_ballots::new(
-                    InsertBallotsPayload {
-                        trustee_names: trustee_names.clone(),
-                    },
-                    tenant_id.clone(),
-                    election_event_id.clone(),
-                    tally_session.id.clone(),
-                    tally_session_contest.id.clone(),
-                ))
-                .await?;
-            event!(Level::INFO, "Sent INSERT_BALLOTS task {}", task.task_id);
-        }
-*/
-        // get the election event
-        let election_event = get_election_event_helper(
-            auth_headers.clone(),
-            tenant_id.to_string(),
+            for tally_session_contest in &tally_session_contests {
+                let task = celery_app
+                    .send_task(insert_ballots::new(
+                        InsertBallotsPayload {
+                            trustee_names: trustee_names.clone(),
+                        },
+                        tenant_id.clone(),
+                        election_event_id.clone(),
+                        tally_session.id.clone(),
+                        tally_session_contest.id.clone(),
+                    ))
+                    .await?;
+                event!(Level::INFO, "Sent INSERT_BALLOTS task {}", task.task_id);
+            }
+    */
+    // get the election event
+    let election_event = get_election_event_helper(
+        auth_headers.clone(),
+        tenant_id.to_string(),
+        election_event_id.to_string(),
+    )
+    .await?;
+
+    // Save this in the electoral log
+    let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
+        .with_context(|| "missing bulletin board")?;
+
+    let electoral_log = ElectoralLog::for_admin_user(
+        &hasura_transaction,
+        board_name.as_str(),
+        &tenant_id,
+        &election_event_id,
+        &user_id,
+        Some(username.clone()),
+        None,
+        None,
+    )
+    .await?;
+    electoral_log
+        .post_tally_open(
             election_event_id.to_string(),
+            None,
+            Some(user_id),
+            Some(username),
         )
-        .await?;
-
-        // Save this in the electoral log
-        let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
-            .with_context(|| "missing bulletin board")?;
-
-        let electoral_log = ElectoralLog::for_admin_user(&hasura_transaction, board_name.as_str(), &tenant_id,&election_event_id,&user_id,Some(username.clone()),None, None).await?;
-        electoral_log
-            .post_tally_open(election_event_id.to_string(), None, Some(user_id), Some(username))
-            .await
-            .with_context(|| "error posting to the electoral log")?;
-    
+        .await
+        .with_context(|| "error posting to the electoral log")?;
 
     Ok(())
 }
@@ -817,15 +831,25 @@ pub async fn set_tally_session_completed(
         )
         .await?;
 
-    let tally_session = get_tally_session_by_id(hasura_transaction, &tenant_id, &election_event_id, &tally_session_id).await?;
-        
+        let tally_session = get_tally_session_by_id(
+            hasura_transaction,
+            &tenant_id,
+            &election_event_id,
+            &tally_session_id,
+        )
+        .await?;
+
         let annotations = match tally_session.annotations {
             Some(annotations) => annotations,
             None => json!({}),
         };
 
-        let username = annotations.get("executer_username").and_then(|val| val.as_str().map(|s| s.to_string())); 
-        let user_id = annotations.get("executer_user_id").and_then(|val| val.as_str().map(|s| s.to_string()));
+        let username = annotations
+            .get("executer_username")
+            .and_then(|val| val.as_str().map(|s| s.to_string()));
+        let user_id = annotations
+            .get("executer_user_id")
+            .and_then(|val| val.as_str().map(|s| s.to_string()));
         let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
             .with_context(|| "missing bulletin board")?;
 
