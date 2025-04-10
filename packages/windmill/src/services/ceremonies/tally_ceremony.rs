@@ -868,13 +868,18 @@ pub async fn set_tally_session_completed(
         .await?;
 
         let tally_elections_ids = tally_session
-        .election_ids
-        .clone()
-        .unwrap_or_default()
-        .join(", ");
+            .election_ids
+            .clone()
+            .unwrap_or_default()
+            .join(", ");
 
         electoral_log
-            .post_tally_close(election_event_id.to_string(), Some(tally_elections_ids), user_id, username)
+            .post_tally_close(
+                election_event_id.to_string(),
+                Some(tally_elections_ids),
+                user_id,
+                username,
+            )
             .await
             .with_context(|| "error posting to the electoral log")?;
     }
