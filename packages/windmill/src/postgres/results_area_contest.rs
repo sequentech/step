@@ -427,3 +427,45 @@ pub async fn insert_results_area_contests(
 
     Ok(values)
 }
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn get_event_results_area_contest(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<Vec<ResultsAreaContest>> {
+    let tenant_uuid: uuid::Uuid = Uuid::parse_str(&tenant_id)
+        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {err:?}"))?;
+    let election_event_uuid: uuid::Uuid = Uuid::parse_str(&election_event_id)
+        .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {err:?}"))?;
+
+    let statement_str = format!(
+        r#"
+                SELECT
+                    *
+                FROM
+                    sequent_backend.results_area_contest
+                WHERE
+                    tenant_id = $1 AND
+                    election_event_id = $2;
+            "#
+    );
+
+    let statement = hasura_transaction.prepare(statement_str.as_str()).await?;
+
+    let rows = hasura_transaction
+        .query(&statement, &[&tenant_uuid, &election_event_uuid])
+        .await
+        .map_err(|err| anyhow!("Error running the query: {:?}", err))?;
+
+    let results = rows
+        .into_iter()
+        .map(|row| {
+            row.try_into()
+                .map(|res: ResultsAreaContestWrapper| res.0)
+                .map_err(|err| anyhow!("Error converting row to ResultsAreaContest: {}", err))
+        })
+        .collect::<Result<Vec<ResultsAreaContest>>>()?;
+
+    Ok(results)
+}

@@ -197,3 +197,43 @@ pub async fn get_tally_session_contests(
 
     Ok(values)
 }
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn get_event_tally_session_contest(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<Vec<TallySessionContest>> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT *
+                FROM
+                    sequent_backend.tally_session_contest
+                WHERE
+                    tenant_id = $1 AND
+                    election_event_id = $2;
+            "#,
+        )
+        .await?;
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(election_event_id)?,
+            ],
+        )
+        .await
+        .map_err(|err| anyhow!("Error inserting row: {}", err))?;
+
+    let values: Vec<TallySessionContest> = rows
+        .into_iter()
+        .map(|row| -> Result<TallySessionContest> {
+            row.try_into()
+                .map(|res: TallySessionContestWrapper| -> TallySessionContest { res.0 })
+        })
+        .collect::<Result<Vec<TallySessionContest>>>()?;
+
+    Ok(values)
+}
