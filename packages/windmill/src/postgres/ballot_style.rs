@@ -112,13 +112,7 @@ pub async fn get_active_ballot_styles(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
-    election_id: Option<String>,
 ) -> Result<Vec<BallotStyle>> {
-    let election_uuid_opt = election_id
-        .as_deref()
-        .map(|election_id| Uuid::parse_str(election_id).ok())
-        .flatten();
-
     let query: tokio_postgres::Statement = hasura_transaction
         .prepare(
             r#"
@@ -129,7 +123,6 @@ pub async fn get_active_ballot_styles(
             WHERE
                 tenant_id = $1 AND
                 election_event_id = $2 AND
-                ($3::uuid IS NULL OR election_id = $3::uuid) AND
                 deleted_at IS NULL;
             "#,
         )
@@ -142,7 +135,6 @@ pub async fn get_active_ballot_styles(
             &[
                 &Uuid::parse_str(tenant_id)?,
                 &Uuid::parse_str(election_event_id)?,
-                &election_uuid_opt,
             ],
         )
         .await

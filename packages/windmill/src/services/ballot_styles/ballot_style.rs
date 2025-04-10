@@ -424,7 +424,6 @@ pub async fn replace_ballot_publication_s3_files(
     tenant_id: &str,
     election_event_id: &str,
     ballot_publication_id: &str,
-    election_id: Option<String>,
 ) -> Result<()> {
     // Set the publication id (PUB ID) in the S3 file ballot-publications.json, and the ballot style paths, to have only the publications that are still active for each area.
     // In case of publishing from the election level: there will be only one ballot style BUT
@@ -432,14 +431,10 @@ pub async fn replace_ballot_publication_s3_files(
     // so we need to write in this file all the ballot styles that are still active - that is each not deleted ballot style row.
     let s3_bucket = s3::get_private_bucket()?;
     let mut areas = HashSet::new();
-    let ballot_styles: Vec<BallotStyle> = get_active_ballot_styles(
-        hasura_transaction,
-        tenant_id,
-        election_event_id,
-        election_id,
-    )
-    .await
-    .map_err(|err| format!("Error getting active ballot styles: {err:?}"))?;
+    let ballot_styles: Vec<BallotStyle> =
+        get_active_ballot_styles(hasura_transaction, tenant_id, election_event_id)
+            .await
+            .map_err(|err| format!("Error getting active ballot styles: {err:?}"))?;
 
     let ballot_style_paths: Vec<String> = ballot_styles
         .iter()

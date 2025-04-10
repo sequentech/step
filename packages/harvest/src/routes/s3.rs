@@ -55,6 +55,12 @@ pub async fn get_ballot_files_urls(
     // Start pushing the file paths that wee need to create later its signed
     // URLs
     let mut files: Vec<String> = vec![];
+    let election_event_file = s3::get_election_event_file_path(
+        &tenant_id,
+        &election_event_id,
+        &ballot_publications.ballot_publication_id,
+    );
+    files.push(election_event_file);
     let elections_file = s3::get_elections_file_path(
         &tenant_id,
         &election_event_id,
@@ -62,13 +68,6 @@ pub async fn get_ballot_files_urls(
         &ballot_publications.ballot_publication_id,
     );
     files.push(elections_file);
-
-    let election_event_file = s3::get_election_event_file_path(
-        &tenant_id,
-        &election_event_id,
-        &ballot_publications.ballot_publication_id,
-    );
-    files.push(election_event_file);
     files.append(&mut ballot_publications.ballot_style_paths);
 
     // Get the signed URLs

@@ -109,7 +109,6 @@ pub async fn update_election_event_ballot_publication(
         &tenant_id,
         &election_event_id,
         &ballot_publication.id,
-        ballot_publication.election_id.clone(),
     )
     .await?;
 
