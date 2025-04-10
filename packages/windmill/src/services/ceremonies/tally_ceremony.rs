@@ -583,6 +583,12 @@ pub async fn update_tally_ceremony(
     )
     .await?;
 
+    let tally_elections_ids = tally_session
+        .election_ids
+        .clone()
+        .unwrap_or_default()
+        .join(", ");
+
     // Save this in the electoral log
     let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
         .with_context(|| "missing bulletin board")?;
@@ -601,7 +607,7 @@ pub async fn update_tally_ceremony(
     electoral_log
         .post_tally_open(
             election_event_id.to_string(),
-            None,
+            Some(tally_elections_ids),
             Some(user_id),
             Some(username),
         )
@@ -861,8 +867,14 @@ pub async fn set_tally_session_completed(
         )
         .await?;
 
+        let tally_elections_ids = tally_session
+        .election_ids
+        .clone()
+        .unwrap_or_default()
+        .join(", ");
+
         electoral_log
-            .post_tally_close(election_event_id.to_string(), None, user_id, username)
+            .post_tally_close(election_event_id.to_string(), Some(tally_elections_ids), user_id, username)
             .await
             .with_context(|| "error posting to the electoral log")?;
     }

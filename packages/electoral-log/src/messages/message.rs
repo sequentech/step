@@ -246,8 +246,8 @@ impl Message {
         user_id: Option<String>,
         username: Option<String>,
     ) -> Result<Self> {
-        let body = StatementBody::TallyClose(election);
-        Self::from_body(event, body, sd, user_id, username, None, None)
+        let body = StatementBody::TallyClose(election.clone());
+        Self::from_body(event, body, sd, user_id, username, election.0, None)
     }
 
     pub fn send_template(
