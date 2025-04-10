@@ -363,7 +363,6 @@ function TreeMenuItem({
 
     const onClick = (isLabel: boolean) => {
         if (isLabel && open) {
-            reloadTree()
             return
         }
         if (!isLabel && !open && resource.active) {

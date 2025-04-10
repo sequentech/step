@@ -163,6 +163,11 @@ export const MenuStyles = {
         ${divContainer}
         cursor: ${({isActive}) => (isActive ? "pointer" : "auto")};
         color: black;
+        border-radius: 4px;
+        &:hover {
+            background-color: ${({isActive}) =>
+                isActive ? "oklch(0.967 0.003 264.542)" : "white"};
+        }
     `,
     StyledSideBarNavLink: styled(NavLink)<{multiline?: boolean}>`
         flex-grow: 1;
