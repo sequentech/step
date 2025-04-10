@@ -16,6 +16,7 @@ use aws_sdk_s3::types::{CompletedMultipartUpload, CompletedPart};
 use aws_smithy_types::byte_stream::{ByteStream, Length};
 use core::time::Duration;
 use s3::presigning::PresigningConfig;
+use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -23,8 +24,13 @@ use std::{env, error::Error};
 use tempfile::NamedTempFile;
 use tokio::io::AsyncReadExt;
 use tracing::{info, instrument};
-
 const MAX_CHUNK_SIZE: u64 = 16 * 1024 * 1024;
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct BallotPublications {
+    pub ballot_publication_id: String,
+    pub ballot_style_paths: Vec<String>,
+}
 
 #[instrument(err, skip_all)]
 pub fn get_private_bucket() -> Result<String> {

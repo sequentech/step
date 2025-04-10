@@ -426,11 +426,12 @@ pub async fn replace_ballot_publication_s3_files(
     ballot_publication_id: &str,
     election_id: Option<String>,
 ) -> Result<()> {
-    // Set the publication ids (PUB IDs) in the S3 file ballot-publications.json, to have only the publications that are still active for each area.
+    // Set the publication id (PUB ID) in the S3 file ballot-publications.json, and the ballot style paths, to have only the publications that are still active for each area.
     // In case of publishing from the election level: there will be only one ballot style BUT
     // the rest of the elections (its ballot styles) are needed as well and are in previous publication id folders,
-    // so we need to write in this file all the PUB IDs that are active - that is each not deleted ballot style row.
-    let mut ballot_publication_ids: HashSet<String> = HashSet::new();
+    // so we need to write in this file all the ballot styles that are still active - that is each not deleted ballot style row.
+    let s3_bucket = s3::get_private_bucket()?;
+    let mut areas = HashSet::new();
     let ballot_styles: Vec<BallotStyle> = get_active_ballot_styles(
         hasura_transaction,
         tenant_id,
@@ -440,20 +441,27 @@ pub async fn replace_ballot_publication_s3_files(
     .await
     .map_err(|err| format!("Error getting active ballot styles: {err:?}"))?;
 
-    let s3_bucket = s3::get_private_bucket()?;
-    // WIP...
-    let mut areas = HashSet::new();
-    for ballot_style in &ballot_styles {
-        ballot_publication_ids.insert(ballot_style.ballot_publication_id.clone());
-        areas.insert(ballot_style.area_id.clone().unwrap_or_default());
-    }
+    let ballot_style_paths: Vec<String> = ballot_styles
+        .iter()
+        .map(|ballot_style| {
+            let area_id = ballot_style.area_id.as_deref().unwrap_or_default();
+            areas.insert(area_id.to_string());
+            s3::get_ballot_style_file_path(
+                tenant_id,
+                election_event_id,
+                area_id,
+                ballot_style.ballot_publication_id.as_str(),
+                ballot_style.election_id.as_str(),
+            )
+        })
+        .collect();
 
-    // Since the previous PUB ID folders also contain an equally named ballot-style-{election_id} it is important to write this PUB ID first.
-    ballot_publication_ids.remove(ballot_publication_id);
-    let mut bp_data_vec = vec![ballot_publication_id.to_string()];
-    bp_data_vec.append(&mut ballot_publication_ids.iter().cloned().collect());
+    let bp_data = s3::BallotPublications {
+        ballot_publication_id: ballot_publication_id.to_string(),
+        ballot_style_paths,
+    };
 
-    let ballot_publication_data = serde_json::to_string(&bp_data_vec)
+    let ballot_publication_data = serde_json::to_string(&bp_data)
         .map_err(|err| format!("Error serializing ballot publications to json: {err:?}"))?;
 
     for area_id in &areas {
