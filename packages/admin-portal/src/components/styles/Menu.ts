@@ -159,9 +159,9 @@ export const MenuStyles = {
     HowToVoteStyledIcon: styled(HowToVoteIcon)`
         color: ${adminTheme.palette.brandColor};
     `,
-    TreeMenuIconContaier: styled.div`
+    TreeMenuIconContaier: styled("div")<{isActive: boolean}>`
         ${divContainer}
-        cursor: pointer;
+        cursor: ${({isActive}) => (isActive ? "pointer" : "auto")};
         color: black;
     `,
     StyledSideBarNavLink: styled(NavLink)<{multiline?: boolean}>`
