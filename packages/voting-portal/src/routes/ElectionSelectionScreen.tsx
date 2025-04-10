@@ -29,10 +29,7 @@ import {selectElectionById, setElection, selectElectionIds} from "../store/elect
 import {addCastVotes, selectCastVotesByElectionId} from "../store/castVotes/castVotesSlice"
 import {useLocation, useNavigate, useParams} from "react-router-dom"
 import {useMutation, useQuery} from "@apollo/client"
-import {
-    GetCastVotesQuery,
-    GetSupportMaterialsQuery,
-} from "../gql/graphql"
+import {GetCastVotesQuery, GetSupportMaterialsQuery} from "../gql/graphql"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import {GET_CAST_VOTES} from "../queries/GetCastVotes"
 import {
@@ -49,9 +46,7 @@ import {
 import {TenantEventType} from ".."
 import Stepper from "../components/Stepper"
 import {selectBypassChooser, setBypassChooser} from "../store/extra/extraSlice"
-import {
-    updateBallotStyleAndSelection2,
-} from "../services/BallotStyles"
+import {updateBallotStyleAndSelection2} from "../services/BallotStyles"
 import {fetchJson} from "../services/FetchS3BallotFiles"
 import useUpdateTranslation from "../hooks/useUpdateTranslation"
 import {GET_SUPPORT_MATERIALS} from "../queries/GetSupportMaterials"
@@ -229,7 +224,7 @@ const ElectionSelectionScreen: React.FC = () => {
     const hasNoElections = !loadingS3Data.current && dataElections?.length === 0
     const isPublished = useMemo(
         () => !!(dataElectionEvent?.status as IElectionEventStatus | undefined)?.is_published,
-        [dataElectionEvent]
+        [dataElectionEvent, loadingS3Data.current]
     )
 
     async function fetchS3Data() {
@@ -265,8 +260,7 @@ const ElectionSelectionScreen: React.FC = () => {
             setDataBallotStyles(ballotStyles)
         } catch (error) {
             console.log("Error getting signed urls", error)
-            setErrorMsg(t(`electionSelectionScreen.errors.${ElectionScreenErrorType.NETWORK}`))
-            setAlertMsg(t(`electionSelectionScreen.alerts.${ElectionScreenMsgType.NOT_PUBLISHED}`))
+            setErrorMsg(t(`electionSelectionScreen.errors.${ElectionScreenErrorType.FETCH_DATA}`))
             loadingS3Data.current = false
         }
     }
@@ -289,15 +283,15 @@ const ElectionSelectionScreen: React.FC = () => {
 
     // Errors handling
     useEffect(() => {
-        if (globalSettings.DISABLE_AUTH) {
+        if (globalSettings.DISABLE_AUTH || loadingS3Data.current) {
             return
         }
 
-        if (!dataElectionEvent) {
-            setErrorMsg(
-                t(`electionSelectionScreen.errors.${ElectionScreenErrorType.NO_ELECTION_EVENT}`)
-            )
-        } else if (!isPublished) {
+        if (errorMsg === ElectionScreenErrorType.FETCH_DATA ) { // This will be true if it has not been published.
+            // Shows the errorMsg
+        } else if (!dataElectionEvent) { 
+            setErrorMsg(t(`electionSelectionScreen.errors.${ElectionScreenErrorType.NO_ELECTION_EVENT}`))
+        } else if (!isPublished && dataElectionEvent) { // TODO: isPublished is false when it is published but not STARTED
             setAlertMsg(t(`electionSelectionScreen.alerts.${ElectionScreenMsgType.NOT_PUBLISHED}`))
         } else if (hasNoElections) {
             if (electionIds.length > 0) {
@@ -316,7 +310,14 @@ const ElectionSelectionScreen: React.FC = () => {
             setAlertMsg(undefined)
             setErrorMsg(undefined)
         }
-    }, [errorCastVote, isPublished, hasNoElections, dataElectionEvent, globalSettings.DISABLE_AUTH])
+    }, [
+        errorCastVote,
+        isPublished,
+        hasNoElections,
+        dataElectionEvent,
+        globalSettings.DISABLE_AUTH,
+        loadingS3Data.current,
+    ])
 
     useEffect(() => {
         if (dataBallotStyles && dataBallotStyles.length > 0) {

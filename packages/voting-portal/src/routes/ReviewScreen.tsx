@@ -56,10 +56,7 @@ import {provideBallotService} from "../services/BallotService"
 import {ICastVote, addCastVotes, SessionBallotData} from "../store/castVotes/castVotesSlice"
 import {TenantEventType} from ".."
 import {useRootBackLink} from "../hooks/root-back-link"
-import {
-    CastBallotsErrorType,
-    VotingPortalErrorType,
-} from "../services/VotingPortalError"
+import {CastBallotsErrorType, VotingPortalErrorType} from "../services/VotingPortalError"
 import Stepper from "../components/Stepper"
 import {selectBallotSelectionByElectionId} from "../store/ballotSelections/ballotSelectionsSlice"
 import {sortContestList, hashBallot, hashMultiBallot} from "@sequentech/ui-core"
@@ -634,7 +631,8 @@ export const ReviewScreen: React.FC = () => {
 
         if (
             (!ballotStyle || !auditableBallot || !selectionState || isRefreshedOrReauth) &&
-            isGoldUserRef.current !== undefined && !loadingS3Data.current
+            isGoldUserRef.current !== undefined &&
+            !loadingS3Data.current
         ) {
             if (isGoldUserRef.current) {
                 if (!isCastingBallot.current) {
@@ -656,13 +654,7 @@ export const ReviewScreen: React.FC = () => {
         } else {
             console.log("Normal flow")
         }
-    }, [
-        ballotStyle,
-        selectionState,
-        auditableBallot,
-        isGoldenPolicy,
-        dataElectionEvent,
-    ])
+    }, [ballotStyle, selectionState, auditableBallot, isGoldenPolicy, dataElectionEvent])
 
     if (!ballotStyle || !auditableBallot) {
         return errorMsg ? (
