@@ -32,5 +32,5 @@ url = "2.5"
 thiserror = "1.0"
 
 # AWS SDK dependencies
-aws-config = "1.1" # Check for latest version
-aws-sdk-sns = "1.18" # Check for latest version
+aws-config = "1.6.1" # Check for latest version
+aws-sdk-sns = "1.65.0" # Check for latest version
