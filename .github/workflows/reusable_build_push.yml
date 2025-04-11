@@ -72,6 +72,10 @@ jobs:
             context: packages/e2e/src/mock_server
             file: packages/e2e/src/mock_server/Dockerfile.prod
 
+          - service: loki-consumer
+            context: packages/loki_consumer
+            file: packages/loki_consumer/Dockerfile
+
       fail-fast: false
 
     steps:
