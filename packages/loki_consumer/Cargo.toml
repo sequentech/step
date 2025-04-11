@@ -10,8 +10,7 @@ edition = "2021"
 tokio = { version = "1", features = ["full"] } # "full" enables fs, time, etc.
 
 # WebSocket client library
-# Make sure to enable the necessary TLS features if using wss://
-tokio-tungstenite = { version = "0.23", features = ["native-tls-vendored"] } # Or "rustls-tls-native-roots" or "rustls-tls-webpki-roots"
+tokio-tungstenite = { version = "0.23", features = ["native-tls-vendored"] } # Or other TLS feature
 
 # HTTP client library (for query_range)
 reqwest = { version = "0.12", features = ["json"] }
@@ -31,3 +30,7 @@ url = "2.5"
 
 # Error handling helper
 thiserror = "1.0"
+
+# AWS SDK dependencies
+aws-config = "1.1" # Check for latest version
+aws-sdk-sns = "1.18" # Check for latest version
