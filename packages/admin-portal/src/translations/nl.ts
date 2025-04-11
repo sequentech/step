@@ -1,8 +1,9 @@
 // SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+import {TranslationType} from "./en"
 
-const englishTranslation = {
+const dutchTranslation: TranslationType = {
     translations: {
         philippinePassport: "Philippine Passport",
         seamanBook: "Seaman's Book",
@@ -1070,7 +1071,7 @@ const englishTranslation = {
                 fr: "French",
                 cat: "Valencian",
                 tl: "Tagalog",
-                nl: "Dutch",
+                nl: "Nederlands",
             },
             channel: {
                 online: "Online",
@@ -1956,6 +1957,4 @@ const englishTranslation = {
     },
 }
 
-export type TranslationType = typeof englishTranslation
-
-export default englishTranslation
+export default dutchTranslation

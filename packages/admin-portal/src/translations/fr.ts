@@ -1090,6 +1090,7 @@ const frenchTranslation: TranslationType = {
                 fr: "Français",
                 cat: "Valencien",
                 tl: "Tagalog",
+                nl: "Néerlandais",
             },
             channel: {
                 online: "En ligne",
