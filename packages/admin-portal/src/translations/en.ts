@@ -415,6 +415,10 @@ const englishTranslation = {
                         "The Tally Ceremony cannot start until you create one publication in the Publish tab.",
                     participateNow:
                         "You have been invited to participate in a Tally ceremony. Please <1>click on the ceremony's Key Action</1> to participate.",
+                    startDisabled:
+                        "You cannot continue the ceremony because no elections are selected or the elections are not published.",
+                    ceremonyDisabled:
+                        "You cannot continue the ceremony because the tally session is not connected or the start of the ceremony is not allowed.",
                 },
             },
             importAreas: {
@@ -556,6 +560,13 @@ const englishTranslation = {
                 "label": "Initialize Report Policy",
                 "not-required": "Not Required",
                 "required": "Required",
+            },
+            castVoteGoldLevelPolicy: {
+                label: "Gold level Authentication Policy",
+                options: {
+                    "gold-level": "Gold level Authentication",
+                    "no-gold-level": "No Gold level Authentication",
+                },
             },
         },
         tenantScreen: {
