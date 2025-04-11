@@ -6,315 +6,319 @@ import {TranslationType} from "./en"
 const dutchTranslation: TranslationType = {
     translations: {
         common: {
-            goBack: "Go back",
+            goBack: "Ga terug",
         },
         breadcrumbSteps: {
-            electionList: "Ballot List",
-            ballot: "Ballot",
-            review: "Review",
-            confirmation: "Confirmation",
+            electionList: "Kieslijst",
+            ballot: "Stembiljet",
+            review: "Controle",
+            confirmation: "Bevestiging",
             audit: "Audit",
         },
         votingScreen: {
-            backButton: "Back",
-            reviewButton: "Next",
-            clearButton: "Clear selection",
+            backButton: "Terug",
+            reviewButton: "Volgende",
+            clearButton: "Selectie wissen",
             ballotHelpDialog: {
-                title: "Information: Ballot screen",
+                title: "Informatie: Stemscherm",
                 content:
-                    "This screen shows the contest you are elegible to vote. You can make your section by activate the checkbox on the Candidate/Answer right. To reset your selections, click “<b>Clear selection</b>” button, to move to next step, click “<b>Next</b>” button below.",
+                    "Dit scherm toont de stemming(en) waarvoor u stemgerechtigd bent. U kunt uw selectie maken door het selectievakje rechts van de Kandidaat/Antwoord aan te vinken. Om uw selecties te resetten, klik op de knop “<b>Selectie wissen</b>”. Om naar de volgende stap te gaan, klik op de knop “<b>Volgende</b>” hieronder.",
                 ok: "OK",
             },
             nonVotedDialog: {
-                title: "Invalid or blank vote",
+                title: "Ongeldige of blanco stem",
                 content:
-                    "Some of your answers will render the ballot in one or more questions invalid or blank.",
-                ok: "Back and review",
-                continue: "Continue",
-                cancel: "Cancel",
+                    "Sommige van uw antwoorden maken het stembiljet voor een of meer vragen ongeldig of blanco.",
+                ok: "Terug en controleren",
+                continue: "Doorgaan",
+                cancel: "Annuleren",
             },
         },
         startScreen: {
-            startButton: "Start Voting",
-            instructionsTitle: "Instructions",
-            instructionsDescription: "Please follow these steps to cast your ballot:",
-            step1Title: "1. Select your options",
+            startButton: "Begin met stemmen",
+            instructionsTitle: "Instructies",
+            instructionsDescription: "Volg deze stappen om uw stem uit te brengen:",
+            step1Title: "1. Selecteer uw opties",
             step1Description:
-                "Choose your preferred candidates and answer the Ballot questions one by one as they appear. You can edit your ballot until you are ready to proceed.",
-            step2Title: "2. Review your ballot",
+                "Kies uw voorkeurskandidaten en beantwoord de vragen op het stembiljet een voor een zoals ze verschijnen. U kunt uw stembiljet bewerken totdat u klaar bent om verder te gaan.",
+            step2Title: "2. Controleer uw stembiljet",
             step2Description:
-                "Once you are satisfied with your selections, we will encrypt your ballot and show you a final review of your choices. You will also receive a unique tracker ID for your ballot.",
-            step3Title: "3. Cast your ballot",
+                "Zodra u tevreden bent met uw selecties, versleutelen we uw stembiljet en tonen we u een laatste overzicht van uw keuzes. U ontvangt ook een unieke tracker-ID voor uw stembiljet.",
+            step3Title: "3. Breng uw stem uit",
             step3Description:
-                "Cast your ballot: Finally, you can cast your ballot so it is properly registered. Alternatively, you can opt to audit and confirm that your ballot was correctly captured and encrypted.",
+                "Breng uw stem uit: Tot slot kunt u uw stem uitbrengen zodat deze correct wordt geregistreerd. Als alternatief kunt u kiezen voor een audit om te bevestigen dat uw stembiljet correct is vastgelegd en versleuteld.",
         },
         reviewScreen: {
-            title: "Review your ballot",
+            title: "Controleer uw stembiljet",
             description:
-                "To make changes in your selections, click “<b>Edit ballot</b>” button, to confirm your selections, click “<b>Cast your ballot</b>” button below, and to audit your ballot click the “<b>Audit Ballot</b>” button below.",
+                "Om wijzigingen aan te brengen in uw selecties, klik op de knop “<b>Stembiljet bewerken</b>”. Om uw selecties te bevestigen, klik op de knop “<b>Breng uw stem uit</b>” hieronder. Om uw stembiljet te auditen, klik op de knop “<b>Audit stembiljet</b>” hieronder.",
             descriptionNoAudit:
-                "To make changes in your selections, click “<b>Edit ballot</b>” button, to confirm your selections, click “<b>Cast your ballot</b>” button below.",
-            backButton: "Edit ballot",
-            castBallotButton: "Cast your ballot",
-            auditButton: "Audit ballot",
+                "Om wijzigingen aan te brengen in uw selecties, klik op de knop “<b>Stembiljet bewerken</b>”. Om uw selecties te bevestigen, klik op de knop “<b>Breng uw stem uit</b>” hieronder.",
+            backButton: "Stembiljet bewerken",
+            castBallotButton: "Breng uw stem uit",
+            auditButton: "Audit stembiljet",
             reviewScreenHelpDialog: {
-                title: "Information: Review Screen",
+                title: "Informatie: Controlescherm",
                 content:
-                    "This screen allows you to review your selections before casting your ballot.",
+                    "Dit scherm stelt u in staat uw selecties te controleren voordat u uw stem uitbrengt.",
                 ok: "OK",
             },
             ballotIdHelpDialog: {
-                title: "Vote has not been cast",
+                title: "Stem nog niet uitgebracht",
                 content:
-                    "<p>This is your Ballot Tracker ID, but <b>your vote has not been cast yet</b>. If you try to track the ballot, you will not find it.</p><p>The reason we show the Ballot Tracker ID at this stage is to allow you to audit the correctness of the encrypted ballot before casting it.</p>",
-                ok: "I accept my vote has NOT been cast",
-                cancel: "Cancel",
+                    "<p>Dit is uw Stembiljet Tracker ID, maar <b>uw stem is nog niet uitgebracht</b>. Als u probeert het stembiljet te traceren, zult u het niet vinden.</p><p>De reden dat we de Stembiljet Tracker ID in dit stadium tonen, is om u in staat te stellen de correctheid van het versleutelde stembiljet te auditen voordat u het uitbrengt.</p>",
+                ok: "Ik accepteer dat mijn stem NOG NIET is uitgebracht",
+                cancel: "Annuleren",
             },
             auditBallotHelpDialog: {
-                title: "Do you want to audit the ballot?",
+                title: "Wilt u het stembiljet auditen?",
                 content:
-                    "<p>Please note that auditing your ballot will void it, requiring you to restart the voting process. The audit process lets you verify that your ballot is correctly encoded, but it involves advanced technical steps. We recommend proceeding only if you are confident in your technical skills. If you just want to cast your ballot, click <u>Cancel</u> to go back to the review ballot screen.</b></p>",
-                ok: "Yes, I want to DISCARD my ballot to audit it",
-                cancel: "Cancel",
+                    "<p>Let op: het auditen van uw stembiljet maakt het ongeldig, waardoor u het stemproces opnieuw moet starten. Het auditproces stelt u in staat te verifiëren dat uw stembiljet correct is gecodeerd, maar het omvat geavanceerde technische stappen. We raden aan alleen door te gaan als u zeker bent van uw technische vaardigheden. Als u gewoon uw stem wilt uitbrengen, klik dan op <u>Annuleren</u> om terug te gaan naar het controlescherm.</b></p>",
+                ok: "Ja, ik wil mijn stembiljet VERWERPEN om het te auditen",
+                cancel: "Annuleren",
             },
             confirmCastVoteDialog: {
-                title: "Are you sure you want to cast your vote?",
-                content: "Your vote will no longer be editable once confirmed.",
-                ok: "Yes, I want to CAST my vote",
-                cancel: "Cancel",
+                title: "Weet u zeker dat u uw stem wilt uitbrengen?",
+                content: "Uw stem kan niet meer worden bewerkt nadat deze is bevestigd.",
+                ok: "Ja, ik wil mijn stem UITBRENGEN",
+                cancel: "Annuleren",
             },
             error: {
                 NETWORK_ERROR:
-                    "There was a network problem. Please try again later or contact support for assistance.",
+                    "Er was een netwerkprobleem. Probeer het later opnieuw of neem contact op met ondersteuning voor hulp.",
                 UNABLE_TO_FETCH_DATA:
-                    "There was a problem fetching the data. Please try again later or contact support for assistance.",
-                LOAD_ELECTION_EVENT: "Cannot load election event. Please try again later.",
+                    "Er was een probleem bij het ophalen van de gegevens. Probeer het later opnieuw of neem contact op met ondersteuning voor hulp.",
+                LOAD_ELECTION_EVENT: "Kan kiesgebeurtenis niet laden. Probeer het later opnieuw.",
                 CAST_VOTE:
-                    "There was an unknown error while casting the vote. Please try again later or contact support for assistance.",
+                    "Er is een onbekende fout opgetreden bij het uitbrengen van de stem. Probeer het later opnieuw of neem contact op met ondersteuning voor hulp.",
                 CAST_VOTE_AreaNotFound:
-                    "There was an error while casting the vote: Area not found. Please try again later or contact support for assistance.",
+                    "Er is een fout opgetreden bij het uitbrengen van de stem: Gebied niet gevonden. Probeer het later opnieuw of neem contact op met ondersteuning voor hulp.",
                 CAST_VOTE_CheckStatusFailed:
-                    "Election does not allow casting the vote. Election might be closed, archived or you might be trying to vote outside grace period.",
+                    "Verkiezing staat het uitbrengen van de stem niet toe. De verkiezing is mogelijk gesloten, gearchiveerd of u probeert mogelijk buiten de respijtperiode te stemmen.",
                 CAST_VOTE_InternalServerError:
-                    "An internal error occurred while casting the vote. Please try again later or contact support for assistance.",
+                    "Er is een interne fout opgetreden bij het uitbrengen van de stem. Probeer het later opnieuw of neem contact op met ondersteuning voor hulp.",
                 CAST_VOTE_QueueError:
-                    "There was a problem processing your vote. Please try again later or contact support for assistance.",
+                    "Er was een probleem bij het verwerken van uw stem. Probeer het later opnieuw of neem contact op met ondersteuning voor hulp.",
                 CAST_VOTE_Unauthorized:
-                    "You are not authorized to cast a vote. Please contact support for assistance.",
+                    "U bent niet gemachtigd om een stem uit te brengen. Neem contact op met ondersteuning voor hulp.",
                 CAST_VOTE_ElectionEventNotFound:
-                    "The election event could not be found. Please try again later or contact support for assistance.",
+                    "De kiesgebeurtenis kon niet worden gevonden. Probeer het later opnieuw of neem contact op met ondersteuning voor hulp.",
                 CAST_VOTE_ElectoralLogNotFound:
-                    "Your voting record could not be found. Please contact support for assistance.",
+                    "Uw stemregistratie kon niet worden gevonden. Neem contact op met ondersteuning voor hulp.",
                 CAST_VOTE_CheckPreviousVotesFailed:
-                    "An error occurred while checking your voting status. Please try again later or contact support for assistance.",
+                    "Er is een fout opgetreden bij het controleren van uw stemstatus. Probeer het later opnieuw of neem contact op met ondersteuning voor hulp.",
                 CAST_VOTE_GetClientCredentialsFailed:
-                    "Failed to verify your credentials. Please try again later or contact support for assistance.",
+                    "Het verifiëren van uw gegevens is mislukt. Probeer het later opnieuw of neem contact op met ondersteuning voor hulp.",
                 CAST_VOTE_GetAreaIdFailed:
-                    "An error occurred verifying your voting area. Please try again later or contact support for assistance.",
+                    "Er is een fout opgetreden bij het verifiëren van uw stemgebied. Probeer het later opnieuw of neem contact op met ondersteuning voor hulp.",
                 CAST_VOTE_GetTransactionFailed:
-                    "An error occurred processing your vote. Please try again later or contact support for assistance.",
+                    "Er is een fout opgetreden bij het verwerken van uw stem. Probeer het later opnieuw of neem contact op met ondersteuning voor hulp.",
                 CAST_VOTE_DeserializeBallotFailed:
-                    "An error occurred reading your ballot. Please try again later or contact support for assistance.",
+                    "Er is een fout opgetreden bij het lezen van uw stembiljet. Probeer het later opnieuw of neem contact op met ondersteuning voor hulp.",
                 CAST_VOTE_DeserializeContestsFailed:
-                    "An error occurred reading your selections. Please try again later or contact support for assistance.",
+                    "Er is een fout opgetreden bij het lezen van uw selecties. Probeer het later opnieuw of neem contact op met ondersteuning voor hulp.",
                 CAST_VOTE_PokValidationFailed:
-                    "Failed to validate your vote. Please try again later or contact support for assistance.",
+                    "Het valideren van uw stem is mislukt. Probeer het later opnieuw of neem contact op met ondersteuning voor hulp.",
                 CAST_VOTE_UuidParseFailed:
-                    "An error occurred processing your request. Please try again later or contact support for assistance.",
+                    "Er is een fout opgetreden bij het verwerken van uw verzoek. Probeer het later opnieuw of neem contact op met ondersteuning voor hulp.",
                 CAST_VOTE_unexpected:
-                    "An unknown error occurred while casting the vote. Please try again later or contact support for assistance.",
+                    "Er is een onbekende fout opgetreden bij het uitbrengen van de stem. Probeer het later opnieuw of neem contact op met ondersteuning voor hulp.",
                 CAST_VOTE_UnknownError:
-                    "An unknown error occurred while casting the vote. Please try again later or contact support for assistance.",
+                    "Er is een onbekende fout opgetreden bij het uitbrengen van de stem. Probeer het later opnieuw of neem contact op met ondersteuning voor hulp.",
                 NO_BALLOT_SELECTION:
-                    "The selection state for this election is not present. Please ensure you have selected your choices correctly or contact support.",
-                NO_BALLOT_STYLE: "The ballot style is not available. Please contact support.",
-                NO_AUDITABLE_BALLOT: "No auditable ballot is available. Please contact support.",
+                    "De selectiestatus voor deze verkiezing is niet aanwezig. Zorg ervoor dat u uw keuzes correct hebt geselecteerd of neem contact op met ondersteuning.",
+                NO_BALLOT_STYLE:
+                    "De stembiljetstijl is niet beschikbaar. Neem contact op met ondersteuning.",
+                NO_AUDITABLE_BALLOT:
+                    "Er is geen auditeerbaar stembiljet beschikbaar. Neem contact op met ondersteuning.",
                 INCONSISTENT_HASH:
-                    "There was an error related to the ballot hashing process. BallotId: {{ballotId}} is not consistent with auditable Ballot Hash: {{auditableBallotHash}}. Please report this issue to support.",
-                ELECTION_EVENT_NOT_OPEN: "The election event is closed. Please contact support.",
+                    "Er was een fout met het hash-proces van het stembiljet. BallotId: {{ballotId}} is niet consistent met de auditeerbare Ballot Hash: {{auditableBallotHash}}. Meld dit probleem bij de ondersteuning.",
+                ELECTION_EVENT_NOT_OPEN:
+                    "De kiesgebeurtenis is gesloten. Neem contact op met ondersteuning.",
                 PARSE_ERROR:
-                    "There was an error parsing the ballot. Please try again later or contact support for assistance.",
+                    "Er was een fout bij het parseren van het stembiljet. Probeer het later opnieuw of neem contact op met ondersteuning voor hulp.",
                 DESERIALIZE_AUDITABLE_ERROR:
-                    "There was an error deserializing the auditable ballot. Please try again later or contact support for assistance.",
+                    "Er was een fout bij het deserialiseren van het auditeerbare stembiljet. Probeer het later opnieuw of neem contact op met ondersteuning voor hulp.",
                 DESERIALIZE_HASHABLE_ERROR:
-                    "There was an error deserializing the hashable ballot. Please try again later or contact support for assistance.",
+                    "Er was een fout bij het deserialiseren van het hashbare stembiljet. Probeer het later opnieuw of neem contact op met ondersteuning voor hulp.",
                 CONVERT_ERROR:
-                    "There was an error converting the ballot. Please try again later or contact support for assistance.",
+                    "Er was een fout bij het converteren van het stembiljet. Probeer het later opnieuw of neem contact op met ondersteuning voor hulp.",
                 SERIALIZE_ERROR:
-                    "There was an error serializing the ballot. Please try again later or contact support for assistance.",
+                    "Er was een fout bij het serialiseren van het stembiljet. Probeer het later opnieuw of neem contact op met ondersteuning voor hulp.",
                 UNKNOWN_ERROR:
-                    "There was an error. Please try again later or contact support for assistance.",
+                    "Er is een fout opgetreden. Probeer het later opnieuw of neem contact op met ondersteuning voor hulp.",
             },
         },
         confirmationScreen: {
-            title: "Your vote has been cast",
+            title: "Uw stem is uitgebracht",
             description:
-                "The confirmation code below verifies that <b>your ballot has been cast successfully</b>. You can use this code to verify that your ballot has been counted.",
-            ballotId: "Ballot ID",
-            printButton: "Print",
-            finishButton: "Finish",
-            verifyCastTitle: "Verify that your ballot has been cast",
+                "De onderstaande bevestigingscode verifieert dat <b>uw stembiljet succesvol is uitgebracht</b>. U kunt deze code gebruiken om te controleren of uw stembiljet is geteld.",
+            ballotId: "Stembiljet ID",
+            printButton: "Afdrukken",
+            finishButton: "Voltooien",
+            verifyCastTitle: "Verifieer dat uw stembiljet is uitgebracht",
             verifyCastDescription:
-                "You can verify your ballot has been cast correctly at any moment using the following QR code:",
+                "U kunt op elk moment verifiëren dat uw stembiljet correct is uitgebracht met behulp van de volgende QR-code:",
             confirmationHelpDialog: {
-                title: "Information: Confirmation Screen",
+                title: "Informatie: Bevestigingsscherm",
                 content:
-                    "This screen shows that your vote was successfully cast. The information provided on this page allows you to verify that the ballot has been stored in ballot box , this process can be executed at any time during voting period and after the Ballot has been closed.",
+                    "Dit scherm toont dat uw stem succesvol is uitgebracht. De informatie op deze pagina stelt u in staat te verifiëren dat het stembiljet is opgeslagen in de stembus. Dit proces kan op elk moment worden uitgevoerd tijdens de stemperiode en nadat de stemming is gesloten.",
                 ok: "OK",
             },
             demoPrintDialog: {
-                title: "Printing ballot",
-                content: "Printing disabled in demo mode",
+                title: "Stembiljet afdrukken",
+                content: "Afdrukken uitgeschakeld in demo-modus",
                 ok: "OK",
             },
             demoBallotUrlDialog: {
-                title: "Ballot Id",
-                content: "Cannot use code, disabled in demo mode.",
+                title: "Stembiljet ID",
+                content: "Kan code niet gebruiken, uitgeschakeld in demo-modus.",
                 ok: "OK",
             },
             ballotIdHelpDialog: {
-                title: "Information: Ballot ID",
+                title: "Informatie: Stembiljet ID",
                 content:
-                    "The Ballot ID is a code that allows you to find your ballot in the ballot box, this ID is unique and doesn't contain information about your selections.",
+                    "De Stembiljet ID is een code waarmee u uw stembiljet in de stembus kunt vinden. Deze ID is uniek en bevat geen informatie over uw selecties.",
                 ok: "OK",
             },
             ballotIdDemoHelpDialog: {
-                title: "Information: Ballot ID",
+                title: "Informatie: Stembiljet ID",
                 content:
-                    "<p>The Ballot ID is a code that allows you to find your ballot in the ballot box, this ID is unique and doesn't contain information about your selections.</p><p><b>Notice:</b> This voting booth is for demonstration purposes only. Your vote has NOT been cast.</p>",
+                    "<p>De Stembiljet ID is een code waarmee u uw stembiljet in de stembus kunt vinden. Deze ID is uniek en bevat geen informatie over uw selecties.</p><p><b>Let op:</b> Dit stemhokje is alleen voor demonstratiedoeleinden. Uw stem is NIET uitgebracht.</p>",
                 ok: "OK",
             },
             errorDialogPrintBallotReceipt: {
-                title: "Error",
-                content: "An error has occured, please try again",
+                title: "Fout",
+                content: "Er is een fout opgetreden, probeer het opnieuw.",
                 ok: "OK",
             },
-            demoQRText: "Ballot tracker is disabled in demo mode",
+            demoQRText: "Stembiljet tracker is uitgeschakeld in demo-modus",
         },
         auditScreen: {
-            printButton: "Print",
-            restartButton: "Start Voting",
-            title: "Audit your Ballot",
-            description: "To verify your ballot, please follow the steps below:",
-            step1Title: "1. Download or copy the following information",
+            printButton: "Afdrukken",
+            restartButton: "Begin met stemmen",
+            title: "Audit uw Stembiljet",
+            description: "Volg de onderstaande stappen om uw stembiljet te verifiëren:",
+            step1Title: "1. Download of kopieer de volgende informatie",
             step1Description:
-                "Your <b>Ballot ID</b> that appears at the top of the screen and your encrypted ballot below:",
+                "Uw <b>Stembiljet ID</b> die bovenaan het scherm verschijnt en uw versleutelde stembiljet hieronder:",
             step1HelpDialog: {
-                title: "Copy the Encrypted Ballot",
+                title: "Kopieer het Versleutelde Stembiljet",
                 content:
-                    "You can download or copy your encrypted ballot to audit the ballot and verify the encrypted content contains your selections.",
+                    "U kunt uw versleutelde stembiljet downloaden of kopiëren om het stembiljet te auditen en te verifiëren dat de versleutelde inhoud uw selecties bevat.",
                 ok: "OK",
             },
-            downloadButton: "Download",
-            step2Title: "2. Verify your ballot",
+            downloadButton: "Downloaden",
+            step2Title: "2. Verifieer uw stembiljet",
             step2Description:
-                "<VerifierLink>Access to the ballot verifier</VerifierLink>, a new tab will open in your browser.",
+                "<VerifierLink>Toegang tot de stembiljetverificateur</VerifierLink>, een nieuw tabblad wordt geopend in uw browser.",
             step2HelpDialog: {
-                title: "Audit ballot tutorial",
+                title: "Handleiding stembiljet audit",
                 content:
-                    "To audit your ballot you will need to follow the steps shown in the tutorial, this includes the download of a desktop application used to verify the encrypted ballot independently from the website.",
+                    "Om uw stembiljet te auditen, moet u de stappen volgen die in de handleiding worden getoond. Dit omvat het downloaden van een desktopapplicatie die wordt gebruikt om het versleutelde stembiljet onafhankelijk van de website te verifiëren.",
                 ok: "OK",
             },
             bottomWarning:
-                "For security reasons, when you audit your ballot, it needs to be spoiled. To continue with the voting process, you need to click ‘<b>Start Voting</b>’ below.",
+                "Om veiligheidsredenen moet uw stembiljet ongeldig worden gemaakt wanneer u het audit. Om door te gaan met het stemproces, moet u hieronder op ‘<b>Begin met stemmen</b>’ klikken.",
         },
         electionSelectionScreen: {
-            title: "Ballot list",
-            description: "Select the Ballot you want to vote",
+            title: "Kieslijst",
+            description: "Selecteer het stembiljet waarvoor u wilt stemmen",
             chooserHelpDialog: {
-                title: "Information: Ballot List",
+                title: "Informatie: Kieslijst",
                 content:
-                    "Welcome to the Voting Booth, this screen shows the list of Ballots you can cast a ballot. Ballots displayed in this list can be open to voting, scheduled, or closed. You will be able to access the ballot only if the voting period is open.",
+                    "Welkom bij het Stemhokje. Dit scherm toont de lijst met stembiljetten waarvoor u een stem kunt uitbrengen. Stembiljetten die in deze lijst worden weergegeven, kunnen open zijn voor stemming, gepland zijn of gesloten zijn. U kunt alleen toegang krijgen tot het stembiljet als de stemperiode open is.",
                 ok: "OK",
             },
-            noResults: "No ballots for now.",
+            noResults: "Momenteel geen stembiljetten.",
             demoDialog: {
-                title: "Demo voting booth",
+                title: "Demo stemhokje",
                 content:
-                    "You are entering a demo voting booth. <strong>Your vote will NOT be cast.</strong> This voting booth is for demonstration purposes only.",
-                ok: "I accept my vote will Not be cast",
+                    "U betreedt een demo stemhokje. <strong>Uw stem wordt NIET uitgebracht.</strong> Dit stemhokje is alleen voor demonstratiedoeleinden.",
+                ok: "Ik accepteer dat mijn stem niet wordt uitgebracht",
             },
             errors: {
                 noVotingArea:
-                    "Election area not assigned to voter. Please try again later or contact support for assistance.",
+                    "Kiesgebied niet toegewezen aan kiezer. Probeer het later opnieuw of neem contact op met ondersteuning voor hulp.",
                 networkError:
-                    "There was a network problem. Please try again later or contact support for assistance.",
+                    "Er was een netwerkprobleem. Probeer het later opnieuw of neem contact op met ondersteuning voor hulp.",
                 unableToFetchData:
-                    "There was a problem fetching the data. Please try again later or contact support for assistance.",
+                    "Er was een probleem bij het ophalen van de gegevens. Probeer het later opnieuw of neem contact op met ondersteuning voor hulp.",
                 noElectionEvent:
-                    "Election event doesn’t exist. Please try again later or contact support for assistance.",
+                    "Kiesgebeurtenis bestaat niet. Probeer het later opnieuw of neem contact op met ondersteuning voor hulp.",
                 ballotStylesEmlError:
-                    "There was an error with the publish ballot style. Please try again later or contact support for assistance.",
+                    "Er was een fout met de gepubliceerde stembiljetstijl. Probeer het later opnieuw of neem contact op met ondersteuning voor hulp.",
                 obtainingElectionFromID:
-                    "There was an error obtaining elections associated with the following election IDs: {{electionIds}}. Please try again later or contact support for assistance.",
+                    "Er was een fout bij het ophalen van verkiezingen geassocieerd met de volgende verkiezings-ID's: {{electionIds}}. Probeer het later opnieuw of neem contact op met ondersteuning voor hulp.",
             },
             alerts: {
                 noElections:
-                    "There are no elections you can vote for. This could be because the area doesn’t have any contest associated. Please try again later or contact support for assistance.",
+                    "Er zijn geen verkiezingen waarvoor u kunt stemmen. Dit kan zijn omdat het gebied geen bijbehorende stemmingen heeft. Probeer het later opnieuw of neem contact op met ondersteuning voor hulp.",
                 electionEventNotPublished:
-                    "The election event hasn’t been published yet. Please try again later or contact support for assistance.",
+                    "De kiesgebeurtenis is nog niet gepubliceerd. Probeer het later opnieuw of neem contact op met ondersteuning voor hulp.",
             },
         },
         errors: {
             encoding: {
-                notEnoughChoices: "Not enough choices to decode",
-                writeInChoiceOutOfRange: "Write-in choice out of range: {{index}}",
-                writeInNotEndInZero: "Write-in doesn't end on 0",
+                notEnoughChoices: "Niet genoeg keuzes om te decoderen",
+                writeInChoiceOutOfRange: "In te vullen keuze buiten bereik: {{index}}",
+                writeInNotEndInZero: "In te vullen tekst eindigt niet op 0",
                 writeInCharsExceeded:
-                    "Write-in exceed by {{numCharsExceeded}} the maximum number of chars. Requires fixing.",
+                    "In te vullen tekst overschrijdt maximum aantal tekens met {{numCharsExceeded}}. Moet worden aangepast.",
                 bytesToUtf8Conversion:
-                    "Error converting write-in from bytes to UTF-8 string: {{errorMessage}}",
-                ballotTooLarge: "Ballot larger than expected",
+                    "Fout bij het converteren van in te vullen tekst van bytes naar UTF-8 string: {{errorMessage}}",
+                ballotTooLarge: "Stembiljet groter dan verwacht",
             },
             implicit: {
                 selectedMax:
-                    "Overvote: Number of selected choices {{numSelected}} is more than the maximum {{max}}",
+                    "Te veel stemmen: Aantal geselecteerde keuzes {{numSelected}} is meer dan het maximum {{max}}",
                 selectedMin:
-                    "Number of selected choices {{numSelected}} is less than the minimum {{min}}",
+                    "Aantal geselecteerde keuzes {{numSelected}} is minder dan het minimum {{min}}",
                 maxSelectionsPerType:
-                    "Number of selected choices {{numSelected}} for list {{type}} is more than the maximum {{max}}",
+                    "Aantal geselecteerde keuzes {{numSelected}} voor lijst {{type}} is meer dan het maximum {{max}}",
                 underVote:
-                    "Undervote: Number of selected choices {{numSelected}} is less than the maximum {{max}}",
+                    "Te weinig stemmen: Aantal geselecteerde keuzes {{numSelected}} is minder dan het maximum {{max}}",
                 overVoteDisabled:
-                    "Maximum reached: You have selected the maximum {{numSelected}} choices. To change your selection, please deselect another option first.",
-                blankVote: "Blank Vote: 0 choices selected",
+                    "Maximum bereikt: U heeft het maximum aantal keuzes {{numSelected}} geselecteerd. Om uw selectie te wijzigen, deselecteer eerst een andere optie.",
+                blankVote: "Blanco stem: 0 keuzes geselecteerd",
             },
             explicit: {
-                notAllowed: "Ballot marked explicitly invalid but question doesn't allow it",
-                alert: "Selection marked will be considered invalid vote.",
+                notAllowed:
+                    "Stembiljet expliciet ongeldig gemarkeerd maar vraag staat dit niet toe",
+                alert: "Gemarkeerde selectie wordt als ongeldige stem beschouwd.",
             },
             page: {
-                oopsWithStatus: "Oops! {{status}}",
-                oopsWithoutStatus: "Oops! Unexpected Error",
-                somethingWrong: "Something went wrong.",
+                oopsWithStatus: "Oeps! {{status}}",
+                oopsWithoutStatus: "Oeps! Onverwachte Fout",
+                somethingWrong: "Er is iets misgegaan.",
             },
         },
         materials: {
             common: {
-                label: "Support Materials",
-                back: "Back to Ballot List",
-                close: "Close",
-                preview: "Preview",
+                label: "Ondersteunend Materiaal",
+                back: "Terug naar Kieslijst",
+                close: "Sluiten",
+                preview: "Voorbeeld",
             },
         },
         ballotLocator: {
-            title: "Locate your Ballot",
-            titleResult: "Result of your Ballot Lookup",
-            description: "Verify that your Ballot has been correctly submitted",
-            locate: "Locate your Ballot",
-            locateAgain: "Locate another Ballot",
-            found: "Your ballot ID {{ballotId}} has been located",
-            notFound: "Your ballot ID {{ballotId}} has not been located",
-            contentDesc: "This is your Ballot content: ",
-            wrongFormatBallotId: "Wrong format for Ballot ID",
+            title: "Lokaliseer uw Stembiljet",
+            titleResult: "Resultaat van uw Stembiljet Zoekopdracht",
+            description: "Verifieer dat uw stembiljet correct is ingediend",
+            locate: "Lokaliseer uw Stembiljet",
+            locateAgain: "Lokaliseer een ander Stembiljet",
+            found: "Uw stembiljet ID {{ballotId}} is gelokaliseerd",
+            notFound: "Uw stembiljet ID {{ballotId}} is niet gelokaliseerd",
+            contentDesc: "Dit is de inhoud van uw stembiljet: ",
+            wrongFormatBallotId: "Verkeerd formaat voor Stembiljet ID",
             steps: {
-                lookup: "Locate your Ballot",
-                result: "Result",
+                lookup: "Lokaliseer uw Stembiljet",
+                result: "Resultaat",
             },
             titleHelpDialog: {
-                title: "Information: Ballot Locator screen",
+                title: "Informatie: Stembiljet Lokaliseren Scherm",
                 content:
-                    "This screen allows the voter to find their vote by using the Ballot ID to retrieve it. This procedure enables checking that their ballot was correctly cast and that the recorded ballot coincides with the encrypted ballot they sent.",
+                    "Dit scherm stelt de kiezer in staat om zijn/haar stem te vinden door de Stembiljet ID te gebruiken om deze op te halen. Deze procedure maakt het mogelijk te controleren of hun stembiljet correct is uitgebracht en of het geregistreerde stembiljet overeenkomt met het versleutelde stembiljet dat ze hebben verzonden.",
                 ok: "OK",
             },
         },

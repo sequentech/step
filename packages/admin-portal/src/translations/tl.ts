@@ -1085,6 +1085,7 @@ const tagalogTranslation: TranslationType = {
                 fr: "Pranses",
                 cat: "Valencian",
                 tl: "Tagalog",
+                nl: "Nederlands",
             },
             channel: {
                 online: "Online",

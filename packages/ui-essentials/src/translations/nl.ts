@@ -5,134 +5,136 @@ import {TranslationType} from "./en"
 
 const dutchTranslation: TranslationType = {
     translations: {
-        language: "English",
-        welcome: "Hello <br/> <strong>World</strong>",
+        language: "Nederlands",
+        welcome: "Hallo <br/> <strong>Wereld</strong>",
         breadcrumbSteps: {
-            select: "Select a Verifier",
-            import: "Import Data",
-            verify: "Verify",
-            finish: "Finish",
+            select: "Selecteer een Verifieerder",
+            import: "Importeer Gegevens",
+            verify: "Verifieer",
+            finish: "Voltooi",
         },
         electionEventBreadcrumbSteps: {
-            created: "Created",
-            keys: "Keys",
-            publish: "Publish",
-            started: "Started",
-            ended: "Ended",
-            results: "Results",
+            created: "Aangemaakt",
+            keys: "Sleutels",
+            publish: "Publiceer",
+            started: "Gestart",
+            ended: "Beëindigd",
+            results: "Resultaten",
         },
         candidate: {
-            moreInformationLink: "More information",
-            writeInsPlaceholder: "Type write-in candidate here",
-            blankVote: "Blank Vote",
+            moreInformationLink: "Meer informatie",
+            writeInsPlaceholder: "Typ hier de naam van de kandidaat",
+            blankVote: "Blanco stem",
         },
         homeScreen: {
-            title: "Sequent Ballot Verifier",
+            title: "Sequent Stembiljet Verifieerder",
             description1:
-                "The ballot verifier is used when the voter chooses to audit the ballot in the voting booth. The verification should take 1-2 minutes.",
+                "De stembiljetverifieerder wordt gebruikt wanneer de kiezer ervoor kiest om het stembiljet in het stemhokje te controleren. De verificatie duurt ongeveer 1-2 minuten.",
             description2:
-                "The ballot verifier allows the voter to ensure that the encrypted ballot correctly captures the selections made in the voting booth. Allowing to perform this check is called cast-as-intended verifiability and prevents errors and malicious activity during ballot encryption.",
-            descriptionMore: "Learn more",
-            startButton: "Browse file",
-            dragDropOption: "Or drag and drop it here",
+                "De stembiljetverifieerder stelt de kiezer in staat te verzekeren dat het versleutelde stembiljet de selecties gemaakt in het stemhokje correct vastlegt. Deze controle mogelijk maken heet 'cast-as-intended' verifieerbaarheid en voorkomt fouten en kwaadwillige activiteiten tijdens de versleuteling van het stembiljet.",
+            descriptionMore: "Meer weten",
+            startButton: "Blader door bestanden",
+            dragDropOption: "Of sleep het bestand hierheen",
             importErrorDescription:
-                "There was a problem importing the auditable ballot. Did you choose  the right file?",
-            importErrorMoreInfo: "More info",
-            importErrorTitle: "Error",
-            useSampleText: "Don't have an auditable ballot?",
-            useSampleLink: "Use a sample auditable ballot",
+                "Er was een probleem bij het importeren van het controleerbare stembiljet. Heeft u het juiste bestand gekozen?",
+            importErrorMoreInfo: "Meer info",
+            importErrorTitle: "Fout",
+            useSampleText: "Heeft u geen controleerbaar stembiljet?",
+            useSampleLink: "Gebruik een voorbeeld van een controleerbaar stembiljet",
         },
         confirmationScreen: {
-            title: "Sequent Ballot Verifier",
+            title: "Sequent Stembiljet Verifieerder",
             topDescription1:
-                "Based on the information in the imported Auditable Ballot, we calculated that:",
-            topDescription2: "If this is the Ballot ID shown in the Voting Booth:",
+                "Op basis van de informatie in het geïmporteerde Controleerbare Stembiljet, hebben we berekend dat:",
+            topDescription2: "Als dit de Stembiljet-ID is die in het stemhokje wordt getoond:",
             bottomDescription1:
-                "Your ballot was encrypted correctly. You can now close this window and return to the Voting Booth.",
+                "Uw stembiljet is correct versleuteld. U kunt dit venster nu sluiten en terugkeren naar het stemhokje.",
             bottomDescription2:
-                "If they don't match, click here to learn more about the potential reasons and what actions you can take.",
-            ballotChoicesDescription: "And your ballot choices are:",
-            helpAndFaq: "Help & FAQ",
-            backButton: "Back",
-            markedInvalid: "Ballot explicitly marked invalid",
+                "Als ze niet overeenkomen, klik hier voor meer informatie over de mogelijke redenen en welke acties u kunt ondernemen.",
+            ballotChoicesDescription: "En uw stemkeuzes zijn:",
+            helpAndFaq: "Veelgestelde Vragen", // FAQ is commonly understood, alternatively "Veelgestelde Vragen"
+            backButton: "Terug",
+            markedInvalid: "Stembiljet expliciet ongeldig gemarkeerd",
         },
         ballotSelectionsScreen: {
             statusModal: {
                 title: "Status",
-                content:
-                    "The status panel gives you information about the  verifications performed.",
+                content: "Het statuspaneel geeft u informatie over de uitgevoerde verificaties.",
                 ok: "OK",
             },
         },
-        poweredBy: "Powered by",
+        poweredBy: "Aangedreven door",
         errors: {
             encoding: {
-                notEnoughChoices: "Not enough choices to decode",
-                writeInChoiceOutOfRange: "Write-in choice out of range: {{index}}",
-                writeInNotEndInZero: "Write in doesn't end on 0",
+                notEnoughChoices: "Niet genoeg keuzes om te decoderen",
+                writeInChoiceOutOfRange: "Ingevoerde keuze buiten bereik: {{index}}",
+                writeInNotEndInZero: "Ingevoerde waarde eindigt niet op 0",
                 bytesToUtf8Conversion:
-                    "Error converting write-in from bytes to UTF-8 string: {{errorMessage}}",
-                ballotTooLarge: "Ballot larger than expected",
+                    "Fout bij het converteren van ingevoerde waarde van bytes naar UTF-8 string: {{errorMessage}}",
+                ballotTooLarge: "Stembiljet groter dan verwacht",
             },
             implicit: {
                 selectedMax:
-                    "Number of selected choices {{numSelected}} is more than the maximum {{max}}",
+                    "Aantal geselecteerde keuzes {{numSelected}} is meer dan het maximum {{max}}",
                 selectedMin:
-                    "Number of selected choices {{numSelected}} is less than the minimum {{min}}",
+                    "Aantal geselecteerde keuzes {{numSelected}} is minder dan het minimum {{min}}",
             },
             explicit: {
-                notAllowed: "Ballot marked explicitly invalid but question doesn't allow it",
+                notAllowed:
+                    "Stembiljet expliciet ongeldig gemarkeerd, maar vraag staat dit niet toe",
             },
         },
-        ballotHash: "Your Ballot ID: {{ballotId}}",
+        ballotHash: "Uw Stembiljet-ID: {{ballotId}}",
         version: {
-            header: "Version:",
+            header: "Versie:",
         },
         hash: {
             header: "Hash:",
         },
         logout: {
-            buttonText: "Logout",
+            buttonText: "Uitloggen",
             modal: {
-                title: "Are you sure you want to logout?",
-                content: "You are about to close this application. This action can not be undone. ",
+                title: "Bent u zeker dat u wilt uitloggen?",
+                content:
+                    "U staat op het punt deze applicatie te sluiten. Deze actie kan niet ongedaan worden gemaakt.",
                 ok: "OK",
-                close: "Close",
+                close: "Sluiten",
             },
         },
         stories: {
-            openDialog: "Open Dialog",
+            openDialog: "Dialoogvenster openen",
         },
         dragNDrop: {
-            firstLine: "Drag & drop files or",
-            browse: "Browse",
-            format: "Supported format: txt",
+            firstLine: "Sleep bestanden hierheen of",
+            browse: "Bladeren",
+            format: "Ondersteund formaat: txt",
         },
         selectElection: {
-            electionWebsite: "Ballot Website",
+            electionWebsite: "Verkiezingswebsite",
             countdown:
-                "Election Begins in {{years}} years, {{months}} months, {{weeks}} weeks, {{days}} days, {{hours}} hours, {{minutes}} minutes, {{seconds}} seconds",
+                "Verkiezing Begint over {{years}} jaar, {{months}} maanden, {{weeks}} weken, {{days}} dagen, {{hours}} uur, {{minutes}} minuten, {{seconds}} seconden", // Check singular/plural needs in your implementation (jaar/jaren, maand/maanden, week/weken, dag/dagen, uur/uren, minuut/minuten, seconde/seconden)
             openElection: "Open",
-            closedElection: "Closed",
-            voted: "Voted",
-            notVoted: "Not voted",
-            resultsButton: "Ballot Results",
-            voteButton: "Click to Vote",
+            closedElection: "Gesloten",
+            voted: "Gestemd",
+            notVoted: "Niet gestemd",
+            resultsButton: "Verkiezingsresultaten",
+            voteButton: "Klik om te stemmen",
             openDate: "Open: ",
-            closeDate: "Close: ",
-            ballotLocator: "Locate your ballot",
+            closeDate: "Sluit: ",
+            ballotLocator: "Lokaliseer uw stembiljet",
         },
         header: {
-            profile: "Profile",
-            welcome: "Welcome,<br><span>{{name}}</span>",
+            profile: "Profiel",
+            welcome: "Welkom,<br><span>{{name}}</span>",
             session: {
-                title: "Your session is going to expire.",
-                timeLeft: "You have {{time}} left to cast your vote.",
-                timeLeftMinutesAndSeconds: "{{timeLeftInMinutes}} minutes and {{time}} seconds",
-                timeLeftSeconds: "{{timeLeft}} seconds",
+                title: "Uw sessie gaat bijna verlopen.",
+                timeLeft: "U heeft nog {{time}} om uw stem uit te brengen.", // {{time}} should contain units like "5 minuten"
+                timeLeftMinutesAndSeconds: "{{timeLeftInMinutes}} minuten en {{time}} seconden",
+                timeLeftSeconds: "{{timeLeft}} seconden",
             },
         },
     },
 }
 
+// You can then export it if needed in your environment
 export default dutchTranslation
