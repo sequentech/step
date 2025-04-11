@@ -17,9 +17,6 @@ export const EditElectionEventTally: React.FC = () => {
     const {tallyId, isTrustee, isCreatingType, isCreated, selectedTallySessionData} =
         useElectionEventTallyStore()
 
-    console.log("EditElectionEventTally :: tallyId ::  ", tallyId)
-    console.log("EditElectionEventTally :: isCreatingType ::  ", isCreatingType)
-
     return (
         <Box>
             {selectedTallySessionData ? (

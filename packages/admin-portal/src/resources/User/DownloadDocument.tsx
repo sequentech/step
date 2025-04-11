@@ -61,7 +61,7 @@ export const DownloadDocument: React.FC<DownloadDocumentProps> = ({
             electionEventId,
             documentId,
         },
-        skip: !documentId || !electionEventId || downloaded,
+        skip: !documentId || !tenantId || downloaded,
         pollInterval: globalSettings.QUERY_FAST_POLL_INTERVAL_MS,
         onCompleted: () => {
             console.log(`completed fetching document`)

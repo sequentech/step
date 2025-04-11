@@ -12,8 +12,9 @@ use sequent_core::types::permissions::Permissions;
 use serde::Deserialize;
 use serde::Serialize;
 use tracing::{error, info, instrument};
-use windmill::services::api_datafix::*;
+use windmill::services;
 use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
+use windmill::services::datafix::types::*;
 
 #[instrument(skip(claims))]
 #[post("/add-voter", format = "json", data = "<body>")]
@@ -49,7 +50,7 @@ pub async fn add_voter(
             DatafixResponse::new(Status::InternalServerError)
         })?;
 
-    windmill::services::api_datafix::add_datafix_voter(
+    services::datafix::api_datafix::add_datafix_voter(
         &hasura_transaction,
         &claims.tenant_id,
         &claims.datafix_event_id,
@@ -103,7 +104,7 @@ pub async fn update_voter(
             DatafixResponse::new(Status::InternalServerError)
         })?;
 
-    windmill::services::api_datafix::update_datafix_voter(
+    services::datafix::api_datafix::update_datafix_voter(
         &hasura_transaction,
         &keycloak_transaction,
         &claims.tenant_id,
@@ -163,7 +164,7 @@ pub async fn delete_voter(
             DatafixResponse::new(Status::InternalServerError)
         })?;
 
-    windmill::services::api_datafix::disable_datafix_voter(
+    services::datafix::api_datafix::disable_datafix_voter(
         &hasura_transaction,
         &keycloak_transaction,
         &claims.tenant_id,
@@ -218,7 +219,7 @@ pub async fn unmark_voted(
             DatafixResponse::new(Status::InternalServerError)
         })?;
 
-    windmill::services::api_datafix::unmark_voter_as_voted(
+    services::datafix::api_datafix::unmark_voter_as_voted(
         &hasura_transaction,
         &keycloak_transaction,
         &claims.tenant_id,
@@ -273,7 +274,7 @@ pub async fn mark_voted(
             DatafixResponse::new(Status::InternalServerError)
         })?;
 
-    windmill::services::api_datafix::mark_as_voted_via_channel(
+    services::datafix::api_datafix::mark_as_voted_via_channel(
         &hasura_transaction,
         &keycloak_transaction,
         &claims.tenant_id,
@@ -296,6 +297,7 @@ pub async fn replace_pin(
 ) -> Result<Json<ReplacePinOutput>, JsonErrorResponse> {
     let input: VoterIdBody = body.into_inner();
     info!("Replace pin: {input:?}");
+
     let required_perm = vec![Permissions::DATAFIX_ACCOUNT];
     info!("{claims:?}");
     authorize(
@@ -331,7 +333,7 @@ pub async fn replace_pin(
             DatafixResponse::new(Status::InternalServerError)
         })?;
 
-    let pin = windmill::services::api_datafix::replace_voter_pin(
+    let pin = services::datafix::api_datafix::replace_voter_pin(
         &hasura_transaction,
         &keycloak_transaction,
         &claims.tenant_id,

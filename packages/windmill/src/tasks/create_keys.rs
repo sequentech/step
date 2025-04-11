@@ -73,6 +73,9 @@ pub async fn create_keys_impl(
     if !configuration_exists {
         // create config/keys for board
         public_keys::create_keys(
+            &hasura_transaction,
+            &tenant_id,
+            &election_event_id,
             board_name.as_str(),
             trustee_pks,
             keys_ceremony.threshold as usize,

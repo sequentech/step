@@ -1164,6 +1164,11 @@ pub async fn lookup_users(
         ),
         score_matches AS (
             SELECT mu.id, count(*) as match_score FROM matched_ids mu
+            LEFT JOIN user_entity u ON u.id = mu.id
+            LEFT JOIN realm ra ON ra.id = u.realm_id
+            WHERE
+                ra.name = $1
+                {enabled_condition}
             GROUP BY mu.id
         )
         SELECT match_score, u.id, u.email, u.email_verified, u.enabled, u.first_name, u.last_name, u.realm_id, u.username, u.created_timestamp, COALESCE(
@@ -1172,7 +1177,6 @@ pub async fn lookup_users(
         FROM
             score_matches rm
         INNER JOIN user_entity u ON u.id = rm.id
-        INNER JOIN realm ra ON ra.id = u.realm_id
         LEFT JOIN LATERAL (
             SELECT json_object_agg(attr.name, attr.values_array) AS attributes
             FROM (
@@ -1188,8 +1192,6 @@ pub async fn lookup_users(
                 SELECT MAX(match_score)
                 FROM score_matches
             )
-            AND ra.name = $1
-            {enabled_condition}
         LIMIT $2
         "#
     );
@@ -1474,5 +1476,53 @@ pub async fn get_username_by_id(
     match user_ids.is_empty() {
         true => Ok(None),
         false => Ok(Some(user_ids[0].clone())),
+    }
+}
+
+#[instrument(err, skip_all(keycloak_transaction))]
+pub async fn get_user_area_id(
+    keycloak_transaction: &Transaction<'_>,
+    realm: &str,
+    user_id: &str,
+) -> Result<Option<String>> {
+    let params: Vec<&(dyn ToSql + Sync)> = vec![&realm, &user_id];
+
+    let statement = keycloak_transaction
+        .prepare(&format!(
+            r#"
+        SELECT
+             attr_json.attributes ->> '{AREA_ID_ATTR_NAME}' AS area_id
+        FROM
+            user_entity u
+        INNER JOIN
+            realm AS ra ON ra.id = u.realm_id
+        LEFT JOIN LATERAL (
+            SELECT
+                json_object_agg(ua.name, ua.value) AS attributes
+            FROM
+                user_attribute ua
+            WHERE
+                ua.user_id = u.id
+            GROUP BY
+                ua.user_id
+        ) attr_json ON true
+        WHERE
+            ra.name = $1
+            AND u.id = $2
+        "#
+        ))
+        .await?;
+
+    let rows: Vec<Row> = keycloak_transaction
+        .query(&statement, &params.as_slice())
+        .await
+        .map_err(|err| anyhow!("{err:?}"))?;
+
+    // Assuming there is at most one matching row, we extract the area_id (which might be null)
+    if let Some(row) = rows.into_iter().next() {
+        let area_id: Option<String> = row.get("area_id");
+        Ok(area_id)
+    } else {
+        Ok(None)
     }
 }
