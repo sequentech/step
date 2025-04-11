@@ -37,6 +37,7 @@ import {
     ElectionScreenMsgType,
     VotingPortalError,
     VotingPortalErrorType,
+    CastBallotsErrorType,
 } from "../services/VotingPortalError"
 import {
     IElectionEvent,
@@ -52,6 +53,7 @@ import useUpdateTranslation from "../hooks/useUpdateTranslation"
 import {GET_SUPPORT_MATERIALS} from "../queries/GetSupportMaterials"
 import {GET_BALLOT_FILES_URLS} from "../queries/GetBallotFilesUrls"
 import {setSupportMaterial} from "../store/supportMaterials/supportMaterialsSlice"
+import {ApolloError} from "@apollo/client"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -190,6 +192,7 @@ const ElectionSelectionScreen: React.FC = () => {
     const bypassChooser = useAppSelector(selectBypassChooser())
     const [errorMsg, setErrorMsg] = useState<VotingPortalErrorType | ElectionScreenErrorType>()
     const [alertMsg, setAlertMsg] = useState<ElectionScreenMsgType>()
+    const [errorCause, setErrorCause] = useState<ElectionScreenErrorType>()
     const [getBallotFilesUrls] = useMutation(GET_BALLOT_FILES_URLS)
     const urls = useRef<string[] | undefined>(undefined)
     const requestingS3Data = useRef<boolean>(false)
@@ -222,8 +225,10 @@ const ElectionSelectionScreen: React.FC = () => {
     }
 
     const hasNoElections = !loadingS3Data.current && dataElections?.length === 0
-    const isPublished = useMemo(
-        () => !!(dataElectionEvent?.status as IElectionEventStatus | undefined)?.is_published,
+    const isVotingOpen = useMemo(
+        () =>
+            ((dataElectionEvent?.status as IElectionEventStatus | undefined)
+                ?.voting_status as EVotingStatus) == EVotingStatus.OPEN,
         [dataElectionEvent, loadingS3Data.current]
     )
 
@@ -234,10 +239,13 @@ const ElectionSelectionScreen: React.FC = () => {
                     eventId,
                 },
             })
+
             // The election event file and the elections file are the first two urls followed by as any urls as ballot styles.
             let dataUrls = (res.data?.get_ballot_files_urls?.urls as string[]) ?? []
             if (!dataUrls || dataUrls.length < 3) {
-                throw new Error("Not enough urls")
+                setErrorCause(ElectionScreenErrorType.UNKNOWN_ERROR)
+                loadingS3Data.current = false
+                return
             }
 
             urls.current = dataUrls
@@ -248,7 +256,9 @@ const ElectionSelectionScreen: React.FC = () => {
                 })
             )
             if (!contents || contents.length < 3) {
-                throw new Error("Not enough contents")
+                setErrorCause(ElectionScreenErrorType.UNKNOWN_ERROR)
+                loadingS3Data.current = false
+                return
             }
             setDataElectionEvent(contents[0].content as IElectionEvent)
             setDataElections(contents[1].content as IElection[])
@@ -259,9 +269,19 @@ const ElectionSelectionScreen: React.FC = () => {
             }
             setDataBallotStyles(ballotStyles)
         } catch (error) {
-            console.log("Error getting signed urls", error)
-            setErrorMsg(t(`electionSelectionScreen.errors.${ElectionScreenErrorType.FETCH_DATA}`))
             loadingS3Data.current = false
+            console.log("Error getting signed urls: ", error)
+            if (error instanceof ApolloError) {
+                if (error.message === ElectionScreenErrorType.PUBLICATION_NOT_FOUND) {
+                    setErrorCause(ElectionScreenErrorType.PUBLICATION_NOT_FOUND)
+                } else if (error.message === ElectionScreenErrorType.NO_AREA_CONTESTS) {
+                    setErrorCause(ElectionScreenErrorType.NO_AREA_CONTESTS)
+                } else {
+                    setErrorCause(ElectionScreenErrorType.UNKNOWN_ERROR)
+                }
+            } else {
+                setErrorCause(ElectionScreenErrorType.FETCH_DATA)
+            }
         }
     }
 
@@ -286,13 +306,22 @@ const ElectionSelectionScreen: React.FC = () => {
         if (globalSettings.DISABLE_AUTH || loadingS3Data.current) {
             return
         }
-
-        if (errorMsg === ElectionScreenErrorType.FETCH_DATA ) { // This will be true if it has not been published.
-            // Shows the errorMsg
-        } else if (!dataElectionEvent) { 
-            setErrorMsg(t(`electionSelectionScreen.errors.${ElectionScreenErrorType.NO_ELECTION_EVENT}`))
-        } else if (!isPublished && dataElectionEvent) { // TODO: isPublished is false when it is published but not STARTED
+        if (errorCause === ElectionScreenErrorType.PUBLICATION_NOT_FOUND) {
             setAlertMsg(t(`electionSelectionScreen.alerts.${ElectionScreenMsgType.NOT_PUBLISHED}`))
+        } else if (errorCause === ElectionScreenErrorType.NO_AREA_CONTESTS) {
+            setErrorMsg(t(`electionSelectionScreen.errors.${ElectionScreenErrorType.NO_AREA}`))
+        } else if (errorCause === ElectionScreenErrorType.UNKNOWN_ERROR) {
+            setErrorMsg(
+                t(`electionSelectionScreen.errors.${ElectionScreenErrorType.BALLOT_STYLES_EML}`)
+            )
+        } else if (errorCause === ElectionScreenErrorType.FETCH_DATA) {
+            setErrorMsg(t(`electionSelectionScreen.errors.${ElectionScreenErrorType.FETCH_DATA}`))
+        } else if (!dataElectionEvent) {
+            setErrorMsg(
+                t(`electionSelectionScreen.errors.${ElectionScreenErrorType.NO_ELECTION_EVENT}`)
+            )
+        } else if (!isVotingOpen && dataElectionEvent) {
+            setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.ELECTION_EVENT_NOT_OPEN}`))
         } else if (hasNoElections) {
             if (electionIds.length > 0) {
                 setErrorMsg(
@@ -312,11 +341,11 @@ const ElectionSelectionScreen: React.FC = () => {
         }
     }, [
         errorCastVote,
-        isPublished,
         hasNoElections,
         dataElectionEvent,
         globalSettings.DISABLE_AUTH,
         loadingS3Data.current,
+        errorCause,
     ])
 
     useEffect(() => {

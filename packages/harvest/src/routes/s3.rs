@@ -2,16 +2,17 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::authorization::authorize_voter;
+use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use anyhow::Result;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::services::s3;
-use sequent_core::types::hasura::core::BallotPublication;
-use sequent_core::types::hasura::core::Election;
 use sequent_core::types::permissions::VoterPermissions;
 use serde::{Deserialize, Serialize};
+use tracing::info;
 use tracing::instrument;
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GetBallotFilesUrlsInput {
     election_event_id: String,
@@ -27,17 +28,34 @@ pub struct GetBallotFilesOutput {
 pub async fn get_ballot_files_urls(
     body: Json<GetBallotFilesUrlsInput>,
     claims: JwtClaims,
-) -> Result<Json<GetBallotFilesOutput>, (Status, String)> {
+) -> Result<Json<GetBallotFilesOutput>, JsonError> {
+    if claims.hasura_claims.authorized_election_ids.is_none() {
+        return Err(ErrorResponse::new(
+            Status::NotAcceptable,
+            "Voter not authorized",
+            ErrorCode::Unauthorized,
+        ));
+    }
+    authorize_voter(&claims, vec![VoterPermissions::USER_ROLE], None).map_err(
+        |_e| {
+            ErrorResponse::new(
+                Status::Unauthorized,
+                "Voter not authorized",
+                ErrorCode::Unauthorized,
+            )
+        },
+    )?;
     let input = body.into_inner();
-    authorize_voter(&claims, vec![VoterPermissions::USER_ROLE], None)?;
-    // WIP: We are not authorizing the eñections?
-
     let election_event_id = input.election_event_id.clone();
     let tenant_id = claims.hasura_claims.tenant_id.clone();
     let area_id = claims.hasura_claims.area_id.clone().unwrap_or_default();
-    let s3_bucket = s3::get_private_bucket()
-        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
-
+    let s3_bucket = s3::get_private_bucket().map_err(|_e| {
+        ErrorResponse::new(
+            Status::InternalServerError,
+            "No private bucket",
+            ErrorCode::InternalServerError,
+        )
+    })?;
     // Find out the last ballot_publication_id and ballot style paths.
     let ballot_publication_file = s3::get_ballot_publication_file_path(
         &tenant_id,
@@ -47,10 +65,24 @@ pub async fn get_ballot_files_urls(
     let bp_bytes =
         s3::get_file_from_s3(s3_bucket.clone(), ballot_publication_file)
             .await
-            .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+            .map_err(|_e| {
+                ErrorResponse::new(
+                    Status::NotFound,
+                    ErrorCode::PublicationNotFound.to_string().as_str(),
+                    ErrorCode::PublicationNotFound,
+                )
+            })?;
+    // Note: Could be ErrorCode::NoAreaContests, if there is no contest assigned
+    // to the area ballot_publication_file is not created at publication time.
+
     let mut ballot_publications: s3::BallotPublications =
-        serde_json::from_slice(&bp_bytes)
-            .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+        serde_json::from_slice(&bp_bytes).map_err(|_e| {
+            ErrorResponse::new(
+                Status::InternalServerError,
+                "Error deserializing Ballot Publication",
+                ErrorCode::InternalServerError,
+            )
+        })?;
 
     // Start pushing the file paths that wee need to create later its signed
     // URLs
@@ -75,7 +107,13 @@ pub async fn get_ballot_files_urls(
     for document_s3_key in files {
         let url = s3::get_document_url(document_s3_key, s3_bucket.clone())
             .await
-            .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+            .map_err(|_e| {
+                ErrorResponse::new(
+                    Status::InternalServerError,
+                    "Error signing url",
+                    ErrorCode::InternalServerError,
+                )
+            })?;
         info!("url: {url:?}");
         urls.push(url);
     }
