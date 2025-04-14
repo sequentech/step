@@ -16,5 +16,5 @@
     "noEmit": false,
     "jsx": "react-jsx"
   },
-  "include": ["src"]
+  "include": ["src", "src/components/.tsx"]
 }

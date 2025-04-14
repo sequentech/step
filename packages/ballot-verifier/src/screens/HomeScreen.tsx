@@ -18,6 +18,7 @@ import {
     IconButton,
     theme,
     Dialog,
+    BallotInput,
 } from "@sequentech/ui-essentials"
 import {IAuditableBallot, IAuditableMultiBallot, IAuditableSingleBallot} from "@sequentech/ui-core"
 import {useNavigate} from "react-router-dom"
@@ -223,7 +224,7 @@ export const HomeScreen: React.FC<IProps> = ({
         setBallotId(e.target.value)
 
     return (
-        <PageLimit maxWidth="md">
+        <PageLimit maxWidth="lg">
             <Box marginTop="48px">
                 <BreadCrumbSteps
                     labels={[
@@ -234,6 +235,7 @@ export const HomeScreen: React.FC<IProps> = ({
                     selected={0}
                 />
             </Box>
+
             <StyledTitle variant="h5">
                 <span>{t("homeScreen.step1")}</span>
                 <IconButton
@@ -268,39 +270,26 @@ export const HomeScreen: React.FC<IProps> = ({
             </Alert>
             <DropFile handleFiles={handleFiles} />
             {confirmationBallot ? <JsonFile name={fileName} /> : null}
-            <StyledTitle variant="h5">
-                <span>{t("homeScreen.step2")}</span>
-                <IconButton
-                    icon={faCircleQuestion}
-                    sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
-                    fontSize="16px"
-                    onClick={() => setOpenStep2Help(true)}
-                />
-                <Dialog
-                    handleClose={() => setOpenStep2Help(false)}
-                    open={openStep2Help}
-                    title={t("homeScreen.ballotIdHelpDialog.title")}
-                    ok={t("homeScreen.ballotIdHelpDialog.ok")}
-                    variant="info"
-                >
-                    <p>{t("homeScreen.ballotIdHelpDialog.content")}</p>
-                </Dialog>
-            </StyledTitle>
-            <Typography
-                variant="body2"
-                sx={{color: theme.palette.customGrey.main, marginBottom: 0}}
-            >
-                {t("homeScreen.description2")}
-            </Typography>
-            <Box maxWidth="630px">
-                <TextField
-                    label={t("homeScreen.ballotIdLabel")}
-                    placeholder={t("homeScreen.ballotIdPlaceholder")}
-                    InputLabelProps={{shrink: true}}
-                    value={ballotId}
-                    onChange={onInputChange}
-                />
-            </Box>
+
+            <BallotInput
+                title="homeScreen.step2"
+                subTitle="homeScreen.description2"
+                label="homeScreen.ballotIdLabel"
+                error="error"
+                placeholder={t("homeScreen.ballotIdPlaceholder")}
+                value={ballotId}
+                doChange={onInputChange}
+                captureEnterAction={() => null}
+                labelProps={{
+                    shrink: true,
+                }}
+                helpText="homeScreen.ballotIdHelpDialog.content"
+                dialogTitle="homeScreen.ballotIdHelpDialog.title"
+                dialogOk="homeScreen.ballotIdHelpDialog.ok"
+                // backButtonText="votingScreen.backButton"
+                ballotStyle={undefined}
+            />
+
             <ActionsContainer>
                 <StyledButton sx={{width: {xs: "100%", sm: "200px"}}} onClick={onUseSampleClick}>
                     <span>{t("homeScreen.useSampleLink")}</span>

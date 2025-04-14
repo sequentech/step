@@ -12,6 +12,7 @@ import {
     InfoDataBox,
     IconButton,
     Dialog,
+    BallotInput,
 } from "@sequentech/ui-essentials"
 import {stringToHtml} from "@sequentech/ui-core"
 import {Box, TextField, Typography, Button, Stack} from "@mui/material"
@@ -182,116 +183,80 @@ const BallotLocator: React.FC = () => {
                     />
                 </Box>
 
-                <Box
-                    sx={{
-                        display: "flex",
-                        flexDirection: {xs: "column", md: "row"},
-                        justifyContent: "space-between",
-                        alignItems: "flex-start",
-                    }}
-                >
-                    <Box
-                        sx={{
-                            order: {xs: 2, md: 1},
-                        }}
-                    >
-                        <StyledTitle variant="h1">
-                            {!hasBallotId ? (
-                                <Box>{t("ballotLocator.title")}</Box>
-                            ) : (
-                                <Box>{t("ballotLocator.titleResult")}</Box>
-                            )}
-                            <IconButton
-                                icon={faCircleQuestion}
-                                sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
-                                fontSize="16px"
-                                onClick={() => setOpenTitleHelp(true)}
-                            />
-                            <Dialog
-                                handleClose={() => setOpenTitleHelp(false)}
-                                open={openTitleHelp}
-                                title={t("ballotLocator.titleHelpDialog.title")}
-                                ok={t("ballotLocator.titleHelpDialog.ok")}
-                                variant="info"
-                            >
-                                {stringToHtml(t("ballotLocator.titleHelpDialog.content"))}
-                            </Dialog>
-                        </StyledTitle>
-
-                        <Typography
-                            variant="body1"
-                            sx={{color: theme.palette.customGrey.contrastText}}
-                        >
-                            {t("ballotLocator.description")}
-                        </Typography>
-                    </Box>
-                    <Box sx={{order: {xs: 1, md: 2}, marginTop: "20px"}}>
-                        <StyledLink
-                            to={`/tenant/${tenantId}/event/${eventId}/election-chooser${location.search}`}
-                        >
-                            <Button variant="secondary" className="secondary">
-                                <Icon icon={faAngleLeft} size="sm" />
-                                <Box paddingLeft="12px">{t("votingScreen.backButton")}</Box>
-                            </Button>
-                        </StyledLink>
-                    </Box>
-                </Box>
-
-                {hasBallotId && !loading && (
-                    <Box>
-                        {hasBallotId && !!ballotContent ? (
-                            <MessageSuccess>{t("ballotLocator.found", {ballotId})}</MessageSuccess>
-                        ) : (
-                            <MessageFailed>{t("ballotLocator.notFound", {ballotId})}</MessageFailed>
-                        )}
-                    </Box>
-                )}
-                {!hasBallotId && (
+                {!hasBallotId ? (
                     <>
-                        <TextField
-                            onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
+                        <BallotInput
+                            title="ballotLocator.title"
+                            subTitle="ballotLocator.description"
+                            label="Ballot ID"
+                            error="ballotLocator.wrongFormatBallotId"
+                            placeholder={t("ballotLocator.description")}
+                            value={inputBallotId}
+                            doChange={(event: React.ChangeEvent<HTMLInputElement>) => {
                                 setInputBallotId(event.target.value)
                             }}
-                            value={inputBallotId}
-                            InputLabelProps={{
+                            captureEnterAction={captureEnter}
+                            labelProps={{
                                 shrink: true,
                             }}
-                            label="Ballot ID"
-                            placeholder={t("ballotLocator.description")}
-                            onKeyDown={captureEnter}
+                            helpText="ballotLocator.titleHelpDialog.content"
+                            dialogTitle="ballotLocator.titleHelpDialog.title"
+                            dialogOk="ballotLocator.titleHelpDialog.ok"
+                            backButtonText="votingScreen.backButton"
+                            ballotStyle={ballotStyle}
                         />
-                        {!validatedBallotId && (
-                            <StyledError>{t("ballotLocator.wrongFormatBallotId")}</StyledError>
-                        )}
-                    </>
-                )}
-
-                {hasBallotId && ballotContent && (
-                    <>
-                        <Typography>{t("ballotLocator.contentDesc")}</Typography>
-                        <InfoDataBox>{ballotContent}</InfoDataBox>
-                    </>
-                )}
-
-                {!hasBallotId ? (
-                    <Button
-                        sx={{marginTop: "10px"}}
-                        disabled={!validatedBallotId || inputBallotId.trim() === ""}
-                        className="normal"
-                        onClick={() => locate(true)}
-                    >
-                        <span>{t("ballotLocator.locate")}</span>
-                    </Button>
-                ) : (
-                    <>
                         <Button
                             sx={{marginTop: "10px"}}
+                            disabled={!validatedBallotId || inputBallotId.trim() === ""}
                             className="normal"
-                            onClick={() => locate()}
+                            onClick={() => locate(true)}
                         >
-                            <span>{t("ballotLocator.locateAgain")}</span>
+                            <span>{t("ballotLocator.locate")}</span>
                         </Button>
                     </>
+                ) : (
+                    <Box
+                        sx={{
+                            display: "flex",
+                            flexDirection: {xs: "column", md: "row"},
+                            justifyContent: "space-between",
+                            alignItems: "flex-start",
+                        }}
+                    >
+                        <Box
+                            sx={{
+                                order: {xs: 2, md: 1},
+                            }}
+                        >
+                            {!loading && (
+                                <Box>
+                                    {hasBallotId && !!ballotContent ? (
+                                        <MessageSuccess>
+                                            {t("ballotLocator.found", {ballotId})}
+                                        </MessageSuccess>
+                                    ) : (
+                                        <MessageFailed>
+                                            {t("ballotLocator.notFound", {ballotId})}
+                                        </MessageFailed>
+                                    )}
+                                </Box>
+                            )}
+                            {ballotContent && (
+                                <>
+                                    <Typography>{t("ballotLocator.contentDesc")}</Typography>
+                                    <InfoDataBox>{ballotContent}</InfoDataBox>
+                                </>
+                            )}
+
+                            <Button
+                                sx={{marginTop: "10px"}}
+                                className="normal"
+                                onClick={() => locate()}
+                            >
+                                <span>{t("ballotLocator.locateAgain")}</span>
+                            </Button>
+                        </Box>
+                    </Box>
                 )}
             </PageLimit>
         </StyledApp>
