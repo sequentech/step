@@ -9,6 +9,7 @@ use crate::postgres::reports::Report;
 use crate::postgres::trustee::get_all_trustees;
 use crate::services::import::import_publications::import_ballot_publications;
 use crate::services::import::import_scheduled_events::import_scheduled_events;
+use crate::services::import::import_tally::process_tally_file;
 use crate::services::protocol_manager::get_event_board;
 use crate::services::reports::template_renderer::EReportEncryption;
 use crate::services::reports_vault::get_report_key_pair;
@@ -840,6 +841,7 @@ pub async fn process_document(
             EDocuments::PROTOCOL_MANAGER_KEYS.to_file_name()
         ))
     });
+    println!("---------------11111111--------------");
 
     let election_event_id_clone = election_event_id.clone();
     let (election_event_schema, replacement_map) = process_election_event_file(
@@ -853,11 +855,14 @@ pub async fn process_document(
     )
     .await
     .map_err(|err| anyhow!("Error processing election event file: {err}"))?;
+    println!("----------------33333-------------");
 
     // Zip file processing
     if document_type == "application/ezip" || matches_mime("zip", &document_type) {
         for (file_name, mut file_contents) in zip_entries {
             info!("Importing file: {:?}", file_name);
+
+            println!("file_name::: {}", &file_name);
 
             let mut cursor = Cursor::new(&mut file_contents[..]);
 
@@ -1021,6 +1026,33 @@ pub async fn process_document(
                 )
                 .await
                 .context("Failed to import protocol manager keys")?;
+            }
+
+            if file_name.contains(&format!("{}/", EDocuments::TALLY.to_file_name())) {
+                let mut temp_file = NamedTempFile::new()
+                    .context("Failed to create ballot publications temporary file")?;
+
+                io::copy(&mut cursor, &mut temp_file).context(
+                    "Failed to copy contents of ballot publications file to temporary file",
+                )?;
+                temp_file.as_file_mut().rewind()?;
+                let tally_file_name = file_name
+                    .split("/")
+                    .last()
+                    .unwrap()
+                    .split(".")
+                    .next()
+                    .unwrap();
+                println!("tally_file_name:: {:?}", &tally_file_name);
+                process_tally_file(
+                    hasura_transaction,
+                    &temp_file,
+                    tally_file_name.to_string(),
+                    &election_event_schema.tenant_id.to_string(),
+                    &election_event_schema.election_event.id,
+                )
+                .await
+                .context("Failed to import tally_file")?;
             }
         }
     };
