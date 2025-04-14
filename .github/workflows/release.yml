@@ -35,7 +35,6 @@ jobs:
       - image=ubuntu24-full-x64
     outputs:
       NEW_RELEASE_BRANCH: ${{ steps.CreateReleaseBranch.outputs.NEW_RELEASE_BRANCH }}
-      DEPLOYER_BRANCH: ${{ steps.CreateReleaseBranch.outputs.DEPLOYER_BRANCH }}
     steps:
     - name: Input Validation
       run: |
@@ -88,7 +87,6 @@ jobs:
           releaseBranchVersion=$(echo $releaseBranchVersion | cut -d. -f1,2)
           releaseBranchName="release/$releaseBranchVersion"
         fi
-        echo DEPLOYER_BRANCH=$releaseBranchName | tee -a $GITHUB_ENV $GITHUB_OUTPUT
 
         # Create the branch if createMajorReleaseBranch or createMinorReleaseBranch is true
         if [ "${{ github.event.inputs.createMajorReleaseBranch }}" = "true" ] || [ "${{ github.event.inputs.createMinorReleaseBranch }}" = "true" ]; then
@@ -245,25 +243,8 @@ jobs:
         inputs: '{"createMajorReleaseBranch":${{ github.event.inputs.createMajorReleaseBranch }}, "createMinorReleaseBranch":${{ github.event.inputs.createMinorReleaseBranch }}, "preRelease":${{ github.event.inputs.preRelease }} }'
         wait-for-completion: true
 
-  trigger-gitops-release:
-    needs: [release, build-and-push]
-    runs-on:
-      - runs-on=${{ github.run_id }}
-      - runner=2cpu-linux-x64
-      - image=ubuntu24-full-x64
-    steps:
-    - name: Trigger GitOps Release Workflow
-      uses: the-actions-org/workflow-dispatch@v4 # https://github.com/the-actions-org/workflow-dispatch
-      with:
-        repo: 'sequentech/gitops'
-        ref: ${{ github.ref }}
-        workflow: 'Automated Release Process'
-        token: ${{ secrets.PAT }}
-        inputs: '{"createMajorReleaseBranch":${{ github.event.inputs.createMajorReleaseBranch }}, "createMinorReleaseBranch":${{ github.event.inputs.createMinorReleaseBranch }}, "preRelease":${{ github.event.inputs.preRelease }} }'
-        wait-for-completion: true
-
   trigger-deployer:
-    needs: [release, create-release-branch, build-and-push, trigger-beyond-release, trigger-gitops-release]
+    needs: [release, create-release-branch, build-and-push, trigger-beyond-release]
     runs-on:
       - runs-on=${{ github.run_id }}
       - runner=2cpu-linux-x64
@@ -273,7 +254,7 @@ jobs:
       uses: the-actions-org/workflow-dispatch@v4 # https://github.com/the-actions-org/workflow-dispatch
       with:
         repo: sequentech/gitops
-        ref: ${{ needs.create-release-branch.outputs.DEPLOYER_BRANCH }}
+        ref: main
         workflow: Deployer Workflow
         token: ${{ secrets.PAT }}
         inputs: '{"version":"${{ needs.release.outputs.VERSION }}", "hash":"${{ needs.release.outputs.HASH }}"}'
