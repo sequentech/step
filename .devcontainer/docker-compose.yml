@@ -1078,7 +1078,7 @@ services:
   loki:
     profiles: ["full", "base"]
     container_name: loki
-    image: grafana/loki:latest
+    image: grafana/loki:2.6.1
     ports:
       - "3100:3100"
     command: -config.file=/etc/loki/local-config.yaml
@@ -1088,7 +1088,7 @@ services:
   promtail:
     container_name: promtail
     profiles: ["full", "base"]
-    image: grafana/promtail:latest
+    image: grafana/promtail:2.9.3
     volumes:
       - /var/log:/var/log
       - /var/run/docker.sock:/var/run/docker.sock

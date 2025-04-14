@@ -1,4 +1,4 @@
-use aws_config::meta::region::RegionProviderChain;
+use aws_config::{Region, SdkConfig};
 use aws_sdk_sns::Client as SnsClient;
 use futures_util::{SinkExt, StreamExt};
 use reqwest::Client as HttpClient; // Alias to avoid confusion with WebSocket client
@@ -51,11 +51,11 @@ struct LokiStream {
 // Alias QueryResultStream to LokiStream as they are compatible for our needs
 type QueryResultStream = LokiStream;
 
-// State for tracking pending phone numbers per stream
+// State for tracking pending phone numbers/recipients per stream
 #[derive(Debug, Clone, Default)]
 struct StreamState {
+    // Field name kept for simplicity, but holds phone number OR receiver
     pending_phone_number: Option<String>,
-    // We could add timestamp here to prune old pending numbers, but keeping it simple for now
 }
 type StreamProcessingState = HashMap<String, StreamState>;
 
@@ -87,18 +87,26 @@ enum LokiError {
     AwsSdkError(String), // Generic wrapper for AWS errors
 }
 
+async fn get_from_env_aws_config() -> Result<SdkConfig, LokiError> {
+    let region = Region::new(
+        std::env::var("AWS_REGION")
+            .map_err(|err| LokiError::EnvVarError(format!("AWS_REGION env var missing: {err}")))?,
+    );
+    Ok(aws_config::from_env().region(region).load().await)
+}
+
 // --- AWS SNS Action ---
 
 /// Sends an OTP message using AWS SNS.
 /// Assumes AWS credentials are configured in the environment.
-async fn send_otp_via_sns(phone_number: &str, message: &str) -> Result<(), LokiError> {
+async fn send_otp_via_sns(recipient: &str, message: &str) -> Result<(), LokiError> {
+    // Assuming recipient is always a phone number based on examples
+    let phone_number = recipient;
     println!("Attempting to send OTP to {}...", phone_number); // Mask number in real app
-    let region_provider = RegionProviderChain::default_provider().or_else("us-east-1"); // Example region
-    let config = aws_config::from_env().region(region_provider).load().await;
+    let config = get_from_env_aws_config().await?;
     let client = SnsClient::new(&config);
 
     // Extract only the OTP message part if needed, or send the whole line
-    // Example: Assuming message format is "\t- message=Your OTP is XXXXXX and is valid..."
     let otp_message = message
         .split_once("=")
         .map(|(_, msg_part)| msg_part.trim())
@@ -129,7 +137,6 @@ async fn send_otp_via_sns(phone_number: &str, message: &str) -> Result<(), LokiE
         }
         Err(e) => {
             eprintln!("Failed to send SNS message to {}: {:?}", phone_number, e); // Mask number
-            // Convert SDK error to our custom error type
             Err(LokiError::AwsSdkError(e.to_string()))
         }
     }
@@ -140,7 +147,6 @@ async fn send_otp_via_sns(phone_number: &str, message: &str) -> Result<(), LokiE
 
 /// Loads the last known timestamp from the state file.
 async fn load_state(state_file_path: &str) -> Result<Option<u64>, LokiError> {
-    // ... (load_state implementation remains the same)
     match File::open(state_file_path).await {
         Ok(mut file) => {
             let mut contents = String::new();
@@ -166,7 +172,6 @@ async fn load_state(state_file_path: &str) -> Result<Option<u64>, LokiError> {
 
 /// Saves the given timestamp to the state file.
 async fn save_state(state_file_path: &str, timestamp: u64) -> Result<(), LokiError> {
-    // ... (save_state implementation remains the same)
     let mut file = OpenOptions::new()
         .write(true)
         .create(true)
@@ -183,88 +188,83 @@ async fn save_state(state_file_path: &str, timestamp: u64) -> Result<(), LokiErr
 /// Generates a canonical string key for a stream based on its labels.
 fn get_stream_key(stream_labels: &HashMap<String, String>) -> String {
     let mut labels: Vec<_> = stream_labels.iter().collect();
-    // Sort by label key for consistency
     labels.sort_by(|a, b| a.0.cmp(b.0));
-    // Format into a reproducible string (e.g., key1="value1",key2="value2")
     labels
         .iter()
-        .map(|(k, v)| format!("{}={:?}", k, v)) // Use debug format for value to handle quotes
+        .map(|(k, v)| format!("{}={:?}", k, v))
         .collect::<Vec<_>>()
         .join(",")
 }
 
 
-/// Processes a batch of streams, pairing phoneNumber and message lines within each stream.
+/// Processes a batch of streams, pairing recipient and message lines within each stream.
 /// Updates the last timestamp and triggers SNS action.
 /// Returns the latest timestamp processed within this batch.
 async fn process_log_streams(
     streams: Vec<LokiStream>,
     print_raw_logs: bool,
     mut current_last_ts: u64, // Pass current last timestamp known *before* this batch
-    stream_state: Arc<Mutex<StreamProcessingState>>, // Shared state for pending numbers
+    stream_state: Arc<Mutex<StreamProcessingState>>, // Shared state for pending recipients
 ) -> u64 { // Return the new last timestamp *after* this batch
     let mut latest_ts_in_batch = current_last_ts;
 
     for stream in streams {
         let stream_key = get_stream_key(&stream.stream);
-        let labels = &stream.stream; // For potential logging
+        let labels = &stream.stream;
 
-        // Sort values by timestamp to process chronologically within the stream
-        // Clone values to sort them, or process directly if Loki guarantees order (safer to sort)
         let mut sorted_values = stream.values.clone();
         sorted_values.sort_by(|a, b| a[0].cmp(&b[0]));
 
         for value_pair in sorted_values {
             match value_pair[0].parse::<u64>() {
                 Ok(ts_ns) => {
-                    // Only process if strictly newer than the last timestamp known before this batch
                     if ts_ns > current_last_ts {
                         let log_line = &value_pair[1];
 
-                        // Optionally print the raw log
                         if print_raw_logs {
                             println!("[{}] Labels: {:?} | Raw Line: {}", ts_ns, labels, log_line);
                         }
 
                         // --- Pairing Logic ---
-                        // Trim whitespace before checking prefixes
                         let trimmed_line = log_line.trim();
+                        let mut recipient_found: Option<String> = None;
 
+                        // Check for known recipient prefixes
                         if let Some(num_part) = trimmed_line.strip_prefix("- phoneNumber=") {
-                            let phone_number = num_part.trim().to_string();
-                            // Lock state, store pending number for this stream
+                            recipient_found = Some(num_part.trim().to_string());
+                        } else if let Some(rec_part) = trimmed_line.strip_prefix("- receiver=") {
+                            recipient_found = Some(rec_part.trim().to_string());
+                        }
+
+                        if let Some(recipient) = recipient_found {
+                            // Store the found recipient (phone number or receiver ID)
                             let mut state = stream_state.lock().await;
-                            println!("Found phone number for stream [{}]: {}", stream_key, phone_number); // Mask number
+                            println!("Found recipient for stream [{}]: {}", stream_key, recipient); // Mask number
                             // Insert or update the state for this stream
-                            state.entry(stream_key.clone()).or_default().pending_phone_number = Some(phone_number);
-                            // Unlock happens when state goes out of scope
+                            state.entry(stream_key.clone()).or_default().pending_phone_number = Some(recipient);
                         } else if let Some(msg_part) = trimmed_line.strip_prefix("- message=") {
+                            // Handle the message line
                             let message = msg_part.trim().to_string();
-                            // Lock state, check for pending number
                             let mut state = stream_state.lock().await;
-                            // Check if an entry exists and if it has a pending number
                             if let Some(stream_data) = state.get_mut(&stream_key) {
-                                if let Some(phone_number) = stream_data.pending_phone_number.take() {
-                                    // Found a pair! Clear pending number and trigger action
-                                    println!("Found message for stream [{}], pairing with pending number {}", stream_key, phone_number); // Mask number
-                                    // Spawn SNS task so it doesn't block log processing
+                                // Check if a recipient was pending for this stream
+                                if let Some(pending_recipient) = stream_data.pending_phone_number.take() {
+                                    // Found a pair!
+                                    println!("Found message for stream [{}], pairing with pending recipient {}", stream_key, pending_recipient); // Mask number
+                                    // Spawn SNS task
                                     tokio::spawn(async move {
-                                        if let Err(e) = send_otp_via_sns(&phone_number, &message).await {
+                                        // Pass recipient (phone/receiver) to SNS function
+                                        if let Err(e) = send_otp_via_sns(&pending_recipient, &message).await {
                                             eprintln!("SNS Error: {}", e);
                                         }
                                     });
-                                } else {
-                                     // Message found, but no number was pending for this stream
-                                     // eprintln!("Warning: Found message for stream [{}] but no pending phone number.", stream_key);
                                 }
-                            } else {
-                                // Message found, but no state entry for this stream (e.g., message came before phone)
-                                // eprintln!("Warning: Found message for stream [{}] but no prior state.", stream_key);
+                                // else: Message found, but no recipient was pending. Ignore or log warning.
                             }
-                            // Unlock happens when state goes out of scope
+                            // else: Message found, but no state entry for this stream. Ignore or log warning.
                         }
 
-                        // Update the latest timestamp seen for persistence, regardless of pairing success
+                        // Update the latest timestamp seen for persistence
                         latest_ts_in_batch = latest_ts_in_batch.max(ts_ns);
                     }
                 }
@@ -274,7 +274,6 @@ async fn process_log_streams(
             }
         }
     }
-    // Return the latest timestamp found across all processed lines in this batch
     latest_ts_in_batch
 }
 
@@ -303,9 +302,7 @@ async fn fetch_historical_logs(
         .append_pair("query", loki_query)
         .append_pair("start", &start_ns.to_string())
         .append_pair("end", &end_ns.to_string())
-        // Ensure direction is forward for chronological processing if needed, though sorting is done later
-        // .append_pair("direction", "forward")
-        .append_pair("limit", "5000"); // Adjust limit as needed
+        .append_pair("limit", "5000");
 
     let response = http_client.get(query_range_url).send().await?;
     if !response.status().is_success() {
@@ -325,7 +322,7 @@ async fn fetch_historical_logs(
     }
 
     println!("Processing {} streams from historical fetch.", response_data.data.result.len());
-    let new_last_ts = process_log_streams( // Call the updated processing function
+    let new_last_ts = process_log_streams( // Calls the updated function
         response_data.data.result,
         print_raw_logs,
         current_last_ts,
@@ -396,7 +393,7 @@ async fn connect_and_listen(
                                    Ok(loki_data) => {
                                        // Lock the shared timestamp *before* processing
                                        let mut ts_guard = last_processed_ts.lock().await;
-                                       let new_last_ts = process_log_streams( // Call updated processing function
+                                       let new_last_ts = process_log_streams( // Calls updated function
                                            loki_data.streams,
                                            print_raw_logs,
                                            *ts_guard, // Pass current value
@@ -461,7 +458,7 @@ async fn main() {
     };
     // Timestamp for persistence
     let last_processed_ts = Arc::new(Mutex::new(initial_timestamp_ns));
-    // Shared state map for pending phone numbers per stream
+    // Shared state map for pending phone numbers/recipients per stream
     let stream_state = Arc::new(Mutex::new(StreamProcessingState::new()));
 
     // Create the HTTP client once
