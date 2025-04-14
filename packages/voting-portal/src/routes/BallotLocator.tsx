@@ -97,18 +97,20 @@ const StyledApp = styled(Stack)<{css: string}>`
 `
 
 const BallotLocator: React.FC = () => {
-    const {tenantId, eventId, electionId, ballotId} = useParams()
-    const [openTitleHelp, setOpenTitleHelp] = useState<boolean>(false)
-    const navigate = useNavigate()
-    const location = useLocation()
     const {t} = useTranslation()
+    const navigate = useNavigate()
+    const {tenantId, eventId, electionId, ballotId} = useParams()
+    const {data: dataBallotStyles} = useQuery<GetBallotStylesQuery>(GET_BALLOT_STYLES)
+    const dispatch = useAppDispatch()
+
+    const [openTitleHelp, setOpenTitleHelp] = useState<boolean>(false)
+    const location = useLocation()
     const [inputBallotId, setInputBallotId] = useState<string>("")
     const {globalSettings} = useContext(SettingsContext)
+    const [step, setStep] = useState<number>(0)
 
     const hasBallotId = !!ballotId
-    const {data: dataBallotStyles} = useQuery<GetBallotStylesQuery>(GET_BALLOT_STYLES)
 
-    const dispatch = useAppDispatch()
     const ballotStyle = useAppSelector(selectFirstBallotStyle)
     useLanguage({ballotStyle})
 
@@ -151,6 +153,12 @@ const BallotLocator: React.FC = () => {
 
         setInputBallotId("")
 
+        if (withBallotId) {
+            setStep(1)
+        } else {
+            setStep(0)
+        }
+
         navigate(
             `/tenant/${tenantId}/event/${eventId}/election/${electionId}/ballot-locator/${id}${location.search}`
         )
@@ -170,7 +178,7 @@ const BallotLocator: React.FC = () => {
                 <Box marginTop="48px">
                     <BreadCrumbSteps
                         labels={["ballotLocator.steps.lookup", "ballotLocator.steps.result"]}
-                        selected={2}
+                        selected={step}
                     />
                 </Box>
 
