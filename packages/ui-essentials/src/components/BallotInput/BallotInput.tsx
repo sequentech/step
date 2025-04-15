@@ -74,6 +74,35 @@ interface IBallotInputProps {
     ballotStyle?: IBallotStyle | undefined
 }
 
+/**
+ * BallotInput is a React functional component that renders a ballot input form with a title, subtitle,
+ * input field, and optional back button. It also supports multilingual functionality and validation.
+ *
+ * @param {IBallotInputProps} props - The properties passed to the component.
+ * @param {string} props.title - The title of the ballot input section.
+ * @param {string} props.subTitle - The subtitle of the ballot input section.
+ * @param {string} [props.label=""] - The label for the input field.
+ * @param {string} [props.error=""] - The error message to display if validation fails.
+ * @param {string} [props.placeholder=""] - The placeholder text for the input field.
+ * @param {string} props.value - The current value of the input field.
+ * @param {function} props.doChange - The callback function triggered when the input value changes.
+ * @param {function} props.captureEnterAction - The callback function triggered when the Enter key is pressed.
+ * @param {object} props.labelProps - Additional properties for the input label.
+ * @param {string} props.helpText - The help text displayed in the dialog.
+ * @param {string} props.dialogTitle - The title of the help dialog.
+ * @param {string} props.dialogOk - The text for the "OK" button in the help dialog.
+ * @param {string} [props.backButtonText=""] - The text for the back button. If not provided, the back button is not rendered.
+ * @param {object} props.ballotStyle - The ballot style configuration object.
+ *
+ * @returns {JSX.Element} The rendered BallotInput component.
+ *
+ * @remarks
+ * - The component uses the `useTranslation` hook for multilingual support.
+ * - The `useParams` hook is used to extract tenant, event, and election IDs from the URL.
+ * - The `useLocation` hook is used to access the current location for constructing the back button link.
+ * - The `useEffect` hook ensures the language is set to the default if the current language is not supported.
+ * - Validation is performed to check if the input value is a valid hexadecimal string.
+ */
 const BallotInput: React.FC<IBallotInputProps> = ({
     title,
     subTitle,
