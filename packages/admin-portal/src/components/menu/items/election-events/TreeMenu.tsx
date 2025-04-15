@@ -370,10 +370,6 @@ function TreeMenuItem({
             setOpen(true)
             return
         }
-        // if (!isLabel && !open && resource.active) {
-        //     setOpen(true)
-        //     return
-        // }
         if (!isLabel && open && resource.active) {
             setOpen(false)
             return
@@ -504,7 +500,6 @@ function TreeMenuItem({
                 {canShowMenu ? (
                     <MenuStyles.TreeMenuIconContaier
                         isActive={resource?.active ?? false}
-                        // isActive={true}
                         onClick={() => {
                             onClick(false)
                             if (!resource?.active) {
@@ -513,7 +508,6 @@ function TreeMenuItem({
                         }}
                     >
                         {resource?.active && open ? (
-                            // {open ? (
                             <ExpandMoreIcon className="menu-item-expanded" />
                         ) : (
                             <ChevronRightIcon
