@@ -1,3 +1,4 @@
+import {Order_By} from "./../../../voting-portal/src/gql/graphql"
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
@@ -110,6 +111,9 @@ export const customBuildQuery =
                         validOrderBy.includes(key)
                     )
                 )
+                if (ret?.variables?.order_by) {
+                    ret.variables.order_by = [{...ret.variables.order_by}, {id: "asc"}]
+                }
             }
             return ret
         } else if (
@@ -146,6 +150,11 @@ export const customBuildQuery =
             raFetchType === "GET_LIST"
         ) {
             let ret = buildQuery(introspectionResults)(raFetchType, resourceName, params)
+
+            if (ret?.variables?.order_by) {
+                ret.variables.order_by = [{...ret.variables.order_by}, {id: "asc"}]
+            }
+
             let electionIds: Array<string> | undefined =
                 params?.filter?.event_payload?.value?._contains?.election_id
             if (electionIds) {
