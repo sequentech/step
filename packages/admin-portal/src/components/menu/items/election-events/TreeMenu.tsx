@@ -355,6 +355,7 @@ function TreeMenuItem({
     const [isOpenSidebar] = useSidebarState()
     const {i18n} = useTranslation()
     const {globalSettings} = useContext(SettingsContext)
+    const navigate = useNavigate()
 
     const [open, setOpen] = useState(false)
 
@@ -365,17 +366,26 @@ function TreeMenuItem({
         if (isLabel && open) {
             return
         }
-        if (!isLabel && !open && resource.active) {
+        if (!isLabel && !open) {
             setOpen(true)
             return
         }
+        // if (!isLabel && !open && resource.active) {
+        //     setOpen(true)
+        //     return
+        // }
+        if (!isLabel && open && resource.active) {
+            setOpen(false)
+            return
+        }
         if (!isLabel && !open && !resource.active) {
+            setOpen(false)
             return
         }
         if (!open) {
             reloadTree()
         }
-        setOpen(!open)
+        setOpen(false)
     }
 
     /**
@@ -494,9 +504,16 @@ function TreeMenuItem({
                 {canShowMenu ? (
                     <MenuStyles.TreeMenuIconContaier
                         isActive={resource?.active ?? false}
-                        onClick={() => onClick(false)}
+                        // isActive={true}
+                        onClick={() => {
+                            onClick(false)
+                            if (!resource?.active) {
+                                navigate(`/${treeResourceNames[0]}/${id}`)
+                            }
+                        }}
                     >
                         {resource?.active && open ? (
+                            // {open ? (
                             <ExpandMoreIcon className="menu-item-expanded" />
                         ) : (
                             <ChevronRightIcon
