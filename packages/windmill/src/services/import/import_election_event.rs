@@ -14,8 +14,10 @@ use crate::services::protocol_manager::get_event_board;
 use crate::services::reports::template_renderer::EReportEncryption;
 use crate::services::reports_vault::get_report_key_pair;
 use crate::services::tasks_execution::update_fail;
+use crate::types::documents::ETallyDocuments;
 use ::keycloak::types::RealmRepresentation;
 use anyhow::{anyhow, Context, Result};
+use chrono::format;
 use chrono::{DateTime, Utc};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use futures::future::try_join_all;
@@ -841,9 +843,33 @@ pub async fn process_document(
             EDocuments::PROTOCOL_MANAGER_KEYS.to_file_name()
         ))
     });
-    println!("---------------11111111--------------");
 
     let election_event_id_clone = election_event_id.clone();
+
+    let tally_session_file = zip_entries
+        .iter()
+        .find(|(name, _)| name.contains(ETallyDocuments::TALLY_SESSION.to_file_name()));
+    let results_event_file = zip_entries
+        .iter()
+        .find(|(name, _)| name.contains(ETallyDocuments::RESULTS_EVENT.to_file_name()));
+    let mut tally_files_content: Option<String> = None;
+    if let (Some(tally_session_file), Some(results_event_file)) =
+        (tally_session_file, results_event_file)
+    {
+        let tally_session_file_content = String::from_utf8(tally_session_file.1.clone())?;
+        let results_event_file_content = String::from_utf8(results_event_file.1.clone())?;
+        tally_files_content = Some(format!(
+            "\n{}\n{}",
+            tally_session_file_content, results_event_file_content
+        ));
+    }
+    let file_election_event_schema = match tally_files_content {
+        Some(tally_files_content) => {
+            format!("{}\n{}", file_election_event_schema, tally_files_content)
+        }
+        None => file_election_event_schema,
+    };
+
     let (election_event_schema, replacement_map) = process_election_event_file(
         hasura_transaction,
         &document_type,
@@ -855,14 +881,11 @@ pub async fn process_document(
     )
     .await
     .map_err(|err| anyhow!("Error processing election event file: {err}"))?;
-    println!("----------------33333-------------");
 
     // Zip file processing
     if document_type == "application/ezip" || matches_mime("zip", &document_type) {
         for (file_name, mut file_contents) in zip_entries {
             info!("Importing file: {:?}", file_name);
-
-            println!("file_name::: {}", &file_name);
 
             let mut cursor = Cursor::new(&mut file_contents[..]);
 
@@ -1050,6 +1073,7 @@ pub async fn process_document(
                     tally_file_name.to_string(),
                     &election_event_schema.tenant_id.to_string(),
                     &election_event_schema.election_event.id,
+                    replacement_map.clone(),
                 )
                 .await
                 .context("Failed to import tally_file")?;
