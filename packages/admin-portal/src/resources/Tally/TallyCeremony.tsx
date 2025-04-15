@@ -815,7 +815,7 @@ export const TallyCeremony: React.FC = () => {
                             */}
                             {isButtonDisabled && (
                                 <Alert severity="warning">
-                                    {t("electionEventScreen.tally.notify.cerermonyDisabled")}
+                                    {t("electionEventScreen.tally.notify.ceremonyDisabled")}
                                 </Alert>
                             )}
                             <TallyElectionsList
@@ -1010,17 +1010,35 @@ export const TallyCeremony: React.FC = () => {
                             <Accordion
                                 sx={{width: "100%"}}
                                 expanded={expandedResults["tally-results-results"]}
-                                onChange={() =>
-                                    setExpandedResults((prev: IExpanded) => ({
-                                        ...prev,
-                                        "tally-results-results": !prev["tally-results-results"],
-                                    }))
-                                }
+                                onChange={() => {}}
                             >
                                 <AccordionSummary
-                                    expandIcon={<ExpandMoreIcon id="tally-data-results" />}
+                                    expandIcon={
+                                        <div
+                                            onClick={(e) => {
+                                                e.stopPropagation()
+                                                setExpandedResults((prev: IExpanded) => ({
+                                                    ...prev,
+                                                    "tally-results-results":
+                                                        !prev["tally-results-results"],
+                                                }))
+                                            }}
+                                        >
+                                            <ExpandMoreIcon id="tally-data-results" />
+                                        </div>
+                                    }
+                                    onClick={(e) => e.stopPropagation()}
                                 >
-                                    <WizardStyles.AccordionTitle>
+                                    <WizardStyles.AccordionTitle
+                                        onClick={(e) => {
+                                            e.stopPropagation()
+                                            setExpandedResults((prev: IExpanded) => ({
+                                                ...prev,
+                                                "tally-results-results":
+                                                    !prev["tally-results-results"],
+                                            }))
+                                        }}
+                                    >
                                         {t("tally.resultsTitle")}
                                     </WizardStyles.AccordionTitle>
                                     <TallyStyles.StyledSpacing>
