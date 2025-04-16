@@ -6,7 +6,7 @@ name: Build WASM Target
 
 on:
   push:
-    branches: [ main ]
+    branches: [ 'main', 'feat/meta-2881/main' ]
 
 jobs:
   build_wasm:
