@@ -32,6 +32,10 @@ jobs:
           # signingKey: '${{ secrets.CACHIX_SIGNING_KEY }}'
           # authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
 
+      - run: cd packages/sequent-core
+      
+      - run: pwd
+
       - run: nix-build
 
       - run: nix-shell --run "echo OK"
