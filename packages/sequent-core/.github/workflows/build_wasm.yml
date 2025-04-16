@@ -5,16 +5,22 @@
 name: Build WASM Target
 
 on:
+  pull_request:
   push:
-    branches: [ 'main', 'feat/meta-2881/main' ]
+    branches: [ 'main' ]
+  release:
+    types: [published]
 
 jobs:
   build_wasm:
-    runs-on: ubuntu-latest
+    runs-on:
+      - runs-on=${{ github.run_id }}
+      - runner=2cpu-linux-x64
+      - image=ubuntu24-full-x64
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v3.0.2
+        uses: actions/checkout@v4
 
       - uses: cachix/install-nix-action@v25
         with:
