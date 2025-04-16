@@ -247,6 +247,7 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
                             setDecodedContests={onSetDecodedContests(contest.id)}
                             errorSelectionState={errorSelectionState}
                         />
+                        <div>COLLONS</div>
                     </Box>
                 ))}
             <ActionButtons
@@ -281,6 +282,8 @@ const VotingScreen: React.FC = () => {
     } = provideBallotService()
     const election = useAppSelector(selectElectionById(String(electionId)))
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
+
+    console.log("aa ballotStyle", ballotStyle)
 
     const selectionState = useAppSelector(
         selectBallotSelectionByElectionId(ballotStyle?.election_id ?? "")

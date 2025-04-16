@@ -25,6 +25,8 @@ export const ConfirmationScreen: React.FC<IProps> = ({
     const navigate = useNavigate()
     const [isLoading, setIsLoading] = useState(confirmationBallot === null)
 
+    console.log("aa confirmationBallot", confirmationBallot)
+
     useEffect(() => {
         setIsLoading(confirmationBallot === null)
         if (confirmationBallot == null) {

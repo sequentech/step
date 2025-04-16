@@ -118,6 +118,8 @@ export const Question: React.FC<IQuestionProps> = ({
     const contestState = useAppSelector(
         selectBallotSelectionQuestion(ballotStyle.election_id, question.id)
     )
+    console.log("aa contestState", contestState)
+
     const {checkableLists, checkableCandidates} = getCheckableOptions(question)
     let [invalidBottomCandidates, invalidTopCandidates] = splitList(
         invalidOrBlankCandidates,

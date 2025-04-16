@@ -28,6 +28,7 @@ const HeaderWithContext: React.FC = () => {
     const authContext = useContext(AuthContext)
     const {globalSettings} = useContext(SettingsContext)
     const ballotStyle = useAppSelector(selectFirstBallotStyle)
+    console.log("aa ballotStyle APP", ballotStyle)
 
     let presentation: IElectionEventPresentation | undefined =
         ballotStyle?.ballot_eml.election_event_presentation

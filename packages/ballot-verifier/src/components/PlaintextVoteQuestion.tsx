@@ -52,6 +52,8 @@ export const PlaintextVoteQuestion: React.FC<PlaintextVoteQuestionProps> = ({
     const showPoints = !!question.presentation?.show_points
     const isBlank = checkIsBlank(questionPlaintext)
 
+    console.log("aa questionPlaintext", questionPlaintext)
+
     return (
         <>
             <Typography variant="body2" fontWeight={"bold"}>
