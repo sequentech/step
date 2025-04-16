@@ -26,35 +26,58 @@ export default meta
 type Story = StoryObj<typeof BallotInput>
 
 // Use a wrapper component to allow hooks and provide Router context
-const BallotInputPrimaryStory = (args: any) => {
+const BallotExample = (args: any) => {
     const [value, setValue] = useState("")
     return (
         <MemoryRouter initialEntries={["/tenant/1/event/2/election-chooser"]}>
-            <BallotInput
-                {...args}
-                title="Ballot ID"
-                subTitle="Enter your ballot identifier"
-                label="Ballot ID"
-                error="Invalid ballot ID"
-                placeholder="e.g. 1234abcd"
-                value={value}
-                doChange={(e) => setValue(e.target.value)}
-                captureEnterAction={(e) => {
-                    if (e.key === "Enter") alert("Enter pressed!")
-                }}
-                labelProps={{shrink: true}}
-                helpText="Your ballot ID is provided on your voting card."
-                dialogTitle="What is a Ballot ID?"
-                dialogOk="OK"
-                backButtonText="Back"
-                ballotStyle={undefined}
-            />
+            <BallotInput value={value} doChange={(e) => setValue(e.target.value)} {...args} />
         </MemoryRouter>
     )
 }
 
 export const Primary: Story = {
-    render: (args) => <BallotInputPrimaryStory {...args} />,
+    render: (args) => <BallotExample {...args} />,
+    args: {
+        title: "Ballot ID",
+        subTitle: "Enter your ballot identifier",
+        label: "Ballot ID",
+        error: "Invalid ballot ID",
+        placeholder: "e.g. 1234abcd",
+        captureEnterAction: (e) => {
+            if (e.key === "Enter") alert("Enter pressed!")
+        },
+        labelProps: {shrink: true},
+        helpText: "Your ballot ID is provided on your voting card.",
+        dialogTitle: "What is a Ballot ID?",
+        dialogOk: "OK",
+        backButtonText: "Back",
+        ballotStyle: undefined,
+    },
+    parameters: {
+        viewport: {
+            disable: true,
+        },
+    },
+}
+
+export const NoBack: Story = {
+    render: (args) => <BallotExample {...args} />,
+    args: {
+        title: "Ballot ID",
+        subTitle: "Enter your ballot identifier",
+        label: "Ballot ID",
+        error: "Invalid ballot ID",
+        placeholder: "e.g. 1234abcd",
+        captureEnterAction: (e) => {
+            if (e.key === "Enter") alert("Enter pressed!")
+        },
+        labelProps: {shrink: true},
+        helpText: "Your ballot ID is provided on your voting card.",
+        dialogTitle: "What is a Ballot ID?",
+        dialogOk: "OK",
+        // backButtonText: "Back",
+        ballotStyle: undefined,
+    },
     parameters: {
         viewport: {
             disable: true,
