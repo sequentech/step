@@ -36,8 +36,6 @@ jobs:
         working-directory: packages/sequent-core
         run: |
           pwd
-          nix-build
-          nix-shell --run "echo OK"
-          nix-env -iA nixpkgs.wasm-pack
+          wasm-pack --version
           wasm-pack build --mode no-install --out-name index --release --target web --features=wasmtest
           wasm-pack -v pack .
