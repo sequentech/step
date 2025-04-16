@@ -16,4 +16,5 @@
     "docker.views.dockerVolumes.visibility": "collapsed",
     "docker.views.dockerContexts.visibility": "collapsed",
     "workbench.editor.enablePreview": false,
+    "terminal.integrated.scrollback": 100000000,
 }
