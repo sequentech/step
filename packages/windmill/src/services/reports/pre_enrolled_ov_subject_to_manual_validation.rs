@@ -562,9 +562,14 @@ impl TemplateRenderer for PreEnrolledManualUsersTemplate {
             if report.encryption_policy == EReportEncryption::ConfiguredPassword {
                 let secret_key =
                     get_report_secret_key(&tenant_id, &election_event_id, Some(report.id.clone()));
-                let encryption_password = vault::read_secret(secret_key.clone())
-                    .await?
-                    .ok_or_else(|| anyhow!("Encryption password not found"))?;
+                let encryption_password = vault::read_secret(
+                    hasura_transaction,
+                    tenant_id,
+                    Some(election_event_id),
+                    &secret_key,
+                )
+                .await?
+                .ok_or_else(|| anyhow!("Encryption password not found"))?;
 
                 let enc_file: NamedTempFile =
                     generate_temp_file(self.base_name().as_str(), ".epdf")

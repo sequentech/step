@@ -406,7 +406,7 @@ function TreeMenuItem({
         item = (
             <MenuStyles.ItemContainer>
                 <MenuStyles.HowToVoteStyledIcon />
-                <span>{name}</span>
+                <MenuStyles.SpanContainer>{name}</MenuStyles.SpanContainer>
             </MenuStyles.ItemContainer>
         )
     } else if (imageData) {
@@ -418,11 +418,15 @@ function TreeMenuItem({
                     height={24}
                     src={`${globalSettings.PUBLIC_BUCKET_URL}tenant-${tenantId}/document-${imageDocumentId}/${imageData?.name}`}
                 />
-                <span>{name}</span>
+                <MenuStyles.SpanContainer>{name}</MenuStyles.SpanContainer>
             </MenuStyles.ItemContainer>
         )
     } else {
-        item = <p>{name}</p>
+        item = (
+            <MenuStyles.ItemContainer>
+                <MenuStyles.SpanContainer>{name}</MenuStyles.SpanContainer>
+            </MenuStyles.ItemContainer>
+        )
     }
 
     /**

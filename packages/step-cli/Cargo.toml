@@ -16,9 +16,26 @@ strum = "0.25"
 strum_macros = "0.25"
 reqwest = { version = "0.12.5", features = ["blocking", "json"] }
 graphql_client = "0.13.0"
+rayon = "1.5"
 sequent-core = { path="../sequent-core", features = ["keycloak", "probe", "reports"] }
 windmill = { path="../windmill" }
+strand = { path="../strand" }
+immudb-rs = { path="../immudb-rs" }
+electoral-log = { path="../electoral-log" }
 
+uuid = { version = "1.5.0", features = ["v4", "fast-rng"] }
+fake = { version = "4", features = ["derive"] }
+csv = "1.1"
+rand = "0.8"
+chrono = "0.4"
+tokio = { version = "1.38.1", features = ["full"] }
+tokio-postgres = "0.7.10"
+deadpool-postgres = { version = "0.11.0", features = ["rt_tokio_1", "serde"] }
+
+hex = "0.4"
+ring = "0.17"
+sha2 = "0.10"
+base64 = "0.21.0"
 [[bin]]
 name = "seq"
-path = "src/main.rs"    
+path = "src/main.rs"

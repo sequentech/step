@@ -36,6 +36,9 @@ cat << EOF > '.vscode/settings.local.json'
         "RUST_SRC_PATH": "$rust_src_path"
     },
 
+
+    // Use the correct sysroot setup by devenv
+    "rust-analyzer.cargo.sysroot": "$(rustc --print sysroot)",
     // echo /nix/store/*-openjdk-*/lib/openjdk
     "java.jdt.ls.java.home": "$java_home"
 }

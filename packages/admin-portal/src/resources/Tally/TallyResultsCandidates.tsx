@@ -103,8 +103,6 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
                 }
             )
 
-            console.log("TallyResultsGlobalCandidates :: temp", temp)
-
             setResultsData(temp)
         }
     }, [results, candidates])

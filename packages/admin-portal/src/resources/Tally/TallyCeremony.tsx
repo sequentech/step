@@ -24,6 +24,7 @@ import {
     Box,
     CircularProgress,
     styled,
+    Alert,
 } from "@mui/material"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
@@ -139,7 +140,7 @@ export const TallyCeremony: React.FC = () => {
     const isTrustee = authContext.isAuthorized(true, tenantId, IPermissions.TRUSTEE_CEREMONY)
     const [selectedElections, setSelectedElections] = useState<string[]>([])
     const [selectedTrustees, setSelectedTrustees] = useState<boolean>(false)
-    const [keysCeremonyId, setKeysCeremonyId] = useState<string | null>(null)
+    const [keysCeremonyId, setKeysCeremonyId] = useState<string | undefined>(undefined)
     const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
     const [isTallyCompleted, setIsTallyCompleted] = useState<boolean>(false)
     const [isConfirming, setIsConfirming] = useState<boolean>(false)
@@ -326,11 +327,28 @@ export const TallyCeremony: React.FC = () => {
         }
     )
 
+    const [hasFinalResults, setHasFinalResults] = useState(false)
+
     useEffect(() => {
         if (tallySession?.is_execution_completed && !isTallyCompleted) {
-            setIsTallyCompleted(true)
+            // Only mark as completed if we have the resultsEventId
+            if (resultsEventId) {
+                setIsTallyCompleted(true)
+                setHasFinalResults(true)
+            } else {
+                // Force a refetch if we don't have resultsEventId yet
+                refetchTallySession()
+            }
         }
-    }, [tallySession?.is_execution_completed, isTallyCompleted])
+    }, [tallySession?.is_execution_completed, isTallyCompleted, resultsEventId])
+
+    useEffect(() => {
+        // Additional check in case resultsEventId comes after is_execution_completed
+        if (tallySession?.is_execution_completed && resultsEventId && !hasFinalResults) {
+            setIsTallyCompleted(true)
+            setHasFinalResults(true)
+        }
+    }, [resultsEventId, tallySession?.is_execution_completed, hasFinalResults])
 
     useEffect(() => {
         if (tallySession) {
@@ -724,6 +742,17 @@ export const TallyCeremony: React.FC = () => {
                     ) : null}
                     {page === WizardSteps.Start && (
                         <>
+                            {/* 
+                            This code snippet determines whether the "Next" button should be
+                            disabled on the Start page of the wizard. The button is disabled if:
+                            1. The current page is the Start page and no elections are selected.
+                            2. The elections are not published. 
+                            */}
+                            {isButtonDisabled && (
+                                <Alert severity="warning">
+                                    {t("electionEventScreen.tally.notify.startDisabled")}
+                                </Alert>
+                            )}
                             <ElectionHeader
                                 title={
                                     isCreatingType === ETallyType.ELECTORAL_RESULTS
@@ -732,13 +761,12 @@ export const TallyCeremony: React.FC = () => {
                                 }
                                 subtitle={"tally.ceremonySubTitle"}
                             />
-
                             <TallyElectionsList
                                 elections={elections}
                                 update={(elections) => setSelectedElections(elections)}
                                 disabled={isTallyElectionListDisabled}
                                 electionEventId={record?.id}
-                                keysCeremonyId={keysCeremonyId}
+                                keysCeremonyId={keysCeremonyId ?? null}
                                 tallySession={tallySession}
                             />
                             <FormControl fullWidth>
@@ -749,7 +777,7 @@ export const TallyCeremony: React.FC = () => {
 
                                 <Select
                                     id="keys-ceremony-for-tally"
-                                    value={keysCeremonyId}
+                                    value={keysCeremonyId ?? ""}
                                     label={t("tally.keysCeremonyTitle")}
                                     placeholder={t("tally.keysCeremonyTitle")}
                                     onChange={(props) => {
@@ -760,13 +788,16 @@ export const TallyCeremony: React.FC = () => {
                                         setKeysCeremonyId(props?.target?.value)
                                     }}
                                 >
-                                    {(keysCeremonies?.list_keys_ceremony?.items ?? []).map(
-                                        (keysCeremony) => (
+                                    {(keysCeremonies?.list_keys_ceremony?.items ?? [])
+                                        .sort((a, b) => {
+                                            if (!a?.name || !b?.name) return 0
+                                            return a.name.localeCompare(b.name)
+                                        })
+                                        .map((keysCeremony) => (
                                             <MenuItem key={keysCeremony.id} value={keysCeremony.id}>
                                                 {keysCeremony?.name}
                                             </MenuItem>
-                                        )
-                                    )}
+                                        ))}
                                 </Select>
                             </FormControl>
                         </>
@@ -774,12 +805,25 @@ export const TallyCeremony: React.FC = () => {
 
                     {page === WizardSteps.Ceremony && (
                         <>
+                            {/* 
+                            This code snippet determines whether the "Next" button should be
+                            disabled on the Ceremony page of the wizard. The button is disabled if:
+                            1. The tally object's execution_status is not equal to ITallyExecutionStatus.CONNECTED.
+                            2. The isStartAllowed variable is false.
+                            The tally session is not in the CONNECTED state or if the start of the ceremony 
+                            is not allowed based on the tally type and the status of the elections.
+                            */}
+                            {isButtonDisabled && (
+                                <Alert severity="warning">
+                                    {t("electionEventScreen.tally.notify.ceremonyDisabled")}
+                                </Alert>
+                            )}
                             <TallyElectionsList
                                 elections={elections}
                                 electionEventId={record?.id}
                                 disabled={true}
                                 update={(elections) => setSelectedElections(elections)}
-                                keysCeremonyId={keysCeremonyId}
+                                keysCeremonyId={keysCeremonyId ?? null}
                                 tallySession={tallySession}
                             />
 
@@ -966,17 +1010,35 @@ export const TallyCeremony: React.FC = () => {
                             <Accordion
                                 sx={{width: "100%"}}
                                 expanded={expandedResults["tally-results-results"]}
-                                onChange={() =>
-                                    setExpandedResults((prev: IExpanded) => ({
-                                        ...prev,
-                                        "tally-results-results": !prev["tally-results-results"],
-                                    }))
-                                }
+                                onChange={() => {}}
                             >
                                 <AccordionSummary
-                                    expandIcon={<ExpandMoreIcon id="tally-data-results" />}
+                                    expandIcon={
+                                        <div
+                                            onClick={(e) => {
+                                                e.stopPropagation()
+                                                setExpandedResults((prev: IExpanded) => ({
+                                                    ...prev,
+                                                    "tally-results-results":
+                                                        !prev["tally-results-results"],
+                                                }))
+                                            }}
+                                        >
+                                            <ExpandMoreIcon id="tally-data-results" />
+                                        </div>
+                                    }
+                                    onClick={(e) => e.stopPropagation()}
                                 >
-                                    <WizardStyles.AccordionTitle>
+                                    <WizardStyles.AccordionTitle
+                                        onClick={(e) => {
+                                            e.stopPropagation()
+                                            setExpandedResults((prev: IExpanded) => ({
+                                                ...prev,
+                                                "tally-results-results":
+                                                    !prev["tally-results-results"],
+                                            }))
+                                        }}
+                                    >
                                         {t("tally.resultsTitle")}
                                     </WizardStyles.AccordionTitle>
                                     <TallyStyles.StyledSpacing>

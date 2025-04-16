@@ -255,6 +255,7 @@ pub async fn get_elections_by_keys_ceremony_id(
     election_event_id: &str,
     keys_ceremony_id: &str,
 ) -> Result<Vec<Election>> {
+    println!("get_elections_by_keys_ceremony_id: {:?}", &keys_ceremony_id);
     let statement = hasura_transaction
         .prepare(
             r#"

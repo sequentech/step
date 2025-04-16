@@ -17,7 +17,7 @@ serde = { version = "1.0.190", features = ["derive"] }
 strum = "0.25"
 strum_macros = "0.25"
 tokio = { version = "1.38.1", features = ["test-util", "rt-multi-thread"] }
-tonic = "0.9.2"
+tonic = "0.12"
 hex = "0.4.3"
 serde_json = "1.0"
 
