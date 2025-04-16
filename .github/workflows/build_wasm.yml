@@ -34,13 +34,13 @@ jobs:
       - name: Install wasm-pack and wasm-bindgen
         working-directory: packages/sequent-core
         run: |
-          cargo install wasm-pack --version 0.12.1
-          cargo add wasm-bindgen@0.2.100
+          cargo install wasm-pack
+          cargo add wasm-bindgen
 
       - name: Build WASM
         working-directory: packages/sequent-core
         run: |
-          wasm-pack build --mode no-install --out-name index --release --target web --features=wasmtest
+          RUST_LOG="debug" wasm-pack build --mode no-install --out-name index --release --target web --features=wasmtest
 
       - name: Pack WASM
         working-directory: packages/sequent-core
