@@ -31,11 +31,18 @@ jobs:
           override: true
           target: x86_64-unknown-linux-musl
 
-      - name: Install wasm-pack, build and package WASM
+      - name: Install wasm-pack and wasm-bindgen
         working-directory: packages/sequent-core
         run: |
-          pwd
           cargo install wasm-pack --version 0.12.1
-          wasm-pack --version
+          cargo add wasm-bindgen@0.2.100
+
+      - name: Build WASM
+        working-directory: packages/sequent-core
+        run: |
           wasm-pack build --mode no-install --out-name index --release --target web --features=wasmtest
+
+      - name: Pack WASM
+        working-directory: packages/sequent-core
+        run: |
           wasm-pack -v pack .
