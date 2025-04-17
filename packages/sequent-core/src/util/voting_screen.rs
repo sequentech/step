@@ -123,7 +123,6 @@ pub fn check_voting_error_dialog_util(
                 &decoded_contest.invalid_errors;
             let explicit_invalid = decoded_contest.is_explicit_invalid;
 
-
             console_log!("choices_selected={choices_selected:?}, explicit_invalid={explicit_invalid:?}");
 
             // Show Alert dialog if:
