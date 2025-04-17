@@ -1,8 +1,9 @@
 // SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+import {TranslationType} from "./en"
 
-const englishTranslation = {
+const dutchTranslation: TranslationType = {
     translations: {
         philippinePassport: "Philippine Passport",
         seamanBook: "Seaman's Book",
@@ -415,10 +416,6 @@ const englishTranslation = {
                         "The Tally Ceremony cannot start until you create one publication in the Publish tab.",
                     participateNow:
                         "You have been invited to participate in a Tally ceremony. Please <1>click on the ceremony's Key Action</1> to participate.",
-                    startDisabled:
-                        "You cannot continue the ceremony because no elections are selected or the elections are not published.",
-                    ceremonyDisabled:
-                        "You cannot continue the ceremony because the tally session is not connected or the start of the ceremony is not allowed.",
                 },
             },
             importAreas: {
@@ -1074,7 +1071,7 @@ const englishTranslation = {
                 fr: "French",
                 cat: "Valencian",
                 tl: "Tagalog",
-                nl: "Dutch",
+                nl: "Nederlands",
             },
             channel: {
                 online: "Online",
@@ -1960,6 +1957,4 @@ const englishTranslation = {
     },
 }
 
-export type TranslationType = typeof englishTranslation
-
-export default englishTranslation
+export default dutchTranslation
