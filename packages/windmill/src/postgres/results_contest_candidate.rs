@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{anyhow, Result};
+use chrono::{DateTime, Local};
 use deadpool_postgres::Transaction;
 use ordered_float::NotNan;
 use rust_decimal::prelude::ToPrimitive;
@@ -208,4 +209,111 @@ pub async fn get_event_results_contest_candidates(
         .collect::<Result<Vec<ResultsContestCandidate>>>()?;
 
     Ok(results_contest_candidate)
+}
+
+#[derive(Debug, Serialize)]
+struct InsertableResultsContestCandidate {
+    id: Uuid,
+    tenant_id: Uuid,
+    election_event_id: Uuid,
+    election_id: Uuid,
+    contest_id: Uuid,
+    candidate_id: Uuid,
+    results_event_id: Uuid,
+    cast_votes: Option<i64>,
+    winning_position: Option<i64>,
+    points: Option<i64>,
+    created_at: Option<DateTime<Local>>,
+    last_updated_at: Option<DateTime<Local>>,
+    labels: Option<Value>,
+    annotations: Option<Value>,
+    cast_votes_percent: Option<f64>,
+    documents: Option<Value>,
+}
+
+#[instrument(err, skip(hasura_transaction, candidates))]
+pub async fn insert_many_results_contest_candidates(
+    hasura_transaction: &Transaction<'_>,
+    candidates: Vec<ResultsContestCandidate>,
+) -> Result<Vec<ResultsContestCandidate>> {
+    if candidates.is_empty() {
+        return Ok(vec![]);
+    }
+
+    let insertable: Vec<InsertableResultsContestCandidate> = candidates
+        .into_iter()
+        .map(|c| {
+            let documents_json = c.documents.map(|d| serde_json::to_value(&d)).transpose()?;
+
+            Ok(InsertableResultsContestCandidate {
+                id: Uuid::parse_str(&c.id)?,
+                tenant_id: Uuid::parse_str(&c.tenant_id)?,
+                election_event_id: Uuid::parse_str(&c.election_event_id)?,
+                election_id: Uuid::parse_str(&c.election_id)?,
+                contest_id: Uuid::parse_str(&c.contest_id)?,
+                candidate_id: Uuid::parse_str(&c.candidate_id)?,
+                results_event_id: Uuid::parse_str(&c.results_event_id)?,
+                cast_votes: c.cast_votes,
+                winning_position: c.winning_position,
+                points: c.points,
+                created_at: c.created_at,
+                last_updated_at: c.last_updated_at,
+                labels: c.labels.clone(),
+                annotations: c.annotations.clone(),
+                cast_votes_percent: c.cast_votes_percent.map(|v| v.into_inner()),
+                documents: documents_json,
+            })
+        })
+        .collect::<Result<_>>()?;
+
+    let json_data = serde_json::to_value(&insertable)?;
+
+    let sql = r#"
+        WITH data AS (
+            SELECT * FROM jsonb_to_recordset($1::jsonb) AS t(
+                id UUID,
+                tenant_id UUID,
+                election_event_id UUID,
+                election_id UUID,
+                contest_id UUID,
+                candidate_id UUID,
+                results_event_id UUID,
+                cast_votes BIGINT,
+                winning_position BIGINT,
+                points BIGINT,
+                created_at TIMESTAMPTZ,
+                last_updated_at TIMESTAMPTZ,
+                labels JSONB,
+                annotations JSONB,
+                cast_votes_percent FLOAT8,
+                documents JSONB
+            )
+        )
+        INSERT INTO sequent_backend.results_contest_candidate (
+            id, tenant_id, election_event_id, election_id, contest_id,
+            candidate_id, results_event_id, cast_votes, winning_position, points,
+            created_at, last_updated_at, labels, annotations,
+            cast_votes_percent, documents
+        )
+        SELECT
+            id, tenant_id, election_event_id, election_id, contest_id,
+            candidate_id, results_event_id, cast_votes, winning_position, points,
+            created_at, last_updated_at, labels, annotations,
+            cast_votes_percent, documents
+        FROM data
+        RETURNING *;
+    "#;
+
+    let statement = hasura_transaction.prepare(sql).await?;
+    let rows = hasura_transaction.query(&statement, &[&json_data]).await?;
+
+    let inserted = rows
+        .into_iter()
+        .map(|row| {
+            let wrapper: ResultsContestCandidateWrapper = row.try_into()?;
+            Ok(wrapper.0)
+        })
+        .collect::<Result<Vec<ResultsContestCandidate>>>()?;
+
+    Ok(inserted)
 }

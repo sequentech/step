@@ -657,11 +657,6 @@ fn get_export_tasks<'a>(
             tenant_id,
             election_event_id,
         )),
-        Box::pin(export_tally_session_execution(
-            hasura_transaction,
-            tenant_id,
-            election_event_id,
-        )),
         Box::pin(export_tally_session_contest(
             hasura_transaction,
             tenant_id,
@@ -698,6 +693,11 @@ fn get_export_tasks<'a>(
             election_event_id,
         )),
         Box::pin(export_results_area_contest_candidate(
+            hasura_transaction,
+            tenant_id,
+            election_event_id,
+        )),
+        Box::pin(export_tally_session_execution(
             hasura_transaction,
             tenant_id,
             election_event_id,

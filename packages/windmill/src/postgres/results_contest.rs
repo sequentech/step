@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{anyhow, Context, Result};
+use chrono::{DateTime, Local};
 use deadpool_postgres::Transaction;
 use ordered_float::NotNan;
 use rust_decimal::prelude::ToPrimitive;
@@ -460,4 +461,164 @@ pub async fn get_event_results_contest(
         .collect::<Result<Vec<ResultsContest>>>()?;
 
     Ok(results)
+}
+
+#[derive(Debug, Serialize)]
+struct InsertableResultsContest {
+    id: Uuid,
+    tenant_id: Uuid,
+    election_event_id: Uuid,
+    election_id: Uuid,
+    contest_id: Uuid,
+    results_event_id: Uuid,
+    elegible_census: Option<i64>,
+    total_valid_votes: Option<i64>,
+    explicit_invalid_votes: Option<i64>,
+    implicit_invalid_votes: Option<i64>,
+    blank_votes: Option<i64>,
+    voting_type: Option<String>,
+    counting_algorithm: Option<String>,
+    name: Option<String>,
+    created_at: Option<DateTime<Local>>,
+    last_updated_at: Option<DateTime<Local>>,
+    labels: Option<Value>,
+    annotations: Option<Value>,
+    total_invalid_votes: Option<i64>,
+    total_invalid_votes_percent: Option<f64>,
+    total_valid_votes_percent: Option<f64>,
+    explicit_invalid_votes_percent: Option<f64>,
+    implicit_invalid_votes_percent: Option<f64>,
+    blank_votes_percent: Option<f64>,
+    total_votes: Option<i64>,
+    total_votes_percent: Option<f64>,
+    documents: Option<Value>,
+    total_auditable_votes: Option<i64>,
+    total_auditable_votes_percent: Option<f64>,
+}
+
+#[instrument(err, skip(hasura_transaction, results_contests))]
+pub async fn insert_many_results_contests(
+    hasura_transaction: &Transaction<'_>,
+    results_contests: Vec<ResultsContest>,
+) -> Result<Vec<ResultsContest>> {
+    if results_contests.is_empty() {
+        return Ok(vec![]);
+    }
+
+    let insertable: Vec<InsertableResultsContest> = results_contests
+        .into_iter()
+        .map(|c| {
+            let documents_json = c.documents.map(|d| serde_json::to_value(&d)).transpose()?;
+
+            Ok(InsertableResultsContest {
+                id: Uuid::parse_str(&c.id)?,
+                tenant_id: Uuid::parse_str(&c.tenant_id)?,
+                election_event_id: Uuid::parse_str(&c.election_event_id)?,
+                election_id: Uuid::parse_str(&c.election_id)?,
+                contest_id: Uuid::parse_str(&c.contest_id)?,
+                results_event_id: Uuid::parse_str(&c.results_event_id)?,
+                elegible_census: c.elegible_census,
+                total_valid_votes: c.total_valid_votes,
+                explicit_invalid_votes: c.explicit_invalid_votes,
+                implicit_invalid_votes: c.implicit_invalid_votes,
+                blank_votes: c.blank_votes,
+                voting_type: c.voting_type.clone(),
+                counting_algorithm: c.counting_algorithm.clone(),
+                name: c.name.clone(),
+                created_at: c.created_at,
+                last_updated_at: c.last_updated_at,
+                labels: c.labels.clone(),
+                annotations: c.annotations.clone(),
+                total_invalid_votes: c.total_invalid_votes,
+                total_invalid_votes_percent: c.total_invalid_votes_percent.map(|v| v.into_inner()),
+                total_valid_votes_percent: c.total_valid_votes_percent.map(|v| v.into_inner()),
+                explicit_invalid_votes_percent: c
+                    .explicit_invalid_votes_percent
+                    .map(|v| v.into_inner()),
+                implicit_invalid_votes_percent: c
+                    .implicit_invalid_votes_percent
+                    .map(|v| v.into_inner()),
+                blank_votes_percent: c.blank_votes_percent.map(|v| v.into_inner()),
+                total_votes: c.total_votes,
+                total_votes_percent: c.total_votes_percent.map(|v| v.into_inner()),
+                documents: documents_json,
+                total_auditable_votes: c.total_auditable_votes,
+                total_auditable_votes_percent: c
+                    .total_auditable_votes_percent
+                    .map(|v| v.into_inner()),
+            })
+        })
+        .collect::<Result<_>>()?;
+
+    let json_data = serde_json::to_value(&insertable)?;
+
+    let sql = r#"
+        WITH data AS (
+            SELECT * FROM jsonb_to_recordset($1::jsonb) AS t(
+                id UUID,
+                tenant_id UUID,
+                election_event_id UUID,
+                election_id UUID,
+                contest_id UUID,
+                results_event_id UUID,
+                elegible_census BIGINT,
+                total_valid_votes BIGINT,
+                explicit_invalid_votes BIGINT,
+                implicit_invalid_votes BIGINT,
+                blank_votes BIGINT,
+                voting_type TEXT,
+                counting_algorithm TEXT,
+                name TEXT,
+                created_at TIMESTAMPTZ,
+                last_updated_at TIMESTAMPTZ,
+                labels JSONB,
+                annotations JSONB,
+                total_invalid_votes BIGINT,
+                total_invalid_votes_percent FLOAT8,
+                total_valid_votes_percent FLOAT8,
+                explicit_invalid_votes_percent FLOAT8,
+                implicit_invalid_votes_percent FLOAT8,
+                blank_votes_percent FLOAT8,
+                total_votes BIGINT,
+                total_votes_percent FLOAT8,
+                documents JSONB,
+                total_auditable_votes BIGINT,
+                total_auditable_votes_percent FLOAT8
+            )
+        )
+        INSERT INTO sequent_backend.results_contest (
+            id, tenant_id, election_event_id, election_id, contest_id,
+            results_event_id, elegible_census, total_valid_votes, explicit_invalid_votes,
+            implicit_invalid_votes, blank_votes, voting_type, counting_algorithm, name,
+            created_at, last_updated_at, labels, annotations, total_invalid_votes,
+            total_invalid_votes_percent, total_valid_votes_percent, explicit_invalid_votes_percent,
+            implicit_invalid_votes_percent, blank_votes_percent, total_votes,
+            total_votes_percent, documents, total_auditable_votes,
+            total_auditable_votes_percent
+        )
+        SELECT
+            id, tenant_id, election_event_id, election_id, contest_id,
+            results_event_id, elegible_census, total_valid_votes, explicit_invalid_votes,
+            implicit_invalid_votes, blank_votes, voting_type, counting_algorithm, name,
+            created_at, last_updated_at, labels, annotations, total_invalid_votes,
+            total_invalid_votes_percent, total_valid_votes_percent, explicit_invalid_votes_percent,
+            implicit_invalid_votes_percent, blank_votes_percent, total_votes,
+            total_votes_percent, documents, total_auditable_votes,
+            total_auditable_votes_percent
+        FROM data
+        RETURNING *;
+    "#;
+
+    let statement = hasura_transaction.prepare(sql).await?;
+    let rows = hasura_transaction.query(&statement, &[&json_data]).await?;
+
+    let inserted = rows
+        .into_iter()
+        .map(|row| {
+            let wrapper: ResultsContestWrapper = row.try_into()?;
+            Ok(wrapper.0)
+        })
+        .collect::<Result<Vec<ResultsContest>>>()?;
+
+    Ok(inserted)
 }

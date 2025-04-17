@@ -2,9 +2,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{anyhow, Result};
+use chrono::{DateTime, Local};
 use deadpool_postgres::Transaction;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::types::results::{ResultDocuments, ResultsElectionArea};
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio_postgres::row::Row;
 use tokio_postgres::types::ToSql;
@@ -136,4 +138,91 @@ pub async fn get_event_results_election_area(
         .collect::<Result<Vec<ResultsElectionArea>>>()?;
 
     Ok(results)
+}
+
+#[derive(Debug, Serialize)]
+struct InsertableResultsElectionArea {
+    id: Uuid,
+    tenant_id: Uuid,
+    election_event_id: Uuid,
+    election_id: Uuid,
+    area_id: Uuid,
+    results_event_id: Uuid,
+    created_at: Option<DateTime<Local>>,
+    last_updated_at: Option<DateTime<Local>>,
+    documents: Option<Value>,
+    name: Option<String>,
+}
+
+#[instrument(err, skip(hasura_transaction, areas))]
+pub async fn insert_many_results_elections_areas(
+    hasura_transaction: &Transaction<'_>,
+    areas: Vec<ResultsElectionArea>,
+) -> Result<Vec<ResultsElectionArea>> {
+    if areas.is_empty() {
+        return Ok(vec![]);
+    }
+
+    let insertable: Vec<InsertableResultsElectionArea> = areas
+        .into_iter()
+        .map(|a| {
+            let documents_json = a.documents.map(|v| serde_json::to_value(&v)).transpose()?;
+
+            Ok(InsertableResultsElectionArea {
+                id: Uuid::parse_str(&a.id)?,
+                tenant_id: Uuid::parse_str(&a.tenant_id)?,
+                election_event_id: Uuid::parse_str(&a.election_event_id)?,
+                election_id: Uuid::parse_str(&a.election_id)?,
+                area_id: Uuid::parse_str(&a.area_id)?,
+                results_event_id: Uuid::parse_str(&a.results_event_id)?,
+                created_at: a.created_at,
+                last_updated_at: a.last_updated_at,
+                documents: documents_json,
+                name: a.name.clone(),
+            })
+        })
+        .collect::<Result<_>>()?;
+
+    let json_data = serde_json::to_value(&insertable)?;
+
+    let sql = r#"
+        WITH data AS (
+            SELECT * FROM jsonb_to_recordset($1::jsonb) AS t(
+                id UUID,
+                tenant_id UUID,
+                election_event_id UUID,
+                election_id UUID,
+                area_id UUID,
+                results_event_id UUID,
+                created_at TIMESTAMPTZ,
+                last_updated_at TIMESTAMPTZ,
+                documents JSONB,
+                name TEXT
+            )
+        )
+        INSERT INTO sequent_backend.results_election_area (
+            id, tenant_id, election_event_id, election_id,
+            area_id, results_event_id, created_at, last_updated_at,
+            documents, name
+        )
+        SELECT
+            id, tenant_id, election_event_id, election_id,
+            area_id, results_event_id, created_at, last_updated_at,
+            documents, name
+        FROM data
+        RETURNING *;
+    "#;
+
+    let statement = hasura_transaction.prepare(sql).await?;
+    let rows = hasura_transaction.query(&statement, &[&json_data]).await?;
+
+    let inserted = rows
+        .into_iter()
+        .map(|row| {
+            let wrapper: ResultsElectionAreaWrapper = row.try_into()?;
+            Ok(wrapper.0)
+        })
+        .collect::<Result<Vec<ResultsElectionArea>>>()?;
+
+    Ok(inserted)
 }

@@ -349,3 +349,104 @@ pub async fn get_event_results_election(
 
     Ok(results)
 }
+
+#[derive(Debug, Serialize)]
+struct InsertableResultsElection {
+    id: Uuid,
+    tenant_id: Uuid,
+    election_event_id: Uuid,
+    election_id: Uuid,
+    results_event_id: Uuid,
+    name: Option<String>,
+    elegible_census: Option<i64>,
+    total_voters: Option<i64>,
+    total_voters_percent: Option<f64>,
+    created_at: Option<DateTime<Local>>,
+    last_updated_at: Option<DateTime<Local>>,
+    labels: Option<Value>,
+    annotations: Option<Value>,
+    documents: Option<Value>,
+}
+
+#[instrument(err, skip(hasura_transaction, results))]
+pub async fn insert_many_results_elections(
+    hasura_transaction: &Transaction<'_>,
+    results: Vec<ResultsElection>,
+) -> Result<Vec<ResultsElection>> {
+    if results.is_empty() {
+        return Ok(vec![]);
+    }
+
+    let insertable: Vec<InsertableResultsElection> = results
+        .into_iter()
+        .map(|r| {
+            let documents_json = r.documents.map(|v| serde_json::to_value(&v)).transpose()?;
+
+            Ok(InsertableResultsElection {
+                id: Uuid::parse_str(&r.id)?,
+                tenant_id: Uuid::parse_str(&r.tenant_id)?,
+                election_event_id: Uuid::parse_str(&r.election_event_id)?,
+                election_id: Uuid::parse_str(&r.election_id)?,
+                results_event_id: Uuid::parse_str(&r.results_event_id)?,
+                name: r.name.clone(),
+                elegible_census: r.elegible_census,
+                total_voters: r.total_voters,
+                total_voters_percent: r.total_voters_percent.map(|n| n.into_inner()),
+                created_at: r.created_at,
+                last_updated_at: r.last_updated_at,
+                labels: r.labels.clone(),
+                annotations: r.annotations.clone(),
+                documents: documents_json,
+            })
+        })
+        .collect::<Result<_>>()?;
+
+    let json_data = serde_json::to_value(&insertable)?;
+
+    let sql = r#"
+        WITH data AS (
+            SELECT * FROM jsonb_to_recordset($1::jsonb) AS t(
+                id UUID,
+                tenant_id UUID,
+                election_event_id UUID,
+                election_id UUID,
+                results_event_id UUID,
+                name TEXT,
+                elegible_census BIGINT,
+                total_voters BIGINT,
+                total_voters_percent FLOAT8,
+                created_at TIMESTAMPTZ,
+                last_updated_at TIMESTAMPTZ,
+                labels JSONB,
+                annotations JSONB,
+                documents JSONB
+            )
+        )
+        INSERT INTO sequent_backend.results_election (
+            id, tenant_id, election_event_id, election_id,
+            results_event_id, name, elegible_census, total_voters,
+            total_voters_percent, created_at, last_updated_at,
+            labels, annotations, documents
+        )
+        SELECT
+            id, tenant_id, election_event_id, election_id,
+            results_event_id, name, elegible_census, total_voters,
+            total_voters_percent, created_at, last_updated_at,
+            labels, annotations, documents
+        FROM data
+        RETURNING *;
+    "#;
+
+    let statement = hasura_transaction.prepare(sql).await?;
+    let rows = hasura_transaction.query(&statement, &[&json_data]).await?;
+
+    let inserted = rows
+        .into_iter()
+        .map(|row| {
+            let wrapper: ResultsElectionWrapper = row.try_into()?;
+            Ok(wrapper.0)
+        })
+        .collect::<Result<Vec<ResultsElection>>>()?;
+
+    Ok(inserted)
+}
