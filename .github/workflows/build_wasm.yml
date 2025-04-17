@@ -60,13 +60,13 @@ jobs:
                 echo "The hashes are equal"
               else
                 echo "The hashes are not equal"
-                return 1
+                exit 1
               fi
             else
               echo "Error: unable to extract hashes from files"
-              return 1
+              exit 1
             fi
           else
             echo "Error: one or both files do not exist"
-            return 1
+            exit 1
           fi
