@@ -91,6 +91,25 @@ interface TreeLeavesProps {
     reloadTree: () => void
 }
 
+/**
+ * TreeLeaves Component
+ *
+ * This component renders a tree structure for election events, elections, contests, and candidates.
+ * It provides functionality for displaying hierarchical data, managing permissions, and handling
+ * actions such as creating or importing election events.
+ *
+ * @component
+ * @param {TreeLeavesProps} props - The props for the TreeLeaves component.
+ * @param {Array<DataTreeMenuType>} props.data - The hierarchical data to display in the tree.
+ * @param {DataTreeMenuType} props.parentData - The parent data of the current tree level.
+ * @param {Array<string>} props.treeResourceNames - The resource names for the tree structure.
+ * @param {boolean} props.isArchivedElectionEvents - Indicates if the election events are archived.
+ * @param {() => void} props.reloadTree - A callback function to reload the tree structure.
+ *
+ * @returns {JSX.Element} The rendered TreeLeaves component.
+ *
+ */
+
 function TreeLeaves({
     data,
     parentData,
@@ -294,6 +313,22 @@ function TreeLeaves({
     )
 }
 
+/**
+ * Props for the TreeMenuItem component.
+ *
+ * @interface TreeMenuItemProps
+ *
+ * @property {DataTreeMenuType} resource - The data resource associated with the tree menu item.
+ * @property {DataTreeMenuType} parentData - The data resource of the parent item in the tree.
+ * @property {DataTreeMenuType} superParentData - The data resource of the super parent item in the tree.
+ * @property {string} id - The unique identifier for the tree menu item.
+ * @property {string} name - The display name of the tree menu item.
+ * @property {ResourceName[]} treeResourceNames - A list of resource names associated with the tree structure.
+ * @property {boolean} isArchivedElectionEvents - Indicates whether the election events are archived.
+ * @property {(string[] | null | undefined)} fullPath - The full path of the tree menu item, represented as an array of strings, or null/undefined if not available.
+ * @property {() => void} reloadTree - A callback function to reload the tree structure.
+ */
+
 interface TreeMenuItemProps {
     resource: DataTreeMenuType
     parentData: DataTreeMenuType
@@ -320,6 +355,7 @@ function TreeMenuItem({
     const [isOpenSidebar] = useSidebarState()
     const {i18n} = useTranslation()
     const {globalSettings} = useContext(SettingsContext)
+    const navigate = useNavigate()
 
     const [open, setOpen] = useState(false)
 
@@ -330,11 +366,24 @@ function TreeMenuItem({
         if (isLabel && open) {
             return
         }
+        if (!isLabel && !open) {
+            setOpen(true)
+            return
+        }
+        if (!isLabel && open && resource.active) {
+            setOpen(false)
+            return
+        }
+        if (!isLabel && !open && !resource.active) {
+            setOpen(false)
+            return
+        }
         if (!open) {
             reloadTree()
         }
-        setOpen(!open)
+        setOpen(false)
     }
+
     /**
      * control the tree menu open state
      */
@@ -406,7 +455,7 @@ function TreeMenuItem({
         item = (
             <MenuStyles.ItemContainer>
                 <MenuStyles.HowToVoteStyledIcon />
-                <span>{name}</span>
+                <MenuStyles.SpanContainer>{name}</MenuStyles.SpanContainer>
             </MenuStyles.ItemContainer>
         )
     } else if (imageData) {
@@ -418,11 +467,15 @@ function TreeMenuItem({
                     height={24}
                     src={`${globalSettings.PUBLIC_BUCKET_URL}tenant-${tenantId}/document-${imageDocumentId}/${imageData?.name}`}
                 />
-                <span>{name}</span>
+                <MenuStyles.SpanContainer>{name}</MenuStyles.SpanContainer>
             </MenuStyles.ItemContainer>
         )
     } else {
-        item = <p>{name}</p>
+        item = (
+            <MenuStyles.ItemContainer>
+                <MenuStyles.SpanContainer>{name}</MenuStyles.SpanContainer>
+            </MenuStyles.ItemContainer>
+        )
     }
 
     /**
@@ -445,7 +498,15 @@ function TreeMenuItem({
         <Box sx={{backgroundColor: adminTheme.palette.white}}>
             <TreeMenuItemContainer ref={menuItemRef} isClicked={isClicked}>
                 {canShowMenu ? (
-                    <MenuStyles.TreeMenuIconContaier onClick={() => onClick(false)}>
+                    <MenuStyles.TreeMenuIconContaier
+                        isActive={resource?.active ?? false}
+                        onClick={() => {
+                            onClick(false)
+                            if (!resource?.active) {
+                                navigate(`/${treeResourceNames[0]}/${id}`)
+                            }
+                        }}
+                    >
                         {resource?.active && open ? (
                             <ExpandMoreIcon className="menu-item-expanded" />
                         ) : (
@@ -509,6 +570,20 @@ function TreeMenuItem({
         </Box>
     )
 }
+
+/**
+ * TreeMenu component renders a side menu with options to toggle between active and archived election events,
+ * and displays a tree structure of election events data.
+ *
+ * @param {Object} props - The props for the TreeMenu component.
+ * @param {DynEntityType} props.data - The data object containing election events and related information.
+ * @param {ResourceName[]} props.treeResourceNames - An array of resource names used for the tree structure.
+ * @param {boolean} props.isArchivedElectionEvents - A flag indicating whether the archived election events are being viewed.
+ * @param {(val: number) => void} props.onArchiveElectionEventsSelect - Callback function triggered when toggling between active and archived election events.
+ * @param {() => void} props.reloadTree - Callback function to reload the tree structure.
+ *
+ * @returns {JSX.Element} The rendered TreeMenu component.
+ */
 
 export function TreeMenu({
     data,

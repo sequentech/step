@@ -117,8 +117,8 @@ export const MenuStyles = {
     `,
     StyledNavLinkButton: styled(Typography)`
         flex-grow: 1;
-        padding-top: 0.375rem;
-        padding-bottom: 0.375rem;
+        padding-top: 0.275rem;
+        padding-bottom: 0.275rem;
         border-bottom-width: 2px;
         border-bottom-color: white;
         cursor: pointer;
@@ -145,14 +145,29 @@ export const MenuStyles = {
         & > *:not(:last-child) {
             margin-right: 0.5rem;
         }
+        &:hover {
+            background-color: oklch(0.967 0.003 264.542);
+            border-radius: 4px;
+        }
+    `,
+    SpanContainer: styled("span")`
+        padding: 4px;
+        white-space: normal; /* Allow text to wrap */
+        display: inline-block; /* Allows it to take up multiple lines if needed */
+        word-wrap: break-word; /* Break long words if necessary */
     `,
     HowToVoteStyledIcon: styled(HowToVoteIcon)`
         color: ${adminTheme.palette.brandColor};
     `,
-    TreeMenuIconContaier: styled.div`
+    TreeMenuIconContaier: styled("div")<{isActive: boolean}>`
         ${divContainer}
-        cursor: pointer;
+        cursor: ${({isActive}) => (isActive ? "pointer" : "auto")};
         color: black;
+        border-radius: 4px;
+        &:hover {
+            background-color: ${({isActive}) =>
+                isActive ? "oklch(0.967 0.003 264.542)" : "white"};
+        }
     `,
     StyledSideBarNavLink: styled(NavLink)<{multiline?: boolean}>`
         flex-grow: 1;
