@@ -35,7 +35,7 @@ jobs:
         working-directory: packages/sequent-core
         run: |
           cargo install wasm-pack --version 0.12.1
-          cargo install -f wasm-bindgen-cli --version 0.2.92
+          cargo install -f wasm-bindgen-cli --version 0.2.100
 
       - name: Build WASM
         working-directory: packages/sequent-core
