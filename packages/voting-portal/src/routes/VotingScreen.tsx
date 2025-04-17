@@ -247,7 +247,6 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
                             setDecodedContests={onSetDecodedContests(contest.id)}
                             errorSelectionState={errorSelectionState}
                         />
-                        <div>COLLONS</div>
                     </Box>
                 ))}
             <ActionButtons
