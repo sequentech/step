@@ -47,24 +47,25 @@ jobs:
         run: |
           wasm-pack -v pack . 2>&1 | tee output.log
 
-      - name: Check that hashes are updated
-        working-directory: packages/sequent-core
+      - name: Check that hashes in yarn.lock are updated
+        working-directory: packages
         run: |
-          echo "Checking file:./admin-portal/rust/sequent-core-*"
-          if [ "$(grep "file:./admin-portal/rust/sequent-core-" yarn.lock | awk -F# '{printf $2}' | tr -d '"')" == "$(grep "shasum:" sequent-core/output.log | awk '{printf $4}')" ]; then
-            echo "The hashes are equal"
+          if [ -f yarn.lock ] && [ -f sequent-core/output.log ]; then
+            hash=$(grep "shasum:" sequent-core/output.log | awk '{printf $4}')
+            hash1=$(grep "file:./admin-portal/rust/sequent-core-" yarn.lock | awk -F# '{printf $2}' | tr -d '"')
+            hash2=$(grep "file:./ballot-verifier/rust/sequent-core-" yarn.lock | awk -F# '{printf $2}' | tr -d '"')
+            hash3=$(grep "file:./voting-portal/rust/sequent-core-" yarn.lock | awk -F# '{printf $2}' | tr -d '"')
+            if [ -n "$hash" ] && [ -n "$hash1" ] && [ -n "$hash2" ] && [ -n "$hash3" ]; then
+              if [ "$hash" == "$hash1" == "$hash2" == "$hash3" ]; then
+                echo "The hashes are equal"
+              else
+                echo "The hashes are not equal"
+                exit 1
+            else
+              echo "Error: unable to extract hashes from files"
+              exit 1
+            fi
           else
-            echo "The hashes are not equal"
-          fi
-          echo "Checking file:./ballot-verifier/rust/sequent-core-*"
-          if [ "$(grep "file:./ballot-verifier/rust/sequent-core-" yarn.lock | awk -F# '{printf $2}' | tr -d '"')" == "$(grep "shasum:" sequent-core/output.log | awk '{printf $4}')" ]; then
-            echo "The hashes are equal"
-          else
-            echo "The hashes are not equal"
-          fi
-          echo "Checking file:./voting-portal/rust/sequent-core-*"
-          if [ "$(grep "file:./voting-portal/rust/sequent-core-" yarn.lock | awk -F# '{printf $2}' | tr -d '"')" == "$(grep "shasum:" sequent-core/output.log | awk '{printf $4}')" ]; then
-            echo "The hashes are equal"
-          else
-            echo "The hashes are not equal"
+            echo "Error: one or both files do not exist"
+            exit 1
           fi
