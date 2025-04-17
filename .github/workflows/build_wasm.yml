@@ -45,4 +45,26 @@ jobs:
       - name: Pack WASM
         working-directory: packages/sequent-core
         run: |
-          wasm-pack -v pack .
+          wasm-pack -v pack . 2>&1 | tee output.log
+
+      - name: Check that hashes are updated
+        working-directory: packages/sequent-core
+        run: |
+          echo "Checking file:./admin-portal/rust/sequent-core-*"
+          if [ "$(grep "file:./admin-portal/rust/sequent-core-" yarn.lock | awk -F# '{printf $2}' | tr -d '"')" == "$(grep "shasum:" sequent-core/output.log | awk '{printf $4}')" ]; then
+            echo "The hashes are equal"
+          else
+            echo "The hashes are not equal"
+          fi
+          echo "Checking file:./ballot-verifier/rust/sequent-core-*"
+          if [ "$(grep "file:./ballot-verifier/rust/sequent-core-" yarn.lock | awk -F# '{printf $2}' | tr -d '"')" == "$(grep "shasum:" sequent-core/output.log | awk '{printf $4}')" ]; then
+            echo "The hashes are equal"
+          else
+            echo "The hashes are not equal"
+          fi
+          echo "Checking file:./voting-portal/rust/sequent-core-*"
+          if [ "$(grep "file:./voting-portal/rust/sequent-core-" yarn.lock | awk -F# '{printf $2}' | tr -d '"')" == "$(grep "shasum:" sequent-core/output.log | awk '{printf $4}')" ]; then
+            echo "The hashes are equal"
+          else
+            echo "The hashes are not equal"
+          fi
