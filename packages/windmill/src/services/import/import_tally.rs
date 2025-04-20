@@ -83,7 +83,7 @@ async fn process_event_results_file(
             .get(&results_event_id)
             .cloned()
             .unwrap_or_else(|| results_event_id.clone());
-        let name: Option<String> = record.get(3).map(serde_json::from_str).transpose()?;
+        let name: Option<String> = get_string_or_null_item(&record, 3).await?;
 
         let created_at = record
             .get(4)
@@ -117,10 +117,11 @@ async fn process_event_results_file(
 
         let documents = record
             .get(8)
-            .filter(|s| !s.is_empty())
-            .map(serde_json::from_str)
+            .map(str::trim)
+            .filter(|s| *s != "null" && *s != "\"null\"")
+            .map(|s| serde_json::from_str(s))
             .transpose()
-            .map_err(|err| anyhow!("Error at process documents {:?}", err))?;
+            .map_err(|err| anyhow!("Error at process documents: {:?}", err))?;
 
         let results_event = ResultsEvent {
             id: new_results_event_id,
@@ -185,7 +186,7 @@ async fn process_results_election_file(
             .cloned()
             .unwrap_or_else(|| results_event_id.clone());
 
-        let name: Option<String> = record.get(5).map(serde_json::from_str).transpose()?;
+        let name: Option<String> = get_string_or_null_item(&record, 5).await?;
 
         let elegible_census = record
             .get(6)
@@ -248,10 +249,11 @@ async fn process_results_election_file(
 
         let documents = record
             .get(13)
-            .filter(|s| !s.is_empty())
-            .map(serde_json::from_str)
+            .map(str::trim)
+            .filter(|s| *s != "null" && *s != "\"null\"")
+            .map(|s| serde_json::from_str(s))
             .transpose()
-            .map_err(|err| anyhow!("Error at process documents {:?}", err))?;
+            .map_err(|err| anyhow!("Error at process documents: {:?}", err))?;
 
         let results_election = ResultsElection {
             id: Uuid::new_v4().to_string(),
@@ -446,27 +448,31 @@ async fn process_tally_session_contest_file(
     for result in rdr.records() {
         let record = result.map_err(|e| anyhow!("Error reading CSV record: {e:?}"))?;
 
-        let area_id = record
-            .get(3)
-            .ok_or_else(|| anyhow!("Missing column 3 (area_id)"))
-            .and_then(|s| {
-                serde_json::from_str(s).map_err(|e| anyhow!("Invalid JSON in id: {:?}", e))
-            })?;
+        println!("record:: {:?}", record);
 
-        let contest_id: Option<String> = record.get(4).map(serde_json::from_str).transpose()?;
+        let area_id = get_new_id_from(&record, 3, &replacement_map).await?;
+        let contest_id: Option<String> = get_string_or_null_item(&record, 4).await?;
+
         let new_contest_id = match contest_id {
-            Some(contest_id) => replacement_map.get(&contest_id).cloned(),
+            Some(contest_id) => Some(
+                replacement_map
+                    .get(&contest_id)
+                    .ok_or_else(|| {
+                        anyhow!("Can't find contest_id={contest_id:?} in replacement map")
+                    })?
+                    .clone(),
+            ),
             None => None,
         };
 
         let session_id = record
-            .get(12)
+            .get(5)
             .unwrap_or("0")
             .parse::<i32>()
             .map_err(|err| anyhow!("Error at process session_id {:?}", err))?;
 
         let created_at = record
-            .get(3)
+            .get(6)
             .map(|s| {
                 let s = s.trim_matches('"');
                 ISO8601::to_date(s).ok()
@@ -474,7 +480,7 @@ async fn process_tally_session_contest_file(
             .flatten();
 
         let last_updated_at = record
-            .get(4)
+            .get(7)
             .map(|s| {
                 let s = s.trim_matches('"');
                 ISO8601::to_date(s).ok()
@@ -482,14 +488,14 @@ async fn process_tally_session_contest_file(
             .flatten();
 
         let labels = record
-            .get(5)
+            .get(8)
             .filter(|s| !s.is_empty())
             .map(serde_json::from_str)
             .transpose()
             .map_err(|err| anyhow!("Error at process labels {:?}", err))?;
 
         let annotations = record
-            .get(6)
+            .get(9)
             .filter(|s| !s.is_empty())
             .map(serde_json::from_str)
             .transpose()
@@ -611,15 +617,13 @@ async fn process_tally_session_execution_file(
             .cloned()
             .unwrap_or_else(|| tally_session_id.clone());
 
-        let session_ids_opt = record.get(9);
-        let session_ids: Option<Vec<i32>> = match session_ids_opt {
-            Some(s) if !s.trim().is_empty() && s.trim() != "null" => {
-                let vec_result: Result<Vec<i32>, _> =
-                    s.split(',').map(|v| v.trim().parse::<i32>()).collect();
-                Some(vec_result?)
-            }
-            _ => None,
-        };
+        let session_ids = record
+            .get(9)
+            .map(str::trim)
+            .filter(|s| *s != "null" && *s != "\"null\"")
+            .map(|s| serde_json::from_str::<Vec<i32>>(s))
+            .transpose()
+            .map_err(|err| anyhow!("Error parsing session_ids: {:?}", err))?;
 
         let status = record
             .get(10)
@@ -628,14 +632,21 @@ async fn process_tally_session_execution_file(
             .transpose()
             .map_err(|err| anyhow!("Error at process status {:?}", err))?;
 
-        let results_event_id: Option<String> = record
-            .get(11)
-            .filter(|s| !s.trim().is_empty())
-            .and_then(|s| serde_json::from_str::<String>(s).ok());
+        let results_event_id: Option<String> = get_string_or_null_item(&record, 11).await?;
 
-        let new_results_event_id = results_event_id
-            .as_ref()
-            .and_then(|id| replacement_map.get(id).cloned());
+        let new_results_event_id = match results_event_id {
+            Some(results_event_id) => Some(
+                replacement_map
+                    .get(&results_event_id)
+                    .ok_or_else(|| {
+                        anyhow!(
+                            "Can't find results_event_id={results_event_id:?} in replacement map"
+                        )
+                    })?
+                    .clone(),
+            ),
+            None => None,
+        };
 
         let tally_session_execution = TallySessionExecution {
             id: Uuid::new_v4().to_string(),
@@ -734,12 +745,13 @@ async fn process_results_election_area_file(
 
         let documents = record
             .get(8)
-            .filter(|s| !s.is_empty())
-            .map(serde_json::from_str)
+            .map(str::trim)
+            .filter(|s| *s != "null" && *s != "\"null\"")
+            .map(|s| serde_json::from_str(s))
             .transpose()
-            .map_err(|err| anyhow!("Error at process documents {:?}", err))?;
+            .map_err(|err| anyhow!("Error at process documents: {:?}", err))?;
 
-        let name: Option<String> = record.get(9).map(serde_json::from_str).transpose()?;
+        let name: Option<String> = get_string_or_null_item(&record, 9).await?;
 
         let results_election_area = ResultsElectionArea {
             id: Uuid::new_v4().to_string(),
@@ -854,6 +866,27 @@ pub async fn get_opt_f64_item(record: &StringRecord, index: usize) -> Result<Opt
 }
 
 #[instrument(err, skip_all)]
+pub async fn get_string_or_null_item(
+    record: &StringRecord,
+    index: usize,
+) -> Result<Option<String>> {
+    let item = record
+        .get(index)
+        .map(str::trim)
+        .map(|s| {
+            if s == "null" {
+                Ok(None)
+            } else {
+                serde_json::from_str::<String>(s).map(Some)
+            }
+        })
+        .transpose()
+        .map_err(|err| anyhow!("Error at column {index}: {:?}", err))?
+        .flatten();
+    Ok(item)
+}
+
+#[instrument(err, skip_all)]
 async fn process_results_contest_candidate_file(
     hasura_transaction: &Transaction<'_>,
     temp_file: &NamedTempFile,
@@ -895,10 +928,11 @@ async fn process_results_contest_candidate_file(
         let cast_votes_percent = get_opt_f64_item(&record, 14).await?;
         let documents = record
             .get(15)
-            .filter(|s| !s.is_empty())
-            .map(serde_json::from_str)
+            .map(str::trim)
+            .filter(|s| *s != "null" && *s != "\"null\"")
+            .map(|s| serde_json::from_str(s))
             .transpose()
-            .map_err(|err| anyhow!("Error at process documents {:?}", err))?;
+            .map_err(|err| anyhow!("Error at process documents: {:?}", err))?;
 
         let results_contest_candidate = ResultsContestCandidate {
             id: Uuid::new_v4().to_string(),
@@ -949,20 +983,11 @@ pub async fn process_results_contest_record(
 
     let blank_votes = get_opt_i64_item(record, 10).await?;
 
-    let voting_type: Option<String> = record.get(10).map(serde_json::from_str).transpose()?;
-    let counting_algorithm: Option<String> =
-        record.get(11).map(serde_json::from_str).transpose()?;
-    let name: Option<String> = record.get(12).map(serde_json::from_str).transpose()?;
+    let voting_type: Option<String> = get_string_or_null_item(&record, 11).await?;
+    let counting_algorithm: Option<String> = get_string_or_null_item(&record, 12).await?;
+    let name: Option<String> = get_string_or_null_item(&record, 13).await?;
 
     let created_at = record
-        .get(13)
-        .map(|s| {
-            let s = s.trim_matches('"');
-            ISO8601::to_date(s).ok()
-        })
-        .flatten();
-
-    let last_updated_at = record
         .get(14)
         .map(|s| {
             let s = s.trim_matches('"');
@@ -970,31 +995,40 @@ pub async fn process_results_contest_record(
         })
         .flatten();
 
-    let labels = get_opt_json_value_item(record, 15).await?;
+    let last_updated_at = record
+        .get(15)
+        .map(|s| {
+            let s = s.trim_matches('"');
+            ISO8601::to_date(s).ok()
+        })
+        .flatten();
 
-    let annotations = get_opt_json_value_item(record, 16).await?;
+    let labels = get_opt_json_value_item(record, 16).await?;
 
-    let total_invalid_votes = get_opt_i64_item(record, 17).await?;
+    let annotations = get_opt_json_value_item(record, 17).await?;
 
-    let total_invalid_votes_percent = get_opt_f64_item(record, 18).await?;
-    let total_valid_votes_percent = get_opt_f64_item(record, 19).await?;
+    let total_invalid_votes = get_opt_i64_item(record, 18).await?;
 
-    let explicit_invalid_votes_percent = get_opt_f64_item(record, 20).await?;
-    let implicit_invalid_votes_percent = get_opt_f64_item(record, 21).await?;
-    let blank_votes_percent = get_opt_f64_item(record, 22).await?;
+    let total_invalid_votes_percent = get_opt_f64_item(record, 19).await?;
+    let total_valid_votes_percent = get_opt_f64_item(record, 20).await?;
 
-    let total_votes = get_opt_i64_item(record, 23).await?;
-    let total_votes_percent = get_opt_f64_item(record, 24).await?;
+    let explicit_invalid_votes_percent = get_opt_f64_item(record, 21).await?;
+    let implicit_invalid_votes_percent = get_opt_f64_item(record, 22).await?;
+    let blank_votes_percent = get_opt_f64_item(record, 23).await?;
+
+    let total_votes = get_opt_i64_item(record, 24).await?;
+    let total_votes_percent = get_opt_f64_item(record, 25).await?;
 
     let documents = record
-        .get(25)
-        .filter(|s| !s.is_empty())
-        .map(serde_json::from_str)
+        .get(26)
+        .map(str::trim)
+        .filter(|s| *s != "null" && *s != "\"null\"")
+        .map(|s| serde_json::from_str(s))
         .transpose()
-        .map_err(|err| anyhow!("Error at process annotations {:?}", err))?;
+        .map_err(|err| anyhow!("Error at process documents: {:?}", err))?;
 
-    let total_auditable_votes = get_opt_i64_item(record, 26).await?;
-    let total_auditable_votes_percent = get_opt_f64_item(record, 27).await?;
+    let total_auditable_votes = get_opt_i64_item(record, 27).await?;
+    let total_auditable_votes_percent = get_opt_f64_item(record, 28).await?;
 
     let results_contest = ResultsContest {
         id: Uuid::new_v4().to_string(),
@@ -1082,10 +1116,11 @@ async fn process_results_area_contest_file(
 
         let documents = record
             .get(24)
-            .filter(|s| !s.is_empty())
-            .map(serde_json::from_str)
+            .map(str::trim)
+            .filter(|s| *s != "null" && *s != "\"null\"")
+            .map(|s| serde_json::from_str(s))
             .transpose()
-            .map_err(|err| anyhow!("Error at process documents {:?}", err))?;
+            .map_err(|err| anyhow!("Error at process documents: {:?}", err))?;
 
         let total_auditable_votes = get_opt_i64_item(&record, 25).await?;
         let total_auditable_votes_percent = get_opt_f64_item(&record, 26).await?;
@@ -1171,10 +1206,11 @@ async fn process_results_area_contest_candidate_file(
         let cast_votes_percent = get_opt_f64_item(&record, 15).await?;
         let documents = record
             .get(16)
-            .filter(|s| !s.is_empty())
-            .map(serde_json::from_str)
+            .map(str::trim)
+            .filter(|s| *s != "null" && *s != "\"null\"")
+            .map(|s| serde_json::from_str(s))
             .transpose()
-            .map_err(|err| anyhow!("Error at process documents {:?}", err))?;
+            .map_err(|err| anyhow!("Error at process documents: {:?}", err))?;
 
         let results_area_contest_candidate = ResultsAreaContestCandidate {
             id: Uuid::new_v4().to_string(),
@@ -1248,8 +1284,8 @@ pub async fn process_tally_file(
         process_event_results_file(
             hasura_transaction,
             temp_file,
-            election_event_id,
             tenant_id,
+            election_event_id,
             replacement_map.clone(),
         )
         .await?;
@@ -1261,8 +1297,8 @@ pub async fn process_tally_file(
         process_tally_session_execution_file(
             hasura_transaction,
             temp_file,
-            election_event_id,
             tenant_id,
+            election_event_id,
             replacement_map.clone(),
         )
         .await?;
@@ -1270,8 +1306,8 @@ pub async fn process_tally_file(
         process_results_election_file(
             hasura_transaction,
             temp_file,
-            election_event_id,
             tenant_id,
+            election_event_id,
             replacement_map.clone(),
         )
         .await?;
@@ -1283,8 +1319,8 @@ pub async fn process_tally_file(
         process_results_election_area_file(
             hasura_transaction,
             temp_file,
-            election_event_id,
             tenant_id,
+            election_event_id,
             replacement_map.clone(),
         )
         .await?;
@@ -1292,8 +1328,8 @@ pub async fn process_tally_file(
         process_results_contest_file(
             hasura_transaction,
             temp_file,
-            election_event_id,
             tenant_id,
+            election_event_id,
             replacement_map.clone(),
         )
         .await?;
@@ -1305,8 +1341,8 @@ pub async fn process_tally_file(
         process_results_contest_candidate_file(
             hasura_transaction,
             temp_file,
-            election_event_id,
             tenant_id,
+            election_event_id,
             replacement_map.clone(),
         )
         .await?;
@@ -1318,8 +1354,8 @@ pub async fn process_tally_file(
         process_results_area_contest_file(
             hasura_transaction,
             temp_file,
-            election_event_id,
             tenant_id,
+            election_event_id,
             replacement_map.clone(),
         )
         .await?;
@@ -1331,8 +1367,8 @@ pub async fn process_tally_file(
         process_results_area_contest_candidate_file(
             hasura_transaction,
             temp_file,
-            election_event_id,
             tenant_id,
+            election_event_id,
             replacement_map.clone(),
         )
         .await?;
