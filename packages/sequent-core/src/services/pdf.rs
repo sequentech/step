@@ -83,6 +83,8 @@ pub fn html_to_pdf(html: String) -> Result<Vec<u8>> {
             footer_template: None,
             prefer_css_page_size: None,
             transfer_mode: None,
+            generate_document_outline: None,
+            generate_tagged_pdf: None,
         },
         None,
     )
