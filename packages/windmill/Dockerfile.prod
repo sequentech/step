@@ -17,8 +17,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Install the specific nightly toolchain
-RUN rustup toolchain install nightly-2024-09-01 \
-    && rustup default nightly-2024-09-01
+RUN rustup toolchain install nightly-2025-03-03 \
+    && rustup default nightly-2025-03-03
 
 COPY ./immu-board ./immu-board
 COPY ./immudb-rs ./immudb-rs
