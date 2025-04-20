@@ -9,8 +9,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     make \
     && rm -rf /var/lib/apt/lists/*
 
-RUN rustup toolchain install nightly-2024-09-01 \
-    && rustup default nightly-2024-09-01
+RUN rustup toolchain install nightly-2025-03-03 \
+    && rustup default nightly-2025-03-03
 
 # copy projects
 #TODO: Copy only necessary files
