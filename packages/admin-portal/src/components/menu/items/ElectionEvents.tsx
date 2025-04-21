@@ -266,6 +266,9 @@ export default function ElectionEvents() {
                 enabled: !!election_event_id,
                 onSuccess: (data) => {
                     setElectionEventId(data.id)
+                    setElectionId("")
+                    setContestId("")
+                    setCandidateId("")
                 },
             }
         )

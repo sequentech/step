@@ -418,6 +418,10 @@ const spanishTranslation: TranslationType = {
                         "La Ceremonia de Escrutinio no puede comenzar hasta que crees una publicación en la pestaña Publicar.",
                     participateNow:
                         "Ha sido invitado a participar a una Ceremonia de Recuento. Por favor <1>haz clic abajo en la acción de llave de la ceremonia</1> para participar.",
+                    startDisabled:
+                        "No puedes continuar con la ceremonia porque no se han seleccionado elecciones o las elecciones no están publicadas.",
+                    ceremonyDisabled:
+                        "No puedes continuar con la ceremonia porque la sesión de recuento no está conectada o el inicio de la ceremonia no está permitido.",
                 },
             },
             importAreas: {
@@ -1088,6 +1092,7 @@ const spanishTranslation: TranslationType = {
                 fr: "Francés",
                 cat: "Valenciano",
                 tl: "Tagalo",
+                nl: "Holandes",
             },
             channel: {
                 online: "En línea",
