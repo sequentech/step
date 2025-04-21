@@ -484,6 +484,7 @@ const englishTranslation = {
                 copiedError: "Error copying password",
                 reports: "Reports",
                 applications: "Applications",
+                tally: "Tally",
             },
             taskNotification:
                 "{{action}} has started. You can see its status at Tasks Execution table.",

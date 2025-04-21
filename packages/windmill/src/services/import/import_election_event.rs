@@ -804,16 +804,28 @@ pub async fn get_zip_entries(
             (vec![], data_str)
         };
 
-    // sort it so that first we import the protocol manager keys files
-    zip_entries.sort_by(|(file_name_a, _), (file_name_b, _)| {
-        let is_a_target = file_name_a.contains(&EDocuments::PROTOCOL_MANAGER_KEYS.to_file_name());
-        let is_b_target = file_name_b.contains(&EDocuments::PROTOCOL_MANAGER_KEYS.to_file_name());
+    // Sort the ZIP entries by importance:
+    // 1. Protocol Manager keys are imported first (rank 0)
+    // 2. Regular files come next (rank 1)
+    // 3. Inside the TALLY directory:
+    //    - TALLY_SESSION and RESULTS_EVENT files are imported just before others (rank 2)
+    //    - All other TALLY files come last (rank 3)
+    zip_entries.sort_by_key(|(file_name, _)| {
+        let rank = if file_name.contains(EDocuments::PROTOCOL_MANAGER_KEYS.to_file_name()) {
+            0
+        } else if file_name.contains(EDocuments::TALLY.to_file_name()) {
+            if file_name.contains(ETallyDocuments::TALLY_SESSION.to_file_name())
+                || file_name.contains(ETallyDocuments::RESULTS_EVENT.to_file_name())
+            {
+                2
+            } else {
+                3
+            }
+        } else {
+            1
+        };
 
-        match (is_a_target, is_b_target) {
-            (true, false) => std::cmp::Ordering::Less,
-            (false, true) => std::cmp::Ordering::Greater,
-            _ => std::cmp::Ordering::Equal,
-        }
+        (rank, file_name.clone()) // rank first, then alphabetically within rank
     });
 
     Ok((zip_entries, election_event_schema))

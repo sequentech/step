@@ -487,6 +487,7 @@ const tagalogTranslation: TranslationType = {
                 copiedError: "Error sa pag-copy ng password sa clipboard",
                 reports: "Mga Ulat",
                 applications: "Mga Aplikasyon",
+                tally: "Bilang",
             },
             taskNotification:
                 "{{action}} ay nagsimula na. Maaari mong makita ang status nito sa Talahanayan ng Pagpapatupad ng Mga Gawain.",

@@ -487,6 +487,7 @@ const spanishTranslation: TranslationType = {
                 copiedError: "Error al copiar la contraseña",
                 reports: "Informes",
                 applications: "Aplicaciones",
+                tally: "Recuento",
             },
             taskNotification:
                 "{{action}} ha comenzado. Puedes ver su estado en la tabla de Ejecución de Tareas.",

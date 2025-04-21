@@ -141,11 +141,22 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
         }
     }
 
+    const toggleBulletinBoard = (newValue: boolean) => {
+        setBulletinBoard(newValue)
+        if (newValue) {
+            toggleCheckBoxWithPassword(setBulletinBoard, newValue)
+        }
+        // Tally has to be exported with bulletin board
+        if (!newValue && tally) {
+            setTally(false)
+        }
+    }
+
     const toggleTallyCheckBox = (newValue: boolean) => {
         setTally(newValue)
-        // if (newValue) {
-        //     toggleCheckBoxWithPassword(setBulletinBoard, newValue)
-        // }
+        if (newValue) {
+            toggleCheckBoxWithPassword(setBulletinBoard, newValue)
+        }
     }
 
     return (
@@ -199,9 +210,7 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
                         control={
                             <StyledCheckbox
                                 checked={bulletinBoard}
-                                onChange={() =>
-                                    toggleCheckBoxWithPassword(setBulletinBoard, !bulletinBoard)
-                                }
+                                onChange={() => toggleBulletinBoard(!bulletinBoard)}
                             />
                         }
                         label={t("electionEventScreen.export.bulletinBoard")}
