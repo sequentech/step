@@ -1,0 +1,4 @@
+last_name,first_name,middleName,dateOfBirth,sex,country,embassy,clusteredPrecinct,overseasReferences,area_name,authorized-election-ids,password_salt,hashed_password,num_of_iterations
+Zuñiga,Hershey,Urrutia,1978-09-10,F,France/Paris PE,Paris PE,0001A,X,FRANCE - PARIS PE,PARIS PE - General Election|PARIS PE - Test Voting,G+g0lEK1ATXY3pZT3Mb8ChWeonaAgx/5sXq1IDScTVs=,c2Y8EUorCvFpSbhBXoPU8y7brlH9g//HdCoDKpVRXaY=,12345
+Alcayde,Marlon,Anglo,1986-05-22,M,Qatar/Doha PE,Doha PE,0001A,X,QATAR - DOHA PE,DOHA PE - General Election|DOHA PE - Test Voting,w1QFXx5fUdYSH19oJBdbY+Hx5tZLowHyh/8OMfX/LV0=,wp2IlK/LjIxjb3ocf92wB8IS7pYH8nq+WgVhMaFSNgM=,12345
+Emata,Lorenzo Jr,Berdusco,1995-09-04,M,Japan/Nagoya PCG,Nagoya PCG,0002A,X,JAPAN - NAGOYA PCG,NAGOYA PCG - General Election|NAGOYA PCG - Test Voting,XFaziEzXZj19nT/HVSXHbYakuFVoaUCSL3PsNbAu1j8=,tYYh8oTAnHR1mu2+VS73DdI5whIhIKIScGDnrY7PRdo=,12345

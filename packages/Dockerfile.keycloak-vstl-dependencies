@@ -1,0 +1,22 @@
+# SPDX-FileCopyrightText: 2023-2024 Sequent Tech <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# File is based on the example found at
+# https://www.keycloak.org/server/containers#_provide_initial_admin_credentials_when_running_in_a_container
+#
+# Newer versions may be available at 
+# https://quay.io/repository/keycloak/keycloak?tab=tags
+#
+# To add more software to the image, take a look at
+# https://www.keycloak.org/server/containers#_installing_additional_rpm_packages
+
+# Start with a Maven base image to compile the 2FA authenticator
+FROM quay.io/keycloak/keycloak:24.0
+RUN echo "Dowload keycloak root image"
+
+FROM maven:3-amazoncorretto-17
+COPY ./keycloak-extensions/ /build/keycloak-extensions/
+WORKDIR /build/keycloak-extensions/
+#RUN mvn org.apache.maven.plugins:maven-dependency-plugin:3.5.0:go-offline
+RUN mvn clean package

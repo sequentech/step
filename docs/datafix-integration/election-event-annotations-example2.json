@@ -1,0 +1,5 @@
+{
+    "datafix:id": "998877",
+    "datafix:password_policy": "{\"base\": \"password-only\",\"size\": 8,\"characters\": \"numeric\"}",
+    "datafix:voterview_request": "{\"url\": \"https://test.voterview.ca/mvvservices/election.asmx\",\"usr\": \"Sequent\",\"psw\": \"Sequent2025\",\"county_mun\": \"0014\"}"
+}

@@ -1,0 +1,4 @@
+last_name,first_name,middleName,dateOfBirth,sex,country,embassy,clusteredPrecinct,overseasReferences,area_name,authorized-election-ids,password
+Zuñiga,Hershey,Urrutia,1978-09-10,F,France/Paris PE,Paris PE,0001A,X,FRANCE - PARIS PE,PARIS PE - General Election|PARIS PE - Test Voting,hershey
+Alcayde,Marlon,Anglo,1986-05-22,M,Qatar/Doha PE,Doha PE,0001A,X,QATAR - DOHA PE,DOHA PE - General Election|DOHA PE - Test Voting,marlon
+Emata,Lorenzo Jr,Berdusco,1995-09-04,M,Japan/Nagoya PCG,Nagoya PCG,0002A,X,JAPAN - NAGOYA PCG,NAGOYA PCG - General Election|NAGOYA PCG - Test Voting,lorenzo

@@ -1,0 +1,5 @@
+[patch.crates-io]
+# FIXME (ereslibre); remove when bumping headless_chrome when everything is aligned
+# Due to https://github.com/rust-headless-chrome/rust-headless-chrome/issues/535.
+# Use the exact version 0.4.4 as published to crates.io (https://github.com/mdrokz/auto_generate_cdp/commit/634e636fd8edbe032d7191326527c721a2b51106)
+auto_generate_cdp = { git = 'https://github.com/mdrokz/auto_generate_cdp', rev = '634e636fd8edbe032d7191326527c721a2b51106' }
