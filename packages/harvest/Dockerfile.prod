@@ -32,6 +32,7 @@ COPY ./velvet ./velvet
 COPY ./windmill ./windmill
 COPY ./e2e ./e2e
 COPY ./step-cli ./step-cli
+COPY ./sms-sender ./sms-sender
 COPY ./orare ./orare
 COPY ./wrap-map-err ./wrap-map-err
 COPY ./braid/scripts ./braid/scripts
