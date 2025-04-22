@@ -7,8 +7,8 @@ import spanishTranslation from "../translations/es"
 import catalanTranslation from "../translations/cat"
 import frenchTranslation from "../translations/fr"
 import tagalogTranslation from "../translations/tl"
-import i18next from "i18next"
 import dutchTranslation from "../translations/nl"
+import i18next from "i18next"
 
 type I18N = Record<string, Record<string, string>>
 
