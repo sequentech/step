@@ -43,7 +43,6 @@ export const TenantContextProvider = (props: TenantContextProviderProps) => {
     // Overwrites translations based on the settings config
     useEffect(() => {
         const i18nSettings = (tenant?.settings as ITenantSettings | undefined)?.i18n
-        console.log("aa i18nSettings", i18nSettings)
 
         if (i18nSettings) {
             triggerOverrideTranslations(i18nSettings)

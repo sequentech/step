@@ -104,7 +104,7 @@ const StatusBanner = styled(Box)<{isopen: string}>`
     texttransform: uppercase;
     min-width: 85px;
     text-align: center;
-    backgroundcolor: ${({isopen, theme}) =>
+    background-color: ${({isopen, theme}) =>
         "true" === isopen ? theme.palette.brandSuccess : theme.palette.errorColor};
     color: ${({isopen, theme}) => ("true" === isopen ? theme.palette.black : theme.palette.white)};
 
@@ -139,7 +139,7 @@ const DatesUrlWrap = styled(Box)`
 `
 
 const StyledTitle = styled(Typography)`
-    fontsize: 18px;
+    font-size: 18px;
     line-height: 20px;
     margin-top: 0;
     margin-bottom: 10px;

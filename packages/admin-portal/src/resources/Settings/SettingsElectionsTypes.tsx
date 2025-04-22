@@ -102,13 +102,6 @@ export const SettingsElectionsTypes: React.FC<void> = () => {
         {icon: <DeleteIcon />, action: deleteAction},
     ]
 
-    // const CreateButton = () => (
-    //     <Button onClick={handleOpenCreateDrawer}>
-    //         <IconButton icon={faPlus} fontSize="24px" />
-    //         {t("electionTypeScreen.common.createNew")}
-    //     </Button>
-    // )
-
     const CreateButton = () => (
         <Button onClick={handleOpenCreateDrawer} startIcon={<AddIcon sx={{fontSize: "24px"}} />}>
             {t("electionTypeScreen.common.createNew")}

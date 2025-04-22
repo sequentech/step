@@ -31,8 +31,8 @@ const StepNumber = styled(Box)<StepNumberProps>`
     display: flex;
     width: 22px;
     height: 22px;
-    fontsize: 15px;
-    fontstyle: normal;
+    font-size: 15px;
+    font-style: normal;
     font-weight: ${({isselected}) => (isselected === "true" ? "600" : "400")};
     flex-direction: column;
     justify-content: center;

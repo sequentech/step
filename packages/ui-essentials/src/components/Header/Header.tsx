@@ -19,9 +19,9 @@ import {EVotingPortalCountdownPolicy} from "@sequentech/ui-core"
 const smBreakpoint = theme.breakpoints.values.sm
 
 const HeaderWrapper = styled(PageBanner)`
-    backgroundcolor: ${theme.palette.lightBackground};
+    background-color: ${theme.palette.lightBackground};
     padding: 16px 0;
-    fontsize: 16px;
+    font-size: 16px;
 
     @media (max-width: ${theme.breakpoints.values.lg}px) {
         padding: 9px;
@@ -29,8 +29,8 @@ const HeaderWrapper = styled(PageBanner)`
 `
 
 const StyledLink = styled.a`
-    maxheight: 100%;
-    maxwidth: 50%;
+    max-height: 100%;
+    max-width: 50%;
 `
 
 const StyledImage = styled(Image)`
@@ -78,11 +78,11 @@ export const StyledButtonContainerWrapper = styled.div`
 `
 
 export const StyledButton = styled(Button)`
-    zindex: 1;
+    z-index: 1;
     position: relative;
     color: ${({theme}) => theme.palette.brandColor} !important;
     background: transparent !important;
-    borderradius: 5px;
+    border-radius: 5px;
     border: none;
     display: flex;
     outline: "none";
@@ -93,7 +93,7 @@ export const StyledButton = styled(Button)`
     &:active {
         color: ${({theme}) => theme.palette.white} !important;
         background: ${({theme}) => theme.palette.brandColor} !important;
-        boxshadow: none !important;
+        box-shadow: none !important;
     }
 `
 

@@ -20,7 +20,7 @@ const StyledButton = styled(Button)<ButtonProps>(
     gap: 10px;
     color: ${({theme}) => theme.black};
     border-color: transparent;
-    backgroundColor: ${"true" === isactive ? "#eee" : "inherit"};
+    background-color: ${"true" === isactive ? "#eee" : "inherit"};
 `
 )
 

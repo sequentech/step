@@ -12,13 +12,13 @@ interface VersionProps {
     version: {[key: string]: string}
 }
 
-const StyledButton = styled(Button)(({theme}) => ({
-    "&.Mui-disabled": {
-        borderColor: "transparent",
-        opacity: 1,
-        color: theme.palette.text.primary, // Use a valid theme property
-    },
-}))
+const StyledButton = styled(Button)(`
+    &.Mui-disabled {
+        border-color: transparent;
+        opacity: 1 !important;
+        color: ${({theme}) => theme.black} !important;
+    }
+`)
 
 const Version: React.FC<VersionProps> = ({version, header}) => {
     const {t} = useTranslation()

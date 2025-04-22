@@ -9,7 +9,7 @@ import {IconButtonProps} from "@mui/material/IconButton"
 
 const StyledButton = styled(MuiIconButton)`
     &:hover {
-        backgroundcolor: unset;
+        background-color: unset;
     }
     &:active {
         border: none;
