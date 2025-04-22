@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::election::get_elections;
+use crate::postgres::keys_ceremony::get_keys_ceremonies;
 use crate::postgres::trustee::get_all_trustees;
 use crate::services::protocol_manager::{
     get_election_board, get_event_board, get_protocol_manager_secret_path,
@@ -9,9 +10,7 @@ use crate::services::protocol_manager::{
 use crate::services::vault;
 use crate::services::{
     ceremonies::keys_ceremony::get_keys_ceremony_board, protocol_manager::get_b3_pgsql_client,
-    temp_path::generate_temp_file,
 };
-use crate::{postgres::keys_ceremony::get_keys_ceremonies, util::aws::get_max_upload_size};
 use anyhow::{anyhow, Context, Result};
 use b3::client::pgsql::B3MessageRow;
 use base64::engine::general_purpose;
@@ -19,6 +18,8 @@ use base64::Engine;
 use deadpool_postgres::{Client as DbClient, Transaction};
 use futures::future::try_join_all;
 use regex::Regex;
+use sequent_core::util::aws::get_max_upload_size;
+use sequent_core::util::temp_path::generate_temp_file;
 use std::collections::HashMap;
 use tempfile::{NamedTempFile, TempPath};
 use tracing::{event, info, instrument, Level};
@@ -119,7 +120,7 @@ pub async fn read_election_event_boards(
     }
 
     // elections
-    let elections = get_elections(transaction, tenant_id, election_event_id).await?;
+    let elections = get_elections(transaction, tenant_id, election_event_id, None).await?;
     for election in elections {
         let board_name = get_election_board(tenant_id, &election.id);
         let b3_messages = b3_client.get_messages(&board_name, -1).await?;
@@ -135,8 +136,6 @@ pub async fn read_protocol_manager_keys(
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<TempPath> {
-    let keys_ceremonies = get_keys_ceremonies(transaction, tenant_id, election_event_id).await?;
-
     let mut writer = csv::WriterBuilder::new().delimiter(b',').from_writer(
         generate_temp_file("export-protocol-keys-", ".csv")
             .with_context(|| "Error creating temporary file")?,
@@ -148,9 +147,14 @@ pub async fn read_protocol_manager_keys(
     {
         let board_name = get_event_board(tenant_id, election_event_id);
         let protocol_manager_key = get_protocol_manager_secret_path(&board_name);
-        let protocol_manager_data = vault::read_secret(protocol_manager_key)
-            .await?
-            .ok_or(anyhow!("protocol manager secret not found"))?;
+        let protocol_manager_data = vault::read_secret(
+            transaction,
+            tenant_id,
+            Some(election_event_id),
+            &protocol_manager_key,
+        )
+        .await?
+        .ok_or(anyhow!("protocol manager secret not found"))?;
         let record = vec!["".into(), protocol_manager_data];
         writer
             .write_record(&record)
@@ -158,60 +162,20 @@ pub async fn read_protocol_manager_keys(
     }
 
     // now loop over all elections
-    let elections = get_elections(transaction, tenant_id, election_event_id).await?;
+    let elections = get_elections(transaction, tenant_id, election_event_id, None).await?;
 
     for election in elections {
         let board_name = get_election_board(tenant_id, &election.id);
         let protocol_manager_key = get_protocol_manager_secret_path(&board_name);
-        let protocol_manager_data = vault::read_secret(protocol_manager_key)
-            .await?
-            .ok_or(anyhow!("protocol manager secret not found"))?;
+        let protocol_manager_data = vault::read_secret(
+            transaction,
+            tenant_id,
+            Some(election_event_id),
+            &protocol_manager_key,
+        )
+        .await?
+        .ok_or(anyhow!("protocol manager secret not found"))?;
         let record = vec![election.id.clone(), protocol_manager_data];
-        writer
-            .write_record(&record)
-            .with_context(|| "Error writing record")?;
-    }
-    writer
-        .flush()
-        .with_context(|| "Error flushing CSV writer")?;
-
-    let temp_path = writer
-        .into_inner()
-        .with_context(|| "Error getting inner writer")?
-        .into_temp_path();
-
-    let size = temp_path.metadata()?.len();
-    if size > get_max_upload_size()? as u64 {
-        return Err(anyhow!("File too large: {} > {}", size, get_max_upload_size()?).into());
-    }
-
-    Ok(temp_path)
-}
-
-#[instrument(err, skip(transaction))]
-pub async fn read_trustees_config(
-    transaction: &Transaction<'_>,
-    tenant_id: &str,
-) -> Result<TempPath> {
-    let trustees = get_all_trustees(transaction, tenant_id).await?;
-
-    let mut writer = csv::WriterBuilder::new().delimiter(b',').from_writer(
-        generate_temp_file("export-trustees-", ".csv")
-            .with_context(|| "Error creating temporary file")?,
-    );
-    let headers: Vec<String> = vec![
-        TRUSTEE_NAME_COL_NAME.to_string(),
-        TRUSTEE_CONFIG_COL_NAME.to_string(),
-    ];
-    writer.write_record(&headers)?;
-    for trustee in trustees {
-        let trustee_name = trustee.name.clone().unwrap_or_default();
-        let secret = vault::read_secret(format!("{}_config", trustee_name))
-            .await?
-            .unwrap_or_default();
-        info!("secret for {} is {}", trustee_name, secret);
-
-        let record = vec![trustee_name.clone(), secret];
         writer
             .write_record(&record)
             .with_context(|| "Error writing record")?;

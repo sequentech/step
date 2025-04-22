@@ -3,8 +3,20 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useEffect, useState} from "react"
-import {CircularProgress, Typography, TextField, InputLabel, Select, MenuItem} from "@mui/material"
+import React, {useEffect, useMemo, useState} from "react"
+import {
+    CircularProgress,
+    Typography,
+    InputLabel,
+    Select,
+    MenuItem,
+    FormControl,
+    OutlinedInput,
+    IconButton,
+    Autocomplete,
+    TextField,
+} from "@mui/material"
+import InputAdornment from "@mui/material/InputAdornment"
 import {
     CreateKeysCeremonyMutation,
     Sequent_Backend_Election,
@@ -21,6 +33,8 @@ import {
     useGetOne,
     useNotify,
     ValidationErrorMessage,
+    AutocompleteInput,
+    ReferenceInput,
 } from "react-admin"
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos"
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
@@ -34,8 +48,27 @@ import {isNull} from "@sequentech/ui-core"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {IPermissions} from "@/types/keycloak"
+import {Clear} from "@mui/icons-material"
 
-const ALL_ELECTIONS = "all-elections"
+const ITEM_HEIGHT = 48
+const ITEM_PADDING_TOP = 8
+const MenuProps = {
+    PaperProps: {
+        style: {
+            maxHeight: ITEM_HEIGHT * 4 + ITEM_PADDING_TOP,
+        },
+    },
+}
+const TRUSTEE_CHECKBOXES_SX = {
+    [`.MuiFormGroup-root`]: {
+        width: "100%",
+        height: "200px",
+        display: "flex",
+        flexDirection: "column",
+        flexFlow: "column",
+        overflowY: "scroll",
+    },
+}
 
 export interface ConfigureStepProps {
     currentCeremony: Sequent_Backend_Keys_Ceremony | null
@@ -70,33 +103,35 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
     )
     const [errors, setErrors] = useState<String | null>(null)
     const [threshold, setThreshold] = useState<number>(2)
-    const [name, setName] = useState<string>("")
-    const [electionId, setElectionId] = useState<string | null>(ALL_ELECTIONS)
+    const [electionId, setElectionId] = useState<string | null>(null)
     const [trusteeNames, setTrusteeNames] = useState<string[]>([])
     const refresh = useRefresh()
     const aliasRenderer = useAliasRenderer()
     const {data: trusteeList, error} = useGetList<Sequent_Backend_Trustee>(
         "sequent_backend_trustee",
         {
-            pagination: {page: 1, perPage: 10},
+            pagination: {page: 1, perPage: 200},
             sort: {field: "last_updated_at", order: "DESC"},
             filter: {
                 tenant_id: electionEvent.tenant_id,
             },
         }
     )
-    const {data: electionsList} = useGetList<Sequent_Backend_Election>("sequent_backend_election", {
-        pagination: {page: 1, perPage: 10},
-        sort: {field: "last_updated_at", order: "DESC"},
-        filter: {
-            tenant_id: electionEvent.tenant_id,
-            election_event_id: electionEvent.id,
-            keys_ceremony_id: {
-                format: "hasura-raw-query",
-                value: {_is_null: true},
+    const {data: electionById} = useGetOne<Sequent_Backend_Election>(
+        "sequent_backend_election",
+        {
+            id: electionId,
+            meta: {
+                tenant_id: tenantId,
+                election_event_id: electionEvent.id,
+                keys_ceremony_id: {
+                    format: "hasura-raw-query",
+                    value: {_is_null: true},
+                },
             },
         },
-    })
+        {enabled: !!electionId}
+    )
     const {data: keysCeremony, isLoading: isOneLoading} = useGetOne<Sequent_Backend_Keys_Ceremony>(
         "sequent_backend_keys_ceremony",
         {
@@ -107,6 +142,19 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
             },
         }
     )
+
+    const [filterTrustees, setFilterTrustees] = useState<string>("")
+    const [filteredTrustees, setFilteredTrustees] = useState<
+        Sequent_Backend_Trustee[] | undefined
+    >()
+
+    useEffect(() => {
+        setFilteredTrustees(
+            trusteeList?.filter((trustee: Sequent_Backend_Trustee) =>
+                trustee?.name?.toLowerCase().includes(filterTrustees)
+            ) ?? []
+        )
+    }, [filterTrustees, trusteeList])
 
     useEffect(() => {
         if (isNull(newId)) {
@@ -146,7 +194,7 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                 electionEventId: electionEvent.id,
                 threshold,
                 trusteeNames,
-                electionId: (ALL_ELECTIONS !== electionId && electionId) || null,
+                electionId: electionId || null,
                 name: name ?? t("keysGeneration.configureStep.name"),
             },
         })
@@ -167,11 +215,10 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
         }
         setErrors(null)
         setIsLoading(true)
-        let election = electionsList?.find((election) => election.id === electionId)
         let electionName = electionId
-            ? election
-                ? aliasRenderer(election)
-                : ""
+            ? electionById
+                ? aliasRenderer(electionById)
+                : t("keysGeneration.configureStep.allElections")
             : t("keysGeneration.configureStep.allElections")
 
         try {
@@ -197,16 +244,25 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
 
     // Called by the form. Saves the information and shows the confirmation
     // dialog
-    const onSubmit: SubmitHandler<FieldValues> = async ({threshold, trusteeNames}) => {
+    const onSubmit: SubmitHandler<FieldValues> = async ({threshold, trusteeNames, electionId}) => {
         setThreshold(Number(threshold))
         setTrusteeNames(trusteeNames)
         setOpenConfirmationModal(true)
+        setElectionId(electionId ?? null)
     }
 
     // Default values
     const getDefaultValues = () => ({
         threshold: 2,
+        electionId: null,
     })
+
+    const electionFilterToQuery = (searchText: string) => {
+        if (!searchText || searchText.length == 0) {
+            return {name: ""}
+        }
+        return {"name@_ilike,alias@_ilike": searchText.trim()}
+    }
 
     // validates threshold is within the limits
     const thresholdValidator = (value: string): ValidationErrorMessage | null => {
@@ -240,9 +296,6 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
 
     const validateTrusteeList = [trusteeListValidator]
     const validateThreshold = [thresholdValidator]
-    const onElectionChange = (id: string | null) => {
-        setElectionId(id)
-    }
 
     return (
         <>
@@ -289,41 +342,79 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                             variant="filled"
                         />
                         {trusteeList ? (
-                            <CheckboxGroupInput
-                                dir={i18n.dir(i18n.language)}
-                                validate={validateTrusteeList}
-                                label={t("keysGeneration.configureStep.trusteeList")}
-                                source="trusteeNames"
-                                choices={trusteeList}
-                                translateChoice={false}
-                                optionText="name"
-                                optionValue="name"
-                                row={false}
-                                className="keys-trustees-input"
-                            />
+                            <>
+                                <InputLabel dir={i18n.dir(i18n.language)}>
+                                    {t("keysGeneration.configureStep.trusteeList")}
+                                </InputLabel>
+                                <FormControl>
+                                    <InputLabel htmlFor="trustees-filter">
+                                        {t("keysGeneration.configureStep.filterTrustees")}
+                                    </InputLabel>
+                                    <OutlinedInput
+                                        id="trustees-filter"
+                                        dir={i18n.dir(i18n.language)}
+                                        label={t("keysGeneration.configureStep.filterTrustees")}
+                                        value={filterTrustees}
+                                        type="text"
+                                        onChange={(e) => setFilterTrustees(e.target.value)}
+                                        endAdornment={
+                                            <InputAdornment position="end">
+                                                <IconButton
+                                                    onClick={() => setFilterTrustees("")}
+                                                    edge="end"
+                                                >
+                                                    <Clear />
+                                                </IconButton>
+                                            </InputAdornment>
+                                        }
+                                    />
+                                </FormControl>
+                                <CheckboxGroupInput
+                                    sx={TRUSTEE_CHECKBOXES_SX}
+                                    dir={i18n.dir(i18n.language)}
+                                    validate={validateTrusteeList}
+                                    label=""
+                                    source="trusteeNames"
+                                    choices={filteredTrustees || trusteeList}
+                                    translateChoice={false}
+                                    optionText="name"
+                                    optionValue="name"
+                                    row={false}
+                                    className="keys-trustees-input"
+                                />
+                            </>
                         ) : null}
                         <InputLabel dir={i18n.dir(i18n.language)}>
                             {t("electionScreen.common.title")}
                         </InputLabel>
-                        <Select
-                            dir={i18n.dir(i18n.language)}
-                            value={electionId}
+
+                        <ReferenceInput
+                            fullWidth
                             label={t("electionScreen.common.title")}
-                            onChange={(e) => onElectionChange(e.target.value ?? null)}
+                            source="electionId"
+                            id="searchable-elections"
+                            reference="sequent_backend_election"
+                            enableGetChoices={({q}) => q && q.length >= 3}
+                            filter={{
+                                tenant_id: electionEvent.tenant_id,
+                                election_event_id: electionEvent.id,
+                                keys_ceremony_id: {
+                                    format: "hasura-raw-query",
+                                    value: {_is_null: true},
+                                },
+                            }}
+                            perPage={50}
+                            sort={{field: "alias", order: "ASC"}}
                         >
-                            <MenuItem value={ALL_ELECTIONS} dir={i18n.dir(i18n.language)}>
-                                {t("keysGeneration.configureStep.allElections")}
-                            </MenuItem>
-                            {electionsList?.map((election) => (
-                                <MenuItem
-                                    key={election.id}
-                                    value={election.id}
-                                    dir={i18n.dir(i18n.language)}
-                                >
-                                    {aliasRenderer(election)}
-                                </MenuItem>
-                            ))}
-                        </Select>
+                            <AutocompleteInput
+                                className="election-selector"
+                                optionText={aliasRenderer}
+                                filterToQuery={electionFilterToQuery}
+                                debounce={100}
+                                emptyText={t("keysGeneration.configureStep.allElections")}
+                            />
+                        </ReferenceInput>
+
                         {errors ? (
                             <WizardStyles.ErrorMessage variant="body2" className="keys-error">
                                 {errors}

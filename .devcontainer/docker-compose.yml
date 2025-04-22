@@ -22,7 +22,7 @@ services:
     environment:
       # postgres database to store Hasura metadata
       HASURA_GRAPHQL_METADATA_DATABASE_URL: ${HASURA_GRAPHQL_METADATA_DATABASE_URL}
-      # this env var can be used to add the above postgres database to Hasura 
+      # this env var can be used to add the above postgres database to Hasura
       # as a data source. this can be removed/updated based on your needs
       PG_DATABASE_URL: ${HASURA_PG_DATABASE_URL}
 
@@ -31,7 +31,7 @@ services:
     image: kenchan0130/simplesamlphp
     container_name: simplesamlphp
     ports:
-      - "8083:8080"    
+      - "8083:8080"
     volumes:
       - ./simplesaml/authsources.php:/var/www/simplesamlphp/config/authsources.php
       - ./simplesaml/saml20-sp-remote.php:/var/www/simplesamlphp/metadata/saml20-sp-remote.php
@@ -41,7 +41,7 @@ services:
     profiles: ["full", "base"]
     image: alpine
     container_name: postgres-volume-init
-    volumes: 
+    volumes:
       - db_logs:/logs
       - keycloak_db_logs:/keycloak_logs
       - b3_db_logs:/b3_logs
@@ -52,6 +52,8 @@ services:
 
   postgres:
     profiles: ["full", "base"]
+    # Required by VACUUM ANALYZE to work properly
+    shm_size: 256m
     image: sequentech.local/postgresql
     container_name: postgres
     build:
@@ -97,7 +99,13 @@ services:
     #restart: always
     #depends_on:
     #  - graphql-engine
-  
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://minio:9000/minio/health/live"]
+      interval: 5s
+      timeout: 10s
+      retries: 25
+      start_period: 5s
+
   # used to add headers to minio
   minio-proxy:
     profiles: ["full", "base"]
@@ -110,7 +118,7 @@ services:
     #image: minio/mc
     depends_on:
       - minio
-  
+
   configure-minio:
     profiles: ["full", "base"]
     container_name: configure-minio
@@ -118,7 +126,8 @@ services:
       context: ./minio
       dockerfile: Dockerfile
     depends_on:
-      - minio
+      minio:
+        condition: service_healthy
     environment:
       - MINIO_ROOT_USER=${AWS_S3_ROOT_USER}
       - MINIO_ROOT_PASSWORD=${AWS_S3_ROOT_PASSWORD}
@@ -175,7 +184,7 @@ services:
       PG_DATABASE_URL: ${HASURA_PG_DATABASE_URL}
       ## enable the console served by server
       # set to "false" to disable console
-      HASURA_GRAPHQL_ENABLE_CONSOLE: ${HASURA_GRAPHQL_ENABLE_CONSOLE} 
+      HASURA_GRAPHQL_ENABLE_CONSOLE: ${HASURA_GRAPHQL_ENABLE_CONSOLE}
       ## enable debugging mode. It is recommended to disable this in production
       HASURA_GRAPHQL_DEV_MODE: ${HASURA_GRAPHQL_DEV_MODE}
       # https://hasura.io/docs/latest/deployment/graphql-engine-flags/config-examples/#console-assets-on-server
@@ -197,6 +206,10 @@ services:
         condition: service_healthy
       postgres:
         condition: service_healthy
+      minio:
+        condition: service_healthy
+      configure-minio:
+        condition: service_completed_successfully
 
   data-connector-agent:
     profiles: ["full", "base"]
@@ -219,6 +232,8 @@ services:
 
   postgres-keycloak:
     profiles: ["full", "base"]
+    # Required by VACUUM ANALYZE to work properly
+    shm_size: 256m
     image: sequentech.local/postgresql
     container_name: postgres-keycloak
     restart: unless-stopped
@@ -252,10 +267,12 @@ services:
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
     environment:
+      AMQP_ADDR: ${AMQP_ADDR}
       KC_HOSTNAME: ${KC_HOSTNAME}
       KC_HOSTNAME_STRICT: ${KC_HOSTNAME_STRICT}
       KC_HTTP_PORT: ${KC_HTTP_PORT}
       KC_DB: ${KC_DB}
+      KC_LOG_LEVEL: ${LOG_LEVEL}
       KC_DB_USERNAME: ${KC_DB_USERNAME}
       KC_DB_PASSWORD: ${KC_DB_PASSWORD}
       KC_DB_SCHEMA: ${KC_DB_SCHEMA}
@@ -363,14 +380,41 @@ services:
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
     ports:
       - 3322:3322 # immudb service
-      - 3324:9497 # prometheus
+      - 3324:9497 # prometheus
       - 3325:8080 # web console
     volumes:
       - immudb_data:/var/lib/immudb
       - immudb_logs:/var/log/immudb
     depends_on:
       - immudb-init
-  
+
+  mock_server:
+    profiles: ["full"]
+    stdin_open: true
+    image: sequentech.local/cargo-packages
+    container_name: mock_server
+    volumes_from:
+      - devcontainer
+    depends_on:
+      - devcontainer
+    working_dir: /workspaces/step/packages/e2e/src/mock_server
+    entrypoint: [
+      "cargo",
+      "watch",
+      "--why",
+      # ignoring rust-local-target/ since it's used for local builds and
+      # otherwise triggers a rebuild all the time (probably rust analyzer)
+      "--ignore",
+      "rust-local-target/",
+      "-x",
+      "run"
+    ]
+    environment:
+      ROCKET_ADDRESS: ${ROCKET_ADDRESS}
+      ROCKET_PORT: ${MOCK_SERVER_PORT}
+      MOCK_SERVER_PORT: ${MOCK_SERVER_PORT}
+    ports:
+     - ${MOCK_SERVER_PORT}:${MOCK_SERVER_PORT}
   harvest:
     profiles: ["full", "base"]
     stdin_open: true
@@ -406,6 +450,10 @@ services:
       IMMUDB_USER: ${IMMUDB_USER}
       IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
       IMMUDB_SERVER_URL: ${IMMUDB_SERVER_URL}
+      SMS_TRANSPORT_NAME: ${SMS_TRANSPORT_NAME}
+      AWS_SNS_ATTRIBUTES: ${AWS_SNS_ATTRIBUTES}
+      EMAIL_TRANSPORT_NAME: ${EMAIL_TRANSPORT_NAME}
+      EMAIL_FROM: ${EMAIL_FROM}
       KEYCLOAK_DB__USER: ${KEYCLOAK_DB__USER}
       KEYCLOAK_DB__PASSWORD: ${KEYCLOAK_DB__PASSWORD}
       KEYCLOAK_DB__HOST: ${KEYCLOAK_DB__HOST}
@@ -467,6 +515,7 @@ services:
       B3_PG_USER: ${B3_PG_USER}
       B3_PG_PASSWORD: ${B3_PG_PASSWORD}
       B3_PG_DATABASE: ${B3_PG_DATABASE}
+      DOC_RENDERER_BACKEND: ${DOC_RENDERER_BACKEND}
 
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
@@ -495,7 +544,7 @@ services:
     depends_on:
       - immudb
       - b3
-  
+
   trustee2:
     profiles: ["full"]
     stdin_open: true
@@ -517,7 +566,7 @@ services:
         VAULT_SERVER_URL: ${VAULT_SERVER_URL}
         VAULT_TOKEN: ${VAULT_TOKEN}
         B3_URL: ${B3_URL}
-  
+
   # trustee3:
   #   profiles: ["full"]
   #   stdin_open: true
@@ -577,7 +626,7 @@ services:
       --immudb-host ${IMMUDB_HOST}
       --immudb-port ${IMMUDB_PORT}
       --immudb-database ${IMMUDB_LOGS_DB}
-    volumes: 
+    volumes:
       - 'immudb_log_audit_data:/data'
       - 'db_logs:/logs'
     # make sure to depend on the `immudb-log-audit-init` container to ensure
@@ -626,7 +675,7 @@ services:
       --immudb-host ${IMMUDB_HOST}
       --immudb-port ${IMMUDB_PORT}
       --immudb-database ${IMMUDB_LOGS_DB}
-    volumes: 
+    volumes:
       - 'keycloak_immudb_log_audit_data:/data'
       - 'keycloak_db_logs:/logs'
     # make sure to depend on the `immudb-log-audit-init` container to ensure
@@ -685,6 +734,70 @@ services:
     env_file:
       - .env
 
+  registry:
+    profiles: ["full", "lambdas"]
+    container_name: registry
+    image: registry:2
+    network_mode: host
+
+  openwhisk:
+    profiles: ["full", "lambdas"]
+    container_name: openwhisk
+    image: openwhisk/standalone:nightly
+    volumes:
+    - type: bind
+      source: /var/run/docker.sock
+      target: /var/run/docker.sock
+    network_mode: host
+
+  doc_renderer_lambda_build:
+    profiles: ["full", "lambdas"]
+    container_name: doc_renderer_lambda_build
+    image: ${REGISTRY}/doc_renderer:latest
+    build:
+      context: ./../packages
+      dockerfile: ./../packages/orare/doc_renderer/Dockerfile
+      network: host
+      args:
+        - BASE_IMAGE=alpine:3.17@sha256:8fc3dacfb6d69da8d44e42390de777e48577085db99aa4e4af35f483eb08b989
+        - FEATURES=openwhisk
+    # This is not meant to be a running container, but rather a
+    # trigger to build the lambda to a container image that will later
+    # on be pulled by OpenWhisk
+    entrypoint: ["true"]
+    env_file:
+      - .env
+
+  doc_renderer_lambda_publish_locally:
+    profiles: ["full", "lambdas"]
+    image: docker:latest
+    command: |
+      push ${REGISTRY}/doc_renderer:latest
+    depends_on:
+      - registry
+      - doc_renderer_lambda_build
+    volumes:
+    - type: bind
+      source: /var/run/docker.sock
+      target: /var/run/docker.sock
+
+  doc_renderer:
+    profiles: ["full", "lambdas"]
+    container_name: doc_renderer
+    image: openwhisk/standalone:nightly
+    network_mode: host
+    entrypoint: /bin/deploy-doc_renderer.sh
+    volumes:
+      - ./openwhisk/deploy-doc_renderer.sh:/bin/deploy-doc_renderer.sh
+    volumes_from:
+      - devcontainer
+    depends_on:
+      - openwhisk
+      - registry
+      - doc_renderer_lambda_publish_locally
+    env_file:
+      - .env
+
   windmill:
     profiles: ["full", "base"]
     stdin_open: true
@@ -704,7 +817,7 @@ services:
       "--ignore",
       "rust-local-target/",
       "-x",
-      "run --bin main consume -q short_queue tally_queue reports_queue beat communication_queue import_export_queue"
+      "run --bin main consume -q beat short_queue tally_queue reports_queue communication_queue import_export_queue electoral_log_batch_queue electoral_log_beat_queue --prefetch-count 1"
     ]
     volumes_from:
       - devcontainer
@@ -789,6 +902,7 @@ services:
       B3_PG_USER: ${B3_PG_USER}
       B3_PG_PASSWORD: ${B3_PG_PASSWORD}
       B3_PG_DATABASE: ${B3_PG_DATABASE}
+      DOC_RENDERER_BACKEND: ${DOC_RENDERER_BACKEND}
 
   beat:
     profiles: ["full"]

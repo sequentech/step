@@ -62,7 +62,7 @@ const StyledApp = styled(Box)<{css: string}>`
     ${({css}) => css}
 `
 
-const StyledAppAtom: React.FC<{children: React.ReactNode}> = ({children}) => {
+export const StyledAppAtom: React.FC<{children: React.ReactNode}> = ({children}) => {
     const css = useAtomValue(cssInputLookAndFeel)
     return (
         <StyledApp className="felix-ttt" css={css}>
@@ -115,7 +115,6 @@ const App: React.FC<AppProps> = () => {
                 <Resource
                     name="sequent_backend_election_event"
                     list={ElectionEventList}
-                    create={CreateElectionList}
                     edit={ElectionEventBaseTabs}
                     show={ElectionEventBaseTabs}
                     options={{label: "Election Events", isMenuParent: true}}

@@ -21,6 +21,7 @@ import {SettingsTrustees} from "@/resources/Settings/SettingsTrustees"
 import {SettingsLookAndFeel} from "@/resources/Settings/SettingsLookAndFeel"
 import {SettingsCountries} from "@/resources/Settings/SettingsCountries"
 import SettingsLocalization from "@/resources/Settings/SettingsLocalization"
+import {SettingsBackupRestore} from "@/resources/Settings/SettingsBackupRestore"
 
 export const SettingsScreen: React.FC = () => {
     const {t} = useTranslation()
@@ -105,6 +106,12 @@ export const SettingsScreen: React.FC = () => {
                         label: "Countries",
                         component: () => (
                             <Resource name="sequent_backend_tenant" list={SettingsCountries} />
+                        ),
+                    },
+                    {
+                        label: t("electionTypeScreen.tabs.BackupRestore"),
+                        component: () => (
+                            <Resource name="sequent_backend_tenant" list={SettingsBackupRestore} />
                         ),
                     },
                 ]}

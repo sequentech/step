@@ -34,7 +34,7 @@ const SelectElection = ({
         if (!searchText || searchText.length === 0) {
             return {name: ""}
         }
-        return {name: searchText.trim()}
+        return {"name@_ilike,alias@_ilike": searchText.trim()}
     }
 
     return (
@@ -46,13 +46,14 @@ const SelectElection = ({
                 tenant_id: tenantId,
                 election_event_id: electionEventId,
             }}
-            perPage={100} // // Setting initial larger records size of areas
+            perPage={200} // Setting initial larger records size of elements
             enableGetChoices={({q}) => q && q.length >= 3}
             label={label}
             disabled={disabled}
             required={isRequired}
             value={value}
             defaultValue={value}
+            sort={{field: "alias", order: "ASC"}}
         >
             <AutocompleteInput
                 TextFieldProps={{required: isRequired}}
@@ -61,7 +62,7 @@ const SelectElection = ({
                 optionText={aliasRenderer}
                 filterToQuery={electionFilterToQuery}
                 onChange={onSelectElection}
-                debounce={100}
+                debounce={300}
                 sx={customStyle}
                 disabled={disabled}
             />

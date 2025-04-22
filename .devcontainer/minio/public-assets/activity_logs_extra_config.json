@@ -17,9 +17,13 @@
     "prefer_css_page_size": null,
     "transfer_mode": null
   },
+  "report_options": {
+    "max_items_per_report": 2500,
+    "max_threads": 3
+  },
   "communication_templates": {
     "email_config": {
-      "subject": "",
+      "subject": "Sequent Online Voting - Activity logs",
       "plaintext_body": "",
       "html_body": null
     },

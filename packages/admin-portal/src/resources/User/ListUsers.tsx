@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {ReactElement, useContext, useEffect, useMemo, useState} from "react"
+import React, {ReactElement, useContext, useEffect, useMemo, useRef, useState} from "react"
 import {
     DatagridConfigurable,
     List,
@@ -23,13 +23,15 @@ import {
     useSidebarState,
     useUnselectAll,
     RaRecord,
+    PreferencesEditorContext,
+    useListContext,
 } from "react-admin"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import UploadIcon from "@mui/icons-material/Upload"
 import {ListActions} from "@/components/ListActions"
-import {Button, Chip, Menu, MenuItem, Typography} from "@mui/material"
-import {Dialog} from "@sequentech/ui-essentials"
+import {Box, Button, Chip, Menu, MenuItem, Skeleton, Stack, Typography} from "@mui/material"
+import {Dialog, theme} from "@sequentech/ui-essentials"
 import {useTranslation} from "react-i18next"
 import {Action} from "@/components/ActionButons"
 import EditIcon from "@mui/icons-material/Edit"
@@ -69,7 +71,7 @@ import {DownloadDocument} from "./DownloadDocument"
 import {IMPORT_USERS} from "@/queries/ImportUsers"
 import {ElectoralLogFilters, ElectoralLogList} from "@/components/ElectoralLogList"
 import {USER_PROFILE_ATTRIBUTES} from "@/queries/GetUserProfileAttributes"
-import {getAttributeLabel, userBasicInfo} from "@/services/UserService"
+import {getAttributeLabel, getTranslationLabel, userBasicInfo} from "@/services/UserService"
 import CustomDateField from "./CustomDateField"
 import {ListActionsMenu} from "@/components/ListActionsMenu"
 import EditPassword from "./EditPassword"
@@ -83,6 +85,11 @@ import {WidgetProps} from "@/components/Widget"
 import {ResetFilters} from "@/components/ResetFilters"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {UserActionTypes} from "@/components/types"
+import {useUsersPermissions} from "./useUsersPermissions"
+import {Check, FilterAltOff} from "@mui/icons-material"
+import {useLocation} from "react-router"
+import {getPreferenceKey} from "@/lib/helpers"
+import {isEqual} from "lodash"
 
 const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
     @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
@@ -112,30 +119,17 @@ export interface ListUsersProps {
     electionId?: string
 }
 
-function useGetPublicDocumentUrl() {
-    const [tenantId] = useTenantStore()
-    const {globalSettings} = useContext(SettingsContext)
-
-    function getDocumentUrl(documentId: string, documentName: string): string {
-        return encodeURI(
-            `${globalSettings.PUBLIC_BUCKET_URL}tenant-${tenantId}/document-${documentId}/${documentName}`
-        )
-    }
-
-    return {
-        getDocumentUrl,
-    }
-}
-
 export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, electionId}) => {
     const {t, i18n} = useTranslation()
     const [tenantId] = useTenantStore()
     const {globalSettings} = useContext(SettingsContext)
     const [isOpenSidebar] = useSidebarState()
+    const location = useLocation()
 
     const [open, setOpen] = useState(false)
     const [openExport, setOpenExport] = useState(false)
     const [exporting, setExporting] = useState(false)
+    const [userType, setUserType] = useState<string | null>(null)
     const [exportDocumentId, setExportDocumentId] = useState<string | undefined>()
     const [openNew, setOpenNew] = useState(false)
     const [audienceSelection, setAudienceSelection] = useState<AudienceSelection>(
@@ -162,6 +156,8 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const [getManualVerificationPdf] = useMutation<ManualVerificationMutation>(MANUAL_VERIFICATION)
     const [deleteUsers] = useMutation<DeleteUsersMutation>(DELETE_USERS)
     const [exportUsers] = useMutation<ExportUsersMutation>(EXPORT_USERS)
+    const PHONE_NUMBER_USER_ATTRIBUTE = "sequent.read-only.mobile-number"
+
     const {data: userAttributes} = useQuery<GetUserProfileAttributesQuery>(
         USER_PROFILE_ATTRIBUTES,
         {
@@ -183,7 +179,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                         <DateInput
                             key={attr.name}
                             source={`attributes.${attr.name}`}
-                            label={getAttributeLabel(attr.display_name ?? "")}
+                            label={getTranslationLabel(attr.name, attr.display_name, t)}
                         />
                     )
                 }
@@ -195,7 +191,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                                 ? `${attr.name}.IsLike`
                                 : `attributes.${source}`
                         }
-                        label={getAttributeLabel(attr.display_name ?? "")}
+                        label={getTranslationLabel(attr.name, attr.display_name, t)}
                     />
                 )
             })
@@ -211,7 +207,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     />
                 )
             }
-            if (electionEventId && !electionId) {
+            if (electionEventId) {
                 filters.push(
                     <BooleanInput
                         key="has_voted"
@@ -240,16 +236,32 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             tenant_id: tenantId,
         },
     })
-    const canEditUsers = authContext.isAuthorized(true, tenantId, IPermissions.VOTER_WRITE)
-    const canSendTemplates = authContext.isAuthorized(
-        true,
-        tenantId,
-        IPermissions.NOTIFICATION_SEND
-    )
+
+    /**
+     * Permissions
+     */
+    const {
+        canImportUsers,
+        canCreateVoters,
+        canEditVoters,
+        canEditVotersEmailTlf,
+        canDeleteVoters,
+        canImportVoters,
+        canExportVoters,
+        canManuallyVerify,
+        canChangePassword,
+        showVotersColumns,
+        showVotersFilters,
+        showVotersLogs,
+        canSendTemplates,
+    } = useUsersPermissions()
+    /**
+     * Permissions
+     */
 
     const handleClose = () => {
-        setOpenUsersLogsModal(false)
         setRecordIds([])
+        setOpenUsersLogsModal(false)
         setOpenSendTemplate(false)
         setOpenDeleteModal(false)
         setOpenManualVerificationModal(false)
@@ -305,6 +317,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         if (!electionEventId && authContext.userId === id) {
             return
         }
+
         setOpen(false)
         setOpenNew(false)
         setOpenSendTemplate(false)
@@ -410,32 +423,34 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         [UserActionTypes.EDIT]: {
             icon: <EditIcon className="edit-voter-icon" />,
             action: editAction,
-            showAction: () => canEditUsers,
+            showAction: () => canEditVoters || canEditVotersEmailTlf,
             label: t(`common.label.edit`),
             saveRecordAction: setUserRecord,
         },
         [UserActionTypes.DELETE]: {
             icon: <DeleteIcon className="delete-voter-icon" />,
             action: deleteAction,
-            showAction: () => canEditUsers,
+            showAction: () => canDeleteVoters,
             label: t(`common.label.delete`),
             className: "delete-voter-icon",
         },
         [UserActionTypes.MANUAL_VERIFICATION]: {
             icon: <CreditScoreIcon />,
             action: manualVerificationAction,
-            showAction: () => canEditUsers,
+            showAction: () => canManuallyVerify,
             label: t(`usersAndRolesScreen.voters.manualVerification.label`),
+            saveRecordAction: setUserRecord,
         },
         [UserActionTypes.PASSWORD]: {
             icon: <PasswordIcon />,
             action: editPasswordAction,
-            showAction: () => canEditUsers,
+            showAction: () => canChangePassword,
             label: t(`usersAndRolesScreen.editPassword.label`),
         },
         [UserActionTypes.LOGS]: {
             icon: <VisibilityIcon />,
             action: showUsersLogsModal,
+            showAction: () => showVotersLogs,
             label: t(`usersAndRolesScreen.voters.logs.label`),
         },
     }
@@ -517,7 +532,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     </Button>
                 )}
 
-                {canEditUsers && (
+                {canDeleteVoters && (
                     <Button
                         variant="actionbar"
                         onClick={() => {
@@ -593,7 +608,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             <Typography variant="h4" paragraph>
                 {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.emptyHeader`)}
             </Typography>
-            {canEditUsers ? (
+            {canCreateVoters ? (
                 <>
                     <Typography variant="body1" paragraph>
                         {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.askCreate`)}
@@ -622,24 +637,30 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     /**
      * added custom filter actions menu
      */
+    const buttonRef = useRef<HTMLButtonElement>(null)
 
     // state
     const [listActions, setListActions] = useState<ReactElement[]>([
-        <Button
-            key="send-notification"
-            onClick={() => {
-                sendTemplateAction([], AudienceSelection.ALL_USERS)
-            }}
-        >
-            <ResourceListStyles.MailIcon />
-            {t("sendCommunication.send")}
-        </Button>,
+        canSendTemplates ? (
+            <Button
+                key="send-notification"
+                onClick={() => {
+                    sendTemplateAction([], AudienceSelection.ALL_USERS)
+                }}
+            >
+                <ResourceListStyles.MailIcon />
+                {t("sendCommunication.send")}
+            </Button>
+        ) : (
+            <></>
+        ),
     ])
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
     const [openCustomMenu, setOpenCustomMenu] = useState(false)
     const {customFilter} = useElectionEventTallyStore()
     const [myFilters, setMyFilters] = useState({})
     const [hasCustomFilter, setHasCustomFilter] = useState<boolean>(false)
+    const [selectedCustomItemMenu, setSelectedCustomItemMenu] = useState<number | null>(null)
 
     // functions
     const handleClickCustomMenu = (event: React.MouseEvent<HTMLElement>) => {
@@ -652,7 +673,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         setOpenCustomMenu(false)
     }
 
-    const handleApplyCustomMenu = (filter: object | null | undefined) => {
+    const handleApplyCustomMenu = (filter: object | null | undefined, index: number | null) => {
         if (filter) {
             setMyFilters((prev: any) => ({...filter}))
             setHasCustomFilter(true)
@@ -660,12 +681,14 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             setMyFilters({})
             setHasCustomFilter(false)
         }
+        setSelectedCustomItemMenu(index)
 
         setAnchorEl(null)
         setOpenCustomMenu(false)
     }
 
     // effect
+
     useEffect(() => {
         setMyFilters(customFilter)
         setHasCustomFilter(false)
@@ -677,21 +700,11 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         election_id: electionId,
     }
 
-    const resetCustomFilter = {
-        label: {
-            name: "Borrar filtro",
-            i18n: {
-                en: "Reset filter",
-            },
-        },
-        filter: null,
-    }
-
     useEffect(() => {
         if (electionEvent) {
             let customFilters = electionEvent?.presentation?.custom_filters || []
             if (customFilters.length > 0) {
-                customFilters = [resetCustomFilter, ...customFilters]
+                customFilters = [...customFilters]
                 setListActions((prev: ReactElement[]) => {
                     // prevent double adding the button
                     const customFilterExists = prev.some(
@@ -702,14 +715,27 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                         return [
                             ...prev,
                             <Button
+                                ref={buttonRef}
+                                disableElevation
                                 key="custom-filters"
                                 aria-controls={openCustomMenu ? "basic-menu" : undefined}
                                 aria-haspopup="true"
                                 aria-expanded={openCustomMenu ? "true" : undefined}
                                 variant="contained"
-                                onClick={handleClickCustomMenu}
+                                onClick={(e) => {
+                                    handleClickCustomMenu(e)
+                                    buttonRef.current?.blur()
+                                }}
+                                style={{
+                                    backgroundColor: hasCustomFilter ? "#0F054C" : "#FFFFFF",
+                                    color: hasCustomFilter ? "#FFFFFF" : "#0F054C",
+                                }}
                             >
-                                <FilterAlt />
+                                {hasCustomFilter ? (
+                                    <FilterAlt sx={{mr: 1}} />
+                                ) : (
+                                    <FilterAltOff sx={{mr: 1}} />
+                                )}
                                 {t("common.label.filter")}
                             </Button>,
                         ]
@@ -719,6 +745,63 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             }
         }
     }, [electionEvent])
+
+    // Force update when hasCustomFilter changes
+    useEffect(() => {
+        setListActions((prev: ReactElement[]) => {
+            return prev.map((action) => {
+                if (action.key === "custom-filters") {
+                    return (
+                        <Button
+                            ref={buttonRef}
+                            disableElevation
+                            key="custom-filters"
+                            aria-controls={openCustomMenu ? "basic-menu" : undefined}
+                            aria-haspopup="true"
+                            aria-expanded={openCustomMenu ? "true" : undefined}
+                            variant="contained"
+                            onClick={(e) => {
+                                handleClickCustomMenu(e)
+                                buttonRef.current?.blur()
+                            }}
+                            style={{
+                                backgroundColor: hasCustomFilter ? "#0F054C" : "#FFFFFF",
+                                color: hasCustomFilter ? "#FFFFFF" : "#0F054C",
+                            }}
+                        >
+                            {hasCustomFilter ? (
+                                <FilterAlt sx={{mr: 1}} />
+                            ) : (
+                                <FilterAltOff sx={{mr: 1}} />
+                            )}
+                            {t("common.label.filter")}
+                        </Button>
+                    )
+                }
+                return action
+            })
+        })
+    }, [hasCustomFilter])
+
+    // Direct DOM manipulation for background color
+    useEffect(() => {
+        if (buttonRef.current) {
+            buttonRef.current.style.backgroundColor = hasCustomFilter ? "#0F054C" : "#FFFFFF"
+            buttonRef.current.style.color = hasCustomFilter ? "#FFFFFF" : "#0F054C"
+        }
+    }, [hasCustomFilter, theme.palette.primary])
+
+    const resetMenuItem = () => {
+        // renders the reset custom menu item
+        return (
+            <MenuItem onClick={() => handleApplyCustomMenu(null, null)}>
+                <Stack direction="row" alignItems="center">
+                    <span style={{width: "32px"}} />
+                    <span>{t("electionEventScreen.common.reset")} </span>
+                </Stack>
+            </MenuItem>
+        )
+    }
     /**
      * END added custom filter actions menu
      */
@@ -727,22 +810,30 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         let customFiltersList = []
         let customFilters = electionEvent?.presentation?.custom_filters || []
         if (customFilters.length > 0) {
-            customFilters = [resetCustomFilter, ...customFilters]
             // build the list of available filters
             customFiltersList = customFilters.map((item: any, index: number) => {
                 const {label, filter} = item
                 return (
-                    <MenuItem key={index} onClick={() => handleApplyCustomMenu(filter)}>
-                        {translate(
-                            label.i18n,
-                            i18n.language.split("-")[0],
-                            i18n.language.split("-")[0]
-                        ) || t(label.name)}
+                    <MenuItem key={index} onClick={() => handleApplyCustomMenu(filter, index + 1)}>
+                        <Stack direction="row" alignItems="center">
+                            <span style={{width: "32px"}}>
+                                {selectedCustomItemMenu && selectedCustomItemMenu === index + 1 ? (
+                                    <Check sx={{mr: 1}} />
+                                ) : null}
+                            </span>
+                            <span>
+                                {translate(
+                                    label.i18n,
+                                    i18n.language.split("-")[0],
+                                    i18n.language.split("-")[0]
+                                ) || t(label.name)}
+                            </span>
+                        </Stack>
                     </MenuItem>
                 )
             })
         }
-        return customFiltersList
+        return [resetMenuItem(), ...customFiltersList]
     }
 
     const handleImportVoters = async (documentId: string, sha256: string) => {
@@ -754,6 +845,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     tenantId,
                     documentId,
                     electionEventId: electionEventId || undefined,
+                    sha256,
                 },
             })
             const task_id = data?.import_users?.task_execution.id
@@ -791,20 +883,21 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         return {basicInfoFields, attributesFields, omitFields}
     }, [userAttributes?.get_user_profile_attributes])
 
-    const renderFields = (fields: UserProfileAttribute[]) =>
-        fields.map((attr) => {
+    const renderFields = (fields: UserProfileAttribute[]) => {
+        const allFields = fields.map((attr) => {
             if (attr.annotations?.inputType === "html5-date") {
                 return (
                     <FunctionField
                         key={attr.name}
                         source={`attributes['${attr.name}']`}
-                        label={getAttributeLabel(attr.display_name ?? "")}
+                        label={getTranslationLabel(attr.name, attr.display_name, t)}
                         render={(record: IUser, source: string | undefined) => {
                             return (
                                 <CustomDateField
                                     key={attr.name}
+                                    base="attributes"
                                     source={`${attr.name}`}
-                                    label={getAttributeLabel(attr.display_name ?? "")}
+                                    label={getTranslationLabel(attr.name, attr.display_name, t)}
                                     emptyText="-"
                                 />
                             )
@@ -815,7 +908,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 return (
                     <FunctionField
                         key={attr.name}
-                        label={getAttributeLabel(attr.display_name ?? "")}
+                        label={getTranslationLabel(attr.name, attr.display_name, t)}
                         render={(record: IUser, source: string | undefined) => {
                             let value: any =
                                 attr.name && userBasicInfo.includes(attr.name)
@@ -847,26 +940,182 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                             ? attr.name
                             : `attributes['${attr.name}']`
                     }
-                    label={getAttributeLabel(attr.display_name ?? "")}
+                    label={getTranslationLabel(attr.name, attr.display_name, t)}
                     emptyText="-"
                 />
             )
         })
+
+        localStorage.removeItem(
+            `RaStore.preferences.${getPreferenceKey(
+                location.pathname,
+                "voters"
+            )}.datagrid.availableColumns`
+        )
+
+        return allFields
+    }
+
+    useEffect(() => {
+        if (location.pathname.includes("user-roles")) {
+            setUserType("user")
+        } else {
+            setUserType("voter")
+        }
+    }, [location.pathname])
+
+    const checkUserEmailAndPhoneNumber = () => {
+        if (userRecord) {
+            const email = userRecord?.email as string
+            const phoneNumber = userRecord?.attributes[PHONE_NUMBER_USER_ATTRIBUTE] as string
+            if (email || phoneNumber) {
+                return true
+            }
+        }
+        return false
+    }
+
+    const checkIsVoted = (record: IUser) => {
+        return record?.votes_info?.length
+            ? !electionId || record.votes_info.some((vote) => vote.election_id === electionId)
+            : false
+    }
+
+    const CustomListBody = () => {
+        // `isLoading` => initial load, `isFetching` => subsequent loads (e.g. paging, filtering)
+        const {isLoading, isFetching, perPage, filterValues, page, data} = useListContext()
+        // Keep track of the "previous" page/filters in a ref and whether they changed
+        const prevStateRef = useRef({perPage, page, filterValues})
+        const [filtersChanged, setFiltersChanged] = useState(false)
+
+        // 1. Compare current page and filters with previous
+        //    Detect when filters/page change, and set filtersChanged=true
+        useEffect(() => {
+            const prev = prevStateRef.current
+            const changed =
+                prev.perPage !== perPage ||
+                prev.page !== page ||
+                !isEqual(prev.filterValues, filterValues)
+
+            if (changed) {
+                setFiltersChanged(true)
+            }
+
+            prevStateRef.current = {perPage, page, filterValues}
+        }, [perPage, page, filterValues])
+
+        // 2. Detect when the fetch is complete so we can reset filtersChanged if it was set
+        useEffect(() => {
+            if (!isFetching && filtersChanged) {
+                setFiltersChanged(false)
+            }
+        }, [isFetching, filtersChanged])
+
+        if (isLoading || (isFetching && filtersChanged)) {
+            return <TableSkeleton rowCount={perPage} />
+        }
+
+        return (
+            <>
+                {userAttributes?.get_user_profile_attributes && (
+                    <DataGridContainerStyle
+                        preferenceKey={getPreferenceKey(location.pathname, "voters")}
+                        omit={listFields.omitFields}
+                        isOpenSideBar={isOpenSidebar}
+                        bulkActionButtons={<BulkActions />}
+                    >
+                        <TextField source="id" sx={{display: "block", width: "280px"}} />
+                        <BooleanField
+                            source="email_verified"
+                            label={t("usersAndRolesScreen.users.fields.emailVerified")}
+                        />
+                        <BooleanField
+                            source="enabled"
+                            label={t("usersAndRolesScreen.users.fields.enabled")}
+                        />
+                        {renderFields(listFields.basicInfoFields)}
+                        {electionEventId && (
+                            <FunctionField
+                                label={t("usersAndRolesScreen.users.fields.area")}
+                                render={(record: IUser) =>
+                                    record?.area?.name ? (
+                                        <Chip label={record?.area?.name ?? ""} />
+                                    ) : (
+                                        "-"
+                                    )
+                                }
+                            />
+                        )}
+                        {renderFields(listFields.attributesFields)}
+                        {electionEventId && (
+                            <FunctionField
+                                source="has_voted"
+                                label={t("usersAndRolesScreen.users.fields.has_voted")}
+                                render={(record: IUser, source: string | undefined) => {
+                                    let newRecord = {
+                                        has_voted: checkIsVoted(record),
+                                        ...record,
+                                    }
+                                    return <BooleanField record={newRecord} source={source} />
+                                }}
+                            />
+                        )}
+                        {!canEditVoters &&
+                        !canDeleteVoters &&
+                        !canSendTemplates &&
+                        !canManuallyVerify &&
+                        !canChangePassword &&
+                        !showVotersLogs ? null : (
+                            <WrapperField source="actions" label="Actions">
+                                <ListActionsMenu actions={actions} />
+                            </WrapperField>
+                        )}
+                    </DataGridContainerStyle>
+                )}
+                {/* Custom filters menu */}
+                {showVotersFilters && (
+                    <Menu
+                        id="custom-filters-menu"
+                        anchorEl={anchorEl}
+                        open={openCustomMenu}
+                        onClose={handleCloseCustomMenu}
+                        MenuListProps={{
+                            "aria-labelledby": "basic-button",
+                        }}
+                    >
+                        {/* {customFiltersList} */}
+                        {renderMenuItems()}
+                    </Menu>
+                )}
+                {/* Custom filters menu */}
+            </>
+        )
+    }
 
     return (
         <>
             {
                 <List
                     resource="user"
+                    storeKey={`${getPreferenceKey(location.pathname, "voters")}`}
                     queryOptions={{
                         refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
                     }}
                     empty={hasCustomFilter ? false : <Empty />}
                     actions={
                         <ListActions
-                            withImport
+                            withColumns={showVotersColumns}
+                            preferenceKey={getPreferenceKey(location.pathname, "voters")}
+                            withFilter={showVotersFilters}
+                            withImport={
+                                userType
+                                    ? userType === "voter"
+                                        ? canImportVoters
+                                        : canImportUsers
+                                    : false
+                            }
                             doImport={handleImport}
-                            withExport
+                            withExport={canExportVoters}
                             doExport={handleExport}
                             isExportDisabled={openExport}
                             open={openDrawer}
@@ -881,6 +1130,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                                     }
                                 />
                             }
+                            withComponent={canCreateVoters}
                             extraActions={[...listActions]}
                         />
                     }
@@ -892,62 +1142,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     filters={Filters}
                     disableSyncWithLocation
                 >
-                    <ResetFilters />
-                    {userAttributes?.get_user_profile_attributes && (
-                        <DataGridContainerStyle
-                            omit={listFields.omitFields}
-                            isOpenSideBar={isOpenSidebar}
-                            bulkActionButtons={<BulkActions />}
-                        >
-                            <TextField source="id" sx={{display: "block", width: "280px"}} />
-                            <BooleanField source="email_verified" />
-                            <BooleanField source="enabled" />
-                            {renderFields(listFields.basicInfoFields)}
-                            {electionEventId && (
-                                <FunctionField
-                                    label={t("usersAndRolesScreen.users.fields.area")}
-                                    render={(record: IUser) =>
-                                        record?.area?.name ? (
-                                            <Chip label={record?.area?.name ?? ""} />
-                                        ) : (
-                                            "-"
-                                        )
-                                    }
-                                />
-                            )}
-                            {renderFields(listFields.attributesFields)}
-                            {electionEventId && (
-                                <FunctionField
-                                    source="has_voted"
-                                    label={t("usersAndRolesScreen.users.fields.has_voted")}
-                                    render={(record: IUser, source: string | undefined) => {
-                                        let newRecord = {
-                                            has_voted: (record?.votes_info?.length ?? 0) > 0,
-                                            ...record,
-                                        }
-                                        return <BooleanField record={newRecord} source={source} />
-                                    }}
-                                />
-                            )}
-                            <WrapperField source="actions" label="Actions">
-                                <ListActionsMenu actions={actions} />
-                            </WrapperField>
-                        </DataGridContainerStyle>
-                    )}
-                    {/* Custom filters menu */}
-                    <Menu
-                        id="custom-filters-menu"
-                        anchorEl={anchorEl}
-                        open={openCustomMenu}
-                        onClose={handleCloseCustomMenu}
-                        MenuListProps={{
-                            "aria-labelledby": "basic-button",
-                        }}
-                    >
-                        {/* {customFiltersList} */}
-                        {renderMenuItems()}
-                    </Menu>
-                    {/* Custom filters menu */}
+                    <CustomListBody />
                 </List>
             }
 
@@ -955,6 +1150,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 <EditUser
                     id={recordIds[0] as string}
                     electionEventId={electionEventId}
+                    electionId={electionId}
                     close={handleClose}
                     rolesList={rolesList || []}
                     userAttributes={userAttributes?.get_user_profile_attributes || []}
@@ -995,14 +1191,23 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             <Dialog
                 variant="warning"
                 open={openManualVerificationModal}
-                okEnabled={() => !documentId}
+                okEnabled={() => {
+                    return checkUserEmailAndPhoneNumber() && !documentId
+                }}
                 ok={t("usersAndRolesScreen.voters.manualVerification.verify")}
                 cancel={t("common.label.cancel")}
                 title={t("common.label.warning")}
+                errorMessage={
+                    checkUserEmailAndPhoneNumber()
+                        ? undefined
+                        : t(`usersAndRolesScreen.voters.manualVerification.noEmailOrPhone`)
+                }
                 handleClose={(result: boolean) => {
                     if (result) {
                         confirmManualVerificationAction()
+                        return
                     }
+                    setOpenManualVerificationModal(false)
                 }}
             >
                 {t(`usersAndRolesScreen.voters.manualVerification.body`)}
@@ -1030,7 +1235,6 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     ) : null}
                 </FormStyles.ReservedProgressSpace>
             </Dialog>
-
             <ImportDataDrawer
                 open={openImportDrawer}
                 closeDrawer={() => setOpenImportDrawer(false)}
@@ -1040,7 +1244,6 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 doImport={handleImportVoters}
                 errors={null}
             />
-
             <Dialog
                 variant="warning"
                 open={openDeleteBulkModal}
@@ -1057,7 +1260,6 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             >
                 {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.delete.bulkBody`)}
             </Dialog>
-
             <Dialog
                 variant="info"
                 open={openExport}
@@ -1102,11 +1304,16 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 open={openUsersLogsModal}
                 handleClose={handleClose}
             >
-                <ElectoralLogList
-                    showActions={false}
-                    filterToShow={ElectoralLogFilters.USER_ID}
-                    filterValue={recordIds[0]?.toString()}
-                />
+                {/* The conditional below prevents re-rendering and data
+                refetching when closing the dialog with no id */}
+                {recordIds && recordIds.length > 0 && (
+                    <ElectoralLogList
+                        electionEventId={electionEventId}
+                        showActions={false}
+                        filterToShow={ElectoralLogFilters.USER_ID}
+                        filterValue={recordIds[0]?.toString()}
+                    />
+                )}
             </Dialog>
             {openEditPassword && (
                 <EditPassword
@@ -1117,5 +1324,31 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 />
             )}
         </>
+    )
+}
+
+interface TableSkeletonProps {
+    rowCount?: number
+    columnWidths?: string[]
+}
+
+export const TableSkeleton: React.FC<TableSkeletonProps> = ({
+    rowCount = 10,
+    columnWidths = ["10%", "20%", "20%", "10%", "15%", "25%"],
+}) => {
+    return (
+        <Box sx={{width: "100%", p: 2}}>
+            {Array.from({length: rowCount}).map((_, rowIndex) => (
+                <Box key={rowIndex} sx={{display: "flex", gap: 2, mb: 1, alignItems: "center"}}>
+                    {columnWidths.map((width, colIndex) => (
+                        <Skeleton
+                            key={`${rowIndex}-${colIndex}`}
+                            variant="text"
+                            sx={{width, height: 24}}
+                        />
+                    ))}
+                </Box>
+            ))}
+        </Box>
     )
 }

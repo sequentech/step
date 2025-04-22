@@ -10,6 +10,8 @@ import com.google.auto.service.AutoService;
 import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
 import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.text.Collator;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -53,9 +55,9 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
   private static final String EXPIRED_DATE = "isBeforeDateValue";
   private static final String NOW = "now";
   public static final String ERROR_FAILED_TO_LOAD_INETUM_FORM = "Failed to load inetumForm";
-  public static final String ERROR_TO_CREATE_INETUM_TRANSCATION = "Failed to creat transaction";
+  public static final String ERROR_TO_CREATE_INETUM_TRANSACTION = "Failed to create transaction";
   public static final String ERROR_TO_GET_INETUM_STATUS_RESPONSE =
-      "Failed to get inetum satus response";
+      "Failed to get inetum status response";
   public static final String ERROR_TO_GET_INETUM_RESPONSE = "Failed to get inetum response";
   public static final String ERROR_TO_GET_INETUM_RESULTS_RESPONSE =
       "Failed to get inetum results response";
@@ -98,19 +100,46 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
 
     log.info("validated is NOT TRUE, rendering the form");
     try {
-      Map<String, String> transactionData = newTransaction(configMap, context);
+      Boolean isTestMode = Boolean.parseBoolean(configMap.get(Utils.TEST_MODE_ATTRIBUTE));
+      if (isTestMode) {
+        // Make a new transaction request to mock server
+        SimpleHttp.Response mockTransactionData =
+            doPost(configMap, context, "{}", Utils.API_TRANSACTION_NEW, true);
+        JsonNode responseContent = mockTransactionData.asJson().get("response");
+        log.info(responseContent);
+        String tokenDob = responseContent.get("token_dob").asText();
+        String userId = responseContent.get("user_id").asText();
 
-      // Save the transaction data into the auth session
-      AuthenticationSessionModel sessionModel = context.getAuthenticationSession();
-      sessionModel.setAuthNote(Utils.FTL_TOKEN_DOB, transactionData.get(Utils.FTL_TOKEN_DOB));
-      sessionModel.setAuthNote(Utils.FTL_USER_ID, transactionData.get(Utils.FTL_USER_ID));
+        AuthenticationSessionModel sessionModel = context.getAuthenticationSession();
+        sessionModel.setAuthNote(Utils.FTL_TOKEN_DOB, tokenDob);
+        sessionModel.setAuthNote(Utils.FTL_USER_ID, userId);
 
-      Response challenge =
-          getBaseForm(context)
-              .setAttribute(Utils.FTL_USER_ID, transactionData.get(Utils.FTL_USER_ID))
-              .setAttribute(Utils.FTL_TOKEN_DOB, transactionData.get(Utils.FTL_TOKEN_DOB))
-              .createForm(Utils.INETUM_FORM);
-      context.challenge(challenge);
+        // Verifying results
+        // Getting status
+        SimpleHttp.Response response = verifyResults(context, isTestMode);
+        log.info("response" + response);
+        String error = validateAttributes(context, response);
+        storeAttributes(context, response);
+        context.success();
+      } else {
+        Map<String, String> transactionData = newTransaction(configMap, context);
+        log.infov(
+            "New transaction: TOKEN_DOB: {0} USER_ID: {1}",
+            transactionData.get(Utils.FTL_TOKEN_DOB), transactionData.get(Utils.FTL_USER_ID));
+
+        // Save the transaction data into the auth session
+        AuthenticationSessionModel sessionModel = context.getAuthenticationSession();
+        sessionModel.setAuthNote(Utils.FTL_TOKEN_DOB, transactionData.get(Utils.FTL_TOKEN_DOB));
+        sessionModel.setAuthNote(Utils.FTL_USER_ID, transactionData.get(Utils.FTL_USER_ID));
+
+        Response challenge =
+            getBaseForm(context)
+                .setAttribute(Utils.FTL_USER_ID, transactionData.get(Utils.FTL_USER_ID))
+                .setAttribute(Utils.FTL_TOKEN_DOB, transactionData.get(Utils.FTL_TOKEN_DOB))
+                .createForm(Utils.INETUM_FORM);
+        context.challenge(challenge);
+      }
+
     } catch (IOException error) {
       context.getEvent().error(ERROR_FAILED_TO_LOAD_INETUM_FORM);
       context.failure(AuthenticationFlowError.INTERNAL_ERROR);
@@ -121,6 +150,9 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
               .setAttribute(Utils.CODE_ID, sessionId)
               .createForm(Utils.INETUM_ERROR);
       context.challenge(challenge);
+    } catch (InetumException e) {
+      // TODO Auto-generated catch block
+      e.printStackTrace();
     }
   }
 
@@ -129,9 +161,14 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
       Map<String, String> configMap,
       AuthenticationFlowContext context,
       Object payload,
-      String uriPath)
+      String uriPath,
+      Boolean isTestMode)
       throws IOException {
-    String url = configMap.get(Utils.BASE_URL_ATTRIBUTE) + uriPath;
+    String baseUrl =
+        isTestMode
+            ? configMap.get(Utils.TEST_MODE_SERVER_URL)
+            : configMap.get(Utils.BASE_URL_ATTRIBUTE);
+    String url = baseUrl + uriPath;
     String authorization = "Bearer " + configMap.get(Utils.API_KEY_ATTRIBUTE);
     log.info("doPost: url=" + url + ", payload =" + payload.toString());
 
@@ -155,10 +192,9 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
         context
             .getEvent()
             .error(
-                ERROR_TO_CREATE_INETUM_TRANSCATION
-                    + String.format(
-                        " After %s attempts, max attemtps is %s with error message: %.100s",
-                        attempt, maxRetries, e.getMessage()));
+                String.format(
+                    "%s - After %s attempts, max attemtps is %s with error message: %.100s",
+                    ERROR_TO_CREATE_INETUM_TRANSACTION, attempt, maxRetries, e.getMessage()));
         if (attempt >= maxRetries) {
           throw e; // Propagate the exception if max retries are reached
         }
@@ -167,15 +203,22 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
         sleep(baseRetryDelay, attempt);
       }
     }
-    context.getEvent().error(ERROR_TO_CREATE_INETUM_TRANSCATION + "Max retries reached");
+    context.getEvent().error(ERROR_TO_CREATE_INETUM_TRANSACTION + "Max retries reached");
     throw new IOException("doPost: Failed to execute request after " + maxRetries + " attempts.");
   }
 
   /** Send a GET to Inetum API */
   protected SimpleHttp.Response doGet(
-      Map<String, String> configMap, AuthenticationFlowContext context, String uriPath)
+      Map<String, String> configMap,
+      AuthenticationFlowContext context,
+      String uriPath,
+      Boolean isTestMode)
       throws IOException {
-    String url = configMap.get(Utils.BASE_URL_ATTRIBUTE) + uriPath;
+    String baseUrl =
+        isTestMode
+            ? configMap.get(Utils.TEST_MODE_SERVER_URL)
+            : configMap.get(Utils.BASE_URL_ATTRIBUTE);
+    String url = baseUrl + uriPath;
     String authorization = "Bearer " + configMap.get(Utils.API_KEY_ATTRIBUTE);
     log.info("doGet: url=" + url);
 
@@ -199,10 +242,9 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
         context
             .getEvent()
             .error(
-                ERROR_TO_GET_INETUM_RESPONSE
-                    + String.format(
-                        " After %s attempts, max attemtps is %s with error message: %.100s",
-                        attempt, maxRetries, e.getMessage()));
+                String.format(
+                    "%s - After %s attempts, max attemtps is %s with error message: %.100s",
+                    ERROR_TO_GET_INETUM_RESPONSE, attempt, maxRetries, e.getMessage()));
         if (attempt >= maxRetries) {
           throw e; // Propagate the exception if max retries are reached
         }
@@ -271,7 +313,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
 
     try {
       SimpleHttp.Response response =
-          doPost(configMap, context, jsonPayload, Utils.API_TRANSACTION_NEW);
+          doPost(configMap, context, jsonPayload, Utils.API_TRANSACTION_NEW, false);
 
       if (response.getStatus() != 200) {
         log.error(
@@ -306,13 +348,14 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
     }
   }
 
+  int action_retries = 0;
+
   @Override
   public void action(AuthenticationFlowContext context) {
     log.info("action(): start inetum-authenticator");
 
     MultivaluedMap<String, String> formData = context.getHttpRequest().getDecodedFormParameters();
     String action = formData.getFirst("action");
-
     log.infov("action(): Get action from request {0}", action);
 
     // Check if user has confirmed data
@@ -326,6 +369,24 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
 
       context.success();
       return;
+    } else if (action == null) {
+      // Retrieve error details from form
+      String errorCode = formData.getFirst("error_code");
+      log.errorv("Received error from form: Code={0}", errorCode);
+
+      // Handle uploadAndCheckException error properly
+      if ("uploadAndCheckException".equals(errorCode)) {
+        String sessionId = context.getAuthenticationSession().getParentSession().getId();
+
+        Response challenge =
+            getBaseForm(context)
+                .setAttribute(Utils.FTL_ERROR, Utils.UPLOAD_AND_CHECK_EXCEPTION)
+                .setAttribute(Utils.CODE_ID, sessionId)
+                .createForm(Utils.INETUM_ERROR);
+
+        context.challenge(challenge);
+        return;
+      }
     }
 
     UserModel user = context.getUser();
@@ -335,7 +396,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
         user,
         context.getSession(),
         this.getClass().getSimpleName());
-    SimpleHttp.Response result = verifyResults(context);
+    SimpleHttp.Response result = verifyResults(context, false);
     String sessionId = context.getAuthenticationSession().getParentSession().getId();
     if (result == null) {
       // invalid
@@ -364,11 +425,22 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
     String error = validateAttributes(context, result);
 
     if (error != null) {
+      action_retries++;
       log.error(
           "action(): The submitted form data does not correspond with the ones provided by Inetum.");
       // invalid
       AuthenticationExecutionModel execution = context.getExecution();
       if (execution.isRequired()) {
+        if (action_retries == 3) {
+          error = "maxRetriesError";
+          Response challenge =
+              getBaseForm(context)
+                  .setAttribute(Utils.FTL_ERROR, error)
+                  .setAttribute(Utils.CODE_ID, sessionId)
+                  .createForm(Utils.INETUM_ERROR);
+          context.challenge(challenge);
+          return;
+        }
         context.failure(AuthenticationFlowError.INVALID_CREDENTIALS);
         context.attempted();
         Response challenge =
@@ -481,8 +553,13 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
           log.infov("storeAttributes: inetumValue {0}", inetumField);
 
           if (inetumValue == null) {
-            log.errorv("storeAttributes: could not find value in inetum response {0}", inetumField);
-            throw new InetumException(Utils.FTL_ERROR_AUTH_INVALID);
+            // Give a warning that the value was not found in inetun response.
+            log.warnv(
+                "storeAttributes: could not find value in inetum response {0}. Setting value to empty string",
+                inetumField);
+
+            // Don't fail, just set the value to empty.
+            inetumValue = "";
           }
 
           switch (type) {
@@ -498,7 +575,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
               log.infov("storeAttributes: storeDateFormat {0}", type);
 
               DateTimeFormatter valueFormat = DateTimeFormatter.ofPattern(storeDateFormat);
-              storedValue = inetumDate.format(valueFormat);
+              storedValue = (inetumDate != null) ? inetumDate.format(valueFormat) : null;
               break;
 
             default:
@@ -525,7 +602,8 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
   /*
    * Calls Inetum API results/get and verify results
    */
-  protected SimpleHttp.Response verifyResults(AuthenticationFlowContext context) {
+  protected SimpleHttp.Response verifyResults(
+      AuthenticationFlowContext context, Boolean isTestMode) {
     log.info("verifyResults: start");
 
     // Get the transaction data from the auth session
@@ -539,7 +617,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
     AuthenticatorConfigModel config = context.getAuthenticatorConfig();
     Map<String, String> configMap = config.getConfig();
 
-    String uriPath = "/transaction/" + userId + "/status?t=" + tokenDob;
+    String uriPath = isTestMode ? "/status" : "/transaction/" + userId + "/status?t=" + tokenDob;
     SimpleHttp.Response response = null;
 
     var attempt = 0;
@@ -548,7 +626,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
 
     try {
       while (attempt < maxRetries) {
-        response = doGet(configMap, context, uriPath);
+        response = doGet(configMap, context, uriPath, isTestMode);
         int responseStatus = response.getStatus();
         int code = 0;
         String idStatus = null;
@@ -564,12 +642,15 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
           context
               .getEvent()
               .error(
-                  ERROR_TO_GET_INETUM_STATUS_RESPONSE
-                      + String.format(
-                          " error status: %s After %s attempts, max attemtps is %s, with response: %.100s",
-                          responseStatus, attempt, maxRetries, response.asString()));
+                  String.format(
+                      "%s - Error status: %s After %s attempts, max attemtps is %s, with response: %.100s",
+                      ERROR_TO_GET_INETUM_STATUS_RESPONSE,
+                      responseStatus,
+                      attempt,
+                      maxRetries,
+                      response.asString()));
           if (attempt >= maxRetries) {
-            context.getEvent().error(ERROR_TO_GET_INETUM_STATUS_RESPONSE + "Max retries reached");
+            context.getEvent().error(ERROR_TO_GET_INETUM_STATUS_RESPONSE + ", Max retries reached");
             throw new IOException(
                 "Too many attempts on transaction/status, bad status=" + responseStatus);
           } else {
@@ -579,7 +660,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
             continue;
           }
         }
-
+        log.info("verifyResults: response = " + response.asString());
         code = response.asJson().get("code").asInt();
         if (code != 0) {
           log.errorv(
@@ -591,15 +672,17 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
           context
               .getEvent()
               .error(
-                  ERROR_TO_GET_INETUM_STATUS_RESPONSE
-                      + ": "
-                      + ERROR_INVALIDE_CODE
-                      + String.format(
-                          "error code: %s After %s attempts, max attemtps is %s, with error response: %.100s",
-                          code, attempt, maxRetries, response.asString()));
+                  String.format(
+                      "%s: %s - error code: %s After %s attempts, max attemtps is %s, with error response: %.100s",
+                      ERROR_TO_GET_INETUM_STATUS_RESPONSE,
+                      ERROR_INVALIDE_CODE,
+                      code,
+                      attempt,
+                      maxRetries,
+                      response.asString()));
           attempt++;
           if (attempt >= maxRetries) {
-            context.getEvent().error(ERROR_TO_GET_INETUM_STATUS_RESPONSE + "Max retries reached");
+            context.getEvent().error(ERROR_TO_GET_INETUM_STATUS_RESPONSE + ", Max retries reached");
             throw new IOException("Too many attempts on transaction/status, bad code = " + code);
           } else {
             log.errorv("verifyResults (attempt {0}): Will retry again", attempt);
@@ -609,7 +692,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
           }
         }
 
-        // check that vinetum has already verified the data, or else retry
+        // check that inetum has already verified the data, or else retry
         // again after a delay
         idStatus = response.asJson().get("response").get("idStatus").asText();
         log.infov(
@@ -625,13 +708,16 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
           context
               .getEvent()
               .error(
-                  ERROR_TO_GET_INETUM_STATUS_RESPONSE
-                      + String.format(
-                          "Incorrect idStatus: %s with response %s After %s attempts, max attemtps is %s",
-                          idStatus, response.toString(), attempt, maxRetries));
+                  String.format(
+                      "%s - Incorrect idStatus: %s with response %s After %s attempts, max attemtps is %s",
+                      ERROR_TO_GET_INETUM_STATUS_RESPONSE,
+                      idStatus,
+                      response.toString(),
+                      attempt,
+                      maxRetries));
           attempt++;
           if (attempt >= maxRetries) {
-            context.getEvent().error(ERROR_TO_GET_INETUM_STATUS_RESPONSE + "Max retries reached");
+            context.getEvent().error(ERROR_TO_GET_INETUM_STATUS_RESPONSE + ", Max retries reached");
             throw new IOException(
                 "Too many attempts on transaction/status, bad idStatus = " + idStatus);
           } else {
@@ -648,9 +734,11 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
 
       // The status is verification OK. Now we need to retrieve the
       // information
-      uriPath = "/transaction/" + userId + "/results";
-      response = doGet(configMap, context, uriPath);
-
+      String country = context.getAuthenticationSession().getAuthNote("country");
+      String encodedCountry = URLEncoder.encode(country, StandardCharsets.UTF_8);
+      uriPath =
+          isTestMode ? "/results?country=" + encodedCountry : "/transaction/" + userId + "/results";
+      response = doGet(configMap, context, uriPath, isTestMode);
       if (response.getStatus() != 200) {
         log.error(
             "verifyResults: Error calling transaction/results, status = " + response.getStatus());
@@ -670,6 +758,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
       int code = response.asJson().get("code").asInt();
       if (code != 0) {
         log.error("verifyResults: Error calling transaction/results, code = " + code);
+
         context
             .getEvent()
             .error(
@@ -868,16 +957,21 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
   }
 
   private LocalDate getDate(JsonNode attributeToCheck, String format, String dateValue) {
-    String valuePattern = attributeToCheck.get(format).asText();
-    log.infov("getDate: valuePattern {0}", valuePattern);
-    if (valuePattern == null || valuePattern.isBlank()) {
-      valuePattern = Utils.FTL_ERROR_AUTH_INVALID;
+    // wrap it in a try/catch since the date parsing might fail
+    try {
+      String valuePattern = attributeToCheck.get(format).asText();
+      log.infov("getDate: valuePattern {0}", valuePattern);
+      if (valuePattern == null || valuePattern.isBlank()) {
+        valuePattern = Utils.FTL_ERROR_AUTH_INVALID;
+      }
+      DateTimeFormatter valueFormat = DateTimeFormatter.ofPattern(valuePattern);
+      LocalDate valueDate = LocalDate.parse(dateValue, valueFormat);
+      log.infov("getDate: valueDate {0}", valueDate);
+      return valueDate;
+    } catch (Exception err) {
+      log.info("getDate: error parsing, returning null");
+      return null;
     }
-    DateTimeFormatter valueFormat = DateTimeFormatter.ofPattern(valuePattern);
-    LocalDate valueDate = LocalDate.parse(dateValue, valueFormat);
-    log.infov("getDate: valueDate {0}", valueDate);
-
-    return valueDate;
   }
 
   private String equalValue(
@@ -984,7 +1078,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
     try {
       inetumValue = response.asJson().at(inetumField).asText();
     } catch (Exception error) {
-      log.errorv("getValueFromInetumResponse: Could not get value: {0}", error.getMessage());
+      log.warnv("getValueFromInetumResponse: Could not get value: {0}", error.getMessage());
     }
 
     log.infov("getValueFromInetumResponse: {0}: {1}", inetumField, inetumValue);
@@ -1003,6 +1097,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
         .setAttribute(Utils.FTL_CLIENT_ID, configMap.get(Utils.CLIENT_ID_ATTRIBUTE))
         .setAttribute(Utils.FTL_BASE_URL, configMap.get(Utils.BASE_URL_ATTRIBUTE))
         .setAttribute(Utils.FTL_ENV_CONFIG, configMap.get(Utils.ENV_CONFIG_ATTRIBUTE))
+        .setAttribute(Utils.FTL_SDK_VERSION, configMap.get(Utils.SDK_VERSION))
         .setAttribute(Utils.FTL_DOC_ID, authNotesMap.get(Utils.FTL_DOC_ID))
         .setAttribute(Utils.FTL_DOC_ID_TYPE, authNotesMap.get(Utils.FTL_DOC_ID_TYPE));
   }
@@ -1119,7 +1214,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
                             "inetumDateFormat": "dd/MM/yyyy"
                         }
                     ],
-                    "Seaman Book": [
+                    "Seaman's Book": [
                         {
                             "UserAttribute": "sequent.read-only.id-card-number",
                             "inetumAttributePath": "/response/mrz/personal_number",
@@ -1178,7 +1273,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
                             "errorMsg": "attributesInetumError"
                         }
                     ],
-                    "Seaman Book": [
+                    "Seaman's Book": [
                         {
                             "type": "equalAuthnoteAttributeId",
                             "equalAuthnoteAttributeId": "sequent.read-only.id-card-number",
@@ -1210,6 +1305,12 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
             ProviderConfigProperty.STRING_TYPE,
             String.valueOf(Utils.DEFAULT_MAX_RETRIES)),
         new ProviderConfigProperty(
+            Utils.SDK_VERSION,
+            "The version of Inetum SDK to use",
+            "Possible options: 4.0.2 or 4.0.3 ",
+            ProviderConfigProperty.STRING_TYPE,
+            String.valueOf(Utils.DEFAULT_SDK_VERSION)),
+        new ProviderConfigProperty(
             Utils.ENV_CONFIG_ATTRIBUTE,
             "Configuration for the env_config",
             "Uses FreeMarker template, see example",
@@ -1236,7 +1337,13 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
                 	otpPhoneNumber: 'xxxxxxxx',
                 	countryCode: CountryCode.españa,
                 	applicationId: window.DOB_APP_ID,
-                	broadcast: new LocalBroadcastManager()
+                	broadcast: new LocalBroadcastManager(),
+                  customProtocol: 'https',
+                  customHost: 'des.digitalonboarding.es',
+                  customPort: '443',
+                  sequent: {
+                    disableStreaming: true
+                  }
                 }
                 				"""),
         new ProviderConfigProperty(
@@ -1272,7 +1379,19 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
                 	"application": "sequent-keycloak",
                 	"clienteID": "${client_id}"
                 }
-                				"""));
+                				"""),
+        new ProviderConfigProperty(
+            Utils.TEST_MODE_ATTRIBUTE,
+            "Test Mode",
+            "If true, the authenticator will skip the real OCR flow and mock the data.",
+            ProviderConfigProperty.BOOLEAN_TYPE,
+            "false"),
+        new ProviderConfigProperty(
+            Utils.TEST_MODE_SERVER_URL,
+            "Test Mode Server Url",
+            "If in test mode this will be the case url of the mock server.",
+            ProviderConfigProperty.TEXT_TYPE,
+            ""));
   }
 
   @Override

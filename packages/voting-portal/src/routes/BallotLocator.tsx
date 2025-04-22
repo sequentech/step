@@ -14,12 +14,12 @@ import {
     Dialog,
 } from "@sequentech/ui-essentials"
 import {stringToHtml} from "@sequentech/ui-core"
-import {Box, TextField, Typography, Button} from "@mui/material"
+import {Box, TextField, Typography, Button, Stack} from "@mui/material"
 import {styled} from "@mui/material/styles"
 import {Link, useLocation, useNavigate, useParams} from "react-router-dom"
 import {GET_CAST_VOTE} from "../queries/GetCastVote"
 import {useQuery} from "@apollo/client"
-import {GetBallotStylesQuery, GetCastVoteQuery} from "../gql/graphql"
+import {GetBallotStylesQuery, GetCastVoteQuery, GetElectionEventQuery} from "../gql/graphql"
 import {faAngleLeft, faCircleQuestion} from "@fortawesome/free-solid-svg-icons"
 import {GET_BALLOT_STYLES} from "../queries/GetBallotStyles"
 import {updateBallotStyleAndSelection} from "../services/BallotStyles"
@@ -27,6 +27,9 @@ import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {selectFirstBallotStyle} from "../store/ballotStyles/ballotStylesSlice"
 import useLanguage from "../hooks/useLanguage"
 import {SettingsContext} from "../providers/SettingsContextProvider"
+import useUpdateTranslation from "../hooks/useUpdateTranslation"
+import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
+import {IElectionEvent} from "../store/electionEvents/electionEventsSlice"
 
 const StyledLink = styled(Link)`
     text-decoration: none;
@@ -61,6 +64,7 @@ const MessageSuccess = styled(Box)`
     align-items: center;
     margin-right: auto;
     margin-left: auto;
+    overflow-wrap: anywhere;
 `
 
 const MessageFailed = styled(Box)`
@@ -74,6 +78,7 @@ const MessageFailed = styled(Box)`
     align-items: center;
     margin-right: auto;
     margin-left: auto;
+    overflow-wrap: anywhere;
 `
 
 function isHex(str: string) {
@@ -84,6 +89,12 @@ function isHex(str: string) {
     const regex = /^[0-9a-fA-F]+$/
     return regex.test(str)
 }
+
+const StyledApp = styled(Stack)<{css: string}>`
+    min-height: 100vh;
+    min-width: 100vw;
+    ${({css}) => css}
+`
 
 const BallotLocator: React.FC = () => {
     const {tenantId, eventId, electionId, ballotId} = useParams()
@@ -96,6 +107,7 @@ const BallotLocator: React.FC = () => {
 
     const hasBallotId = !!ballotId
     const {data: dataBallotStyles} = useQuery<GetBallotStylesQuery>(GET_BALLOT_STYLES)
+
     const dispatch = useAppDispatch()
     const ballotStyle = useAppSelector(selectFirstBallotStyle)
     useLanguage({ballotStyle})
@@ -109,6 +121,18 @@ const BallotLocator: React.FC = () => {
         },
         skip: globalSettings.DISABLE_AUTH, // Skip query if in demo mode
     })
+
+    const {data: dataElectionEvent} = useQuery<GetElectionEventQuery>(GET_ELECTION_EVENT, {
+        variables: {
+            electionEventId: eventId,
+            tenantId,
+        },
+        skip: globalSettings.DISABLE_AUTH, // Skip query if in demo mode
+    })
+
+    useUpdateTranslation({
+        electionEvent: dataElectionEvent?.sequent_backend_election_event[0] as IElectionEvent,
+    }) // Overwrite translations
 
     useEffect(() => {
         if (dataBallotStyles && dataBallotStyles.sequent_backend_ballot_style.length > 0) {
@@ -139,7 +163,9 @@ const BallotLocator: React.FC = () => {
     }
 
     return (
-        <>
+        <StyledApp
+            css={dataElectionEvent?.sequent_backend_election_event[0]?.presentation?.css ?? ""}
+        >
             <PageLimit maxWidth="lg" className="ballot-locator-screen screen">
                 <Box marginTop="48px">
                     <BreadCrumbSteps
@@ -148,8 +174,19 @@ const BallotLocator: React.FC = () => {
                     />
                 </Box>
 
-                <Box sx={{display: "flex", justifyContent: "space-between"}}>
-                    <Box>
+                <Box
+                    sx={{
+                        display: "flex",
+                        flexDirection: {xs: "column", md: "row"},
+                        justifyContent: "space-between",
+                        alignItems: "flex-start",
+                    }}
+                >
+                    <Box
+                        sx={{
+                            order: {xs: 2, md: 1},
+                        }}
+                    >
                         <StyledTitle variant="h1">
                             {!hasBallotId ? (
                                 <Box>{t("ballotLocator.title")}</Box>
@@ -180,7 +217,7 @@ const BallotLocator: React.FC = () => {
                             {t("ballotLocator.description")}
                         </Typography>
                     </Box>
-                    <Box sx={{marginTop: "20px"}}>
+                    <Box sx={{order: {xs: 1, md: 2}, marginTop: "20px"}}>
                         <StyledLink
                             to={`/tenant/${tenantId}/event/${eventId}/election-chooser${location.search}`}
                         >
@@ -249,7 +286,7 @@ const BallotLocator: React.FC = () => {
                     </>
                 )}
             </PageLimit>
-        </>
+        </StyledApp>
     )
 }
 

@@ -40,8 +40,14 @@ pub async fn create_transmission_package_task(
                 {
                     Ok(_) => Ok(()),
                     Err(err) => {
+                        // Manually print the backtrace from this error:
+                        info!(
+                            "Captured backtrace inside spawn_blocking:\n{}",
+                            err.backtrace()
+                        );
                         update_fail(&task_execution_clone, &err.to_string()).await?;
-                        return Err(anyhow!("Failed to create transmission package: {}", err));
+                        Err(anyhow::Error::from(err)
+                            .context("Failed to create transmission package"))
                     }
                 }
             })
@@ -54,7 +60,7 @@ pub async fn create_transmission_package_task(
         Err(join_error) => Err(Error::from(anyhow!("Task panicked: {}", join_error))),
     }?;
 
-    update_complete(&task_execution)
+    update_complete(&task_execution, None)
         .await
         .context("Failed to update task execution status to COMPLETED")?;
 
@@ -109,7 +115,7 @@ pub async fn upload_signature_task(
     let handle = tokio::task::spawn_blocking({
         move || {
             tokio::runtime::Handle::current().block_on(async move {
-                upload_transmission_package_signature_service(
+                let res = upload_transmission_package_signature_service(
                     &tenant_id,
                     &election_id,
                     &area_id,
@@ -118,8 +124,19 @@ pub async fn upload_signature_task(
                     &document_id,
                     &password,
                 )
-                .await
-                .map_err(|err| anyhow!("{}", err))
+                .await;
+                match res {
+                    Ok(_) => Ok(()),
+                    Err(err) => {
+                        // Manually print the backtrace from this error:
+                        info!(
+                            "Captured backtrace inside spawn_blocking:\n{}",
+                            err.backtrace()
+                        );
+                        // Return the error so it still bubbles up
+                        Err(err)
+                    }
+                }
             })
         }
     });
@@ -127,7 +144,7 @@ pub async fn upload_signature_task(
     // Await the result and handle JoinError explicitly
     match handle.await {
         Ok(inner_result) => inner_result.map_err(|err| err.context("Task failed")),
-        Err(join_error) => Err(anyhow!("Task panicked: {}", join_error)),
+        Err(join_error) => Err(anyhow::Error::from(join_error).context("Task panicked")),
     }?;
 
     Ok(())

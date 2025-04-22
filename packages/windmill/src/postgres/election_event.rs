@@ -11,6 +11,7 @@ use tokio_postgres::row::Row;
 use tracing::{event, info, instrument, Level};
 use uuid::Uuid;
 
+pub struct ElectionEventDatafix(pub ElectionEventData);
 pub struct ElectionEventWrapper(pub ElectionEventData);
 
 impl TryFrom<Row> for ElectionEventWrapper {
@@ -137,6 +138,77 @@ pub async fn get_election_event_by_id(
         .get(0)
         .map(|election_event| election_event.clone())
         .ok_or(anyhow!("Election event {election_event_id} not found"))
+}
+
+/// Returns all the Election events as ElectionEventDatafix
+#[instrument(err, skip_all)]
+pub async fn get_all_tenant_election_events(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+) -> Result<Vec<ElectionEventDatafix>> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT
+                    id, created_at, updated_at, labels, annotations, tenant_id, name, description, presentation, bulletin_board_reference, is_archived, voting_channels, status, user_boards, encryption_protocol, is_audit, audit_election_event_id, public_key, alias, statistics
+                FROM
+                    sequent_backend.election_event
+                WHERE
+                    tenant_id = $1 AND
+                    is_archived = false
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(&statement, &[&Uuid::parse_str(tenant_id)?])
+        .await?;
+
+    let election_events: Vec<ElectionEventDatafix> = rows
+        .into_iter()
+        .map(|row| -> Result<ElectionEventDatafix> {
+            row.try_into()
+                .map(|res: ElectionEventWrapper| ElectionEventDatafix(res.0))
+        })
+        .collect::<Result<Vec<ElectionEventDatafix>>>()?;
+
+    Ok(election_events)
+}
+
+pub async fn update_election_event_annotations(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    annotations: Value,
+) -> Result<()> {
+    let tenant_uuid: uuid::Uuid =
+        Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
+    let election_event_uuid: uuid::Uuid = Uuid::parse_str(election_event_id)
+        .with_context(|| "Error parsing election_event_id as UUID")?;
+
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+            UPDATE
+                "sequent_backend".election_event
+            SET
+                annotations = $3
+            WHERE
+                tenant_id = $1
+                AND id = $2;
+            "#,
+        )
+        .await?;
+
+    let _rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[&tenant_uuid, &election_event_uuid, &annotations],
+        )
+        .await
+        .with_context(|| anyhow!("Error running the update_election_event_annotations query"))?;
+
+    Ok(())
 }
 
 pub async fn update_election_event_presentation(
@@ -320,7 +392,9 @@ pub async fn delete_election_event(
     election_event_id: &str,
 ) -> Result<()> {
     let related_tables = vec![
+        "secret",
         "area_contest",
+        "results_election_area",
         "results_area_contest_candidate",
         "results_area_contest",
         "election_result",
@@ -345,6 +419,8 @@ pub async fn delete_election_event(
         "results_event",
         "area",
         "tasks_execution",
+        "report",
+        "applications",
     ];
 
     for table in related_tables {
@@ -391,6 +467,38 @@ pub async fn delete_election_event(
         )
         .await
         .map_err(|err| anyhow!("Error executing the delete query: {err}"))?;
+
+    Ok(())
+}
+
+#[instrument(err, skip_all)]
+pub async fn update_bulletin_board(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    board: &serde_json::Value,
+) -> Result<()> {
+    let update_bulletin_board = hasura_transaction
+        .prepare(
+            r#"
+             UPDATE sequent_backend.election_event
+             SET bulletin_board_reference = $1
+             WHERE tenant_id = $2 AND id = $3;
+             "#,
+        )
+        .await?;
+
+    hasura_transaction
+         .execute(
+             &update_bulletin_board,
+             &[
+                 &board,
+                 &Uuid::parse_str(tenant_id)?,
+                 &Uuid::parse_str(election_event_id)?,
+             ],
+         )
+         .await
+         .with_context(|| format!("Error updating election event with board reference for tenant ID {} and election event ID {}", tenant_id, election_event_id))?;
 
     Ok(())
 }

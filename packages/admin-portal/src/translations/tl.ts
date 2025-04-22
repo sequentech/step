@@ -5,6 +5,11 @@ import {TranslationType} from "./en"
 
 const tagalogTranslation: TranslationType = {
     translations: {
+        philSysID: "PhilSys ID",
+        iBP: "Integrated Bar of the Philippines (IBP)",
+        philippinePassport: "Pasaporte ng Pilipinas",
+        driversLicense: "Lisensya sa Pagmamaneho",
+        seamanBook: "Libro ng Seaman",
         loading: "Naglo-load...",
         loadingDataProvider: "Naglo-load ng tagapagbigay ng datos...",
         logsScreen: {
@@ -20,8 +25,18 @@ const tagalogTranslation: TranslationType = {
                     "Pakikonpirma na nais mong isagawa ang aksyong ito, maaaring magtagal ito bago matapos.",
             },
             column: {
-                id: "Id",
-                statement: "Pahayag",
+                id: "ID",
+                statement_kind: "Uri ng Pahayag",
+                created: "Nilikha",
+                statement_timestamp: "Tatak ng Panahon ng Pahayag",
+                message: "Mensahe",
+                user_id: "ID ng User",
+                username: "Username",
+                sender_pk: "Primary Key ng Nagpadala",
+                log_type: "Uri ng Log",
+                event_type: "Uri ng Kaganapan",
+                description: "Paglalarawan",
+                version: "Bersyon",
             },
             main: {
                 title: "Mga Log ng Pangunahing Database",
@@ -58,12 +73,18 @@ const tagalogTranslation: TranslationType = {
                 EXPORT_VOTERS: "I-export ang mga botante",
                 CREATE_TRANSMISSION_PACKAGE: "Lumikha ng Transmission Package",
                 EXPORT_BALLOT_PUBLICATION: "I-export ang Paglalathala ng Balota",
+                GENERATE_TRANSMISSION_REPORT: "Bumuo ng Ulat ng Paglilipat",
                 EXPORT_ACTIVITY_LOGS_REPORT: "I-export ang Ulat ng Mga Log ng Aktibidad",
                 GENERATE_REPORT: "Bumuo ng ulat",
+                EXPORT_TRUSTEES: "I-export ang mga Awtoridad",
+                EXPORT_APPLICATION: "I-export ang Mga Aplikasyon",
+                EXPORT_TENANT_CONFIG: "I-export ang Configurasyon ng Tenant",
+                IMPORT_TENANT_CONFIG: "I-import ang Configurasyon ng Tenant",
             },
             widget: {
                 taskTitle: "Gawain: {{title}}",
                 viewTask: "Tingnan Ang Gawain",
+                downloadDocument: "I-download ang File",
             },
             exportTasksExecution: {
                 success: "Matagumpay na natapos ang pag-export",
@@ -124,6 +145,7 @@ const tagalogTranslation: TranslationType = {
                 lookAndFeel: "PAGPASADYA KAN ITSURA",
                 schedules: "NAISKEDYUL NA MGA KAGANAPAN",
                 trustees: "TAGAPANGALAGA",
+                BackupRestore: "Backup / Ibalik",
             },
         },
         trusteesSettingsScreen: {
@@ -183,6 +205,7 @@ const tagalogTranslation: TranslationType = {
             votersByChannels: "Mga botante ayon sa channel",
             voterLoginURL: "URL para sa Pag-login ng Botante",
             voterEnrollURL: "URL para sa Pag-enroll ng Botante",
+            voterEnrollKioskURL: "Kiosk URL para sa Pag-enroll ng Botante",
             ipAddress: {
                 emptyState: "Wala pang mga boto.",
                 title: "Mga IP Address",
@@ -200,6 +223,7 @@ const tagalogTranslation: TranslationType = {
                 showLess: "Bawasan ang nakikita",
                 adminPortal: "Admin Portal",
                 allowPublishAfterLockdown: "Only allow election event publishing after lockdown",
+                reset: "I-reset ang custom na filter",
             },
             edit: {
                 general: "Pangkalahatan",
@@ -215,6 +239,7 @@ const tagalogTranslation: TranslationType = {
                 advancedConfigurations: "Mga Advanced na Pag-configure",
                 importCandidates: "Mag-import ng mga Kandidato",
                 custom_filters: "Pasadyang mga filter",
+                voter_authentication: "Pag-authenticate ng Botante",
             },
             customUrls: {
                 login: "Pag-login",
@@ -261,6 +286,13 @@ const tagalogTranslation: TranslationType = {
                         "not-locked-down": "Hindi naka-lockdown",
                     },
                 },
+                contestEncryptionPolicy: {
+                    options: {
+                        "single-contest": "Isang Paligsahan",
+                        "multiple-contests": "Maraming Paligsahan",
+                    },
+                    policyLabel: "Patakaran sa Pag-encode ng Paligsahan",
+                },
                 countDownPolicyOptions: {
                     NO_COUNTDOWN: "Walang Countdown",
                     COUNTDOWN: "Countdown",
@@ -269,6 +301,25 @@ const tagalogTranslation: TranslationType = {
                     policyLabel: "Patakaran sa Countdown ng Portal ng Pagboto",
                     coundownSecondsLabel: "Segundo bago mag-expire para ipakita ang countdown",
                     alertSecondsLabel: "Segundo bago mag-expire para ipakita ang Logout alert",
+                },
+                voterSigningPolicy: {
+                    "policyLabel": "Patakaran sa Pagpirma ng Botante",
+                    "no-signature": "Walang pirma",
+                    "with-signature": "May pirma",
+                },
+                enrollment: {
+                    policyLabel: "Pagpaparehistro",
+                    options: {
+                        enabled: "Naka-enable",
+                        disabled: "Naka-disable",
+                    },
+                },
+                otp: {
+                    policyLabel: "OTP",
+                    options: {
+                        enabled: "Naka-enable",
+                        disabled: "Naka-disable",
+                    },
                 },
             },
             error: {
@@ -318,6 +369,7 @@ const tagalogTranslation: TranslationType = {
             },
             tabs: {
                 dashboard: "Dashboard",
+                monitoring: "Pagsubaybay",
                 data: "Data",
                 localization: "Localization",
                 voters: "Mga Botante",
@@ -339,6 +391,12 @@ const tagalogTranslation: TranslationType = {
                 electionNumber: "Bilang ng mga Halalan",
                 trustees: "Mga Tagapangasiwa",
                 status: "Katayuan",
+                permissionLabels: "Mga Label ng Pahintulot",
+                tallyType: {
+                    label: "Uri ng Bilang",
+                    ELECTORAL_RESULTS: "Mga Resulta ng Halalan",
+                    INITIALIZATION_REPORT: "Mga Resulta ng Inisyal",
+                },
                 create: {
                     title: "Lumikha ng Tally",
                     subtitle: "Lumikha ng bagong Tally para sa Kaganapan ng Halalan na ito",
@@ -359,6 +417,10 @@ const tagalogTranslation: TranslationType = {
                         "Ang Seremonya ng Pagbibilang ay hindi maaaring magsimula hangga't hindi ka lumilikha ng isang post sa tab na I-publish.",
                     participateNow:
                         "Naanyayahan kang makibahagi sa seremonya ng Tally. Mangyaring <1>i-click ang Aksyon ng Key ng seremonya</1> upang makilahok.",
+                    startDisabled:
+                        "Hindi mo maaaring ipagpatuloy ang seremonya dahil walang napiling eleksyon o ang eleksyon ay hindi pa na-publish.",
+                    ceremonyDisabled:
+                        "Hindi mo maaaring ipagpatuloy ang seremonya dahil ang tally session ay hindi konektado o ang pagsisimula ng seremonya ay hindi pinapayagan.",
                 },
             },
             importAreas: {
@@ -389,6 +451,8 @@ const tagalogTranslation: TranslationType = {
                 fileUploadError: "Error sa pag-upload ng file",
                 importVotersSuccess: "Matagumpay na na-iskedyul ang Pag-import ng mga Botante",
                 importVotersError: "Error sa pag-import ng mga Botante",
+                importElectionEventSuccess: "Election event imported Successfully",
+                importElectionEventError: "Error importing election event",
                 shaDialog: {
                     ok: "Oo, Mag-import nang walang Pag-check ng Integridad",
                     cancel: "Bumalik",
@@ -422,6 +486,7 @@ const tagalogTranslation: TranslationType = {
                 copiedSuccess: "Nakopya ang password sa clipboard",
                 copiedError: "Error sa pag-copy ng password sa clipboard",
                 reports: "Mga Ulat",
+                applications: "Mga Aplikasyon",
             },
             taskNotification:
                 "{{action}} ay nagsimula na. Maaari mong makita ang status nito sa Talahanayan ng Pagpapatupad ng Mga Gawain.",
@@ -448,6 +513,7 @@ const tagalogTranslation: TranslationType = {
                 reorder: "I-reorder ang mga paligsahan",
                 castVoteConfirm: "Modal ng Pagkumpirma ng Pagboto",
                 gracePeriodPolicy: "Patakaran sa Palugit",
+                allowTallyPolicy: "Payagan si Tally",
                 permissionLabel: "Label ng pahintulot",
                 custom_filters: "Pasadyang mga filter",
             },
@@ -475,6 +541,7 @@ const tagalogTranslation: TranslationType = {
             createElectionEventError: "Error sa paglikha ng kaganapan ng halalan",
             tabs: {
                 dashboard: "Dashboard",
+                monitoring: "Pagsubaybay",
                 data: "Data",
                 voters: "Mga Botante",
                 publish: "I-publish",
@@ -487,10 +554,22 @@ const tagalogTranslation: TranslationType = {
                 "grace-period-without-alert": "Palugit na walang babala",
                 "gracePeriodSecs": "Palugit sa segundo",
             },
+            allowTallyPolicy: {
+                "allowed": "Tinogotan",
+                "disallowed": "Hindi Pinapayagan",
+                "requires-voting-period-end": "Nangangailangan ng Pagtatapos ng Panahon ng Pagboto",
+            },
             initializeReportPolicy: {
                 "label": "I-initialize ang Patakaran sa Ulat",
                 "not-required": "Hindi Kinakailangan",
                 "required": "Kinakailangan",
+            },
+            castVoteGoldLevelPolicy: {
+                label: "Gold level Authentication Policy",
+                options: {
+                    "gold-level": "Gold level Authentication",
+                    "no-gold-level": "No Gold level Authentication",
+                },
             },
         },
         tenantScreen: {
@@ -539,6 +618,7 @@ const tagalogTranslation: TranslationType = {
                     "attributes": "Mga Katangian",
                     "area": "Lugar",
                     "password": "Password",
+                    "savePassword": "I-save ang password",
                     "repeatPassword": "Ulitin ang Password",
                     "passwordMismatch": "Dapat magkatugma ang mga password",
                     "passwordLengthValidate": "Ang password ay dapat hindi bababa sa 8 karakter",
@@ -579,6 +659,8 @@ const tagalogTranslation: TranslationType = {
                     label: "Manwal na I-verify",
                     verify: "Manu-manong i-verify ang botante",
                     body: "Manu-manong i-verify ang botante. Makakakuha ka ng PDF na may QR Code link na nagpapahintulot sa botante na mag-login na hindi dumaan sa online KYC.",
+                    noEmailOrPhone:
+                        "Ang botanteng ito ay hindi maaaring mano-manong ma-verify dahil wala silang nakatalagang email address o numero ng telepono.",
                 },
                 emptyHeader: "Wala pang mga botante.",
                 askCreate: "Gusto mo bang lumikha ng isa?",
@@ -632,6 +714,8 @@ const tagalogTranslation: TranslationType = {
             permissions: {
                 "admin-user": "Admin na Tagagamit",
                 "admin-dashboard-view": "Tingnan ang Dashboard ng Admin",
+                "application-export": "Pag-export ng Aplikasyon",
+                "application-import": "Pag-import ng Aplikasyon",
                 "tenant-create": "Lumikha ng Tenant",
                 "tenant-read": "Basahin ang Tenant",
                 "tenant-write": "I-edit ang Tenant",
@@ -736,6 +820,105 @@ const tagalogTranslation: TranslationType = {
                 "settings-look-feel-tab": "Tingnan ang mga setting ng itsura",
                 "settings-trustees-tab": "Tingnan ang mga setting ng mga tagapangasiwa",
                 "settings-countries-tab": "Tingnan ang mga setting ng mga bansa",
+                "voter-import": "I-import ang Botante",
+                "ee-voters-columns": "Tingnan ang mga Kolum ng mga Botante ng Kaganapang Halalan",
+                "voter-manually-verify": "Manwal na I-verify ang Botante",
+                "ee-voters-logs": "Tingnan ang mga Log ng mga Botante ng Kaganapang Halalan",
+                "voter-export": "I-export ang Botante",
+                "ee-voters-filters": "Tingnan ang mga Filter ng mga Botante ng Kaganapang Halalan",
+                "voter-delete": "Tanggalin ang Botante",
+                "voter-change-password": "Palitan ang Password ng Botante",
+                "election-event-localization-selector":
+                    "Tagapili ng Lokalisasyon ng Kaganapang Halalan",
+                "localization-create": "Lumikha ng Lokalisasyon",
+                "localization-read": "Basahin ang Lokalisasyon",
+                "localization-write": "I-edit ang Lokalisasyon",
+                "localization-delete": "Tanggalin ang Lokalisasyon",
+                "area-create": "Lumikha ng Lugar",
+                "area-delete": "Tanggalin ang Lugar",
+                "area-export": "I-export ang Lugar",
+                "area-import": "I-import ang Lugar",
+                "area-upsert": "Magpasok o I-update ang Lugar",
+                "election-event-areas-columns": "Mga Kolum ng mga Lugar ng Kaganapang Halalan",
+                "election-event-areas-filters": "Mga Filter ng mga Lugar ng Kaganapang Halalan",
+                "election-event-tasks-back-button": "Bumalik sa mga Gawain ng Kaganapang Halalan",
+                "election-event-tasks-columns": "Mga Kolum ng mga Gawain ng Kaganapang Halalan",
+                "election-event-tasks-filters": "Mga Filter ng mga Gawain ng Kaganapang Halalan",
+                "task-export": "I-export ang mga Gawain",
+                "application-read": "Basahin ang Aplikasyon",
+                "application-write": "I-edit ang Aplikasyon",
+                "logs-export": "I-export ang mga Log",
+                "election-event-logs-columns": "Mga Kolum ng mga Log ng Kaganapang Halalan",
+                "election-events-logs-filters": "Mga Filter ng mga Log ng Kaganapang Halalan",
+                "election-event-scheduled-event-columns":
+                    "Mga Kolum ng mga Naka-iskedyul na Kaganapan ng Kaganapang Halalan",
+                "scheduled-event-create": "Lumikha ng Naka-iskedyul na Kaganapan",
+                "scheduled-event-delete": "Tanggalin ang Naka-iskedyul na Kaganapan",
+                "election-event-reports-columns": "Mga Kolum ng mga Ulat ng Kaganapang Halalan",
+                "report-create": "Lumikha ng Ulat",
+                "report-delete": "Tanggalin ang Ulat",
+                "report-generate": "Lumikha ng Ulat",
+                "report-preview": "I-preview ang Ulat",
+                "monitoring-dashboard-view-election-event":
+                    "Pagtingin sa Dashboard ng Pagsubaybay sa Halalan",
+                "monitoring-dashboard-view-election":
+                    "Pagtingin sa Dashboard ng Pagsubaybay sa Kaganapan ng Halalan",
+                "monitor-authenticated-voters": "Pagmamatyag sa Mga Awtentikadong Botante",
+                "monitor-all-approve-disapprove-voters":
+                    "Basahin ang Pagmamatyag sa Mga Aprubado at Hindi Aprubado",
+                "monitor-automatic-approve-disapprove-voters":
+                    "Basahin ang Pagmamatyag sa Awtomatikong Aprubado at Hindi Aprubado",
+                "monitor-manually-approve-disapprove-voters":
+                    "Basahin ang Pagmamatyag sa Manu-manong Aprubado at Hindi Aprubado",
+                "monitor-enrolled-overseas-voters":
+                    "Basahin ang Pagmamatyag sa Mga Naka-enroll na Botante sa Ibayong Dagat",
+                "monitor-posts-already-closed-voting":
+                    "Basahin ang Pagmamatyag sa Mga Post na Sarado na ang Botohan",
+                "monitor-posts-already-generated-election-results":
+                    "Basahin ang Pagmamatyag sa Mga Post na Naglabas na ng Resulta ng Eleksyon",
+                "monitor-posts-already-opened-voting":
+                    "Basahin ang Pagmamatyag sa Mga Post na Binuksan na ang Botohan",
+                "monitor-posts-already-started-counting-votes":
+                    "Basahin ang Pagmamatyag sa Mga Post na Sinimulan na ang Pagbilang ng Boto",
+                "monitor-posts-initialized-the-system":
+                    "Basahin ang Pagmamatyag sa Mga Post na Inisyalisa ang Sistema",
+                "monitor-posts-started-voting":
+                    "Basahin ang Pagmamatyag sa Mga Post na Nagsimula na ang Botohan",
+                "monitor-posts-transmitted-results":
+                    "Basahin ang Pagmamatyag sa Mga Post na Nagpadala ng Resulta",
+                "monitor-voters-voted-test-election":
+                    "Basahin ang Pagmamatyag sa Mga Botanteng Bumoto sa Test Election",
+                "monitor-voters-who-voted": "Basahin ang Pagmamatyag sa Mga Botanteng Bumoto",
+                "election-event-publish-preview": "I-preview ang Publikasyon ng Kaganapang Halalan",
+                "election-event-publish-back-button":
+                    "Bumalik sa Publikasyon ng Kaganapang Halalan",
+                "election-event-publish-columns": "Mga Kolum ng Publikasyon ng Kaganapang Halalan",
+                "election-event-publish-filters": "Mga Filter ng Publikasyon ng Kaganapang Halalan",
+                "publish-create": "Lumikha ng Publikasyon",
+                "publish-regenerate": "Muling Lumikha ng Publikasyon",
+                "publish-export": "I-export ang Publikasyon",
+                "publish-start-voting": "Simulan ang Pagboto",
+                "publish-pause-voting": "I-pause ang Pagboto",
+                "publish-stop-voting": "Itigil ang Pagboto",
+                "publish-changes": "I-publish ang mga Pagbabago",
+                "election-event-publish-view": "Tingnan ang Publikasyon ng Kaganapang Halalan",
+                "election-event-keys-columns": "Mga Kolum ng mga Susi ng Kaganapang Halalan",
+                "create-ceremony": "Lumikha ng Seremonya",
+                "export-ceremony": "I-export ang Seremonya",
+                "election-event-tally-columns": "Mga Kolum ng Tally ng Kaganapang Halalan",
+                "election-event-tally-back-button": "Bumalik sa Tally ng Kaganapang Halalan",
+                "transmition-ceremony": "Seremonya ng Transmisyon",
+                "admin-ip-address-view": "Tingnan ang IP Address",
+                "election-approvals-tab": "Tingnan ang mga Pagmamatyag sa Halalan",
+                "election-event-approvals-tab": "Tingnan ang mga Pagmamatyag ng Kaganapang Halalan",
+                "election-ip-address-view": "Tingnan ang IP Address ng Halalan",
+                "election-dashboard-tab": "Tingnan ang Dashboard ng Halalan",
+                "trustees-export": "I-export ang mga Tagapangasiwa",
+                "user-import": "Pag-import ng Mga Tagagamit",
+                "voter-voted-edit": "I-edit ang mga botanteng bumoto",
+                "voter-email-tlf-edit": "I-edit ang mga field ng email/telepono ng mga botante",
+                "cloudflare-write": "I-edit ang mga patakaran sa pag-block ng bansa sa Cloudflare",
+                "transmission-report-generate": "Lumikha ng Ulat ng Transmisyon",
             },
         },
         generalSettingsScreen: {
@@ -761,6 +944,7 @@ const tagalogTranslation: TranslationType = {
                 END_ENROLLMENT_PERIOD: "Panahon ng Pagpapatala",
                 START_LOCKDOWN_PERIOD: "Simulan ang Lockdown Period",
                 END_LOCKDOWN_PERIOD: "Tapusin ang Panahon ng Lockdown",
+                ALLOW_TALLY: "Payagan ang tally",
             },
             election: {
                 label: "Halalan",
@@ -794,9 +978,16 @@ const tagalogTranslation: TranslationType = {
                 createError: "Nagkaroon ng error sa paglikha ng ulat",
                 submitError: "Error sa pagsusumite ng Ulat",
                 updateSuccess: "Matagumpay na na-update ang Ulat",
+                passwordMismatch:
+                    "Ang password at confirm password ay hindi magkatugma. Siguraduhing pareho ang password sa dalawang field.",
+                incorectPassword: "Incorrect password",
+                decryptFileTitle: "Decrypt File",
+                decryptInstructions:
+                    "1. '-in' : Ang path patungo sa naka-encrypt na file. \n2. '-out' : Ang path kung saan ise-save ang na-decrypt na file. \n3. '-pass' : Ang password na ginamit para i-encrypt ang file. \n",
             },
             reportType: {
                 BALLOT_RECEIPT: "Resibo ng Balota",
+                VOTE_RECEIPT: "Resibo ng Boto",
                 ELECTORAL_RESULTS: "Mga Resulta ng Eleksyon",
                 MANUAL_VERIFICATION: "Manwal na Pag-verify",
                 STATISTICAL_REPORT: "Ulat ng Istatistika",
@@ -807,12 +998,18 @@ const tagalogTranslation: TranslationType = {
                 OVCS_INFORMATION: "Impormasyon ng OVCS",
                 OVERSEAS_VOTERS: "Listahan ng mga botanteng nasa ibang bansa",
                 OV_USERS_WHO_VOTED: "Listahan ng mga Botanteng Nasa Ibang Bansa na Bumoto",
-                OV_USERS: "Listahan ng mga Botanteng Nasa Ibang Bansa na may Katayuan sa Pagboto",
+                OV_WITH_VOTING_STATUS:
+                    "Listahan ng mga Botanteng Nasa Ibang Bansa na may Katayuan sa Pagboto",
                 OVCS_STATISTICS: "Pagsubaybay ng Botohan sa Ibang Bansa - Estadistika ng OVCS",
                 PRE_ENROLLED_OV_BUT_DISAPPROVED:
                     "Listahan ng mga Botanteng Nasa Ibang Bansa na Naka-pre-enroll pero Hindi Naaprubahan",
                 PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
                     "Listahan ng mga Botanteng Nasa Ibang Bansa na Naka-pre-enroll pero Kailangan ng Manwal na Pagpapatunay",
+            },
+            reportEncryptionPolicy: {
+                title: "Patakaran sa Encryption",
+                UNENCRYPTED: "Hindi naka-encrypt",
+                CONFIGURED_PASSWORD: "Nakakonfig na password",
             },
             empty: {
                 header: "Wala pang mga ulat.",
@@ -893,6 +1090,7 @@ const tagalogTranslation: TranslationType = {
                 cat: "Valencian",
                 tl: "Tagalog",
                 gl: "Galego",
+                nl: "Nederlands",
             },
             channel: {
                 online: "Online",
@@ -907,6 +1105,13 @@ const tagalogTranslation: TranslationType = {
             election: "Lumikha ng Halalan",
             contest: "Lumikha ng Paligsahan",
             candidate: "Lumikha ng Kandidato",
+        },
+        importResource: {
+            electionEvent: "Mag-import ng Kaganapan ng Halalan",
+            election: "Mag-import ng Halalan",
+            contest: "Mag-import ng Paligsahan",
+            candidate: "Mag-import ng Kandidato",
+            ImportHashMismatch: "Hashes don't match. Integrity check failure.",
         },
         sideMenu: {
             electionEvents: "Mga Kaganapan ng Halalan",
@@ -951,6 +1156,7 @@ const tagalogTranslation: TranslationType = {
                             archive: "Ang item ay na-archive na",
                             unarchive: "Ang item ay na-unarchive na",
                             delete: "Ang item ay natanggal na",
+                            reloading: "Wait. Ang pahina ay na-reload na sa iba pang mga oras.",
                         },
                         error: {
                             archive: "Error habang sinusubukang i-archive ang item na ito",
@@ -1100,6 +1306,7 @@ const tagalogTranslation: TranslationType = {
                     description:
                         "Ikaw ay malapit nang lumikha ng Seremonya ng Mga Susi. Ang aksyong ito ay magpapadala ng abiso sa mga Trustee upang lumahok sa paglikha at pamamahagi ng Mga Susi ng Kaganapan sa Halalan.",
                 },
+                filterTrustees: "I-filter ang mga trustee",
             },
             ceremonyStep: {
                 cancel: "Kanselahin ang Seremonya ng Mga Susi",
@@ -1150,6 +1357,8 @@ const tagalogTranslation: TranslationType = {
                         "Mangyaring i-backup ang iyong Encrypted Private Key sa hindi bababa sa dalawang magkaibang ligtas na lokasyon at pagkatapos ay kumpirmahin ito sa ibaba:",
                     firstCopy: "Unang backup ay ligtas",
                     secondCopy: "Ikalawang backup ay ligtas",
+                    confirmError:
+                        "Gumawa ng mga kinakailangang backup at lagyan ng tsek ang mga kahon ng kumpirmasyon upang magpatuloy",
                 },
             },
             checkStep: {
@@ -1215,8 +1424,9 @@ const tagalogTranslation: TranslationType = {
                     },
                     download: {
                         title: "I-download",
-                        emlTitle: "I-download ang EML",
-                        transmissionPackageTitle: "I-download ang Pakete ng Transmisyon",
+                        emlTitle: "I-download ang EML {{date}}",
+                        transmissionPackageTitle: "I-download ang Pakete ng Transmisyon {{date}}",
+                        transmissionReportTitle: "I-download ang Ulat ng Transmisyon",
                         dialog: {
                             title: "Gusto mo bang i-download ang Pakete ng Transmisyon?",
                             description:
@@ -1241,7 +1451,7 @@ const tagalogTranslation: TranslationType = {
                     description:
                         "Maaaring pirmahan ng mga SBEI ang Pakete ng Transmisyon. Ipinapakita ng talahanayan sa ibaba ang katayuan ng pirma ng bawat isa sa mga miyembro ng SBEI.",
                     table: {
-                        trusteeName: "Pangalan ng Tagapagtiwala",
+                        trusteeName: "ID ng SBEI",
                         signed: "Napirmahan",
                     },
                     status: "{{signed}} sa {{total}} Napirmahan",
@@ -1253,6 +1463,7 @@ const tagalogTranslation: TranslationType = {
             uploadTransmissionPackageDesc:
                 "I-upload ang iyong pirma para pirmahan ang pakete ng Resulta ng Halalan. Ang operasyong ito ay opsyonal.",
             exportElectionArea: "Ipadala ang pakete ng transmisyon para sa lugar '{{name}}'",
+            generateReport: "Bumuo ng {{name}}",
             templateTitle: "Template ng Resulta",
             templateSubTitle: "Opsyonal na palitan ang template ng mga resulta.",
             keysCeremonyTitle: "Seremonya ng mga Susi",
@@ -1365,7 +1576,7 @@ const tagalogTranslation: TranslationType = {
                 history: "Kasaysayan ng Paglalathala",
             },
             action: {
-                geneateInitializationReport: "Gumawa ng Ulat sa Inisyal na Pagsisimula",
+                generateInitializationReport: "Gumawa ng Ulat sa Inisyal na Pagsisimula",
                 startVotingPeriod: "Simulan ang Pagboto",
                 stopVotingPeriod: "Itigil ang Pagboto",
                 stopKioskVotingPeriod: "Itigil ang Pagboto sa Kiosk",
@@ -1540,6 +1751,29 @@ const tagalogTranslation: TranslationType = {
                 publishSuccess: "Na-publish ang tally sheet",
             },
         },
+        application: {
+            import: {
+                title: "Mag-import ng Mga Aplikasyon",
+                subtitle: "Mag-import ng data ng mga aplikasyon",
+                paragraph:
+                    "Mag-import ng mga aplikasyon gamit ang isang spreadsheet file sa format na Comma Separated Values (CSV). Mag-download ng halimbawa ng import na CSV file dito.",
+                messages: {
+                    success: "Matagumpay na na-import ang mga aplikasyon",
+                    error: "May error sa pag-import ng mga aplikasyon",
+                },
+            },
+            export: {
+                title: "Mag-export ng Mga Aplikasyon",
+                subtitle: "Mag-export ng data ng mga aplikasyon",
+                button: "I-export",
+                paragraph:
+                    "Mag-export ng mga aplikasyon gamit ang isang spreadsheet file sa format na Comma Separated Values (CSV).",
+                messages: {
+                    success: "Matagumpay na na-export ang mga aplikasyon",
+                    error: "May error sa pag-export ng mga aplikasyon",
+                },
+            },
+        },
         template: {
             noPermissions: "Wala kang permiso na ma-access ang mga template.",
             title: "Mga Template",
@@ -1568,6 +1802,8 @@ const tagalogTranslation: TranslationType = {
             form: {
                 smsMessage: "SMS Message",
                 document: "Dokumento",
+                pdfOptions: "Mga Opsyon sa PDF",
+                reportOptions: "Mga Pagpipilian sa Ulat",
                 name: "Pangalan ng Template",
                 alias: "Alias ng Template",
                 type: "Uri ng Komunikasyon",
@@ -1576,51 +1812,49 @@ const tagalogTranslation: TranslationType = {
             type: {
                 CREDENTIALS: "Mga Kredensyal",
                 BALLOT_RECEIPT: "Resibo ng Balota",
+                VOTE_RECEIPT: "Resibo ng Boto",
                 PARTICIPATION_REPORT: "Ulat ng Partisipasyon",
                 ELECTORAL_RESULTS: "Mga Resulta ng Halalan",
                 OTP: "OTP",
                 TALLY_REPORT: "Ulat ng Pagbibilang",
                 MANUAL_VERIFICATION: "Manwal na i-verify ang botante",
                 STATISTICAL_REPORT: "Ulat na Pangkaalaman",
-                INITIALIZATION: "Ulat ng Inisyal na Proseso",
+                INITIALIZATION_REPORT: "Ulat ng Inisyal na Proseso",
                 STATUS: "Ulat ng Kalagayan",
-                TRANSMISSION_REPORTS: "Mga Ulat ng Transmisyon",
+                TRANSMISSION_REPORT: "Mga Ulat ng Transmisyon",
                 AUDIT_LOGS: "Mga Log ng Audit",
                 ACTIVITY_LOGS: "Mga Tala ng Aktibidad",
                 OVCS_INFORMATION: "Impormasyon ng OVCS",
-                OVCS_EVENTS: "Mga Kaganapan ng OVCS",
-                OVCS_STATISTICS: "Estadistika ng OVCS",
-                OV_USERS: "Mga Gumagamit ng OV",
-                OV_USERS_WHO_VOTED: "Mga Gumagamit ng OV na Bumoto",
-                OV_USERS_WHO_PRE_ENROLLED: "Mga Gumagamit ng OV na Pre-enrolled",
-                PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
-                    "Pre-enrolled na OV na Kailangan ng Manual na Pagpapatunay",
-                PRE_ENROLLED_OV_BUT_DISAPPROVED: "Pre-enrolled na OV Pero Hindi Naaprubahan",
-                OVERSEAS_VOTERS: "Mga Botanteng Nasa Ibang Bansa",
-                OVERSEAS_VOTERS_TURNOUT: "Turnout ng mga Botante sa Ibang Bansa",
-                OVERSEAS_VOTING_MONITORING_OVCS_EVENTS:
-                    "Pagsubaybay ng Pagboto sa Ibang Bansa - Mga Kaganapan ng OVCS",
-                OVERSEAS_VOTING_MONITORING_OVCS_STATISTICS:
-                    "Pagsubaybay ng Pagboto sa Ibang Bansa - Mga Estadistika ng OVCS",
-                OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_AND_SEX:
+                OVCS_EVENTS: "Pagsubaybay ng Pagboto sa Ibang Bansa - Mga Kaganapan ng OVCS",
+                OVCS_STATISTICS: "Pagsubaybay ng Pagboto sa Ibang Bansa - Mga Estadistika ng OVCS",
+                OV_WHO_VOTED: "Mga Gumagamit ng OV na Bumoto",
+                PRE_ENROLLED_OV_BUT_DISAPPROVED:
+                    "Listahan ng OV na Nagpaunang-enrol ngunit Hindi Naaprubahan",
+                LIST_OF_OVERSEAS_VOTERS: "Listahan ng mga botanteng nasa ibang bansa",
+                OV_TURNOUT_PERCENTAGE: "Turnout ng mga Botante sa Ibang Bansa",
+                OV_TURNOUT_PER_ABOARD_STATUS_SEX:
                     "Turnout ng mga Botante sa Ibang Bansa - ayon sa Kalagayan at Kasarian",
-                OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_SEX_AND_WITH_PERCENTAGE:
+                OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE:
                     "Turnout ng mga Botante sa Ibang Bansa - ayon sa Kalagayan, Kasarian at may Porsyento",
-                LIST_OF_OV_WHO_PRE_ENROLLED_APPROVED:
-                    "Listahan ng mga OV na Pre-enrolled (Inaprubahan)",
-                LIST_OF_OV_WHO_PRE_ENROLLED_BUT_SUBJECT_FOR_MANUAL_VALIDATION:
+                OV_PRE_ENROLLED_APPROVED: "Listahan ng mga OV na Pre-enrolled (Inaprubahan)",
+                PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
                     "Listahan ng mga OV na Pre-enrolled ngunit Kailangan ng Manwal na Pagpapatunay",
-                LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
-                    "Listahan ng mga OV na Hindi pa Pre-enrolled",
-                LIST_OF_OVERSEAS_VOTERS_WITH_VOTING_STATUS:
+                OV_NOT_YET_PRE_ENROLLED_LIST: "Listahan ng mga OV na Hindi pa Pre-enrolled",
+                OV_WITH_VOTING_STATUS:
                     "Listahan ng mga Botante sa Ibang Bansa na may Kalagayan ng Pagboto",
-                NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
-                    "Bilang ng mga OV na Hindi pa Pre-enrolled",
+                OV_NOT_YET_PRE_ENROLLED_NUMBER: "Bilang ng mga OV na Hindi pa Pre-enrolled",
+                BALLOT_IMAGES: "Mga Larawan ng Balota",
             },
             method: {
                 email: "Email",
                 sms: "SMS",
                 document: "Dokumento",
+            },
+            import: {
+                title: "Mag-import ng Mga Template",
+                subtitle: "Mag-import ng data ng mga template",
+                paragraph:
+                    "Mag-import ng mga template gamit ang spreadsheet file sa format na Comma Separated Values (CSV). I-download ang isang halimbawa ng import na CSV file dito.",
             },
         },
         materials: {
@@ -1655,6 +1889,23 @@ const tagalogTranslation: TranslationType = {
                     errorSaving: "Error sa pag-save ng listahan ng mga bansa",
                 },
             },
+            backupRestore: {
+                title: "Backup / Ibalik ang Tenant config",
+                backup: {
+                    label: "Backup",
+                    subtitle: "Backup ng Tenant configurations",
+                },
+                restore: {
+                    label: "Ibalik",
+                    subtitle: "Ibalik ang Tenant config",
+                    title: "Mag-import ng Mga Konfigurasyon ng Tenant",
+                    paragraph:
+                        "Mag-import ng mga konfigurasyon ng tenant, mga konfigurasyon ng Keycloak, mga role at data ng pahintulot gamit ang zip na folder.",
+                    tenantConfigOption: "Mag-import ng Mga Konfigurasyon ng Tenant",
+                    keycloakConfigOption: "Mag-import ng Mga Konfigurasyon ng Keycloak",
+                    RolesConfigOption: "Mag-import ng Mga Role at Pahintulot na Konfigurasyon",
+                },
+            },
         },
         approvalsScreen: {
             column: {
@@ -1664,16 +1915,69 @@ const tagalogTranslation: TranslationType = {
                 verificationType: "Uri ng Pag-verify",
                 createdAt: "Nilikha Noong",
                 updatedAt: "Na-update Noong",
+                verified_by: "Napatunayan Noong",
             },
-            approvalInformation: "Impormasyon ng Pag-apruba",
+            approvalRequest: "Kahilingan para sa Pag-apruba",
             title: "Mga Botante",
             subtitle: "Maghanap ng mga tumutugmang botante",
             approve: {
                 body: "Sigurado ka bang nais mong aprubahan ang botanteng ito? Hindi na mababawi ang aksyong ito.",
             },
+            reject: {
+                label: "Tanggihan ang aplikasyon",
+                confirm:
+                    "Sigurado ka bang gusto mong tanggihan ang botanteng ito? Ang aksyong ito ay hindi maaaring bawiin.",
+                message: "Isulat dito ang dahilan ng pagtanggi",
+                rejectReason: "Dahilan ng Pagtanggi",
+                messageRequired: "Kinakailangan ang mensahe ng pagtanggi para sa opsyon na 'Iba'",
+                reasons: {
+                    "undefined": "-",
+                    "insufficient-information": "Kulang na Datos",
+                    "no-matching-voter": "Walang Tumutugma na Botante",
+                    "voter-already-approved": "Naaprubahan Na",
+                    "other": "Iba Pa",
+                },
+            },
             notifications: {
                 approveError: "Error sa pag-apruba ng botante",
                 approveSuccess: "Inaprubahan ang botante",
+                rejectError: "Error sa pagtanggi ng botante",
+                rejectSuccess: "Tinanggihan ang botante",
+                VoterApprovedAlready: "Ang botante ay naaprubahan na.",
+            },
+            export: {
+                success: "Matagumpay na natapos ang pag-export ng mga aplikasyon",
+                error: "Error sa pag-export ng mga aplikasyon",
+            },
+        },
+        monitoringDashboardScreen: {
+            voters: {
+                title: "Mga Botante",
+                enrolledOverseasVoters: "Mga Botanteng Nakarehistro sa Ibang Bansa",
+                approvalStatus: "Status ng Aprobasyon: Mga Botanteng Aprobado/Di-Aprobado",
+                manuallyApproval: "Mga Botanteng Aprobado/Di-Aprobado Nang Manu-mano",
+                automaticallyApproval: "Mga Botanteng Aprobado/Di-Aprobado Nang Awtomatik",
+                authenticatedVoters: "Mga Autentikadong Botante",
+                invalidUserErrors: "Mga Error sa Hindi Valido ng Gumagamit:",
+                invalidPasswordErrors: "Mga Error sa Hindi Valido ng Password:",
+            },
+            polls: {
+                title: "Mga Botohan",
+                initializedSystems: "Mga Post na may Inisyal na Sistema",
+                votingOpened: "Mga Post na may Bukas na Pagboto",
+                votingClosed: "Mga Post na may Saradong Pagboto",
+                votingStarted: "Mga Post na may Nagsimula nang Pagboto",
+                voterTurnout: "Pagdalo ng mga Botante",
+            },
+            tally: {
+                title: "Pagbibilang",
+                activeVotesCounting: "Mga Post na may Aktibong Pagbibilang ng mga Boto",
+                generatedERs: "Mga Post na may Nabuo nang ERs",
+                transmittedResults: "Mga Post na may Naitagong Resulta",
+            },
+            testing: {
+                title: "Pagsubok",
+                testElectionVoterCount: "Bilang ng mga Botante sa Pagsubok na Halalan",
             },
         },
     },

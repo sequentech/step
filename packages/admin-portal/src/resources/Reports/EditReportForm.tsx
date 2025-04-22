@@ -4,8 +4,8 @@
 
 import SelectElection from "@/components/election/SelectElection"
 import {EReportElectionPolicy, EReportType, ReportActions, reportTypeConfig} from "@/types/reports"
-import {Typography, Autocomplete, Chip, TextField} from "@mui/material"
-import React, {useEffect, useMemo, useState} from "react"
+import {Typography, Autocomplete, Chip, TextField, Box, InputLabel} from "@mui/material"
+import React, {useContext, useEffect, useMemo, useState} from "react"
 import {
     BooleanInput,
     Create,
@@ -13,16 +13,17 @@ import {
     SaveButton,
     SelectInput,
     SimpleForm,
-    TextInput,
     Toolbar,
     useGetOne,
     useNotify,
     useInput,
     InputProps,
+    AutocompleteArrayInput,
+    choices,
 } from "react-admin"
 import SelectTemplate from "../Template/SelectTemplate"
 import {useTranslation} from "react-i18next"
-import {Sequent_Backend_Report} from "@/gql/graphql"
+import {EncryptReportMutation, Sequent_Backend_Report} from "@/gql/graphql"
 import {useMutation} from "@apollo/client"
 import {CREATE_REPORT} from "@/queries/CreateReport"
 import {UPDATE_REPORT} from "@/queries/UpdateReport"
@@ -30,6 +31,17 @@ import {ETemplateType} from "@/types/templates"
 import {useFormContext} from "react-hook-form"
 import {Cron} from "react-js-cron"
 import "react-js-cron/dist/styles.css"
+import {ENCRYPT_REPORT} from "@/queries/EncryptReport"
+import {IPermissions} from "@/types/keycloak"
+import {CustomAutocompleteArrayInput, Dialog} from "@sequentech/ui-essentials"
+import {styled} from "@mui/material/styles"
+import {AuthContext} from "@/providers/AuthContextProvider"
+import {FormStyles} from "@/components/styles/FormStyles"
+
+type Choice = {
+    id: string
+    name: string
+}
 
 interface CreateReportProps {
     close?: () => void
@@ -44,6 +56,176 @@ interface CreateReportProps {
     setEnabled?: (v: boolean) => void
 }
 
+export enum EReportEncryption {
+    UNENCRYPTED = "unencrypted",
+    CONFIGURED_PASSWORD = "configured_password",
+}
+
+const InputLabelStyle = styled(InputLabel)<{paddingTop?: boolean}>`
+    width: 135px;
+    ${({paddingTop = true}) => paddingTop && "padding-top: 15px;"}
+`
+
+const InputContainerStyle = styled(Box)`
+    display: flex;
+    gap: 12px;
+    width: 100%;
+    align-items: baseline;
+    @media (max-width: ${({theme}) => theme.breakpoints.values.sm}px) {
+        flex-direction: column;
+    }
+`
+
+const PasswordInputStyle = styled(FormStyles.PasswordInput)`
+    flex: 1;
+    margin: 0 auto;
+`
+
+interface PasswordComponentProps {
+    report?: Sequent_Backend_Report
+    setPassword: (val: string | null) => void
+    reportEncryptionPolicy?: EReportEncryption
+    setReportEncryptionPolicy: (val: EReportEncryption) => void
+}
+
+interface PasswordInputData {
+    password: string
+    confirmPassword: string
+}
+
+const getDefaultPasswordInputData = () => ({
+    password: "",
+    confirmPassword: "",
+})
+
+const PasswordComponent: React.FC<PasswordComponentProps> = ({
+    report,
+    setPassword,
+    reportEncryptionPolicy,
+    setReportEncryptionPolicy,
+}) => {
+    const {t} = useTranslation()
+    const notify = useNotify()
+    const {setValue} = useFormContext()
+    const [isDialogOpen, setIsDialogOpen] = useState<boolean>(false)
+    const [filePassword, setFilePassword] = useState<PasswordInputData>(
+        getDefaultPasswordInputData()
+    )
+
+    const reportEncryptionPolicyChoices = Object.keys(EReportEncryption).map((key) => ({
+        id: EReportEncryption[key as keyof typeof EReportEncryption],
+        name: t(`reportsScreen.reportEncryptionPolicy.${key}`),
+    }))
+
+    const onChangePolicy = (value: EReportEncryption) => {
+        if (reportEncryptionPolicy === value) {
+            return
+        }
+        if (EReportEncryption.UNENCRYPTED === value) {
+            setReportEncryptionPolicy(value)
+            setPassword(null)
+        } else {
+            setIsDialogOpen(true)
+        }
+    }
+
+    const checkIsValidPassword = () =>
+        filePassword.password === filePassword.confirmPassword && !!filePassword.password
+
+    const handleCloseDialog = (value: boolean) => {
+        const isValidPassword = checkIsValidPassword()
+        if (!value || !isValidPassword) {
+            setPassword(null)
+            setReportEncryptionPolicy(EReportEncryption.UNENCRYPTED)
+            setValue("encryption_policy", EReportEncryption.UNENCRYPTED)
+
+            if (!isValidPassword && filePassword.password) {
+                notify(t("reportsScreen.messages.passwordMismatch"), {type: "error"})
+            }
+        } else {
+            setPassword(filePassword.password)
+            setReportEncryptionPolicy(EReportEncryption.CONFIGURED_PASSWORD)
+            setValue("encryption_policy", EReportEncryption.CONFIGURED_PASSWORD)
+        }
+        setIsDialogOpen(false)
+        setFilePassword(getDefaultPasswordInputData())
+    }
+
+    const handleChangePassword = (event: React.ChangeEvent<HTMLInputElement>) => {
+        setFilePassword({
+            ...filePassword,
+            password: event.target.value,
+        })
+    }
+
+    const handleChangeConfirmPassword = (event: React.ChangeEvent<HTMLInputElement>) => {
+        setFilePassword({
+            ...filePassword,
+            confirmPassword: event.target.value,
+        })
+    }
+
+    const equalToPassword = (value: any, allValues: any) => {
+        if (!allValues.password || allValues.password.length == 0) {
+            return
+        }
+        if (value !== allValues.password) {
+            return t("usersAndRolesScreen.users.fields.passwordMismatch")
+        }
+    }
+
+    return (
+        <>
+            <SelectInput
+                label={t("reportsScreen.reportEncryptionPolicy.title")}
+                source={"encryption_policy"}
+                defaultValue={EReportEncryption.UNENCRYPTED}
+                choices={reportEncryptionPolicyChoices}
+                disabled={report?.encryption_policy === EReportEncryption.CONFIGURED_PASSWORD}
+                onChange={(event) => {
+                    onChangePolicy(event.target.value)
+                }}
+                value={reportEncryptionPolicy ?? EReportEncryption.UNENCRYPTED}
+                isRequired
+            />
+
+            <Dialog
+                variant="info"
+                open={isDialogOpen}
+                handleClose={handleCloseDialog}
+                okEnabled={checkIsValidPassword}
+                aria-labelledby="password-dialog-title"
+                title={t("electionEventScreen.export.passwordTitle")}
+                ok={t("usersAndRolesScreen.users.fields.savePassword")}
+            >
+                <InputContainerStyle>
+                    <InputLabelStyle>
+                        {t("usersAndRolesScreen.users.fields.password")}:
+                    </InputLabelStyle>
+                    <PasswordInputStyle
+                        label={false}
+                        source="password"
+                        onChange={handleChangePassword}
+                        value={filePassword.password}
+                    />
+                </InputContainerStyle>
+                <InputContainerStyle>
+                    <InputLabelStyle>
+                        {t("usersAndRolesScreen.users.fields.repeatPassword")}:
+                    </InputLabelStyle>
+                    <PasswordInputStyle
+                        label={false}
+                        source="confirmPassword"
+                        validate={equalToPassword}
+                        onChange={handleChangeConfirmPassword}
+                        value={filePassword.confirmPassword}
+                    />
+                </InputContainerStyle>
+            </Dialog>
+        </>
+    )
+}
+
 export const EditReportForm: React.FC<CreateReportProps> = ({
     close,
     tenantId,
@@ -53,27 +235,51 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
 }) => {
     const {t} = useTranslation()
     const notify = useNotify()
-
+    const [reportEncryptionPolicy, setReportEncryptionPolicy] = useState<
+        EReportEncryption | undefined
+    >(EReportEncryption.UNENCRYPTED)
     const [createReport] = useMutation(CREATE_REPORT)
     const [updateReport] = useMutation(UPDATE_REPORT)
+    const [encryptReport] = useMutation<EncryptReportMutation>(ENCRYPT_REPORT, {
+        context: {
+            headers: {
+                "x-hasura-role": IPermissions.REPORT_WRITE,
+            },
+        },
+    })
+    const [password, setPassword] = useState<string | null>(null)
 
     const [isCronActive, setIsCronActive] = useState<boolean>(false)
     const [cronValue, setCronValue] = useState<string>("00 8 * * 1,2,3,4,5")
     const [enabled, setEnabled] = useState<boolean>(false)
+    const authContext = useContext(AuthContext)
 
-    const {
-        data: report,
-        isLoading,
-        error,
-    } = useGetOne<Sequent_Backend_Report>(
+    const {data: report} = useGetOne<Sequent_Backend_Report>(
         "sequent_backend_report",
         {id: reportId},
         {enabled: isEditReport}
     )
 
+    useEffect(() => {
+        if (undefined === reportEncryptionPolicy && report?.encryption_policy) {
+            setReportEncryptionPolicy(report.encryption_policy as any)
+        }
+    }, [report?.encryption_policy, reportEncryptionPolicy])
+
     const handleSubmit = async (values: any) => {
-        const formData = {
+        let formValues = {
             ...values,
+        }
+        if ("confirmPassword" in formValues) {
+            delete formValues.confirmPassword
+        }
+        if ("password" in formValues) {
+            delete formValues.password
+        }
+
+        const formData: Partial<Sequent_Backend_Report> = {
+            ...formValues,
+            encryption_policy: reportEncryptionPolicy,
             tenant_id: tenantId,
             election_event_id: electionEventId,
             cron_config: isCronActive
@@ -81,10 +287,11 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
                       is_active: true,
                       cron_expression: cronValue,
                       email_recipients: values.cron_config.email_recipients,
+                      executer_username: authContext.username,
                   }
                 : null,
         }
-
+        let hasPassword = !!password
         try {
             if (isEditReport && reportId) {
                 await updateReport({
@@ -93,14 +300,53 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
                         set: formData,
                     },
                 })
+                if (hasPassword) {
+                    await encryptReport({
+                        variables: {
+                            electionEventId: electionEventId,
+                            reportId: reportId,
+                            password: password,
+                        },
+                        onCompleted: async (data) => {
+                            if (data.encrypt_report?.error_msg) {
+                                notify(data.encrypt_report.error_msg, {type: "error"})
+                            }
+                        },
+                        onError: (error) => {
+                            console.log(error)
+                            notify(t("reportsScreen.messages.createError"), {type: "error"})
+                        },
+                    })
+                }
                 notify(t(`reportsScreen.messages.updateSuccess`), {type: "success"})
             } else {
-                await createReport({
+                const {data: reportData} = await createReport({
                     variables: {
                         object: formData,
                     },
                 })
                 notify(t(`reportsScreen.messages.createSuccess`), {type: "success"})
+                if (reportData && hasPassword) {
+                    await encryptReport({
+                        variables: {
+                            reportId: reportData.insert_sequent_backend_report.returning[0].id,
+                            electionEventId: electionEventId,
+                            password: password,
+                        },
+                        onCompleted: (data) => {
+                            if (data.encrypt_report?.error_msg) {
+                                notify(data.encrypt_report.error_msg, {type: "error"})
+                            } else {
+                                notify(t("reportsScreen.messages.encryptSuccess"), {
+                                    type: "success",
+                                })
+                            }
+                        },
+                        onError: (error) => {
+                            notify(t("reportsScreen.messages.encryptError"), {type: "error"})
+                        },
+                    })
+                }
             }
 
             if (close) {
@@ -131,6 +377,12 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
                     cronValue={cronValue}
                     setCronValue={setCronValue}
                     setEnabled={setEnabled}
+                />
+                <PasswordComponent
+                    report={report}
+                    setPassword={setPassword}
+                    reportEncryptionPolicy={reportEncryptionPolicy}
+                    setReportEncryptionPolicy={setReportEncryptionPolicy}
                 />
             </SimpleForm>
         </Create>
@@ -193,6 +445,64 @@ interface ReportTypeInputProps extends InputProps {
     onChange?: (newValue: any) => void // Add this line
 }
 
+interface PermissionLabelsInputProps extends InputProps {
+    label?: string
+    choices?: Choice[]
+    setChoices?: React.Dispatch<React.SetStateAction<Choice[]>>
+}
+
+const PermissionLabelsInput: React.FC<PermissionLabelsInputProps> = (props) => {
+    const {field, fieldState, isRequired, id} = useInput({
+        ...props,
+        source: "permission_label",
+    })
+
+    // Initialize local choices state if not provided in props
+    const [internalChoices, setInternalChoices] = useState<Choice[]>(props.choices || [])
+    const choices = props.choices || internalChoices
+
+    // Update form value when choices change
+    const handleChange = (newValue: string[]) => {
+        field.onChange(newValue)
+        // Also update choices if needed
+        if (props.setChoices) {
+            props.setChoices(newValue.map((label) => ({id: label, name: label})))
+        }
+    }
+
+    // Handle creating new entries
+    const handleCreate = (newValue: string) => {
+        if (newValue && !choices.find((choice: Choice) => choice.id === newValue)) {
+            const newChoice = {id: newValue, name: newValue}
+            const updatedChoices = [...choices, newChoice]
+
+            // Update local state if no external state management provided
+            if (!props.setChoices) {
+                setInternalChoices(updatedChoices)
+            } else {
+                props.setChoices(updatedChoices)
+            }
+
+            // Ensure the field value includes the new item
+            const currentValue = field.value || []
+            if (!currentValue.includes(newValue)) {
+                field.onChange([...currentValue, newValue])
+            }
+        }
+        return {id: newValue, name: newValue}
+    }
+
+    return (
+        <CustomAutocompleteArrayInput
+            label={props.label ?? ""}
+            defaultValue={field.value || []}
+            onChange={handleChange}
+            onCreate={handleCreate}
+            choices={choices}
+        />
+    )
+}
+
 const ReportTypeInput: React.FC<ReportTypeInputProps> = (props) => {
     const {field, fieldState, isRequired, id} = useInput(props)
 
@@ -213,7 +523,7 @@ const ReportTypeInput: React.FC<ReportTypeInputProps> = (props) => {
             renderInput={(params) => (
                 <TextField
                     {...params}
-                    label={label}
+                    label={label ?? ""}
                     variant="outlined"
                     required={isRequired}
                     error={fieldState.invalid}
@@ -239,7 +549,7 @@ const FormContent: React.FC<CreateReportProps> = ({
 
     const [reportType, setReportType] = useState<ETemplateType | undefined>(undefined)
     const [electionId, setElectionId] = useState<string | null | undefined>(undefined)
-    const [templateId, setTemplateId] = useState<string | null | undefined>(undefined)
+    const [templateAlias, setTemplateAlias] = useState<string | null | undefined>(undefined)
     const [isCronActive, setIsCronActive] = useState<boolean>(false)
 
     const {setValue, register} = useFormContext()
@@ -253,24 +563,27 @@ const FormContent: React.FC<CreateReportProps> = ({
         setIsCronActive(report?.cron_config?.is_active || false)
         setCronValue?.(report?.cron_config?.cron_expression || "")
         setReportType(report?.report_type ? (report.report_type as ETemplateType) : undefined)
-        setTemplateId(report?.template_id || undefined)
+        setTemplateAlias(report?.template_alias || undefined)
 
-        setValue("template_id", report?.template_id || undefined)
+        setValue("template_alias", report?.template_alias || undefined)
         setValue(
             "report_type",
             report?.report_type ? (report.report_type as ETemplateType) : undefined
         )
         setValue("cron_config.email_recipients", report?.cron_config?.email_recipients || [])
+        setValue("permission_label", report?.permission_label || [])
     }, [report, setValue, setCronValue])
 
     useEffect(() => {
         doCronActive?.(isCronActive)
     }, [isCronActive, doCronActive])
 
-    const reportTypeChoices = Object.values(EReportType).map((reportType) => ({
-        id: reportType,
-        name: t(`template.type.${reportType}`),
-    }))
+    const reportTypeChoices = Object.values(EReportType)
+        .sort()
+        .map((reportType) => ({
+            id: reportType,
+            name: t(`template.type.${reportType}`),
+        }))
 
     const electionPolicy = useMemo((): EReportElectionPolicy => {
         if (!reportType) {
@@ -295,8 +608,8 @@ const FormContent: React.FC<CreateReportProps> = ({
 
     useEffect(() => {
         if (reportType) {
-            setTemplateId(null)
-            setValue("template_id", null)
+            setTemplateAlias(null)
+            setValue("template_alias", null)
             setValue("report_type", reportType)
         }
     }, [reportType, setValue])
@@ -323,9 +636,38 @@ const FormContent: React.FC<CreateReportProps> = ({
 
     const handleReportTypeChange = (newValue: ETemplateType | null) => {
         setReportType(newValue || undefined)
-        setTemplateId(null)
-        setValue("template_id", null)
+        setTemplateAlias(null)
+        setValue("template_alias", null)
         setValue("report_type", newValue)
+    }
+
+    const [permissionLabels, setPermissionLabels] = useState<string[]>([])
+
+    const [permissionLabelChoices, setPermissionLabelChoices] = useState<Choice[]>([])
+
+    useEffect(() => {
+        if (report?.permission_label) {
+            const choices = (report.permission_label as string[]).map((label) => ({
+                id: label,
+                name: label,
+            }))
+            setPermissionLabelChoices(choices)
+        }
+    }, [report?.permission_label])
+
+    const handlePermissionLabelRemoved = (value: string[]) => {
+        if (value?.length < permissionLabels?.length) {
+            setValue("permission_label", value)
+        }
+    }
+
+    const handlePermissionLabelChanged = (value: string[]) => {
+        setValue("permission_label", value)
+        setPermissionLabels(value)
+    }
+
+    const handlePermissionLabelAdded = (value: string[]) => {
+        setValue("permission_label", value)
     }
 
     return (
@@ -338,7 +680,6 @@ const FormContent: React.FC<CreateReportProps> = ({
                     ? t("reportsScreen.edit.subtitle")
                     : t("reportsScreen.create.subtitle")}
             </Typography>
-
             <ReportTypeInput
                 source="report_type"
                 label={t("template.form.type")}
@@ -346,7 +687,6 @@ const FormContent: React.FC<CreateReportProps> = ({
                 isRequired={true}
                 onChange={handleReportTypeChange}
             />
-
             <SelectElection
                 tenantId={tenantId}
                 electionEventId={electionEventId}
@@ -357,20 +697,26 @@ const FormContent: React.FC<CreateReportProps> = ({
                 isRequired={electionPolicy === EReportElectionPolicy.ELECTION_REQUIRED}
                 disabled={electionPolicy === EReportElectionPolicy.ELECTION_NOT_ALLOWED}
             />
-
             <SelectTemplate
                 tenantId={tenantId}
                 templateType={
                     reportType ? reportTypeConfig[reportType]?.associatedTemplateType : undefined
                 }
-                source={"template_id"}
+                source={"template_alias"}
                 label={t("reportsScreen.fields.template")}
-                onSelectTemplate={(templateId) => {
-                    console.log("Selected templateId:", templateId)
-                    setTemplateId(templateId)
+                onSelectTemplate={(template) => {
+                    console.log("Selected templateId:", template.alias)
+                    setTemplateAlias(template.alias)
                 }}
-                value={templateId}
+                value={templateAlias}
                 isRequired={isTemplateRequired}
+            />
+
+            <PermissionLabelsInput
+                label={t("usersAndRolesScreen.users.fields.permissionLabel")}
+                choices={permissionLabelChoices}
+                setChoices={setPermissionLabelChoices}
+                source="permission_label"
             />
 
             {canGenerateReportScheduled && (
@@ -380,7 +726,6 @@ const FormContent: React.FC<CreateReportProps> = ({
                     onChange={handleCronToggle}
                 />
             )}
-
             {isCronActive && (
                 <>
                     <Cron

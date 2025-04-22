@@ -4,13 +4,15 @@
 use super::template_renderer::*;
 use crate::postgres::reports::ReportType;
 use crate::postgres::{self};
-use crate::services::s3::get_minio_url;
 use crate::services::temp_path::*;
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
+use sequent_core::util::temp_path::*;
 
+use sequent_core::services::pdf;
+use sequent_core::services::s3::get_minio_url;
 use sequent_core::types::date_time::{DateFormat, TimeZone};
 use sequent_core::util::date_time::generate_timestamp;
 use serde::{Deserialize, Serialize};
@@ -48,25 +50,13 @@ pub struct SystemData {
 
 #[derive(Debug)]
 pub struct BallotTemplate {
-    pub tenant_id: String,
-    pub election_event_id: String,
-    pub election_id: Option<String>,
+    ids: ReportOrigins,
     pub ballot_data: Option<BallotData>,
 }
 
 impl BallotTemplate {
-    pub fn new(
-        tenant_id: String,
-        election_event_id: String,
-        election_id: Option<String>,
-        ballot_data: Option<BallotData>,
-    ) -> Self {
-        BallotTemplate {
-            tenant_id,
-            election_event_id,
-            election_id,
-            ballot_data,
-        }
+    pub fn new(ids: ReportOrigins, ballot_data: Option<BallotData>) -> Self {
+        BallotTemplate { ids, ballot_data }
     }
 }
 
@@ -84,28 +74,36 @@ impl TemplateRenderer for BallotTemplate {
     }
 
     fn prefix(&self) -> String {
-        format!("ballot_receipt_{}", self.election_event_id,)
+        format!("ballot_receipt_{}", self.ids.election_event_id,)
     }
 
     fn get_tenant_id(&self) -> String {
-        self.tenant_id.clone()
+        self.ids.tenant_id.clone()
     }
 
     fn get_election_event_id(&self) -> String {
-        self.election_event_id.clone()
+        self.ids.election_event_id.clone()
+    }
+
+    fn get_initial_template_alias(&self) -> Option<String> {
+        self.ids.template_alias.clone()
+    }
+
+    fn get_report_origin(&self) -> ReportOriginatedFrom {
+        self.ids.report_origin
     }
 
     fn get_election_id(&self) -> Option<String> {
-        self.election_id.clone()
+        self.ids.election_id.clone()
     }
 
-    #[instrument]
+    #[instrument(err, skip_all)]
     async fn prepare_user_data(
         &self,
         hasura_transaction: &Transaction<'_>,
         _keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
-        let Some(election_id) = &self.election_id else {
+        let Some(election_id) = &self.ids.election_id else {
             return Err(anyhow!("Empty election_id"));
         };
 
@@ -160,25 +158,40 @@ impl TemplateRenderer for BallotTemplate {
         })
     }
 
-    #[instrument]
+    #[instrument(err, skip_all)]
     async fn prepare_system_data(
         &self,
         rendered_user_template: String,
     ) -> Result<Self::SystemData> {
         let public_assets_path = get_public_assets_path_env_var()?;
-        let minio_endpoint_base = get_minio_url()?;
+        let minio_endpoint_base =
+            get_minio_url().with_context(|| "Error getting minio endpoint")?;
 
-        Ok(SystemData {
-            rendered_user_template,
-            file_logo: format!(
-                "{}/{}/{}",
-                minio_endpoint_base, public_assets_path, PUBLIC_ASSETS_LOGO_IMG
-            ),
-            file_qrcode_lib: format!(
-                "{}/{}/{}",
-                minio_endpoint_base, public_assets_path, PUBLIC_ASSETS_QRCODE_LIB
-            ),
-            title: "Ballot receipt - Sequentech".to_string(),
-        })
+        if pdf::doc_renderer_backend() == pdf::DocRendererBackend::InPlace {
+            Ok(SystemData {
+                rendered_user_template,
+                file_logo: format!(
+                    "{}/{}/{}",
+                    minio_endpoint_base, public_assets_path, PUBLIC_ASSETS_LOGO_IMG
+                ),
+                file_qrcode_lib: format!(
+                    "{}/{}/{}",
+                    minio_endpoint_base, public_assets_path, PUBLIC_ASSETS_QRCODE_LIB
+                ),
+                title: "Ballot receipt - Sequentech".to_string(),
+            })
+        } else {
+            // If we are rendering with a lambda, the QRCode lib is
+            // already included in the lambda container image.
+            Ok(SystemData {
+                rendered_user_template,
+                file_logo: format!(
+                    "{}/{}/{}",
+                    minio_endpoint_base, public_assets_path, PUBLIC_ASSETS_LOGO_IMG
+                ),
+                file_qrcode_lib: "/assets/qrcode.min.js".to_string(),
+                title: "Ballot receipt - Sequentech".to_string(),
+            })
+        }
     }
 }

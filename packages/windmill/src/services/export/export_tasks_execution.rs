@@ -3,13 +3,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::tasks_execution::get_tasks_by_election_event_id;
 use crate::services::database::get_hasura_pool;
-use crate::services::{
-    documents::upload_and_return_document_postgres, temp_path::write_into_named_temp_file,
-};
+use crate::services::documents::upload_and_return_document_postgres;
 use anyhow::{anyhow, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::types::hasura::core::TasksExecution;
+use sequent_core::util::temp_path::write_into_named_temp_file;
 use sequent_core::{services::keycloak::get_event_realm, types::hasura::core::Document};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};

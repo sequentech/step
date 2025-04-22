@@ -1,11 +1,9 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-
-import React from "react"
+import React, {useEffect} from "react"
 import {SxProps} from "@mui/material"
-import {AutocompleteInput, Identifier, isRequired, ReferenceInput} from "react-admin"
-import {EReportType} from "@/types/reports"
+import {AutocompleteInput, useDataProvider, useGetList, required} from "react-admin"
 import {ETemplateType} from "@/types/templates"
 
 interface SelectTemplateProps {
@@ -13,7 +11,7 @@ interface SelectTemplateProps {
     templateType: ETemplateType | undefined
     source: string
     label?: string
-    onSelectTemplate?: (templateId: string) => void
+    onSelectTemplate?: (template: {alias: string}) => void
     customStyle?: SxProps
     disabled?: boolean
     value?: string | null
@@ -31,41 +29,48 @@ const SelectTemplate = ({
     value,
     isRequired,
 }: SelectTemplateProps) => {
-    const templateFilterToQuery = (searchText: string) => {
-        if (!searchText || searchText.length === 0) {
-            return {"template.name": ""}
+    const dataProvider = useDataProvider()
+
+    const {data: templates, isLoading} = useGetList("sequent_backend_template", {
+        filter: {
+            tenant_id: tenantId,
+            type: templateType,
+        },
+        sort: {field: "template.name", order: "ASC"},
+        pagination: {page: 1, perPage: 100},
+    })
+
+    const choices = templates
+        ? templates
+              .sort((a, b) => a.alias.localeCompare(b.alias))
+              .map((template) => ({
+                  id: template.alias,
+                  name: template.template.name,
+              }))
+        : []
+
+    const handleTemplateChange = (alias: string) => {
+        if (onSelectTemplate) {
+            onSelectTemplate({alias})
         }
-        return {"template.name": searchText.trim()}
     }
 
     return (
-        <ReferenceInput
-            required
-            fullWidth={true}
-            reference="sequent_backend_template"
+        <AutocompleteInput
             source={source}
-            filter={{
-                tenant_id: tenantId,
-                type: templateType,
-            }}
-            perPage={100}
             label={label}
+            fullWidth={true}
+            choices={choices}
+            onChange={handleTemplateChange}
+            debounce={100}
+            sx={customStyle}
             disabled={disabled}
-            value={value}
-            defaultValue={value}
-            isRequired={isRequired}
-        >
-            <AutocompleteInput
-                label={label}
-                fullWidth={true}
-                optionText={(record) => record.template.name}
-                filterToQuery={templateFilterToQuery}
-                onChange={onSelectTemplate}
-                debounce={100}
-                sx={customStyle}
-                disabled={disabled}
-            />
-        </ReferenceInput>
+            validate={isRequired ? [required()] : undefined}
+            isLoading={isLoading}
+            optionValue="id"
+            optionText="name"
+            defaultValue={value || ""}
+        />
     )
 }
 

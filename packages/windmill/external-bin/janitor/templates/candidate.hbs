@@ -9,22 +9,23 @@
     "labels": null,
     "annotations": {
         "miru:candidate-id": "{{code}}",
-        "miru:candidate-name": "{{DB_CANDIDATE_NAMEONBALLOT}}",
+        "miru:candidate-name": "{{{DB_CANDIDATE_NAMEONBALLOT}}}",
         "miru:candidate-setting": "candidate",
         "miru:candidate-affiliation-id": "{{miru.candidate_affiliation_id}}",
-        "miru:candidate-affiliation-party": "{{miru.candidate_affiliation_party}}",
-        "miru:candidate-affiliation-registered-name": "{{miru.candidate_affiliation_registered_name}}"
+        "miru:candidate-affiliation-party": "{{{miru.candidate_affiliation_party}}}",
+        "miru:candidate-affiliation-registered-name": "{{{miru.candidate_affiliation_registered_name}}}"
     },
-    "name": "{{DB_CANDIDATE_NAMEONBALLOT}}",
+    "name": "{{{name_on_ballot}}}",
     "alias": null,
     "description": null,
     "type": null,
     "presentation": {
         "i18n": {
             "en": {
-                "name": "{{DB_CANDIDATE_NAMEONBALLOT}}"
+                "name": "{{{name_on_ballot}}}"
             }
-        }
+        },
+        "sort_order": {{sort_order}}
     },
     "is_public": false,
     "image_document_id": null

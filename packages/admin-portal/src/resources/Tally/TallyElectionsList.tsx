@@ -17,38 +17,21 @@ type Sequent_Backend_Election_Extended = Sequent_Backend_Election & {
     active: boolean
 }
 interface TallyElectionsListProps {
+    elections: Sequent_Backend_Election[] | undefined
     electionEventId: string
     disabled?: boolean
     update: (elections: Array<string>) => void
     keysCeremonyId: string | null
+    tallySession?: Sequent_Backend_Tally_Session
 }
 
 export const TallyElectionsList: React.FC<TallyElectionsListProps> = (props) => {
-    const {disabled, update, electionEventId, keysCeremonyId} = props
+    const {disabled, elections, update, keysCeremonyId, tallySession: tallyData} = props
 
-    const {tallyId} = useElectionEventTallyStore()
-    const [tenantId] = useTenantStore()
     const {t} = useTranslation()
     const aliasRenderer = useAliasRenderer()
 
     const [electionsData, setElectionsData] = useState<Array<Sequent_Backend_Election_Extended>>([])
-
-    const {data: tallyData} = useGetOne<Sequent_Backend_Tally_Session>(
-        "sequent_backend_tally_session",
-        {
-            id: tallyId,
-        },
-        {
-            refetchOnWindowFocus: false,
-            refetchOnReconnect: false,
-            refetchOnMount: false,
-        }
-    )
-
-    const {data: elections} = useGetList<Sequent_Backend_Election>("sequent_backend_election", {
-        pagination: {page: 1, perPage: 9999},
-        filter: {election_event_id: electionEventId, tenant_id: tenantId},
-    })
 
     const filteredElections = useMemo(() => {
         if (!keysCeremonyId || tallyData) {
@@ -60,6 +43,13 @@ export const TallyElectionsList: React.FC<TallyElectionsListProps> = (props) => 
     useEffect(() => {
         if (filteredElections) {
             const temp: Array<Sequent_Backend_Election_Extended> = (filteredElections || [])
+                .sort((a, b) => {
+                    if (a.alias && b.alias) {
+                        return a.alias.localeCompare(b.alias)
+                    } else {
+                        return a.name.localeCompare(b.name)
+                    }
+                })
                 .map((election, index) => ({
                     ...election,
                     rowId: index,

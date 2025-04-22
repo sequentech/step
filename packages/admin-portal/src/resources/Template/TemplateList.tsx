@@ -43,6 +43,7 @@ import {DownloadDocument} from "../User/DownloadDocument"
 import {ExportTemplateMutation, ImportTemplatesMutation} from "@/gql/graphql"
 import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
 import {IMPORT_TEMPLATES} from "@/queries/ImportTemplate"
+import {EIntegrityCheckError} from "@/types/templates"
 
 const TemplateEmpty = styled(Box)`
     display: flex;
@@ -74,6 +75,7 @@ export const TemplateList: React.FC = () => {
     const authContext = useContext(AuthContext)
     const [tenantId] = useTenantStore()
     const templateRead = authContext.isAuthorized(true, tenantId, IPermissions.template_READ)
+    const templateWrite = authContext.isAuthorized(true, tenantId, IPermissions.template_WRITE)
     const [openExport, setOpenExport] = useState(false)
     const [exporting, setExporting] = useState(false)
     const [exportDocumentId, setExportDocumentId] = useState<string | undefined>()
@@ -163,8 +165,19 @@ export const TemplateList: React.FC = () => {
                 variables: {
                     tenantId,
                     documentId,
+                    sha256,
                 },
             })
+            let errMsg = data?.import_templates?.error_msg
+            if (errMsg) {
+                let errType = errMsg as EIntegrityCheckError
+                if (errType == EIntegrityCheckError.HASH_MISSMATCH) {
+                    notify(t("importResource.ImportHashMismatch"), {type: "error"})
+                } else {
+                    notify("Error importing templates", {type: "error"})
+                }
+                return
+            }
             notify("Templates imported successfully", {type: "success"})
             refresh()
         } catch (err) {
@@ -179,7 +192,7 @@ export const TemplateList: React.FC = () => {
                 {t("template.empty.title")}
             </Typography>
 
-            {canWriteTenant ? (
+            {templateWrite ? (
                 <>
                     <Typography variant="body1" paragraph>
                         {t("template.empty.subtitle")}
@@ -230,6 +243,7 @@ export const TemplateList: React.FC = () => {
                         open={openDrawer}
                         setOpen={setOpenDrawer}
                         Component={<TemplateCreate close={handleCloseDrawer} />}
+                        withComponent={templateWrite}
                     />
                 }
                 empty={<Empty />}
@@ -315,9 +329,9 @@ export const TemplateList: React.FC = () => {
             <ImportDataDrawer
                 open={openImportDrawer}
                 closeDrawer={() => setOpenImportDrawer(false)}
-                title="electionEventScreen.import.title"
-                subtitle="electionEventScreen.import.subtitle"
-                paragraph="electionEventScreen.import.votersParagraph"
+                title="template.import.title"
+                subtitle="template.import.subtitle"
+                paragraph="template.import.paragraph"
                 doImport={handleImportTemplates}
                 errors={null}
             />

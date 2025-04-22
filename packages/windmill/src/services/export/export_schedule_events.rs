@@ -2,17 +2,14 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
-use crate::services::database::get_hasura_pool;
+use crate::services::documents::upload_and_return_document_postgres;
 use crate::services::providers::transactions_provider::provide_hasura_transaction;
-use crate::services::temp_path::{generate_temp_file, get_file_size};
-use crate::services::{
-    documents::upload_and_return_document_postgres, temp_path::write_into_named_temp_file,
-};
 use anyhow::Context;
 use anyhow::{anyhow, Result};
+use csv::Writer;
 use deadpool_postgres::{Client as DbClient, Transaction};
-use sequent_core::types::hasura::core::Document;
 use sequent_core::types::scheduled_event::ScheduledEvent;
+use sequent_core::util::temp_path::write_into_named_temp_file;
 use tempfile::{NamedTempFile, TempPath};
 use tracing::{event, info, instrument, Level};
 
@@ -21,61 +18,89 @@ pub async fn read_export_data(
     transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
-) -> Result<TempPath> {
+) -> Result<Vec<ScheduledEvent>> {
     // Fetch the scheduled events from the database
     let scheduled_events: Vec<ScheduledEvent> =
         find_scheduled_event_by_election_event_id(transaction, tenant_id, election_event_id)
             .await?;
 
-    let mut scheduled_events_filtered = vec![];
-    for event in &scheduled_events {
-        let mut obj = serde_json::to_value(&event).unwrap();
-        if let Some(map) = obj.as_object_mut() {
-            map.remove("id");
-            scheduled_events_filtered.push(map.clone());
-        }
-    }
-
-    // Serialize the scheduled events to a JSON string
-    let data_str = serde_json::to_string(&scheduled_events_filtered)
-        .with_context(|| "Failed to serialize scheduled events to JSON")?;
-
-    // Write the serialized data into a temporary file
-    let name = format!("scheduled_events-{}", election_event_id);
-    let (temp_path, temp_path_string, file_size) =
-        write_into_named_temp_file(&data_str.into_bytes(), &name, ".json")
-            .with_context(|| "Failed to write scheduled events into temp file")?;
-
-    Ok(temp_path)
+    Ok(scheduled_events)
 }
 
 #[instrument(err, skip(transaction))]
 pub async fn write_export_document(
+    data: Vec<ScheduledEvent>,
     transaction: &Transaction<'_>,
-    temp_file_path: TempPath,
     document_id: &str,
     tenant_id: &str,
     election_event_id: &str,
-) -> Result<Document> {
-    let temp_path_string = temp_file_path.to_str().unwrap().to_string();
+    to_upload: bool,
+) -> Result<(TempPath)> {
+    let headers = if let Some(example_event) = data.get(0) {
+        serde_json::to_value(example_event)?
+            .as_object()
+            .ok_or_else(|| anyhow!("Failed to convert ScheduledEvent to JSON object for headers"))?
+            .keys()
+            .cloned()
+            .collect::<Vec<String>>()
+    } else {
+        vec![
+            "id".to_string(),
+            "tenant_id".to_string(),
+            "election_event_id".to_string(),
+            "created_at".to_string(),
+            "stopped_at".to_string(),
+            "archived_at".to_string(),
+            "labels".to_string(),
+            "annotations".to_string(),
+            "event_processor".to_string(),
+            "cron_config".to_string(),
+            "event_payload".to_string(),
+            "task_id".to_string(),
+        ]
+    };
 
-    let file_size =
-        get_file_size(temp_path_string.as_str()).with_context(|| "Error obtaining file size")?;
+    let name = format!("scheduled_events-{}", election_event_id);
 
-    let name = format!("tasks_execution-{}", election_event_id);
+    let mut writer = Writer::from_writer(vec![]);
+    writer.write_record(&headers)?;
 
-    upload_and_return_document_postgres(
-        transaction,
-        &temp_path_string,
-        file_size,
-        "text/csv",
-        tenant_id,
-        Some(election_event_id.to_string()),
-        &name,
-        Some(document_id.to_string()),
-        false, // is_public: bool,
-    )
-    .await
+    for scheduled_event in data.clone() {
+        let values: Vec<String> = serde_json::to_value(scheduled_event)?
+            .as_object()
+            .ok_or_else(|| anyhow!("Failed to convert ScheduledEvent to JSON object"))?
+            .values()
+            .map(|value| value.to_string())
+            .collect();
+
+        writer.write_record(&values)?;
+    }
+
+    let data_bytes = writer
+        .into_inner()
+        .map_err(|e| anyhow!("Error converting writer into inner: {e:?}"))?;
+
+    // Write the serialized data into a temporary file
+    let (temp_path, temp_path_string, file_size) =
+        write_into_named_temp_file(&data_bytes, &name, ".csv")
+            .with_context(|| "Failed to write scheduled events into temp file")?;
+
+    if to_upload {
+        upload_and_return_document_postgres(
+            transaction,
+            &temp_path_string,
+            file_size,
+            "text/csv",
+            tenant_id,
+            Some(election_event_id.to_string()),
+            &name,
+            Some(document_id.to_string()),
+            false, // is_public: bool,
+        )
+        .await?;
+    }
+
+    Ok(temp_path)
 }
 
 #[instrument(err)]
@@ -90,17 +115,18 @@ pub async fn process_export(
         let election_event_id = election_event_id.to_string();
 
         Box::pin(async move {
-            // Fetch the data into a temp file instead of a vector
-            let temp_file =
+            // Fetch the data and reformat it
+            let data =
                 read_export_data(&hasura_transaction, &tenant_id, &election_event_id).await?;
 
             // Pass the temp file to the write_export_document function
             write_export_document(
+                data,
                 &hasura_transaction,
-                temp_file,
                 &document_id,
                 &tenant_id,
                 &election_event_id,
+                true,
             )
             .await?;
 

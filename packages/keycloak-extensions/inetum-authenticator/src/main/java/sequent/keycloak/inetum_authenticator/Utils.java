@@ -20,6 +20,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -65,7 +66,8 @@ public class Utils {
   public final String INETUM_CONFIRM = "inetum-confirmation.ftl";
   public final String ATTRIBUTES_TO_VALIDATE = "attributes-to-validate";
   public final String ATTRIBUTES_TO_STORE = "attributes-to-store";
-
+  public static final String TEST_MODE_ATTRIBUTE = "testMode";
+  public static final String TEST_MODE_SERVER_URL = "testModeServerUrl";
   public final String API_TRANSACTION_NEW = "/transaction/new";
 
   public final String CODE_ID = "code_id";
@@ -84,6 +86,7 @@ public class Utils {
   public final String FTL_ERROR_AUTH_INVALID = "internalInetumError";
   public final String FTL_ERROR_INVALID_SCORE = "scoringInetumError";
   public final String FTL_ERROR_INVALID_ATTRIBUTES = "attributesInetumError";
+  public final String FTL_ERROR_MAX_RETRIES = "maxRetriesError";
 
   private static final String KEYS_USERDATA = "keyUserdata";
   private static final String KEYS_USERDATA_SEPARATOR = ";";
@@ -101,21 +104,49 @@ public class Utils {
   public static final String ERROR_USER_ATTRIBUTES_NOT_UNSET_ERROR =
       "userShouldHaveUnsetAttributes";
   public static final String ERROR_USER_ATTRIBUTES_NOT_UNIQUE = "User Attributes Not Unique";
+  public static final String UPLOAD_AND_CHECK_EXCEPTION = "Exception during Upload and Check";
   public static final String PHONE_NUMBER = "phone_number";
-  public static final String PHONE_NUMBER_ATTRIBUTE = "sequent.read-only.id-mobile-number";
+  public static final String PHONE_NUMBER_ATTRIBUTE = "sequent.read-only.mobile-number";
   public static final String ID_NUMBER_ATTRIBUTE = "sequent.read-only.id-card-number";
   public static final String ID_NUMBER = "ID_number";
   public static final String USER_PROFILE_ATTRIBUTES = "user_profile_attributes";
   public static final String AUTHENTICATOR_CLASS_NAME = "authenticator_class_name";
+  public static final String SESSION_ID = "session_id";
   public static final String MAX_RETRIES = "max-retries";
   public static final String EVENT_TYPE_COMMUNICATIONS = "communications";
   public static final int DEFAULT_MAX_RETRIES = 3;
   public static final int BASE_RETRY_DELAY = 1_000;
+  public static final String ERROR_GENERATING_APPROVAL = "approvalGenerationError";
+  public static final String SDK_VERSION = "sdk-version";
+  public static final String FTL_SDK_VERSION = "sdk_version";
+  public static final String DEFAULT_SDK_VERSION = "4.0.3";
 
   String escapeJson(String value) {
     return value != null
         ? value.replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")
         : null;
+  }
+
+  public static Locale getLocale(AuthenticationFlowContext context) {
+    RealmModel realm = context.getRealm();
+    KeycloakSession session = context.getSession();
+    UserModel user = context.getUser();
+
+    Locale locale;
+    if (user != null) {
+      locale = session.getContext().resolveLocale(user);
+    } else {
+      locale = session.getContext().resolveLocale(null);
+      if (locale == null) {
+        String defaultLocale = realm.getDefaultLocale();
+        if (defaultLocale != null) {
+          locale = Locale.forLanguageTag(defaultLocale);
+        } else {
+          locale = Locale.getDefault();
+        }
+      }
+    }
+    return locale;
   }
 
   /**
@@ -134,14 +165,14 @@ public class Utils {
     // We store each key
     String keys = Utils.serializeUserdataKeys(formData.keySet());
 
-    log.info(
+    log.debug(
         "storeUserDataInAuthSessionNotes: setAuthNote(" + Utils.KEYS_USERDATA + ", " + keys + ")");
     sessionModel.setAuthNote(Utils.KEYS_USERDATA, keys);
 
     formData.forEach(
         (key, value) -> {
           String values = Utils.serializeUserdataKeys(formData.get(key));
-          log.info("storeUserDataInAuthSessionNotes: setAuthNote(" + key + ", " + values + ")");
+          log.debug("storeUserDataInAuthSessionNotes: setAuthNote(" + key + ", " + values + ")");
           sessionModel.setAuthNote(key, values);
         });
 
@@ -306,10 +337,10 @@ public class Utils {
     return null;
   }
 
-  public String buildApplicantData(KeycloakSession session, AuthenticationSessionModel authSession)
+  public Map<String, String> buildApplicantData(
+      KeycloakSession session, AuthenticationSessionModel authSession)
       throws JsonProcessingException {
     List<UPAttribute> realmsAttributes = getRealmUserProfileAttributes(session);
-    ObjectMapper om = new ObjectMapper();
     Map<String, String> applicantData = new HashMap<>();
 
     for (UPAttribute attribute : realmsAttributes) {
@@ -319,7 +350,7 @@ public class Utils {
         applicantData.put(attribute.getName(), authNoteValue);
     }
 
-    return om.writeValueAsString(applicantData);
+    return applicantData;
   }
 
   public PasswordCredentialModel buildPassword(KeycloakSession session, String rawPassword) {
@@ -355,6 +386,7 @@ public class Utils {
       builder.user(userId);
     }
     builder.detail(AUTHENTICATOR_CLASS_NAME, className);
+    builder.detail(SESSION_ID, authSession.getParentSession().getId());
   }
 
   public List<UPAttribute> getRealmUserProfileAttributes(KeycloakSession session) {

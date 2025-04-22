@@ -14,7 +14,7 @@ impl TryFrom<Row> for TemplateWrapper {
     type Error = anyhow::Error;
     fn try_from(item: Row) -> Result<Self> {
         Ok(TemplateWrapper(Template {
-            id: item.try_get::<_, Uuid>("id")?.to_string(),
+            alias: item.try_get("alias")?,
             tenant_id: item.try_get::<_, Uuid>("tenant_id")?.to_string(),
             template: item.get("template"),
             created_by: item.try_get("created_by")?,
@@ -31,16 +31,16 @@ impl TryFrom<Row> for TemplateWrapper {
 /* Returns election */
 
 #[instrument(skip(hasura_transaction), err)]
-pub async fn get_template_by_id(
+pub async fn get_template_by_alias(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
-    template_id: &str,
+    template_alias: &str,
 ) -> Result<Option<Template>> {
     let statement = hasura_transaction
         .prepare(
             r#"
             SELECT
-                id,
+                alias,
                 tenant_id,
                 template,
                 created_by,
@@ -54,16 +54,13 @@ pub async fn get_template_by_id(
                 sequent_backend.template
             WHERE
                 tenant_id = $1 AND
-                id = $2;
+                alias = $2;
             "#,
         )
         .await?;
 
     let rows: Vec<Row> = hasura_transaction
-        .query(
-            &statement,
-            &[&Uuid::parse_str(tenant_id)?, &Uuid::parse_str(template_id)?],
-        )
+        .query(&statement, &[&Uuid::parse_str(tenant_id)?, &template_alias])
         .await?;
 
     let elections: Vec<Template> = rows
@@ -94,7 +91,7 @@ pub async fn get_templates_by_tenant_id(
         .prepare(
             r#"
             SELECT
-                id,
+                alias,
                 tenant_id,
                 template,
                 created_by,
@@ -136,7 +133,7 @@ pub async fn insert_templates(
             r#"
             INSERT INTO sequent_backend.template
             (
-                id,
+                alias,
                 tenant_id,
                 template,
                 created_by,
@@ -169,7 +166,7 @@ pub async fn insert_templates(
             .execute(
                 &statement,
                 &[
-                    &Uuid::parse_str(&template.id)?,
+                    &template.alias,
                     &Uuid::parse_str(&template.tenant_id)?,
                     &template.template,
                     &template.created_by,

@@ -5,7 +5,7 @@
     <#import "template.ftl" as layout>
         <@layout.registrationLayout displayMessage=false displayCard=false; section>
             <#if section="head">
-                <link href="${url.resourcesPath}/inetum-sdk-4.0.2/assets/css/dob-styles.css" rel="stylesheet" />
+                <link href="${url.resourcesPath}/inetum-sdk-${sdk_version}/assets/css/dob-styles.css" rel="stylesheet" />
                 <link rel="preconnect" href="https://fonts.googleapis.com" />
                 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
                 <link
@@ -19,6 +19,25 @@
                     /* 24px */
                 }
                 </style>
+                <#--  Disable submit button after submit  -->
+                <script>
+                let submittingText = "${msg('ButtonSubmitting')}";
+
+                document.addEventListener("DOMContentLoaded", () => {
+                    const form = document.querySelector("form");
+                    const submitButton = form.querySelector("button[type='submit']");
+
+                    form.addEventListener("submit", (event) => {
+                        // Disable the button to prevent multiple submissions
+                        if (submitButton.disabled) {
+                            event.preventDefault(); // Prevent form submission if already clicked
+                        } else {
+                            submitButton.disabled = true;
+                            submitButton.textContent = submittingText; // Optional: Change the button text
+                        }
+                    });
+                });
+                </script>
                 <#elseif section="body">
                     <div class="dob-sdk-container dob-sdk-root-container" style="height: auto; background-color: white;">
                             <main style="margin: 32px">
@@ -38,46 +57,18 @@
                                     <#list storedAttributes as attribute>
                                         <div style="margin: 8px; 0; display: flex; flex-direction: column">
                                             <label style="font-family: Dob-Font-Bold; font-size: 16px">
-                                                ${msg(attribute["key"]
-)}
+                                                ${msg(attribute["key"])}
                                             </label>
                                             <input tabindex="1" id='${attribute["key"]}' class="${properties.kcInputClass!}" name='${attribute["key"]}' type='${attribute["type"]}' autofocus autocomplete="off"
-                                                value='${attribute["value"]}' disabled style="padding: 8px 16px; flex: 1" />
+                                                value='${attribute["value"]!"-"}' disabled style="padding: 8px 16px; flex: 1" />
                                         </div>
                                     </#list>
                                 </div>
                                 <form action="${actionUrl}" method="post">
-                                <div
-                                    style="
-                                        display: flex;
-                                        flex-direction: row;
-                                        justify-content: space-between;
-                                        margin: 4rem 0;
-                                        ">
-                                    <div
-                                        style="
-                                            flex: 1;
-                                            display: flex;
-                                            flex-direction: row;
-                                            justify-content: start;
-                                        ">
-                        
-                                        <button name="action" value="confirm" type="submit" 
-                                            style="
-                                                display: flex;
-                                                flex-direction: row;
-                                                justify-content: space-between;
-                                                align-items: center;
-                                                width: 250px;
-                                                font-family: Poppins;
-                                                font-size: 18px;
-                                                font-weight: 800;
-                                                padding: 16px 36px;
-                                                background-color: #28a745;
-                                                color: white;
-                                                border: none;
-                                                border-radius: 4px;
-                                                ">
+                                <input type="hidden" name="action" value="confirm" />
+                                <div class="confirmation-buttons-wrapper">
+                                    <div class="confirmation-buttons-container">
+                                        <button type="submit" class="confirmation-button" id="confirmation-button">
                                             <span>${msg("ButtonContinue")}</span>
                                             <svg
                                                 xmlns="http://www.w3.org/2000/svg"
@@ -94,28 +85,9 @@
                                         </button>
                                     </div>
                                     <div
-                                        style="
-                                                flex: 1;
-                                                display: flex;
-                                                flex-direction: row;
-                                                justify-content: end;
-                                            ">
+                                        class="repeat-button-container">
                                         <button onclick="location.reload(); return false;" 
-                                            style="
-                                            display: flex;
-                                            flex-direction: row;
-                                            justify-content: space-between;
-                                            align-items: center;
-                                            width: 250px;
-                                            font-family: Poppins;
-                                            font-size: 18px;
-                                            font-weight: 800;
-                                            padding: 16px 36px;
-                                            background-color: #dc3545;
-                                            color: white;
-                                            border: none;
-                                            border-radius: 4px;
-                                            ">
+                                            class="repeat-button">
                                             <span>${msg("ButtonRepeat")}</span>
                                             <svg
                                                 xmlns="http://www.w3.org/2000/svg"

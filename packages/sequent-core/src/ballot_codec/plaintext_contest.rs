@@ -11,6 +11,7 @@ pub trait PlaintextCodec {
         &self,
         plaintext: &DecodedVoteContest,
     ) -> Result<[u8; 30], String>;
+
     fn decode_plaintext_contest(
         &self,
         code: &[u8; 30],
@@ -24,6 +25,7 @@ pub trait PlaintextCodec {
         &self,
         plaintext: &DecodedVoteContest,
     ) -> Result<Vec<u8>, String>;
+
     fn decode_plaintext_contest_from_bytes(
         &self,
         bytes: &[u8],

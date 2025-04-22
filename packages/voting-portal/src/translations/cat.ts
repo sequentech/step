@@ -212,7 +212,7 @@ const catalanTranslation: TranslationType = {
             downloadButton: "Descarregar",
             step2Title: "2. Verifica la teva papereta",
             step2Description:
-                "<a class=\"link\" href='{{linkToBallotVerifier}}' target='_blank'>Accedeix al verificador del vot</a>, que s'obrirà una nova pestanya al teu navegador.",
+                "<VerifierLink>Accedeix al verificador del vot</VerifierLink>, que s'obrirà una nova pestanya al teu navegador.",
             step2HelpDialog: {
                 title: "Tutorial sobre l'Auditoria del Vot",
                 content:

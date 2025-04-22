@@ -5,13 +5,13 @@
 use crate::hasura;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool, PgConfig};
 use crate::services::export::export_users::{export_users_file, ExportBody};
-use crate::services::s3;
 use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context};
 use celery::error::TaskError;
 use deadpool_postgres::{Client as DbClient, Transaction as _};
 use sequent_core::services::keycloak;
+use sequent_core::services::s3;
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::util;
 use serde::{Deserialize, Serialize};
@@ -104,6 +104,7 @@ pub async fn export_users(
         media_type.clone(),
         temp_path.to_string_lossy().to_string(),
         None,
+        Some(name.clone()),
     )
     .await
     {
@@ -145,7 +146,7 @@ pub async fn export_users(
         media_type,
         size as i64,
         false,
-        Some(document_id),
+        Some(document_id.clone()),
     )
     .await?
     .data
@@ -155,7 +156,7 @@ pub async fn export_users(
     .returning[0];
 
     if let Some(task_execution) = &task_execution {
-        update_complete(&task_execution)
+        update_complete(&task_execution, Some(document_id.to_string()))
             .await
             .context("Failed to update task execution status to COMPLETED")?;
     }

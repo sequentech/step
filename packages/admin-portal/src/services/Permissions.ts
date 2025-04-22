@@ -126,6 +126,9 @@ const AdminOperationMap: Record<string, IPermissions> = {
     // results_election
     sequent_backend_results_election: IPermissions.TALLY_RESULTS_READ,
     sequent_backend_results_elections: IPermissions.TALLY_RESULTS_READ,
+    // results_election
+    sequent_backend_results_election_area: IPermissions.TALLY_RESULTS_READ,
+    sequent_backend_results_election_areas: IPermissions.TALLY_RESULTS_READ,
     // results_event
     sequent_backend_results_event: IPermissions.TALLY_RESULTS_READ,
     sequent_backend_results_events: IPermissions.TALLY_RESULTS_READ,

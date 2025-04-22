@@ -21,13 +21,14 @@ use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
 use windmill::services::election_event_statistics::{
     get_count_areas, get_count_distinct_voters, get_count_elections,
 };
-use windmill::services::users::{list_users, ListUsersFilter};
+use windmill::services::users::count_keycloak_enabled_users;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ElectionEventStatsInput {
     election_event_id: String,
     start_date: String,
     end_date: String,
+    user_timezone: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -128,6 +129,7 @@ pub async fn get_election_event_stats(
         &input.start_date.as_str(),
         &input.end_date.as_str(),
         None,
+        &input.user_timezone.as_str(),
     )
     .await
     .map_err(|err| {
@@ -140,33 +142,10 @@ pub async fn get_election_event_stats(
     let realm_name =
         get_event_realm(tenant_id.as_str(), input.election_event_id.as_str());
 
-    let (_, total_eligible_voters) = list_users(
-        &hasura_transaction,
-        &keycloak_transaction,
-        ListUsersFilter {
-            tenant_id: tenant_id.to_string(),
-            election_event_id: Some(input.election_event_id.to_string()),
-            election_id: None,
-            area_id: None,
-            realm: realm_name,
-            search: None,
-            first_name: None,
-            last_name: None,
-            username: None,
-            email: None,
-            limit: Some(1),
-            offset: None,
-            user_ids: None,
-            attributes: None,
-            enabled: None,
-            email_verified: None,
-            sort: None,
-            has_voted: None,
-            authorized_to_election_alias: None,
-        },
-    )
-    .await
-    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    let total_eligible_voters: i64 =
+        count_keycloak_enabled_users(&keycloak_transaction, &realm_name)
+            .await
+            .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
     Ok(Json(ElectionEventStatsOutput {
         total_distinct_voters,

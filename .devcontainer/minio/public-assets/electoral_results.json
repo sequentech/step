@@ -5,12 +5,15 @@
     "poll_clerk_name": "NAME OF POLL CLERK",
     "third_member_name": "NAME OF THIRD MEMBER",
     "app_hash": "e345de",
-    "app_version": "6.0.1-rc.7"
+    "app_version": "6.0.1-rc.7",
+    "report_hash": "N3r93NSYin/VqAiZcbrBpqcGdf7yTY/soxIoQ8eo9vHXi0rjARoxHVRU5zGmsvA550zB",
+    "results_hash": "N3r93NSYin/VqAiZcbrBpqcGdf7yTY/soxIoQ8eo9vHXi0rjARoxHVRU5zGmsvA550zB",
+    "executer_username": "User"
   },
   "reports": [
     {
       "election_id": "1",
-      "election_name": "General Election 2024",
+      "election_name": "TOKYO PE",
       "election_description": "",
       "election_dates": {
         "first_started_at": "2024-11-08T00:00:00Z",
@@ -56,8 +59,12 @@
       },
       "election_annotations": {
         "geographical_region": "Asia/Pacific",
-        "post": "Bangkok PE",
-        "clustered_precint_id": "E1"
+        "post": "Tokyo PE",
+        "clustered_precint_id": "E1",
+        "pollcenter_code": "90010001"
+      },
+      "area_annotations": {
+        "registered_voters": "10000000"
       },
       "election_event_annotations": {},
       "contest": {
@@ -204,6 +211,32 @@
             "total_count": 900000,
             "percentage_votes": 19.0,
             "winning_position": 3
+          },
+          {
+            "candidate": {
+              "id": "4",
+              "tenant_id": "1",
+              "election_event_id": "1",
+              "election_id": "",
+              "contest_id": "1",
+              "name": "Candidate D"
+            },
+            "total_count": 900000,
+            "percentage_votes": 19.0,
+            "winning_position": 3
+          },
+          {
+            "candidate": {
+              "id": "5",
+              "tenant_id": "1",
+              "election_event_id": "1",
+              "election_id": "",
+              "contest_id": "1",
+              "name": "Candidate E"
+            },
+            "total_count": 900000,
+            "percentage_votes": 19.0,
+            "winning_position": 3
           }
         ]
       },
@@ -252,8 +285,11 @@
     },
     {
       "election_id": "1",
-      "election_name": "General Election 2024",
+      "election_name": "NEW YORK PCG",
       "election_description": "",
+      "area_annotations": {
+        "registered_voters": "10000000"
+      },
       "election_dates": {
         "first_started_at": "2024-11-08T00:00:00Z",
         "last_started_at": "2024-11-08T12:00:00Z",
@@ -298,7 +334,7 @@
       },
       "election_annotations": {
         "geographical_region": "Asia/Pacific",
-        "post": "Bangkok PE",
+        "post": "New York PCG",
         "clustered_precint_id": "E1"
       },
       "election_event_annotations": {},

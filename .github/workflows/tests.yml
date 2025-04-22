@@ -12,7 +12,10 @@ on:
 jobs:
   run-tests:
     name: Run Rust tests
-    runs-on: ubuntu-latest
+    runs-on:
+      - runs-on=${{ github.run_id }}
+      - runner=2cpu-linux-x64
+      - image=ubuntu24-full-x64
     strategy:
       matrix:
         include:
@@ -26,11 +29,11 @@ jobs:
           - service: velvet
           - service: windmill
           - service: wrap-map-err
-  
+
       fail-fast: false
     steps:
       - name: Check out code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
@@ -40,14 +43,15 @@ jobs:
           components: rustfmt
           override: true
 
-      - uses: awalsh128/cache-apt-pkgs-action@latest
-        with:
-          packages: chromium protobuf-compiler libprotobuf-dev
-          version: 1.0
+      - name: Install system dependencies
+        run: |
+            sudo apt-get update
+            sudo apt-get install -y protobuf-compiler libprotobuf-dev
 
       - name: Run tests
         env:
           RUST_BACKTRACE: "full"
+          PROTOC: "/usr/bin/protoc"
           KEYCLOAK_DB__USER: "test"
           KEYCLOAK_DB__PASSWORD: "test"
           KEYCLOAK_DB__HOST: "test"

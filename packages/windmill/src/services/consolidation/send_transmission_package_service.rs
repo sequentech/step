@@ -23,17 +23,17 @@ use crate::{
     services::{
         database::get_hasura_pool,
         documents::{get_document_as_temp_file, upload_and_return_document_postgres},
-        temp_path::{generate_temp_file, get_file_size},
     },
     types::miru_plugin::{
-        MiruCcsServer, MiruDocument, MiruServerDocument, MiruTallySessionData,
-        MiruTransmissionPackageData,
+        MiruCcsServer, MiruDocument, MiruServerDocument, MiruServerDocumentStatus,
+        MiruTallySessionData, MiruTransmissionPackageData,
     },
 };
 use anyhow::{anyhow, Context, Result};
 use chrono::{Local, Utc};
 use deadpool_postgres::Client as DbClient;
 use reqwest::multipart;
+use sequent_core::util::temp_path::{generate_temp_file, get_file_size};
 use sequent_core::{
     ballot::Annotations,
     serialization::deserialize_with_path::{deserialize_str, deserialize_value},
@@ -42,7 +42,6 @@ use sequent_core::{
         ceremonies::Log,
         hasura::core::{ElectionEvent, TallySession},
     },
-    util::date_time::get_system_timezone,
 };
 use std::io::{Read, Seek};
 use std::{cmp::Ordering, path::Path};
@@ -304,8 +303,6 @@ pub async fn send_transmission_package_service(
     area_id: &str,
     tally_session_id: &str,
 ) -> Result<()> {
-    let time_zone = get_system_timezone();
-    let now_utc = Utc::now();
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
         .get()
@@ -429,12 +426,13 @@ pub async fn send_transmission_package_service(
                         .signatures
                         .clone()
                         .into_iter()
-                        .map(|signature| signature.trustee_name.clone())
+                        .map(|signature| signature.sbei_miru_id.clone())
                         .collect(),
                 );
                 new_miru_document.servers_sent_to.push(MiruServerDocument {
                     name: ccs_server.name.clone(),
                     sent_at: ISO8601::to_string(&time_now),
+                    status: MiruServerDocumentStatus::SUCCESS,
                 });
                 record_new_log(
                     tenant_id,
@@ -449,8 +447,9 @@ pub async fn send_transmission_package_service(
             }
             Err(err) => {
                 let error_str = format!("{}", err);
+                let time_now = Local::now();
                 let new_log = error_sending_transmission_package_to_ccs_log(
-                    &Local::now(),
+                    &time_now,
                     election_id,
                     &election.name,
                     area_id,
@@ -461,10 +460,15 @@ pub async fn send_transmission_package_service(
                         .signatures
                         .clone()
                         .into_iter()
-                        .map(|signature| signature.trustee_name.clone())
+                        .map(|signature| signature.sbei_miru_id.clone())
                         .collect(),
                     &error_str,
                 );
+                new_miru_document.servers_sent_to.push(MiruServerDocument {
+                    name: ccs_server.name.clone(),
+                    sent_at: ISO8601::to_string(&time_now),
+                    status: MiruServerDocumentStatus::ERROR,
+                });
                 record_new_log(
                     tenant_id,
                     election_id,
@@ -472,7 +476,7 @@ pub async fn send_transmission_package_service(
                     tally_session_id,
                     &election_event.id,
                     new_log,
-                    None,
+                    Some(new_miru_document.clone()),
                 )
                 .await?;
             }

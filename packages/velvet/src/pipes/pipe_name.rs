@@ -11,7 +11,11 @@ use strum_macros::{AsRefStr, Display, EnumString};
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, EnumString, Display, AsRefStr)]
 pub enum PipeName {
     DecodeBallots,
+    DecodeMCBallots,
     VoteReceipts,
+    BallotImages,
+    MCBallotReceipts,
+    MCBallotImages,
     DoTally,
     MarkWinners,
     GenerateReports,
@@ -39,12 +43,20 @@ pub fn deserialize_pipe<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Pi
 pub enum PipeNameOutputDir {
     #[strum(serialize = "velvet-decode-ballots")]
     DecodeBallots,
+    #[strum(serialize = "velvet-decode-mcballots")]
+    DecodeMCBallots,
     #[strum(serialize = "velvet-vote-receipts")]
     VoteReceipts,
+    #[strum(serialize = "velvet-mcballot-receipts")]
+    MCBallotReceipts,
     #[strum(serialize = "velvet-do-tally")]
     DoTally,
     #[strum(serialize = "velvet-mark-winners")]
     MarkWinners,
     #[strum(serialize = "velvet-generate-reports")]
     GenerateReports,
+    #[strum(serialize = "velvet-ballot-images")]
+    BallotImages,
+    #[strum(serialize = "velvet-mcballot-images")]
+    MCBallotImages,
 }

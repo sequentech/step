@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use super::Vault;
+use super::{Vault, VaultManagerType};
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use reqwest;
@@ -77,7 +77,11 @@ impl Vault for HashiCorpVault {
         } else {
             None
         };
-        //let read: VaultRead = unwrapped.json().await?;
         Ok(value)
+    }
+
+    #[instrument]
+    fn vault_type(&self) -> VaultManagerType {
+        VaultManagerType::HashiCorpVault
     }
 }

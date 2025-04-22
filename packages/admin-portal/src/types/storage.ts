@@ -6,4 +6,5 @@ export enum LSSelections {
     ELECTION_EVENT = "selected-election-event-id",
     ELECTION = "selected-election-id",
     CONTEST = "selected-contest-id",
+    CANDIDATE = "selected-candidate-id",
 }

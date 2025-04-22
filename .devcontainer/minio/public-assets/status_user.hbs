@@ -15,7 +15,7 @@
                     <td class="left">
                       <div>
                         <p>
-                          {{datetime from_rfc3339=date_printed output_format="%B %d, %Y %H:%M"
+                          {{datetime from_rfc3339=../execution_annotations.date_printed output_format="%B %d, %Y %H:%M"
                           with_timezone="Asia/Manila"}}
                         </p>
                       </div>
@@ -41,7 +41,7 @@
                     <div class="commission">COMMISSION ON ELECTIONS</div>
                     <!-- TODO: Use `election_date` instead -->
                     <div class="election-date">
-                      {{datetime from_rfc3339=date_printed output_format="%B %d, %Y"
+                      {{datetime from_rfc3339=../execution_annotations.date_printed output_format="%B %d, %Y"
                       with_timezone="Asia/Manila"}}
                     </div>
                     <div class="election-name">
@@ -51,8 +51,8 @@
                     <div class="voting-period">
                       Overseas Voting Period: {{datetime
                       from_rfc3339=election_dates.scheduled_event_dates.ALLOW_INIT_REPORT.scheduled_at
-                      output_format="%d %B" with_timezone="Asia/Manila"}} - {{datetime
-                      from_rfc3339=election_dates.scheduled_event_dates.ALLOW_VOTING_PERIOD_END.scheduled_at
+                      output_format="%d %B %Y" with_timezone="Asia/Manila"}} - {{datetime
+                      from_rfc3339=election_dates.scheduled_event_dates.END_VOTING_PERIOD.scheduled_at
                       output_format="%d %B %Y"
                       with_timezone="Asia/Manila"}}
                     </div>
@@ -120,11 +120,19 @@
               </td>
             </tr>
             <tr>
-              <td class="key">
+             <td class="key">
                 <strong>Clustered Precinct ID:</strong>
               </td>
               <td class="value">
-                {{sanitize_html (expr precinct_code)}}
+                {{sanitize_html (expr station_id)}}
+              </td>
+            </tr>
+            <tr>
+              <td class="key">
+                <strong>Precincts in the Cluster:</strong>
+              </td>
+              <td class="value">
+                {{sanitize_html (expr station_name)}}
               </td>
             </tr>
           </table>
@@ -174,14 +182,17 @@
     {{#each inspectors}}
     <tr class="inspector-signature">
       <td align="center">
+        <div class="box"></div>
+        <p>Right Thumbmark</p>
         <p>
           <strong class="inspector-name">{{sanitize_html (expr name)}}</strong>
-          <br /><strong>{{sanitize_html (expr role)}}</strong><br />(Signature above printed full name)
+          <br />(Signature above printed full name)
         </p>
       </td>
     </tr>
     {{/each}}
     <!-- END Main signature section -->
+
 
     <!-- Title secondary section -->
     <tr class="watchers-title">
@@ -236,7 +247,7 @@
     <tr class="qr-codes">
       <td align="center">
         <div>
-          <div class="qrcode" id="qrcode"></div>
+          <div class="qrcode" id="qrcode-{{@index}}"></div>
         </div>
       </td>
     </tr>
@@ -247,11 +258,10 @@
     <tr class="sys-info">
       <td align="center">
         <div>
-          <span class="word-break">Report hash: {{sanitize_html (expr report_hash)}}</span><br />
+          <span class="word-break">Report hash: {{sanitize_html (expr ../execution_annotations.report_hash)}}</span><br />
           <br />
-          Software version: {{sanitize_html (expr software_version)}}<br />
-          OVCS version: {{sanitize_html (expr ovcs_version)}}<br />
-          System hash: {{sanitize_html (expr system_hash)}}
+          Software version: {{sanitize_html (expr ../execution_annotations.software_version)}}<br />
+          System hash: {{sanitize_html (expr ../execution_annotations.app_hash)}}
         </div>
       </td>
     </tr>
@@ -261,8 +271,8 @@
     <tr class="report-end">
       <td align="center">
         <div>
-          <hr />
           <p>End of Report</p>
+          <hr />
         </div>
       </td>
     </tr>
@@ -270,12 +280,25 @@
   </table>
   <!-- MAIN section -->
 </div>
-<script>
-  const qrcode = new QRCode(document.getElementById("qrcode"), {
-    text:
-      "REPUBLIC OF PHILIPPINES. COMMISSION ON ELECTIONS. TRANSSMISSION REPORTS",
-    width: 240, height: 240, colorDark: '#000000', colorLight: '#ffffff',
-    correctLevel: QRCode.CorrectLevel.M,
-  });
-</script>
 {{/each}}
+<script>
+ window.onload = function () {
+      let reportHash = '{{expr execution_annotations.report_hash}}'
+      let systemHash = '{{expr execution_annotations.app_hash}}';
+      let softwareVersion = '{{expr execution_annotations.software_version}}';
+      let ovcsVersion = '{{expr execution_annotations.app_version}}';
+      let date = `{{datetime from_rfc3339=execution_annotations.date_printed output_format="%B %d, %Y %H:%M" with_timezone="Asia/Manila"}}`
+      let user = '{{expr execution_annotations.executer_username}}'
+      const areaData = {{{to_json areas}}};
+      areaData.forEach((area, index) => {
+        const qrcodeDiv = document.getElementById(`qrcode-${index}`);
+        if (qrcodeDiv) {
+             new QRCode(qrcodeDiv, {
+            text:`STATUS REPORT: report hash:${reportHash}, system hash: ${systemHash}, software version: ${softwareVersion}, ovcs version: ${ovcsVersion}, date and time: ${date}, user who generated: ${user}`,
+            width: 180, height: 180, colorDark: '#000000', colorLight: '#ffffff',
+            correctLevel: QRCode.CorrectLevel.M,
+          });
+        }
+      });
+  };
+</script>

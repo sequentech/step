@@ -6,37 +6,26 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <#import "template.ftl" as layout>
 <@layout.registrationLayout displayInfo=true; section>
-	<#if section = "header">
-        <div>
-            <div>
-                <#if address??>
-                    <div>
-                        <#if isOtl>
-                            ${msg("messageOtp.otl.address")}
-                        <#else>
-                            ${msg("messageOtp.auth.address")}
-                        </#if>
-                    </div>
-                    <div>
-                        ${address}
-                    </div>
-                <#else>
-                    <#if isOtl>
-                        ${msg("messageOtp.otl.title", realm.displayName)}
-                    <#else>
-                        ${msg("messageOtp.auth.title", realm.displayName)}
-                    </#if>
-                </#if>
-            </div>
-        </div>
-    <#elseif section = "show-username">
+    <#if section = "header" || section = "show-username">
         <h1>
             <#if isOtl>
-                ${msg("messageOtp.otl.title", realm.displayName)}
+                ${msg("messageOtp.otl.title")}
             <#else>
-                ${msg("messageOtp.auth.title", realm.displayName)}
+                ${msg("messageOtp.auth.title")}
             </#if>
         </h1>
+        <#-- the following already declared at template.ftl for "show-username" case. --->
+        <#if section = "header" && section != "show-username">
+            <div id="kc-username" class="${properties.kcFormGroupClass!}">
+                <label id="kc-attempted-username">${address}</label>
+                <a id="reset-login" href="${url.loginRestartFlowUrl}" aria-label="${msg("restartRegistrationTooltip")}">
+                    <div class="kc-login-tooltip">
+                        <i class="${properties.kcResetFlowIcon!}"></i>
+                        <span class="kc-tooltip-text">${msg("restartRegistrationTooltip")}</span>
+                    </div>
+                </a>
+            </div>
+        </#if>
 	<#elseif section = "form">
 		<form
 			id="kc-message-code-login-form"

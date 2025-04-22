@@ -5,8 +5,14 @@ insert_permissions:
     - comment: ""
       permission:
           check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - permission_label:
+                              _is_null: true
+                        - permission_label:
+                              _contained_in: X-Hasura-Permission-Labels
           columns:
               - annotations
               - area_ids
@@ -42,6 +48,8 @@ insert_permissions:
               - id
               - keys_ceremony_id
               - tenant_id
+              - permission_label
+              - tally_type
       role: service-account
 select_permissions:
     - comment: ""
@@ -60,12 +68,19 @@ select_permissions:
               - keys_ceremony_id
               - labels
               - last_updated_at
+              - permission_label
               - tally_type
               - tenant_id
               - threshold
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - permission_label:
+                              _is_null: true
+                        - permission_label:
+                              _contained_in: X-Hasura-Permission-Labels
       role: admin-ceremony
     - comment: ""
       permission:
@@ -83,31 +98,40 @@ select_permissions:
               - keys_ceremony_id
               - labels
               - last_updated_at
+              - permission_label
               - tally_type
               - tenant_id
               - threshold
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - permission_label:
+                              _is_null: true
+                        - permission_label:
+                              _contained_in: X-Hasura-Permission-Labels
       role: admin-user
     - comment: ""
       permission:
           allow_aggregations: true
           columns:
-              - area_ids
-              - election_ids
-              - is_execution_completed
-              - threshold
               - annotations
+              - area_ids
               - configuration
-              - labels
-              - execution_status
               - created_at
-              - last_updated_at
               - election_event_id
+              - election_ids
+              - execution_status
               - id
+              - is_execution_completed
               - keys_ceremony_id
+              - labels
+              - last_updated_at
+              - permission_label
+              - tally_type
               - tenant_id
+              - threshold
           filter: {}
       role: service-account
     - comment: ""
@@ -126,19 +150,32 @@ select_permissions:
               - keys_ceremony_id
               - labels
               - last_updated_at
+              - permission_label
               - tally_type
               - tenant_id
               - threshold
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - permission_label:
+                              _is_null: true
+                        - permission_label:
+                              _contained_in: X-Hasura-Permission-Labels
       role: trustee-ceremony
 update_permissions:
     - comment: ""
       permission:
           check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - permission_label:
+                              _is_null: true
+                        - permission_label:
+                              _contained_in: X-Hasura-Permission-Labels
           columns:
               - annotations
               - area_ids
@@ -177,5 +214,7 @@ update_permissions:
               - id
               - keys_ceremony_id
               - tenant_id
+              - permission_label
+              - tally_type
           filter: {}
       role: service-account

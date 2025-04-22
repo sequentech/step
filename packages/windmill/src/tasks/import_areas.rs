@@ -5,18 +5,15 @@
 use crate::postgres::area::insert_areas;
 use crate::postgres::area_contest::insert_area_contests;
 use crate::postgres::contest::export_contests;
-use crate::{
-    postgres::document::get_document,
-    services::{database::get_hasura_pool, documents::get_document_as_temp_file},
-};
+use crate::{postgres::document::get_document, services::documents::get_document_as_temp_file};
 use anyhow::{anyhow, Context, Result};
 use csv::StringRecord;
-use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
 use sequent_core::types::hasura::core::Area;
 use sequent_core::types::hasura::core::AreaContest;
+use sequent_core::util::integrity_check::{integrity_check, HashFileVerifyError};
 use std::io::Seek;
-use tracing::instrument;
+use tracing::{error, info, instrument};
 use uuid::Uuid;
 
 #[instrument(err)]
@@ -25,24 +22,47 @@ pub async fn import_areas_task(
     tenant_id: String,
     election_event_id: String,
     document_id: String,
+    sha256: Option<String>,
 ) -> Result<()> {
-    let document = get_document(&hasura_transaction, &tenant_id, None, &document_id)
+    let document = get_document(hasura_transaction, &tenant_id, None, &document_id)
         .await
         .with_context(|| "Error obtaining the document")?
         .ok_or(anyhow!("document not found"))?;
 
     // TODO: remove
-    let contests = export_contests(&hasura_transaction, &tenant_id, &election_event_id).await?;
+    let contests = export_contests(hasura_transaction, &tenant_id, &election_event_id).await?;
 
     let mut temp_file = get_document_as_temp_file(&tenant_id, &document).await?;
     temp_file.rewind()?;
+
+    match sha256 {
+        Some(hash) if !hash.is_empty() => match integrity_check(&temp_file, hash) {
+            Ok(_) => {
+                info!("Hash verified !");
+            }
+            Err(HashFileVerifyError::HashMismatch(input_hash, gen_hash)) => {
+                let err_str = format!("Failed to verify the integrity: Hash of voters file: {gen_hash} does not match with the input hash: {input_hash}");
+                return Err(anyhow!(err_str));
+            }
+            Err(err) => {
+                let err_str = format!("Failed to verify the integrity: {err:?}");
+                error!("{err_str}");
+                return Err(anyhow!(err_str));
+            }
+        },
+        _ => {
+            info!("No hash provided, skipping integrity check");
+        }
+    }
+
     // Read the first line of the file to get the columns
     let mut rdr = csv::ReaderBuilder::new()
         .delimiter(b',')
         .has_headers(false)
         .from_reader(temp_file);
 
-    let headers = StringRecord::from(vec![
+    // For reference:
+    let _headers = StringRecord::from(vec![
         "EMB_ID",
         "CTRY_CODE",
         "EMB_CODE",
@@ -89,9 +109,9 @@ pub async fn import_areas_task(
         };
     }
 
-    insert_areas(&hasura_transaction, &areas).await?;
+    insert_areas(hasura_transaction, &areas).await?;
     insert_area_contests(
-        &hasura_transaction,
+        hasura_transaction,
         &tenant_id,
         &election_event_id,
         &area_contests,

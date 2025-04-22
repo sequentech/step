@@ -2,46 +2,92 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::postgres::election::get_election_by_id;
 use crate::postgres::election_event::{
     get_election_event_by_id, update_election_event_presentation,
 };
-use crate::postgres::keycloak_realm;
 use crate::postgres::scheduled_event::*;
-use crate::services::database::{get_hasura_pool, get_keycloak_pool};
-use crate::services::pg_lock::PgLock;
 use crate::services::providers::transactions_provider::provide_hasura_transaction;
 use crate::services::voting_status::{self};
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context, Result as AnyhowResult};
 use async_trait::async_trait;
 use celery::error::TaskError;
-use chrono::Duration;
-use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
-use sequent_core::ballot::{
-    ElectionEventPresentation, ElectionPresentation, Enrollment, InitReport, VotingStatus,
-};
+use sequent_core::ballot::{ElectionEventPresentation, Enrollment};
 use sequent_core::serialization::deserialize_with_path::{self, deserialize_value};
-use sequent_core::services::date::ISO8601;
-use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm, KeycloakAdminClient};
+use sequent_core::services::keycloak::{get_event_realm, KeycloakAdminClient};
 use sequent_core::types::scheduled_event::*;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use tracing::{error, event, info, Level};
-use uuid::Uuid;
 
-pub async fn update_keycloak(scheduled_event: &ScheduledEvent) -> Result<()> {
-    let enable_enrollment =
-        scheduled_event.event_processor == Some(EventProcessors::START_ENROLLMENT_PERIOD);
-
-    let Some(ref tenant_id) = scheduled_event.tenant_id else {
+pub async fn update_keycloak_otp(
+    tenant_id: Option<String>,
+    election_event_id: Option<String>,
+    new_otp_state: String,
+) -> Result<()> {
+    let Some(ref tenant_id) = tenant_id else {
         return Ok(());
     };
+
+    let realm_name = get_event_realm(
+        tenant_id,
+        election_event_id
+            .as_ref()
+            .ok_or_else(|| anyhow!("Missing election_event_id"))?,
+    );
+
+    // Define authentication flows to update
+    let authentication_flows = vec![
+        "comelec-registration",
+        "sequent browser flow",
+        "reset credentials",
+    ];
+
+    // Loop through each flow to update its execution
+    for flow_name in authentication_flows {
+        let keycloak_client = KeycloakAdminClient::new().await?;
+        let pub_client = KeycloakAdminClient::pub_new().await?;
+
+        let flow_executions = keycloak_client
+            .get_flow_executions(&pub_client, &realm_name, flow_name)
+            .await
+            .with_context(|| format!("Error fetching flow executions for '{}'", flow_name))?;
+
+        for mut execution in flow_executions {
+            if execution.provider_id.as_deref() == Some("message-otp-authenticator") {
+                execution.requirement = Some(new_otp_state.clone());
+
+                keycloak_client
+                    .upsert_flow_execution(
+                        &pub_client,
+                        &realm_name,
+                        flow_name,
+                        &serde_json::to_string(&execution)?,
+                    )
+                    .await
+                    .with_context(|| {
+                        format!("Error updating flow execution for '{}'", flow_name)
+                    })?;
+            }
+        }
+    }
+
+    Ok(())
+}
+
+pub async fn update_keycloak_enrollment(
+    tenant_id: Option<String>,
+    election_event_id: Option<String>,
+    enable_enrollment: bool,
+) -> Result<()> {
+    let Some(ref tenant_id) = tenant_id else {
+        return Ok(());
+    };
+
     let realm_name = get_event_realm(
         &tenant_id,
-        scheduled_event
-            .election_event_id
+        election_event_id
             .as_ref()
             .ok_or("scheduled event missing election_event_id")?
             .as_str(),
@@ -51,7 +97,8 @@ pub async fn update_keycloak(scheduled_event: &ScheduledEvent) -> Result<()> {
     let other_client = KeycloakAdminClient::pub_new().await?;
     let mut realm = keycloak_client
         .get_realm(&other_client, &realm_name)
-        .await?;
+        .await
+        .with_context(|| "Error obtaining realm")?;
     realm.registration_allowed = Some(enable_enrollment);
 
     let keycloak_client = KeycloakAdminClient::new().await?;
@@ -59,12 +106,9 @@ pub async fn update_keycloak(scheduled_event: &ScheduledEvent) -> Result<()> {
         .upsert_realm(
             &realm_name,
             &serde_json::to_string(&realm)?,
-            scheduled_event
-                .tenant_id
-                .as_ref()
-                .ok_or("scheduled event missing tenant_id")?
-                .as_str(),
+            &tenant_id,
             false,
+            None,
             None,
         )
         .await?;
@@ -103,7 +147,12 @@ pub async fn manage_election_event_enrollment_wrapped(
             .await
             .with_context(|| "Error obtaining election by id")?;
 
-    update_keycloak(&scheduled_event).await?;
+    update_keycloak_enrollment(
+        scheduled_event.tenant_id.clone(),
+        scheduled_event.election_event_id.clone(),
+        enable_enrollment.clone(),
+    )
+    .await?;
 
     if let Some(election_event_presentation) = election_event.presentation {
         let election_event_presentation = ElectionEventPresentation {

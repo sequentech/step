@@ -877,6 +877,7 @@ const galegoTranslation: TranslationType = {
                 cat: "Valenciano",
                 tl: "Tagalo",
                 gl: "Galego",
+                nl: "Holandés",
             },
             channel: {
                 online: "En Liña",

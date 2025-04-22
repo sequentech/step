@@ -20,7 +20,9 @@ impl TryFrom<Row> for TallySessionContestWrapper {
             tenant_id: item.try_get::<_, Uuid>("tenant_id")?.to_string(),
             election_event_id: item.try_get::<_, Uuid>("election_event_id")?.to_string(),
             area_id: item.try_get::<_, Uuid>("area_id")?.to_string(),
-            contest_id: item.try_get::<_, Uuid>("contest_id")?.to_string(),
+            contest_id: item
+                .try_get::<_, Option<Uuid>>("contest_id")?
+                .map(|val| val.to_string()),
             session_id: item.try_get("session_id")?,
             created_at: item.get("created_at"),
             last_updated_at: item.get("last_updated_at"),
@@ -38,11 +40,13 @@ pub async fn insert_tally_session_contest(
     tenant_id: &str,
     election_event_id: &str,
     area_id: &str,
-    contest_id: &str,
+    contest_id: Option<String>,
     session_id: BatchNumber,
     tally_session_id: &str,
     election_id: &str,
 ) -> Result<TallySessionContest> {
+    let contest_uuid = contest_id.map(|val| Uuid::parse_str(&val)).transpose()?;
+
     let statement = hasura_transaction
         .prepare(
             r#"
@@ -70,7 +74,7 @@ pub async fn insert_tally_session_contest(
                 &Uuid::parse_str(tenant_id)?,
                 &Uuid::parse_str(election_event_id)?,
                 &Uuid::parse_str(area_id)?,
-                &Uuid::parse_str(contest_id)?,
+                &contest_uuid,
                 &(session_id as i32),
                 &Uuid::parse_str(tally_session_id)?,
                 &Uuid::parse_str(election_id)?,
@@ -137,4 +141,59 @@ pub async fn get_tally_session_highest_batch(
         return Ok(0);
     };
     Ok(value + 1)
+}
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn get_tally_session_contests(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    tally_session_id: &str,
+) -> Result<Vec<TallySessionContest>> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT
+                    id,
+                    tenant_id,
+                    election_event_id,
+                    election_id,
+                    area_id,
+                    contest_id,
+                    session_id,
+                    created_at,
+                    last_updated_at,
+                    labels,
+                    annotations,
+                    tally_session_id
+                FROM
+                    sequent_backend.tally_session_contest
+                WHERE
+                    tenant_id = $1 AND
+                    election_event_id = $2 AND
+                    tally_session_id = $3;
+            "#,
+        )
+        .await?;
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(election_event_id)?,
+                &Uuid::parse_str(tally_session_id)?,
+            ],
+        )
+        .await
+        .map_err(|err| anyhow!("Error getting tally session contests rows: {}", err))?;
+
+    let values: Vec<TallySessionContest> = rows
+        .into_iter()
+        .map(|row| -> Result<TallySessionContest> {
+            row.try_into()
+                .map(|res: TallySessionContestWrapper| -> TallySessionContest { res.0 })
+        })
+        .collect::<Result<Vec<TallySessionContest>>>()?;
+
+    Ok(values)
 }

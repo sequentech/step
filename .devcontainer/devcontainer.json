@@ -6,7 +6,24 @@
 	"name": "step",
 	"dockerComposeFile": "docker-compose.yml",
 	"service": "devcontainer",
-	"forwardPorts": [9002, 9001, 9000, 8090, 8080, 8000, 8400, 8200, 8201, 6379, 3000, 3002, 3322, 3323, 3324, 3325, 5672, 15672, 8888, 8083, 50051],
+	"forwardPorts": [
+		"minio-proxy:9002",
+		"minio:9001",
+		"minio:9000",
+		"keycloak:8090",
+		"hasura:8080",
+		"vault:8200",
+		"vault:8201",
+		"immudb:3322",
+		"immudb:3324",
+		"immudb:3325",
+		"rabbitmq:5672",
+		"rabbitmq:15672",
+		"b3:50051"
+	],
+
+
+
 
 	// Fixes usage of LOCAL_WORKSPACE_FOLDER. See:
 	// https://github.com/microsoft/vscode-remote-release/issues/6844#issuecomment-1252288457
@@ -26,7 +43,7 @@
 
 	"onCreateCommand": "direnv allow && devenv shell bash -- -c './.devcontainer/scripts/fix-vscode-settings-nix.sh'",
 	"updateContentCommand": "direnv allow && devenv shell bash -- -c './.devcontainer/scripts/fix-vscode-settings-nix.sh'",
-	"postCreateCommand":"direnv allow && devenv shell bash -- -c './.devcontainer/scripts/init-cli.sh'",
+	"postCreateCommand": "direnv allow && devenv shell bash -- -c './.devcontainer/scripts/init-cli.sh'",
 
 	// Adding host requirements so that there is no need to manually select the
 	// machine to run on all the time
@@ -92,7 +109,13 @@
 				"eamodio.gitlens",
 
 				// HTML preview
-				"george-alisson.html-preview-vscode"
+				"george-alisson.html-preview-vscode",
+
+				// Python
+				"ms-python.python",
+
+				// Useful to check interactions with keyloak´s DB or other SQL databases
+				"cweijan.vscode-database-client2"
     		]
 		},
 		"devpod": {

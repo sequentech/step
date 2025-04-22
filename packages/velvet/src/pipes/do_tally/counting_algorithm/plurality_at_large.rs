@@ -92,6 +92,7 @@ fn calculate_overvotes(vote: &DecodedVoteContest, contest: &Contest) -> u64 {
     }
 }
 
+#[instrument(skip_all)]
 pub fn update_extended_metrics(
     vote: &DecodedVoteContest,
     current_metrics: &ExtendedMetricsContest,
@@ -118,7 +119,7 @@ pub fn update_extended_metrics(
 }
 
 impl CountingAlgorithm for PluralityAtLarge {
-    #[instrument(skip_all)]
+    #[instrument(err, skip_all)]
     fn tally(&self) -> Result<ContestResult> {
         let contest = &self.tally.contest;
         let votes = &self.tally.ballots;

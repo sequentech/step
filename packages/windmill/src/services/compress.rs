@@ -2,12 +2,12 @@
 // SPDX-FileCopyrightText: 2024 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::services::temp_path::generate_temp_file;
 use crate::types::error::Result;
 use anyhow::Context;
 use flate2::read::GzDecoder;
 use flate2::write::GzEncoder;
 use flate2::Compression;
+use sequent_core::util::temp_path::generate_temp_file;
 use std::fs::File;
 use std::path::Path;
 use tempfile::{tempdir, TempDir, TempPath};

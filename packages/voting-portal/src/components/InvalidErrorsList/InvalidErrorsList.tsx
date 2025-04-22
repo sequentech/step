@@ -14,6 +14,8 @@ import {
     IContest,
     EBlankVotePolicy,
     EUnderVotePolicy,
+    EElectionEventContestEncryptionPolicy,
+    BallotSelection,
 } from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import {Box} from "@mui/material"
@@ -35,6 +37,7 @@ export interface IInvalidErrorsListProps {
     setIsInvalidWriteIns: (input: boolean) => void
     setDecodedContests: (input: IDecodedVoteContest) => void
     isReview: boolean
+    errorSelectionState: BallotSelection
 }
 
 export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
@@ -45,29 +48,27 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
     setIsInvalidWriteIns,
     setDecodedContests,
     isReview,
+    errorSelectionState,
 }) => {
     const {t} = useTranslation()
     // Note that if we have reviewed, then we can asume we have touched
     const [isTouched, setIsTouched] = useState(isReview)
-    const [decodedContestSelection, setDecodedContestSelection] = useState<
-        IDecodedVoteContest | undefined
-    >(undefined)
-    const [filteredSelection, setFilteredSelection] = useState<IDecodedVoteContest | undefined>(
-        undefined
-    )
-    const selectionState = useAppSelector(
-        selectBallotSelectionByElectionId(ballotStyle.election_id)
-    )
     const {electionId} = useParams<{electionId?: string}>()
     const isVotedState = useAppSelector(isVotedByElectionId(electionId))
-    const {interpretContestSelection, getWriteInAvailableCharacters} = provideBallotService()
-    const contestSelection = useMemo(
-        () => selectionState?.find((contest) => contest.contest_id === question.id),
-        [selectionState]
-    )
+    const {
+        interpretContestSelection,
+        interpretMultiContestSelection,
+        getWriteInAvailableCharacters,
+    } = provideBallotService()
 
-    let under_vote_policy = question?.presentation?.under_vote_policy ?? ""
-    let blank_vote_policy = question?.presentation?.blank_vote_policy ?? ""
+    let under_vote_policy: EUnderVotePolicy | undefined =
+        question?.presentation?.under_vote_policy ?? undefined
+    let blank_vote_policy: EBlankVotePolicy | undefined =
+        question?.presentation?.blank_vote_policy ?? undefined
+
+    const decodedContestSelection = errorSelectionState.find(
+        (selection) => selection.contest_id === question.id
+    )
 
     const containsError = (state: IDecodedVoteContest | undefined, message: string) => {
         if (!state) return false
@@ -77,7 +78,14 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
         )
     }
 
-    const filterErrorList = (state: IDecodedVoteContest | undefined) => {
+    const filterErrorList = (
+        state: IDecodedVoteContest | undefined,
+        isTouched: boolean,
+        isVotedState: boolean,
+        isReview: boolean,
+        under_vote_policy?: EUnderVotePolicy,
+        blank_vote_policy?: EBlankVotePolicy
+    ) => {
         if (!state) return undefined
         var ret = {
             ...state,
@@ -167,25 +175,25 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
         return ret
     }
 
-    useEffect(() => {
-        if (isTouched || !contestSelection) {
-            return
-        }
-        let hasTouched = contestSelection?.choices.some((choice) => choice.selected > -1)
-        if (hasTouched) {
-            setIsTouched(true)
-        }
-    }, [contestSelection, isTouched])
-
-    useEffect(() => {
-        let state =
-            contestSelection && interpretContestSelection(contestSelection, ballotStyle.ballot_eml)
-        let prevState = decodedContestSelection
-        setDecodedContestSelection(state)
-        if (prevState != state) {
-            setFilteredSelection((_) => filterErrorList(state))
-        }
-    }, [contestSelection, isReview, isTouched, isVotedState])
+    const filteredSelection = useMemo(
+        () =>
+            filterErrorList(
+                decodedContestSelection,
+                isTouched,
+                isVotedState,
+                isReview,
+                under_vote_policy,
+                blank_vote_policy
+            ),
+        [
+            decodedContestSelection,
+            isTouched,
+            isVotedState,
+            isReview,
+            under_vote_policy,
+            blank_vote_policy,
+        ]
+    )
 
     useEffect(() => {
         if (decodedContestSelection) {
@@ -193,9 +201,19 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
         }
     }, [decodedContestSelection])
 
+    useEffect(() => {
+        if (isTouched || !decodedContestSelection) {
+            return
+        }
+        let hasTouched = decodedContestSelection?.choices.some((choice) => choice.selected > -1)
+        if (hasTouched) {
+            setIsTouched(true)
+        }
+    }, [decodedContestSelection, isTouched])
+
     const numAvailableChars =
-        hasWriteIns && contestSelection
-            ? getWriteInAvailableCharacters(contestSelection, ballotStyle.ballot_eml)
+        hasWriteIns && decodedContestSelection
+            ? getWriteInAvailableCharacters(decodedContestSelection, ballotStyle.ballot_eml)
             : 0
 
     useEffect(() => {
