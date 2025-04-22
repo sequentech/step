@@ -520,7 +520,7 @@ pub async fn get_file_from_s3(
 pub async fn get_files_from_s3(
     s3_bucket: String,
     prefix: String,
-) -> Result<Vec<PathBuf>> {
+) -> Result<(Vec<PathBuf>, Vec<String>)> {
     let config = get_s3_aws_config(true)
         .await
         .with_context(|| "Error getting s3 aws config")?;
@@ -529,22 +529,36 @@ pub async fn get_files_from_s3(
         .with_context(|| "Error getting s3 client")?;
 
     let mut file_paths = Vec::new();
+    let mut document_ids = Vec::new();
 
     let result = client
         .list_objects_v2()
-        .bucket(s3_bucket.clone())
-        .prefix(prefix.clone())
+        .bucket(&s3_bucket)
+        .prefix(&prefix)
         .send()
         .await?;
 
     for object in result.contents().iter() {
         let key = object.key().unwrap();
 
+        println!("key: {:?}", key);
+
         if !key.contains("export") {
-            // Get the object from S3
+            // Extract file name and document ID
+            let parts: Vec<&str> = key.split('/').collect();
+            let file_name = parts.last().unwrap();
+            let document_id = parts.iter().find_map(|part| {
+                if part.starts_with("document-") {
+                    Some(part.trim_start_matches("document-").to_string())
+                } else {
+                    None
+                }
+            });
+            
+            // Get object from S3
             let s3_object = client
                 .get_object()
-                .bucket(s3_bucket.clone())
+                .bucket(&s3_bucket)
                 .key(key)
                 .send()
                 .await?;
@@ -552,15 +566,22 @@ pub async fn get_files_from_s3(
             let stream = s3_object.body;
             let file_data = ByteStream::collect(stream).await?.into_bytes();
 
-            // Create a temporary file to store the downloaded S3 file
-            let file_name = key.split('/').last().unwrap();
-            let file_path = Path::new(&env::temp_dir()).join(file_name);
-            let mut temp_file = File::create(&file_path)?;
+            // Create a temp file with the document ID in the name
+            let renamed_file = match document_id.clone(){
+                Some(document_id) => format!("document_{document_id}_{}", file_name),
+                None => file_name.to_string(),
+            };
+            let file_path = env::temp_dir().join(&renamed_file);
 
+            let mut temp_file = File::create(&file_path)?;
             temp_file.write_all(&file_data)?;
+
             file_paths.push(file_path);
+            if let Some(document_id) = document_id.clone() {
+                document_ids.push(document_id);
+            }
         }
     }
 
-    Ok(file_paths)
+    Ok((file_paths, document_ids))
 }
