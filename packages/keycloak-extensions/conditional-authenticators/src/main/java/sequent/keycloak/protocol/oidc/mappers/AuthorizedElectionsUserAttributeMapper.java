@@ -51,7 +51,6 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
         TokenIntrospectionTokenMapper {
 
   private String keycloakUrl = System.getenv("KEYCLOAK_URL");
-  private String tenantId = System.getenv("SUPER_ADMIN_TENANT_ID");
   private String clientId = System.getenv("KEYCLOAK_CLIENT_ID");
   private String clientSecret = System.getenv("KEYCLOAK_CLIENT_SECRET");
   private String hasuraEndpoint = System.getenv("HASURA_ENDPOINT");
@@ -137,12 +136,15 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
     Collection<String> attributeValue =
         KeycloakModelUtils.resolveAttribute(user, attributeName, aggregateAttrs);
 
-    log.infov("Realm id: {0}", userSession.getRealm().getName());
-    String electionEventId = userSession.getRealm().getName().split("\\-event\\-")[1];
-    log.infov("Election Event id: {0}", electionEventId);
-
     Map<String, String> electionsAliasIds;
     try {
+      log.infov("Realm id: {0}", userSession.getRealm().getName());
+      String name = userSession.getRealm().getName();
+      String[] ids = name.replaceAll("tenant\\-", "").split("\\-event\\-");
+      String tenantId = ids[0];
+      String electionEventId = ids[1];
+      log.infov("Election Event id: {0}", electionEventId);
+      log.infov("Tenant Id: {0}", tenantId);
       electionsAliasIds = getAllElectionsFromElectionEvent(electionEventId, tenantId);
     } catch (Exception e) {
       e.printStackTrace();
@@ -261,12 +263,12 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
         false);
   }
 
-  public String authenticate() {
+  public String authenticate(String tenantId) {
     HttpClient client = HttpClient.newHttpClient();
     String url =
         this.keycloakUrl
             + "/realms/"
-            + getTenantRealmName(this.tenantId)
+            + getTenantRealmName(tenantId)
             + "/protocol/openid-connect/token";
     Map<Object, Object> data = new HashMap<>();
     data.put("client_id", this.clientId);
@@ -302,7 +304,7 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
     return responseBody;
   }
 
-  private String getTenantRealmName(String realmName) {
+  private String getTenantRealmName(String tenantId) {
     return "tenant-" + tenantId;
   }
 
@@ -319,7 +321,7 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
       return cachedResult;
     }
 
-    String token = authenticate();
+    String token = authenticate(tenantId);
 
     // Construct GraphQL query using a text block (Java 15+)
     String query =
