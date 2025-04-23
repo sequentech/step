@@ -24,6 +24,7 @@ pub struct ExportOptions {
     pub scheduled_events: bool,
     pub reports: bool,
     pub applications: bool,
+    pub tally: bool,
 }
 
 #[instrument(err)]
