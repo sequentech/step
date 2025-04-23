@@ -805,7 +805,6 @@ pub async fn get_zip_entries(
                 for i in 0..zip.len() {
                     let mut file = zip.by_index(i)?;
                     let file_name = file.name().to_string();
-                    print!("Importing file: {:?}", file_name);
                     if file_name.contains(EDocuments::ELECTION_EVENT.to_file_name()) && file_name.ends_with(".json") {
                         // Regular JSON document processing
                         let mut file_str = String::new();
@@ -896,7 +895,6 @@ pub async fn process_document(
     .iter()
     .find(|(name, _)| name.contains(EDocuments::S3_DOCUMENTS_IDS.to_file_name()));
 
-    println!("s3_documents_ids_file: {:?}", s3_documents_ids_file);
     let mut tally_files_content: Option<String> = None;
     if let (Some(tally_session_file), Some(results_event_file)) =
         (tally_session_file, results_event_file)
@@ -918,7 +916,6 @@ pub async fn process_document(
         Some(s3_documents_ids_file) => {
             let s3_documents_ids_file_content =
                 String::from_utf8(s3_documents_ids_file.1.clone())?;
-            println!("S3 Documents Ids File Content: {:?}", s3_documents_ids_file_content);
             format!("{}\n{}", file_election_event_schema, s3_documents_ids_file_content)
         }
         None => file_election_event_schema,
@@ -1121,7 +1118,7 @@ pub async fn process_document(
                     .split(".")
                     .next()
                     .unwrap();
-                println!("tally_file_name:: {:?}", &tally_file_name);
+
                 process_tally_file(
                     hasura_transaction,
                     &temp_file,
