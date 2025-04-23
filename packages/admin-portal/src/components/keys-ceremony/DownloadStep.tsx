@@ -45,8 +45,6 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
         secondCheckbox: false,
     })
     const handleCheckboxChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        console.log("aa changed", event.target.checked)
-
         setCheckboxState({
             ...checkboxState,
             [event.target.name]: event.target.checked,

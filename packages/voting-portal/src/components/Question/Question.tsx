@@ -103,6 +103,9 @@ export const Question: React.FC<IQuestionProps> = ({
     setDecodedContests,
     errorSelectionState,
 }) => {
+    console.log("aa ballotStyle", ballotStyle)
+    console.log("aa question", question)
+
     // THIS IS A CONTEST COMPONENT
     const {i18n} = useTranslation()
     let [candidatesOrder, setCandidatesOrder] = useState<Array<string> | null>(null)
@@ -217,7 +220,7 @@ export const Question: React.FC<IQuestionProps> = ({
             />
             {isBlank ? <BlankAnswer /> : null}
             <CandidatesWrapper className="candidates-container">
-                {invalidTopCandidates.map((answer, answerIndex) => (
+                {/* {invalidTopCandidates.map((answer, answerIndex) => (
                     <Answer
                         ballotStyle={ballotStyle}
                         answer={answer}
@@ -235,8 +238,8 @@ export const Question: React.FC<IQuestionProps> = ({
                         disableSelect={disableSelect}
                         iconCheckboxPolicy={iconCheckboxPolicy}
                     />
-                ))}
-                <CandidateListsWrapper className="candidates-lists-container">
+                ))} */}
+                {/* <CandidateListsWrapper className="candidates-lists-container">
                     {categoriesMapOrder &&
                         Object.entries(categoriesMapOrder).map(
                             ([categoryName, category], categoryIndex) => (
@@ -260,7 +263,7 @@ export const Question: React.FC<IQuestionProps> = ({
                                 />
                             )
                         )}
-                </CandidateListsWrapper>
+                </CandidateListsWrapper> */}
                 <CandidatesSingleWrapper
                     className="candidates-singles-container"
                     columnCount={columnCount}
@@ -286,7 +289,7 @@ export const Question: React.FC<IQuestionProps> = ({
                             />
                         ))}
                 </CandidatesSingleWrapper>
-                {invalidBottomCandidates.map((answer, answerIndex) => (
+                {/* {invalidBottomCandidates.map((answer, answerIndex) => (
                     <Answer
                         ballotStyle={ballotStyle}
                         answer={answer}
@@ -305,7 +308,7 @@ export const Question: React.FC<IQuestionProps> = ({
                         disableSelect={disableSelect}
                         iconCheckboxPolicy={iconCheckboxPolicy}
                     />
-                ))}
+                ))} */}
             </CandidatesWrapper>
         </Box>
     )

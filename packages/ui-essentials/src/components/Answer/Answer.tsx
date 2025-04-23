@@ -51,6 +51,7 @@ export interface IAnswerProps {
     selectedChoicesSum: number
     setSelectedChoicesSum: (num: number) => void
     disableSelect: boolean
+    imageSrc?: string
 }
 
 export const Answer: React.FC<IAnswerProps> = ({
@@ -66,9 +67,8 @@ export const Answer: React.FC<IAnswerProps> = ({
     isInvalidWriteIns,
     isRadioSelection,
     contest,
-    selectedChoicesSum,
-    setSelectedChoicesSum,
     disableSelect,
+    imageSrc,
 }) => {
     const selectionState = useAppSelector(
         selectBallotSelectionVoteChoice(ballotStyle.election_id, contestId, answer.id)
@@ -80,17 +80,13 @@ export const Answer: React.FC<IAnswerProps> = ({
 
     const ballotService = provideBallotService()
 
-    const {globalSettings} = useContext(SettingsContext)
-
     const {i18n} = useTranslation()
     const [explicitBlank, setExplicitBlank] = useState<boolean>(false)
     const question = ballotStyle.ballot_eml.contests.find((contest) => contest.id === contestId)
     const imageUrl = getImageUrl(answer)
     const infoUrl = getLinkUrl(answer)
 
-    console.log("aa selectionState", selectionState)
-    console.log("aa questionState", questionState)
-    // console.log("aa answer", answer)
+    console.log("aa answer", answer)
 
     const isChecked = (): boolean => {
         if (isInvalidVote) {
@@ -124,6 +120,7 @@ export const Answer: React.FC<IAnswerProps> = ({
             })
         )
     }
+
     const setChecked = (value: boolean) => {
         if (!isActive || isReview) {
             return
@@ -217,9 +214,7 @@ export const Answer: React.FC<IAnswerProps> = ({
             shouldDisable={shouldDisable}
             iconCheckboxPolicy={iconCheckboxPolicy}
         >
-            {imageUrl ? (
-                <Image src={`${globalSettings.PUBLIC_BUCKET_URL}${imageUrl}`} duration={100} />
-            ) : null}
+            {imageUrl ? <Image src={imageSrc ?? ""} duration={100} /> : null}
         </Candidate>
     )
 }
