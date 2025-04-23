@@ -16,6 +16,7 @@ use crate::{
     types::documents::ETallyDocuments,
 };
 use anyhow::{anyhow, Context, Result};
+use chrono::{DateTime, Local};
 use csv::StringRecord;
 use deadpool_postgres::Transaction;
 use ordered_float::NotNan;
@@ -48,8 +49,13 @@ async fn process_uuids(
 
             let new_ids: Vec<String> = parsed
                 .into_iter()
-                .map(|uuid| replacement_map.get(&uuid).cloned().unwrap_or(uuid))
-                .collect();
+                .map(|id| {
+                    replacement_map
+                        .get(&id)
+                        .cloned()
+                        .ok_or_else(|| anyhow!("Can't find id: {id} in replacement map"))
+                })
+                .collect::<Result<_>>()?;
 
             Ok(Some(new_ids))
         }
@@ -96,763 +102,7 @@ fn remap_result_documents(
 }
 
 #[instrument(err, skip_all)]
-async fn process_event_results_file(
-    hasura_transaction: &Transaction<'_>,
-    temp_file: &NamedTempFile,
-    tenant_id: &str,
-    election_event_id: &str,
-    replacement_map: HashMap<String, String>,
-) -> Result<()> {
-    let file = File::open(temp_file)?;
-
-    let mut rdr = csv::Reader::from_reader(file);
-    let mut results_events: Vec<ResultsEvent> = Vec::new();
-
-    for result in rdr.records() {
-        let record = result.map_err(|e| anyhow!("Error reading CSV record: {e:?}"))?;
-        println!("record:: {:?}", &record);
-
-        let results_event_id: String = record
-            .get(0)
-            .ok_or_else(|| anyhow!("Missing column 0 (id)"))
-            .and_then(|s| {
-                serde_json::from_str(s).map_err(|e| anyhow!("Invalid JSON in id: {:?}", e))
-            })?;
-
-        let new_results_event_id = replacement_map
-            .get(&results_event_id)
-            .cloned()
-            .unwrap_or_else(|| results_event_id.clone());
-        let name: Option<String> = get_string_or_null_item(&record, 3).await?;
-
-        let created_at = record
-            .get(4)
-            .map(|s| {
-                let s = s.trim_matches('"');
-                ISO8601::to_date(s).ok()
-            })
-            .flatten();
-
-        let last_updated_at = record
-            .get(5)
-            .map(|s| {
-                let s = s.trim_matches('"');
-                ISO8601::to_date(s).ok()
-            })
-            .flatten();
-
-        let annotations = record
-            .get(6)
-            .filter(|s| !s.is_empty())
-            .map(serde_json::from_str)
-            .transpose()
-            .map_err(|err| anyhow!("Error at process annotations {:?}", err))?;
-
-        let labels = record
-            .get(7)
-            .filter(|s| !s.is_empty())
-            .map(serde_json::from_str)
-            .transpose()
-            .map_err(|err| anyhow!("Error at process labels {:?}", err))?;
-
-        let documents = record
-            .get(8)
-            .map(str::trim)
-            .filter(|s| *s != "null" && *s != "\"null\"")
-            .map(|s| serde_json::from_str(s))
-            .transpose()
-            .map_err(|err| anyhow!("Error at process documents: {:?}", err))?;
-        let documents_with_new_ids = remap_result_documents(documents, &replacement_map);
-
-        let results_event = ResultsEvent {
-            id: new_results_event_id,
-            tenant_id: tenant_id.to_string(),
-            election_event_id: election_event_id.to_string(),
-            name,
-            labels,
-            annotations,
-            created_at,
-            last_updated_at,
-            documents: documents_with_new_ids,
-        };
-        results_events.push(results_event);
-    }
-
-    let _ = insert_many_results_events(hasura_transaction, results_events)
-        .await
-        .map_err(|err| anyhow!("Error at insert_many_results_events {:?}", err))?;
-
-    Ok(())
-}
-
-#[instrument(err, skip_all)]
-async fn process_results_election_file(
-    hasura_transaction: &Transaction<'_>,
-    temp_file: &NamedTempFile,
-    tenant_id: &str,
-    election_event_id: &str,
-    replacement_map: HashMap<String, String>,
-) -> Result<()> {
-    let file = File::open(temp_file)?;
-
-    let mut rdr = csv::Reader::from_reader(file);
-
-    let mut results_elections: Vec<ResultsElection> = Vec::new();
-
-    for result in rdr.records() {
-        let record = result.map_err(|e| anyhow!("Error reading CSV record: {e:?}"))?;
-        println!("record:: {:?}", &record);
-
-        let election_id: String = record
-            .get(3)
-            .ok_or_else(|| anyhow!("Missing column 3 (election_id)"))
-            .and_then(|s| {
-                serde_json::from_str(s).map_err(|e| anyhow!("Invalid JSON in id: {:?}", e))
-            })?;
-
-        let new_election_id = replacement_map
-            .get(&election_id)
-            .cloned()
-            .unwrap_or_else(|| election_id.clone());
-
-        let results_event_id: String = record
-            .get(4)
-            .ok_or_else(|| anyhow!("Missing column 4 (results_event_id)"))
-            .and_then(|s| {
-                serde_json::from_str(s).map_err(|e| anyhow!("Invalid JSON in id: {:?}", e))
-            })?;
-
-        let new_results_event_id = replacement_map
-            .get(&results_event_id)
-            .cloned()
-            .unwrap_or_else(|| results_event_id.clone());
-
-        let name: Option<String> = get_string_or_null_item(&record, 5).await?;
-
-        let elegible_census = record
-            .get(6)
-            .map(str::trim)
-            .filter(|s| !s.is_empty() && *s != "null")
-            .map(|s| s.parse::<i64>())
-            .transpose()
-            .map_err(|err| anyhow!("Error parsing elegible_census as i64: {:?}", err))?;
-
-        let total_voters = record
-            .get(7)
-            .map(str::trim)
-            .filter(|s| !s.is_empty() && *s != "null")
-            .map(|s| s.parse::<i64>())
-            .transpose()
-            .map_err(|err| anyhow!("Error parsing total_voters as i64: {:?}", err))?;
-
-        let created_at = record
-            .get(8)
-            .map(|s| {
-                let s = s.trim_matches('"');
-                ISO8601::to_date(s).ok()
-            })
-            .flatten();
-
-        let last_updated_at = record
-            .get(9)
-            .map(|s| {
-                let s = s.trim_matches('"');
-                ISO8601::to_date(s).ok()
-            })
-            .flatten();
-
-        let labels = record
-            .get(10)
-            .filter(|s| !s.is_empty())
-            .map(serde_json::from_str)
-            .transpose()
-            .map_err(|err| anyhow!("Error at process labels {:?}", err))?;
-
-        let annotations = record
-            .get(11)
-            .filter(|s| !s.is_empty())
-            .map(serde_json::from_str)
-            .transpose()
-            .map_err(|err| anyhow!("Error at process annotations {:?}", err))?;
-
-        let total_voters_percent = record
-            .get(12)
-            .map(str::trim)
-            .filter(|s| !s.is_empty() && *s != "null")
-            .map(|s| {
-                let value = s
-                    .parse::<f64>()
-                    .map_err(|e| anyhow!("Error parsing total_voters_percent as f64: {:?}", e))?;
-                NotNan::new(value)
-                    .map_err(|e| anyhow!("Value is NaN (not allowed in NotNan): {:?}", e))
-            })
-            .transpose()?;
-
-        let documents = record
-            .get(13)
-            .map(str::trim)
-            .filter(|s| *s != "null" && *s != "\"null\"")
-            .map(|s| serde_json::from_str(s))
-            .transpose()
-            .map_err(|err| anyhow!("Error at process documents: {:?}", err))?;
-        let documents_with_new_ids = remap_result_documents(documents, &replacement_map);
-
-        let results_election = ResultsElection {
-            id: Uuid::new_v4().to_string(),
-            tenant_id: tenant_id.to_string(),
-            election_event_id: election_event_id.to_string(),
-            election_id: new_election_id,
-            results_event_id: new_results_event_id,
-            name,
-            elegible_census,
-            total_voters,
-            labels,
-            annotations,
-            created_at,
-            last_updated_at,
-            total_voters_percent,
-            documents: documents_with_new_ids,
-        };
-
-        results_elections.push(results_election);
-    }
-    let _ = insert_many_results_elections(hasura_transaction, results_elections)
-        .await
-        .map_err(|err| anyhow!("Error at insert_many_results_elections {:?}", err))?;
-
-    Ok(())
-}
-
-#[instrument(err, skip_all)]
-async fn process_tally_session_file(
-    hasura_transaction: &Transaction<'_>,
-    temp_file: &NamedTempFile,
-    tenant_id: &str,
-    election_event_id: &str,
-    replacement_map: HashMap<String, String>,
-) -> Result<()> {
-    let file = File::open(temp_file)?;
-
-    let mut rdr = csv::Reader::from_reader(file);
-
-    let mut tally_sessions: Vec<TallySession> = Vec::new();
-
-    for result in rdr.records() {
-        let record = result.map_err(|e| anyhow!("Error reading CSV record: {e:?}"))?;
-        let tally_session = process_tally_session_record(
-            tenant_id,
-            election_event_id,
-            &record,
-            replacement_map.clone(),
-        )
-        .await
-        .with_context(|| "Error proccess tally_session record")?;
-        tally_sessions.push(tally_session);
-    }
-    let _ = insert_many_tally_sessions(hasura_transaction, tally_sessions)
-        .await
-        .map_err(|err| anyhow!("Error at insert_many_tally_sessions {:?}", err))?;
-    Ok(())
-}
-
-#[instrument(err, skip_all)]
-pub async fn process_tally_session_record(
-    tenant_id: &str,
-    election_event_id: &str,
-    record: &StringRecord,
-    replacement_map: HashMap<String, String>,
-) -> Result<TallySession> {
-    info!("record: {:?}", record);
-
-    let tally_session_id: String = record
-        .get(0)
-        .ok_or_else(|| anyhow!("Missing column 0 (id)"))
-        .and_then(|s| {
-            serde_json::from_str(s).map_err(|e| anyhow!("Invalid JSON in id: {:?}", e))
-        })?;
-    let new_tally_session_id = replacement_map
-        .get(&tally_session_id)
-        .cloned()
-        .unwrap_or_else(|| tally_session_id.clone());
-
-    let created_at = record
-        .get(3)
-        .map(|s| {
-            let s = s.trim_matches('"');
-            ISO8601::to_date(s).ok()
-        })
-        .flatten();
-
-    let last_updated_at = record
-        .get(4)
-        .map(|s| {
-            let s = s.trim_matches('"');
-            ISO8601::to_date(s).ok()
-        })
-        .flatten();
-
-    let labels = record
-        .get(5)
-        .filter(|s| !s.is_empty())
-        .map(serde_json::from_str)
-        .transpose()
-        .map_err(|err| anyhow!("Error at process labels {:?}", err))?;
-
-    let annotations = record
-        .get(6)
-        .filter(|s| !s.is_empty())
-        .map(serde_json::from_str)
-        .transpose()
-        .map_err(|err| anyhow!("Error at process annotations {:?}", err))?;
-
-    let election_ids = process_uuids(record.get(7), replacement_map.clone()).await?;
-    let area_ids = process_uuids(record.get(8), replacement_map.clone()).await?;
-
-    let is_execution_completed = record
-        .get(9)
-        .unwrap_or("false")
-        .parse::<bool>()
-        .map_err(|err| anyhow!("Error at process is_execution_completed {:?}", err))?;
-
-    let keys_ceremony_id: String = record
-        .get(10)
-        .ok_or_else(|| anyhow!("Missing column 10 (keys_ceremony_id)"))
-        .and_then(|s| {
-            serde_json::from_str(s)
-                .map_err(|e| anyhow!("Invalid JSON in keys_ceremony_id: {:?}", e))
-        })?;
-
-    let new_keys_ceremony_id = replacement_map
-        .get(&keys_ceremony_id)
-        .cloned()
-        .unwrap_or_else(|| keys_ceremony_id.clone());
-
-    let execution_status = record.get(11).map(serde_json::from_str).transpose()?;
-
-    let threshold = record
-        .get(12)
-        .unwrap_or("0")
-        .parse::<i64>()
-        .map_err(|err| anyhow!("Error at process threshold {:?}", err))?;
-
-    let configuration = record
-        .get(13)
-        .filter(|s| !s.is_empty())
-        .map(serde_json::from_str)
-        .transpose()
-        .map_err(|err| anyhow!("Error at process configuration {:?}", err))?;
-
-    let tally_type = record.get(14).map(serde_json::from_str).transpose()?;
-
-    let permission_label = record
-        .get(15)
-        .filter(|s| !s.is_empty())
-        .map(serde_json::from_str)
-        .transpose()
-        .map_err(|err| anyhow!("Error at process permission_label {:?}", err))?;
-
-    let tally_session = TallySession {
-        id: new_tally_session_id,
-        tenant_id: tenant_id.to_string(),
-        election_event_id: election_event_id.to_string(),
-        created_at,
-        last_updated_at,
-        labels,
-        annotations,
-        election_ids,
-        area_ids,
-        is_execution_completed,
-        keys_ceremony_id: new_keys_ceremony_id,
-        execution_status,
-        threshold,
-        configuration,
-        tally_type,
-        permission_label,
-    };
-
-    Ok(tally_session)
-}
-
-#[instrument(err, skip_all)]
-async fn process_tally_session_contest_file(
-    hasura_transaction: &Transaction<'_>,
-    temp_file: &NamedTempFile,
-    tenant_id: &str,
-    election_event_id: &str,
-    replacement_map: HashMap<String, String>,
-) -> Result<()> {
-    let file = File::open(temp_file)?;
-
-    let mut rdr = csv::Reader::from_reader(file);
-
-    let mut tally_session_contests: Vec<TallySessionContest> = Vec::new();
-
-    for result in rdr.records() {
-        let record = result.map_err(|e| anyhow!("Error reading CSV record: {e:?}"))?;
-
-        println!("record:: {:?}", record);
-
-        let area_id = get_new_id_from(&record, 3, &replacement_map).await?;
-        let contest_id: Option<String> = get_string_or_null_item(&record, 4).await?;
-
-        let new_contest_id = match contest_id {
-            Some(contest_id) => Some(
-                replacement_map
-                    .get(&contest_id)
-                    .ok_or_else(|| {
-                        anyhow!("Can't find contest_id={contest_id:?} in replacement map")
-                    })?
-                    .clone(),
-            ),
-            None => None,
-        };
-
-        let session_id = record
-            .get(5)
-            .unwrap_or("0")
-            .parse::<i32>()
-            .map_err(|err| anyhow!("Error at process session_id {:?}", err))?;
-
-        let created_at = record
-            .get(6)
-            .map(|s| {
-                let s = s.trim_matches('"');
-                ISO8601::to_date(s).ok()
-            })
-            .flatten();
-
-        let last_updated_at = record
-            .get(7)
-            .map(|s| {
-                let s = s.trim_matches('"');
-                ISO8601::to_date(s).ok()
-            })
-            .flatten();
-
-        let labels = record
-            .get(8)
-            .filter(|s| !s.is_empty())
-            .map(serde_json::from_str)
-            .transpose()
-            .map_err(|err| anyhow!("Error at process labels {:?}", err))?;
-
-        let annotations = record
-            .get(9)
-            .filter(|s| !s.is_empty())
-            .map(serde_json::from_str)
-            .transpose()
-            .map_err(|err| anyhow!("Error at process annotations {:?}", err))?;
-
-        let tally_session_id: String = record
-            .get(10)
-            .ok_or_else(|| anyhow!("Missing column 10 (tally_session_id)"))
-            .and_then(|s| {
-                serde_json::from_str(s)
-                    .map_err(|e| anyhow!("Invalid JSON in tally_session_id: {:?}", e))
-            })?;
-
-        let new_tally_session_id = replacement_map
-            .get(&tally_session_id)
-            .cloned()
-            .unwrap_or_else(|| tally_session_id.clone());
-
-        let election_id: String = record
-            .get(11)
-            .ok_or_else(|| anyhow!("Missing column 11 (election_id)"))
-            .and_then(|s| {
-                serde_json::from_str(s).map_err(|e| anyhow!("Invalid JSON in election_id: {:?}", e))
-            })?;
-
-        let new_election_id = replacement_map
-            .get(&election_id)
-            .cloned()
-            .unwrap_or_else(|| election_id.clone());
-
-        let tally_session_contest = TallySessionContest {
-            id: Uuid::new_v4().to_string(),
-            tenant_id: tenant_id.to_string(),
-            election_event_id: election_event_id.to_string(),
-            area_id,
-            contest_id: new_contest_id,
-            session_id,
-            created_at,
-            last_updated_at,
-            labels,
-            annotations,
-            tally_session_id: new_tally_session_id,
-            election_id: new_election_id,
-        };
-
-        tally_session_contests.push(tally_session_contest);
-    }
-
-    let _ = insert_many_tally_session_contests(hasura_transaction, tally_session_contests)
-        .await
-        .map_err(|err| anyhow!("Error at insert_many_tally_session_contests {:?}", err))?;
-
-    Ok(())
-}
-
-#[instrument(err, skip_all)]
-async fn process_tally_session_execution_file(
-    hasura_transaction: &Transaction<'_>,
-    temp_file: &NamedTempFile,
-    tenant_id: &str,
-    election_event_id: &str,
-    replacement_map: HashMap<String, String>,
-) -> Result<()> {
-    let file = File::open(temp_file)?;
-
-    let mut rdr = csv::Reader::from_reader(file);
-
-    let mut tally_session_executions: Vec<TallySessionExecution> = Vec::new();
-
-    for result in rdr.records() {
-        let record = result.map_err(|e| anyhow!("Error reading CSV record: {e:?}"))?;
-        println!("record:: {:?}", &record);
-
-        let created_at = record
-            .get(3)
-            .map(|s| {
-                let s = s.trim_matches('"');
-                ISO8601::to_date(s).ok()
-            })
-            .flatten();
-
-        let last_updated_at = record
-            .get(4)
-            .map(|s| {
-                let s = s.trim_matches('"');
-                ISO8601::to_date(s).ok()
-            })
-            .flatten();
-
-        let labels = record
-            .get(5)
-            .filter(|s| !s.is_empty())
-            .map(serde_json::from_str)
-            .transpose()
-            .map_err(|err| anyhow!("Error at process labels {:?}", err))?;
-
-        let annotations = record
-            .get(6)
-            .filter(|s| !s.is_empty())
-            .map(serde_json::from_str)
-            .transpose()
-            .map_err(|err| anyhow!("Error at process annotations {:?}", err))?;
-
-        let current_message_id = record
-            .get(7)
-            .unwrap_or("0")
-            .parse::<i32>()
-            .map_err(|err| anyhow!("Error at process current_message_id {:?}", err))?;
-
-        let tally_session_id: String = record
-            .get(8)
-            .ok_or_else(|| anyhow!("Missing column 8 (tally_session_id)"))
-            .and_then(|s| {
-                serde_json::from_str(s).map_err(|e| anyhow!("Invalid JSON in id: {:?}", e))
-            })?;
-
-        let new_tally_session_id = replacement_map
-            .get(&tally_session_id)
-            .cloned()
-            .unwrap_or_else(|| tally_session_id.clone());
-
-        let session_ids = record
-            .get(9)
-            .map(str::trim)
-            .filter(|s| *s != "null" && *s != "\"null\"")
-            .map(|s| serde_json::from_str::<Vec<i32>>(s))
-            .transpose()
-            .map_err(|err| anyhow!("Error parsing session_ids: {:?}", err))?;
-
-        let status = record
-            .get(10)
-            .filter(|s| !s.is_empty())
-            .map(serde_json::from_str)
-            .transpose()
-            .map_err(|err| anyhow!("Error at process status {:?}", err))?;
-
-        let results_event_id: Option<String> = get_string_or_null_item(&record, 11).await?;
-
-        let new_results_event_id = match results_event_id {
-            Some(results_event_id) => Some(
-                replacement_map
-                    .get(&results_event_id)
-                    .ok_or_else(|| {
-                        anyhow!(
-                            "Can't find results_event_id={results_event_id:?} in replacement map"
-                        )
-                    })?
-                    .clone(),
-            ),
-            None => None,
-        };
-
-        let tally_session_execution = TallySessionExecution {
-            id: Uuid::new_v4().to_string(),
-            tenant_id: tenant_id.to_string(),
-            election_event_id: election_event_id.to_string(),
-            created_at,
-            last_updated_at,
-            labels,
-            annotations,
-            current_message_id,
-            tally_session_id: new_tally_session_id,
-            session_ids,
-            status,
-            results_event_id: new_results_event_id,
-        };
-
-        tally_session_executions.push(tally_session_execution);
-    }
-
-    let _ = insert_many_tally_session_executions(hasura_transaction, tally_session_executions)
-        .await
-        .map_err(|err| anyhow!("Error at insert_many_tally_session_executions {:?}", err))?;
-
-    Ok(())
-}
-
-#[instrument(err, skip_all)]
-async fn process_results_election_area_file(
-    hasura_transaction: &Transaction<'_>,
-    temp_file: &NamedTempFile,
-    tenant_id: &str,
-    election_event_id: &str,
-    replacement_map: HashMap<String, String>,
-) -> Result<()> {
-    let file = File::open(temp_file)?;
-
-    let mut rdr = csv::Reader::from_reader(file);
-
-    let mut results_elections_areas: Vec<ResultsElectionArea> = Vec::new();
-
-    for result in rdr.records() {
-        let record = result.map_err(|e| anyhow!("Error reading CSV record: {e:?}"))?;
-        println!("record:: {:?}", &record);
-
-        let election_id: String = record
-            .get(3)
-            .ok_or_else(|| anyhow!("Missing column 3 (election_id)"))
-            .and_then(|s| {
-                serde_json::from_str(s).map_err(|e| anyhow!("Invalid JSON in id: {:?}", e))
-            })?;
-
-        let new_election_id = replacement_map
-            .get(&election_id)
-            .cloned()
-            .unwrap_or_else(|| election_id.clone());
-
-        let area_id: String = record
-            .get(4)
-            .ok_or_else(|| anyhow!("Missing column 4 (area_id)"))
-            .and_then(|s| {
-                serde_json::from_str(s).map_err(|e| anyhow!("Invalid JSON in area_id: {:?}", e))
-            })?;
-
-        let new_area_id = replacement_map
-            .get(&area_id)
-            .cloned()
-            .unwrap_or_else(|| area_id.clone());
-
-        let results_event_id: String = record
-            .get(5)
-            .ok_or_else(|| anyhow!("Missing column 5 (results_event_id)"))
-            .and_then(|s| {
-                serde_json::from_str(s).map_err(|e| anyhow!("Invalid JSON in id: {:?}", e))
-            })?;
-
-        let new_results_event_id = replacement_map
-            .get(&results_event_id)
-            .cloned()
-            .unwrap_or_else(|| results_event_id.clone());
-
-        let created_at = record
-            .get(6)
-            .map(|s| {
-                let s = s.trim_matches('"');
-                ISO8601::to_date(s).ok()
-            })
-            .flatten();
-
-        let last_updated_at = record
-            .get(7)
-            .map(|s| {
-                let s = s.trim_matches('"');
-                ISO8601::to_date(s).ok()
-            })
-            .flatten();
-
-        let documents = record
-            .get(8)
-            .map(str::trim)
-            .filter(|s| *s != "null" && *s != "\"null\"")
-            .map(|s| serde_json::from_str(s))
-            .transpose()
-            .map_err(|err| anyhow!("Error at process documents: {:?}", err))?;
-        let documents_with_new_ids = remap_result_documents(documents, &replacement_map);
-
-        let name: Option<String> = get_string_or_null_item(&record, 9).await?;
-
-        let results_election_area = ResultsElectionArea {
-            id: Uuid::new_v4().to_string(),
-            tenant_id: tenant_id.to_string(),
-            election_event_id: election_event_id.to_string(),
-            election_id: new_election_id,
-            results_event_id: new_results_event_id,
-            area_id: new_area_id,
-            created_at,
-            last_updated_at,
-            documents: documents_with_new_ids,
-            name,
-        };
-
-        results_elections_areas.push(results_election_area);
-    }
-    let _ = insert_many_results_elections_areas(hasura_transaction, results_elections_areas)
-        .await
-        .map_err(|err| anyhow!("Error at insert_many_results_elections_area {:?}", err))?;
-
-    Ok(())
-}
-
-#[instrument(err, skip_all)]
-async fn process_results_contest_file(
-    hasura_transaction: &Transaction<'_>,
-    temp_file: &NamedTempFile,
-    tenant_id: &str,
-    election_event_id: &str,
-    replacement_map: HashMap<String, String>,
-) -> Result<()> {
-    let file = File::open(temp_file)?;
-
-    let mut rdr = csv::Reader::from_reader(file);
-
-    let mut results_contests: Vec<ResultsContest> = Vec::new();
-
-    for result in rdr.records() {
-        let record = result.map_err(|e| anyhow!("Error reading CSV record: {e:?}"))?;
-        let results_contest = process_results_contest_record(
-            tenant_id,
-            election_event_id,
-            &record,
-            replacement_map.clone(),
-        )
-        .await
-        .with_context(|| "Error proccess results_contest record")?;
-        results_contests.push(results_contest);
-    }
-
-    let _ = insert_many_results_contests(hasura_transaction, results_contests)
-        .await
-        .map_err(|err| anyhow!("Error at insert_many_results_contests {:?}", err))?;
-
-    Ok(())
-}
-#[instrument(err, skip_all)]
-pub async fn get_new_id_from(
+pub async fn get_replaced_id(
     record: &StringRecord,
     index: i32,
     replacement_map: &HashMap<String, String>,
@@ -863,8 +113,8 @@ pub async fn get_new_id_from(
         .and_then(|s| serde_json::from_str(s).map_err(|e| anyhow!("Invalid JSON: {:?}", e)))?;
     let new_id = replacement_map
         .get(&id)
-        .cloned()
-        .unwrap_or_else(|| id.clone()); //TODO: what do do if not found
+        .ok_or(anyhow!("Can't find id:{id} in replacement map"))?
+        .clone();
 
     Ok(new_id)
 }
@@ -930,6 +180,482 @@ pub async fn get_string_or_null_item(
 }
 
 #[instrument(err, skip_all)]
+pub async fn get_opt_date(record: &StringRecord, index: usize) -> Result<Option<DateTime<Local>>> {
+    let item = record
+        .get(index)
+        .map(|s| {
+            let s = s.trim_matches('"');
+            ISO8601::to_date(s).ok()
+        })
+        .flatten();
+    Ok(item)
+}
+
+#[instrument(err, skip_all)]
+async fn process_event_results_file(
+    hasura_transaction: &Transaction<'_>,
+    temp_file: &NamedTempFile,
+    tenant_id: &str,
+    election_event_id: &str,
+    replacement_map: HashMap<String, String>,
+) -> Result<()> {
+    let file = File::open(temp_file)?;
+    let mut rdr = csv::Reader::from_reader(file);
+
+    let mut results_events: Vec<ResultsEvent> = Vec::new();
+
+    for result in rdr.records() {
+        let record = result.map_err(|e| anyhow!("Error reading CSV record: {e:?}"))?;
+
+        let results_event_id = get_replaced_id(&record, 0, &replacement_map).await?;
+        let name = get_string_or_null_item(&record, 3).await?;
+
+        let created_at = get_opt_date(&record, 4).await?;
+        let last_updated_at = get_opt_date(&record, 5).await?;
+
+        let annotations = get_opt_json_value_item(&record, 6).await?;
+        let labels = get_opt_json_value_item(&record, 7).await?;
+
+        let documents = record
+            .get(8)
+            .map(str::trim)
+            .filter(|s| *s != "null" && *s != "\"null\"")
+            .map(|s| serde_json::from_str(s))
+            .transpose()
+            .map_err(|err| anyhow!("Error at process documents: {:?}", err))?;
+        let documents_with_new_ids = remap_result_documents(documents, &replacement_map);
+
+        let results_event = ResultsEvent {
+            id: results_event_id,
+            tenant_id: tenant_id.to_string(),
+            election_event_id: election_event_id.to_string(),
+            name,
+            labels,
+            annotations,
+            created_at,
+            last_updated_at,
+            documents: documents_with_new_ids,
+        };
+        results_events.push(results_event);
+    }
+
+    let _ = insert_many_results_events(hasura_transaction, results_events)
+        .await
+        .map_err(|err| anyhow!("Error at insert_many_results_events {:?}", err))?;
+
+    Ok(())
+}
+
+#[instrument(err, skip_all)]
+async fn process_results_election_file(
+    hasura_transaction: &Transaction<'_>,
+    temp_file: &NamedTempFile,
+    tenant_id: &str,
+    election_event_id: &str,
+    replacement_map: HashMap<String, String>,
+) -> Result<()> {
+    let file = File::open(temp_file)?;
+    let mut rdr = csv::Reader::from_reader(file);
+
+    let mut results_elections: Vec<ResultsElection> = Vec::new();
+
+    for result in rdr.records() {
+        let record = result.map_err(|e| anyhow!("Error reading CSV record: {e:?}"))?;
+
+        let election_id = get_replaced_id(&record, 3, &replacement_map).await?;
+        let results_event_id = get_replaced_id(&record, 4, &replacement_map).await?;
+
+        let name: Option<String> = get_string_or_null_item(&record, 5).await?;
+
+        let elegible_census = get_opt_i64_item(&record, 6).await?;
+        let total_voters = get_opt_i64_item(&record, 7).await?;
+
+        let created_at = get_opt_date(&record, 8).await?;
+        let last_updated_at = get_opt_date(&record, 9).await?;
+
+        let labels = get_opt_json_value_item(&record, 10).await?;
+        let annotations = get_opt_json_value_item(&record, 11).await?;
+
+        let total_voters_percent = get_opt_f64_item(&record, 12).await?;
+
+        let documents = record
+            .get(13)
+            .map(str::trim)
+            .filter(|s| *s != "null" && *s != "\"null\"")
+            .map(|s| serde_json::from_str(s))
+            .transpose()
+            .map_err(|err| anyhow!("Error at process documents: {:?}", err))?;
+        let documents_with_new_ids = remap_result_documents(documents, &replacement_map);
+
+        let results_election = ResultsElection {
+            id: Uuid::new_v4().to_string(),
+            tenant_id: tenant_id.to_string(),
+            election_event_id: election_event_id.to_string(),
+            election_id,
+            results_event_id,
+            name,
+            elegible_census,
+            total_voters,
+            labels,
+            annotations,
+            created_at,
+            last_updated_at,
+            total_voters_percent,
+            documents: documents_with_new_ids,
+        };
+
+        results_elections.push(results_election);
+    }
+    let _ = insert_many_results_elections(hasura_transaction, results_elections)
+        .await
+        .map_err(|err| anyhow!("Error at insert_many_results_elections {:?}", err))?;
+
+    Ok(())
+}
+
+#[instrument(err, skip_all)]
+async fn process_tally_session_file(
+    hasura_transaction: &Transaction<'_>,
+    temp_file: &NamedTempFile,
+    tenant_id: &str,
+    election_event_id: &str,
+    replacement_map: HashMap<String, String>,
+) -> Result<()> {
+    let file = File::open(temp_file)?;
+    let mut rdr = csv::Reader::from_reader(file);
+
+    let mut tally_sessions: Vec<TallySession> = Vec::new();
+
+    for result in rdr.records() {
+        let record = result.map_err(|e| anyhow!("Error reading CSV record: {e:?}"))?;
+        let tally_session = process_tally_session_record(
+            tenant_id,
+            election_event_id,
+            &record,
+            replacement_map.clone(),
+        )
+        .await
+        .with_context(|| "Error proccess tally_session record")?;
+        tally_sessions.push(tally_session);
+    }
+    let _ = insert_many_tally_sessions(hasura_transaction, tally_sessions)
+        .await
+        .map_err(|err| anyhow!("Error at insert_many_tally_sessions {:?}", err))?;
+    Ok(())
+}
+
+#[instrument(err, skip_all)]
+pub async fn process_tally_session_record(
+    tenant_id: &str,
+    election_event_id: &str,
+    record: &StringRecord,
+    replacement_map: HashMap<String, String>,
+) -> Result<TallySession> {
+    let tally_session_id = get_replaced_id(record, 0, &replacement_map).await?;
+
+    let created_at = get_opt_date(&record, 3).await?;
+    let last_updated_at = get_opt_date(&record, 4).await?;
+
+    let labels = get_opt_json_value_item(&record, 5).await?;
+    let annotations = get_opt_json_value_item(&record, 6).await?;
+    let election_ids = process_uuids(record.get(7), replacement_map.clone()).await?;
+    let area_ids = process_uuids(record.get(8), replacement_map.clone()).await?;
+
+    let is_execution_completed = record
+        .get(9)
+        .unwrap_or("false")
+        .parse::<bool>()
+        .map_err(|err| anyhow!("Error at process is_execution_completed {:?}", err))?;
+
+    let keys_ceremony_id = get_replaced_id(record, 10, &replacement_map).await?;
+
+    let execution_status = get_string_or_null_item(record, 11).await?;
+
+    let threshold = record
+        .get(12)
+        .unwrap_or("0")
+        .parse::<i64>()
+        .map_err(|err| anyhow!("Error at process threshold {:?}", err))?;
+
+    let configuration = record
+        .get(13)
+        .filter(|s| !s.is_empty())
+        .map(serde_json::from_str)
+        .transpose()
+        .map_err(|err| anyhow!("Error at process configuration {:?}", err))?;
+
+    let tally_type = get_string_or_null_item(record, 14).await?;
+
+    let permission_label = record
+        .get(15)
+        .filter(|s| !s.is_empty())
+        .map(serde_json::from_str)
+        .transpose()
+        .map_err(|err| anyhow!("Error at process permission_label {:?}", err))?;
+
+    let tally_session = TallySession {
+        id: tally_session_id,
+        tenant_id: tenant_id.to_string(),
+        election_event_id: election_event_id.to_string(),
+        created_at,
+        last_updated_at,
+        labels,
+        annotations,
+        election_ids,
+        area_ids,
+        is_execution_completed,
+        keys_ceremony_id,
+        execution_status,
+        threshold,
+        configuration,
+        tally_type,
+        permission_label,
+    };
+
+    Ok(tally_session)
+}
+
+#[instrument(err, skip_all)]
+async fn process_tally_session_contest_file(
+    hasura_transaction: &Transaction<'_>,
+    temp_file: &NamedTempFile,
+    tenant_id: &str,
+    election_event_id: &str,
+    replacement_map: HashMap<String, String>,
+) -> Result<()> {
+    let file = File::open(temp_file)?;
+    let mut rdr = csv::Reader::from_reader(file);
+
+    let mut tally_session_contests: Vec<TallySessionContest> = Vec::new();
+
+    for result in rdr.records() {
+        let record = result.map_err(|e| anyhow!("Error reading CSV record: {e:?}"))?;
+
+        let area_id = get_replaced_id(&record, 3, &replacement_map).await?;
+        let contest_id: Option<String> = get_string_or_null_item(&record, 4).await?;
+
+        let new_contest_id = match contest_id {
+            Some(contest_id) => Some(
+                replacement_map
+                    .get(&contest_id)
+                    .ok_or_else(|| {
+                        anyhow!("Can't find contest_id={contest_id:?} in replacement map")
+                    })?
+                    .clone(),
+            ),
+            None => None,
+        };
+
+        let session_id = record
+            .get(5)
+            .unwrap_or("0")
+            .parse::<i32>()
+            .map_err(|err| anyhow!("Error at process session_id {:?}", err))?;
+
+        let created_at = get_opt_date(&record, 6).await?;
+        let last_updated_at = get_opt_date(&record, 7).await?;
+
+        let labels = get_opt_json_value_item(&record, 8).await?;
+        let annotations = get_opt_json_value_item(&record, 9).await?;
+        let tally_session_id = get_replaced_id(&record, 10, &replacement_map).await?;
+
+        let election_id = get_replaced_id(&record, 11, &replacement_map).await?;
+
+        let tally_session_contest = TallySessionContest {
+            id: Uuid::new_v4().to_string(),
+            tenant_id: tenant_id.to_string(),
+            election_event_id: election_event_id.to_string(),
+            area_id,
+            contest_id: new_contest_id,
+            session_id,
+            created_at,
+            last_updated_at,
+            labels,
+            annotations,
+            tally_session_id,
+            election_id,
+        };
+
+        tally_session_contests.push(tally_session_contest);
+    }
+
+    let _ = insert_many_tally_session_contests(hasura_transaction, tally_session_contests)
+        .await
+        .map_err(|err| anyhow!("Error at insert_many_tally_session_contests {:?}", err))?;
+
+    Ok(())
+}
+
+#[instrument(err, skip_all)]
+async fn process_tally_session_execution_file(
+    hasura_transaction: &Transaction<'_>,
+    temp_file: &NamedTempFile,
+    tenant_id: &str,
+    election_event_id: &str,
+    replacement_map: HashMap<String, String>,
+) -> Result<()> {
+    let file = File::open(temp_file)?;
+    let mut rdr = csv::Reader::from_reader(file);
+
+    let mut tally_session_executions: Vec<TallySessionExecution> = Vec::new();
+
+    for result in rdr.records() {
+        let record = result.map_err(|e| anyhow!("Error reading CSV record: {e:?}"))?;
+        let created_at = get_opt_date(&record, 3).await?;
+        let last_updated_at = get_opt_date(&record, 4).await?;
+
+        let labels = get_opt_json_value_item(&record, 5).await?;
+        let annotations = get_opt_json_value_item(&record, 6).await?;
+
+        let current_message_id = record
+            .get(7)
+            .unwrap_or("0")
+            .parse::<i32>()
+            .map_err(|err| anyhow!("Error at process current_message_id {:?}", err))?;
+
+        let tally_session_id: String = get_replaced_id(&record, 8, &replacement_map).await?;
+
+        let session_ids = record
+            .get(9)
+            .map(str::trim)
+            .filter(|s| *s != "null" && *s != "\"null\"")
+            .map(|s| serde_json::from_str::<Vec<i32>>(s))
+            .transpose()
+            .map_err(|err| anyhow!("Error parsing session_ids: {:?}", err))?;
+
+        let status = get_opt_json_value_item(&record, 10).await?;
+
+        let results_event_id: Option<String> = get_string_or_null_item(&record, 11).await?;
+
+        let new_results_event_id = match results_event_id {
+            Some(results_event_id) => Some(
+                replacement_map
+                    .get(&results_event_id)
+                    .ok_or_else(|| {
+                        anyhow!(
+                            "Can't find results_event_id={results_event_id:?} in replacement map"
+                        )
+                    })?
+                    .clone(),
+            ),
+            None => None,
+        };
+
+        let tally_session_execution = TallySessionExecution {
+            id: Uuid::new_v4().to_string(),
+            tenant_id: tenant_id.to_string(),
+            election_event_id: election_event_id.to_string(),
+            created_at,
+            last_updated_at,
+            labels,
+            annotations,
+            current_message_id,
+            tally_session_id,
+            session_ids,
+            status,
+            results_event_id: new_results_event_id,
+        };
+
+        tally_session_executions.push(tally_session_execution);
+    }
+
+    let _ = insert_many_tally_session_executions(hasura_transaction, tally_session_executions)
+        .await
+        .map_err(|err| anyhow!("Error at insert_many_tally_session_executions {:?}", err))?;
+
+    Ok(())
+}
+
+#[instrument(err, skip_all)]
+async fn process_results_election_area_file(
+    hasura_transaction: &Transaction<'_>,
+    temp_file: &NamedTempFile,
+    tenant_id: &str,
+    election_event_id: &str,
+    replacement_map: HashMap<String, String>,
+) -> Result<()> {
+    let file = File::open(temp_file)?;
+    let mut rdr = csv::Reader::from_reader(file);
+
+    let mut results_elections_areas: Vec<ResultsElectionArea> = Vec::new();
+
+    for result in rdr.records() {
+        let record = result.map_err(|e| anyhow!("Error reading CSV record: {e:?}"))?;
+
+        let election_id = get_replaced_id(&record, 3, &replacement_map).await?;
+        let area_id = get_replaced_id(&record, 4, &replacement_map).await?;
+        let results_event_id: String = get_replaced_id(&record, 5, &replacement_map).await?;
+
+        let created_at = get_opt_date(&record, 6).await?;
+        let last_updated_at = get_opt_date(&record, 7).await?;
+
+        let documents = record
+            .get(8)
+            .map(str::trim)
+            .filter(|s| *s != "null" && *s != "\"null\"")
+            .map(|s| serde_json::from_str(s))
+            .transpose()
+            .map_err(|err| anyhow!("Error at process documents: {:?}", err))?;
+        let documents_with_new_ids = remap_result_documents(documents, &replacement_map);
+
+        let name: Option<String> = get_string_or_null_item(&record, 9).await?;
+
+        let results_election_area = ResultsElectionArea {
+            id: Uuid::new_v4().to_string(),
+            tenant_id: tenant_id.to_string(),
+            election_event_id: election_event_id.to_string(),
+            election_id,
+            results_event_id,
+            area_id,
+            created_at,
+            last_updated_at,
+            documents: documents_with_new_ids,
+            name,
+        };
+
+        results_elections_areas.push(results_election_area);
+    }
+    let _ = insert_many_results_elections_areas(hasura_transaction, results_elections_areas)
+        .await
+        .map_err(|err| anyhow!("Error at insert_many_results_elections_area {:?}", err))?;
+
+    Ok(())
+}
+
+#[instrument(err, skip_all)]
+async fn process_results_contest_file(
+    hasura_transaction: &Transaction<'_>,
+    temp_file: &NamedTempFile,
+    tenant_id: &str,
+    election_event_id: &str,
+    replacement_map: HashMap<String, String>,
+) -> Result<()> {
+    let file = File::open(temp_file)?;
+    let mut rdr = csv::Reader::from_reader(file);
+
+    let mut results_contests: Vec<ResultsContest> = Vec::new();
+
+    for result in rdr.records() {
+        let record = result.map_err(|e| anyhow!("Error reading CSV record: {e:?}"))?;
+        let results_contest = process_results_contest_record(
+            tenant_id,
+            election_event_id,
+            &record,
+            replacement_map.clone(),
+        )
+        .await
+        .with_context(|| "Error proccess results_contest record")?;
+        results_contests.push(results_contest);
+    }
+
+    let _ = insert_many_results_contests(hasura_transaction, results_contests)
+        .await
+        .map_err(|err| anyhow!("Error at insert_many_results_contests {:?}", err))?;
+
+    Ok(())
+}
+
+#[instrument(err, skip_all)]
 async fn process_results_contest_candidate_file(
     hasura_transaction: &Transaction<'_>,
     temp_file: &NamedTempFile,
@@ -945,27 +671,15 @@ async fn process_results_contest_candidate_file(
 
     for result in rdr.records() {
         let record = result.map_err(|e| anyhow!("Error reading CSV record: {e:?}"))?;
-        let election_id = get_new_id_from(&record, 3, &replacement_map).await?;
-        let contest_id = get_new_id_from(&record, 4, &replacement_map).await?;
-        let candidate_id = get_new_id_from(&record, 5, &replacement_map).await?;
-        let results_event_id = get_new_id_from(&record, 6, &replacement_map).await?;
+        let election_id = get_replaced_id(&record, 3, &replacement_map).await?;
+        let contest_id = get_replaced_id(&record, 4, &replacement_map).await?;
+        let candidate_id = get_replaced_id(&record, 5, &replacement_map).await?;
+        let results_event_id = get_replaced_id(&record, 6, &replacement_map).await?;
         let cast_votes = get_opt_i64_item(&record, 7).await?;
         let winning_position = get_opt_i64_item(&record, 8).await?;
         let points = get_opt_i64_item(&record, 9).await?;
-        let created_at = record
-            .get(10)
-            .map(|s| {
-                let s = s.trim_matches('"');
-                ISO8601::to_date(s).ok()
-            })
-            .flatten();
-        let last_updated_at = record
-            .get(11)
-            .map(|s| {
-                let s = s.trim_matches('"');
-                ISO8601::to_date(s).ok()
-            })
-            .flatten();
+        let created_at = get_opt_date(&record, 10).await?;
+        let last_updated_at = get_opt_date(&record, 11).await?;
         let labels = get_opt_json_value_item(&record, 12).await?;
         let annotations = get_opt_json_value_item(&record, 13).await?;
         let cast_votes_percent = get_opt_f64_item(&record, 14).await?;
@@ -1013,9 +727,9 @@ pub async fn process_results_contest_record(
     record: &StringRecord,
     replacement_map: HashMap<String, String>,
 ) -> Result<ResultsContest> {
-    let election_id: String = get_new_id_from(record, 3, &replacement_map).await?;
-    let contest_id: String = get_new_id_from(record, 4, &replacement_map).await?;
-    let results_event_id: String = get_new_id_from(record, 5, &replacement_map).await?;
+    let election_id: String = get_replaced_id(record, 3, &replacement_map).await?;
+    let contest_id: String = get_replaced_id(record, 4, &replacement_map).await?;
+    let results_event_id: String = get_replaced_id(record, 5, &replacement_map).await?;
 
     let elegible_census = get_opt_i64_item(record, 6).await?;
 
@@ -1031,21 +745,8 @@ pub async fn process_results_contest_record(
     let counting_algorithm: Option<String> = get_string_or_null_item(&record, 12).await?;
     let name: Option<String> = get_string_or_null_item(&record, 13).await?;
 
-    let created_at = record
-        .get(14)
-        .map(|s| {
-            let s = s.trim_matches('"');
-            ISO8601::to_date(s).ok()
-        })
-        .flatten();
-
-    let last_updated_at = record
-        .get(15)
-        .map(|s| {
-            let s = s.trim_matches('"');
-            ISO8601::to_date(s).ok()
-        })
-        .flatten();
+    let created_at = get_opt_date(&record, 14).await?;
+    let last_updated_at = get_opt_date(&record, 15).await?;
 
     let labels = get_opt_json_value_item(record, 16).await?;
 
@@ -1125,29 +826,17 @@ async fn process_results_area_contest_file(
 
     for result in rdr.records() {
         let record = result.map_err(|e| anyhow!("Error reading CSV record: {e:?}"))?;
-        let election_id = get_new_id_from(&record, 3, &replacement_map).await?;
-        let contest_id = get_new_id_from(&record, 4, &replacement_map).await?;
-        let area_id = get_new_id_from(&record, 5, &replacement_map).await?;
-        let results_event_id = get_new_id_from(&record, 6, &replacement_map).await?;
+        let election_id = get_replaced_id(&record, 3, &replacement_map).await?;
+        let contest_id = get_replaced_id(&record, 4, &replacement_map).await?;
+        let area_id = get_replaced_id(&record, 5, &replacement_map).await?;
+        let results_event_id = get_replaced_id(&record, 6, &replacement_map).await?;
         let elegible_census = get_opt_i64_item(&record, 7).await?;
         let total_valid_votes = get_opt_i64_item(&record, 8).await?;
         let explicit_invalid_votes = get_opt_i64_item(&record, 9).await?;
         let implicit_invalid_votes = get_opt_i64_item(&record, 10).await?;
         let blank_votes = get_opt_i64_item(&record, 11).await?;
-        let created_at = record
-            .get(12)
-            .map(|s| {
-                let s = s.trim_matches('"');
-                ISO8601::to_date(s).ok()
-            })
-            .flatten();
-        let last_updated_at = record
-            .get(13)
-            .map(|s| {
-                let s = s.trim_matches('"');
-                ISO8601::to_date(s).ok()
-            })
-            .flatten();
+        let created_at = get_opt_date(&record, 12).await?;
+        let last_updated_at = get_opt_date(&record, 13).await?;
         let labels = get_opt_json_value_item(&record, 14).await?;
         let annotations = get_opt_json_value_item(&record, 15).await?;
         let total_valid_votes_percent = get_opt_f64_item(&record, 16).await?;
@@ -1225,28 +914,16 @@ async fn process_results_area_contest_candidate_file(
 
     for result in rdr.records() {
         let record = result.map_err(|e| anyhow!("Error reading CSV record: {e:?}"))?;
-        let election_id = get_new_id_from(&record, 3, &replacement_map).await?;
-        let contest_id = get_new_id_from(&record, 4, &replacement_map).await?;
-        let area_id = get_new_id_from(&record, 5, &replacement_map).await?;
-        let candidate_id = get_new_id_from(&record, 6, &replacement_map).await?;
-        let results_event_id = get_new_id_from(&record, 7, &replacement_map).await?;
+        let election_id = get_replaced_id(&record, 3, &replacement_map).await?;
+        let contest_id = get_replaced_id(&record, 4, &replacement_map).await?;
+        let area_id = get_replaced_id(&record, 5, &replacement_map).await?;
+        let candidate_id = get_replaced_id(&record, 6, &replacement_map).await?;
+        let results_event_id = get_replaced_id(&record, 7, &replacement_map).await?;
         let cast_votes = get_opt_i64_item(&record, 8).await?;
         let winning_position = get_opt_i64_item(&record, 9).await?;
         let points = get_opt_i64_item(&record, 10).await?;
-        let created_at = record
-            .get(11)
-            .map(|s| {
-                let s = s.trim_matches('"');
-                ISO8601::to_date(s).ok()
-            })
-            .flatten();
-        let last_updated_at = record
-            .get(12)
-            .map(|s| {
-                let s = s.trim_matches('"');
-                ISO8601::to_date(s).ok()
-            })
-            .flatten();
+        let created_at = get_opt_date(&record, 11).await?;
+        let last_updated_at = get_opt_date(&record, 12).await?;
         let labels = get_opt_json_value_item(&record, 13).await?;
         let annotations = get_opt_json_value_item(&record, 14).await?;
         let cast_votes_percent = get_opt_f64_item(&record, 15).await?;
