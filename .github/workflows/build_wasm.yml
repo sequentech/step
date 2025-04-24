@@ -24,16 +24,6 @@ jobs:
         with:
           nix_path: nixpkgs=channel:nixos-unstable
 
-      - name: Check that WASM build works
-        working-directory: packages/sequent-core
-        run: |
-          nix develop --command wasm-pack build --mode no-install --out-name index --release --target web --features=wasmtest
-
-      - name: Check that WASM pack works
-        working-directory: packages/sequent-core
-        run: |
-          nix develop --command wasm-pack -v pack .
-
       - name: Check that hashes in yarn.lock are updated with the last build in the repo
         working-directory: packages
         run: |
@@ -58,3 +48,13 @@ jobs:
             echo "Error: one or both files do not exist"
             exit 1
           fi
+
+      - name: Check that WASM build works
+        working-directory: packages/sequent-core
+        run: |
+          nix develop --command wasm-pack build --mode no-install --out-name index --release --target web --features=wasmtest
+
+      - name: Check that WASM pack works
+        working-directory: packages/sequent-core
+        run: |
+          nix develop --command wasm-pack -v pack .
