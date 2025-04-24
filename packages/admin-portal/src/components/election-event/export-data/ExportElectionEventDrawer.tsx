@@ -152,10 +152,17 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
         }
     }
 
-    const toggleCheckBoxWithBulletinBoard = (setter: (val: boolean) => void, newValue: boolean) => {
-        setter(newValue)
+    const toggleTallyCheckbox = (newValue: boolean) => {
+        setTally(newValue)
         if (newValue) {
             toggleCheckBoxWithPassword(setBulletinBoard, newValue)
+            setS3Files(newValue)
+        }
+    }
+    const toggleS3FilesCheckbox = (newValue: boolean) => {
+        setS3Files(newValue)
+        if (!newValue && tally) {
+            setTally(false)
         }
     }
 
@@ -228,7 +235,7 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
                         control={
                             <StyledCheckbox
                                 checked={tally}
-                                onChange={() => toggleCheckBoxWithBulletinBoard(setTally, !tally)}
+                                onChange={() => toggleTallyCheckbox(!tally)}
                             />
                         }
                         label={t("electionEventScreen.export.tally")}
@@ -237,7 +244,7 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
                         control={
                             <StyledCheckbox
                                 checked={s3Files}
-                                onChange={() => setS3Files(!s3Files)}
+                                onChange={() => toggleS3FilesCheckbox(!s3Files)}
                             />
                         }
                         label={t("electionEventScreen.export.s3Files")}
