@@ -6,13 +6,14 @@ use crate::postgres::ballot_style::{
     export_event_ballot_styles, get_ballot_styles_by_ballot_publication_by_id,
 };
 use crate::services::documents::upload_and_return_document_postgres;
+use crate::types::documents::EDocuments;
 use anyhow::{anyhow, Context, Result};
 use csv::Writer;
 use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::types::hasura::core::Document;
 use sequent_core::types::hasura::core::{BallotPublication, Template};
-use sequent_core::util::temp_path::write_into_named_temp_file;
+use sequent_core::util::temp_path::{generate_temp_file, write_into_named_temp_file};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 use tempfile::TempPath;
@@ -29,7 +30,7 @@ pub async fn write_export_document(
 ) -> Result<TempPath> {
     let document_name = format!("export-{}.json", document_id);
 
-    let (_temp_path, temp_path_string, file_size) =
+    let (temp_path, temp_path_string, file_size) =
         write_into_named_temp_file(&data, &document_name, ".json")
             .map_err(|e| anyhow!("Error writing into named temp file: {e:?}"))?;
 
@@ -49,7 +50,7 @@ pub async fn write_export_document(
         .map_err(|e| anyhow!("Error uploading and returning document to postgres: {e:?}"))?;
     }
 
-    Ok(_temp_path)
+    Ok(temp_path)
 }
 
 #[instrument(err)]
@@ -116,27 +117,135 @@ pub async fn process_export_ballot_publication(
 }
 
 #[instrument(err)]
-pub async fn export_ballot_publications(
+pub async fn export_ballot_publications_csv(
     hasura_transaction: &Transaction<'_>,
-    document_id: &str,
     tenant_id: &str,
     election_event_id: &str,
-) -> Result<TempPath> {
-    let ballot_publications_data =
+) -> Result<(String, TempPath)> {
+    let ballot_publications =
         get_ballot_publication(&hasura_transaction, tenant_id, election_event_id)
             .await
             .map_err(|e| anyhow!("Error reading ballot publications data: {e:?}"))?;
 
-    let temp_path = process_export_ballot_publication(
-        &hasura_transaction,
-        &tenant_id,
-        &election_event_id,
-        &document_id,
-        &ballot_publications_data,
-        false,
-    )
-    .await
-    .map_err(|e| anyhow!("Error processing export ballot publication: {e:?}"))?;
+    let file_name = EDocuments::PUBLICATIONS.to_file_name().to_string();
 
-    Ok(temp_path)
+    let mut writer = csv::WriterBuilder::new().delimiter(b',').from_writer(
+        generate_temp_file(&file_name, ".csv").with_context(|| "Error creating temporary file")?,
+    );
+
+    writer.write_record(&[
+        "id".to_string(),
+        "tenant_id".to_string(),
+        "election_event_id".to_string(),
+        "labels".to_string(),
+        "annotations".to_string(),
+        "created_at".to_string(),
+        "deleted_at".to_string(),
+        "created_by_user_id".to_string(),
+        "is_generated".to_string(),
+        "election_ids".to_string(),
+        "published_at".to_string(),
+        "election_id".to_string(),
+    ])?;
+
+    for ballot_publication in ballot_publications {
+        let values: Vec<String> = serde_json::to_value(ballot_publication)?
+            .as_object()
+            .ok_or_else(|| {
+                anyhow!("Failed to convert results_area_contests_candidate to JSON object")
+            })?
+            .values()
+            .map(|value| value.to_string())
+            .collect();
+
+        writer.write_record(&values);
+    }
+
+    writer
+        .flush()
+        .with_context(|| "Error flushing CSV writer")?;
+
+    let temp_path = writer
+        .into_inner()
+        .with_context(|| "Error getting inner writer")?
+        .into_temp_path();
+
+    Ok((file_name, temp_path))
+}
+
+#[instrument(err)]
+pub async fn export_ballot_styles_csv(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<(String, TempPath)> {
+    let ballot_styles =
+        export_event_ballot_styles(&hasura_transaction, tenant_id, election_event_id)
+            .await
+            .map_err(|e| anyhow!("Error reading ballot styles data: {e:?}"))?;
+
+    let file_name = EDocuments::PUBLICATIONS_BALLOT_STYLE
+        .to_file_name()
+        .to_string();
+
+    let mut writer = csv::WriterBuilder::new().delimiter(b',').from_writer(
+        generate_temp_file(&file_name, ".csv").with_context(|| "Error creating temporary file")?,
+    );
+
+    writer.write_record(&[
+        "id".to_string(),
+        "tenant_id".to_string(),
+        "election_id".to_string(),
+        "area_id".to_string(),
+        "created_at".to_string(),
+        "last_updated_at".to_string(),
+        "labels".to_string(),
+        "annotations".to_string(),
+        "ballot_eml".to_string(),
+        "ballot_signature".to_string(),
+        "status".to_string(),
+        "election_event_id".to_string(),
+        "deleted_at".to_string(),
+        "ballot_publication_id".to_string(),
+    ])?;
+
+    for ballot_style in ballot_styles {
+        let values: Vec<String> = serde_json::to_value(ballot_style)?
+            .as_object()
+            .ok_or_else(|| {
+                anyhow!("Failed to convert results_area_contests_candidate to JSON object")
+            })?
+            .values()
+            .map(|value| value.to_string())
+            .collect();
+
+        writer.write_record(&values);
+    }
+
+    writer
+        .flush()
+        .with_context(|| "Error flushing CSV writer")?;
+
+    let temp_path = writer
+        .into_inner()
+        .with_context(|| "Error getting inner writer")?
+        .into_temp_path();
+
+    Ok((file_name, temp_path))
+}
+
+#[instrument(err)]
+pub async fn export_publications(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<Vec<(String, TempPath)>> {
+    let ballot_publications =
+        export_ballot_publications_csv(hasura_transaction, tenant_id, election_event_id)
+            .await
+            .map_err(|e| anyhow!("Error export ballot publications: {e:?}"))?;
+    // let ballot_styles = export_ballot_styles_csv(hasura_transaction, tenant_id, election_event_id).await
+    //     .map_err(|e| anyhow!("Error export ballot styles: {e:?}"))?;
+
+    Ok(vec![ballot_publications])
 }
