@@ -109,3 +109,39 @@ jobs:
         build-args: |
           SPA_NAME=${{ matrix.spa_name }}
           FEATURES=${{ matrix.features }}
+    
+    # === New account ===
+    
+    - name: Configure AWS credentials (OIDC)
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: arn:aws:iam::810970971511:role/GitHubActionsECRPushRole # move to the secrets if needed
+        aws-region: eu-west-1
+
+
+    # - name: Configure AWS credentials (new account)
+    #   uses: aws-actions/configure-aws-credentials@v4
+    #   with:
+    #     aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_NEW }}
+    #     aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_NEW }}
+    #     aws-region: eu-west-1
+
+    - name: Login to new ECR
+      id: login-ecr-new
+      uses: aws-actions/amazon-ecr-login@v2
+
+    - name: Build & Push to new ECR
+      uses: docker/build-push-action@v5
+      with:
+        context: ${{ matrix.context }}
+        file: ${{ matrix.file }}
+        push: ${{ inputs.push }}
+        tags: | # TODO: Create secrets.AWS_NEW_REGISTRY for correct path
+          ${{ secrets.AWS_NEW_REGISTRY }}/${{ matrix.service }}:${{ env.SHORT_SHA }} 
+          ${{ secrets.AWS_NEW_REGISTRY }}/${{ matrix.service }}:${{ inputs.tag || github.run_number }}
+        cache-from: type=gha,scope=${{ matrix.service }}
+        cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+        build-args: |
+          SPA_NAME=${{ matrix.spa_name }}
+          FEATURES=${{ matrix.features }}
+
