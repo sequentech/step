@@ -1118,7 +1118,7 @@ pub async fn process_document(
                     .split(".")
                     .next()
                     .unwrap();
-
+                
                 process_tally_file(
                     hasura_transaction,
                     &temp_file,

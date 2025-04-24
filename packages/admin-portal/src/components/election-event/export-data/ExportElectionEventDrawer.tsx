@@ -231,7 +231,7 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
                                 onChange={() => toggleCheckBoxWithBulletinBoard(setTally, !tally)}
                             />
                         }
-                        label={"Tally"}
+                        label={t("electionEventScreen.export.tally")}
                     />
                     <FormControlLabel
                         control={
