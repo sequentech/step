@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2023-2024 Sequent Tech <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
 name: Build WASM Target
 
 on:
@@ -20,21 +24,21 @@ jobs:
         with:
           nix_path: nixpkgs=channel:nixos-unstable
 
-      - name: Use nix develop to build WASM
+      - name: Check that WASM build works
         working-directory: packages/sequent-core
         run: |
           nix develop --command wasm-pack build --mode no-install --out-name index --release --target web --features=wasmtest
 
-      - name: Pack WASM
+      - name: Check that WASM pack works
         working-directory: packages/sequent-core
         run: |
-          nix develop --command wasm-pack -v pack . 2>&1 | tee output.log
+          nix develop --command wasm-pack -v pack .
 
-      - name: Check that hashes in yarn.lock are updated
+      - name: Check that hashes in yarn.lock are updated with the last build in the repo
         working-directory: packages
         run: |
-          if [ -f yarn.lock ] && [ -f sequent-core/output.log ]; then
-            hash=$(grep "shasum:" sequent-core/output.log | awk '{printf $4}')
+          if [ -f yarn.lock ]; then
+            hash=$(sha1sum ./packages/sequent-core/pkg/sequent-core-0.1.0.tgz | awk '{printf $2}')
             hash1=$(grep "file:./admin-portal/rust/sequent-core-" yarn.lock | awk -F# '{printf $2}' | tr -d '"')
             hash2=$(grep "file:./ballot-verifier/rust/sequent-core-" yarn.lock | awk -F# '{printf $2}' | tr -d '"')
             hash3=$(grep "file:./voting-portal/rust/sequent-core-" yarn.lock | awk -F# '{printf $2}' | tr -d '"')

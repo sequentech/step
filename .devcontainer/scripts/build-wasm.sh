@@ -22,7 +22,6 @@ wasm-pack -v pack . 2>&1 | tee output.log
 cd ..
 hash=$(grep "shasum:" sequent-core/output.log | awk '{printf $4}')
 hash="${hash}\\\""
-echo "Hash: ${hash}"
 awk -v hash="${hash}" '
   /sequent-core-0.1.0.tgz#/ {
     sub(/#.*/, "#"hash"")
