@@ -22,30 +22,15 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: nightly
-          components: rustfmt
-          override: true
-          target: x86_64-unknown-linux-musl
-
-      - name: Install wasm-pack and wasm-bindgen
-        working-directory: packages/sequent-core
-        run: |
-          cargo install wasm-pack --version 0.12.1
-          cargo install -f wasm-bindgen-cli --version 0.2.100
-
       - name: Build WASM
         working-directory: packages/sequent-core
         run: |
-          RUST_LOG="debug" wasm-pack build --mode no-install --out-name index --release --target web --features=wasmtest
+          nix develop --command "wasm-pack build --mode no-install --out-name index --release --target web --features=wasmtest"
 
       - name: Pack WASM
         working-directory: packages/sequent-core
         run: |
-          wasm-pack -v pack . 2>&1 | tee output.log
+          nix develop --command "wasm-pack -v pack . 2>&1 | tee output.log"
 
       - name: Check that hashes in yarn.lock are updated
         working-directory: packages
