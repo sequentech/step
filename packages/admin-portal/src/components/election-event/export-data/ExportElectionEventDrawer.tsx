@@ -152,8 +152,8 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
         }
     }
 
-    const toggleTallyCheckBox = (newValue: boolean) => {
-        setTally(newValue)
+    const toggleCheckBoxWithBulletinBoard = (setter: (val: boolean) => void, newValue: boolean) => {
+        setter(newValue)
         if (newValue) {
             toggleCheckBoxWithPassword(setBulletinBoard, newValue)
         }
@@ -227,6 +227,15 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
                     <FormControlLabel
                         control={
                             <StyledCheckbox
+                                checked={tally}
+                                onChange={() => toggleCheckBoxWithBulletinBoard(setTally, !tally)}
+                            />
+                        }
+                        label={"Tally"}
+                    />
+                    <FormControlLabel
+                        control={
+                            <StyledCheckbox
                                 checked={s3Files}
                                 onChange={() => setS3Files(!s3Files)}
                             />
@@ -261,15 +270,6 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
                             />
                         }
                         label={t("electionEventScreen.export.applications")}
-                    />
-                    <FormControlLabel
-                        control={
-                            <StyledCheckbox
-                                checked={tally}
-                                onChange={() => toggleTallyCheckBox(!tally)}
-                            />
-                        }
-                        label={"Tally"}
                     />
                 </FormGroup>
             </Dialog>

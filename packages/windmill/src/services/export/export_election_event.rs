@@ -385,7 +385,7 @@ pub async fn process_export_zip(
         let documents_prefix = format!("tenant-{}/event-{}/", tenant_id, election_event_id);
         let bucket = s3::get_private_bucket()?;
 
-        let (s3_files,documents_ids) = s3::get_files_from_s3(bucket, documents_prefix)
+        let (s3_files, documents_ids) = s3::get_files_from_s3(bucket, documents_prefix)
             .await
             .map_err(|err| anyhow!("Error retrieving files from S3: {err:?}"))?;
 
@@ -400,10 +400,9 @@ pub async fn process_export_zip(
                 File::open(&file_path).map_err(|e| anyhow!("Error opening S3 file: {e:?}"))?;
             std::io::copy(&mut s3_file, &mut zip_writer)
                 .map_err(|e| anyhow!("Error copying S3 file to ZIP: {e:?}"))?;
-
         }
 
-        let document_ids_filename = format!("{}.txt",EDocuments::S3_DOCUMENTS_IDS.to_file_name());
+        let document_ids_filename = format!("{}.txt", EDocuments::S3_DOCUMENTS_IDS.to_file_name());
         let document_ids_path = env::temp_dir().join(document_ids_filename.clone());
         let mut doc_id_file = File::create(&document_ids_path)
             .map_err(|e| anyhow!("Error creating documents_ids.txt: {e:?}"))?;
@@ -423,7 +422,6 @@ pub async fn process_export_zip(
             .map_err(|e| anyhow!("Error opening documents_ids.txt: {e:?}"))?;
         std::io::copy(&mut doc_id_file, &mut zip_writer)
             .map_err(|e| anyhow!("Error writing documents_ids.txt to ZIP: {e:?}"))?;
-
     }
 
     // Add Scheduled Events data file to the ZIP archive

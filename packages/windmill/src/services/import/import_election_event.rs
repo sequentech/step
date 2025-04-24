@@ -741,7 +741,7 @@ fn extract_document_name(filename: &str) -> Option<&str> {
         .and_then(|caps| caps.get(1).map(|m| m.as_str()))
 }
 
-#[instrument(err, skip(hasura_transaction, temp_file_path))]
+#[instrument(err, skip(hasura_transaction, temp_file_path, replacement_map))]
 pub async fn process_s3_files(
     hasura_transaction: &Transaction<'_>,
     temp_file_path: &NamedTempFile,
