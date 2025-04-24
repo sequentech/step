@@ -18,6 +18,7 @@ import {
     EOverVotePolicy,
     ECandidatesIconCheckboxPolicy,
     BallotSelection,
+    ICandidate,
 } from "@sequentech/ui-core"
 import {IDecodedVoteContest, IInvalidPlaintextError} from "@sequentech/ui-core"
 import {sortCandidatesInContest, checkIsBlank} from "@sequentech/ui-core"
@@ -33,12 +34,12 @@ import {
     getCheckableOptions,
     checkAllowWriteIns,
     checkIsWriteIn,
-} from "@sequentech/ui-essentials/src/services/ElectionConfigService"
+} from "../../services/ElectionConfigService"
 import {
     CategoriesMap,
     categorizeCandidates,
     getShuffledCategories,
-} from "@sequentech/ui-essentials/src/services/CategoryService"
+} from "../../services/CategoryService"
 
 import {IBallotStyle} from "../../store/ballotStyles/ballotStylesSlice"
 import {selectBallotSelectionQuestion} from "../../store/ballotSelections/ballotSelectionsSlice"
@@ -94,14 +95,16 @@ export interface IQuestionProps {
     ballotStyle: IBallotStyle
     question: IContest
     isReview: boolean
+    questionPlaintext?: IDecodedVoteContest
     setDisableNext?: (value: boolean) => void
-    setDecodedContests: (input: IDecodedVoteContest) => void
+    setDecodedContests?: (input: IDecodedVoteContest) => void
     errorSelectionState: BallotSelection
 }
 
 export const Question: React.FC<IQuestionProps> = ({
     ballotStyle,
     question,
+    questionPlaintext,
     isReview,
     setDisableNext,
     setDecodedContests,
@@ -116,6 +119,7 @@ export const Question: React.FC<IQuestionProps> = ({
     let [isInvalidWriteIns, setIsInvalidWriteIns] = useState(false)
     let [selectedChoicesSum, setSelectedChoicesSum] = useState(0)
     let [disableSelect, setDisableSelect] = useState(false)
+
     let {invalidOrBlankCandidates, noCategoryCandidates, categoriesMap} =
         categorizeCandidates(question)
     let hasBlankCandidate = invalidOrBlankCandidates.some((candidate) =>
@@ -173,6 +177,41 @@ export const Question: React.FC<IQuestionProps> = ({
             )
         )
     }
+
+    /**
+     * Lodash-like keyBy implementation - creates an object keyed by the specified property
+     * or function result for each item in the array.
+     *
+     * @param {Array} array - The array to convert to an object
+     * @param {String|Function} iteratee - Property name or function to generate keys
+     * @returns {Object} - Object with values keyed by iteratee result
+     */
+    function keyBy(array: any, iteratee: any) {
+        // Handle empty arrays
+        if (!array || !array.length) {
+            return {}
+        }
+
+        const result: Record<string, any> = {}
+        const isFunction = typeof iteratee === "function"
+
+        // Process each item in the array
+        for (let i = 0; i < array.length; i++) {
+            const item = array[i]
+            // Get the key by calling the function or accessing the property
+            const key = isFunction ? iteratee(item) : item[iteratee]
+
+            // Only add defined keys to the result
+            if (key !== undefined && key !== null) {
+                result[key] = item
+            }
+        }
+
+        return result
+    }
+
+    const selectedAnswers = questionPlaintext?.choices.filter((a) => a.selected > -1)
+    const answersById = keyBy(question.candidates, (a: ICandidate) => a.id)
 
     if (null === candidatesOrder) {
         setCandidatesOrder(
@@ -269,26 +308,41 @@ export const Question: React.FC<IQuestionProps> = ({
                     className="candidates-singles-container"
                     columnCount={columnCount}
                 >
-                    {candidatesOrder
-                        ?.map((id) => noCategoryCandidatesMap[id])
-                        .map((answer, answerIndex) => (
-                            <Answer
-                                isInvalidWriteIns={isInvalidWriteIns}
-                                ballotStyle={ballotStyle}
-                                answer={answer}
-                                contestId={question.id}
-                                index={answerIndex}
-                                key={answerIndex}
-                                isActive={!isReview}
-                                isReview={isReview}
-                                isRadioSelection={isRadioSelection}
-                                contest={question}
-                                selectedChoicesSum={selectedChoicesSum}
-                                setSelectedChoicesSum={setSelectedChoicesSum}
-                                disableSelect={disableSelect}
-                                iconCheckboxPolicy={iconCheckboxPolicy}
-                            />
-                        ))}
+                    {selectedAnswers
+                        ? selectedAnswers.map((answer, answerIndex) => (
+                              <Answer
+                                  ballotStyle={ballotStyle}
+                                  key={answerIndex}
+                                  isInvalidWriteIns={isInvalidWriteIns}
+                                  answer={answersById[answer.id]}
+                                  writeInValue={answer.write_in_text}
+                                  contestId={question.id}
+                                  index={answerIndex}
+                                  isActive={!isReview}
+                                  isReview={isReview}
+                                  contest={question}
+                              />
+                          ))
+                        : candidatesOrder
+                              ?.map((id) => noCategoryCandidatesMap[id])
+                              .map((answer, answerIndex) => (
+                                  <Answer
+                                      isInvalidWriteIns={isInvalidWriteIns}
+                                      ballotStyle={ballotStyle}
+                                      answer={answer}
+                                      contestId={question.id}
+                                      index={answerIndex}
+                                      key={answerIndex}
+                                      isActive={!isReview}
+                                      isReview={isReview}
+                                      isRadioSelection={isRadioSelection}
+                                      contest={question}
+                                      selectedChoicesSum={selectedChoicesSum}
+                                      setSelectedChoicesSum={setSelectedChoicesSum}
+                                      disableSelect={disableSelect}
+                                      iconCheckboxPolicy={iconCheckboxPolicy}
+                                  />
+                              ))}
                 </CandidatesSingleWrapper>
                 {invalidBottomCandidates.map((answer, answerIndex) => (
                     <Answer

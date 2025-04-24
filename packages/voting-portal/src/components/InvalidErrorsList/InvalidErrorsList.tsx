@@ -35,7 +35,7 @@ export interface IInvalidErrorsListProps {
     hasWriteIns: boolean
     isInvalidWriteIns: boolean
     setIsInvalidWriteIns: (input: boolean) => void
-    setDecodedContests: (input: IDecodedVoteContest) => void
+    setDecodedContests?: (input: IDecodedVoteContest) => void
     isReview: boolean
     errorSelectionState: BallotSelection
 }
@@ -197,7 +197,7 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
 
     useEffect(() => {
         if (decodedContestSelection) {
-            setDecodedContests(decodedContestSelection)
+            setDecodedContests?.(decodedContestSelection)
         }
     }, [decodedContestSelection])
 

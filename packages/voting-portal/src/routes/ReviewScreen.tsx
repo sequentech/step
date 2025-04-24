@@ -49,7 +49,12 @@ import {selectAuditableBallot} from "../store/auditableBallots/auditableBallotsS
 import {Question} from "../components/Question/Question"
 import {useMutation, useQuery} from "@apollo/client"
 import {INSERT_CAST_VOTE} from "../queries/InsertCastVote"
-import {GetElectionEventQuery, InsertCastVoteMutation, GetElectionsQuery} from "../gql/graphql"
+import {
+    GetElectionEventQuery,
+    InsertCastVoteMutation,
+    GetElectionsQuery,
+    Sequent_Backend_Results_Contest_Candidate_Constraint,
+} from "../gql/graphql"
 import {GET_ELECTIONS} from "../queries/GetElections"
 import {CircularProgress} from "@mui/material"
 import {provideBallotService} from "../services/BallotService"
@@ -64,7 +69,10 @@ import {
 import {IBallotError} from "../types/errors"
 import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
 import Stepper from "../components/Stepper"
-import {selectBallotSelectionByElectionId} from "../store/ballotSelections/ballotSelectionsSlice"
+import {
+    selectBallotSelectionByElectionId,
+    selectBallotSelectionQuestion,
+} from "../store/ballotSelections/ballotSelectionsSlice"
 import {sortContestList, hashBallot, hashMultiBallot} from "@sequentech/ui-core"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import {AuthContext} from "../providers/AuthContextProvider"
@@ -734,17 +742,18 @@ export const ReviewScreen: React.FC = () => {
                         : t("reviewScreen.description")
                 )}
             </Typography>
-            {contests.map((question, index) => (
-                <Box key={question.id} className={`contest-${index}`}>
-                    <Question
-                        ballotStyle={ballotStyle}
-                        question={question}
-                        isReview={true}
-                        setDecodedContests={() => undefined}
-                        errorSelectionState={errorSelectionState}
-                    />
-                </Box>
-            ))}
+            {contests.map((question, index) => {
+                return (
+                    <Box key={question.id} className={`contest-${index}`}>
+                        <Question
+                            ballotStyle={ballotStyle}
+                            question={question}
+                            isReview={true}
+                            errorSelectionState={errorSelectionState}
+                        />
+                    </Box>
+                )
+            })}
             {!isCastingBallot.current && (
                 <ActionButtons
                     ballotStyle={ballotStyle}

@@ -94,9 +94,10 @@ export const PlaintextVoteQuestion: React.FC<PlaintextVoteQuestionProps> = ({
     const isBlank = checkIsBlank(questionPlaintext)
     const columnCount = question.presentation?.columns ?? 1
 
-    console.log("aa questionPlaintext", questionPlaintext)
-    console.log("aa selectedAnswers", selectedAnswers)
-    console.log("aa question", question)
+    // console.log("aa questionPlaintext", questionPlaintext)
+    // console.log("aa selectedAnswers", selectedAnswers)
+    // console.log("aa question", question)
+    console.log("aa answersById", answersById)
 
     return (
         <Box>
@@ -135,7 +136,6 @@ export const PlaintextVoteQuestion: React.FC<PlaintextVoteQuestionProps> = ({
                         answer={answersById[answer.id]}
                         points={(showPoints && ballotService.getPoints(question, answer)) || null}
                         ordered={properties?.ordered || false}
-                        isWriteIn={checkIsWriteIn(answersById[answer.id])}
                         writeInValue={answer.write_in_text}
                     />
                 ))}

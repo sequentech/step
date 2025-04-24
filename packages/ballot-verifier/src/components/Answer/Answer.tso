@@ -48,9 +48,9 @@ export interface IAnswerProps {
     isInvalidWriteIns?: boolean
     isRadioSelection?: boolean
     contest: IContest
-    selectedChoicesSum?: number
-    setSelectedChoicesSum?: (num: number) => void
-    disableSelect?: boolean
+    selectedChoicesSum: number
+    setSelectedChoicesSum: (num: number) => void
+    disableSelect: boolean
     writeInValue?: string | undefined
 }
 
@@ -78,9 +78,8 @@ export const Answer: React.FC<IAnswerProps> = ({
     const questionState = useAppSelector(
         selectBallotSelectionQuestion(ballotStyle.election_id, contestId)
     )
-    // console.log("aa selectionState", selectionState)
+    console.log("aa selectionState", selectionState)
     // console.log("aa questionState", questionState)
-    console.log("aa answer", answer)
 
     const [explicitBlank, setExplicitBlank] = useState<boolean>(false)
     const question = ballotStyle.ballot_eml.contests.find((contest) => contest.id === contestId)
@@ -127,7 +126,6 @@ export const Answer: React.FC<IAnswerProps> = ({
             })
         )
     }
-
     const setChecked = (value: boolean) => {
         if (!isActive || isReview) {
             return
