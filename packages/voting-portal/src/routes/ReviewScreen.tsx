@@ -512,6 +512,7 @@ export const ReviewScreen: React.FC = () => {
     const selectionState = useAppSelector(
         selectBallotSelectionByElectionId(ballotStyle?.election_id ?? "")
     )
+    // console.log("bb selectionState *** ", selectionState)
 
     const errorSelectionState = useMemo(() => {
         if (!selectionState || !ballotStyle) {
@@ -748,6 +749,9 @@ export const ReviewScreen: React.FC = () => {
                         <Question
                             ballotStyle={ballotStyle}
                             question={question}
+                            questionPlaintext={selectionState?.find(
+                                (a) => a.contest_id === question.id
+                            )}
                             isReview={true}
                             errorSelectionState={errorSelectionState}
                         />

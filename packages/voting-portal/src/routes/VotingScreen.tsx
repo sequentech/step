@@ -189,6 +189,11 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
         selectBallotSelectionByElectionId(ballotStyle.election_id)
     )
 
+    const selectionState = useAppSelector(
+        selectBallotSelectionByElectionId(ballotStyle?.election_id ?? "")
+    )
+    console.log("bb selectionState *** ", selectionState)
+
     const {interpretContestSelection, interpretMultiContestSelection} = provideBallotService()
 
     const isMultiContest =
@@ -242,6 +247,9 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
                         <Question
                             ballotStyle={ballotStyle}
                             question={contest}
+                            questionPlaintext={selectionState?.find(
+                                (a) => a.contest_id === contest.id
+                            )}
                             isReview={false}
                             setDisableNext={() => onSetDisableNext(contest.id)}
                             setDecodedContests={onSetDecodedContests(contest.id)}

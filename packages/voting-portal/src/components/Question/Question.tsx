@@ -11,7 +11,6 @@ import Typography from "@mui/material/Typography"
 import {
     stringToHtml,
     splitList,
-    keyBy,
     translate,
     IContest,
     CandidatesOrder,
@@ -41,13 +40,24 @@ import {
     getShuffledCategories,
 } from "../../services/CategoryService"
 
-import {IBallotStyle} from "../../store/ballotStyles/ballotStylesSlice"
-import {selectBallotSelectionQuestion} from "../../store/ballotSelections/ballotSelectionsSlice"
-import {useAppSelector} from "../../store/hooks"
-
 import {InvalidErrorsList} from "../InvalidErrorsList/InvalidErrorsList"
 import {Answer} from "../Answer/Answer"
 import {AnswersList} from "../AnswersList/AnswersList"
+import {IBallotStyle as IElectionDTO} from "@sequentech/ui-core"
+
+interface IBallotStyle {
+    id: string
+    election_id: string
+    election_event_id: string
+    tenant_id: string
+    ballot_eml: IElectionDTO
+    ballot_signature?: string | null
+    created_at: string
+    area_id?: string | null
+    annotations?: string | null
+    labels?: string | null
+    last_updated_at: string
+}
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -111,8 +121,6 @@ export const Question: React.FC<IQuestionProps> = ({
     errorSelectionState,
 }) => {
     // THIS IS A CONTEST COMPONENT
-    console.log("aa question", question)
-
     const {i18n} = useTranslation()
     let [candidatesOrder, setCandidatesOrder] = useState<Array<string> | null>(null)
     let [categoriesMapOrder, setCategoriesMapOrder] = useState<CategoriesMap | null>(null)
@@ -125,9 +133,9 @@ export const Question: React.FC<IQuestionProps> = ({
     let hasBlankCandidate = invalidOrBlankCandidates.some((candidate) =>
         checkIsExplicitBlankVote(candidate)
     )
-    const contestState = useAppSelector(
-        selectBallotSelectionQuestion(ballotStyle.election_id, question.id)
-    )
+    // const contestState = useAppSelector(
+    //     selectBallotSelectionQuestion(ballotStyle.election_id, question.id)
+    // )
     const {checkableLists, checkableCandidates} = getCheckableOptions(question)
     let [invalidBottomCandidates, invalidTopCandidates] = splitList(
         invalidOrBlankCandidates,
@@ -138,11 +146,11 @@ export const Question: React.FC<IQuestionProps> = ({
     useEffect(() => {
         // Calculating the number of selected candidates
         let selectedChoicesCount = 0
-        contestState?.choices.forEach((choice) => {
+        questionPlaintext?.choices.forEach((choice) => {
             choice.selected === 0 && selectedChoicesCount++
         })
         setSelectedChoicesSum(selectedChoicesCount)
-    }, [contestState])
+    }, [questionPlaintext])
 
     const maxVotesNum = question.max_votes
     const overVoteDisableMode =
@@ -211,6 +219,7 @@ export const Question: React.FC<IQuestionProps> = ({
     }
 
     const selectedAnswers = questionPlaintext?.choices.filter((a) => a.selected > -1)
+
     const answersById = keyBy(question.candidates, (a: ICandidate) => a.id)
 
     if (null === candidatesOrder) {
@@ -231,7 +240,8 @@ export const Question: React.FC<IQuestionProps> = ({
     // when isRadioChecked is true, clicking on another option works as a radio button:
     // it deselects the previously selected option to select the new one
     const isRadioSelection = checkIsRadioSelection(question)
-    const isBlank = isReview && contestState && checkIsBlank(contestState)
+    const isBlank = isReview && questionPlaintext && checkIsBlank(questionPlaintext)
+    // const isBlank = isReview && contestState && checkIsBlank(contestState)
 
     return (
         <Box>
@@ -308,13 +318,14 @@ export const Question: React.FC<IQuestionProps> = ({
                     className="candidates-singles-container"
                     columnCount={columnCount}
                 >
-                    {selectedAnswers
-                        ? selectedAnswers.map((answer, answerIndex) => (
+                    {isReview
+                        ? selectedAnswers?.map((answer, answerIndex) => (
                               <Answer
                                   ballotStyle={ballotStyle}
                                   key={answerIndex}
                                   isInvalidWriteIns={isInvalidWriteIns}
                                   answer={answersById[answer.id]}
+                                  questionPlaintext={questionPlaintext}
                                   writeInValue={answer.write_in_text}
                                   contestId={question.id}
                                   index={answerIndex}
@@ -330,6 +341,7 @@ export const Question: React.FC<IQuestionProps> = ({
                                       isInvalidWriteIns={isInvalidWriteIns}
                                       ballotStyle={ballotStyle}
                                       answer={answer}
+                                      questionPlaintext={questionPlaintext}
                                       contestId={question.id}
                                       index={answerIndex}
                                       key={answerIndex}
