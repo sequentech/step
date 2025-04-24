@@ -9,8 +9,10 @@ import {BreadCrumbSteps, PageLimit} from "@sequentech/ui-essentials"
 import {ActionButtons} from "../components/ActionButtons"
 import {BallotIdSection, isMatchingBallotIds} from "../components/BallotIdSection"
 import {VerifySelectionsSection} from "../components/VerifySelectionsSection"
+import {IBallotStyle} from "@sequentech/ui-core"
 
 interface IProps {
+    ballotStyle: IBallotStyle | undefined
     confirmationBallot: IConfirmationBallot | null
     ballotService: IBallotService
     ballotId: string
@@ -18,6 +20,7 @@ interface IProps {
 }
 
 export const ConfirmationScreen: React.FC<IProps> = ({
+    ballotStyle,
     confirmationBallot,
     ballotService,
     ballotId,
@@ -51,6 +54,7 @@ export const ConfirmationScreen: React.FC<IProps> = ({
 
             {isMatchingBallotIds(confirmationBallot?.ballot_hash, ballotId) ? (
                 <VerifySelectionsSection
+                    ballotStyle={ballotStyle}
                     confirmationBallot={confirmationBallot}
                     isLoading={isLoading}
                     ballotService={ballotService}

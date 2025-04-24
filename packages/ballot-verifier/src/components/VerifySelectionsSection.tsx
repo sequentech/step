@@ -15,6 +15,7 @@ import {faCircleQuestion} from "@fortawesome/free-solid-svg-icons"
 import {IconButton, Dialog, theme} from "@sequentech/ui-essentials"
 import {keyBy} from "lodash"
 import {PlaintextVoteQuestion} from "./PlaintextVoteQuestion"
+import {IBallotStyle} from "@sequentech/ui-core"
 
 const HorizontalWrap = styled(Box)`
     display: flex;
@@ -25,12 +26,14 @@ const HorizontalWrap = styled(Box)`
 `
 
 interface VerifySelectionsSectionProps {
+    ballotStyle: IBallotStyle | undefined
     isLoading: boolean
     confirmationBallot: IConfirmationBallot | null
     ballotService: IBallotService
 }
 
 export const VerifySelectionsSection: React.FC<VerifySelectionsSectionProps> = ({
+    ballotStyle,
     isLoading,
     confirmationBallot,
     ballotService,
@@ -95,8 +98,9 @@ export const VerifySelectionsSection: React.FC<VerifySelectionsSectionProps> = (
                 <>
                     {plaintextVoteQuestions.map((voteQuestion) => (
                         <PlaintextVoteQuestion
-                            questionPlaintext={voteQuestion}
+                            ballotStyle={ballotStyle}
                             question={questionsMap[voteQuestion.contest_id] ?? null}
+                            questionPlaintext={voteQuestion}
                             ballotService={ballotService}
                             key={voteQuestion.contest_id}
                         />

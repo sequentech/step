@@ -76,21 +76,17 @@ export const Answer: React.FC<IAnswerProps> = ({
     const questionState = useAppSelector(
         selectBallotSelectionQuestion(ballotStyle.election_id, contestId)
     )
-    const dispatch = useAppDispatch()
+    console.log("aa selectionState", selectionState)
+    // console.log("aa questionState", questionState)
 
-    const ballotService = provideBallotService()
-
-    const {globalSettings} = useContext(SettingsContext)
-
-    const {i18n} = useTranslation()
     const [explicitBlank, setExplicitBlank] = useState<boolean>(false)
     const question = ballotStyle.ballot_eml.contests.find((contest) => contest.id === contestId)
+    const dispatch = useAppDispatch()
+    const {globalSettings} = useContext(SettingsContext)
     const imageUrl = getImageUrl(answer)
     const infoUrl = getLinkUrl(answer)
-
-    console.log("aa selectionState", selectionState)
-    console.log("aa questionState", questionState)
-    // console.log("aa answer", answer)
+    const {i18n} = useTranslation()
+    const ballotService = provideBallotService()
 
     const isChecked = (): boolean => {
         if (isInvalidVote) {

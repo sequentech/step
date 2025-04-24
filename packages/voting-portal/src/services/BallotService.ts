@@ -5,26 +5,38 @@ import {
     toHashableBallot,
     toHashableMultiBallot,
     hashBallot,
-    hashMultiBallot,
     encryptBallotSelection,
     encryptMultiBallotSelection,
     interpretContestSelection,
     interpretMultiContestSelection,
     getWriteInAvailableCharacters,
-    decodeAuditableBallot,
-    decodeAuditableMultiBallot,
-    checkIsBlank,
-    IDecodedVoteContest,
-    IBallotStyle,
-    IAuditableBallot,
-    IAuditableSingleBallot,
-    IAuditableMultiBallot,
     IHashableBallot,
     IHashableSingleBallot,
     IHashableMultiBallot,
-    IContest,
     BallotSelection,
+    hashMultiBallot,
+    hashBallot512,
+    decodeAuditableBallot,
+    decodeAuditableMultiBallot,
+    getLayoutProperties,
+    getPoints,
+    generateSampleAuditableBallot,
+    checkIsBlank,
+    IDecodedVoteContest,
+    IDecodedVoteChoice,
+    IBallotStyle,
+    IContest,
+    IAuditableBallot,
+    IAuditableSingleBallot,
+    IContestLayoutProperties,
+    IAuditableMultiBallot,
 } from "@sequentech/ui-core"
+
+export interface IConfirmationBallot {
+    ballot_hash: string
+    election_config: IBallotStyle
+    decoded_questions: Array<IDecodedVoteContest>
+}
 
 export interface IBallotService {
     toHashableBallot: (auditableBallot: IAuditableSingleBallot) => IHashableSingleBallot
@@ -51,12 +63,16 @@ export interface IBallotService {
         contestSelection: IDecodedVoteContest,
         election: IBallotStyle
     ) => number
+    hashBallot512: (auditableBallot: IAuditableSingleBallot) => string
     decodeAuditableBallot: (
         auditableBallot: IAuditableSingleBallot
     ) => Array<IDecodedVoteContest> | null
     decodeAuditableMultiBallot: (
         auditableBallot: IAuditableMultiBallot
     ) => Array<IDecodedVoteContest> | null
+    getLayoutProperties: (question: IContest) => IContestLayoutProperties | null
+    getPoints: (question: IContest, answer: IDecodedVoteChoice) => number | null
+    generateSampleAuditableBallot: () => IAuditableSingleBallot | null
     checkIsBlank: (contest: IDecodedVoteContest) => boolean | null
 }
 
@@ -73,4 +89,8 @@ export const provideBallotService = (): IBallotService => ({
     decodeAuditableBallot,
     decodeAuditableMultiBallot,
     checkIsBlank,
+    hashBallot512,
+    getLayoutProperties,
+    getPoints,
+    generateSampleAuditableBallot,
 })

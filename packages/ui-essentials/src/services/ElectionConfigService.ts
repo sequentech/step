@@ -57,10 +57,9 @@ export const checkShuffleCategoryList = function (question: IContest): Array<str
     return question.presentation?.shuffle_category_list || []
 }
 
-export const getCheckableOptions = function (question: IContest): {
-    checkableLists: boolean
-    checkableCandidates: boolean
-} {
+export const getCheckableOptions = function (
+    question: IContest
+): {checkableLists: boolean; checkableCandidates: boolean} {
     const enableCheckableLists =
         question.presentation?.enable_checkable_lists || EEnableCheckableLists.CANDIDATES_AND_LISTS
     switch (enableCheckableLists) {

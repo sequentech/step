@@ -10,8 +10,9 @@ import {Link as RouterLink} from "react-router-dom"
 import {useTranslation} from "react-i18next"
 import {styled} from "@mui/material/styles"
 import Skeleton from "@mui/material/Skeleton"
+import {IBallotStyle, IDecodedVoteContest, checkIsBlank} from "@sequentech/ui-core"
 import {IBallotService, IConfirmationBallot} from "../services/BallotService"
-import {IDecodedVoteContest, checkIsBlank} from "@sequentech/ui-core"
+import {checkIsInvalidVote, checkIsWriteIn, getImageUrl} from "../services/ElectionConfigService"
 import Button from "@mui/material/Button"
 import {
     faCircleQuestion,
@@ -33,7 +34,6 @@ import {
 import {translate, ICandidate, IContest, EInvalidVotePolicy} from "@sequentech/ui-core"
 import {keyBy} from "lodash"
 import Image from "mui-image"
-import {checkIsInvalidVote, checkIsWriteIn, getImageUrl} from "../services/ElectionConfigService"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -91,6 +91,7 @@ const CandidatesWrapper = styled(Box)`
 `
 
 interface CandidateChoiceProps {
+    ballotStyle: IBallotStyle | undefined
     answer?: ICandidate
     points: number | null
     ordered: boolean
@@ -99,6 +100,7 @@ interface CandidateChoiceProps {
 }
 
 export const CandidateChoice: React.FC<CandidateChoiceProps> = ({
+    ballotStyle,
     answer,
     isWriteIn,
     writeInValue,
