@@ -28,7 +28,7 @@ jobs:
         working-directory: packages
         run: |
           if [ -f yarn.lock ]; then
-            hash=$(sha1sum ./sequent-core/pkg/sequent-core-0.1.0.tgz | awk '{printf $1}')
+            hash=$(sha1sum ./ui-core/rust/sequent-core-0.1.0.tgz | awk '{printf $1}')
             hash1=$(grep "file:./admin-portal/rust/sequent-core-" yarn.lock | awk -F# '{printf $2}' | tr -d '"')
             hash2=$(grep "file:./ballot-verifier/rust/sequent-core-" yarn.lock | awk -F# '{printf $2}' | tr -d '"')
             hash3=$(grep "file:./voting-portal/rust/sequent-core-" yarn.lock | awk -F# '{printf $2}' | tr -d '"')
