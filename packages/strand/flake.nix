@@ -5,7 +5,7 @@
   description = "Flake to test rust code";
 
   inputs.rust-overlay.url = "github:oxalica/rust-overlay";
-  inputs.nixpkgs.url = "nixpkgs/nixos-22.05";
+  inputs.nixpkgs.url = "nixpkgs/nixos-24.05";
   inputs.flake-utils.url = "github:numtide/flake-utils";
   inputs.flake-compat = {
     url = "github:edolstra/flake-compat";
@@ -23,7 +23,7 @@
         configureRustTargets = targets : pkgs
           .rust-bin
           .nightly
-          ."2022-07-05"
+          ."2022-07-31"
           .default
           .override {
               extensions = [ "rust-src" ];
