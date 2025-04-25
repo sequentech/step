@@ -113,6 +113,7 @@ export interface IQuestionProps {
     onSetBallotSelectionBlankVote?: (action: any) => any
     onSetBallotSelectionInvalidVote?: (action: any) => any
     onSetBallotSelectionVoteChoice?: (action: any) => any
+    url?: string
 }
 
 export const Question: React.FC<IQuestionProps> = ({
@@ -127,6 +128,7 @@ export const Question: React.FC<IQuestionProps> = ({
     onSetBallotSelectionBlankVote,
     onSetBallotSelectionInvalidVote,
     onSetBallotSelectionVoteChoice,
+    url,
 }) => {
     // THIS IS A CONTEST COMPONENT
     const {i18n} = useTranslation()
@@ -342,6 +344,7 @@ export const Question: React.FC<IQuestionProps> = ({
                                   isActive={!isReview}
                                   isReview={isReview}
                                   contest={question}
+                                  url={url}
                               />
                           ))
                         : candidatesOrder
@@ -371,6 +374,7 @@ export const Question: React.FC<IQuestionProps> = ({
                                       onSetBallotSelectionVoteChoice={
                                           onSetBallotSelectionVoteChoice
                                       }
+                                      url={url}
                                   />
                               ))}
                 </CandidatesSingleWrapper>
@@ -396,6 +400,7 @@ export const Question: React.FC<IQuestionProps> = ({
                         onSetBallotSelectionBlankVote={onSetBallotSelectionBlankVote}
                         onSetBallotSelectionInvalidVote={onSetBallotSelectionInvalidVote}
                         onSetBallotSelectionVoteChoice={onSetBallotSelectionVoteChoice}
+                        url={url}
                     />
                 ))}
             </CandidatesWrapper>

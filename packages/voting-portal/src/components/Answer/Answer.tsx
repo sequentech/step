@@ -1,8 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useContext, useState} from "react"
-import {useAppDispatch} from "../../store/hooks"
+import React, {useState} from "react"
 import {
     stringToHtml,
     isUndefined,
@@ -13,6 +12,10 @@ import {
 } from "@sequentech/ui-core"
 import {Candidate} from "@sequentech/ui-essentials"
 import Image from "mui-image"
+import {useTranslation} from "react-i18next"
+import {ECandidatesIconCheckboxPolicy} from "@sequentech/ui-core"
+import {IBallotStyle as IElectionDTO} from "@sequentech/ui-core"
+import {IDecodedVoteContest} from "sequent-core"
 
 import {
     checkAllowWriteIns,
@@ -20,12 +23,7 @@ import {
     getImageUrl,
     getLinkUrl,
 } from "../../services/ElectionConfigService"
-import {useTranslation} from "react-i18next"
-import {SettingsContext} from "../../providers/SettingsContextProvider"
-import {IDecodedVoteContest} from "sequent-core"
 import {provideBallotService} from "../../services/BallotService"
-import {ECandidatesIconCheckboxPolicy} from "@sequentech/ui-core"
-import {IBallotStyle as IElectionDTO} from "@sequentech/ui-core"
 
 interface IBallotStyle {
     id: string
@@ -64,6 +62,7 @@ export interface IAnswerProps {
     onSetBallotSelectionBlankVote?: (action: any) => any
     onSetBallotSelectionInvalidVote?: (action: any) => any
     onSetBallotSelectionVoteChoice?: (action: any) => any
+    url?: string
 }
 
 export const Answer: React.FC<IAnswerProps> = ({
@@ -88,13 +87,12 @@ export const Answer: React.FC<IAnswerProps> = ({
     onSetBallotSelectionBlankVote,
     onSetBallotSelectionInvalidVote,
     onSetBallotSelectionVoteChoice,
+    url,
 }) => {
     const selectionState = questionPlaintext?.choices.find((c) => c.id === answer.id)
 
     const [explicitBlank, setExplicitBlank] = useState<boolean>(false)
     const question = ballotStyle.ballot_eml.contests.find((contest) => contest.id === contestId)
-    const dispatch = useAppDispatch()
-    const {globalSettings} = useContext(SettingsContext)
     const imageUrl = getImageUrl(answer)
     const infoUrl = getLinkUrl(answer)
     const {i18n} = useTranslation()
@@ -212,9 +210,7 @@ export const Answer: React.FC<IAnswerProps> = ({
             shouldDisable={shouldDisable}
             iconCheckboxPolicy={iconCheckboxPolicy}
         >
-            {imageUrl ? (
-                <Image src={`${globalSettings.PUBLIC_BUCKET_URL}${imageUrl}`} duration={100} />
-            ) : null}
+            {imageUrl ? <Image src={`${url ?? ""}${imageUrl}`} duration={100} /> : null}
         </Candidate>
     )
 }

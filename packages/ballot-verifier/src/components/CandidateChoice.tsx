@@ -2,12 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
-import {Link as RouterLink} from "react-router-dom"
-import Paper from "@mui/material/Paper"
-import Box from "@mui/material/Box"
-import Button from "@mui/material/Button"
 import Image from "mui-image"
-import {styled} from "@mui/material/styles"
 
 import {ICandidate, IBallotStyle, stringToHtml} from "@sequentech/ui-core"
 import {Candidate} from "@sequentech/ui-essentials"

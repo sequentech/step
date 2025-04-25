@@ -44,6 +44,7 @@ import {AuthContext} from "../providers/AuthContextProvider"
 import {canVoteSomeElection} from "../store/castVotes/castVotesSlice"
 import {IDecodedVoteContest} from "@sequentech/ui-core"
 import {sortContestList} from "@sequentech/ui-core"
+import {SettingsContext} from "../providers/SettingsContextProvider"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -183,6 +184,7 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
     disableNextButton,
 }) => {
     const dispatch = useAppDispatch()
+    const {globalSettings} = useContext(SettingsContext)
 
     const contestsOrderType = ballotStyle?.ballot_eml.election_presentation?.contests_order
     const [pageIndex, setPageIndex] = useState(0)
@@ -273,6 +275,7 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
                             onSetBallotSelectionBlankVote={doSetBallotSelectionBlankVote}
                             onSetBallotSelectionInvalidVote={doSetBallotSelectionInvalidVote}
                             onSetBallotSelectionVoteChoice={doSetBallotSelectionVoteChoice}
+                            url={globalSettings.PUBLIC_BUCKET_URL}
                         />
                     </Box>
                 ))}
