@@ -488,6 +488,7 @@ const catalanTranslation: TranslationType = {
                 copiedError: "Error copiant la contrasenya",
                 reports: "Informes",
                 applications: "Aplicacions",
+                tally: "Recompte",
             },
             taskNotification:
                 "{{action}} ha començat. Podeu veure el seu estat a la taula d'Execució de Tasques.",
@@ -1097,6 +1098,7 @@ const catalanTranslation: TranslationType = {
                 fr: "Francès",
                 cat: "Valencià",
                 tl: "Tagal",
+                nl: "Holandés",
             },
             channel: {
                 online: "En línia",

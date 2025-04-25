@@ -489,6 +489,7 @@ const frenchTranslation: TranslationType = {
                 copiedError: "Erreur lors de la copie",
                 reports: "Rapports",
                 applications: "Applications",
+                tally: "Décompte",
             },
             taskNotification:
                 "{{action}} a commencé. Vous pouvez voir son statut dans le tableau d'Exécution des Tâches.",
@@ -1094,6 +1095,7 @@ const frenchTranslation: TranslationType = {
                 fr: "Français",
                 cat: "Valencien",
                 tl: "Tagalog",
+                nl: "Néerlandais",
             },
             channel: {
                 online: "En ligne",
