@@ -109,6 +109,10 @@ export interface IQuestionProps {
     setDisableNext?: (value: boolean) => void
     setDecodedContests?: (input: IDecodedVoteContest) => void
     errorSelectionState: BallotSelection
+    onResetBallotSelection?: (action: any) => any
+    onSetBallotSelectionBlankVote?: (action: any) => any
+    onSetBallotSelectionInvalidVote?: (action: any) => any
+    onSetBallotSelectionVoteChoice?: (action: any) => any
 }
 
 export const Question: React.FC<IQuestionProps> = ({
@@ -119,6 +123,10 @@ export const Question: React.FC<IQuestionProps> = ({
     setDisableNext,
     setDecodedContests,
     errorSelectionState,
+    onResetBallotSelection,
+    onSetBallotSelectionBlankVote,
+    onSetBallotSelectionInvalidVote,
+    onSetBallotSelectionVoteChoice,
 }) => {
     // THIS IS A CONTEST COMPONENT
     const {i18n} = useTranslation()
@@ -133,9 +141,7 @@ export const Question: React.FC<IQuestionProps> = ({
     let hasBlankCandidate = invalidOrBlankCandidates.some((candidate) =>
         checkIsExplicitBlankVote(candidate)
     )
-    // const contestState = useAppSelector(
-    //     selectBallotSelectionQuestion(ballotStyle.election_id, question.id)
-    // )
+
     const {checkableLists, checkableCandidates} = getCheckableOptions(question)
     let [invalidBottomCandidates, invalidTopCandidates] = splitList(
         invalidOrBlankCandidates,
@@ -287,6 +293,10 @@ export const Question: React.FC<IQuestionProps> = ({
                         setSelectedChoicesSum={setSelectedChoicesSum}
                         disableSelect={disableSelect}
                         iconCheckboxPolicy={iconCheckboxPolicy}
+                        onResetBallotSelection={onResetBallotSelection}
+                        onSetBallotSelectionBlankVote={onSetBallotSelectionBlankVote}
+                        onSetBallotSelectionInvalidVote={onSetBallotSelectionInvalidVote}
+                        onSetBallotSelectionVoteChoice={onSetBallotSelectionVoteChoice}
                     />
                 ))}
                 <CandidateListsWrapper className="candidates-lists-container">
@@ -353,6 +363,14 @@ export const Question: React.FC<IQuestionProps> = ({
                                       setSelectedChoicesSum={setSelectedChoicesSum}
                                       disableSelect={disableSelect}
                                       iconCheckboxPolicy={iconCheckboxPolicy}
+                                      onResetBallotSelection={onResetBallotSelection}
+                                      onSetBallotSelectionBlankVote={onSetBallotSelectionBlankVote}
+                                      onSetBallotSelectionInvalidVote={
+                                          onSetBallotSelectionInvalidVote
+                                      }
+                                      onSetBallotSelectionVoteChoice={
+                                          onSetBallotSelectionVoteChoice
+                                      }
                                   />
                               ))}
                 </CandidatesSingleWrapper>
@@ -374,6 +392,10 @@ export const Question: React.FC<IQuestionProps> = ({
                         setSelectedChoicesSum={setSelectedChoicesSum}
                         disableSelect={disableSelect}
                         iconCheckboxPolicy={iconCheckboxPolicy}
+                        onResetBallotSelection={onResetBallotSelection}
+                        onSetBallotSelectionBlankVote={onSetBallotSelectionBlankVote}
+                        onSetBallotSelectionInvalidVote={onSetBallotSelectionInvalidVote}
+                        onSetBallotSelectionVoteChoice={onSetBallotSelectionVoteChoice}
                     />
                 ))}
             </CandidatesWrapper>

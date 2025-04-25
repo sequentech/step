@@ -13,12 +13,7 @@ import {
 } from "@sequentech/ui-core"
 import {Candidate} from "@sequentech/ui-essentials"
 import Image from "mui-image"
-import {
-    resetBallotSelection,
-    setBallotSelectionBlankVote,
-    setBallotSelectionInvalidVote,
-    setBallotSelectionVoteChoice,
-} from "../../store/ballotSelections/ballotSelectionsSlice"
+
 import {
     checkAllowWriteIns,
     checkIsWriteIn,
@@ -65,6 +60,10 @@ export interface IAnswerProps {
     setSelectedChoicesSum?: (num: number) => void
     disableSelect?: boolean
     writeInValue?: string | undefined
+    onResetBallotSelection?: (action: any) => any
+    onSetBallotSelectionBlankVote?: (action: any) => any
+    onSetBallotSelectionInvalidVote?: (action: any) => any
+    onSetBallotSelectionVoteChoice?: (action: any) => any
 }
 
 export const Answer: React.FC<IAnswerProps> = ({
@@ -85,6 +84,10 @@ export const Answer: React.FC<IAnswerProps> = ({
     setSelectedChoicesSum,
     disableSelect,
     writeInValue,
+    onResetBallotSelection,
+    onSetBallotSelectionBlankVote,
+    onSetBallotSelectionInvalidVote,
+    onSetBallotSelectionVoteChoice,
 }) => {
     const selectionState = questionPlaintext?.choices.find((c) => c.id === answer.id)
 
@@ -115,23 +118,16 @@ export const Answer: React.FC<IAnswerProps> = ({
     }
 
     const setInvalidVote = (value: boolean) => {
-        dispatch(
-            setBallotSelectionInvalidVote({
-                ballotStyle,
-                contestId,
-                isExplicitInvalid: value,
-            })
-        )
+        onSetBallotSelectionInvalidVote?.({
+            ballotStyle,
+            contestId,
+            isExplicitInvalid: value,
+        })
     }
 
     const setBlankVote = () => {
         setExplicitBlank(true)
-        dispatch(
-            setBallotSelectionBlankVote({
-                ballotStyle,
-                contestId,
-            })
-        )
+        onSetBallotSelectionBlankVote?.({ballotStyle, contestId})
     }
 
     const setChecked = (value: boolean) => {
@@ -156,26 +152,22 @@ export const Answer: React.FC<IAnswerProps> = ({
             selectionState?.write_in_text && normalizeWriteInText(selectionState?.write_in_text)
 
         if (isRadioSelection) {
-            dispatch(
-                resetBallotSelection({
-                    ballotStyle,
-                    force: true,
-                    contestId: contest.id,
-                })
-            )
+            onResetBallotSelection?.({
+                ballotStyle,
+                force: true,
+                contestId: contest.id,
+            })
         }
 
-        dispatch(
-            setBallotSelectionVoteChoice({
-                ballotStyle,
-                contestId,
-                voteChoice: {
-                    id: answer.id,
-                    selected: value ? 0 : -1,
-                    write_in_text: cleanedText,
-                },
-            })
-        )
+        onSetBallotSelectionVoteChoice?.({
+            ballotStyle,
+            contestId,
+            voteChoice: {
+                id: answer.id,
+                selected: value ? 0 : -1,
+                write_in_text: cleanedText,
+            },
+        })
     }
 
     const setWriteInText = (writeInText: string): void => {
@@ -184,17 +176,15 @@ export const Answer: React.FC<IAnswerProps> = ({
         }
         let cleanedText = normalizeWriteInText(writeInText)
 
-        dispatch(
-            setBallotSelectionVoteChoice({
-                ballotStyle,
-                contestId,
-                voteChoice: {
-                    id: answer.id,
-                    selected: isUndefined(selectionState) ? -1 : selectionState.selected,
-                    write_in_text: cleanedText,
-                },
-            })
-        )
+        onSetBallotSelectionVoteChoice?.({
+            ballotStyle,
+            contestId,
+            voteChoice: {
+                id: answer.id,
+                selected: isUndefined(selectionState) ? -1 : selectionState.selected,
+                write_in_text: cleanedText,
+            },
+        })
     }
 
     if (isReview && !isChecked()) {

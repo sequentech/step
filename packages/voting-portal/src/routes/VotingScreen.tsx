@@ -28,6 +28,8 @@ import {
     selectBallotSelectionByElectionId,
     setBallotSelection,
     resetBallotSelection,
+    setBallotSelectionBlankVote,
+    setBallotSelectionVoteChoice,
 } from "../store/ballotSelections/ballotSelectionsSlice"
 import {clearIsVoted, setIsVoted} from "../store/extra/extraSlice"
 import {provideBallotService} from "../services/BallotService"
@@ -239,6 +241,19 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
         }
     }
 
+    const doResetBallotSelection = (action: any) => {
+        dispatch(resetBallotSelection(action))
+    }
+    const doSetBallotSelectionBlankVote = (action: any) => {
+        dispatch(setBallotSelectionBlankVote(action))
+    }
+    const doSetBallotSelectionInvalidVote = (action: any) => {
+        dispatch(setBallotSelectionBlankVote(action))
+    }
+    const doSetBallotSelectionVoteChoice = (action: any) => {
+        dispatch(setBallotSelectionVoteChoice(action))
+    }
+
     return (
         <>
             {sortedContests &&
@@ -254,6 +269,10 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
                             setDisableNext={() => onSetDisableNext(contest.id)}
                             setDecodedContests={onSetDecodedContests(contest.id)}
                             errorSelectionState={errorSelectionState}
+                            onResetBallotSelection={doResetBallotSelection}
+                            onSetBallotSelectionBlankVote={doSetBallotSelectionBlankVote}
+                            onSetBallotSelectionInvalidVote={doSetBallotSelectionInvalidVote}
+                            onSetBallotSelectionVoteChoice={doSetBallotSelectionVoteChoice}
                         />
                     </Box>
                 ))}
