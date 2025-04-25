@@ -40,15 +40,6 @@ const SelectTemplate = ({
         pagination: {page: 1, perPage: 100},
     })
 
-    // const choices = templates
-    //     ? [...templates]
-    //           .sort((a, b) => a.alias.localeCompare(b.alias))
-    //           .map((template) => ({
-    //               id: template.alias,
-    //               name: template.template.name,
-    //           }))
-    //     : []
-
     const handleTemplateChange = (alias: string) => {
         if (onSelectTemplate) {
             onSelectTemplate({alias})
