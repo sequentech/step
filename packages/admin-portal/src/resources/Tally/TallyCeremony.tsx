@@ -710,6 +710,19 @@ export const TallyCeremony: React.FC = () => {
         [tallySessionData, tally]
     )
 
+    const sortedKeysCeremonies = useMemo(() => {
+        // Ensure keysCeremonies and its nested properties exist
+        const items = keysCeremonies?.list_keys_ceremony?.items
+        if (!items) return []
+
+        // Create a shallow copy and sort it
+        return [...items].sort((a, b) => {
+            if (!a?.name || !b?.name) return 0
+            return a.name.localeCompare(b.name)
+        })
+        // Dependency array: re-run only when the original items array changes
+    }, [keysCeremonies?.list_keys_ceremony?.items])
+
     return (
         <TallyStyles.WizardContainer>
             <TallyStyles.ContentWrapper>
@@ -788,16 +801,11 @@ export const TallyCeremony: React.FC = () => {
                                         setKeysCeremonyId(props?.target?.value)
                                     }}
                                 >
-                                    {[...(keysCeremonies?.list_keys_ceremony?.items ?? [])]
-                                        .sort((a, b) => {
-                                            if (!a?.name || !b?.name) return 0
-                                            return a.name.localeCompare(b.name)
-                                        })
-                                        .map((keysCeremony) => (
-                                            <MenuItem key={keysCeremony.id} value={keysCeremony.id}>
-                                                {keysCeremony?.name}
-                                            </MenuItem>
-                                        ))}
+                                    {sortedKeysCeremonies.map((keysCeremony) => (
+                                        <MenuItem key={keysCeremony.id} value={keysCeremony.id}>
+                                            {keysCeremony?.name}
+                                        </MenuItem>
+                                    ))}
                                 </Select>
                             </FormControl>
                         </>
