@@ -790,6 +790,32 @@
             "problemMatcher": []
         },
         {
+            "label": "build.wasm",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+              "-l",  // <== login shell
+              "-c",
+              "cd /workspaces/step/packages/sequent-core && nix develop --command ../../.devcontainer/scripts/build-wasm.sh"
+            ],
+            "options": {
+              "cwd": "${workspaceFolder}"
+            },
+            "presentation": {
+              "echo": true,
+              "reveal": "always",
+              "focus": false,
+              "panel": "dedicated",
+              "showReuseMessage": true,
+              "clear": false
+            },
+            "isBackground": false,
+            "runOptions": {
+              "runOn": "default"
+            },
+            "problemMatcher": []
+        },
+        {
             "label": "logs.orare",
             "command": "docker",
             "args": [
