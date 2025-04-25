@@ -16,7 +16,7 @@ wasm-pack --version
 which wasm-bindgen
 wasm-bindgen --version
 
-wasm-pack build --mode no-install --out-name index --release --target web --features=wasmtest
+RUSTFLAGS='--cfg getrandom_backend="wasm_js"' wasm-pack build --mode no-install --out-name index --release --target web --features=wasmtest
 wasm-pack -v pack . 2>&1 | tee output.log
 
 cd ..

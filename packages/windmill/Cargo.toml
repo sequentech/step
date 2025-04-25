@@ -30,7 +30,7 @@ flate2 = "1.0.28"
 tar = "0.4.40"
 graphql_client = "0.13.0"
 rust-s3 = "0.33.0"
-strum = "0.25"
+strum = "0.27"
 strum_macros = "0.25"
 base64 = "0.21.0"
 celery = { git = "https://github.com/rusty-celery/rusty-celery.git", rev = "1a0168f4b4b521c891fcfc853c21fc30de12c2f2" }
