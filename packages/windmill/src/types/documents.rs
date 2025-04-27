@@ -21,7 +21,7 @@ pub enum EDocuments {
     PUBLICATIONS,
     TALLY,
     S3_DOCUMENTS_IDS,
-    PUBLICATIONS_BALLOT_STYLE,
+    BALLOT_STYLE,
 }
 
 impl EDocuments {
@@ -42,7 +42,7 @@ impl EDocuments {
             EDocuments::PUBLICATIONS => "export_publications",
             EDocuments::TALLY => "export_tally_data",
             EDocuments::S3_DOCUMENTS_IDS => "s3_documents_ids",
-            EDocuments::PUBLICATIONS_BALLOT_STYLE => "export_publications_ballot_style",
+            EDocuments::BALLOT_STYLE => "export_ballot_style",
         }
     }
 }

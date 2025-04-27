@@ -184,9 +184,7 @@ pub async fn export_ballot_styles_csv(
             .await
             .map_err(|e| anyhow!("Error reading ballot styles data: {e:?}"))?;
 
-    let file_name = EDocuments::PUBLICATIONS_BALLOT_STYLE
-        .to_file_name()
-        .to_string();
+    let file_name = EDocuments::BALLOT_STYLE.to_file_name().to_string();
 
     let mut writer = csv::WriterBuilder::new().delimiter(b',').from_writer(
         generate_temp_file(&file_name, ".csv").with_context(|| "Error creating temporary file")?,

@@ -882,6 +882,22 @@ pub async fn process_document(
         None => file_election_event_schema,
     };
 
+    let ballot_publications_file = zip_entries
+        .iter()
+        .find(|(name, _)| name.contains(EDocuments::PUBLICATIONS.to_file_name()));
+
+    let file_election_event_schema = match ballot_publications_file {
+        Some(ballot_publications_file) => {
+            let ballot_publications_file_content =
+                String::from_utf8(ballot_publications_file.1.clone())?;
+            format!(
+                "{}\n{}",
+                file_election_event_schema, ballot_publications_file_content
+            )
+        }
+        None => file_election_event_schema,
+    };
+
     let (election_event_schema, replacement_map) = process_election_event_file(
         hasura_transaction,
         &document_type,
@@ -1030,11 +1046,14 @@ pub async fn process_document(
                 )?;
                 temp_file.as_file_mut().rewind()?;
 
+                let publication_file_name = file_name.split(".").next().unwrap();
+
                 import_ballot_publications(
                     hasura_transaction,
+                    &temp_file,
+                    publication_file_name.to_string(),
                     &election_event_schema.tenant_id.to_string(),
                     &election_event_schema.election_event.id,
-                    temp_file,
                     replacement_map.clone(),
                 )
                 .await
