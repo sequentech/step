@@ -1095,6 +1095,7 @@ const frenchTranslation: TranslationType = {
                 fr: "Français",
                 cat: "Valencien",
                 tl: "Tagalog",
+                gl: "Galego",
                 nl: "Néerlandais",
             },
             channel: {

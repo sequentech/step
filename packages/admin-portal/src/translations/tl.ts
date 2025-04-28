@@ -1090,6 +1090,7 @@ const tagalogTranslation: TranslationType = {
                 fr: "Pranses",
                 cat: "Valencian",
                 tl: "Tagalog",
+                gl: "Galego",
                 nl: "Nederlands",
             },
             channel: {
