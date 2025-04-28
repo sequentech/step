@@ -10,7 +10,6 @@ import {
     ICandidate,
     IContest,
 } from "@sequentech/ui-core"
-import {Candidate} from "@sequentech/ui-essentials"
 import Image from "mui-image"
 import {useTranslation} from "react-i18next"
 import {ECandidatesIconCheckboxPolicy} from "@sequentech/ui-core"
@@ -24,6 +23,7 @@ import {
     getLinkUrl,
 } from "../../services/ElectionConfigService"
 import {provideBallotService} from "../../services/BallotService"
+import Candidate from "../Candidate/Candidate"
 
 interface IBallotStyle {
     id: string

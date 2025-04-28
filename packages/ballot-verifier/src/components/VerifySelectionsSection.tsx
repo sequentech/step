@@ -9,10 +9,10 @@ import {styled} from "@mui/material/styles"
 import Skeleton from "@mui/material/Skeleton"
 import {IConfirmationBallot} from "../services/BallotService"
 import {faCircleQuestion} from "@fortawesome/free-solid-svg-icons"
-import {IconButton, Dialog, theme} from "@sequentech/ui-essentials"
+import {IconButton, Dialog, theme, Question} from "@sequentech/ui-essentials"
 import {keyBy} from "lodash"
 
-import {Question} from "./Question/Question"
+// import {Question} from "./Question/Question"
 
 import {IBallotStyle as IElectionDTO} from "@sequentech/ui-core"
 

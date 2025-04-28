@@ -6,7 +6,6 @@ import {useTranslation} from "react-i18next"
 import {styled} from "@mui/material/styles"
 import {Box} from "@mui/material"
 
-import {WarnBox} from "@sequentech/ui-essentials"
 import {
     IDecodedVoteContest,
     IContest,
@@ -17,6 +16,7 @@ import {
 
 import {provideBallotService} from "../../services/BallotService"
 import {IBallotStyle as IElectionDTO} from "@sequentech/ui-core"
+import WarnBox from "../WarnBox/WarnBox"
 
 interface IBallotStyle {
     id: string

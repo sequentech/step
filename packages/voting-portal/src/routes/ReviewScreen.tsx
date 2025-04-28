@@ -22,6 +22,7 @@ import {
     BallotHash,
     Dialog,
     WarnBox,
+    Question,
 } from "@sequentech/ui-essentials"
 import {
     stringToHtml,
@@ -46,7 +47,6 @@ import {
 import {useTranslation} from "react-i18next"
 import Button from "@mui/material/Button"
 import {selectAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
-import {Question} from "../components/Question/Question"
 import {useMutation, useQuery} from "@apollo/client"
 import {INSERT_CAST_VOTE} from "../queries/InsertCastVote"
 import {
@@ -433,8 +433,6 @@ export const ReviewScreen: React.FC = () => {
     const {electionId} = useParams<{electionId?: string}>()
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
 
-    console.log("aa ballotStyle", ballotStyle)
-
     const location = useLocation()
     const auditableBallot = useAppSelector(selectAuditableBallot(String(electionId)))
     const [auditBallotHelp, setAuditBallotHelp] = useState<boolean>(false)
@@ -515,7 +513,6 @@ export const ReviewScreen: React.FC = () => {
     const selectionState = useAppSelector(
         selectBallotSelectionByElectionId(ballotStyle?.election_id ?? "")
     )
-    // console.log("bb selectionState *** ", selectionState)
     const isVotedState = useAppSelector(isVotedByElectionId?.(ballotStyle?.election_id))
 
     const errorSelectionState = useMemo(() => {

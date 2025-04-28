@@ -181,8 +181,6 @@ export const HomeScreen: React.FC<IProps> = ({
             decodedBallot = decodedMultiBallot
         }
         const ballotStyle = auditableBallot?.config ?? null
-        console.log("aa auditableBallot", auditableBallot)
-        console.log("aa ballotStyle", ballotStyle)
 
         if (null === auditableBallot || null === decodedBallot || null === ballotStyle) {
             setShowError(true)

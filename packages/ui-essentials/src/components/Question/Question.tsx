@@ -21,7 +21,6 @@ import {
 } from "@sequentech/ui-core"
 import {IDecodedVoteContest, IInvalidPlaintextError} from "@sequentech/ui-core"
 import {sortCandidatesInContest, checkIsBlank} from "@sequentech/ui-core"
-import {theme, BlankAnswer} from "@sequentech/ui-essentials"
 
 import {
     checkIsExplicitBlankVote,
@@ -44,6 +43,8 @@ import {InvalidErrorsList} from "../InvalidErrorsList/InvalidErrorsList"
 import {Answer} from "../Answer/Answer"
 import {AnswersList} from "../AnswersList/AnswersList"
 import {IBallotStyle as IElectionDTO} from "@sequentech/ui-core"
+import theme from "@root/services/theme"
+import BlankAnswer from "../BlankAnswer/BlankAnswer"
 
 interface IBallotStyle {
     id: string
@@ -140,8 +141,9 @@ export const Question: React.FC<IQuestionProps> = ({
     let [selectedChoicesSum, setSelectedChoicesSum] = useState(0)
     let [disableSelect, setDisableSelect] = useState(false)
 
-    let {invalidOrBlankCandidates, noCategoryCandidates, categoriesMap} =
-        categorizeCandidates(question)
+    let {invalidOrBlankCandidates, noCategoryCandidates, categoriesMap} = categorizeCandidates(
+        question
+    )
     let hasBlankCandidate = invalidOrBlankCandidates.some((candidate) =>
         checkIsExplicitBlankVote(candidate)
     )
@@ -305,28 +307,28 @@ export const Question: React.FC<IQuestionProps> = ({
                 ))}
                 <CandidateListsWrapper className="candidates-lists-container">
                     {categoriesMapOrder &&
-                        Object.entries(categoriesMapOrder).map(
-                            ([categoryName, category], categoryIndex) => (
-                                <AnswersList
-                                    key={categoryIndex}
-                                    title={categoryName}
-                                    isActive={true}
-                                    checkableLists={checkableLists}
-                                    checkableCandidates={checkableCandidates}
-                                    category={category}
-                                    ballotStyle={ballotStyle}
-                                    contestId={question.id}
-                                    isReview={isReview}
-                                    isInvalidWriteIns={isInvalidWriteIns}
-                                    isRadioSelection={isRadioSelection}
-                                    contest={question}
-                                    selectedChoicesSum={selectedChoicesSum}
-                                    setSelectedChoicesSum={setSelectedChoicesSum}
-                                    disableSelect={disableSelect}
-                                    iconCheckboxPolicy={iconCheckboxPolicy}
-                                />
-                            )
-                        )}
+                        Object.entries(
+                            categoriesMapOrder
+                        ).map(([categoryName, category], categoryIndex) => (
+                            <AnswersList
+                                key={categoryIndex}
+                                title={categoryName}
+                                isActive={true}
+                                checkableLists={checkableLists}
+                                checkableCandidates={checkableCandidates}
+                                category={category}
+                                ballotStyle={ballotStyle}
+                                contestId={question.id}
+                                isReview={isReview}
+                                isInvalidWriteIns={isInvalidWriteIns}
+                                isRadioSelection={isRadioSelection}
+                                contest={question}
+                                selectedChoicesSum={selectedChoicesSum}
+                                setSelectedChoicesSum={setSelectedChoicesSum}
+                                disableSelect={disableSelect}
+                                iconCheckboxPolicy={iconCheckboxPolicy}
+                            />
+                        ))}
                 </CandidateListsWrapper>
                 <CandidatesSingleWrapper
                     className="candidates-singles-container"

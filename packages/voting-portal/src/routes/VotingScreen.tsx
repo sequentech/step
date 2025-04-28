@@ -6,7 +6,7 @@ import React, {useContext, useEffect, useMemo, useState} from "react"
 import {selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {Box} from "@mui/material"
-import {PageLimit, Icon, IconButton, theme, Dialog} from "@sequentech/ui-essentials"
+import {PageLimit, Icon, IconButton, theme, Dialog, Question} from "@sequentech/ui-essentials"
 import {
     check_voting_error_dialog_bool,
     check_voting_not_allowed_next_bool,
@@ -34,7 +34,6 @@ import {
 import {clearIsVoted, setIsVoted, isVotedByElectionId} from "../store/extra/extraSlice"
 import {provideBallotService} from "../services/BallotService"
 import {setAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
-import {Question} from "../components/Question/Question"
 import {CircularProgress} from "@mui/material"
 import {selectElectionById} from "../store/elections/electionsSlice"
 import {useRootBackLink} from "../hooks/root-back-link"

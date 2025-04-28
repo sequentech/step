@@ -25,8 +25,6 @@ export const CandidateChoice: React.FC<CandidateChoiceProps> = ({
     const imageUrl = answer && getImageUrl(answer)
     const isWriteIn = checkIsWriteIn(answer)
 
-    console.log("aa answer", answer)
-
     return (
         <Candidate
             title={answer?.name}

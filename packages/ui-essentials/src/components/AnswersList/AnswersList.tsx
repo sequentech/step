@@ -5,14 +5,13 @@ import React, {useState} from "react"
 import {useTranslation} from "react-i18next"
 import {sortBy} from "lodash"
 
-import {CandidatesList} from "@sequentech/ui-essentials"
 import {IDecodedVoteContest, isUndefined, IContest, translate, keyBy} from "@sequentech/ui-core"
 import {sortCandidatesInContest, ECandidatesIconCheckboxPolicy} from "@sequentech/ui-core"
 import {IBallotStyle as IElectionDTO} from "@sequentech/ui-core"
 
 import {ICategory} from "../../services/CategoryService"
-import {useAppDispatch, useAppSelector} from "../../store/hooks"
 import {Answer} from "../Answer/Answer"
+import CandidatesList from "../CandidatesList/CandidatesList"
 
 interface IBallotStyle {
     id: string

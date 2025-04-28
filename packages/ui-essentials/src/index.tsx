@@ -36,3 +36,8 @@ export {NotFoundScreen} from "./components/NotFoundScreen"
 export {default as BlankAnswer} from "./components/BlankAnswer/BlankAnswer"
 export {default as CustomAutocompleteArrayInput} from "./components/CustomAutocompleteArrayInput/CustomAutocompleteArrayInput"
 export {default as BallotInput} from "./components/BallotInput/BallotInput"
+
+export {Answer} from "./components/Answer/Answer"
+export {Question} from "./components/Question/Question"
+export {InvalidErrorsList} from "./components/InvalidErrorsList/InvalidErrorsList"
+export {AnswersList} from "./components/AnswersList/AnswersList"

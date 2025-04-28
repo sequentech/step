@@ -94,11 +94,6 @@ export const PlaintextVoteQuestion: React.FC<PlaintextVoteQuestionProps> = ({
     const isBlank = checkIsBlank(questionPlaintext)
     const columnCount = question.presentation?.columns ?? 1
 
-    // console.log("aa questionPlaintext", questionPlaintext)
-    // console.log("aa selectedAnswers", selectedAnswers)
-    // console.log("aa question", question)
-    console.log("aa answersById", answersById)
-
     return (
         <Box>
             <StyledTitle
