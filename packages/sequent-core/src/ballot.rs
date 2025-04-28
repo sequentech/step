@@ -4,6 +4,7 @@
 #![allow(non_snake_case)]
 #![allow(dead_code)]
 use crate::ballot_codec::PlaintextCodec;
+use crate::encrypt::hash_ballot_style;
 use crate::error::BallotError;
 use crate::serialization::base64::{Base64Deserialize, Base64Serialize};
 use crate::serialization::deserialize_with_path::deserialize_value;
@@ -119,7 +120,8 @@ pub struct HashableBallot {
     pub version: u32,
     pub issue_date: String,
     pub contests: Vec<String>, // Vec<HashableBallotContest<C>>,
-    pub config: BallotStyle,
+    pub config: String,
+    pub ballot_style_hash: String,
 }
 
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug, Clone)]
@@ -207,14 +209,21 @@ impl TryFrom<&AuditableBallot> for HashableBallot {
                     hashable_ballot_contest
                 })
                 .collect();
-
+        let ballot_style_hash =
+            hash_ballot_style(&value.config).map_err(|error| {
+                BallotError::Serialization(format!(
+                    "Failed to hash ballot style: {}",
+                    error
+                ))
+            })?;
         Ok(HashableBallot {
             version: TYPES_VERSION,
             issue_date: value.issue_date.clone(),
             contests: HashableBallot::serialize_contests::<RistrettoCtx>(
                 &hashable_ballot_contest,
             )?,
-            config: value.config.clone(),
+            config: value.config.id.clone(),
+            ballot_style_hash: ballot_style_hash,
         })
     }
 }
@@ -400,6 +409,30 @@ pub enum ContestsOrder {
     #[serde(rename = "alphabetical")]
     #[default]
     Alphabetical,
+}
+
+#[derive(
+    Debug,
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+    Clone,
+    EnumString,
+    Display,
+    Default,
+)]
+pub enum CastVoteGoldLevelPolicy {
+    #[strum(serialize = "gold-level")]
+    #[serde(rename = "gold-level")]
+    GoldLevel,
+    #[strum(serialize = "no-gold-level")]
+    #[serde(rename = "no-gold-level")]
+    #[default]
+    NoGoldLevel,
 }
 
 #[allow(non_camel_case_types)]
@@ -889,6 +922,7 @@ pub struct ElectionPresentation {
     pub audit_button_cfg: Option<AuditButtonCfg>,
     pub sort_order: Option<i64>,
     pub cast_vote_confirm: Option<bool>,
+    pub cast_vote_gold_level: Option<CastVoteGoldLevelPolicy>,
     pub is_grace_priod: Option<bool>,
     pub grace_period_policy: Option<EGracePeriodPolicy>,
     pub grace_period_secs: Option<u64>,
@@ -925,6 +959,7 @@ impl Default for ElectionPresentation {
             audit_button_cfg: None,
             sort_order: None,
             cast_vote_confirm: None,
+            cast_vote_gold_level: Some(CastVoteGoldLevelPolicy::NoGoldLevel),
             is_grace_priod: None,
             grace_period_policy: None,
             grace_period_secs: None,

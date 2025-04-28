@@ -418,6 +418,10 @@ const catalanTranslation: TranslationType = {
                         "La Cerimònia de Còmput no pot començar fins que no creïs una publicació a la pestanya Publicar.",
                     participateNow:
                         "Ha estat convidat a participar a una Cerimònia de Recompte. Si us plau <1>feu clic a continuació en l'acció de recompte de la cerimònia</1> per participar.",
+                    startDisabled:
+                        "No podeu continuar amb la cerimònia perquè no s'ha seleccionat cap elecció o les eleccions no estan publicades.",
+                    ceremonyDisabled:
+                        "No podeu continuar amb la cerimònia perquè la sessió de recompte no està connectada o l'inici de la cerimònia no està permès.",
                 },
             },
             importAreas: {
@@ -484,6 +488,7 @@ const catalanTranslation: TranslationType = {
                 copiedError: "Error copiant la contrasenya",
                 reports: "Informes",
                 applications: "Aplicacions",
+                tally: "Recompte",
             },
             taskNotification:
                 "{{action}} ha començat. Podeu veure el seu estat a la taula d'Execució de Tasques.",
@@ -560,6 +565,13 @@ const catalanTranslation: TranslationType = {
                 "label": "Inicialitzar política d'informes",
                 "not-required": "No requereix",
                 "required": "Requerit",
+            },
+            castVoteGoldLevelPolicy: {
+                label: "Gold level Authentication Policy",
+                options: {
+                    "gold-level": "Gold level Authentication",
+                    "no-gold-level": "No Gold level Authentication",
+                },
             },
         },
         tenantScreen: {
@@ -1086,6 +1098,8 @@ const catalanTranslation: TranslationType = {
                 fr: "Francès",
                 cat: "Valencià",
                 tl: "Tagal",
+                gl: "Galego",
+                nl: "Holandés",
             },
             channel: {
                 online: "En línia",
