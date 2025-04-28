@@ -2,20 +2,37 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-# Start with a minimal Alpine Linux image that includes a package manager
-FROM alpine:latest as alpine_base
+###############################################################################
+# 1. ── BUILD STAGE ────────────────────────────────────────────────────────────
+#    • Uses the same Go tool-chain immudb’s official Dockerfile relies on
+#    • Compiles immudb / immuadmin for *TARGETPLATFORM* automatically
+###############################################################################
+ARG IMMUDB_VERSION=1.9.6
+FROM --platform=$BUILDPLATFORM golang:1.22-alpine AS builder
 
-# Install bash and other utilities
-RUN apk update && \
-    apk add --no-cache bash ca-certificates coreutils
+# redeclare it so that the stage can use it
+ARG IMMUDB_VERSION
+# immudb needs git, make, gcc for cgo parts
+RUN apk add --no-cache git make gcc musl-dev bash
 
-# Now start a new stage, keeping Alpine as the base
-FROM alpine:latest
+WORKDIR /src
+# checkout the exact tag
+RUN git clone --depth 1 --branch "v${IMMUDB_VERSION}" https://github.com/codenotary/immudb.git .
+# compile the two binaries into /go/bin/ (Go’s default)
+RUN make immudb immuadmin
 
-# Copy immudb binaries and required files from codenotary/immudb:1.5
-COPY --from=codenotary/immudb:1.9.3 /usr/sbin/immudb /usr/sbin/immudb
-COPY --from=codenotary/immudb:1.9.3 /usr/local/bin/immuadmin /usr/local/bin/immuadmin
-COPY --from=codenotary/immudb:1.9.3 /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+###############################################################################
+# 2. ── RUNTIME STAGE (same as before, but copy from builder) ─────────────────
+###############################################################################
+FROM --platform=$TARGETPLATFORM alpine:latest
+
+# minimal runtime deps
+RUN apk add --no-cache ca-certificates bash
+
+# copy freshly-built, arch-correct binaries
+COPY --from=builder /src/immudb /usr/sbin/immudb
+COPY --from=builder /src/immuadmin /usr/local/bin/immuadmin
+COPY --from=builder "/etc/ssl/certs/ca-certificates.crt" "/etc/ssl/certs/ca-certificates.crt"
 
 # Copy necessary binaries and libraries from the Alpine base image
 # No need to copy individual binaries like /bin/ls, /bin/bash, etc., as they are already part of the Alpine base image
