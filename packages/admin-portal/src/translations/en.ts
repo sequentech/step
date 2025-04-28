@@ -1075,6 +1075,7 @@ const englishTranslation = {
                 fr: "French",
                 cat: "Valencian",
                 tl: "Tagalog",
+                gl: "Galician",
                 nl: "Dutch",
             },
             channel: {

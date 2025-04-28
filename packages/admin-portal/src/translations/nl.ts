@@ -1085,6 +1085,7 @@ const dutchTranslation: TranslationType = {
                 fr: "Frans",
                 cat: "Valenciaans",
                 tl: "Tagalog",
+                gl: "Galicisch",
                 nl: "Nederlands",
             },
             channel: {
