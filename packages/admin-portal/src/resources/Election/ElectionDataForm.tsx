@@ -54,12 +54,14 @@ import {CustomTabPanel} from "../../components/CustomTabPanel"
 import {ElectionStyles} from "../../components/styles/ElectionStyles"
 import {
     ContestsOrder,
+    ECastVoteGoldLevelPolicy,
     EGracePeriodPolicy,
     EVotingPortalAuditButtonCfg,
     IContestPresentation,
     EInitializeReportPolicy,
     IElectionEventPresentation,
     IElectionPresentation,
+    EAllowTally,
 } from "@sequentech/ui-core"
 import {DropFile} from "@sequentech/ui-essentials"
 import FileJsonInput from "../../components/FileJsonInput"
@@ -145,6 +147,15 @@ export const ElectionDataForm: React.FC = () => {
         {
             id: record.image_document_id || record.tenant_id,
             meta: {tenant_id: record.tenant_id},
+        },
+        {
+            enabled: !!record.image_document_id || !!record.tenant_id,
+            onError: (error: any) => {
+                console.log(`error fetching image doc: ${error.message}`)
+            },
+            onSuccess: () => {
+                console.log(`success fetching image doc`)
+            },
         }
     )
 
@@ -448,6 +459,13 @@ export const ElectionDataForm: React.FC = () => {
         }))
     }
 
+    const allowTallyChoices = () => {
+        return (Object.values(EAllowTally) as EAllowTally[]).map((value) => ({
+            id: value,
+            name: t(`electionScreen.allowTallyPolicy.${value.toLowerCase()}`),
+        }))
+    }
+
     const templateMethodChoices = () => {
         return (Object.values(ITemplateMethod) as ITemplateMethod[]).map((value) => ({
             id: value,
@@ -472,6 +490,13 @@ export const ElectionDataForm: React.FC = () => {
         return Object.values(ContestsOrder).map((value) => ({
             id: value,
             name: t(`contestScreen.options.${value.toLowerCase()}`),
+        }))
+    }
+
+    const goldLevelChoices = (): Array<EnumChoice<ECastVoteGoldLevelPolicy>> => {
+        return Object.values(ECastVoteGoldLevelPolicy).map((value) => ({
+            id: value,
+            name: t(`electionScreen.castVoteGoldLevelPolicy.options.${value.toLowerCase()}`),
         }))
     }
 
@@ -738,6 +763,13 @@ export const ElectionDataForm: React.FC = () => {
                                     label={t("electionScreen.edit.numAllowedVotes")}
                                     min={0}
                                 />
+                                <SelectInput
+                                    label={t("electionScreen.castVoteGoldLevelPolicy.label")}
+                                    source="presentation.cast_vote_gold_level"
+                                    choices={goldLevelChoices()}
+                                    defaultValue={ECastVoteGoldLevelPolicy.NO_GOLD_LEVEL}
+                                    validate={required()}
+                                />
                                 {canEditPermissionLabel && (
                                     <TextInput
                                         label={t("electionScreen.edit.permissionLabel")}
@@ -793,6 +825,12 @@ export const ElectionDataForm: React.FC = () => {
                                     isDisabled={(selectedPolicy: any) =>
                                         selectedPolicy === EGracePeriodPolicy.NO_GRACE_PERIOD
                                     }
+                                />
+                                <ManagedSelectInput
+                                    source={`status.allow_tally`}
+                                    choices={allowTallyChoices()}
+                                    label={t(`electionScreen.edit.allowTallyPolicy`)}
+                                    defaultValue={EAllowTally.ALLOWED}
                                 />
                             </AccordionDetails>
                         </Accordion>

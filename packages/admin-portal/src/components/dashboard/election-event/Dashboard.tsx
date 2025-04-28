@@ -31,6 +31,7 @@ import {IPermissions} from "@/types/keycloak"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {LIST_KEYS_CEREMONY} from "@/queries/ListKeysCeremonies"
 import {IKeysCeremonyExecutionStatus} from "@/services/KeyCeremony"
+import {ETallyType} from "@/types/ceremonies"
 
 const Container = styled(Box)`
     display: flex;
@@ -56,7 +57,17 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
     const startDate = daysBefore(endDate, 6)
     const {t} = useTranslation()
     const authContext = useContext(AuthContext)
+    const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone
+
     const isTrustee = authContext.isAuthorized(true, tenantId, IPermissions.TRUSTEE_CEREMONY)
+    const showIpAdresses = authContext.isAuthorized(
+        true,
+        authContext.tenantId,
+        IPermissions.ADMIN_IP_ADDRESS_VIEW
+    )
+
+    // Ensure required parameters are set before running the query.
+    const canQuery = Boolean(tenantId && record?.id)
 
     const {
         loading,
@@ -68,8 +79,10 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
             electionEventId: record?.id,
             startDate: formatDate(startDate),
             endDate: formatDate(endDate),
+            userTimezone,
         },
         pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+        skip: !canQuery,
     })
 
     const {data: keysCeremonies} = useQuery<ListKeysCeremonyQuery>(LIST_KEYS_CEREMONY, {
@@ -77,6 +90,7 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
             tenantId: tenantId,
             electionEventId: record?.id,
         },
+        skip: !canQuery,
         context: {
             headers: {
                 "x-hasura-role": isTrustee
@@ -109,6 +123,7 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
             refetchOnWindowFocus: false,
             refetchOnReconnect: false,
             refetchOnMount: false,
+            enabled: canQuery,
         }
     )
 
@@ -139,7 +154,9 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
                 IKeysCeremonyExecutionStatus.SUCCESS
         )
         let finishedTallySessions = tallySessions?.find(
-            (tallySession) => tallySession.is_execution_completed
+            (tallySession) =>
+                tallySession.is_execution_completed &&
+                tallySession.tally_type !== ETallyType.INITIALIZATION_REPORT
         )
         if (finishedKeysCeremonies) {
             data.push(1)
@@ -239,7 +256,7 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
                             height={cardHeight}
                         />
                     </Container>
-                    {record?.id && <ListIpAddress electionEventId={record.id} />}
+                    {showIpAdresses && record?.id && <ListIpAddress electionEventId={record.id} />}
                 </Box>
                 <Box
                     sx={{
@@ -256,6 +273,14 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
                     <a href={enrollUrl ?? ""} target="_blank">
                         {t("dashboard.voterEnrollURL")}
                     </a>
+                    {record?.voting_channels?.kiosk === true && (
+                        <>
+                            <p>|</p>
+                            <a href={enrollUrl ? `${enrollUrl}?kiosk` : ""} target="_blank">
+                                {t("dashboard.voterEnrollKioskURL")}
+                            </a>
+                        </>
+                    )}
                 </Box>
             </Box>
         </>

@@ -125,7 +125,11 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     MultivaluedMap<String, String> formData = context.getHttpRequest().getDecodedFormParameters();
     context.getEvent().detail(Details.REGISTER_METHOD, "form");
     UserProfile profile = getOrCreateUserProfile(context, formData);
-    UserModel user = Utils.lookupUserByFormData(context, searchAttributesList, formData);
+
+    UserModel user = null;
+    if (!searchAttributesList.isEmpty()) {
+      user = Utils.lookupUserByFormData(context, searchAttributesList, formData);
+    }
     buildEventDetails(formData, context, user);
     Attributes attributes = profile.getAttributes();
     String email = attributes.getFirst(UserModel.EMAIL);
@@ -191,60 +195,62 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     }
 
     // Lookup user by attributes using form data
-
-    if (user == null) {
-      String sessionId = context.getAuthenticationSession().getParentSession().getId();
-      log.errorv("validate(): User could not be found. Error code: {0}", sessionId);
-      // Display what the user set in formData for the search attributes
-      for (String attribute : searchAttributesList) {
-        log.errorv(
-            "validate(): Register form data {0}: {1}", attribute, formData.getFirst(attribute));
+    if (!searchAttributesList.isEmpty()) {
+      if (user == null) {
+        String sessionId = context.getAuthenticationSession().getParentSession().getId();
+        log.errorv("validate(): User could not be found. Error code: {0}", sessionId);
+        // Display what the user set in formData for the search attributes
+        for (String attribute : searchAttributesList) {
+          log.errorv(
+              "validate(): Register form data {0}: {1}", attribute, formData.getFirst(attribute));
+        }
+        context.error(Utils.ERROR_MESSAGE_USER_NOT_FOUND);
+        List<FormMessage> errors = new ArrayList<>();
+        errors.add(new FormMessage(null, Utils.ERROR_USER_NOT_FOUND, sessionId));
+        context.validationError(formData, errors);
+        return;
       }
-      context.error(Utils.ERROR_MESSAGE_USER_NOT_FOUND);
-      List<FormMessage> errors = new ArrayList<>();
-      errors.add(new FormMessage(null, Utils.ERROR_USER_NOT_FOUND, sessionId));
-      context.validationError(formData, errors);
-      return;
-    }
 
-    // Check if the voter has already been validated
-    log.infov("validate: Is user validated id {0}", verifiedAttributeId);
-    var verifiedAttributeValue = user.getFirstAttribute(verifiedAttributeId);
+      // Check if the voter has already been validated
+      log.infov("validate: Is user validated id {0}", verifiedAttributeId);
+      var verifiedAttributeValue = user.getFirstAttribute(verifiedAttributeId);
 
-    log.infov("validate: Is user validated? {0} == {1}", VERIFIED_VALUE, verifiedAttributeValue);
-    if (VERIFIED_VALUE.equalsIgnoreCase(verifiedAttributeValue)) {
-      log.infov("validate: Is user validated? true");
-      context.getAuthenticationSession().setAuthNote(verifiedAttributeId, verifiedAttributeValue);
-      context.success();
-      return;
-    }
+      log.infov("validate: Is user validated? {0} == {1}", VERIFIED_VALUE, verifiedAttributeValue);
+      if (VERIFIED_VALUE.equalsIgnoreCase(verifiedAttributeValue)) {
+        log.infov("validate: Is user validated? true");
+        context.getAuthenticationSession().setAuthNote(verifiedAttributeId, verifiedAttributeValue);
+        context.success();
+        return;
+      }
 
-    // Check that the user doesn't have set any of the unset attributes
-    Optional<String> unsetAttributesChecked = checkUnsetAttributes(user, unsetAttributesList);
+      // Check that the user doesn't have set any of the unset attributes
+      Optional<String> unsetAttributesChecked = checkUnsetAttributes(user, unsetAttributesList);
 
-    if (unsetAttributesChecked.isPresent()) {
-      String sessionId = context.getAuthenticationSession().getParentSession().getId();
-      log.errorv("validate(): Some user unset attributes are set. Error code: {0}", sessionId);
-      context.error(Utils.ERROR_USER_ATTRIBUTES_NOT_UNSET + ": " + unsetAttributesChecked.get());
-      List<FormMessage> errors = new ArrayList<>();
-      errors.add(new FormMessage(null, Utils.ERROR_USER_ATTRIBUTES_NOT_UNSET, sessionId));
-      context.validationError(formData, errors);
-      return;
-    }
+      if (unsetAttributesChecked.isPresent()) {
+        String sessionId = context.getAuthenticationSession().getParentSession().getId();
+        log.errorv("validate(): Some user unset attributes are set. Error code: {0}", sessionId);
+        context.error(Utils.ERROR_USER_ATTRIBUTES_NOT_UNSET + ": " + unsetAttributesChecked.get());
+        List<FormMessage> errors = new ArrayList<>();
+        errors.add(new FormMessage(null, Utils.ERROR_USER_ATTRIBUTES_NOT_UNSET, sessionId));
+        context.validationError(formData, errors);
+        return;
+      }
 
-    // Verify the unique atrributes
-    Optional<String> uniqueAttributesChecked =
-        checkUniqueAttributes(context, uniqueAttributesList, formData);
+      // Verify the unique atrributes
+      Optional<String> uniqueAttributesChecked =
+          checkUniqueAttributes(context, uniqueAttributesList, formData);
 
-    if (uniqueAttributesChecked.isPresent()) {
-      String sessionId = context.getAuthenticationSession().getParentSession().getId();
-      log.errorv(
-          "validate(): Unique attributes present in more than one user. Error code: {0}",
-          sessionId);
-      context.error(Utils.ERROR_USER_ATTRIBUTES_NOT_UNIQUE + ": " + uniqueAttributesChecked.get());
-      List<FormMessage> errors = new ArrayList<>();
-      errors.add(new FormMessage(null, Utils.ERROR_USER_ATTRIBUTES_NOT_UNSET, sessionId));
-      context.validationError(formData, errors);
+      if (uniqueAttributesChecked.isPresent()) {
+        String sessionId = context.getAuthenticationSession().getParentSession().getId();
+        log.errorv(
+            "validate(): Unique attributes present in more than one user. Error code: {0}",
+            sessionId);
+        context.error(
+            Utils.ERROR_USER_ATTRIBUTES_NOT_UNIQUE + ": " + uniqueAttributesChecked.get());
+        List<FormMessage> errors = new ArrayList<>();
+        errors.add(new FormMessage(null, Utils.ERROR_USER_ATTRIBUTES_NOT_UNSET, sessionId));
+        context.validationError(formData, errors);
+      }
     }
 
     List<FormMessage> errors = new ArrayList<>();

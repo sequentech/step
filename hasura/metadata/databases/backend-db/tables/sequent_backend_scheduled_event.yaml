@@ -24,6 +24,26 @@ insert_permissions:
       role: admin-user
     - comment: ""
       permission:
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          columns:
+              - created_by
+              - event_processor
+              - task_id
+              - annotations
+              - cron_config
+              - event_payload
+              - labels
+              - archived_at
+              - created_at
+              - stopped_at
+              - election_event_id
+              - id
+              - tenant_id
+      role: scheduled-event-create
+    - comment: ""
+      permission:
           check: {}
           columns:
               - created_by
@@ -73,6 +93,69 @@ select_permissions:
               - cron_config
               - event_payload
               - labels
+              - archived_at
+              - created_at
+              - stopped_at
+              - election_event_id
+              - id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: scheduled-event-create
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - created_by
+              - event_processor
+              - task_id
+              - annotations
+              - cron_config
+              - event_payload
+              - labels
+              - archived_at
+              - created_at
+              - stopped_at
+              - election_event_id
+              - id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: scheduled-event-delete
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - created_by
+              - event_processor
+              - task_id
+              - annotations
+              - cron_config
+              - event_payload
+              - labels
+              - archived_at
+              - created_at
+              - stopped_at
+              - election_event_id
+              - id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: scheduled-event-write
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - created_by
+              - event_processor
+              - task_id
+              - annotations
+              - cron_config
+              - event_payload
+              - labels
               - created_at
               - stopped_at
               - archived_at
@@ -107,6 +190,27 @@ update_permissions:
       role: admin-user
     - comment: ""
       permission:
+          check: null
+          columns:
+              - created_by
+              - event_processor
+              - task_id
+              - annotations
+              - cron_config
+              - event_payload
+              - labels
+              - archived_at
+              - created_at
+              - stopped_at
+              - election_event_id
+              - id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: scheduled-event-write
+    - comment: ""
+      permission:
           check: {}
           columns:
               - created_by
@@ -131,6 +235,12 @@ delete_permissions:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
       role: admin-user
+    - comment: ""
+      permission:
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: scheduled-event-delete
     - comment: ""
       permission:
           filter: {}

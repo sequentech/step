@@ -56,7 +56,7 @@ python3 testing/bin/utils/update_velvet_config.py \
     --template-path ./src/resources/vote_receipts.hbs && \
 
 # run velvet
-rm -rf output2 && \
+rm -rf output2; \
 cargo run --bin velvet -- run \
     main decode-ballots \
     --config ./velvet-config.json \

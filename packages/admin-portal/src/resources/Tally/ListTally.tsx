@@ -21,12 +21,13 @@ import {
 import CellTowerIcon from "@mui/icons-material/CellTower"
 import {ListActions} from "../../components/ListActions"
 import {Button} from "react-admin"
-import {Alert, Tooltip, Typography} from "@mui/material"
+import {Alert, Box, Tooltip, Typography} from "@mui/material"
 import {
     ListKeysCeremonyQuery,
     Sequent_Backend_Election_Event,
     Sequent_Backend_Tally_Session,
     Sequent_Backend_Tally_Session_Execution,
+    TrusteeNamesQuery,
     UpdateTallyCeremonyMutation,
 } from "../../gql/graphql"
 import {ActionsColumn} from "../../components/ActionButons"
@@ -41,10 +42,10 @@ import KeyIcon from "@mui/icons-material/Key"
 import DoNotDisturbOnIcon from "@mui/icons-material/DoNotDisturbOn"
 import {theme, IconButton, Dialog} from "@sequentech/ui-essentials"
 import {AuthContext, AuthContextValues} from "@/providers/AuthContextProvider"
-import {useActionPermissions} from "../ElectionEvent/EditElectionEventKeys"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import styled from "@emotion/styled"
+import {EAllowTally} from "@sequentech/ui-core"
 import {
     ETallyType,
     IExecutionStatus,
@@ -59,15 +60,19 @@ import {LIST_KEYS_CEREMONY} from "@/queries/ListKeysCeremonies"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {IKeysCeremonyExecutionStatus} from "@/services/KeyCeremony"
 import {Add} from "@mui/icons-material"
+import {useKeysPermissions} from "../ElectionEvent/useKeysPermissions"
+import {GET_TRUSTEES_NAMES} from "@/queries/GetTrusteesNames"
+import {StyledChip} from "@/components/StyledChip"
 
-const OMIT_FIELDS = ["id", "ballot_eml"]
+const OMIT_FIELDS = ["ballot_eml", "trustees"]
 
 const Filters: Array<ReactElement> = [
     <TextInput label="Name" source="name" key={0} />,
-    <TextInput label="Description" source="description" key={1} />,
-    <TextInput label="ID" source="id" key={2} />,
-    <TextInput label="Type" source="type" key={3} />,
-    <TextInput source="election_event_id" key={3} />,
+    <TextInput label="Tally Type" source="tally_type" key={1} />,
+    <TextInput label="Description" source="description" key={2} />,
+    <TextInput label="ID" source="id" key={3} />,
+    <TextInput label="Type" source="type" key={4} />,
+    <TextInput source="election_event_id" key={5} />,
 ]
 
 const NotificationLink = styled.span`
@@ -78,6 +83,11 @@ const NotificationLink = styled.span`
     &:hover {
         text-decoration: none;
     }
+`
+
+const StyledNull = styled.div`
+    display: block;
+    padding-left: 18px;
 `
 
 const TrusteeKeyIcon = MUIStiled(KeyIcon)`
@@ -91,7 +101,13 @@ export interface ListAreaProps {
 export const ListTally: React.FC<ListAreaProps> = (props) => {
     const {t} = useTranslation()
     const authContext = useContext(AuthContext)
-    const {canAdminCeremony, canTrusteeCeremony} = useActionPermissions()
+    const {
+        canAdminCeremony,
+        canTrusteeCeremony,
+        canExportCeremony,
+        canCreateCeremony,
+        showTallyColumns,
+    } = useKeysPermissions()
     const notify = useNotify()
 
     const electionEventRecord = useRecordContext<Sequent_Backend_Election_Event>()
@@ -117,20 +133,23 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
     const [UpdateTallyCeremonyMutation] =
         useMutation<UpdateTallyCeremonyMutation>(UPDATE_TALLY_CEREMONY)
 
-    const {data: keysCeremonies} = useQuery<ListKeysCeremonyQuery>(LIST_KEYS_CEREMONY, {
-        variables: {
-            tenantId: tenantId,
-            electionEventId: electionEventRecord?.id,
-        },
-        pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
-        context: {
-            headers: {
-                "x-hasura-role": isTrustee
-                    ? IPermissions.TRUSTEE_CEREMONY
-                    : IPermissions.ADMIN_CEREMONY,
+    const {data: keysCeremonies, error: errorCeremonies} = useQuery<ListKeysCeremonyQuery>(
+        LIST_KEYS_CEREMONY,
+        {
+            variables: {
+                tenantId: tenantId,
+                electionEventId: electionEventRecord?.id,
             },
-        },
-    })
+            pollInterval: globalSettings.QUERY_FAST_POLL_INTERVAL_MS,
+            context: {
+                headers: {
+                    "x-hasura-role": isTrustee
+                        ? IPermissions.TRUSTEE_CEREMONY
+                        : IPermissions.ADMIN_CEREMONY,
+                },
+            },
+        }
+    )
 
     const {data: tallySessions} = useGetList<Sequent_Backend_Tally_Session>(
         "sequent_backend_tally_session",
@@ -142,9 +161,18 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
             },
         },
         {
-            refetchOnWindowFocus: false,
-            refetchOnReconnect: false,
-            refetchOnMount: false,
+            refetchOnWindowFocus: true,
+            refetchOnReconnect: true,
+            refetchOnMount: true,
+            meta: {
+                context: {
+                    headers: {
+                        "x-hasura-role": isTrustee
+                            ? IPermissions.TRUSTEE_CEREMONY
+                            : IPermissions.ADMIN_CEREMONY,
+                    },
+                },
+            },
         }
     )
 
@@ -164,6 +192,12 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
             refetchOnMount: false,
         }
     )
+
+    const {data: trusteeNames} = useQuery<TrusteeNamesQuery>(GET_TRUSTEES_NAMES, {
+        variables: {
+            tenantId: tenantId,
+        },
+    })
     const isKeyCeremonyFinished = useMemo(
         () =>
             !!keysCeremonies?.list_keys_ceremony?.items?.find(
@@ -205,12 +239,12 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
 
     const Empty = () => (
         <ResourceListStyles.EmptyBox>
-            {canAdminCeremony && !isKeyCeremonyFinished && (
+            {canCreateCeremony && !isKeyCeremonyFinished && (
                 <Alert severity="warning">
                     {t("electionEventScreen.tally.notify.noKeysTally")}
                 </Alert>
             )}
-            {canAdminCeremony && isKeyCeremonyFinished && !isPublished && (
+            {canCreateCeremony && isKeyCeremonyFinished && !isPublished && (
                 <Alert severity="warning">
                     {t("electionEventScreen.tally.notify.noPublication")}
                 </Alert>
@@ -218,7 +252,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
             <Typography variant="h4" paragraph>
                 {t("electionEventScreen.tally.emptyHeader")}
             </Typography>
-            {canAdminCeremony ? (
+            {canCreateCeremony ? (
                 <>
                     <Typography variant="body1" paragraph>
                         {t("common.resources.noResult.askCreate")}
@@ -314,16 +348,17 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
     }
 
     const isTrusteeParticipating = (
+        tally_session: Sequent_Backend_Tally_Session,
         ceremony: Sequent_Backend_Tally_Session_Execution | undefined,
         authContext: AuthContextValues
     ) => {
         if (ceremony) {
-            const status: ITallyCeremonyStatus = ceremony.status
-            return (
-                (ceremony.status === IExecutionStatus.NOT_STARTED ||
-                    ceremony.status === IExecutionStatus.IN_PROCESS) &&
-                !!status.trustees.find((trustee) => trustee.name === authContext.trustee)
-            )
+            let ret =
+                tally_session.execution_status === ITallyExecutionStatus.STARTED &&
+                !!ceremony.status.trustees.find(
+                    (trustee: any) => trustee.name === authContext.trustee
+                )
+            return ret
         }
         return false
     }
@@ -337,16 +372,28 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
         if (!tallySessions) {
             return
         } else {
-            return tallySessions.find((ceremony) =>
-                isTrusteeParticipating(tallySessionExecutions?.[0], authContext)
+            return tallySessions.find((tallySession) =>
+                isTrusteeParticipating(tallySession, tallySessionExecutions?.[0], authContext)
             )
         }
     }
     let activeCeremony = getActiveCeremony(tallySessions, authContext)
 
+    if (errorCeremonies) {
+        return (
+            <ResourceListStyles.EmptyBox>
+                <Typography variant="h4" paragraph>
+                    {errorCeremonies.graphQLErrors[0].message}
+                </Typography>
+            </ResourceListStyles.EmptyBox>
+        )
+    }
+
     return (
         <>
-            {canTrusteeCeremony && tallySessions?.[0]?.execution_status === "STARTED" ? (
+            {canTrusteeCeremony &&
+            activeCeremony &&
+            tallySessions?.[0]?.execution_status === "STARTED" ? (
                 <Alert severity="info">
                     <Trans i18nKey="electionEventScreen.tally.notify.participateNow">
                         {t("tally.invited")}
@@ -368,11 +415,11 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
                     resource="sequent_backend_tally_session"
                     actions={
                         <ListActions
-                            withColumns={canAdminCeremony}
+                            withColumns={showTallyColumns}
                             withImport={false}
                             withExport={false}
                             withFilter={false}
-                            withAction={canAdminCeremony}
+                            withAction={canCreateCeremony}
                             doAction={() => setCreatingFlag(ETallyType.ELECTORAL_RESULTS)}
                             actionLabel="electionEventScreen.tally.create.createTallyButton"
                             extraActions={
@@ -402,15 +449,47 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
                 >
                     <ResetFilters />
                     <ElectionHeader title={"electionEventScreen.tally.title"} subtitle="" />
-
                     <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={false}>
-                        <TextField source="tenant_id" />
+                        <TextField source="id" />
+                        <FunctionField
+                            label={t("electionEventScreen.tally.tallyType.label")}
+                            render={(record: RaRecord<Identifier>) =>
+                                t(`electionEventScreen.tally.tallyType.${record.tally_type}`)
+                            }
+                        />
                         <DateField source="created_at" showTime={true} />
 
                         <FunctionField
+                            key="permission_label"
+                            label={t("electionEventScreen.tally.permissionLabels")}
+                            render={(record: RaRecord<Identifier>) => {
+                                return (
+                                    <>
+                                        {record?.permission_label &&
+                                        record?.permission_label.length > 0 ? (
+                                            record?.permission_label.map(
+                                                (item: any, index: number) => (
+                                                    <StyledChip key={index} label={item} />
+                                                )
+                                            )
+                                        ) : (
+                                            <StyledNull>-</StyledNull>
+                                        )}
+                                    </>
+                                )
+                            }}
+                        />
+
+                        <FunctionField
+                            source="trustees"
                             label={t("electionEventScreen.tally.trustees")}
                             render={(record: RaRecord<Identifier>) => (
-                                <TrusteeItems record={record} />
+                                <Box sx={{height: 36, overflowY: "scroll"}}>
+                                    <TrusteeItems
+                                        record={record}
+                                        trusteeNames={trusteeNames?.sequent_backend_trustee}
+                                    />
+                                </Box>
                             )}
                         />
 

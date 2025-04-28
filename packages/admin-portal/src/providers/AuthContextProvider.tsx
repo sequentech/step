@@ -436,7 +436,9 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         if (!keycloak) {
             return false
         }
-        return keycloak.hasRealmRole(role)
+        return !!keycloak.tokenParsed?.["https://hasura.io/jwt/claims"]?.[
+            "x-hasura-allowed-roles"
+        ].includes(role)
     }
 
     const getAccessToken = () => keycloak?.token

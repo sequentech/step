@@ -18,7 +18,10 @@ on:
 
 jobs:
   build-and-push:
-    runs-on: ubuntu-latest
+    runs-on:
+      - runs-on=${{ github.run_id }}
+      - runner=2cpu-linux-x64
+      - image=ubuntu24-full-x64
     strategy:
       matrix:
         include:
@@ -65,6 +68,10 @@ jobs:
             context: packages
             file: packages/Dockerfile.immudb
 
+          - service: mock_server
+            context: packages/e2e/src/mock_server
+            file: packages/e2e/src/mock_server/Dockerfile.prod
+
       fail-fast: false
 
     steps:
@@ -99,4 +106,6 @@ jobs:
           ${{ secrets.AWS_PROD_REGISTRY }}/${{ matrix.service }}:${{ inputs.tag || github.run_number }}
         cache-from: type=gha,scope=${{ matrix.service }}
         cache-to: type=gha,mode=max,scope=${{ matrix.service }}
-        build-args: SPA_NAME=${{ matrix.spa_name }}
+        build-args: |
+          SPA_NAME=${{ matrix.spa_name }}
+          FEATURES=${{ matrix.features }}

@@ -5,14 +5,16 @@
 use anyhow::{anyhow, Context as ContextAnyhow, Result};
 use chrono::{DateTime, Local, Utc};
 use handlebars::{
-    BlockParamHolder, Context, Handlebars, Helper, HelperDef, HelperResult,
-    Output, RenderContext, RenderError, RenderErrorReason,
+    handlebars_helper, BlockParamHolder, Context, Handlebars, Helper,
+    HelperDef, HelperResult, JsonValue, Output, RenderContext, RenderError,
+    RenderErrorReason, ScopedJson,
 };
 use handlebars_chrono::HandlebarsChronoDateTime;
 use num_format::{Locale, ToFormattedString};
-use serde_json::{json, Map, Value};
+use serde_json::{json, to_string, Map, Value};
 use std::collections::{HashMap, HashSet};
-use tracing::{instrument, warn};
+use std::str::FromStr;
+use tracing::{info, instrument, warn};
 
 fn get_registry<'reg>() -> Handlebars<'reg> {
     let mut reg = Handlebars::new();
@@ -51,6 +53,23 @@ fn get_registry<'reg>() -> Handlebars<'reg> {
     reg.register_helper(
         "inc",
         helper_wrapper_or(Box::new(inc), String::from("-")),
+    );
+    reg.register_helper("to_json", helper_wrapper(Box::new(to_json)));
+    reg.register_helper(
+        "parse_i64",
+        helper_wrapper_or(Box::new(parse_i64), String::from("-")),
+    );
+    reg.register_helper(
+        "divide",
+        helper_wrapper_or(Box::new(divide), String::from("-")),
+    );
+    reg.register_helper(
+        "multiply",
+        helper_wrapper_or(Box::new(multiply), String::from("-")),
+    );
+    reg.register_helper(
+        "sum",
+        helper_wrapper_or(Box::new(sum), String::from("-")),
     );
     reg
 }
@@ -250,6 +269,22 @@ pub fn sanitize_html(
     Ok(())
 }
 
+fn parse_u64_value(value: &JsonValue) -> Result<u64, RenderError> {
+    match value {
+        JsonValue::Number(n) => n.as_u64().ok_or_else(|| {
+            RenderError::new(format!(
+                "Expected u64 but got invalid number: {n}"
+            ))
+        }),
+        JsonValue::String(s) => s.parse::<u64>().map_err(|_| {
+            RenderError::new(format!("Failed to parse '{}' as u64", s))
+        }),
+        _ => Err(RenderError::new(
+            "Expected u64 or a string representing an u64",
+        )),
+    }
+}
+
 pub fn format_u64(
     helper: &Helper,
     _: &Handlebars,
@@ -257,18 +292,154 @@ pub fn format_u64(
     _: &mut RenderContext,
     out: &mut dyn Output,
 ) -> HelperResult {
-    let unformatted_number: u64 = helper
+    let unformatted_val = helper
         .param(0)
-        .ok_or(RenderErrorReason::ParamNotFoundForIndex("format_u64", 0))?
-        .value()
-        .as_u64()
-        .ok_or(RenderErrorReason::InvalidParamType("couldn't parse as u64"))?;
+        .ok_or(RenderErrorReason::ParamNotFoundForIndex("format_i64", 0))?
+        .value();
+    let unformatted_number: u64 = parse_u64_value(unformatted_val)?;
 
     let formatted_number = unformatted_number.to_formatted_string(&Locale::en);
-
     out.write(&formatted_number)?;
 
     Ok(())
+}
+
+fn parse_f64_value(value: &JsonValue) -> Result<f64, RenderError> {
+    match value {
+        JsonValue::Number(n) => n.as_f64().ok_or_else(|| {
+            RenderError::new(format!(
+                "Expected f64 but got invalid number: {n}"
+            ))
+        }),
+        JsonValue::String(s) => s.parse::<f64>().map_err(|_| {
+            RenderError::new(format!("Failed to parse '{}' as f64", s))
+        }),
+        _ => Err(RenderError::new(
+            "Expected f64 or a string representing an f64",
+        )),
+    }
+}
+
+#[allow(non_camel_case_types)]
+pub struct divide;
+
+impl HelperDef for divide {
+    fn call_inner<'reg: 'rc, 'rc>(
+        &self,
+        helper: &Helper<'rc>,
+        _handlebars: &'reg Handlebars<'reg>,
+        _context: &'rc Context,
+        _rc: &mut RenderContext<'reg, 'rc>,
+    ) -> Result<ScopedJson<'rc>, RenderError> {
+        // Get the first parameter (dividend)
+        let dividend_value = helper
+            .param(0)
+            .ok_or(RenderErrorReason::ParamNotFoundForIndex("divide", 0))?
+            .value();
+        let dividend = parse_f64_value(dividend_value)?;
+
+        // Get the second parameter (divisor)
+        let divisor_value = helper
+            .param(1)
+            .ok_or(RenderErrorReason::ParamNotFoundForIndex("divide", 1))?
+            .value();
+        let divisor = parse_f64_value(divisor_value)?;
+
+        if divisor == 0.0 {
+            return Err(RenderError::new("Division by zero"));
+        }
+
+        let result = dividend / divisor;
+        Ok(ScopedJson::Derived(JsonValue::from(result)))
+    }
+}
+
+#[allow(non_camel_case_types)]
+pub struct sum;
+
+impl HelperDef for sum {
+    fn call_inner<'reg: 'rc, 'rc>(
+        &self,
+        helper: &Helper<'rc>,
+        _handlebars: &'reg Handlebars<'reg>,
+        _context: &'rc Context,
+        _rc: &mut RenderContext<'reg, 'rc>,
+    ) -> Result<ScopedJson<'rc>, RenderError> {
+        // Iterates through all parameters of the helper.
+        // Parses each parameter as a u64 value.
+        // Accumulates the parsed values into a sum.
+        let result: u64 = helper
+            .params()
+            .iter()
+            .map(|p| {
+                p.value()
+                    .as_u64()
+                    .ok_or(RenderErrorReason::InvalidParamType(
+                        "couldn't parse as u64",
+                    ))
+            })
+            .sum::<Result<u64, RenderErrorReason>>()?;
+
+        // Returns the sum as a ScopedJson.
+        Ok(ScopedJson::Derived(JsonValue::from(result)))
+    }
+}
+
+#[allow(non_camel_case_types)]
+pub struct multiply;
+
+impl HelperDef for multiply {
+    fn call_inner<'reg: 'rc, 'rc>(
+        &self,
+        helper: &Helper<'rc>,
+        _handlebars: &'reg Handlebars<'reg>,
+        _context: &'rc Context,
+        _rc: &mut RenderContext<'reg, 'rc>,
+    ) -> Result<ScopedJson<'rc>, RenderError> {
+        // Get the first parameter
+        let first_value = helper
+            .param(0)
+            .ok_or(RenderErrorReason::ParamNotFoundForIndex("multiply", 0))?
+            .value();
+        let first_num = parse_f64_value(first_value)?;
+
+        // Get the second parameter
+        let second_value = helper
+            .param(1)
+            .ok_or(RenderErrorReason::ParamNotFoundForIndex("multiply", 1))?
+            .value();
+        let second_num = parse_f64_value(second_value)?;
+
+        let result = first_num * second_num;
+        Ok(ScopedJson::Derived(JsonValue::from(result)))
+    }
+}
+
+#[allow(non_camel_case_types)]
+pub struct parse_i64;
+
+impl HelperDef for parse_i64 {
+    fn call_inner<'reg: 'rc, 'rc>(
+        &self,
+        helper: &Helper<'rc>,
+        _r: &'reg Handlebars<'reg>,
+        _: &'rc Context,
+        _: &mut RenderContext<'reg, 'rc>,
+    ) -> Result<ScopedJson<'rc>, RenderError> {
+        let num_str: &str = helper
+            .param(0)
+            .ok_or(RenderErrorReason::ParamNotFoundForIndex("parse_i64", 0))?
+            .value()
+            .as_str()
+            .ok_or(RenderErrorReason::InvalidParamType(
+                "couldn't parse as str",
+            ))?;
+        let num_i64: i64 = num_str.parse::<i64>().map_err(|_| {
+            RenderErrorReason::InvalidParamType("couldn't parse as i64")
+        })?;
+
+        Ok(ScopedJson::Derived(json!(num_i64)))
+    }
 }
 
 pub fn format_percentage(
@@ -278,15 +449,15 @@ pub fn format_percentage(
     _: &mut RenderContext,
     out: &mut dyn Output,
 ) -> HelperResult {
-    let val: f64 = helper
+    let val_json = helper
         .param(0)
         .ok_or(RenderErrorReason::ParamNotFoundForIndex(
             "format_percentage",
             0,
         ))?
-        .value()
-        .as_f64()
-        .ok_or(RenderErrorReason::InvalidParamType("couldn't parse as f64"))?;
+        .value();
+
+    let val = parse_f64_value(val_json)?;
 
     let formatted_number = format!("{:.2}", val);
 
@@ -397,5 +568,23 @@ pub fn inc(
 
     out.write(&inc_index.to_string())?;
 
+    Ok(())
+}
+
+pub fn to_json(
+    h: &Helper,
+    _: &Handlebars,
+    _: &Context,
+    _: &mut RenderContext,
+    out: &mut dyn Output,
+) -> HelperResult {
+    // Get the first parameter (expected to be the data to serialize)
+    if let Some(param) = h.param(0) {
+        // Serialize the parameter to JSON
+        let json =
+            to_string(param.value()).unwrap_or_else(|_| "null".to_string());
+        // Write the JSON to the template output
+        out.write(&json)?;
+    }
     Ok(())
 }

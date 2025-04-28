@@ -2,11 +2,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::types::error::Result;
-use crate::util::aws::get_from_env_aws_config;
 
 use anyhow::anyhow;
 use aws_sdk_sns::{types::MessageAttributeValue, Client as AwsSnsClient};
 use sequent_core::serialization::deserialize_with_path::*;
+use sequent_core::util::aws::get_from_env_aws_config;
 use std::collections::HashMap;
 use tracing::{event, instrument, Level};
 
@@ -18,7 +18,7 @@ pub enum SmsTransport {
 }
 
 pub struct SmsSender {
-    transport: SmsTransport,
+    pub transport: SmsTransport,
 }
 
 impl SmsSender {

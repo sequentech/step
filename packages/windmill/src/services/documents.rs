@@ -14,12 +14,12 @@ use sequent_core::types::hasura::core::Document;
 use tempfile::NamedTempFile;
 use tracing::{info, instrument};
 
-use crate::services::s3;
 use crate::types::error::Result;
 use crate::{hasura, postgres};
 use sequent_core::services::date::ISO8601;
+use sequent_core::services::s3;
 
-#[instrument(skip(auth_headers), err)]
+#[instrument(err, skip_all)]
 pub async fn upload_and_return_document(
     file_path: String,
     file_size: u64,
@@ -73,6 +73,7 @@ pub async fn upload_and_return_document(
         /* media_type */ media_type,
         /* file_path */ file_path,
         /* cache_control_policy */ None,
+        Some(name.clone()),
     )
     .await
     .with_context(|| "Error uploading file to s3")?;
@@ -147,6 +148,7 @@ pub async fn upload_and_return_document_postgres(
         /* media_type */ media_type.to_string(),
         /* file_path */ file_path.to_string(),
         /* cache_control_policy */ None,
+        Some(name.to_string()),
     )
     .await
     .with_context(|| "Failed uploading file to s3")?;

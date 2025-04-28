@@ -34,6 +34,8 @@ import {CancelButton} from "@/resources/Tally/styles"
 export const statusColor: (status: EStatus) => string = (status) => {
     if (status === EStatus.USER_CONFIGURATION) {
         return theme.palette.warning.light
+    } else if (status === EStatus.STARTED) {
+        return theme.palette.warning.light
     } else if (status === EStatus.IN_PROGRESS) {
         return theme.palette.info.main
     } else if (status === EStatus.SUCCESS) {
@@ -75,7 +77,7 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
             id: currentCeremonyId ?? null,
         },
         {
-            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+            refetchInterval: globalSettings.QUERY_FAST_POLL_INTERVAL_MS,
             onSuccess: (data) => {
                 setCurrentCeremony && setCurrentCeremony(data)
             },

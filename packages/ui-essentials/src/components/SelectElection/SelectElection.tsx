@@ -272,11 +272,13 @@ const SelectElection: React.FC<SelectElectionProps> = ({
             >
                 <TextContainer className="election-info">
                     <StyledTitle className="election-title">{title}</StyledTitle>
-                    <Box sx={{display: {xs: "none", md: "inline-flex"}}}>
-                        <StyledLink href={electionHomeUrl} target="_blank">
-                            {t("selectElection.electionWebsite")}
-                        </StyledLink>
-                    </Box>
+                    {electionHomeUrl && (
+                        <Box sx={{display: {xs: "none", md: "inline-flex"}}}>
+                            <StyledLink href={electionHomeUrl} target="_blank">
+                                {t("selectElection.electionWebsite")}
+                            </StyledLink>
+                        </Box>
+                    )}
                     {hasVoted ? (
                         <VotedContainer
                             hasvoted={String(!!hasVoted)}

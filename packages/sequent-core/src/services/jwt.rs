@@ -59,7 +59,7 @@ pub struct JwtClaims {
     pub acr: String,
     #[serde(rename = "allowed-origins")]
     pub allowed_origins: Vec<String>,
-    pub realm_access: JwtRolesAccess,
+    pub realm_access: Option<JwtRolesAccess>,
     pub resource_access: Option<HashMap<String, JwtRolesAccess>>,
     pub scope: String,
     pub sid: Option<String>,
@@ -90,7 +90,7 @@ pub fn decode_jwt(token: &str) -> Result<JwtClaims> {
     Ok(claims)
 }
 
-#[instrument]
+#[instrument(skip_all)]
 pub fn decode_permission_labels(claims: &JwtClaims) -> Vec<String> {
     let Some(label_str) = claims.hasura_claims.permission_labels.clone() else {
         return vec![];

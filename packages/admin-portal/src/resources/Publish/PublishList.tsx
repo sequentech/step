@@ -18,18 +18,20 @@ import {
     BooleanInput,
     BooleanField,
     DatagridConfigurable,
+    WrapperField,
 } from "react-admin"
 
 import {ElectionEventStatus, PublishStatus} from "./EPublishStatus"
 import {PublishActions} from "./PublishActions"
-import {EPublishActionsType} from "./EPublishType"
+import {EPublishActionsType, EPublishType} from "./EPublishType"
 import {HeaderTitle} from "@/components/HeaderTitle"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {Action, ActionsColumn} from "@/components/ActionButons"
 import {ResetFilters} from "@/components/ResetFilters"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {VotingStatusChannel} from "@/gql/graphql"
-import {IElectionStatus} from "@sequentech/ui-core"
+import {IElectionPresentation, IElectionStatus} from "@sequentech/ui-core"
+import {usePublishPermissions} from "./usePublishPermissions"
 
 const OMIT_FIELDS: string[] = []
 
@@ -41,25 +43,27 @@ const filters: Array<ReactElement> = [
 type TPublishList = {
     status: PublishStatus
     electionStatus: IElectionStatus | null
+    electionPresentation: IElectionPresentation | null
     electionId?: number | string
     electionEventId: number | string | undefined
     canRead: boolean
     canWrite: boolean
     kioskModeEnabled: boolean
     changingStatus: boolean
+    publishType: EPublishType.Election | EPublishType.Event
     onGenerate: () => void
-    onChangeStatus: (status: ElectionEventStatus, votingChannel?: VotingStatusChannel) => void
+    onChangeStatus: (status: ElectionEventStatus, votingChannel?: VotingStatusChannel[]) => void
     setBallotPublicationId: (id: string | Identifier) => void
     onPreview: (id: string | Identifier) => void
 }
 
 export const PublishList: React.FC<TPublishList> = ({
     status,
+    publishType,
     electionStatus,
+    electionPresentation,
     electionId,
     electionEventId,
-    canRead,
-    canWrite,
     kioskModeEnabled,
     changingStatus,
     onGenerate = () => null,
@@ -71,53 +75,44 @@ export const PublishList: React.FC<TPublishList> = ({
     const authContext = useContext(AuthContext)
     const {isGoldUser, reauthWithGold} = authContext
 
-    const handleGenerateClick = async () => {
-        if (isGoldUser()) {
-            onGenerate()
-        } else {
-            try {
-                const baseUrl = new URL(window.location.href)
-                baseUrl.searchParams.set("tabIndex", "7")
-
-                sessionStorage.setItem(EPublishActions.PENDING_PUBLISH_ACTION, "true")
-                await reauthWithGold(baseUrl.toString())
-
-                console.log("Re-authentication successful. Proceeding to generate.")
-                onGenerate()
-            } catch (error) {
-                console.error("Re-authentication failed:", error)
-            }
-        }
-    }
+    const {canReadPublish, canPublishCreate, showPublishPreview, showPublishView} =
+        usePublishPermissions()
 
     /**
-     * Checks for any pending actions after the component mounts.
-     * If a pending action is found, it executes the action and removes the flag.
+     * Specific Handler for "Publish Changes" Button: Incorporates
+     * re-authentication logic for actions that require Gold-level permissions.
      */
-    useEffect(() => {
-        const executePendingActions = async () => {
-            if (!electionEventId) {
-                return
-            }
-
-            const pendingPublish = sessionStorage.getItem(EPublishActions.PENDING_PUBLISH_ACTION)
-            if (pendingPublish) {
-                sessionStorage.removeItem(EPublishActions.PENDING_PUBLISH_ACTION)
+    const handlePublish = async () => {
+        try {
+            if (!isGoldUser()) {
+                const baseUrl = new URL(window.location.href)
+                if (publishType === EPublishType.Event) {
+                    const electionEventPublishTabIndex = localStorage.getItem(
+                        "electionEventPublishTabIndex"
+                    )
+                    baseUrl.searchParams.set("tabIndex", electionEventPublishTabIndex ?? "8")
+                } else {
+                    const electionPublishTabIndex = localStorage.getItem("electionPublishTabIndex")
+                    baseUrl.searchParams.set("tabIndex", electionPublishTabIndex ?? "4")
+                }
+                sessionStorage.setItem(EPublishActions.PENDING_PUBLISH_ACTION, "true")
+                await reauthWithGold(baseUrl.toString())
+            } else {
                 onGenerate()
             }
+        } catch (error) {
+            console.error("Re-authentication failed:", error)
         }
-
-        executePendingActions()
-    }, [onGenerate, electionEventId])
+    }
 
     const Empty = () => (
         <ResourceListStyles.EmptyBox>
             <Typography variant="h4" paragraph>
                 {t("publish.empty.header")}
             </Typography>
-            {canWrite && (
+            {canPublishCreate && canReadPublish && (
                 <>
-                    <Button onClick={handleGenerateClick} className="publish-add-button">
+                    <Button onClick={handlePublish} className="publish-add-button">
                         <IconButton icon={faPlus} fontSize="24px" />
                         {t("publish.empty.action")}
                     </Button>
@@ -133,14 +128,16 @@ export const PublishList: React.FC<TPublishList> = ({
         {
             icon: <Visibility className="publish-visibility-icon" />,
             action: setBallotPublicationId,
+            showAction: () => showPublishView,
         },
         {
             icon: <Preview className="publish-preview-icon" />,
             action: onPreview,
+            showAction: () => showPublishPreview,
         },
     ]
 
-    if (!canRead) {
+    if (!canReadPublish) {
         return <Empty />
     }
 
@@ -149,8 +146,10 @@ export const PublishList: React.FC<TPublishList> = ({
             <List
                 actions={
                     <PublishActions
+                        publishType={publishType}
                         status={status}
                         electionStatus={electionStatus}
+                        electionPresentation={electionPresentation}
                         changingStatus={changingStatus}
                         kioskModeEnabled={kioskModeEnabled}
                         onGenerate={onGenerate}
@@ -177,12 +176,14 @@ export const PublishList: React.FC<TPublishList> = ({
             >
                 <ResetFilters />
                 <HeaderTitle title={"publish.header.history"} subtitle="" />
-                <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={<></>}>
+                <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={false}>
                     <TextField source="id" />
                     <BooleanField source="is_generated" />
                     <TextField source="published_at" />
                     <TextField source="created_at" />
-                    <ActionsColumn actions={actions} />
+                    <WrapperField label={t("common.label.actions")}>
+                        <ActionsColumn actions={actions} />
+                    </WrapperField>
                 </DatagridConfigurable>
             </List>
         </Box>

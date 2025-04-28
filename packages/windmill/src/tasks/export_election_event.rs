@@ -5,9 +5,9 @@ use crate::services::database::get_hasura_pool;
 use crate::services::export::export_election_event::process_export_zip;
 use crate::services::tasks_execution::*;
 use crate::types::error::{Error, Result};
-use anyhow::{anyhow, Context};
+use anyhow::Context;
 use celery::error::TaskError;
-use deadpool_postgres::{Client as DbClient, Transaction};
+use deadpool_postgres::Client as DbClient;
 use sequent_core::types::hasura::core::TasksExecution;
 use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
@@ -15,6 +15,7 @@ use tracing::{event, instrument, Level};
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ExportOptions {
     pub password: Option<String>,
+    pub is_encrypted: bool,
     pub include_voters: bool,
     pub activity_logs: bool,
     pub bulletin_board: bool,
@@ -22,6 +23,8 @@ pub struct ExportOptions {
     pub s3_files: bool,
     pub scheduled_events: bool,
     pub reports: bool,
+    pub applications: bool,
+    pub tally: bool,
 }
 
 #[instrument(err)]
@@ -37,21 +40,30 @@ pub async fn export_election_event(
     let mut hasura_db_client: DbClient = match get_hasura_pool().await.get().await {
         Ok(client) => client,
         Err(err) => {
-            update_fail(&task_execution, "Failed to get Hasura DB pool").await;
-            return Err(Error::String(format!(
-                "Error getting Hasura DB pool: {}",
-                err
-            )));
+            let err_str = format!("Failed to get Hasura DB pool: {err:?}");
+            if let Err(err) = update_fail(&task_execution, &err_str).await {
+                event!(
+                    Level::ERROR,
+                    "Failed to update task execution status to FAILED: {:?}",
+                    err
+                );
+            }
+            return Err(Error::String(err_str));
         }
     };
 
     let hasura_transaction = match hasura_db_client.transaction().await {
         Ok(transaction) => transaction,
         Err(err) => {
-            update_fail(&task_execution, "Failed to start Hasura transaction").await?;
-            return Err(Error::String(format!(
-                "Error starting Hasura transaction: {err}"
-            )));
+            let err_str = format!("Failed to start Hasura transaction: {err:?}");
+            if let Err(err) = update_fail(&task_execution, &err_str).await {
+                event!(
+                    Level::ERROR,
+                    "Failed to update task execution status to FAILED: {:?}",
+                    err
+                );
+            }
+            return Err(Error::String(err_str));
         }
     };
 
@@ -59,23 +71,34 @@ pub async fn export_election_event(
     match process_export_zip(&tenant_id, &election_event_id, &document_id, export_config).await {
         Ok(_) => (),
         Err(err) => {
-            update_fail(&task_execution, &err.to_string()).await?;
-            return Err(Error::String(format!(
-                "Failed to export election event data: {}",
-                err
-            )));
+            let err_str = format!("Failed to export election event data: {err:?}");
+            if let Err(update_err) = update_fail(&task_execution, &err_str).await {
+                event!(
+                    Level::ERROR,
+                    "Failed to update task execution status to FAILED: {:?}",
+                    update_err
+                );
+            }
+            return Err(Error::String(err_str));
         }
     }
 
     match hasura_transaction.commit().await {
         Ok(_) => (),
         Err(err) => {
-            update_fail(&task_execution, "Failed to insert task execution record").await?;
-            return Err(Error::String(format!("Commit failed: {}", err)));
+            let err_str = format!("Commit failed: {err:?}");
+            if let Err(err) = update_fail(&task_execution, &err_str).await {
+                event!(
+                    Level::ERROR,
+                    "Failed to update task execution status to FAILED: {:?}",
+                    err
+                );
+            }
+            return Err(Error::String(err_str));
         }
     };
 
-    update_complete(&task_execution)
+    update_complete(&task_execution, Some(document_id.to_string()))
         .await
         .context("Failed to update task execution status to COMPLETED")?;
 

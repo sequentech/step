@@ -11,9 +11,10 @@ insert_permissions:
               - annotations
               - labels
               - template
+              - alias
               - communication_method
-              - type
               - created_by
+              - type
               - created_at
               - updated_at
               - id
@@ -28,11 +29,15 @@ insert_permissions:
                   _eq: X-Hasura-Tenant-Id
           columns:
               - annotations
-              - communication_method
-              - type
-              - id
               - labels
               - template
+              - alias
+              - communication_method
+              - created_by
+              - type
+              - created_at
+              - updated_at
+              - id
               - tenant_id
           set:
               created_by: x-hasura-User-Id
@@ -44,9 +49,10 @@ insert_permissions:
               - annotations
               - labels
               - template
+              - alias
               - communication_method
-              - type
               - created_by
+              - type
               - created_at
               - updated_at
               - id
@@ -60,9 +66,10 @@ select_permissions:
               - annotations
               - labels
               - template
+              - alias
               - communication_method
-              - type
               - created_by
+              - type
               - created_at
               - updated_at
               - id
@@ -76,15 +83,16 @@ select_permissions:
           allow_aggregations: true
           columns:
               - annotations
-              - communication_method
-              - type
-              - created_at
-              - created_by
-              - id
               - labels
               - template
-              - tenant_id
+              - alias
+              - communication_method
+              - created_by
+              - type
+              - created_at
               - updated_at
+              - id
+              - tenant_id
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
@@ -96,9 +104,10 @@ select_permissions:
               - annotations
               - labels
               - template
+              - alias
               - communication_method
-              - type
               - created_by
+              - type
               - created_at
               - updated_at
               - id
@@ -114,9 +123,10 @@ select_permissions:
               - annotations
               - labels
               - template
+              - alias
               - communication_method
-              - type
               - created_by
+              - type
               - created_at
               - updated_at
               - id
@@ -133,9 +143,10 @@ update_permissions:
               - annotations
               - labels
               - template
+              - alias
               - communication_method
-              - type
               - created_by
+              - type
               - created_at
               - updated_at
               - id
@@ -151,11 +162,16 @@ update_permissions:
                   _eq: X-Hasura-Tenant-Id
           columns:
               - annotations
-              - communication_method
-              - type
-              - id
               - labels
               - template
+              - alias
+              - communication_method
+              - created_by
+              - type
+              - created_at
+              - updated_at
+              - id
+              - tenant_id
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
@@ -166,16 +182,17 @@ update_permissions:
       permission:
           check: {}
           columns:
+              - alias
               - annotations
+              - communication_method
+              - created_at
+              - created_by
+              - id
               - labels
               - template
-              - communication_method
-              - type
-              - created_by
-              - created_at
-              - updated_at
-              - id
               - tenant_id
+              - type
+              - updated_at
           filter: {}
       role: service-account
 delete_permissions:

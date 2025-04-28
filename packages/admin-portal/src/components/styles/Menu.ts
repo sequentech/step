@@ -60,6 +60,22 @@ export const MenuStyles = {
             isArchivedElectionEvents ? `2px solid ${adminTheme.palette.brandSuccess}` : "none"};
     `,
 
+    RefreshAction: styled("li")`
+        padding-top: 0.5rem;
+        cursor: pointer;
+        width: 100%;
+        display: inline-block;
+        float: right;
+        text-align: right;
+
+        &:hover {
+            opacity: 0.5;
+        }
+        &:active {
+            opacity: 1;
+        }
+    `,
+
     EmptyStateContainer: styled("div")`
         padding: 1rem;
         background-color: white;
@@ -101,8 +117,8 @@ export const MenuStyles = {
     `,
     StyledNavLinkButton: styled(Typography)`
         flex-grow: 1;
-        padding-top: 0.375rem;
-        padding-bottom: 0.375rem;
+        padding-top: 0.275rem;
+        padding-bottom: 0.275rem;
         border-bottom-width: 2px;
         border-bottom-color: white;
         cursor: pointer;
@@ -129,23 +145,48 @@ export const MenuStyles = {
         & > *:not(:last-child) {
             margin-right: 0.5rem;
         }
+        &:hover {
+            background-color: oklch(0.967 0.003 264.542);
+            border-radius: 4px;
+        }
+    `,
+    SpanContainer: styled("span")`
+        padding: 4px;
+        white-space: normal; /* Allow text to wrap */
+        display: inline-block; /* Allows it to take up multiple lines if needed */
+        word-wrap: break-word; /* Break long words if necessary */
     `,
     HowToVoteStyledIcon: styled(HowToVoteIcon)`
         color: ${adminTheme.palette.brandColor};
     `,
-    TreeMenuIconContaier: styled.div`
+    TreeMenuIconContaier: styled("div")<{isActive: boolean}>`
         ${divContainer}
-        cursor: pointer;
+        cursor: ${({isActive}) => (isActive ? "pointer" : "auto")};
         color: black;
+        border-radius: 4px;
+        &:hover {
+            background-color: ${({isActive}) =>
+                isActive ? "oklch(0.967 0.003 264.542)" : "white"};
+        }
     `,
-    StyledSideBarNavLink: styled(NavLink)`
+    StyledSideBarNavLink: styled(NavLink)<{multiline?: boolean}>`
         flex-grow: 1;
         padding-top: 0.375rem;
         padding-bottom: 0.375rem;
         color: black;
         border-bottom: 2px solid white;
         cursor: pointer;
-        white-space: nowrap;
+        ${(data) =>
+            data.multiline
+                ? `
+            /* Allow up to two lines of text */
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            white-space: normal;
+            overflow: hidden;
+            `
+                : "white-space: nowrap;"}
         overflow: hidden;
         text-overflow: ellipsis;
 

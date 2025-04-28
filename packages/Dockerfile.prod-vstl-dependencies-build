@@ -1,0 +1,8 @@
+# SPDX-FileCopyrightText: 2023-2024 Sequent Tech <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+FROM nginx:alpine
+# Install dependencies
+RUN apk add --no-cache jq
+

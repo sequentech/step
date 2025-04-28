@@ -45,5 +45,5 @@ public interface SmsSenderProvider extends Provider {
       KeycloakSession session)
       throws IOException {}
 
-  default void send(String phoneNumber, String message) {}
+  default void send(String phoneNumber, String message) throws IOException {}
 }

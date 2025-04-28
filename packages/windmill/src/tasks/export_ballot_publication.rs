@@ -1,17 +1,14 @@
-use crate::postgres::ballot_style::get_ballot_styles_by_ballot_publication_by_id;
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::ballot_publication::get_ballot_publication_by_id;
 use crate::services::database::get_hasura_pool;
-use crate::services::export::export_ballot_publication::process_export_json_to_csv;
-use crate::services::export::export_election_event::process_export_zip;
+use crate::services::export::export_ballot_publication::process_export_ballot_publication;
 use crate::services::tasks_execution::*;
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context};
 use celery::error::TaskError;
 use deadpool_postgres::{Client as DbClient, Transaction};
-use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::types::hasura::core::TasksExecution;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -30,21 +27,18 @@ pub async fn export_ballot_publication(
     let mut hasura_db_client: DbClient = match get_hasura_pool().await.get().await {
         Ok(client) => client,
         Err(err) => {
-            update_fail(&task_execution, "Failed to get Hasura DB pool").await;
-            return Err(Error::String(format!(
-                "Error getting Hasura DB pool: {}",
-                err
-            )));
+            let err_str = format!("Error getting Hasura DB pool: {err:?}");
+            update_fail(&task_execution, &err_str).await;
+            return Err(Error::String(err_str));
         }
     };
 
     let hasura_transaction = match hasura_db_client.transaction().await {
         Ok(transaction) => transaction,
         Err(err) => {
-            update_fail(&task_execution, "Failed to start Hasura transaction").await?;
-            return Err(Error::String(format!(
-                "Error starting Hasura transaction: {err}"
-            )));
+            let err_str = format!("Failed to start Hasura transaction: {err:?}");
+            update_fail(&task_execution, &err_str).await;
+            return Err(Error::String(err_str));
         }
     };
 
@@ -79,54 +73,16 @@ pub async fn export_ballot_publication(
         }
     };
 
-    let ballot_styles = match get_ballot_styles_by_ballot_publication_by_id(
+    // Process the export
+    match process_export_ballot_publication(
         &hasura_transaction,
         &tenant_id,
         &election_event_id,
-        &ballot_publication_id,
+        &document_id,
+        &vec![ballot_publication],
+        true,
     )
     .await
-    {
-        Ok(ballot_styles) => ballot_styles,
-        Err(err) => {
-            update_fail(
-                &task_execution,
-                &format!("Error obtaining ballot styles: {err:?}"),
-            )
-            .await?;
-            return Err(Error::String(format!(
-                "Error obtaining ballot styles: {err:?}"
-            )));
-        }
-    };
-
-    let ballot_emls = match ballot_styles
-        .into_iter()
-        .filter_map(|val| val.ballot_eml.as_ref().map(|eml| Ok(deserialize_str(eml)?)))
-        .collect::<Result<Vec<Value>>>()
-    {
-        Ok(ballot_emls) => ballot_emls,
-        Err(err) => {
-            update_fail(
-                &task_execution,
-                &format!("Error deserializing ballot eml: {err:?}"),
-            )
-            .await?;
-            return Err(Error::String(format!(
-                "Error deserializing ballot eml: {err:?}"
-            )));
-        }
-    };
-
-    let ballot_design = json!({
-        "ballot_publication_id": &ballot_publication_id,
-        "ballot_styles": ballot_emls,
-    })
-    .to_string();
-
-    // Process the export
-    match process_export_json_to_csv(&tenant_id, &election_event_id, &document_id, &ballot_design)
-        .await
     {
         Ok(_) => (),
         Err(err) => {
@@ -140,12 +96,13 @@ pub async fn export_ballot_publication(
     match hasura_transaction.commit().await {
         Ok(_) => (),
         Err(err) => {
-            update_fail(&task_execution, "Failed to insert task execution record").await?;
-            return Err(Error::String(format!("Commit failed: {}", err)));
+            let err_str = format!("Commit failed: {err:?}");
+            update_fail(&task_execution, &err_str).await;
+            return Err(Error::String(err_str));
         }
     };
 
-    update_complete(&task_execution)
+    update_complete(&task_execution, Some(document_id.to_string()))
         .await
         .context("Failed to update task execution status to COMPLETED")?;
 

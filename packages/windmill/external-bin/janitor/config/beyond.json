@@ -1,0 +1,8 @@
+{
+    "tenant_id": "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+    "replacements": {
+        "Sequent Admin Portal": "COMELEC EMS-OV",
+        "http://127.0.0.1:3002/": "{{ .Values.tenant.portals.adminPortalURL}}",
+        "http://127.0.0.1:3000/": "{{ .Values.tenant.portals.votingPortalURL}}"
+    }
+}

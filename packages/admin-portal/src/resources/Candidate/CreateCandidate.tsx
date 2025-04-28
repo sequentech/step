@@ -25,6 +25,7 @@ import {NewResourceContext} from "@/providers/NewResourceProvider"
 import {Sequent_Backend_Candidate_Extended} from "./CandidateDataForm"
 import {addDefaultTranslationsToElement} from "@/services/i18n"
 import {ICandidatePresentation} from "@sequentech/ui-core"
+import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 
 const Hidden = styled(Box)`
     display: none;
@@ -39,6 +40,7 @@ export const CreateCandidate: React.FC = () => {
 
     const electionEventId = searchParams.get("electionEventId")
     const contestId = searchParams.get("contestId")
+    const {setCandidateIdFlag, setContestIdFlag} = useElectionEventTallyStore()
 
     const {setLastCreatedResource} = useContext(NewResourceContext)
     const {refetch} = useTreeMenuData(false)
@@ -61,6 +63,7 @@ export const CreateCandidate: React.FC = () => {
                 onSuccess: (data: Sequent_Backend_Candidate_Extended) => {
                     refetch()
                     setLastCreatedResource({id: data.id, type: "sequent_backend_candidate"})
+                    setCandidateIdFlag(data.id)
                     redirect(`/sequent_backend_candidate/${data.id}`)
                 },
             }}

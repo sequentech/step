@@ -30,6 +30,7 @@ insert_permissions:
               - election_event_id
               - id
               - tenant_id
+              - permission_label
       role: service-account
 select_permissions:
     - comment: ""
@@ -50,9 +51,16 @@ select_permissions:
               - election_event_id
               - id
               - tenant_id
+              - permission_label
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - permission_label:
+                              _is_null: true
+                        - permission_label:
+                              _contained_in: X-Hasura-Permission-Labels
       role: admin-ceremony
     - comment: ""
       permission:
@@ -72,9 +80,16 @@ select_permissions:
               - election_event_id
               - id
               - tenant_id
+              - permission_label
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - permission_label:
+                              _is_null: true
+                        - permission_label:
+                              _contained_in: X-Hasura-Permission-Labels
       role: admin-user
     - comment: ""
       permission:
@@ -94,6 +109,7 @@ select_permissions:
               - election_event_id
               - id
               - tenant_id
+              - permission_label
           filter: {}
       role: service-account
     - comment: ""
@@ -114,9 +130,16 @@ select_permissions:
               - election_event_id
               - id
               - tenant_id
+              - permission_label
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - permission_label:
+                              _is_null: true
+                        - permission_label:
+                              _contained_in: X-Hasura-Permission-Labels
       role: trustee-ceremony
 update_permissions:
     - comment: ""
@@ -137,6 +160,7 @@ update_permissions:
               - election_event_id
               - id
               - tenant_id
+              - permission_label
           filter: {}
       role: service-account
 delete_permissions:

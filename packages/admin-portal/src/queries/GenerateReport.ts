@@ -18,6 +18,7 @@ export const GENERATE_REPORT = gql`
             election_event_id: $electionEventId
         ) {
             document_id
+            encryption_policy
             task_execution {
                 id
                 name

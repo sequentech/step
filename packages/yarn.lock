@@ -15874,9 +15874,9 @@ jose@^4.11.4:
   integrity sha512-j8GhLiKmUAh+dsFXlX1aJCbt5KMibuKb+d7j1JaOJG6s2UjX1PQlW+OKB/sD4a/5ZYF4RcmYmLSndOoU3Lt/3g==
 
 jotai@^2.6.0:
-  version "2.6.0"
-  resolved "https://registry.npmjs.org/jotai/-/jotai-2.6.0.tgz"
-  integrity sha512-Vt6hsc04Km4j03l+Ax+Sc+FVft5cRJhqgxt6GTz6GM2eM3DyX3CdBdzcG0z2FrlZToL1/0OAkqDghIyARWnSuQ==
+  version "2.11.1"
+  resolved "https://registry.yarnpkg.com/jotai/-/jotai-2.11.1.tgz#9fd12aaba8458783482c77c8d7038d6e974fc679"
+  integrity sha512-41Su098mpHIX29hF/XOpDb0SqF6EES7+HXfrhuBqVSzRkxX48hD5i8nGsEewWZNAsBWJCTTmuz8M946Ih2PfcQ==
 
 js-beautify@^1.14.9:
   version "1.14.11"
@@ -21865,15 +21865,15 @@ sentence-case@^3.0.4:
 
 "sequent-core@file:./admin-portal/rust/sequent-core-0.1.0.tgz":
   version "0.1.0"
-  resolved "file:./admin-portal/rust/sequent-core-0.1.0.tgz#3626c23f8fc3e07ccd6e6471c337fc3a968445e4"
+  resolved "file:./admin-portal/rust/sequent-core-0.1.0.tgz#7ee2adc86b418e4145eba1754164c72d86cdfd0c"
 
 "sequent-core@file:./ballot-verifier/rust/sequent-core-0.1.0.tgz":
   version "0.1.0"
-  resolved "file:./ballot-verifier/rust/sequent-core-0.1.0.tgz#3626c23f8fc3e07ccd6e6471c337fc3a968445e4"
+  resolved "file:./ballot-verifier/rust/sequent-core-0.1.0.tgz#7ee2adc86b418e4145eba1754164c72d86cdfd0c"
 
 "sequent-core@file:./voting-portal/rust/sequent-core-0.1.0.tgz":
   version "0.1.0"
-  resolved "file:./voting-portal/rust/sequent-core-0.1.0.tgz#3626c23f8fc3e07ccd6e6471c337fc3a968445e4"
+  resolved "file:./voting-portal/rust/sequent-core-0.1.0.tgz#7ee2adc86b418e4145eba1754164c72d86cdfd0c"
 
 serialize-javascript@6.0.0:
   version "6.0.0"

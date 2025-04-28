@@ -124,6 +124,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 								<includes>
 									<include>software.amazon.awssdk:*</include>
 									<include>org.reactivestreams:reactive-streams</include>
+									<include>com.rabbitmq:*</include>
 								</includes>
 							</artifactSet>
 						</configuration>

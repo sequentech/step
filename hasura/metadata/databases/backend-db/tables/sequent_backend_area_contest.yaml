@@ -51,6 +51,38 @@ insert_permissions:
               - election_event_id
               - id
               - tenant_id
+      role: area-create
+    - comment: ""
+      permission:
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          columns:
+              - annotations
+              - labels
+              - created_at
+              - last_updated_at
+              - area_id
+              - contest_id
+              - election_event_id
+              - id
+              - tenant_id
+      role: area-upsert
+    - comment: ""
+      permission:
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          columns:
+              - annotations
+              - labels
+              - created_at
+              - last_updated_at
+              - area_id
+              - contest_id
+              - election_event_id
+              - id
+              - tenant_id
       role: area-write
     - comment: ""
       permission:
@@ -100,7 +132,92 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
+      role: area-create
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - annotations
+              - labels
+              - created_at
+              - last_updated_at
+              - area_id
+              - contest_id
+              - election_event_id
+              - id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: area-delete
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - annotations
+              - labels
+              - created_at
+              - last_updated_at
+              - area_id
+              - contest_id
+              - election_event_id
+              - id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: area-export
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - annotations
+              - labels
+              - created_at
+              - last_updated_at
+              - area_id
+              - contest_id
+              - election_event_id
+              - id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: area-import
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - annotations
+              - labels
+              - created_at
+              - last_updated_at
+              - area_id
+              - contest_id
+              - election_event_id
+              - id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
       role: area-read
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - annotations
+              - labels
+              - created_at
+              - last_updated_at
+              - area_id
+              - contest_id
+              - election_event_id
+              - id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: area-upsert
     - comment: ""
       permission:
           allow_aggregations: true
@@ -174,6 +291,23 @@ update_permissions:
       role: admin-user
     - comment: ""
       permission:
+          check: null
+          columns:
+              - annotations
+              - labels
+              - created_at
+              - last_updated_at
+              - area_id
+              - contest_id
+              - election_event_id
+              - id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: area-upsert
+    - comment: ""
+      permission:
           check:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
@@ -213,6 +347,12 @@ delete_permissions:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
       role: admin-user
+    - comment: ""
+      permission:
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: area-delete
     - comment: ""
       permission:
           filter:

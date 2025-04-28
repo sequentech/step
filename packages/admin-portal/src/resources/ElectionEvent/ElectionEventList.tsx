@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {CreateButton, useGetList} from "react-admin"
+import {Button, CreateButton, useGetList} from "react-admin"
 import React, {ReactElement, useContext, useEffect} from "react"
 
 import {useLocation, useNavigate} from "react-router-dom"
@@ -15,6 +15,14 @@ import {useAtom} from "jotai"
 import archivedElectionEventSelection from "@/atoms/archived-election-event-selection"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
+import AddIcon from "@mui/icons-material/Add"
+import PublishIcon from "@mui/icons-material/Publish"
+import {
+    CreateElectionEventProvider,
+    useCreateElectionEventStore,
+} from "@/providers/CreateElectionEventContextProvider"
+import {CreateDataDrawer} from "@/components/election-event/create/CreateElectionEventDrawer"
+import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
 
 const EmptyBox = styled(Box)`
     display: flex;
@@ -36,7 +44,7 @@ export interface ElectionEventListProps {
     aside?: ReactElement
 }
 
-export const ElectionEventList: React.FC<ElectionEventListProps> = ({aside}) => {
+export const ElectionEventListContent: React.FC<ElectionEventListProps> = ({aside}) => {
     const {t} = useTranslation()
     const navigate = useNavigate()
     const {pathname} = useLocation()
@@ -49,43 +57,84 @@ export const ElectionEventList: React.FC<ElectionEventListProps> = ({aside}) => 
         IPermissions.ELECTION_EVENT_WRITE
     )
 
-    const {data, isLoading} = useGetList("sequent_backend_election_event", {
-        sort: {field: "created_at", order: "DESC"},
-        filter: {
-            tenant_id: tenantId,
-            is_archived: isArchivedElectionEvents,
-        },
-    })
+    const {openCreateDrawer, openImportDrawer} = useCreateElectionEventStore()
 
-    // Navigate to the first election event found, if any
+    const {data, isLoading, refetch} = useGetList(
+        "sequent_backend_election_event",
+        {
+            sort: {field: "created_at", order: "DESC"},
+            filter: {
+                tenant_id: tenantId,
+                is_archived: isArchivedElectionEvents,
+            },
+        },
+        {
+            enabled: false,
+        }
+    )
+
+    // Reload data when the path changes
+    useEffect(() => {
+        refetch()
+    }, [pathname])
+
+    // if data, we would be automatically redirected to the first election
+    // event, so we should just show a process icon in the meantime
     useEffect(() => {
         if (data && data.length > 0) {
             const electionEventId = data[0].id ?? null
             if (electionEventId) {
                 navigate("/sequent_backend_election_event/" + electionEventId)
             }
-        } else if (pathname != "/sequent_backend_election_event/") {
-            navigate("/sequent_backend_election_event/")
+        } else {
+            navigate("/sequent_backend_election_event")
         }
-    })
+    }, [data])
 
-    const Empty = (
-        <EmptyBox m={1}>
-            <Typography variant="h4" paragraph>
-                {t("electionEventScreen.error.noResult")}
-            </Typography>
-            {canCreateElections ? (
+    return (
+        <CenteredBox>
+            {isLoading ? (
+                <CircularProgress />
+            ) : (
                 <>
-                    <Typography variant="body1" paragraph>
-                        {t("common.resources.noResult.askCreate")}
-                    </Typography>
-                    <CreateButton />
+                    <EmptyBox m={1}>
+                        <Typography variant="h4" paragraph>
+                            {t("electionEventScreen.error.noResult")}
+                        </Typography>
+                        {canCreateElections ? (
+                            <>
+                                <Typography variant="body1" paragraph>
+                                    {t("common.resources.noResult.askCreate")}
+                                </Typography>
+                                <Box display="flex" gap={1}>
+                                    <Button
+                                        label={t("common.label.add")}
+                                        startIcon={<AddIcon />}
+                                        onClick={() => openCreateDrawer()}
+                                    />
+                                    <Button
+                                        label={t("common.label.import")}
+                                        startIcon={<PublishIcon />}
+                                        onClick={() => openImportDrawer?.()}
+                                    />
+                                </Box>
+                            </>
+                        ) : null}
+                    </EmptyBox>
+                    <CreateDataDrawer />
+                    <ImportDataDrawer
+                        title="electionEventScreen.import.eetitle"
+                        subtitle="electionEventScreen.import.eesubtitle"
+                        paragraph={"electionEventScreen.import.electionEventParagraph"}
+                    />
                 </>
-            ) : null}
-        </EmptyBox>
+            )}
+        </CenteredBox>
     )
-
-    // if data, we would be automatically redirected to the first election
-    // event, so we should just show a process icon in the meantime
-    return <CenteredBox>{isLoading ? <CircularProgress /> : Empty}</CenteredBox>
 }
+
+export const ElectionEventList: React.FC<ElectionEventListProps> = (props) => (
+    <CreateElectionEventProvider>
+        <ElectionEventListContent {...props} />
+    </CreateElectionEventProvider>
+)

@@ -5,8 +5,12 @@
 import {gql} from "@apollo/client"
 
 export const IMPORT_AREAS = gql`
-    mutation ImportAreas($electionEventId: String!, $documentId: String!) {
-        import_areas(election_event_id: $electionEventId, document_id: $documentId) {
+    mutation ImportAreas($electionEventId: String!, $documentId: String!, $sha256: String) {
+        import_areas(
+            election_event_id: $electionEventId
+            document_id: $documentId
+            sha256: $sha256
+        ) {
             id
         }
     }

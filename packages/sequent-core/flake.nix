@@ -7,7 +7,7 @@
 
   # input
   inputs.rust-overlay.url = "github:oxalica/rust-overlay";
-  inputs.nixpkgs.url = "nixpkgs/nixos-22.05";
+  inputs.nixpkgs.url = "nixpkgs/nixos-24.05";
   inputs.flake-utils.url = "github:numtide/flake-utils";
   inputs.flake-compat = {
     url = "github:edolstra/flake-compat";
@@ -19,7 +19,7 @@
   outputs = { self, nixpkgs, devenv, flake-utils, rust-overlay, flake-compat }:
     flake-utils.lib.eachDefaultSystem (
       system:
-        let 
+        let
           overlays = [ (import rust-overlay) ];
           # pkgs is just the nix packages
           pkgs = import nixpkgs {
@@ -28,7 +28,7 @@
           configureRustTargets = targets : pkgs
             .rust-bin
             .nightly
-            ."2023-08-01"
+            ."2024-07-31"
             .default
             .override {
                 extensions = [ "rust-src" ];
@@ -98,11 +98,11 @@
           # configure the dev shell
           devShell = (
             pkgs.mkShell.override { stdenv = pkgs.clangStdenv; }
-          ) { 
-            nativeBuildInputs = 
-              defaultPackage.nativeBuildInputs; 
-            buildInputs = 
-              [ pkgs.bash pkgs.reuse pkgs.cargo-deny pkgs.ack ]; 
+          ) {
+            nativeBuildInputs =
+              defaultPackage.nativeBuildInputs;
+            buildInputs =
+              with pkgs; [ bash reuse cargo-deny ack wasm-pack ];
           };
         }
     );

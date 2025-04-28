@@ -2,10 +2,17 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {Box, CircularProgress, Typography} from "@mui/material"
-import React, {useState, useEffect, useContext, useCallback} from "react"
+import React, {useState, useEffect, useContext, useCallback, useRef} from "react"
 import {useTranslation} from "react-i18next"
 import {PageLimit, Icon, IconButton, theme, QRCode, Dialog} from "@sequentech/ui-essentials"
-import {stringToHtml, IElectionEventPresentation, EVotingStatus} from "@sequentech/ui-core"
+import {
+    stringToHtml,
+    IElectionEventPresentation,
+    EVotingStatus,
+    IAuditableMultiBallot,
+    IAuditableSingleBallot,
+    EElectionEventContestEncryptionPolicy,
+} from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import {faPrint, faCircleQuestion, faCheck} from "@fortawesome/free-solid-svg-icons"
 import Button from "@mui/material/Button"
@@ -17,7 +24,6 @@ import {selectAuditableBallot} from "../store/auditableBallots/auditableBallotsS
 import {canVoteSomeElection} from "../store/castVotes/castVotesSlice"
 import {selectElectionEventById} from "../store/electionEvents/electionEventsSlice"
 import {TenantEventType} from ".."
-import {useRootBackLink} from "../hooks/root-back-link"
 import {clearBallot} from "../store/ballotSelections/ballotSelectionsSlice"
 import {
     selectBallotStyleByElectionId,
@@ -35,6 +41,7 @@ import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortal
 import {GetElectionsQuery} from "../gql/graphql"
 import {GET_ELECTIONS} from "../queries/GetElections"
 import {downloadUrl} from "@sequentech/ui-core"
+import {SessionBallotData} from "../store/castVotes/castVotesSlice"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -274,29 +281,74 @@ const ConfirmationScreen: React.FC = () => {
     const [openBallotIdHelp, setOpenBallotIdHelp] = useState(false)
     const [openConfirmationHelp, setOpenConfirmationHelp] = useState(false)
     const [openDemoBallotUrlHelp, setDemoBallotUrlHelp] = useState(false)
-    const {hashBallot} = provideBallotService()
-    const ballotId = (auditableBallot && hashBallot(auditableBallot)) || ""
+    const {hashBallot, hashMultiBallot} = provideBallotService()
+    const oneBallotStyle = useAppSelector(selectFirstBallotStyle)
+    const getBallotId = (): {
+        ballotIdStored: string | undefined
+        isDemoStored: boolean | undefined
+    } => {
+        if (!auditableBallot) {
+            const ballotData = JSON.parse(
+                sessionStorage.getItem("ballotData") ?? "{}"
+            ) as SessionBallotData
+            if (Object.keys(ballotData).length === 0) {
+                console.log("ballotData not found in sessionStorage")
+                return {ballotIdStored: undefined, isDemoStored: undefined}
+            } else {
+                return {ballotIdStored: ballotData.ballotId, isDemoStored: ballotData.isDemo}
+            }
+        } else {
+            if (!auditableBallot) {
+                console.log("auditableBallot is not there")
+                return {ballotIdStored: undefined, isDemoStored: undefined}
+            }
+            console.log("auditableBallot is there")
+            const isMultiContest =
+                auditableBallot?.config.election_event_presentation?.contest_encryption_policy ==
+                EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
+            const hashableBallot = isMultiContest
+                ? hashMultiBallot(auditableBallot as IAuditableMultiBallot)
+                : hashBallot(auditableBallot as IAuditableSingleBallot)
+            const ballotIdStored = (auditableBallot && hashableBallot) || undefined
+            const isDemoStored = oneBallotStyle?.ballot_eml.public_key?.is_demo
+            return {ballotIdStored, isDemoStored}
+        }
+    }
 
-    const ballotTrackerUrl = `${window.location.protocol}//${window.location.host}/tenant/${tenantId}/event/${eventId}/election/${electionId}/ballot-locator/${ballotId}`
-
-    const backLink = useRootBackLink()
+    const ballotId = useRef<string | undefined>(undefined)
+    const gotData = useRef<boolean | undefined>(false)
     const navigate = useNavigate()
     const [demoBallotIdHelp, setDemoBallotIdHelp] = useState<boolean>(false)
-    const oneBallotStyle = useAppSelector(selectFirstBallotStyle)
-    const isDemo = oneBallotStyle?.ballot_eml.public_key?.is_demo
+    const [isDemo, setIsDemo] = useState<boolean>(false)
+    const [ballotTrackerUrl, setBallotTrackerUrl] = useState<string | undefined>(undefined)
 
-    if (ballotId && auditableBallot?.ballot_hash && ballotId !== auditableBallot.ballot_hash) {
+    if (
+        gotData.current &&
+        auditableBallot?.ballot_hash &&
+        ballotId.current !== auditableBallot?.ballot_hash
+    ) {
         console.log(
-            `ballotId: ${ballotId}\n auditable Ballot Hash: ${auditableBallot?.ballot_hash}`
+            `ballotId: ${ballotId.current}\n auditable Ballot Hash: ${auditableBallot?.ballot_hash}`
         )
         throw new VotingPortalError(VotingPortalErrorType.INCONSISTENT_HASH)
     }
 
     useEffect(() => {
-        if (!ballotId) {
-            navigate(backLink)
+        if (!gotData.current) {
+            gotData.current = true
+            const {ballotIdStored, isDemoStored} = getBallotId()
+            sessionStorage.removeItem("ballotData")
+            if (!ballotIdStored) {
+                console.log("No stored ballot found, navigating to the election-chooser page.")
+                navigate(`/tenant/${tenantId}/event/${eventId}/election-chooser`)
+            }
+            ballotId.current = ballotIdStored
+            setIsDemo(isDemoStored ?? false)
+            setBallotTrackerUrl(
+                `${window.location.protocol}//${window.location.host}/tenant/${tenantId}/event/${eventId}/election/${electionId}/ballot-locator/${ballotIdStored}`
+            )
         }
-    })
+    }, [])
 
     const handleBallotIdLinkClick = (event: React.MouseEvent<HTMLAnchorElement, MouseEvent>) => {
         if (isDemo) {
@@ -354,7 +406,7 @@ const ConfirmationScreen: React.FC = () => {
                         sx={{display: {xs: "none", sm: "block"}}}
                         onClick={handleBallotIdLinkClick}
                     >
-                        {ballotId}
+                        {ballotId.current}
                     </BallotIdLink>
                     <BallotIdLink
                         href={!isDemo ? ballotTrackerUrl : undefined}
@@ -362,7 +414,7 @@ const ConfirmationScreen: React.FC = () => {
                         sx={{display: {xs: "block", sm: "none"}}}
                         onClick={handleBallotIdLinkClick}
                     >
-                        {t("ballotHash", {ballotId: ballotId})}
+                        {t("ballotHash", {ballotId: ballotId.current})}
                     </BallotIdLink>
                     <IconButton
                         icon={faCircleQuestion}
@@ -412,12 +464,14 @@ const ConfirmationScreen: React.FC = () => {
                 {stringToHtml(t("confirmationScreen.verifyCastDescription"))}
             </Typography>
             <QRContainer>
-                <QRCode value={isDemo ? t("confirmationScreen.demoQRText") : ballotTrackerUrl} />
+                <QRCode
+                    value={isDemo ? t("confirmationScreen.demoQRText") : ballotTrackerUrl ?? ""}
+                />
             </QRContainer>
             <ActionButtons
                 ballotTrackerUrl={ballotTrackerUrl}
                 electionId={electionId}
-                ballotId={ballotId}
+                ballotId={ballotId.current ?? ""}
             />
         </PageLimit>
     )

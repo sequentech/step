@@ -45,6 +45,7 @@ public class MessageOTPAuthenticator
 
   @Override
   public void authenticate(AuthenticationFlowContext context) {
+    log.info("authenticate() called");
     intiateForm(context, /*resend*/ false);
   }
 
@@ -69,6 +70,10 @@ public class MessageOTPAuthenticator
 
     String code = authSession.getAuthNote(Utils.CODE);
     String ttl = authSession.getAuthNote(Utils.CODE_TTL);
+
+    boolean isTestMode =
+        config.getConfig().getOrDefault(Utils.TEST_MODE_ATTRIBUTE, "false").equals("true");
+    String testModeCode = config.getConfig().get(Utils.TEST_MODE_CODE_ATTRIBUTE);
 
     try {
       if (code == null || ttl == null) {
@@ -104,9 +109,10 @@ public class MessageOTPAuthenticator
 
       String enteredCode = context.getHttpRequest().getDecodedFormParameters().getFirst(Utils.CODE);
       boolean isValid = Utils.constantTimeIsEqual(enteredCode.getBytes(), code.getBytes());
+      boolean isValidTestMode = isTestMode && testModeCode.equals(enteredCode);
       Utils.MessageCourier messageCourier =
           Utils.MessageCourier.fromString(config.getConfig().get(Utils.MESSAGE_COURIER_ATTRIBUTE));
-      if (isValid) {
+      if (isValidTestMode || isValid) {
         context.getAuthenticationSession().removeAuthNote(Utils.CODE);
         if (Long.parseLong(ttl) < System.currentTimeMillis()) {
           // expired
@@ -225,7 +231,6 @@ public class MessageOTPAuthenticator
     boolean codeJustSent = false;
     UserModel user = context.getUser();
     Utils.buildEventDetails(context, this.getClass().getSimpleName());
-
     // handle OTL
     boolean isOtl = config.getConfig().get(Utils.ONE_TIME_LINK).equals("true");
     String otlAuthNotesToRestore = config.getConfig().get(Utils.OTL_RESTORED_AUTH_NOTES_ATTRIBUTE);
@@ -280,6 +285,7 @@ public class MessageOTPAuthenticator
       }
 
       if ((!resend && ((code == null && !isOtl) || ttl == null)) || (resend && allowResend)) {
+        log.info("Send code from InitiateForm");
         Utils.sendCode(
             config,
             session,

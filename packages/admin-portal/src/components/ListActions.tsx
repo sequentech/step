@@ -11,6 +11,7 @@ import DownloadIcon from "@mui/icons-material/Download"
 import UploadIcon from "@mui/icons-material/Upload"
 
 import {Button, TopToolbar, FilterButton, SelectColumnsButton, ExportButton} from "react-admin"
+import {preferencePanelStateInitializer} from "@mui/x-data-grid/internals"
 
 interface ListActionsProps {
     withColumns?: boolean
@@ -27,14 +28,17 @@ interface ListActionsProps {
     doAction?: () => void
     actionLabel?: string
     Component?: React.ReactNode
+    withComponent?: boolean
     custom?: boolean
     extraActions?: Array<any>
     defaultExport?: boolean
+    preferenceKey?: string
 }
 
 export const ListActions: React.FC<ListActionsProps> = (props) => {
     const {
         withColumns = true,
+        preferenceKey,
         withImport = true,
         doImport = () => {},
         withExport = true,
@@ -46,6 +50,7 @@ export const ListActions: React.FC<ListActionsProps> = (props) => {
         doAction = () => {},
         actionLabel = "",
         Component,
+        withComponent,
         open = false,
         setOpen = () => {},
         custom = true,
@@ -71,7 +76,13 @@ export const ListActions: React.FC<ListActionsProps> = (props) => {
                     display: "flex",
                 }}
             >
-                {withColumns ? <SelectColumnsButton /> : null}
+                {withColumns ? (
+                    preferenceKey ? (
+                        <SelectColumnsButton preferenceKey={preferenceKey} />
+                    ) : (
+                        <SelectColumnsButton />
+                    )
+                ) : null}
 
                 {withFilter ? <FilterButton /> : null}
 
@@ -81,7 +92,7 @@ export const ListActions: React.FC<ListActionsProps> = (props) => {
                     </Button>
                 ) : null}
 
-                {Component && (
+                {withComponent && Component && (
                     <>
                         <Button
                             onClick={() => setOpen(true)}

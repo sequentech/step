@@ -1,14 +1,61 @@
 {
-  "date_printed": "2024-10-09T14:30:00-04:00",
-  "election_event_date": "2024-05-10T14:30:00-04:00",
+  "execution_annotations": {
+    "date_printed": "2024-10-09T14:30:00-04:00",
+    "report_hash": "a1b2c3d4e5",
+    "app_version": "1.0.0",
+    "app_hash": "z9y8x7w6v5",
+    "software_version": "1.0.0",
+    "executer_username":"User"
+},
   "election_event_title": "National Elections",
-  "voting_period_start": "2024-04-10T00:00:00-04:00",
-  "voting_period_end": "2024-05-10T00:00:00-04:00",
+  "election_dates": {
+    "first_started_at": "2024-11-08T00:00:00Z",
+    "last_started_at": "2024-11-08T12:00:00Z",
+    "first_paused_at": "2024-11-08T13:00:00Z",
+    "last_paused_at": "2024-11-08T14:00:00Z",
+    "first_stopped_at": "2024-11-08T15:00:00Z",
+    "last_stopped_at": "2024-11-08T15:00:00Z",
+    "scheduled_event_dates": {
+      "ALLOW_INIT_REPORT": {
+        "scheduled_at": "2024-11-08T10:00:00Z",
+        "stopped_at": "-"
+      },
+      "ALLOW_VOTING_PERIOD_END": {
+        "scheduled_at": "2024-11-08T14:30:00Z",
+        "stopped_at": "-"
+      },
+      "START_VOTING_PERIOD": {
+        "scheduled_at": "2024-11-08T11:00:00Z",
+        "stopped_at": "-"
+      },
+      "END_VOTING_PERIOD": {
+        "scheduled_at": "2024-11-08T11:30:00Z",
+        "stopped_at": "-"
+      },
+      "START_ENROLLMENT_PERIOD": {
+        "scheduled_at": "2024-11-08T12:00:00Z",
+        "stopped_at": "-"
+      },
+      "END_ENROLLMENT_PERIOD": {
+        "scheduled_at": "2024-11-08T12:30:00Z",
+        "stopped_at": "-"
+      },
+      "START_LOCKDOWN_PERIOD": {
+        "scheduled_at": "2024-11-08T13:00:00Z",
+        "stopped_at": "-"
+      },
+      "END_LOCKDOWN_PERIOD": {
+        "scheduled_at": "2024-11-08T13:30:00Z",
+        "stopped_at": "-"
+      }
+    }
+  },
   "geographical_region": "Global",
   "post": "Global",
   "area_id": "Global",
   "voting_center": "Global",
-  "precinct_code": "Global",
+  "station_id": "91060001",
+  "station_name": "0034A",
   "registered_voters": 5000,
   "ballots_counted": 3500,
   "voters_turnout": 70,
@@ -17,25 +64,37 @@
       "number": 1,
       "datetime": "2024-05-10T15:30:00-04:00",
       "username": "admin",
+      "userkind": "Admin",
       "activity": "Initialization"
     },
     {
       "number": 2,
       "datetime": "2024-05-10T16:00:00-04:00",
       "username": "clerk",
-      "activity": "Vote counting"
+      "userkind": "Admin",
+      "activity": "Election published."
+    },
+    {
+      "number": 3,
+      "datetime": "2024-05-10T16:00:00-04:00",
+      "username": "Bob",
+      "userkind": "Voter",
+      "activity": "Inserted cast vote."
     }
   ],
   "signature_date": "2024-05-10T16:00:00-04:00",
-  "chairperson_name": "Juan Dela Cruz",
-  "chairperson_digital_signature": "DigitalSignatureABC",
-  "poll_clerk_name": "Maria Clara",
-  "poll_clerk_digital_signature": "DigitalSignatureDEF",
-  "third_member_name": "Jose Rizal",
-  "third_member_digital_signature": "DigitalSignatureGHI",
-  "report_hash": "a1b2c3d4e5",
-  "results_hash": "a1b2c3d4e5",
-  "software_version": "1.0.0",
-  "ovcs_version": "2.3.4",
-  "system_hash": "z9y8x7w6v5"
+  "inspectors": [
+    {
+      "name": "Juan Dela Cruz",
+      "role": "Chairperson"
+    },
+    {
+      "name": "Maria Clara",
+      "role": "Poll Clerk"
+    },
+    {
+      "name": "Jose Rizal",
+      "role": "Third Member"
+    }
+  ]
 }

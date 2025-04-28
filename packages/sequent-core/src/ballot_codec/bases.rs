@@ -2,15 +2,16 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::ballot::*;
+use anyhow::Result;
 use std::convert::TryInto;
 
 pub trait BasesCodec {
     // get bases (no write-ins)
-    fn get_bases(&self) -> Vec<u64>;
+    fn get_bases(&self) -> Result<Vec<u64>>;
 }
 
 impl BasesCodec for Contest {
-    fn get_bases(&self) -> Vec<u64> {
+    fn get_bases(&self) -> Result<Vec<u64>> {
         // Calculate the base for candidates. It depends on the
         // `contest.counting_algorithm`:
         // - plurality-at-large: base 2 (value can be either 0 o 1)
@@ -47,7 +48,8 @@ impl BasesCodec for Contest {
                 }
             }
         }
-        bases
+
+        Ok(bases)
     }
 }
 
@@ -70,12 +72,12 @@ mod tests {
 
             if expected_error.is_some() {
                 assert_ne!(
-                    &fixture.contest.get_bases(),
+                    &fixture.contest.get_bases().unwrap(),
                     &fixture.raw_ballot.bases
                 );
             } else {
                 assert_eq!(
-                    &fixture.contest.get_bases(),
+                    &fixture.contest.get_bases().unwrap(),
                     &fixture.raw_ballot.bases
                 );
             }
@@ -86,7 +88,7 @@ mod tests {
     fn test_bases() {
         let fixtures = bases_fixture();
         for fixture in fixtures.iter() {
-            let bases = fixture.contest.get_bases();
+            let bases = fixture.contest.get_bases().unwrap();
             assert_eq!(bases, fixture.bases);
         }
     }

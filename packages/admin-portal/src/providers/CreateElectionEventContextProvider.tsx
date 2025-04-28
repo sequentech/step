@@ -31,13 +31,15 @@ import {addDefaultTranslationsToElement} from "@/services/i18n"
 import {ETasksExecution} from "@/types/tasksExecution"
 import {INSERT_ELECTION_EVENT} from "@/queries/InsertElectionEvent"
 import {useTenantStore} from "./TenantContextProvider"
+import {useAtom} from "jotai"
+import archivedElectionEventSelection from "@/atoms/archived-election-event-selection"
 
 interface IElectionSubmit {
     description: string
     name: string
 }
 
-interface IElectionEventSubmit {
+export interface IElectionEventSubmit {
     name: string
     description: string
     elections: Array<IElectionSubmit>
@@ -79,15 +81,15 @@ const PullChecker = <T extends RaRecord>({
 const CreateElectionEventContext = createContext<{
     createDrawer: boolean
     importDrawer: boolean
-    openCreateDrawer?: () => void
+    openCreateDrawer: () => void
     closeCreateDrawer?: () => void
-    toggleImportDrawer?: Dispatch<SetStateAction<boolean>>
+    openImportDrawer: () => void
+    closeImportDrawer: () => void
     postDefaultValues: any
     handleElectionCreated: any
     uploadCallback: any
     handleImportElectionEvent: any
     handleSubmit: any
-    closeImportDrawer: any
     errors: any
     isLoading: boolean
     newId: any
@@ -100,8 +102,11 @@ const CreateElectionEventContext = createContext<{
     uploadCallback: console.log,
     handleImportElectionEvent: console.log,
     handleSubmit: console.log,
+    openCreateDrawer: console.log,
+    closeCreateDrawer: console.log,
+    openImportDrawer: console.log,
     closeImportDrawer: console.log,
-    errors: console.log,
+    errors: null,
     isLoading: false,
     newId: false,
     tenantId: "",
@@ -125,6 +130,10 @@ export const CreateElectionEventProvider = ({children}: any) => {
     const {setLastCreatedResource} = useContext(NewResourceContext)
     const {refetch: refetchTreeMenu} = useTreeMenuData(false)
 
+    const [isArchivedElectionEvents, setArchivedElectionEvents] = useAtom(
+        archivedElectionEventSelection
+    )
+
     const postDefaultValues = () => ({id: v4()})
 
     const {data: tenant} = useGetOne("sequent_backend_tenant", {
@@ -132,13 +141,20 @@ export const CreateElectionEventProvider = ({children}: any) => {
     })
 
     const openCreateDrawer = () => {
-        console.log("open drawer")
+        setIsLoading(false)
         toggleCreateDrawer(true)
     }
 
     const closeCreateDrawer = () => {
-        console.log("close drawer")
         toggleCreateDrawer(false)
+    }
+
+    const openImportDrawer = () => {
+        toggleImportDrawer(true)
+    }
+
+    const closeImportDrawer = () => {
+        toggleImportDrawer(false)
     }
 
     useEffect(() => {
@@ -157,8 +173,8 @@ export const CreateElectionEventProvider = ({children}: any) => {
         isLoading: boolean
         error: any
     }) => {
-        console.log({error, isOneLoading, newElectionEvent})
         if (isNull(newId)) {
+            setIsLoading(false)
             return
         }
 
@@ -197,6 +213,8 @@ export const CreateElectionEventProvider = ({children}: any) => {
             presentation,
         }
 
+        closeCreateDrawer()
+
         try {
             let {data, errors} = await insertElectionEvent({
                 variables: {
@@ -215,30 +233,22 @@ export const CreateElectionEventProvider = ({children}: any) => {
                 setLastCreatedResource({id: newId, type: "sequent_backend_election_event"})
                 setIsLoading(true)
             } else {
-                console.log(`Error creating Election Event ${errors}`)
                 updateWidgetFail(currWidget.identifier)
                 setIsLoading(false)
             }
         } catch (error) {
-            console.log(`Error creating Election Event ${error}`)
             setIsLoading(false)
             updateWidgetFail(currWidget.identifier)
         }
-
-        refresh()
-
-        setTimeout(() => {
-            refetchTreeMenu()
-        }, globalSettings.QUERY_POLL_INTERVAL_MS)
     }
 
     const [errors, setErrors] = useState<string | null>(null)
     const [importElectionEvent] = useMutation<ImportElectionEventMutation>(IMPORT_ELECTION_EVENT)
 
-    const closeImportDrawer = () => {
-        toggleImportDrawer((prev) => !prev)
-        setErrors(null)
-    }
+    // const closeImportDrawer = () => {
+    //     toggleImportDrawer((prev) => !prev)
+    //     setErrors(null)
+    // }
 
     const uploadCallback = async (documentId: string, password: string = "") => {
         setErrors(null)
@@ -263,9 +273,10 @@ export const CreateElectionEventProvider = ({children}: any) => {
         password?: string
     ) => {
         closeImportDrawer()
+        setIsLoading(false)
         setErrors(null)
+
         const currWidget = addWidget(ETasksExecution.IMPORT_ELECTION_EVENT)
-        console.log({documentId})
 
         try {
             let {data, errors} = await importElectionEvent({
@@ -290,7 +301,7 @@ export const CreateElectionEventProvider = ({children}: any) => {
                 )
                 setNewId(id)
                 setLastCreatedResource({id, type: "sequent_backend_election_event"})
-                setIsLoading(true)
+                setArchivedElectionEvents(false)
             }
         } catch (err) {
             updateWidgetFail(currWidget.identifier)
@@ -304,13 +315,13 @@ export const CreateElectionEventProvider = ({children}: any) => {
                 importDrawer,
                 openCreateDrawer,
                 closeCreateDrawer,
-                toggleImportDrawer,
+                openImportDrawer,
+                closeImportDrawer,
                 postDefaultValues,
                 handleElectionCreated,
                 uploadCallback,
                 handleImportElectionEvent,
                 handleSubmit,
-                closeImportDrawer,
                 errors,
                 isLoading,
                 newId,
@@ -324,16 +335,3 @@ export const CreateElectionEventProvider = ({children}: any) => {
 
 //hook
 export const useCreateElectionEventStore = () => useContext(CreateElectionEventContext)
-
-//hoc
-export const withCreateElectionEventProvider = (Component: React.FC<any>) => {
-    const HasCreateElectionEventProvider = () => {
-        return (
-            <CreateElectionEventProvider>
-                <Component />
-            </CreateElectionEventProvider>
-        )
-    }
-
-    return HasCreateElectionEventProvider
-}

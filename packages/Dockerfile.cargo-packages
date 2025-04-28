@@ -13,6 +13,7 @@ WORKDIR /app
 
 COPY ./windmill/external-bin/ecies-tool.jar /usr/local/bin/
 
+
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     m4 make chromium libssl-dev protobuf-compiler libprotobuf-dev curl pkg-config wget software-properties-common && \

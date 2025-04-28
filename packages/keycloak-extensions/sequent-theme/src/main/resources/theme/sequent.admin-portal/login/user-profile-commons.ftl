@@ -9,6 +9,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <#macro userProfileFormFields>
 	<#assign currentGroup="">
 	<#assign readonlyElements = []>
+	<#assign disabledElements = []>
 	
 	<#list profile.attributes as attribute>
 		<#--  Check for default custom attribute and assign it the first time the form is opened  -->
@@ -71,6 +72,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 			setAllReadOnly(idToSetReadOnly, target.checked);
 		}
 
+		// Disable field function using disabled. Add a disableElement annotation to a select or multiselect user profile attribute.
+		function disableElementById(e, idToDisable) {
+			e = e || window.event;
+			var target = e.target || e.srcElement;
+
+			setAllDisabled(idToDisable, target.checked);
+		}
+
 		function setReadOnly(id, value) {
 			let element = document.getElementById(id);
 
@@ -91,9 +100,22 @@ SPDX-License-Identifier: AGPL-3.0-only
 			setReadOnly(id + "-confirm", value);
 		}
 
-	<#list readonlyElements as element>
-		setAllReadOnly("${element.id}", ${element.checked});
-	</#list>
+		function setAllDisabled(id, checked) {
+			let element = document.getElementById(id);
+
+			if (element) {
+				element.disabled = !checked;
+			}
+		}
+	document.addEventListener('DOMContentLoaded', function() {
+		<#list readonlyElements as element>
+			setAllReadOnly("${element.id}", ${element.checked});
+		</#list>
+		<#list disabledElements as element>
+			setAllDisabled("${element.id}", ${element.checked});
+		</#list>
+	}, false);
+
 	</script>
 
 	<#list profile.html5DataAnnotations?keys as key>
@@ -256,11 +278,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<#if attribute.readOnly>disabled</#if>
 				<#if values?seq_contains(option)>checked</#if>
 				<#if attribute.annotations.disableAttribute??>onclick="readOnlyElementById(event, '${option}')"</#if>
+				<#if attribute.annotations.disableElement??>onclick="disableElementById(event, '${option}')"</#if>
 			/>
 			<label for="${name}-${option}" class="${classLabel}<#if attribute.readOnly> ${properties.kcInputClassRadioCheckboxLabelDisabled!}</#if>"><@selectOptionLabelText attribute=attribute option=option/></label>
 		</div>
 		<#if attribute.annotations.disableAttribute??>
 		<#assign readonlyElements += [{"id":"${option}","checked":"${values?seq_contains(option)?c}"}]>
+		</#if>
+		<#if attribute.annotations.disableElement??>
+		<#assign disabledElements += [{"id":"${option}","checked":"${values?seq_contains(option)?c}"}]>
 		</#if>
 	</#list>
 </#macro>

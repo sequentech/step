@@ -29,7 +29,6 @@ import {
     GetBallotPublicationChangesOutput,
     Sequent_Backend_Ballot_Publication,
     VotingStatusChannel,
-    VotingStatus,
     Sequent_Backend_Tenant,
 } from "@/gql/graphql"
 
@@ -43,6 +42,7 @@ import {useTenantStore} from "@/providers/TenantContextProvider"
 import {
     EVotingStatus,
     IElectionEventStatus,
+    IElectionPresentation,
     IElectionStatus,
     IVotingChannelsConfig,
 } from "@sequentech/ui-core"
@@ -50,6 +50,7 @@ import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {convertToNumber} from "@/lib/helpers"
 import {EditPreview} from "./EditPreview"
 import FormDialog from "@/components/FormDialog"
+import {EPublishActions} from "@/types/publishActions"
 
 enum ViewMode {
     Edit,
@@ -77,8 +78,9 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         const [ballotPublicationId, setBallotPublicationId] = useState<string | Identifier | null>(
             null
         )
-        const authContext = useContext(AuthContext)
         const {globalSettings} = useContext(SettingsContext)
+        const authContext = useContext(AuthContext)
+        const {isGoldUser} = authContext
         const canWrite = authContext.isAuthorized(true, tenantId, IPermissions.PUBLISH_WRITE)
         const canRead = authContext.isAuthorized(true, tenantId, IPermissions.PUBLISH_READ)
 
@@ -86,6 +88,8 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
 
         // Used to show the election status
         const [electionStatus, setElectionStatus] = useState<IElectionStatus | null>(null)
+        const [electionPresentation, setElectionPresentation] =
+            useState<IElectionPresentation | null>(null)
 
         const refresh = useRefresh()
 
@@ -185,7 +189,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
 
         const onChangeStatus = (
             electionEventStatus: ElectionEventStatus,
-            votingChannel?: VotingStatusChannel
+            votingChannel?: VotingStatusChannel[]
         ) => {
             let publishStatus = MAP_ELECTION_EVENT_STATUS_PUBLISH[electionEventStatus]
             let newStatus: PublishStatus = nextStatus(publishStatus)
@@ -194,42 +198,28 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
             if (type === EPublishType.Election) {
                 onChangeElectionStatus(electionEventStatus, votingChannel)
             } else if (type === EPublishType.Event) {
-                onChangeElectionEventStatus(electionEventStatus)
+                onChangeElectionEventStatus(electionEventStatus, votingChannel)
             }
         }
 
         const onChangeElectionStatus = async (
             votingStatus: ElectionEventStatus,
-            votingChannel?: VotingStatusChannel
+            votingChannel?: VotingStatusChannel[]
         ) => {
             try {
                 setChangingStatus(true)
                 await updateStatusElection({
                     variables: {
                         votingStatus,
-                        votingChannel: votingChannel ?? VotingStatusChannel.Online,
                         electionId,
                         electionEventId,
+                        votingChannel,
                     },
                 })
                 // TODO: Right now if we are opening or pausing for online, we
                 // also do it for kiosk if kiosk mode is enabled. In the future,
                 // we should be able to do this individually in the UI for each
                 // channel separatedly.
-                if (
-                    (votingChannel ?? VotingStatusChannel.Online) == VotingStatusChannel.Online &&
-                    [ElectionEventStatus.Open, ElectionEventStatus.Paused].includes(votingStatus) &&
-                    kioskModeEnabled()
-                ) {
-                    await updateStatusElection({
-                        variables: {
-                            votingStatus,
-                            votingChannel: VotingStatusChannel.Kiosk,
-                            electionId,
-                            electionEventId,
-                        },
-                    })
-                }
                 handleSetPublishStatus(MAP_ELECTION_EVENT_STATUS_PUBLISH[votingStatus])
                 setChangingStatus(false)
                 refresh()
@@ -245,14 +235,17 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
             }
         }
 
-        const onChangeElectionEventStatus = async (electionEventStatus: ElectionEventStatus) => {
+        const onChangeElectionEventStatus = async (
+            electionEventStatus: ElectionEventStatus,
+            votingChannel?: VotingStatusChannel[]
+        ) => {
             try {
                 setChangingStatus(true)
                 await updateStatusEvent({
                     variables: {
                         electionEventId,
                         votingStatus: electionEventStatus,
-                        votingChannel: VotingStatusChannel.Online,
+                        votingChannel,
                     },
                 })
                 handleSetPublishStatus(MAP_ELECTION_EVENT_STATUS_PUBLISH[electionEventStatus])
@@ -330,6 +323,34 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         const handleCloseEditDrawer = () => {
             setOpen(false)
         }
+
+        /**
+         * Checks for any pending actions after the component mounts.
+         * If a pending action is found, it executes the action and removes the flag.
+         */
+        useEffect(() => {
+            const executePendingActions = async () => {
+                let isGold = isGoldUser()
+
+                if (isGold) {
+                    const pendingPublish = sessionStorage.getItem(
+                        EPublishActions.PENDING_PUBLISH_ACTION
+                    )
+                    if (pendingPublish) {
+                        onGenerate()
+                    }
+                }
+            }
+            const cleanup = () => {
+                sessionStorage.removeItem(EPublishActions.PENDING_PUBLISH_ACTION)
+            }
+
+            if (electionEventId || electionId) {
+                executePendingActions()
+                cleanup()
+            }
+        }, [onChangeStatus, onGenerate])
+
         useEffect(() => {
             if (showList) {
                 setViewMode(ViewMode.List)
@@ -389,8 +410,10 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
 
         useEffect(() => {
             const status = (record?.status as IElectionStatus | null) ?? null
+            const presentation = (record?.presentation as IElectionPresentation | null) ?? null
 
             setElectionStatus(status)
+            setElectionPresentation(presentation)
         }, [record])
 
         return (
@@ -399,7 +422,9 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                     <PublishList
                         status={publishStatus}
                         electionStatus={electionStatus}
+                        electionPresentation={electionPresentation}
                         canRead={canRead}
+                        publishType={type}
                         canWrite={canWrite}
                         kioskModeEnabled={kioskModeEnabled()}
                         changingStatus={changingStatus}
@@ -421,6 +446,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                         changingStatus={changingStatus}
                         readOnly={viewMode === ViewMode.View}
                         data={generateData}
+                        publishType={type}
                         onPublish={onPublish}
                         electionId={electionId}
                         onGenerate={onGenerate}

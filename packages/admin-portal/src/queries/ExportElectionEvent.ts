@@ -9,6 +9,7 @@ export const EXPORT_ELECTION_EVENT = gql`
             election_event_id: $electionEventId
             export_configurations: $exportConfigurations
         ) {
+            password
             document_id
             task_execution {
                 id

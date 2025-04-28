@@ -30,6 +30,7 @@ pub async fn upsert_keycloak_realm(tenant_id: &str, slug: &str) -> Result<()> {
             tenant_id,
             true,
             Some(slug.to_string()),
+            None,
         )
         .await?;
     upsert_realm_jwks(realm.as_str()).await?;

@@ -9,6 +9,8 @@
         "geographical_region": "{{miru.geographical_region}}",
         "post": "{{miru.post}}",
         "clustered_precint_id": "{{miru.precinct_code}}",
+        "pollcenter_code": "{{miru.pollcenter_code}}",
+        "registered_voters": "{{{registered_voters}}}",
         "miru:election-id": "{{miru.election_id}}",
         "miru:election-name": "{{name}}",
         "miru:geographical-region": "{{miru.geographical_region}}",
@@ -16,13 +18,13 @@
         "miru:precinct-code":  "{{miru.precinct_code}}"
     },
     "name": "{{name}}",
-    "description": "",
+    "description": "{{description}}",
     "presentation": {
         "i18n": {
             "en": {
                 "name": "{{name}}",
-                "alias": "{{election_post}} - {{name}}",
-                "description": null
+                "alias": "{{alias}}",
+                "description": "{{description}}"
             }
         },
         "dates": {},
@@ -35,21 +37,28 @@
         "contests_order": "custom",
         "audit_button_cfg": "show-in-help",
         "cast_vote_confirm": true,
+        "cast_vote_gold_level": "no-gold-level",
         "grace_period_secs": 900,
         "grace_period_policy": "grace-period-without-alert",
-        "initialization_report_policy": "required"
+        "initialization_report_policy": "required",
+        "voting_period_end": "disallowed"
     },
     "status": {
-        "voting_status": "NOT_STARTED"
+        "voting_status": "NOT_STARTED",
+        "init_report": "disallowed",
+        "kiosk_voting_status": "NOT_STARTED",
+        "voting_period_dates": {},
+        "kiosk_voting_period_dates": {},
+        "allow_tally": "requires-voting-period-end"
     },
     "eml": null,
     "num_allowed_revotes": 1,
     "is_consolidated_ballot_encoding": false,
     "spoil_ballot_option": false,
     "is_kiosk": false,
-    "alias": "{{election_post}} - {{name}}",
+    "alias": "{{alias}}",
     "voting_channels": {
-        "kiosk": false,
+        "kiosk": true,
         "online": true
     },
     "image_document_id": null,

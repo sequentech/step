@@ -4,8 +4,8 @@
     "display_header_footer": null,
     "print_background": true,
     "scale": null,
-    "paper_width": null,
-    "paper_height": null,
+    "paper_width": 3.228,
+    "paper_height": 30,
     "margin_top": null,
     "margin_bottom": null,
     "margin_left": null,
@@ -17,6 +17,10 @@
     "prefer_css_page_size": null,
     "transfer_mode": null
   },
+  "report_options": {
+    "max_items_per_report": null,
+    "max_threads": null
+  },  
   "communication_templates": {
     "email_config": {
       "subject": "Sequent Online Voting - Transmission Reports",

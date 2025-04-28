@@ -20,6 +20,7 @@ pub struct GetUserTemplateBody {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GetUserTemplateResponse {
     template_hbs: String,
+    extra_config: String,
 }
 
 #[instrument(skip(claims))]
@@ -37,7 +38,11 @@ pub async fn get_user_template(
         vec![Permissions::REPORT_READ],
     )?;
 
-    let base_name = input.template_type;
+    let base_name = if "list_of_overseas_voters" == &input.template_type {
+        "overseas_voters".to_string()
+    } else {
+        input.template_type
+    };
     let template_hbs =
         get_public_asset_template(format!("{base_name}_user.hbs").as_str())
             .await
@@ -48,5 +53,21 @@ pub async fn get_user_template(
                 )
             })?;
 
-    Ok(Json(GetUserTemplateResponse { template_hbs }))
+    let extra_config = get_public_asset_template(
+        format!("{base_name}_extra_config.json").as_str(),
+    )
+    .await
+    .map_err(|err| {
+        (
+            Status::InternalServerError,
+            format!(
+                "Error fetching the extra_config file of the template: ${err}"
+            ),
+        )
+    })?;
+
+    Ok(Json(GetUserTemplateResponse {
+        template_hbs,
+        extra_config,
+    }))
 }

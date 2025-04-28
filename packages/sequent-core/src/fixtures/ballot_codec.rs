@@ -212,6 +212,7 @@ fn get_contest_plurality() -> Contest {
             types_presentation: None,
             sort_order: None,
             under_vote_policy: Some(EUnderVotePolicy::ALLOWED),
+            columns: None,
         }),
     }
 }
@@ -443,6 +444,7 @@ pub fn get_writein_ballot_style() -> BallotStyle {
                 types_presentation: None,
                 sort_order: None,
                 under_vote_policy: Some(EUnderVotePolicy::ALLOWED),
+                columns: None,
             }),
         }],
     }
@@ -662,6 +664,7 @@ pub fn get_test_contest() -> Contest {
             types_presentation: None,
             sort_order: None,
             under_vote_policy: Some(EUnderVotePolicy::ALLOWED),
+            columns: None,
         }),
     }
 }
@@ -914,6 +917,7 @@ pub(crate) fn get_configurable_contest(
             types_presentation: None,
             sort_order: None,
             under_vote_policy: Some(EUnderVotePolicy::ALLOWED),
+            columns: None,
         }),
     };
 
@@ -1018,6 +1022,7 @@ pub(crate) fn get_contest_candidates_n(num_candidates: usize) -> Contest {
             // FIXME check these two fields:
             over_vote_policy: None,
             under_vote_policy: None,
+            columns: None,
         }),
     };
 
@@ -1290,6 +1295,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     types_presentation: None,
                     sort_order: None,
                     under_vote_policy: Some(EUnderVotePolicy::ALLOWED),
+                    columns: None,
                 }),
             },
             raw_ballot: RawBallotContest {
@@ -1489,6 +1495,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     types_presentation: None,
                     sort_order: None,
                     under_vote_policy: Some(EUnderVotePolicy::ALLOWED),
+                    columns: None,
                 }),
             },
             raw_ballot: RawBallotContest {
@@ -1668,6 +1675,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     types_presentation: None,
                     sort_order: None,
                     under_vote_policy: Some(EUnderVotePolicy::ALLOWED),
+                    columns: None,
                 }),
             },
             raw_ballot: RawBallotContest {
@@ -1831,6 +1839,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     types_presentation: None,
                     sort_order: None,
                     under_vote_policy: Some(EUnderVotePolicy::WARN),
+                    columns: None,
                 }),
             },
             raw_ballot: RawBallotContest {
@@ -2004,6 +2013,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     types_presentation: None,
                     sort_order: None,
                     under_vote_policy: Some(EUnderVotePolicy::ALLOWED),
+                    columns: None,
                 }),
             },
             raw_ballot: RawBallotContest {
@@ -2176,6 +2186,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     types_presentation: None,
                     sort_order: None,
                     under_vote_policy: Some(EUnderVotePolicy::ALLOWED),
+                    columns: None,
                 }),
             },
             raw_ballot: RawBallotContest {

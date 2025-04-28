@@ -12,11 +12,14 @@ import {
     useRecordContext,
     useNotify,
     useListController,
+    TextInput,
+    DateInput,
+    DateField,
+    DateTimeInput,
 } from "react-admin"
-import {useTenantStore} from "@/providers/TenantContextProvider"
 import {ListActions} from "@/components/ListActions"
 import {useTranslation} from "react-i18next"
-import {Sequent_Backend_Election_Event} from "@/gql/graphql"
+import {Sequent_Backend_Election, Sequent_Backend_Election_Event} from "@/gql/graphql"
 import {Dialog} from "@sequentech/ui-essentials"
 import {FormStyles} from "./styles/FormStyles"
 import {DownloadDocument} from "@/resources/User/DownloadDocument"
@@ -28,11 +31,17 @@ import {ResetFilters} from "./ResetFilters"
 import {MenuItem, Menu} from "@mui/material"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import {ETasksExecution} from "@/types/tasksExecution"
+import {useLogsPermissions} from "@/resources/ElectionEvent/useLogsPermissions"
+import {MessageField} from "./MessageField"
 
 enum ExportFormat {
     CSV = "CSV",
+
+    // turns out that the pdf is zipped
     PDF = "PDF",
 }
+
+const OMIT_FIELDS = ["user_id"]
 
 interface ExportWrapperProps {
     electionEventId: string
@@ -51,7 +60,7 @@ const ExportDialog: React.FC<ExportWrapperProps> = ({
     const [exportElectionEventActivityLogs] = useMutation(EXPORT_ELECTION_EVENT_LOGS, {
         context: {
             headers: {
-                "x-hasura-role": IPermissions.LOGS_READ,
+                "x-hasura-role": IPermissions.LOGS_EXPORT,
             },
         },
     })
@@ -67,25 +76,19 @@ const ExportDialog: React.FC<ExportWrapperProps> = ({
             })
             if (errors) {
                 updateWidgetFail(currWidget.identifier)
-                console.log(`Error exporting: ${errors}`)
                 return
             }
             let documentId = exportElectionEventData?.export_election_event_logs?.document_id
             setExportDocumentId(documentId)
-            console.log(documentId)
             const task_id = exportElectionEventData?.export_election_event_logs?.task_execution.id
-            console.log(task_id)
             setWidgetTaskId(currWidget.identifier, task_id)
         } catch (error) {
             updateWidgetFail(currWidget.identifier)
             setExportDocumentId(undefined)
-            console.log(`Catched error exporting: ${error}`)
         }
     }
     const confirmExportAction = () => {
         setOpenExport(false)
-        console.log(exportFormat)
-        console.log(electionEventId)
         download()
     }
 
@@ -115,13 +118,9 @@ const ExportDialog: React.FC<ExportWrapperProps> = ({
                     <DownloadDocument
                         documentId={exportDocumentId ?? ""}
                         electionEventId={electionEventId}
-                        fileName={`election-event-logs-${electionEventId}-export.${exportFormat.toLowerCase()}`}
+                        fileName={null}
                         onDownload={() => {
-                            console.log("onDownload called")
                             setExportDocumentId(undefined)
-                        }}
-                        onSucess={() => {
-                            console.log("onDownloadSuccess")
                         }}
                     />
                 </>
@@ -134,6 +133,7 @@ export interface ElectoralLogListProps {
     aside?: ReactElement
     filterToShow?: ElectoralLogFilters
     filterValue?: string
+    electionEventId?: string
     showActions?: boolean
 }
 
@@ -141,17 +141,20 @@ export enum ElectoralLogFilters {
     ID = "id",
     STATEMENT_KIND = "statement_kind",
     USER_ID = "user_id",
+    USERNAME = "username",
 }
 
 export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
     aside,
     filterToShow,
     filterValue,
+    electionEventId,
     showActions = true,
 }) => {
-    const record = useRecordContext<Sequent_Backend_Election_Event>()
+    const record = useRecordContext<Sequent_Backend_Election_Event | Sequent_Backend_Election>()
     const {t} = useTranslation()
-    const filters: Array<ReactElement> = []
+
+    const {canExportLogs, showLogsColumns} = useLogsPermissions()
 
     const getHeadField = (record: any, field: string) => {
         const message = JSON.parse(record?.message)
@@ -176,7 +179,7 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
     }
 
     const filterObject: {[key: string]: any} = {
-        election_event_id: record?.id || undefined,
+        election_event_id: electionEventId || record?.id || undefined,
     }
 
     if (filterToShow) {
@@ -185,6 +188,22 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
 
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
 
+    const filters: Array<ReactElement> = [
+        <TextInput key={"user_id"} source={"user_id"} label={t("logsScreen.column.user_id")} />,
+        <TextInput key={"username"} source={"username"} label={t("logsScreen.column.username")} />,
+        <DateTimeInput key={"created"} source={"created"} label={t("logsScreen.column.created")} />,
+        <DateTimeInput
+            key={"statement_timestamp"}
+            source={"statement_timestamp"}
+            label={t("logsScreen.column.statement_timestamp")}
+        />,
+        <TextInput
+            key={"statement_kind"}
+            source={"statement_kind"}
+            label={t("logsScreen.column.statement_kind")}
+        />,
+    ]
+
     return (
         <>
             <List
@@ -192,9 +211,11 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                 actions={
                     showActions && (
                         <ListActions
+                            withColumns={showLogsColumns}
                             withImport={false}
                             openExportMenu={(e) => setAnchorEl(e.currentTarget)}
-                            withExport={true}
+                            withExport={canExportLogs}
+                            withFilter={true}
                         />
                     )
                 }
@@ -208,12 +229,13 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                 aside={aside}
             >
                 <ResetFilters />
-                <DatagridConfigurable bulkActionButtons={<></>}>
-                    <NumberField source="id" />
+                <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={false}>
+                    <NumberField source="id" label={t("logsScreen.column.id")} />
                     <FunctionField
                         source="user_id"
+                        label={t("logsScreen.column.user_id")}
                         render={(record: any) => {
-                            const userId = record.user_id
+                            const userId = JSON.parse(record.message).user_id
                             return (
                                 <span style={{display: "block", textAlign: "center"}}>
                                     {!userId || userId === "null" ? <span>-</span> : userId}
@@ -222,29 +244,51 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                         }}
                     />
                     <FunctionField
+                        source="username"
+                        label={t("logsScreen.column.username")}
+                        render={(record: any) => {
+                            const username = JSON.parse(record.message).username
+                            return (
+                                <span style={{display: "block", textAlign: "center"}}>
+                                    {!username || username === "null" ? <span>-</span> : username}
+                                </span>
+                            )
+                        }}
+                    />
+                    <FunctionField
                         source="created"
+                        label={t("logsScreen.column.created")}
                         render={(record: any) => new Date(record.created * 1000).toUTCString()}
                     />
                     <FunctionField
                         source="statement_timestamp"
+                        label={t("logsScreen.column.statement_timestamp")}
                         render={(record: any) =>
                             new Date(record.statement_timestamp * 1000).toUTCString()
                         }
                     />
                     <TextField source="statement_kind" />
                     <FunctionField
-                        label="Event Type"
+                        source="event_type"
+                        label={t("logsScreen.column.statement_kind")}
                         render={(record: any) => getHeadField(record, "event_type")}
                     />
                     <FunctionField
-                        label="Log Type"
+                        source="log_type"
+                        label={t("logsScreen.column.log_type")}
                         render={(record: any) => getHeadField(record, "log_type")}
                     />
                     <FunctionField
-                        label="Description"
-                        render={(record: any) => getHeadField(record, "description")}
+                        source="description"
+                        label={t("logsScreen.column.description")}
+                        render={(record: any) => (
+                            <MessageField
+                                content={getHeadField(record, "description")}
+                                initialLength={50}
+                            />
+                        )}
                     />
-                    <TextField source="message" sx={{wordBreak: "break-word"}} />
+                    <MessageField source="message" />
                 </DatagridConfigurable>
             </List>
             <ExportDialog

@@ -17,6 +17,10 @@
     "prefer_css_page_size": null,
     "transfer_mode": null
   },
+  "report_options": {
+    "max_items_per_report": 2000,
+    "max_threads": 3
+  },  
   "communication_templates": {
     "email_config": {
       "subject": "Sequent Online Voting - Pre Enrolled OV But Disapproved",

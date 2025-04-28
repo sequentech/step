@@ -1,0 +1,14 @@
+# SPDX-FileCopyrightText: 2023-2024 Sequent Tech <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+FROM windmill-build-dependencies
+
+# Copy the compiled binaries from the builder stage (beat + windmill:main)
+COPY --from=windmill-compile /app/target/release/main /usr/local/bin/main
+COPY --from=windmill-compile /app/target/release/beat /usr/local/bin/beat
+COPY --from=windmill-compile /usr/local/bin/ecies-tool.jar /usr/local/bin/ecies-tool.jar
+VOLUME /import
+WORKDIR /usr/local/bin
+# Run the windmill binary, it's possible to run 'beat' as well
+CMD ["main", "consume", "-q", "short_queue", "tally_queue", "beat", "reports_queue", "communication_queue", "import_export_queue"]

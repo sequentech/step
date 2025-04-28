@@ -60,6 +60,7 @@ pub async fn process_scheduled_event(
         EventProcessors::END_ENROLLMENT_PERIOD => {}
         EventProcessors::START_LOCKDOWN_PERIOD => {}
         EventProcessors::END_LOCKDOWN_PERIOD => {}
+        EventProcessors::ALLOW_TALLY => {}
     }
     Ok(element_id)
 }

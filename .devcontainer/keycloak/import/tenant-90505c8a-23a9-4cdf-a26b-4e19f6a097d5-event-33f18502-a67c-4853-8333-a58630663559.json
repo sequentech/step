@@ -223,6 +223,13 @@
         "containerId" : "0ffb2d0c-ad6e-4351-83f5-53278059116c",
         "attributes" : { }
       }, {
+        "id" : "6f9c5288-81dd-4bb5-b595-5e89a4fc9dad",
+        "name" : "uma_protection",
+        "composite" : false,
+        "clientRole" : true,
+        "containerId" : "0ffb2d0c-ad6e-4351-83f5-53278059116c",
+        "attributes" : { }
+      }, {
         "id" : "e1c364a2-a14e-4fc3-a3c4-222aa742ebdf",
         "name" : "query-users",
         "description" : "${role_query-users}",
@@ -352,7 +359,7 @@
     "path" : "/voter",
     "subGroups" : [ ],
     "attributes" : { },
-    "realmRoles" : [ "user", "default-roles-tenant90505c8a23a94cdfa26b4e19f6a097d5event33f18502a67c48538333a58630663559" ],
+    "realmRoles" : [ "default-roles-tenant90505c8a23a94cdfa26b4e19f6a097d5event33f18502a67c48538333a58630663559", "user" ],
     "clientRoles" : { }
   } ],
   "defaultRole" : {
@@ -429,11 +436,27 @@
     "notBefore" : 0,
     "groups" : [ "/voter" ]
   }, {
+    "id" : "70b94833-4ef2-432e-b34a-3cdc8c8138d3",
+    "username" : "service-account-realm-management",
+    "emailVerified" : false,
+    "createdTimestamp" : 1737153802479,
+    "enabled" : true,
+    "totp" : false,
+    "serviceAccountClientId" : "realm-management",
+    "credentials" : [ ],
+    "disableableCredentialTypes" : [ ],
+    "requiredActions" : [ ],
+    "realmRoles" : [ "default-roles-tenant90505c8a23a94cdfa26b4e19f6a097d5event33f18502a67c48538333a58630663559" ],
+    "clientRoles" : {
+      "realm-management" : [ "uma_protection" ]
+    },
+    "notBefore" : 0,
+    "groups" : [ ]
+  }, {
     "id" : "6bbb4575-8761-4eaf-9799-03dbbb0f637b",
     "username" : "xavier.alsina@sequentech.io",
     "firstName" : "Xavier",
     "lastName" : "Alsina",
-    "email" : "",
     "emailVerified" : false,
     "attributes" : {
       "country" : [ "Algiers/Algeria" ],
@@ -443,7 +466,7 @@
     "createdTimestamp" : 1721994783438,
     "enabled" : true,
     "totp" : false,
-    "credentials" : [],
+    "credentials" : [ ],
     "disableableCredentialTypes" : [ ],
     "requiredActions" : [ ],
     "realmRoles" : [ "default-roles-tenant90505c8a23a94cdfa26b4e19f6a097d5event33f18502a67c48538333a58630663559" ],
@@ -770,12 +793,12 @@
     "redirectUris" : [ ],
     "webOrigins" : [ ],
     "notBefore" : 0,
-    "bearerOnly" : true,
+    "bearerOnly" : false,
     "consentRequired" : false,
     "standardFlowEnabled" : true,
     "implicitFlowEnabled" : false,
     "directAccessGrantsEnabled" : false,
-    "serviceAccountsEnabled" : false,
+    "serviceAccountsEnabled" : true,
     "authorizationServicesEnabled" : true,
     "publicClient" : false,
     "frontchannelLogout" : false,
@@ -786,6 +809,49 @@
     "authenticationFlowBindingOverrides" : { },
     "fullScopeAllowed" : false,
     "nodeReRegistrationTimeout" : 0,
+    "protocolMappers" : [ {
+      "id" : "deded9d3-9cc8-4bc1-9848-0fd6c0ea0001",
+      "name" : "Client ID",
+      "protocol" : "openid-connect",
+      "protocolMapper" : "oidc-usersessionmodel-note-mapper",
+      "consentRequired" : false,
+      "config" : {
+        "user.session.note" : "client_id",
+        "introspection.token.claim" : "true",
+        "id.token.claim" : "true",
+        "access.token.claim" : "true",
+        "claim.name" : "client_id",
+        "jsonType.label" : "String"
+      }
+    }, {
+      "id" : "80019506-2411-48fc-82a4-8eef6c91f4d1",
+      "name" : "Client IP Address",
+      "protocol" : "openid-connect",
+      "protocolMapper" : "oidc-usersessionmodel-note-mapper",
+      "consentRequired" : false,
+      "config" : {
+        "user.session.note" : "clientAddress",
+        "introspection.token.claim" : "true",
+        "id.token.claim" : "true",
+        "access.token.claim" : "true",
+        "claim.name" : "clientAddress",
+        "jsonType.label" : "String"
+      }
+    }, {
+      "id" : "ea208828-8e75-4cd2-a4cb-07011690ddb6",
+      "name" : "Client Host",
+      "protocol" : "openid-connect",
+      "protocolMapper" : "oidc-usersessionmodel-note-mapper",
+      "consentRequired" : false,
+      "config" : {
+        "user.session.note" : "clientHost",
+        "introspection.token.claim" : "true",
+        "id.token.claim" : "true",
+        "access.token.claim" : "true",
+        "claim.name" : "clientHost",
+        "jsonType.label" : "String"
+      }
+    } ],
     "defaultClientScopes" : [ "web-origins", "acr", "roles", "profile", "email" ],
     "optionalClientScopes" : [ "address", "phone", "offline_access", "microprofile-jwt" ],
     "authorizationSettings" : {
@@ -879,7 +945,7 @@
       "client_credentials.use_refresh_token" : "false",
       "tls.client.certificate.bound.access.tokens" : "false",
       "require.pushed.authorization.requests" : "false",
-      "acr.loa.map" : "{}",
+      "acr.loa.map": "{\"silver\":\"1\",\"gold\":\"2\"}",
       "display.on.consent.screen" : "false",
       "account_theme" : "sequent.voting-portal",
       "token.response.type.bearer.lower-case" : "false",
@@ -938,13 +1004,13 @@
       "protocolMapper" : "authorized-elections-oidc-usermodel-attribute-mapper",
       "consentRequired" : false,
       "config" : {
-        "use.array.attrs": "false",
-        "aggregate.attrs": "false",
+        "aggregate.attrs" : "false",
         "introspection.token.claim" : "true",
+        "multivalued" : "true",
         "userinfo.token.claim" : "true",
         "user.attribute" : "authorized-election-ids",
+        "use.array.attrs" : "false",
         "id.token.claim" : "true",
-        "multivalued": "true",
         "lightweight.claim" : "false",
         "access.token.claim" : "true",
         "claim.name" : "https://hasura\\.io/jwt/claims.x-hasura-authorized-election-ids",
@@ -978,26 +1044,25 @@
         "claim.name" : "https://hasura\\.io/jwt/claims.x-hasura-area-id",
         "jsonType.label" : "String"
       }
-    },
-    {
-      "config": {
-        "use.array.attrs": "true",
-        "aggregate.attrs": "false",
-        "introspection.token.claim": "true",
-        "user.attribute": "authorized-election-ids",
-        "multivalued": "true",
-        "access.token.claim": "true",
-        "userinfo.token.claim": "true",
-        "jsonType.label": "String",
-        "id.token.claim": "true",
-        "lightweight.claim": "false",
-        "claim.name": "https://hasura\\.io/jwt/claims.authorized-election-ids"
-      },
-      "consentRequired": false,
-      "id": "6993073a-4cec-4b39-96ed-4d38d7f93e61",
-      "name": "authorized-election-ids",
-      "protocol": "openid-connect",
-      "protocolMapper": "authorized-elections-oidc-usermodel-attribute-mapper"
+    }, {
+      "id" : "6993073a-4cec-4b39-96ed-4d38d7f93e61",
+      "name" : "authorized-election-ids",
+      "protocol" : "openid-connect",
+      "protocolMapper" : "authorized-elections-oidc-usermodel-attribute-mapper",
+      "consentRequired" : false,
+      "config" : {
+        "aggregate.attrs" : "false",
+        "introspection.token.claim" : "true",
+        "multivalued" : "true",
+        "userinfo.token.claim" : "true",
+        "user.attribute" : "authorized-election-ids",
+        "use.array.attrs" : "true",
+        "id.token.claim" : "true",
+        "lightweight.claim" : "false",
+        "access.token.claim" : "true",
+        "claim.name" : "https://hasura\\.io/jwt/claims.authorized-election-ids",
+        "jsonType.label" : "String"
+      }
     } ],
     "defaultClientScopes" : [ "web-origins", "acr", "roles", "profile", "email" ],
     "optionalClientScopes" : [ "address", "phone", "offline_access", "microprofile-jwt" ]
@@ -1483,59 +1548,57 @@
   "adminTheme" : "",
   "emailTheme" : "",
   "eventsEnabled" : false,
-  "eventsListeners" : [ "jboss-logging", "custom-event-listener"],
+  "eventsListeners" : [ "custom-event-listener", "jboss-logging" ],
   "enabledEventTypes" : [ ],
   "adminEventsEnabled" : false,
   "adminEventsDetailsEnabled" : false,
-  "identityProviders": [
-    {
-      "alias": "simplesamlphp",
-      "displayName": "",
-      "internalId": "02782c48-c205-449c-a781-6b3b6aeb75fd",
-      "providerId": "saml",
-      "enabled": true,
-      "updateProfileFirstLoginMode": "on",
-      "trustEmail": false,
-      "storeToken": false,
-      "addReadTokenRoleOnCreate": false,
-      "authenticateByDefault": false,
-      "linkOnly": false,
-      "config": {
-        "postBindingLogout": "false",
-        "postBindingResponse": "false",
-        "singleLogoutServiceUrl": "http://127.0.0.1:8083/simplesaml/saml2/idp/SingleLogoutService.php",
-        "backchannelSupported": "false",
-        "idpEntityId": "http://127.0.0.1:8083/simplesaml/saml2/idp/metadata.php",
-        "loginHint": "false",
-        "allowCreate": "true",
-        "enabledFromMetadata": "true",
-        "authnContextComparisonType": "exact",
-        "syncMode": "IMPORT",
-        "singleSignOnServiceUrl": "http://127.0.0.1:8083/simplesaml/saml2/idp/SSOService.php",
-        "wantAuthnRequestsSigned": "false",
-        "allowedClockSkew": "0",
-        "encryptionPublicKey": "MIICmjCCAYICCQDX5sKPsYV3+jANBgkqhkiG9w0BAQsFADAPMQ0wCwYDVQQDDAR0ZXN0MB4XDTE5MTIyMzA5MDI1MVoXDTIwMDEyMjA5MDI1MVowDzENMAsGA1UEAwwEdGVzdDCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAMdtDJ278DQTp84O5Nq5F8s5YOR34GFOGI2Swb/3pU7X7918lVljiKv7WVM65S59nJSyXV+fa15qoXLfsdRnq3yw0hTSTs2YDX+jl98kK3ksk3rROfYh1LIgByj4/4NeNpExgeB6rQk5Ay7YS+ARmMzEjXa0favHxu5BOdB2y6WvRQyjPS2lirT/PKWBZc04QZepsZ56+W7bd557tdedcYdY/nKI1qmSQClG2qgslzgqFOv1KCOw43a3mcK/TiiD8IXyLMJNC6OFW3xTL/BG6SOZ3dQ9rjQOBga+6GIaQsDjC4Xp7Kx+FkSvgaw0sJV8gt1mlZy+27Sza6d+hHD2pWECAwEAATANBgkqhkiG9w0BAQsFAAOCAQEAm2fk1+gd08FQxK7TL04O8EK1f0bzaGGUxWzlh98a3Dm8+OPhVQRi/KLsFHliLC86lsZQKunYdDB+qd0KUk2oqDG6tstG/htmRYD/S/jNmt8gyPAVi11dHUqW3IvQgJLwxZtoAv6PNs188hvT1WK3VWJ4YgFKYi5XQYnR5sv69Vsr91lYAxyrIlMKahjSW1jTD3ByRfAQghsSLk6fV0OyJHyhuF1TxOVBVf8XOdaqfmvD90JGIPGtfMLPUX4m35qaGAU48PwCL7L3cRHYs9wZWc0ifXZcBENLtHYCLi5txR8c5lyHB9d3AQHzKHMFNjLswn5HsckKg83RH7+eVqHqGw==",
-        "guiOrder": "0",
-        "validateSignature": "false",
-        "hideOnLoginPage": "false",
-        "signingCertificate": "MIICmjCCAYICCQDX5sKPsYV3+jANBgkqhkiG9w0BAQsFADAPMQ0wCwYDVQQDDAR0ZXN0MB4XDTE5MTIyMzA5MDI1MVoXDTIwMDEyMjA5MDI1MVowDzENMAsGA1UEAwwEdGVzdDCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAMdtDJ278DQTp84O5Nq5F8s5YOR34GFOGI2Swb/3pU7X7918lVljiKv7WVM65S59nJSyXV+fa15qoXLfsdRnq3yw0hTSTs2YDX+jl98kK3ksk3rROfYh1LIgByj4/4NeNpExgeB6rQk5Ay7YS+ARmMzEjXa0favHxu5BOdB2y6WvRQyjPS2lirT/PKWBZc04QZepsZ56+W7bd557tdedcYdY/nKI1qmSQClG2qgslzgqFOv1KCOw43a3mcK/TiiD8IXyLMJNC6OFW3xTL/BG6SOZ3dQ9rjQOBga+6GIaQsDjC4Xp7Kx+FkSvgaw0sJV8gt1mlZy+27Sza6d+hHD2pWECAwEAATANBgkqhkiG9w0BAQsFAAOCAQEAm2fk1+gd08FQxK7TL04O8EK1f0bzaGGUxWzlh98a3Dm8+OPhVQRi/KLsFHliLC86lsZQKunYdDB+qd0KUk2oqDG6tstG/htmRYD/S/jNmt8gyPAVi11dHUqW3IvQgJLwxZtoAv6PNs188hvT1WK3VWJ4YgFKYi5XQYnR5sv69Vsr91lYAxyrIlMKahjSW1jTD3ByRfAQghsSLk6fV0OyJHyhuF1TxOVBVf8XOdaqfmvD90JGIPGtfMLPUX4m35qaGAU48PwCL7L3cRHYs9wZWc0ifXZcBENLtHYCLi5txR8c5lyHB9d3AQHzKHMFNjLswn5HsckKg83RH7+eVqHqGw==",
-        "nameIDPolicyFormat": "urn:oasis:names:tc:SAML:2.0:nameid-format:transient",
-        "principalAttribute": "email",
-        "entityId": "tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-33f18502-a67c-4853-8333-a58630663559",
-        "signSpMetadata": "false",
-        "wantAssertionsEncrypted": "false",
-        "sendClientIdOnLogout": "false",
-        "metadataDescriptorUrl": "https://simplesamlphp:8080/simplesaml/saml2/idp/metadata.php",
-        "wantAssertionsSigned": "false",
-        "sendIdTokenOnLogout": "true",
-        "postBindingAuthnRequest": "false",
-        "forceAuthn": "false",
-        "attributeConsumingServiceIndex": "0",
-        "addExtensionsElementWithKeyInfo": "false",
-        "principalType": "ATTRIBUTE"
+  "identityProviders" : [ {
+    "alias" : "simplesamlphp",
+    "displayName" : "",
+    "internalId" : "02782c48-c205-449c-a781-6b3b6aeb75fd",
+    "providerId" : "saml",
+    "enabled" : true,
+    "updateProfileFirstLoginMode" : "on",
+    "trustEmail" : false,
+    "storeToken" : false,
+    "addReadTokenRoleOnCreate" : false,
+    "authenticateByDefault" : false,
+    "linkOnly" : false,
+    "config" : {
+      "postBindingLogout" : "false",
+      "postBindingResponse" : "false",
+      "singleLogoutServiceUrl" : "http://127.0.0.1:8083/simplesaml/saml2/idp/SingleLogoutService.php",
+      "backchannelSupported" : "false",
+      "idpEntityId" : "http://127.0.0.1:8083/simplesaml/saml2/idp/metadata.php",
+      "loginHint" : "false",
+      "allowCreate" : "true",
+      "enabledFromMetadata" : "true",
+      "authnContextComparisonType" : "exact",
+      "syncMode" : "IMPORT",
+      "singleSignOnServiceUrl" : "http://127.0.0.1:8083/simplesaml/saml2/idp/SSOService.php",
+      "wantAuthnRequestsSigned" : "false",
+      "allowedClockSkew" : "0",
+      "encryptionPublicKey" : "MIICmjCCAYICCQDX5sKPsYV3+jANBgkqhkiG9w0BAQsFADAPMQ0wCwYDVQQDDAR0ZXN0MB4XDTE5MTIyMzA5MDI1MVoXDTIwMDEyMjA5MDI1MVowDzENMAsGA1UEAwwEdGVzdDCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAMdtDJ278DQTp84O5Nq5F8s5YOR34GFOGI2Swb/3pU7X7918lVljiKv7WVM65S59nJSyXV+fa15qoXLfsdRnq3yw0hTSTs2YDX+jl98kK3ksk3rROfYh1LIgByj4/4NeNpExgeB6rQk5Ay7YS+ARmMzEjXa0favHxu5BOdB2y6WvRQyjPS2lirT/PKWBZc04QZepsZ56+W7bd557tdedcYdY/nKI1qmSQClG2qgslzgqFOv1KCOw43a3mcK/TiiD8IXyLMJNC6OFW3xTL/BG6SOZ3dQ9rjQOBga+6GIaQsDjC4Xp7Kx+FkSvgaw0sJV8gt1mlZy+27Sza6d+hHD2pWECAwEAATANBgkqhkiG9w0BAQsFAAOCAQEAm2fk1+gd08FQxK7TL04O8EK1f0bzaGGUxWzlh98a3Dm8+OPhVQRi/KLsFHliLC86lsZQKunYdDB+qd0KUk2oqDG6tstG/htmRYD/S/jNmt8gyPAVi11dHUqW3IvQgJLwxZtoAv6PNs188hvT1WK3VWJ4YgFKYi5XQYnR5sv69Vsr91lYAxyrIlMKahjSW1jTD3ByRfAQghsSLk6fV0OyJHyhuF1TxOVBVf8XOdaqfmvD90JGIPGtfMLPUX4m35qaGAU48PwCL7L3cRHYs9wZWc0ifXZcBENLtHYCLi5txR8c5lyHB9d3AQHzKHMFNjLswn5HsckKg83RH7+eVqHqGw==",
+      "guiOrder" : "0",
+      "validateSignature" : "false",
+      "hideOnLoginPage" : "false",
+      "signingCertificate" : "MIICmjCCAYICCQDX5sKPsYV3+jANBgkqhkiG9w0BAQsFADAPMQ0wCwYDVQQDDAR0ZXN0MB4XDTE5MTIyMzA5MDI1MVoXDTIwMDEyMjA5MDI1MVowDzENMAsGA1UEAwwEdGVzdDCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAMdtDJ278DQTp84O5Nq5F8s5YOR34GFOGI2Swb/3pU7X7918lVljiKv7WVM65S59nJSyXV+fa15qoXLfsdRnq3yw0hTSTs2YDX+jl98kK3ksk3rROfYh1LIgByj4/4NeNpExgeB6rQk5Ay7YS+ARmMzEjXa0favHxu5BOdB2y6WvRQyjPS2lirT/PKWBZc04QZepsZ56+W7bd557tdedcYdY/nKI1qmSQClG2qgslzgqFOv1KCOw43a3mcK/TiiD8IXyLMJNC6OFW3xTL/BG6SOZ3dQ9rjQOBga+6GIaQsDjC4Xp7Kx+FkSvgaw0sJV8gt1mlZy+27Sza6d+hHD2pWECAwEAATANBgkqhkiG9w0BAQsFAAOCAQEAm2fk1+gd08FQxK7TL04O8EK1f0bzaGGUxWzlh98a3Dm8+OPhVQRi/KLsFHliLC86lsZQKunYdDB+qd0KUk2oqDG6tstG/htmRYD/S/jNmt8gyPAVi11dHUqW3IvQgJLwxZtoAv6PNs188hvT1WK3VWJ4YgFKYi5XQYnR5sv69Vsr91lYAxyrIlMKahjSW1jTD3ByRfAQghsSLk6fV0OyJHyhuF1TxOVBVf8XOdaqfmvD90JGIPGtfMLPUX4m35qaGAU48PwCL7L3cRHYs9wZWc0ifXZcBENLtHYCLi5txR8c5lyHB9d3AQHzKHMFNjLswn5HsckKg83RH7+eVqHqGw==",
+      "nameIDPolicyFormat" : "urn:oasis:names:tc:SAML:2.0:nameid-format:transient",
+      "principalAttribute" : "email",
+      "entityId" : "tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-33f18502-a67c-4853-8333-a58630663559",
+      "signSpMetadata" : "false",
+      "wantAssertionsEncrypted" : "false",
+      "sendClientIdOnLogout" : "false",
+      "metadataDescriptorUrl" : "https://simplesamlphp:8080/simplesaml/saml2/idp/metadata.php",
+      "wantAssertionsSigned" : "false",
+      "sendIdTokenOnLogout" : "true",
+      "postBindingAuthnRequest" : "false",
+      "forceAuthn" : "false",
+      "attributeConsumingServiceIndex" : "0",
+      "addExtensionsElementWithKeyInfo" : "false",
+      "principalType" : "ATTRIBUTE"
     }
-    }
-  ],
+  } ],
   "identityProviderMappers" : [ ],
   "components" : {
     "org.keycloak.services.clientregistration.policy.ClientRegistrationPolicy" : [ {
@@ -1545,7 +1608,7 @@
       "subType" : "authenticated",
       "subComponents" : { },
       "config" : {
-        "allowed-protocol-mapper-types" : [ "oidc-sha256-pairwise-sub-mapper", "oidc-usermodel-property-mapper", "oidc-address-mapper", "saml-role-list-mapper", "saml-user-property-mapper", "saml-user-attribute-mapper", "oidc-full-name-mapper", "oidc-usermodel-attribute-mapper" ]
+        "allowed-protocol-mapper-types" : [ "saml-user-property-mapper", "oidc-usermodel-attribute-mapper", "oidc-usermodel-property-mapper", "oidc-sha256-pairwise-sub-mapper", "oidc-address-mapper", "oidc-full-name-mapper", "saml-role-list-mapper", "saml-user-attribute-mapper" ]
       }
     }, {
       "id" : "a26aaeed-f109-40ab-ada2-c2cec32986bf",
@@ -1579,7 +1642,7 @@
       "subType" : "anonymous",
       "subComponents" : { },
       "config" : {
-        "allowed-protocol-mapper-types" : [ "oidc-usermodel-attribute-mapper", "oidc-full-name-mapper", "oidc-sha256-pairwise-sub-mapper", "saml-user-attribute-mapper", "oidc-address-mapper", "saml-user-property-mapper", "oidc-usermodel-property-mapper", "saml-role-list-mapper" ]
+        "allowed-protocol-mapper-types" : [ "oidc-full-name-mapper", "oidc-usermodel-attribute-mapper", "oidc-sha256-pairwise-sub-mapper", "saml-user-attribute-mapper", "saml-role-list-mapper", "oidc-address-mapper", "oidc-usermodel-property-mapper", "saml-user-property-mapper" ]
       }
     }, {
       "id" : "0d7794fa-2e22-499b-8aa6-7fde4d9c446d",
@@ -1613,7 +1676,7 @@
       "providerId" : "declarative-user-profile",
       "subComponents" : { },
       "config" : {
-        "kc.user.profile.config" : [ "{\"attributes\":[{\"name\":\"firstName\",\"displayName\":\"${firstName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"annotations\":{\"html-attribute:autocomplete\":\"given-name\"},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"lastName\",\"displayName\":\"${lastName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"annotations\":{},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"username\",\"displayName\":\"${username}\",\"validations\":{\"length\":{\"min\":3,\"max\":255},\"username-prohibited-characters\":{},\"up-username-not-idn-homograph\":{}},\"annotations\":{\"hidden\":\"true\"},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"emailAndOrMobile\",\"displayName\":\"Register via\",\"validations\":{\"options\":{\"options\":[\"sequent.read-only.mobile-number\",\"email\"]},\"multivalued\":{\"min\":\"0\",\"max\":\"2\"}},\"annotations\":{\"inputType\":\"multiselect-checkboxes\",\"default\":[\"email\"],\"inputOptionLabels\":{\"sequent.read-only.mobile-number\":\"Phone Number\",\"email\":\"${email}\"},\"disableAttribute\":\"true\"},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":true},{\"name\":\"sequent.read-only.mobile-number\",\"displayName\":\"Phone Number\",\"validations\":{},\"annotations\":{\"inputType\":\"html5-tel\"},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"email\",\"displayName\":\"${email}\",\"validations\":{\"email\":{},\"length\":{\"max\":255}},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"dateOfBirth\",\"displayName\":\"Date of birth\",\"validations\":{},\"annotations\":{\"inputType\":\"html5-date\"},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"tenant-id\",\"displayName\":\"Tenant Id\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"area-id\",\"displayName\":\"Area Id\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.otp-method\",\"displayName\":\"OTP Method\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"embassy\",\"displayName\":\"Post/Embassy\",\"validations\":{\"options\":{\"options\":[\"Algiers\",\"Cairo\",\"Nairobi\"]}},\"annotations\":{\"inputType\":\"select\",\"filterSelectAttribute\":\"country\"},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"country\",\"displayName\":\"Country\",\"validations\":{\"options\":{\"options\":[\"Algiers/Algeria\",\"Cairo/Djibouti\",\"Cairo/Eritrea\",\"Cairo/Sudan\",\"Nairobi/Burundi\",\"Nairobi/Comoros\",\"Nairobi/Congo\",\"Nairobi/Democratic Republic of Congo\",\"Nairobi/Malawi\",\"Nairobi/Rwanda\",\"Nairobi/Seychelles\",\"Nairobi/Tanzania\",\"Nairobi/Uganda\"]}},\"annotations\":{\"inputType\":\"select\"},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.id-card-type\",\"displayName\":\"ID Card Type\",\"validations\":{\"options\":{\"options\":[\"Philippine Passport\",\"Seaman Book\",\"PhilSys ID\",\"IBP\",\"Drivers License\"]}},\"annotations\":{\"inputType\":\"select\"},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.id-card-number\",\"displayName\":\"ID Card No\",\"validations\":{},\"annotations\":{\"html-attribute:autocomplete\":\"off\"},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.id-card-number-validated\",\"displayName\":\"ID Validated?\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"authorized-election-ids\",\"displayName\":\"Authorized Elections\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":true}],\"groups\":[]}" ]
+        "kc.user.profile.config" : [ "{\"attributes\":[{\"name\":\"firstName\",\"displayName\":\"${firstName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"annotations\":{\"html-attribute:autocomplete\":\"given-name\"},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"lastName\",\"displayName\":\"${lastName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"annotations\":{},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"username\",\"displayName\":\"${username}\",\"validations\":{\"up-username-not-idn-homograph\":{},\"length\":{\"min\":\"3\",\"max\":\"40\"}},\"annotations\":{\"hidden\":\"true\"},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"emailAndOrMobile\",\"displayName\":\"Register via\",\"validations\":{\"options\":{\"options\":[\"sequent.read-only.mobile-number\",\"email\"]},\"multivalued\":{\"min\":\"0\",\"max\":\"2\"}},\"annotations\":{\"inputType\":\"multiselect-checkboxes\",\"default\":[\"email\"],\"inputOptionLabels\":{\"sequent.read-only.mobile-number\":\"Phone Number\",\"email\":\"${email}\"},\"disableAttribute\":\"true\"},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":true},{\"name\":\"sequent.read-only.mobile-number\",\"displayName\":\"Phone Number\",\"validations\":{},\"annotations\":{\"inputType\":\"html5-tel\"},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"email\",\"displayName\":\"${email}\",\"validations\":{\"email\":{},\"length\":{\"max\":255}},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"dateOfBirth\",\"displayName\":\"Date of birth\",\"validations\":{},\"annotations\":{\"inputType\":\"html5-date\"},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"tenant-id\",\"displayName\":\"Tenant Id\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"area-id\",\"displayName\":\"Area Id\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.otp-method\",\"displayName\":\"OTP Method\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"embassy\",\"displayName\":\"Post/Embassy\",\"validations\":{\"options\":{\"options\":[\"Algiers\",\"Cairo\",\"Nairobi\"]}},\"annotations\":{\"inputType\":\"select\",\"filterSelectAttribute\":\"country\"},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"country\",\"displayName\":\"Country\",\"validations\":{\"options\":{\"options\":[\"Algiers/Algeria\",\"Cairo/Djibouti\",\"Cairo/Eritrea\",\"Cairo/Sudan\",\"Nairobi/Burundi\",\"Nairobi/Comoros\",\"Nairobi/Congo\",\"Nairobi/Democratic Republic of Congo\",\"Nairobi/Malawi\",\"Nairobi/Rwanda\",\"Nairobi/Seychelles\",\"Nairobi/Tanzania\",\"Nairobi/Uganda\"]}},\"annotations\":{\"inputType\":\"select\"},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.id-card-type\",\"displayName\":\"ID Card Type\",\"validations\":{\"options\":{\"options\":[\"philippinePassport\",\"seamanBook\",\"philSysID\",\"iBP\",\"driversLicense\"]}},\"annotations\":{\"inputOptionLabels\":{\"philSysID\":\"${philSysID}\",\"iBP\":\"${iBP}\",\"philippinePassport\":\"${philippinePassport}\",\"seamanBook\":\"${seamanBook}\",\"driversLicense\":\"${driversLicense}\"},\"inputType\":\"select\"},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.id-card-number\",\"displayName\":\"ID Card No\",\"validations\":{},\"annotations\":{\"html-attribute:autocomplete\":\"off\"},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.id-card-number-validated\",\"displayName\":\"ID Validated?\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"authorized-election-ids\",\"displayName\":\"Authorized Elections\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":true},{\"name\":\"annotations\",\"displayName\":\"annotations\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":true}],\"groups\":[]}" ]
       }
     } ],
     "org.keycloak.keys.KeyProvider" : [ {
@@ -1854,6 +1917,77 @@
       "userSetupAllowed" : false
     } ]
   }, {
+    "alias": "advanced / gold condition",
+    "authenticationExecutions": [{
+            "authenticator": "conditional-level-of-authentication",
+            "authenticatorConfig": "gold",
+            "authenticatorFlow": false,
+            "autheticatorFlow": false,
+            "priority": 0,
+            "requirement": "REQUIRED",
+            "userSetupAllowed": false
+        }, {
+            "authenticator": "auth-password-form",
+            "authenticatorFlow": false,
+            "autheticatorFlow": false,
+            "priority": 1,
+            "requirement": "REQUIRED",
+            "userSetupAllowed": false
+        }
+    ],
+    "builtIn": false,
+    "description": "",
+    "id": "3fc33f0b-ce4c-4e50-a951-bccafdd89a9d",
+    "providerId": "basic-flow",
+    "topLevel": false
+  }, {
+    "alias": "basic / silver condition",
+    "authenticationExecutions": [{
+            "authenticator": "conditional-level-of-authentication",
+            "authenticatorConfig": "silver",
+            "authenticatorFlow": false,
+            "autheticatorFlow": false,
+            "priority": 0,
+            "requirement": "REQUIRED",
+            "userSetupAllowed": false
+        }, {
+            "authenticator": "auth-username-password-form",
+            "authenticatorFlow": false,
+            "autheticatorFlow": false,
+            "priority": 1,
+            "requirement": "REQUIRED",
+            "userSetupAllowed": false
+        }, {
+            "authenticator": "user-session-limits",
+            "authenticatorConfig": "session-count-limit",
+            "authenticatorFlow": false,
+            "autheticatorFlow": false,
+            "priority": 2,
+            "requirement": "DISABLED",
+            "userSetupAllowed": false
+        }, {
+            "authenticatorFlow": true,
+            "autheticatorFlow": true,
+            "flowAlias": "message-otp-subflow",
+            "priority": 3,
+            "requirement": "DISABLED",
+            "userSetupAllowed": false
+        }, {
+            "authenticatorFlow": true,
+            "autheticatorFlow": true,
+            "flowAlias": "sequent browser flow Browser - Conditional OTP",
+            "priority": 4,
+            "requirement": "DISABLED",
+            "userSetupAllowed": false
+        }
+    ],
+    "builtIn": false,
+    "description": "",
+    "id": "7e75060c-2824-45ed-ae6a-3767490cb382",
+    "providerId": "basic-flow",
+    "topLevel": false
+  },
+  {
     "id" : "70ab4d06-64e6-4e53-b045-f42ed9c7f66b",
     "alias" : "browser",
     "description" : "browser based authentication",
@@ -2319,43 +2453,28 @@
       "userSetupAllowed" : false
     } ]
   }, {
-    "id" : "8dcc8b03-bcc1-46d1-b675-f2092fd67e4a",
-    "alias" : "sequent browser flow forms",
-    "description" : "Username, password, otp and other auth forms.",
-    "providerId" : "basic-flow",
-    "topLevel" : false,
-    "builtIn" : false,
-    "authenticationExecutions" : [ {
-      "authenticatorConfig" : "UPF-apec",
-      "authenticator" : "expiry-username-password-form",
-      "authenticatorFlow" : false,
-      "requirement" : "REQUIRED",
-      "priority" : 21,
-      "autheticatorFlow" : false,
-      "userSetupAllowed" : false
-    }, {
-      "authenticatorConfig" : "session-count-limit",
-      "authenticator" : "user-session-limits",
-      "authenticatorFlow" : false,
-      "requirement" : "REQUIRED",
-      "priority" : 25,
-      "autheticatorFlow" : false,
-      "userSetupAllowed" : false
-    }, {
-      "authenticatorFlow" : true,
-      "requirement" : "CONDITIONAL",
-      "priority" : 26,
-      "autheticatorFlow" : true,
-      "flowAlias" : "message-otp-subflow",
-      "userSetupAllowed" : false
-    }, {
-      "authenticatorFlow" : true,
-      "requirement" : "CONDITIONAL",
-      "priority" : 27,
-      "autheticatorFlow" : true,
-      "flowAlias" : "sequent browser flow Browser - Conditional OTP",
-      "userSetupAllowed" : false
-    } ]
+    "alias": "sequent browser flow forms",
+    "authenticationExecutions": [{
+            "authenticatorFlow": true,
+            "autheticatorFlow": true,
+            "flowAlias": "basic / silver condition",
+            "priority": 27,
+            "requirement": "CONDITIONAL",
+            "userSetupAllowed": false
+        }, {
+            "authenticatorFlow": true,
+            "autheticatorFlow": true,
+            "flowAlias": "advanced / gold condition",
+            "priority": 28,
+            "requirement": "CONDITIONAL",
+            "userSetupAllowed": false
+        }
+    ],
+    "builtIn": false,
+    "description": "Username, password, otp and other auth forms.",
+    "id": "c36d83e7-7e0b-4329-92a5-27d03e04d9f8",
+    "providerId": "basic-flow",
+    "topLevel": false
   }, {
     "id" : "840b9649-9551-418e-858b-29952b6cf501",
     "alias" : "sequent reset credentials",
@@ -2426,6 +2545,22 @@
     } ]
   } ],
   "authenticatorConfig" : [ {
+    "alias": "gold",
+    "config": {
+        "loa-max-age": "0",
+        "loa-condition-level": "2"
+    },
+    "id": "671af2c7-9e15-4ca0-a6a0-aa26cd9e7453"
+  },
+  {
+    "alias": "silver",
+    "config": {
+        "loa-condition-level": "1",
+        "loa-max-age": "36000"
+    },
+    "id": "597fd51e-3c01-4033-adf1-ae90cf7c03ba"
+  },
+  {
     "id" : "0558dfeb-9f6b-42fb-b11a-0066ed04049b",
     "alias" : "UPF-apec",
     "config" : {
@@ -2451,12 +2586,12 @@
     "id" : "642e9134-8da8-469b-87a0-876483cd08e5",
     "alias" : "auth-note-email",
     "config" : {
+      "one-time-link" : "false",
       "senderId" : "Keycloak",
       "telUserAttribute" : "sequent.read-only.mobile-number",
       "length" : "6",
       "ttl" : "300",
       "deferredUserAttribute" : "true",
-      "one-time-link": "false",
       "messageCourierAttribute" : "EMAIL"
     }
   }, {
@@ -2504,19 +2639,19 @@
     "id" : "236ef2ca-4b70-4364-8759-bd453532a160",
     "alias" : "drupc",
     "config" : {
-        "search-attributes" : "country",
-        "user-status" : "sequent.read-only.id-card-number-validated"
+      "search-attributes" : "country",
+      "user-status" : "sequent.read-only.id-card-number-validated"
     }
   }, {
     "id" : "4cce72e2-eb4a-433c-9dbd-6b1028a27e9d",
     "alias" : "email-sms",
     "config" : {
+      "one-time-link" : "false",
       "senderId" : "Keycloak",
       "telUserAttribute" : "sequent.read-only.mobile-number",
       "length" : "6",
       "ttl" : "300",
       "deferredUserAttribute" : "false",
-      "one-time-link": "false",
       "messageCourierAttribute" : "BOTH"
     }
   }, {
@@ -2546,14 +2681,14 @@
     "id" : "fd6b17a9-9fc0-4fbd-a25f-b6f2f130f4e6",
     "alias" : "inetum-registration",
     "config" : {
-      "env-config" : "{\n\tenvironment: 0,\n\tcustomTextsConfig: myStrings,\n\tuploadAndCheckIdentifiers: [\"ESP\"],\n\tshowLogs: false,\n\tlogTypes: ['ERROR', 'INFO'],\n\tdesign: design,\n\tbamEnabled: true,\n\tocrCountdown: false,\n\tvideoSelfieShowDNI: false,\n\tcancelProcessButton: true,\n\tshowPermissionsHelp: true,\n\tqrEnabled: false,\n\tvoiceEnabled: false,\n\tvoiceLanguage: VoiceLanguage.englishUS,\n\tcustomIOSBrowsersConfig: [IOSBrowser.safari],\n\totpEmailAddress: 'xxxxxxx@inetum.com',\n\totpPhoneNumber: 'xxxxxxxx',\n\tcountryCode: CountryCode.unitedStates,\n\tapplicationId: window.DOB_APP_ID,\n\tbroadcast: new LocalBroadcastManager(),\n\tsequent: {\n\t\tdisableStreaming: false,\n\t\tvideoStepLength: 22,\n\t\tphotoStepLength: 10,\n\t\tuserPhotoLength: 30,\n\t}\n}",
+      "env-config" : "{\n\tenvironment: 0,\n\tisWebView: true,\n\tcustomTextsConfig: myStrings,\n\tuploadAndCheckIdentifiers: [\"ESP\"],\n\tshowLogs: false,\n\tlogTypes: ['ERROR', 'INFO'],\n\tdesign: design,\n\tbamEnabled: true,\n\tocrCountdown: false,\n\tvideoSelfieShowDNI: false,\n\tcancelProcessButton: true,\n\tshowPermissionsHelp: true,\n\tqrEnabled: false,\n\tvoiceEnabled: false,\n\tvoiceLanguage: VoiceLanguage.englishUS,\n\tcustomIOSBrowsersConfig: [IOSBrowser.safari, IOSBrowser.chrome, IOSBrowser.firefox],\n\totpEmailAddress: 'xxxxxxx@inetum.com',\n\totpPhoneNumber: 'xxxxxxxx',\n\tcountryCode: CountryCode.unitedStates,\n\tapplicationId: window.DOB_APP_ID,\n\tbroadcast: new LocalBroadcastManager(),\n\tsequent: {\n\t\tdisableStreaming: true,\n\t\tvideoStepLength: 22,\n\t\tphotoStepLength: 10,\n\t\tuserPhotoLength: 30,\n\t}\n}",
       "base-url" : "https://des.digitalonboarding.es/dob-api/2.0.0",
-      "attributes-to-validate" : "{ \t\"PhilSys ID\": [ \t\t{ \t\t\t\"type\": \"equalValue\", \t\t\t\"equalValue\": \"Identity Card\", \t\t\t\"inetumAttributePath\": \"/response/docVerification/documentIdentification/0/type\", \t\t\t\"errorMsg\": \"attributesInetumError\" \t\t}, \t\t{ \t\t\t\"type\": \"intMinValue\", \t\t\t\"intMinValue\": \"20\", \t\t\t\"inetumAttributePath\": \"/response/resultData/scoreDocumental\", \t\t\t\"errorMsg\": \"scoringInetumError\" \t\t}, \t\t{ \t\t\t\"type\": \"intMinValue\", \t\t\t\"intMinValue\": \"20\", \t\t\t\"inetumAttributePath\": \"/response/resultData/scoreFacial\", \t\t\t\"errorMsg\": \"scoringInetumError\" \t\t} \t], \t\"Seaman Book\": [ \t\t{ \t\t\t\"type\": \"intMinValue\", \t\t\t\"intMinValue\": \"20\", \t\t\t\"inetumAttributePath\": \"/response/resultData/scoreValCamposCriticos\", \t\t\t\"errorMsg\": \"scoringInetumError\" \t\t}, \t\t{ \t\t\t\"type\": \"intMinValue\", \t\t\t\"intMinValue\": \"20\", \t\t\t\"inetumAttributePath\": \"/response/resultData/scoreFacial\", \t\t\t\"errorMsg\": \"scoringInetumError\" \t\t} \t], \t\"Philippine Passport\": [ \t\t{ \t\t\t\"type\": \"intMinValue\", \t\t\t\"intMinValue\": \"20\", \t\t\t\"inetumAttributePath\": \"/response/resultData/scoreValCamposCriticos\", \t\t\t\"errorMsg\": \"scoringInetumError\" \t\t}, \t\t{ \t\t\t\"type\": \"intMinValue\", \t\t\t\"intMinValue\": \"20\", \t\t\t\"inetumAttributePath\": \"/response/resultData/scoreFacial\", \t\t\t\"errorMsg\": \"scoringInetumError\" \t\t} \t], \t\"Drivers License\": [ \t\t{ \t\t\t\"type\": \"intMinValue\", \t\t\t\"intMinValue\": \"20\", \t\t\t\"inetumAttributePath\": \"/response/resultData/scoreValCamposCriticos\", \t\t\t\"errorMsg\": \"scoringInetumError\" \t\t}, \t\t{ \t\t\t\"type\": \"intMinValue\", \t\t\t\"intMinValue\": \"20\", \t\t\t\"inetumAttributePath\": \"/response/resultData/scoreFacial\", \t\t\t\"errorMsg\": \"scoringInetumError\" \t\t} \t], \t\"IBP\": [ \t\t{ \t\t\t\"type\": \"intMinValue\", \t\t\t\"intMinValue\": \"20\", \t\t\t\"inetumAttributePath\": \"/response/resultData/scoreValCamposCriticos\", \t\t\t\"errorMsg\": \"scoringInetumError\" \t\t}, \t\t{ \t\t\t\"type\": \"intMinValue\", \t\t\t\"intMinValue\": \"20\", \t\t\t\"inetumAttributePath\": \"/response/resultData/scoreFacial\", \t\t\t\"errorMsg\": \"scoringInetumError\" \t\t} \t] }",
-      "attributes-to-store" : "{ \t\"PhilSys ID\": [ \t\t{ \t\t\t\"UserAttribute\": \"firstName\", \t\t\t\"inetumAttributePath\": \"/response/ocr/given_names\", \t\t\t\"type\": \"text\" \t\t}, \t\t{ \t\t\t\"UserAttribute\": \"lastName\", \t\t\t\"inetumAttributePath\": \"/response/ocr/surname\", \t\t\t\"type\": \"text\" \t\t}, \t\t{ \t\t\t\"UserAttribute\": \"sequent.read-only.id-card-number\", \t\t\t\"inetumAttributePath\": \"/response/ocr/personal_number\", \t\t\t\"type\": \"text\" \t\t}, \t\t{ \t\t\t\"UserAttribute\": \"birthDate\", \t\t\t\"inetumAttributePath\": \"/response/ocr/date_of_birth\", \t\t\t\"type\": \"date\", \t\t\t\"storeDateFormat\": \"yyyy-MM-dd\", \t\t\t\"inetumDateFormat\": \"dd/MM/yyyy\" \t\t} \t], \t\"Seaman Book\": [ \t\t{ \t\t\t\"UserAttribute\": \"firstName\", \t\t\t\"inetumAttributePath\": \"/response/mrz/given_names\", \t\t\t\"type\": \"text\" \t\t}, \t\t{ \t\t\t\"UserAttribute\": \"lastName\", \t\t\t\"inetumAttributePath\": \"/response/mrz/surname\", \t\t\t\"type\": \"text\" \t\t}, \t\t{ \t\t\t\"UserAttribute\": \"sequent.read-only.id-card-number\", \t\t\t\"inetumAttributePath\": \"/response/mrz/personal_number\", \t\t\t\"type\": \"text\" \t\t}, \t\t{ \t\t\t\"UserAttribute\": \"birthDate\", \t\t\t\"inetumAttributePath\": \"/response/mrz/date_of_birth\", \t\t\t\"type\": \"date\", \t\t\t\"storeDateFormat\": \"yyyy-MM-dd\", \t\t\t\"inetumDateFormat\": \"dd/MM/yyyy\" \t\t} \t], \t\"Philippine Passport\": [ \t\t{ \t\t\t\"UserAttribute\": \"firstName\", \t\t\t\"inetumAttributePath\": \"/response/mrz/given_names\", \t\t\t\"type\": \"text\" \t\t}, \t\t{ \t\t\t\"UserAttribute\": \"lastName\", \t\t\t\"inetumAttributePath\": \"/response/mrz/surname\", \t\t\t\"type\": \"text\" \t\t}, \t\t{ \t\t\t\"UserAttribute\": \"sequent.read-only.id-card-number\", \t\t\t\"inetumAttributePath\": \"/response/mrz/document_number\", \t\t\t\"type\": \"text\" \t\t}, \t\t{ \t\t\t\"UserAttribute\": \"birthDate\", \t\t\t\"inetumAttributePath\": \"/response/mrz/date_of_birth\", \t\t\t\"type\": \"date\", \t\t\t\"storeDateFormat\": \"yyyy-MM-dd\", \t\t\t\"inetumDateFormat\": \"dd/MM/yyyy\" \t\t} \t], \t\"Drivers License\": [ \t\t{ \t\t\t\"UserAttribute\": \"firstName\", \t\t\t\"inetumAttributePath\": \"/response/ocr/given_names\", \t\t\t\"type\": \"text\" \t\t}, \t\t{ \t\t\t\"UserAttribute\": \"lastName\", \t\t\t\"inetumAttributePath\": \"/response/ocr/surname\", \t\t\t\"type\": \"text\" \t\t}, \t\t{ \t\t\t\"UserAttribute\": \"sequent.read-only.id-card-number\", \t\t\t\"inetumAttributePath\": \"/response/ocr/personal_number\", \t\t\t\"type\": \"text\" \t\t}, \t\t{ \t\t\t\"UserAttribute\": \"birthDate\", \t\t\t\"inetumAttributePath\": \"/response/ocr/date_of_birth\", \t\t\t\"type\": \"date\", \t\t\t\"storeDateFormat\": \"yyyy-MM-dd\", \t\t\t\"inetumDateFormat\": \"dd/MM/yyyy\" \t\t} \t], \t\"IBP\": [ \t\t{ \t\t\t\"UserAttribute\": \"firstName\", \t\t\t\"inetumAttributePath\": \"/response/mrz/given_names\", \t\t\t\"type\": \"text\" \t\t}, \t\t{ \t\t\t\"UserAttribute\": \"lastName\", \t\t\t\"inetumAttributePath\": \"/response/mrz/surname\", \t\t\t\"type\": \"text\" \t\t}, \t\t{ \t\t\t\"UserAttribute\": \"sequent.read-only.id-card-number\", \t\t\t\"inetumAttributePath\": \"/response/mrz/personal_number\", \t\t\t\"type\": \"text\" \t\t}, \t\t{ \t\t\t\"UserAttribute\": \"birthDate\", \t\t\t\"inetumAttributePath\": \"/response/mrz/date_of_birth\", \t\t\t\"type\": \"date\", \t\t\t\"storeDateFormat\": \"yyyy-MM-dd\", \t\t\t\"inetumDateFormat\": \"dd/MM/yyyy\" \t\t} \t] }",
       "app-id" : "7349cfcc-b3a1-4dd7-b399-d135be0a2f43",
-      "api-key" : "fd2280f6-4fb8-3ba3-b55f-5a425b64f07f",
       "transaction-new" : "{\n\t\"wFtype_Facial\": true,\n\t\"wFtype_OCR\": true,\n\t\"wFtype_Video\": false,\n\t\"wFtype_Anti_Spoofing\": false,\n\t\"wFtype_Sign\": false,\n\t\"wFtype_VerifAvan\": false,\n\t\"wFtype_UECertificate\": false,\n\t\"docID\": \"\",\n\t\"name\": \"\",\n\t\"lastname1\": \"\",\n\t\"lastname2\": \"\",\n\t\"country\": \"\",\n\t\"mobilePhone\": \"\",\n\t\"eMail\": \"\",\n\t\"priority\": 3,\n\t\"maxRetries\": 3,\n\t\"maxProcessTime\": 30,\n\t\"application\": \"sequent-keycloak\",\n\t\"clienteID\": \"${client_id}\"\n}",
       "doc-id-type" : "sequent.read-only.id-card-type",
+      "attributes-to-store" : "{ \t\"philSysID\": [ \t\t{ \t\t\t\"UserAttribute\": \"firstName\", \t\t\t\"inetumAttributePath\": \"/response/ocr/given_names\", \t\t\t\"type\": \"text\" \t\t}, \t\t{ \t\t\t\"UserAttribute\": \"lastName\", \t\t\t\"inetumAttributePath\": \"/response/ocr/surname\", \t\t\t\"type\": \"text\" \t\t}, \t\t{ \t\t\t\"UserAttribute\": \"sequent.read-only.id-card-number\", \t\t\t\"inetumAttributePath\": \"/response/ocr/personal_number\", \t\t\t\"type\": \"text\" \t\t}, \t\t{ \t\t\t\"UserAttribute\": \"birthDate\", \t\t\t\"inetumAttributePath\": \"/response/ocr/date_of_birth\", \t\t\t\"type\": \"date\", \t\t\t\"storeDateFormat\": \"yyyy-MM-dd\", \t\t\t\"inetumDateFormat\": \"dd/MM/yyyy\" \t\t} \t], \t\"seamanBook\": [ \t\t{ \t\t\t\"UserAttribute\": \"firstName\", \t\t\t\"inetumAttributePath\": \"/response/mrz/given_names\", \t\t\t\"type\": \"text\" \t\t}, \t\t{ \t\t\t\"UserAttribute\": \"lastName\", \t\t\t\"inetumAttributePath\": \"/response/mrz/surname\", \t\t\t\"type\": \"text\" \t\t}, \t\t{ \t\t\t\"UserAttribute\": \"sequent.read-only.id-card-number\", \t\t\t\"inetumAttributePath\": \"/response/mrz/personal_number\", \t\t\t\"type\": \"text\" \t\t}, \t\t{ \t\t\t\"UserAttribute\": \"birthDate\", \t\t\t\"inetumAttributePath\": \"/response/mrz/date_of_birth\", \t\t\t\"type\": \"date\", \t\t\t\"storeDateFormat\": \"yyyy-MM-dd\", \t\t\t\"inetumDateFormat\": \"dd/MM/yyyy\" \t\t} \t], \t\"Philippine Passport\": [ \t\t{ \t\t\t\"UserAttribute\": \"firstName\", \t\t\t\"inetumAttributePath\": \"/response/mrz/given_names\", \t\t\t\"type\": \"text\" \t\t}, \t\t{ \t\t\t\"UserAttribute\": \"lastName\", \t\t\t\"inetumAttributePath\": \"/response/mrz/surname\", \t\t\t\"type\": \"text\" \t\t}, \t\t{ \t\t\t\"UserAttribute\": \"sequent.read-only.id-card-number\", \t\t\t\"inetumAttributePath\": \"/response/mrz/document_number\", \t\t\t\"type\": \"text\" \t\t}, \t\t{ \t\t\t\"UserAttribute\": \"birthDate\", \t\t\t\"inetumAttributePath\": \"/response/mrz/date_of_birth\", \t\t\t\"type\": \"date\", \t\t\t\"storeDateFormat\": \"yyyy-MM-dd\", \t\t\t\"inetumDateFormat\": \"dd/MM/yyyy\" \t\t} \t], \t\"Drivers License\": [ \t\t{ \t\t\t\"UserAttribute\": \"firstName\", \t\t\t\"inetumAttributePath\": \"/response/ocr/given_names\", \t\t\t\"type\": \"text\" \t\t}, \t\t{ \t\t\t\"UserAttribute\": \"lastName\", \t\t\t\"inetumAttributePath\": \"/response/ocr/surname\", \t\t\t\"type\": \"text\" \t\t}, \t\t{ \t\t\t\"UserAttribute\": \"sequent.read-only.id-card-number\", \t\t\t\"inetumAttributePath\": \"/response/ocr/personal_number\", \t\t\t\"type\": \"text\" \t\t}, \t\t{ \t\t\t\"UserAttribute\": \"birthDate\", \t\t\t\"inetumAttributePath\": \"/response/ocr/date_of_birth\", \t\t\t\"type\": \"date\", \t\t\t\"storeDateFormat\": \"yyyy-MM-dd\", \t\t\t\"inetumDateFormat\": \"dd/MM/yyyy\" \t\t} \t], \t\"iBP\": [ \t\t{ \t\t\t\"UserAttribute\": \"firstName\", \t\t\t\"inetumAttributePath\": \"/response/mrz/given_names\", \t\t\t\"type\": \"text\" \t\t}, \t\t{ \t\t\t\"UserAttribute\": \"lastName\", \t\t\t\"inetumAttributePath\": \"/response/mrz/surname\", \t\t\t\"type\": \"text\" \t\t}, \t\t{ \t\t\t\"UserAttribute\": \"sequent.read-only.id-card-number\", \t\t\t\"inetumAttributePath\": \"/response/mrz/personal_number\", \t\t\t\"type\": \"text\" \t\t}, \t\t{ \t\t\t\"UserAttribute\": \"birthDate\", \t\t\t\"inetumAttributePath\": \"/response/mrz/date_of_birth\", \t\t\t\"type\": \"date\", \t\t\t\"storeDateFormat\": \"yyyy-MM-dd\", \t\t\t\"inetumDateFormat\": \"dd/MM/yyyy\" \t\t} \t] }",
+      "attributes-to-validate" : "{ \t\"philSysID\": [ \t\t{ \t\t\t\"type\": \"equalValue\", \t\t\t\"equalValue\": \"Identity Card\", \t\t\t\"inetumAttributePath\": \"/response/docVerification/documentIdentification/0/type\", \t\t\t\"errorMsg\": \"attributesInetumError\" \t\t}, \t\t{ \t\t\t\"type\": \"intMinValue\", \t\t\t\"intMinValue\": \"20\", \t\t\t\"inetumAttributePath\": \"/response/resultData/scoreDocumental\", \t\t\t\"errorMsg\": \"scoringInetumError\" \t\t}, \t\t{ \t\t\t\"type\": \"intMinValue\", \t\t\t\"intMinValue\": \"20\", \t\t\t\"inetumAttributePath\": \"/response/resultData/scoreFacial\", \t\t\t\"errorMsg\": \"scoringInetumError\" \t\t} \t], \t\"seamanBook\": [ \t\t{ \t\t\t\"type\": \"intMinValue\", \t\t\t\"intMinValue\": \"20\", \t\t\t\"inetumAttributePath\": \"/response/resultData/scoreValCamposCriticos\", \t\t\t\"errorMsg\": \"scoringInetumError\" \t\t}, \t\t{ \t\t\t\"type\": \"intMinValue\", \t\t\t\"intMinValue\": \"20\", \t\t\t\"inetumAttributePath\": \"/response/resultData/scoreFacial\", \t\t\t\"errorMsg\": \"scoringInetumError\" \t\t} \t], \t\"Philippine Passport\": [ \t\t{ \t\t\t\"type\": \"intMinValue\", \t\t\t\"intMinValue\": \"20\", \t\t\t\"inetumAttributePath\": \"/response/resultData/scoreValCamposCriticos\", \t\t\t\"errorMsg\": \"scoringInetumError\" \t\t}, \t\t{ \t\t\t\"type\": \"intMinValue\", \t\t\t\"intMinValue\": \"20\", \t\t\t\"inetumAttributePath\": \"/response/resultData/scoreFacial\", \t\t\t\"errorMsg\": \"scoringInetumError\" \t\t} \t], \t\"Drivers License\": [ \t\t{ \t\t\t\"type\": \"intMinValue\", \t\t\t\"intMinValue\": \"20\", \t\t\t\"inetumAttributePath\": \"/response/resultData/scoreValCamposCriticos\", \t\t\t\"errorMsg\": \"scoringInetumError\" \t\t}, \t\t{ \t\t\t\"type\": \"intMinValue\", \t\t\t\"intMinValue\": \"20\", \t\t\t\"inetumAttributePath\": \"/response/resultData/scoreFacial\", \t\t\t\"errorMsg\": \"scoringInetumError\" \t\t} \t], \t\"iBP\": [ \t\t{ \t\t\t\"type\": \"intMinValue\", \t\t\t\"intMinValue\": \"20\", \t\t\t\"inetumAttributePath\": \"/response/resultData/scoreValCamposCriticos\", \t\t\t\"errorMsg\": \"scoringInetumError\" \t\t}, \t\t{ \t\t\t\"type\": \"intMinValue\", \t\t\t\"intMinValue\": \"20\", \t\t\t\"inetumAttributePath\": \"/response/resultData/scoreFacial\", \t\t\t\"errorMsg\": \"scoringInetumError\" \t\t} \t] }",
+      "api-key" : "fd2280f6-4fb8-3ba3-b55f-5a425b64f07f",
       "user-status" : "sequent.read-only.id-card-number-validated",
       "sdk" : "{}",
       "client-id" : "demosequentech",
@@ -2563,21 +2698,21 @@
     "id" : "286dfc32-f26f-4b06-8efa-169879045e2e",
     "alias" : "lookup-register",
     "config" : {
-      "telUserAttribute" : "sequent.read-only.mobile-number",
-      "one-time-link": "false",
-      "messageCourierAttribute" : "NONE",
-      "unset-attributes" : "email,sequent.read-only.mobile-number",
+      "one-time-link" : "false",
       "auto-2fa" : "true",
       "update-attributes" : "sequent.read-only.id-card-number-validated,email,sequent.read-only.mobile-number,embassy,country,emailAndOrMobile,dateOfBirth,sequent.read-only.id-card-type,sequent.read-only.id-card-number",
-        "auto-login" : "false",
-        "search-attributes" : "firstName,lastName,country"
-      }
+      "search-attributes" : "firstName,lastName,country",
+      "telUserAttribute" : "sequent.read-only.mobile-number",
+      "messageCourierAttribute" : "NONE",
+      "auto-login" : "false",
+      "unset-attributes" : "email,sequent.read-only.mobile-number"
+    }
   }, {
     "id" : "b489a8f1-a363-4731-8d3d-265fc4752fb1",
     "alias" : "manual-verification-config",
     "config" : {
+      "one-time-link" : "false",
       "auto-2fa" : "true",
-      "one-time-link": "false",
       "messageCourierAttribute" : "BOTH",
       "telUserAttribute" : "sequent.read-only.mobile-number"
     }
@@ -2606,6 +2741,7 @@
     "id" : "d3042863-f4ba-4975-be3c-cf446194bd52",
     "alias" : "otp-email",
     "config" : {
+      "one-time-link" : "false",
       "senderId" : "Keycloak",
       "resendCoudActivationTimer" : "60",
       "otpMethod" : "email",
@@ -2613,58 +2749,57 @@
       "length" : "6",
       "ttl" : "300",
       "deferredUserAttribute" : "true",
-      "one-time-link": "false",
       "messageCourierAttribute" : "EMAIL"
     }
   }, {
     "id" : "9d5e2eb1-f4c1-41b1-b206-ce8e4f11952a",
     "alias" : "otp-email",
     "config" : {
+      "one-time-link" : "false",
       "senderId" : "Keycloak",
       "telUserAttribute" : "sequent.read-only.mobile-number",
       "length" : "6",
       "ttl" : "300",
       "deferredUserAttribute" : "true",
-      "one-time-link": "false",
       "messageCourierAttribute" : "EMAIL"
     }
   }, {
     "id" : "40768b2c-f740-4d00-845c-b4dc471dcc6f",
     "alias" : "otp-sms",
     "config" : {
+      "one-time-link" : "false",
       "senderId" : "Keycloak",
       "resendCoudActivationTimer" : "60",
       "telUserAttribute" : "sequent.read-only.mobile-number",
       "length" : "6",
       "ttl" : "300",
       "deferredUserAttribute" : "true",
-      "one-time-link": "false",
       "messageCourierAttribute" : "SMS"
     }
   }, {
     "id" : "36ca68d6-d220-460d-a11c-79e64745afc1",
     "alias" : "otp-sms",
     "config" : {
+      "one-time-link" : "false",
       "senderId" : "Keycloak",
       "otpMethod" : "sms",
       "telUserAttribute" : "sequent.read-only.mobile-number",
       "length" : "6",
       "ttl" : "300",
       "deferredUserAttribute" : "false",
-      "one-time-link": "false",
       "messageCourierAttribute" : "BOTH"
     }
   }, {
     "id" : "cae6040e-02af-4173-96ae-5f107a16309c",
     "alias" : "otp-sms",
     "config" : {
+      "one-time-link" : "false",
       "senderId" : "Keycloak",
       "otpMethod" : "sms",
       "telUserAttribute" : "sequent.read-only.mobile-number",
       "length" : "6",
       "ttl" : "300",
       "deferredUserAttribute" : "false",
-      "one-time-link": "false",
       "messageCourierAttribute" : "BOTH"
     }
   }, {

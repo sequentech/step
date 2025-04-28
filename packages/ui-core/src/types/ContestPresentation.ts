@@ -80,4 +80,5 @@ export interface IContestPresentation {
     types_presentation?: Record<string, ITypePresentation>
     sort_order?: number
     under_vote_policy?: EUnderVotePolicy
+    columns?: number
 }
