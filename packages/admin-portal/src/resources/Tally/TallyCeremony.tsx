@@ -166,13 +166,6 @@ export const TallyCeremony: React.FC = () => {
         "tally-results-results": true,
     })
 
-    const [expandedExports, setExpandedDataExports] = useState<IExpanded>({
-        "tally-miru-upload": true,
-        "tally-miru-signatures": false,
-        "tally-download-package": false,
-        "tally-miru-servers": false,
-    })
-
     const {data: tallySession, refetch: refetchTallySession} =
         useGetOne<Sequent_Backend_Tally_Session>(
             "sequent_backend_tally_session",
@@ -187,6 +180,7 @@ export const TallyCeremony: React.FC = () => {
                 refetchOnWindowFocus: false,
                 refetchOnReconnect: false,
                 refetchOnMount: false,
+                enabled: !!localTallyId || !!tallyId,
             }
         )
 
@@ -272,6 +266,7 @@ export const TallyCeremony: React.FC = () => {
             refetchOnWindowFocus: false,
             refetchOnReconnect: false,
             refetchOnMount: false,
+            enabled: !!tallyId && !!tenantId,
         }
     )
 
@@ -324,6 +319,7 @@ export const TallyCeremony: React.FC = () => {
             refetchOnWindowFocus: false,
             refetchOnReconnect: false,
             refetchOnMount: false,
+            enabled: !!tenantId && record?.id && !!resultsEventId,
         }
     )
 
@@ -381,7 +377,7 @@ export const TallyCeremony: React.FC = () => {
         if (page === WizardSteps.Start) {
             let is_published = elections?.every(
                 (election) =>
-                    !selectedElections.includes(election.id) || election.status.is_published
+                    !selectedElections.includes(election.id) || election.status?.is_published
             )
             let newIsButtonDisabled =
                 (page === WizardSteps.Start && selectedElections.length === 0 ? true : false) ||

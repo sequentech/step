@@ -696,7 +696,7 @@ pub async fn set_election_initialization_report_generated(
     Ok(())
 }
 
-#[instrument(err, skip_all)]
+#[instrument(err, skip(hasura_transaction))]
 pub async fn update_election_status(
     hasura_transaction: &Transaction<'_>,
     id: &str,
@@ -709,7 +709,12 @@ pub async fn update_election_status(
             sequent_backend.election
         SET
             last_updated_at = NOW(),
-            status = jsonb_set(status, '{is_published}', to_jsonb($4::bool), true)
+            status = jsonb_set(
+                COALESCE(status, '{}'::jsonb),   -- start with empty object if NULL
+                '{is_published}',                -- path
+                'true'::jsonb,                   -- new value
+                true                             -- create the key if missing
+            )
         WHERE
             id = $1 AND
             tenant_id = $2 AND
