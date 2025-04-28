@@ -60,15 +60,32 @@ html, body {
     user-select: none;
 }
 
-@media (min-width: 0px) {
+.pf-c-brand {
+    height: 47px;
+    width: auto;
+}
+
+@media (max-width: 960px) {
     .pf-c-brand {
-        height: 60px;
+        height: 37px;
     }
 }
 
-@media (min-width: 970px) {
+@media (max-width: 480px) {
     .pf-c-brand {
-        height: 60px;
+        height: 30px;
+    }
+}
+
+@media (max-width: 240px) {
+    .pf-c-brand {
+        height: 20px;
+    }
+}
+
+@media (max-width: 160px) {
+    .pf-c-brand {
+        height: 10px;
     }
 }
 
