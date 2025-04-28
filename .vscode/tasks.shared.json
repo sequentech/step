@@ -650,7 +650,7 @@
             "command": "bash",
             "args": [
                 "-c",
-                "docker compose stop trustee1 trustee2; docker compose up -d --no-cache --no-deps trustee1 trustee2 && docker compose logs -f --tail 100 trustee1 trustee2",
+                "docker compose stop trustee1 trustee2; docker compose up -d --no-deps trustee1 trustee2 && docker compose logs -f --tail 100 trustee1 trustee2",
             ],
             "options": {
                 "env": {
