@@ -870,6 +870,7 @@ input ExportOptions {
     scheduled_events: Boolean
     reports: Boolean
     applications: Boolean
+    tally: Boolean
 }
 
 input ApplicationVerifyBody {
