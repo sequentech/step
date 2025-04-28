@@ -86,10 +86,10 @@ use crate::services::protocol_manager::{
 };
 use crate::tasks::import_election_event::ImportElectionEventBody;
 use crate::types::documents::EDocuments;
+use regex::Regex;
 use sequent_core::types::hasura::core::{Area, Candidate, Contest, Election, ElectionEvent};
 use sequent_core::types::scheduled_event::*;
 use sequent_core::util::temp_path::{generate_temp_file, get_file_size};
-use regex::Regex;
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ImportElectionEventSchema {
     pub tenant_id: Uuid,
@@ -726,7 +726,10 @@ async fn process_activity_logs_file(
 
 fn extract_document_uuid(filename: &str) -> Option<&str> {
     // Regex to match the UUID after "document_"
-    let re = Regex::new(r"document_([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})").unwrap();
+    let re = Regex::new(
+        r"document_([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})",
+    )
+    .unwrap();
 
     re.captures(filename)
         .and_then(|caps| caps.get(1).map(|m| m.as_str()))
@@ -805,7 +808,9 @@ pub async fn get_zip_entries(
                 for i in 0..zip.len() {
                     let mut file = zip.by_index(i)?;
                     let file_name = file.name().to_string();
-                    if file_name.contains(EDocuments::ELECTION_EVENT.to_file_name()) && file_name.ends_with(".json") {
+                    if file_name.contains(EDocuments::ELECTION_EVENT.to_file_name())
+                        && file_name.ends_with(".json")
+                    {
                         // Regular JSON document processing
                         let mut file_str = String::new();
                         file.read_to_string(&mut file_str)?;
@@ -892,8 +897,8 @@ pub async fn process_document(
         .iter()
         .find(|(name, _)| name.contains(ETallyDocuments::RESULTS_EVENT.to_file_name()));
     let s3_documents_ids_file = zip_entries
-    .iter()
-    .find(|(name, _)| name.contains(EDocuments::S3_DOCUMENTS_IDS.to_file_name()));
+        .iter()
+        .find(|(name, _)| name.contains(EDocuments::S3_DOCUMENTS_IDS.to_file_name()));
 
     let mut tally_files_content: Option<String> = None;
     if let (Some(tally_session_file), Some(results_event_file)) =
@@ -914,9 +919,11 @@ pub async fn process_document(
     };
     let file_election_event_schema = match s3_documents_ids_file {
         Some(s3_documents_ids_file) => {
-            let s3_documents_ids_file_content =
-                String::from_utf8(s3_documents_ids_file.1.clone())?;
-            format!("{}\n{}", file_election_event_schema, s3_documents_ids_file_content)
+            let s3_documents_ids_file_content = String::from_utf8(s3_documents_ids_file.1.clone())?;
+            format!(
+                "{}\n{}",
+                file_election_event_schema, s3_documents_ids_file_content
+            )
         }
         None => file_election_event_schema,
     };
@@ -932,7 +939,7 @@ pub async fn process_document(
     )
     .await
     .map_err(|err| anyhow!("Error processing election event file: {err}"))?;
-    
+
     // Zip file processing
     if document_type == "application/ezip" || matches_mime("zip", &document_type) {
         for (file_name, mut file_contents) in zip_entries {
@@ -998,7 +1005,9 @@ pub async fn process_document(
             if file_name.contains(&format!("{}/", EDocuments::S3_FILES.to_file_name())) {
                 let folder_path: Vec<_> = file_name.split("/").collect();
                 // Skips the OS created files and the documents_ids.txt
-                if folder_path[1] == EDocuments::VOTERS.to_file_name() || file_name.contains(EDocuments::S3_DOCUMENTS_IDS.to_file_name()) {
+                if folder_path[1] == EDocuments::VOTERS.to_file_name()
+                    || file_name.contains(EDocuments::S3_DOCUMENTS_IDS.to_file_name())
+                {
                     continue;
                 }
 
@@ -1118,7 +1127,7 @@ pub async fn process_document(
                     .split(".")
                     .next()
                     .unwrap();
-                
+
                 process_tally_file(
                     hasura_transaction,
                     &temp_file,

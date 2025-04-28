@@ -554,7 +554,7 @@ pub async fn get_files_from_s3(
                     None
                 }
             });
-            
+
             // Get object from S3
             let s3_object = client
                 .get_object()
@@ -567,8 +567,10 @@ pub async fn get_files_from_s3(
             let file_data = ByteStream::collect(stream).await?.into_bytes();
 
             // Create a temp file with the document ID in the name
-            let renamed_file = match document_id.clone(){
-                Some(document_id) => format!("document_{document_id}_{}", file_name),
+            let renamed_file = match document_id.clone() {
+                Some(document_id) => {
+                    format!("document_{document_id}_{}", file_name)
+                }
                 None => file_name.to_string(),
             };
             let file_path = env::temp_dir().join(&renamed_file);

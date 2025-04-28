@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{anyhow, Context, Result};
+use chrono::{DateTime, Local};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::{
     serialization::deserialize_with_path::deserialize_value,
@@ -371,17 +372,21 @@ pub async fn update_tally_session_status(
 
 #[derive(Debug, Serialize)]
 struct InsertableTallySession {
+    id: Uuid,
     tenant_id: Uuid,
     election_event_id: Uuid,
-    id: Uuid,
-    keys_ceremony_id: Uuid,
+    created_at: Option<DateTime<Local>>,
+    last_updated_at: Option<DateTime<Local>>,
+    labels: Option<Value>,
+    annotations: Option<Value>,
     election_ids: Vec<Uuid>,
     area_ids: Vec<Uuid>,
+    is_execution_completed: bool,
+    keys_ceremony_id: Uuid,
     execution_status: Option<String>,
     threshold: i32,
     configuration: Option<Value>,
     tally_type: Option<String>,
-    annotations: Option<Value>,
     permission_label: Option<Vec<String>>,
 }
 
@@ -419,17 +424,21 @@ pub async fn insert_many_tally_sessions(
                 .collect::<Result<Vec<Uuid>>>()?;
 
             Ok(InsertableTallySession {
+                id: Uuid::parse_str(&session.id)?,
                 tenant_id: Uuid::parse_str(&session.tenant_id)?,
                 election_event_id: Uuid::parse_str(&session.election_event_id)?,
-                id: Uuid::parse_str(&session.id)?,
-                keys_ceremony_id: Uuid::parse_str(&session.keys_ceremony_id)?,
+                created_at: session.created_at,
+                last_updated_at: session.last_updated_at,
+                labels: session.labels,
+                annotations: session.annotations.clone(),
                 election_ids,
                 area_ids,
+                is_execution_completed: session.is_execution_completed,
+                keys_ceremony_id: Uuid::parse_str(&session.keys_ceremony_id)?,
                 execution_status: session.execution_status.clone(),
                 threshold: session.threshold as i32,
                 configuration: configuration_json,
                 tally_type: session.tally_type.clone(),
-                annotations: session.annotations.clone(),
                 permission_label: session.permission_label.clone(),
             })
         })
@@ -440,29 +449,33 @@ pub async fn insert_many_tally_sessions(
     let sql = r#"
         WITH data AS (
             SELECT * FROM jsonb_to_recordset($1::jsonb) AS t(
+                id UUID,
                 tenant_id UUID,
                 election_event_id UUID,
-                id UUID,
-                keys_ceremony_id UUID,
+                created_at TIMESTAMPTZ,
+                last_updated_at TIMESTAMPTZ,
+                labels JSONB,
+                annotations JSONB,
                 election_ids UUID[],
                 area_ids UUID[],
+                is_execution_completed BOOLEAN,
+                keys_ceremony_id UUID,
                 execution_status TEXT,
                 threshold INTEGER,
                 configuration JSONB,
                 tally_type TEXT,
-                annotations JSONB,
                 permission_label TEXT[]
             )
         )
         INSERT INTO sequent_backend.tally_session (
-            tenant_id, election_event_id, id, keys_ceremony_id,
-            election_ids, area_ids, execution_status, threshold,
-            configuration, tally_type, annotations, permission_label
+            id, tenant_id, election_event_id, created_at,last_updated_at,labels,annotations,
+            election_ids, area_ids,is_execution_completed, keys_ceremony_id,execution_status, threshold,
+            configuration, tally_type, permission_label
         )
         SELECT
-            tenant_id, election_event_id, id, keys_ceremony_id,
-            election_ids, area_ids, execution_status, threshold,
-            configuration, tally_type, annotations, permission_label
+            id, tenant_id, election_event_id, created_at,last_updated_at,labels,annotations,
+            election_ids, area_ids,is_execution_completed, keys_ceremony_id,execution_status, threshold,
+            configuration, tally_type, permission_label
         FROM data
         RETURNING *;
     "#;
