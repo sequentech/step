@@ -130,10 +130,9 @@ const App = () => {
                                 <ApolloContextProvider>
                                     <ApolloWrapper>
                                         <ConfirmationScreen
-                                            ballotStyle={ballotStyle?.ballot_eml}
+                                            ballotStyle={ballotStyle}
                                             confirmationBallot={confirmationBallot}
                                             ballotId={ballotId}
-                                            ballotService={ballotService}
                                         />
                                     </ApolloWrapper>
                                 </ApolloContextProvider>

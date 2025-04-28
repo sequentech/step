@@ -4,17 +4,31 @@
 import React, {useEffect, useState} from "react"
 import Box from "@mui/material/Box"
 import {useNavigate} from "react-router-dom"
-import {IBallotService, IConfirmationBallot} from "../services/BallotService"
+import {IConfirmationBallot} from "../services/BallotService"
 import {BreadCrumbSteps, PageLimit} from "@sequentech/ui-essentials"
 import {ActionButtons} from "../components/ActionButtons"
 import {BallotIdSection, isMatchingBallotIds} from "../components/BallotIdSection"
 import {VerifySelectionsSection} from "../components/VerifySelectionsSection"
-import {IBallotStyle} from "@sequentech/ui-core"
+
+import {IBallotStyle as IElectionDTO} from "@sequentech/ui-core"
+
+export interface IBallotStyle {
+    id: string
+    election_id: string
+    election_event_id: string
+    tenant_id: string
+    ballot_eml: IElectionDTO
+    ballot_signature?: string | null
+    created_at: string
+    area_id?: string | null
+    annotations?: string | null
+    labels?: string | null
+    last_updated_at: string
+}
 
 interface IProps {
     ballotStyle: IBallotStyle | undefined
     confirmationBallot: IConfirmationBallot | null
-    ballotService: IBallotService
     ballotId: string
     label?: string
 }
@@ -22,13 +36,10 @@ interface IProps {
 export const ConfirmationScreen: React.FC<IProps> = ({
     ballotStyle,
     confirmationBallot,
-    ballotService,
     ballotId,
 }) => {
     const navigate = useNavigate()
     const [isLoading, setIsLoading] = useState(confirmationBallot === null)
-
-    console.log("aa confirmationBallot", confirmationBallot)
 
     useEffect(() => {
         setIsLoading(confirmationBallot === null)
@@ -52,12 +63,11 @@ export const ConfirmationScreen: React.FC<IProps> = ({
 
             <BallotIdSection confirmationBallot={confirmationBallot} ballotId={ballotId} />
 
-            {isMatchingBallotIds(confirmationBallot?.ballot_hash, ballotId) ? (
+            {ballotStyle && isMatchingBallotIds(confirmationBallot?.ballot_hash, ballotId) ? (
                 <VerifySelectionsSection
                     ballotStyle={ballotStyle}
                     confirmationBallot={confirmationBallot}
                     isLoading={isLoading}
-                    ballotService={ballotService}
                 />
             ) : null}
 

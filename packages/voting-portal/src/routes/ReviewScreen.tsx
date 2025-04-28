@@ -76,7 +76,7 @@ import {
 import {sortContestList, hashBallot, hashMultiBallot} from "@sequentech/ui-core"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import {AuthContext} from "../providers/AuthContextProvider"
-import {useGetOne} from "react-admin"
+import {isVotedByElectionId} from "../store/extra/extraSlice"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -432,6 +432,9 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
 export const ReviewScreen: React.FC = () => {
     const {electionId} = useParams<{electionId?: string}>()
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
+
+    console.log("aa ballotStyle", ballotStyle)
+
     const location = useLocation()
     const auditableBallot = useAppSelector(selectAuditableBallot(String(electionId)))
     const [auditBallotHelp, setAuditBallotHelp] = useState<boolean>(false)
@@ -513,6 +516,7 @@ export const ReviewScreen: React.FC = () => {
         selectBallotSelectionByElectionId(ballotStyle?.election_id ?? "")
     )
     // console.log("bb selectionState *** ", selectionState)
+    const isVotedState = useAppSelector(isVotedByElectionId?.(ballotStyle?.election_id))
 
     const errorSelectionState = useMemo(() => {
         if (!selectionState || !ballotStyle) {
@@ -754,6 +758,7 @@ export const ReviewScreen: React.FC = () => {
                             )}
                             isReview={true}
                             errorSelectionState={errorSelectionState}
+                            isVotedState={isVotedState}
                         />
                     </Box>
                 )

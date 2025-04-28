@@ -31,7 +31,7 @@ import {
     setBallotSelectionBlankVote,
     setBallotSelectionVoteChoice,
 } from "../store/ballotSelections/ballotSelectionsSlice"
-import {clearIsVoted, setIsVoted} from "../store/extra/extraSlice"
+import {clearIsVoted, setIsVoted, isVotedByElectionId} from "../store/extra/extraSlice"
 import {provideBallotService} from "../services/BallotService"
 import {setAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
 import {Question} from "../components/Question/Question"
@@ -196,9 +196,8 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
     const selectionState = useAppSelector(
         selectBallotSelectionByElectionId(ballotStyle?.election_id ?? "")
     )
-    console.log("bb selectionState *** ", selectionState)
-
     const {interpretContestSelection, interpretMultiContestSelection} = provideBallotService()
+    const isVotedState = useAppSelector(isVotedByElectionId?.(ballotStyle?.election_id))
 
     const isMultiContest =
         ballotStyle?.ballot_eml.election_event_presentation?.contest_encryption_policy ==
@@ -276,6 +275,7 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
                             onSetBallotSelectionInvalidVote={doSetBallotSelectionInvalidVote}
                             onSetBallotSelectionVoteChoice={doSetBallotSelectionVoteChoice}
                             url={globalSettings.PUBLIC_BUCKET_URL}
+                            isVotedState={isVotedState ?? false}
                         />
                     </Box>
                 ))}
@@ -311,8 +311,6 @@ const VotingScreen: React.FC = () => {
     } = provideBallotService()
     const election = useAppSelector(selectElectionById(String(electionId)))
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
-
-    console.log("aa ballotStyle", ballotStyle)
 
     const selectionState = useAppSelector(
         selectBallotSelectionByElectionId(ballotStyle?.election_id ?? "")

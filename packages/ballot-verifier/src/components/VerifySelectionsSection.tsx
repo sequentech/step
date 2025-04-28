@@ -3,19 +3,32 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useState} from "react"
 import Typography from "@mui/material/Typography"
-import Paper from "@mui/material/Paper"
 import Box from "@mui/material/Box"
-import {Link as RouterLink} from "react-router-dom"
 import {useTranslation} from "react-i18next"
 import {styled} from "@mui/material/styles"
 import Skeleton from "@mui/material/Skeleton"
-import {IBallotService, IConfirmationBallot} from "../services/BallotService"
-import Button from "@mui/material/Button"
+import {IConfirmationBallot} from "../services/BallotService"
 import {faCircleQuestion} from "@fortawesome/free-solid-svg-icons"
 import {IconButton, Dialog, theme} from "@sequentech/ui-essentials"
 import {keyBy} from "lodash"
-import {PlaintextVoteQuestion} from "./PlaintextVoteQuestion"
-import {IBallotStyle} from "@sequentech/ui-core"
+
+import {Question} from "./Question/Question"
+
+import {IBallotStyle as IElectionDTO} from "@sequentech/ui-core"
+
+export interface IBallotStyle {
+    id: string
+    election_id: string
+    election_event_id: string
+    tenant_id: string
+    ballot_eml: IElectionDTO
+    ballot_signature?: string | null
+    created_at: string
+    area_id?: string | null
+    annotations?: string | null
+    labels?: string | null
+    last_updated_at: string
+}
 
 const HorizontalWrap = styled(Box)`
     display: flex;
@@ -26,17 +39,15 @@ const HorizontalWrap = styled(Box)`
 `
 
 interface VerifySelectionsSectionProps {
-    ballotStyle: IBallotStyle | undefined
+    ballotStyle: IBallotStyle
     isLoading: boolean
     confirmationBallot: IConfirmationBallot | null
-    ballotService: IBallotService
 }
 
 export const VerifySelectionsSection: React.FC<VerifySelectionsSectionProps> = ({
     ballotStyle,
     isLoading,
     confirmationBallot,
-    ballotService,
 }) => {
     const {t} = useTranslation()
     const [verifySelectionsHelp, setVerifySelectionsHelp] = useState(false)
@@ -72,7 +83,7 @@ export const VerifySelectionsSection: React.FC<VerifySelectionsSectionProps> = (
             <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
                 {t("confirmationScreen.verifySelectionsDescription")}
             </Typography>
-            {isLoading ? (
+            {!ballotStyle && isLoading ? (
                 <>
                     <Skeleton variant="text" />
                     <Skeleton variant="text" />
@@ -87,7 +98,7 @@ export const VerifySelectionsSection: React.FC<VerifySelectionsSectionProps> = (
                     </Typography>
                 </>
             )}
-            {isLoading ? (
+            {!ballotStyle && isLoading ? (
                 <>
                     <Skeleton variant="text" />
                     <Skeleton variant="text" />
@@ -96,15 +107,18 @@ export const VerifySelectionsSection: React.FC<VerifySelectionsSectionProps> = (
                 </>
             ) : (
                 <>
-                    {plaintextVoteQuestions.map((voteQuestion) => (
-                        <PlaintextVoteQuestion
-                            ballotStyle={ballotStyle}
-                            question={questionsMap[voteQuestion.contest_id] ?? null}
-                            questionPlaintext={voteQuestion}
-                            ballotService={ballotService}
-                            key={voteQuestion.contest_id}
-                        />
-                    ))}
+                    {ballotStyle &&
+                        plaintextVoteQuestions.map((voteQuestion) => (
+                            <Question
+                                ballotStyle={ballotStyle}
+                                question={questionsMap[voteQuestion.contest_id] ?? null}
+                                questionPlaintext={voteQuestion}
+                                isReview={true}
+                                isVotedState={true}
+                                key={voteQuestion.contest_id}
+                                errorSelectionState={[]}
+                            />
+                        ))}
                 </>
             )}
         </>
