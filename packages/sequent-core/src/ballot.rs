@@ -1322,6 +1322,7 @@ pub enum Publish {
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
+#[serde(default)]
 pub struct ElectionEventStatus {
     pub is_published: Option<bool>,
     pub voting_status: VotingStatus,
@@ -1711,6 +1712,7 @@ pub fn format_date_opt(date: &Option<DateTime<Utc>>) -> Option<String> {
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
+#[serde(default)]
 pub struct ElectionStatus {
     pub is_published: Option<bool>,
     pub voting_status: VotingStatus,
