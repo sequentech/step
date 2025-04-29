@@ -34,11 +34,11 @@ rustcrypto_interop_test = []
 
 # Backends
 # See https://docs.rs/curve25519-dalek/latest/curve25519_dalek/#simd-backend to select simd backend
-curve25519-dalek = { version = "=4.1.3", features = [] } # stuck at getrandom-0.2.15
+curve25519-dalek = { version = "=4.1.3", features = [] } # Depends on digest 10.0 which is stuck at getrandom-0.2.15
 num-bigint = { version = "0.4", features = ["rand"], optional = true }
 num-traits = { version = "0.2", optional = true }
 num-integer = { version = "0.1", optional = true }
-num-modular = { version = "0.5", features = ["num-bigint"], optional = true }
+num-modular = { version = "=0.5", features = ["num-bigint"], optional = true } # Pinned to avoid compile errors at the moment
 malachite = { version = "0.3.2", default-features = false, features = [ "naturals_and_integers" ], optional = true }
 rug = { version = "~1.23.0", default-features = false, features = ["integer", "rand"], optional = true }
 
@@ -69,7 +69,7 @@ base64 = "0.22.1"
 # RNG
 rand = { package="rand", version = "0.8" }
 rand_core = { version = "0.6.4", optional = true }
-getrandom = { version = "0.2.15", optional = true }
+getrandom = { version = "=0.2.15", optional = true } # curve25519-dalek depends on digest v10.0 which is stuck at getrandom-0.2.15
 
 # WASM
 wasm-bindgen-rayon = {version = "1.3.0", features = ["no-bundler"], optional = true}
