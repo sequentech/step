@@ -238,7 +238,10 @@ pub async fn insert_election_event_db(
     hasura_transaction: &Transaction<'_>,
     object: &CreateElectionEventInput,
 ) -> Result<()> {
-    let election_event_id = object.id.clone().unwrap();
+    let election_event_id = object
+        .id
+        .clone()
+        .ok_or(anyhow!("Empty election event id"))?;
     let tenant_id = object.tenant_id.clone();
     // fetch election_event
     let found_election_event = get_election_event_by_id_if_exist(
@@ -259,7 +262,7 @@ pub async fn insert_election_event_db(
     }
 
     let new_election_input = ElectionEvent {
-        id: object.id.clone().unwrap(),
+        id: election_event_id.clone(),
         tenant_id: object.tenant_id.clone(),
         name: object.name.clone(),
         description: object.description.clone(),
@@ -352,8 +355,7 @@ pub async fn get_document(
 
     let mut temp_file = documents::get_document_as_temp_file(&object.tenant_id, &document)
         .await
-        .map_err(|err| anyhow!("Error trying to get document as temporary file {err}"))
-        .unwrap();
+        .map_err(|err| anyhow!("Error trying to get document as temporary file {err}"))?;
 
     let document_type = document
         .clone()
@@ -753,9 +755,9 @@ pub async fn process_s3_files(
 
     let file_suffix = Path::new(&file_path_string)
         .extension()
-        .unwrap()
+        .ok_or(anyhow!("Empty extension"))?
         .to_str()
-        .unwrap();
+        .ok_or(anyhow!("Empty file suffix"))?;
     let document_type = get_mime_types(file_suffix)[0];
 
     // Upload the file and return the document
@@ -1088,10 +1090,10 @@ pub async fn process_document(
                 let tally_file_name = file_name
                     .split("/")
                     .last()
-                    .unwrap()
+                    .ok_or(anyhow!("Unexpected, tally without filename"))?
                     .split(".")
                     .next()
-                    .unwrap();
+                    .ok_or(anyhow!("Unexpected tally without extension"))?;
                 println!("tally_file_name:: {:?}", &tally_file_name);
                 process_tally_file(
                     hasura_transaction,

@@ -173,7 +173,7 @@ pub async fn process_export_zip(
     // Upload the ZIP file to Hasura
     let document = upload_and_return_document(
         &hasura_transaction,
-        upload_path.to_str().unwrap(),
+        upload_path.to_str().ok_or(anyhow!("Empty upload path"))?,
         zip_size,
         "application/zip",
         &tenant_id.to_string(),

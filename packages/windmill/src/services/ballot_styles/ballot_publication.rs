@@ -33,8 +33,8 @@ async fn get_election_ids_for_publication(
     election_event_id: String,
     election_id_opt: Option<String>,
 ) -> Result<Vec<String>> {
-    if election_id_opt.is_some() {
-        return Ok(vec![election_id_opt.unwrap()]);
+    if let Some(election_id) = election_id_opt {
+        return Ok(vec![election_id]);
     }
     let elections_ids =
         get_elections_ids(hasura_transaction, &tenant_id, &election_event_id).await?;
@@ -68,8 +68,7 @@ pub async fn add_ballot_publication(
         user_id.clone(),
         election_id.clone(),
     )
-    .await
-    .unwrap()
+    .await?
     .with_context(|| "can't find inserted ballot publication")?;
 
     let task = celery_app
@@ -103,8 +102,7 @@ pub async fn update_publish_ballot(
         &election_event_id,
         &ballot_publication_id,
     )
-    .await
-    .unwrap()
+    .await?
     .with_context(|| "Can't find ballot publication")?;
 
     if ballot_publication.is_generated.unwrap_or(false) == false {
@@ -239,8 +237,8 @@ async fn get_publication_json(
         .iter()
         .map(|el| el.clone().map(|val| deserialize_str(&val).ok()).flatten())
         .filter(|el| el.is_some())
-        .map(|el| el.unwrap())
-        .collect();
+        .map(|el| el.ok_or(anyhow!("Empty ballot style!")))
+        .collect::<Result<Vec<_>>>()?;
 
     Ok(serde_json::Value::Array(val_arr))
 }
@@ -271,8 +269,7 @@ pub async fn get_ballot_publication_diff(
         &election_event_id,
         &ballot_publication_id,
     )
-    .await
-    .unwrap()
+    .await?
     .with_context(|| "Can't find ballot publication")?;
 
     let previous_publication_id = if let Some(election_id) = ballot_publication.election_id.clone()

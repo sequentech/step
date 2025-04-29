@@ -55,8 +55,13 @@ pub async fn insert_ballots_messages(
     let deserialized_trustee_pks: Vec<StrandSignaturePk> = trustees
         .clone()
         .into_iter()
-        .map(|trustee| deserialize_public_key(trustee.public_key.unwrap()))
-        .collect();
+        .map(|trustee| {
+            let public_key = trustee
+                .public_key
+                .ok_or(anyhow!("Missing trustee public key"))?;
+            deserialize_public_key(public_key)
+        })
+        .collect::<Result<Vec<_>>>()?;
 
     event!(
         Level::INFO,

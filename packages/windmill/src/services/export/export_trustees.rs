@@ -81,7 +81,9 @@ pub async fn read_trustees_config_base(
     // Upload the ZIP file (encrypted or original) to Hasura
     let document = upload_and_return_document(
         &transaction,
-        encrypted_zip_path.to_str().unwrap(),
+        encrypted_zip_path
+            .to_str()
+            .ok_or(anyhow!("Empty encrypted zip path"))?,
         zip_size,
         "application/zip",
         &tenant_id.to_string(),

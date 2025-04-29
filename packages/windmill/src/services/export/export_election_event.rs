@@ -391,7 +391,11 @@ pub async fn process_export_zip(
         let mut file_counter = 1;
 
         for file_path in s3_files {
-            let file_name = file_path.file_name().unwrap().to_string_lossy().to_string();
+            let file_name = file_path
+                .file_name()
+                .ok_or(anyhow!("Empty filename"))?
+                .to_string_lossy()
+                .to_string();
             let file_name_in_zip = format!("{}/{}-{}", s3_folder_name, file_counter, file_name);
             zip_writer
                 .start_file(&file_name_in_zip, options)
