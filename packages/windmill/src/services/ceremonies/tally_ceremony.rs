@@ -304,7 +304,6 @@ pub async fn create_tally_ceremony(
         .filter(|contest| election_ids.contains(&contest.election_id))
         .collect();
 
-
     let elections: Vec<Election> = all_elections
         .into_iter()
         .filter(|election| {
