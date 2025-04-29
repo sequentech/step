@@ -62,9 +62,13 @@ import {selectBallotSelectionByElectionId} from "../store/ballotSelections/ballo
 import {sortContestList, hashBallot, hashMultiBallot} from "@sequentech/ui-core"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import {AuthContext} from "../providers/AuthContextProvider"
-import {IElectionEvent, selectElectionEventById} from "../store/electionEvents/electionEventsSlice"
+import {
+    IElectionEvent,
+    selectElectionEventById,
+    setElectionEvent,
+} from "../store/electionEvents/electionEventsSlice"
 import {selectElections} from "../store/elections/electionsSlice"
-import {fetchJson} from "../services/FetchS3BallotFiles"
+import {fetchJson, BallotFilesUrlsOutput} from "../services/FetchS3BallotFiles"
 import {GET_BALLOT_FILES_URLS} from "../queries/GetBallotFilesUrls"
 
 const StyledLink = styled(RouterLink)`
@@ -426,13 +430,11 @@ export const ReviewScreen: React.FC = () => {
     const [insertCastVote] = useMutation<InsertCastVoteMutation>(INSERT_CAST_VOTE)
     const dispatch = useAppDispatch()
     const [getBallotFilesUrls] = useMutation(GET_BALLOT_FILES_URLS)
-    const urls = useRef<string[] | undefined>(undefined)
+    const urls = useRef<BallotFilesUrlsOutput | undefined>(undefined)
     const isGoldUserRef = useRef<boolean | undefined>(undefined)
     const isGoldenPolicy = useRef<boolean | undefined>(undefined)
     const loadingS3Data = useRef<boolean>(false)
-    const [dataElectionEvent, setDataElectionEvent] = useState<IElectionEvent | undefined>(
-        undefined
-    )
+    const dataElectionEvent = useAppSelector(selectElectionEventById(eventId))
 
     async function fetchS3Data() {
         try {
@@ -441,23 +443,20 @@ export const ReviewScreen: React.FC = () => {
                     eventId,
                 },
             })
-            // The election event file and the elections file are the first two urls followed by as any urls as ballot styles.
-            let dataUrls = (res.data?.get_ballot_files_urls?.urls as string[]) ?? []
-            if (!dataUrls || dataUrls.length < 1) {
+
+            let dataUrls = (res.data?.get_ballot_files_urls as BallotFilesUrlsOutput) ?? null
+            if (!dataUrls || !dataUrls.election_event_url) {
+                loadingS3Data.current = false
                 throw new Error("Not enough urls")
             }
-            dataUrls = dataUrls.slice(0, 1)
+
             urls.current = dataUrls
-            const contents = await Promise.all(
-                dataUrls.map(async (url) => {
-                    const content = await fetchJson(url)
-                    return {url, content}
-                })
-            )
-            if (!contents || contents.length < 1) {
+            const contentElectionEvent = await fetchJson(dataUrls.election_event_url)
+
+            if (!contentElectionEvent) {
                 throw new Error("Not enough contents")
             }
-            setDataElectionEvent(contents[0].content as IElectionEvent)
+            dispatch(setElectionEvent(contentElectionEvent as IElectionEvent))
         } catch (error) {
             console.log("Error getting signed urls", error)
             setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.LOAD_ELECTION_EVENT}`))
