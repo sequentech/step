@@ -485,6 +485,7 @@ const dutchTranslation: TranslationType = {
                 copiedError: "Fout bij kopiëren wachtwoord",
                 reports: "Rapporten",
                 applications: "Applicaties",
+                tally: "Telling",
             },
             taskNotification:
                 "{{action}} is gestart. U kunt de status ervan zien in de tabel Taakuitvoering.",
@@ -1084,6 +1085,7 @@ const dutchTranslation: TranslationType = {
                 fr: "Frans",
                 cat: "Valenciaans",
                 tl: "Tagalog",
+                gl: "Galicisch",
                 nl: "Nederlands",
             },
             channel: {
