@@ -105,7 +105,7 @@ pub async fn get_election_event_by_id(
         .prepare(
             r#"
                 SELECT
-                    id, created_at, updated_at, labels, annotations, tenant_id, name, description, presentation, bulletin_board_reference, is_archived, voting_channels, status, user_boards, encryption_protocol, is_audit, audit_election_event_id, public_key, alias, statistics
+                    *
                 FROM
                     sequent_backend.election_event
                 WHERE
@@ -149,7 +149,7 @@ pub async fn get_election_event_by_id_if_exist(
         .prepare(
             r#"
                 SELECT
-                    id, created_at, updated_at, labels, annotations, tenant_id, name, description, presentation, bulletin_board_reference, is_archived, voting_channels, status, user_boards, encryption_protocol, is_audit, audit_election_event_id, public_key, alias, statistics
+                    *
                 FROM
                     sequent_backend.election_event
                 WHERE
