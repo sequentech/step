@@ -6,7 +6,9 @@ import {gql} from "@apollo/client"
 export const GET_BALLOT_FILES_URLS = gql`
     mutation GetBallotFilesUrls($eventId: uuid!) {
         get_ballot_files_urls(election_event_id: $eventId) {
-            urls
+            election_event_url
+            elections_url
+            ballot_style_urls
         }
     }
 `

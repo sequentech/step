@@ -1198,7 +1198,9 @@ type createBallotReceiptOutput {
 }
 
 type getBallotFilesUrlsOutput {
-    urls: [String]
+    election_event_url: String
+    elections_url: String
+    ballot_style_urls: [String]
 }
 
 type OptionalImportEvent {

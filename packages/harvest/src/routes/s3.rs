@@ -20,7 +20,9 @@ pub struct GetBallotFilesUrlsInput {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GetBallotFilesOutput {
-    urls: Vec<String>,
+    election_event_url: String,
+    elections_url: String,
+    ballot_style_urls: Vec<String>,
 }
 
 #[instrument(skip(claims))]
@@ -84,27 +86,41 @@ pub async fn get_ballot_files_urls(
             )
         })?;
 
-    // Start pushing the file paths that wee need to create later its signed
-    // URLs
-    let mut files: Vec<String> = vec![];
     let election_event_file = s3::get_election_event_file_path(
         &tenant_id,
         &election_event_id,
         &ballot_publications.ballot_publication_id,
     );
-    files.push(election_event_file);
+    let election_event_url =
+        s3::get_document_url(election_event_file, s3_bucket.clone())
+            .await
+            .map_err(|_e| {
+                ErrorResponse::new(
+                    Status::InternalServerError,
+                    "Error signing url",
+                    ErrorCode::InternalServerError,
+                )
+            })?;
+
     let elections_file = s3::get_elections_file_path(
         &tenant_id,
         &election_event_id,
         &area_id,
         &ballot_publications.ballot_publication_id,
     );
-    files.push(elections_file);
-    files.append(&mut ballot_publications.ballot_style_paths);
+    let elections_url = s3::get_document_url(elections_file, s3_bucket.clone())
+        .await
+        .map_err(|_e| {
+            ErrorResponse::new(
+                Status::InternalServerError,
+                "Error signing url",
+                ErrorCode::InternalServerError,
+            )
+        })?;
 
     // Get the signed URLs
-    let mut urls = vec![];
-    for document_s3_key in files {
+    let mut ballot_style_urls = vec![];
+    for document_s3_key in ballot_publications.ballot_style_paths {
         let url = s3::get_document_url(document_s3_key, s3_bucket.clone())
             .await
             .map_err(|_e| {
@@ -115,8 +131,12 @@ pub async fn get_ballot_files_urls(
                 )
             })?;
         info!("url: {url:?}");
-        urls.push(url);
+        ballot_style_urls.push(url);
     }
 
-    Ok(Json(GetBallotFilesOutput { urls }))
+    Ok(Json(GetBallotFilesOutput {
+        election_event_url,
+        elections_url,
+        ballot_style_urls,
+    }))
 }

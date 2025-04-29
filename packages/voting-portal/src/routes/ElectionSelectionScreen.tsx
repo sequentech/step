@@ -48,7 +48,7 @@ import {TenantEventType} from ".."
 import Stepper from "../components/Stepper"
 import {selectBypassChooser, setBypassChooser} from "../store/extra/extraSlice"
 import {updateBallotStyleAndSelection2} from "../services/BallotStyles"
-import {fetchJson} from "../services/FetchS3BallotFiles"
+import {fetchJson, BallotFilesUrlsOutput} from "../services/FetchS3BallotFiles"
 import useUpdateTranslation from "../hooks/useUpdateTranslation"
 import {GET_SUPPORT_MATERIALS} from "../queries/GetSupportMaterials"
 import {GET_BALLOT_FILES_URLS} from "../queries/GetBallotFilesUrls"
@@ -194,7 +194,7 @@ const ElectionSelectionScreen: React.FC = () => {
     const [alertMsg, setAlertMsg] = useState<ElectionScreenMsgType>()
     const [errorCause, setErrorCause] = useState<ElectionScreenErrorType>()
     const [getBallotFilesUrls] = useMutation(GET_BALLOT_FILES_URLS)
-    const urls = useRef<string[] | undefined>(undefined)
+    const urls = useRef<BallotFilesUrlsOutput | undefined>(undefined)
     const requestingS3Data = useRef<boolean>(false)
     const loadingS3Data = useRef<boolean>(true)
     const dataFirstBallotStyle = useAppSelector(selectFirstBallotStyle)
@@ -238,28 +238,29 @@ const ElectionSelectionScreen: React.FC = () => {
                 },
             })
 
-            // The election event file and the elections file are the first two urls followed by as any urls as ballot styles.
-            let dataUrls = (res.data?.get_ballot_files_urls?.urls as string[]) ?? []
-            if (!dataUrls || dataUrls.length < 3) {
+            let dataUrls = (res.data?.get_ballot_files_urls as BallotFilesUrlsOutput) ?? null
+            if (!dataUrls || !dataUrls.election_event_url || !dataUrls.elections_url || !dataUrls.ballot_style_urls ) {
                 setErrorCause(ElectionScreenErrorType.UNKNOWN_ERROR)
                 loadingS3Data.current = false
                 return
             }
 
             urls.current = dataUrls
-            const contents = await Promise.all(
-                dataUrls.map(async (url) => {
+            const contentElectionEvent = await fetchJson(dataUrls.election_event_url)
+            const contentElections = await fetchJson(dataUrls.elections_url)
+            const contentBallotStyles = await Promise.all(
+                dataUrls.ballot_style_urls.map(async (url) => {
                     const content = await fetchJson(url)
-                    return {url, content}
+                    return content
                 })
             )
-            if (!contents || contents.length < 3) {
+            if (!contentElectionEvent || !contentElections || !contentBallotStyles) {
                 setErrorCause(ElectionScreenErrorType.UNKNOWN_ERROR)
                 loadingS3Data.current = false
                 return
             }
-            dispatch(setElectionEvent(contents[0].content as IElectionEvent))
-            for (let election of contents[1].content as IElection[]) {
+            dispatch(setElectionEvent(contentElectionEvent as IElectionEvent))
+            for (let election of contentElections as IElection[]) {
                 dispatch(
                     setElection({
                         ...election,
@@ -270,14 +271,9 @@ const ElectionSelectionScreen: React.FC = () => {
                     })
                 )
             }
-            let ballotStyles: IBallotStyle[] = []
-            for (let i = 2; i < contents.length; i++) {
-                const ballotStyle = contents[i].content as IBallotStyle
-                ballotStyles.push(ballotStyle)
-            }
 
             try {
-                updateBallotStyleAndSelection2((ballotStyles) || [], dispatch)
+                updateBallotStyleAndSelection2((contentBallotStyles as IBallotStyle[]) || [], dispatch)
             } catch {
                 setErrorMsg(
                     t(`electionSelectionScreen.errors.${ElectionScreenErrorType.BALLOT_STYLES_EML}`)

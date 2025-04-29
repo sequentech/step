@@ -2,6 +2,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+export interface BallotFilesUrlsOutput {
+    election_event_url: string | null
+    elections_url: string | null
+    ballot_style_urls: Array<string> | null
+}
+
 export const fetchJson = async (url: string) => {
     try {
         const response = await fetch(url)
