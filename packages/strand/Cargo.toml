@@ -50,7 +50,7 @@ p384 = "0.13.0"
 
 # certificates
 x509-parser = "0.15.1"
-rcgen = {version = "0.11.3", features = ["x509-parser"] }
+rcgen = {version = "=0.11.3", features = ["x509-parser"] }
 
 # symmetric
 chacha20poly1305 = "0.10.1"
