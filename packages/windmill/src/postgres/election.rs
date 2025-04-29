@@ -589,7 +589,7 @@ pub async fn export_elections(
         )
         .await?;
 
-    let election_events: Vec<Election> = rows
+    let elections: Vec<Election> = rows
         .into_iter()
         .map(|row| -> Result<Election> {
             row.try_into()
@@ -597,7 +597,7 @@ pub async fn export_elections(
         })
         .collect::<Result<Vec<Election>>>()?;
 
-    Ok(election_events)
+    Ok(elections)
 }
 
 #[instrument(err, skip(hasura_transaction))]
@@ -712,7 +712,7 @@ pub async fn update_election_status(
             status = jsonb_set(
                 COALESCE(status, '{}'::jsonb),   -- start with empty object if NULL
                 '{is_published}',                -- path
-                'true'::jsonb,                   -- new value
+                to_jsonb($4::bool),              -- new value
                 true                             -- create the key if missing
             )
         WHERE
