@@ -25,7 +25,7 @@ import {
     selectBallotStyleElectionIds,
     selectFirstBallotStyle,
 } from "../store/ballotStyles/ballotStylesSlice"
-import {selectElectionById, setElection, selectElectionIds} from "../store/elections/electionsSlice"
+import {selectElectionById, setElection, selectElectionIds, selectElections} from "../store/elections/electionsSlice"
 import {addCastVotes, selectCastVotesByElectionId} from "../store/castVotes/castVotesSlice"
 import {useLocation, useNavigate, useParams} from "react-router-dom"
 import {useMutation, useQuery} from "@apollo/client"
@@ -197,11 +197,9 @@ const ElectionSelectionScreen: React.FC = () => {
     const urls = useRef<string[] | undefined>(undefined)
     const requestingS3Data = useRef<boolean>(false)
     const loadingS3Data = useRef<boolean>(true)
-    const [dataBallotStyles, setDataBallotStyles] = useState<IBallotStyle[] | undefined>(undefined)
-    const [dataElections, setDataElections] = useState<IElection[] | undefined>(undefined)
-    const [dataElectionEvent, setDataElectionEvent] = useState<IElectionEvent | undefined>(
-        undefined
-    )
+    const dataFirstBallotStyle = useAppSelector(selectFirstBallotStyle)
+    const dataElections = useAppSelector(selectElections)
+    const dataElectionEvent = useAppSelector(selectElectionEventById(eventId))
 
     // Materials
     const {
@@ -260,14 +258,32 @@ const ElectionSelectionScreen: React.FC = () => {
                 loadingS3Data.current = false
                 return
             }
-            setDataElectionEvent(contents[0].content as IElectionEvent)
-            setDataElections(contents[1].content as IElection[])
+            dispatch(setElectionEvent(contents[0].content as IElectionEvent))
+            for (let election of contents[1].content as IElection[]) {
+                dispatch(
+                    setElection({
+                        ...election,
+                        image_document_id: "",
+                        contests: [],
+                        description: election.description ?? undefined,
+                        alias: election.alias ?? undefined,
+                    })
+                )
+            }
             let ballotStyles: IBallotStyle[] = []
             for (let i = 2; i < contents.length; i++) {
                 const ballotStyle = contents[i].content as IBallotStyle
                 ballotStyles.push(ballotStyle)
             }
-            setDataBallotStyles(ballotStyles)
+
+            try {
+                updateBallotStyleAndSelection2((ballotStyles) || [], dispatch)
+            } catch {
+                setErrorMsg(
+                    t(`electionSelectionScreen.errors.${ElectionScreenErrorType.BALLOT_STYLES_EML}`)
+                )
+            }
+
         } catch (error) {
             loadingS3Data.current = false
             console.log("Error getting signed urls: ", error)
@@ -349,34 +365,15 @@ const ElectionSelectionScreen: React.FC = () => {
     ])
 
     useEffect(() => {
-        if (dataBallotStyles && dataBallotStyles.length > 0) {
+        if (dataFirstBallotStyle && dataElectionEvent && dataElections) {
             loadingS3Data.current = false
-            try {
-                updateBallotStyleAndSelection2((dataBallotStyles as IBallotStyle[]) || [], dispatch)
-            } catch {
-                setErrorMsg(
-                    t(`electionSelectionScreen.errors.${ElectionScreenErrorType.BALLOT_STYLES_EML}`)
-                )
-            }
         }
-    }, [globalSettings.DISABLE_AUTH, dataBallotStyles, dispatch])
+    }, [globalSettings.DISABLE_AUTH, dataElectionEvent, dataElections, dataFirstBallotStyle, dispatch])
 
     useEffect(() => {
         if (dataElections && dataElections.length > 0) {
-            for (let election of dataElections) {
-                dispatch(
-                    setElection({
-                        ...election,
-                        image_document_id: "",
-                        contests: [],
-                        description: election.description ?? undefined,
-                        alias: election.alias ?? undefined,
-                    })
-                )
-            }
-
             let foundTestElection = dataElections.find((election) =>
-                election.name?.includes("TEST")
+                election?.name?.includes("TEST")
             )
 
             if (foundTestElection) {
