@@ -9,13 +9,16 @@ use crate::postgres::reports::Report;
 use crate::postgres::trustee::get_all_trustees;
 use crate::services::import::import_publications::import_ballot_publications;
 use crate::services::import::import_scheduled_events::import_scheduled_events;
+use crate::services::import::import_tally::process_tally_file;
 use crate::services::protocol_manager::get_event_board;
 use crate::services::reports::template_renderer::EReportEncryption;
 use crate::services::reports_vault::get_report_key_pair;
 use crate::services::tasks_execution::update_fail;
 use crate::tasks::insert_election_event::CreateElectionEventInput;
+use crate::types::documents::ETallyDocuments;
 use ::keycloak::types::RealmRepresentation;
 use anyhow::{anyhow, Context, Result};
+use chrono::format;
 use chrono::{DateTime, Utc};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use futures::future::try_join_all;
@@ -815,16 +818,28 @@ pub async fn get_zip_entries(
             (vec![], data_str)
         };
 
-    // sort it so that first we import the protocol manager keys files
-    zip_entries.sort_by(|(file_name_a, _), (file_name_b, _)| {
-        let is_a_target = file_name_a.contains(&EDocuments::PROTOCOL_MANAGER_KEYS.to_file_name());
-        let is_b_target = file_name_b.contains(&EDocuments::PROTOCOL_MANAGER_KEYS.to_file_name());
+    // Sort the ZIP entries by importance:
+    // 1. Protocol Manager keys are imported first (rank 0)
+    // 2. Regular files come next (rank 1)
+    // 3. Inside the TALLY directory:
+    //    - TALLY_SESSION and RESULTS_EVENT files are imported just before others (rank 2)
+    //    - All other TALLY files come last (rank 3)
+    zip_entries.sort_by_key(|(file_name, _)| {
+        let rank = if file_name.contains(EDocuments::PROTOCOL_MANAGER_KEYS.to_file_name()) {
+            0
+        } else if file_name.contains(EDocuments::TALLY.to_file_name()) {
+            if file_name.contains(ETallyDocuments::TALLY_SESSION.to_file_name())
+                || file_name.contains(ETallyDocuments::RESULTS_EVENT.to_file_name())
+            {
+                2
+            } else {
+                3
+            }
+        } else {
+            1
+        };
 
-        match (is_a_target, is_b_target) {
-            (true, false) => std::cmp::Ordering::Less,
-            (false, true) => std::cmp::Ordering::Greater,
-            _ => std::cmp::Ordering::Equal,
-        }
+        (rank, file_name.clone()) // rank first, then alphabetically within rank
     });
 
     Ok((zip_entries, election_event_schema))
@@ -856,6 +871,31 @@ pub async fn process_document(
     });
 
     let election_event_id_clone = election_event_id.clone();
+
+    let tally_session_file = zip_entries
+        .iter()
+        .find(|(name, _)| name.contains(ETallyDocuments::TALLY_SESSION.to_file_name()));
+    let results_event_file = zip_entries
+        .iter()
+        .find(|(name, _)| name.contains(ETallyDocuments::RESULTS_EVENT.to_file_name()));
+    let mut tally_files_content: Option<String> = None;
+    if let (Some(tally_session_file), Some(results_event_file)) =
+        (tally_session_file, results_event_file)
+    {
+        let tally_session_file_content = String::from_utf8(tally_session_file.1.clone())?;
+        let results_event_file_content = String::from_utf8(results_event_file.1.clone())?;
+        tally_files_content = Some(format!(
+            "\n{}\n{}",
+            tally_session_file_content, results_event_file_content
+        ));
+    }
+    let file_election_event_schema = match tally_files_content {
+        Some(tally_files_content) => {
+            format!("{}\n{}", file_election_event_schema, tally_files_content)
+        }
+        None => file_election_event_schema,
+    };
+
     let (election_event_schema, replacement_map) = process_election_event_file(
         hasura_transaction,
         &document_type,
@@ -1035,6 +1075,34 @@ pub async fn process_document(
                 )
                 .await
                 .context("Failed to import protocol manager keys")?;
+            }
+
+            if file_name.contains(&format!("{}/", EDocuments::TALLY.to_file_name())) {
+                let mut temp_file = NamedTempFile::new()
+                    .context("Failed to create ballot publications temporary file")?;
+
+                io::copy(&mut cursor, &mut temp_file).context(
+                    "Failed to copy contents of ballot publications file to temporary file",
+                )?;
+                temp_file.as_file_mut().rewind()?;
+                let tally_file_name = file_name
+                    .split("/")
+                    .last()
+                    .unwrap()
+                    .split(".")
+                    .next()
+                    .unwrap();
+                println!("tally_file_name:: {:?}", &tally_file_name);
+                process_tally_file(
+                    hasura_transaction,
+                    &temp_file,
+                    tally_file_name.to_string(),
+                    &election_event_schema.tenant_id.to_string(),
+                    &election_event_schema.election_event.id,
+                    replacement_map.clone(),
+                )
+                .await
+                .context("Failed to import tally_file")?;
             }
         }
     };

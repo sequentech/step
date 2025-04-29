@@ -22,18 +22,18 @@ import {action as votingAction} from "./routes/VotingScreen"
 import {action as castBallotAction} from "./routes/ReviewScreen"
 import Loader from "./components/Loader"
 
-const TenantEvent = lazy(() => import("./routes/TenantEvent"))
-const PreviewPublicationEvent = lazy(() => import("./routes/PreviewPublicationEvent"))
-const ElectionSelectionScreen = lazy(() => import("./routes/ElectionSelectionScreen"))
-const LoginScreen = lazy(() => import("./routes/LoginScreen"))
-const RegisterScreen = lazy(() => import("./routes/RegisterScreen"))
-const StartScreen = lazy(() => import("./routes/StartScreen"))
-const VotingScreen = lazy(() => import("./routes/VotingScreen"))
-const ReviewScreen = lazy(() => import("./routes/ReviewScreen"))
-const ConfirmationScreen = lazy(() => import("./routes/ConfirmationScreen"))
-const AuditScreen = lazy(() => import("./routes/AuditScreen"))
-const BallotLocator = lazy(() => import("./routes/BallotLocator"))
-const SupportMaterialsScreen = lazy(() => import("./routes/SupportMaterialsScreen"))
+import TenantEvent from "./routes/TenantEvent"
+import PreviewPublicationEvent from "./routes/PreviewPublicationEvent"
+import ElectionSelectionScreen from "./routes/ElectionSelectionScreen"
+import LoginScreen from "./routes/LoginScreen"
+import RegisterScreen from "./routes/RegisterScreen"
+import StartScreen from "./routes/StartScreen"
+import VotingScreen from "./routes/VotingScreen"
+import ReviewScreen from "./routes/ReviewScreen"
+import ConfirmationScreen from "./routes/ConfirmationScreen"
+import AuditScreen from "./routes/AuditScreen"
+import BallotLocator from "./routes/BallotLocator"
+import SupportMaterialsScreen from "./routes/SupportMaterialsScreen"
 
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement)
 

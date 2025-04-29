@@ -418,6 +418,10 @@ const frenchTranslation: TranslationType = {
                         "La Cérémonie de Dépouillement ne peut pas commencer tant que vous n'avez pas créé une publication dans l'onglet Publier.",
                     participateNow:
                         "Vous avez été invité à participer à une Cérémonie de Comptage. Veuillez <1>cliquer ci-dessous sur l'action de clé de la cérémonie</1> pour participer.",
+                    startDisabled:
+                        "Vous ne pouvez pas continuer la cérémonie car aucune élection n'est sélectionnée ou les élections ne sont pas publiées.",
+                    ceremonyDisabled:
+                        "Vous ne pouvez pas continuer la cérémonie car la session de dépouillement n'est pas connectée ou le début de la cérémonie n'est pas autorisé.",
                 },
             },
             importAreas: {
@@ -485,6 +489,7 @@ const frenchTranslation: TranslationType = {
                 copiedError: "Erreur lors de la copie",
                 reports: "Rapports",
                 applications: "Applications",
+                tally: "Décompte",
             },
             taskNotification:
                 "{{action}} a commencé. Vous pouvez voir son statut dans le tableau d'Exécution des Tâches.",
@@ -1090,6 +1095,8 @@ const frenchTranslation: TranslationType = {
                 fr: "Français",
                 cat: "Valencien",
                 tl: "Tagalog",
+                gl: "Galego",
+                nl: "Néerlandais",
             },
             channel: {
                 online: "En ligne",

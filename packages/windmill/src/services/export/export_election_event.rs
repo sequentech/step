@@ -45,6 +45,7 @@ use zip::write::FileOptions;
 
 use super::export_bulletin_boards;
 use super::export_schedule_events;
+use super::export_tally;
 use super::export_users::export_users_file;
 use super::export_users::ExportBody;
 use crate::services::consolidation::aes_256_cbc_encrypt::encrypt_file_aes_256_cbc;
@@ -520,6 +521,28 @@ pub async fn process_export_zip(
             .map_err(|e| anyhow!("Error opening temporary bulletin boards file: {e:?}"))?;
         std::io::copy(&mut bulletin_boards_file, &mut zip_writer)
             .map_err(|e| anyhow!("Error copying bulletin boards file to ZIP: {e:?}"))?;
+    }
+
+    if export_config.tally {
+        let tally_folder_name = format!("{}", EDocuments::TALLY.to_file_name());
+
+        let tally_data =
+            export_tally::read_tally_data(&hasura_transaction, tenant_id, election_event_id)
+                .await
+                .map_err(|e| anyhow!("Error reading tally data: {e:?}"))?;
+
+        for (file_name, file_path) in tally_data {
+            let file_name_in_zip = format!("{}/{}.csv", tally_folder_name, file_name);
+
+            zip_writer
+                .start_file(&file_name_in_zip, options)
+                .map_err(|e| anyhow!("Error starting tally file in ZIP: {e:?}"))?;
+
+            let mut tally_file = File::open(&file_path)
+                .map_err(|e| anyhow!("Error opening {file_name} file: {e:?}"))?;
+            std::io::copy(&mut tally_file, &mut zip_writer)
+                .map_err(|e| anyhow!("Error copying tally file to ZIP: {e:?}"))?;
+        }
     }
 
     // Finalize the ZIP file

@@ -10,8 +10,9 @@ use sequent_core::{
         hasura::core::{TallySession, TallySessionConfiguration},
     },
 };
+use serde::Serialize;
 use serde_json::value::Value;
-use tokio_postgres::row::Row;
+use tokio_postgres::{row::Row, types::ToSql};
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
@@ -406,4 +407,116 @@ pub async fn set_tally_session_completed(
         .map_err(|err| anyhow!("Error running query update tally sesstion status: {err}"))?;
 
     Ok(())
+}
+
+#[derive(Debug, Serialize)]
+struct InsertableTallySession {
+    tenant_id: Uuid,
+    election_event_id: Uuid,
+    id: Uuid,
+    keys_ceremony_id: Uuid,
+    election_ids: Vec<Uuid>,
+    area_ids: Vec<Uuid>,
+    execution_status: Option<String>,
+    threshold: i32,
+    configuration: Option<Value>,
+    tally_type: Option<String>,
+    annotations: Option<Value>,
+    permission_label: Option<Vec<String>>,
+}
+
+#[instrument(skip(hasura_transaction, sessions), err)]
+pub async fn insert_many_tally_sessions(
+    hasura_transaction: &Transaction<'_>,
+    sessions: Vec<TallySession>,
+) -> Result<Vec<TallySession>> {
+    if sessions.is_empty() {
+        return Ok(vec![]);
+    }
+
+    let insertable_sessions: Vec<InsertableTallySession> = sessions
+        .into_iter()
+        .map(|session| {
+            let configuration_json: Option<Value> = session
+                .configuration
+                .map(|value| serde_json::to_value(&value))
+                .transpose()?;
+
+            let election_ids = session
+                .election_ids
+                .unwrap_or_default()
+                .into_iter()
+                .map(|id| {
+                    Uuid::parse_str(&id).map_err(|e| anyhow!("Invalid election_id: {id} - {e}"))
+                })
+                .collect::<Result<Vec<Uuid>>>()?;
+
+            let area_ids = session
+                .area_ids
+                .unwrap_or_default()
+                .into_iter()
+                .map(|id| Uuid::parse_str(&id).map_err(|e| anyhow!("Invalid area_id: {id} - {e}")))
+                .collect::<Result<Vec<Uuid>>>()?;
+
+            Ok(InsertableTallySession {
+                tenant_id: Uuid::parse_str(&session.tenant_id)?,
+                election_event_id: Uuid::parse_str(&session.election_event_id)?,
+                id: Uuid::parse_str(&session.id)?,
+                keys_ceremony_id: Uuid::parse_str(&session.keys_ceremony_id)?,
+                election_ids,
+                area_ids,
+                execution_status: session.execution_status.clone(),
+                threshold: session.threshold as i32,
+                configuration: configuration_json,
+                tally_type: session.tally_type.clone(),
+                annotations: session.annotations.clone(),
+                permission_label: session.permission_label.clone(),
+            })
+        })
+        .collect::<Result<_>>()?;
+
+    let json_data = serde_json::to_value(&insertable_sessions)?;
+
+    let sql = r#"
+        WITH data AS (
+            SELECT * FROM jsonb_to_recordset($1::jsonb) AS t(
+                tenant_id UUID,
+                election_event_id UUID,
+                id UUID,
+                keys_ceremony_id UUID,
+                election_ids UUID[],
+                area_ids UUID[],
+                execution_status TEXT,
+                threshold INTEGER,
+                configuration JSONB,
+                tally_type TEXT,
+                annotations JSONB,
+                permission_label TEXT[]
+            )
+        )
+        INSERT INTO sequent_backend.tally_session (
+            tenant_id, election_event_id, id, keys_ceremony_id,
+            election_ids, area_ids, execution_status, threshold,
+            configuration, tally_type, annotations, permission_label
+        )
+        SELECT
+            tenant_id, election_event_id, id, keys_ceremony_id,
+            election_ids, area_ids, execution_status, threshold,
+            configuration, tally_type, annotations, permission_label
+        FROM data
+        RETURNING *;
+    "#;
+
+    let statement = hasura_transaction.prepare(sql).await?;
+    let rows = hasura_transaction.query(&statement, &[&json_data]).await?;
+
+    let result_sessions = rows
+        .into_iter()
+        .map(|row| {
+            let wrapper: TallySessionWrapper = row.try_into()?;
+            Ok(wrapper.0)
+        })
+        .collect::<Result<Vec<TallySession>>>()?;
+
+    Ok(result_sessions)
 }

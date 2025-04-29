@@ -417,6 +417,10 @@ const tagalogTranslation: TranslationType = {
                         "Ang Seremonya ng Pagbibilang ay hindi maaaring magsimula hangga't hindi ka lumilikha ng isang post sa tab na I-publish.",
                     participateNow:
                         "Naanyayahan kang makibahagi sa seremonya ng Tally. Mangyaring <1>i-click ang Aksyon ng Key ng seremonya</1> upang makilahok.",
+                    startDisabled:
+                        "Hindi mo maaaring ipagpatuloy ang seremonya dahil walang napiling eleksyon o ang eleksyon ay hindi pa na-publish.",
+                    ceremonyDisabled:
+                        "Hindi mo maaaring ipagpatuloy ang seremonya dahil ang tally session ay hindi konektado o ang pagsisimula ng seremonya ay hindi pinapayagan.",
                 },
             },
             importAreas: {
@@ -483,6 +487,7 @@ const tagalogTranslation: TranslationType = {
                 copiedError: "Error sa pag-copy ng password sa clipboard",
                 reports: "Mga Ulat",
                 applications: "Mga Aplikasyon",
+                tally: "Bilang",
             },
             taskNotification:
                 "{{action}} ay nagsimula na. Maaari mong makita ang status nito sa Talahanayan ng Pagpapatupad ng Mga Gawain.",
@@ -1085,6 +1090,8 @@ const tagalogTranslation: TranslationType = {
                 fr: "Pranses",
                 cat: "Valencian",
                 tl: "Tagalog",
+                gl: "Galego",
+                nl: "Nederlands",
             },
             channel: {
                 online: "Online",
