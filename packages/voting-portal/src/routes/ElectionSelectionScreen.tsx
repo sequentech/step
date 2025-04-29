@@ -25,7 +25,12 @@ import {
     selectBallotStyleElectionIds,
     selectFirstBallotStyle,
 } from "../store/ballotStyles/ballotStylesSlice"
-import {selectElectionById, setElection, selectElectionIds, selectElections} from "../store/elections/electionsSlice"
+import {
+    selectElectionById,
+    setElection,
+    selectElectionIds,
+    selectElections,
+} from "../store/elections/electionsSlice"
 import {addCastVotes, selectCastVotesByElectionId} from "../store/castVotes/castVotesSlice"
 import {useLocation, useNavigate, useParams} from "react-router-dom"
 import {useMutation, useQuery} from "@apollo/client"
@@ -239,7 +244,12 @@ const ElectionSelectionScreen: React.FC = () => {
             })
 
             let dataUrls = (res.data?.get_ballot_files_urls as BallotFilesUrlsOutput) ?? null
-            if (!dataUrls || !dataUrls.election_event_url || !dataUrls.elections_url || !dataUrls.ballot_style_urls ) {
+            if (
+                !dataUrls ||
+                !dataUrls.election_event_url ||
+                !dataUrls.elections_url ||
+                !dataUrls.ballot_style_urls
+            ) {
                 setErrorCause(ElectionScreenErrorType.UNKNOWN_ERROR)
                 loadingS3Data.current = false
                 return
@@ -273,13 +283,15 @@ const ElectionSelectionScreen: React.FC = () => {
             }
 
             try {
-                updateBallotStyleAndSelection2((contentBallotStyles as IBallotStyle[]) || [], dispatch)
+                updateBallotStyleAndSelection2(
+                    (contentBallotStyles as IBallotStyle[]) || [],
+                    dispatch
+                )
             } catch {
                 setErrorMsg(
                     t(`electionSelectionScreen.errors.${ElectionScreenErrorType.BALLOT_STYLES_EML}`)
                 )
             }
-
         } catch (error) {
             loadingS3Data.current = false
             console.log("Error getting signed urls: ", error)
@@ -364,7 +376,13 @@ const ElectionSelectionScreen: React.FC = () => {
         if (dataFirstBallotStyle && dataElectionEvent && dataElections) {
             loadingS3Data.current = false
         }
-    }, [globalSettings.DISABLE_AUTH, dataElectionEvent, dataElections, dataFirstBallotStyle, dispatch])
+    }, [
+        globalSettings.DISABLE_AUTH,
+        dataElectionEvent,
+        dataElections,
+        dataFirstBallotStyle,
+        dispatch,
+    ])
 
     useEffect(() => {
         if (dataElections && dataElections.length > 0) {
