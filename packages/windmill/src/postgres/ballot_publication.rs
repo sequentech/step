@@ -7,6 +7,7 @@ use chrono::{DateTime, Local};
 use deadpool_postgres::Transaction;
 use sequent_core::services::date::ISO8601;
 use sequent_core::types::hasura::core::BallotPublication;
+use tokio::try_join;
 use tokio_postgres::row::Row;
 use tracing::instrument;
 use uuid::Uuid;
@@ -98,7 +99,6 @@ pub async fn update_ballot_publication_status(
     is_generated: bool,
     published_at: Option<DateTime<Local>>,
 ) -> Result<Option<BallotPublication>> {
-    //let published_at_str = published_at.clone().map(|naive| ISO8601::to_string(&naive));
     let query = hasura_transaction
         .prepare(
             r#"
@@ -292,10 +292,9 @@ pub async fn insert_ballot_publication(
     user_id: String,
     election_id: Option<String>,
 ) -> Result<Option<BallotPublication>> {
-    let election_id_uuid = match election_id {
-        Some(ref id_str) => Some(Uuid::parse_str(id_str)?),
-        None => None,
-    };
+    let election_id_uuid = election_id
+        .map(|id_str| Uuid::parse_str(&id_str))
+        .transpose()?;
 
     let election_ids_uuid: Vec<Uuid> = election_ids
         .iter()
@@ -470,11 +469,9 @@ pub async fn soft_delete_other_ballot_publications(
     let election_event_uuid = Uuid::parse_str(election_event_id)?;
     let tenant_uuid = Uuid::parse_str(tenant_id)?;
 
-    let election_uuid = if let Some(eid) = election_id {
-        Some(Uuid::parse_str(&eid)?)
-    } else {
-        None
-    };
+    let election_uuid = election_id
+        .map(|id_str| Uuid::parse_str(&id_str))
+        .transpose()?;
 
     let election_id_str = match election_uuid {
         Some(_) => "AND election_id = $4".to_string(),
@@ -504,18 +501,6 @@ pub async fn soft_delete_other_ballot_publications(
         params.push(election_uuid);
     }
 
-    let pub_rows = hasura_transaction
-        .query(&pub_query, &params.as_slice())
-        .await?;
-
-    let publication_ids: Vec<String> = pub_rows
-        .into_iter()
-        .map(|row| {
-            let id: Uuid = row.try_get("id")?;
-            Ok(id.to_string())
-        })
-        .collect::<Result<Vec<String>>>()?;
-
     // Ballot style update query string.
     let style_query_str = format!(
         r#"
@@ -533,9 +518,20 @@ pub async fn soft_delete_other_ballot_publications(
 
     let style_query = hasura_transaction.prepare(style_query_str.as_str()).await?;
 
-    let style_rows = hasura_transaction
-        .query(&style_query, &params.as_slice())
-        .await?;
+    // Execute both queries in parallel
+    let (pub_rows, style_rows) = futures::future::try_join(
+        hasura_transaction.query(&pub_query, &params),
+        hasura_transaction.query(&style_query, &params),
+    )
+    .await?;
+
+    let publication_ids: Vec<String> = pub_rows
+        .into_iter()
+        .map(|row| {
+            let id: Uuid = row.try_get("id")?;
+            Ok(id.to_string())
+        })
+        .collect::<Result<Vec<String>>>()?;
 
     let style_ids: Vec<String> = style_rows
         .into_iter()
