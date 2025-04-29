@@ -42,6 +42,11 @@ pub async fn create_ballot_receipt(
     claims: JwtClaims,
 ) -> Result<Json<CreateBallotReceiptOutput>, (Status, String)> {
     let input = body.into_inner();
+    let tenant_id = claims.hasura_claims.tenant_id.clone();
+    let executer_name = claims
+        .name
+        .clone()
+        .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
     let area_id = match authorize_voter(
         &claims,
         vec![VoterPermissions::USER_ROLE],
