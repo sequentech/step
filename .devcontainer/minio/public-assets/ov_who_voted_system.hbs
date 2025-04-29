@@ -13,15 +13,22 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
     <script src="{{file_qrcode_lib}}"></script>
     <style type="text/css">
       body {
-        font-family: "Arial", sans-serif;
+        font-family: Arial, sans-serif;
         margin: auto;
         max-width: 1024px;
+        padding: 0 30px;
       }
 
       @media print {
+        @page {
+          size: auto;
+          margin: 0 0.6in;
+        }
         body {
-          max-width: initial;
-          margin: 35px;
+          width: 100%;
+          font-size: 9px;
+          margin: 0;
+          padding: 0;
         }
       }
 
@@ -154,7 +161,7 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
         font-family: "Arial", sans-serif;
         font-size: 10pt;
         font-weight: bold;
-        text-align: left;
+        text-align: right;
         vertical-align: top;
         width: 50%;
       }

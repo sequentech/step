@@ -27,7 +27,7 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
      }
 
      .inner-ballot {
-         border: 30px solid transparent;
+        border: 30px solid transparent;
         border-image: url('{{file_qrcode_lib}}/../ballot-background.jpg');
        
        /* width: 8 Container width */
@@ -42,7 +42,7 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
        /* height:max-content; */
        page-break-inside: avoid;
        padding: 20px;
-        width: 900px;
+       width: 900px;
      }
  
     .ballot-data{
@@ -57,6 +57,11 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
          height: 100%;
        }
        .ballot{
+         height: 100%;
+          width: 900px;
+         overflow-y: hidden;
+       }
+       .summary-page{
          height: 100%;
           width: 900px;
          overflow-y: hidden;
@@ -89,7 +94,6 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
         }
 
         .image-url {
-            height: 100px;
             width: 100px;
         }
 
@@ -282,7 +286,7 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
         }
 
         .summary-page {
-            padding: 20px;
+            padding: 48px 120px;
             margin: 0 auto;
             box-sizing: border-box;
         }

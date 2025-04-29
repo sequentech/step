@@ -21,7 +21,7 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
                           {{datetime
                             from_rfc3339=date_printed
                             output_format="%B %d, %Y %H:%M"
-                            with_timezone="Asia/Manila"
+                            with_timezone="UTC"
                           }}
                         </p>
                       </div>
@@ -45,15 +45,6 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 
                   <td width="54%" class="center" style="font-family: serif">
                     <div class="country">SEQUENT ONLINE VOTING</div>
-                    <div class="commission">COMMISSION ON ELECTIONS</div>
-                    <!-- TODO: Use `election_date` instead -->
-                    <div class="election-date">
-                      {{datetime
-                        from_rfc3339=execution_annotations.date_printed
-                        output_format="%B %d, %Y"
-                        with_timezone="Asia/Manila"
-                      }}
-                    </div>
                     <div class="election-name">
                       {{election_event_title}}
                     </div>
@@ -75,9 +66,6 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 
                   </td>
                   <td width="23%" class="right" valign="top">
-                    <img
-                      src=""
-                    />
                   </td>
                 </table>
               </td>

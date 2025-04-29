@@ -10,9 +10,23 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
     <script src="{{file_qrcode_lib}}"></script>
     <style>
       body {
-        font-family: "Arial", sans-serif;
+        font-family: Arial, sans-serif;
         margin: auto;
         max-width: 1024px;
+        padding: 0 30px;
+      }
+
+      @media print {
+        @page {
+          size: auto;
+          margin: 0 0.6in;
+        }
+        body {
+          width: 100%;
+          font-size: 9px;
+          margin: 0;
+          padding: 0;
+        }
       }
 
       .report {
