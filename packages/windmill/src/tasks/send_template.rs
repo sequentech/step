@@ -472,7 +472,7 @@ pub async fn send_template(
                 &user,
                 &election_event,
                 &tenant_id,
-                Some(&admin_id),
+                Some(admin_id.clone()),
                 &body.email,
                 &body.sms,
                 &email_sender,
@@ -533,7 +533,7 @@ pub async fn send_template_email_or_sms(
     user: &User,
     election_event: &Option<ElectionEvent>,
     tenant_id: &str,
-    admin_id: Option<&String>,
+    admin_id_opt: Option<String>,
     email_config: &Option<EmailConfig>,
     sms_config: &Option<SmsConfig>,
     email_sender: &EmailSender,
@@ -546,6 +546,7 @@ pub async fn send_template_email_or_sms(
         id = user.id,
         email = user.email,
     );
+    let admin_id = admin_id_opt.unwrap_or("".into());
     let variables: Map<String, Value> = get_variables(
         user,
         election_event.clone(),
@@ -570,7 +571,6 @@ pub async fn send_template_email_or_sms(
             .await;
             match sending_result {
                 Ok(Some(message)) if user.id.is_some() => {
-                    let admin_id = admin_id.unwrap();
                     if let Err(e) = on_success_send_message(
                         hasura_transaction,
                         election_event.clone(),
@@ -578,7 +578,7 @@ pub async fn send_template_email_or_sms(
                         user.username.clone(),
                         &message,
                         &tenant_id,
-                        admin_id,
+                        &admin_id,
                         user_area_id,
                     )
                     .await
@@ -608,7 +608,6 @@ pub async fn send_template_email_or_sms(
             .await;
             match sending_result {
                 Ok(Some(message)) if user.id.is_some() => {
-                    let admin_id = admin_id.unwrap();
                     if let Err(e) = on_success_send_message(
                         hasura_transaction,
                         election_event.clone(),
@@ -616,7 +615,7 @@ pub async fn send_template_email_or_sms(
                         None,
                         &message,
                         tenant_id,
-                        admin_id,
+                        &admin_id,
                         user_area_id,
                     )
                     .await
