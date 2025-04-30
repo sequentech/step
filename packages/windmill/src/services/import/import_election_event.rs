@@ -807,9 +807,10 @@ pub async fn get_zip_entries(
     // Sort the ZIP entries by importance:
     // 1. Protocol Manager keys are imported first (rank 0)
     // 2. Regular files come next (rank 1)
+    // 3. Ballot styles are imported after the regular files which contain ballot publications file (rank 2)
     // 3. Inside the TALLY directory:
-    //    - TALLY_SESSION and RESULTS_EVENT files are imported just before others (rank 2)
-    //    - All other TALLY files come last (rank 3)
+    //    - TALLY_SESSION and RESULTS_EVENT files are imported just before others (rank 3)
+    //    - All other TALLY files come last (rank 4)
     zip_entries.sort_by_key(|(file_name, _)| {
         let rank = if file_name.contains(EDocuments::PROTOCOL_MANAGER_KEYS.to_file_name()) {
             0
@@ -817,10 +818,12 @@ pub async fn get_zip_entries(
             if file_name.contains(ETallyDocuments::TALLY_SESSION.to_file_name())
                 || file_name.contains(ETallyDocuments::RESULTS_EVENT.to_file_name())
             {
-                2
-            } else {
                 3
+            } else {
+                4
             }
+        } else if file_name.contains(EDocuments::BALLOT_STYLE.to_file_name()) {
+            2
         } else {
             1
         };
@@ -832,13 +835,46 @@ pub async fn get_zip_entries(
 }
 
 #[instrument(err, skip_all)]
+pub async fn process_document_schema(
+    zip_entries: &Vec<(String, Vec<u8>)>,
+    file_election_event_schema: String,
+) -> Result<String> {
+    let mut schema = file_election_event_schema;
+
+    // Find optional files inside the zip
+    let tally_session = zip_entries
+        .iter()
+        .find(|(name, _)| name.contains(ETallyDocuments::TALLY_SESSION.to_file_name()));
+    let results_event = zip_entries
+        .iter()
+        .find(|(name, _)| name.contains(ETallyDocuments::RESULTS_EVENT.to_file_name()));
+    let ballot_publications = zip_entries
+        .iter()
+        .find(|(name, _)| name.contains(EDocuments::PUBLICATIONS.to_file_name()));
+
+    if let (Some((_, tally_bytes)), Some((_, results_bytes))) = (tally_session, results_event) {
+        let tally_content = String::from_utf8(tally_bytes.clone())?;
+        let results_content = String::from_utf8(results_bytes.clone())?;
+        schema = format!("{schema}\n{tally_content}\n{results_content}");
+    }
+
+    if let Some((_, publications_bytes)) = ballot_publications {
+        let publications_content = String::from_utf8(publications_bytes.clone())?;
+        schema = format!("{schema}\n{publications_content}");
+    }
+
+    Ok(schema)
+}
+
+#[instrument(err, skip_all)]
 pub async fn process_document(
     hasura_transaction: &Transaction<'_>,
     object: ImportElectionEventBody,
     election_event_id: String,
     tenant_id: String,
+    executer_id: String,
 ) -> Result<()> {
-    let (temp_file_path, document, document_type) = get_document(
+    let (temp_file_path, _document, document_type) = get_document(
         hasura_transaction,
         object.clone(),
         Some(election_event_id.clone()),
@@ -856,47 +892,10 @@ pub async fn process_document(
         ))
     });
 
-    let election_event_id_clone = election_event_id.clone();
-
-    let tally_session_file = zip_entries
-        .iter()
-        .find(|(name, _)| name.contains(ETallyDocuments::TALLY_SESSION.to_file_name()));
-    let results_event_file = zip_entries
-        .iter()
-        .find(|(name, _)| name.contains(ETallyDocuments::RESULTS_EVENT.to_file_name()));
-    let mut tally_files_content: Option<String> = None;
-    if let (Some(tally_session_file), Some(results_event_file)) =
-        (tally_session_file, results_event_file)
-    {
-        let tally_session_file_content = String::from_utf8(tally_session_file.1.clone())?;
-        let results_event_file_content = String::from_utf8(results_event_file.1.clone())?;
-        tally_files_content = Some(format!(
-            "\n{}\n{}",
-            tally_session_file_content, results_event_file_content
-        ));
-    }
-    let file_election_event_schema = match tally_files_content {
-        Some(tally_files_content) => {
-            format!("{}\n{}", file_election_event_schema, tally_files_content)
-        }
-        None => file_election_event_schema,
-    };
-
-    let ballot_publications_file = zip_entries
-        .iter()
-        .find(|(name, _)| name.contains(EDocuments::PUBLICATIONS.to_file_name()));
-
-    let file_election_event_schema = match ballot_publications_file {
-        Some(ballot_publications_file) => {
-            let ballot_publications_file_content =
-                String::from_utf8(ballot_publications_file.1.clone())?;
-            format!(
-                "{}\n{}",
-                file_election_event_schema, ballot_publications_file_content
-            )
-        }
-        None => file_election_event_schema,
-    };
+    let file_election_event_schema =
+        process_document_schema(&zip_entries, file_election_event_schema.clone())
+            .await
+            .map_err(|err| anyhow!("Error processing document schema: {err}"))?;
 
     let (election_event_schema, replacement_map) = process_election_event_file(
         hasura_transaction,
@@ -1037,7 +1036,9 @@ pub async fn process_document(
                 .with_context(|| "Error managing dates")?;
             }
 
-            if file_name.contains(&format!("{}", EDocuments::PUBLICATIONS.to_file_name())) {
+            if file_name.contains(&format!("{}", EDocuments::PUBLICATIONS.to_file_name()))
+                || file_name.contains(&format!("{}", EDocuments::BALLOT_STYLE.to_file_name()))
+            {
                 let mut temp_file = NamedTempFile::new()
                     .context("Failed to create ballot publications temporary file")?;
 
@@ -1055,6 +1056,7 @@ pub async fn process_document(
                     &election_event_schema.tenant_id.to_string(),
                     &election_event_schema.election_event.id,
                     replacement_map.clone(),
+                    executer_id.clone(),
                 )
                 .await
                 .with_context(|| "Error importing publications")?;
@@ -1097,7 +1099,7 @@ pub async fn process_document(
                     .split(".")
                     .next()
                     .unwrap();
-                println!("tally_file_name:: {:?}", &tally_file_name);
+
                 process_tally_file(
                     hasura_transaction,
                     &temp_file,

@@ -2,22 +2,21 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::ballot_publication::get_ballot_publication;
-use crate::postgres::ballot_style::{
-    export_event_ballot_styles, get_ballot_styles_by_ballot_publication_by_id,
-};
+use crate::postgres::ballot_style::export_event_ballot_styles;
 use crate::services::documents::upload_and_return_document_postgres;
 use crate::types::documents::EDocuments;
 use anyhow::{anyhow, Context, Result};
-use csv::Writer;
-use deadpool_postgres::{Client as DbClient, Transaction};
+use deadpool_postgres::Transaction;
+use futures::{pin_mut, StreamExt};
 use sequent_core::serialization::deserialize_with_path::deserialize_str;
-use sequent_core::types::hasura::core::Document;
-use sequent_core::types::hasura::core::{BallotPublication, Template};
+use sequent_core::types::hasura::core::BallotPublication;
 use sequent_core::util::temp_path::{generate_temp_file, write_into_named_temp_file};
-use serde::{Deserialize, Serialize};
-use serde_json::{json, Map, Value};
+use serde_json::{json, Value};
+use std::path::PathBuf;
 use tempfile::TempPath;
-use tracing::{event, info, instrument, Level};
+use tokio::fs::File;
+use tokio::io::AsyncWriteExt;
+use tracing::{info, instrument};
 
 #[instrument(err, skip(transaction, data))]
 pub async fn write_export_document(
@@ -179,55 +178,58 @@ pub async fn export_ballot_styles_csv(
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<(String, TempPath)> {
-    let ballot_styles =
-        export_event_ballot_styles(&hasura_transaction, tenant_id, election_event_id)
-            .await
-            .map_err(|e| anyhow!("Error reading ballot styles data: {e:?}"))?;
-
     let file_name = EDocuments::BALLOT_STYLE.to_file_name().to_string();
 
-    let mut writer = csv::WriterBuilder::new().delimiter(b',').from_writer(
-        generate_temp_file(&file_name, ".csv").with_context(|| "Error creating temporary file")?,
+    let mut named_file = generate_temp_file(&file_name, ".csv")
+        .with_context(|| "Error creating temporary file for CSV export")?;
+    let temp_path: TempPath = named_file.into_temp_path();
+    let path_buf: PathBuf = temp_path.to_path_buf();
+
+    let mut file = File::create(&path_buf)
+        .await
+        .with_context(|| "Error opening temp file for async write")?;
+
+    let copy_query = format!(
+        r#"COPY (
+            SELECT
+                id,
+                tenant_id,
+                election_id,
+                area_id,
+                created_at,
+                last_updated_at,
+                labels::text       AS labels,
+                annotations::text  AS annotations,
+                ballot_eml,
+                ballot_signature,
+                status,
+                election_event_id,
+                deleted_at,
+                ballot_publication_id
+            FROM sequent_backend.ballot_style
+            WHERE tenant_id = '{}'
+              AND election_event_id = '{}'
+              AND deleted_at IS NULL
+        ) TO STDOUT WITH CSV HEADER"#,
+        tenant_id, election_event_id,
     );
 
-    writer.write_record(&[
-        "id".to_string(),
-        "tenant_id".to_string(),
-        "election_id".to_string(),
-        "area_id".to_string(),
-        "created_at".to_string(),
-        "last_updated_at".to_string(),
-        "labels".to_string(),
-        "annotations".to_string(),
-        "ballot_eml".to_string(),
-        "ballot_signature".to_string(),
-        "status".to_string(),
-        "election_event_id".to_string(),
-        "deleted_at".to_string(),
-        "ballot_publication_id".to_string(),
-    ])?;
+    let mut stream = hasura_transaction
+        .copy_out(&copy_query)
+        .await
+        .with_context(|| "Failed to initiate COPY OUT for ballot_styles")?;
+    pin_mut!(stream);
 
-    for ballot_style in ballot_styles {
-        let values: Vec<String> = serde_json::to_value(ballot_style)?
-            .as_object()
-            .ok_or_else(|| {
-                anyhow!("Failed to convert results_area_contests_candidate to JSON object")
-            })?
-            .values()
-            .map(|value| value.to_string())
-            .collect();
-
-        writer.write_record(&values);
+    while let Some(chunk) = stream.next().await {
+        let data = chunk.with_context(|| "Error reading COPY OUT stream")?;
+        file.write_all(&data)
+            .await
+            .with_context(|| "Error writing CSV data to temp file")?;
     }
 
-    writer
-        .flush()
-        .with_context(|| "Error flushing CSV writer")?;
-
-    let temp_path = writer
-        .into_inner()
-        .with_context(|| "Error getting inner writer")?
-        .into_temp_path();
+    file.flush()
+        .await
+        .with_context(|| "Error flushing temporary CSV file")?;
 
     Ok((file_name, temp_path))
 }
@@ -242,8 +244,9 @@ pub async fn export_publications(
         export_ballot_publications_csv(hasura_transaction, tenant_id, election_event_id)
             .await
             .map_err(|e| anyhow!("Error export ballot publications: {e:?}"))?;
-    // let ballot_styles = export_ballot_styles_csv(hasura_transaction, tenant_id, election_event_id).await
-    //     .map_err(|e| anyhow!("Error export ballot styles: {e:?}"))?;
+    let ballot_styles = export_ballot_styles_csv(hasura_transaction, tenant_id, election_event_id)
+        .await
+        .map_err(|e| anyhow!("Error export ballot styles: {e:?}"))?;
 
-    Ok(vec![ballot_publications])
+    Ok(vec![ballot_publications, ballot_styles])
 }

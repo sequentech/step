@@ -10,7 +10,6 @@ use sequent_core::services::date::ISO8601;
 use serde_json::Value;
 use std::collections::HashMap;
 use tracing::{info, instrument};
-use uuid::Uuid;
 
 #[instrument(err, skip_all)]
 pub async fn process_uuids(
@@ -44,13 +43,18 @@ pub async fn get_replaced_id(
     index: i32,
     replacement_map: &HashMap<String, String>,
 ) -> Result<String> {
-    let id: String = record
+    let raw = record
         .get(index as usize)
-        .ok_or_else(|| anyhow!("Missing column {index}"))
-        .and_then(|s| serde_json::from_str(s).map_err(|e| anyhow!("Invalid JSON: {:?}", e)))?;
+        .ok_or_else(|| anyhow!("Missing column {index}"))?;
+
+    let id: String = match serde_json::from_str(raw) {
+        Ok(parsed) => parsed,
+        Err(_) => raw.trim().trim_matches('"').to_string(), // Fallback: use as-is
+    };
+
     let new_id = replacement_map
         .get(&id)
-        .ok_or(anyhow!("Can't find id:{id} in replacement map"))?
+        .ok_or_else(|| anyhow!("Can't find id: {id} in replacement map"))?
         .clone();
 
     Ok(new_id)
@@ -100,20 +104,22 @@ pub async fn get_string_or_null_item(
     record: &StringRecord,
     index: usize,
 ) -> Result<Option<String>> {
-    let item = record
-        .get(index)
-        .map(str::trim)
-        .map(|s| {
-            if s == "null" {
-                Ok(None)
-            } else {
-                serde_json::from_str::<String>(s).map(Some)
-            }
-        })
-        .transpose()
-        .map_err(|err| anyhow!("Error at column {index}: {:?}", err))?
-        .flatten();
-    Ok(item)
+    let raw = match record.get(index) {
+        Some(s) => s.trim(),
+        None => return Ok(None),
+    };
+
+    if raw.eq_ignore_ascii_case("null") {
+        return Ok(None);
+    }
+
+    // Try to parse as JSON string, fallback to raw
+    let result = match serde_json::from_str::<String>(raw) {
+        Ok(s) => Some(s),
+        Err(_) => Some(raw.to_string()),
+    };
+
+    Ok(result)
 }
 
 #[instrument(err, skip_all)]
@@ -126,4 +132,27 @@ pub async fn get_opt_date(record: &StringRecord, index: usize) -> Result<Option<
         })
         .flatten();
     Ok(item)
+}
+
+pub async fn get_opt_base64_vec_item(
+    record: &StringRecord,
+    index: usize,
+) -> Result<Option<Vec<u8>>> {
+    let raw = record
+        .get(index)
+        .ok_or_else(|| anyhow!("Missing column at index {}", index))?
+        .trim();
+
+    if raw.is_empty() {
+        return Ok(None);
+    }
+
+    let hex_part = raw
+        .strip_prefix(r"\x")
+        .ok_or_else(|| anyhow!("Invalid bytea format, expected leading `\\x`: {}", raw))?;
+
+    let bytes = hex::decode(hex_part)
+        .with_context(|| format!("Failed to decode hex in bytea field: {}", hex_part))?;
+
+    Ok(Some(bytes))
 }
