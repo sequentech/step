@@ -21,13 +21,13 @@ anyhow = "1.0.75"
 tempfile = "3.15.0"
 either = "1.9.0"
 dotenv = "0.15.0"
-graphql_client = "0.13.0"
+graphql_client = "0.14.0"
 tokio = { version = "1.32.0", features = ["full"] }
 chrono = "0.4.31"
-base64 = "0.21.0"
+base64 = "0.22.1"
 celery = "0.5.5"
 strum = "0.27"
-strum_macros = "0.25"
+strum_macros = "0.27"
 uuid = { version = "1.5.0", features = ["v4", "fast-rng"] }
 
 # s3
@@ -46,7 +46,7 @@ sequent-core = { path="../sequent-core", features = ["keycloak", "s3", "probe"] 
 windmill = { path="../windmill" }
 
 # To connect to the Database
-deadpool-postgres = { version = "0.11.0", features = ["rt_tokio_1", "serde"] }
+deadpool-postgres = { version = "0.14.1", features = ["rt_tokio_1", "serde"] }
 tokio-postgres = { version = "0.7", features = ["with-uuid-1", "with-chrono-0_4"] }
 
 # used for sanitizing input

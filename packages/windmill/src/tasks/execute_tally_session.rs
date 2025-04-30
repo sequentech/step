@@ -800,7 +800,7 @@ async fn map_plaintext_data(
         .filter(|trustee| TallyTrusteeStatus::KEY_RESTORED == trustee.status)
         .map(|trustee| trustee.name.clone())
         .collect();
-    let mut rng = StdRng::from_entropy();
+    let mut rng = StdRng::from_os_rng();
     available_trustees.shuffle(&mut rng);
 
     let trustee_names: Vec<String> = available_trustees.into_iter().take(threshold).collect();

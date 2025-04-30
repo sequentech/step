@@ -518,16 +518,28 @@ impl KeycloakAdminClient {
         );
 
         match real_get_result {
-            Ok(_) => self
-                .client
-                .realm_put(&board_name, realm)
-                .await
-                .map_err(|err| anyhow!("Keycloak error: {:?}", err)),
-            Err(_) => self
-                .client
-                .post(realm)
-                .await
-                .map_err(|err| anyhow!("Keycloak error: {:?}", err)),
+            Ok(_) => {
+                let _resp = self
+                    .client
+                    .realm_put(&board_name, realm)
+                    .await
+                    .map_err(|err| anyhow!("Keycloak error: {:?}", err))?
+                    .into_response()
+                    .error_for_status()
+                    .map_err(|err| anyhow!("reqwest error: {:?}", err))?;
+                Ok(())
+            }
+            Err(_) => {
+                let _resp = self
+                    .client
+                    .post(realm)
+                    .await
+                    .map_err(|err| anyhow!("Keycloak error: {:?}", err))?
+                    .into_response()
+                    .error_for_status()
+                    .map_err(|err| anyhow!("reqwest error: {:?}", err))?;
+                Ok(())
+            }
         }
     }
 }
