@@ -41,12 +41,6 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
                       </td>
                   <td width="54%" class="center">
                     <div class="country">SEQUENT ONLINE VOTING</div>
-                    <div class="commission">COMMISSION ON ELECTIONS</div>
-                    <!-- TODO: Use `election_date` instead -->
-                    <div class="election-date">
-                      {{datetime from_rfc3339=../execution_annotations.date_printed output_format="%B %d, %Y"
-                      with_timezone="UTC"}}
-                    </div>
                     <div class="election-name">
                       {{ election_title }}
                     </div>
@@ -218,80 +212,6 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
     </tr>
     {{/each}}
     <!-- END of additional sections -->
-
-    <!-- Title secondary section -->
-    <tr class="inspectors-title">
-      <td>
-        <div>
-          <p>
-            <strong>The Board of Election Inspectors</strong>
-          </p>
-        </div>
-      </td>
-    </tr>
-    <!-- END Title secondary section -->
-    <!-- Main signature section -->
-    {{#each inspectors}}
-    <tr class="inspector-signature">
-      <td align="center">
-        <div class="box"></div>
-        <p>Right Thumbmark</p>
-        <p>
-          <strong class="inspector-name">{{sanitize_html (expr name)}}</strong>
-          <br />(Signature above printed full name)
-        </p>
-      </td>
-    </tr>
-    {{/each}}
-    <!-- END Main signature section -->
-
-    <!-- Title secondary section -->
-    <tr class="watchers-title">
-      <td align="center">
-        <div>
-          <p>
-            <strong>Watchers:</strong>
-          </p>
-        </div>
-      </td>
-    </tr>
-    <!-- END Title secondary section -->
-    <!-- Signature simple section -->
-    <tr class="watcher-signature">
-      <td align="center">
-        <div>
-          <hr />
-          <p>
-            (Signature above printed full name)
-          </p>
-        </div>
-      </td>
-    </tr>
-    <!-- END Signature simple section -->
-    <!-- Signature simple section -->
-    <tr class="watcher-signature">
-      <td align="center">
-        <div>
-          <hr />
-          <p>
-            (Signature above printed full name)
-          </p>
-        </div>
-      </td>
-    </tr>
-    <!-- END Signature simple section -->
-    <!-- Signature simple section -->
-    <tr class="watcher-signature">
-      <td align="center">
-        <div>
-          <hr />
-          <p>
-            (Signature above printed full name)
-          </p>
-        </div>
-      </td>
-    </tr>
-    <!-- END Signature simple section -->
 
     <!-- Title secondary section -->
     <!-- QR CODES section -->

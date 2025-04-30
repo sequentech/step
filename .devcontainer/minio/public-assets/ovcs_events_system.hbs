@@ -11,22 +11,29 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <script src="{{file_qrcode_lib}}"></script>
   <style type="text/css">
-    body {
-      font-family: "Arial", sans-serif;
-      margin: auto;
-      max-width: 768px;
-    }
+      body {
+        font-family: Arial, sans-serif;
+        margin: auto;
+        max-width: 1024px;
+        padding: 0 30px;
+      }
+
+      @media print {
+        @page {
+          size: auto;
+          margin: 0 0.6in;
+        }
+        body {
+          width: 100%;
+          font-size: 9px;
+          margin: 0;
+          padding: 0;
+        }
+      }
 
     table,
     td {
       border-collapse: collapse;
-    }
-
-    @media print {
-      body {
-        max-width: initial;
-        margin: 35px;
-      }
     }
 
     .report {

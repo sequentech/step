@@ -18,9 +18,15 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
       }
 
       @media print {
+        @page {
+          size: auto;
+          margin: 0 0.6in;
+        }
         body {
-          max-width: initial;
-          margin: 35px;
+          width: 100%;
+          font-size: 9px;
+          margin: 0;
+          padding: 0;
         }
       }
 
@@ -188,7 +194,7 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
       .stats-table .key {
         font-size: 10pt;
         font-weight: bold;
-        text-align: left;
+        text-align: right;
       }
 
       .stats-table .value {
