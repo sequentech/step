@@ -6,13 +6,16 @@ use crate::postgres::area::get_event_areas;
 use crate::postgres::area_contest::export_area_contests;
 use crate::postgres::ballot_style::get_ballot_styles_by_elections;
 use crate::postgres::contest::export_contests;
-use crate::postgres::election::{export_elections, get_election_by_id};
+use crate::postgres::election::{
+    export_elections, get_election_by_id, set_election_initialization_report_generated,
+};
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::keys_ceremony;
 use crate::postgres::keys_ceremony::get_keys_ceremonies;
 use crate::postgres::keys_ceremony::get_keys_ceremony_by_id;
 use crate::postgres::tally_session::{
-    get_tally_session_by_id, insert_tally_session, update_tally_session_status,
+    get_tally_session_by_id, get_tally_session_status, insert_tally_session,
+    update_tally_session_status,
 };
 use crate::postgres::tally_session_contest::{
     get_tally_session_contests, get_tally_session_highest_batch, insert_tally_session_contest,
@@ -480,10 +483,17 @@ pub async fn update_tally_ceremony(
 ) -> Result<()> {
     let current_status = tally_session
         .execution_status
+        .clone() // Clone the execution_status to avoid moving it
         .map(|value| {
             TallyExecutionStatus::from_str(&value).unwrap_or(TallyExecutionStatus::STARTED)
         })
         .unwrap_or(TallyExecutionStatus::STARTED);
+
+    let tally_type = tally_session
+        .tally_type
+        .clone() // Clone the tally_type to avoid moving it
+        .map(|val: String| TallyType::try_from(val.as_str()).unwrap_or_default())
+        .unwrap_or_default();
 
     let expected_status: Vec<TallyExecutionStatus> = match current_status {
         TallyExecutionStatus::STARTED => vec![TallyExecutionStatus::CANCELLED],
@@ -492,7 +502,13 @@ pub async fn update_tally_ceremony(
             TallyExecutionStatus::CANCELLED,
         ],
         TallyExecutionStatus::IN_PROGRESS => vec![TallyExecutionStatus::CANCELLED],
-        TallyExecutionStatus::SUCCESS => vec![],
+        TallyExecutionStatus::SUCCESS => {
+            if tally_type == TallyType::INITIALIZATION_REPORT {
+                vec![TallyExecutionStatus::CANCELLED]
+            } else {
+                vec![]
+            }
+        }
         TallyExecutionStatus::CANCELLED => vec![],
     };
 
@@ -544,9 +560,26 @@ pub async fn update_tally_ceremony(
         &tenant_id,
         &election_event_id,
         &tally_session.id,
-        new_execution_status,
+        &new_execution_status,
     )
     .await?;
+
+    let election_ids = tally_session.election_ids.clone().unwrap_or_default();
+
+    if tally_type == TallyType::INITIALIZATION_REPORT
+        && new_execution_status == TallyExecutionStatus::CANCELLED
+    {
+        for election_id in election_ids {
+            set_election_initialization_report_generated(
+                hasura_transaction,
+                &tenant_id,
+                &election_event_id,
+                &election_id,
+                &false,
+            )
+            .await?;
+        }
+    }
 
     /*
     if TallyExecutionStatus::IN_PROGRESS == new_execution_status {
@@ -730,7 +763,7 @@ pub async fn set_private_key(
             &tenant_id,
             &election_event_id,
             &tally_session_id,
-            TallyExecutionStatus::CONNECTED,
+            &TallyExecutionStatus::CONNECTED,
         )
         .await?;
     }
@@ -791,43 +824,52 @@ pub async fn set_tally_session_completed(
     tally_session_id: String,
 ) -> Result<()> {
     let execution_status = TallyExecutionStatus::SUCCESS;
-
-    let is_updated = match update_tally_session_status(
+    // Check if tally or init report hasn't been cancelled in the process (only applicable to init report for now)
+    let current_execution_status = get_tally_session_status(
         &hasura_transaction,
         &tenant_id,
         &election_event_id,
         &tally_session_id,
-        execution_status,
     )
-    .await
-    {
-        Ok(_) => true,
-        Err(_) => false,
-    };
-
-    if is_updated {
-        let election_event = get_election_event_helper(
-            auth_headers.clone(),
-            tenant_id.clone(),
-            election_event_id.clone(),
-        )
-        .await?;
-
-        let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
-            .with_context(|| "missing bulletin board")?;
-
-        let electoral_log = ElectoralLog::new(
-            hasura_transaction,
+    .await?;
+    if current_execution_status != TallyExecutionStatus::CANCELLED {
+        let is_updated = match update_tally_session_status(
+            &hasura_transaction,
             &tenant_id,
-            Some(&election_event_id),
-            board_name.as_str(),
+            &election_event_id,
+            &tally_session_id,
+            &execution_status,
         )
-        .await?;
+        .await
+        {
+            Ok(_) => true,
+            Err(_) => false,
+        };
+        if is_updated {
+            let election_event = get_election_event_helper(
+                auth_headers.clone(),
+                tenant_id.clone(),
+                election_event_id.clone(),
+            )
+            .await?;
 
-        electoral_log
-            .post_tally_close(election_event_id.to_string(), None, None, None)
-            .await
-            .with_context(|| "error posting to the electoral log")?;
+            let board_name =
+                get_election_event_board(election_event.bulletin_board_reference.clone())
+                    .with_context(|| "missing bulletin board")?;
+
+            let electoral_log = ElectoralLog::new(
+                hasura_transaction,
+                &tenant_id,
+                Some(&election_event_id),
+                board_name.as_str(),
+            )
+            .await?;
+
+            electoral_log
+                .post_tally_close(election_event_id.to_string(), None, None, None)
+                .await
+                .with_context(|| "error posting to the electoral log")?;
+        }
     }
 
     Ok(())
