@@ -459,6 +459,11 @@ pub async fn replace_ballot_publication_s3_files(
     let ballot_publication_data = serde_json::to_string(&bp_data)
         .map_err(|err| format!("Error serializing ballot publications to json: {err:?}"))?;
 
+    // Normally the path where the ballot publication is uploaded is: tenant-{tenant_id}/event-{election_event_id}/area-{area_id}/ballot-publication.json
+    // But if areas is empty (Maybe area was not created or contest not assigned to it) then we can put it here:
+    // tenant-{tenant_id}/event-{election_event_id}/ballot-publication.json
+    // When the voter logs in, in case of not finding ballot-publication.json in the normal path it will fall back to the second one.
+    // As the second path does not exist it is deduced that the event was not published. if it exists it can be deduced that area was not assigned/existed
     for area_id in &areas {
         // Upload ballot publications file or replace it if it exists.
         let ballot_publication_file_path =
