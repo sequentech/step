@@ -336,6 +336,7 @@ pub async fn update_tally_session_status(
     election_event_id: &str,
     tally_session_id: &str,
     execution_status: TallyExecutionStatus,
+    is_execution_completed: bool,
 ) -> Result<()> {
     println!("Updating tally session status:{:?}", &tally_session_id);
     let statement = hasura_transaction
@@ -344,7 +345,8 @@ pub async fn update_tally_session_status(
             UPDATE
                 sequent_backend.tally_session
             SET
-                execution_status = $1
+                execution_status = $1,
+                is_execution_completed = $5
             WHERE
                 id = $2 AND
                 tenant_id = $3 AND
@@ -361,6 +363,7 @@ pub async fn update_tally_session_status(
                 &Uuid::parse_str(tally_session_id)?,
                 &Uuid::parse_str(tenant_id)?,
                 &Uuid::parse_str(&election_event_id)?,
+                &is_execution_completed,
             ],
         )
         .await

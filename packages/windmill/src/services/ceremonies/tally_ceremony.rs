@@ -544,7 +544,8 @@ pub async fn update_tally_ceremony(
         &tenant_id,
         &election_event_id,
         &tally_session.id,
-        new_execution_status,
+        new_execution_status.clone(),
+        new_execution_status == TallyExecutionStatus::SUCCESS,
     )
     .await?;
 
@@ -729,6 +730,7 @@ pub async fn set_private_key(
             &election_event_id,
             &tally_session_id,
             TallyExecutionStatus::CONNECTED,
+            false,
         )
         .await?;
     }
