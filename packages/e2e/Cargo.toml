@@ -14,14 +14,14 @@ name = "default"
 path = "src/main.rs"
 
 [dependencies]
-rocket = { version = "0.5.0", features = ["json"] }
+rocket = { version = "0.5", features = ["json"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 csv = "1.1"
 rusqlite = { version = "0.35", features = ["bundled"] }
 tokio = { version = "1.0", features = ["macros"] }
 anyhow = "1.0"
-rand = "0.9.1"
-uuid = { version = "1.5.0", features = ["v4", "fast-rng"] }
-reqwest = { version = "0.12.5", features = ["blocking", "json"] }
+rand = "0.9"
+uuid = { version = "1.5", features = ["v4", "fast-rng"] }
+reqwest = { version = "0.12", features = ["blocking", "json"] }
 clap = { version = "4.0", features = ["derive"] }

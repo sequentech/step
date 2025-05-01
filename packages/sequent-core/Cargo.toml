@@ -54,7 +54,7 @@ time = { version = "0.3", optional = true }
 
 # serializing
 hex = "0.4"
-base64 = "0.22.1"
+base64 = "0.22"
 
 # rust to json schema
 schemars = { version = "0.8", features = ["chrono"]}
@@ -96,7 +96,7 @@ keycloak = { version = "26.2", optional = true }
 
 # openid connection
 openid = { version = "0.17", optional = true }
-serde_urlencoded = { version = "0.7.1", optional = true }
+serde_urlencoded = { version = "0.7", optional = true }
 rocket = { version = "0.5", features = ["json"], optional = true }
 uuid = { version = "1.5", features = ["v4", "fast-rng"], optional = true }
 regex = { version = "1.10", optional = true }
