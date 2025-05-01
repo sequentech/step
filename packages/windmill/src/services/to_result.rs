@@ -17,7 +17,7 @@ impl<T> ToResult<Response<T>, anyhow::Error> for Response<T> {
             let messages = self
                 .errors
                 .clone()
-                .unwrap()
+                .ok_or(anyhow!("Unexpected: empty errors list"))?
                 .into_iter()
                 .map(|error| error.message.clone())
                 .collect::<Vec<String>>()

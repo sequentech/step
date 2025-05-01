@@ -2,8 +2,6 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-
-use crate::hasura::keys_ceremony::{get_keys_ceremony_by_id, update_keys_ceremony_status};
 use crate::postgres::election::{
     get_election_by_id, get_elections_by_keys_ceremony_id, set_election_keys_ceremony,
 };

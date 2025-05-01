@@ -24,7 +24,7 @@ pub async fn update_election_statistics(
             SET
                 statistics = jsonb_set(
                     jsonb_set(
-                        statistics, 
+                        COALESCE(statistics, '{}'),
                         '{num_emails_sent}', 
                         (COALESCE(statistics->>'num_emails_sent', '0')::int8 + $4)::text::jsonb
                     ),

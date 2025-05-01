@@ -1,14 +1,11 @@
 // SPDX-FileCopyrightText: 2023 Kevin Nguyen <kevin@sequentech.io>, Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::hasura::election_event::get_election_event_helper;
-use crate::hasura::election_event::update_election_event_status;
-use crate::hasura::keys_ceremony::get_keys_ceremonies;
 use crate::postgres::area::get_event_areas;
 use crate::postgres::contest::export_contests;
 use crate::postgres::election::set_election_initialization_report_generated;
-use crate::postgres::election_event::get_election_event_by_id;
-use crate::postgres::keys_ceremony::get_keys_ceremony_by_id;
+use crate::postgres::election_event::{get_election_event_by_id, update_election_event_status};
+use crate::postgres::keys_ceremony::{get_keys_ceremonies, get_keys_ceremony_by_id};
 use crate::postgres::reports::get_template_alias_for_report;
 use crate::postgres::reports::ReportType;
 use crate::postgres::results_event::insert_results_event;
@@ -67,10 +64,7 @@ use sequent_core::ballot::ContestEncryptionPolicy;
 use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::area_tree::TreeNode;
 use sequent_core::services::area_tree::TreeNodeArea;
-use sequent_core::services::connection;
-use sequent_core::services::connection::AuthHeaders;
 use sequent_core::services::date::ISO8601;
-use sequent_core::services::keycloak;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::ceremonies::TallyCeremonyStatus;
 use sequent_core::types::ceremonies::TallyExecutionStatus;
@@ -311,7 +305,6 @@ fn generate_area_contests(
 
 #[instrument(skip_all, err)]
 async fn process_plaintexts(
-    auth_headers: AuthHeaders,
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
     relevant_plaintexts: Vec<&Message>,
@@ -385,9 +378,10 @@ async fn process_plaintexts(
         filtered_area_contests.len()
     );
 
-    let elections_end_dates = get_elections_end_dates(&auth_headers, tenant_id, election_event_id)
-        .await
-        .with_context(|| "error getting elections end_date")?;
+    let elections_end_dates =
+        get_elections_end_dates(hasura_transaction, tenant_id, election_event_id)
+            .await
+            .with_context(|| "error getting elections end_date")?;
 
     let mut data: Vec<AreaContestDataType> = vec![];
 
@@ -410,7 +404,6 @@ async fn process_plaintexts(
         .to_string();
 
         let eligible_voters = get_eligible_voters(
-            auth_headers.clone(),
             &hasura_transaction,
             &keycloak_transaction,
             &area_contest.contest.tenant_id,
@@ -422,7 +415,6 @@ async fn process_plaintexts(
         .await?;
         let auditable_votes = count_auditable_ballots(
             &elections_end_dates,
-            &auth_headers,
             &hasura_transaction,
             &keycloak_transaction,
             &area_contest.contest.tenant_id,
@@ -488,7 +480,6 @@ fn get_execution_status(execution_status: Option<String>) -> Option<TallyExecuti
 
 #[instrument(skip_all, err)]
 pub async fn count_cast_votes_election_with_census(
-    auth_headers: AuthHeaders,
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -548,7 +539,6 @@ pub async fn count_cast_votes_election_with_census(
 
 #[instrument(skip_all, err)]
 pub async fn get_eligible_voters(
-    auth_headers: connection::AuthHeaders,
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -590,7 +580,6 @@ pub async fn get_eligible_voters(
 
 #[instrument(skip_all, err)]
 pub async fn upsert_ballots_messages(
-    auth_headers: &AuthHeaders,
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -639,7 +628,6 @@ pub async fn upsert_ballots_messages(
     );
     if missing_ballots_batches.len() > 0 {
         insert_ballots_messages(
-            &auth_headers,
             hasura_transaction,
             keycloak_transaction,
             tenant_id,
@@ -713,7 +701,6 @@ pub fn clean_tally_sheets(
 
 #[instrument(skip_all, err)]
 async fn map_plaintext_data(
-    auth_headers: AuthHeaders,
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
     tenant_id: String,
@@ -774,15 +761,9 @@ async fn map_plaintext_data(
         return Ok(None);
     };
 
-    let keys_ceremonies = get_keys_ceremonies(
-        auth_headers.clone(),
-        tenant_id.clone(),
-        election_event_id.clone(),
-    )
-    .await?
-    .data
-    .with_context(|| "error listing existing keys ceremonies")?
-    .sequent_backend_keys_ceremony;
+    let keys_ceremonies = get_keys_ceremonies(hasura_transaction, &tenant_id, &election_event_id)
+        .await
+        .with_context(|| "error listing existing keys ceremonies")?;
 
     if keys_ceremonies.is_empty() {
         event!(
@@ -835,15 +816,6 @@ async fn map_plaintext_data(
     }
 
     let last_message_id: i64 = tally_session_execution.current_message_id as i64;
-    // get last message id
-    // let last_message_id = if !tally_session_data
-    //     .sequent_backend_tally_session_execution
-    //     .is_empty()
-    // {
-    //     tally_session_data.sequent_backend_tally_session_execution[0].current_message_id
-    // } else {
-    //     -1
-    // };
 
     // get board messages
     let board_client = protocol_manager::get_b3_pgsql_client().await?;
@@ -855,7 +827,6 @@ async fn map_plaintext_data(
     print_messages(&messages, &bulletin_board)?;
 
     let new_ballots_messages = upsert_ballots_messages(
-        &auth_headers,
         hasura_transaction,
         keycloak_transaction,
         &tenant_id,
@@ -919,16 +890,6 @@ async fn map_plaintext_data(
     }
 
     let initial_status = tally_session_execution.status.clone();
-    // let initial_status = if tally_session_data
-    //     .sequent_backend_tally_session_execution
-    //     .is_empty()
-    // {
-    //     None
-    // } else {
-    //     tally_session_data.sequent_backend_tally_session_execution[0]
-    //         .status
-    //         .clone()
-    // };
 
     let mut new_status = get_tally_ceremony_status(initial_status)?;
 
@@ -969,6 +930,7 @@ async fn map_plaintext_data(
         .iter()
         .map(|message| message.statement.get_batch_number() as i64)
         .collect();
+
     // we have all plaintexts
     let is_execution_completed = relevant_plaintexts.len() == batch_ids.len();
 
@@ -984,7 +946,6 @@ async fn map_plaintext_data(
         .unwrap_or_default()
         .get_contest_encryption_policy();
     let plaintexts_data: Vec<AreaContestDataType> = process_plaintexts(
-        auth_headers.clone(),
         hasura_transaction,
         keycloak_transaction,
         relevant_plaintexts,
@@ -1000,7 +961,6 @@ async fn map_plaintext_data(
     let tally_sheets = clean_tally_sheets(&tally_sheet_rows, &plaintexts_data)?;
 
     let cast_votes_count = count_cast_votes_election_with_census(
-        auth_headers.clone(),
         hasura_transaction,
         keycloak_transaction,
         &tenant_id,
@@ -1130,12 +1090,11 @@ async fn build_reports_template_data(
     Ok((report_content_template, report_system_template, pdf_options))
 }
 
-#[instrument(err, skip(auth_headers, hasura_transaction, keycloak_transaction))]
+#[instrument(err, skip(hasura_transaction, keycloak_transaction))]
 pub async fn execute_tally_session_wrapped(
     tenant_id: String,
     election_event_id: String,
     tally_session_id: String,
-    auth_headers: AuthHeaders,
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
     tally_type: Option<String>,
@@ -1185,7 +1144,6 @@ pub async fn execute_tally_session_wrapped(
 
     // map plaintexts to contests
     let plaintexts_data_opt = map_plaintext_data(
-        auth_headers.clone(),
         hasura_transaction,
         keycloak_transaction,
         tenant_id.clone(),
@@ -1263,7 +1221,6 @@ pub async fn execute_tally_session_wrapped(
     .await?;
     // map_plaintext_data also calls this but at this point the credentials
     // could be expired
-    let auth_headers = keycloak::get_client_credentials().await?;
 
     let session_ids_i32: Option<Vec<i32>> = session_ids
         .clone()
@@ -1288,7 +1245,6 @@ pub async fn execute_tally_session_wrapped(
     if is_execution_completed {
         // update tally session to flag it as completed
         set_tally_session_completed(
-            auth_headers.clone(),
             hasura_transaction,
             tenant_id.clone(),
             election_event_id.clone(),
@@ -1296,19 +1252,16 @@ pub async fn execute_tally_session_wrapped(
         )
         .await?;
         // get the election event
-        let election_event = get_election_event_helper(
-            auth_headers.clone(),
-            tenant_id.clone(),
-            election_event_id.clone(),
-        )
-        .await?;
-        let current_status = get_election_event_status(election_event.status).unwrap();
+        let election_event =
+            get_election_event_by_id(hasura_transaction, &tenant_id, &election_event_id).await?;
+        let current_status = get_election_event_status(election_event.status)
+            .ok_or(anyhow!("Empty election status"))?;
         let new_event_status = current_status.clone();
         let new_status_js = serde_json::to_value(new_event_status)?;
         update_election_event_status(
-            auth_headers.clone(),
-            tenant_id.clone(),
-            election_event_id.clone(),
+            hasura_transaction,
+            &tenant_id,
+            &election_event_id,
             new_status_js,
         )
         .await?;
@@ -1337,7 +1290,6 @@ pub async fn transactions_wrapper(
     tally_type: Option<String>,
     election_ids: Option<Vec<String>>,
 ) -> Result<()> {
-    let auth_headers = keycloak::get_client_credentials().await?;
     let mut keycloak_db_client: DbClient = get_keycloak_pool()
         .await
         .get()
@@ -1361,7 +1313,6 @@ pub async fn transactions_wrapper(
         tenant_id.clone(),
         election_event_id.clone(),
         tally_session_id.clone(),
-        auth_headers.clone(),
         &hasura_transaction,
         &keycloak_transaction,
         tally_type.clone(),
