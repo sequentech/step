@@ -12,7 +12,7 @@ FROM rustlang/rust:nightly-slim
 WORKDIR /app
 
 COPY ./windmill/external-bin/ecies-tool.jar /usr/local/bin/
-
+COPY /windmill/external-bin/entrypoint.sh /usr/local/bin/entrypoint.sh
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \

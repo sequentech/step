@@ -346,18 +346,14 @@ impl TemplateRenderer for ActivityLogsTemplate {
             let file_size =
                 get_file_size(&temp_path_string).with_context(|| "Error obtaining file size")?;
 
-            let auth_headers = keycloak::get_client_credentials()
-                .await
-                .map_err(|err| anyhow!("Error getting client credentials: {err:?}"))?;
-
             let _document = upload_and_return_document(
-                temp_path_string.clone(),
+                hasura_transaction,
+                &temp_path_string.clone(),
                 file_size,
-                "text/csv".to_string(),
-                auth_headers.clone(),
-                tenant_id.to_string(),
-                election_event_id.to_string(),
-                name.clone(),
+                "text/csv",
+                tenant_id,
+                Some(election_event_id.to_string()),
+                &name.clone(),
                 Some(document_id.to_string()),
                 false,
             )
