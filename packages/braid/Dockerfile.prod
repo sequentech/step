@@ -37,7 +37,7 @@ COPY ./.cargo ./.cargo
 
 # build projects
 WORKDIR /app/braid
-RUN cargo build --release --locked
+RUN cargo +nightly build --release --locked
 
 
 
