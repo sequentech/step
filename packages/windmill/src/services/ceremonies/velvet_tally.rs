@@ -642,7 +642,7 @@ async fn build_reports_pipe_config(
     ]);
 
     Ok(PipeConfigGenerateReports {
-        enable_pdfs: true,
+        enable_pdfs: false,
         report_content_template,
         execution_annotations,
         system_template: report_system_template,
