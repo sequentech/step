@@ -24,6 +24,7 @@ pub enum ETasksExecution {
     EXPORT_APPLICATION,
     IMPORT_APPLICATION,
     EXPORT_TRUSTEES,
+    RENDER_DOCUMENT_PDF
 }
 
 impl ETasksExecution {

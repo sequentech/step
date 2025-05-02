@@ -16,7 +16,7 @@ use strum_macros::{Display, EnumString};
 use tracing::instrument;
 use uuid::Uuid;
 use windmill::{
-    postgres::reports::get_report_by_id,
+    postgres::{document::get_document, reports::get_report_by_id},
     services::{
         celery_app::get_celery_app,
         database::get_hasura_pool,
@@ -30,6 +30,127 @@ use windmill::{
     postgres::reports::{get_report_by_type, ReportType},
     services::reports_vault::get_report_key_pair,
 };
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct RenderDocumentPdfInput {
+    pub document_id: String,
+    pub election_event_id: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct RenderDocumentPdfResponse {
+    pub document_id: String,
+    pub task_execution: TasksExecution,
+}
+
+#[instrument(skip(claims))]
+#[post("/render-document-pdf", format = "json", data = "<body>")]
+pub async fn render_document_pdf(
+    claims: JwtClaims,
+    body: Json<RenderDocumentPdfInput>,
+) -> Result<Json<RenderDocumentPdfResponse>, (Status, String)> {
+    let input = body.into_inner();
+    authorize(
+        &claims,
+        true,
+        Some(claims.hasura_claims.tenant_id.clone()),
+        vec![Permissions::REPORT_READ],
+    )?;
+
+    let mut hasura_db_client: DbClient =
+        get_hasura_pool().await.get().await.map_err(|e| {
+            (
+                Status::InternalServerError,
+                format!("Error obtaining keycloak transaction: {e:?}"),
+            )
+        })?;
+    let hasura_transaction =
+        hasura_db_client.transaction().await.map_err(|e| {
+            (
+                Status::InternalServerError,
+                format!("Error obtaining hasura transaction: {e:?}"),
+            )
+        })?;
+    
+    let election_event_id = input.election_event_id.clone();
+    let document_id = input.document_id.clone();
+
+    let Some(found_document) =  get_document(
+        &hasura_transaction,
+        &claims.hasura_claims.tenant_id,
+        election_event_id.clone(),
+        &document_id,
+    ).await.map_err(|e| {
+        (
+            Status::InternalServerError,
+            format!("Error fetching document: {e:?}"),
+        )
+    })? else {
+        return (
+            Status::NotFound,
+            format!("Document not found: {}", document_id),
+        );
+    };
+
+    if Some("text/html".to_string()) != found_document.media_type {
+        return (
+            Status::NotImplemented,
+            format!("Invalid document type: {}", found_document.media_type),
+        );
+    }
+
+    let executer_name = claims
+        .name
+        .clone()
+        .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
+
+    let executer_username = claims
+        .preferred_username
+        .clone()
+        .unwrap_or_else(|| executer_name.clone());
+
+    let output_document_id: String = Uuid::new_v4().to_string();
+
+    let celery_app = get_celery_app().await;
+
+    // Insert the task execution record
+    let task_execution = post(
+        &claims.hasura_claims.tenant_id,
+        Some(&election_event_id),
+        ETasksExecution::RENDER_DOCUMENT_PDF,
+        &executer_name,
+    )
+    .await
+    .map_err(|error| {
+        (
+            Status::InternalServerError,
+            format!("Failed to insert task execution record: {error:?}"),
+        )
+    })?;
+
+    let _task = celery_app
+        .send_task(windmill::tasks::render_document_pdf::render_document_pdf::new(
+            claims.hasura_claims.tenant_id.clone(),
+            document_id.clone(),
+            election_event_id.clone(),
+            Some(task_execution.clone()),
+            Some(executer_username),
+        ))
+        .await
+        .map_err(|e| {
+            (
+                Status::InternalServerError,
+                format!("Error publishing task render_document_pdf {e:?}"),
+            )
+        })?;
+
+    Ok(Json(RenderDocumentPdfResponse {
+        document_id: document_id,
+        task_execution: task_execution.clone(),
+    }))
+}
+
+////////////
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GenerateTemplateResponse {
