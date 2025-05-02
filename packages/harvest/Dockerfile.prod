@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-FROM rust:1.82.0-slim-bookworm as builder
+FROM rust:1.86.0-slim-bookworm as builder
 
 WORKDIR /app
 
@@ -15,9 +15,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     pkg-config \
     libssl-dev \
     && rm -rf /var/lib/apt/lists/*
-
-RUN rustup toolchain install nightly-2024-09-01 \
-    && rustup default nightly-2024-09-01
 
 #TODO: Copy only necessary files
 COPY ./braid ./braid

@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-FROM rustlang/rust:nightly-slim
+FROM rust:1.86.0-slim-bookworm as builder
 
 # Copy projects
 WORKDIR /app
@@ -21,10 +21,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     unzip \
     curl \
     && rm -rf /var/lib/apt/lists/*
-
-# Install the specific nightly toolchain
-RUN rustup toolchain install nightly-2024-09-01 \
-    && rustup default nightly-2024-09-01
 
 ARG VAULT_VERSION=1.15.5
 
