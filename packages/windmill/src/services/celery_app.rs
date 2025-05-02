@@ -39,6 +39,7 @@ use crate::tasks::import_tenant_config::import_tenant_config;
 use crate::tasks::import_users::import_users;
 use crate::tasks::insert_election_event::insert_election_event_t;
 use crate::tasks::insert_tenant::insert_tenant;
+use crate::tasks::maintenance::database_maintenance;
 use crate::tasks::manage_election_allow_tally::manage_election_allow_tally;
 use crate::tasks::manage_election_dates::manage_election_date;
 use crate::tasks::manage_election_event_date::manage_election_event_date;
@@ -217,6 +218,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             enqueue_electoral_log_event,
             process_electoral_log_events_batch,
             electoral_log_batch_dispatcher,
+            database_maintenance,
         ],
         task_routes = [
             create_keys::NAME => Queue::Short.as_ref(),
@@ -261,6 +263,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             enqueue_electoral_log_event::NAME => Queue::ElectoralLogEvent.as_ref(),
             process_electoral_log_events_batch::NAME => Queue::ElectoralLogBatch.as_ref(),
             electoral_log_batch_dispatcher::NAME => Queue::ElectoralLogBeat.as_ref(),
+            database_maintenance::NAME => Queue::Beat.as_ref(),
         ],
         prefetch_count = prefetch_count,
         acks_late = acks_late,

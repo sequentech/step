@@ -933,6 +933,7 @@ const englishTranslation = {
                 START_LOCKDOWN_PERIOD: "Start Lockdown Period",
                 END_LOCKDOWN_PERIOD: "End Lockdown Period",
                 ALLOW_TALLY: "Allow Tally",
+                DATABASE_MAINTENANCE: "Database Maintenance",
             },
             election: {
                 label: "Election",

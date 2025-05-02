@@ -43,6 +43,7 @@ import {ICronConfig, IManageElectionDatePayload} from "@/types/scheduledEvents"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import ElectionHeader from "@/components/ElectionHeader"
 import {useScheduledEventPermissions} from "../ElectionEvent/useScheduledEventPermissions"
+import {AuthContext} from "@/providers/AuthContextProvider"
 
 export const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
     @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
@@ -147,6 +148,12 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
             refetchOnReconnect: false,
             refetchOnMount: false,
         }
+    )
+    const authContext = useContext(AuthContext)
+    const canViewMaintenanceEvent = authContext.isAuthorized(
+        true,
+        tenantId,
+        IPermissions.SCHEDULED_EVENT_DATABASE_MAINTENANCE
     )
 
     const [eventScreeElectionId, setEventScreenElectionId] = useState<string | null>(null)
@@ -304,6 +311,14 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                             _contains: {election_id: electionIds},
                         },
                     },
+                    ...(!canViewMaintenanceEvent && {
+                        event_processor: {
+                            format: "hasura-raw-query",
+                            value: {
+                                _neq: "DATABASE_MAINTENANCE",
+                            },
+                        },
+                    }),
                 }}
                 filters={Filters}
                 queryOptions={{

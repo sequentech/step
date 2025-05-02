@@ -15,6 +15,7 @@ use serde_json::Value;
 use std::collections::HashMap;
 use strum_macros::Display;
 use strum_macros::EnumString;
+use uuid::Uuid;
 
 #[derive(
     Display,
@@ -50,6 +51,8 @@ pub enum EventProcessors {
     END_LOCKDOWN_PERIOD,
     #[strum(serialize = "ALLOW_TALLY")]
     ALLOW_TALLY,
+    #[strum(serialize = "DATABASE_MAINTENANCE")]
+    DATABASE_MAINTENANCE,
 }
 
 #[derive(Serialize, Deserialize, Eq, PartialEq, Debug, Clone)]
@@ -114,7 +117,17 @@ pub fn generate_manage_date_task_name(
         None => base,
     };
 
-    format!("{}{}", base_with_election, event_processor,)
+    // Required to be abñe to create multiple DATABASE_MAINTENANCE events.
+    if event_processor == &EventProcessors::DATABASE_MAINTENANCE {
+        format!(
+            "{}{}{}",
+            base_with_election,
+            event_processor,
+            Uuid::new_v4()
+        )
+    } else {
+        format!("{}{}", base_with_election, event_processor,)
+    }
 }
 
 pub fn generate_voting_period_dates(

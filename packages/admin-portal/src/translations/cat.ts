@@ -955,6 +955,7 @@ const catalanTranslation: TranslationType = {
                 START_LOCKDOWN_PERIOD: "Inici del Período de Bloc de Dades Censals",
                 END_LOCKDOWN_PERIOD: "Final del Período de Bloc de Dades Censals",
                 ALLOW_TALLY: "Permetre el recompte",
+                DATABASE_MAINTENANCE: "Manteniment de Base de Dades",
             },
             election: {
                 label: "Elecció",
