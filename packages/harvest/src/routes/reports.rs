@@ -15,6 +15,11 @@ use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumString};
 use tracing::instrument;
 use uuid::Uuid;
+use windmill::{postgres::reports::Report, services::tasks_execution::*};
+use windmill::{
+    postgres::reports::{get_report_by_type, ReportType},
+    services::reports_vault::get_report_key_pair,
+};
 use windmill::{
     postgres::{document::get_document, reports::get_report_by_id},
     services::{
@@ -24,11 +29,6 @@ use windmill::{
     },
     tasks::generate_template::EGenerateTemplate,
     types::tasks::ETasksExecution,
-};
-use windmill::{postgres::reports::Report, services::tasks_execution::*};
-use windmill::{
-    postgres::reports::{get_report_by_type, ReportType},
-    services::reports_vault::get_report_key_pair,
 };
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -71,33 +71,43 @@ pub async fn render_document_pdf(
                 format!("Error obtaining hasura transaction: {e:?}"),
             )
         })?;
-    
+
     let election_event_id = input.election_event_id.clone();
     let document_id = input.document_id.clone();
 
-    let Some(found_document) =  get_document(
+    let Some(found_document) = get_document(
         &hasura_transaction,
         &claims.hasura_claims.tenant_id,
         election_event_id.clone(),
         &document_id,
-    ).await.map_err(|e| {
+    )
+    .await
+    .map_err(|e| {
         (
             Status::InternalServerError,
             format!("Error fetching document: {e:?}"),
         )
-    })? else {
-        return (
+    })?
+    else {
+        return Err((
             Status::NotFound,
             format!("Document not found: {}", document_id),
-        );
+        ));
     };
 
-    if Some("text/html".to_string()) != found_document.media_type {
-        return (
-            Status::NotImplemented,
-            format!("Invalid document type: {}", found_document.media_type),
-        );
-    }
+    if let Some(media_type) = found_document.media_type {
+        if "text/html".to_string() != media_type {
+            return Err((
+                Status::InternalServerError,
+                format!("Invalid document type: {}", media_type),
+            ));
+        }
+    } else {
+        return Err((
+            Status::InternalServerError,
+            format!("Document {}: missing media type", document_id),
+        ));
+    };
 
     let executer_name = claims
         .name
@@ -116,7 +126,7 @@ pub async fn render_document_pdf(
     // Insert the task execution record
     let task_execution = post(
         &claims.hasura_claims.tenant_id,
-        Some(&election_event_id),
+        election_event_id.as_deref(),
         ETasksExecution::RENDER_DOCUMENT_PDF,
         &executer_name,
     )
@@ -129,13 +139,15 @@ pub async fn render_document_pdf(
     })?;
 
     let _task = celery_app
-        .send_task(windmill::tasks::render_document_pdf::render_document_pdf::new(
-            claims.hasura_claims.tenant_id.clone(),
-            document_id.clone(),
-            election_event_id.clone(),
-            Some(task_execution.clone()),
-            Some(executer_username),
-        ))
+        .send_task(
+            windmill::tasks::render_document_pdf::render_document_pdf::new(
+                claims.hasura_claims.tenant_id.clone(),
+                document_id.clone(),
+                election_event_id.clone(),
+                Some(task_execution.clone()),
+                Some(executer_username),
+            ),
+        )
         .await
         .map_err(|e| {
             (

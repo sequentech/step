@@ -24,7 +24,7 @@ pub enum ETasksExecution {
     EXPORT_APPLICATION,
     IMPORT_APPLICATION,
     EXPORT_TRUSTEES,
-    RENDER_DOCUMENT_PDF
+    RENDER_DOCUMENT_PDF,
 }
 
 impl ETasksExecution {
@@ -48,6 +48,7 @@ impl ETasksExecution {
             ETasksExecution::EXPORT_APPLICATION => "Export Application",
             ETasksExecution::IMPORT_APPLICATION => "Import Application",
             ETasksExecution::EXPORT_TRUSTEES => "Export Trustees",
+            ETasksExecution::RENDER_DOCUMENT_PDF => "Render Document PDF",
         }
     }
 }
