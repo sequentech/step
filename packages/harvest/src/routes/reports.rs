@@ -144,8 +144,9 @@ pub async fn render_document_pdf(
                 claims.hasura_claims.tenant_id.clone(),
                 document_id.clone(),
                 election_event_id.clone(),
-                Some(task_execution.clone()),
+                task_execution.clone(),
                 Some(executer_username),
+                output_document_id.clone(),
             ),
         )
         .await
@@ -157,7 +158,7 @@ pub async fn render_document_pdf(
         })?;
 
     Ok(Json(RenderDocumentPdfResponse {
-        document_id: document_id,
+        document_id: output_document_id,
         task_execution: task_execution.clone(),
     }))
 }

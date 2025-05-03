@@ -1,27 +1,27 @@
 // SPDX-FileCopyrightText: 2025 Sequent Legal <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::types::error::{Error as WrapError, Result as WrapResult};
 use crate::postgres::document::get_document;
-use crate::services::documents::{get_document_as_temp_file, upload_and_return_document};
 use crate::services::database::get_hasura_pool;
-use anyhow::{anyhow, Result, Context};
-use deadpool_postgres::{Client as DbClient, Transaction};
+use crate::services::documents::{get_document_as_temp_file, upload_and_return_document};
+use crate::services::tasks_execution::{update_complete, update_fail};
+use crate::types::error::{Error as WrapError, Result as WrapResult};
+use anyhow::{anyhow, Context, Result};
 use celery::error::TaskError;
+use deadpool_postgres::Client as DbClient;
+use sequent_core::services::pdf::PdfRenderer;
 use sequent_core::temp_path::write_into_named_temp_file;
 use sequent_core::types::hasura::core::TasksExecution;
-use tracing::instrument;
-use sequent_core::services::pdf::PdfRenderer;
-use std::io::BufReader;
 use std::io::{Read, Seek};
+use tracing::instrument;
 
 #[instrument(err)]
 pub async fn render_document_pdf_wrap(
     tenant_id: String,
     document_id: String,
     election_event_id: Option<String>,
-    task_execution: Option<TasksExecution>,
     executer_username: Option<String>,
+    output_document_id: String,
 ) -> Result<()> {
     let mut db_client: DbClient = get_hasura_pool()
         .await
@@ -36,26 +36,24 @@ pub async fn render_document_pdf_wrap(
         election_event_id.clone(),
         &document_id,
     )
-    .await? else {
+    .await?
+    else {
         return Err(anyhow!("Document not found: {}", document_id));
     };
 
-    let mut temp_document = get_document_as_temp_file(
-        &tenant_id,
-        &document,
-    ).await?;
+    let mut temp_document = get_document_as_temp_file(&tenant_id, &document).await?;
     temp_document.rewind()?;
     let mut render = String::new();
     temp_document.read_to_string(&mut render)?;
 
     let bytes = PdfRenderer::render_pdf(render, None)
-    .await
-    .with_context(|| "Error converting html to pdf format")?;
+        .await
+        .with_context(|| "Error converting html to pdf format")?;
     let (_temp_path, temp_path_string, file_size) =
         write_into_named_temp_file(&bytes, "reports-", ".html")
             .with_context(|| "Error writing to file")?;
 
-    // document.name
+    let document_name = document.name.ok_or(anyhow!("Missing document name"))?;
 
     let _document = upload_and_return_document(
         &hasura_transaction,
@@ -64,13 +62,42 @@ pub async fn render_document_pdf_wrap(
         "application/pdf",
         &tenant_id,
         election_event_id.clone(),
-        "test.pdf",
-        None,
+        &document_name,
+        Some(output_document_id),
         false,
     )
     .await?;
 
     hasura_transaction.commit().await?;
+    Ok(())
+}
+
+#[instrument(err)]
+pub async fn render_document_pdf_task_wrap(
+    tenant_id: String,
+    document_id: String,
+    election_event_id: Option<String>,
+    task_execution: TasksExecution,
+    executer_username: Option<String>,
+    output_document_id: String,
+) -> Result<()> {
+    match render_document_pdf_wrap(
+        tenant_id,
+        document_id,
+        election_event_id,
+        executer_username,
+        output_document_id.clone(),
+    )
+    .await
+    {
+        Ok(_) => {
+            update_complete(&task_execution, Some(output_document_id.clone())).await?;
+        }
+        Err(err) => {
+            update_fail(&task_execution, format!("{:?}", err).as_str()).await?;
+        }
+    };
+
     Ok(())
 }
 
@@ -81,15 +108,18 @@ pub async fn render_document_pdf(
     tenant_id: String,
     document_id: String,
     election_event_id: Option<String>,
-    task_execution: Option<TasksExecution>,
+    task_execution: TasksExecution,
     executer_username: Option<String>,
+    output_document_id: String,
 ) -> WrapResult<()> {
-    render_document_pdf_wrap(
+    render_document_pdf_task_wrap(
         tenant_id,
         document_id,
         election_event_id,
         task_execution,
         executer_username,
-    ).await
-        .map_err(|err| WrapError::from(anyhow!("Task panicked: {}", err)) )
+        output_document_id,
+    )
+    .await
+    .map_err(|err| WrapError::from(anyhow!("Task panicked: {}", err)))
 }
