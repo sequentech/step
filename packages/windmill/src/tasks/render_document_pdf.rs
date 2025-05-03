@@ -141,7 +141,7 @@ pub async fn render_document_pdf_task_wrap(
     task_execution: TasksExecution,
     executer_username: Option<String>,
     output_document_id: String,
-    tally_id: Option<String>,
+    tally_session_id: Option<String>,
 ) -> Result<()> {
     match render_document_pdf_wrap(
         tenant_id,
@@ -149,7 +149,7 @@ pub async fn render_document_pdf_task_wrap(
         election_event_id,
         executer_username,
         output_document_id.clone(),
-        tally_id,
+        tally_session_id,
     )
     .await
     {
@@ -174,7 +174,7 @@ pub async fn render_document_pdf(
     task_execution: TasksExecution,
     executer_username: Option<String>,
     output_document_id: String,
-    tally_id: Option<String>,
+    tally_session_id: Option<String>,
 ) -> WrapResult<()> {
     // Note, put this in a thread?
     render_document_pdf_task_wrap(
@@ -184,7 +184,7 @@ pub async fn render_document_pdf(
         task_execution,
         executer_username,
         output_document_id,
-        tally_id,
+        tally_session_id,
     )
     .await
     .map_err(|err| WrapError::from(anyhow!("Task panicked: {}", err)))

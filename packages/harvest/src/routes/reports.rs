@@ -35,6 +35,7 @@ use windmill::{
 pub struct RenderDocumentPdfInput {
     pub document_id: String,
     pub election_event_id: Option<String>,
+    pub tally_session_id: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -147,6 +148,7 @@ pub async fn render_document_pdf(
                 task_execution.clone(),
                 Some(executer_username),
                 output_document_id.clone(),
+                input.tally_session_id.clone(),
             ),
         )
         .await
