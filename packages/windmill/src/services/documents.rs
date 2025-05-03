@@ -189,3 +189,4 @@ pub async fn get_document_as_temp_file(
     // Return the temporary file and the separator as a tuple
     Ok(file)
 }
+
