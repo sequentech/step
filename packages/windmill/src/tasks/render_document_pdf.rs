@@ -2,8 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::document::get_document;
-use crate::postgres::results_event::get_results_event_by_id;
-use crate::postgres::tally_session_execution::get_last_tally_session_execution;
+use crate::services::ceremonies::velvet_tally::generate_initial_state;
+use crate::services::compress::decompress_file;
+use crate::services::consolidation::create_transmission_package_service::download_tally_tar_gz_to_file;
 use crate::services::database::get_hasura_pool;
 use crate::services::documents::{get_document_as_temp_file, upload_and_return_document};
 use crate::services::tasks_execution::{update_complete, update_fail};
@@ -12,11 +13,14 @@ use anyhow::{anyhow, Context, Result};
 use celery::error::TaskError;
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
+use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::pdf::{PdfRenderer, PrintToPdfOptions};
 use sequent_core::temp_path::write_into_named_temp_file;
 use sequent_core::types::hasura::core::TasksExecution;
 use std::io::{Read, Seek};
 use tracing::instrument;
+use velvet::config::generate_reports::PipeConfigGenerateReports;
+use velvet::pipes::pipe_name::PipeName;
 
 #[instrument(err, skip(hasura_transaction))]
 pub async fn get_tally_pdf_config(
@@ -30,48 +34,37 @@ pub async fn get_tally_pdf_config(
         return Ok(None);
     };
 
-    let Some(tally_session_execution) = get_last_tally_session_execution(
+    let tar_gz_file = download_tally_tar_gz_to_file(
         hasura_transaction,
         tenant_id,
         &election_event_id,
         &tally_session_id,
     )
-    .await?
-    else {
-        return Err(anyhow!("No tally session execution found"));
-    };
-    let results_event_id = tally_session_execution
-        .results_event_id
-        .ok_or(anyhow!("Missing results id"))?;
-
-    let results_event = get_results_event_by_id(
-        hasura_transaction,
-        tenant_id,
-        &election_event_id,
-        &results_event_id,
-    )
     .await?;
 
-    let tar_gz_document_id = results_event
-        .documents
-        .ok_or(anyhow!("Result event with no document"))?
-        .tar_gz_original
-        .ok_or(anyhow!("Tally with no tar gz"))?;
+    let tally_path = decompress_file(tar_gz_file.path())?;
 
-    let Some(document) = get_document(
-        &hasura_transaction,
-        &tenant_id,
-        Some(election_event_id.clone()),
-        &tar_gz_document_id,
-    )
-    .await?
-    else {
-        return Err(anyhow!("Document not found: {}", tar_gz_document_id));
-    };
+    let tally_path_path = tally_path.into_path();
 
-    let mut temp_document = get_document_as_temp_file(&tenant_id, &document).await?;
+    let state = generate_initial_state(&tally_path_path, "decode-ballots")?;
 
-    Ok(None)
+    let pipe = state
+        .stages
+        .iter()
+        .find_map(|stage| {
+            stage
+                .pipeline
+                .iter()
+                .find(|pipeline| pipeline.pipe == PipeName::GenerateReports)
+        })
+        .ok_or(anyhow!("Can't find pipe"))?;
+
+    let config: PipeConfigGenerateReports =
+        deserialize_value(pipe.config.clone().ok_or(anyhow!("Missing pipe config"))?)?;
+
+    Ok(config
+        .pdf_options
+        .map(|option| option.to_print_to_pdf_options()))
 }
 
 #[instrument(err)]
