@@ -9,7 +9,7 @@ use crate::types::error::{Error as WrapError, Result as WrapResult};
 use anyhow::{anyhow, Context, Result};
 use celery::error::TaskError;
 use deadpool_postgres::Client as DbClient;
-use sequent_core::services::pdf::PdfRenderer;
+use sequent_core::services::pdf::{PdfRenderer, PrintToPdfOptions};
 use sequent_core::temp_path::write_into_named_temp_file;
 use sequent_core::types::hasura::core::TasksExecution;
 use std::io::{Read, Seek};
@@ -22,6 +22,7 @@ pub async fn render_document_pdf_wrap(
     election_event_id: Option<String>,
     executer_username: Option<String>,
     output_document_id: String,
+    tally_id: Option<String>,
 ) -> Result<()> {
     let mut db_client: DbClient = get_hasura_pool()
         .await
@@ -29,6 +30,13 @@ pub async fn render_document_pdf_wrap(
         .await
         .map_err(|err| anyhow!("{:?}", err))?;
     let hasura_transaction = db_client.transaction().await?;
+
+    let pdf_options = get_tally_pdf_config(
+        &hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        tally_id
+    ).await?;
 
     let Some(document) = get_document(
         &hasura_transaction,
@@ -46,7 +54,7 @@ pub async fn render_document_pdf_wrap(
     let mut render = String::new();
     temp_document.read_to_string(&mut render)?;
 
-    let bytes = PdfRenderer::render_pdf(render, None)
+    let bytes = PdfRenderer::render_pdf(render, pdf_options)
         .await
         .with_context(|| "Error converting html to pdf format")?;
     let (_temp_path, temp_path_string, file_size) =
@@ -80,6 +88,7 @@ pub async fn render_document_pdf_task_wrap(
     task_execution: TasksExecution,
     executer_username: Option<String>,
     output_document_id: String,
+    tally_id: Option<String>,
 ) -> Result<()> {
     match render_document_pdf_wrap(
         tenant_id,
@@ -87,6 +96,7 @@ pub async fn render_document_pdf_task_wrap(
         election_event_id,
         executer_username,
         output_document_id.clone(),
+        tally_id,
     )
     .await
     {
@@ -111,7 +121,9 @@ pub async fn render_document_pdf(
     task_execution: TasksExecution,
     executer_username: Option<String>,
     output_document_id: String,
+    tally_id: Option<String>,
 ) -> WrapResult<()> {
+    // Note, put this in a thread?
     render_document_pdf_task_wrap(
         tenant_id,
         document_id,
@@ -119,6 +131,7 @@ pub async fn render_document_pdf(
         task_execution,
         executer_username,
         output_document_id,
+        tally_id,
     )
     .await
     .map_err(|err| WrapError::from(anyhow!("Task panicked: {}", err)))
