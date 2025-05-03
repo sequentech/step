@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::document::get_document;
+use crate::postgres::results_event::get_results_event_by_id;
+use crate::postgres::tally_session_execution::get_last_tally_session_execution;
 use crate::services::database::get_hasura_pool;
 use crate::services::documents::{get_document_as_temp_file, upload_and_return_document};
 use crate::services::tasks_execution::{update_complete, update_fail};
@@ -9,11 +11,68 @@ use crate::types::error::{Error as WrapError, Result as WrapResult};
 use anyhow::{anyhow, Context, Result};
 use celery::error::TaskError;
 use deadpool_postgres::Client as DbClient;
+use deadpool_postgres::Transaction;
 use sequent_core::services::pdf::{PdfRenderer, PrintToPdfOptions};
 use sequent_core::temp_path::write_into_named_temp_file;
 use sequent_core::types::hasura::core::TasksExecution;
 use std::io::{Read, Seek};
 use tracing::instrument;
+
+#[instrument(err, skip(hasura_transaction))]
+pub async fn get_tally_pdf_config(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id_opt: Option<String>,
+    tally_id_opt: Option<String>,
+) -> Result<Option<PrintToPdfOptions>> {
+    let (Some(election_event_id), Some(tally_session_id)) = (election_event_id_opt, tally_id_opt)
+    else {
+        return Ok(None);
+    };
+
+    let Some(tally_session_execution) = get_last_tally_session_execution(
+        hasura_transaction,
+        tenant_id,
+        &election_event_id,
+        &tally_session_id,
+    )
+    .await?
+    else {
+        return Err(anyhow!("No tally session execution found"));
+    };
+    let results_event_id = tally_session_execution
+        .results_event_id
+        .ok_or(anyhow!("Missing results id"))?;
+
+    let results_event = get_results_event_by_id(
+        hasura_transaction,
+        tenant_id,
+        &election_event_id,
+        &results_event_id,
+    )
+    .await?;
+
+    let tar_gz_document_id = results_event
+        .documents
+        .ok_or(anyhow!("Result event with no document"))?
+        .tar_gz_original
+        .ok_or(anyhow!("Tally with no tar gz"))?;
+
+    let Some(document) = get_document(
+        &hasura_transaction,
+        &tenant_id,
+        Some(election_event_id.clone()),
+        &tar_gz_document_id,
+    )
+    .await?
+    else {
+        return Err(anyhow!("Document not found: {}", tar_gz_document_id));
+    };
+
+    let mut temp_document = get_document_as_temp_file(&tenant_id, &document).await?;
+
+    Ok(None)
+}
 
 #[instrument(err)]
 pub async fn render_document_pdf_wrap(
@@ -34,9 +93,10 @@ pub async fn render_document_pdf_wrap(
     let pdf_options = get_tally_pdf_config(
         &hasura_transaction,
         &tenant_id,
-        &election_event_id,
-        tally_id
-    ).await?;
+        election_event_id.clone(),
+        tally_id,
+    )
+    .await?;
 
     let Some(document) = get_document(
         &hasura_transaction,
