@@ -13,7 +13,8 @@ use crate::postgres::keys_ceremony;
 use crate::postgres::keys_ceremony::get_keys_ceremonies;
 use crate::postgres::keys_ceremony::get_keys_ceremony_by_id;
 use crate::postgres::tally_session::{
-    get_tally_session_by_id, get_tally_session_status, insert_tally_session, set_tally_session_completed as set_tally_session_completed_in_db, update_tally_session_status
+    get_tally_session_by_id, get_tally_session_status, insert_tally_session,
+    set_tally_session_completed as set_tally_session_completed_in_db, update_tally_session_status,
 };
 use crate::postgres::tally_session_contest::{
     get_tally_session_contests, get_tally_session_highest_batch, insert_tally_session_contest,
@@ -823,38 +824,43 @@ pub async fn set_tally_session_completed(
         &tenant_id,
         &election_event_id,
         &tally_session_id,
-    ).await?;
-    info!("current_execution_status: {:?}", current_execution_status);
-    if current_execution_status != TallyExecutionStatus::CANCELLED {
-    let is_updated = match set_tally_session_completed_in_db(
-        hasura_transaction,
-        &tenant_id,
-        &election_event_id,
-        &tally_session_id,
-        execution_status,
     )
-    .await
-    {
-        Ok(_) => true,
-        Err(_) => false,
-    };
+    .await?;
 
-    if is_updated {
-        let election_event =
-            get_election_event_by_id(hasura_transaction, &tenant_id, &election_event_id).await?;
+    info!("current_execution_status: {:?}", current_execution_status);
 
-        let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
-            .with_context(|| "missing bulletin board")?;
+    if current_execution_status != TallyExecutionStatus::CANCELLED {
+        let is_updated = match set_tally_session_completed_in_db(
+            hasura_transaction,
+            &tenant_id,
+            &election_event_id,
+            &tally_session_id,
+            execution_status,
+        )
+        .await
+        {
+            Ok(_) => true,
+            Err(_) => false,
+        };
 
-        let electoral_log = ElectoralLog::new(
+        if is_updated {
+            let election_event =
+                get_election_event_by_id(hasura_transaction, &tenant_id, &election_event_id)
+                    .await?;
+
+            let board_name =
+                get_election_event_board(election_event.bulletin_board_reference.clone())
+                    .with_context(|| "missing bulletin board")?;
+
+            let electoral_log = ElectoralLog::new(
                 hasura_transaction,
                 &tenant_id,
                 Some(&election_event_id),
                 board_name.as_str(),
             )
-        .await?;
-    
-        electoral_log
+            .await?;
+
+            electoral_log
                 .post_tally_close(election_event_id.to_string(), None, None, None)
                 .await
                 .with_context(|| "error posting to the electoral log")?;
