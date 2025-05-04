@@ -2,11 +2,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::ballot_publication::get_ballot_publication;
-use crate::types::documents::EDocuments;
 use crate::postgres::ballot_style::{
     export_event_ballot_styles, get_ballot_styles_by_ballot_publication_by_id,
 };
 use crate::services::documents::upload_and_return_document;
+use crate::types::documents::EDocuments;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use futures::{pin_mut, StreamExt};

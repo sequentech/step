@@ -898,10 +898,10 @@ pub async fn get_zip_entries(
         .await??
     } else {
         // Regular JSON document processing
-            let mut file = File::open(temp_file_path)?;
-            let mut data_str = String::new();
-            file.read_to_string(&mut data_str)?;
-            (vec![], data_str)
+        let mut file = File::open(temp_file_path)?;
+        let mut data_str = String::new();
+        file.read_to_string(&mut data_str)?;
+        (vec![], data_str)
     };
 
     // Sort the ZIP entries by importance:
