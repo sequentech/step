@@ -1,7 +1,6 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::hasura::election_event::get_election_event_helper;
 use crate::postgres::area::get_event_areas;
 use crate::postgres::area_contest::export_area_contests;
 use crate::postgres::ballot_style::get_ballot_styles_by_elections;
@@ -14,8 +13,7 @@ use crate::postgres::keys_ceremony;
 use crate::postgres::keys_ceremony::get_keys_ceremonies;
 use crate::postgres::keys_ceremony::get_keys_ceremony_by_id;
 use crate::postgres::tally_session::{
-    get_tally_session_by_id, get_tally_session_status, insert_tally_session,
-    update_tally_session_status,
+    get_tally_session_by_id, get_tally_session_status, insert_tally_session, set_tally_session_completed as set_tally_session_completed_in_db, update_tally_session_status
 };
 use crate::postgres::tally_session_contest::{
     get_tally_session_contests, get_tally_session_highest_batch, insert_tally_session_contest,
@@ -54,7 +52,7 @@ use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::str::FromStr;
-use tracing::{event, instrument, Level};
+use tracing::{event, info, instrument, Level};
 use uuid::Uuid;
 
 #[instrument(skip(hasura_transaction), err)]
@@ -560,7 +558,8 @@ pub async fn update_tally_ceremony(
         &tenant_id,
         &election_event_id,
         &tally_session.id,
-        &new_execution_status,
+        &new_execution_status.clone(),
+        new_execution_status == TallyExecutionStatus::SUCCESS,
     )
     .await?;
 
@@ -635,8 +634,6 @@ pub async fn set_private_key(
     tally_session_id: &str,
     private_key_base64: &str,
 ) -> Result<bool> {
-    let auth_headers = keycloak::get_client_credentials().await?;
-
     let tally_session = get_tally_session_by_id(
         transaction,
         &tenant_id,
@@ -764,17 +761,14 @@ pub async fn set_private_key(
             &election_event_id,
             &tally_session_id,
             &TallyExecutionStatus::CONNECTED,
+            false,
         )
         .await?;
     }
     println!("after update status");
     // get the election event
-    let election_event = get_election_event_helper(
-        auth_headers.clone(),
-        tenant_id.to_string(),
-        election_event_id.to_string(),
-    )
-    .await?;
+    let election_event =
+        get_election_event_by_id(transaction, &tenant_id, &election_event_id).await?;
 
     // Save this in the electoral log
     let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
@@ -817,7 +811,6 @@ pub async fn set_private_key(
 
 #[instrument(err)]
 pub async fn set_tally_session_completed(
-    auth_headers: connection::AuthHeaders,
     hasura_transaction: &Transaction<'_>,
     tenant_id: String,
     election_event_id: String,
@@ -830,42 +823,38 @@ pub async fn set_tally_session_completed(
         &tenant_id,
         &election_event_id,
         &tally_session_id,
-    )
-    .await?;
+    ).await?;
+    info!("current_execution_status: {:?}", current_execution_status);
     if current_execution_status != TallyExecutionStatus::CANCELLED {
-        let is_updated = match update_tally_session_status(
-            &hasura_transaction,
-            &tenant_id,
-            &election_event_id,
-            &tally_session_id,
-            &execution_status,
-        )
-        .await
-        {
-            Ok(_) => true,
-            Err(_) => false,
-        };
-        if is_updated {
-            let election_event = get_election_event_helper(
-                auth_headers.clone(),
-                tenant_id.clone(),
-                election_event_id.clone(),
-            )
-            .await?;
+    let is_updated = match set_tally_session_completed_in_db(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &tally_session_id,
+        execution_status,
+    )
+    .await
+    {
+        Ok(_) => true,
+        Err(_) => false,
+    };
 
-            let board_name =
-                get_election_event_board(election_event.bulletin_board_reference.clone())
-                    .with_context(|| "missing bulletin board")?;
+    if is_updated {
+        let election_event =
+            get_election_event_by_id(hasura_transaction, &tenant_id, &election_event_id).await?;
 
-            let electoral_log = ElectoralLog::new(
+        let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
+            .with_context(|| "missing bulletin board")?;
+
+        let electoral_log = ElectoralLog::new(
                 hasura_transaction,
                 &tenant_id,
                 Some(&election_event_id),
                 board_name.as_str(),
             )
-            .await?;
-
-            electoral_log
+        .await?;
+    
+        electoral_log
                 .post_tally_close(election_event_id.to_string(), None, None, None)
                 .await
                 .with_context(|| "error posting to the electoral log")?;

@@ -19,18 +19,16 @@ use crate::{
         results_event::update_results_event_documents,
     },
     services::{
-        compress::compress_folder,
-        documents::{upload_and_return_document, upload_and_return_document_postgres},
-        folders::copy_to_temp_dir,
+        compress::compress_folder, documents::upload_and_return_document, folders::copy_to_temp_dir,
     },
 };
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::services::translations::Name;
 use sequent_core::types::ceremonies::TallyType;
+use sequent_core::types::hasura::core::Area;
+use sequent_core::types::results::ResultDocuments;
 use sequent_core::util::temp_path::get_file_size;
-use sequent_core::{services::connection::AuthHeaders, types::results::ResultDocuments};
-use sequent_core::{services::keycloak, types::hasura::core::Area};
 use std::{
     collections::HashMap,
     fs,
@@ -150,7 +148,7 @@ async fn process_and_upload_document(
 
         let file_size = get_file_size(&path)?;
 
-        let document = upload_and_return_document_postgres(
+        let document = upload_and_return_document(
             hasura_transaction,
             &path,
             file_size,
@@ -266,7 +264,7 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
             .map_err(|err| anyhow!("Error encrypting file: {err:?}"))?;
 
             // upload binary data into a document (s3 and hasura)
-            let original_document = upload_and_return_document_postgres(
+            let original_document = upload_and_return_document(
                 hasura_transaction,
                 &upload_path,
                 original_tarfile_size,
@@ -332,7 +330,7 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
             .map_err(|err| anyhow!("Error encrypting file: {err:?}"))?;
 
             // upload binary data into a document (s3 and hasura)
-            let document = upload_and_return_document_postgres(
+            let document = upload_and_return_document(
                 hasura_transaction,
                 &upload_path,
                 tarfile_size,
