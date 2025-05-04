@@ -49,7 +49,7 @@ use super::export_tally;
 use super::export_users::export_users_file;
 use super::export_users::ExportBody;
 use crate::services::consolidation::aes_256_cbc_encrypt::encrypt_file_aes_256_cbc;
-use crate::services::documents::upload_and_return_document_postgres;
+use crate::services::documents::upload_and_return_document;
 use crate::services::password;
 
 #[instrument(err, skip(transaction))]
@@ -602,7 +602,7 @@ pub async fn process_export_zip(
     .map_err(|e| anyhow!("Error generating the exported election event filename: {e:?}"))?;
 
     // Upload the ZIP file (encrypted or original) to Hasura
-    let _document = upload_and_return_document_postgres(
+    let _document = upload_and_return_document(
         &hasura_transaction,
         upload_path.to_str().unwrap(),
         zip_size,

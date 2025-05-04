@@ -1098,6 +1098,7 @@ const catalanTranslation: TranslationType = {
                 fr: "Francès",
                 cat: "Valencià",
                 tl: "Tagal",
+                gl: "Galego",
                 nl: "Holandés",
             },
             channel: {

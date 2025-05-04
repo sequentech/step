@@ -19,7 +19,6 @@ use std::collections::HashSet;
 use strand::signature::StrandSignaturePk;
 use tracing::{event, info, instrument, Level};
 
-use crate::hasura::trustee::get_trustees_by_name;
 use crate::services::ceremonies::keys_ceremony::get_keys_ceremony_board;
 use crate::services::ceremonies::serialize_logs::generate_logs;
 use crate::services::ceremonies::serialize_logs::sort_logs;
@@ -27,7 +26,6 @@ use crate::services::database::get_hasura_pool;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::protocol_manager;
 use crate::services::public_keys;
-use crate::tasks::set_public_key::get_trustees_by_name::GetTrusteesByNameSequentBackendTrustee;
 use crate::types::error::Result;
 
 #[instrument(skip(trustees_hasura, messages), err)]

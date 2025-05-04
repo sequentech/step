@@ -10,6 +10,7 @@ import spanishTranslation from "../translations/es"
 import catalanTranslation from "../translations/cat"
 import frenchTranslation from "../translations/fr"
 import tagalogTranslation from "../translations/tl"
+import galegoTranslation from "../translations/gl"
 import dutchTranslation from "../translations/nl"
 
 export const initializeLanguages = (externalTranslations: Resource, language?: string) => {
@@ -19,6 +20,7 @@ export const initializeLanguages = (externalTranslations: Resource, language?: s
         cat: catalanTranslation,
         fr: frenchTranslation,
         tl: tagalogTranslation,
+        gl: galegoTranslation,
         nl: dutchTranslation,
     }
     const mergedTranslations = deepmerge(libTranslations, externalTranslations)

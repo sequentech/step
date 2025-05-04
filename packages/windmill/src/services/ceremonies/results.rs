@@ -11,7 +11,6 @@ use crate::services::ceremonies::result_documents::save_result_documents;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::services::connection;
-use sequent_core::services::keycloak;
 use sequent_core::types::ceremonies::TallyType;
 use sequent_core::types::hasura::core::Area;
 use sequent_core::types::hasura::core::TallySessionExecution;
@@ -322,7 +321,6 @@ pub async fn populate_results_tables(
     default_language: &str,
     tally_type_enum: TallyType,
 ) -> Result<Option<String>> {
-    let mut auth_headers = keycloak::get_client_credentials().await?;
     let results_event_id_opt = generate_results_id_if_necessary(
         hasura_transaction,
         tenant_id,

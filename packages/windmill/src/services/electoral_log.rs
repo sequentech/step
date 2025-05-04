@@ -862,7 +862,7 @@ impl GetElectoralLogBody {
                     clauses.push(format!("WHERE {}", extra_where_clauses.join(" AND ")));
                 }
                 _ => {
-                    let where_clause = clauses.pop().unwrap();
+                    let where_clause = clauses.pop().ok_or(anyhow!("Empty clause"))?;
                     clauses.push(format!(
                         "{} AND {}",
                         where_clause,
@@ -877,7 +877,7 @@ impl GetElectoralLogBody {
             let order_by_clauses: Vec<String> = self
                 .order_by
                 .as_ref()
-                .unwrap()
+                .ok_or(anyhow!("Empty order clause"))?
                 .iter()
                 .map(|(field, direction)| format!("{field} {direction}"))
                 .collect();
@@ -900,7 +900,7 @@ impl GetElectoralLogBody {
         // Handle offset
         if !to_count && self.offset.is_some() {
             let offset_param_name = String::from("offset");
-            let offset = std::cmp::max(self.offset.unwrap(), 0);
+            let offset = std::cmp::max(self.offset.unwrap_or(0), 0);
             clauses.push(format!("OFFSET @{}", offset_param_name));
             params.push(create_named_param(offset_param_name, Value::N(offset)));
         }

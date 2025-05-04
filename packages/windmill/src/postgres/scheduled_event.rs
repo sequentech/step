@@ -35,8 +35,9 @@ impl TryFrom<Row> for ScheduledEventWrapper {
         let cron_config_js: Option<Value> = item
             .try_get("cron_config")
             .map_err(|err| anyhow!("Error deserializing cron_config: {err}"))?;
-        let cron_config: Option<CronConfig> =
-            cron_config_js.map(|val| deserialize_value(val).unwrap());
+        let cron_config: Option<CronConfig> = cron_config_js
+            .map(|val| deserialize_value(val))
+            .transpose()?;
 
         Ok(ScheduledEventWrapper(ScheduledEvent {
             id: item
@@ -497,7 +498,8 @@ pub async fn insert_new_scheduled_event(
     };
     let cron_config_js: Option<Value> = new_event
         .cron_config
-        .map(|config| serde_json::to_value(config).unwrap());
+        .map(|config| serde_json::to_value(config))
+        .transpose()?;
     let event_processor_s: Option<String> = new_event
         .event_processor
         .map(|processor| processor.to_string());
