@@ -1,8 +1,9 @@
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::hasura::election::get_all_elections_for_event;
-use crate::hasura::trustee::get_trustees_by_name;
+// use crate::hasura::trustee::get_trustees_by_name;
+use crate::postgres::election::get_elections;
+use crate::postgres::trustee::get_trustees_by_name;
 use crate::services::cast_votes::{find_area_ballots, CastVote};
 use crate::services::database::PgConfig;
 use crate::services::join::{count_unique_csv, merge_join_csv};
@@ -25,7 +26,6 @@ use sequent_core::ballot::{ContestEncryptionPolicy, ElectionPresentation, Hashab
 use sequent_core::multi_ballot::HashableMultiBallot;
 use sequent_core::serialization::base64::{Base64Deserialize, Base64Serialize};
 use sequent_core::serialization::deserialize_with_path::{deserialize_str, deserialize_value};
-use sequent_core::services::connection::AuthHeaders;
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::hasura::core::TallySessionContest;
@@ -38,7 +38,6 @@ use tracing::{event, instrument, Level};
 
 #[instrument(skip_all, err)]
 pub async fn insert_ballots_messages(
-    auth_headers: &AuthHeaders,
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -48,11 +47,7 @@ pub async fn insert_ballots_messages(
     tally_session_contests: Vec<TallySessionContest>,
     contest_encryption_policy: ContestEncryptionPolicy,
 ) -> Result<()> {
-    let trustees = get_trustees_by_name(&auth_headers, &tenant_id, &trustee_names)
-        .await?
-        .data
-        .with_context(|| "can't find trustees")?
-        .sequent_backend_trustee;
+    let trustees = get_trustees_by_name(hasura_transaction, &tenant_id, &trustee_names).await?;
 
     event!(Level::INFO, "trustees len: {:?}", trustees.len());
 
@@ -60,8 +55,13 @@ pub async fn insert_ballots_messages(
     let deserialized_trustee_pks: Vec<StrandSignaturePk> = trustees
         .clone()
         .into_iter()
-        .map(|trustee| deserialize_public_key(trustee.public_key.unwrap()))
-        .collect();
+        .map(|trustee| {
+            let public_key = trustee
+                .public_key
+                .ok_or(anyhow!("Missing trustee public key"))?;
+            deserialize_public_key(public_key)
+        })
+        .collect::<Result<Vec<_>>>()?;
 
     event!(
         Level::INFO,
@@ -287,49 +287,44 @@ pub async fn insert_ballots_messages(
 
 #[instrument(skip_all, err)]
 pub async fn get_elections_end_dates(
-    auth_headers: &AuthHeaders,
+    hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<HashMap<String, Option<DateTime<Utc>>>> {
     // Use ballot publications instead?
-    let elections_dates: HashMap<String, Option<DateTime<_>>> = get_all_elections_for_event(
-        auth_headers.clone(),
-        tenant_id.to_string(),
-        election_event_id.to_string(),
-    )
-    .await?
-    .data
-    .ok_or(anyhow!("Expected election dates to have data"))?
-    .sequent_backend_election
-    .into_iter()
-    .map(|election| {
-        let election_presentation: ElectionPresentation = election
-            .presentation
-            .clone()
-            .map(|presentation| deserialize_value(presentation))
-            .transpose()
-            .map_err(|err| anyhow!("Error parsing election presentation {:?}", err))?
-            .unwrap_or(Default::default());
-        let current_dates = election_presentation
-            .dates
-            .clone()
-            .unwrap_or(Default::default());
-        let end_date = current_dates
-            .end_date
-            .clone()
-            .map(|val| ISO8601::to_date_utc(&val).ok())
-            .flatten();
-        Ok((election.id, end_date))
-    })
-    .collect::<Result<HashMap<_, _>>>()
-    .map_err(|err| anyhow!("Error parsing election dates {:?}", err))?;
+    let elections = get_elections(hasura_transaction, tenant_id, election_event_id, None)
+        .await
+        .map_err(|err| anyhow!("Error getting elections {:?}", err))?;
+
+    let elections_dates: HashMap<String, Option<DateTime<_>>> = elections
+        .into_iter()
+        .map(|election| {
+            let election_presentation: ElectionPresentation = election
+                .presentation
+                .clone()
+                .map(|presentation| deserialize_value(presentation))
+                .transpose()
+                .map_err(|err| anyhow!("Error parsing election presentation {:?}", err))?
+                .unwrap_or(Default::default());
+            let current_dates = election_presentation
+                .dates
+                .clone()
+                .unwrap_or(Default::default());
+            let end_date = current_dates
+                .end_date
+                .clone()
+                .map(|val| ISO8601::to_date_utc(&val).ok())
+                .flatten();
+            Ok((election.id, end_date))
+        })
+        .collect::<Result<HashMap<_, _>>>()
+        .map_err(|err| anyhow!("Error parsing election dates {:?}", err))?;
     Ok(elections_dates)
 }
 
 #[instrument(skip_all, err, ret)]
 pub async fn count_auditable_ballots(
     elections_end_dates: &HashMap<String, Option<DateTime<Utc>>>,
-    auth_headers: &AuthHeaders,
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
     tenant_id: &str,

@@ -63,8 +63,7 @@ pub async fn get_event_id_and_datafix_annotations(
     let mut next_event = itr.next(); // Use while let Some(event) = itr.next()... once the compiler gets updated.
 
     // Search for the datafix event id in all the annotations
-    while next_event.is_some() {
-        let event = next_event.unwrap();
+    while let Some(event) = next_event {
         let datafix_id_value = event
             .0
             .annotations

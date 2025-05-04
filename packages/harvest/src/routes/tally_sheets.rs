@@ -11,7 +11,7 @@ use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
-use windmill::hasura::tally_sheet;
+use windmill::postgres::tally_sheet;
 use windmill::services::database::get_hasura_pool;
 
 #[derive(Serialize, Deserialize, Debug)]
