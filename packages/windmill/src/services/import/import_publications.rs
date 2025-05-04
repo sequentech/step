@@ -18,7 +18,7 @@ use tempfile::NamedTempFile;
 use tracing::instrument;
 use uuid::Uuid;
 
-#[instrument(err)]
+#[instrument(err, skip(replacement_map))]
 async fn process_ballot_publications_file(
     hasura_transaction: &Transaction<'_>,
     temp_file: &NamedTempFile,
@@ -47,7 +47,7 @@ async fn process_ballot_publications_file(
         let published_at = get_opt_date(&record, 10).await?;
         let election_id = get_string_or_null_item(&record, 11).await?;
         let new_election_id = match election_id {
-            Some(election_id) => Some(get_replaced_id(&record, 11, &replacement_map).await?),
+            Some(_election_id) => Some(get_replaced_id(&record, 11, &replacement_map).await?),
             None => None,
         };
 
