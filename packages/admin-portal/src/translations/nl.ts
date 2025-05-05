@@ -79,6 +79,7 @@ const dutchTranslation: TranslationType = {
                 EXPORT_APPLICATION: "Applicaties Exporteren",
                 EXPORT_TENANT_CONFIG: "Tenantconfiguratie Exporteren",
                 IMPORT_TENANT_CONFIG: "Tenantconfiguratie Importeren",
+                RENDER_DOCUMENT_PDF: "Document als PDF renderen",
             },
             widget: {
                 taskTitle: "Taak: {{title}}",

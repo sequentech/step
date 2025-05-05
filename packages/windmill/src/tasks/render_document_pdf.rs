@@ -166,7 +166,7 @@ pub async fn render_document_pdf_task_wrap(
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(time_limit = 60000)]
+#[celery::task(time_limit = 60000, max_retries = 2)]
 pub async fn render_document_pdf(
     tenant_id: String,
     document_id: String,

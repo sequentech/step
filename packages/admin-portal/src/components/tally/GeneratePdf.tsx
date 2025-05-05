@@ -39,8 +39,8 @@ export const GeneratePDF: React.FC<GenerateReportProps> = ({
     })
 
     useEffect(() => {
-        if (!documentId && documents?.[EExportFormat.PDF]) {
-            setDocumentId(documents?.[EExportFormat.PDF])
+        if (!documentId && documents?.[EExportFormat.HTML]) {
+            setDocumentId(documents?.[EExportFormat.HTML])
         }
     }, [documents?.[EExportFormat.PDF]])
 
