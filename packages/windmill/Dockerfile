@@ -23,8 +23,9 @@ RUN apt-get update && apt-get install -y chromium protobuf-compiler libprotobuf-
     && update-alternatives --install /usr/bin/java java /usr/local/jdk-22.0.2/bin/java 1 \
     && update-alternatives --install /usr/bin/javac javac /usr/local/jdk-22.0.2/bin/javac 1
 
+RUN rustup toolchain install nightly && rustup default nightly
+
 # java -jar ecies-tool.jar create-keys public.pem private.pem
-RUN rustup default nightly
 
 WORKDIR /app/windmill
 RUN cargo build

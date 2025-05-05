@@ -15,7 +15,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     pkg-config \
     libssl-dev \
     && rm -rf /var/lib/apt/lists/*
-
+    
 #TODO: Copy only necessary files
 COPY ./braid/Cargo.toml ./braid/Cargo.toml
 COPY ./b3/Cargo.toml ./b3/Cargo.toml

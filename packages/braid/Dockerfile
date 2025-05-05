@@ -22,6 +22,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
+RUN rustup toolchain install nightly && rustup default nightly
+
 ARG VAULT_VERSION=1.15.5
 
 # Install vault

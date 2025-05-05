@@ -13,6 +13,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     make \
     && rm -rf /var/lib/apt/lists/*
 
+RUN rustup toolchain install nightly && rustup default nightly
+
 # copy projects
 #TODO: Copy only necessary files
 WORKDIR /app
@@ -37,7 +39,7 @@ COPY ./.cargo ./.cargo
 
 # build projects
 WORKDIR /app/braid
-RUN cargo +nightly build --release --locked
+RUN cargo build --release --locked
 
 
 
