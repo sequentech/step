@@ -500,6 +500,14 @@ type Mutation {
 }
 
 type Mutation {
+    render_document_pdf(
+        document_id: uuid!
+        election_event_id: uuid
+        tally_session_id: uuid
+    ): RenderDocumentPDFOutput
+}
+
+type Mutation {
     restore_private_key(
         object: RestorePrivateKeyInput!
     ): RestorePrivateKeyOutput
@@ -1561,4 +1569,9 @@ type ApplicationChangeStatusOutput {
 
 type CountUsersOutput {
     count: Int!
+}
+
+type RenderDocumentPDFOutput {
+    document_id: String
+    task_execution: tasks_execution_type
 }
