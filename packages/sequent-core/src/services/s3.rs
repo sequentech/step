@@ -541,8 +541,6 @@ pub async fn get_files_from_s3(
     for object in result.contents().iter() {
         let key = object.key().unwrap();
 
-        println!("key: {:?}", key);
-
         if !key.contains("export") {
             // Extract file name and document ID
             let parts: Vec<&str> = key.split('/').collect();
