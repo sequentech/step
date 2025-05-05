@@ -745,7 +745,7 @@ fn extract_document_uuid(filename: &str) -> Option<&str> {
     let re = Regex::new(
         r"document_([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})",
     )
-    .unwrap();
+    .expect("Invalid regex");
 
     re.captures(filename)
         .and_then(|caps| caps.get(1).map(|m| m.as_str()))
@@ -754,7 +754,7 @@ fn extract_document_uuid(filename: &str) -> Option<&str> {
 fn extract_document_name(filename: &str) -> Option<&str> {
     let re = Regex::new(
         r"document_[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}_(.+)"
-    ).unwrap();
+    ).expect("Invalid regex");
 
     re.captures(filename)
         .and_then(|caps| caps.get(1).map(|m| m.as_str()))
@@ -1142,7 +1142,8 @@ pub async fn process_document(
                     .ok_or(anyhow!("Unexpected, tally without filename"))?
                     .split(".")
                     .next()
-                    .unwrap();
+                    .ok_or(anyhow!("Unexpected tally without extension"))?;
+
                 process_tally_file(
                     hasura_transaction,
                     &temp_file,

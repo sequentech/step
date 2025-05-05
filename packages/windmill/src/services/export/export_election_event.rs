@@ -390,7 +390,15 @@ pub async fn process_export_zip(
             .map_err(|err| anyhow!("Error retrieving files from S3: {err:?}"))?;
 
         for file_path in s3_files {
-            let file_name = file_path.file_name().unwrap().to_string_lossy().to_string();
+            let file_name = file_path
+                .file_name()
+                .ok_or(anyhow!(
+                    "Error getting file name from path: {:?}",
+                    file_path
+                ))?
+                .to_string_lossy()
+                .to_string();
+
             let file_name_in_zip = format!("{}/{}", s3_folder_name, file_name);
             zip_writer
                 .start_file(&file_name_in_zip, options)

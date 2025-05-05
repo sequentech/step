@@ -539,12 +539,14 @@ pub async fn get_files_from_s3(
         .await?;
 
     for object in result.contents().iter() {
-        let key = object.key().unwrap();
+        let key = object.key().ok_or(anyhow!("s3 object key is missing"))?;
 
         if !key.contains("export") {
             // Extract file name and document ID
             let parts: Vec<&str> = key.split('/').collect();
-            let file_name = parts.last().unwrap();
+            let file_name = parts
+                .last()
+                .ok_or(anyhow!("Can't find file name in path"))?;
             let document_id = parts.iter().find_map(|part| {
                 if part.starts_with("document-") {
                     Some(part.trim_start_matches("document-").to_string())
