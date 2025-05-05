@@ -263,6 +263,7 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
                                     {format.value === EExportFormat.HTML ? (
                                         <GeneratePDF
                                             documents={documents.documents}
+                                            name={documents.name}
                                             electionEventId={electionEventId}
                                             tallySessionId={tallySessionId}
                                         />

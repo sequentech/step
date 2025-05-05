@@ -17,12 +17,14 @@ import {DownloadDocument} from "@/resources/User/DownloadDocument"
 
 interface GenerateReportProps {
     documents: IResultDocuments
+    name: string
     electionEventId: string
     tallySessionId: string
 }
 
 export const GeneratePDF: React.FC<GenerateReportProps> = ({
     documents,
+    name,
     electionEventId,
     tallySessionId,
 }) => {
@@ -92,8 +94,9 @@ export const GeneratePDF: React.FC<GenerateReportProps> = ({
                 }}
             >
                 <span>
-                    {t("tally.generateReport", {
-                        name: t(`template.type.${ETemplateType.ELECTORAL_RESULTS}`),
+                    {t("common.label.exportFormat", {
+                        item: name,
+                        format: EExportFormat.PDF.toUpperCase(),
                     })}
                     {outputDocumentId ? (
                         <DownloadDocument
