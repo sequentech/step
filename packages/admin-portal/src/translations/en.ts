@@ -79,6 +79,7 @@ const englishTranslation = {
                 EXPORT_APPLICATION: "Export Applications",
                 EXPORT_TENANT_CONFIG: "Export Tenant Config",
                 IMPORT_TENANT_CONFIG: "Import Tenant Config",
+                RENDER_DOCUMENT_PDF: "Render Document PDF",
             },
             widget: {
                 taskTitle: "Task: {{title}}",
