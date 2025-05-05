@@ -1082,6 +1082,19 @@ actions:
           - role: tally-sheet-publish
           - role: admin-user
       comment: publish_tally_sheet
+    - name: render_document_pdf
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/render-document-pdf
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: report-read
     - name: restore_private_key
       definition:
           kind: synchronous
@@ -1420,4 +1433,5 @@ custom_types:
         - name: GenerateTemplateOutput
         - name: ApplicationChangeStatusOutput
         - name: CountUsersOutput
+        - name: RenderDocumentPDFOutput
     scalars: []
