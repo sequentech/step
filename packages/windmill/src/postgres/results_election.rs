@@ -81,7 +81,11 @@ pub async fn update_results_election_documents(
                     sequent_backend.results_election
                 SET
                     documents = $1,
-                    annotations = jsonb_set(COALESCE(annotations, '{}'), '{results_hash}', $2)
+                    annotations = jsonb_set(
+                        COALESCE(annotations, '{}'),
+                        '{results_hash}',
+                        $2
+                    )
                 WHERE
                     tenant_id = $3 AND
                     results_event_id = $4 AND

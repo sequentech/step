@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2024 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useEffect} from "react"
+import React, {useEffect, useMemo} from "react"
 import {SxProps} from "@mui/material"
 import {AutocompleteInput, useDataProvider, useGetList, required} from "react-admin"
 import {ETemplateType} from "@/types/templates"
@@ -40,20 +40,29 @@ const SelectTemplate = ({
         pagination: {page: 1, perPage: 100},
     })
 
-    const choices = templates
-        ? templates
-              .sort((a, b) => a.alias.localeCompare(b.alias))
-              .map((template) => ({
-                  id: template.alias,
-                  name: template.template.name,
-              }))
-        : []
-
     const handleTemplateChange = (alias: string) => {
         if (onSelectTemplate) {
             onSelectTemplate({alias})
         }
     }
+
+    const choices = useMemo(() => {
+        // Ensure templates and its nested properties exist
+        const items = templates
+        if (!items) return []
+
+        // Create a shallow copy and sort it
+        return [...items]
+            .sort((a, b) => {
+                if (!a?.name || !b?.name) return 0
+                return a.name.localeCompare(b.name)
+            })
+            .map((template) => ({
+                id: template.alias,
+                name: template.template.name,
+            }))
+        // Dependency array: re-run only when the original items array changes
+    }, [templates])
 
     return (
         <AutocompleteInput
