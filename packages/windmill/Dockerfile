@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-FROM rust:1.86.0-slim-bookworm as builder
+FROM rust:1.86.0-slim-bookworm AS builder
 
 WORKDIR /app
 COPY ./immu-board ./immu-board
