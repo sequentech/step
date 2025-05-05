@@ -22,7 +22,7 @@ use crate::services::reports::template_renderer::{
 };
 use crate::services::reports_vault::get_password;
 use crate::tasks::export_election_event::ExportOptions;
-use crate::types::documents::EDocuments;
+use crate::types::documents::{EDocuments, PUBLIC_S3_FILE_PREFIX};
 
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
@@ -384,14 +384,38 @@ pub async fn process_export_zip(
         let s3_folder_name = format!("{}", EDocuments::S3_FILES.to_file_name());
         let documents_prefix = format!("tenant-{}/event-{}/", tenant_id, election_event_id);
         let bucket = s3::get_private_bucket()?;
+        let public_bucket = s3::get_public_bucket()?;
 
-        let (s3_files, documents_ids) = s3::get_files_from_s3(bucket, documents_prefix)
+        let (s3_files, documents_ids) = s3::get_files_from_s3(bucket, documents_prefix.clone())
             .await
             .map_err(|err| anyhow!("Error retrieving files from S3: {err:?}"))?;
+        let (s3_public_files, public_documents_ids) =
+            s3::get_files_from_s3(public_bucket, documents_prefix)
+                .await
+                .map_err(|err| anyhow!("Error retrieving files from S3: {err:?}"))?;
+
+        let documents_ids = documents_ids
+            .into_iter()
+            .chain(public_documents_ids.into_iter())
+            .collect::<Vec<_>>();
 
         for file_path in s3_files {
             let file_name = file_path.file_name().unwrap().to_string_lossy().to_string();
             let file_name_in_zip = format!("{}/{}", s3_folder_name, file_name);
+            zip_writer
+                .start_file(&file_name_in_zip, options)
+                .map_err(|e| anyhow!("Error starting S3 file in ZIP: {e:?}"))?;
+
+            let mut s3_file =
+                File::open(&file_path).map_err(|e| anyhow!("Error opening S3 file: {e:?}"))?;
+            std::io::copy(&mut s3_file, &mut zip_writer)
+                .map_err(|e| anyhow!("Error copying S3 file to ZIP: {e:?}"))?;
+        }
+
+        for file_path in s3_public_files {
+            let file_name = file_path.file_name().unwrap().to_string_lossy().to_string();
+            let file_name_in_zip =
+                format!("{}/{}/{}", s3_folder_name, PUBLIC_S3_FILE_PREFIX, file_name);
             zip_writer
                 .start_file(&file_name_in_zip, options)
                 .map_err(|e| anyhow!("Error starting S3 file in ZIP: {e:?}"))?;
@@ -611,6 +635,7 @@ pub async fn process_export_zip(
         Some(election_event_id.to_string()),
         &export_event_filename,
         Some(document_id.to_string()),
+        false,
         false,
     )
     .await?;

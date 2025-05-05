@@ -356,6 +356,7 @@ impl TemplateRenderer for ActivityLogsTemplate {
                 &name.clone(),
                 Some(document_id.to_string()),
                 false,
+                false,
             )
             .await
             .map_err(|err| anyhow!("Error uploading document: {err:?}"))?;

@@ -647,6 +647,7 @@ impl TemplateRenderer for OverseasVotersReport {
                 &enc_report_name,
                 Some(document_id.to_string()),
                 true,
+                false,
             )
             .await
             .map_err(|err| anyhow!("Error uploading document: {err:?}"))?;
@@ -687,6 +688,7 @@ impl TemplateRenderer for OverseasVotersReport {
                 &final_report_name,
                 Some(document_id.to_string()),
                 true,
+                false,
             )
             .await
             .map_err(|err| anyhow!("Error uploading document: {err:?}"))?;

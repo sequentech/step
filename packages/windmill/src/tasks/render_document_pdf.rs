@@ -131,6 +131,7 @@ pub async fn render_document_pdf_wrap(
         &document_name,
         Some(output_document_id),
         false,
+        false,
     )
     .await?;
 

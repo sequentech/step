@@ -15,7 +15,7 @@ use crate::services::reports::template_renderer::EReportEncryption;
 use crate::services::reports_vault::get_report_key_pair;
 use crate::services::tasks_execution::update_fail;
 use crate::tasks::insert_election_event::CreateElectionEventInput;
-use crate::types::documents::ETallyDocuments;
+use crate::types::documents::{ETallyDocuments, PUBLIC_S3_FILE_PREFIX};
 use ::keycloak::types::RealmRepresentation;
 use anyhow::{anyhow, Context, Result};
 use chrono::format;
@@ -781,6 +781,8 @@ pub async fn process_s3_files(
         .ok_or(anyhow!("Empty file suffix"))?;
     let document_type = get_mime_types(file_suffix)[0];
 
+    let is_public = file_name.contains(&format!("{}/", PUBLIC_S3_FILE_PREFIX));
+
     let document_uuid = extract_document_uuid(file_name)
         .ok_or_else(|| anyhow!("Error extracting document UUID from filename"))?;
     let new_document_id = replacement_map
@@ -800,7 +802,8 @@ pub async fn process_s3_files(
         Some(election_event_id.to_string()),
         file_name,
         Some(new_document_id.to_string()),
-        false,
+        is_public.clone(),
+        is_public, //is_public_event_file
     )
     .await?;
 

@@ -78,6 +78,7 @@ import {ManagedNumberInput} from "@/components/managed-inputs/ManagedNumberInput
 import {MANAGE_ELECTION_DATES} from "@/queries/ManageElectionDates"
 import {JsonEditor, UpdateFunction} from "json-edit-react"
 import {CustomFilter} from "@/types/filters"
+import {useGetEventPublicUrl} from "@/hooks/useGetEventPublicUrl"
 
 const LangsWrapper = styled(Box)`
     margin-top: 46px;
@@ -100,6 +101,7 @@ export type Sequent_Backend_Election_Extended = RaRecord<Identifier> & {
 export const ElectionDataForm: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election>()
     const [tenantId] = useTenantStore()
+    const getImageUrl = useGetEventPublicUrl()
 
     const {t} = useTranslation()
     const [getUploadUrl] = useMutation<GetUploadUrlMutation>(GET_UPLOAD_URL)
@@ -421,6 +423,7 @@ export const ElectionDataForm: React.FC = () => {
                     name: theFile.name,
                     media_type: theFile.type,
                     size: theFile.size,
+                    election_event_id: record.election_event_id,
                 },
             })
             if (data?.get_upload_url?.document_id) {
@@ -530,7 +533,12 @@ export const ElectionDataForm: React.FC = () => {
                     incoming as Sequent_Backend_Election_Extended,
                     languageSettings
                 )
-
+                const imageUrl = getImageUrl(
+                    parsedValue?.tenant_id,
+                    parsedValue?.image_document_id,
+                    imageData?.name,
+                    parsedValue?.election_event_id
+                )
                 const onSave = async () => {}
 
                 return (
@@ -719,8 +727,8 @@ export const ElectionDataForm: React.FC = () => {
                                             <img
                                                 width={200}
                                                 height={200}
-                                                src={`${globalSettings.PUBLIC_BUCKET_URL}tenant-${parsedValue?.tenant_id}/document-${parsedValue?.image_document_id}/${imageData?.name}`}
-                                                alt={`tenant-${parsedValue?.tenant_id}/document-${parsedValue?.image_document_id}/${imageData?.name}`}
+                                                src={`${globalSettings.PUBLIC_BUCKET_URL}${imageUrl}`}
+                                                alt={imageUrl}
                                             />
                                         ) : null}
                                     </Grid>

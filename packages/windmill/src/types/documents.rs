@@ -76,3 +76,5 @@ impl ETallyDocuments {
         }
     }
 }
+
+pub const PUBLIC_S3_FILE_PREFIX: &str = "public";

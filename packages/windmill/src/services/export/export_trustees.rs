@@ -91,6 +91,7 @@ pub async fn read_trustees_config_base(
         &zip_filename,
         Some(document_id.to_string()),
         false,
+        false,
     )
     .await?;
 
