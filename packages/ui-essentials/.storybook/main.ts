@@ -24,4 +24,13 @@ module.exports = {
     docs: {
         autodocs: true,
     },
+
+    // 🧩 Add this to enable WebAssembly
+    webpackFinal: async (config) => {
+        config.experiments = {
+            ...config.experiments,
+            asyncWebAssembly: true,
+        }
+        return config
+    },
 }

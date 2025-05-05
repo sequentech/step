@@ -1,0 +1,122 @@
+[
+    {
+        "contest_id": "6ee6b91f-63a0-4f13-a8ed-8f2defe4bc8f",
+        "is_explicit_invalid": false,
+        "invalid_errors": [],
+        "invalid_alerts": [
+            {
+                "error_type": "Implicit",
+                "candidate_id": null,
+                "message": "errors.implicit.underVote",
+                "message_map": {
+                    "numSelected": "0",
+                    "type": "alert",
+                    "max": "1",
+                    "min": "0"
+                }
+            }
+        ],
+        "choices": [
+            {
+                "id": "030f2066-829f-4cac-a9fd-389fa1c02185",
+                "selected": -1,
+                "write_in_text": null
+            },
+            {
+                "id": "04452afe-ebbc-49a1-af31-955f4eb694c7",
+                "selected": -1,
+                "write_in_text": null
+            },
+            {
+                "id": "05008e42-7b59-476a-93dc-6d20a8ff355e",
+                "selected": -1,
+                "write_in_text": null
+            },
+            {
+                "id": "0802d369-9b90-49fe-82d5-494de93ddb63",
+                "selected": -1,
+                "write_in_text": null
+            },
+            {
+                "id": "09bd8daa-4419-4f60-bb96-2916673c3334",
+                "selected": -1,
+                "write_in_text": null
+            },
+            {
+                "id": "0a788052-8d75-4318-aa08-dbc984757a5d",
+                "selected": -1,
+                "write_in_text": null
+            },
+            {
+                "id": "0a9de400-6847-4f40-8678-abc3bfedd8ea",
+                "selected": -1,
+                "write_in_text": null
+            },
+            {
+                "id": "0adbe5f0-88a8-4e2b-8152-aa0a96349da8",
+                "selected": -1,
+                "write_in_text": null
+            },
+            {
+                "id": "0c252d98-4d79-4e96-8db8-45fe176bd320",
+                "selected": -1,
+                "write_in_text": null
+            },
+            {
+                "id": "0f8945c5-7ccd-44de-bacc-756ac6f3945b",
+                "selected": -1,
+                "write_in_text": null
+            },
+            {
+                "id": "10429328-2ba4-434e-a17e-69687b16a021",
+                "selected": -1,
+                "write_in_text": null
+            },
+            {
+                "id": "16eff3d9-5e7d-4707-b508-fc2898c1bba1",
+                "selected": -1,
+                "write_in_text": null
+            },
+            {
+                "id": "17579945-11bc-493a-9db2-74b2adf165b8",
+                "selected": -1,
+                "write_in_text": null
+            },
+            {
+                "id": "19292e96-53fc-4876-b49c-2fc993de9da5",
+                "selected": -1,
+                "write_in_text": null
+            },
+            {
+                "id": "19416f81-d9ad-4a59-a5a1-319a46b6a439",
+                "selected": -1,
+                "write_in_text": null
+            },
+            {
+                "id": "1a33d0c9-753a-4223-ac7b-889b49b619e9",
+                "selected": -1,
+                "write_in_text": null
+            },
+            {
+                "id": "1b7db3a2-115c-4a3d-8445-bde4a7a98f51",
+                "selected": -1,
+                "write_in_text": null
+            },
+            {
+                "id": "1dc06280-452c-422d-bd22-0c6103cb1564",
+                "selected": -1,
+                "write_in_text": null
+            },
+            {
+                "id": "209ad6f8-e251-4e84-a02e-119ada116fb6",
+                "selected": -1,
+                "write_in_text": null
+            },
+            {
+                "id": "213113fc-9ce1-4462-9a58-68c7d1839645",
+                "selected": -1,
+                "write_in_text": null
+            }
+        ]
+    }
+]

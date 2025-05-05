@@ -257,8 +257,18 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
     return (
         <>
             {sortedContests &&
-                sortedContests.map((contest, index) => (
-                    <Box key={contest.id} className={`contest-${index}`}>
+                sortedContests.map((contest, index) => {
+
+                        console.log("ballotStyle", ballotStyle)
+                        console.log("question", contest)
+                        console.log(    
+                            "questionPlaintext",
+                            selectionState?.find((a) => a.contest_id === contest.id)
+                        )
+                        console.log("isReview", false)
+                        console.log("errorSelectionState", errorSelectionState)
+
+                    return <Box key={contest.id} className={`contest-${index}`}>
                         <Question
                             ballotStyle={ballotStyle}
                             question={contest}
@@ -277,7 +287,7 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
                             isVotedState={isVotedState ?? false}
                         />
                     </Box>
-                ))}
+})}
             <ActionButtons
                 handleNext={handleNext}
                 handlePrev={handlePrev}

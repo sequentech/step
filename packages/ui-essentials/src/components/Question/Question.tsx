@@ -42,11 +42,11 @@ import {
 import {InvalidErrorsList} from "../InvalidErrorsList/InvalidErrorsList"
 import {Answer} from "../Answer/Answer"
 import {AnswersList} from "../AnswersList/AnswersList"
-import {IBallotStyle as IElectionDTO} from "@sequentech/ui-core"
-import theme from "@root/services/theme"
+import theme from "../../services/theme"
 import BlankAnswer from "../BlankAnswer/BlankAnswer"
+import {IBallotStyle as IElectionDTO} from "@sequentech/ui-core" // Renamed alias
 
-interface IBallotStyle {
+export interface IBallotStyle {
     id: string
     election_id: string
     election_event_id: string
