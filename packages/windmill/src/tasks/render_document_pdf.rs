@@ -17,6 +17,7 @@ use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::pdf::{PdfRenderer, PrintToPdfOptions};
 use sequent_core::temp_path::write_into_named_temp_file;
 use sequent_core::types::hasura::core::TasksExecution;
+use sequent_core::util::path::change_file_extension;
 use std::io::{Read, Seek};
 use tracing::instrument;
 use velvet::config::generate_reports::PipeConfigGenerateReports;
@@ -114,7 +115,11 @@ pub async fn render_document_pdf_wrap(
         write_into_named_temp_file(&bytes, "reports-", ".html")
             .with_context(|| "Error writing to file")?;
 
-    let document_name = document.name.ok_or(anyhow!("Missing document name"))?;
+    let document_name = change_file_extension(
+        &document.name.ok_or(anyhow!("Missing document name"))?,
+        "pdf",
+    )
+    .ok_or(anyhow!("Error changing file extension"))?;
 
     let _document = upload_and_return_document(
         &hasura_transaction,
@@ -158,6 +163,7 @@ pub async fn render_document_pdf_task_wrap(
         }
         Err(err) => {
             update_fail(&task_execution, format!("{:?}", err).as_str()).await?;
+            return Err(err);
         }
     };
 
