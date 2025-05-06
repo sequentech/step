@@ -151,6 +151,10 @@ export const ballotSelectionsSlice = createSlice({
                 voteChoice: IDecodedVoteChoice
             }>
         ): BallotSelectionsState => {
+
+            console.log("state in slice", state);
+            
+
             const ballotEmlContest = action.payload.ballotStyle.ballot_eml.contests.find(
                 (contest) => contest.id === action.payload.contestId
             )

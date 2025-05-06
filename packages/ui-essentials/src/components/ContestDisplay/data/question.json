@@ -15,7 +15,7 @@
     "alias_i18n": {
         "en": "SINGAPORE PE - PARTY LIST / Vote for 1"
     },
-    "max_votes": 1,
+    "max_votes": 5,
     "min_votes": 0,
     "winning_candidates_num": 1,
     "voting_type": "non-preferential",
