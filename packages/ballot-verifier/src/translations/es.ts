@@ -77,26 +77,6 @@ const spanishTranslation: TranslationType = {
             contestNotFound: "Pregunta no encontrada: {{contestId}}",
         },
         poweredBy: "Funciona con",
-        errors: {
-            encoding: {
-                notEnoughChoices: "No hay suficientes opciones para decodificar",
-                writeInChoiceOutOfRange: "Opción de voto escrita fuera de rango: {{index}}",
-                writeInNotEndInZero: "Opción de voto escrita no finaliza en 0",
-                bytesToUtf8Conversion:
-                    "Error convirtiendo bytes de opción de voto escrita a cadena UTF-8: {{errorMessage}}",
-                ballotTooLarge: "Voto más grande de lo esperado",
-            },
-            implicit: {
-                selectedMax:
-                    "El número de opciones seleccionadas {{numSelected}} es mayor que el máximo {{max}}",
-                selectedMin:
-                    "El número de opciones seleccionadas {{numSelected}} es menor que el máximo {{min}}",
-            },
-            explicit: {
-                notAllowed:
-                    "Voto marcado explícitamente como inválido pero la pregunta no lo permite",
-            },
-        },
     },
 }
 
