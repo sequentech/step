@@ -18,6 +18,7 @@ import {
     ECandidatesIconCheckboxPolicy,
     BallotSelection,
     ICandidate,
+    keyByReturn,
 } from "@sequentech/ui-core"
 import {IDecodedVoteContest, IInvalidPlaintextError} from "@sequentech/ui-core"
 import {sortCandidatesInContest, checkIsBlank} from "@sequentech/ui-core"
@@ -198,41 +199,41 @@ export const Question: React.FC<IQuestionProps> = ({
         )
     }
 
-    /**
-     * Lodash-like keyBy implementation - creates an object keyed by the specified property
-     * or function result for each item in the array.
-     *
-     * @param {Array} array - The array to convert to an object
-     * @param {String|Function} iteratee - Property name or function to generate keys
-     * @returns {Object} - Object with values keyed by iteratee result
-     */
-    function keyBy(array: any, iteratee: any) {
-        // Handle empty arrays
-        if (!array || !array.length) {
-            return {}
-        }
+    // /**
+    //  * Lodash-like keyByReturn implementation - creates an object keyed by the specified property
+    //  * or function result for each item in the array.
+    //  *
+    //  * @param {Array} array - The array to convert to an object
+    //  * @param {String|Function} iteratee - Property name or function to generate keys
+    //  * @returns {Object} - Object with values keyed by iteratee result
+    //  */
+    // function keyByReturn(array: any, iteratee: any) {
+    //     // Handle empty arrays
+    //     if (!array || !array.length) {
+    //         return {}
+    //     }
 
-        const result: Record<string, any> = {}
-        const isFunction = typeof iteratee === "function"
+    //     const result: Record<string, any> = {}
+    //     const isFunction = typeof iteratee === "function"
 
-        // Process each item in the array
-        for (let i = 0; i < array.length; i++) {
-            const item = array[i]
-            // Get the key by calling the function or accessing the property
-            const key = isFunction ? iteratee(item) : item[iteratee]
+    //     // Process each item in the array
+    //     for (let i = 0; i < array.length; i++) {
+    //         const item = array[i]
+    //         // Get the key by calling the function or accessing the property
+    //         const key = isFunction ? iteratee(item) : item[iteratee]
 
-            // Only add defined keys to the result
-            if (key !== undefined && key !== null) {
-                result[key] = item
-            }
-        }
+    //         // Only add defined keys to the result
+    //         if (key !== undefined && key !== null) {
+    //             result[key] = item
+    //         }
+    //     }
 
-        return result
-    }
+    //     return result
+    // }
 
     const selectedAnswers = questionPlaintext?.choices.filter((a) => a.selected > -1)
 
-    const answersById = keyBy(question.candidates, (a: ICandidate) => a.id)
+    const answersById = keyByReturn(question.candidates, (a: ICandidate) => a.id)
 
     if (null === candidatesOrder) {
         setCandidatesOrder(
@@ -242,7 +243,7 @@ export const Question: React.FC<IQuestionProps> = ({
         )
     }
 
-    const noCategoryCandidatesMap = keyBy(noCategoryCandidates, "id")
+    const noCategoryCandidatesMap = keyByReturn(noCategoryCandidates, "id")
 
     const onSetIsInvalidWriteIns = (value: boolean) => {
         setIsInvalidWriteIns(value)
