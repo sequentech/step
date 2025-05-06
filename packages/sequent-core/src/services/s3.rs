@@ -20,8 +20,8 @@ use std::fs::File;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::{env, error::Error};
-use tempfile::NamedTempFile;
-use tokio::io::AsyncReadExt;
+use tempfile::{NamedTempFile, TempPath};
+use tokio::io::{self, AsyncReadExt};
 use tracing::{info, instrument};
 
 const MAX_CHUNK_SIZE: u64 = 16 * 1024 * 1024;
@@ -520,7 +520,7 @@ pub async fn get_file_from_s3(
 pub async fn get_files_from_s3(
     s3_bucket: String,
     prefix: String,
-) -> Result<(Vec<PathBuf>, Vec<String>)> {
+) -> Result<(Vec<TempPath>, Vec<String>)> {
     let config = get_s3_aws_config(true)
         .await
         .with_context(|| "Error getting s3 aws config")?;
@@ -544,7 +544,7 @@ pub async fn get_files_from_s3(
         if !key.contains("export") {
             // Extract file name and document ID
             let parts: Vec<&str> = key.split('/').collect();
-            let file_name = parts
+            let s3_file_name = parts
                 .last()
                 .ok_or(anyhow!("Can't find file name in path"))?;
             let document_id = parts.iter().find_map(|part| {
@@ -563,22 +563,28 @@ pub async fn get_files_from_s3(
                 .send()
                 .await?;
 
-            let stream = s3_object.body;
-            let file_data = ByteStream::collect(stream).await?.into_bytes();
+            let s3_body_stream = s3_object.body;
 
-            // Create a temp file with the document ID in the name
-            let renamed_file = match document_id.clone() {
-                Some(document_id) => {
-                    format!("document_{document_id}_{}", file_name)
-                }
-                None => file_name.to_string(),
-            };
-            let file_path = env::temp_dir().join(&renamed_file);
+            let file_name = document_id
+                .clone()
+                .map(|id| format!("document_{}_{}", id, s3_file_name))
+                .unwrap_or_else(|| s3_file_name.to_string());
 
-            let mut temp_file = File::create(&file_path)?;
-            temp_file.write_all(&file_data)?;
+            let temp_file = generate_temp_file("", &file_name)
+                .context("generating temp file")?;
 
-            file_paths.push(file_path);
+            let std_file = temp_file
+                .reopen()
+                .context("reopening temp file for async I/O")?;
+            let mut async_file = tokio::fs::File::from_std(std_file);
+
+            // Stream from S3 → disk without buffering into memory
+            let mut reader = s3_body_stream.into_async_read();
+            io::copy(&mut reader, &mut async_file)
+                .await
+                .context("stream-copy from S3 to temp file")?;
+
+            file_paths.push(temp_file.into_temp_path());
             if let Some(document_id) = document_id.clone() {
                 document_ids.push(document_id);
             }

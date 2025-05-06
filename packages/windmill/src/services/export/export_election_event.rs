@@ -411,25 +411,24 @@ pub async fn process_export_zip(
         }
 
         let document_ids_filename = format!("{}.txt", EDocuments::S3_DOCUMENTS_IDS.to_file_name());
-        let document_ids_path = env::temp_dir().join(document_ids_filename.clone());
-        let mut doc_id_file = File::create(&document_ids_path)
-            .map_err(|e| anyhow!("Error creating documents_ids.txt: {e:?}"))?;
+        let doc_ids_in_zip = format!("{}/{}", s3_folder_name, document_ids_filename);
 
-        // Join all IDs into a single newline-separated string and write once
         let joined_ids = documents_ids.join(",\n");
-        doc_id_file
-            .write_all(joined_ids.as_bytes())
-            .map_err(|e| anyhow!("Error writing documents_ids.txt: {e:?}"))?;
 
-        let doc_ids_file_name_in_zip = format!("{}/{}", s3_folder_name, document_ids_filename);
+        let mut tmp = NamedTempFile::new().context("creating NamedTempFile")?;
+        tmp.write_all(joined_ids.as_bytes())
+            .map_err(|e| anyhow!("writing to NamedTempFile: {e:?}"))?;
+
+        let temp_path = tmp.into_temp_path();
+
         zip_writer
-            .start_file(&doc_ids_file_name_in_zip, options)
-            .map_err(|e| anyhow!("Error adding documents_ids.txt to ZIP: {e:?}"))?;
+            .start_file(&doc_ids_in_zip, options)
+            .map_err(|e| anyhow!("adding {} to ZIP: {e:?}", document_ids_filename))?;
 
-        let mut doc_id_file = File::open(&document_ids_path)
-            .map_err(|e| anyhow!("Error opening documents_ids.txt: {e:?}"))?;
+        let mut doc_id_file =
+            File::open(&temp_path).map_err(|e| anyhow!("opening temp file: {e:?}"))?;
         std::io::copy(&mut doc_id_file, &mut zip_writer)
-            .map_err(|e| anyhow!("Error writing documents_ids.txt to ZIP: {e:?}"))?;
+            .map_err(|e| anyhow!("writing {} to ZIP: {e:?}", document_ids_filename))?;
     }
 
     // Add Scheduled Events data file to the ZIP archive

@@ -292,8 +292,7 @@ pub async fn insert_many_results_events(
             created_at, last_updated_at, annotations, labels, documents
         )
         SELECT
-            id, tenant_id, election_event_id, name,
-            created_at, last_updated_at, annotations, labels, documents
+            *
         FROM data
         RETURNING *;
     "#;
