@@ -15,7 +15,13 @@ import question from "../data/question.json"
 import questionPlaintext from "../data/questionPlaintext.json"
 import selectionState from "../data/selectionState.json"
 
-let votes: IDecodedVoteContest | undefined = undefined
+interface BallotSelectionsState {
+    [electionId: string]: BallotSelection | undefined
+}
+
+let votes: BallotSelectionsState | undefined = undefined
+const electionId = "1ae13934-8de6-47bc-8061-57280978e621"
+const contestId = "6ee6b91f-63a0-4f13-a8ed-8f2defe4bc8f"
 
 const ContestDisplayWrapper: React.FC<IContestDisplayProps & {className?: string}> = ({
     className,
@@ -71,7 +77,7 @@ interface ActionProps {
 const setBallotSelectionVoteChoice = (action: ActionProps) => {
     const {ballotStyle, contestId, voteChoice} = action
 
-    const state = (selectionState as unknown) as IDecodedVoteContest
+    const state = (selectionState as unknown) as BallotSelectionsState | undefined
 
     const ballotEmlContest = ballotStyle.ballot_eml.contests.find(
         (contest) => contest.id === contestId
@@ -79,13 +85,11 @@ const setBallotSelectionVoteChoice = (action: ActionProps) => {
     // check bounds
     if (isUndefined(ballotEmlContest)) {
         votes = state
-        console.log("votes 1", votes)
         return
     }
 
-    console.log("state", state)
-
-    let currentElection: IDecodedVoteContest[] = state[ballotStyle.election_id]
+    let currentElection: IDecodedVoteContest[] | undefined =
+        state?.[ballotStyle.election_id] ?? undefined
     let currentQuestion = currentElection?.find((contest) => contest.contest_id === contestId)
     let currentChoiceIndex = currentQuestion?.choices.findIndex(
         (choice) => voteChoice.id === choice.id
@@ -95,16 +99,9 @@ const setBallotSelectionVoteChoice = (action: ActionProps) => {
             ? currentQuestion?.choices[currentChoiceIndex]
             : undefined
 
-    console.log("ballotStyle.election_id", ballotStyle.election_id)
-    console.log("currentElection", currentElection)
-    console.log("currentQuestion", currentQuestion)
-    console.log("currentChoiceIndex", currentChoiceIndex)
-    console.log("currentChoice", currentChoice)
-
     // check election state
     if (!currentElection || isUndefined(currentChoice)) {
         votes = state
-        console.log("votes 2", votes)
         return
     }
 
@@ -114,19 +111,40 @@ const setBallotSelectionVoteChoice = (action: ActionProps) => {
     }
 
     votes = state
-    console.log("votes 3", votes)
+}
+
+// Create a proper React component to use hooks
+const VoteStory: React.FC = ({...args}) => {
+    // Use useState to track votes and force re-renders
+    const [votesState, setVotesState] = useState<BallotSelectionsState | undefined>(undefined)
+
+    // Custom handler that updates state after setting votes
+    const handleSetBallotSelectionVoteChoice = (action: ActionProps) => {
+        setBallotSelectionVoteChoice(action)
+        // Update state with the new votes value to trigger re-render
+        setVotesState({...votes})
+    }
+
+    // Get the current questionPlaintext value
+    const currentQuestionPlaintext = votesState
+        ? (votesState[electionId] as IDecodedVoteContest[])?.find((a) => a.contest_id === contestId)
+        : undefined
+
+    return (
+        <ContestDisplayWrapper
+            ballotStyle={(ballotStyle as unknown) as IBallotStyle}
+            question={(question as unknown) as IContest}
+            isReview={false}
+            errorSelectionState={(errorSelectionState as unknown) as BallotSelection}
+            questionPlaintext={currentQuestionPlaintext}
+            isVotedState={false}
+            onSetBallotSelectionVoteChoice={handleSetBallotSelectionVoteChoice}
+        />
+    )
 }
 
 export const Vote: Story = {
-    args: {
-        ballotStyle: (ballotStyle as unknown) as IBallotStyle,
-        question: (question as unknown) as IContest,
-        isReview: false,
-        errorSelectionState: (errorSelectionState as unknown) as BallotSelection,
-        questionPlaintext: votes,
-        isVotedState: false,
-        onSetBallotSelectionVoteChoice: setBallotSelectionVoteChoice,
-    },
+    render: () => <VoteStory />,
     parameters: {
         viewport: {
             disable: true,

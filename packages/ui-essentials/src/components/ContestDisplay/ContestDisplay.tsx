@@ -163,7 +163,7 @@ export const ContestDisplay: React.FC<IContestDisplayProps> = ({
             choice.selected === 0 && selectedChoicesCount++
         })
         setSelectedChoicesSum(selectedChoicesCount)
-    }, [questionPlaintext])
+    }, [JSON.stringify(questionPlaintext)])
 
     const maxVotesNum = question.max_votes
     const overVoteDisableMode =
