@@ -131,9 +131,6 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
         return castVotes.length < (ballotStyle?.ballot_eml.num_allowed_revotes ?? 1) && isVotingOpen
     }
 
-    console.log(electionStatus)
-    console.log(isVotingOpen)
-    console.log(canVote)
     const onClickToVote = () => {
         console.log("onClickToVote")
         if (!canVote() || !isElectionEventOpen(electionEvent)) {
@@ -334,7 +331,7 @@ const ElectionSelectionScreen: React.FC = () => {
             return
         }
         if (errorCause === ElectionScreenErrorType.PUBLICATION_NOT_FOUND) {
-            setAlertMsg(t(`electionSelectionScreen.alerts.${ElectionScreenMsgType.NOT_PUBLISHED}`))
+            setAlertMsg(t(`electionSelectionScreen.alerts.${ElectionScreenMsgType.NO_ELECTIONS}`))
         } else if (errorCause === ElectionScreenErrorType.NO_AREA_CONTESTS) {
             setErrorMsg(t(`electionSelectionScreen.errors.${ElectionScreenErrorType.NO_AREA}`))
         } else if (errorCause === ElectionScreenErrorType.UNKNOWN_ERROR) {
