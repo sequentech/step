@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useState} from "react"
 import {Meta, StoryObj} from "@storybook/react"
+import {action} from "@storybook/addon-actions"
 import {ContestDisplay, IContestDisplayProps, IBallotStyle} from "../ContestDisplay"
 import {IContest, BallotSelection, isUndefined} from "@sequentech/ui-core"
 import {IDecodedVoteContest} from "@sequentech/ui-core"
@@ -149,14 +150,29 @@ const resetBallotSelection = (action: ActionResetProps) => {
 /** END Mock Redux functions */
 
 // Create a proper React component to use hooks
-const VoteStory: React.FC = () => {
+
+interface VoteStoryProps {
+    ballotStyle: IBallotStyle
+    question: IContest
+    isReview: boolean
+    errorSelectionState: BallotSelection
+}
+
+const VoteStory: React.FC<VoteStoryProps> = ({
+    ballotStyle,
+    question,
+    isReview,
+    errorSelectionState,
+}) => {
     const {t} = useTranslation()
     // Use useState to track votes and force re-renders
     const [votesState, setVotesState] = useState<BallotSelectionsState | undefined>(undefined)
 
     // Custom handler that updates state after setting votes
-    const handleSetBallotSelectionVoteChoice = (action: ActionProps) => {
-        setBallotSelectionVoteChoice(action)
+    const handleSetBallotSelectionVoteChoice = (actionProps: ActionProps) => {
+        action("onSetBallotSelectionVoteChoice")(actionProps)
+
+        setBallotSelectionVoteChoice(actionProps)
         // Update state with the new votes value to trigger re-render
         setVotesState({...votes})
     }
@@ -187,9 +203,9 @@ const VoteStory: React.FC = () => {
             </Button>
             <ContestDisplayWrapper
                 ballotStyle={(ballotStyle as unknown) as IBallotStyle}
-                question={(question as unknown) as IContest}
-                isReview={false}
-                errorSelectionState={(errorSelectionState as unknown) as BallotSelection}
+                question={question}
+                isReview={isReview}
+                errorSelectionState={errorSelectionState}
                 questionPlaintext={currentQuestionPlaintext}
                 isVotedState={false}
                 onSetBallotSelectionVoteChoice={handleSetBallotSelectionVoteChoice}
@@ -199,7 +215,20 @@ const VoteStory: React.FC = () => {
 }
 
 export const Vote: Story = {
-    render: () => <VoteStory />,
+    render: (args) => (
+        <VoteStory
+            ballotStyle={args.ballotStyle}
+            question={args.question}
+            isReview={args.isReview}
+            errorSelectionState={args.errorSelectionState}
+        />
+    ),
+    args: {
+        ballotStyle: (ballotStyle as unknown) as IBallotStyle,
+        question: (question as unknown) as IContest,
+        isReview: false,
+        errorSelectionState: (errorSelectionState as unknown) as BallotSelection,
+    },
     parameters: {
         viewport: {
             disable: true,
