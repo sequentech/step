@@ -22,7 +22,7 @@ import {
     BallotHash,
     Dialog,
     WarnBox,
-    Question,
+    ContestDisplay,
 } from "@sequentech/ui-essentials"
 import {
     stringToHtml,
@@ -747,7 +747,7 @@ export const ReviewScreen: React.FC = () => {
             {contests.map((question, index) => {
                 return (
                     <Box key={question.id} className={`contest-${index}`}>
-                        <Question
+                        <ContestDisplay
                             ballotStyle={ballotStyle}
                             question={question}
                             questionPlaintext={selectionState?.find(

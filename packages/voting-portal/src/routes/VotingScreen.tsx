@@ -6,7 +6,7 @@ import React, {useContext, useEffect, useMemo, useState} from "react"
 import {selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {Box} from "@mui/material"
-import {PageLimit, Icon, IconButton, theme, Dialog, Question} from "@sequentech/ui-essentials"
+import {PageLimit, Icon, IconButton, theme, Dialog, ContestDisplay} from "@sequentech/ui-essentials"
 import {
     check_voting_error_dialog_bool,
     check_voting_not_allowed_next_bool,
@@ -268,25 +268,27 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
                         console.log("isReview", false)
                         console.log("errorSelectionState", errorSelectionState)
 
-                    return <Box key={contest.id} className={`contest-${index}`}>
-                        <Question
-                            ballotStyle={ballotStyle}
-                            question={contest}
-                            questionPlaintext={selectionState?.find(
-                                (a) => a.contest_id === contest.id
-                            )}
-                            isReview={false}
-                            setDisableNext={() => onSetDisableNext(contest.id)}
-                            setDecodedContests={onSetDecodedContests(contest.id)}
-                            errorSelectionState={errorSelectionState}
-                            onResetBallotSelection={doResetBallotSelection}
-                            onSetBallotSelectionBlankVote={doSetBallotSelectionBlankVote}
-                            onSetBallotSelectionInvalidVote={doSetBallotSelectionInvalidVote}
-                            onSetBallotSelectionVoteChoice={doSetBallotSelectionVoteChoice}
-                            url={globalSettings.PUBLIC_BUCKET_URL}
-                            isVotedState={isVotedState ?? false}
-                        />
-                    </Box>
+                    return (
+                        <Box key={contest.id} className={`contest-${index}`}>
+                            <ContestDisplay
+                                ballotStyle={ballotStyle}
+                                question={contest}
+                                questionPlaintext={selectionState?.find(
+                                    (a) => a.contest_id === contest.id
+                                )}
+                                isReview={false}
+                                setDisableNext={() => onSetDisableNext(contest.id)}
+                                setDecodedContests={onSetDecodedContests(contest.id)}
+                                errorSelectionState={errorSelectionState}
+                                onResetBallotSelection={doResetBallotSelection}
+                                onSetBallotSelectionBlankVote={doSetBallotSelectionBlankVote}
+                                onSetBallotSelectionInvalidVote={doSetBallotSelectionInvalidVote}
+                                onSetBallotSelectionVoteChoice={doSetBallotSelectionVoteChoice}
+                                url={globalSettings.PUBLIC_BUCKET_URL}
+                                isVotedState={isVotedState ?? false}
+                            />
+                        </Box>
+                    )
 })}
             <ActionButtons
                 handleNext={handleNext}
