@@ -66,21 +66,36 @@ const galegoTranslation = {
         errors: {
             encoding: {
                 notEnoughChoices: "Non hai suficientes opcións para descodificar",
-                writeInChoiceOutOfRange: "Opción por escrito fóra de rango: {{index}}",
-                writeInNotEndInZero: "A opción por escrito non remata en 0",
+                writeInChoiceOutOfRange: "A opción escrita está fóra do rango: {{index}}",
+                writeInNotEndInZero: "A opción escrita non remata en 0",
+                writeInCharsExceeded:
+                    "Supera o límite de caracteres permitidos por {{numCharsExceeded}}. Precísase corrixilo.",
                 bytesToUtf8Conversion:
-                    "Erro ao converter a opción por escrito de bytes a cadea UTF-8: {{errorMessage}}",
+                    "Erro ao converter a opción escrita de bytes a unha cadea UTF-8: {{errorMessage}}",
                 ballotTooLarge: "A papeleta é máis grande do esperado",
             },
             implicit: {
                 selectedMax:
-                    "O número de opcións seleccionadas {{numSelected}} é máis que o máximo {{max}}",
+                    "Voto excedido: Número de opcións seleccionadas {{numSelected}} supera o máximo {{max}}",
                 selectedMin:
-                    "O número de opcións seleccionadas {{numSelected}} é menor que o mínimo {{min}}",
+                    "Número de opcións seleccionadas {{numSelected}} está por debaixo do mínimo {{min}}",
+                maxSelectionsPerType:
+                    "Número de opcións seleccionadas {{numSelected}} para a lista {{type}} supera o máximo {{max}}",
+                underVote:
+                    "Voto insuficiente: Número de opcións seleccionadas {{numSelected}} está por debaixo do máximo {{max}}",
+                overVoteDisabled:
+                    "Máximo alcanzado: Seleccionaches o máximo {{numSelected}} opcións. Para cambiar a selección, deselecciona primeiro outra opción.",
+                blankVote: "Voto en branco: 0 opcións seleccionadas",
             },
             explicit: {
                 notAllowed:
-                    "Papeleta marcada explícitamente como inválida pero a pregunta non o permite",
+                    "A papeleta está marcada como explícitamente inválida, pero a pregunta non o permite",
+                alert: "A selección marcada será considerada voto inválido.",
+            },
+            page: {
+                oopsWithStatus: "Oops! {{status}}",
+                oopsWithoutStatus: "Oops! Erro inesperado",
+                somethingWrong: "Algo saiu mal.",
             },
         },
         ballotHash: "O seu ID de Papeleta: {{ballotId}}",

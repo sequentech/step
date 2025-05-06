@@ -67,21 +67,36 @@ const dutchTranslation: TranslationType = {
         errors: {
             encoding: {
                 notEnoughChoices: "Niet genoeg keuzes om te decoderen",
-                writeInChoiceOutOfRange: "Ingevoerde keuze buiten bereik: {{index}}",
-                writeInNotEndInZero: "Ingevoerde waarde eindigt niet op 0",
+                writeInChoiceOutOfRange: "In te vullen keuze buiten bereik: {{index}}",
+                writeInNotEndInZero: "In te vullen tekst eindigt niet op 0",
+                writeInCharsExceeded:
+                    "In te vullen tekst overschrijdt maximum aantal tekens met {{numCharsExceeded}}. Moet worden aangepast.",
                 bytesToUtf8Conversion:
-                    "Fout bij het converteren van ingevoerde waarde van bytes naar UTF-8 string: {{errorMessage}}",
+                    "Fout bij het converteren van in te vullen tekst van bytes naar UTF-8 string: {{errorMessage}}",
                 ballotTooLarge: "Stembiljet groter dan verwacht",
             },
             implicit: {
                 selectedMax:
-                    "Aantal geselecteerde keuzes {{numSelected}} is meer dan het maximum {{max}}",
+                    "Te veel stemmen: Aantal geselecteerde keuzes {{numSelected}} is meer dan het maximum {{max}}",
                 selectedMin:
                     "Aantal geselecteerde keuzes {{numSelected}} is minder dan het minimum {{min}}",
+                maxSelectionsPerType:
+                    "Aantal geselecteerde keuzes {{numSelected}} voor lijst {{type}} is meer dan het maximum {{max}}",
+                underVote:
+                    "Te weinig stemmen: Aantal geselecteerde keuzes {{numSelected}} is minder dan het maximum {{max}}",
+                overVoteDisabled:
+                    "Maximum bereikt: U heeft het maximum aantal keuzes {{numSelected}} geselecteerd. Om uw selectie te wijzigen, deselecteer eerst een andere optie.",
+                blankVote: "Blanco stem: 0 keuzes geselecteerd",
             },
             explicit: {
                 notAllowed:
-                    "Stembiljet expliciet ongeldig gemarkeerd, maar vraag staat dit niet toe",
+                    "Stembiljet expliciet ongeldig gemarkeerd maar vraag staat dit niet toe",
+                alert: "Gemarkeerde selectie wordt als ongeldige stem beschouwd.",
+            },
+            page: {
+                oopsWithStatus: "Oeps! {{status}}",
+                oopsWithoutStatus: "Oeps! Onverwachte Fout",
+                somethingWrong: "Er is iets misgegaan.",
             },
         },
         ballotHash: "Uw Stembiljet-ID: {{ballotId}}",

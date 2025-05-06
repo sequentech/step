@@ -66,21 +66,36 @@ const catalanTranslation: TranslationType = {
         poweredBy: "Funciona amb",
         errors: {
             encoding: {
-                notEnoughChoices: "No hi ha prou opcions per a decodificar",
+                notEnoughChoices: "No hi ha prou opcions per desxifrar",
                 writeInChoiceOutOfRange: "Opció de vot escrita fora de rang: {{index}}",
                 writeInNotEndInZero: "Opció de vot escrita no finalitza en 0",
+                writeInCharsExceeded:
+                    "Opció de vot escrita excedeix el nombre de caràcters per {{numCharsExceeded}} caràcters. Requereix arranjament.",
                 bytesToUtf8Conversion:
                     "Error convertint bytes d'opció de vot escrita a cadena UTF-8: {{errorMessage}}",
-                ballotTooLarge: "Vot més gran del que s'esperava",
+                ballotTooLarge: "Vot més gran de l'esperat",
             },
             implicit: {
                 selectedMax:
-                    "El nombre d'opcions seleccionades {{numSelected}} és major que el màxim {{max}}",
+                    "Sobrevot: El nombre d'opcions seleccionades {{numSelected}} és major que el màxim {{max}}",
                 selectedMin:
-                    "El nombre d'opcions seleccionades {{numSelected}} és menor que el màxim {{min}}",
+                    "El nombre d'opcions seleccionades {{numSelected}} és menor que el mínim {{min}}",
+                maxSelectionsPerType:
+                    "El nombre d'opcions seleccionades {{numSelected}} per a la llista {{type}} és major que el màxim {{max}}",
+                underVote:
+                    "Subvot: El nombre d'opcions seleccionades {{numSelected}} és inferior al màxim permès de {{max}}",
+                overVoteDisabled:
+                    "Màxim assolit: Has seleccionat el màxim de {{numSelected}} opcions. Per canviar la teva selecció, si us plau, desmarca primer una altra opció.",
+                blankVote: "Vot en Blanc: 0 opcions seleccionades",
             },
             explicit: {
                 notAllowed: "Vot marcat explícitament com a invàlid però la pregunta no ho permet",
+                alert: "La selecció marcada es considerarà vot invàlid.",
+            },
+            page: {
+                oopsWithStatus: "Vaja! {{status}}",
+                oopsWithoutStatus: "Vaja! Error Inesperat",
+                somethingWrong: "Alguna cosa ha anat malament.",
             },
         },
         ballotHash: "El teu Localitzador de Vot: {{ballotId}}",
