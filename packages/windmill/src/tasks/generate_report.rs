@@ -113,7 +113,7 @@ pub async fn generate_report(
             return Err(anyhow!("Error starting Keycloak transaction: {err}"));
         }
     };
-    
+
     let email_recipients = report.cron_config.unwrap_or_default().email_recipients;
 
     // Helper macro to reduce duplication in execute_report call
@@ -291,24 +291,19 @@ pub async fn generate_report(
         Ok(inner_result) => {
             if let Err(ref err) = inner_result {
                 if let Some(ref task_exec) = task_execution {
-                    let _ = update_fail(
-                        task_exec,
-                        &format!("Task failed: {:?}", err),
-                    )
-                    .await;
+                    let _ = update_fail(task_exec, &format!("Task failed: {:?}", err)).await;
                 }
             }
             inner_result.map_err(|err| Error::from(err.context("Task failed")))?;
         }
         Err(join_error) => {
             if let Some(ref task_exec) = task_execution {
-                let _ = update_fail(
-                    task_exec,
-                    &format!("Task panicked: {}", join_error),
-                )
-                .await;
+                let _ = update_fail(task_exec, &format!("Task panicked: {}", join_error)).await;
             }
-            return Err(Error::from(anyhow::anyhow!("Task panicked: {}", join_error)));
+            return Err(Error::from(anyhow::anyhow!(
+                "Task panicked: {}",
+                join_error
+            )));
         }
     }
 

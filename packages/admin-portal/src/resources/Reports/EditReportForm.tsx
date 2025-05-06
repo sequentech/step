@@ -278,17 +278,17 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
         }
 
         if (isCronActive) {
-            const expr = values.cron_config?.cron_expression;
-            const emails = values.cron_config?.email_recipients || [];
+            const expr = values.cron_config?.cron_expression
+            const emails = values.cron_config?.email_recipients || []
             if (!expr) {
-              notify("Please configure a cron schedule before saving", { type: "error" });
-              return;
+                notify("Please configure a cron schedule before saving", {type: "error"})
+                return
             }
             if (emails.length === 0) {
-              notify("Please enter at least one e-mail recipient", { type: "error" });
-              return;
+                notify("Please enter at least one e-mail recipient", {type: "error"})
+                return
             }
-          }
+        }
 
         const formData: Partial<Sequent_Backend_Report> = {
             ...formValues,
