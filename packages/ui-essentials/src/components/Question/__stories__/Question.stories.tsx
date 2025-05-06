@@ -45,7 +45,7 @@ export const Primary: Story = {
     args: {
         ballotStyle: (ballotStyle as unknown) as IBallotStyle,
         question: (question as unknown) as IContest,
-        isReview: false,
+        isReview: true,
         errorSelectionState: (errorSelectionState as unknown) as BallotSelection,
         questionPlaintext: (questionPlaintext as unknown) as IDecodedVoteContest,
         isVotedState: false, // Adding the required isVotedState prop
