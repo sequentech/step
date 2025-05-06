@@ -516,9 +516,7 @@ pub async fn insert_many_tally_sessions(
             configuration, tally_type, permission_label
         )
         SELECT
-            id, tenant_id, election_event_id, created_at,last_updated_at,labels,annotations,
-            election_ids, area_ids,is_execution_completed, keys_ceremony_id,execution_status, threshold,
-            configuration, tally_type, permission_label
+            *
         FROM data
         RETURNING *;
     "#;

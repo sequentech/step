@@ -740,24 +740,31 @@ async fn process_activity_logs_file(
     Ok(())
 }
 
-fn extract_document_uuid(filename: &str) -> Option<&str> {
+async fn extract_document_uuid(filename: &str) -> Result<Option<&str>> {
     // Regex to match the UUID after "document_"
     let re = Regex::new(
         r"document_([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})",
     )
-    .unwrap();
+    .ok()
+    .ok_or_else(|| anyhow!("Invalid regex"))?;
 
-    re.captures(filename)
-        .and_then(|caps| caps.get(1).map(|m| m.as_str()))
+    let uuid = re
+        .captures(filename)
+        .and_then(|caps| caps.get(1).map(|m| m.as_str()));
+    Ok(uuid)
 }
 
-fn extract_document_name(filename: &str) -> Option<&str> {
+async fn extract_document_name(filename: &str) -> Result<Option<&str>> {
     let re = Regex::new(
         r"document_[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}_(.+)"
-    ).unwrap();
+    )
+    .ok()
+    .ok_or_else(|| anyhow!("Invalid regex"))?;
 
-    re.captures(filename)
-        .and_then(|caps| caps.get(1).map(|m| m.as_str()))
+    let name = re
+        .captures(filename)
+        .and_then(|caps| caps.get(1).map(|m| m.as_str()));
+    Ok(name)
 }
 
 #[instrument(err, skip(hasura_transaction, temp_file_path, replacement_map))]
@@ -784,13 +791,18 @@ pub async fn process_s3_files(
     let is_public = file_name.contains(&format!("{}/", PUBLIC_S3_FILE_PREFIX));
 
     let document_uuid = extract_document_uuid(file_name)
-        .ok_or_else(|| anyhow!("Error extracting document UUID from filename"))?;
+        .await
+        .map_err(|e| anyhow!("Error extracting document UUID from filename: {e}"))?
+        .ok_or_else(|| anyhow!("Error extracting document UUID as str"))?;
+
     let new_document_id = replacement_map
         .get(document_uuid)
         .ok_or_else(|| anyhow!("Error finding document UUID in replacement map"))?;
 
     let file_name = extract_document_name(file_name)
-        .ok_or_else(|| anyhow!("Error extracting document name from filename"))?;
+        .await
+        .map_err(|e| anyhow!("Error extracting document name from filename: {e}"))?
+        .ok_or_else(|| anyhow!("Error getting document name as str"))?;
 
     // Upload the file and return the document
     let _document = upload_and_return_document(
@@ -1145,7 +1157,8 @@ pub async fn process_document(
                     .ok_or(anyhow!("Unexpected, tally without filename"))?
                     .split(".")
                     .next()
-                    .unwrap();
+                    .ok_or(anyhow!("Unexpected tally without extension"))?;
+
                 process_tally_file(
                     hasura_transaction,
                     &temp_file,
