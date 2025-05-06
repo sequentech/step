@@ -258,34 +258,6 @@ const galegoTranslation: TranslationType = {
             },
         },
         errors: {
-            encoding: {
-                notEnoughChoices: "Non hai suficientes opcións para descodificar",
-                writeInChoiceOutOfRange: "A opción escrita está fóra do rango: {{index}}",
-                writeInNotEndInZero: "A opción escrita non remata en 0",
-                writeInCharsExceeded:
-                    "Supera o límite de caracteres permitidos por {{numCharsExceeded}}. Precísase corrixilo.",
-                bytesToUtf8Conversion:
-                    "Erro ao converter a opción escrita de bytes a unha cadea UTF-8: {{errorMessage}}",
-                ballotTooLarge: "A papeleta é máis grande do esperado",
-            },
-            implicit: {
-                selectedMax:
-                    "Voto excedido: Número de opcións seleccionadas {{numSelected}} supera o máximo {{max}}",
-                selectedMin:
-                    "Número de opcións seleccionadas {{numSelected}} está por debaixo do mínimo {{min}}",
-                maxSelectionsPerType:
-                    "Número de opcións seleccionadas {{numSelected}} para a lista {{type}} supera o máximo {{max}}",
-                underVote:
-                    "Voto insuficiente: Número de opcións seleccionadas {{numSelected}} está por debaixo do máximo {{max}}",
-                overVoteDisabled:
-                    "Máximo alcanzado: Seleccionaches o máximo {{numSelected}} opcións. Para cambiar a selección, deselecciona primeiro outra opción.",
-                blankVote: "Voto en branco: 0 opcións seleccionadas",
-            },
-            explicit: {
-                notAllowed:
-                    "A papeleta está marcada como explícitamente inválida, pero a pregunta non o permite",
-                alert: "A selección marcada será considerada voto inválido.",
-            },
             page: {
                 oopsWithStatus: "Oops! {{status}}",
                 oopsWithoutStatus: "Oops! Erro inesperado",
