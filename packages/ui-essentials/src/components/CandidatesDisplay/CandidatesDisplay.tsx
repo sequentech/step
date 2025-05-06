@@ -39,7 +39,7 @@ interface IBallotStyle {
     last_updated_at: string
 }
 
-export interface IAnswerProps {
+export interface ICandidatesDisplayProps {
     answer: ICandidate
     questionPlaintext?: IDecodedVoteContest
     contestId: string
@@ -65,7 +65,7 @@ export interface IAnswerProps {
     url?: string
 }
 
-export const Answer: React.FC<IAnswerProps> = ({
+export const CandidatesDisplay: React.FC<ICandidatesDisplayProps> = ({
     answer,
     questionPlaintext,
     contestId,

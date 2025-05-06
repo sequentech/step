@@ -41,8 +41,8 @@ import {
 } from "../../services/CategoryService"
 
 import {InvalidErrorsList} from "../InvalidErrorsList/InvalidErrorsList"
-import {Answer} from "../Answer/Answer"
-import {AnswersList} from "../AnswersList/AnswersList"
+import {CandidatesDisplay} from "../CandidatesDisplay/CandidatesDisplay"
+import {CandidatesDisplayList} from "../CandidatesDisplayList/CandidatesDisplayList"
 import theme from "../../services/theme"
 import BlankAnswer from "../BlankAnswer/BlankAnswer"
 import {IBallotStyle as IElectionDTO} from "@sequentech/ui-core" // Renamed alias
@@ -103,7 +103,7 @@ const CandidatesSingleWrapper = emotionStyled.ul<{columnCount: number}>`
     }
 `
 
-export interface IQuestionProps {
+export interface IContestDisplayProps {
     ballotStyle: IBallotStyle
     question: IContest
     isReview: boolean
@@ -119,7 +119,7 @@ export interface IQuestionProps {
     isVotedState: boolean
 }
 
-export const Question: React.FC<IQuestionProps> = ({
+export const ContestDisplay: React.FC<IContestDisplayProps> = ({
     ballotStyle,
     question,
     questionPlaintext,
@@ -252,7 +252,7 @@ export const Question: React.FC<IQuestionProps> = ({
             {isBlank ? <BlankAnswer /> : null}
             <CandidatesWrapper className="candidates-container">
                 {invalidTopCandidates.map((answer, answerIndex) => (
-                    <Answer
+                    <CandidatesDisplay
                         ballotStyle={ballotStyle}
                         answer={answer}
                         contestId={question.id}
@@ -279,7 +279,7 @@ export const Question: React.FC<IQuestionProps> = ({
                         Object.entries(
                             categoriesMapOrder
                         ).map(([categoryName, category], categoryIndex) => (
-                            <AnswersList
+                            <CandidatesDisplayList
                                 key={categoryIndex}
                                 title={categoryName}
                                 isActive={true}
@@ -305,7 +305,7 @@ export const Question: React.FC<IQuestionProps> = ({
                 >
                     {isReview
                         ? selectedAnswers?.map((answer, answerIndex) => (
-                              <Answer
+                              <CandidatesDisplay
                                   ballotStyle={ballotStyle}
                                   key={answerIndex}
                                   isInvalidWriteIns={isInvalidWriteIns}
@@ -323,7 +323,7 @@ export const Question: React.FC<IQuestionProps> = ({
                         : candidatesOrder
                               ?.map((id) => noCategoryCandidatesMap[id])
                               .map((answer, answerIndex) => (
-                                  <Answer
+                                  <CandidatesDisplay
                                       isInvalidWriteIns={isInvalidWriteIns}
                                       ballotStyle={ballotStyle}
                                       answer={answer}
@@ -352,7 +352,7 @@ export const Question: React.FC<IQuestionProps> = ({
                               ))}
                 </CandidatesSingleWrapper>
                 {invalidBottomCandidates.map((answer, answerIndex) => (
-                    <Answer
+                    <CandidatesDisplay
                         ballotStyle={ballotStyle}
                         answer={answer}
                         contestId={question.id}

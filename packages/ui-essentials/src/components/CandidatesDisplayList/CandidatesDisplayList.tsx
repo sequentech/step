@@ -10,7 +10,7 @@ import {sortCandidatesInContest, ECandidatesIconCheckboxPolicy} from "@sequentec
 import {IBallotStyle as IElectionDTO} from "@sequentech/ui-core"
 
 import {ICategory} from "../../services/CategoryService"
-import {Answer} from "../Answer/Answer"
+import {CandidatesDisplay} from "../CandidatesDisplay/CandidatesDisplay"
 import CandidatesList from "../CandidatesList/CandidatesList"
 
 interface IBallotStyle {
@@ -27,7 +27,7 @@ interface IBallotStyle {
     last_updated_at: string
 }
 
-export interface AnswersListProps {
+export interface CandidatesDisplayListProps {
     title: string
     isActive: boolean
     checkableLists: boolean
@@ -65,7 +65,7 @@ const showCategoryOnReview = (category: ICategory, questionState?: IDecodedVoteC
     )
 }
 
-export const AnswersList: React.FC<AnswersListProps> = ({
+export const CandidatesDisplayList: React.FC<CandidatesDisplayListProps> = ({
     title,
     isActive,
     checkableLists,
@@ -170,7 +170,7 @@ export const AnswersList: React.FC<AnswersListProps> = ({
                     <>
                         <b>{translate(subtypePresentation, "name", i18n.language)}</b>
                         {subtypeCandidates.map((candidate, candidateIndex) => (
-                            <Answer
+                            <CandidatesDisplay
                                 ballotStyle={ballotStyle}
                                 answer={candidate}
                                 contestId={contestId}
@@ -198,7 +198,7 @@ export const AnswersList: React.FC<AnswersListProps> = ({
                 ?.map((id) => categoryCandidatesMap[id])
                 .filter((candidate) => !candidate.presentation?.subtype)
                 .map((candidate, candidateIndex) => (
-                    <Answer
+                    <CandidatesDisplay
                         ballotStyle={ballotStyle}
                         answer={candidate}
                         contestId={contestId}

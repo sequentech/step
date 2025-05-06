@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {Component, ErrorInfo, ReactNode} from "react"
 import {Meta, StoryObj} from "@storybook/react"
-import {Question, IQuestionProps, IBallotStyle} from "../Question"
+import {ContestDisplay, IContestDisplayProps, IBallotStyle} from "../ContestDisplay"
 import {IContest, BallotSelection} from "@sequentech/ui-core"
 import {IDecodedVoteContest} from "@sequentech/ui-core"
 import {INITIAL_VIEWPORTS} from "@storybook/addon-viewport"
@@ -14,18 +14,18 @@ import errorSelectionState from "../data/errorSelectionState.json"
 import question from "../data/question.json"
 import questionPlaintext from "../data/questionPlaintext.json"
 
-const QuestionWrapper: React.FC<IQuestionProps & {className?: string}> = ({
+const ContestDisplayWrapper: React.FC<IContestDisplayProps & {className?: string}> = ({
     className,
     ...props
 }) => (
     <Box className={className}>
-        <Question {...props} />
+        <ContestDisplay {...props} />
     </Box>
 )
 
-const meta: Meta<typeof QuestionWrapper> = {
-    title: "components/Question",
-    component: QuestionWrapper,
+const meta: Meta<typeof ContestDisplayWrapper> = {
+    title: "components/ContestDisplay",
+    component: ContestDisplayWrapper,
     parameters: {
         backgrounds: {
             default: "white",
@@ -39,7 +39,7 @@ const meta: Meta<typeof QuestionWrapper> = {
 
 export default meta
 
-type Story = StoryObj<typeof QuestionWrapper>
+type Story = StoryObj<typeof ContestDisplayWrapper>
 
 export const Primary: Story = {
     args: {
