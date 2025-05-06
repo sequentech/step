@@ -50,6 +50,7 @@ use crate::tasks::manual_verification_report::generate_manual_verification_repor
 use crate::tasks::miru_plugin_tasks::create_transmission_package_task;
 use crate::tasks::miru_plugin_tasks::send_transmission_package_task;
 use crate::tasks::process_board::process_board;
+use crate::tasks::render_document_pdf::render_document_pdf;
 use crate::tasks::render_report::render_report;
 use crate::tasks::review_boards::review_boards;
 use crate::tasks::scheduled_events::scheduled_events;
@@ -219,6 +220,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             enqueue_electoral_log_event,
             process_electoral_log_events_batch,
             electoral_log_batch_dispatcher,
+            render_document_pdf,
         ],
         task_routes = [
             create_keys::NAME => Queue::Short.as_ref(),
@@ -229,6 +231,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             create_ballot_receipt::NAME => Queue::Reports.as_ref(),
             generate_report::NAME => Queue::Reports.as_ref(),
             generate_template::NAME => Queue::Reports.as_ref(),
+            render_document_pdf::NAME => Queue::Reports.as_ref(),
             set_public_key::NAME => Queue::Short.as_ref(),
             execute_tally_session::NAME => Queue::Tally.as_ref(),
             update_election_event_ballot_styles::NAME => Queue::Short.as_ref(),

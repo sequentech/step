@@ -131,6 +131,9 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
         return castVotes.length < (ballotStyle?.ballot_eml.num_allowed_revotes ?? 1) && isVotingOpen
     }
 
+    console.log(electionStatus)
+    console.log(isVotingOpen)
+    console.log(canVote)
     const onClickToVote = () => {
         console.log("onClickToVote")
         if (!canVote() || !isElectionEventOpen(electionEvent)) {

@@ -797,6 +797,12 @@ export type PublishTallyOutput = {
     tally_sheet_id?: Maybe<Scalars["uuid"]["output"]>
 }
 
+export type RenderDocumentPdfOutput = {
+    __typename?: "RenderDocumentPDFOutput"
+    document_id?: Maybe<Scalars["String"]["output"]>
+    task_execution?: Maybe<Tasks_Execution_Type>
+}
+
 export enum ReportEncryptionPolicy {
     ConfiguredPassword = "configured_password",
     Unencrypted = "unencrypted",
@@ -1407,6 +1413,7 @@ export type Mutation_Root = {
     publish_ballot?: Maybe<PublishBallotOutput>
     /** publish_tally_sheet */
     publish_tally_sheet?: Maybe<PublishTallyOutput>
+    render_document_pdf?: Maybe<RenderDocumentPdfOutput>
     restore_private_key?: Maybe<RestorePrivateKeyOutput>
     send_transmission_package?: Maybe<OptionalId>
     set_custom_urls?: Maybe<SetCustomUrlsOutput>
@@ -2928,6 +2935,13 @@ export type Mutation_RootPublish_Tally_SheetArgs = {
     election_event_id: Scalars["uuid"]["input"]
     publish?: InputMaybe<Scalars["Boolean"]["input"]>
     tally_sheet_id: Scalars["uuid"]["input"]
+}
+
+/** mutation root */
+export type Mutation_RootRender_Document_PdfArgs = {
+    document_id: Scalars["uuid"]["input"]
+    election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
+    tally_session_id?: InputMaybe<Scalars["uuid"]["input"]>
 }
 
 /** mutation root */
@@ -7074,6 +7088,7 @@ export type Sequent_Backend_Cast_Vote = {
     id: Scalars["uuid"]["output"]
     labels?: Maybe<Scalars["jsonb"]["output"]>
     last_updated_at?: Maybe<Scalars["timestamptz"]["output"]>
+    status?: Maybe<Scalars["String"]["output"]>
     tenant_id: Scalars["uuid"]["output"]
     voter_id_string?: Maybe<Scalars["String"]["output"]>
 }
@@ -7131,6 +7146,7 @@ export type Sequent_Backend_Cast_Vote_Bool_Exp = {
     id?: InputMaybe<Uuid_Comparison_Exp>
     labels?: InputMaybe<Jsonb_Comparison_Exp>
     last_updated_at?: InputMaybe<Timestamptz_Comparison_Exp>
+    status?: InputMaybe<String_Comparison_Exp>
     tenant_id?: InputMaybe<Uuid_Comparison_Exp>
     voter_id_string?: InputMaybe<String_Comparison_Exp>
 }
@@ -7172,6 +7188,7 @@ export type Sequent_Backend_Cast_Vote_Insert_Input = {
     id?: InputMaybe<Scalars["uuid"]["input"]>
     labels?: InputMaybe<Scalars["jsonb"]["input"]>
     last_updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    status?: InputMaybe<Scalars["String"]["input"]>
     tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
     voter_id_string?: InputMaybe<Scalars["String"]["input"]>
 }
@@ -7187,6 +7204,7 @@ export type Sequent_Backend_Cast_Vote_Max_Fields = {
     election_id?: Maybe<Scalars["uuid"]["output"]>
     id?: Maybe<Scalars["uuid"]["output"]>
     last_updated_at?: Maybe<Scalars["timestamptz"]["output"]>
+    status?: Maybe<Scalars["String"]["output"]>
     tenant_id?: Maybe<Scalars["uuid"]["output"]>
     voter_id_string?: Maybe<Scalars["String"]["output"]>
 }
@@ -7202,6 +7220,7 @@ export type Sequent_Backend_Cast_Vote_Min_Fields = {
     election_id?: Maybe<Scalars["uuid"]["output"]>
     id?: Maybe<Scalars["uuid"]["output"]>
     last_updated_at?: Maybe<Scalars["timestamptz"]["output"]>
+    status?: Maybe<Scalars["String"]["output"]>
     tenant_id?: Maybe<Scalars["uuid"]["output"]>
     voter_id_string?: Maybe<Scalars["String"]["output"]>
 }
@@ -7235,6 +7254,7 @@ export type Sequent_Backend_Cast_Vote_Order_By = {
     id?: InputMaybe<Order_By>
     labels?: InputMaybe<Order_By>
     last_updated_at?: InputMaybe<Order_By>
+    status?: InputMaybe<Order_By>
     tenant_id?: InputMaybe<Order_By>
     voter_id_string?: InputMaybe<Order_By>
 }
@@ -7277,6 +7297,8 @@ export enum Sequent_Backend_Cast_Vote_Select_Column {
     /** column name */
     LastUpdatedAt = "last_updated_at",
     /** column name */
+    Status = "status",
+    /** column name */
     TenantId = "tenant_id",
     /** column name */
     VoterIdString = "voter_id_string",
@@ -7295,6 +7317,7 @@ export type Sequent_Backend_Cast_Vote_Set_Input = {
     id?: InputMaybe<Scalars["uuid"]["input"]>
     labels?: InputMaybe<Scalars["jsonb"]["input"]>
     last_updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    status?: InputMaybe<Scalars["String"]["input"]>
     tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
     voter_id_string?: InputMaybe<Scalars["String"]["input"]>
 }
@@ -7320,6 +7343,7 @@ export type Sequent_Backend_Cast_Vote_Stream_Cursor_Value_Input = {
     id?: InputMaybe<Scalars["uuid"]["input"]>
     labels?: InputMaybe<Scalars["jsonb"]["input"]>
     last_updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    status?: InputMaybe<Scalars["String"]["input"]>
     tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
     voter_id_string?: InputMaybe<Scalars["String"]["input"]>
 }
@@ -7348,6 +7372,8 @@ export enum Sequent_Backend_Cast_Vote_Update_Column {
     Labels = "labels",
     /** column name */
     LastUpdatedAt = "last_updated_at",
+    /** column name */
+    Status = "status",
     /** column name */
     TenantId = "tenant_id",
     /** column name */

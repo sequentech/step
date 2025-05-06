@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::{
-    hasura,
     postgres::scheduled_event::{insert_new_scheduled_event, insert_scheduled_event},
     types::resources::OrderDirection,
 };

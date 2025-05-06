@@ -2,17 +2,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::hasura::ballot_publication::{
-    get_ballot_publication, get_previous_publication, get_previous_publication_election,
-    get_publication_ballot_styles, insert_ballot_publication,
-    soft_delete_other_ballot_publications, soft_delete_other_ballot_publications_election,
-    update_ballot_publication_d,
+use crate::postgres::ballot_publication::{
+    get_ballot_publication_by_id, soft_delete_other_ballot_publications, update_ballot_publication,
 };
-use crate::hasura::election_event::get_election_event_helper;
-use crate::hasura::election_event::update_election_event_status;
-use crate::postgres::ballot_publication::get_ballot_publication_by_id;
 use crate::postgres::election::update_election_status;
-use crate::postgres::election_event::get_election_event_by_id;
+use crate::postgres::election_event::{get_election_event_by_id, update_election_event_status};
 use crate::services::ballot_styles::ballot_style;
 use crate::services::database::get_hasura_pool;
 use crate::services::election_event_board::get_election_event_board;
@@ -20,15 +14,11 @@ use crate::services::election_event_status::get_election_event_status;
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::pg_lock::PgLock;
 use crate::types::error::Result;
-
-use anyhow::anyhow;
 use celery::error::TaskError;
-use chrono::{Duration, Local};
+use chrono::Duration;
 use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::ballot::ElectionEventStatus;
 use sequent_core::services::date::ISO8601;
-use sequent_core::services::keycloak::get_client_credentials;
-
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -81,25 +71,14 @@ pub async fn update_election_event_ballot_publication(
         return Ok(());
     }
 
-    let auth_headers = get_client_credentials().await?;
-    if let Some(election_id) = ballot_publication.election_id.clone() {
-        soft_delete_other_ballot_publications_election(
-            auth_headers.clone(),
-            tenant_id.clone(),
-            election_event_id.clone(),
-            ballot_publication_id.clone(),
-            election_id,
-        )
-        .await?;
-    } else {
-        soft_delete_other_ballot_publications(
-            auth_headers.clone(),
-            tenant_id.clone(),
-            election_event_id.clone(),
-            ballot_publication_id.clone(),
-        )
-        .await?;
-    }
+    let _result = soft_delete_other_ballot_publications(
+        &hasura_transaction,
+        &ballot_publication_id,
+        &election_event_id,
+        &tenant_id,
+        ballot_publication.election_id.clone(),
+    )
+    .await?;
 
     let election_event =
         get_election_event_by_id(&hasura_transaction, &tenant_id, &election_event_id).await?;
@@ -112,11 +91,11 @@ pub async fn update_election_event_ballot_publication(
     )
     .await?;
 
-    update_ballot_publication_d(
-        auth_headers.clone(),
-        tenant_id.clone(),
-        election_event_id.clone(),
-        ballot_publication_id.clone(),
+    update_ballot_publication(
+        &hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &ballot_publication_id,
         true,
         Some(ISO8601::now()),
     )
@@ -128,9 +107,9 @@ pub async fn update_election_event_ballot_publication(
     let new_status_js = serde_json::to_value(new_status)?;
 
     update_election_event_status(
-        auth_headers.clone(),
-        tenant_id.clone(),
-        election_event_id.clone(),
+        &hasura_transaction,
+        &tenant_id,
+        &election_event_id,
         new_status_js,
     )
     .await?;

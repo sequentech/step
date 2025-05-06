@@ -93,6 +93,7 @@ pub async fn generate_ballot_publication(
     }
 
     let ballot_publication_id = add_ballot_publication(
+        &hasura_transaction,
         tenant_id.clone(),
         input.election_event_id.clone(),
         input.election_id.clone(),
@@ -100,6 +101,10 @@ pub async fn generate_ballot_publication(
     )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    let _commit = hasura_transaction.commit().await.map_err(|err| {
+        (Status::InternalServerError, format!("Commit failed: {err}"))
+    })?;
 
     Ok(Json(GenerateBallotPublicationOutput {
         ballot_publication_id,
@@ -196,7 +201,19 @@ pub async fn get_ballot_publication_changes(
     let input = body.into_inner();
     let tenant_id = claims.hasura_claims.tenant_id.clone();
 
+    let mut hasura_db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    let hasura_transaction = hasura_db_client
+        .transaction()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
     let diff = get_ballot_publication_diff(
+        &hasura_transaction,
         tenant_id.clone(),
         input.election_event_id.clone(),
         input.ballot_publication_id.clone(),
