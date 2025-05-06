@@ -1,23 +1,21 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {Component, ErrorInfo, ReactNode, useState} from "react"
+import React, {useState} from "react"
 import {Meta, StoryObj} from "@storybook/react"
 import {ContestDisplay, IContestDisplayProps, IBallotStyle} from "../ContestDisplay"
-import {IContest, BallotSelection, IDecodedVoteChoice, isUndefined} from "@sequentech/ui-core"
+import {IContest, BallotSelection, isUndefined} from "@sequentech/ui-core"
 import {IDecodedVoteContest} from "@sequentech/ui-core"
 import {INITIAL_VIEWPORTS} from "@storybook/addon-viewport"
-import {Box} from "@mui/material"
+import {Box, Button} from "@mui/material"
 
-import ballotStyle from "../data/ballotStyle.json"
-import errorSelectionState from "../data/errorSelectionState.json"
-import question from "../data/question.json"
-import questionPlaintext from "../data/questionPlaintext.json"
-import selectionState from "../data/selectionState.json"
-
-interface BallotSelectionsState {
-    [electionId: string]: BallotSelection | undefined
-}
+import ballotStyle from "../data/vote/ballotStyle.json"
+import errorSelectionState from "../data/vote/errorSelectionState.json"
+import question from "../data/vote/question.json"
+import questionPlaintext from "../data/vote/questionPlaintext.json"
+import selectionState from "../data/vote/selectionState.json"
+import {ActionProps, ActionResetProps, BallotSelectionsState} from "./types"
+import {useTranslation} from "react-i18next"
 
 let votes: BallotSelectionsState | undefined = undefined
 const electionId = "1ae13934-8de6-47bc-8061-57280978e621"
@@ -68,11 +66,7 @@ export const Primary: Story = {
     },
 }
 
-interface ActionProps {
-    ballotStyle: IBallotStyle
-    contestId: string
-    voteChoice: IDecodedVoteChoice
-}
+/** Mock Redux functions */
 
 const setBallotSelectionVoteChoice = (action: ActionProps) => {
     const {ballotStyle, contestId, voteChoice} = action
@@ -113,8 +107,50 @@ const setBallotSelectionVoteChoice = (action: ActionProps) => {
     votes = state
 }
 
+const resetBallotSelection = (action: ActionResetProps) => {
+    const {ballotStyle, force} = action
+    const state = (selectionState as unknown) as BallotSelectionsState
+
+    let currentElection = state[ballotStyle.election_id]
+    if (!currentElection || force) {
+        state[ballotStyle.election_id] = ballotStyle.ballot_eml.contests.map(
+            (question): IDecodedVoteContest => {
+                let currentContestValue = state[ballotStyle.election_id]?.find(
+                    (contest) => contest.contest_id === question.id
+                )
+
+                if (currentContestValue && contestId && contestId !== question.id) {
+                    return {
+                        contest_id: currentContestValue.contest_id,
+                        is_explicit_invalid: currentContestValue.is_explicit_invalid,
+                        invalid_errors: currentContestValue.invalid_errors,
+                        invalid_alerts: currentContestValue.invalid_alerts,
+                        choices: currentContestValue.choices,
+                    }
+                }
+
+                return {
+                    contest_id: question.id,
+                    is_explicit_invalid: false,
+                    invalid_errors: [],
+                    invalid_alerts: [],
+                    choices: question.candidates.map((answer) => ({
+                        id: answer.id,
+                        selected: -1,
+                    })),
+                }
+            }
+        )
+    }
+
+    votes = state
+}
+
+/** END Mock Redux functions */
+
 // Create a proper React component to use hooks
-const VoteStory: React.FC = ({...args}) => {
+const VoteStory: React.FC = () => {
+    const {t} = useTranslation()
     // Use useState to track votes and force re-renders
     const [votesState, setVotesState] = useState<BallotSelectionsState | undefined>(undefined)
 
@@ -125,21 +161,39 @@ const VoteStory: React.FC = ({...args}) => {
         setVotesState({...votes})
     }
 
+    const handleClear = (action: ActionResetProps) => {
+        resetBallotSelection(action)
+        setVotesState(votes)
+    }
+
     // Get the current questionPlaintext value
     const currentQuestionPlaintext = votesState
         ? (votesState[electionId] as IDecodedVoteContest[])?.find((a) => a.contest_id === contestId)
         : undefined
 
     return (
-        <ContestDisplayWrapper
-            ballotStyle={(ballotStyle as unknown) as IBallotStyle}
-            question={(question as unknown) as IContest}
-            isReview={false}
-            errorSelectionState={(errorSelectionState as unknown) as BallotSelection}
-            questionPlaintext={currentQuestionPlaintext}
-            isVotedState={false}
-            onSetBallotSelectionVoteChoice={handleSetBallotSelectionVoteChoice}
-        />
+        <>
+            <Button
+                variant="outlined"
+                onClick={() =>
+                    handleClear({
+                        ballotStyle: (ballotStyle as unknown) as IBallotStyle,
+                        force: true,
+                    })
+                }
+            >
+                {t("Clear")}
+            </Button>
+            <ContestDisplayWrapper
+                ballotStyle={(ballotStyle as unknown) as IBallotStyle}
+                question={(question as unknown) as IContest}
+                isReview={false}
+                errorSelectionState={(errorSelectionState as unknown) as BallotSelection}
+                questionPlaintext={currentQuestionPlaintext}
+                isVotedState={false}
+                onSetBallotSelectionVoteChoice={handleSetBallotSelectionVoteChoice}
+            />
+        </>
     )
 }
 
