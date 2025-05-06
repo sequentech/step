@@ -9761,6 +9761,7 @@ dependencies = [
  "tokio",
  "tokio-postgres",
  "tokio-stream",
+ "tokio-util",
  "toml 0.6.0",
  "tracing",
  "unicode-normalization",

@@ -13,11 +13,14 @@ use chrono::{DateTime, Utc};
 use deadpool_postgres::Transaction;
 use sequent_core::types::keycloak::{User, VotesInfo};
 use serde::{Deserialize, Serialize};
+use tokio::io::{copy, BufWriter};
 use std::collections::HashMap;
+use tokio::fs::File;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 use tokio_postgres::row::Row;
 use tracing::{info, instrument};
 use uuid::Uuid;
+use tokio_util::io::StreamReader;
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct CastVote {
@@ -63,30 +66,20 @@ pub async fn find_area_ballots(
     tenant_id: &str,
     election_event_id: &str,
     area_id: &str,
-    limit: i64,
-    offset: i64,
-) -> Result<Vec<CastVote>> {
+    output_file: &mut File,
+) -> Result<()> {
     let tenant_uuid: uuid::Uuid = Uuid::parse_str(tenant_id)
         .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
     let election_event_uuid: uuid::Uuid = Uuid::parse_str(election_event_id)
         .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
     let area_uuid: uuid::Uuid = Uuid::parse_str(area_id)
         .map_err(|err| anyhow!("Error parsing area_id as UUID: {}", err))?;
-    let areas_statement = hasura_transaction
-        .prepare(
+    let areas_statement = 
             r#"
                     SELECT DISTINCT ON (election_id, voter_id_string)
                         id,
-                        tenant_id,
                         election_id,
-                        area_id,
-                        created_at,
-                        last_updated_at,
                         content,
-                        cast_ballot_signature,
-                        voter_id_string,
-                        election_event_id,
-                        ballot_id
                     FROM "sequent_backend".cast_vote
                     WHERE
                         tenant_id = $1 AND
@@ -94,28 +87,24 @@ pub async fn find_area_ballots(
                         area_id = $3
                     ORDER BY election_id, voter_id_string, created_at DESC
                     LIMIT $4 OFFSET $5
-                "#,
-        )
-        .await?;
-    let rows: Vec<Row> = hasura_transaction
-        .query(
-            &areas_statement,
-            &[
-                &tenant_uuid,
-                &election_event_uuid,
-                &area_uuid,
-                &limit,
-                &offset,
-            ],
-        )
+                "#;
+
+    let copy_out_query = format!(
+        "COPY ({}) TO STDOUT WITH (FORMAT CSV)",
+        areas_statement
+    );
+    let mut writer = BufWriter::new(output_file); 
+
+    let mut reader = hasura_transaction
+        .copy_out(copy_out_query.as_str())
         .await
         .map_err(|err| anyhow!("Error running the areas query: {}", err))?;
-    let cast_votes = rows
-        .into_iter()
-        .map(|row| -> Result<CastVote> { row.try_into() })
-        .collect::<Result<Vec<CastVote>>>()?;
 
-    Ok(cast_votes)
+    let mut async_reader = StreamReader::new(reader);
+
+    let bytes_copied = copy(&mut async_reader, &mut writer).await.expect("Failed to write data to file");
+
+    Ok(())
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]

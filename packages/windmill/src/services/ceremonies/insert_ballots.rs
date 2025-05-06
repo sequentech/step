@@ -35,6 +35,7 @@ use strand::elgamal::Ciphertext;
 use strand::signature::StrandSignaturePk;
 use tempfile::NamedTempFile;
 use tracing::{event, instrument, Level};
+use tokio::fs::File as TokioFile;
 
 #[instrument(skip_all, err)]
 pub async fn insert_ballots_messages(
@@ -95,10 +96,6 @@ pub async fn insert_ballots_messages(
             tally_session_contest.session_id,
         );
 
-        // Use find_area_ballots with pagination
-        let mut offset = 0;
-        let batch_size = PgConfig::from_env()?.default_sql_batch_size.into();
-
         // Create a temporary file (auto-deleted when dropped)
         let ballots_temp_file = NamedTempFile::new()
             .map_err(|error| anyhow!("Failed to create temp file {}", error))?;
@@ -107,72 +104,18 @@ pub async fn insert_ballots_messages(
             "Creating temporary file for ballots with path {:?}",
             ballots_temp_file.path()
         );
-        let mut writer = WriterBuilder::new()
-            .has_headers(false)
-            .from_writer(&ballots_temp_file);
 
-        loop {
-            let ballots_list = find_area_ballots(
-                &hasura_transaction,
-                &tenant_id,
-                &election_event_id,
-                &tally_session_contest.area_id,
-                batch_size,
-                offset,
-            )
-            .await?;
+        let mut tokio_temp_file = TokioFile::create(&ballots_temp_file.path().to_path_buf())
+        .await
+        .expect("Could not create/open temporary file for tokio");
 
-            event!(Level::INFO, "ballots_list len: {:?}", ballots_list.len());
-
-            if ballots_list.is_empty() {
-                break;
-            }
-
-            for ballot in ballots_list {
-                let ballot_str = ballot.content.ok_or(anyhow!("Empty ballot content"))?;
-
-                let ciphertext: Ciphertext<RistrettoCtx> =
-                    if ContestEncryptionPolicy::MULTIPLE_CONTESTS == contest_encryption_policy {
-                        let hashable_multi_ballot: HashableMultiBallot =
-                            deserialize_str(&ballot_str)?;
-
-                        let hashable_multi_ballot_contests = hashable_multi_ballot
-                            .deserialize_contests()
-                            .map_err(|err| anyhow!("{:?}", err))?;
-                        Some(hashable_multi_ballot_contests.ciphertext)
-                    } else {
-                        let hashable_ballot: HashableBallot = deserialize_str(&ballot_str)?;
-                        let contests = hashable_ballot
-                            .deserialize_contests()
-                            .map_err(|err| anyhow!("{:?}", err))?;
-                        contests
-                            .iter()
-                            .find(|contest| {
-                                contest.contest_id
-                                    == tally_session_contest.contest_id.clone().unwrap_or_default()
-                            })
-                            .map(|contest| contest.ciphertext.clone())
-                    }
-                    .ok_or(anyhow!("Could not get ciphertext"))?;
-
-                let ciphertext_base64 = ciphertext.serialize()?;
-
-                writer
-                    .serialize((
-                        &ballot.voter_id_string,
-                        &ballot.election_id,
-                        &ciphertext_base64,
-                    ))
-                    .map_err(|error| anyhow!("Failed to write row {}", error))?;
-            }
-
-            writer
-                .flush()
-                .map_err(|error| anyhow!("Failed to flush writer {}", error))?;
-
-            // Move to next batch
-            offset += batch_size;
-        }
+        find_area_ballots(
+            &hasura_transaction,
+            &tenant_id,
+            &election_event_id,
+            &tally_session_contest.area_id,
+            &tokio_temp_file
+        );
 
         let ballots_temp_file = ballots_temp_file.reopen()?;
 
@@ -191,8 +134,8 @@ pub async fn insert_ballots_messages(
             .from_writer(&users_temp_file);
 
         // Reset offset
-        offset = 0;
-        let batch_size = batch_size * 100;
+        let offset = 0;
+        let batch_size = 1000 * 100;
 
         loop {
             let users_map = list_keycloak_enabled_users_by_area_id(
@@ -340,10 +283,6 @@ pub async fn count_auditable_ballots(
 
     let realm = get_event_realm(tenant_id, election_event_id);
 
-    // Use find_area_ballots with pagination
-    let mut offset = 0;
-    let batch_size = PgConfig::from_env()?.default_sql_batch_size.into();
-
     // Create a temporary file (auto-deleted when dropped)
     let ballots_temp_file =
         NamedTempFile::new().map_err(|error| anyhow!("Failed to create temp file {}", error))?;
@@ -352,44 +291,18 @@ pub async fn count_auditable_ballots(
         "Creating temporary file for ballots with path {:?}",
         ballots_temp_file.path()
     );
-    let mut writer = WriterBuilder::new()
-        .has_headers(false)
-        .from_writer(&ballots_temp_file);
 
-    loop {
-        let ballots_list = find_area_ballots(
-            &hasura_transaction,
-            &tenant_id,
-            &election_event_id,
-            area_id,
-            batch_size,
-            offset,
-        )
-        .await?;
+    let mut tokio_temp_file = TokioFile::create(&ballots_temp_file.path().to_path_buf())
+    .await
+    .expect("Could not create/open temporary file for tokio");
 
-        event!(Level::INFO, "ballots_list len: {:?}", ballots_list.len());
-
-        if ballots_list.is_empty() {
-            break;
-        }
-
-        for ballot in ballots_list {
-            writer
-                .serialize((
-                    &ballot.voter_id_string,
-                    &ballot.election_id,
-                    &ballot.content,
-                ))
-                .map_err(|error| anyhow!("Failed to write row: {}", error))?;
-        }
-
-        writer
-            .flush()
-            .map_err(|error| anyhow!("Failed to flush writer: {}", error))?;
-
-        // Move to next batch
-        offset += batch_size;
-    }
+    find_area_ballots(
+        &hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        area_id,
+        &tokio_temp_file
+    );
 
     let ballots_temp_file = ballots_temp_file.reopen()?;
 
@@ -408,8 +321,8 @@ pub async fn count_auditable_ballots(
         .from_writer(&users_temp_file);
 
     // Reset offset
-    offset = 0;
-    let batch_size = batch_size * 100;
+    let offset = 0;
+    let batch_size = 1000 * 100;
 
     loop {
         let users_map = list_keycloak_enabled_users_by_area_id(
