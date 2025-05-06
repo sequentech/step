@@ -1,4 +1,4 @@
-import { BallotSelection, IDecodedVoteChoice } from "@sequentech/ui-core"
+import { BallotSelection, IContest, IDecodedVoteChoice } from "@sequentech/ui-core"
 import {ContestDisplay, IContestDisplayProps, IBallotStyle} from "../ContestDisplay"
 
 
@@ -11,7 +11,15 @@ export interface ActionProps {
     contestId: string
     voteChoice: IDecodedVoteChoice
 }
+
 export interface ActionResetProps {
     ballotStyle: IBallotStyle
     force: boolean
+}
+
+export interface VoteStoryProps {
+    ballotStyle: IBallotStyle
+    question: IContest
+    isReview: boolean
+    errorSelectionState: BallotSelection
 }

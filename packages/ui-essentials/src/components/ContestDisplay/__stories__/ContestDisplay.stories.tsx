@@ -15,7 +15,7 @@ import errorSelectionState from "../data/vote/errorSelectionState.json"
 import question from "../data/vote/question.json"
 import questionPlaintext from "../data/vote/questionPlaintext.json"
 import selectionState from "../data/vote/selectionState.json"
-import {ActionProps, ActionResetProps, BallotSelectionsState} from "./types"
+import {ActionProps, ActionResetProps, BallotSelectionsState, VoteStoryProps} from "./types"
 import {useTranslation} from "react-i18next"
 
 let votes: BallotSelectionsState | undefined = undefined
@@ -150,13 +150,6 @@ const resetBallotSelection = (action: ActionResetProps) => {
 /** END Mock Redux functions */
 
 // Create a proper React component to use hooks
-
-interface VoteStoryProps {
-    ballotStyle: IBallotStyle
-    question: IContest
-    isReview: boolean
-    errorSelectionState: BallotSelection
-}
 
 const VoteStory: React.FC<VoteStoryProps> = ({
     ballotStyle,
