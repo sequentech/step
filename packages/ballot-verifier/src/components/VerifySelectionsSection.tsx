@@ -9,10 +9,8 @@ import {styled} from "@mui/material/styles"
 import Skeleton from "@mui/material/Skeleton"
 import {IConfirmationBallot} from "../services/BallotService"
 import {faCircleQuestion} from "@fortawesome/free-solid-svg-icons"
-import {IconButton, Dialog, theme, Question} from "@sequentech/ui-essentials"
+import {IconButton, Dialog, theme, ContestDisplay} from "@sequentech/ui-essentials"
 import {keyBy} from "lodash"
-
-// import {Question} from "./Question/Question"
 
 import {IBallotStyle as IElectionDTO} from "@sequentech/ui-core"
 
@@ -109,7 +107,7 @@ export const VerifySelectionsSection: React.FC<VerifySelectionsSectionProps> = (
                 <>
                     {ballotStyle &&
                         plaintextVoteQuestions.map((voteQuestion) => (
-                            <Question
+                            <ContestDisplay
                                 ballotStyle={ballotStyle}
                                 question={questionsMap[voteQuestion.contest_id] ?? null}
                                 questionPlaintext={voteQuestion}
