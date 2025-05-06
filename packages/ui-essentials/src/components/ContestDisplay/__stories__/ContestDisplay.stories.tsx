@@ -175,6 +175,7 @@ const VoteStory: React.FC = () => {
         <>
             <Button
                 variant="outlined"
+                fullWidth
                 onClick={() =>
                     handleClear({
                         ballotStyle: (ballotStyle as unknown) as IBallotStyle,
