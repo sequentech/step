@@ -80,12 +80,13 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
     <tr>
       <td>
         <div class="covered-dates">
-          Covered Period: {{datetime
-          from_rfc3339=election.election_dates.scheduled_event_dates.ALLOW_INIT_REPORT.scheduled_at
-          output_format="%d %B %Y" with_timezone="UTC"}} - {{datetime
-          from_rfc3339=election.election_dates.scheduled_event_dates.END_VOTING_PERIOD.scheduled_at
-          output_format="%d %B %Y"
-          with_timezone="UTC"}}
+            Covered Period: {{datetime
+            from_rfc3339=elections.0.election_dates.scheduled_event_dates.ALLOW_INIT_REPORT.scheduled_at
+            output_format="%d %B %Y" with_timezone="UTC"}} - {{datetime
+            from_rfc3339=elections.0.election_dates.scheduled_event_dates.END_VOTING_PERIOD.scheduled_at
+            output_format="%d %B %Y"
+            with_timezone="UTC"}}
+          </div>
         </div>
       </td>
     </tr>
