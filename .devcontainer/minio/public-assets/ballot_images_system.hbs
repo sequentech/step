@@ -2,332 +2,352 @@
 SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
     SPDX-License-Identifier: AGPL-3.0-only
     --}}
-<html lang="en-US">
+    <html lang="en-US">
 
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>SEQUENT ONLINE VOTING</title>
-  <script>
-    const fileQrCodeLibUrl = "{{file_qrcode_lib}}";
-  </script>
-  <script class="qr-code-lib" src="{{file_qrcode_lib}}"></script>
-   <style>
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width,initial-scale=1" />
+        <title>SEQUENT ONLINE VOTING</title>
+        <script>
+            const fileQrCodeLibUrl = "{{file_qrcode_lib}}";
+        </script>
+        <script class="qr-code-lib" src="{{file_qrcode_lib}}"></script>
+        <style>
+            body,
+            .content {
+                margin: 0;
+            }
 
-    body, .content {
-       margin: 0;
-     }
- 
-     .ballot{
-       display: flex;
-       justify-content: center;
-       align-items: flex-start;
-       overflow: hidden;
-       box-sizing: border-box;
-     }
+            .ballot {
+                display: flex;
+                justify-content: center;
+                align-items: flex-start;
+                overflow: hidden;
+                box-sizing: border-box;
+            }
 
-     .inner-ballot {
-        border: 30px solid transparent;
-        border-image: url('{{file_qrcode_lib}}/../ballot-background.jpg');
-       
-       /* width: 8 Container width */
- 
-       border-image-slice: 25 fill; /*Adjust slice values for your design*/
-       /* border-image-width: 6%; */
-       /* border-image-repeat: stretch; Stretches border */
- 
-       /* transform-origin: top left; */
-       /* transform: scale(0.8); */
-       width: 100%;
-       /* height:max-content; */
-       page-break-inside: avoid;
-       padding: 20px;
-       width: 900px;
-     }
- 
-    .ballot-data{
-        height:29in;
-        display: flex;
-        flex-direction: column;
-        width: 900px;
-        transform: scale(0.94);
-    }
-     @media print {
-       html, body,.content {
-         height: 100%;
-       }
-       .ballot{
-         height: 100%;
-          width: 900px;
-         overflow-y: hidden;
-       }
-       .summary-page{
-         height: 100%;
-          width: 900px;
-         overflow-y: hidden;
-         text-align: center;
-       }
-       .inner-ballot {
-         page-break-before: avoid;
-         page-break-after: avoid;
-          width: 900px;
-         transform-origin: top center;
-         transform: scale(0.47);
-       }
-     }
+            .inner-ballot {
+                border: 16px solid transparent;
+                border-image: url('{{file_qrcode_lib}}/../ballot-background.jpg');
 
-        .header {
-            display: flex;
-            justify-content: space-between;
-            font-size: 12px;
-            position: relative;
-            height: 295px;
-        }
+                /* width: 8 Container width */
 
-        .header .left {
-            text-align: left;
-            flex: 1.5;
-            display: flex;
-            flex-direction: column;
-            align-items: flex-start;
-            justify-content: space-between;
-            height: 300px;
-        }
+                border-image-slice: 25 fill;
+                /*Adjust slice values for your design*/
+                /* border-image-width: 6%; */
+                /* border-image-repeat: stretch; Stretches border */
 
-        .image-url {
-            width: 100px;
-        }
+                /* transform-origin: top left; */
+                /* transform: scale(0.8); */
+                height: 100%;
+                /* height:max-content; */
+                page-break-inside: avoid;
+                padding: 20px;
+                width: 900px;
+            }
 
-        .header .center {
-            text-align: center;
-            flex: 1;
-        }
-
-        .header .right {
-            position: absolute;
-            top: 0;
-            right: 0;
-            text-align: right;
-            display: flex;
-            flex-direction: column;
-            align-items: flex-end;
-            justify-content: space-between;
-            gap: 35px;
-        }
-        .header h2 {
-            font-size: 16px;
-            margin: 20px 0 0 0;
-        }
-
-        .header p {
-            margin: 2px 0;
-            font-size: 12px;
-        }
-
-        .header ol {
-            margin: 0;
-            font-size: 14px;
-            padding-inline-start: 18px;
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-
-        .header .instructions-header {
-            font-size: 16px;
-        }
-
-        .header .election-name {
-            font-weight: bold;
-            text-transform: uppercase;
-        }
-
-        .header .qr-code {
-            flex:1
-
-        }
-        .header .qr-code img {
-            width: 165px;
-
-        }
-
-        .election-info{
-            font-size: 18px !important;
-        }
-
-        .instruction{
-            display: flex;
-            align-items: center;
-        }
-    
-
-        .header .signature {
-            display: block;
-            float: right;
-            border: 1px solid black;
-            text-align: center;
-            vertical-align: bottom;
-            width: 250px;
-            height: 50px;
-            margin-top: 10px;
-            display: flex;
-            align-items: end;
-            justify-content: center;
-        }
-
-        .ballot-content  {
-            margin-top: 20px;
-            font-size: 10px;
-            flex: 1;
-        }
-
-        .section {}
-
-        .section-title {
-            border: 1px solid black;
-            background-color: #007bff;
-            color: white;
-            padding: 10px;
-            text-align: center;
-        }
-
-        .section-title.green {
-            background-color: #d1e3d1;
-            color: black
-        }
-
-        .section-title.blue {
-            background-color: #007bff;
-        }
-
-        .candidates {
-            display: block;
-            columns: 4;
-            column-count: 4;
-            -webkit-column-count: 4;
-            -moz-column-count: 4;
-            column-gap: 0;
-            width: 100%;
-        }
-
-        .candidate {
-            border: 1px solid black;
-            box-sizing: border-box;
-            width: 100%;
-            padding: 2px;
-            height: 32px;
-            display: inline-block;
-        }
-
-        .candidate div {
-            display: flex;
-            align-items: center;
-        }
-
-        .circle {
-            display: block;
-            position: relative;
-            width: 94px;
-            height: auto;
-        }
-
-        .is-blank, .is-invalid {
-            padding: 5px 0 5px 5px;
-            box-sizing: border-box;
-            display: flex;
-            align-items: center;
-        }
-
-        .is-blank .candidate-name, .is-invalid  .candidate-name {
-            margin-right: 10px;
-        }
-
-        .is-blank input[type="checkbox"], .is-invalid input[type="checkbox"] {
-            margin-right: 0;
-        }
-
-        input[type="checkbox"] {
-            -webkit-appearance: none;
-            -moz-appearance: none;
-            appearance: none;
-            width: 15px;
-            height: 15px;
-            min-width: 15px;
-
-            border: 2px solid #ff4620;
-            border-radius: 50%;
-            margin-right: 10px;
-            cursor: pointer;
-            position: relative;
-        }
-
-        input[type="checkbox"]:checked {
-            background-color: black;
-        }
-
-        .candidate-name {
-            font-size: 10px;
-        }
-
-        .footer {
-            text-align: center;
-            font-size: 12px;
-            color: #fe4a22;
-            margin-top: 20px;
-            display: grid;
-            grid-template-columns: 1fr 4fr 1fr;
-            width: 100%;
-            align-items: end;
-        }
-
-        .row{
-          display: flex;
-          flex-direction: row;
-          gap: 12px;
-        }
-
-        .summary-page {
-            padding: 48px 120px;
-            margin: 0 auto;
-            box-sizing: border-box;
-        }
-
-        .summary-title{
-            font-weight: bold;
-            font-size: 18px;
-        }
-
-        .summary-content{
-            margin-inline-start: 8px;
-            margin-top: 10px;
-            margin-bottom: 10px;
-        }
-        .summary-inner-content{
-            margin-inline-start: 8px;
-        }
-        .summary-text{
-            font-size: 14px;
-        }
-
-        .summary-candidates-section{
-            margin-top: 10px;
-        }
+            .ballot-data {
+                height: 29in;
+                display: flex;
+                flex-direction: column;
+                width: 900px;
+                transform: scale(0.94);
+            }
 
             @media print {
-                   @page {
-        margin: 0; /* Remove default margins for full page */
-    }
 
-    .next-page {
-        page-break-after: always; /* Ensure new page for each ballot */
-    }
+                html,
+                body,
+                .content {
+                    height: 100%;
+                }
 
-}
+                .ballot {
+                    height: 100%;
+                    width: 900px;
+                    overflow-y: hidden;
+                }
 
-    </style>
-</head>
+                .summary-page {
+                    height: 100%;
+                    width: 900px;
+                    overflow-y: hidden;
+                    text-align: center;
+                }
 
-<body>
- {{{rendered_user_template}}}
-</body>
-</html>
+                .inner-ballot {
+                    page-break-before: avoid;
+                    page-break-after: avoid;
+                    width: 900px;
+                    transform-origin: top center;
+                    transform: scale(0.47);
+                }
+            }
+
+            .header {
+                display: flex;
+                justify-content: space-between;
+                font-size: 12px;
+                position: relative;
+                height: 295px;
+            }
+
+            .header .left {
+                text-align: left;
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                align-items: flex-start;
+                justify-content: space-between;
+                height: 300px;
+            }
+
+            .image-url {
+                width: 100px;
+            }
+
+            .header .center {
+                text-align: center;
+                flex: 1;
+            }
+
+            .header .right {
+                position: absolute;
+                top: 0;
+                right: 0;
+                text-align: right;
+                display: flex;
+                flex-direction: column;
+                align-items: flex-end;
+                justify-content: space-between;
+                gap: 35px;
+            }
+
+            .header h2 {
+                font-size: 16px;
+                margin: 20px 0 0 0;
+            }
+
+            .header p {
+                margin: 2px 0;
+                font-size: 12px;
+            }
+
+            .header ol {
+                margin: 0;
+                font-size: 14px;
+                padding-inline-start: 18px;
+                display: flex;
+                flex-direction: column;
+                gap: 4px;
+            }
+
+            .header .instructions-header {
+                font-size: 16px;
+            }
+
+            .header .election-name {
+                font-weight: bold;
+                text-transform: uppercase;
+            }
+
+            .header .qr-code {
+                flex: 1
+            }
+
+            .header .qr-code img {
+                width: 165px;
+            }
+
+            .header img {
+                width: 240px;
+            }
+
+            .election-info {
+                font-size: 18px !important;
+            }
+
+            .instruction {
+                display: flex;
+                align-items: center;
+            }
+
+
+            .header .signature {
+                display: block;
+                float: right;
+                border: 1px solid black;
+                text-align: center;
+                vertical-align: bottom;
+                width: 250px;
+                height: 50px;
+                margin-top: 10px;
+                display: flex;
+                align-items: end;
+                justify-content: center;
+            }
+
+            .ballot-content {
+                margin-top: 20px;
+                font-size: 10px;
+                flex: 1;
+            }
+
+            .section {}
+
+            .section-title {
+                border: 1px solid black;
+                background-color: #007bff;
+                color: white;
+                padding: 10px;
+                text-align: center;
+            }
+
+            .section-title.green {
+                background-color: #d1e3d1;
+                color: black
+            }
+
+            .section-title.blue {
+                background-color: #007bff;
+            }
+
+            .candidates {
+                display: block;
+                columns: 4;
+                column-count: 4;
+                -webkit-column-count: 4;
+                -moz-column-count: 4;
+                column-gap: 0;
+                width: 100%;
+            }
+
+            .candidate {
+                border: 1px solid black;
+                box-sizing: border-box;
+                width: 100%;
+                padding: 2px;
+                height: 32px;
+                display: inline-block;
+            }
+
+            .candidate div {
+                display: flex;
+                align-items: center;
+            }
+
+            .circle {
+                display: block;
+                position: relative;
+                width: 94px;
+                height: auto;
+            }
+
+            .is-blank,
+            .is-invalid {
+                padding: 5px 0 5px 5px;
+                box-sizing: border-box;
+                display: flex;
+                align-items: center;
+            }
+
+            .is-blank .candidate-name,
+            .is-invalid .candidate-name {
+                margin-right: 10px;
+            }
+
+            .is-blank input[type="checkbox"],
+            .is-invalid input[type="checkbox"] {
+                margin-right: 0;
+            }
+
+            input[type="checkbox"] {
+                -webkit-appearance: none;
+                -moz-appearance: none;
+                appearance: none;
+                width: 15px;
+                height: 15px;
+                min-width: 15px;
+
+                border: 2px solid #ff4620;
+                border-radius: 50%;
+                margin-right: 10px;
+                cursor: pointer;
+                position: relative;
+            }
+
+            input[type="checkbox"]:checked {
+                background-color: black;
+            }
+
+            .candidate-name {
+                font-size: 10px;
+            }
+
+            .footer {
+                text-align: center;
+                font-size: 12px;
+                color: #fe4a22;
+                margin-top: 20px;
+                display: grid;
+                grid-template-columns: 1fr 4fr 1fr;
+                width: 100%;
+                align-items: end;
+            }
+
+            .row {
+                display: flex;
+                flex-direction: row;
+                align-items: start;
+                gap: 12px;
+            }
+
+            .summary-page {
+                padding: 48px 120px;
+                margin: 0 auto;
+                box-sizing: border-box;
+            }
+
+            .summary-title {
+                font-weight: bold;
+                font-size: 18px;
+            }
+
+            .summary-content {
+                margin-inline-start: 8px;
+                margin-top: 10px;
+                margin-bottom: 10px;
+            }
+
+            .summary-inner-content {
+                margin-inline-start: 8px;
+            }
+
+            .summary-text {
+                font-size: 14px;
+            }
+
+            .summary-candidates-section {
+                margin-top: 10px;
+            }
+
+            @media print {
+                @page {
+                    margin: 0;
+                    /* Remove default margins for full page */
+                }
+
+                .next-page {
+                    page-break-after: always;
+                    /* Ensure new page for each ballot */
+                }
+
+            }
+        </style>
+    </head>
+
+    <body>
+        {{{rendered_user_template}}}
+    </body>
+
+    </html>

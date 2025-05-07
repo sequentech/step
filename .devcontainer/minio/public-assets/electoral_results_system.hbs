@@ -3,7 +3,8 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
   SPDX-License-Identifier: AGPL-3.0-only
   --}}
 
-<html lang="en-US">
+  <html lang="en-US">
+
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
@@ -22,17 +23,27 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
           size: auto;
           margin: 0 0.6in;
         }
+
         body {
           width: 100%;
           font-size: 9px;
           margin: 0;
           padding: 0;
         }
+
+        .next-page {
+          page-break-after: always;
+        }
+
+        .report {
+          margin: 0 auto;
+          page-break-after: always;
+        }
       }
 
       .report {
         margin: 0 auto;
-        break-after: page;
+        page-break-after: always;
       }
 
       .header,
@@ -108,6 +119,7 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
       }
 
       .main-header {
+        margin: 16px 0;
         width: 100%;
       }
 
@@ -158,7 +170,7 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
         font-weight: bold;
       }
 
-      .main-header .center .voting-period {
+      .main-title .voting-period {
         padding-top: 3px;
         font-size: 10pt;
         font-weight: lighter;
@@ -176,18 +188,19 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
         margin: 32px 0px;
       }
 
-      .stats-table tr{
+      .stats-table tr {
         vertical-align: top;
       }
 
       .stats-table .first-col {
         width: 50%;
       }
-     .stats-table .second-col {
+
+      .stats-table .second-col {
         width: 50%;
       }
 
-      .stats-table  .precint-id {
+      .stats-table .precint-id {
         padding-bottom: 30px;
       }
 
@@ -212,6 +225,7 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
       .candidates .first-col {
         width: 70%;
       }
+
       .candidates .second-col {
         width: 30%;
       }
@@ -237,7 +251,7 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
       .candidates tbody td {
         text-align: left;
         vertical-align: top;
-         font-size: 10pt;
+        font-size: 10pt;
       }
 
       .candidates .votes {
@@ -255,12 +269,16 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
         text-indent: 50px;
       }
 
-      .inspectors-title, .inspector-signature, .watchers-title, .watcher-signature {
+      .inspectors-title,
+      .inspector-signature,
+      .watchers-title,
+      .watcher-signature {
         page-break-inside: avoid;
         font-size: 10pt;
       }
 
-      .inspectors-title td, .watchers-title td {
+      .inspectors-title td,
+      .watchers-title td {
         text-transform: uppercase;
         text-align: center;
         padding: 30px;
@@ -299,6 +317,7 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
         width: 190px;
         border-top: 1px solid black;
       }
+
       .watcher-signature td p {
         margin-top: 0;
       }
@@ -321,14 +340,14 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
         padding: 10px;
       }
 
-    .sys-info td div {
-      font-family: "Arial", sans-serif;
-      font-size: 11pt;
-      text-align: center;
-      margin-top: 24px;
-      line-height: 15pt;
-      padding-bottom: 40px;
-    }
+      .sys-info td div {
+        font-family: "Arial", sans-serif;
+        font-size: 11pt;
+        text-align: center;
+        margin-top: 24px;
+        line-height: 15pt;
+        padding-bottom: 40px;
+      }
 
       tr.report-end td {
         text-align: center;
@@ -336,6 +355,7 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
         margin-top: 30px;
         text-transform: uppercase;
       }
+
       tr.report-end hr {
         text-align: center;
         margin: 0 24px;
@@ -346,11 +366,11 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
       .logo-printer-block {
         display: none;
       }
-
     </style>
   </head>
 
   <body>
-  {{{rendered_user_template}}}
+    {{{rendered_user_template}}}
   </body>
-</html>
+
+  </html>
