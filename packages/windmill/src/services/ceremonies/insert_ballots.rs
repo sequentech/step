@@ -114,7 +114,7 @@ pub async fn insert_ballots_messages(
             &tenant_id,
             &election_event_id,
             &tally_session_contest.area_id,
-            &tokio_temp_file
+            &mut tokio_temp_file
         );
 
         let ballots_temp_file = ballots_temp_file.reopen()?;
@@ -134,7 +134,7 @@ pub async fn insert_ballots_messages(
             .from_writer(&users_temp_file);
 
         // Reset offset
-        let offset = 0;
+        let mut offset = 0;
         let batch_size = 1000 * 100;
 
         loop {
@@ -301,7 +301,7 @@ pub async fn count_auditable_ballots(
         &tenant_id,
         &election_event_id,
         area_id,
-        &tokio_temp_file
+        &mut tokio_temp_file
     );
 
     let ballots_temp_file = ballots_temp_file.reopen()?;
@@ -321,7 +321,7 @@ pub async fn count_auditable_ballots(
         .from_writer(&users_temp_file);
 
     // Reset offset
-    let offset = 0;
+    let mut offset = 0;
     let batch_size = 1000 * 100;
 
     loop {

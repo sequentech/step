@@ -11,6 +11,7 @@ use anyhow::{anyhow, Context, Result};
 use chrono::NaiveDate;
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Transaction;
+use futures::TryStreamExt;
 use sequent_core::types::keycloak::{User, VotesInfo};
 use serde::{Deserialize, Serialize};
 use tokio::io::{copy, BufWriter};
@@ -95,14 +96,21 @@ pub async fn find_area_ballots(
     );
     let mut writer = BufWriter::new(output_file); 
 
-    let mut reader = hasura_transaction
-        .copy_out(copy_out_query.as_str())
-        .await
-        .map_err(|err| anyhow!("Error running the areas query: {}", err))?;
+    let statement = hasura_transaction.prepare(&copy_out_query).await?;
 
-    let mut async_reader = StreamReader::new(reader);
+    let reader = hasura_transaction
+        .copy_out(&statement)
+        .await?;
 
-    let bytes_copied = copy(&mut async_reader, &mut writer).await.expect("Failed to write data to file");
+        let adapt_pg_error_to_io_error = |pg_err: tokio_postgres::Error| {
+            std::io::Error::new(std::io::ErrorKind::Other, pg_err.to_string())
+        };
+        let io_error_stream = reader.map_err(adapt_pg_error_to_io_error);
+
+    let async_reader = StreamReader::new(io_error_stream);
+    tokio::pin!(async_reader);
+
+    let bytes_copied = copy(&mut async_reader, &mut writer).await?;
 
     Ok(())
 }
