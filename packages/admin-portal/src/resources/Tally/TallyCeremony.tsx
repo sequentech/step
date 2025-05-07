@@ -377,7 +377,7 @@ export const TallyCeremony: React.FC = () => {
         if (page === WizardSteps.Start) {
             let is_published = elections?.every(
                 (election) =>
-                    !selectedElections.includes(election.id) || election.status?.is_published
+                    !selectedElections.includes(election.id) || election?.status?.is_published
             )
             let newIsButtonDisabled =
                 (page === WizardSteps.Start && selectedElections.length === 0 ? true : false) ||
@@ -405,7 +405,7 @@ export const TallyCeremony: React.FC = () => {
                         (election.status?.allow_tally === EAllowTally.REQUIRES_VOTING_PERIOD_END &&
                             isVotingPeriodEnded)) &&
                         // And the election must be published
-                        election.status.is_published)
+                        election?.status?.is_published)
                 )
             }) || false // Return `false` if elections array is undefined or empty
         )
@@ -418,7 +418,7 @@ export const TallyCeremony: React.FC = () => {
                     // If the election is not included in the current tally session OR the election is published, it's allowed
                     !(tallySession?.election_ids || []).find(
                         (election_id) => election.id == election_id
-                    ) || election.status.is_published
+                    ) || election?.status?.is_published
                 )
             }) || false // Return `false` if elections array is undefined or empty
         )
@@ -489,7 +489,7 @@ export const TallyCeremony: React.FC = () => {
                     ?.filter((election) => selectedElections.includes(election.id))
                     .some(
                         (election) =>
-                            !election.status?.is_published ||
+                            !election?.status?.is_published ||
                             hasInitializationReport(election.id) ||
                             (election.presentation?.initialization_report_policy ==
                                 EInitializeReportPolicy.REQUIRED &&
