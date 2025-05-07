@@ -1,6 +1,5 @@
-import { BallotSelection, IContest, IDecodedVoteChoice } from "@sequentech/ui-core"
+import {BallotSelection, IContest, IDecodedVoteChoice} from "@sequentech/ui-core"
 import {ContestDisplay, IContestDisplayProps, IBallotStyle} from "../ContestDisplay"
-
 
 export interface BallotSelectionsState {
     [electionId: string]: BallotSelection | undefined
