@@ -124,19 +124,21 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
     <!-- END QR CODES section -->
     <!-- END Title secondary section -->
 
-    <!-- Left paragraph section -->
-    <tr class="sys-info">
-      <td align="center">
-        <div>
-          <span class="word-break">Report hash: {{sanitize_html (expr
-            ../execution_annotations.report_hash)}}</span><br />
-          <br />
-          Software version: {{sanitize_html (expr ../execution_annotations.app_version)}}<br />
-          System hash: {{sanitize_html (expr ../execution_annotations.app_hash)}}
-        </div>
-      </td>
-    </tr>
-    <!-- END Left paragraph section -->
+      <!-- Left paragraph section -->
+      <tr>
+        <td class="sys-info">
+          <div>
+            <span class="word-break">Results hash: {{sanitize_html (expr
+              execution_annotations.results_hash)}}</span><br />
+            <span class="word-break">Report hash: {{sanitize_html (expr
+              execution_annotations.report_hash)}}</span><br />
+            <br />
+            Software version: {{sanitize_html (expr execution_annotations.software_version)}}<br />
+            System hash: {{sanitize_html (expr execution_annotations.app_hash)}}
+          </div>
+        </td>
+      </tr>
+      <!-- END Left paragraph section -->
 
     <!-- End of report section -->
     <tr class="report-end">
