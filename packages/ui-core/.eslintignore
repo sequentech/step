@@ -6,3 +6,4 @@ dist/
 target/
 pkg/
 build/
+storybook-static/

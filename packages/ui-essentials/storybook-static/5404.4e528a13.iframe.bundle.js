@@ -1,4 +1,4 @@
-;(self.webpackChunk_sequentech_ui_essentials =
+(self.webpackChunk_sequentech_ui_essentials =
     self.webpackChunk_sequentech_ui_essentials || []).push([
     [5404],
     {
@@ -26,11 +26,11 @@
                 ),
                 router = __webpack_require__("../node_modules/@remix-run/router/dist/router.js")
             !(function (Action) {
-                ;(Action.Pop = "POP"), (Action.Push = "PUSH"), (Action.Replace = "REPLACE")
+                (Action.Pop = "POP"), (Action.Push = "PUSH"), (Action.Replace = "REPLACE")
             })(router_Action || (router_Action = {}))
             var ResultType
             !(function (ResultType) {
-                ;(ResultType.data = "data"),
+                (ResultType.data = "data"),
                     (ResultType.deferred = "deferred"),
                     (ResultType.redirect = "redirect"),
                     (ResultType.error = "error")
@@ -170,7 +170,7 @@
                                 let r = {}
                                 return (
                                     (r.promise = new Promise((e, t) => {
-                                        ;(r.resolve = e), (r.reject = t)
+                                        (r.resolve = e), (r.reject = t)
                                     })),
                                     r
                                 )

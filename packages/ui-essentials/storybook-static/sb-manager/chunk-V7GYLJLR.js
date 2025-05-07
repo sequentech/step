@@ -6,11 +6,11 @@ import {require_react} from "./chunk-DP4DR4LA.js"
 import {__toESM} from "./chunk-Z4NRYNHR.js"
 var require_markdown = __commonJS({
     "../../node_modules/refractor/lang/markdown.js"(exports, module) {
-        ;(module.exports = markdown),
+        (module.exports = markdown),
             (markdown.displayName = "markdown"),
             (markdown.aliases = ["md"])
         function markdown(Prism) {
-            ;(function (Prism2) {
+            (function (Prism2) {
                 var inner = /(?:\\.|[^\\\n\r]|(?:\n|\r\n?)(?![\r\n]))/.source
                 function createInline(pattern) {
                     return (
@@ -200,7 +200,7 @@ var require_markdown = __commonJS({
                         },
                     }),
                     ["url", "bold", "italic", "strike"].forEach(function (token) {
-                        ;["url", "bold", "italic", "strike", "code-snippet"].forEach(function (
+                        ["url", "bold", "italic", "strike", "code-snippet"].forEach(function (
                             inside
                         ) {
                             token !== inside &&
@@ -308,9 +308,9 @@ var require_markdown = __commonJS({
 })
 var require_yaml = __commonJS({
     "../../node_modules/refractor/lang/yaml.js"(exports, module) {
-        ;(module.exports = yaml), (yaml.displayName = "yaml"), (yaml.aliases = ["yml"])
+        (module.exports = yaml), (yaml.displayName = "yaml"), (yaml.aliases = ["yml"])
         function yaml(Prism) {
-            ;(function (Prism2) {
+            (function (Prism2) {
                 var anchorOrAlias = /[*&][^\s[\]{},]+/,
                     tag = /!(?:<[\w\-%#;/?:@&=+$,.!~*'()[\]]+>|(?:[a-zA-Z\d-]*!)?[\w\-%#;/?:@&=+$.~*'()]+)?/,
                     properties =
@@ -342,7 +342,7 @@ var require_yaml = __commonJS({
                         })
                     return RegExp(pattern, flags)
                 }
-                ;(Prism2.languages.yaml = {
+                (Prism2.languages.yaml = {
                     scalar: {
                         pattern: RegExp(
                             /([\-:]\s*(?:\s<<prop>>[ \t]+)?[|>])[ \t]*(?:((?:\r?\n|\r)[ \t]+)\S[^\r\n]*(?:\2[^\r\n]+)*)/.source.replace(
@@ -409,12 +409,12 @@ var require_yaml = __commonJS({
 })
 var require_typescript = __commonJS({
     "../../node_modules/refractor/lang/typescript.js"(exports, module) {
-        ;(module.exports = typescript),
+        (module.exports = typescript),
             (typescript.displayName = "typescript"),
             (typescript.aliases = ["ts"])
         function typescript(Prism) {
-            ;(function (Prism2) {
-                ;(Prism2.languages.typescript = Prism2.languages.extend("javascript", {
+            (function (Prism2) {
+                (Prism2.languages.typescript = Prism2.languages.extend("javascript", {
                     "class-name": {
                         pattern: /(\b(?:class|extends|implements|instanceof|interface|new|type)\s+)(?!keyof\b)(?!\s)[_$a-zA-Z\xA0-\uFFFF](?:(?!\s)[$\w\xA0-\uFFFF])*(?:\s*<(?:[^<>]|<(?:[^<>]|<[^<>]*>)*>)*>)?/,
                         lookbehind: !0,
@@ -458,9 +458,9 @@ var require_typescript = __commonJS({
 })
 var require_jsx = __commonJS({
     "../../node_modules/refractor/lang/jsx.js"(exports, module) {
-        ;(module.exports = jsx), (jsx.displayName = "jsx"), (jsx.aliases = [])
+        (module.exports = jsx), (jsx.displayName = "jsx"), (jsx.aliases = [])
         function jsx(Prism) {
-            ;(function (Prism2) {
+            (function (Prism2) {
                 var javascript = Prism2.util.clone(Prism2.languages.javascript),
                     space = /(?:\s|\/\/.*(?!.)|\/\*(?:[^*]|\*(?!\/))\*\/)/.source,
                     braces = /(?:\{(?:\{(?:\{[^{}]*\}|[^{}])*\}|[^{}])*\})/.source,
@@ -480,7 +480,7 @@ var require_jsx = __commonJS({
                         RegExp(source, flags)
                     )
                 }
-                ;(spread = re(spread).source),
+                (spread = re(spread).source),
                     (Prism2.languages.jsx = Prism2.languages.extend("markup", javascript)),
                     (Prism2.languages.jsx.tag.pattern = re(
                         /<\/?(?:[\w.:-]+(?:<S>+(?:[\w.:$-]+(?:=(?:"(?:\\[\s\S]|[^\\"])*"|'(?:\\[\s\S]|[^\\'])*'|[^\s{'"/>=]+|<BRACES>))?|<SPREAD>))*<S>*\/?)?>/
@@ -588,7 +588,7 @@ var require_jsx = __commonJS({
                         }
                     }
                 Prism2.hooks.add("after-tokenize", function (env) {
-                    ;(env.language !== "jsx" && env.language !== "tsx") || walkTokens(env.tokens)
+                    (env.language !== "jsx" && env.language !== "tsx") || walkTokens(env.tokens)
                 })
             })(Prism)
         }
@@ -619,11 +619,11 @@ var require_tsx = __commonJS({
 })
 var require_markup = __commonJS({
     "../../node_modules/refractor/lang/markup.js"(exports, module) {
-        ;(module.exports = markup),
+        (module.exports = markup),
             (markup.displayName = "markup"),
             (markup.aliases = ["html", "mathml", "svg", "xml", "ssml", "atom", "rss"])
         function markup(Prism) {
-            ;(Prism.languages.markup = {
+            (Prism.languages.markup = {
                 comment: {pattern: /<!--(?:(?!<!--)[\s\S])*?-->/, greedy: !0},
                 prolog: {pattern: /<\?[\s\S]+?\?>/, greedy: !0},
                 doctype: {
@@ -749,7 +749,7 @@ var require_markup = __commonJS({
 })
 var require_clike = __commonJS({
     "../../node_modules/refractor/lang/clike.js"(exports, module) {
-        ;(module.exports = clike), (clike.displayName = "clike"), (clike.aliases = [])
+        (module.exports = clike), (clike.displayName = "clike"), (clike.aliases = [])
         function clike(Prism) {
             Prism.languages.clike = {
                 "comment": [
@@ -774,11 +774,11 @@ var require_clike = __commonJS({
 })
 var require_javascript = __commonJS({
     "../../node_modules/refractor/lang/javascript.js"(exports, module) {
-        ;(module.exports = javascript),
+        (module.exports = javascript),
             (javascript.displayName = "javascript"),
             (javascript.aliases = ["js"])
         function javascript(Prism) {
-            ;(Prism.languages.javascript = Prism.languages.extend("clike", {
+            (Prism.languages.javascript = Prism.languages.extend("clike", {
                 "class-name": [
                     Prism.languages.clike["class-name"],
                     {
@@ -912,9 +912,9 @@ var require_javascript = __commonJS({
 })
 var require_css = __commonJS({
     "../../node_modules/refractor/lang/css.js"(exports, module) {
-        ;(module.exports = css), (css.displayName = "css"), (css.aliases = [])
+        (module.exports = css), (css.displayName = "css"), (css.aliases = [])
         function css(Prism) {
-            ;(function (Prism2) {
+            (function (Prism2) {
                 var string = /(?:"(?:\\(?:\r\n|[\s\S])|[^"\\\r\n])*"|'(?:\\(?:\r\n|[\s\S])|[^'\\\r\n])*')/
                 ;(Prism2.languages.css = {
                     comment: /\/\*[\s\S]*?\*\//,
@@ -994,7 +994,7 @@ var require_immutable = __commonJS({
             var proto = Schema.prototype
             ;(proto.space = null), (proto.normal = {}), (proto.property = {})
             function Schema(property, normal, space) {
-                ;(this.property = property), (this.normal = normal), space && (this.space = space)
+                (this.property = property), (this.normal = normal), space && (this.space = space)
             }
         },
     }),
@@ -1047,7 +1047,7 @@ var require_immutable = __commonJS({
                 (proto.mustUseProperty = !1),
                 (proto.defined = !1)
             function Info(property, attribute) {
-                ;(this.property = property), (this.attribute = attribute)
+                (this.property = property), (this.attribute = attribute)
             }
         },
     }),
@@ -1654,7 +1654,7 @@ var require_immutable = __commonJS({
     }),
     require_space_separated_tokens = __commonJS({
         "../../node_modules/space-separated-tokens/index.js"(exports) {
-            ;(exports.parse = parse), (exports.stringify = stringify)
+            (exports.parse = parse), (exports.stringify = stringify)
             var empty = "",
                 space = " ",
                 whiteSpace = /[ \t\n\r\f]+/g
@@ -1669,7 +1669,7 @@ var require_immutable = __commonJS({
     }),
     require_comma_separated_tokens = __commonJS({
         "../../node_modules/comma-separated-tokens/index.js"(exports) {
-            ;(exports.parse = parse), (exports.stringify = stringify)
+            (exports.parse = parse), (exports.stringify = stringify)
             var comma = ",",
                 space = " ",
                 empty = ""
@@ -4406,7 +4406,7 @@ var require_immutable = __commonJS({
                                 following !== following ||
                                 (additional && following === additional))
                         ) {
-                            ;(queue += fromCharCode(character)), column++
+                            (queue += fromCharCode(character)), column++
                             continue
                         }
                         for (
@@ -4622,7 +4622,7 @@ var require_immutable = __commonJS({
                                     return "none"
                                 },
                                 setLanguage: function (element, language) {
-                                    ;(element.className = element.className.replace(
+                                    (element.className = element.className.replace(
                                         RegExp(lang, "gi"),
                                         ""
                                     )),
@@ -4736,7 +4736,7 @@ var require_immutable = __commonJS({
                                 var code = element.textContent,
                                     env = {element, language, grammar, code}
                                 function insertHighlightedCode(highlightedCode) {
-                                    ;(env.highlightedCode = highlightedCode),
+                                    (env.highlightedCode = highlightedCode),
                                         _.hooks.run("before-insert", env),
                                         (env.element.innerHTML = env.highlightedCode),
                                         _.hooks.run("after-highlight", env),
@@ -4819,7 +4819,7 @@ var require_immutable = __commonJS({
                         }
                     _self2.Prism = _
                     function Token(type, content, alias, matchedStr) {
-                        ;(this.type = type),
+                        (this.type = type),
                             (this.content = content),
                             (this.alias = alias),
                             (this.length = (matchedStr || "").length | 0)
@@ -5222,9 +5222,9 @@ var require_immutable = __commonJS({
     })
 var require_bash = __commonJS({
     "../../node_modules/refractor/lang/bash.js"(exports, module) {
-        ;(module.exports = bash), (bash.displayName = "bash"), (bash.aliases = ["shell"])
+        (module.exports = bash), (bash.displayName = "bash"), (bash.aliases = ["shell"])
         function bash(Prism) {
-            ;(function (Prism2) {
+            (function (Prism2) {
                 var envVars =
                         "\\b(?:BASH|BASHOPTS|BASH_ALIASES|BASH_ARGC|BASH_ARGV|BASH_CMDS|BASH_COMPLETION_COMPAT_DIR|BASH_LINENO|BASH_REMATCH|BASH_SOURCE|BASH_VERSINFO|BASH_VERSION|COLORTERM|COLUMNS|COMP_WORDBREAKS|DBUS_SESSION_BUS_ADDRESS|DEFAULTS_PATH|DESKTOP_SESSION|DIRSTACK|DISPLAY|EUID|GDMSESSION|GDM_LANG|GNOME_KEYRING_CONTROL|GNOME_KEYRING_PID|GPG_AGENT_INFO|GROUPS|HISTCONTROL|HISTFILE|HISTFILESIZE|HISTSIZE|HOME|HOSTNAME|HOSTTYPE|IFS|INSTANCE|JOB|LANG|LANGUAGE|LC_ADDRESS|LC_ALL|LC_IDENTIFICATION|LC_MEASUREMENT|LC_MONETARY|LC_NAME|LC_NUMERIC|LC_PAPER|LC_TELEPHONE|LC_TIME|LESSCLOSE|LESSOPEN|LINES|LOGNAME|LS_COLORS|MACHTYPE|MAILCHECK|MANDATORY_PATH|NO_AT_BRIDGE|OLDPWD|OPTERR|OPTIND|ORBIT_SOCKETDIR|OSTYPE|PAPERSIZE|PATH|PIPESTATUS|PPID|PS1|PS2|PS3|PS4|PWD|RANDOM|REPLY|SECONDS|SELINUX_INIT|SESSION|SESSIONTYPE|SESSION_MANAGER|SHELL|SHELLOPTS|SHLVL|SSH_AUTH_SOCK|TERM|UID|UPSTART_EVENTS|UPSTART_INSTANCE|UPSTART_JOB|UPSTART_SESSION|USER|WINDOWID|XAUTHORITY|XDG_CONFIG_DIRS|XDG_CURRENT_DESKTOP|XDG_DATA_DIRS|XDG_GREETER_DATA_DIR|XDG_MENU_PREFIX|XDG_RUNTIME_DIR|XDG_SEAT|XDG_SEAT_PATH|XDG_SESSION_DESKTOP|XDG_SESSION_ID|XDG_SESSION_PATH|XDG_SESSION_TYPE|XDG_VTNR|XMODIFIERS)\\b",
                     commandAfterHeredoc = {
@@ -5384,9 +5384,9 @@ var require_bash = __commonJS({
 })
 var require_js_extras = __commonJS({
     "../../node_modules/refractor/lang/js-extras.js"(exports, module) {
-        ;(module.exports = jsExtras), (jsExtras.displayName = "jsExtras"), (jsExtras.aliases = [])
+        (module.exports = jsExtras), (jsExtras.displayName = "jsExtras"), (jsExtras.aliases = [])
         function jsExtras(Prism) {
-            ;(function (Prism2) {
+            (function (Prism2) {
                 Prism2.languages.insertBefore("javascript", "function-variable", {
                     "method-variable": {
                         pattern: RegExp(
@@ -5494,9 +5494,9 @@ var require_js_extras = __commonJS({
 })
 var require_json = __commonJS({
     "../../node_modules/refractor/lang/json.js"(exports, module) {
-        ;(module.exports = json), (json.displayName = "json"), (json.aliases = ["webmanifest"])
+        (module.exports = json), (json.displayName = "json"), (json.aliases = ["webmanifest"])
         function json(Prism) {
-            ;(Prism.languages.json = {
+            (Prism.languages.json = {
                 property: {
                     pattern: /(^|[^\\])"(?:\\.|[^\\"\r\n])*"(?=\s*:)/,
                     lookbehind: !0,
@@ -5520,9 +5520,9 @@ var require_json = __commonJS({
 })
 var require_graphql = __commonJS({
     "../../node_modules/refractor/lang/graphql.js"(exports, module) {
-        ;(module.exports = graphql), (graphql.displayName = "graphql"), (graphql.aliases = [])
+        (module.exports = graphql), (graphql.displayName = "graphql"), (graphql.aliases = [])
         function graphql(Prism) {
-            ;(Prism.languages.graphql = {
+            (Prism.languages.graphql = {
                 "comment": /#.*/,
                 "description": {
                     pattern: /(?:"""(?:[^"]|(?!""")")*"""|"(?:\\.|[^\\"\r\n])*")(?=\s*[a-z_])/i,
@@ -5699,7 +5699,7 @@ function _objectWithoutProperties(source, excluded) {
     return target
 }
 function _arrayLikeToArray(arr, len) {
-    ;(len == null || len > arr.length) && (len = arr.length)
+    (len == null || len > arr.length) && (len = arr.length)
     for (var i = 0, arr2 = new Array(len); i < len; i++) arr2[i] = arr[i]
     return arr2
 }

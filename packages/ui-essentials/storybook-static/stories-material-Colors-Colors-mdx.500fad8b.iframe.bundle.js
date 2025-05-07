@@ -1,4 +1,4 @@
-;(self.webpackChunk_sequentech_ui_essentials =
+(self.webpackChunk_sequentech_ui_essentials =
     self.webpackChunk_sequentech_ui_essentials || []).push([
     [3287, 1439],
     {

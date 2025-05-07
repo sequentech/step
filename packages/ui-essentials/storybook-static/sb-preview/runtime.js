@@ -45,7 +45,7 @@ var __toESM = (mod, isNodeMode, target) => (
 )
 var require_memoizerific = __commonJS({
     "../../node_modules/memoizerific/memoizerific.js"(exports, module) {
-        ;(function (f3) {
+        (function (f3) {
             if (typeof exports == "object" && typeof module < "u") module.exports = f3()
             else if (typeof define == "function" && define.amd) define([], f3)
             else {
@@ -114,7 +114,7 @@ var require_memoizerific = __commonJS({
                                     this
                                 )
                             }
-                            ;(Similar.prototype.get = function (key2) {
+                            (Similar.prototype.get = function (key2) {
                                 var index
                                 if (this.lastItem && this.isEqual(this.lastItem.key, key2))
                                     return this.lastItem.val
@@ -211,7 +211,7 @@ var require_memoizerific = __commonJS({
                                                 currentCache = currentCache.get(arguments[i])
                                                 continue
                                             }
-                                            ;(isMemoized = !1),
+                                            (isMemoized = !1),
                                                 (newMap = new MapOrSimilar(!1)),
                                                 currentCache.set(arguments[i], newMap),
                                                 (currentCache = newMap)
@@ -547,7 +547,7 @@ var require_get_intrinsic2 = __commonJS({
             try {
                 null.error
             } catch (e) {
-                ;(errorProto = getProto(getProto(e))),
+                (errorProto = getProto(getProto(e))),
                     (INTRINSICS["%Error.prototype%"] = errorProto)
             }
         var errorProto,
@@ -1533,7 +1533,7 @@ var require_utils = __commonJS({
                                 hexTable[128 | (c2 & 63)])
                         continue
                     }
-                    ;(i += 1),
+                    (i += 1),
                         (c2 = 65536 + (((c2 & 1023) << 10) | (string.charCodeAt(i) & 1023))),
                         (out +=
                             hexTable[240 | (c2 >> 18)] +
@@ -2726,7 +2726,7 @@ var require_baseForOwn = __commonJS({
 var require_listCacheClear = __commonJS({
     "../../node_modules/lodash/_listCacheClear.js"(exports, module) {
         function listCacheClear2() {
-            ;(this.__data__ = []), (this.size = 0)
+            (this.__data__ = []), (this.size = 0)
         }
         module.exports = listCacheClear2
     },
@@ -2826,7 +2826,7 @@ var require_stackClear = __commonJS({
     "../../node_modules/lodash/_stackClear.js"(exports, module) {
         var ListCache2 = require_ListCache()
         function stackClear() {
-            ;(this.__data__ = new ListCache2()), (this.size = 0)
+            (this.__data__ = new ListCache2()), (this.size = 0)
         }
         module.exports = stackClear
     },
@@ -2876,7 +2876,7 @@ var require_hashClear = __commonJS({
     "../../node_modules/lodash/_hashClear.js"(exports, module) {
         var nativeCreate2 = require_nativeCreate()
         function hashClear2() {
-            ;(this.__data__ = nativeCreate2 ? nativeCreate2(null) : {}), (this.size = 0)
+            (this.__data__ = nativeCreate2 ? nativeCreate2(null) : {}), (this.size = 0)
         }
         module.exports = hashClear2
     },
@@ -2963,7 +2963,7 @@ var require_mapCacheClear = __commonJS({
             ListCache2 = require_ListCache(),
             Map3 = require_Map()
         function mapCacheClear2() {
-            ;(this.size = 0),
+            (this.size = 0),
                 (this.__data__ = {
                     hash: new Hash2(),
                     map: new (Map3 || ListCache2)(),
@@ -4302,7 +4302,7 @@ var require_synchronous_promise = __commonJS({
             RESOLVED = "resolved",
             REJECTED = "rejected"
         function SynchronousPromise4(handler) {
-            ;(this.status = PENDING),
+            (this.status = PENDING),
                 (this._continuations = []),
                 (this._parent = null),
                 (this._paused = !1),
@@ -4352,7 +4352,7 @@ var require_synchronous_promise = __commonJS({
                 var ran = !1
                 function runFinally(result2, err) {
                     if (!ran) {
-                        ;(ran = !0), callback || (callback = passThrough)
+                        (ran = !0), callback || (callback = passThrough)
                         var callbackResult = callback(result2)
                         return looksLikeAPromise(callbackResult)
                             ? callbackResult.then(function () {
@@ -4472,10 +4472,10 @@ var require_synchronous_promise = __commonJS({
                 var self2 = this
                 return data
                     .then(function (result2) {
-                        ;(self2._data = result2), self2._runResolutions()
+                        (self2._data = result2), self2._runResolutions()
                     })
                     .catch(function (error) {
-                        ;(self2._error = error), self2._setRejected(), self2._runRejections()
+                        (self2._error = error), self2._setRejected(), self2._runRejections()
                     })
             },
             _handleUserFunctionResult: function (data, nextSynchronousPromise) {
@@ -4493,10 +4493,10 @@ var require_synchronous_promise = __commonJS({
                     })
             },
             _setResolved: function () {
-                ;(this.status = RESOLVED), this._paused || this._runResolutions()
+                (this.status = RESOLVED), this._paused || this._runResolutions()
             },
             _setRejected: function () {
-                ;(this.status = REJECTED), this._paused || this._runRejections()
+                (this.status = REJECTED), this._paused || this._runRejections()
             },
             _isPending: function () {
                 return this.status === PENDING
@@ -4528,7 +4528,7 @@ var require_synchronous_promise = __commonJS({
         }
         SynchronousPromise4.unresolved = function () {
             return new SynchronousPromise4(function (resolve, reject) {
-                ;(this.resolve = resolve), (this.reject = reject)
+                (this.resolve = resolve), (this.reject = reject)
             })
         }
         SynchronousPromise4.all = function () {
@@ -4549,7 +4549,7 @@ var require_synchronous_promise = __commonJS({
                           args2.forEach(function (arg, idx) {
                               SynchronousPromise4.resolve(arg)
                                   .then(function (thisResult) {
-                                      ;(allData[idx] = thisResult), (numResolved += 1), doResolve()
+                                      (allData[idx] = thisResult), (numResolved += 1), doResolve()
                                   })
                                   .catch(function (err) {
                                       doReject(err)
@@ -4586,7 +4586,7 @@ var require_synchronous_promise = __commonJS({
                                       doResolve(thisResult)
                                   })
                                   .catch(function (err) {
-                                      ;(allErrors[idx] = err), (numRejected += 1), doReject()
+                                      (allErrors[idx] = err), (numRejected += 1), doReject()
                                   })
                           })
                       })
@@ -4602,17 +4602,17 @@ var require_synchronous_promise = __commonJS({
                           var allData = [],
                               numSettled = 0,
                               doSettled = function () {
-                                  ;(numSettled += 1),
+                                  (numSettled += 1),
                                       numSettled === args2.length && resolve(allData)
                               }
                           args2.forEach(function (arg, idx) {
                               SynchronousPromise4.resolve(arg)
                                   .then(function (thisResult) {
-                                      ;(allData[idx] = {status: "fulfilled", value: thisResult}),
+                                      (allData[idx] = {status: "fulfilled", value: thisResult}),
                                           doSettled()
                                   })
                                   .catch(function (err) {
-                                      ;(allData[idx] = {status: "rejected", reason: err}),
+                                      (allData[idx] = {status: "rejected", reason: err}),
                                           doSettled()
                                   })
                           })
@@ -4806,7 +4806,7 @@ var isMulti = (args2) => args2.transports !== void 0,
     generateRandomId = () => Math.random().toString(16).slice(2),
     Channel = class {
         constructor(input = {}) {
-            ;(this.sender = generateRandomId()),
+            (this.sender = generateRandomId()),
                 (this.events = {}),
                 (this.data = {}),
                 (this.transports = []),
@@ -4825,7 +4825,7 @@ var isMulti = (args2) => args2.transports !== void 0,
             return this.transports.length > 0
         }
         addListener(eventName, listener) {
-            ;(this.events[eventName] = this.events[eventName] || []),
+            (this.events[eventName] = this.events[eventName] || []),
                 this.events[eventName].push(listener)
         }
         emit(eventName, ...args2) {
@@ -5920,7 +5920,7 @@ var isKey_default = isKey,
     nativeCreate = getNative_default(Object, "create"),
     nativeCreate_default = nativeCreate
 function hashClear() {
-    ;(this.__data__ = nativeCreate_default ? nativeCreate_default(null) : {}), (this.size = 0)
+    (this.__data__ = nativeCreate_default ? nativeCreate_default(null) : {}), (this.size = 0)
 }
 var hashClear_default = hashClear
 function hashDelete(key2) {
@@ -5972,7 +5972,7 @@ Hash.prototype.has = hashHas_default
 Hash.prototype.set = hashSet_default
 var Hash_default = Hash
 function listCacheClear() {
-    ;(this.__data__ = []), (this.size = 0)
+    (this.__data__ = []), (this.size = 0)
 }
 var listCacheClear_default = listCacheClear
 function assocIndexOf(array, key2) {
@@ -6024,7 +6024,7 @@ var ListCache_default = ListCache,
     Map2 = getNative_default(root_default, "Map"),
     Map_default = Map2
 function mapCacheClear() {
-    ;(this.size = 0),
+    (this.size = 0),
         (this.__data__ = {
             hash: new Hash_default(),
             map: new (Map_default || ListCache_default)(),
@@ -6643,11 +6643,11 @@ __export(websocket_exports, {
 var {WebSocket} = scope,
     WebsocketTransport = class {
         constructor({url, onError}) {
-            ;(this.buffer = []),
+            (this.buffer = []),
                 (this.isReady = !1),
                 (this.socket = new WebSocket(url)),
                 (this.socket.onopen = () => {
-                    ;(this.isReady = !0), this.flush()
+                    (this.isReady = !0), this.flush()
                 }),
                 (this.socket.onmessage = ({data}) => {
                     let event = typeof data == "string" && isJSON(data) ? parse(data) : data
@@ -6804,7 +6804,7 @@ function mockChannel() {
 }
 var AddonStore = class {
         constructor() {
-            ;(this.getChannel = () => {
+            (this.getChannel = () => {
                 if (!this.channel) {
                     let channel = mockChannel()
                     return this.setChannel(channel), channel
@@ -6819,7 +6819,7 @@ var AddonStore = class {
                 (this.hasChannel = () => !!this.channel),
                 (this.hasServerChannel = () => !!this.serverChannel),
                 (this.setChannel = (channel) => {
-                    ;(this.channel = channel), this.resolve()
+                    (this.channel = channel), this.resolve()
                 }),
                 (this.setServerChannel = (channel) => {
                     this.serverChannel = channel
@@ -6836,7 +6836,7 @@ function getAddonsStore() {
 var addons = getAddonsStore(),
     HooksContext = class {
         constructor() {
-            ;(this.hookListsMap = void 0),
+            (this.hookListsMap = void 0),
                 (this.mountedDecorators = void 0),
                 (this.prevMountedDecorators = void 0),
                 (this.currentHooks = void 0),
@@ -6856,7 +6856,7 @@ var addons = getAddonsStore(),
                 this.init()
         }
         init() {
-            ;(this.hookListsMap = new WeakMap()),
+            (this.hookListsMap = new WeakMap()),
                 (this.mountedDecorators = new Set()),
                 (this.prevMountedDecorators = new Set()),
                 (this.currentHooks = []),
@@ -7052,7 +7052,7 @@ function useStateLike(name2, initialState) {
             typeof initialState == "function" ? initialState() : initialState
         ),
         setState = (update) => {
-            ;(stateRef.current = typeof update == "function" ? update(stateRef.current) : update),
+            (stateRef.current = typeof update == "function" ? update(stateRef.current) : update),
                 triggerUpdate()
         }
     return [stateRef.current, setState]
@@ -7307,14 +7307,14 @@ var B = Object.create,
                                 return "" + o == "" + s
                             case "Set":
                             case "Map":
-                                ;(y = o.entries()), (g = s.entries())
+                                (y = o.entries()), (g = s.entries())
                                 do if (!i((p = y.next()).value, g.next().value, d)) return !1
                                 while (!p.done)
                                 return !0
                             case "ArrayBuffer":
-                                ;(o = new Uint8Array(o)), (s = new Uint8Array(s))
+                                (o = new Uint8Array(o)), (s = new Uint8Array(s))
                             case "DataView":
-                                ;(o = new Uint8Array(o.buffer)), (s = new Uint8Array(s.buffer))
+                                (o = new Uint8Array(o.buffer)), (s = new Uint8Array(s.buffer))
                             case "Float32Array":
                             case "Float64Array":
                             case "Int8Array":
@@ -7578,7 +7578,7 @@ function deleteUndefined(obj) {
 }
 var ArgsStore = class {
         constructor() {
-            ;(this.initialArgsByStoryId = {}), (this.argsByStoryId = {})
+            (this.initialArgsByStoryId = {}), (this.argsByStoryId = {})
         }
         get(storyId) {
             if (!(storyId in this.argsByStoryId))
@@ -8222,7 +8222,7 @@ var CSF_CACHE_SIZE = 1e3,
     EXTRACT_BATCH_SIZE = 20,
     StoryStore = class {
         constructor() {
-            ;(this.getStoriesJsonData = () => {
+            (this.getStoriesJsonData = () => {
                 let {storyIndex} = this
                 if (!storyIndex) throw new Error("getStoriesJsonData called before initialization")
                 let value2 = this.getSetStoriesPayload(),
@@ -8488,7 +8488,7 @@ var CSF_CACHE_SIZE = 1e3,
                 )
             let importPath
             try {
-                ;({importPath} = this.storyIndex.storyIdToEntry(storyId))
+                ({importPath} = this.storyIndex.storyIdToEntry(storyId))
             } catch {
                 return null
             }
@@ -8676,7 +8676,7 @@ var import_synchronous_promise2 = __toESM(require_synchronous_promise(), 1),
     STORIES_MDX_TAG = "stories-mdx",
     StoryStoreFacade = class {
         constructor() {
-            ;(this.projectAnnotations = {
+            (this.projectAnnotations = {
                 loaders: [],
                 decorators: [],
                 parameters: {},
@@ -8895,12 +8895,12 @@ var import_synchronous_promise2 = __toESM(require_synchronous_promise(), 1),
     invalidStoryTypes = new Set(["string", "number", "boolean", "symbol"]),
     ClientApi = class {
         constructor({storyStore} = {}) {
-            ;(this.lastFileName = 0),
+            (this.lastFileName = 0),
                 (this.addDecorator = (decorator) => {
                     this.facade.projectAnnotations.decorators?.push(decorator)
                 }),
                 (this.addParameters = ({globals: globals2, globalTypes, ...parameters}) => {
-                    ;(this.facade.projectAnnotations.parameters = combineParameters(
+                    (this.facade.projectAnnotations.parameters = combineParameters(
                         this.facade.projectAnnotations.parameters,
                         parameters
                     )),
@@ -11748,7 +11748,7 @@ In order to be iterable, non-array objects must have a [Symbol.iterator]() metho
                         return (normalCompletion = step.done), step
                     },
                     e: function (_e2) {
-                        ;(didErr = !0), (err = _e2)
+                        (didErr = !0), (err = _e2)
                     },
                     f: function () {
                         try {
@@ -11773,7 +11773,7 @@ In order to be iterable, non-array objects must have a [Symbol.iterator]() metho
                 }
             }
             function _arrayLikeToArray(arr, len) {
-                ;(len == null || len > arr.length) && (len = arr.length)
+                (len == null || len > arr.length) && (len = arr.length)
                 for (var i = 0, arr2 = new Array(len); i < len; i++) arr2[i] = arr[i]
                 return arr2
             }
@@ -12017,7 +12017,7 @@ In order to be iterable, non-array objects must have a [Symbol.iterator]() metho
                     return options2.newline ? callback("display", -1) : callback("text", m2), ""
                 }
                 function ansiMess(m2, g1) {
-                    ;(ansiMatch = !0),
+                    (ansiMatch = !0),
                         g1.trim().length === 0 && (g1 = "0"),
                         (g1 = g1.trimRight(";").split(";"))
                     var _iterator2 = _createForOfIteratorHelper(g1),
@@ -12055,7 +12055,7 @@ In order to be iterable, non-array objects must have a [Symbol.iterator]() metho
                     {pattern: /^(([^\x1b\x08\r\n])+)/, sub: realText},
                 ]
                 function process2(handler2, i2) {
-                    ;(i2 > ansiHandler && ansiMatch) ||
+                    (i2 > ansiHandler && ansiMatch) ||
                         ((ansiMatch = !1), (text = text.replace(handler2.pattern, handler2.sub)))
                 }
                 var results1 = [],
@@ -12155,7 +12155,7 @@ var StoryRender = class {
             renderOptions = {autoplay: !0, forceInitialArgs: !1},
             story
         ) {
-            ;(this.channel = channel),
+            (this.channel = channel),
                 (this.store = store),
                 (this.renderToScreen = renderToScreen),
                 (this.callbacks = callbacks),
@@ -12171,7 +12171,7 @@ var StoryRender = class {
                 story && ((this.story = story), (this.phase = "preparing"))
         }
         async runPhase(signal, phase, phaseFn) {
-            ;(this.phase = phase),
+            (this.phase = phase),
                 this.channel.emit(STORY_RENDER_PHASE_CHANGED, {
                     newPhase: this.phase,
                     storyId: this.id,
@@ -12308,7 +12308,7 @@ var StoryRender = class {
                     this.channel.emit(STORY_RENDERED, id)
                 )
             } catch (err) {
-                ;(this.phase = "errored"), this.callbacks.showException(err)
+                (this.phase = "errored"), this.callbacks.showException(err)
             }
         }
         async rerender() {
@@ -12321,7 +12321,7 @@ var StoryRender = class {
             this.abortController?.abort()
         }
         async teardown() {
-            ;(this.torndown = !0),
+            (this.torndown = !0),
                 this.cancelRender(),
                 this.story && this.store.cleanupStory(this.story)
             for (let i = 0; i < 3; i += 1) {
@@ -12338,7 +12338,7 @@ var StoryRender = class {
     STORY_INDEX_PATH = "./index.json",
     Preview = class {
         constructor(channel = addons.getChannel()) {
-            ;(this.channel = channel),
+            (this.channel = channel),
                 (this.storyRenders = []),
                 scope.FEATURES?.storyStoreV7 &&
                     addons.hasServerChannel() &&
@@ -12524,7 +12524,7 @@ var StoryRender = class {
             )
         }
         async teardownRender(render, {viewModeChanged} = {}) {
-            ;(this.storyRenders = this.storyRenders.filter((r) => r !== render)),
+            (this.storyRenders = this.storyRenders.filter((r) => r !== render)),
                 await render?.teardown?.({viewModeChanged})
         }
         async extract(options2) {
@@ -12539,7 +12539,7 @@ var StoryRender = class {
             )
         }
         renderPreviewEntryError(reason, err) {
-            ;(this.previewEntryError = err),
+            (this.previewEntryError = err),
                 logger.error(reason),
                 logger.error(err),
                 this.channel.emit(CONFIG_ERROR, err)
@@ -12547,7 +12547,7 @@ var StoryRender = class {
     },
     DocsContext = class {
         constructor(channel, store, renderStoryToElement, csfFiles) {
-            ;(this.channel = channel),
+            (this.channel = channel),
                 (this.store = store),
                 (this.renderStoryToElement = renderStoryToElement),
                 (this.storyIdByName = (storyName) => {
@@ -12682,7 +12682,7 @@ var StoryRender = class {
     },
     CsfDocsRender = class {
         constructor(channel, store, entry, callbacks) {
-            ;(this.channel = channel),
+            (this.channel = channel),
                 (this.store = store),
                 (this.entry = entry),
                 (this.callbacks = callbacks),
@@ -12762,7 +12762,7 @@ var StoryRender = class {
     },
     MdxDocsRender = class {
         constructor(channel, store, entry, callbacks) {
-            ;(this.channel = channel),
+            (this.channel = channel),
                 (this.store = store),
                 (this.entry = entry),
                 (this.callbacks = callbacks),
@@ -13020,7 +13020,7 @@ var PreviewWithSelection = class extends Preview {
                 !implementationChanged &&
                 !viewModeChanged
             ) {
-                ;(this.currentRender = lastRender),
+                (this.currentRender = lastRender),
                     this.channel.emit(STORY_UNCHANGED, storyId),
                     this.view.showMain()
                 return
@@ -13074,7 +13074,7 @@ var PreviewWithSelection = class extends Preview {
                 )
         }
         async teardownRender(render, {viewModeChanged = !1} = {}) {
-            ;(this.storyRenders = this.storyRenders.filter((r) => r !== render)),
+            (this.storyRenders = this.storyRenders.filter((r) => r !== render)),
                 await render?.teardown?.({viewModeChanged})
         }
         async extract(options2) {
@@ -13236,7 +13236,7 @@ var getQueryString = ({selection, extraParams}) => {
             this.selectionSpecifier = getSelectionSpecifierFromPath()
         }
         setSelection(selection) {
-            ;(this.selection = selection), setPath(this.selection)
+            (this.selection = selection), setPath(this.selection)
         }
         setQueryParams(queryParams) {
             let query = getQueryString({extraParams: queryParams}),

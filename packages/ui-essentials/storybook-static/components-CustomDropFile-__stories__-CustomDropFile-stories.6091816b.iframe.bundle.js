@@ -1,4 +1,4 @@
-;(self.webpackChunk_sequentech_ui_essentials =
+(self.webpackChunk_sequentech_ui_essentials =
     self.webpackChunk_sequentech_ui_essentials || []).push([
     [7557],
     {
@@ -302,7 +302,7 @@
                                         for (;;)
                                             switch ((_context.prev = _context.next)) {
                                                 case 0:
-                                                    ;(canvasElement = _ref2.canvasElement),
+                                                    (canvasElement = _ref2.canvasElement),
                                                         (canvas = (0,
                                                         _storybook_testing_library__WEBPACK_IMPORTED_MODULE_2__.uh)(
                                                             canvasElement

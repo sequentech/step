@@ -101,7 +101,7 @@ try {
                                     this
                                 )
                             }
-                            ;(l.prototype.get = function (n) {
+                            (l.prototype.get = function (n) {
                                 var r
                                 if (this.lastItem && this.isEqual(this.lastItem.key, n))
                                     return this.lastItem.val
@@ -185,7 +185,7 @@ try {
                                                 y = y.get(arguments[k])
                                                 continue
                                             }
-                                            ;(C = !1),
+                                            (C = !1),
                                                 (S = new l(!1)),
                                                 y.set(arguments[k], S),
                                                 (y = S)

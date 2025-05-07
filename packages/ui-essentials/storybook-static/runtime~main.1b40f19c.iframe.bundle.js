@@ -20,14 +20,14 @@
             module.exports
         )
     }
-    ;(__webpack_require__.m = __webpack_modules__),
+    (__webpack_require__.m = __webpack_modules__),
         (__webpack_require__.amdO = {}),
         (deferred = []),
         (__webpack_require__.O = function (result, chunkIds, fn, priority) {
             if (!chunkIds) {
                 var notFulfilled = 1 / 0
                 for (i = 0; i < deferred.length; i++) {
-                    ;(chunkIds = deferred[i][0]), (fn = deferred[i][1]), (priority = deferred[i][2])
+                    (chunkIds = deferred[i][0]), (fn = deferred[i][1]), (priority = deferred[i][2])
                     for (var fulfilled = !0, j = 0; j < chunkIds.length; j++)
                         (!1 & priority || notFulfilled >= priority) &&
                         Object.keys(__webpack_require__.O).every(function (key) {
@@ -321,7 +321,7 @@
                     (script.src = url)),
                     (inProgress[url] = [done])
                 var onScriptComplete = function (prev, event) {
-                        ;(script.onerror = script.onload = null), clearTimeout(timeout)
+                        (script.onerror = script.onload = null), clearTimeout(timeout)
                         var doneFns = inProgress[url]
                         if (
                             (delete inProgress[url],

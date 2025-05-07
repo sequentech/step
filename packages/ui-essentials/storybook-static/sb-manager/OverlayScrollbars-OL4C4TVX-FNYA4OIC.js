@@ -1630,7 +1630,7 @@ var createCache = (t2, n2) => {
                         (f3 = !1),
                         s2(at, !0),
                         a2(() => {
-                            ;(f3 = !0), s2(at)
+                            (f3 = !0), s2(at)
                         }),
                         preventDefault(t3)
                 },
@@ -1814,7 +1814,7 @@ var createCache = (t2, n2) => {
                 }
             },
             onHostMouseEnter = () => {
-                ;(i2 = c2), i2 && manageScrollbarsAutoHide(!0)
+                (i2 = c2), i2 && manageScrollbarsAutoHide(!0)
             },
             k2 = [
                 w3,
@@ -1826,7 +1826,7 @@ var createCache = (t2, n2) => {
                 on(C3, "pointerover", onHostMouseEnter, {C: !0}),
                 on(C3, "pointerenter", onHostMouseEnter),
                 on(C3, "pointerleave", () => {
-                    ;(i2 = !1), c2 && manageScrollbarsAutoHide(!1)
+                    (i2 = !1), c2 && manageScrollbarsAutoHide(!1)
                 }),
                 on(C3, "pointermove", () => {
                     e2 &&

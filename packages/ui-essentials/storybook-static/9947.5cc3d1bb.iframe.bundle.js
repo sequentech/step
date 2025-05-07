@@ -1,4 +1,4 @@
-;(self.webpackChunk_sequentech_ui_essentials =
+(self.webpackChunk_sequentech_ui_essentials =
     self.webpackChunk_sequentech_ui_essentials || []).push([
     [9947],
     {
@@ -317,7 +317,7 @@
                         let e2 = !0
                         return (
                             each(o2, (o3) => {
-                                ;(s2 ? s2(t2[o3]) : t2[o3]) !== (s2 ? s2(n2[o3]) : n2[o3]) &&
+                                (s2 ? s2(t2[o3]) : t2[o3]) !== (s2 ? s2(n2[o3]) : n2[o3]) &&
                                     (e2 = !1)
                             }),
                             e2
@@ -1904,7 +1904,7 @@
                                                 (f3 = !1),
                                                 s2(at, !0),
                                                 a2(() => {
-                                                    ;(f3 = !0), s2(at)
+                                                    (f3 = !0), s2(at)
                                                 }),
                                                 preventDefault(t3)
                                         },
@@ -1940,7 +1940,7 @@
                             }
                         },
                         onHostMouseEnter = () => {
-                            ;(i2 = c2), i2 && manageScrollbarsAutoHide(!0)
+                            (i2 = c2), i2 && manageScrollbarsAutoHide(!0)
                         },
                         k2 = [
                             w3,
@@ -1952,7 +1952,7 @@
                             on(C3, "pointerover", onHostMouseEnter, {C: !0}),
                             on(C3, "pointerenter", onHostMouseEnter),
                             on(C3, "pointerleave", () => {
-                                ;(i2 = !1), c2 && manageScrollbarsAutoHide(!1)
+                                (i2 = !1), c2 && manageScrollbarsAutoHide(!1)
                             }),
                             on(C3, "pointermove", () => {
                                 e2 &&
@@ -2059,7 +2059,7 @@
                             S3 = c2(y2),
                             x2 = r2(y2),
                             destroy = (t3) => {
-                                ;((t2) => {
+                                ((t2) => {
                                     Ht.delete(t2)
                                 })(a2),
                                     S3(),

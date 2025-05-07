@@ -1,4 +1,4 @@
-;(self.webpackChunk_sequentech_ui_essentials =
+(self.webpackChunk_sequentech_ui_essentials =
     self.webpackChunk_sequentech_ui_essentials || []).push([
     [5777],
     {
@@ -950,7 +950,7 @@
                     Object.defineProperty(convert[model], "channels", {value: channels}),
                     Object.defineProperty(convert[model], "labels", {value: labels})
             }
-            ;(convert.rgb.hsl = function (rgb) {
+            (convert.rgb.hsl = function (rgb) {
                 const r = rgb[0] / 255,
                     g = rgb[1] / 255,
                     b = rgb[2] / 255,
@@ -1160,22 +1160,22 @@
                         default:
                         case 6:
                         case 0:
-                            ;(r = v), (g = n), (b = wh)
+                            (r = v), (g = n), (b = wh)
                             break
                         case 1:
-                            ;(r = n), (g = v), (b = wh)
+                            (r = n), (g = v), (b = wh)
                             break
                         case 2:
-                            ;(r = wh), (g = v), (b = n)
+                            (r = wh), (g = v), (b = n)
                             break
                         case 3:
-                            ;(r = wh), (g = n), (b = v)
+                            (r = wh), (g = n), (b = v)
                             break
                         case 4:
-                            ;(r = n), (g = wh), (b = v)
+                            (r = n), (g = wh), (b = v)
                             break
                         case 5:
-                            ;(r = v), (g = wh), (b = n)
+                            (r = v), (g = wh), (b = n)
                     }
                     return [255 * r, 255 * g, 255 * b]
                 }),
@@ -1376,22 +1376,22 @@
                     let mg = 0
                     switch (Math.floor(hi)) {
                         case 0:
-                            ;(pure[0] = 1), (pure[1] = v), (pure[2] = 0)
+                            (pure[0] = 1), (pure[1] = v), (pure[2] = 0)
                             break
                         case 1:
-                            ;(pure[0] = w), (pure[1] = 1), (pure[2] = 0)
+                            (pure[0] = w), (pure[1] = 1), (pure[2] = 0)
                             break
                         case 2:
-                            ;(pure[0] = 0), (pure[1] = 1), (pure[2] = v)
+                            (pure[0] = 0), (pure[1] = 1), (pure[2] = v)
                             break
                         case 3:
-                            ;(pure[0] = 0), (pure[1] = w), (pure[2] = 1)
+                            (pure[0] = 0), (pure[1] = w), (pure[2] = 1)
                             break
                         case 4:
-                            ;(pure[0] = v), (pure[1] = 0), (pure[2] = 1)
+                            (pure[0] = v), (pure[1] = 0), (pure[2] = 1)
                             break
                         default:
-                            ;(pure[0] = 1), (pure[1] = 0), (pure[2] = w)
+                            (pure[0] = 1), (pure[1] = 0), (pure[2] = w)
                     }
                     return (
                         (mg = (1 - c) * g),
@@ -1475,7 +1475,7 @@
                 route = __webpack_require__("../node_modules/color-convert/route.js"),
                 convert = {}
             Object.keys(conversions).forEach((fromModel) => {
-                ;(convert[fromModel] = {}),
+                (convert[fromModel] = {}),
                     Object.defineProperty(convert[fromModel], "channels", {
                         value: conversions[fromModel].channels,
                     }),

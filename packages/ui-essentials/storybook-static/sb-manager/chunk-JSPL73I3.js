@@ -1,7 +1,7 @@
 import {__commonJS, __require} from "./chunk-Z4NRYNHR.js"
 var require_memoizerific = __commonJS({
     "../../node_modules/memoizerific/memoizerific.js"(exports, module) {
-        ;(function (f) {
+        (function (f) {
             if (typeof exports == "object" && typeof module < "u") module.exports = f()
             else if (typeof define == "function" && define.amd) define([], f)
             else {
@@ -70,7 +70,7 @@ var require_memoizerific = __commonJS({
                                     this
                                 )
                             }
-                            ;(Similar.prototype.get = function (key) {
+                            (Similar.prototype.get = function (key) {
                                 var index
                                 if (this.lastItem && this.isEqual(this.lastItem.key, key))
                                     return this.lastItem.val
@@ -167,7 +167,7 @@ var require_memoizerific = __commonJS({
                                                 currentCache = currentCache.get(arguments[i])
                                                 continue
                                             }
-                                            ;(isMemoized = !1),
+                                            (isMemoized = !1),
                                                 (newMap = new MapOrSimilar(!1)),
                                                 currentCache.set(arguments[i], newMap),
                                                 (currentCache = newMap)

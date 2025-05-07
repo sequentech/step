@@ -1,4 +1,4 @@
-;(self.webpackChunk_sequentech_ui_essentials =
+(self.webpackChunk_sequentech_ui_essentials =
     self.webpackChunk_sequentech_ui_essentials || []).push([
     [8895],
     {
@@ -193,7 +193,7 @@
                                 onSetBallotSelectionVoteChoice: function handleSetBallotSelectionVoteChoice(
                                     actionProps
                                 ) {
-                                    ;(0, chunk_AY7I2SME.aD)("onSetBallotSelectionVoteChoice")(
+                                    (0, chunk_AY7I2SME.aD)("onSetBallotSelectionVoteChoice")(
                                         actionProps
                                     ),
                                         (function setBallotSelectionVoteChoice(action) {

@@ -1,5 +1,5 @@
 /*! For license information please see 8179.6645e101.iframe.bundle.js.LICENSE.txt */
-;(self.webpackChunk_sequentech_ui_essentials =
+(self.webpackChunk_sequentech_ui_essentials =
     self.webpackChunk_sequentech_ui_essentials || []).push([
     [8179],
     {
@@ -1316,7 +1316,7 @@
                             checkCallback()
                     }
                     function onDone(error, result) {
-                        ;(finished = !0),
+                        (finished = !0),
                             clearTimeout(overallTimeoutTimer),
                             usingJestFakeTimers ||
                                 (clearInterval(intervalId), observer.disconnect()),
@@ -1353,11 +1353,11 @@
                                     ? ((promiseStatus = "pending"),
                                       result.then(
                                           (resolvedValue) => {
-                                              ;(promiseStatus = "resolved"),
+                                              (promiseStatus = "resolved"),
                                                   onDone(null, resolvedValue)
                                           },
                                           (rejectedValue) => {
-                                              ;(promiseStatus = "rejected"),
+                                              (promiseStatus = "rejected"),
                                                   (lastError = rejectedValue)
                                           }
                                       ))
@@ -3009,7 +3009,7 @@
                                 _n = !0
                             );
                         } catch (err) {
-                            ;(_d = !0), (_e = err)
+                            (_d = !0), (_e = err)
                         } finally {
                             try {
                                 _n || null == _i.return || _i.return()
@@ -3043,7 +3043,7 @@
                 }
             }
             function _arrayLikeToArray(arr, len) {
-                ;(null == len || len > arr.length) && (len = arr.length)
+                (null == len || len > arr.length) && (len = arr.length)
                 for (var i = 0, arr2 = new Array(len); i < len; i++) arr2[i] = arr[i]
                 return arr2
             }
@@ -3179,7 +3179,7 @@
                                         return (normalCompletion = step.done), step
                                     },
                                     e: function e(_e3) {
-                                        ;(didErr = !0), (err = _e3)
+                                        (didErr = !0), (err = _e3)
                                     },
                                     f: function f() {
                                         try {
@@ -3264,7 +3264,7 @@
                                 _n = !0
                             );
                         } catch (err) {
-                            ;(_d = !0), (_e = err)
+                            (_d = !0), (_e = err)
                         } finally {
                             try {
                                 _n || null == _i.return || _i.return()
@@ -3298,7 +3298,7 @@
                 }
             }
             function _arrayLikeToArray(arr, len) {
-                ;(null == len || len > arr.length) && (len = arr.length)
+                (null == len || len > arr.length) && (len = arr.length)
                 for (var i = 0, arr2 = new Array(len); i < len; i++) arr2[i] = arr[i]
                 return arr2
             }
@@ -3485,7 +3485,7 @@
                                         return (normalCompletion = step.done), step
                                     },
                                     e: function e(_e3) {
-                                        ;(didErr = !0), (err = _e3)
+                                        (didErr = !0), (err = _e3)
                                     },
                                     f: function f() {
                                         try {
@@ -3579,7 +3579,7 @@
                                 _n = !0
                             );
                         } catch (err) {
-                            ;(_d = !0), (_e = err)
+                            (_d = !0), (_e = err)
                         } finally {
                             try {
                                 _n || null == _i.return || _i.return()
@@ -3613,7 +3613,7 @@
                 }
             }
             function _arrayLikeToArray(arr, len) {
-                ;(null == len || len > arr.length) && (len = arr.length)
+                (null == len || len > arr.length) && (len = arr.length)
                 for (var i = 0, arr2 = new Array(len); i < len; i++) arr2[i] = arr[i]
                 return arr2
             }
@@ -3705,7 +3705,7 @@
                                         return (normalCompletion = step.done), step
                                     },
                                     e: function e(_e3) {
-                                        ;(didErr = !0), (err = _e3)
+                                        (didErr = !0), (err = _e3)
                                     },
                                     f: function f() {
                                         try {
@@ -8544,7 +8544,7 @@
                                 _n = !0
                             );
                         } catch (err) {
-                            ;(_d = !0), (_e = err)
+                            (_d = !0), (_e = err)
                         } finally {
                             try {
                                 _n || null == _i.return || _i.return()
@@ -8578,7 +8578,7 @@
                 }
             }
             function _arrayLikeToArray(arr, len) {
-                ;(null == len || len > arr.length) && (len = arr.length)
+                (null == len || len > arr.length) && (len = arr.length)
                 for (var i = 0, arr2 = new Array(len); i < len; i++) arr2[i] = arr[i]
                 return arr2
             }
@@ -8668,7 +8668,7 @@
                                         return (normalCompletion = step.done), step
                                     },
                                     e: function e(_e3) {
-                                        ;(didErr = !0), (err = _e3)
+                                        (didErr = !0), (err = _e3)
                                     },
                                     f: function f() {
                                         try {
@@ -8790,7 +8790,7 @@
                         return (normalCompletion = step.done), step
                     },
                     e: function e(_e3) {
-                        ;(didErr = !0), (err = _e3)
+                        (didErr = !0), (err = _e3)
                     },
                     f: function f() {
                         try {
@@ -8826,7 +8826,7 @@
                                 _n = !0
                             );
                         } catch (err) {
-                            ;(_d = !0), (_e = err)
+                            (_d = !0), (_e = err)
                         } finally {
                             try {
                                 _n || null == _i.return || _i.return()
@@ -8860,7 +8860,7 @@
                 }
             }
             function _arrayLikeToArray(arr, len) {
-                ;(null == len || len > arr.length) && (len = arr.length)
+                (null == len || len > arr.length) && (len = arr.length)
                 for (var i = 0, arr2 = new Array(len); i < len; i++) arr2[i] = arr[i]
                 return arr2
             }
@@ -9061,7 +9061,7 @@
                         result += config.spacingOuter
                         const indentationNext = indentation + config.indent
                         for (; !current.done; ) {
-                            ;(result +=
+                            (result +=
                                 indentationNext +
                                 printer(current.value[0], config, indentationNext, depth, refs) +
                                 separator +
@@ -10094,7 +10094,7 @@
                                 ? Object.defineProperty(newObj, key, desc)
                                 : (newObj[key] = obj[key])
                         }
-                    ;(newObj.default = obj), cache && cache.set(obj, newObj)
+                    (newObj.default = obj), cache && cache.set(obj, newObj)
                     return newObj
                 })(
                     __webpack_require__(
@@ -10687,7 +10687,7 @@
                 skipHover || (0, _hover.hover)(element, init, {skipPointerEventsCheck: !0}),
                     (0, _utils.isElementType)(element, "label")
                         ? (function clickLabel(label, init, {clickCount}) {
-                              ;(0, _utils.isLabelWithInternallyDisabledControl)(label) ||
+                              (0, _utils.isLabelWithInternallyDisabledControl)(label) ||
                                   (_dom.fireEvent.pointerDown(label, init),
                                   _dom.fireEvent.mouseDown(
                                       label,
@@ -11081,16 +11081,16 @@
                     }
                 }),
                 (function (bracketDict) {
-                    ;(bracketDict["{"] = "}"), (bracketDict["["] = "]")
+                    (bracketDict["{"] = "}"), (bracketDict["["] = "]")
                 })(bracketDict || (bracketDict = {})),
                 (function (legacyModifiers) {
-                    ;(legacyModifiers.alt = "alt"),
+                    (legacyModifiers.alt = "alt"),
                         (legacyModifiers.ctrl = "ctrl"),
                         (legacyModifiers.meta = "meta"),
                         (legacyModifiers.shift = "shift")
                 })(legacyModifiers || (legacyModifiers = {})),
                 (function (legacyKeyMap) {
-                    ;(legacyKeyMap.ctrl = "Control"),
+                    (legacyKeyMap.ctrl = "Control"),
                         (legacyKeyMap.del = "Delete"),
                         (legacyKeyMap.esc = "Escape"),
                         (legacyKeyMap.space = " ")
@@ -11409,7 +11409,7 @@
                                 ? Object.defineProperty(newObj, key, desc)
                                 : (newObj[key] = obj[key])
                         }
-                    ;(newObj.default = obj), cache && cache.set(obj, newObj)
+                    (newObj.default = obj), cache && cache.set(obj, newObj)
                     return newObj
                 })(
                     __webpack_require__(
@@ -12055,7 +12055,7 @@
                     prevValue,
                     timeNewEntry
                 ) {
-                    ;(0, _utils.isValidInputTimeValue)(el, timeNewEntry) &&
+                    (0, _utils.isValidInputTimeValue)(el, timeNewEntry) &&
                         prevValue !== timeNewEntry &&
                         _dom.fireEvent.change(el, {target: {value: timeNewEntry}})
                 })
@@ -12083,8 +12083,8 @@
                             throw new Error("Invalid Element")
                         applyNative(element, "value", newValue)
                     }
-                    ;(function setSelectionRangeAfterInput(element, newSelectionStart) {
-                        ;(0, _utils.setSelectionRange)(
+                    (function setSelectionRangeAfterInput(element, newSelectionStart) {
+                        (0, _utils.setSelectionRange)(
                             element,
                             newSelectionStart,
                             newSelectionStart
@@ -12228,7 +12228,7 @@
                 (exports.DOM_KEY_LOCATION = void 0),
                 (exports.DOM_KEY_LOCATION = DOM_KEY_LOCATION),
                 (function (DOM_KEY_LOCATION) {
-                    ;(DOM_KEY_LOCATION[(DOM_KEY_LOCATION.STANDARD = 0)] = "STANDARD"),
+                    (DOM_KEY_LOCATION[(DOM_KEY_LOCATION.STANDARD = 0)] = "STANDARD"),
                         (DOM_KEY_LOCATION[(DOM_KEY_LOCATION.LEFT = 1)] = "LEFT"),
                         (DOM_KEY_LOCATION[(DOM_KEY_LOCATION.RIGHT = 2)] = "RIGHT"),
                         (DOM_KEY_LOCATION[(DOM_KEY_LOCATION.NUMPAD = 3)] = "NUMPAD")
@@ -12399,7 +12399,7 @@
                                 select
                             )
                         selectedOptions.forEach((option) => {
-                            ;(0, _hover.hover)(option, init, {
+                            (0, _hover.hover)(option, init, {
                                 skipPointerEventsCheck: skipPointerEventsCheck,
                             }),
                                 (0, _click.click)(option, init, {
@@ -12411,7 +12411,7 @@
                         })
                     }
                 function selectOption(option) {
-                    ;(option.selected = newValue),
+                    (option.selected = newValue),
                         (0, _dom.fireEvent)(
                             select,
                             (0, _dom.createEvent)("input", select, {
@@ -13014,9 +13014,9 @@
                     Boolean(editableInputTypes[element.type])
                 )
             }
-            ;(exports.editableInputTypes = editableInputTypes),
+            (exports.editableInputTypes = editableInputTypes),
                 (function (editableInputTypes) {
-                    ;(editableInputTypes.text = "text"),
+                    (editableInputTypes.text = "text"),
                         (editableInputTypes.date = "date"),
                         (editableInputTypes["datetime-local"] = "datetime-local"),
                         (editableInputTypes.email = "email"),
@@ -13090,7 +13090,7 @@
                     "../node_modules/@testing-library/user-event/dist/utils/edit/getValue.js"
                 )
             !(function (maxLengthSupportedTypes) {
-                ;(maxLengthSupportedTypes.email = "email"),
+                (maxLengthSupportedTypes.email = "email"),
                     (maxLengthSupportedTypes.password = "password"),
                     (maxLengthSupportedTypes.search = "search"),
                     (maxLengthSupportedTypes.telephone = "telephone"),
@@ -13139,7 +13139,7 @@
                     "../node_modules/@testing-library/user-event/dist/utils/misc/isElementType.js"
                 )
             !(function (selectionSupportType) {
-                ;(selectionSupportType.text = "text"),
+                (selectionSupportType.text = "text"),
                     (selectionSupportType.search = "search"),
                     (selectionSupportType.url = "url"),
                     (selectionSupportType.tel = "tel"),
@@ -15526,7 +15526,7 @@
                 callBound = __webpack_require__("../node_modules/call-bind/callBound.js"),
                 hasToStringTag = __webpack_require__("../node_modules/has-tostringtag/shams.js")()
             if (hasToStringTag) {
-                ;(has = callBound("Object.prototype.hasOwnProperty")),
+                (has = callBound("Object.prototype.hasOwnProperty")),
                     ($exec = callBound("RegExp.prototype.exec")),
                     (isRegexMarker = {})
                 var throwRegexMarker = function () {

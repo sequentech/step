@@ -172,7 +172,7 @@ function _setPrototypeOf(o, p) {
     )
 }
 function _inheritsLoose(subClass, superClass) {
-    ;(subClass.prototype = Object.create(superClass.prototype)),
+    (subClass.prototype = Object.create(superClass.prototype)),
         (subClass.prototype.constructor = subClass),
         _setPrototypeOf(subClass, superClass)
 }
@@ -1206,7 +1206,7 @@ var React = __toESM(require_react()),
 var import_memoizerific = __toESM(require_memoizerific(), 1)
 var require_react_is_development = __commonJS({
         "../../node_modules/react-is/cjs/react-is.development.js"(exports) {
-            ;(function () {
+            (function () {
                 var hasSymbol = typeof Symbol == "function" && Symbol.for,
                     REACT_ELEMENT_TYPE = hasSymbol ? Symbol.for("react.element") : 60103,
                     REACT_PORTAL_TYPE = hasSymbol ? Symbol.for("react.portal") : 60106,
@@ -1349,7 +1349,7 @@ var require_react_is_development = __commonJS({
                 function isSuspense(object) {
                     return typeOf(object) === REACT_SUSPENSE_TYPE
                 }
-                ;(exports.AsyncMode = AsyncMode),
+                (exports.AsyncMode = AsyncMode),
                     (exports.ConcurrentMode = ConcurrentMode),
                     (exports.ContextConsumer = ContextConsumer),
                     (exports.ContextProvider = ContextProvider),
@@ -1559,7 +1559,7 @@ var StyleSheet = (function () {
                     try {
                         sheet.insertRule(rule, sheet.cssRules.length)
                     } catch (e) {
-                        ;/:(-moz-placeholder|-moz-focus-inner|-moz-focusring|-ms-input-placeholder|-moz-read-write|-moz-read-only|-ms-clear|-ms-expand|-ms-reveal){/.test(
+                        /:(-moz-placeholder|-moz-focus-inner|-moz-focusring|-ms-input-placeholder|-moz-read-write|-moz-read-only|-ms-clear|-ms-expand|-ms-reveal){/.test(
                             rule
                         ) ||
                             console.error(
@@ -1926,13 +1926,13 @@ function parse(value, root, parent, rule, rules, rulesets, pseudo, points, decla
                                         )
                                 }
                 }
-                ;(index = offset = property = 0),
+                (index = offset = property = 0),
                     (variable = ampersand = 1),
                     (type = characters2 = ""),
                     (length2 = pseudo)
                 break
             case 58:
-                ;(length2 = 1 + strlen(characters2)), (property = previous)
+                (length2 = 1 + strlen(characters2)), (property = previous)
             default:
                 if (variable < 1) {
                     if (character2 == 123) --variable
@@ -1943,7 +1943,7 @@ function parse(value, root, parent, rule, rules, rulesets, pseudo, points, decla
                         ampersand = offset > 0 ? 1 : ((characters2 += "\f"), -1)
                         break
                     case 44:
-                        ;(points[index++] = (strlen(characters2) - 1) * ampersand), (ampersand = 1)
+                        (points[index++] = (strlen(characters2) - 1) * ampersand), (ampersand = 1)
                         break
                     case 64:
                         peek() === 45 && (characters2 += delimit(next())),
@@ -2070,7 +2070,7 @@ var weakMemoize = function (func) {
                     break
                 case 4:
                     if (character2 === 44) {
-                        ;(parsed[++index] = peek() === 58 ? "&\f" : ""),
+                        (parsed[++index] = peek() === 58 ? "&\f" : ""),
                             (points[index] = parsed[index].length)
                         break
                     }
@@ -2173,7 +2173,7 @@ var weakMemoize = function (func) {
         return !1
     },
     nullifyElement = function (element) {
-        ;(element.type = ""),
+        (element.type = ""),
             (element.value = ""),
             (element.return = ""),
             (element.children = ""),
@@ -2499,7 +2499,7 @@ If multiple caches share the same key they might "fight" for each other's style 
                     return serialize(compile(styles), serializer)
                 }
             _insert = function (selector, serialized, sheet, shouldCache) {
-                ;(currentSheet = sheet),
+                (currentSheet = sheet),
                     serialized.map !== void 0 &&
                         (currentSheet = {
                             insert: function (rule) {
@@ -2583,7 +2583,7 @@ function murmur2(str) {
         case 2:
             h ^= (str.charCodeAt(i + 1) & 255) << 8
         case 1:
-            ;(h ^= str.charCodeAt(i) & 255),
+            (h ^= str.charCodeAt(i) & 255),
                 (h = (h & 65535) * 1540483477 + (((h >>> 16) * 59797) << 16))
     }
     return (

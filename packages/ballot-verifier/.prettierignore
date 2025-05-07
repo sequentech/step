@@ -16,3 +16,4 @@ pkg/
 build/
 .github
 .direnv
+storybook-static/

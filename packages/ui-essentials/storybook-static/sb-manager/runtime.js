@@ -589,7 +589,7 @@ function $5cb92bef7577960e$var$handleAndDispatchCustomEvent(name, handler, detai
 var import_react10 = __toESM(require_react(), 1),
     $3db38b7d1fb3fe6a$var$count = 0
 function $3db38b7d1fb3fe6a$export$b7ece24a22aeda8c() {
-    ;(0, import_react10.useEffect)(() => {
+    (0, import_react10.useEffect)(() => {
         var _edgeGuards$, _edgeGuards$2
         let edgeGuards = document.querySelectorAll("[data-radix-focus-guard]")
         return (
@@ -1594,7 +1594,7 @@ function H(e2, i3, r3) {
                 s3 = 0,
                 f3 = 0
             if (r4) {
-                ;(c3 = r4.width), (l4 = r4.height)
+                (c3 = r4.width), (l4 = r4.height)
                 let t3 = a2()
                 ;(!t3 || (t3 && e3 === "fixed")) && ((s3 = r4.offsetLeft), (f3 = r4.offsetTop))
             }
@@ -3019,7 +3019,7 @@ var Style = styleSingleton(),
 var passiveSupported = !1
 if (typeof window < "u")
     try {
-        ;(options = Object.defineProperty({}, "passive", {
+        (options = Object.defineProperty({}, "passive", {
             get: function () {
                 return (passiveSupported = !0), !0
             },
@@ -3274,7 +3274,7 @@ function RemoveScrollSideCar(props) {
                 }, 1)
         }, []),
         scrollTouchStart = React6.useCallback(function (event) {
-            ;(touchStartRef.current = getTouchXY(event)), (activeAxis.current = void 0)
+            (touchStartRef.current = getTouchXY(event)), (activeAxis.current = void 0)
         }, []),
         scrollWheel = React6.useCallback(function (event) {
             shouldCancel(
@@ -3304,7 +3304,7 @@ function RemoveScrollSideCar(props) {
             document.addEventListener("touchmove", shouldPrevent, nonPassive),
             document.addEventListener("touchstart", scrollTouchStart, nonPassive),
             function () {
-                ;(lockStack = lockStack.filter(function (inst) {
+                (lockStack = lockStack.filter(function (inst) {
                     return inst !== Style2
                 })),
                     document.removeEventListener("wheel", shouldPrevent, nonPassive),
@@ -4057,7 +4057,7 @@ var $cc7e05a45900e73f$var$SelectItemAlignedPosition = (0, import_react21.forward
                                 topEdgeToTriggerMiddle +
                                 viewport.offsetTop)
                     }
-                    ;(contentWrapper.style.margin = `${$cc7e05a45900e73f$var$CONTENT_MARGIN}px 0`),
+                    (contentWrapper.style.margin = `${$cc7e05a45900e73f$var$CONTENT_MARGIN}px 0`),
                         (contentWrapper.style.minHeight = minContentHeight + "px"),
                         (contentWrapper.style.maxHeight = availableHeight + "px"),
                         onPlaced?.(),
@@ -4722,7 +4722,7 @@ function $cc7e05a45900e73f$var$useTypeaheadSearch(onSearchChange) {
                 let search = searchRef.current + key
                 handleSearchChange(search),
                     (function updateSearch(value) {
-                        ;(searchRef.current = value),
+                        (searchRef.current = value),
                             window.clearTimeout(timerRef.current),
                             value !== "" &&
                                 (timerRef.current = window.setTimeout(() => updateSearch(""), 1e3))
@@ -4731,7 +4731,7 @@ function $cc7e05a45900e73f$var$useTypeaheadSearch(onSearchChange) {
             [handleSearchChange]
         ),
         resetTypeahead = (0, import_react21.useCallback)(() => {
-            ;(searchRef.current = ""), window.clearTimeout(timerRef.current)
+            (searchRef.current = ""), window.clearTimeout(timerRef.current)
         }, [])
     return (
         (0, import_react21.useEffect)(() => () => window.clearTimeout(timerRef.current), []),

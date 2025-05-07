@@ -132,7 +132,7 @@ var require_checkPropTypes = __commonJS({
 })
 var require_react_development = __commonJS({
     "../../node_modules/react/cjs/react.development.js"(exports) {
-        ;(function () {
+        (function () {
             var _assign = require_object_assign(),
                 checkPropTypes = require_checkPropTypes(),
                 ReactVersion = "16.14.0",
@@ -255,7 +255,7 @@ var require_react_development = __commonJS({
             function setCurrentlyValidatingElement(element) {
                 currentlyValidatingElement = element
             }
-            ;(ReactDebugCurrentFrame.getCurrentStack = null),
+            (ReactDebugCurrentFrame.getCurrentStack = null),
                 (ReactDebugCurrentFrame.getStackAddendum = function () {
                     var stack = ""
                     if (currentlyValidatingElement) {
@@ -372,12 +372,12 @@ var require_react_development = __commonJS({
                 emptyObject = {}
             Object.freeze(emptyObject)
             function Component(props, context, updater) {
-                ;(this.props = props),
+                (this.props = props),
                     (this.context = context),
                     (this.refs = emptyObject),
                     (this.updater = updater || ReactNoopUpdateQueue)
             }
-            ;(Component.prototype.isReactComponent = {}),
+            (Component.prototype.isReactComponent = {}),
                 (Component.prototype.setState = function (partialState, callback) {
                     if (
                         !(
@@ -423,7 +423,7 @@ var require_react_development = __commonJS({
             function ComponentDummy() {}
             ComponentDummy.prototype = Component.prototype
             function PureComponent(props, context, updater) {
-                ;(this.props = props),
+                (this.props = props),
                     (this.context = context),
                     (this.refs = emptyObject),
                     (this.updater = updater || ReactNoopUpdateQueue)
@@ -664,7 +664,7 @@ var require_react_development = __commonJS({
                     }
             }
             function releaseTraverseContext(traverseContext) {
-                ;(traverseContext.result = null),
+                (traverseContext.result = null),
                     (traverseContext.keyPrefix = null),
                     (traverseContext.func = null),
                     (traverseContext.context = null),

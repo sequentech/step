@@ -1,4 +1,4 @@
-;(self.webpackChunk_sequentech_ui_essentials =
+(self.webpackChunk_sequentech_ui_essentials =
     self.webpackChunk_sequentech_ui_essentials || []).push([
     [2696],
     {
@@ -37,7 +37,7 @@
                 },
                 DocsRenderer = class {
                     constructor() {
-                        ;(this.render = async (context, docsParameter, element) => {
+                        (this.render = async (context, docsParameter, element) => {
                             let components = {...defaultComponents, ...docsParameter?.components},
                                 TDocs = dist.WI
                             return new Promise((resolve, reject) => {
@@ -70,7 +70,7 @@
                             })
                         }),
                             (this.unmount = (element) => {
-                                ;(0, react_18.K)(element)
+                                (0, react_18.K)(element)
                             })
                     }
                 }
