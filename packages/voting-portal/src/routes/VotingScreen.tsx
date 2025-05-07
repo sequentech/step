@@ -196,8 +196,7 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
         selectBallotSelectionByElectionId(ballotStyle?.election_id ?? "")
     )
 
-    console.log("selectionState", selectionState);
-    
+    console.log("selectionState", selectionState)
 
     const {interpretContestSelection, interpretMultiContestSelection} = provideBallotService()
     const isVotedState = useAppSelector(isVotedByElectionId?.(ballotStyle?.election_id))
@@ -283,7 +282,7 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
                             />
                         </Box>
                     )
-})}
+                })}
             <ActionButtons
                 handleNext={handleNext}
                 handlePrev={handlePrev}

@@ -1,1 +1,488 @@
-"use strict";(self.webpackChunk_sequentech_ui_essentials=self.webpackChunk_sequentech_ui_essentials||[]).push([[1439],{"./src/stories/material/Colors/Colors.stories.tsx":function(__unused_webpack_module,__webpack_exports__,__webpack_require__){__webpack_require__.r(__webpack_exports__),__webpack_require__.d(__webpack_exports__,{Content:function(){return Content},Semantic:function(){return Semantic},__namedExportsOrder:function(){return __namedExportsOrder}});var _templateObject,_templateObject2,_templateObject3,_templateObject4,_templateObject5,_templateObject6,_Semantic$parameters,_Semantic$parameters2,_Semantic$parameters3,_Content$parameters,_Content$parameters2,_Content$parameters2$,_workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_7__=__webpack_require__("../node_modules/@babel/runtime/helpers/esm/objectSpread2.js"),_workspaces_step_packages_node_modules_babel_runtime_helpers_esm_taggedTemplateLiteral_js__WEBPACK_IMPORTED_MODULE_5__=__webpack_require__("../node_modules/@babel/runtime/helpers/esm/taggedTemplateLiteral.js"),react__WEBPACK_IMPORTED_MODULE_0__=__webpack_require__("../node_modules/react/index.js"),_emotion_styled__WEBPACK_IMPORTED_MODULE_1__=__webpack_require__("../node_modules/@emotion/styled/dist/emotion-styled.browser.esm.js"),_mui_material__WEBPACK_IMPORTED_MODULE_4__=__webpack_require__("../node_modules/@mui/material/Box/Box.js"),_mui_material__WEBPACK_IMPORTED_MODULE_6__=__webpack_require__("../node_modules/@mui/material/Typography/Typography.js"),_services_theme__WEBPACK_IMPORTED_MODULE_2__=__webpack_require__("./src/services/theme.ts"),react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__=__webpack_require__("../node_modules/react/jsx-runtime.js"),ColorBox=(0,_emotion_styled__WEBPACK_IMPORTED_MODULE_1__.Z)(_mui_material__WEBPACK_IMPORTED_MODULE_4__.Z)(_templateObject||(_templateObject=(0,_workspaces_step_packages_node_modules_babel_runtime_helpers_esm_taggedTemplateLiteral_js__WEBPACK_IMPORTED_MODULE_5__.Z)(["\n    height: 40px;\n    width: 40px;\n    border: 1px solid\n        ",";\n    background-color: ",";\n"])),(function(_ref){var theme=_ref.theme;return _ref.backgroundColor===theme.palette.white?theme.palette.customGrey.light:theme.palette.white}),(function(_ref2){return _ref2.backgroundColor||"inherit"})),DescriptorContainer=(0,_emotion_styled__WEBPACK_IMPORTED_MODULE_1__.Z)(_mui_material__WEBPACK_IMPORTED_MODULE_4__.Z)(_templateObject2||(_templateObject2=(0,_workspaces_step_packages_node_modules_babel_runtime_helpers_esm_taggedTemplateLiteral_js__WEBPACK_IMPORTED_MODULE_5__.Z)(["\n    display: flex;\n    flex-direction: row;\n    align-items: center;\n    gap: 16px;\n"]))),ColorsListContainer=(0,_emotion_styled__WEBPACK_IMPORTED_MODULE_1__.Z)(_mui_material__WEBPACK_IMPORTED_MODULE_4__.Z)(_templateObject3||(_templateObject3=(0,_workspaces_step_packages_node_modules_babel_runtime_helpers_esm_taggedTemplateLiteral_js__WEBPACK_IMPORTED_MODULE_5__.Z)(["\n    border: 1px solid ",";\n    margin: 32px 0;\n    padding: 32px;\n    border-radius: 8px;\n"])),(function(_ref3){return _ref3.theme.palette.customGrey.light})),ColoredCell=(0,_emotion_styled__WEBPACK_IMPORTED_MODULE_1__.Z)(_mui_material__WEBPACK_IMPORTED_MODULE_4__.Z)(_templateObject4||(_templateObject4=(0,_workspaces_step_packages_node_modules_babel_runtime_helpers_esm_taggedTemplateLiteral_js__WEBPACK_IMPORTED_MODULE_5__.Z)(["\n    height: 40px;\n    width: 140px;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n"]))),TH=_emotion_styled__WEBPACK_IMPORTED_MODULE_1__.Z.th(_templateObject5||(_templateObject5=(0,_workspaces_step_packages_node_modules_babel_runtime_helpers_esm_taggedTemplateLiteral_js__WEBPACK_IMPORTED_MODULE_5__.Z)(["\n    width: 20%;\n    height: 40px;\n    font-weight: normal;\n    border-top: 1px solid ",";\n"])),(function(_ref4){return _ref4.theme.palette.customGrey.light})),TD=_emotion_styled__WEBPACK_IMPORTED_MODULE_1__.Z.td(_templateObject6||(_templateObject6=(0,_workspaces_step_packages_node_modules_babel_runtime_helpers_esm_taggedTemplateLiteral_js__WEBPACK_IMPORTED_MODULE_5__.Z)(["\n    width: 20%;\n    border-top: ",";\n"])),(function(_ref5){var theme=_ref5.theme;return _ref5.isHeader?"1px solid ".concat(theme.palette.customGrey.light):"none"})),ColorDescriptor=function ColorDescriptor(_ref6){var title=_ref6.title,description=_ref6.description,backgroundColor=_ref6.backgroundColor;return(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsxs)(DescriptorContainer,{children:[(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)(ColorBox,{backgroundColor:backgroundColor}),(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsxs)(_mui_material__WEBPACK_IMPORTED_MODULE_4__.Z,{sx:{flexGrow:2},children:[(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)(_mui_material__WEBPACK_IMPORTED_MODULE_6__.Z,{mb:.5,children:title}),(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)(_mui_material__WEBPACK_IMPORTED_MODULE_6__.Z,{mt:.5,color:_services_theme__WEBPACK_IMPORTED_MODULE_2__.rS.palette.customGrey.main,children:description})]}),(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)(_mui_material__WEBPACK_IMPORTED_MODULE_6__.Z,{children:backgroundColor})]})},ColorTableCell=function ColorTableCell(_ref7){var value=_ref7.value,isHeader=_ref7.isHeader,color=_ref7.color;return(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)(TD,{isHeader:isHeader||!value,children:isHeader?value:(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)(ColoredCell,{sx:{backgroundColor:value,color:color},children:value})})},ColorsTable=function ColorsTable(_ref8){var headers=_ref8.headers,rows=_ref8.rows;return(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsxs)("table",{children:[(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)("tr",{children:headers.map((function(header,idx){return(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)(TH,{children:header},idx)}))}),rows.map((function(row,rowIdx){return(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)("tr",{children:row.values.map((function(cell,cellIdx){var _row$colors;return(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)(ColorTableCell,{color:(null===(_row$colors=row.colors)||void 0===_row$colors?void 0:_row$colors[cellIdx])||void 0,value:cell,isHeader:0===cellIdx},cellIdx)}))},rowIdx)}))]})},meta={title:"material/Colors",component:function ColorsList(_ref9){var colors=_ref9.colors,colorsTable=_ref9.colorsTable;return(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsxs)(react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.Fragment,{children:[colors?(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)(ColorsListContainer,{children:colors.map((function(color,idx){return(0,react__WEBPACK_IMPORTED_MODULE_0__.createElement)(ColorDescriptor,(0,_workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_7__.Z)((0,_workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_7__.Z)({},color),{},{key:idx}))}))}):null,colorsTable?(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)(ColorsListContainer,{children:(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)(ColorsTable,(0,_workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_7__.Z)({},colorsTable))}):null]})},parameters:{backgrounds:{default:"white"}}};__webpack_exports__.default=meta;var Semantic={args:{colors:[{backgroundColor:_services_theme__WEBPACK_IMPORTED_MODULE_2__.rS.palette.lightBackground,title:"light-background",description:"Light Background"},{backgroundColor:_services_theme__WEBPACK_IMPORTED_MODULE_2__.rS.palette.brandColor,title:"brand-color",description:"Brand color"},{backgroundColor:_services_theme__WEBPACK_IMPORTED_MODULE_2__.rS.palette.brandSuccess,title:"brand-success",description:"Brand success"},{backgroundColor:_services_theme__WEBPACK_IMPORTED_MODULE_2__.rS.palette.errorColor,title:"error-color",description:"Error color"},{backgroundColor:_services_theme__WEBPACK_IMPORTED_MODULE_2__.rS.palette.white,title:"white",description:"White"},{backgroundColor:_services_theme__WEBPACK_IMPORTED_MODULE_2__.rS.palette.black,title:"black",description:"Black"}]},parameters:{viewport:{disable:!0}}},Content={args:{colorsTable:{headers:[null,"Light","Main","Dark","Contrast Text"],rows:[{values:["red",_services_theme__WEBPACK_IMPORTED_MODULE_2__.rS.palette.red.light||null,_services_theme__WEBPACK_IMPORTED_MODULE_2__.rS.palette.red.main||null,_services_theme__WEBPACK_IMPORTED_MODULE_2__.rS.palette.red.dark||null,null]},{values:["green",_services_theme__WEBPACK_IMPORTED_MODULE_2__.rS.palette.green.light||null,_services_theme__WEBPACK_IMPORTED_MODULE_2__.rS.palette.green.main||null,_services_theme__WEBPACK_IMPORTED_MODULE_2__.rS.palette.green.dark||null,null]},{values:["customGreen",_services_theme__WEBPACK_IMPORTED_MODULE_2__.rS.palette.customGreen.light||null,_services_theme__WEBPACK_IMPORTED_MODULE_2__.rS.palette.customGreen.main||null,_services_theme__WEBPACK_IMPORTED_MODULE_2__.rS.palette.customGreen.dark||null,null]},{values:["yellow",_services_theme__WEBPACK_IMPORTED_MODULE_2__.rS.palette.yellow.light||null,_services_theme__WEBPACK_IMPORTED_MODULE_2__.rS.palette.yellow.main||null,_services_theme__WEBPACK_IMPORTED_MODULE_2__.rS.palette.yellow.dark||null,null]},{values:["blue",_services_theme__WEBPACK_IMPORTED_MODULE_2__.rS.palette.blue.light||null,_services_theme__WEBPACK_IMPORTED_MODULE_2__.rS.palette.blue.main||null,_services_theme__WEBPACK_IMPORTED_MODULE_2__.rS.palette.blue.dark||null,null]},{values:["customGrey",_services_theme__WEBPACK_IMPORTED_MODULE_2__.rS.palette.customGrey.light||null,_services_theme__WEBPACK_IMPORTED_MODULE_2__.rS.palette.customGrey.main||null,_services_theme__WEBPACK_IMPORTED_MODULE_2__.rS.palette.customGrey.dark||null,_services_theme__WEBPACK_IMPORTED_MODULE_2__.rS.palette.customGrey.contrastText||null],colors:[null,null,null,null,_services_theme__WEBPACK_IMPORTED_MODULE_2__.rS.palette.white]}]}},parameters:{viewport:{disable:!0}}};Semantic.parameters=(0,_workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_7__.Z)((0,_workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_7__.Z)({},Semantic.parameters),{},{docs:(0,_workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_7__.Z)((0,_workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_7__.Z)({},null===(_Semantic$parameters=Semantic.parameters)||void 0===_Semantic$parameters?void 0:_Semantic$parameters.docs),{},{source:(0,_workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_7__.Z)({originalSource:'{\n  // More on args: https://storybook.js.org/docs/react/writing-stories/args\n  args: {\n    colors: [{\n      backgroundColor: theme.palette.lightBackground,\n      title: "light-background",\n      description: "Light Background"\n    }, {\n      backgroundColor: theme.palette.brandColor,\n      title: "brand-color",\n      description: "Brand color"\n    }, {\n      backgroundColor: theme.palette.brandSuccess,\n      title: "brand-success",\n      description: "Brand success"\n    }, {\n      backgroundColor: theme.palette.errorColor,\n      title: "error-color",\n      description: "Error color"\n    }, {\n      backgroundColor: theme.palette.white,\n      title: "white",\n      description: "White"\n    }, {\n      backgroundColor: theme.palette.black,\n      title: "black",\n      description: "Black"\n    }]\n  },\n  parameters: {\n    viewport: {\n      disable: true\n    }\n  }\n}'},null===(_Semantic$parameters2=Semantic.parameters)||void 0===_Semantic$parameters2||null===(_Semantic$parameters3=_Semantic$parameters2.docs)||void 0===_Semantic$parameters3?void 0:_Semantic$parameters3.source)})}),Content.parameters=(0,_workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_7__.Z)((0,_workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_7__.Z)({},Content.parameters),{},{docs:(0,_workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_7__.Z)((0,_workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_7__.Z)({},null===(_Content$parameters=Content.parameters)||void 0===_Content$parameters?void 0:_Content$parameters.docs),{},{source:(0,_workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_7__.Z)({originalSource:'{\n  // More on args: https://storybook.js.org/docs/react/writing-stories/args\n  args: {\n    colorsTable: {\n      headers: [null, "Light", "Main", "Dark", "Contrast Text"],\n      rows: [{\n        values: ["red", theme.palette.red.light || null, theme.palette.red.main || null, theme.palette.red.dark || null, null]\n      }, {\n        values: ["green", theme.palette.green.light || null, theme.palette.green.main || null, theme.palette.green.dark || null, null]\n      }, {\n        values: ["customGreen", theme.palette.customGreen.light || null, theme.palette.customGreen.main || null, theme.palette.customGreen.dark || null, null]\n      }, {\n        values: ["yellow", theme.palette.yellow.light || null, theme.palette.yellow.main || null, theme.palette.yellow.dark || null, null]\n      }, {\n        values: ["blue", theme.palette.blue.light || null, theme.palette.blue.main || null, theme.palette.blue.dark || null, null]\n      }, {\n        values: ["customGrey", theme.palette.customGrey.light || null, theme.palette.customGrey.main || null, theme.palette.customGrey.dark || null, theme.palette.customGrey.contrastText || null],\n        colors: [null, null, null, null, theme.palette.white]\n      }]\n    }\n  },\n  parameters: {\n    viewport: {\n      disable: true\n    }\n  }\n}'},null===(_Content$parameters2=Content.parameters)||void 0===_Content$parameters2||null===(_Content$parameters2$=_Content$parameters2.docs)||void 0===_Content$parameters2$?void 0:_Content$parameters2$.source)})});var __namedExportsOrder=["Semantic","Content"]}}]);
+;(self.webpackChunk_sequentech_ui_essentials =
+    self.webpackChunk_sequentech_ui_essentials || []).push([
+    [1439],
+    {
+        "./src/stories/material/Colors/Colors.stories.tsx": function (
+            __unused_webpack_module,
+            __webpack_exports__,
+            __webpack_require__
+        ) {
+            __webpack_require__.r(__webpack_exports__),
+                __webpack_require__.d(__webpack_exports__, {
+                    Content: function () {
+                        return Content
+                    },
+                    Semantic: function () {
+                        return Semantic
+                    },
+                    __namedExportsOrder: function () {
+                        return __namedExportsOrder
+                    },
+                })
+            var _templateObject,
+                _templateObject2,
+                _templateObject3,
+                _templateObject4,
+                _templateObject5,
+                _templateObject6,
+                _Semantic$parameters,
+                _Semantic$parameters2,
+                _Semantic$parameters3,
+                _Content$parameters,
+                _Content$parameters2,
+                _Content$parameters2$,
+                _workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(
+                    "../node_modules/@babel/runtime/helpers/esm/objectSpread2.js"
+                ),
+                _workspaces_step_packages_node_modules_babel_runtime_helpers_esm_taggedTemplateLiteral_js__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(
+                    "../node_modules/@babel/runtime/helpers/esm/taggedTemplateLiteral.js"
+                ),
+                react__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(
+                    "../node_modules/react/index.js"
+                ),
+                _emotion_styled__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(
+                    "../node_modules/@emotion/styled/dist/emotion-styled.browser.esm.js"
+                ),
+                _mui_material__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(
+                    "../node_modules/@mui/material/Box/Box.js"
+                ),
+                _mui_material__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(
+                    "../node_modules/@mui/material/Typography/Typography.js"
+                ),
+                _services_theme__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(
+                    "./src/services/theme.ts"
+                ),
+                react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(
+                    "../node_modules/react/jsx-runtime.js"
+                ),
+                ColorBox = (0, _emotion_styled__WEBPACK_IMPORTED_MODULE_1__.Z)(
+                    _mui_material__WEBPACK_IMPORTED_MODULE_4__.Z
+                )(
+                    _templateObject ||
+                        (_templateObject = (0,
+                        _workspaces_step_packages_node_modules_babel_runtime_helpers_esm_taggedTemplateLiteral_js__WEBPACK_IMPORTED_MODULE_5__.Z)(
+                            [
+                                "\n    height: 40px;\n    width: 40px;\n    border: 1px solid\n        ",
+                                ";\n    background-color: ",
+                                ";\n",
+                            ]
+                        )),
+                    function (_ref) {
+                        var theme = _ref.theme
+                        return _ref.backgroundColor === theme.palette.white
+                            ? theme.palette.customGrey.light
+                            : theme.palette.white
+                    },
+                    function (_ref2) {
+                        return _ref2.backgroundColor || "inherit"
+                    }
+                ),
+                DescriptorContainer = (0, _emotion_styled__WEBPACK_IMPORTED_MODULE_1__.Z)(
+                    _mui_material__WEBPACK_IMPORTED_MODULE_4__.Z
+                )(
+                    _templateObject2 ||
+                        (_templateObject2 = (0,
+                        _workspaces_step_packages_node_modules_babel_runtime_helpers_esm_taggedTemplateLiteral_js__WEBPACK_IMPORTED_MODULE_5__.Z)(
+                            [
+                                "\n    display: flex;\n    flex-direction: row;\n    align-items: center;\n    gap: 16px;\n",
+                            ]
+                        ))
+                ),
+                ColorsListContainer = (0, _emotion_styled__WEBPACK_IMPORTED_MODULE_1__.Z)(
+                    _mui_material__WEBPACK_IMPORTED_MODULE_4__.Z
+                )(
+                    _templateObject3 ||
+                        (_templateObject3 = (0,
+                        _workspaces_step_packages_node_modules_babel_runtime_helpers_esm_taggedTemplateLiteral_js__WEBPACK_IMPORTED_MODULE_5__.Z)(
+                            [
+                                "\n    border: 1px solid ",
+                                ";\n    margin: 32px 0;\n    padding: 32px;\n    border-radius: 8px;\n",
+                            ]
+                        )),
+                    function (_ref3) {
+                        return _ref3.theme.palette.customGrey.light
+                    }
+                ),
+                ColoredCell = (0, _emotion_styled__WEBPACK_IMPORTED_MODULE_1__.Z)(
+                    _mui_material__WEBPACK_IMPORTED_MODULE_4__.Z
+                )(
+                    _templateObject4 ||
+                        (_templateObject4 = (0,
+                        _workspaces_step_packages_node_modules_babel_runtime_helpers_esm_taggedTemplateLiteral_js__WEBPACK_IMPORTED_MODULE_5__.Z)(
+                            [
+                                "\n    height: 40px;\n    width: 140px;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n",
+                            ]
+                        ))
+                ),
+                TH = _emotion_styled__WEBPACK_IMPORTED_MODULE_1__.Z.th(
+                    _templateObject5 ||
+                        (_templateObject5 = (0,
+                        _workspaces_step_packages_node_modules_babel_runtime_helpers_esm_taggedTemplateLiteral_js__WEBPACK_IMPORTED_MODULE_5__.Z)(
+                            [
+                                "\n    width: 20%;\n    height: 40px;\n    font-weight: normal;\n    border-top: 1px solid ",
+                                ";\n",
+                            ]
+                        )),
+                    function (_ref4) {
+                        return _ref4.theme.palette.customGrey.light
+                    }
+                ),
+                TD = _emotion_styled__WEBPACK_IMPORTED_MODULE_1__.Z.td(
+                    _templateObject6 ||
+                        (_templateObject6 = (0,
+                        _workspaces_step_packages_node_modules_babel_runtime_helpers_esm_taggedTemplateLiteral_js__WEBPACK_IMPORTED_MODULE_5__.Z)(
+                            ["\n    width: 20%;\n    border-top: ", ";\n"]
+                        )),
+                    function (_ref5) {
+                        var theme = _ref5.theme
+                        return _ref5.isHeader
+                            ? "1px solid ".concat(theme.palette.customGrey.light)
+                            : "none"
+                    }
+                ),
+                ColorDescriptor = function ColorDescriptor(_ref6) {
+                    var title = _ref6.title,
+                        description = _ref6.description,
+                        backgroundColor = _ref6.backgroundColor
+                    return (0, react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsxs)(
+                        DescriptorContainer,
+                        {
+                            children: [
+                                (0, react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)(ColorBox, {
+                                    backgroundColor: backgroundColor,
+                                }),
+                                (0, react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsxs)(
+                                    _mui_material__WEBPACK_IMPORTED_MODULE_4__.Z,
+                                    {
+                                        sx: {flexGrow: 2},
+                                        children: [
+                                            (0,
+                                            react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)(
+                                                _mui_material__WEBPACK_IMPORTED_MODULE_6__.Z,
+                                                {mb: 0.5, children: title}
+                                            ),
+                                            (0, react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)(
+                                                _mui_material__WEBPACK_IMPORTED_MODULE_6__.Z,
+                                                {
+                                                    mt: 0.5,
+                                                    color:
+                                                        _services_theme__WEBPACK_IMPORTED_MODULE_2__
+                                                            .rS.palette.customGrey.main,
+                                                    children: description,
+                                                }
+                                            ),
+                                        ],
+                                    }
+                                ),
+                                (0,
+                                react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)(
+                                    _mui_material__WEBPACK_IMPORTED_MODULE_6__.Z,
+                                    {children: backgroundColor}
+                                ),
+                            ],
+                        }
+                    )
+                },
+                ColorTableCell = function ColorTableCell(_ref7) {
+                    var value = _ref7.value,
+                        isHeader = _ref7.isHeader,
+                        color = _ref7.color
+                    return (0, react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)(TD, {
+                        isHeader: isHeader || !value,
+                        children: isHeader
+                            ? value
+                            : (0, react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)(ColoredCell, {
+                                  sx: {backgroundColor: value, color: color},
+                                  children: value,
+                              }),
+                    })
+                },
+                ColorsTable = function ColorsTable(_ref8) {
+                    var headers = _ref8.headers,
+                        rows = _ref8.rows
+                    return (0, react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsxs)("table", {
+                        children: [
+                            (0, react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)("tr", {
+                                children: headers.map(function (header, idx) {
+                                    return (0,
+                                    react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)(TH, {children: header}, idx)
+                                }),
+                            }),
+                            rows.map(function (row, rowIdx) {
+                                return (0, react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)(
+                                    "tr",
+                                    {
+                                        children: row.values.map(function (cell, cellIdx) {
+                                            var _row$colors
+                                            return (0,
+                                            react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)(ColorTableCell, {color: (null === (_row$colors = row.colors) || void 0 === _row$colors ? void 0 : _row$colors[cellIdx]) || void 0, value: cell, isHeader: 0 === cellIdx}, cellIdx)
+                                        }),
+                                    },
+                                    rowIdx
+                                )
+                            }),
+                        ],
+                    })
+                },
+                meta = {
+                    title: "material/Colors",
+                    component: function ColorsList(_ref9) {
+                        var colors = _ref9.colors,
+                            colorsTable = _ref9.colorsTable
+                        return (0, react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsxs)(
+                            react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.Fragment,
+                            {
+                                children: [
+                                    colors
+                                        ? (0, react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)(
+                                              ColorsListContainer,
+                                              {
+                                                  children: colors.map(function (color, idx) {
+                                                      return (0,
+                                                      react__WEBPACK_IMPORTED_MODULE_0__.createElement)(ColorDescriptor, (0, _workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_7__.Z)((0, _workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_7__.Z)({}, color), {}, {key: idx}))
+                                                  }),
+                                              }
+                                          )
+                                        : null,
+                                    colorsTable
+                                        ? (0, react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)(
+                                              ColorsListContainer,
+                                              {
+                                                  children: (0,
+                                                  react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)(
+                                                      ColorsTable,
+                                                      (0,
+                                                      _workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_7__.Z)(
+                                                          {},
+                                                          colorsTable
+                                                      )
+                                                  ),
+                                              }
+                                          )
+                                        : null,
+                                ],
+                            }
+                        )
+                    },
+                    parameters: {backgrounds: {default: "white"}},
+                }
+            __webpack_exports__.default = meta
+            var Semantic = {
+                    args: {
+                        colors: [
+                            {
+                                backgroundColor:
+                                    _services_theme__WEBPACK_IMPORTED_MODULE_2__.rS.palette
+                                        .lightBackground,
+                                title: "light-background",
+                                description: "Light Background",
+                            },
+                            {
+                                backgroundColor:
+                                    _services_theme__WEBPACK_IMPORTED_MODULE_2__.rS.palette
+                                        .brandColor,
+                                title: "brand-color",
+                                description: "Brand color",
+                            },
+                            {
+                                backgroundColor:
+                                    _services_theme__WEBPACK_IMPORTED_MODULE_2__.rS.palette
+                                        .brandSuccess,
+                                title: "brand-success",
+                                description: "Brand success",
+                            },
+                            {
+                                backgroundColor:
+                                    _services_theme__WEBPACK_IMPORTED_MODULE_2__.rS.palette
+                                        .errorColor,
+                                title: "error-color",
+                                description: "Error color",
+                            },
+                            {
+                                backgroundColor:
+                                    _services_theme__WEBPACK_IMPORTED_MODULE_2__.rS.palette.white,
+                                title: "white",
+                                description: "White",
+                            },
+                            {
+                                backgroundColor:
+                                    _services_theme__WEBPACK_IMPORTED_MODULE_2__.rS.palette.black,
+                                title: "black",
+                                description: "Black",
+                            },
+                        ],
+                    },
+                    parameters: {viewport: {disable: !0}},
+                },
+                Content = {
+                    args: {
+                        colorsTable: {
+                            headers: [null, "Light", "Main", "Dark", "Contrast Text"],
+                            rows: [
+                                {
+                                    values: [
+                                        "red",
+                                        _services_theme__WEBPACK_IMPORTED_MODULE_2__.rS.palette.red
+                                            .light || null,
+                                        _services_theme__WEBPACK_IMPORTED_MODULE_2__.rS.palette.red
+                                            .main || null,
+                                        _services_theme__WEBPACK_IMPORTED_MODULE_2__.rS.palette.red
+                                            .dark || null,
+                                        null,
+                                    ],
+                                },
+                                {
+                                    values: [
+                                        "green",
+                                        _services_theme__WEBPACK_IMPORTED_MODULE_2__.rS.palette
+                                            .green.light || null,
+                                        _services_theme__WEBPACK_IMPORTED_MODULE_2__.rS.palette
+                                            .green.main || null,
+                                        _services_theme__WEBPACK_IMPORTED_MODULE_2__.rS.palette
+                                            .green.dark || null,
+                                        null,
+                                    ],
+                                },
+                                {
+                                    values: [
+                                        "customGreen",
+                                        _services_theme__WEBPACK_IMPORTED_MODULE_2__.rS.palette
+                                            .customGreen.light || null,
+                                        _services_theme__WEBPACK_IMPORTED_MODULE_2__.rS.palette
+                                            .customGreen.main || null,
+                                        _services_theme__WEBPACK_IMPORTED_MODULE_2__.rS.palette
+                                            .customGreen.dark || null,
+                                        null,
+                                    ],
+                                },
+                                {
+                                    values: [
+                                        "yellow",
+                                        _services_theme__WEBPACK_IMPORTED_MODULE_2__.rS.palette
+                                            .yellow.light || null,
+                                        _services_theme__WEBPACK_IMPORTED_MODULE_2__.rS.palette
+                                            .yellow.main || null,
+                                        _services_theme__WEBPACK_IMPORTED_MODULE_2__.rS.palette
+                                            .yellow.dark || null,
+                                        null,
+                                    ],
+                                },
+                                {
+                                    values: [
+                                        "blue",
+                                        _services_theme__WEBPACK_IMPORTED_MODULE_2__.rS.palette.blue
+                                            .light || null,
+                                        _services_theme__WEBPACK_IMPORTED_MODULE_2__.rS.palette.blue
+                                            .main || null,
+                                        _services_theme__WEBPACK_IMPORTED_MODULE_2__.rS.palette.blue
+                                            .dark || null,
+                                        null,
+                                    ],
+                                },
+                                {
+                                    values: [
+                                        "customGrey",
+                                        _services_theme__WEBPACK_IMPORTED_MODULE_2__.rS.palette
+                                            .customGrey.light || null,
+                                        _services_theme__WEBPACK_IMPORTED_MODULE_2__.rS.palette
+                                            .customGrey.main || null,
+                                        _services_theme__WEBPACK_IMPORTED_MODULE_2__.rS.palette
+                                            .customGrey.dark || null,
+                                        _services_theme__WEBPACK_IMPORTED_MODULE_2__.rS.palette
+                                            .customGrey.contrastText || null,
+                                    ],
+                                    colors: [
+                                        null,
+                                        null,
+                                        null,
+                                        null,
+                                        _services_theme__WEBPACK_IMPORTED_MODULE_2__.rS.palette
+                                            .white,
+                                    ],
+                                },
+                            ],
+                        },
+                    },
+                    parameters: {viewport: {disable: !0}},
+                }
+            ;(Semantic.parameters = (0,
+            _workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_7__.Z)(
+                (0,
+                _workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_7__.Z)(
+                    {},
+                    Semantic.parameters
+                ),
+                {},
+                {
+                    docs: (0,
+                    _workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_7__.Z)(
+                        (0,
+                        _workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_7__.Z)(
+                            {},
+                            null === (_Semantic$parameters = Semantic.parameters) ||
+                                void 0 === _Semantic$parameters
+                                ? void 0
+                                : _Semantic$parameters.docs
+                        ),
+                        {},
+                        {
+                            source: (0,
+                            _workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_7__.Z)(
+                                {
+                                    originalSource:
+                                        '{\n  // More on args: https://storybook.js.org/docs/react/writing-stories/args\n  args: {\n    colors: [{\n      backgroundColor: theme.palette.lightBackground,\n      title: "light-background",\n      description: "Light Background"\n    }, {\n      backgroundColor: theme.palette.brandColor,\n      title: "brand-color",\n      description: "Brand color"\n    }, {\n      backgroundColor: theme.palette.brandSuccess,\n      title: "brand-success",\n      description: "Brand success"\n    }, {\n      backgroundColor: theme.palette.errorColor,\n      title: "error-color",\n      description: "Error color"\n    }, {\n      backgroundColor: theme.palette.white,\n      title: "white",\n      description: "White"\n    }, {\n      backgroundColor: theme.palette.black,\n      title: "black",\n      description: "Black"\n    }]\n  },\n  parameters: {\n    viewport: {\n      disable: true\n    }\n  }\n}',
+                                },
+                                null === (_Semantic$parameters2 = Semantic.parameters) ||
+                                    void 0 === _Semantic$parameters2 ||
+                                    null === (_Semantic$parameters3 = _Semantic$parameters2.docs) ||
+                                    void 0 === _Semantic$parameters3
+                                    ? void 0
+                                    : _Semantic$parameters3.source
+                            ),
+                        }
+                    ),
+                }
+            )),
+                (Content.parameters = (0,
+                _workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_7__.Z)(
+                    (0,
+                    _workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_7__.Z)(
+                        {},
+                        Content.parameters
+                    ),
+                    {},
+                    {
+                        docs: (0,
+                        _workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_7__.Z)(
+                            (0,
+                            _workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_7__.Z)(
+                                {},
+                                null === (_Content$parameters = Content.parameters) ||
+                                    void 0 === _Content$parameters
+                                    ? void 0
+                                    : _Content$parameters.docs
+                            ),
+                            {},
+                            {
+                                source: (0,
+                                _workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_7__.Z)(
+                                    {
+                                        originalSource:
+                                            '{\n  // More on args: https://storybook.js.org/docs/react/writing-stories/args\n  args: {\n    colorsTable: {\n      headers: [null, "Light", "Main", "Dark", "Contrast Text"],\n      rows: [{\n        values: ["red", theme.palette.red.light || null, theme.palette.red.main || null, theme.palette.red.dark || null, null]\n      }, {\n        values: ["green", theme.palette.green.light || null, theme.palette.green.main || null, theme.palette.green.dark || null, null]\n      }, {\n        values: ["customGreen", theme.palette.customGreen.light || null, theme.palette.customGreen.main || null, theme.palette.customGreen.dark || null, null]\n      }, {\n        values: ["yellow", theme.palette.yellow.light || null, theme.palette.yellow.main || null, theme.palette.yellow.dark || null, null]\n      }, {\n        values: ["blue", theme.palette.blue.light || null, theme.palette.blue.main || null, theme.palette.blue.dark || null, null]\n      }, {\n        values: ["customGrey", theme.palette.customGrey.light || null, theme.palette.customGrey.main || null, theme.palette.customGrey.dark || null, theme.palette.customGrey.contrastText || null],\n        colors: [null, null, null, null, theme.palette.white]\n      }]\n    }\n  },\n  parameters: {\n    viewport: {\n      disable: true\n    }\n  }\n}',
+                                    },
+                                    null === (_Content$parameters2 = Content.parameters) ||
+                                        void 0 === _Content$parameters2 ||
+                                        null ===
+                                            (_Content$parameters2$ = _Content$parameters2.docs) ||
+                                        void 0 === _Content$parameters2$
+                                        ? void 0
+                                        : _Content$parameters2$.source
+                                ),
+                            }
+                        ),
+                    }
+                ))
+            var __namedExportsOrder = ["Semantic", "Content"]
+        },
+    },
+])
