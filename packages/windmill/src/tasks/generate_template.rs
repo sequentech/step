@@ -14,7 +14,7 @@ use crate::services::compress::decompress_file;
 use crate::services::consolidation::create_transmission_package_service::download_tally_tar_gz_to_file;
 use crate::services::consolidation::zip::compress_folder_to_zip;
 use crate::services::database::get_hasura_pool;
-use crate::services::documents::upload_and_return_document_postgres;
+use crate::services::documents::upload_and_return_document;
 use crate::services::reports::utils::get_public_assets_path_env_var;
 use crate::services::tasks_execution::{update, update_complete, update_fail};
 use crate::services::tasks_semaphore::acquire_semaphore;
@@ -314,7 +314,7 @@ async fn generate_template_document(
         format!("election-{election_id}-vote-receipts.{file_extension}")
     };
 
-    let _document = upload_and_return_document_postgres(
+    let _document = upload_and_return_document(
         &hasura_transaction,
         &final_zipped_file,
         file_size,

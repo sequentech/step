@@ -2,11 +2,11 @@
 // SPDX-FileCopyrightText: 2024 David Ruescas <david@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::services::celery_app::get_celery_app;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::jwks::get_jwks_secret_path;
 use crate::services::providers::sms_sender::{SmsSender, SmsTransport};
 use crate::services::vault::check_master_secret;
-use crate::{hasura::tenant::get_tenant, services::celery_app::get_celery_app};
 use core::time::Duration;
 use deadpool_postgres::Timeouts;
 use sequent_core::services::keycloak::get_client_credentials;
@@ -16,7 +16,6 @@ use std::net::SocketAddr;
 use strum_macros::Display;
 use tokio::join;
 use tracing::{error, info, instrument, warn};
-use uuid::Uuid;
 
 use super::celery_app::get_is_app_active;
 
@@ -161,56 +160,26 @@ async fn check_sms_sender(app_name: &AppName) -> Option<bool> {
 }
 
 #[instrument(ret)]
-async fn check_hasura_graphql(app_name: &AppName) -> Option<bool> {
-    if AppName::BEAT == *app_name {
-        return None;
-    }
-
-    let keycloak_hasura_result = get_client_credentials().await;
-
-    let hasura_query_ok = if let Ok(auth_headers) = keycloak_hasura_result {
-        get_tenant(auth_headers, Uuid::new_v4().to_string())
-            .await
-            .is_ok()
-    } else {
-        info!("Can't connect to hasura graphql because can't authenticate to keycloak");
-        return Some(false);
-    };
-
-    Some(hasura_query_ok)
-}
-
-#[instrument(ret)]
 async fn readiness_test(app_name: &AppName) -> bool {
     // Use futures::join! to await multiple futures concurrently
-    let (
-        celery_ok,
-        hasura_db_ok,
-        keycloak_db_ok,
-        hasura_graphql_ok,
-        aws_secrets_ok,
-        s3_ok,
-        sms_sender_ok,
-    ) = join!(
+    let (celery_ok, hasura_db_ok, keycloak_db_ok, aws_secrets_ok, s3_ok, sms_sender_ok) = join!(
         check_celery(app_name),
         check_hasura_db(app_name),
         check_keycloak_db(app_name),
-        check_hasura_graphql(app_name),
         check_aws_secrets(app_name),
         check_s3(app_name),
         check_sms_sender(app_name),
     );
 
     info!(
-        "celery: {:?}, hasura_db: {:?} , keycloak db: {:?}, hasura_graphql: {:?}, aws_secrets: {:?}, s3: {:?}, sms_sender: {:?}",
-        celery_ok, hasura_db_ok, keycloak_db_ok, hasura_graphql_ok, aws_secrets_ok, s3_ok, sms_sender_ok
+        "celery: {:?}, hasura_db: {:?} , keycloak db: {:?}, aws_secrets: {:?}, s3: {:?}, sms_sender: {:?}",
+        celery_ok, hasura_db_ok, keycloak_db_ok, aws_secrets_ok, s3_ok, sms_sender_ok
     );
 
     let data = vec![
         celery_ok,
         hasura_db_ok,
         keycloak_db_ok,
-        hasura_graphql_ok,
         aws_secrets_ok,
         s3_ok,
         sms_sender_ok,

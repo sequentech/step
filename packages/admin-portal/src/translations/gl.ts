@@ -80,6 +80,7 @@ const galegoTranslation: TranslationType = {
                 EXPORT_APPLICATION: "Exportar Solicitudes",
                 EXPORT_TENANT_CONFIG: "Exportar Configuración del Cliente",
                 IMPORT_TENANT_CONFIG: "Importar Configuración del Cliente",
+                RENDER_DOCUMENT_PDF: "Renderizar el documento PDF",
             },
             widget: {
                 taskTitle: "Tarefa: {{title}}",

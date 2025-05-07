@@ -80,6 +80,7 @@ const tagalogTranslation: TranslationType = {
                 EXPORT_APPLICATION: "I-export ang Mga Aplikasyon",
                 EXPORT_TENANT_CONFIG: "I-export ang Configurasyon ng Tenant",
                 IMPORT_TENANT_CONFIG: "I-import ang Configurasyon ng Tenant",
+                RENDER_DOCUMENT_PDF: "I-render ang dokumento bilang PDF",
             },
             widget: {
                 taskTitle: "Gawain: {{title}}",
