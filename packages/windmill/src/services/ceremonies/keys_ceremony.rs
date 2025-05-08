@@ -11,7 +11,6 @@ use crate::postgres::trustee;
 use crate::services::celery_app::get_celery_app;
 use crate::services::ceremonies::serialize_logs::*;
 use crate::services::election_event_board::get_election_event_board;
-use crate::services::election_event_status::get_election_event_status;
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::private_keys::get_trustee_encrypted_private_key;
 use crate::services::protocol_manager::get_election_board;

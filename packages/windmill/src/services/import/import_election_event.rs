@@ -436,10 +436,7 @@ pub async fn process_election_event_file(
             .with_context(|| "Error serializing election event statistics")?,
     );
 
-    data.election_event.status = Some(
-        serde_json::to_value(ElectionEventStatus::default())
-            .with_context(|| "Error serializing election event status")?,
-    );
+    data.election_event.status = Some(ElectionEventStatus::default());
 
     // Process elections
     data.elections = data
@@ -452,23 +449,14 @@ pub async fn process_election_event_file(
                     .with_context(|| "Error serializing election statistics")?,
             );
 
-            let mut status: ElectionStatus = clone
-                .status
-                .clone()
-                .map(|value| deserialize_value::<ElectionStatus>(value))
-                .transpose()
-                .unwrap_or_default()
-                .unwrap_or_default();
+            let mut status: ElectionStatus = clone.status.clone().unwrap_or_default();
 
             status.voting_status = VotingStatus::default();
             status.kiosk_voting_status = VotingStatus::default();
             status.voting_period_dates = PeriodDates::default();
             status.kiosk_voting_period_dates = PeriodDates::default();
 
-            clone.status = Some(
-                serde_json::to_value(status)
-                    .with_context(|| "Error serializing election status")?,
-            );
+            clone.status = Some(status);
             clone.initialization_report_generated = Some(false);
 
             Ok(clone)

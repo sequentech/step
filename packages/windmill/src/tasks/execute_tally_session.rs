@@ -32,7 +32,6 @@ use crate::services::ceremonies::velvet_tally::run_velvet_tally;
 use crate::services::ceremonies::velvet_tally::AreaContestDataType;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::election::get_election_event_elections;
-use crate::services::election_event_status::get_election_event_status;
 use crate::services::pg_lock::PgLock;
 use crate::services::protocol_manager;
 use crate::services::reports::electoral_results::ElectoralResults;
@@ -1254,8 +1253,7 @@ pub async fn execute_tally_session_wrapped(
         // get the election event
         let election_event =
             get_election_event_by_id(hasura_transaction, &tenant_id, &election_event_id).await?;
-        let current_status = get_election_event_status(election_event.status)
-            .ok_or(anyhow!("Empty election status"))?;
+        let current_status = election_event.status.unwrap_or_default();
         let new_event_status = current_status.clone();
         let new_status_js = serde_json::to_value(new_event_status)?;
         update_election_event_status(

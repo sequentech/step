@@ -16,7 +16,6 @@ use crate::postgres::{
 };
 use crate::services::consolidation::eml_generator::ValidateAnnotations;
 use crate::services::election_dates::get_election_dates;
-use crate::services::election_event_status::get_election_status;
 use crate::services::temp_path::*;
 use crate::services::transmission::{
     get_transmission_data_from_tally_session_by_area, get_transmission_servers_data,
@@ -203,7 +202,7 @@ impl TemplateRenderer for OVCSEventsTemplate {
             .map_err(|err| anyhow!("Error at get_areas_by_election_id: {err:?}"))?;
 
             // Get OVCS status
-            let status = get_election_status(election.status.clone()).unwrap_or_default();
+            let status = election.status.clone().unwrap_or_default();
 
             let tally_sessions = get_tally_sessions_by_election_id(
                 hasura_transaction,

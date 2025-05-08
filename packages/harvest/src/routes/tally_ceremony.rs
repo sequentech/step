@@ -187,10 +187,7 @@ pub async fn update_tally_ceremony(
     .iter()
     .all(|election| {
         if let Some(election_status) = &election.status {
-            deserialize_with_path::deserialize_value::<ElectionStatus>(
-                election_status.clone(),
-            )
-            .map(|election_status| match tally_type {
+            match tally_type {
                 TallyType::ELECTORAL_RESULTS => {
                     election_status.allow_tally == AllowTallyStatus::ALLOWED
                         || (election_status.allow_tally
@@ -201,8 +198,7 @@ pub async fn update_tally_ceremony(
                 TallyType::INITIALIZATION_REPORT => {
                     election_status.init_report == InitReport::ALLOWED
                 }
-            })
-            .unwrap_or(true)
+            }
         } else {
             true
         }

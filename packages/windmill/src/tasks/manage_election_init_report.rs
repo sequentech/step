@@ -67,12 +67,8 @@ async fn manage_election_init_report_wrapped(
     };
     let event_payload: ManageAllowInitPayload = deserialize_value(event_payload)?;
 
-    // Handle election.status: deserialize if Some, else initialize with default values
-    let election_status: ElectionStatus = if let Some(status_value) = election.status.take() {
-        deserialize_value::<ElectionStatus>(status_value)?
-    } else {
-        ElectionStatus::default()
-    };
+    // Handle election.status: get it if Some, else initialize with default values
+    let election_status: ElectionStatus = election.status.unwrap_or_default();
 
     // Update init_report based on event_payload
     let updated_status = ElectionStatus {

@@ -62,11 +62,7 @@ async fn manage_election_allow_tally_wrapped(
     };
 
     // Handle election.status: deserialize if Some, else initialize with default values
-    let election_status: ElectionStatus = if let Some(status_value) = election.status.take() {
-        deserialize_value::<ElectionStatus>(status_value)?
-    } else {
-        ElectionStatus::default()
-    };
+    let election_status: ElectionStatus = election.status.unwrap_or_default();
 
     let updated_status = ElectionStatus {
         allow_tally: AllowTallyStatus::ALLOWED,

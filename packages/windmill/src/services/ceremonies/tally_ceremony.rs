@@ -25,7 +25,6 @@ use crate::services::ceremonies::serialize_logs::{
     append_tally_trustee_log, generate_tally_initial_log,
 };
 use crate::services::election_event_board::get_election_event_board;
-use crate::services::election_event_status::get_election_status;
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::tally_sheets::tally;
 use anyhow::{anyhow, Context, Result};
@@ -308,7 +307,7 @@ pub async fn create_tally_ceremony(
         .into_iter()
         .filter(|election| {
             if election_ids.contains(&election.id) {
-                let status = get_election_status(election.status.clone()).unwrap_or_default();
+                let status = election.status.clone().unwrap_or_default();
                 if let Some(is_published) = status.is_published {
                     is_published // Include only if `is_published` is true
                 } else {

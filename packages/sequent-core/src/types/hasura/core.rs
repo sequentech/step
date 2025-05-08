@@ -11,6 +11,8 @@ use std::str::FromStr;
 
 use crate::{
     ballot::ContestEncryptionPolicy,
+    ballot::ElectionEventStatus,
+    ballot::ElectionStatus,
     serialization::deserialize_with_path::deserialize_value,
     types::{
         ceremonies::{KeysCeremonyExecutionStatus, KeysCeremonyStatus},
@@ -81,7 +83,7 @@ pub struct ElectionEvent {
     pub bulletin_board_reference: Option<Value>,
     pub is_archived: bool,
     pub voting_channels: Option<Value>,
-    pub status: Option<Value>,
+    pub status: Option<ElectionEventStatus>,
     pub user_boards: Option<String>,
     pub encryption_protocol: String,
     pub is_audit: Option<bool>,
@@ -103,7 +105,7 @@ pub struct Election {
     pub name: String,
     pub description: Option<String>,
     pub presentation: Option<Value>,
-    pub status: Option<Value>,
+    pub status: Option<ElectionStatus>,
     pub eml: Option<String>,
     pub num_allowed_revotes: Option<i64>,
     pub is_consolidated_ballot_encoding: Option<bool>,

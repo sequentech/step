@@ -17,6 +17,8 @@ pub struct ElectionEventWrapper(pub ElectionEventData);
 impl TryFrom<Row> for ElectionEventWrapper {
     type Error = anyhow::Error;
     fn try_from(item: Row) -> Result<Self> {
+        let status = serde_json::from_value(item.try_get("status")?)
+            .map_err(|err| anyhow!("Error deserializing election status: {err}"))?;
         Ok(ElectionEventWrapper(ElectionEventData {
             id: item.try_get::<_, Uuid>("id")?.to_string(),
             created_at: item.get("created_at"),
@@ -30,7 +32,7 @@ impl TryFrom<Row> for ElectionEventWrapper {
             bulletin_board_reference: item.try_get("bulletin_board_reference")?,
             is_archived: item.get("is_archived"),
             voting_channels: item.try_get("voting_channels")?,
-            status: item.try_get("status")?,
+            status,
             user_boards: item.get("user_boards"),
             encryption_protocol: item.get("encryption_protocol"),
             is_audit: item.get("is_audit"),
@@ -50,7 +52,8 @@ pub async fn insert_election_event(
     election_event: &ElectionEventData,
 ) -> Result<()> {
     election_event.validate()?;
-
+    let status = serde_json::to_value(election_event.status.clone().unwrap_or_default())
+        .map_err(|err| anyhow!("Error serializing election_event status: {err}"))?;
     let statement = hasura_transaction
         .prepare(
             r#"
@@ -76,7 +79,7 @@ pub async fn insert_election_event(
                 &election_event.bulletin_board_reference,
                 &election_event.is_archived,
                 &election_event.voting_channels,
-                &election_event.status,
+                &status,
                 &election_event.user_boards,
                 &election_event.encryption_protocol,
                 &election_event.is_audit,

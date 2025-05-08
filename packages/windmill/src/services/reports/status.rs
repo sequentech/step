@@ -156,7 +156,7 @@ impl TemplateRenderer for StatusTemplate {
             .map_err(|err| anyhow!("Error extract election annotations {err}"))?;
 
         // Get OVCS status
-        let status = get_election_status(election.status.clone()).unwrap_or_default();
+        let status = election.status.clone().unwrap_or_default();
 
         let ovcs_status = match status.voting_status {
             VotingStatus::NOT_STARTED => "NOT INITIALIZED".to_string(),
@@ -292,8 +292,4 @@ impl TemplateRenderer for StatusTemplate {
             })
         }
     }
-}
-
-pub fn get_election_status(status_json_opt: Option<Value>) -> Option<ElectionStatus> {
-    status_json_opt.and_then(|status_json| deserialize_value(status_json).ok())
 }

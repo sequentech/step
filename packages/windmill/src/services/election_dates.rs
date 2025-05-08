@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::election::*;
 use crate::postgres::scheduled_event::*;
-use crate::services::election_event_status::get_election_event_status;
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::{
@@ -108,8 +107,7 @@ pub fn get_election_dates(
     election: &Election,
     scheduled_events: Vec<ScheduledEvent>,
 ) -> Result<StringifiedPeriodDates> {
-    let status: ElectionEventStatus =
-        get_election_event_status(election.status.clone()).unwrap_or_default();
+    let status = election.status.clone().unwrap_or_default();
     let period_dates: PeriodDates = status.voting_period_dates;
     let mut dates = period_dates.to_string_fields();
 

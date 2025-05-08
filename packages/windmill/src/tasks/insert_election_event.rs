@@ -16,6 +16,7 @@ use celery::error::TaskError;
 use deadpool_postgres::Transaction;
 use keycloak::types::RealmRepresentation;
 use sequent_core;
+use sequent_core::ballot::ElectionEventStatus;
 use sequent_core::services::connection;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::keycloak::{get_client_credentials, KeycloakAdminClient};
@@ -133,7 +134,7 @@ pub struct CreateElectionEventInput {
     pub bulletin_board_reference: Option<Value>,
     pub is_archived: Option<bool>,
     pub voting_channels: Option<Value>,
-    pub status: Option<Value>,
+    pub status: Option<ElectionEventStatus>,
     pub user_boards: Option<String>,
     pub encryption_protocol: Option<String>,
     pub is_audit: Option<bool>,

@@ -15,14 +15,6 @@ use tracing::{event, info, instrument, Level};
 
 use super::voting_status::update_board_on_status_change;
 
-pub fn get_election_event_status(status_json_opt: Option<Value>) -> Option<ElectionEventStatus> {
-    status_json_opt.and_then(|status_json| deserialize_value(status_json).ok())
-}
-
-pub fn get_election_status(status_json_opt: Option<Value>) -> Option<ElectionStatus> {
-    status_json_opt.and_then(|status_json| deserialize_value(status_json).ok())
-}
-
 #[instrument(err)]
 pub async fn update_event_voting_status(
     hasura_transaction: &Transaction<'_>,
@@ -37,8 +29,7 @@ pub async fn update_event_voting_status(
         .await
         .with_context(|| "Error obtaining election event")?;
 
-    let mut status =
-        get_election_event_status(election_event.status.clone()).unwrap_or(Default::default());
+    let mut status = election_event.status.clone().unwrap_or_default();
     let elections = get_elections(hasura_transaction, tenant_id, election_event_id, None)
         .await
         .with_context(|| "Error obtaining elections")?;
@@ -46,9 +37,7 @@ pub async fn update_event_voting_status(
     let mut elections_status = HashMap::new();
 
     for election in &elections {
-        let election_status =
-            get_election_status(election.status.clone()).unwrap_or(Default::default());
-
+        let election_status = election.status.clone().unwrap_or_default();
         elections_status.insert(election.id.clone(), election_status);
     }
 
@@ -207,7 +196,7 @@ pub async fn update_election_voting_status_impl(
         return Ok(());
     };
 
-    let mut status = get_election_status(election.status.clone()).unwrap_or_default();
+    let mut status = election.status.clone().unwrap_or_default();
 
     let current_voting_status = status.status_by_channel(&channel).clone();
 

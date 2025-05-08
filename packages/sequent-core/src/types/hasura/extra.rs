@@ -41,10 +41,6 @@ impl ElectionEvent {
             serde_json::from_value::<VotingChannels>(voting_channels.clone())?;
         }
 
-        if let Some(status) = &self.status {
-            serde_json::from_value::<ElectionEventStatus>(status.clone())?;
-        }
-
         if let Some(statistics) = &self.statistics {
             serde_json::from_value::<ElectionEventStatistics>(
                 statistics.clone(),
@@ -71,10 +67,6 @@ impl Election {
 
         if let Some(voting_channels) = &self.voting_channels {
             serde_json::from_value::<VotingChannels>(voting_channels.clone())?;
-        }
-
-        if let Some(status) = &self.status {
-            serde_json::from_value::<ElectionStatus>(status.clone())?;
         }
 
         if let Some(statistics) = &self.statistics {

@@ -22,8 +22,6 @@ use serde_json::Value;
 use tracing::info;
 use tracing::instrument;
 
-use super::election_event_status::get_election_event_status;
-
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UpdateElectionVotingStatusInput {
     pub election_event_id: String,
@@ -49,11 +47,11 @@ pub async fn update_election_status(
     voting_channels: &Option<Vec<VotingStatusChannel>>,
 ) -> Result<()> {
     let election_event =
-        get_election_event_by_id(&hasura_transaction, &tenant_id, election_event_id)
+        get_election_event_by_id(hasura_transaction, &tenant_id, election_event_id)
             .await
             .with_context(|| "error getting election event")?;
-    let mut status =
-        get_election_event_status(election_event.status.clone()).unwrap_or(Default::default());
+
+    let mut status = election_event.status.clone().unwrap_or_default();
 
     let voting_channels: Vec<VotingStatusChannel> = if let Some(channel) = voting_channels {
         info!("Reading input voting channels {channel:?}");
@@ -246,10 +244,7 @@ pub fn get_election_status_info(election: &Election) -> ElectionStatusInfo {
     let mut total_closed_votes: i64 = 0;
     let mut total_started_votes: i64 = 0;
 
-    let election_status = election.status.clone();
-    let status: Option<ElectionStatus> =
-        election_status.and_then(|status_json| deserialize_value(status_json).ok());
-
+    let status: Option<ElectionStatus> = election.status.clone();
     let election_voting_channels = election.voting_channels.clone();
     let voting_channels: Option<VotingChannels> = election_voting_channels
         .and_then(|voting_channels_json| deserialize_value(voting_channels_json).ok());

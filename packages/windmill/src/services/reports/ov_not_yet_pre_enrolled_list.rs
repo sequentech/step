@@ -668,7 +668,3 @@ impl TemplateRenderer for NotPreEnrolledListTemplate {
         }
     }
 }
-
-pub fn get_election_status(status_json_opt: Option<Value>) -> Option<ElectionStatus> {
-    status_json_opt.and_then(|status_json| deserialize_value(status_json).ok())
-}

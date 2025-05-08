@@ -760,13 +760,7 @@ async fn check_status(
         None
     };
 
-    let election_status: ElectionStatus = election
-        .status
-        .clone()
-        .map(|value| deserialize_value(value).context("Failed to deserialize election status"))
-        .transpose()
-        .map(|value| value.unwrap_or_default())
-        .map_err(|e| CastVoteError::CheckStatusInternalFailed(e.to_string()))?;
+    let election_status: ElectionStatus = election.status.clone().unwrap_or_default();
 
     let election_voting_channels: VotingChannels = election
         .voting_channels

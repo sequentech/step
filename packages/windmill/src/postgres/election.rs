@@ -5,10 +5,11 @@ use crate::services::import::import_election_event::ImportElectionEventSchema;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::ElectionPresentation;
+use sequent_core::ballot::ElectionStatus;
 use sequent_core::types::hasura::core::Election;
 use serde_json::Value;
 use tokio_postgres::row::Row;
-use tracing::{event, instrument, Level};
+use tracing::{event, info, instrument, Level};
 use uuid::Uuid;
 
 pub struct ElectionWrapper(pub Election);
@@ -18,6 +19,8 @@ impl TryFrom<Row> for ElectionWrapper {
 
     fn try_from(item: Row) -> Result<Self> {
         let num_allowed_revotes: Option<i32> = item.try_get("num_allowed_revotes")?;
+        let status = serde_json::from_value(item.try_get("status")?)
+            .map_err(|err| anyhow!("Error deserializing election status: {err}"))?;
 
         Ok(ElectionWrapper(Election {
             id: item.try_get::<_, Uuid>("id")?.to_string(),
@@ -30,7 +33,7 @@ impl TryFrom<Row> for ElectionWrapper {
             name: item.try_get("name")?,
             description: item.try_get("description")?,
             presentation: item.try_get("presentation")?,
-            status: item.try_get("status")?,
+            status,
             eml: item.try_get("eml")?,
             num_allowed_revotes: num_allowed_revotes.map(|val| val as i64),
             is_consolidated_ballot_encoding: item.try_get("is_consolidated_ballot_encoding")?,
@@ -391,6 +394,7 @@ pub async fn create_election(
 ) -> Result<Election> {
     let presentation_value = serde_json::to_value(presentation)
         .map_err(|err| anyhow!("Error serializing election presentation: {err}"))?;
+    let status_value = serde_json::to_value(ElectionStatus::default())?;
 
     let statement = hasura_transaction
         .prepare(
@@ -403,7 +407,8 @@ pub async fn create_election(
                     last_updated_at,
                     name,
                     description,
-					presentation
+					presentation,
+                    status
                 )
                 VALUES
                 (
@@ -413,7 +418,8 @@ pub async fn create_election(
                     NOW(),
                     $3,
                     $4,
-					$5
+					$5,
+                    $6
                 )
                 RETURNING *;
             "#,
@@ -429,6 +435,7 @@ pub async fn create_election(
                 &name.to_string(),
                 &description,
                 &presentation_value,
+                &status_value,
             ],
         )
         .await
@@ -440,7 +447,8 @@ pub async fn create_election(
             row.try_into()
                 .map(|res: ElectionWrapper| -> Election { res.0 })
         })
-        .collect::<Result<Vec<Election>>>()?;
+        .collect::<Result<Vec<Election>>>()
+        .map_err(|err| anyhow!("Error casting rows: {err}"))?;
 
     Ok(elections
         .first()
@@ -454,6 +462,9 @@ pub async fn insert_elections(
     data: &ImportElectionEventSchema,
 ) -> Result<()> {
     for election in &data.elections {
+        let status = serde_json::to_value(election.status.clone())
+            .map_err(|err| anyhow!("Error serializing election status: {err}"))?;
+
         election.validate()?;
         let keys_ceremony_id_uuid_opt = election
             .keys_ceremony_id
@@ -534,7 +545,7 @@ pub async fn insert_elections(
                     &election.name,
                     &election.description,
                     &election.presentation,
-                    &election.status,
+                    &status,
                     &election.eml,
                     &election
                         .num_allowed_revotes

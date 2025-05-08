@@ -10,7 +10,6 @@ use crate::postgres::election::{get_elections_ids, update_election_status};
 use crate::postgres::election_event::{get_election_event_by_id, update_election_event_status};
 use crate::services::celery_app::get_celery_app;
 use crate::services::election_event_board::get_election_event_board;
-use crate::services::election_event_status::get_election_event_status;
 use crate::services::electoral_log::*;
 use crate::tasks::update_election_event_ballot_styles::update_election_event_ballot_styles;
 use anyhow::{anyhow, Context, Result};
@@ -141,8 +140,7 @@ pub async fn update_publish_ballot(
     )
     .await?;
 
-    let mut new_status: ElectionEventStatus =
-        get_election_event_status(election_event.status).unwrap_or(Default::default());
+    let mut new_status = election_event.status.clone().unwrap_or_default();
     new_status.is_published = Some(true);
     let new_status_js = serde_json::to_value(new_status)?;
 
