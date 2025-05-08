@@ -43,10 +43,10 @@ import {GetBallotStylesQuery, GetElectionEventQuery, GetElectionsQuery} from "..
 import {GET_ELECTIONS} from "../queries/GetElections"
 import {downloadUrl} from "@sequentech/ui-core"
 import {SessionBallotData} from "../store/castVotes/castVotesSlice"
-import { GET_ELECTION_EVENT } from "../queries/GetElectionEvent"
+import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
 import useUpdateTranslation from "../hooks/useUpdateTranslation"
 import useLanguage from "../hooks/useLanguage"
-import { GET_BALLOT_STYLES } from "../queries/GetBallotStyles"
+import {GET_BALLOT_STYLES} from "../queries/GetBallotStyles"
 import {updateBallotStyleAndSelection} from "../services/BallotStyles"
 
 const StyledTitle = styled(Typography)`
@@ -292,7 +292,6 @@ const ConfirmationScreen: React.FC = () => {
 
     const oneBallotStyle = useAppSelector(selectFirstBallotStyle)
     useLanguage({ballotStyle: oneBallotStyle})
-    
 
     const {globalSettings} = useContext(SettingsContext)
 
@@ -360,7 +359,7 @@ const ConfirmationScreen: React.FC = () => {
         electionEvent: dataElectionEvent?.sequent_backend_election_event[0] as IElectionEvent,
     }) // Overwrite translations
     const dispatch = useAppDispatch()
-    
+
     // Update ballot style and selection when ballot style data changes
     useEffect(() => {
         if (dataBallotStyles && dataBallotStyles.sequent_backend_ballot_style.length > 0) {
