@@ -28,9 +28,9 @@ jobs:
     - name: Install Maven
       run: |
         set -eux
-        apt update
+        sudo apt update
         mkdir -p /usr/share/man/man1
-        apt install -y build-essential maven
+        sudo apt install -y build-essential maven
   
     - name: Keycloak Extensions Build and Test with Maven
       run: mvn -B clean verify --file packages/keycloak-extensions/pom.xml
