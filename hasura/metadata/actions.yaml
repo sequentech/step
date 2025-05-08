@@ -482,6 +482,24 @@ actions:
           - role: admin-user
           - role: voter-read
           - role: user-read
+    - name: export_verifiable_bulletin_board
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/export-verifiable-bulletin-board
+          request_transform:
+              body:
+                  action: transform
+                  template: |-
+                      {
+                        "users": {
+                          "name": {{$body.input.arg1.username}},
+                          "password": {{$body.input.arg1.password}}
+                        }
+                      }
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: export-verifiable-bulletin-board
     - name: fetchDocument
       definition:
           kind: ""
@@ -1434,4 +1452,5 @@ custom_types:
         - name: ApplicationChangeStatusOutput
         - name: CountUsersOutput
         - name: RenderDocumentPDFOutput
+        - name: ExportVerifiableBulletinBoardOutput
     scalars: []

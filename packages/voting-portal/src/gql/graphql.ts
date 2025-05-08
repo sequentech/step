@@ -402,6 +402,13 @@ export type ExportUsersOutput = {
   task_execution?: Maybe<Tasks_Execution_Type>;
 };
 
+export type ExportVerifiableBulletinBoardOutput = {
+  __typename?: 'ExportVerifiableBulletinBoardOutput';
+  document_id: Scalars['String']['output'];
+  error_msg?: Maybe<Scalars['String']['output']>;
+  task_execution: Tasks_Execution_Type;
+};
+
 export type FetchDocumentOutput = {
   __typename?: 'FetchDocumentOutput';
   url: Scalars['String']['output'];
@@ -1229,6 +1236,7 @@ export type Mutation_Root = {
   export_tenant_config?: Maybe<DocumentTaskOutput>;
   export_tenant_users?: Maybe<ExportTenantUsersOutput>;
   export_users?: Maybe<ExportUsersOutput>;
+  export_verifiable_bulletin_board?: Maybe<ExportVerifiableBulletinBoardOutput>;
   generate_ballot_publication?: Maybe<PublishBallotOutput>;
   generate_report?: Maybe<GenerateReportOutput>;
   generate_template?: Maybe<GenerateTemplateOutput>;
@@ -2354,6 +2362,14 @@ export type Mutation_RootExport_Tenant_UsersArgs = {
 export type Mutation_RootExport_UsersArgs = {
   election_event_id?: InputMaybe<Scalars['String']['input']>;
   election_id?: InputMaybe<Scalars['String']['input']>;
+  tenant_id: Scalars['String']['input'];
+};
+
+
+/** mutation root */
+export type Mutation_RootExport_Verifiable_Bulletin_BoardArgs = {
+  election_event_id: Scalars['String']['input'];
+  tally_session_id: Scalars['String']['input'];
   tenant_id: Scalars['String']['input'];
 };
 

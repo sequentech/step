@@ -217,6 +217,14 @@ type Mutation {
     ): ExportUsersOutput
 }
 
+type Mutation {
+    export_verifiable_bulletin_board(
+        tenant_id: String!
+        election_event_id: String!
+        tally_session_id: String!
+    ): ExportVerifiableBulletinBoardOutput
+}
+
 type Query {
     fetchDocument(
         election_event_id: String
@@ -1574,4 +1582,10 @@ type CountUsersOutput {
 type RenderDocumentPDFOutput {
     document_id: String
     task_execution: tasks_execution_type
+}
+
+type ExportVerifiableBulletinBoardOutput {
+    error_msg: String
+    task_execution: tasks_execution_type!
+    document_id: String!
 }

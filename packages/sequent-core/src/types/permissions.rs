@@ -395,6 +395,8 @@ pub enum Permissions {
     // permission to edit voter fields: email and mobile number
     #[strum(serialize = "voter-email-tlf-edit")]
     VOTER_EMAIL_TLF_EDIT,
+    #[strum(serialize = "export-verifiable-bulletin-board")]
+    EXPORT_VERIFIABLE_BULLETIN_BOARD,
 }
 
 #[allow(non_camel_case_types)]
