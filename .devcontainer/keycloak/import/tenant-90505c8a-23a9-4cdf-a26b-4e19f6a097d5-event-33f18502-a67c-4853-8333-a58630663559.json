@@ -407,35 +407,6 @@
   "webAuthnPolicyPasswordlessAcceptableAaguids" : [ ],
   "webAuthnPolicyPasswordlessExtraOrigins" : [ ],
   "users" : [ {
-    "id" : "3af6b51d-70e6-42c5-a5ec-d167788569c4",
-    "username" : "edulix@nvotes.com",
-    "firstName" : "Eduardo",
-    "lastName" : "Robles",
-    "email" : "edulix@nvotes.com",
-    "emailVerified" : true,
-    "attributes" : {
-      "sequent.read-only.id-card-number-validated" : [ "VERIFIED" ],
-      "sequent.read-only.mobile-number" : [ "+34634571634" ],
-      "sequent.read-only.id-card-number" : [ "44055908Y" ],
-      "locale" : [ "en" ],
-      "sequent.read-only.id-card-type" : [ "PhilSys ID" ]
-    },
-    "createdTimestamp" : 1712678654038,
-    "enabled" : true,
-    "totp" : false,
-    "credentials" : [ {
-      "id" : "6666f283-0533-47e7-8bf3-49349869d935",
-      "type" : "password",
-      "createdDate" : 1712678753664,
-      "secretData" : "{\"value\":\"R0FFBSfdWOUIBuytr6got3nN6gHMPi8Uyy0Z29klk4114VyGinYQESXgZ9uAd+x6RyZHUuC84bYhkHiL2zRnhQ==\",\"salt\":\"DCA5M3VO2+53DuIeAEAcBg==\",\"additionalParameters\":{}}",
-      "credentialData" : "{\"hashIterations\":210000,\"algorithm\":\"pbkdf2-sha512\",\"additionalParameters\":{}}"
-    } ],
-    "disableableCredentialTypes" : [ ],
-    "requiredActions" : [ ],
-    "realmRoles" : [ "default-roles-tenant90505c8a23a94cdfa26b4e19f6a097d5event33f18502a67c48538333a58630663559" ],
-    "notBefore" : 0,
-    "groups" : [ "/voter" ]
-  }, {
     "id" : "70b94833-4ef2-432e-b34a-3cdc8c8138d3",
     "username" : "service-account-realm-management",
     "emailVerified" : false,
@@ -452,27 +423,8 @@
     },
     "notBefore" : 0,
     "groups" : [ ]
-  }, {
-    "id" : "6bbb4575-8761-4eaf-9799-03dbbb0f637b",
-    "username" : "xavier.alsina@sequentech.io",
-    "firstName" : "Xavier",
-    "lastName" : "Alsina",
-    "emailVerified" : false,
-    "attributes" : {
-      "country" : [ "Algiers/Algeria" ],
-      "embassy" : [ "Algiers" ],
-      "locale" : [ "en" ]
-    },
-    "createdTimestamp" : 1721994783438,
-    "enabled" : true,
-    "totp" : false,
-    "credentials" : [ ],
-    "disableableCredentialTypes" : [ ],
-    "requiredActions" : [ ],
-    "realmRoles" : [ "default-roles-tenant90505c8a23a94cdfa26b4e19f6a097d5event33f18502a67c48538333a58630663559" ],
-    "notBefore" : 0,
-    "groups" : [ "/voter" ]
-  } ],
+  }
+ ],
   "scopeMappings" : [ {
     "clientScope" : "offline_access",
     "roles" : [ "offline_access" ]

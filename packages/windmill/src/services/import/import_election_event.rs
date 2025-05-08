@@ -210,12 +210,9 @@ pub async fn upsert_keycloak_realm(
     election_event_id: &str,
     keycloak_event_realm: Option<RealmRepresentation>,
 ) -> Result<()> {
-    let realm = if let Some(realm) = keycloak_event_realm.clone() {
-        realm
-    } else {
-        let realm = read_default_election_event_realm()?;
-        realm
-    };
+    let realm = keycloak_event_realm
+        .clone()
+        .unwrap_or(read_default_election_event_realm()?);
     let realm_config = serde_json::to_string(&realm)?;
     let client = KeycloakAdminClient::new().await?;
     let realm_name = get_event_realm(tenant_id, election_event_id);

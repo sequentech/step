@@ -55,7 +55,7 @@ pub async fn insert_election_event_anyhow(
 
     final_object.id = Some(id.clone());
 
-    match upsert_keycloak_realm(tenant_id.as_str(), &id.as_ref(), None).await {
+    match upsert_keycloak_realm(tenant_id.as_str(), id.as_ref(), None).await {
         Ok(realm) => Some(realm),
         Err(err) => {
             update_fail(

@@ -670,6 +670,13 @@ pub async fn list_users(
         params.push(value);
     }
 
+    // TODO: Filter users in the "voter" group
+    // user_entity > realm_id, id (2fb2)
+    // Find the group_id with the user_id(2fb2) in user_group_membership
+    // user_group_membership > group_id (ea0da), user_id
+    // Find the keycloak_group name "voter" with the id (ea0da) in keycloak_group
+    // keycloak_group > id, realm_id
+
     debug!("parameters count: {}", next_param_number - 1);
     debug!("params {:?}", params);
     let statement_str = format!(
