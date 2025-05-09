@@ -41,6 +41,7 @@ use strum_macros::{Display, EnumString, ToString};
 use tempfile::NamedTempFile;
 use tokio_stream::{Stream, StreamExt};
 use tracing::{event, info, instrument, Level};
+
 pub struct ElectoralLog {
     pub(crate) sd: SigningData,
     pub(crate) elog_database: String,
@@ -1125,6 +1126,57 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
         total: TotalAggregate {
             aggregate: aggregate,
         },
+    })
+}
+
+// TODO: Move to the top, once not needed stuff has been removed.
+#[derive(Deserialize, Debug)]
+pub struct CastVoteMessagesInput {
+    pub tenant_id: String,
+    pub election_event_id: String,
+    pub election_id: Option<String>, // ???
+    pub ballot_id: String,
+    pub limit: Option<i64>,
+    pub offset: Option<i64>,
+    pub order_by: Option<HashMap<OrderField, OrderDirection>>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct CastVoteMessagesOutput {
+    pub statement_timestamp: i64,
+    pub statement_kind: String,
+    pub ballot_id: String,
+    pub username: Option<String>,
+}
+
+/// Returns the entries: ballotID, username, timestamp and statement Kind.
+#[instrument(err)]
+pub async fn list_cast_vote_messages(
+    input: CastVoteMessagesInput,
+) -> Result<DataList<CastVoteMessagesOutput>> {
+    let filter_map: HashMap<OrderField, String> = HashMap::new();
+    // TODO: Filter by ballot_id and others
+    let filter = Some(filter_map);
+    let elog_input = GetElectoralLogBody {
+        tenant_id: input.tenant_id,
+        election_event_id: input.election_event_id,
+        limit: input.limit,
+        offset: input.offset,
+        filter,
+        order_by: input.order_by,
+        election_id: input.election_id,
+        area_ids: None,
+        only_with_user: None, //???
+    };
+
+    let list: DataList<ElectoralLogRow> = list_electoral_log(elog_input)
+        .await
+        .map_err(|e| anyhow!("Error listing electoral log: {e:?}"))?;
+    // create a fn or edit fn list_electoral_log_cv that returns DataList<CastVoteMessagesOutput>
+
+    Ok(DataList {
+        items: vec![CastVoteMessagesOutput::default()], // TODO
+        total: list.total,
     })
 }
 

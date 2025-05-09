@@ -47,6 +47,12 @@ async fn rocket() -> _ {
             ],
         )
         .mount(
+            "/voting-portal",
+            routes![
+                routes::voter_electoral_log::cast_vote_messages,
+            ],
+        )
+        .mount(
             "/",
             routes![
                 routes::ballot_publication::get_ballot_publication_changes,
