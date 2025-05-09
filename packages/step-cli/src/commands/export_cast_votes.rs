@@ -8,6 +8,7 @@ use anyhow::{anyhow, Context, Result};
 use base64::engine::general_purpose;
 use base64::Engine;
 use clap::Args;
+use csv::WriterBuilder;
 use electoral_log::messages::message::Message;
 use electoral_log::messages::newtypes::ElectionIdString;
 use electoral_log::messages::statement::StatementBody;
@@ -16,12 +17,11 @@ use sequent_core::encrypt::shorten_hash;
 use serde::Serialize;
 use serde_json::Value;
 use std::env;
+use std::fs::File;
 use strand::serialization::StrandDeserialize;
 use tokio_postgres::Transaction;
 use uuid::Uuid;
 use windmill::services::providers::transactions_provider::provide_hasura_transaction;
-use std::fs::File;
-use csv::WriterBuilder;
 
 #[derive(Serialize)]
 struct Record {
@@ -65,23 +65,23 @@ impl ExportCastVotes {
         let file = File::create("output.csv")?;
 
         println!("Creating writer");
-        let mut writer = WriterBuilder::new()
-        .from_writer(&file);
+        let mut writer = WriterBuilder::new().from_writer(&file);
 
         println!("Creating client");
-        let mut client = BoardClient::new(&self.server_url, &self.username, &self.password).await.map_err(|err| anyhow!("Failed to create the client: {:?}", err))?;
+        let mut client = BoardClient::new(&self.server_url, &self.username, &self.password)
+            .await
+            .map_err(|err| anyhow!("Failed to create the client: {:?}", err))?;
 
         println!("Getting messages");
         let electoral_log_messages = client
             .get_electoral_log_messages_filtered(&self.board_db, "CastVote", None, None, None)
-            .await.map_err(|err| anyhow!("Failed to get filtered messages: {:?}", err))?;
+            .await
+            .map_err(|err| anyhow!("Failed to get filtered messages: {:?}", err))?;
 
         println!("Parsing messages");
         for electoral_log_message in electoral_log_messages {
-            let message: &Message = &Message::strand_deserialize(
-                &electoral_log_message.message,
-            )
-            .map_err(|err| anyhow!("Failed to deserialize message: {:?}", err))?;
+            let message: &Message = &Message::strand_deserialize(&electoral_log_message.message)
+                .map_err(|err| anyhow!("Failed to deserialize message: {:?}", err))?;
 
             if let StatementBody::CastVote(
                 election_id_string,
@@ -92,19 +92,19 @@ impl ExportCastVotes {
             ) = &message.statement.body
             {
                 writer
-                .serialize(Record{
-                    created: electoral_log_message.created,
-                    election_id: election_id_string.clone(),
-                    hash_voter_id: hex::encode(pseudonym_hash.0.clone().to_inner()),
-                    ballot_id: hex::encode(shorten_hash(&cast_vote_hash.0.clone().to_inner())),
-                })
-                .map_err(|error| anyhow!("Failed to write row {}", error))?;
+                    .serialize(Record {
+                        created: electoral_log_message.created,
+                        election_id: election_id_string.clone(),
+                        hash_voter_id: hex::encode(pseudonym_hash.0.clone().to_inner()),
+                        ballot_id: hex::encode(shorten_hash(&cast_vote_hash.0.clone().to_inner())),
+                    })
+                    .map_err(|error| anyhow!("Failed to write row {}", error))?;
             };
         }
 
         writer
-        .flush()
-        .map_err(|error| anyhow!("Failed to flush writer {}", error))?;
+            .flush()
+            .map_err(|error| anyhow!("Failed to flush writer {}", error))?;
 
         Ok(())
     }
