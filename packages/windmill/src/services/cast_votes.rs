@@ -14,14 +14,14 @@ use deadpool_postgres::Transaction;
 use futures::TryStreamExt;
 use sequent_core::types::keycloak::{User, VotesInfo};
 use serde::{Deserialize, Serialize};
-use tokio::io::{copy, BufWriter};
 use std::collections::HashMap;
-use tokio::fs::File;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
+use tokio::fs::File;
+use tokio::io::{copy, BufWriter};
 use tokio_postgres::row::Row;
+use tokio_util::io::StreamReader;
 use tracing::{info, instrument};
 use uuid::Uuid;
-use tokio_util::io::StreamReader;
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct CastVote {
@@ -69,48 +69,40 @@ pub async fn find_area_ballots(
     area_id: &str,
     output_file: &mut File,
 ) -> Result<()> {
-    let tenant_uuid: uuid::Uuid = Uuid::parse_str(tenant_id)
-        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
-    let election_event_uuid: uuid::Uuid = Uuid::parse_str(election_event_id)
-        .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
-    let area_uuid: uuid::Uuid = Uuid::parse_str(area_id)
-        .map_err(|err| anyhow!("Error parsing area_id as UUID: {}", err))?;
-    let areas_statement = 
-            r#"
+    // COPY does not support parameters so we have to add them using format
+    let areas_statement = format!(
+        r#"
                     SELECT DISTINCT ON (election_id, voter_id_string)
                         id,
                         election_id,
-                        content,
+                        content
                     FROM "sequent_backend".cast_vote
                     WHERE
-                        tenant_id = $1 AND
-                        election_event_id = $2 AND
-                        area_id = $3
+                        tenant_id = '{tenant_id}' AND
+                        election_event_id = '{election_event_id}' AND
+                        area_id = '{area_id}'
                     ORDER BY election_id, voter_id_string, created_at DESC
-                    LIMIT $4 OFFSET $5
-                "#;
-
-    let copy_out_query = format!(
-        "COPY ({}) TO STDOUT WITH (FORMAT CSV)",
-        areas_statement
+                "#
     );
-    let mut writer = BufWriter::new(output_file); 
 
-    let statement = hasura_transaction.prepare(&copy_out_query).await?;
+    let copy_out_query = format!("COPY ({}) TO STDOUT WITH (FORMAT CSV)", areas_statement);
+    let mut writer = BufWriter::new(output_file);
 
-    let reader = hasura_transaction
-        .copy_out(&statement)
-        .await?;
+    info!("copy_out_query: {copy_out_query}");
 
-        let adapt_pg_error_to_io_error = |pg_err: tokio_postgres::Error| {
-            std::io::Error::new(std::io::ErrorKind::Other, pg_err.to_string())
-        };
-        let io_error_stream = reader.map_err(adapt_pg_error_to_io_error);
+    let reader = hasura_transaction.copy_out(&copy_out_query).await?;
+
+    let adapt_pg_error_to_io_error = |pg_err: tokio_postgres::Error| {
+        std::io::Error::new(std::io::ErrorKind::Other, pg_err.to_string())
+    };
+    let io_error_stream = reader.map_err(adapt_pg_error_to_io_error);
 
     let async_reader = StreamReader::new(io_error_stream);
     tokio::pin!(async_reader);
 
     let bytes_copied = copy(&mut async_reader, &mut writer).await?;
+
+    info!("bytes_copied: {bytes_copied}");
 
     Ok(())
 }

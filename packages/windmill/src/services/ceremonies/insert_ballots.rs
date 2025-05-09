@@ -34,8 +34,8 @@ use strand::backend::ristretto::RistrettoCtx;
 use strand::elgamal::Ciphertext;
 use strand::signature::StrandSignaturePk;
 use tempfile::NamedTempFile;
-use tracing::{event, instrument, Level};
 use tokio::fs::File as TokioFile;
+use tracing::{event, info, instrument, Level};
 
 #[instrument(skip_all, err)]
 pub async fn insert_ballots_messages(
@@ -106,20 +106,19 @@ pub async fn insert_ballots_messages(
         );
 
         let mut tokio_temp_file = TokioFile::create(&ballots_temp_file.path().to_path_buf())
-        .await
-        .expect("Could not create/open temporary file for tokio");
+            .await
+            .expect("Could not create/open temporary file for tokio");
 
         find_area_ballots(
             &hasura_transaction,
             &tenant_id,
             &election_event_id,
             &tally_session_contest.area_id,
-            &mut tokio_temp_file
-        );
+            &mut tokio_temp_file,
+        )
+        .await?;
 
         let ballots_temp_file = ballots_temp_file.reopen()?;
-
-        // Use pagination and write the contents to a file
 
         // Create a temporary file (auto-deleted when dropped)
         let users_temp_file = NamedTempFile::new()
@@ -175,6 +174,8 @@ pub async fn insert_ballots_messages(
         let ballot_election_id_index = 1;
         let users_join_idexes = 0;
 
+        let contest_encryption_policy = contest_encryption_policy.clone();
+
         let handle = tokio::task::spawn_blocking({
             move || {
                 tokio::runtime::Handle::current().block_on(async move {
@@ -188,10 +189,37 @@ pub async fn insert_ballots_messages(
                         &tally_session_contest.election_id,
                     )?
                     .into_iter()
-                    .map(|serialized_ciphertext| {
-                        Base64Deserialize::deserialize(serialized_ciphertext).map_err(|error| {
-                            anyhow!("Error while deserializng ciphertext: {}", error)
-                        })
+                    .map(|ballot_str| {
+                        info!("ballot_str: {ballot_str}");
+                        let ciphertext: Ciphertext<RistrettoCtx> =
+                            if ContestEncryptionPolicy::MULTIPLE_CONTESTS
+                                == contest_encryption_policy
+                            {
+                                let hashable_multi_ballot: HashableMultiBallot =
+                                    deserialize_str(&ballot_str)?;
+
+                                let hashable_multi_ballot_contests = hashable_multi_ballot
+                                    .deserialize_contests()
+                                    .map_err(|err| anyhow!("{:?}", err))?;
+                                Some(hashable_multi_ballot_contests.ciphertext)
+                            } else {
+                                let hashable_ballot: HashableBallot = deserialize_str(&ballot_str)?;
+                                let contests = hashable_ballot
+                                    .deserialize_contests()
+                                    .map_err(|err| anyhow!("{:?}", err))?;
+                                contests
+                                    .iter()
+                                    .find(|contest| {
+                                        contest.contest_id
+                                            == tally_session_contest
+                                                .contest_id
+                                                .clone()
+                                                .unwrap_or_default()
+                                    })
+                                    .map(|contest| contest.ciphertext.clone())
+                            }
+                            .ok_or(anyhow!("Could not get ciphertext"))?;
+                        Ok(ciphertext)
                     })
                     .collect::<Result<Vec<_>>>()
                 })
@@ -293,16 +321,17 @@ pub async fn count_auditable_ballots(
     );
 
     let mut tokio_temp_file = TokioFile::create(&ballots_temp_file.path().to_path_buf())
-    .await
-    .expect("Could not create/open temporary file for tokio");
+        .await
+        .expect("Could not create/open temporary file for tokio");
 
     find_area_ballots(
         &hasura_transaction,
         &tenant_id,
         &election_event_id,
         area_id,
-        &mut tokio_temp_file
-    );
+        &mut tokio_temp_file,
+    )
+    .await?;
 
     let ballots_temp_file = ballots_temp_file.reopen()?;
 

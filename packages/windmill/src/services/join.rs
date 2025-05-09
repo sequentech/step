@@ -5,7 +5,7 @@
 use csv::ReaderBuilder;
 use std::{cmp::Ordering, fs::File};
 
-use tracing::instrument;
+use tracing::{info, instrument};
 
 use anyhow::{anyhow, Result};
 
@@ -72,6 +72,10 @@ pub fn merge_join_csv(
             continue;
         }
 
+        info!("key1: {key1}");
+        info!("key2: {key2}");
+        info!("ballot_election_id: {ballot_election_id}");
+
         // Compare the join keys lexicographically.
         match key1.cmp(&key2) {
             Ordering::Less => {
@@ -89,6 +93,7 @@ pub fn merge_join_csv(
                         file1_output_index
                     )
                 })?;
+                info!("pushing value: {value}");
                 result.push(value.to_string());
 
                 // Advance both iterators.
