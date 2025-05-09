@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {Box, CircularProgress, Typography} from "@mui/material"
+import {Box, CircularProgress, Stack, Typography} from "@mui/material"
 import React, {useState, useEffect, useContext, useCallback, useRef} from "react"
 import {useTranslation} from "react-i18next"
 import {PageLimit, Icon, IconButton, theme, QRCode, Dialog} from "@sequentech/ui-essentials"
@@ -123,6 +123,12 @@ const StyledCircularProgress = styled(CircularProgress)`
 const StyledIcon = styled(Icon)`
     min-width: 14px;
     padding: 5px;
+`
+
+const StyledApp = styled(Stack)<{css: string}>`
+    min-height: 100vh;
+    min-width: 100vw;
+    ${({css}) => css}
 `
 
 interface ActionButtonsProps {
@@ -392,122 +398,131 @@ const ConfirmationScreen: React.FC = () => {
     }
 
     return (
-        <PageLimit maxWidth="lg" className="confirmation-screen screen">
-            <Box marginTop="24px">
-                <Stepper selected={3} />
-            </Box>
-            <StyledTitle variant="h4" fontSize="24px" fontWeight="bold" sx={{marginTop: "40px"}}>
-                <Box>{t("confirmationScreen.title")}</Box>
-                <IconButton
-                    icon={faCircleQuestion}
-                    sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
-                    fontSize="16px"
-                    onClick={() => setOpenConfirmationHelp(true)}
-                />
-
-                <Dialog
-                    handleClose={() => setOpenConfirmationHelp(false)}
-                    open={openConfirmationHelp}
-                    title={t("confirmationScreen.confirmationHelpDialog.title")}
-                    ok={t("confirmationScreen.confirmationHelpDialog.ok")}
-                    variant="info"
-                >
-                    {stringToHtml(t("confirmationScreen.confirmationHelpDialog.content"))}
-                </Dialog>
-            </StyledTitle>
-            <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
-                {stringToHtml(t("confirmationScreen.description"))}
-            </Typography>
-            <BallotIdContainer>
-                <Typography
-                    variant="h5"
-                    fontSize="18px"
+        <StyledApp
+            css={dataElectionEvent?.sequent_backend_election_event[0]?.presentation?.css ?? ""}
+        >
+            <PageLimit maxWidth="lg" className="confirmation-screen screen">
+                <Box marginTop="24px">
+                    <Stepper selected={3} />
+                </Box>
+                <StyledTitle
+                    variant="h4"
+                    fontSize="24px"
                     fontWeight="bold"
-                    sx={{display: {xs: "none", sm: "block"}}}
+                    sx={{marginTop: "40px"}}
                 >
-                    {t("confirmationScreen.ballotId")}
-                </Typography>
-                <BallotIdBorder>
-                    <IconButton
-                        icon={faCheck}
-                        sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
-                        fontSize="14px"
-                        color={theme.palette.customGrey.contrastText}
-                    />
-                    <BallotIdLink
-                        href={!isDemo ? ballotTrackerUrl : undefined}
-                        target={!isDemo ? "_blank" : undefined}
-                        sx={{display: {xs: "none", sm: "block"}}}
-                        onClick={handleBallotIdLinkClick}
-                    >
-                        {ballotId.current}
-                    </BallotIdLink>
-                    <BallotIdLink
-                        href={!isDemo ? ballotTrackerUrl : undefined}
-                        target={!isDemo ? "_blank" : undefined}
-                        sx={{display: {xs: "block", sm: "none"}}}
-                        onClick={handleBallotIdLinkClick}
-                    >
-                        {t("ballotHash", {ballotId: ballotId.current})}
-                    </BallotIdLink>
+                    <Box>{t("confirmationScreen.title")}</Box>
                     <IconButton
                         icon={faCircleQuestion}
-                        sx={{
-                            fontSize: "unset",
-                            lineHeight: "unset",
-                            marginLeft: "16px",
-                        }}
-                        fontSize="18px"
-                        onClick={() =>
-                            isDemo ? setDemoBallotIdHelp(true) : setOpenBallotIdHelp(true)
-                        }
+                        sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
+                        fontSize="16px"
+                        onClick={() => setOpenConfirmationHelp(true)}
                     />
+
                     <Dialog
-                        handleClose={() => setOpenBallotIdHelp(false)}
-                        open={openBallotIdHelp}
-                        title={t("confirmationScreen.ballotIdHelpDialog.title")}
-                        ok={t("confirmationScreen.ballotIdHelpDialog.ok")}
+                        handleClose={() => setOpenConfirmationHelp(false)}
+                        open={openConfirmationHelp}
+                        title={t("confirmationScreen.confirmationHelpDialog.title")}
+                        ok={t("confirmationScreen.confirmationHelpDialog.ok")}
                         variant="info"
                     >
-                        {stringToHtml(t("confirmationScreen.ballotIdHelpDialog.content"))}
+                        {stringToHtml(t("confirmationScreen.confirmationHelpDialog.content"))}
                     </Dialog>
-                    <Dialog
-                        handleClose={() => setDemoBallotUrlHelp(false)}
-                        open={openDemoBallotUrlHelp}
-                        title={t("confirmationScreen.demoBallotUrlDialog.title")}
-                        ok={t("confirmationScreen.demoBallotUrlDialog.ok")}
-                        variant="info"
+                </StyledTitle>
+                <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
+                    {stringToHtml(t("confirmationScreen.description"))}
+                </Typography>
+                <BallotIdContainer>
+                    <Typography
+                        variant="h5"
+                        fontSize="18px"
+                        fontWeight="bold"
+                        sx={{display: {xs: "none", sm: "block"}}}
                     >
-                        {stringToHtml(t("confirmationScreen.demoBallotUrlDialog.content"))}
-                    </Dialog>
-                    <Dialog
-                        handleClose={() => setDemoBallotIdHelp(false)}
-                        open={demoBallotIdHelp}
-                        title={t("confirmationScreen.ballotIdDemoHelpDialog.title")}
-                        ok={t("confirmationScreen.ballotIdDemoHelpDialog.ok")}
-                        variant="info"
-                    >
-                        {stringToHtml(t("confirmationScreen.ballotIdDemoHelpDialog.content"))}
-                    </Dialog>
-                </BallotIdBorder>
-            </BallotIdContainer>
-            <Typography variant="h5" fontSize="18px" fontWeight="bold">
-                {t("confirmationScreen.verifyCastTitle")}
-            </Typography>
-            <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
-                {stringToHtml(t("confirmationScreen.verifyCastDescription"))}
-            </Typography>
-            <QRContainer>
-                <QRCode
-                    value={isDemo ? t("confirmationScreen.demoQRText") : ballotTrackerUrl ?? ""}
+                        {t("confirmationScreen.ballotId")}
+                    </Typography>
+                    <BallotIdBorder>
+                        <IconButton
+                            icon={faCheck}
+                            sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
+                            fontSize="14px"
+                            color={theme.palette.customGrey.contrastText}
+                        />
+                        <BallotIdLink
+                            href={!isDemo ? ballotTrackerUrl : undefined}
+                            target={!isDemo ? "_blank" : undefined}
+                            sx={{display: {xs: "none", sm: "block"}}}
+                            onClick={handleBallotIdLinkClick}
+                        >
+                            {ballotId.current}
+                        </BallotIdLink>
+                        <BallotIdLink
+                            href={!isDemo ? ballotTrackerUrl : undefined}
+                            target={!isDemo ? "_blank" : undefined}
+                            sx={{display: {xs: "block", sm: "none"}}}
+                            onClick={handleBallotIdLinkClick}
+                        >
+                            {t("ballotHash", {ballotId: ballotId.current})}
+                        </BallotIdLink>
+                        <IconButton
+                            icon={faCircleQuestion}
+                            sx={{
+                                fontSize: "unset",
+                                lineHeight: "unset",
+                                marginLeft: "16px",
+                            }}
+                            fontSize="18px"
+                            onClick={() =>
+                                isDemo ? setDemoBallotIdHelp(true) : setOpenBallotIdHelp(true)
+                            }
+                        />
+                        <Dialog
+                            handleClose={() => setOpenBallotIdHelp(false)}
+                            open={openBallotIdHelp}
+                            title={t("confirmationScreen.ballotIdHelpDialog.title")}
+                            ok={t("confirmationScreen.ballotIdHelpDialog.ok")}
+                            variant="info"
+                        >
+                            {stringToHtml(t("confirmationScreen.ballotIdHelpDialog.content"))}
+                        </Dialog>
+                        <Dialog
+                            handleClose={() => setDemoBallotUrlHelp(false)}
+                            open={openDemoBallotUrlHelp}
+                            title={t("confirmationScreen.demoBallotUrlDialog.title")}
+                            ok={t("confirmationScreen.demoBallotUrlDialog.ok")}
+                            variant="info"
+                        >
+                            {stringToHtml(t("confirmationScreen.demoBallotUrlDialog.content"))}
+                        </Dialog>
+                        <Dialog
+                            handleClose={() => setDemoBallotIdHelp(false)}
+                            open={demoBallotIdHelp}
+                            title={t("confirmationScreen.ballotIdDemoHelpDialog.title")}
+                            ok={t("confirmationScreen.ballotIdDemoHelpDialog.ok")}
+                            variant="info"
+                        >
+                            {stringToHtml(t("confirmationScreen.ballotIdDemoHelpDialog.content"))}
+                        </Dialog>
+                    </BallotIdBorder>
+                </BallotIdContainer>
+                <Typography variant="h5" fontSize="18px" fontWeight="bold">
+                    {t("confirmationScreen.verifyCastTitle")}
+                </Typography>
+                <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
+                    {stringToHtml(t("confirmationScreen.verifyCastDescription"))}
+                </Typography>
+                <QRContainer>
+                    <QRCode
+                        value={isDemo ? t("confirmationScreen.demoQRText") : ballotTrackerUrl ?? ""}
+                    />
+                </QRContainer>
+                <ActionButtons
+                    ballotTrackerUrl={ballotTrackerUrl}
+                    electionId={electionId}
+                    ballotId={ballotId.current ?? ""}
                 />
-            </QRContainer>
-            <ActionButtons
-                ballotTrackerUrl={ballotTrackerUrl}
-                electionId={electionId}
-                ballotId={ballotId.current ?? ""}
-            />
-        </PageLimit>
+            </PageLimit>
+        </StyledApp>
     )
 }
 
