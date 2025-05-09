@@ -421,11 +421,6 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     )
 }
 
-// 🐞 Translations after gold auth in Voting Portal are not loaded #6681
-// Some election events have gold level authentication configured, so the voter has to reauthenticate
-// before emitting their vote. This works, but when the voter gets back to the voting portal,
-// the translations are not being overriden/loaded.
-
 export const ReviewScreen: React.FC = () => {
     const {electionId} = useParams<{electionId?: string}>()
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
