@@ -359,7 +359,7 @@ def run_duplicate_votes(args):
         JOIN realm AS r ON ue.realm_id = r.id
         INNER JOIN user_attribute AS us ON us.user_id = ue.id
         WHERE r.name = %s AND us.name = 'area-id' AND us.value = %s
-        ORDER BY ue.id
+        ORDER BY random()
         LIMIT %s; 
         """
         
