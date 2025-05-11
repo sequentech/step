@@ -7,6 +7,7 @@ import argparse
 import json
 import csv
 import random
+import re
 import os
 from itertools import cycle
 from datetime import datetime, timedelta
@@ -48,6 +49,7 @@ def run_generate_voters(args):
     # Load settings from config.json
     election_event_file = os.path.join(working_dir, config.get("election_event_json_file", "export_election_event.json"))
     voters_config = config.get("generate_voters", {})
+    areas_regex = voters_config.get("areas_regex", ".*")
     csv_file = os.path.join(working_dir, voters_config.get("csv_file_name", "generated_users.csv"))
     fields = voters_config.get("fields", [
         'username', 'last_name', 'first_name', 'middleName', 'dateOfBirth',
@@ -72,6 +74,11 @@ def run_generate_voters(args):
         data = json.load(f)
 
     areas = data.get('areas', [])
+    areas = [
+        area
+        for area in areas
+        if re.match(areas_regex, area.get("name", ""))
+    ]
     area_contests = data.get('area_contests', [])
     contests = data.get('contests', [])
     elections = data.get('elections', [])
@@ -222,18 +229,18 @@ def run_duplicate_votes(args):
     row_id_to_clone = duplicate_votes_config.get("row_id_to_clone", "")
 
     keycloak_conn = psycopg2.connect(
-        dbname=os.getenv("KC_DB"),
-        user=os.getenv("KC_DB_USERNAME"),
-        password=os.getenv("KC_DB_PASSWORD"),
-        host=os.getenv("KC_DB_URL_HOST"),
-        port=os.getenv("KC_DB_URL_PORT")
+        dbname=os.getenv("KEYCLOAK_DB__DBNAME"),
+        user=os.getenv("KEYCLOAK_DB__USER"),
+        password=os.getenv("KEYCLOAK_DB__PASSWORD"),
+        host=os.getenv("KEYCLOAK_DB__HOST"),
+        port=os.getenv("KEYCLOAK_DB__PORT")
     )
     hasura_conn = psycopg2.connect(
-        dbname=os.getenv("HASURA_PG_DBNAME"),
-        user=os.getenv("HASURA_PG_USER"),
-        password=os.getenv("HASURA_PG_PASSWORD"),
-        host=os.getenv("HASURA_PG_HOST"),
-        port=os.getenv("HASURA_PG_PORT")
+        dbname=os.getenv("HASURA_DB__DBNAME"),
+        user=os.getenv("HASURA_DB__USER"),
+        password=os.getenv("HASURA_DB__PASSWORD"),
+        host=os.getenv("HASURA_DB__HOST"),
+        port=os.getenv("HASURA_DB__PORT")
     )
     print("Number of rows to clone: ", num_votes)
     kc_cursor = keycloak_conn.cursor()
