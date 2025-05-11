@@ -245,18 +245,6 @@ def run_duplicate_votes(args):
     print("Number of rows to clone: ", num_votes)
     kc_cursor = keycloak_conn.cursor()
     hasura_cursor = hasura_conn.cursor()
-    #Offset should start at 0 and can be changed if you want to add more votes
-    get_user_ids_query = """
-    SELECT ue.id, ue.username, r.name AS realm_name
-    FROM user_entity AS ue
-    JOIN realm AS r ON ue.realm_id = r.id
-    WHERE r.name = %s
-    LIMIT %s
-    OFFSET 0;
-    """
-    kc_cursor.execute(get_user_ids_query, (realm_name, num_votes))
-    existing_user_ids = [row[0] for row in kc_cursor.fetchall()]
-    print("Number of existing user ids: ", len(existing_user_ids))
     hasura_cursor.execute(
         """
         SELECT election_id, tenant_id, area_id, annotations, content, cast_ballot_signature, election_event_id, ballot_id
@@ -268,6 +256,32 @@ def run_duplicate_votes(args):
         election_id, tenant_id, area_id,annotations, content, cast_ballot_signature, election_event_id, ballot_id = base_row
         annotations_json = json.dumps(annotations)
         rows_to_insert = []
+
+        #Offset should start at 0 and can be changed if you want to add more votes
+        get_user_ids_query = """
+    SELECT
+        ue.id,
+        ue.username,
+        r.name AS realm_name
+    FROM user_entity AS ue
+    JOIN
+        realm AS r
+        ON ue.realm_id = r.id
+    INNER JOIN
+        user_attribute AS us
+        ON us.user_id = ue.id
+    WHERE
+        r.name = %s AND
+        us.name = 'area-id' AND
+        us.value = %s
+    LIMIT %s
+    OFFSET 0;
+        """
+        print("Getting list of voters..")
+        kc_cursor.execute(get_user_ids_query, (realm_name, area_id, num_votes))
+        existing_user_ids = [row[0] for row in kc_cursor.fetchall()]
+        print("Number of existing user ids: ", len(existing_user_ids))
+
         for i in range(len(existing_user_ids)):
             uid = existing_user_ids[i]
             rows_to_insert.append((
