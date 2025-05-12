@@ -1055,6 +1055,20 @@ impl TryFrom<&Row> for ElectoralLogRow {
     }
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct CastVoteEntry {
+    pub statement_timestamp: i64,
+    pub statement_kind: String,
+    pub ballot_id: String,
+    pub username: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct CastVoteMessagesOutput {
+    pub list: Vec<CastVoteEntry>,
+    pub total: usize,
+}
+
 pub const IMMUDB_ROWS_LIMIT: usize = 25_000;
 
 #[instrument(err)]
@@ -1129,55 +1143,65 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
     })
 }
 
-// TODO: Move to the top, once not needed stuff has been removed.
-#[derive(Deserialize, Debug)]
-pub struct CastVoteMessagesInput {
-    pub tenant_id: String,
-    pub election_event_id: String,
-    pub election_id: Option<String>, // ???
-    pub ballot_id: String,
-    pub limit: Option<i64>,
-    pub offset: Option<i64>,
-    pub order_by: Option<HashMap<OrderField, OrderDirection>>,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, Default)]
-pub struct CastVoteMessagesOutput {
-    pub statement_timestamp: i64,
-    pub statement_kind: String,
-    pub ballot_id: String,
-    pub username: Option<String>,
-}
-
-/// Returns the entries: ballotID, username, timestamp and statement Kind.
+/// Returns the entries for statement_kind = "CastVote" which ballot_id matches the input.
 #[instrument(err)]
 pub async fn list_cast_vote_messages(
-    input: CastVoteMessagesInput,
-) -> Result<DataList<CastVoteMessagesOutput>> {
-    let filter_map: HashMap<OrderField, String> = HashMap::new();
-    // TODO: Filter by ballot_id and others
-    let filter = Some(filter_map);
-    let elog_input = GetElectoralLogBody {
-        tenant_id: input.tenant_id,
-        election_event_id: input.election_event_id,
-        limit: input.limit,
-        offset: input.offset,
-        filter,
-        order_by: input.order_by,
-        election_id: input.election_id,
-        area_ids: None,
-        only_with_user: None, //???
-    };
+    input: GetElectoralLogBody,
+    ballot_id: &str,
+) -> Result<CastVoteMessagesOutput> {
+    let mut client: Client = get_immudb_client().await?;
+    let board_name = get_event_board(input.tenant_id.as_str(), input.election_event_id.as_str());
 
-    let list: DataList<ElectoralLogRow> = list_electoral_log(elog_input)
-        .await
-        .map_err(|e| anyhow!("Error listing electoral log: {e:?}"))?;
-    // create a fn or edit fn list_electoral_log_cv that returns DataList<CastVoteMessagesOutput>
+    event!(Level::INFO, "database name = {board_name}");
+    info!("input = {:?}", input);
+    client.open_session(&board_name).await?;
+    let (clauses, params) = input.as_sql(false)?;
+    info!("clauses ?:= {clauses}");
+    let sql = format!(
+        r#"
+        SELECT
+            id,
+            created,
+            sender_pk,
+            statement_timestamp,
+            statement_kind,
+            message,
+            user_id,
+            username
+        FROM electoral_log_messages
+        {clauses}
+        "#,
+    );
 
-    Ok(DataList {
-        items: vec![CastVoteMessagesOutput::default()], // TODO
-        total: list.total,
-    })
+    info!("query: {sql}");
+    let sql_query_response = client.streaming_sql_query(&sql, params).await?;
+    let limit: usize = input.limit.unwrap_or(IMMUDB_ROWS_LIMIT as i64).try_into()?;
+    let mut rows: Vec<ElectoralLogRow> = Vec::with_capacity(limit);
+    let mut resp_stream = sql_query_response.into_inner();
+    while let Some(streaming_batch) = resp_stream.next().await {
+        let items = streaming_batch?
+            .rows
+            .iter()
+            .filter_map(|row| match (ballot_id, ElectoralLogRow::try_from(row)) {
+                (pattern, Ok(entry)) if !entry.message().contains(pattern) => None,
+                (_, entry_res) => Some(entry_res),
+            })
+            .collect::<Result<Vec<ElectoralLogRow>>>()?;
+        rows.extend(items);
+    }
+
+    let list: Vec<CastVoteEntry> = rows
+        .iter()
+        .map(|e| CastVoteEntry {
+            statement_timestamp: e.clone().statement_timestamp,
+            statement_kind: e.clone().statement_kind,
+            ballot_id: ballot_id.to_string(),
+            username: e.clone().username,
+        })
+        .collect();
+
+    let total = list.len();
+    Ok(CastVoteMessagesOutput { list, total })
 }
 
 #[instrument(err)]
