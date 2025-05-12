@@ -7,3 +7,4 @@ pub mod protocol;
 pub mod test;
 pub mod util;
 pub mod verify;
+pub mod verify_ballot;

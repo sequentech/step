@@ -1447,6 +1447,7 @@ dependencies = [
  "reedline-repl-rs",
  "rusqlite",
  "rustc-hash 2.1.0",
+ "sequent-core",
  "serde",
  "serde_json",
  "serial_test",
