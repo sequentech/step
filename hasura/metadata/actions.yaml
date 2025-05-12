@@ -486,16 +486,11 @@ actions:
       definition:
           kind: synchronous
           handler: http://{{HARVEST_DOMAIN}}/export-verifiable-bulletin-board
+          forward_client_headers: true
           request_transform:
               body:
                   action: transform
-                  template: |-
-                      {
-                        "users": {
-                          "name": {{$body.input.arg1.username}},
-                          "password": {{$body.input.arg1.password}}
-                        }
-                      }
+                  template: "{{$body.input}}"
               template_engine: Kriti
               version: 2
       permissions:

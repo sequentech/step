@@ -31,6 +31,7 @@ use crate::tasks::export_templates::export_templates;
 use crate::tasks::export_tenant_config::export_tenant_config;
 use crate::tasks::export_trustees::export_trustees_task;
 use crate::tasks::export_users::export_users;
+use crate::tasks::export_verifiable_bulletin_board::export_verifiable_bulletin_board_task;
 use crate::tasks::generate_report::generate_report;
 use crate::tasks::generate_template::generate_template;
 use crate::tasks::import_application::import_applications;
@@ -219,6 +220,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             process_electoral_log_events_batch,
             electoral_log_batch_dispatcher,
             render_document_pdf,
+            export_verifiable_bulletin_board_task
         ],
         task_routes = [
             create_keys::NAME => Queue::Short.as_ref(),
@@ -264,6 +266,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             enqueue_electoral_log_event::NAME => Queue::ElectoralLogEvent.as_ref(),
             process_electoral_log_events_batch::NAME => Queue::ElectoralLogBatch.as_ref(),
             electoral_log_batch_dispatcher::NAME => Queue::ElectoralLogBeat.as_ref(),
+            export_verifiable_bulletin_board_task::NAME => Queue::ImportExport.as_ref(),
         ],
         prefetch_count = prefetch_count,
         acks_late = acks_late,

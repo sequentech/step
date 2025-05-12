@@ -8,7 +8,7 @@ export const EXPORT_VERIFIABLE_BULLETIN_BOARD = gql`
     mutation ExportVerifiableBulletinBoard(
         $electionEventId: String!
         $tenantId: String!
-        tallySessionId: String!
+        $tallySessionId: String!
     ) {
         export_verifiable_bulletin_board(
             election_event_id: $electionEventId

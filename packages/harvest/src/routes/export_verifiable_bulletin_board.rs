@@ -14,6 +14,7 @@ use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::tasks_execution::*;
 use windmill::tasks::export_tenant_config::{self};
+use windmill::tasks::export_verifiable_bulletin_board;
 use windmill::types::tasks::ETasksExecution;
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -32,18 +33,18 @@ pub struct ExportVerifiableBulletinBoardOutput {
 
 #[instrument(skip(claims))]
 #[post("/export-verifiable-bulletin-board", format = "json", data = "<input>")]
-pub async fn export_tenant_config_route(
+pub async fn export_verifiable_bulletin_board_route(
     claims: jwt::JwtClaims,
     input: Json<ExportVerifiableBulletinBoardInput>,
 ) -> Result<Json<ExportVerifiableBulletinBoardOutput>, (Status, String)> {
+    let body = input.into_inner();
     authorize(
         &claims,
         true,
-        Some(claims.hasura_claims.tenant_id.clone()),
+        Some(body.tenant_id.clone()),
         vec![Permissions::EXPORT_VERIFIABLE_BULLETIN_BOARD],
     )?;
 
-    let body = input.into_inner();
     let executer_name = claims
         .name
         .clone()
@@ -67,15 +68,34 @@ pub async fn export_tenant_config_route(
     let document_id = Uuid::new_v4().to_string();
     let celery_app = get_celery_app().await;
 
-    // let celery_task = celery_app
-    //     .send_task()
-    //     .await
-    //     .map_err(|error| {
-    //         (
-    //             Status::InternalServerError,
-    //             format!("Error sending _ task: {error:?}"),
-    //         )
-    //     })?;
+    let celery_task_result = match celery_app
+        .send_task(
+            export_verifiable_bulletin_board::export_verifiable_bulletin_board_task::new(
+                body.tenant_id.clone(),
+                document_id.clone(),
+                task_execution.clone(),
+                body.tally_session_id.clone(),
+                body.election_event_id.clone(),
+            ),
+        )
+        .await
+    {
+        Err(error) => {
+            update_fail(
+                &task_execution,
+                &format!("Error sending export_verifiable_bulletin_board task: {error:?}"),
+            )
+            .await;
+            return Err((
+                Status::InternalServerError,
+                format!("Error sending export_verifiable_bulletin_board task: {error:?}"),
+            ));
+        }
+        Ok(task) => task,
+    };
+
+    let _res =
+        update_complete(&task_execution, Some(document_id.clone())).await;
 
     let output = ExportVerifiableBulletinBoardOutput {
         document_id,
