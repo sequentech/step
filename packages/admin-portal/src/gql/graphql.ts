@@ -73,6 +73,14 @@ export type Boolean_Comparison_Exp = {
   _nin?: InputMaybe<Array<Scalars['Boolean']['input']>>;
 };
 
+export type CastVoteEntry = {
+  __typename?: 'CastVoteEntry';
+  ballot_id: Scalars['String']['output'];
+  statement_kind: Scalars['String']['output'];
+  statement_timestamp: Scalars['Int']['output'];
+  username: Scalars['String']['output'];
+};
+
 export type CastVotesByIp = {
   __typename?: 'CastVotesByIp';
   country?: Maybe<Scalars['String']['output']>;
@@ -677,6 +685,12 @@ export type KeysCeremony = {
 export type LimitAccessByCountriesOutput = {
   __typename?: 'LimitAccessByCountriesOutput';
   success?: Maybe<Scalars['Boolean']['output']>;
+};
+
+export type ListCastVoteMessagesOutput = {
+  __typename?: 'ListCastVoteMessagesOutput';
+  list: Array<Maybe<CastVoteEntry>>;
+  total: Scalars['Int']['output'];
 };
 
 export type ListKeysCeremonyOutput = {
@@ -4293,6 +4307,7 @@ export type Query_Root = {
   get_top_votes_by_ip?: Maybe<GetTopCastVotesByIpOutput>;
   get_user_profile_attributes: Array<UserProfileAttribute>;
   get_users: GetUsersOutput;
+  listCastVoteMessages?: Maybe<ListCastVoteMessagesOutput>;
   /** List Electoral Log */
   listElectoralLog?: Maybe<DataListElectoralLog>;
   /** List PostgreSQL audit logs */
@@ -4575,6 +4590,17 @@ export type Query_RootGet_User_Profile_AttributesArgs = {
 
 export type Query_RootGet_UsersArgs = {
   body: GetUsersInput;
+};
+
+
+export type Query_RootListCastVoteMessagesArgs = {
+  ballot_id: Scalars['String']['input'];
+  election_event_id: Scalars['String']['input'];
+  election_id?: InputMaybe<Scalars['String']['input']>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<ElectoralLogOrderBy>;
+  tenant_id: Scalars['String']['input'];
 };
 
 
@@ -7468,7 +7494,6 @@ export type Sequent_Backend_Cast_Vote = {
   id: Scalars['uuid']['output'];
   labels?: Maybe<Scalars['jsonb']['output']>;
   last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
-  status?: Maybe<Scalars['String']['output']>;
   tenant_id: Scalars['uuid']['output'];
   voter_id_string?: Maybe<Scalars['String']['output']>;
 };
@@ -7529,7 +7554,6 @@ export type Sequent_Backend_Cast_Vote_Bool_Exp = {
   id?: InputMaybe<Uuid_Comparison_Exp>;
   labels?: InputMaybe<Jsonb_Comparison_Exp>;
   last_updated_at?: InputMaybe<Timestamptz_Comparison_Exp>;
-  status?: InputMaybe<String_Comparison_Exp>;
   tenant_id?: InputMaybe<Uuid_Comparison_Exp>;
   voter_id_string?: InputMaybe<String_Comparison_Exp>;
 };
@@ -7571,7 +7595,6 @@ export type Sequent_Backend_Cast_Vote_Insert_Input = {
   id?: InputMaybe<Scalars['uuid']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
-  status?: InputMaybe<Scalars['String']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
   voter_id_string?: InputMaybe<Scalars['String']['input']>;
 };
@@ -7587,7 +7610,6 @@ export type Sequent_Backend_Cast_Vote_Max_Fields = {
   election_id?: Maybe<Scalars['uuid']['output']>;
   id?: Maybe<Scalars['uuid']['output']>;
   last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
-  status?: Maybe<Scalars['String']['output']>;
   tenant_id?: Maybe<Scalars['uuid']['output']>;
   voter_id_string?: Maybe<Scalars['String']['output']>;
 };
@@ -7603,7 +7625,6 @@ export type Sequent_Backend_Cast_Vote_Min_Fields = {
   election_id?: Maybe<Scalars['uuid']['output']>;
   id?: Maybe<Scalars['uuid']['output']>;
   last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
-  status?: Maybe<Scalars['String']['output']>;
   tenant_id?: Maybe<Scalars['uuid']['output']>;
   voter_id_string?: Maybe<Scalars['String']['output']>;
 };
@@ -7637,7 +7658,6 @@ export type Sequent_Backend_Cast_Vote_Order_By = {
   id?: InputMaybe<Order_By>;
   labels?: InputMaybe<Order_By>;
   last_updated_at?: InputMaybe<Order_By>;
-  status?: InputMaybe<Order_By>;
   tenant_id?: InputMaybe<Order_By>;
   voter_id_string?: InputMaybe<Order_By>;
 };
@@ -7680,8 +7700,6 @@ export enum Sequent_Backend_Cast_Vote_Select_Column {
   /** column name */
   LastUpdatedAt = 'last_updated_at',
   /** column name */
-  Status = 'status',
-  /** column name */
   TenantId = 'tenant_id',
   /** column name */
   VoterIdString = 'voter_id_string'
@@ -7700,7 +7718,6 @@ export type Sequent_Backend_Cast_Vote_Set_Input = {
   id?: InputMaybe<Scalars['uuid']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
-  status?: InputMaybe<Scalars['String']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
   voter_id_string?: InputMaybe<Scalars['String']['input']>;
 };
@@ -7726,7 +7743,6 @@ export type Sequent_Backend_Cast_Vote_Stream_Cursor_Value_Input = {
   id?: InputMaybe<Scalars['uuid']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
-  status?: InputMaybe<Scalars['String']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
   voter_id_string?: InputMaybe<Scalars['String']['input']>;
 };
@@ -7755,8 +7771,6 @@ export enum Sequent_Backend_Cast_Vote_Update_Column {
   Labels = 'labels',
   /** column name */
   LastUpdatedAt = 'last_updated_at',
-  /** column name */
-  Status = 'status',
   /** column name */
   TenantId = 'tenant_id',
   /** column name */
