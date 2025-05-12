@@ -6,22 +6,22 @@ import {gql} from "@apollo/client"
 
 export const LIST_CAST_VOTE_MESSAGES = gql`
     query listCastVoteMessages(
-        $tenant_id: String!
-        $election_event_id: String!
-        $election_id: String
-        $ballot_id: String!
+        $tenantId: String!
+        $electionEventId: String!
+        $electionId: String
+        $ballotId: String!
         $limit: Int
         $offset: Int
-        $order_by: ElectoralLogOrderBy
+        $orderBy: ElectoralLogOrderBy
     ) {
         listCastVoteMessages(
-            tenant_id: $tenant_id
-            election_event_id: $election_event_id
-            election_id: $election_id
-            ballot_id: $ballot_id
+            tenant_id: $tenantId
+            election_event_id: $electionEventId
+            election_id: $electionId
+            ballot_id: $ballotId
             limit: $limit
             offset: $offset
-            order_by: $order_by
+            order_by: $orderBy
         ) {
             list {
                 statement_timestamp
