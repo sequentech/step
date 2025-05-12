@@ -14,7 +14,7 @@ export const LIST_CAST_VOTE_MESSAGES = gql`
         $offset: Int
         $orderBy: ElectoralLogOrderBy
     ) {
-        listCastVoteMessages(
+        list_cast_vote_messages(
             tenant_id: $tenantId
             election_event_id: $electionEventId
             election_id: $electionId

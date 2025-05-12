@@ -435,7 +435,7 @@ type Mutation {
 }
 
 type Query {
-    listCastVoteMessages(
+    list_cast_vote_messages(
         tenant_id: String!
         election_event_id: String!
         election_id: String

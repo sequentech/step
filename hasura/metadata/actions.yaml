@@ -948,10 +948,10 @@ actions:
       permissions:
           - role: cloudflare-write
           - role: admin-user
-    - name: listCastVoteMessages
+    - name: list_cast_vote_messages
       definition:
-          kind: synchronous
-          handler: http://{{HARVEST_DOMAIN}}/immudb/list-cast-vote-messages
+          kind: ""
+          handler: http://{{HARVEST_DOMAIN}}/voting-portal/immudb/list-cast-vote-messages
           forward_client_headers: true
           request_transform:
               body:
