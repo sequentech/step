@@ -15,9 +15,9 @@ use sequent_core::types::permissions::VoterPermissions;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tracing::instrument;
+use windmill::services::electoral_log;
 use windmill::services::electoral_log::{
-    list_cast_vote_messages, CastVoteMessagesOutput, GetElectoralLogBody,
-    OrderField,
+    CastVoteMessagesOutput, GetElectoralLogBody, OrderField,
 };
 use windmill::types::resources::OrderDirection;
 
@@ -33,8 +33,8 @@ pub struct CastVoteMessagesInput {
 }
 
 #[instrument]
-#[post("/immudb/cast-vote-messages", format = "json", data = "<body>")]
-pub async fn cast_vote_messages(
+#[post("/immudb/list-cast-vote-messages", format = "json", data = "<body>")]
+pub async fn list_cast_vote_messages(
     body: Json<CastVoteMessagesInput>,
     claims: JwtClaims,
 ) -> Result<Json<CastVoteMessagesOutput>, JsonError> {
@@ -69,7 +69,7 @@ pub async fn cast_vote_messages(
         only_with_user: None, //???
     };
 
-    let ret_val = list_cast_vote_messages(elog_input, ballot_id)
+    let ret_val = electoral_log::list_cast_vote_messages(elog_input, ballot_id)
         .await
         .map_err(|e| {
             ErrorResponse::new(
