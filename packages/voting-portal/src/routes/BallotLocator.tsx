@@ -19,9 +19,15 @@ import {styled} from "@mui/material/styles"
 import {Link, useLocation, useNavigate, useParams} from "react-router-dom"
 import {GET_CAST_VOTE} from "../queries/GetCastVote"
 import {useQuery} from "@apollo/client"
-import {GetBallotStylesQuery, GetCastVoteQuery, GetElectionEventQuery} from "../gql/graphql"
+import {
+    GetBallotStylesQuery,
+    GetCastVoteQuery,
+    GetElectionEventQuery,
+    ListCastVoteMessagesQuery,
+} from "../gql/graphql"
 import {faAngleLeft, faCircleQuestion} from "@fortawesome/free-solid-svg-icons"
 import {GET_BALLOT_STYLES} from "../queries/GetBallotStyles"
+import {LIST_CAST_VOTE_MESSAGES} from "../queries/listCastVoteMessages"
 import {updateBallotStyleAndSelection} from "../services/BallotStyles"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {selectFirstBallotStyle} from "../store/ballotStyles/ballotStylesSlice"
@@ -121,6 +127,19 @@ const BallotLocator: React.FC = () => {
         },
         skip: globalSettings.DISABLE_AUTH, // Skip query if in demo mode
     })
+
+    const {data: dataListCastVoteMessage} = useQuery<ListCastVoteMessagesQuery>(
+        LIST_CAST_VOTE_MESSAGES,
+        {
+            variables: {
+                tenantId,
+                electionEventId: eventId,
+                electionId,
+                ballotId,
+            },
+            skip: globalSettings.DISABLE_AUTH || !hasBallotId, // Skip query if in demo mode
+        }
+    )
 
     const {data: dataElectionEvent} = useQuery<GetElectionEventQuery>(GET_ELECTION_EVENT, {
         variables: {
