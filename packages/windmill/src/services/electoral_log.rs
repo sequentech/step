@@ -21,9 +21,11 @@ use deadpool_postgres::Transaction;
 use electoral_log::assign_value;
 use electoral_log::messages::message::Message;
 use electoral_log::messages::message::SigningData;
+use electoral_log::messages::newtypes::CastVoteHash;
 use electoral_log::messages::newtypes::ErrorMessageString;
 use electoral_log::messages::newtypes::KeycloakEventTypeString;
 use electoral_log::messages::newtypes::*;
+use electoral_log::messages::statement::StatementBody;
 use electoral_log::messages::statement::StatementHead;
 use electoral_log::ElectoralLogMessage;
 use immudb_rs::{sql_value::Value, Client, NamedParam, Row, SqlValue, TxMode};
@@ -1069,6 +1071,79 @@ pub struct CastVoteMessagesOutput {
     pub total: usize,
 }
 
+impl CastVoteEntry {
+    pub fn from_row_with_ballot_id(row: &Row, ballot_id: String) -> Result<Self, anyhow::Error> {
+        let mut statement_timestamp: i64 = 0;
+        let mut statement_kind = String::from("");
+        let mut message = vec![];
+        let mut username = None;
+
+        for (column, value) in row.columns.iter().zip(row.values.iter()) {
+            match column.as_str() {
+                c if c.ends_with(".id)") => {}
+                c if c.ends_with(".created)") => {}
+                c if c.ends_with(".sender_pk)") => {}
+                c if c.ends_with(".statement_timestamp)") => {
+                    assign_value!(Value::Ts, value, statement_timestamp)
+                }
+                c if c.ends_with(".statement_kind)") => {
+                    assign_value!(Value::S, value, statement_kind)
+                }
+                c if c.ends_with(".message)") => {
+                    assign_value!(Value::Bs, value, message)
+                }
+                c if c.ends_with(".user_id)") => {}
+                c if c.ends_with(".username)") => match value.value.as_ref() {
+                    Some(Value::S(inner)) => username = Some(inner.clone()),
+                    Some(Value::Null(_)) => username = None,
+                    None => username = None,
+                    _ => return Err(anyhow!("invalid column value for 'username'")),
+                },
+                _ => return Err(anyhow!("invalid column found '{}'", column.as_str())),
+            }
+        }
+
+        let deserialized_message =
+            Message::strand_deserialize(&message).with_context(|| "Error deserializing message")?;
+        // let vote_h = CastVoteHash(HashWrapper::new(vote_h));
+        let cv_hash = match deserialized_message.statement.body {
+            StatementBody::CastVote(_, _, cv_hash, _, _) => cv_hash,
+            _ => {
+                return Err(anyhow!("Not StatementBody::CastVote"));
+            }
+        };
+
+        let ballot_dec = (0..ballot_id.len())
+            .step_by(2)
+            .map(|i| {
+                let res =
+                    u8::from_str_radix(&ballot_id[i..i + 2], 16).map_err(|e| e.to_string())?;
+                Ok(res)
+            })
+            .collect::<Result<Vec<u8>, String>>()
+            .map_err(|e| anyhow!(format!("Error parsing ballot_id: {e:?}")))?;
+
+        let ballot_id_bin = CastVoteHash::new(
+            ballot_dec
+                .as_slice()
+                .try_into()
+                .map_err(|_| anyhow!("Must be 64 bytes"))?,
+        );
+        info!("{ballot_id_bin:?}");
+        info!("{cv_hash:?}");
+        if cv_hash != ballot_id_bin {
+            return Err(anyhow!("Not StatementBody::CastVote"));
+        }
+
+        Ok(CastVoteEntry {
+            statement_timestamp,
+            statement_kind,
+            ballot_id,
+            username,
+        })
+    }
+}
+
 pub const IMMUDB_ROWS_LIMIT: usize = 25_000;
 
 #[instrument(err)]
@@ -1150,19 +1225,8 @@ pub async fn list_cast_vote_messages(
     ballot_id: &str,
 ) -> Result<CastVoteMessagesOutput> {
     ensure!(ballot_id.len() == 64, "Incorrect ballot_id length");
-    // Each octet is a decimal number in the array
-    let ballot_dec = (0..ballot_id.len())
-        .step_by(2)
-        .map(|i| {
-            let res = u8::from_str_radix(&ballot_id[i..i + 2], 16).map_err(|e| e.to_string())?;
-            Ok(res)
-        })
-        .collect::<Result<Vec<u8>, String>>()
-        .map_err(|e| anyhow!(format!("{e:?}")))?;
-
     let mut client: Client = get_immudb_client().await?;
     let board_name = get_event_board(input.tenant_id.as_str(), input.election_event_id.as_str());
-
     event!(Level::INFO, "database name = {board_name}");
     info!("input = {:?}", input);
     client.open_session(&board_name).await?;
@@ -1187,31 +1251,16 @@ pub async fn list_cast_vote_messages(
     info!("query: {sql}");
     let sql_query_response = client.streaming_sql_query(&sql, params).await?;
     let limit: usize = input.limit.unwrap_or(IMMUDB_ROWS_LIMIT as i64).try_into()?;
-    let mut rows: Vec<ElectoralLogRow> = Vec::with_capacity(limit);
+    let mut list: Vec<CastVoteEntry> = Vec::with_capacity(limit);
     let mut resp_stream = sql_query_response.into_inner();
     while let Some(streaming_batch) = resp_stream.next().await {
         let items = streaming_batch?
             .rows
             .iter()
-            .filter_map(
-                |row| match (format!("{ballot_dec:?}"), ElectoralLogRow::try_from(row)) {
-                    (pattern, Ok(entry)) if !entry.message().contains(&pattern) => None,
-                    (_, entry_res) => Some(entry_res),
-                },
-            )
-            .collect::<Result<Vec<ElectoralLogRow>>>()?;
-        rows.extend(items);
+            .map(|row| CastVoteEntry::from_row_with_ballot_id(row, ballot_id.to_string()))
+            .collect::<Result<Vec<CastVoteEntry>>>()?;
+        list.extend(items);
     }
-
-    let list: Vec<CastVoteEntry> = rows
-        .iter()
-        .map(|e| CastVoteEntry {
-            statement_timestamp: e.clone().statement_timestamp,
-            statement_kind: e.clone().statement_kind,
-            ballot_id: ballot_id.to_string(),
-            username: e.clone().username,
-        })
-        .collect();
 
     let total = list.len();
     Ok(CastVoteMessagesOutput { list, total })
