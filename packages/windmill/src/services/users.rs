@@ -16,17 +16,22 @@ use sequent_core::services::keycloak::{KeycloakAdminClient, PubKeycloakAdmin};
 use sequent_core::types::keycloak::*;
 use serde::{Deserialize, Deserializer};
 use serde_json::Value;
+use tokio_util::io::StreamReader;
+use std::path::PathBuf;
 use std::str::FromStr;
 use std::{
     collections::{HashMap, HashSet},
     convert::From,
 };
 use strum_macros::{Display, EnumString};
+use tokio::fs::File;
+use tokio::io::{copy, AsyncWriteExt, BufWriter};
 use tokio_postgres::row::Row;
 use tokio_postgres::types::ToSql;
 use tracing::error;
 use tracing::{debug, info, instrument};
 use uuid::Uuid;
+use futures::TryStreamExt;
 
 pub const VALIDATE_ID_ATTR_NAME: &str = "sequent.read-only.id-card-number-validated";
 pub const VALIDATE_ID_REGISTERED_VOTER: &str = "VERIFIED";
@@ -105,18 +110,13 @@ pub async fn list_keycloak_enabled_users_by_area_id(
     keycloak_transaction: &Transaction<'_>,
     realm: &str,
     area_id: &str,
-    limit: i64,
-    offset: i64,
-) -> Result<Vec<String>> {
-    let statement = keycloak_transaction
-        .prepare(
-            format!(
-                r#"
+    output_file: &PathBuf,
+) -> Result<()> {
+    // COPY does not support parameters so we have to add them using format
+    let statement = format!(
+        r#"
         SELECT
-            u.id,
-            u.enabled,
-            u.realm_id,
-            u.username
+            u.id
         FROM
             user_entity AS u
         INNER JOIN
@@ -124,31 +124,45 @@ pub async fn list_keycloak_enabled_users_by_area_id(
         INNER JOIN 
             user_attribute AS area_attr ON u.id = area_attr.user_id
         WHERE
-            ra.name = $1 AND 
+            ra.name = '{realm}' AND 
             u.enabled IS TRUE AND
             (
-                area_attr.name = $2 AND
-                area_attr.value = $3
+                area_attr.name = '{AREA_ID_ATTR_NAME}' AND
+                area_attr.value = '{area_id}'
             )
         GROUP BY
             u.id
         ORDER BY
             u.id
-        LIMIT $4 OFFSET $5;
     "#
-            )
-            .as_str(),
-        )
-        .await?;
-    let params: Vec<&(dyn ToSql + Sync)> =
-        vec![&realm, &AREA_ID_ATTR_NAME, &area_id, &limit, &offset];
-    let rows: Vec<Row> = keycloak_transaction
-        .query(&statement, &params.as_slice())
-        .await
-        .map_err(|err| anyhow!("{}", err))?;
+    );
 
-    let found_user_ids: Vec<String> = rows.into_iter().map(|row| row.get("id")).collect();
-    Ok(found_user_ids)
+    let mut tokio_temp_file = File::create(output_file)
+        .await
+        .expect("Could not create/open temporary file for tokio");
+
+    let copy_out_query = format!("COPY ({}) TO STDOUT WITH (FORMAT CSV)", statement);
+    let mut writer = BufWriter::new(tokio_temp_file);
+
+    info!("copy_out_query: {copy_out_query}");
+
+    let reader = keycloak_transaction.copy_out(&copy_out_query).await?;
+
+    let adapt_pg_error_to_io_error = |pg_err: tokio_postgres::Error| {
+        std::io::Error::new(std::io::ErrorKind::Other, pg_err.to_string())
+    };
+    let io_error_stream = reader.map_err(adapt_pg_error_to_io_error);
+
+    let async_reader = StreamReader::new(io_error_stream);
+    tokio::pin!(async_reader);
+
+    let bytes_copied = copy(&mut async_reader, &mut writer).await?;
+
+    info!("bytes_copied: {bytes_copied}");
+
+    writer.flush().await?;
+
+    Ok(())
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, EnumString, Display)]

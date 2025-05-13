@@ -123,43 +123,14 @@ pub async fn insert_ballots_messages(
             "Creating temporary file for users with path {:?}",
             users_temp_file.path()
         );
-        let mut writer = WriterBuilder::new()
-            .has_headers(false)
-            .from_writer(&users_temp_file);
 
-        // Reset offset
-        let mut offset = 0;
-        let batch_size = 1000 * 100;
-
-        loop {
-            let users_map = list_keycloak_enabled_users_by_area_id(
-                keycloak_transaction,
-                &realm,
-                &tally_session_contest.area_id,
-                batch_size,
-                offset,
-            )
-            .await?;
-
-            event!(Level::INFO, "users_map len: {:?}", users_map.len());
-
-            if users_map.is_empty() {
-                break;
-            }
-
-            for user in &users_map {
-                writer
-                    .serialize(user)
-                    .map_err(|error| anyhow!("Failed to write row: {}", error))?;
-            }
-
-            writer
-                .flush()
-                .map_err(|error| anyhow!("Failed to flush writer: {}", error))?;
-
-            // Move to next batch
-            offset += batch_size;
-        }
+        list_keycloak_enabled_users_by_area_id(
+            keycloak_transaction,
+            &realm,
+            &tally_session_contest.area_id,
+            &users_temp_file.path().to_path_buf(),
+        )
+        .await?;
 
         let users_temp_file = users_temp_file.reopen()?;
 
@@ -336,43 +307,14 @@ pub async fn count_auditable_ballots(
         "Creating temporary file for users with path {:?}",
         users_temp_file.path()
     );
-    let mut writer = WriterBuilder::new()
-        .has_headers(false)
-        .from_writer(&users_temp_file);
 
-    // Reset offset
-    let mut offset = 0;
-    let batch_size = 1000 * 100;
-
-    loop {
-        let users_map = list_keycloak_enabled_users_by_area_id(
-            keycloak_transaction,
-            &realm,
-            &area_id,
-            batch_size,
-            offset,
-        )
-        .await?;
-
-        event!(Level::INFO, "users_map len: {:?}", users_map.len());
-
-        if users_map.is_empty() {
-            break;
-        }
-
-        for user in &users_map {
-            writer
-                .serialize(user)
-                .map_err(|error| anyhow!("Failed to write row: {}", error))?;
-        }
-
-        writer
-            .flush()
-            .map_err(|error| anyhow!("Failed to flush writer: {}", error))?;
-
-        // Move to next batch
-        offset += batch_size;
-    }
+    list_keycloak_enabled_users_by_area_id(
+        keycloak_transaction,
+        &realm,
+        &area_id,
+        &users_temp_file.path().to_path_buf(),
+    )
+    .await?;
 
     let users_temp_file = users_temp_file.reopen()?;
 

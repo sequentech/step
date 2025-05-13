@@ -15,14 +15,14 @@ use futures::TryStreamExt;
 use sequent_core::types::keycloak::{User, VotesInfo};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::path::PathBuf;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 use tokio::fs::File;
-use tokio::io::{copy, BufWriter, AsyncWriteExt};
+use tokio::io::{copy, AsyncWriteExt, BufWriter};
 use tokio_postgres::row::Row;
 use tokio_util::io::StreamReader;
 use tracing::{info, instrument};
 use uuid::Uuid;
-use std::path::PathBuf;
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct CastVote {
@@ -87,9 +87,8 @@ pub async fn find_area_ballots(
     );
 
     let mut tokio_temp_file = File::create(output_file)
-    .await
-    .expect("Could not create/open temporary file for tokio");
-
+        .await
+        .expect("Could not create/open temporary file for tokio");
 
     let copy_out_query = format!("COPY ({}) TO STDOUT WITH (FORMAT CSV)", areas_statement);
     let mut writer = BufWriter::new(tokio_temp_file);
