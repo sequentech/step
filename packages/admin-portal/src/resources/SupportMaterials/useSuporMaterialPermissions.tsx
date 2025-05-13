@@ -14,10 +14,26 @@ export function useSuportMaterialPermissions() {
     /**
      * Permissions
      */
-    const canReadSuportMaterial = authContext.isAuthorized(true, tenantId, IPermissions.SUPPORT_MATERIAL_READ)
-    const canWriteSuportMaterial = authContext.isAuthorized(true, tenantId, IPermissions.SUPPORT_MATERIAL_WRITE)
-    const canCreateSuportMaterial = authContext.isAuthorized(true, tenantId, IPermissions.SUPPORT_MATERIAL_WRITE)
-    const canDeleteSuportMaterial = authContext.isAuthorized(true, tenantId, IPermissions.SUPPORT_MATERIAL_WRITE)
+    const canReadSuportMaterial = authContext.isAuthorized(
+        true,
+        tenantId,
+        IPermissions.SUPPORT_MATERIAL_READ
+    )
+    const canWriteSuportMaterial = authContext.isAuthorized(
+        true,
+        tenantId,
+        IPermissions.SUPPORT_MATERIAL_WRITE
+    )
+    const canCreateSuportMaterial = authContext.isAuthorized(
+        true,
+        tenantId,
+        IPermissions.SUPPORT_MATERIAL_WRITE
+    )
+    const canDeleteSuportMaterial = authContext.isAuthorized(
+        true,
+        tenantId,
+        IPermissions.SUPPORT_MATERIAL_WRITE
+    )
     /**
      * Permissions
      */

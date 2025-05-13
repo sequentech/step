@@ -1857,8 +1857,8 @@ const englishTranslation = {
             },
             empty: {
                 header: "No support material yet",
-                action: "Generate support material  "
-            }
+                action: "Generate support material  ",
+            },
         },
         widget: {
             logs: "Logs",

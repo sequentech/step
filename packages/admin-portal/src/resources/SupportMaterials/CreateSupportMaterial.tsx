@@ -64,7 +64,6 @@ export const CreateSupportMaterial: React.FC<CreateSupportMaterialProps> = (prop
     const [getUploadUrl] = useMutation<GetUploadUrlMutation>(GET_UPLOAD_URL)
     const [updateImage] = useUpdate()
 
-
     const onSuccess = (data: Sequent_Backend_Support_Material) => {
         updateImage("sequent_backend_support_material", {
             id: data.id,

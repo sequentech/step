@@ -1884,8 +1884,8 @@ const catalanTranslation: TranslationType = {
             },
             empty: {
                 header: "Encara no hi ha material de suport",
-                action: "Genera material de suport"
-            }            
+                action: "Genera material de suport",
+            },
         },
         widget: {
             logs: "Registres",

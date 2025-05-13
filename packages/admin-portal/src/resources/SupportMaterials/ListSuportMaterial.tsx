@@ -222,11 +222,8 @@ export const ListSupportMaterials: React.FC<ListAreaProps> = (props) => {
                     sx: {width: "40%"},
                 }}
             >
-                <CreateSupportMaterial
-                    record={record}
-                    close={handleCloseCreateDrawer}
-                />
-            </Drawer>   
+                <CreateSupportMaterial record={record} close={handleCloseCreateDrawer} />
+            </Drawer>
             <Drawer
                 anchor="right"
                 open={open}
