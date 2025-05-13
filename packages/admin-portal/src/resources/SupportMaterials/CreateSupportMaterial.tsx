@@ -64,16 +64,6 @@ export const CreateSupportMaterial: React.FC<CreateSupportMaterialProps> = (prop
     const [getUploadUrl] = useMutation<GetUploadUrlMutation>(GET_UPLOAD_URL)
     const [updateImage] = useUpdate()
 
-    useEffect(() => {
-        if (record) {
-            const temp: I18n = {...BASE_DATA}
-            for (const lang in record?.enabled_languages) {
-                temp.title_i18n[lang] = valueMaterials.title_i18n[lang] || ""
-                temp.subtitle_i18n[lang] = valueMaterials.subtitle_i18n[lang] || ""
-            }
-            setValueMaterials(temp)
-        }
-    }, [record])
 
     const onSuccess = (data: Sequent_Backend_Support_Material) => {
         updateImage("sequent_backend_support_material", {
