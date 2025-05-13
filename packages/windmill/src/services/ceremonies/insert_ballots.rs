@@ -34,7 +34,6 @@ use strand::backend::ristretto::RistrettoCtx;
 use strand::elgamal::Ciphertext;
 use strand::signature::StrandSignaturePk;
 use tempfile::NamedTempFile;
-use tokio::fs::File as TokioFile;
 use tracing::{event, info, instrument, Level};
 
 #[instrument(skip_all, err)]
@@ -105,16 +104,12 @@ pub async fn insert_ballots_messages(
             ballots_temp_file.path()
         );
 
-        let mut tokio_temp_file = TokioFile::create(&ballots_temp_file.path().to_path_buf())
-            .await
-            .expect("Could not create/open temporary file for tokio");
-
         find_area_ballots(
             &hasura_transaction,
             &tenant_id,
             &election_event_id,
             &tally_session_contest.area_id,
-            &mut tokio_temp_file,
+            &ballots_temp_file.path().to_path_buf(),
         )
         .await?;
 
@@ -320,16 +315,12 @@ pub async fn count_auditable_ballots(
         ballots_temp_file.path()
     );
 
-    let mut tokio_temp_file = TokioFile::create(&ballots_temp_file.path().to_path_buf())
-        .await
-        .expect("Could not create/open temporary file for tokio");
-
     find_area_ballots(
         &hasura_transaction,
         &tenant_id,
         &election_event_id,
         area_id,
-        &mut tokio_temp_file,
+        &ballots_temp_file.path().to_path_buf(),
     )
     .await?;
 

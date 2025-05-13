@@ -22,6 +22,7 @@ use tokio_postgres::row::Row;
 use tokio_util::io::StreamReader;
 use tracing::{info, instrument};
 use uuid::Uuid;
+use std::path::PathBuf;
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct CastVote {
@@ -67,7 +68,7 @@ pub async fn find_area_ballots(
     tenant_id: &str,
     election_event_id: &str,
     area_id: &str,
-    output_file: &mut File,
+    output_file: &PathBuf,
 ) -> Result<()> {
     // COPY does not support parameters so we have to add them using format
     let areas_statement = format!(
@@ -85,8 +86,13 @@ pub async fn find_area_ballots(
                 "#
     );
 
+    let mut tokio_temp_file = File::create(output_file)
+    .await
+    .expect("Could not create/open temporary file for tokio");
+
+
     let copy_out_query = format!("COPY ({}) TO STDOUT WITH (FORMAT CSV)", areas_statement);
-    let mut writer = BufWriter::new(output_file);
+    let mut writer = BufWriter::new(tokio_temp_file);
 
     info!("copy_out_query: {copy_out_query}");
 
