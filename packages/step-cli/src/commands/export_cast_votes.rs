@@ -27,6 +27,7 @@ use windmill::services::providers::transactions_provider::provide_hasura_transac
 struct Record {
     created: i64,
     election_id: ElectionIdString,
+    area_id: Option<String>,
     hash_voter_id: String,
     ballot_id: String,
 }
@@ -49,6 +50,10 @@ pub struct ExportCastVotes {
     /// Board DB - Immudb Board name
     #[arg(long)]
     board_db: String,
+
+    // Filename: Name of the output file
+    #[arg(long, default_value = "output.csv")]
+    output: String,
 }
 
 impl ExportCastVotes {
@@ -61,8 +66,8 @@ impl ExportCastVotes {
     }
 
     pub async fn run_export_cast_votes(&self) -> Result<(), Box<dyn std::error::Error>> {
-        println!("Creating file");
-        let file = File::create("output.csv")?;
+        println!("Creating file {}", self.output);
+        let file = File::create(&self.output)?;
 
         println!("Creating writer");
         let mut writer = WriterBuilder::new().from_writer(&file);
@@ -78,7 +83,7 @@ impl ExportCastVotes {
             .await
             .map_err(|err| anyhow!("Failed to get filtered messages: {:?}", err))?;
 
-        println!("Parsing messages");
+        println!("Parsing {} messages", electoral_log_messages.len());
         for electoral_log_message in electoral_log_messages {
             let message: &Message = &Message::strand_deserialize(&electoral_log_message.message)
                 .map_err(|err| anyhow!("Failed to deserialize message: {:?}", err))?;
@@ -97,6 +102,7 @@ impl ExportCastVotes {
                         election_id: election_id_string.clone(),
                         hash_voter_id: hex::encode(pseudonym_hash.0.clone().to_inner()),
                         ballot_id: hex::encode(shorten_hash(&cast_vote_hash.0.clone().to_inner())),
+                        area_id: electoral_log_message.area_id.clone(),
                     })
                     .map_err(|error| anyhow!("Failed to write row {}", error))?;
             };
