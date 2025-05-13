@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::documents::upload_and_return_document;
 use crate::services::protocol_manager::get_b3_pgsql_client;
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use csv::ReaderBuilder;
 use deadpool_postgres::Transaction;
 use futures::TryStreamExt;
@@ -47,14 +47,14 @@ pub async fn get_csv_bytes_cast_votes(
     let copy_stream = hasura_transaction
         .copy_out(&copy_sql)
         .await
-        .map_err(|err| anyhow::anyhow!("Failed to start COPY OUT for cast_vote: {err}"))?;
+        .map_err(|err| anyhow!("Failed to start COPY OUT for cast_vote: {err}"))?;
     let csv_bytes: Vec<u8> = copy_stream
         .try_fold(Vec::new(), |mut buf, chunk| async move {
             buf.extend_from_slice(&chunk);
             Ok(buf)
         })
         .await
-        .map_err(|err| anyhow::anyhow!("Error while streaming cast_vote CSV: {err}"))?;
+        .map_err(|err| anyhow!("Error while streaming cast_vote CSV: {err}"))?;
 
     Ok(csv_bytes)
 }
@@ -71,17 +71,17 @@ pub async fn export_verifiable_bulletin_board_db_file(
     // ── Step 1: Fetch B3 messages ────────────────────────────────────────────────
     let mut b3_client = get_b3_pgsql_client()
         .await
-        .map_err(|err| anyhow::anyhow!("Failed to get B3 client: {err}"))?;
+        .map_err(|err| anyhow!("Failed to get B3 client: {err}"))?;
     let raw_msgs = b3_client
         .get_messages(board_name, -1)
         .await
-        .map_err(|err| anyhow::anyhow!("Failed to fetch B3 messages: {err}"))?;
+        .map_err(|err| anyhow!("Failed to fetch B3 messages: {err}"))?;
 
     // ── Step 2: Fetch cast vote as csv bytes ─────────────────────────────────────────
     let cast_votes_bytes =
         get_csv_bytes_cast_votes(hasura_transaction, election_event_id, election_id)
             .await
-            .map_err(|err| anyhow::anyhow!("Error while streaming cast_vote CSV"))?;
+            .map_err(|err| anyhow!("Error while streaming cast_vote CSV"))?;
 
     // ── Step 3: write & populate db file ────────────────
     task::spawn_blocking(move || -> Result<()> {
@@ -192,11 +192,11 @@ pub async fn export_verifiable_bulletin_board_db_file(
                     "" => None,
                     sig => {
                         let hex_part = sig.strip_prefix(r"\x").ok_or_else(|| {
-                            anyhow::anyhow!("Invalid bytea format, expected leading `\\x`: {}", sig)
+                            anyhow!("Invalid bytea format, expected leading `\\x`: {}", sig)
                         })?;
 
                         let bytes = hex::decode(hex_part).with_context(|| {
-                            format!("Failed to decode hex in bytea field: {}", hex_part)
+                            anyhow!("Failed to decode hex in bytea field: {}", hex_part)
                         })?;
                         Some(bytes)
                     }
