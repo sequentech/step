@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 use tokio::fs::File;
-use tokio::io::{copy, BufWriter};
+use tokio::io::{copy, BufWriter, AsyncWriteExt};
 use tokio_postgres::row::Row;
 use tokio_util::io::StreamReader;
 use tracing::{info, instrument};
@@ -73,7 +73,7 @@ pub async fn find_area_ballots(
     let areas_statement = format!(
         r#"
                     SELECT DISTINCT ON (election_id, voter_id_string)
-                        id,
+                        voter_id_string,
                         election_id,
                         content
                     FROM "sequent_backend".cast_vote
@@ -103,6 +103,8 @@ pub async fn find_area_ballots(
     let bytes_copied = copy(&mut async_reader, &mut writer).await?;
 
     info!("bytes_copied: {bytes_copied}");
+
+    writer.flush().await?;
 
     Ok(())
 }
