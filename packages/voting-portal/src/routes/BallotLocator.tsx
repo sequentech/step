@@ -196,7 +196,7 @@ const BallotLocator: React.FC = () => {
                 <Box marginTop="48px">
                     <BreadCrumbSteps
                         labels={["ballotLocator.steps.lookup", "ballotLocator.steps.result"]}
-                        selected={2}
+                        selected={0}
                     />
                 </Box>
 

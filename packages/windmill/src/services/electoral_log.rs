@@ -13,7 +13,7 @@ use crate::tasks::electoral_log::{
     enqueue_electoral_log_event, LogEventInput, INTERNAL_MESSAGE_TYPE,
 };
 use crate::types::resources::{Aggregate, DataList, OrderDirection, TotalAggregate};
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, ensure, Context, Result};
 use b3::messages::message::{self, Signer as _};
 use base64::engine::general_purpose;
 use base64::Engine;
@@ -1149,6 +1149,17 @@ pub async fn list_cast_vote_messages(
     input: GetElectoralLogBody,
     ballot_id: &str,
 ) -> Result<CastVoteMessagesOutput> {
+    ensure!(ballot_id.len() == 64, "Incorrect ballot_id length");
+    // Each octet is a decimal number in the array
+    let ballot_dec = (0..ballot_id.len())
+        .step_by(2)
+        .map(|i| {
+            let res = u8::from_str_radix(&ballot_id[i..i + 2], 16).map_err(|e| e.to_string())?;
+            Ok(res)
+        })
+        .collect::<Result<Vec<u8>, String>>()
+        .map_err(|e| anyhow!(format!("{e:?}")))?;
+
     let mut client: Client = get_immudb_client().await?;
     let board_name = get_event_board(input.tenant_id.as_str(), input.election_event_id.as_str());
 
@@ -1182,10 +1193,12 @@ pub async fn list_cast_vote_messages(
         let items = streaming_batch?
             .rows
             .iter()
-            .filter_map(|row| match (ballot_id, ElectoralLogRow::try_from(row)) {
-                (pattern, Ok(entry)) if !entry.message().contains(pattern) => None,
-                (_, entry_res) => Some(entry_res),
-            })
+            .filter_map(
+                |row| match (format!("{ballot_dec:?}"), ElectoralLogRow::try_from(row)) {
+                    (pattern, Ok(entry)) if !entry.message().contains(&pattern) => None,
+                    (_, entry_res) => Some(entry_res),
+                },
+            )
             .collect::<Result<Vec<ElectoralLogRow>>>()?;
         rows.extend(items);
     }

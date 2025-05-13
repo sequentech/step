@@ -5,14 +5,12 @@
 
 use crate::services::authorization::authorize_voter_election;
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
-use anyhow::{anyhow, Context, Result};
-use deadpool_postgres::Client as DbClient;
+use anyhow::Result;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt::JwtClaims;
-use sequent_core::types::permissions::Permissions;
 use sequent_core::types::permissions::VoterPermissions;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::collections::HashMap;
 use tracing::instrument;
 use windmill::services::electoral_log;
@@ -74,7 +72,7 @@ pub async fn list_cast_vote_messages(
         .map_err(|e| {
             ErrorResponse::new(
                 Status::InternalServerError,
-                &format!("{:?}", e),
+                &format!("Error to list cast vote messages: {e:?}"),
                 ErrorCode::InternalServerError,
             )
         })?;
