@@ -953,10 +953,14 @@ actions:
           kind: synchronous
           handler: http://{{HARVEST_DOMAIN}}/voting-portal/immudb/list-cast-vote-messages
           forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
       permissions:
-          - role: voter-read
-          - role: user-read
-          - role: admin-user
+          - role: user
       comment: List electoral log entries of statement_kind CastVote
     - name: listElectoralLog
       definition:

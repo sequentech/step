@@ -110,7 +110,8 @@ const BallotLocator: React.FC = () => {
     const {t} = useTranslation()
     const [inputBallotId, setInputBallotId] = useState<string>("")
     const {globalSettings} = useContext(SettingsContext)
-    const [listCastVoteMessages] = useMutation<ListCastVoteMessagesMutation>(LIST_CAST_VOTE_MESSAGES)
+    const [listCastVoteMessages] =
+        useMutation<ListCastVoteMessagesMutation>(LIST_CAST_VOTE_MESSAGES)
     const sendRequest = useRef<boolean>(true)
 
     const hasBallotId = !!ballotId
@@ -137,13 +138,13 @@ const BallotLocator: React.FC = () => {
                 electionId,
                 ballotId,
             },
-        })      
+        })
     }
-    
+
     useEffect(() => {
         if (hasBallotId && sendRequest.current) {
             sendRequest.current = false
-            requestCVMsgs()  
+            requestCVMsgs()
         }
     }, [hasBallotId])
 
