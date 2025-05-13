@@ -12,8 +12,9 @@ use serde_json;
 use std::collections::HashMap; // Added for HashMap
 use std::fs::{self, File};
 use std::path::PathBuf;
-use tracing::{debug, error, info, warn}; // Added tracing macros
-use tracing_subscriber::EnvFilter; // Added for tracing initialization
+use tokio_stream::StreamExt; // Added for streaming
+use tracing::{debug, error, info, warn};
+use tracing_subscriber::EnvFilter;
 
 /// Generates a CSV report of activity logs from immudb.
 #[derive(Parser, Debug)]
@@ -305,85 +306,77 @@ async fn main() -> Result<()> {
         .with_context(|| format!("Failed to open session to board: {}", board_name))?;
     info!(%board_name, "Successfully opened session to board.");
 
-    let mut offset: i64 = 0;
-    let batch_size = config.batch_size.unwrap_or(1000);
     let mut total_rows_fetched = 0;
     let mut activity_log_written_counts: HashMap<String, usize> = HashMap::new();
 
-    info!(batch_size, "Starting log retrieval from Immudb.");
+    info!("Starting log retrieval from Immudb via streaming query.");
 
-    loop {
-        let sql = format!(
-            "SELECT id, created, statement_timestamp, statement_kind, message, user_id \
-             FROM electoral_log_messages \
-             ORDER BY id ASC \
-             LIMIT @limit OFFSET @offset"
-        );
+    let sql = "SELECT id, created, statement_timestamp, statement_kind, message, user_id \
+               FROM electoral_log_messages \
+               ORDER BY id ASC".to_string();
 
-        let params = vec![
-            NamedParam { name: "limit".to_string(), value: Some(ImmudbSqlValue { value: Some(ImmudbSqlValue::N(batch_size as i64)) }) },
-            NamedParam { name: "offset".to_string(), value: Some(ImmudbSqlValue { value: Some(ImmudbSqlValue::N(offset)) }) },
-        ];
+    // Vec::new() for no params, None for implicit TxMode (read-only for SELECT)
+    let mut stream = client.streaming_sql_query(&sql, Vec::new(), None)
+        .await
+        .with_context(|| "Failed to execute streaming SQL query")?;
 
-        debug!(offset, "Fetching log batch from Immudb.");
-        let response = client.sql_query(&sql, params)
-            .await
-            .with_context(|| format!("Failed to execute SQL query (offset: {})", offset))?;
+    while let Some(row_result) = stream.next().await {
+        match row_result {
+            Ok(row) => {
+                total_rows_fetched += 1;
+                if total_rows_fetched % 1000 == 0 { // Log progress every 1000 rows
+                    info!(total_rows_fetched, "Processed rows from stream...");
+                }
 
-        if response.rows.is_empty() {
-            info!("No more rows found in Immudb. Log retrieval complete.");
-            break;
-        }
+                match ElectoralLogRow::try_from_immudb_row(&row) {
+                    Ok(elog_row) => {
+                        debug!(log_id = elog_row.id, "Successfully parsed ElectoralLogRow from stream.");
+                        match ActivityLogRow::try_from_electoral_log(&elog_row) {
+                            Ok(Some((activity_log_row, extracted_election_id_opt))) => {
+                                let filename_stem_key = match &extracted_election_id_opt {
+                                    Some(id) => config.elections.get(id).map(|s| s.as_str()).unwrap_or(id).to_string(),
+                                    None => "general_logs".to_string(),
+                                };
+                                let sanitized_stem = sanitize_filename(&filename_stem_key);
 
-        let num_rows_in_batch = response.rows.len();
-        total_rows_fetched += num_rows_in_batch;
-        debug!(num_rows_in_batch, "Fetched rows in this batch.");
+                                if !csv_writers.contains_key(&sanitized_stem) {
+                                    let csv_path = cli.output_folder_path.join(format!("{}.csv", sanitized_stem));
+                                    info!(file_path = %csv_path.display(), election_id_key = %filename_stem_key, "Creating new CSV file.");
+                                    let file = File::create(&csv_path)
+                                        .with_context(|| format!("Failed to create CSV file: {}", csv_path.display()))?;
+                                    csv_writers.insert(sanitized_stem.clone(), Writer::from_writer(file));
+                                }
 
-        for row in response.rows {
-            match ElectoralLogRow::try_from_immudb_row(&row) {
-                Ok(elog_row) => {
-                    debug!(log_id = elog_row.id, "Successfully parsed ElectoralLogRow.");
-                    match ActivityLogRow::try_from_electoral_log(&elog_row) {
-                        Ok(Some((activity_log_row, extracted_election_id_opt))) => {
-                            let filename_stem_key = match &extracted_election_id_opt {
-                                Some(id) => config.elections.get(id).map(|s| s.as_str()).unwrap_or(id).to_string(),
-                                None => "general_logs".to_string(),
-                            };
-                            let sanitized_stem = sanitize_filename(&filename_stem_key);
-
-                            if !csv_writers.contains_key(&sanitized_stem) {
-                                let csv_path = cli.output_folder_path.join(format!("{}.csv", sanitized_stem));
-                                info!(file_path = %csv_path.display(), election_id_key = %filename_stem_key, "Creating new CSV file.");
-                                let file = File::create(&csv_path)
-                                    .with_context(|| format!("Failed to create CSV file: {}", csv_path.display()))?;
-                                csv_writers.insert(sanitized_stem.clone(), Writer::from_writer(file));
-                            }
-
-                            if let Some(writer) = csv_writers.get_mut(&sanitized_stem) {
-                                if let Err(e) = writer.serialize(&activity_log_row) {
-                                    error!(log_id = elog_row.id, election_file_stem = %sanitized_stem, error = %e, "Failed to serialize ActivityLogRow to CSV.");
-                                } else {
-                                    *activity_log_written_counts.entry(sanitized_stem.clone()).or_insert(0) += 1;
+                                if let Some(writer) = csv_writers.get_mut(&sanitized_stem) {
+                                    if let Err(e) = writer.serialize(&activity_log_row) {
+                                        error!(log_id = elog_row.id, election_file_stem = %sanitized_stem, error = %e, "Failed to serialize ActivityLogRow to CSV.");
+                                    } else {
+                                        *activity_log_written_counts.entry(sanitized_stem.clone()).or_insert(0) += 1;
+                                    }
                                 }
                             }
-                        }
-                        Ok(None) => { 
-                            // This case should ideally not happen if try_from_electoral_log always returns Some on success
-                            debug!(log_id = elog_row.id, "Transformation to ActivityLogRow returned None unexpectedly.");
-                         }
-                        Err(e) => {
-                            warn!(log_id = elog_row.id, error = %e, "Failed to transform ElectoralLogRow.");
+                            Ok(None) => {
+                                // This case should ideally not happen if try_from_electoral_log always returns Some on success
+                                debug!(log_id = elog_row.id, "Transformation to ActivityLogRow returned None unexpectedly.");
+                            }
+                            Err(e) => {
+                                warn!(log_id = elog_row.id, error = %e, "Failed to transform ElectoralLogRow.");
+                            }
                         }
                     }
-                }
-                Err(e) => {
-                    error!(error = %e, "Failed to parse ImmudbRow into ElectoralLogRow.");
+                    Err(e) => {
+                        error!(error = %e, "Failed to parse ImmudbRow into ElectoralLogRow during streaming.");
+                    }
                 }
             }
+            Err(e) => {
+                error!(error = %e, "Error receiving row from Immudb stream.");
+                // Depending on the error, you might want to break or continue.
+                // For now, we'll log and continue, but critical errors might warrant a break.
+            }
         }
-
-        offset += batch_size as i64;
     }
+    info!("Finished streaming logs from Immudb.");
 
     for (filename_stem, writer) in csv_writers.iter_mut() {
         writer.flush().with_context(|| format!("Failed to flush CSV writer for {}", filename_stem))?;
