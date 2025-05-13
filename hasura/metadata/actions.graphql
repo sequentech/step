@@ -434,7 +434,7 @@ type Mutation {
     ): LimitAccessByCountriesOutput
 }
 
-type Query {
+type Mutation {
     list_cast_vote_messages(
         tenant_id: String!
         election_event_id: String!

@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useContext, useEffect, useState} from "react"
+import React, {useContext, useEffect, useState, useRef} from "react"
 import {useTranslation} from "react-i18next"
 import {
     BreadCrumbSteps,
@@ -18,12 +18,12 @@ import {Box, TextField, Typography, Button, Stack} from "@mui/material"
 import {styled} from "@mui/material/styles"
 import {Link, useLocation, useNavigate, useParams} from "react-router-dom"
 import {GET_CAST_VOTE} from "../queries/GetCastVote"
-import {useQuery} from "@apollo/client"
+import {useQuery, useMutation} from "@apollo/client"
 import {
     GetBallotStylesQuery,
     GetCastVoteQuery,
     GetElectionEventQuery,
-    ListCastVoteMessagesQuery,
+    ListCastVoteMessagesMutation,
 } from "../gql/graphql"
 import {faAngleLeft, faCircleQuestion} from "@fortawesome/free-solid-svg-icons"
 import {GET_BALLOT_STYLES} from "../queries/GetBallotStyles"
@@ -110,6 +110,8 @@ const BallotLocator: React.FC = () => {
     const {t} = useTranslation()
     const [inputBallotId, setInputBallotId] = useState<string>("")
     const {globalSettings} = useContext(SettingsContext)
+    const [listCastVoteMessages] = useMutation<ListCastVoteMessagesMutation>(LIST_CAST_VOTE_MESSAGES)
+    const sendRequest = useRef<boolean>(true)
 
     const hasBallotId = !!ballotId
     const {data: dataBallotStyles} = useQuery<GetBallotStylesQuery>(GET_BALLOT_STYLES)
@@ -127,19 +129,23 @@ const BallotLocator: React.FC = () => {
         },
         skip: globalSettings.DISABLE_AUTH, // Skip query if in demo mode
     })
-
-    const {data: dataListCastVoteMessage} = useQuery<ListCastVoteMessagesQuery>(
-        LIST_CAST_VOTE_MESSAGES,
-        {
+    const requestCVMsgs = async () => {
+        let result = await listCastVoteMessages({
             variables: {
                 tenantId,
                 electionEventId: eventId,
                 electionId,
                 ballotId,
             },
-            skip: globalSettings.DISABLE_AUTH || !hasBallotId, // Skip query if in demo mode
+        })      
+    }
+    
+    useEffect(() => {
+        if (hasBallotId && sendRequest.current) {
+            sendRequest.current = false
+            requestCVMsgs()  
         }
-    )
+    }, [hasBallotId])
 
     const {data: dataElectionEvent} = useQuery<GetElectionEventQuery>(GET_ELECTION_EVENT, {
         variables: {
