@@ -1872,6 +1872,10 @@ const spanishTranslation: TranslationType = {
                 isHidden: "Oculto",
                 publicUrl: "Enlace público",
             },
+            empty: {
+                header: "Aún no hay material de soporte",
+                action: "Generar material de soporte",
+            },
         },
         widget: {
             logs: "Registros",

@@ -1883,6 +1883,10 @@ const frenchTranslation: TranslationType = {
                 isHidden: "Caché",
                 publicUrl: "Lien public",
             },
+            empty: {
+                header: "Pas encore de matériel de support",
+                action: "Générer du matériel de support",
+            },
         },
         widget: {
             logs: "Journaux",

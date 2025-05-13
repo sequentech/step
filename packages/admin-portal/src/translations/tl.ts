@@ -1876,6 +1876,10 @@ const tagalogTranslation: TranslationType = {
                 isHidden: "Nakatago",
                 publicUrl: "Publikong URL",
             },
+            empty: {
+                header: "Wala pang support material",
+                action: "Gumawa ng support material",
+            },
         },
         widget: {
             logs: "Mga Log",

@@ -84,18 +84,14 @@ export const CreateSupportMaterial: React.FC<CreateSupportMaterialProps> = (prop
         })
 
         refresh()
+        close?.()
         notify(t("materials.createMaterialSuccess"), {type: "success"})
-        if (close) {
-            close()
-        }
     }
 
     const onError = async (res: any) => {
         refresh()
+        close?.()
         notify("materials.createMaterialError", {type: "error"})
-        if (close) {
-            close()
-        }
     }
 
     const renderTabs = (parsedValue: Sequent_Backend_Support_Material_Extended) => {
