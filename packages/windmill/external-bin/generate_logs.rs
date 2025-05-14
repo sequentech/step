@@ -128,7 +128,8 @@ impl ElectoralLogRow {
         for (col_idx, col_name_qual) in row.columns.iter().enumerate() {
             // Column name might be qualified, e.g., "electoral_log_messages.id"
             // We'll split by '.' and take the last part if present, or use the full name.
-            let col_name = col_name_qual.split('.').last().unwrap_or(col_name_qual);
+            let mut col_name = col_name_qual.split('.').last().unwrap_or(col_name_qual);
+            col_name = col_name.strip_suffix(')').unwrap_or(col_name);
             let value = &row.values[col_idx];
 
             match col_name {
@@ -186,7 +187,7 @@ impl ElectoralLogRow {
             }
         }
 
-        let message_str = String::from_utf8(message_bytes)
+        let message_str = String::from_utf8(message_bytes.clone())
             .with_context(|| "Failed to convert message bytes to UTF-8 string")?;
 
         Ok(ElectoralLogRow {
