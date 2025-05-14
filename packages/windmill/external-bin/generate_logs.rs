@@ -316,67 +316,77 @@ async fn main() -> Result<()> {
                FROM electoral_log_messages \
                ORDER BY id ASC".to_string();
 
-    let mut stream = client.streaming_sql_query(&sql, Vec::new())
+    // Call to streaming_sql_query for immudb-rs v0.1.0 (does not take TxMode)
+    let response_stream = client.streaming_sql_query(&sql, Vec::new())
         .await
-        .with_context(|| "Failed to execute streaming SQL query")?;
+        .with_context(|| "Failed to execute streaming_sql_query using immudb-rs v0.1.0. This version streams batches (SqlQueryResult).")?;
 
-    while let Some(row_result) = stream.next().await {
-        match row_result {
-            Ok(row) => {
-                total_rows_fetched += 1;
-                if total_rows_fetched % 1000 == 0 { // Log progress every 1000 rows
-                    info!(total_rows_fetched, "Processed rows from stream...");
+    let mut stream = response_stream.into_inner(); // Get the tonic::Streaming<SqlQueryResult>
+
+    while let Some(batch_result) = stream.next().await { // Iterates over SqlQueryResult batches
+        match batch_result {
+            Ok(sql_query_result_batch) => {
+                if sql_query_result_batch.rows.is_empty() && total_rows_fetched > 0 {
+                    debug!("Received an empty batch in stream; could signify end or an empty chunk.");
+                    // Continue, as the stream ending is the true signal.
                 }
+                
+                for individual_row in &sql_query_result_batch.rows { // Iterate over individual rows within the batch
+                    total_rows_fetched += 1;
+                    if total_rows_fetched % 1000 == 0 {
+                        info!(total_rows_fetched, "Processed rows from stream...");
+                    }
 
-                match ElectoralLogRow::try_from_immudb_row(&row) {
-                    Ok(elog_row) => {
-                        debug!(log_id = elog_row.id, "Successfully parsed ElectoralLogRow from stream.");
-                        match ActivityLogRow::try_from_electoral_log(&elog_row) {
-                            Ok(Some((activity_log_row, extracted_election_id_opt))) => {
-                                let filename_stem_key = match &extracted_election_id_opt {
-                                    Some(id) => config.elections.get(id).map(|s| s.as_str()).unwrap_or(id).to_string(),
-                                    None => "general_logs".to_string(),
-                                };
-                                let sanitized_stem = sanitize_filename(&filename_stem_key);
+                    match ElectoralLogRow::try_from_immudb_row(individual_row) { // individual_row is &ImmudbRow
+                        Ok(elog_row) => {
+                            debug!(log_id = elog_row.id, "Successfully parsed ElectoralLogRow from stream batch.");
+                            match ActivityLogRow::try_from_electoral_log(&elog_row) {
+                                Ok(Some((activity_log_row, extracted_election_id_opt))) => {
+                                    let filename_stem_key = match &extracted_election_id_opt {
+                                        Some(id) => config.elections.get(id).map(|s| s.as_str()).unwrap_or(id).to_string(),
+                                        None => "general_logs".to_string(),
+                                    };
+                                    let sanitized_stem = sanitize_filename(&filename_stem_key);
 
-                                if !csv_writers.contains_key(&sanitized_stem) {
-                                    let csv_path = cli.output_folder_path.join(format!("{}.csv", sanitized_stem));
-                                    info!(file_path = %csv_path.display(), election_id_key = %filename_stem_key, "Creating new CSV file.");
-                                    let file = File::create(&csv_path)
-                                        .with_context(|| format!("Failed to create CSV file: {}", csv_path.display()))?;
-                                    csv_writers.insert(sanitized_stem.clone(), Writer::from_writer(file));
-                                }
+                                    if !csv_writers.contains_key(&sanitized_stem) {
+                                        let csv_path = cli.output_folder_path.join(format!("{}.csv", sanitized_stem));
+                                        info!(file_path = %csv_path.display(), election_id_key = %filename_stem_key, "Creating new CSV file.");
+                                        let file = File::create(&csv_path)
+                                            .with_context(|| format!("Failed to create CSV file: {}", csv_path.display()))?;
+                                        csv_writers.insert(sanitized_stem.clone(), Writer::from_writer(file));
+                                    }
 
-                                if let Some(writer) = csv_writers.get_mut(&sanitized_stem) {
-                                    if let Err(e) = writer.serialize(&activity_log_row) {
-                                        error!(log_id = elog_row.id, election_file_stem = %sanitized_stem, error = %e, "Failed to serialize ActivityLogRow to CSV.");
-                                    } else {
-                                        *activity_log_written_counts.entry(sanitized_stem.clone()).or_insert(0) += 1;
+                                    if let Some(writer) = csv_writers.get_mut(&sanitized_stem) {
+                                        if let Err(e) = writer.serialize(&activity_log_row) {
+                                            error!(log_id = elog_row.id, election_file_stem = %sanitized_stem, error = %e, "Failed to serialize ActivityLogRow to CSV.");
+                                        } else {
+                                            *activity_log_written_counts.entry(sanitized_stem.clone()).or_insert(0) += 1;
+                                        }
                                     }
                                 }
-                            }
-                            Ok(None) => {
-                                // This case should ideally not happen if try_from_electoral_log always returns Some on success
-                                debug!(log_id = elog_row.id, "Transformation to ActivityLogRow returned None unexpectedly.");
-                            }
-                            Err(e) => {
-                                warn!(log_id = elog_row.id, error = %e, "Failed to transform ElectoralLogRow.");
+                                Ok(None) => {
+                                    debug!(log_id = elog_row.id, "Transformation to ActivityLogRow returned None unexpectedly (filtered or error in conversion).");
+                                }
+                                Err(e) => {
+                                    warn!(log_id = elog_row.id, error = %e, "Failed to transform ElectoralLogRow.");
+                                }
                             }
                         }
-                    }
-                    Err(e) => {
-                        error!(error = %e, "Failed to parse ImmudbRow into ElectoralLogRow during streaming.");
+                        Err(e) => {
+                            error!(error = %e, "Failed to parse ImmudbRow into ElectoralLogRow from stream batch.");
+                        }
                     }
                 }
             }
             Err(e) => {
-                error!(error = %e, "Error receiving row from Immudb stream.");
+                error!(error = %e, "Error receiving batch from Immudb stream.");
                 // Depending on the error, you might want to break or continue.
-                // For now, we'll log and continue, but critical errors might warrant a break.
+                // For now, we'll log and break for stream errors to avoid infinite loops on persistent errors.
+                break; 
             }
         }
     }
-    info!("Finished streaming logs from Immudb.");
+    info!("Finished processing all batches from Immudb stream.");
 
     for (filename_stem, writer) in csv_writers.iter_mut() {
         writer.flush().with_context(|| format!("Failed to flush CSV writer for {}", filename_stem))?;
