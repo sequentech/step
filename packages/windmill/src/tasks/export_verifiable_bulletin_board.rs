@@ -1,30 +1,19 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::postgres::keys_ceremony::get_keys_ceremony_by_id;
-use crate::postgres::tally_session::get_tally_session_by_id;
-use crate::services::ceremonies::keys_ceremony::get_keys_ceremony_board;
-use crate::services::database::get_hasura_pool;
 use crate::services::documents::upload_and_return_document;
-use crate::services::export::export_verifiable_bulletin_board::{
-    self, export_verifiable_bulletin_board_db_file,
-};
-use crate::services::protocol_manager::get_b3_pgsql_client;
+use crate::services::export::export_verifiable_bulletin_board::export_verifiable_bulletin_board_sqlite_file;
 use crate::services::providers::transactions_provider::provide_hasura_transaction;
 use crate::services::tasks_execution::{update_complete, update_fail};
-use crate::types::error::{Error, Result as TaskResult};
-use anyhow::{Context, Result};
-use base64;
+use crate::types::error::Result as TaskResult;
+use anyhow::Result;
 use celery::error::TaskError;
-use chrono::{DateTime, Utc};
-use csv::ReaderBuilder;
-use deadpool_postgres::{Client as DbClient, Transaction};
-use futures::TryStreamExt;
-use rusqlite::{params, Connection};
+use deadpool_postgres::Transaction;
 use sequent_core::types::hasura::core::TasksExecution;
-use serde::{Deserialize, Serialize};
-use tokio::task;
-use tracing::{event, instrument, Level};
+use std::env;
+use std::fs::File;
+use tracing::instrument;
+use zip::write::FileOptions;
 
 pub async fn process_export_verifiable_bulletin_board(
     hasura_transaction: &Transaction<'_>,
@@ -33,43 +22,59 @@ pub async fn process_export_verifiable_bulletin_board(
     tally_session_id: String,
     election_event_id: String,
 ) -> Result<()> {
-    let tally_session = get_tally_session_by_id(
-        &hasura_transaction,
-        &tenant_id,
-        &election_event_id,
-        &tally_session_id,
-    )
-    .await
-    .map_err(|err| anyhow::anyhow!("Failed to get Tally Session: {err}"))?;
+    let zip_filename = format!("export_verifiable_bulletin_board.zip");
+    let zip_path = env::temp_dir().join(&zip_filename);
 
-    let keys_ceremony = get_keys_ceremony_by_id(
-        &hasura_transaction,
-        &tenant_id,
-        &election_event_id,
-        &tally_session.keys_ceremony_id,
-    )
-    .await
-    .map_err(|err| anyhow::anyhow!("Failed to get Key Ceremony: {err}"))?;
+    let cwd = env::current_dir().map_err(|e| anyhow::anyhow!(e))?;
+    println!("Current working directory: {:?}", cwd);
 
-    let (bulletin_board, election_id) = get_keys_ceremony_board(
-        &hasura_transaction,
-        &tenant_id,
-        &election_event_id,
-        &keys_ceremony,
-    )
-    .await
-    .map_err(|err| anyhow::anyhow!("Failed to get Key Ceremony Board: {err}"))?;
+    // Create a new ZIP file
+    let zip_file =
+        File::create(&zip_path).map_err(|e| anyhow::anyhow!("Error creating ZIP file: {e:?}"))?;
+    let mut zip_writer = zip::ZipWriter::new(zip_file);
+    let options: FileOptions<()> =
+        FileOptions::default().compression_method(zip::CompressionMethod::DEFLATE);
 
-    export_verifiable_bulletin_board_db_file(
+    let temp_bulletin_boards_file = export_verifiable_bulletin_board_sqlite_file(
         hasura_transaction,
-        &tenant_id,
-        &election_event_id,
-        election_id,
-        Some(document_id.clone()),
-        &bulletin_board,
+        tenant_id.clone(),
+        document_id.clone(),
+        tally_session_id,
+        election_event_id.clone(),
     )
     .await
-    .map_err(|err| anyhow::anyhow!("Error exporting verifiable bulletin board: {err}"))?;
+    .map_err(|e| anyhow::anyhow!("Error exporting verifiable bulletin board: {e:?}"))?;
+
+    zip_writer
+        .start_file("verifiable_bulletin_board.db", options.clone())
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
+
+    let mut bulletin_boards_file = File::open(temp_bulletin_boards_file)
+        .map_err(|e| anyhow::anyhow!("Error opening temporary bulletin boards file: {e:?}"))?;
+    std::io::copy(&mut bulletin_boards_file, &mut zip_writer)
+        .map_err(|e| anyhow::anyhow!("Error copying bulletin boards file to ZIP: {e:?}"))?;
+
+    zip_writer.finish().map_err(|e| anyhow::anyhow!(e))?;
+
+    let zip_size = std::fs::metadata(&zip_path)
+        .map_err(|e| anyhow::anyhow!("Error getting ZIP file metadata: {e:?}"))?
+        .len();
+
+    let _document = upload_and_return_document(
+        &hasura_transaction,
+        zip_path.to_str().unwrap(),
+        zip_size,
+        "application/zip",
+        &tenant_id.to_string(),
+        Some(election_event_id.to_string()),
+        &zip_filename,
+        Some(document_id.to_string()),
+        false,
+    )
+    .await?;
+
+    std::fs::remove_file(&zip_path)
+        .map_err(|e| anyhow::anyhow!("Error removing ZIP file: {e:?}"))?;
 
     Ok(())
 }

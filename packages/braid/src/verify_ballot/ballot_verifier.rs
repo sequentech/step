@@ -4,33 +4,36 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::Result;
 use b3::messages::artifact::Ballots;
 use b3::messages::message::Message;
-use colored::*;
 use reedline_repl_rs::yansi::Paint;
-use rusqlite::{params, Connection, OptionalExtension};
+use rusqlite::{params, Connection, OpenFlags, OptionalExtension};
 use sequent_core::multi_ballot::{HashableMultiBallot, HashableMultiBallotContests};
 use sequent_core::serialization::base64::Base64Serialize;
 use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use strand::backend::ristretto::RistrettoCtx;
-use strand::elgamal::Ciphertext;
 use strand::serialization::StrandDeserialize;
-use tracing::info;
+use thiserror::Error;
 
 pub const VERIFIABLE_BULLETIN_BOARD_FILE: &str = "export_verifiable_bulletin_board.db";
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct B3MessageRow {
-    pub id: i64,
-    pub created: String,
-    pub sender_pk: String,
-    pub statement_timestamp: String,
-    pub statement_kind: String,
-    pub batch: i32,
-    pub mix_number: i32,
-    pub message: Vec<u8>,
-    pub version: String,
+#[derive(Error, Debug)]
+pub enum BallotVerifierError {
+    #[error("Could not open the data file. Please make sure it exists and is readable.")]
+    DataFileOpen,
+
+    #[error("Internal data error. Please try again.")]
+    DataCorruption,
+
+    #[error("Ballot not found. Please double-check the ballot ID and try again.")]
+    BallotNotFound,
+
+    #[error("An unexpected error occurred. Please contact support.")]
+    Unexpected,
+
+    #[error("The ballot hash you provided isn’t valid. Please double-check and try again.")]
+    InvalidHash,
 }
 
 pub struct BallotVerifier {
@@ -44,54 +47,41 @@ impl BallotVerifier {
         }
     }
 
-    pub async fn run(&mut self) -> Result<()> {
-        let ballot_id = &self.ballot_hash;
-        let conn = Connection::open(VERIFIABLE_BULLETIN_BOARD_FILE)
-            .context("Failed to open verifiable_bulletin_board.db")?;
+    pub async fn run(&mut self) -> Result<(), BallotVerifierError> {
+        let conn = Connection::open_with_flags(
+            VERIFIABLE_BULLETIN_BOARD_FILE,
+            OpenFlags::SQLITE_OPEN_READ_ONLY,
+        )
+        .map_err(|_| BallotVerifierError::DataFileOpen)?;
 
-        // 2) Pull the `content` for this ballot_id
         let mut cv_stmt = conn
-            .prepare(
-                "SELECT content
-           FROM cast_vote
-          WHERE ballot_id = ?1
-          LIMIT 1",
-            )
-            .context("Failed to prepare cast_vote lookup")?;
+            .prepare("SELECT content FROM cast_vote WHERE ballot_id = ?1 LIMIT 1")
+            .map_err(|_| BallotVerifierError::Unexpected)?;
 
-        let content_opt = cv_stmt
-            .query_row(params![ballot_id], |row| row.get::<_, String>(0))
+        let content_opt: Option<String> = cv_stmt
+            .query_row(params![&self.ballot_hash], |r| r.get(0))
             .optional()
-            .context("Error querying cast_vote")?;
+            .map_err(|_| BallotVerifierError::Unexpected)?;
 
-        let content_opt = match content_opt {
-            Some(content) => content,
-            None => {
-                println!(
-                    "{}",
-                    format!("Ballot ID not found in cast_vote table").red()
-                );
-                return Ok(());
-            }
-        };
+        let content = content_opt.ok_or(BallotVerifierError::BallotNotFound)?;
 
-        let hashable_multi_ballot: HashableMultiBallot = deserialize_str(&content_opt)?;
+        let ballot: HashableMultiBallot =
+            deserialize_str(&content).map_err(|_| BallotVerifierError::DataCorruption)?;
 
-        let hashable_multi_ballot_contests: HashableMultiBallotContests<RistrettoCtx> =
-            hashable_multi_ballot
-                .deserialize_contests()
-                .map_err(|err| anyhow!("{:?}", err))?;
-        let ciphertext: Ciphertext<RistrettoCtx> =
-            hashable_multi_ballot_contests.ciphertext.clone();
+        let contests: HashableMultiBallotContests<RistrettoCtx> = ballot
+            .deserialize_contests()
+            .map_err(|_| BallotVerifierError::DataCorruption)?;
+        let ciphertext = contests.ciphertext.clone();
+        let b64 = ciphertext
+            .serialize()
+            .map_err(|_| BallotVerifierError::Unexpected)?;
 
-        let ballot_ciphertext_base64 = ciphertext.serialize()?;
+        let batch_opt = Self::find_batch_for_ciphertext(&conn, &b64).await?;
 
-        let ballot_batch = Self::find_batch_for_ciphertext(&conn, &ballot_ciphertext_base64)
-            .await
-            .context("Failed to find batch for ciphertext")?;
-
-        if let Some(batch) = ballot_batch {
-            println!("{}", format!("Found Ballot at batch: {batch}").green());
+        if let Some(batch) = batch_opt {
+            println!("{}", format!("Found ballot in batch {}", batch).green());
+        } else {
+            return Err(BallotVerifierError::BallotNotFound);
         }
 
         Ok(())
@@ -99,36 +89,35 @@ impl BallotVerifier {
 
     async fn find_batch_for_ciphertext(
         conn: &Connection,
-        ballot_ciphertext_base64: &str,
-    ) -> anyhow::Result<Option<i32>> {
-        let mut stmt = conn.prepare(
-            "SELECT
-                batch,
-                message
-             FROM b3_messages
-             WHERE statement_kind = ?1
-             ORDER BY id",
-        )?;
+        target_b64: &str,
+    ) -> Result<Option<i32>, BallotVerifierError> {
+        let mut stmt = conn
+            .prepare(
+                "SELECT batch, message FROM b3_messages
+                 WHERE statement_kind = ?1
+                 ORDER BY id",
+            )
+            .map_err(|_| BallotVerifierError::Unexpected)?;
+        let mut rows = stmt
+            .query(params!["Ballots"])
+            .map_err(|_| BallotVerifierError::Unexpected)?;
 
-        let mut rows = stmt.query(params!["Ballots"])?;
+        while let Some(row) = rows.next().map_err(|_| BallotVerifierError::Unexpected)? {
+            let batch: i32 = row.get(0).map_err(|_| BallotVerifierError::Unexpected)?;
+            let raw: Vec<u8> = row.get(1).map_err(|_| BallotVerifierError::Unexpected)?;
 
-        while let Some(row) = rows.next()? {
-            let batch: i32 = row.get(0)?;
-            let raw_message: Vec<u8> = row.get(1)?;
-
-            let msg: Message = StrandDeserialize::strand_deserialize(&raw_message)
-                .context("failed to parse Message")?;
-
-            let ballots_bytes = msg.artifact.context("Message.artifact was None")?;
-
+            let msg: Message = StrandDeserialize::strand_deserialize(&raw)
+                .map_err(|_| BallotVerifierError::DataCorruption)?;
+            let ballots_bytes = msg.artifact.ok_or(BallotVerifierError::DataCorruption)?;
             let ballots: Ballots<RistrettoCtx> =
                 StrandDeserialize::strand_deserialize(&ballots_bytes)
-                    .context("failed to parse Ballots")?;
+                    .map_err(|_| BallotVerifierError::DataCorruption)?;
 
-            // scan each ciphertext for a match
             for ct in &ballots.ciphertexts.0 {
-                let ct_b64 = ct.serialize().unwrap(); // TODO: handle errors
-                if ct_b64 == ballot_ciphertext_base64 {
+                let ct_b64 = ct
+                    .serialize()
+                    .map_err(|_| BallotVerifierError::Unexpected)?;
+                if ct_b64 == target_b64 {
                     return Ok(Some(batch));
                 }
             }
