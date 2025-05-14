@@ -45,6 +45,8 @@ use tempfile::NamedTempFile;
 use tokio_stream::{Stream, StreamExt};
 use tracing::{event, info, instrument, trace, warn, Level};
 
+pub const IMMUDB_ROWS_LIMIT: usize = 25_000;
+
 /// Ballot_id input is the first half of the original hash which is stored in the electoral log.
 pub const BALLOT_ID_LENGTH_BYTES: usize = STRAND_HASH_LENGTH_BYTES / 2;
 /// Ballot_id input is in HEX, each byte is represented in 2 chars.
@@ -1080,8 +1082,8 @@ pub struct CastVoteMessagesOutput {
 impl CastVoteEntry {
     pub fn from_row_with_ballot_id(
         row: &Row,
-        ballot_id: &str,
-        ballot_id_hash: &[u8],
+        input_ballot_id_len: usize,
+        input_ballot_id_hash: &[u8],
     ) -> Result<Option<Self>, anyhow::Error> {
         let mut statement_timestamp: i64 = 0;
         let mut statement_kind = String::from("");
@@ -1125,7 +1127,12 @@ impl CastVoteEntry {
             }
         };
 
-        if inmudb_hash[..BALLOT_ID_LENGTH_BYTES] != ballot_id_hash.to_owned() {
+        let ballot_id: String = inmudb_hash[..BALLOT_ID_LENGTH_BYTES]
+            .iter()
+            .map(|b| format!("{:02x}", b))
+            .collect();
+        let n_bytes = input_ballot_id_len / 2;
+        if inmudb_hash[..n_bytes] != input_ballot_id_hash.to_owned() {
             trace!("Hashes do not match");
             return Ok(None);
         }
@@ -1133,13 +1140,11 @@ impl CastVoteEntry {
         Ok(Some(CastVoteEntry {
             statement_timestamp,
             statement_kind,
-            ballot_id: ballot_id.to_string(),
+            ballot_id,
             username,
         }))
     }
 }
-
-pub const IMMUDB_ROWS_LIMIT: usize = 25_000;
 
 #[instrument(err)]
 pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<ElectoralLogRow>> {
@@ -1220,8 +1225,8 @@ pub async fn list_cast_vote_messages(
     ballot_id: &str,
 ) -> Result<CastVoteMessagesOutput> {
     ensure!(
-        ballot_id.len() == BALLOT_ID_LENGTH_CHARS,
-        "Incorrect ballot_id, the length must be 64 bytes"
+        ballot_id.len() % 2 == 0,
+        "Incorrect ballot_id, the length must be an even number of characters"
     );
     let mut ballot_id_hash: Vec<u8> = Vec::with_capacity(BALLOT_ID_LENGTH_BYTES);
     ballot_id_hash = (0..ballot_id.len())
@@ -1266,7 +1271,11 @@ pub async fn list_cast_vote_messages(
             .rows
             .iter()
             .map(|row| {
-                CastVoteEntry::from_row_with_ballot_id(row, ballot_id, ballot_id_hash.as_slice())
+                CastVoteEntry::from_row_with_ballot_id(
+                    row,
+                    ballot_id.len(),
+                    ballot_id_hash.as_slice(),
+                )
             })
             .collect::<Result<Vec<Option<CastVoteEntry>>>>()?
             .into_iter()

@@ -144,24 +144,32 @@ const BallotLocator: React.FC = () => {
     const validatedBallotId = isHex(inputBallotId ?? "")
 
     const requestCVMsgs = async () => {
-        let result = await listCastVoteMessages({
-            variables: {
-                tenantId,
-                electionEventId: eventId,
-                electionId,
-                ballotId: inputBallotId,
-            },
-        })
-        console.log(result)
+        try {
+            let result = await listCastVoteMessages({
+                variables: {
+                    tenantId,
+                    electionEventId: eventId,
+                    electionId,
+                    ballotId: inputBallotId,
+                },
+            })
+            console.log(result)
 
-        if (result.data?.list_cast_vote_messages) {
-            setRows((result.data?.list_cast_vote_messages?.list ?? []) as ICastVoteEntry[])
-            setTotal(result.data?.list_cast_vote_messages?.total)
+            if (result.data?.list_cast_vote_messages) {
+                setRows((result.data?.list_cast_vote_messages?.list ?? []) as ICastVoteEntry[])
+                setTotal(result.data?.list_cast_vote_messages?.total)
+            }
+        } catch (e) {
+            // TODO: Notify to the user.
+            console.log("ERROR")
+            console.log(e)
         }
+
     }
 
     useEffect(() => {
-        if (inputBallotId.length === 64 && allowSendRequest.current) {
+        // the length must be an even number of characters
+        if (inputBallotId.length % 2 === 0 && allowSendRequest.current) {
             allowSendRequest.current = false
             requestCVMsgs()
         }
@@ -180,9 +188,7 @@ const BallotLocator: React.FC = () => {
     const captureEnter: React.KeyboardEventHandler<HTMLDivElement> = (event) => {
         // Totest
         allowSendRequest.current = true
-        console.log("captureEnter")
         console.log(inputBallotId)
-        console.log(event.key)
     }
 
     return (
