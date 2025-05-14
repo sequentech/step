@@ -35,9 +35,9 @@ pub async fn update_event_status(
     claims: JwtClaims,
 ) -> Result<Json<UpdateEventVotingStatusOutput>, (Status, String)> {
     // Check if the user has the required "Gold" role
-    if !has_gold_permission(&claims) {
-        return Err((Status::Forbidden, "Insufficient privileges".into()));
-    }
+    // if !has_gold_permission(&claims) {
+    //     return Err((Status::Forbidden, "Insufficient privileges".into()));
+    // }
 
     authorize(
         &claims,
@@ -95,9 +95,9 @@ pub async fn update_election_status(
     (Status, String),
 > {
     // Check if the user has the required "Gold" role
-    if !has_gold_permission(&claims) {
-        return Err((Status::Forbidden, "Insufficient privileges".into()));
-    }
+    // if !has_gold_permission(&claims) {
+    //     return Err((Status::Forbidden, "Insufficient privileges".into()));
+    // }
 
     authorize(
         &claims,

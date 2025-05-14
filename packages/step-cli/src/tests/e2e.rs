@@ -10,7 +10,6 @@ use crate::{
         import_election_event::import, publish_changes::publish_changes,
         start_key_ceremony::start_ceremony as start_key_ceremony,
         start_tally::start_ceremony as start_tally_ceremony,
-        update_election_event_status::update_status,
         update_tally_status::update_status as update_tally_status, update_voter::edit_voter,
     },
     types::tally::TallyExecutionStatus,
@@ -69,6 +68,7 @@ fn run_e2e() -> Result<(), Box<dyn Error>> {
                 &pass,
                 &area_id,
                 "",
+                true,
             )?;
         }
     }
@@ -119,7 +119,7 @@ fn run_e2e() -> Result<(), Box<dyn Error>> {
     update_status(&election_event_id, &status)?;
 
     // Step 3.5 : Create Publication
-    publish_changes(&election_event_id)?;
+    publish_changes(&election_event_id, None)?;
 
     // Step 4: Create + Run Loadero Test
     let voting_portal_domain = std::env::var("VOTING_PORTAL_DOMAIN")?;

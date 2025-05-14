@@ -37,8 +37,6 @@ enum StepCommands {
     CreateAreaContest(commands::create_area_contest::CreateAreaContest),
     CreateVoter(commands::create_voter::CreateVoter),
     UpdateVoter(commands::update_voter::UpdateVoter),
-    UpdateElectionEventStatus(commands::update_election_event_status::UpdateElectionEventStatus),
-    UpdateElectionStatus(commands::update_election_status::UpdateElectionStatus),
     ImportElection(commands::import_election_event::ImportElectionEventFile),
     Publish(commands::publish_changes::PublishChanges),
     RefreshToken(commands::refresh_token::Refresh),
@@ -53,6 +51,8 @@ enum StepCommands {
     CreateApplications(commands::create_applications::CreateApplications),
     CreateElectoralLogs(commands::create_electoral_logs::CreateElectoralLogs),
     HashPassword(commands::hash_passwords::HashPasswords),
+    UpdateEventVotingStatus(commands::update_event_voting_status::UpdateElectionEventVotingStatus),
+    UpdateElectionVotingStatus(commands::update_election_voting_status::UpdateElectionVotingStatusCommand),
 }
 
 fn main() {
@@ -67,8 +67,6 @@ fn main() {
             StepCommands::CreateCandidate(create_candidate) => create_candidate.run(),
             StepCommands::CreateArea(create_area) => create_area.run(),
             StepCommands::CreateAreaContest(create_area_contest) => create_area_contest.run(),
-            StepCommands::UpdateElectionEventStatus(update_event) => update_event.run(),
-            StepCommands::UpdateElectionStatus(update_election) => update_election.run(),
             StepCommands::ImportElection(import) => import.run(),
             StepCommands::CreateVoter(create_voter) => create_voter.run(),
             StepCommands::UpdateVoter(update_voter) => update_voter.run(),
@@ -85,6 +83,8 @@ fn main() {
             StepCommands::CreateApplications(render) => render.run(),
             StepCommands::CreateElectoralLogs(render) => render.run(),
             StepCommands::HashPassword(render) => render.run(),
+            StepCommands::UpdateEventVotingStatus(update_event_voting_status) => update_event_voting_status.run(),
+            StepCommands::UpdateElectionVotingStatus(update_election_voting_status) => update_election_voting_status.run(),
         },
     }
 }

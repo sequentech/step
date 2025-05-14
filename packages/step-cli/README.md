@@ -75,17 +75,17 @@ Run ```step create-area-contest --election-event-id <ELECTION_EVENT_ID> --contes
 - area_id - The associated area id - required*
 
 ## Update Election Event Voting Status
-Run ```step update-election-event-status --election-event-id <ELECTION_EVENT_ID> --status <STATUS>```
+Run ```step update-event-voting-status --election-event-id <ELECTION_EVENT_ID> --voting-status <VOTING_STATUS>```
 
-- election_event_id - The associated election event id - required*
-- status - A valid voting status (OPEN, CLOSED,...)- required*
+- election-event-id - The associated election event id - required*
+- voting-status - A valid voting status (OPEN, CLOSE, PAUSE) - required*
 
-## Update Event Voting Status
-Run ```step update-election-status --election-event-id <ELECTION_EVENT_ID> --election-id <ELECTION_ID> --status <STATUS>```
+## Update Election Voting Status
+Run ```step update-election-voting-status --election-event-id <ELECTION_EVENT_ID> --election-id <ELECTION_ID> --voting-status <VOTING_STATUS>```
 
-- election_event_id - The associated election event id - required*
-- election_id - The associated election id - required*
-- status - A valid voting status (OPEN, CLOSED,...)- required*
+- election-event-id - The associated election event id - required*
+- election-id - The associated election id - required*
+- voting-status - A valid voting status (OPEN, CLOSE, PAUSE) - required*
 
 ## Import election event from .json file
 Run ```step import-election --file-path <PATH> --is-local <ADD THIS FOR LOCAL ONLY>```

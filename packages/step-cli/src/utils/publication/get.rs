@@ -34,6 +34,7 @@ impl GetBallotPublicationStatus {
         if response.status().is_success() {
             let response_body: Response<get_ballot_publication_status::ResponseData> =
                 response.json()?;
+            println!("Response: {:?}", response_body);
             if let Some(data) = response_body.data {
                 Ok(data.sequent_backend_ballot_publication[0].is_generated)
             } else if let Some(errors) = response_body.errors {

@@ -42,7 +42,7 @@ impl ImportElectionEventFile {
 }
 
 pub fn import(file_path: &str, is_local: bool) -> Result<String, Box<dyn std::error::Error>> {
-    let config = read_config()?;
+let config = read_config()?;
     let client = reqwest::blocking::Client::new();
     let document_id = GetUploadUrl::upload(String::from(file_path), is_local)?;
 
