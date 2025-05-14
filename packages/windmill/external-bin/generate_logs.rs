@@ -130,14 +130,14 @@ impl ElectoralLogRow {
             let value = &row.values[col_idx];
 
             match col_name {
-                "id" => id = value.try_into_i64().context("Failed to parse 'id' as i64")?,
-                "created" => created = value.try_into_i64_timestamp().context("Failed to parse 'created' as timestamp")?,
-                "statement_timestamp" => statement_timestamp = value.try_into_i64_timestamp().context("Failed to parse 'statement_timestamp' as timestamp")?,
-                "statement_kind" => statement_kind = value.try_into_string().context("Failed to parse 'statement_kind' as String")?,
-                "message" => message_bytes = value.try_into_bytes().context("Failed to parse 'message' as bytes")?,
-                "user_id" => user_id = value.try_into_opt_string().context("Failed to parse 'user_id' as Option<String>")?,
+                "id" => id = value.value.as_ref().context("SQL value for 'id' is None")?.try_into_i64().context("Failed to parse 'id' as i64")?,
+                "created" => created = value.value.as_ref().context("SQL value for 'created' is None")?.try_into_i64_timestamp().context("Failed to parse 'created' as timestamp")?,
+                "statement_timestamp" => statement_timestamp = value.value.as_ref().context("SQL value for 'statement_timestamp' is None")?.try_into_i64_timestamp().context("Failed to parse 'statement_timestamp' as timestamp")?,
+                "statement_kind" => statement_kind = value.value.as_ref().context("SQL value for 'statement_kind' is None")?.try_into_string().context("Failed to parse 'statement_kind' as String")?,
+                "message" => message_bytes = value.value.as_ref().context("SQL value for 'message' is None")?.try_into_bytes().context("Failed to parse 'message' as bytes")?,
+                "user_id" => user_id = value.value.as_ref().context("SQL value for 'user_id' is None")?.try_into_opt_string().context("Failed to parse 'user_id' as Option<String>")?,
                 _ => { // Log or ignore unknown columns
-                    // println!("Ignoring unknown column: {}", col_name);
+                    // debug!("Ignoring unknown column: {}", col_name);
                 }
             }
         }
@@ -194,38 +194,39 @@ trait ImmudbSqlValueExt {
     fn try_into_bytes(&self) -> Result<Vec<u8>>;
 }
 
-impl ImmudbSqlValueExt for ImmudbSqlValue {
+impl ImmudbSqlValueExt for immudb_rs::sql_value::Value { // Implement for the inner enum
     fn try_into_i64(&self) -> Result<i64> {
-        match &self.value {
-            Some(ImmudbSqlValue::N(n)) => Ok(*n),
-            _ => Err(anyhow::anyhow!("Expected N (i64), found {:?}", self.value)),
+        match self {
+            ImmudbSqlValue::N(n) => Ok(n), // n is i64, not &i64
+            _ => Err(anyhow::anyhow!("Expected N (i64), found {:?}", self)),
         }
     }
     fn try_into_i64_timestamp(&self) -> Result<i64> {
-        match &self.value {
-            Some(ImmudbSqlValue::N(n)) => Ok(*n),      // Timestamps might be stored as N
-            Some(ImmudbSqlValue::Ts(ts)) => Ok(*ts), // Or as Ts
-            _ => Err(anyhow::anyhow!("Expected N or Ts (timestamp), found {:?}", self.value)),
+        match self {
+            ImmudbSqlValue::N(n) => Ok(n),      // Timestamps might be stored as N
+            ImmudbSqlValue::Ts(ts) => Ok(ts), // ts is i64, not &i64
+            _ => Err(anyhow::anyhow!("Expected N or Ts (timestamp), found {:?}", self)),
         }
     }
     fn try_into_string(&self) -> Result<String> {
-        match &self.value {
-            Some(ImmudbSqlValue::S(s)) => Ok(s.clone()),
-            _ => Err(anyhow::anyhow!("Expected S (String), found {:?}", self.value)),
+        match self {
+            ImmudbSqlValue::S(s) => Ok(s.clone()),
+            _ => Err(anyhow::anyhow!("Expected S (String), found {:?}", self)),
         }
     }
     fn try_into_opt_string(&self) -> Result<Option<String>> {
-        match &self.value {
-            Some(ImmudbSqlValue::S(s)) => Ok(Some(s.clone())),
-            Some(ImmudbSqlValue::Null(_)) => Ok(None),
-            None => Ok(None),
-            _ => Err(anyhow::anyhow!("Expected S (String) or Null, found {:?}", self.value)),
+        match self {
+            ImmudbSqlValue::S(s) => Ok(Some(s.clone())),
+            ImmudbSqlValue::Null(_) => Ok(None),
+            // Note: The ImmudbSqlValue::Value enum itself cannot be None.
+            // The outer SqlValue.value can be None, handled at call site by .as_ref().
+            _ => Err(anyhow::anyhow!("Expected S (String) or Null, found {:?}", self)),
         }
     }
     fn try_into_bytes(&self) -> Result<Vec<u8>> {
-        match &self.value {
-            Some(ImmudbSqlValue::Bs(bs)) => Ok(bs.clone()),
-            _ => Err(anyhow::anyhow!("Expected Bs (Bytes), found {:?}", self.value)),
+        match self {
+            ImmudbSqlValue::Bs(bs) => Ok(bs.clone()),
+            _ => Err(anyhow::anyhow!("Expected Bs (Bytes), found {:?}", self)),
         }
     }
 }
@@ -250,8 +251,8 @@ fn get_event_board_name(tenant_id: &str, election_event_id: &str) -> String {
 async fn connect_immudb(config: &Config) -> Result<Client> {
     let mut client = Client::new(&config.immudb_url, &config.immudb_user, &config.immudb_password)
         .await
-        .with_context(|| format!("Failed to create immudb client with URL: {}", config.immudb_url))?;
-    client.login().await.with_context("Failed to login to immudb")?;
+        .context(format!("Failed to create immudb client with URL: {}", config.immudb_url))?;
+    client.login().await.context("Failed to login to immudb")?;
     Ok(client)
 }
 
@@ -396,7 +397,7 @@ async fn main() -> Result<()> {
     client
         .close_session()
         .await
-        .with_context("Failed to close immudb session")?;
+        .context("Failed to close immudb session")?;
     info!("Successfully closed immudb session.");
 
     Ok(())
