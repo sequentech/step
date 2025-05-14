@@ -3,10 +3,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::{Context, Result};
+use chrono::{DateTime, TimeZone, Utc};
 use clap::Parser;
-use chrono::{DateTime, Utc, TimeZone};
 use csv::Writer;
-use immudb_rs::{Client, Row as ImmudbRow, sql_value::Value as ImmudbSqlValue, NamedParam};
+use immudb_rs::{sql_value::Value as ImmudbSqlValue, Client, NamedParam, Row as ImmudbRow};
 use serde::{Deserialize, Serialize};
 use serde_json;
 use std::collections::HashMap; // Added for HashMap
@@ -64,7 +64,7 @@ struct ActivityLogRow {
 #[derive(Deserialize, Debug, Clone)]
 struct ElectoralLogRow {
     id: i64,
-    created: i64, // Unix timestamp
+    created: i64,             // Unix timestamp
     statement_timestamp: i64, // Unix timestamp
     statement_kind: String,
     message: String, // JSON string content of the log message
@@ -109,7 +109,9 @@ fn sanitize_filename(name: &str) -> String {
 }
 
 fn timestamp_to_rfc3339(timestamp_secs: i64) -> Result<String> {
-    Ok(Utc.timestamp_opt(timestamp_secs, 0).single()
+    Ok(Utc
+        .timestamp_opt(timestamp_secs, 0)
+        .single()
         .ok_or_else(|| anyhow::anyhow!("Invalid timestamp: {}", timestamp_secs))?
         .to_rfc3339())
 }
@@ -130,14 +132,56 @@ impl ElectoralLogRow {
             let value = &row.values[col_idx];
 
             match col_name {
-                "id" => id = value.value.as_ref().context("SQL value for 'id' is None")?.try_into_i64().context("Failed to parse 'id' as i64")?,
-                "created" => created = value.value.as_ref().context("SQL value for 'created' is None")?.try_into_i64_timestamp().context("Failed to parse 'created' as timestamp")?,
-                "statement_timestamp" => statement_timestamp = value.value.as_ref().context("SQL value for 'statement_timestamp' is None")?.try_into_i64_timestamp().context("Failed to parse 'statement_timestamp' as timestamp")?,
-                "statement_kind" => statement_kind = value.value.as_ref().context("SQL value for 'statement_kind' is None")?.try_into_string().context("Failed to parse 'statement_kind' as String")?,
-                "message" => message_bytes = value.value.as_ref().context("SQL value for 'message' is None")?.try_into_bytes().context("Failed to parse 'message' as bytes")?,
-                "user_id" => user_id = value.value.as_ref().context("SQL value for 'user_id' is None")?.try_into_opt_string().context("Failed to parse 'user_id' as Option<String>")?,
+                "id" => {
+                    id = value
+                        .value
+                        .as_ref()
+                        .context("SQL value for 'id' is None")?
+                        .try_into_i64()
+                        .context("Failed to parse 'id' as i64")?
+                }
+                "created" => {
+                    created = value
+                        .value
+                        .as_ref()
+                        .context("SQL value for 'created' is None")?
+                        .try_into_i64_timestamp()
+                        .context("Failed to parse 'created' as timestamp")?
+                }
+                "statement_timestamp" => {
+                    statement_timestamp = value
+                        .value
+                        .as_ref()
+                        .context("SQL value for 'statement_timestamp' is None")?
+                        .try_into_i64_timestamp()
+                        .context("Failed to parse 'statement_timestamp' as timestamp")?
+                }
+                "statement_kind" => {
+                    statement_kind = value
+                        .value
+                        .as_ref()
+                        .context("SQL value for 'statement_kind' is None")?
+                        .try_into_string()
+                        .context("Failed to parse 'statement_kind' as String")?
+                }
+                "message" => {
+                    message_bytes = value
+                        .value
+                        .as_ref()
+                        .context("SQL value for 'message' is None")?
+                        .try_into_bytes()
+                        .context("Failed to parse 'message' as bytes")?
+                }
+                "user_id" => {
+                    user_id = value
+                        .value
+                        .as_ref()
+                        .context("SQL value for 'user_id' is None")?
+                        .try_into_opt_string()
+                        .context("Failed to parse 'user_id' as Option<String>")?
+                }
                 _ => { // Log or ignore unknown columns
-                    // debug!("Ignoring unknown column: {}", col_name);
+                     // debug!("Ignoring unknown column: {}", col_name);
                 }
             }
         }
@@ -157,9 +201,14 @@ impl ElectoralLogRow {
 }
 
 impl ActivityLogRow {
-fn try_from_electoral_log(elog: &ElectoralLogRow) -> Result<Option<(Self, Option<String>)>> {
-        let parsed_message: MessageWrapper = serde_json::from_str(&elog.message)
-            .with_context(|| format!("Failed to parse ElectoralLogRow.message JSON for log id {}: {}", elog.id, elog.message))?;
+    fn try_from_electoral_log(elog: &ElectoralLogRow) -> Result<Option<(Self, Option<String>)>> {
+        let parsed_message: MessageWrapper =
+            serde_json::from_str(&elog.message).with_context(|| {
+                format!(
+                    "Failed to parse ElectoralLogRow.message JSON for log id {}: {}",
+                    elog.id, elog.message
+                )
+            })?;
 
         let extracted_election_id = parsed_message
             .statement
@@ -180,7 +229,7 @@ fn try_from_electoral_log(elog: &ElectoralLogRow) -> Result<Option<(Self, Option
             message: elog.message.clone(), // Keep original JSON message
             user_id: elog.user_id.clone().unwrap_or_else(|| "-".to_string()),
         };
-        
+
         Ok(Some((activity_log_row, extracted_election_id)))
     }
 }
@@ -194,7 +243,8 @@ trait ImmudbSqlValueExt {
     fn try_into_bytes(&self) -> Result<Vec<u8>>;
 }
 
-impl ImmudbSqlValueExt for immudb_rs::sql_value::Value { // Implement for the inner enum
+impl ImmudbSqlValueExt for immudb_rs::sql_value::Value {
+    // Implement for the inner enum
     fn try_into_i64(&self) -> Result<i64> {
         match self {
             ImmudbSqlValue::N(n) => Ok(*n), // n is &i64 due to match on &self, so dereference
@@ -203,9 +253,12 @@ impl ImmudbSqlValueExt for immudb_rs::sql_value::Value { // Implement for the in
     }
     fn try_into_i64_timestamp(&self) -> Result<i64> {
         match self {
-            ImmudbSqlValue::N(n) => Ok(*n),      // n is &i64, dereference
+            ImmudbSqlValue::N(n) => Ok(*n),    // n is &i64, dereference
             ImmudbSqlValue::Ts(ts) => Ok(*ts), // ts is &i64, dereference
-            _ => Err(anyhow::anyhow!("Expected N or Ts (timestamp), found {:?}", self)),
+            _ => Err(anyhow::anyhow!(
+                "Expected N or Ts (timestamp), found {:?}",
+                self
+            )),
         }
     }
     fn try_into_string(&self) -> Result<String> {
@@ -220,7 +273,10 @@ impl ImmudbSqlValueExt for immudb_rs::sql_value::Value { // Implement for the in
             ImmudbSqlValue::Null(_) => Ok(None),
             // Note: The ImmudbSqlValue::Value enum itself cannot be None.
             // The outer SqlValue.value can be None, handled at call site by .as_ref().
-            _ => Err(anyhow::anyhow!("Expected S (String) or Null, found {:?}", self)),
+            _ => Err(anyhow::anyhow!(
+                "Expected S (String) or Null, found {:?}",
+                self
+            )),
         }
     }
     fn try_into_bytes(&self) -> Result<Vec<u8>> {
@@ -249,9 +305,16 @@ fn get_event_board_name(tenant_id: &str, election_event_id: &str) -> String {
 /// Establishes a connection to immudb using the provided configuration.
 /// Replicates logic from `packages/windmill/src/services/protocol_manager.rs`.
 async fn connect_immudb(config: &Config) -> Result<Client> {
-    let mut client = Client::new(&config.immudb_url, &config.immudb_user, &config.immudb_password)
-        .await
-        .context(format!("Failed to create immudb client with URL: {}", config.immudb_url))?;
+    let mut client = Client::new(
+        &config.immudb_url,
+        &config.immudb_user,
+        &config.immudb_password,
+    )
+    .await
+    .context(format!(
+        "Failed to create immudb client with URL: {}",
+        config.immudb_url
+    ))?;
     client.login().await.context("Failed to login to immudb")?;
     Ok(client)
 }
@@ -280,8 +343,12 @@ async fn main() -> Result<()> {
     // Load configuration
     let config_content = fs::read_to_string(&cli.config)
         .with_context(|| format!("Failed to read config file: {}", cli.config.display()))?;
-    let config: Config = toml::from_str(&config_content)
-        .with_context(|| format!("Failed to parse TOML configuration from {}", cli.config.display()))?;
+    let config: Config = toml::from_str(&config_content).with_context(|| {
+        format!(
+            "Failed to parse TOML configuration from {}",
+            cli.config.display()
+        )
+    })?;
 
     info!(config = ?config, "Configuration loaded successfully."); // Use ? for Debug formatting of Config
 
@@ -290,8 +357,12 @@ async fn main() -> Result<()> {
     info!(%board_name, "Target Immudb board name determined.");
 
     // Create output directory
-    fs::create_dir_all(&cli.output_folder_path)
-        .with_context(|| format!("Failed to create output folder: {}", cli.output_folder_path.display()))?;
+    fs::create_dir_all(&cli.output_folder_path).with_context(|| {
+        format!(
+            "Failed to create output folder: {}",
+            cli.output_folder_path.display()
+        )
+    })?;
     info!(output_folder = %cli.output_folder_path.display(), "Output folder ensured.");
 
     // HashMap to store CSV writers, keyed by sanitized filename stem
@@ -314,7 +385,8 @@ async fn main() -> Result<()> {
 
     let sql = "SELECT id, created, statement_timestamp, statement_kind, message, user_id \
                FROM electoral_log_messages \
-               ORDER BY id ASC".to_string();
+               ORDER BY id ASC"
+        .to_string();
 
     // Call to streaming_sql_query for immudb-rs v0.1.0 (does not take TxMode)
     let response_stream = client.streaming_sql_query(&sql, Vec::new())
@@ -323,44 +395,68 @@ async fn main() -> Result<()> {
 
     let mut stream = response_stream.into_inner(); // Get the tonic::Streaming<SqlQueryResult>
 
-    while let Some(batch_result) = stream.next().await { // Iterates over SqlQueryResult batches
+    while let Some(batch_result) = stream.next().await {
+        // Iterates over SqlQueryResult batches
         match batch_result {
             Ok(sql_query_result_batch) => {
                 if sql_query_result_batch.rows.is_empty() && total_rows_fetched > 0 {
-                    debug!("Received an empty batch in stream; could signify end or an empty chunk.");
+                    debug!(
+                        "Received an empty batch in stream; could signify end or an empty chunk."
+                    );
                     // Continue, as the stream ending is the true signal.
                 }
-                
-                for individual_row in &sql_query_result_batch.rows { // Iterate over individual rows within the batch
+
+                for individual_row in &sql_query_result_batch.rows {
+                    // Iterate over individual rows within the batch
                     total_rows_fetched += 1;
                     if total_rows_fetched % 1000 == 0 {
                         info!(total_rows_fetched, "Processed rows from stream...");
                     }
 
-                    match ElectoralLogRow::try_from_immudb_row(individual_row) { // individual_row is &ImmudbRow
+                    match ElectoralLogRow::try_from_immudb_row(individual_row) {
+                        // individual_row is &ImmudbRow
                         Ok(elog_row) => {
-                            debug!(log_id = elog_row.id, "Successfully parsed ElectoralLogRow from stream batch.");
+                            debug!(
+                                log_id = elog_row.id,
+                                "Successfully parsed ElectoralLogRow from stream batch."
+                            );
                             match ActivityLogRow::try_from_electoral_log(&elog_row) {
                                 Ok(Some((activity_log_row, extracted_election_id_opt))) => {
                                     let filename_stem_key = match &extracted_election_id_opt {
-                                        Some(id) => config.elections.get(id).map(|s| s.as_str()).unwrap_or(id).to_string(),
+                                        Some(id) => config
+                                            .elections
+                                            .get(id)
+                                            .map(|s| s.as_str())
+                                            .unwrap_or(id)
+                                            .to_string(),
                                         None => "general_logs".to_string(),
                                     };
                                     let sanitized_stem = sanitize_filename(&filename_stem_key);
 
                                     if !csv_writers.contains_key(&sanitized_stem) {
-                                        let csv_path = cli.output_folder_path.join(format!("{}.csv", sanitized_stem));
+                                        let csv_path = cli
+                                            .output_folder_path
+                                            .join(format!("{}.csv", sanitized_stem));
                                         info!(file_path = %csv_path.display(), election_id_key = %filename_stem_key, "Creating new CSV file.");
-                                        let file = File::create(&csv_path)
-                                            .with_context(|| format!("Failed to create CSV file: {}", csv_path.display()))?;
-                                        csv_writers.insert(sanitized_stem.clone(), Writer::from_writer(file));
+                                        let file = File::create(&csv_path).with_context(|| {
+                                            format!(
+                                                "Failed to create CSV file: {}",
+                                                csv_path.display()
+                                            )
+                                        })?;
+                                        csv_writers.insert(
+                                            sanitized_stem.clone(),
+                                            Writer::from_writer(file),
+                                        );
                                     }
 
                                     if let Some(writer) = csv_writers.get_mut(&sanitized_stem) {
                                         if let Err(e) = writer.serialize(&activity_log_row) {
                                             error!(log_id = elog_row.id, election_file_stem = %sanitized_stem, error = %e, "Failed to serialize ActivityLogRow to CSV.");
                                         } else {
-                                            *activity_log_written_counts.entry(sanitized_stem.clone()).or_insert(0) += 1;
+                                            *activity_log_written_counts
+                                                .entry(sanitized_stem.clone())
+                                                .or_insert(0) += 1;
                                         }
                                     }
                                 }
@@ -382,15 +478,21 @@ async fn main() -> Result<()> {
                 error!(error = %e, "Error receiving batch from Immudb stream.");
                 // Depending on the error, you might want to break or continue.
                 // For now, we'll log and break for stream errors to avoid infinite loops on persistent errors.
-                break; 
+                break;
             }
         }
     }
     info!("Finished processing all batches from Immudb stream.");
 
     for (filename_stem, writer) in csv_writers.iter_mut() {
-        writer.flush().with_context(|| format!("Failed to flush CSV writer for {}", filename_stem))?;
-        info!(filename_stem, count = activity_log_written_counts.get(filename_stem).unwrap_or(&0), "CSV file flushed.");
+        writer
+            .flush()
+            .with_context(|| format!("Failed to flush CSV writer for {}", filename_stem))?;
+        info!(
+            filename_stem,
+            count = activity_log_written_counts.get(filename_stem).unwrap_or(&0),
+            "CSV file flushed."
+        );
     }
 
     info!(
