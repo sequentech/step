@@ -16,6 +16,8 @@ import {
 import {stringToHtml} from "@sequentech/ui-core"
 import {Box, TextField, Typography, Button, Stack} from "@mui/material"
 import {styled} from "@mui/material/styles"
+import Tabs from '@mui/material/Tabs';
+import Tab from '@mui/material/Tab';
 import {Link, useLocation, useNavigate, useParams} from "react-router-dom"
 import {GET_CAST_VOTE} from "../queries/GetCastVote"
 import {useQuery, useMutation} from "@apollo/client"
@@ -102,7 +104,60 @@ const StyledApp = styled(Stack)<{css: string}>`
     ${({css}) => css}
 `
 
+interface TabPanelProps {
+  children?: React.ReactNode
+  index: number
+  value: number
+}
+
+const CustomTabPanel: React.FC<TabPanelProps> = ({children, index, value}) => {
+
+    return (
+        <div
+            role="tabpanel"
+            hidden={value !== index}
+            id={`simple-tabpanel-${index}`}
+            aria-labelledby={`simple-tab-${index}`}
+        >
+            {value === index && <Box sx={{ p: 3 }}>{children}</Box>}
+        </div>
+    );
+}
+
 const BallotLocator: React.FC = () => {
+
+    const a11yProps = (index: number) => {
+        return {
+            id: `simple-tab-${index}`,
+            'aria-controls': `simple-tabpanel-${index}`,
+        };
+    }
+
+    const [value, setValue] = React.useState(0);
+
+    const handleChange = (event: React.SyntheticEvent, newValue: number) => {
+        setValue(newValue);
+    };
+
+    return (
+        <Box sx={{ width: '100%' }}>
+            <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+                <Tabs value={value} onChange={handleChange} aria-label="basic tabs example">
+                    <Tab label="Item One" {...a11yProps(0)} />
+                    <Tab label="Item Two" {...a11yProps(1)} />
+                </Tabs>
+            </Box>
+            <CustomTabPanel value={value} index={0}>
+                <BallotLocatorLogic />
+            </CustomTabPanel>
+            <CustomTabPanel value={value} index={1}>
+                Item Two
+            </CustomTabPanel>
+        </Box>
+    );
+}
+
+const BallotLocatorLogic: React.FC = () => {
     const {tenantId, eventId, electionId, ballotId} = useParams()
     const [openTitleHelp, setOpenTitleHelp] = useState<boolean>(false)
     const navigate = useNavigate()
@@ -196,7 +251,7 @@ const BallotLocator: React.FC = () => {
                 <Box marginTop="48px">
                     <BreadCrumbSteps
                         labels={["ballotLocator.steps.lookup", "ballotLocator.steps.result"]}
-                        selected={0}
+                        selected={hasBallotId ? 1 : 0}
                     />
                 </Box>
 
