@@ -37,12 +37,18 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::hash::HashWrapper;
+use strand::hash::STRAND_HASH_LENGTH_BYTES;
 use strand::serialization::StrandDeserialize;
 use strand::signature::StrandSignatureSk;
 use strum_macros::{Display, EnumString, ToString};
 use tempfile::NamedTempFile;
 use tokio_stream::{Stream, StreamExt};
 use tracing::{event, info, instrument, Level};
+
+/// Ballot_id input is the first half of the original hash which is stored in the electoral log.
+pub const BALLOT_ID_LENGTH_BYTES: usize = STRAND_HASH_LENGTH_BYTES / 2;
+/// Ballot_id input is in HEX, each byte is represented in 2 chars.
+pub const BALLOT_ID_LENGTH_CHARS: usize = BALLOT_ID_LENGTH_BYTES * 2;
 
 pub struct ElectoralLog {
     pub(crate) sd: SigningData,
@@ -1072,7 +1078,11 @@ pub struct CastVoteMessagesOutput {
 }
 
 impl CastVoteEntry {
-    pub fn from_row_with_ballot_id(row: &Row, ballot_id: String) -> Result<Self, anyhow::Error> {
+    pub fn from_row_with_ballot_id(
+        row: &Row,
+        ballot_id: &str,
+        ballot_id_hash: &[u8],
+    ) -> Result<Self, anyhow::Error> {
         let mut statement_timestamp: i64 = 0;
         let mut statement_kind = String::from("");
         let mut message = vec![];
@@ -1105,40 +1115,25 @@ impl CastVoteEntry {
 
         let deserialized_message =
             Message::strand_deserialize(&message).with_context(|| "Error deserializing message")?;
-        // let vote_h = CastVoteHash(HashWrapper::new(vote_h));
-        let cv_hash = match deserialized_message.statement.body {
-            StatementBody::CastVote(_, _, cv_hash, _, _) => cv_hash,
+
+        let inmudb_hash: [u8; STRAND_HASH_LENGTH_BYTES] = match deserialized_message.statement.body
+        {
+            StatementBody::CastVote(_, _, cv_hash, _, _) => cv_hash.0.into_inner(),
             _ => {
                 return Err(anyhow!("Not StatementBody::CastVote"));
             }
         };
 
-        let ballot_dec = (0..ballot_id.len())
-            .step_by(2)
-            .map(|i| {
-                let res =
-                    u8::from_str_radix(&ballot_id[i..i + 2], 16).map_err(|e| e.to_string())?;
-                Ok(res)
-            })
-            .collect::<Result<Vec<u8>, String>>()
-            .map_err(|e| anyhow!(format!("Error parsing ballot_id: {e:?}")))?;
-
-        let ballot_id_bin = CastVoteHash::new(
-            ballot_dec
-                .as_slice()
-                .try_into()
-                .map_err(|_| anyhow!("Must be 64 bytes"))?,
-        );
-        info!("{ballot_id_bin:?}");
-        info!("{cv_hash:?}");
-        if cv_hash != ballot_id_bin {
-            return Err(anyhow!("Not StatementBody::CastVote"));
+        info!("{ballot_id_hash:?}");
+        info!("{inmudb_hash:?}");
+        if inmudb_hash[..BALLOT_ID_LENGTH_BYTES] != ballot_id_hash.to_owned() {
+            return Err(anyhow!("Hashes do not match"));
         }
 
         Ok(CastVoteEntry {
             statement_timestamp,
             statement_kind,
-            ballot_id,
+            ballot_id: ballot_id.to_string(),
             username,
         })
     }
@@ -1224,7 +1219,20 @@ pub async fn list_cast_vote_messages(
     input: GetElectoralLogBody,
     ballot_id: &str,
 ) -> Result<CastVoteMessagesOutput> {
-    ensure!(ballot_id.len() == 64, "Incorrect ballot_id length");
+    ensure!(
+        ballot_id.len() == BALLOT_ID_LENGTH_CHARS,
+        "Incorrect ballot_id, the length must be 64 bytes"
+    );
+    let mut ballot_id_hash: Vec<u8> = Vec::with_capacity(BALLOT_ID_LENGTH_BYTES);
+    ballot_id_hash = (0..ballot_id.len())
+        .step_by(2)
+        .map(|i| {
+            let res = u8::from_str_radix(&ballot_id[i..i + 2], 16).map_err(|e| e.to_string())?;
+            Ok(res)
+        })
+        .collect::<Result<Vec<u8>, String>>()
+        .map_err(|e| anyhow!(format!("Error parsing ballot_id: {e:?}")))?;
+
     let mut client: Client = get_immudb_client().await?;
     let board_name = get_event_board(input.tenant_id.as_str(), input.election_event_id.as_str());
     event!(Level::INFO, "database name = {board_name}");
@@ -1257,7 +1265,9 @@ pub async fn list_cast_vote_messages(
         let items = streaming_batch?
             .rows
             .iter()
-            .map(|row| CastVoteEntry::from_row_with_ballot_id(row, ballot_id.to_string()))
+            .map(|row| {
+                CastVoteEntry::from_row_with_ballot_id(row, ballot_id, ballot_id_hash.as_slice())
+            })
             .collect::<Result<Vec<CastVoteEntry>>>()?;
         list.extend(items);
     }
