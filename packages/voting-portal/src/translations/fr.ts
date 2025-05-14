@@ -311,6 +311,8 @@ const frenchTranslation: TranslationType = {
             notFound: "Votre ID de Bulletin {{ballotId}} n'a pas été localisé",
             contentDesc: "Voici le contenu de votre Bulletin : ",
             wrongFormatBallotId: "Format incorrect pour l'ID du Bulletin",
+            enterBallotId: "Saisissez l'ID du Bulletin",
+            totalBallots: "Total: {{total}}",
             steps: {
                 lookup: "Localisez votre Bulletin",
                 result: "Résultat",

@@ -222,6 +222,7 @@ const LogsTable: React.FC<LogsTableProps> = ({
 
     return (
         <>
+        <StyledTitle variant="h5">{t("ballotLocator.totalBallots", {total})}</StyledTitle>
         <TableContainer component={Paper}>
         <Table sx={{ minWidth: 650 }} aria-label="simple table">
             <TableHead>
@@ -239,7 +240,7 @@ const LogsTable: React.FC<LogsTableProps> = ({
                     <TableCell align="justify">{row.username}</TableCell>
                     <TableCell align="justify">{row.ballot_id}</TableCell>
                     <TableCell align="justify">{row.statement_kind}</TableCell>
-                    <TableCell align="justify">{row.statement_timestamp}</TableCell>
+                    <TableCell align="justify">{new Date(row.statement_timestamp * 1000).toUTCString()}</TableCell>
                 </TableRow>
             ))}
             </TableBody>
@@ -275,7 +276,7 @@ const BallotIdInput: React.FC<BallotIdInputProps> = ({
                     shrink: true,
                 }}
                 label="Ballot ID"
-                placeholder={t("ballotLocator.description")}
+                placeholder={t("ballotLocator.enterBallotId")}
                 onKeyDown={captureEnter}
             />
             {!validatedBallotId && (
