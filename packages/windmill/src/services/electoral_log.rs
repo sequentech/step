@@ -43,7 +43,7 @@ use strand::signature::StrandSignatureSk;
 use strum_macros::{Display, EnumString, ToString};
 use tempfile::NamedTempFile;
 use tokio_stream::{Stream, StreamExt};
-use tracing::{event, info, instrument, Level};
+use tracing::{event, info, instrument, trace, warn, Level};
 
 /// Ballot_id input is the first half of the original hash which is stored in the electoral log.
 pub const BALLOT_ID_LENGTH_BYTES: usize = STRAND_HASH_LENGTH_BYTES / 2;
@@ -1082,7 +1082,7 @@ impl CastVoteEntry {
         row: &Row,
         ballot_id: &str,
         ballot_id_hash: &[u8],
-    ) -> Result<Self, anyhow::Error> {
+    ) -> Result<Option<Self>, anyhow::Error> {
         let mut statement_timestamp: i64 = 0;
         let mut statement_kind = String::from("");
         let mut message = vec![];
@@ -1120,22 +1120,22 @@ impl CastVoteEntry {
         {
             StatementBody::CastVote(_, _, cv_hash, _, _) => cv_hash.0.into_inner(),
             _ => {
-                return Err(anyhow!("Not StatementBody::CastVote"));
+                warn!("Message is not a CastVote, but method is expecting only CastVote statement_kind´s");
+                return Ok(None);
             }
         };
 
-        info!("{ballot_id_hash:?}");
-        info!("{inmudb_hash:?}");
         if inmudb_hash[..BALLOT_ID_LENGTH_BYTES] != ballot_id_hash.to_owned() {
-            return Err(anyhow!("Hashes do not match"));
+            trace!("Hashes do not match");
+            return Ok(None);
         }
 
-        Ok(CastVoteEntry {
+        Ok(Some(CastVoteEntry {
             statement_timestamp,
             statement_kind,
             ballot_id: ballot_id.to_string(),
             username,
-        })
+        }))
     }
 }
 
@@ -1268,7 +1268,10 @@ pub async fn list_cast_vote_messages(
             .map(|row| {
                 CastVoteEntry::from_row_with_ballot_id(row, ballot_id, ballot_id_hash.as_slice())
             })
-            .collect::<Result<Vec<CastVoteEntry>>>()?;
+            .collect::<Result<Vec<Option<CastVoteEntry>>>>()?
+            .into_iter()
+            .flatten()
+            .collect::<Vec<CastVoteEntry>>();
         list.extend(items);
     }
 
