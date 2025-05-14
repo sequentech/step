@@ -12,9 +12,9 @@ use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
-use windmill::services::tasks_execution::*;
+use windmill::services::{password, tasks_execution::*};
 use windmill::tasks::export_tenant_config::{self};
-use windmill::tasks::export_verifiable_bulletin_board;
+use windmill::tasks::export_verifiable_bulletin_board::export_verifiable_bulletin_board_task;
 use windmill::types::tasks::ETasksExecution;
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -29,6 +29,7 @@ pub struct ExportVerifiableBulletinBoardOutput {
     document_id: String,
     error_msg: Option<String>,
     task_execution: TasksExecution,
+    password: String,
 }
 
 #[instrument(skip(claims))]
@@ -68,39 +69,35 @@ pub async fn export_verifiable_bulletin_board_route(
     let document_id = Uuid::new_v4().to_string();
     let celery_app = get_celery_app().await;
 
-    let celery_task_result = match celery_app
-        .send_task(
-            export_verifiable_bulletin_board::export_verifiable_bulletin_board_task::new(
+    let charset: String =
+        "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_."
+            .into();
+    let password: String =
+        password::generate_random_string_with_charset(64, &charset);
+
+    let celery_task = celery_app
+    .send_task(
+            export_verifiable_bulletin_board_task::new(
                 body.tenant_id.clone(),
                 document_id.clone(),
                 task_execution.clone(),
                 body.tally_session_id.clone(),
                 body.election_event_id.clone(),
-            ),
+                password.clone(),
+            ))
+    .await
+    .map_err(|error| {
+        (
+            Status::InternalServerError,
+            format!("Error sending export verifiable bulletin board task: {error:?}"),
         )
-        .await
-    {
-        Err(error) => {
-            update_fail(
-                &task_execution,
-                &format!("Error sending export_verifiable_bulletin_board task: {error:?}"),
-            )
-            .await;
-            return Err((
-                Status::InternalServerError,
-                format!("Error sending export_verifiable_bulletin_board task: {error:?}"),
-            ));
-        }
-        Ok(task) => task,
-    };
-
-    let _res =
-        update_complete(&task_execution, Some(document_id.clone())).await;
+    })?;
 
     let output = ExportVerifiableBulletinBoardOutput {
         document_id,
         error_msg: None,
         task_execution: task_execution.clone(),
+        password,
     };
 
     Ok(Json(output))

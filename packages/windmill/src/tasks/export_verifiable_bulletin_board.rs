@@ -2,12 +2,14 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::documents::upload_and_return_document;
+use crate::services::export::export_election_event::generate_encrypted_zip;
 use crate::services::export::export_verifiable_bulletin_board::export_verifiable_bulletin_board_sqlite_file;
 use crate::services::providers::transactions_provider::provide_hasura_transaction;
 use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::types::error::Result as TaskResult;
 use anyhow::Result;
 use celery::error::TaskError;
+use chrono::format;
 use deadpool_postgres::Transaction;
 use sequent_core::types::hasura::core::TasksExecution;
 use std::env;
@@ -15,14 +17,17 @@ use std::fs::File;
 use tracing::instrument;
 use zip::write::FileOptions;
 
+const EXPORT_ZIP_NAME: &str = "export_verifiable_bulletin_board";
+
 pub async fn process_export_verifiable_bulletin_board(
     hasura_transaction: &Transaction<'_>,
     tenant_id: String,
     document_id: String,
     tally_session_id: String,
     election_event_id: String,
+    password: String,
 ) -> Result<()> {
-    let zip_filename = format!("export_verifiable_bulletin_board.zip");
+    let zip_filename = format!("{}.zip", EXPORT_ZIP_NAME);
     let zip_path = env::temp_dir().join(&zip_filename);
 
     let cwd = env::current_dir().map_err(|e| anyhow::anyhow!(e))?;
@@ -56,18 +61,27 @@ pub async fn process_export_verifiable_bulletin_board(
 
     zip_writer.finish().map_err(|e| anyhow::anyhow!(e))?;
 
-    let zip_size = std::fs::metadata(&zip_path)
+    let encrypted_zip_path = zip_path.with_extension("ezip");
+    generate_encrypted_zip(
+        zip_path.to_string_lossy().to_string(),
+        encrypted_zip_path.to_string_lossy().to_string(),
+        password.clone(),
+    )
+    .await?;
+
+    let zip_size = std::fs::metadata(&encrypted_zip_path)
         .map_err(|e| anyhow::anyhow!("Error getting ZIP file metadata: {e:?}"))?
         .len();
+    let encrypted_zip_name = format!("{}.ezip", EXPORT_ZIP_NAME);
 
     let _document = upload_and_return_document(
         &hasura_transaction,
-        zip_path.to_str().unwrap(),
+        encrypted_zip_path.to_str().unwrap(),
         zip_size,
         "application/zip",
         &tenant_id.to_string(),
         Some(election_event_id.to_string()),
-        &zip_filename,
+        &encrypted_zip_name,
         Some(document_id.to_string()),
         false,
     )
@@ -88,6 +102,7 @@ pub async fn export_verifiable_bulletin_board_task(
     task_execution: TasksExecution,
     tally_session_id: String,
     election_event_id: String,
+    password: String,
 ) -> TaskResult<()> {
     let result = provide_hasura_transaction(|hasura_transaction| {
         let document_copy = document_id.clone();
@@ -98,6 +113,7 @@ pub async fn export_verifiable_bulletin_board_task(
                 document_copy.clone(),
                 tally_session_id,
                 election_event_id,
+                password,
             )
             .await
         })

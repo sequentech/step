@@ -14,20 +14,24 @@ import {EXPORT_VERIFIABLE_BULLETIN_BOARD} from "@/queries/ExportVerifiableBullet
 import DownloadIcon from "@mui/icons-material/Download"
 import {StyledIconButton} from "../ActionButons"
 import {ExportVerifiableBulletinBoardMutation} from "@/gql/graphql"
+import {PasswordDialog, DecryptHelp} from "../election-event/export-data/PasswordDialog"
+import {decryptionCommand} from "@/resources/Reports/ListReports"
 
-interface ExportElectionBulletinBoardProps {
+interface ExportVerifiableBulletinBoardProps {
     electionEventId: string
     tallySessionId: string
     tenantId: string | null
 }
 
-export const ExportElectionBulletinBoard: React.FC<ExportElectionBulletinBoardProps> = ({
+export const ExportVerifiableBulletinBoard: React.FC<ExportVerifiableBulletinBoardProps> = ({
     electionEventId,
     tallySessionId,
     tenantId,
 }) => {
     const {t} = useTranslation()
     const [documentId, setDocumentId] = useState<string | null>(null)
+    const [password, setPassword] = useState<string>("")
+    const [openPasswordDialog, setOpenPasswordDialog] = useState<boolean>(false)
 
     const [exportVerifiableBulletinBoard] = useMutation<ExportVerifiableBulletinBoardMutation>(
         EXPORT_VERIFIABLE_BULLETIN_BOARD,
@@ -65,12 +69,26 @@ export const ExportElectionBulletinBoard: React.FC<ExportElectionBulletinBoardPr
                 return
             }
             console.log({generatedDocumentId})
+            const generatedPassword = response?.password || "";
+            setPassword(generatedPassword)
 
             setDocumentId(generatedDocumentId)
             setWidgetTaskId(currWidget.identifier, taskId)
         } catch (e) {
             updateWidgetFail(currWidget.identifier)
         }
+    }
+
+    const onDownloadSuccess = () => {
+        if (password) {
+            setOpenPasswordDialog(true)
+        }
+    }
+
+    const resetState = () => {
+        setPassword("")
+        setOpenPasswordDialog(false)
+        setDocumentId(null)
     }
 
     return (
@@ -92,8 +110,14 @@ export const ExportElectionBulletinBoard: React.FC<ExportElectionBulletinBoardPr
                     onDownload={() => {
                         setDocumentId(null)
                     }}
+                    onSucess={onDownloadSuccess}
                 />
             ) : null}
+            {openPasswordDialog && password && (
+                <PasswordDialog password={password} onClose={resetState}>
+                    <DecryptHelp decryptionCommand={decryptionCommand} />
+                </PasswordDialog>
+            )}
         </>
     )
 }

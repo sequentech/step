@@ -63,7 +63,7 @@ import {Add} from "@mui/icons-material"
 import {useKeysPermissions} from "../ElectionEvent/useKeysPermissions"
 import {GET_TRUSTEES_NAMES} from "@/queries/GetTrusteesNames"
 import {StyledChip} from "@/components/StyledChip"
-import {ExportElectionBulletinBoard} from "@/components/tally/ExportElectionBulletinBoard"
+import {ExportVerifiableBulletinBoard} from "@/components/tally/ExportVerifiableBulletinBoard"
 
 const OMIT_FIELDS = ["ballot_eml", "trustees"]
 
@@ -525,7 +525,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
                                 <Box sx={{display: "flex", gap: 1}}>
                                     <ActionsColumn actions={actions(record)} />
                                     {isCanExportVerifiableBulletionBoard(record) && (
-                                        <ExportElectionBulletinBoard
+                                        <ExportVerifiableBulletinBoard
                                             tallySessionId={record.id.toString()}
                                             electionEventId={electionEventRecord.id}
                                             tenantId={tenantId}

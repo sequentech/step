@@ -32,6 +32,7 @@ export const EXPORT_VERIFIABLE_BULLETIN_BOARD = gql`
                 election_event_id
                 type
             }
+            password
         }
     }
 `

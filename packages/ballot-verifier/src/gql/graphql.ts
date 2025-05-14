@@ -408,6 +408,7 @@ export type ExportVerifiableBulletinBoardOutput = {
     __typename?: "ExportVerifiableBulletinBoardOutput"
     document_id: Scalars["String"]["output"]
     error_msg?: Maybe<Scalars["String"]["output"]>
+    password: Scalars["String"]["output"]
     task_execution: Tasks_Execution_Type
 }
 
