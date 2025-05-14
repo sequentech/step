@@ -197,14 +197,14 @@ trait ImmudbSqlValueExt {
 impl ImmudbSqlValueExt for immudb_rs::sql_value::Value { // Implement for the inner enum
     fn try_into_i64(&self) -> Result<i64> {
         match self {
-            ImmudbSqlValue::N(n) => Ok(n), // n is i64, not &i64
+            ImmudbSqlValue::N(n) => Ok(*n), // n is &i64 due to match on &self, so dereference
             _ => Err(anyhow::anyhow!("Expected N (i64), found {:?}", self)),
         }
     }
     fn try_into_i64_timestamp(&self) -> Result<i64> {
         match self {
-            ImmudbSqlValue::N(n) => Ok(n),      // Timestamps might be stored as N
-            ImmudbSqlValue::Ts(ts) => Ok(ts), // ts is i64, not &i64
+            ImmudbSqlValue::N(n) => Ok(*n),      // n is &i64, dereference
+            ImmudbSqlValue::Ts(ts) => Ok(*ts), // ts is &i64, dereference
             _ => Err(anyhow::anyhow!("Expected N or Ts (timestamp), found {:?}", self)),
         }
     }
