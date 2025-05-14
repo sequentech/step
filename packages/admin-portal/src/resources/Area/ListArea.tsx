@@ -260,6 +260,7 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
                                     Component={
                                         <CreateArea
                                             record={record}
+                                            electionEventId={id} 
                                             close={handleCloseCreateDrawer}
                                         />
                                     }
@@ -326,7 +327,7 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
                     sx: {width: "40%"},
                 }}
             >
-                <CreateArea record={record} close={handleCloseCreateDrawer} />
+                <CreateArea record={record} electionEventId={id} close={handleCloseCreateDrawer} />
             </Drawer>
             <Dialog
                 variant="warning"

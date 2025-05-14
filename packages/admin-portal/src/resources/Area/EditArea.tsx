@@ -8,15 +8,9 @@ import {
     Identifier,
     RecordContext,
     SaveButton,
-    AutocompleteInput,
-    ReferenceArrayInput,
-    ReferenceInput,
     SimpleForm,
-    TextInput,
-    useGetList,
     useNotify,
     useRefresh,
-    AutocompleteArrayInput,
 } from "react-admin"
 import {useMutation, useQuery} from "@apollo/client"
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
@@ -25,10 +19,8 @@ import {GET_AREAS_EXTENDED} from "@/queries/GetAreasExtended"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {INSERT_AREA_CONTESTS} from "../../queries/InsertAreaContest"
 import {DELETE_AREA_CONTESTS} from "@/queries/DeleteAreaContest"
-import {Sequent_Backend_Area} from "@/gql/graphql"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
-import {gridColumnGroupsLookupSelector} from "@mui/x-data-grid"
-import SelectArea from "@/components/area/SelectArea"
+import {AreaForm} from "./AreaForm"
 interface EditAreaProps {
     id?: Identifier | undefined
     electionEventId: Identifier | undefined
@@ -199,42 +191,7 @@ export const EditArea: React.FC<EditAreaProps> = (props) => {
                             console.log("parsedValue :>> ", parsedValue)
                             return (
                                 <SimpleForm record={parsedValue} toolbar={<SaveButton />}>
-                                    <>
-                                        <PageHeaderStyles.Title>
-                                            {t("areas.common.title")}
-                                        </PageHeaderStyles.Title>
-                                        <PageHeaderStyles.SubTitle>
-                                            {t("areas.common.subTitle")}
-                                        </PageHeaderStyles.SubTitle>
-
-                                        <TextInput source="name" />
-                                        <TextInput source="description" />
-
-                                        <ReferenceArrayInput
-                                            label={t("areas.sequent_backend_area_contest")}
-                                            reference="sequent_backend_contest"
-                                            source="area_contest_ids"
-                                            filter={{
-                                                tenant_id: tenantId,
-                                                election_event_id: electionEventId,
-                                            }}
-                                            perPage={100} // // Setting initial larger records size
-                                            enableGetChoices={({q}) => q && q.length >= 3}
-                                        >
-                                            <AutocompleteArrayInput
-                                                className="area-contest"
-                                                fullWidth={true}
-                                                optionText={aliasRenderer}
-                                                filterToQuery={contestFilterToQuery}
-                                                debounce={100}
-                                            />
-                                        </ReferenceArrayInput>
-                                        <SelectArea
-                                            tenantId={tenantId}
-                                            electionEventId={electionEventId}
-                                            source="parent_id"
-                                        />
-                                    </>
+                                    <AreaForm electionEventId={electionEventId} />
                                 </SimpleForm>
                             )
                         }}
