@@ -38,6 +38,14 @@ import {SettingsContext} from "../providers/SettingsContextProvider"
 import useUpdateTranslation from "../hooks/useUpdateTranslation"
 import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
 import {IElectionEvent} from "../store/electionEvents/electionEventsSlice"
+import Table from '@mui/material/Table';
+import TableBody from '@mui/material/TableBody';
+import TableCell from '@mui/material/TableCell';
+import TableContainer from '@mui/material/TableContainer';
+import TableHead from '@mui/material/TableHead';
+import TableRow from '@mui/material/TableRow';
+import Paper from '@mui/material/Paper';
+import {ICastVoteEntry} from "../types/castVoteLogEntry"
 
 const StyledLink = styled(Link)`
     text-decoration: none;
@@ -131,6 +139,8 @@ const BallotLocator: React.FC = () => {
     const allowSendRequest = useRef<boolean>(true)
     const [value, setValue] = React.useState(0);
     const [inputBallotId, setInputBallotId] = useState("")
+    const [rows, setRows] = useState<ICastVoteEntry[]>([])
+    const [total, setTotal] = useState(0)
     const validatedBallotId = isHex(inputBallotId ?? "")
 
     const requestCVMsgs = async () => {
@@ -142,6 +152,12 @@ const BallotLocator: React.FC = () => {
                 ballotId: inputBallotId,
             },
         })
+        console.log(result)
+
+        if (result.data?.list_cast_vote_messages) {
+            setRows((result.data?.list_cast_vote_messages?.list ?? []) as ICastVoteEntry[])
+            setTotal(result.data?.list_cast_vote_messages?.total)
+        }
     }
 
     useEffect(() => {
@@ -187,9 +203,50 @@ const BallotLocator: React.FC = () => {
                     validatedBallotId={validatedBallotId}
                     captureEnter={captureEnter}
                 />
+                <LogsTable rows={rows} total={total} />
             </CustomTabPanel>
         </Box>
     );
+}
+
+interface LogsTableProps {
+    rows: ICastVoteEntry[]
+    total: number
+}
+
+const LogsTable: React.FC<LogsTableProps> = ({
+    rows,
+    total
+}) => {
+    const {t} = useTranslation()
+
+    return (
+        <>
+        <TableContainer component={Paper}>
+        <Table sx={{ minWidth: 650 }} aria-label="simple table">
+            <TableHead>
+                <TableRow>
+                    <TableCell align="justify">username</TableCell>
+                    <TableCell align="justify">ballot_id</TableCell>
+                    <TableCell align="justify">statement_kind</TableCell>
+                    <TableCell align="justify">statement_timestamp</TableCell>
+                </TableRow>
+            </TableHead>
+            <TableBody>
+            {rows.map((row) => (
+                <TableRow
+                    key={row.username}>
+                    <TableCell align="justify">{row.username}</TableCell>
+                    <TableCell align="justify">{row.ballot_id}</TableCell>
+                    <TableCell align="justify">{row.statement_kind}</TableCell>
+                    <TableCell align="justify">{row.statement_timestamp}</TableCell>
+                </TableRow>
+            ))}
+            </TableBody>
+        </Table>
+        </TableContainer>
+        </>
+    )
 }
 
 interface BallotIdInputProps {
