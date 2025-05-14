@@ -3,14 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {useEffect, useState} from "react"
-import {
-    SimpleForm,
-    TextInput,
-    Create,
-    useRefresh,
-    useNotify,
-    Identifier,
-} from "react-admin"
+import {SimpleForm, TextInput, Create, useRefresh, useNotify, Identifier} from "react-admin"
 import {Sequent_Backend_Election_Event} from "../../gql/graphql"
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
 import {useTranslation} from "react-i18next"
@@ -80,16 +73,16 @@ export const CreateArea: React.FC<CreateAreaProps> = (props) => {
     /**
      * Asynchronously saves the area contests by mapping the provided area contest IDs
      * to a structure containing area, contest, election event, and tenant information.
-     * 
+     *
      * This function performs the following steps:
      * 1. Maps the `areaContests` to a list of objects containing the necessary data for saving.
      * 2. Sends the mapped data to the backend using the `insert_sequent_backend_area_contest` mutation.
      * 3. If an error occurs during the insertion, it notifies the user with an error message.
-     * 
+     *
      * @async
      * @function saveContetst
      * @returns {Promise<void>} Resolves when the operation is complete.
-     * 
+     *
      * @throws {Error} If the backend insertion fails, an error notification is displayed.
      */
     const saveContetst = async () => {

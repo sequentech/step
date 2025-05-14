@@ -3,12 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import SelectArea from "@/components/area/SelectArea"
-import {
-    TextInput,
-    ReferenceArrayInput,
-    AutocompleteArrayInput,
-    Identifier,
-} from "react-admin"
+import {TextInput, ReferenceArrayInput, AutocompleteArrayInput, Identifier} from "react-admin"
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
 import {useTranslation} from "react-i18next"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"

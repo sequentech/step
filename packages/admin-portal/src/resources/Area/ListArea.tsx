@@ -260,7 +260,7 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
                                     Component={
                                         <CreateArea
                                             record={record}
-                                            electionEventId={id} 
+                                            electionEventId={id}
                                             close={handleCloseCreateDrawer}
                                         />
                                     }
