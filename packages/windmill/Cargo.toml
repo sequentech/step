@@ -14,13 +14,11 @@ license = "AGPL-3.0-only"
 [[bin]]
 name = "generate-logs"
 path = "external-bin/generate_logs.rs"
-required-features = ["generate_logs_feature"] # Tie binary to its feature
 
 [features]
 default = ["fips_full"]
 fips_core = ["dep:postgres-openssl", "dep:openssl", "dep:ecies"]
 fips_full = ["dep:postgres-openssl", "dep:openssl", "dep:ecies"]
-generate_logs_feature = ["dep:tokio-stream"] # Feature for the binary
 
 [dependencies]
 rocket = { version = "0.5.0", features = ["json"] }
@@ -43,7 +41,6 @@ celery = { git = "https://github.com/rusty-celery/rusty-celery.git", rev = "1a01
 lapin = "2.5"
 rayon = "1.5"
 tokio = { version = "1.32.0", features = ["full"] }
-tokio-stream = { version = "0.1", optional = true } # Optional dep for generate_logs
 async-trait = "0.1.74"
 structopt = "0.3.26"
 clap = { version = "4.4", features = ["derive"] } # Added for generate_logs binary

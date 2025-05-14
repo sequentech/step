@@ -316,8 +316,7 @@ async fn main() -> Result<()> {
                FROM electoral_log_messages \
                ORDER BY id ASC".to_string();
 
-    // Vec::new() for no params, None for implicit TxMode (read-only for SELECT)
-    let mut stream = client.streaming_sql_query(&sql, Vec::new(), None)
+    let mut stream = client.streaming_sql_query(&sql, Vec::new())
         .await
         .with_context(|| "Failed to execute streaming SQL query")?;
 
