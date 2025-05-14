@@ -125,6 +125,31 @@ const CustomTabPanel: React.FC<TabPanelProps> = ({children, index, value}) => {
 }
 
 const BallotLocator: React.FC = () => {
+    const {tenantId, eventId, electionId} = useParams()
+    const [listCastVoteMessages] =
+        useMutation<ListCastVoteMessagesMutation>(LIST_CAST_VOTE_MESSAGES)
+    const allowSendRequest = useRef<boolean>(true)
+    const [value, setValue] = React.useState(0);
+    const [inputBallotId, setInputBallotId] = useState("")
+    const validatedBallotId = isHex(inputBallotId ?? "")
+
+    const requestCVMsgs = async () => {
+        let result = await listCastVoteMessages({
+            variables: {
+                tenantId,
+                electionEventId: eventId,
+                electionId,
+                ballotId: inputBallotId,
+            },
+        })
+    }
+
+    useEffect(() => {
+        if (inputBallotId.length === 64 && allowSendRequest.current) {
+            allowSendRequest.current = false
+            requestCVMsgs()
+        }
+    }, [inputBallotId])
 
     const a11yProps = (index: number) => {
         return {
@@ -132,29 +157,75 @@ const BallotLocator: React.FC = () => {
             'aria-controls': `simple-tabpanel-${index}`,
         };
     }
-
-    const [value, setValue] = React.useState(0);
-
     const handleChange = (event: React.SyntheticEvent, newValue: number) => {
         setValue(newValue);
     };
+
+    const captureEnter: React.KeyboardEventHandler<HTMLDivElement> = (event) => {
+        // Totest
+        allowSendRequest.current = true
+        console.log("captureEnter")
+        console.log(inputBallotId)
+        console.log(event.key)
+    }
 
     return (
         <Box sx={{ width: '100%' }}>
             <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
                 <Tabs value={value} onChange={handleChange} aria-label="basic tabs example">
-                    <Tab label="Item One" {...a11yProps(0)} />
-                    <Tab label="Item Two" {...a11yProps(1)} />
+                    <Tab label="BALLOT LOCATOR" {...a11yProps(0)} />
+                    <Tab label="LOGS" {...a11yProps(1)} />
                 </Tabs>
             </Box>
             <CustomTabPanel value={value} index={0}>
                 <BallotLocatorLogic />
             </CustomTabPanel>
             <CustomTabPanel value={value} index={1}>
-                Item Two
+                <BallotIdInput
+                    inputBallotId={inputBallotId}
+                    setInputBallotId={setInputBallotId}
+                    validatedBallotId={validatedBallotId}
+                    captureEnter={captureEnter}
+                />
             </CustomTabPanel>
         </Box>
     );
+}
+
+interface BallotIdInputProps {
+    inputBallotId: string
+    setInputBallotId: (value: string) => void
+    validatedBallotId: boolean
+    captureEnter: React.KeyboardEventHandler<HTMLDivElement>
+}
+
+const BallotIdInput: React.FC<BallotIdInputProps> = ({
+    inputBallotId,
+    setInputBallotId,
+    validatedBallotId,
+    captureEnter,
+}) => {
+    const {t} = useTranslation()
+
+    return (
+        <>
+            <TextField
+                onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
+                    setInputBallotId(event.target.value)
+                }}
+                value={inputBallotId}
+                InputLabelProps={{
+                    shrink: true,
+                }}
+                label="Ballot ID"
+                placeholder={t("ballotLocator.description")}
+                onKeyDown={captureEnter}
+            />
+            {!validatedBallotId && (
+                <StyledError>{t("ballotLocator.wrongFormatBallotId")}</StyledError>
+            )}
+        </>
+    )
 }
 
 const BallotLocatorLogic: React.FC = () => {
@@ -165,10 +236,6 @@ const BallotLocatorLogic: React.FC = () => {
     const {t} = useTranslation()
     const [inputBallotId, setInputBallotId] = useState<string>("")
     const {globalSettings} = useContext(SettingsContext)
-    const [listCastVoteMessages] =
-        useMutation<ListCastVoteMessagesMutation>(LIST_CAST_VOTE_MESSAGES)
-    const sendRequest = useRef<boolean>(true)
-
     const hasBallotId = !!ballotId
     const {data: dataBallotStyles} = useQuery<GetBallotStylesQuery>(GET_BALLOT_STYLES)
 
@@ -185,23 +252,6 @@ const BallotLocatorLogic: React.FC = () => {
         },
         skip: globalSettings.DISABLE_AUTH, // Skip query if in demo mode
     })
-    const requestCVMsgs = async () => {
-        let result = await listCastVoteMessages({
-            variables: {
-                tenantId,
-                electionEventId: eventId,
-                electionId,
-                ballotId,
-            },
-        })
-    }
-
-    useEffect(() => {
-        if (hasBallotId && sendRequest.current) {
-            sendRequest.current = false
-            requestCVMsgs()
-        }
-    }, [hasBallotId])
 
     const {data: dataElectionEvent} = useQuery<GetElectionEventQuery>(GET_ELECTION_EVENT, {
         variables: {
@@ -320,25 +370,13 @@ const BallotLocatorLogic: React.FC = () => {
                     </Box>
                 )}
                 {!hasBallotId && (
-                    <>
-                        <TextField
-                            onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
-                                setInputBallotId(event.target.value)
-                            }}
-                            value={inputBallotId}
-                            InputLabelProps={{
-                                shrink: true,
-                            }}
-                            label="Ballot ID"
-                            placeholder={t("ballotLocator.description")}
-                            onKeyDown={captureEnter}
-                        />
-                        {!validatedBallotId && (
-                            <StyledError>{t("ballotLocator.wrongFormatBallotId")}</StyledError>
-                        )}
-                    </>
+                    <BallotIdInput
+                        inputBallotId={inputBallotId}
+                        setInputBallotId={setInputBallotId}
+                        validatedBallotId={validatedBallotId}
+                        captureEnter={captureEnter}
+                    />
                 )}
-
                 {hasBallotId && ballotContent && (
                     <>
                         <Typography>{t("ballotLocator.contentDesc")}</Typography>
