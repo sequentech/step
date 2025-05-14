@@ -6,12 +6,14 @@ use anyhow::{Context, Result};
 use chrono::{DateTime, TimeZone, Utc};
 use clap::Parser;
 use csv::Writer;
+use electoral_log::messages::message::Message;
 use immudb_rs::{sql_value::Value as ImmudbSqlValue, Client, NamedParam, Row as ImmudbRow};
 use serde::{Deserialize, Serialize};
 use serde_json;
 use std::collections::HashMap; // Added for HashMap
 use std::fs::{self, File};
 use std::path::PathBuf;
+use strand::serialization::StrandDeserialize;
 use tokio_stream::StreamExt; // Added for streaming
 use tracing::{debug, error, info, warn};
 use tracing_subscriber::EnvFilter;
@@ -187,8 +189,10 @@ impl ElectoralLogRow {
             }
         }
 
-        let message_str = String::from_utf8(message_bytes.clone())
-            .with_context(|| "Failed to convert message bytes to UTF-8 string")?;
+        let deserialized_message = Message::strand_deserialize(&message_bytes)
+            .with_context(|| "Error deserializing message")?;
+        let message_str = serde_json::to_string_pretty(&deserialized_message)
+            .with_context(|| "Error serializing message to json")?;
 
         Ok(ElectoralLogRow {
             id,
