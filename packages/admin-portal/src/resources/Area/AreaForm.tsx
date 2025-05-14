@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2025 Enric Badia <enric@xtremis.com>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 import SelectArea from "@/components/area/SelectArea"
 import {
     TextInput,
