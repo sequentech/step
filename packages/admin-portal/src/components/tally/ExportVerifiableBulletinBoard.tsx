@@ -69,7 +69,7 @@ export const ExportVerifiableBulletinBoard: React.FC<ExportVerifiableBulletinBoa
                 return
             }
             console.log({generatedDocumentId})
-            const generatedPassword = response?.password || "";
+            const generatedPassword = response?.password || ""
             setPassword(generatedPassword)
 
             setDocumentId(generatedDocumentId)

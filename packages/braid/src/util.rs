@@ -14,6 +14,8 @@ use b3::messages::statement::StatementType;
 use strand::hash::Hash;
 use strand::util::StrandError;
 
+pub const VERIFIABLE_BULLETIN_BOARD_FILE: &str = "verifiable_bulletin_board.db";
+
 /// An error that occurs during protocol execution.
 #[derive(Error, Debug)]
 pub enum ProtocolError {

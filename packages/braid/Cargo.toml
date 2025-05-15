@@ -84,7 +84,3 @@ fips_core = ["strand/fips_core"]
 fips_full = ["strand/fips_full"]
 rug = ["strand/rug"]
 jemalloc = ["dep:tikv-jemalloc-ctl", "dep:tikv-jemallocator"]
-
-[[bin]]
-name = "verify_ballot"
-path = "src/bin/verify_ballot.rs" 

@@ -189,7 +189,7 @@ pub async fn create_verifiable_bulletin_board_db_file(
 
         tx.execute_batch(
             "
-            CREATE TABLE IF NOT EXISTS b3_messages (
+            CREATE TABLE IF NOT EXISTS bulletin_board (
                 id                   INTEGER PRIMARY KEY,
                 created              TEXT NOT NULL,
                 sender_pk            TEXT NOT NULL,
@@ -217,7 +217,7 @@ pub async fn create_verifiable_bulletin_board_db_file(
         )?;
         {
             let mut ins_b3 = tx.prepare(
-                "INSERT OR REPLACE INTO b3_messages
+                "INSERT OR REPLACE INTO bulletin_board
                  (id, created, sender_pk, statement_timestamp, statement_kind,
                   batch, mix_number, message, version)
                  VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9)",
