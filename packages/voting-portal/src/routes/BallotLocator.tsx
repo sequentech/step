@@ -197,7 +197,7 @@ const BallotLocator: React.FC = () => {
     }
 
     return (
-        <Box width={"100%"} maxWidth={"lg"}>
+        <Box width={"100%"} maxWidth={"lg"} marginTop="48px">
             <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
                 <Tabs
                     variant="scrollable"
@@ -222,6 +222,7 @@ const BallotLocator: React.FC = () => {
                         setInputBallotId={setInputBallotId}
                         validatedBallotId={validatedBallotId}
                         captureEnter={captureEnter}
+                        placeholderLabel="ballotLocator.filterByBallotId"
                     />
                 </Box>
                 <LogsTable rows={rows} total={total} onOrderBy={onClickHeader} />
@@ -268,13 +269,7 @@ const LogsTable: React.FC<LogsTableProps> = ({
                                 </TableSortLabel>
                             </TableCell>
                             <TableCell align="justify">
-                                <TableSortLabel
-                                    active={orderBy === "ballot_id"}
-                                    direction={orderBy === "ballot_id" ? order : 'asc'}
-                                    onClick={() => onClickHeader("ballot_id")}
-                                >
                                     ballot_id
-                                </TableSortLabel>
                             </TableCell>
                             <TableCell align="justify">
                                 <TableSortLabel
@@ -318,6 +313,7 @@ interface BallotIdInputProps {
     setInputBallotId: (value: string) => void
     validatedBallotId: boolean
     captureEnter: React.KeyboardEventHandler<HTMLDivElement>
+    placeholderLabel: string
 }
 
 const BallotIdInput: React.FC<BallotIdInputProps> = ({
@@ -325,6 +321,7 @@ const BallotIdInput: React.FC<BallotIdInputProps> = ({
     setInputBallotId,
     validatedBallotId,
     captureEnter,
+    placeholderLabel
 }) => {
     const { t } = useTranslation()
 
@@ -339,7 +336,7 @@ const BallotIdInput: React.FC<BallotIdInputProps> = ({
                     shrink: true,
                 }}
                 label="Ballot ID"
-                placeholder={t("ballotLocator.enterBallotId")}
+                placeholder={t(placeholderLabel)}
                 onKeyDown={captureEnter}
             />
             {!validatedBallotId && (
@@ -496,6 +493,7 @@ const BallotLocatorLogic: React.FC = () => {
                         setInputBallotId={setInputBallotId}
                         validatedBallotId={validatedBallotId}
                         captureEnter={captureEnter}
+                        placeholderLabel="ballotLocator.description"
                     />
                 )}
                 {hasBallotId && ballotContent && (

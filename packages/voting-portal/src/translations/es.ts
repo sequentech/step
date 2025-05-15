@@ -312,7 +312,7 @@ const spanishTranslation: TranslationType = {
             notFound: "Tu ID de Papeleta {{ballotId}} no ha sido localizada",
             contentDesc: "Este es el contenido de tu Papeleta: ",
             wrongFormatBallotId: "Formato incorrecto para el ID de la Papeleta",
-            enterBallotId: "Introduce el ID de la Papeleta",
+            filterByBallotId: "Filtrar por ID de Papeleta",
             totalBallots: "Papeletas: {{total}}",
             steps: {
                 lookup: "Localiza tu Papeleta",

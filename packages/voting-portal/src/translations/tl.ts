@@ -311,7 +311,7 @@ const tagalogTranslation: TranslationType = {
             notFound: "Ang iyong ballot ID {{ballotId}} ay hindi natagpuan",
             contentDesc: "Ito ang nilalaman ng iyong balota: ",
             wrongFormatBallotId: "Mali ang format para sa Ballot ID",
-            enterBallotId: "I-input ang iyong ballot ID",
+            filterByBallotId: "Tumutugma sa Ballot ID",
             totalBallots: "Kumulang mga balota: {{total}}",
             steps: {
                 lookup: "Hanapin ang Iyong Balota",

@@ -310,7 +310,7 @@ const galegoTranslation: TranslationType = {
             notFound: "O teu ID de papeleta {{ballotId}} non foi localizado",
             contentDesc: "Este é o contido da túa Papeleta:",
             wrongFormatBallotId: "Formato incorrecto para o ID da Papeleta",
-            enterBallotId: "Introduce o ID da Papeleta",
+            filterByBallotId: "Filtrar por ID da Papeleta",
             totalBallots: "Papeletas: {{total}}",
             steps: {
                 lookup: "Localiza a túa Papeleta",
