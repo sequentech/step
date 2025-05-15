@@ -406,7 +406,6 @@ pub async fn insert_areas(hasura_transaction: &Transaction<'_>, areas: &Vec<Area
     Ok(())
 }
 
-
 #[instrument(err, skip_all)]
 pub async fn update_areas(hasura_transaction: &Transaction<'_>, areas: &Vec<Area>) -> Result<()> {
     let tree_node_areas: Vec<TreeNodeArea> = areas.iter().map(|area| area.into()).collect();
@@ -468,7 +467,6 @@ pub async fn update_areas(hasura_transaction: &Transaction<'_>, areas: &Vec<Area
 
     Ok(())
 }
-
 
 #[instrument(err, skip_all)]
 pub async fn get_event_areas(
@@ -594,19 +592,26 @@ async fn insert_area_contests(
     tenant_id: &Uuid,
 ) -> Result<()> {
     // Delete existing area_contest rows for this area
-    hasura_transaction.execute("DELETE FROM area_contest WHERE area_id = $1", &[area_id])
+    hasura_transaction
+        .execute("DELETE FROM area_contest WHERE area_id = $1", &[area_id])
         .await
         .context("Failed to delete existing area_contests")?;
 
     // Insert new area_contests
     for contest_id in contest_ids {
-        hasura_transaction.execute(
-            "INSERT INTO area_contest (area_id, contest_id, election_event_id, tenant_id)
+        hasura_transaction
+            .execute(
+                "INSERT INTO area_contest (area_id, contest_id, election_event_id, tenant_id)
              VALUES ($1, $2, $3, $4)",
-            &[area_id, contest_id, election_event_id, tenant_id],
-        )
-        .await
-        .with_context(|| format!("Failed to insert area_contest for contest_id {}", contest_id))?;
+                &[area_id, contest_id, election_event_id, tenant_id],
+            )
+            .await
+            .with_context(|| {
+                format!(
+                    "Failed to insert area_contest for contest_id {}",
+                    contest_id
+                )
+            })?;
     }
 
     Ok(())

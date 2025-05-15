@@ -100,8 +100,7 @@ export const EditArea: React.FC<EditAreaProps> = (props) => {
     const transform = async (data: any, {previousData}: any) => {
         const temp = {...data}
 
-        console.log("aa area", data);
-        
+        console.log("aa area", data)
 
         const area_contest_ids = temp.area_contest_ids
         const election_event_id = temp.election_event_id

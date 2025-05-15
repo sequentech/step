@@ -121,7 +121,7 @@ pub async fn upsert_area(
         .with_context(|| "error comitting transaction")
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
-    Ok(Json(CreateElectionOutput { id: area.id }))
+    Ok(Json(UpsertAreaOutput { id: area.id }))
 }
 
 
