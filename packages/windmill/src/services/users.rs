@@ -9,6 +9,7 @@ use crate::services::cast_votes::get_users_with_vote_info;
 use crate::services::database::PgConfig;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
+use futures::TryStreamExt;
 use keycloak::types::GroupRepresentation;
 use keycloak::KeycloakError;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
@@ -16,7 +17,6 @@ use sequent_core::services::keycloak::{KeycloakAdminClient, PubKeycloakAdmin};
 use sequent_core::types::keycloak::*;
 use serde::{Deserialize, Deserializer};
 use serde_json::Value;
-use tokio_util::io::StreamReader;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::{
@@ -28,10 +28,10 @@ use tokio::fs::File;
 use tokio::io::{copy, AsyncWriteExt, BufWriter};
 use tokio_postgres::row::Row;
 use tokio_postgres::types::ToSql;
+use tokio_util::io::StreamReader;
 use tracing::error;
 use tracing::{debug, info, instrument};
 use uuid::Uuid;
-use futures::TryStreamExt;
 
 pub const VALIDATE_ID_ATTR_NAME: &str = "sequent.read-only.id-card-number-validated";
 pub const VALIDATE_ID_REGISTERED_VOTER: &str = "VERIFIED";

@@ -21,7 +21,7 @@ use tokio::fs::File;
 use tokio::io::{copy, AsyncWriteExt, BufWriter};
 use tokio_postgres::row::Row;
 use tokio_util::io::StreamReader;
-use tracing::{info, debug, instrument};
+use tracing::{debug, info, instrument};
 use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
