@@ -406,6 +406,70 @@ pub async fn insert_areas(hasura_transaction: &Transaction<'_>, areas: &Vec<Area
     Ok(())
 }
 
+
+#[instrument(err, skip_all)]
+pub async fn update_areas(hasura_transaction: &Transaction<'_>, areas: &Vec<Area>) -> Result<()> {
+    let tree_node_areas: Vec<TreeNodeArea> = areas.iter().map(|area| area.into()).collect();
+    let areas_tree = TreeNode::<()>::from_areas(tree_node_areas)?;
+    let areas_map: HashMap<String, Area> = areas
+        .iter()
+        .map(|area| (area.id.clone(), area.clone()))
+        .collect();
+
+    for area_node in areas_tree.iter() {
+        let Some(area_tree_node) = area_node.area.clone() else {
+            continue;
+        };
+        let area = areas_map
+            .get(&area_tree_node.id)
+            .ok_or(anyhow!("Can't find area"))?;
+
+        let statement = hasura_transaction
+            .prepare(
+                r#"
+                UPDATE sequent_backend.area
+                SET
+                    last_updated_at = NOW(),
+                    labels = $1,
+                    annotations = $2,
+                    name = $3,
+                    description = $4,
+                    type = $5,
+                    parent_id = $6
+                WHERE id = $7 AND tenant_id = $8 AND election_event_id = $9;
+                "#,
+            )
+            .await?;
+
+        let parent_id: Option<Uuid> = area
+            .parent_id
+            .clone()
+            .map(|parent_id| Uuid::parse_str(&parent_id).ok())
+            .flatten();
+
+        let _rows: Vec<Row> = hasura_transaction
+            .query(
+                &statement,
+                &[
+                    &area.labels,
+                    &area.annotations,
+                    &area.name,
+                    &area.description,
+                    &area.r#type,
+                    &parent_id,
+                    &Uuid::parse_str(&area.id)?,
+                    &Uuid::parse_str(&area.tenant_id)?,
+                    &Uuid::parse_str(&area.election_event_id)?,
+                ],
+            )
+            .await
+            .map_err(|err| anyhow!("Error executing update query: {err}"))?;
+    }
+
+    Ok(())
+}
+
+
 #[instrument(err, skip_all)]
 pub async fn get_event_areas(
     hasura_transaction: &Transaction<'_>,
@@ -519,4 +583,31 @@ pub async fn get_areas_by_election_id(
         .collect::<Result<Vec<Area>>>()?;
 
     Ok(areas)
+}
+
+#[instrument(skip(hasura_transaction), err)]
+async fn insert_area_contests(
+    hasura_transaction: &Transaction<'_>,
+    area_id: &Uuid,
+    contest_ids: &[Uuid],
+    election_event_id: &Uuid,
+    tenant_id: &Uuid,
+) -> Result<()> {
+    // Delete existing area_contest rows for this area
+    hasura_transaction.execute("DELETE FROM area_contest WHERE area_id = $1", &[area_id])
+        .await
+        .context("Failed to delete existing area_contests")?;
+
+    // Insert new area_contests
+    for contest_id in contest_ids {
+        hasura_transaction.execute(
+            "INSERT INTO area_contest (area_id, contest_id, election_event_id, tenant_id)
+             VALUES ($1, $2, $3, $4)",
+            &[area_id, contest_id, election_event_id, tenant_id],
+        )
+        .await
+        .with_context(|| format!("Failed to insert area_contest for contest_id {}", contest_id))?;
+    }
+
+    Ok(())
 }
