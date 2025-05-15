@@ -8,15 +8,19 @@ use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use anyhow::Result;
 use rocket::http::Status;
 use rocket::serde::json::Json;
+use sequent_core::ballot::ShowCastVoteLogs;
 use sequent_core::services::jwt::JwtClaims;
+use sequent_core::types::hasura::core::ElectionEvent;
 use sequent_core::types::permissions::VoterPermissions;
 use serde::Deserialize;
 use std::collections::HashMap;
 use tracing::instrument;
+use windmill::postgres::election_event::get_election_event_by_id;
 use windmill::services::electoral_log;
 use windmill::services::electoral_log::{
     CastVoteMessagesOutput, GetElectoralLogBody, OrderField,
 };
+use windmill::services::providers::transactions_provider::provide_hasura_transaction;
 use windmill::types::resources::OrderDirection;
 
 #[derive(Deserialize, Debug)]
@@ -39,6 +43,7 @@ pub async fn list_cast_vote_messages(
     let input = body.into_inner();
     // let election_id = input.election_id.as_deref().unwrap_or_default();
     let election_id = input.election_id.clone().unwrap_or_default(); // TODO: Temporary till merging the ballot performace inprovements.
+                                                                     // Check auth.
     let (_area_id, _voting_channel) = authorize_voter_election(
         &claims,
         vec![VoterPermissions::CAST_VOTE],
@@ -51,6 +56,42 @@ pub async fn list_cast_vote_messages(
             ErrorCode::Unauthorized,
         )
     })?; // TODO: Temporary till merging the ballot performace inprovements.
+
+    // Check that the policy is enabled
+    let election_event = provide_hasura_transaction(|hasura_transaction| {
+        let tenant_id = claims.hasura_claims.tenant_id.clone();
+        let election_event_id = input.election_event_id.clone();
+        Box::pin(async move {
+            let election_event: ElectionEvent = get_election_event_by_id(
+                &hasura_transaction,
+                &tenant_id,
+                &election_event_id,
+            )
+            .await?;
+            let policy = election_event.presentation.and_then(
+                |val| val.get("show_cast_vote_logs")
+                    .and_then(|value| {
+                        let ob = serde_json::from_value::<ShowCastVoteLogs>(value.clone()).unwrap_or_default();
+                        Some(ob)
+                    })
+            ).unwrap_or_default();
+            match policy {
+                ShowCastVoteLogs::ShowLogsTab => {
+                    Ok(())
+                }
+                ShowCastVoteLogs::HideLogsTab => {
+                    Err(anyhow::anyhow!(ShowCastVoteLogs::HideLogsTab.to_string()))
+                }
+            }
+        })
+    })
+    .await
+    .map_err(|error| {
+        (
+            Status::Forbidden,
+            format!("Failed to confirm that the show_cast_vote_logs policy is enabled: {error:?}"),
+        )
+    })?;
 
     let ballot_id = input.ballot_id.as_str();
     let mut filter_map: HashMap<OrderField, String> = HashMap::new();
