@@ -18,15 +18,15 @@ export const UPSERT_AREA = gql`
         $type: String
     ) {
         upsert_area(
-            id: $id,
-            name: $name,
-            description: $description,
-            election_event_id: $electionEventId,
-            tenant_id: $tenantId,
-            parent_id: $parentId,
-            area_contest_ids: $areaContestsIds,
-            annotations: $annotations,
-            labels: $labels,
+            id: $id
+            name: $name
+            description: $description
+            election_event_id: $electionEventId
+            tenant_id: $tenantId
+            parent_id: $parentId
+            area_contest_ids: $areaContestsIds
+            annotations: $annotations
+            labels: $labels
             type: $type
         ) {
             id

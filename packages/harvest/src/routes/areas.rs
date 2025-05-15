@@ -3,20 +3,22 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::authorization::authorize;
-use crate::types::error_response::ErrorCode;
 use anyhow::anyhow;
 use anyhow::{Context, Result};
+use chrono;
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
-use sequent_core::ballot::ElectionPresentation;
 use sequent_core::services::jwt::JwtClaims;
+use sequent_core::types::hasura::core::Area;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
-use windmill::postgres::area::{insert_areas, update_areas, insert_area_contests, delete_area_contests, Area};
+use windmill::postgres::area::{
+    insert_area_contests, insert_areas, update_areas,
+};
 use windmill::services::database::get_hasura_pool;
 use windmill::services::import::import_election_event::upsert_b3_and_elog;
 
@@ -63,7 +65,7 @@ pub async fn upsert_area(
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
-    // Construct area object from input
+    let now_local = chrono::Utc::now().with_timezone(&chrono::Local);
     let area = Area {
         id: body
             .id
@@ -73,10 +75,12 @@ pub async fn upsert_area(
         election_event_id: body.election_event_id.to_string(),
         labels: body.labels.clone(),
         annotations: body.annotations.clone(),
-        name: body.name.clone(),
-        description: body.description.clone(),
+        name: Some(body.name.clone()),
+        description: Some(body.description.clone()),
         r#type: body.r#type.clone(),
         parent_id: body.parent_id.map(|uuid| uuid.to_string()),
+        created_at: Some(now_local),
+        last_updated_at: Some(now_local),
     };
 
     // Perform insert or update based on presence of ID
@@ -90,12 +94,33 @@ pub async fn upsert_area(
             .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
     }
 
+    // Parse UUIDs without using the ? operator
+    let area_id = match Uuid::parse_str(&area.id) {
+        Ok(id) => id,
+        Err(e) => {
+            return Err((
+                Status::InternalServerError,
+                format!("Invalid area ID: {:?}", e),
+            ))
+        }
+    };
+    let election_event_id = body.election_event_id;
+    let tenant_id = match Uuid::parse_str(&claims.hasura_claims.tenant_id) {
+        Ok(id) => id,
+        Err(e) => {
+            return Err((
+                Status::InternalServerError,
+                format!("Invalid tenant ID: {:?}", e),
+            ))
+        }
+    };
+
     insert_area_contests(
         &hasura_transaction,
-        &area.id.clone(),
+        &area_id,
         &body.area_contest_ids,
-        &body.election_event_id,
-        &claims.hasura_claims.tenant_id,
+        &election_event_id,
+        &tenant_id,
     )
     .await
     .map_err(|e| {
@@ -108,7 +133,7 @@ pub async fn upsert_area(
     upsert_b3_and_elog(
         &hasura_transaction,
         &claims.hasura_claims.tenant_id,
-        &body.election_event_id,
+        &body.election_event_id.to_string(),
         &vec![area.id.clone()],
         false,
     )
@@ -123,5 +148,3 @@ pub async fn upsert_area(
 
     Ok(Json(UpsertAreaOutput { id: area.id }))
 }
-
-

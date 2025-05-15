@@ -1257,6 +1257,9 @@ actions:
               template_engine: Kriti
               version: 2
       permissions:
+          - role: area-read
+          - role: area-upsert
+          - role: area-create
           - role: area-write
       comment: upsert_areas
 custom_types:

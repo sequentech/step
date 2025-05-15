@@ -584,7 +584,7 @@ pub async fn get_areas_by_election_id(
 }
 
 #[instrument(skip(hasura_transaction), err)]
-async fn insert_area_contests(
+pub async fn insert_area_contests(
     hasura_transaction: &Transaction<'_>,
     area_id: &Uuid,
     contest_ids: &[Uuid],

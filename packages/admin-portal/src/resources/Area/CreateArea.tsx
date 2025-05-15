@@ -165,31 +165,31 @@ export const CreateArea: React.FC<CreateAreaProps> = (props) => {
             redirect={false}
             // transform={transform}
         >
-        <PageHeaderStyles.Wrapper>
-            <SimpleForm
-                onSubmit={onSubmit}
-                toolbar={
-                    <Toolbar>
-                        <SaveButton className="election-save-button" />
-                    </Toolbar>
-                }
-            >
-                <AreaForm electionEventId={electionEventId} />
+            <PageHeaderStyles.Wrapper>
+                <SimpleForm
+                    onSubmit={onSubmit}
+                    toolbar={
+                        <Toolbar>
+                            <SaveButton className="election-save-button" />
+                        </Toolbar>
+                    }
+                >
+                    <AreaForm electionEventId={electionEventId} />
 
-                <TextInput
-                    label="Election Event"
-                    source="election_event_id"
-                    defaultValue={record?.id || ""}
-                    style={{display: "none"}}
-                />
-                <TextInput
-                    label="Tenant"
-                    source="tenant_id"
-                    defaultValue={record?.tenant_id || ""}
-                    style={{display: "none"}}
-                />
-            </SimpleForm>
-        </PageHeaderStyles.Wrapper>
+                    <TextInput
+                        label="Election Event"
+                        source="election_event_id"
+                        defaultValue={record?.id || ""}
+                        style={{display: "none"}}
+                    />
+                    <TextInput
+                        label="Tenant"
+                        source="tenant_id"
+                        defaultValue={record?.tenant_id || ""}
+                        style={{display: "none"}}
+                    />
+                </SimpleForm>
+            </PageHeaderStyles.Wrapper>
         </Create>
     )
 }
