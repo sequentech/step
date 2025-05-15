@@ -279,6 +279,13 @@ const catalanTranslation: TranslationType = {
                 css: "CSS personalitzat",
                 skipElectionList: "Saltar pantalla per escollir elecció",
                 showUserProfile: "Mostra el perfil de l'usuari",
+                showCastVoteLogs: {
+                    policyLabel: "Mostra els registres de votació",
+                    options: {
+                        "show-logs-tab": "Mostra els registres de votació",
+                        "hide-logs-tab": "Amaga els registres de votació",
+                    },
+                },
                 lockdownState: {
                     policyLabel: "Estat de Confinament",
                     options: {
