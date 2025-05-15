@@ -8,4 +8,3 @@ export interface ICastVoteEntry {
     ballot_id: string
     username: string
 }
-

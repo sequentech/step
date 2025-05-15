@@ -813,7 +813,9 @@ export const EditElectionEventDataForm: React.FC = () => {
                                         choices={showCastVoteLogsChoices()}
                                         validate={required()}
                                         defaultValue={EShowCastVoteLogsPolicy.HIDE_LOGS_TAB}
-                                        label={t("electionEventScreen.field.showCastVoteLogs.policyLabel")}
+                                        label={t(
+                                            "electionEventScreen.field.showCastVoteLogs.policyLabel"
+                                        )}
                                     />
                                     <FormDataConsumer>
                                         {({formData, ...rest}) => {
