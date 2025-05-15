@@ -1,15 +1,16 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::{Context, Result};
-use chrono::{DateTime, TimeZone, Utc};
+use base64::engine::general_purpose;
+use base64::Engine;
+use chrono::{TimeZone, Utc};
 use clap::Parser;
 use csv::Writer;
 use electoral_log::messages::message::Message;
-use immudb_rs::{sql_value::Value as ImmudbSqlValue, Client, NamedParam, Row as ImmudbRow};
-use serde::{Deserialize, Serialize};
-use serde_json;
+use immudb_rs::{sql_value::Value as ImmudbSqlValue, Client};
+use serde::Deserialize;
 use std::collections::HashMap; // Added for HashMap
 use std::fs::{self, File};
 use std::path::PathBuf;
@@ -17,6 +18,8 @@ use strand::serialization::StrandDeserialize;
 use tokio_stream::StreamExt; // Added for streaming
 use tracing::{debug, error, info, warn};
 use tracing_subscriber::EnvFilter;
+use windmill::services::electoral_log::ElectoralLogRow;
+use windmill::services::reports::activity_log::ActivityLogRow;
 
 /// Generates a CSV report of activity logs from immudb.
 #[derive(Parser, Debug)]
@@ -44,59 +47,7 @@ struct Config {
     immudb_url: String,
     immudb_user: String,
     immudb_password: String,
-    batch_size: Option<usize>,
     elections: HashMap<String, String>, // election_id -> election_name (for CSV filename)
-}
-
-// --- Data Structures ---
-
-#[derive(Serialize, Debug)]
-struct ActivityLogRow {
-    id: i64,
-    created: String,
-    statement_timestamp: String,
-    statement_kind: String,
-    event_type: String,
-    log_type: String,
-    description: String,
-    message: String, // The original JSON message from ElectoralLogRow
-    user_id: String,
-}
-
-#[derive(Deserialize, Debug, Clone)]
-struct ElectoralLogRow {
-    id: i64,
-    created: i64,             // Unix timestamp
-    statement_timestamp: i64, // Unix timestamp
-    statement_kind: String,
-    message: String, // JSON string content of the log message
-    user_id: Option<String>,
-    // data: String, // Not strictly needed for ActivityLogRow, can be omitted from SELECT
-    // username: Option<String>, // Not strictly needed for ActivityLogRow
-}
-
-// Structs for parsing the JSON content of ElectoralLogRow.message
-#[derive(Deserialize, Debug, Clone)]
-struct StatementHeadData {
-    event_type: String,
-    log_type: String,
-    description: String,
-}
-
-#[derive(Deserialize, Debug)]
-struct LogMessageBody {
-    election_id: Option<String>,
-}
-
-#[derive(Deserialize, Debug)]
-struct StatementWrapper {
-    head: StatementHeadData,
-    body: Option<LogMessageBody>,
-}
-
-#[derive(Deserialize, Debug)]
-struct MessageWrapper {
-    statement: StatementWrapper,
 }
 
 // --- Helper Functions ---
@@ -108,188 +59,6 @@ fn sanitize_filename(name: &str) -> String {
             _ => '_', // Replace other characters with underscore
         })
         .collect()
-}
-
-fn timestamp_to_rfc3339(timestamp_secs: i64) -> Result<String> {
-    Ok(Utc
-        .timestamp_opt(timestamp_secs, 0)
-        .single()
-        .ok_or_else(|| anyhow::anyhow!("Invalid timestamp: {}", timestamp_secs))?
-        .to_rfc3339())
-}
-
-impl ElectoralLogRow {
-    fn try_from_immudb_row(row: &ImmudbRow) -> Result<Self> {
-        let mut id = 0;
-        let mut created = 0;
-        let mut statement_timestamp = 0;
-        let mut statement_kind = String::new();
-        let mut message_bytes: Vec<u8> = Vec::new();
-        let mut user_id: Option<String> = None;
-
-        for (col_idx, col_name_qual) in row.columns.iter().enumerate() {
-            // Column name might be qualified, e.g., "electoral_log_messages.id"
-            // We'll split by '.' and take the last part if present, or use the full name.
-            let mut col_name = col_name_qual.split('.').last().unwrap_or(col_name_qual);
-            col_name = col_name.strip_suffix(')').unwrap_or(col_name);
-            let value = &row.values[col_idx];
-
-            match col_name {
-                "id" => {
-                    id = value
-                        .value
-                        .as_ref()
-                        .context("SQL value for 'id' is None")?
-                        .try_into_i64()
-                        .context("Failed to parse 'id' as i64")?
-                }
-                "created" => {
-                    created = value
-                        .value
-                        .as_ref()
-                        .context("SQL value for 'created' is None")?
-                        .try_into_i64_timestamp()
-                        .context("Failed to parse 'created' as timestamp")?
-                }
-                "statement_timestamp" => {
-                    statement_timestamp = value
-                        .value
-                        .as_ref()
-                        .context("SQL value for 'statement_timestamp' is None")?
-                        .try_into_i64_timestamp()
-                        .context("Failed to parse 'statement_timestamp' as timestamp")?
-                }
-                "statement_kind" => {
-                    statement_kind = value
-                        .value
-                        .as_ref()
-                        .context("SQL value for 'statement_kind' is None")?
-                        .try_into_string()
-                        .context("Failed to parse 'statement_kind' as String")?
-                }
-                "message" => {
-                    message_bytes = value
-                        .value
-                        .as_ref()
-                        .context("SQL value for 'message' is None")?
-                        .try_into_bytes()
-                        .context("Failed to parse 'message' as bytes")?
-                }
-                "user_id" => {
-                    user_id = value
-                        .value
-                        .as_ref()
-                        .context("SQL value for 'user_id' is None")?
-                        .try_into_opt_string()
-                        .context("Failed to parse 'user_id' as Option<String>")?
-                }
-                _ => { // Log or ignore unknown columns
-                     // debug!("Ignoring unknown column: {}", col_name);
-                }
-            }
-        }
-
-        let deserialized_message = Message::strand_deserialize(&message_bytes)
-            .with_context(|| "Error deserializing message")?;
-        let message_str = serde_json::to_string_pretty(&deserialized_message)
-            .with_context(|| "Error serializing message to json")?;
-
-        Ok(ElectoralLogRow {
-            id,
-            created,
-            statement_timestamp,
-            statement_kind,
-            message: message_str,
-            user_id,
-        })
-    }
-}
-
-impl ActivityLogRow {
-    fn try_from_electoral_log(elog: &ElectoralLogRow) -> Result<Option<(Self, Option<String>)>> {
-        let parsed_message: MessageWrapper =
-            serde_json::from_str(&elog.message).with_context(|| {
-                format!(
-                    "Failed to parse ElectoralLogRow.message JSON for log id {}: {}",
-                    elog.id, elog.message
-                )
-            })?;
-
-        let extracted_election_id = parsed_message
-            .statement
-            .body
-            .as_ref()
-            .and_then(|b| b.election_id.clone());
-
-        let head = parsed_message.statement.head;
-
-        let activity_log_row = ActivityLogRow {
-            id: elog.id,
-            created: timestamp_to_rfc3339(elog.created)?,
-            statement_timestamp: timestamp_to_rfc3339(elog.statement_timestamp)?,
-            statement_kind: elog.statement_kind.clone(),
-            event_type: head.event_type,
-            log_type: head.log_type,
-            description: head.description,
-            message: elog.message.clone(), // Keep original JSON message
-            user_id: elog.user_id.clone().unwrap_or_else(|| "-".to_string()),
-        };
-
-        Ok(Some((activity_log_row, extracted_election_id)))
-    }
-}
-
-// Trait and impl for easier conversion from ImmudbSqlValue
-trait ImmudbSqlValueExt {
-    fn try_into_i64(&self) -> Result<i64>;
-    fn try_into_i64_timestamp(&self) -> Result<i64>; // Assumes timestamp is N or Ts
-    fn try_into_string(&self) -> Result<String>;
-    fn try_into_opt_string(&self) -> Result<Option<String>>;
-    fn try_into_bytes(&self) -> Result<Vec<u8>>;
-}
-
-impl ImmudbSqlValueExt for immudb_rs::sql_value::Value {
-    // Implement for the inner enum
-    fn try_into_i64(&self) -> Result<i64> {
-        match self {
-            ImmudbSqlValue::N(n) => Ok(*n), // n is &i64 due to match on &self, so dereference
-            _ => Err(anyhow::anyhow!("Expected N (i64), found {:?}", self)),
-        }
-    }
-    fn try_into_i64_timestamp(&self) -> Result<i64> {
-        match self {
-            ImmudbSqlValue::N(n) => Ok(*n),    // n is &i64, dereference
-            ImmudbSqlValue::Ts(ts) => Ok(*ts), // ts is &i64, dereference
-            _ => Err(anyhow::anyhow!(
-                "Expected N or Ts (timestamp), found {:?}",
-                self
-            )),
-        }
-    }
-    fn try_into_string(&self) -> Result<String> {
-        match self {
-            ImmudbSqlValue::S(s) => Ok(s.clone()),
-            _ => Err(anyhow::anyhow!("Expected S (String), found {:?}", self)),
-        }
-    }
-    fn try_into_opt_string(&self) -> Result<Option<String>> {
-        match self {
-            ImmudbSqlValue::S(s) => Ok(Some(s.clone())),
-            ImmudbSqlValue::Null(_) => Ok(None),
-            // Note: The ImmudbSqlValue::Value enum itself cannot be None.
-            // The outer SqlValue.value can be None, handled at call site by .as_ref().
-            _ => Err(anyhow::anyhow!(
-                "Expected S (String) or Null, found {:?}",
-                self
-            )),
-        }
-    }
-    fn try_into_bytes(&self) -> Result<Vec<u8>> {
-        match self {
-            ImmudbSqlValue::Bs(bs) => Ok(bs.clone()),
-            _ => Err(anyhow::anyhow!("Expected Bs (Bytes), found {:?}", self)),
-        }
-    }
 }
 
 /// Constructs the immudb board name from tenant_id and election_event_id.
@@ -418,15 +187,19 @@ async fn main() -> Result<()> {
                         info!(total_rows_fetched, "Processed rows from stream...");
                     }
 
-                    match ElectoralLogRow::try_from_immudb_row(individual_row) {
+                    match ElectoralLogRow::try_from(individual_row) {
                         // individual_row is &ImmudbRow
                         Ok(elog_row) => {
                             debug!(
                                 log_id = elog_row.id,
                                 "Successfully parsed ElectoralLogRow from stream batch."
                             );
-                            match ActivityLogRow::try_from_electoral_log(&elog_row) {
-                                Ok(Some((activity_log_row, extracted_election_id_opt))) => {
+                            let message_bytes =
+                                general_purpose::STANDARD_NO_PAD.decode(&elog_row.data)?;
+                            let message: Message = Message::strand_deserialize(&message_bytes)?;
+                            let extracted_election_id_opt = message.election_id.clone();
+                            match ActivityLogRow::try_from(elog_row.clone()) {
+                                Ok(activity_log_row) => {
                                     let filename_stem_key = match &extracted_election_id_opt {
                                         Some(id) => config
                                             .elections
@@ -464,9 +237,6 @@ async fn main() -> Result<()> {
                                                 .or_insert(0) += 1;
                                         }
                                     }
-                                }
-                                Ok(None) => {
-                                    debug!(log_id = elog_row.id, "Transformation to ActivityLogRow returned None unexpectedly (filtered or error in conversion).");
                                 }
                                 Err(e) => {
                                     warn!(log_id = elog_row.id, error = %e, "Failed to transform ElectoralLogRow.");
