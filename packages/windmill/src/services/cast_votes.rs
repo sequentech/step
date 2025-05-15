@@ -21,7 +21,7 @@ use tokio::fs::File;
 use tokio::io::{copy, AsyncWriteExt, BufWriter};
 use tokio_postgres::row::Row;
 use tokio_util::io::StreamReader;
-use tracing::{info, instrument};
+use tracing::{info, debug, instrument};
 use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
@@ -86,14 +86,14 @@ pub async fn find_area_ballots(
                 "#
     );
 
-    let mut tokio_temp_file = File::create(output_file)
+    let tokio_temp_file = File::create(output_file)
         .await
         .expect("Could not create/open temporary file for tokio");
 
     let copy_out_query = format!("COPY ({}) TO STDOUT WITH (FORMAT CSV)", areas_statement);
     let mut writer = BufWriter::new(tokio_temp_file);
 
-    info!("copy_out_query: {copy_out_query}");
+    debug!("copy_out_query: {copy_out_query}");
 
     let reader = hasura_transaction.copy_out(&copy_out_query).await?;
 
@@ -107,7 +107,7 @@ pub async fn find_area_ballots(
 
     let bytes_copied = copy(&mut async_reader, &mut writer).await?;
 
-    info!("bytes_copied: {bytes_copied}");
+    debug!("bytes_copied: {bytes_copied}");
 
     writer.flush().await?;
 

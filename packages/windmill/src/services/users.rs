@@ -144,7 +144,7 @@ pub async fn list_keycloak_enabled_users_by_area_id(
     let copy_out_query = format!("COPY ({}) TO STDOUT WITH (FORMAT CSV)", statement);
     let mut writer = BufWriter::new(tokio_temp_file);
 
-    info!("copy_out_query: {copy_out_query}");
+    debug!("copy_out_query: {copy_out_query}");
 
     let reader = keycloak_transaction.copy_out(&copy_out_query).await?;
 
@@ -158,7 +158,7 @@ pub async fn list_keycloak_enabled_users_by_area_id(
 
     let bytes_copied = copy(&mut async_reader, &mut writer).await?;
 
-    info!("bytes_copied: {bytes_copied}");
+    debug!("bytes_copied: {bytes_copied}");
 
     writer.flush().await?;
 
