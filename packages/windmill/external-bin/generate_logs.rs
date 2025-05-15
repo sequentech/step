@@ -33,6 +33,10 @@ struct Cli {
     #[clap(long)]
     election_event_id: String,
 
+    /// Election ID (used to identify the immudb log)
+    #[clap(long)]
+    election_id: String,
+
     /// Path to the output folder where CSV files will be saved
     #[clap(long)]
     output_folder_path: PathBuf,
@@ -109,10 +113,13 @@ async fn main() -> Result<()> {
     info!(
         tenant_id = %cli.tenant_id,
         election_event_id = %cli.election_event_id,
+        election_id = %cli.election_id,
         output_folder_path = %cli.output_folder_path.display(),
         config_path = %cli.config.display(),
         "Starting log generation process with CLI arguments."
     );
+
+    let election_id = cli.election_id.clone();
 
     // Load configuration
     let config_content = fs::read_to_string(&cli.config)
@@ -198,24 +205,6 @@ async fn main() -> Result<()> {
                         log_id = elog_row.id,
                         "Successfully parsed ElectoralLogRow from stream batch."
                     );
-                    let message_bytes = match general_purpose::STANDARD_NO_PAD
-                        .decode(&elog_row.data)
-                    {
-                        Ok(message_bytes) => message_bytes,
-                        Err(e) => {
-                            warn!(error = %e, "Error decoding ElectoralLogRow base64 data into bytes.");
-                            continue;
-                        }
-                    };
-
-                    let message: Message = match Message::strand_deserialize(&message_bytes) {
-                        Ok(message) => message,
-                        Err(e) => {
-                            warn!(error = %e, "Error deserializing ElectoralLogRow data bytes into a Message.");
-                            continue;
-                        }
-                    };
-                    let extracted_election_id_opt = message.election_id.clone();
 
                     let activity_log_row = match ActivityLogRow::try_from(elog_row.clone()) {
                         Ok(activity_log_row) => activity_log_row,
@@ -225,15 +214,12 @@ async fn main() -> Result<()> {
                         }
                     };
 
-                    let filename_stem_key = match &extracted_election_id_opt {
-                        Some(id) => config
+                    let filename_stem_key = config
                             .elections
-                            .get(id)
+                            .get(&election_id)
                             .map(|s| s.as_str())
-                            .unwrap_or(id)
-                            .to_string(),
-                        None => "general_logs".to_string(),
-                    };
+                            .unwrap_or(&election_id)
+                            .to_string();
                     let sanitized_stem = sanitize_filename(&filename_stem_key);
 
                     if !csv_writers.contains_key(&sanitized_stem) {

@@ -13,9 +13,9 @@ license = "AGPL-3.0-only"
 
 [dependencies]
 anyhow = "1.0"
-tonic = { version = "0.9.2" }
-prost = { version = "0.11.9" }
-prost-types = { version = "0.11.9" }
+tonic = { version = "0.12.3" }
+prost = { version = "0.13.5" }
+prost-types = { version = "0.13.5" }
 serde = "1.0.152"
 
 # logging 
@@ -31,4 +31,4 @@ tracing-tree = "0.2.1"
 crate-type = ["cdylib", "rlib"]
 
 [build-dependencies]
-tonic-build = "0.9"
+tonic-build = "0.12.3"
