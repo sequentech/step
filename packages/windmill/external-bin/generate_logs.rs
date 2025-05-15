@@ -187,64 +187,73 @@ async fn main() -> Result<()> {
                         info!(total_rows_fetched, "Processed rows from stream...");
                     }
 
-                    match ElectoralLogRow::try_from(individual_row) {
-                        // individual_row is &ImmudbRow
-                        Ok(elog_row) => {
-                            debug!(
-                                log_id = elog_row.id,
-                                "Successfully parsed ElectoralLogRow from stream batch."
-                            );
-                            let message_bytes =
-                                general_purpose::STANDARD_NO_PAD.decode(&elog_row.data)?;
-                            let message: Message = Message::strand_deserialize(&message_bytes)?;
-                            let extracted_election_id_opt = message.election_id.clone();
-                            match ActivityLogRow::try_from(elog_row.clone()) {
-                                Ok(activity_log_row) => {
-                                    let filename_stem_key = match &extracted_election_id_opt {
-                                        Some(id) => config
-                                            .elections
-                                            .get(id)
-                                            .map(|s| s.as_str())
-                                            .unwrap_or(id)
-                                            .to_string(),
-                                        None => "general_logs".to_string(),
-                                    };
-                                    let sanitized_stem = sanitize_filename(&filename_stem_key);
-
-                                    if !csv_writers.contains_key(&sanitized_stem) {
-                                        let csv_path = cli
-                                            .output_folder_path
-                                            .join(format!("{}.csv", sanitized_stem));
-                                        info!(file_path = %csv_path.display(), election_id_key = %filename_stem_key, "Creating new CSV file.");
-                                        let file = File::create(&csv_path).with_context(|| {
-                                            format!(
-                                                "Failed to create CSV file: {}",
-                                                csv_path.display()
-                                            )
-                                        })?;
-                                        csv_writers.insert(
-                                            sanitized_stem.clone(),
-                                            Writer::from_writer(file),
-                                        );
-                                    }
-
-                                    if let Some(writer) = csv_writers.get_mut(&sanitized_stem) {
-                                        if let Err(e) = writer.serialize(&activity_log_row) {
-                                            error!(log_id = elog_row.id, election_file_stem = %sanitized_stem, error = %e, "Failed to serialize ActivityLogRow to CSV.");
-                                        } else {
-                                            *activity_log_written_counts
-                                                .entry(sanitized_stem.clone())
-                                                .or_insert(0) += 1;
-                                        }
-                                    }
-                                }
-                                Err(e) => {
-                                    warn!(log_id = elog_row.id, error = %e, "Failed to transform ElectoralLogRow.");
-                                }
-                            }
-                        }
+                    let elog_row = match ElectoralLogRow::try_from(individual_row) {
+                        Ok(elog_row) => elog_row,
                         Err(e) => {
-                            error!(error = %e, "Failed to parse ImmudbRow into ElectoralLogRow from stream batch.");
+                            warn!(error = %e, "Failed to parse ImmudbRow into ElectoralLogRow from stream batch.");
+                            continue;
+                        }
+                    };
+                    debug!(
+                        log_id = elog_row.id,
+                        "Successfully parsed ElectoralLogRow from stream batch."
+                    );
+                    let message_bytes = match general_purpose::STANDARD_NO_PAD
+                        .decode(&elog_row.data)
+                    {
+                        Ok(message_bytes) => message_bytes,
+                        Err(e) => {
+                            warn!(error = %e, "Error decoding ElectoralLogRow base64 data into bytes.");
+                            continue;
+                        }
+                    };
+
+                    let message: Message = match Message::strand_deserialize(&message_bytes) {
+                        Ok(message) => message,
+                        Err(e) => {
+                            warn!(error = %e, "Error deserializing ElectoralLogRow data bytes into a Message.");
+                            continue;
+                        }
+                    };
+                    let extracted_election_id_opt = message.election_id.clone();
+
+                    let activity_log_row = match ActivityLogRow::try_from(elog_row.clone()) {
+                        Ok(activity_log_row) => activity_log_row,
+                        Err(e) => {
+                            warn!(log_id = elog_row.id, error = %e, "Failed to transform ElectoralLogRow.");
+                            continue;
+                        }
+                    };
+
+                    let filename_stem_key = match &extracted_election_id_opt {
+                        Some(id) => config
+                            .elections
+                            .get(id)
+                            .map(|s| s.as_str())
+                            .unwrap_or(id)
+                            .to_string(),
+                        None => "general_logs".to_string(),
+                    };
+                    let sanitized_stem = sanitize_filename(&filename_stem_key);
+
+                    if !csv_writers.contains_key(&sanitized_stem) {
+                        let csv_path = cli
+                            .output_folder_path
+                            .join(format!("{}.csv", sanitized_stem));
+                        info!(file_path = %csv_path.display(), election_id_key = %filename_stem_key, "Creating new CSV file.");
+                        let file = File::create(&csv_path).with_context(|| {
+                            format!("Failed to create CSV file: {}", csv_path.display())
+                        })?;
+                        csv_writers.insert(sanitized_stem.clone(), Writer::from_writer(file));
+                    }
+
+                    if let Some(writer) = csv_writers.get_mut(&sanitized_stem) {
+                        if let Err(e) = writer.serialize(&activity_log_row) {
+                            error!(log_id = elog_row.id, election_file_stem = %sanitized_stem, error = %e, "Failed to serialize ActivityLogRow to CSV.");
+                        } else {
+                            *activity_log_written_counts
+                                .entry(sanitized_stem.clone())
+                                .or_insert(0) += 1;
                         }
                     }
                 }
