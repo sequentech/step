@@ -107,6 +107,7 @@ function isHex(str: string) {
     return regex.test(str)
 }
 
+
 const StyledApp = styled(Stack) <{ css: string }>`
     min-height: 100vh;
     min-width: 100vw;
@@ -411,10 +412,15 @@ const BallotLocatorLogic: React.FC = () => {
         }
     }
 
+    const customCss = dataElectionEvent?.sequent_backend_election_event[0]?.presentation?.css
+    const ConditionalStyledApp = customCss
+        ? StyledApp
+        : Stack;
+
     return (
-        // <StyledApp
-        //     css={dataElectionEvent?.sequent_backend_election_event[0]?.presentation?.css ?? ""}
-        // >
+        <ConditionalStyledApp
+            css={customCss}
+        >
             <PageLimit className="ballot-locator-screen screen" maxWidth="lg">
                 <Box marginTop="48px">
                     <BreadCrumbSteps
@@ -524,7 +530,7 @@ const BallotLocatorLogic: React.FC = () => {
                     </>
                 )}
             </PageLimit>
-        // </StyledApp>
+        </ConditionalStyledApp>
     )
 }
 
