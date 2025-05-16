@@ -133,6 +133,8 @@ const CustomTabPanel: React.FC<TabPanelProps> = ({ children, index, value }) => 
 }
 
 const BallotLocator: React.FC = () => {
+    const { t } = useTranslation()
+    const location = useLocation()
     const { tenantId, eventId, electionId } = useParams()
     const [listCastVoteMessages] =
         useMutation<ListCastVoteMessagesMutation>(LIST_CAST_VOTE_MESSAGES)
@@ -240,6 +242,16 @@ const BallotLocator: React.FC = () => {
                 </Box>
                 <LogsTable rows={rows} total={total} onOrderBy={onClickHeader} />
             </CustomTabPanel>
+            <Box sx={{ order: { xs: 1, md: 2 }, marginTop: "20px" }}>
+                <StyledLink
+                    to={`/tenant/${tenantId}/event/${eventId}/election-chooser${location.search}`}
+                >
+                    <Button variant="secondary" className="secondary">
+                        <Icon icon={faAngleLeft} size="sm" />
+                        <Box paddingLeft="12px">{t("votingScreen.backButton")}</Box>
+                    </Button>
+                </StyledLink>
+            </Box>
         </Box>
     )
 }
@@ -465,16 +477,6 @@ const BallotLocatorLogic: React.FC<BallotLocatorLogicProps> = ({ customCss }) =>
                         >
                             {t("ballotLocator.description")}
                         </Typography>
-                    </Box>
-                    <Box sx={{ order: { xs: 1, md: 2 }, marginTop: "20px" }}>
-                        <StyledLink
-                            to={`/tenant/${tenantId}/event/${eventId}/election-chooser${location.search}`}
-                        >
-                            <Button variant="secondary" className="secondary">
-                                <Icon icon={faAngleLeft} size="sm" />
-                                <Box paddingLeft="12px">{t("votingScreen.backButton")}</Box>
-                            </Button>
-                        </StyledLink>
                     </Box>
                 </Box>
 
