@@ -53,7 +53,7 @@ import {TemplateEdit} from "./resources/Template/TemplateEdit"
 import {TemplateList} from "./resources/Template/TemplateList"
 import {TemplateCreate} from "./resources/Template/TemplateCreate"
 import ListReports from "./resources/Reports/ListReports"
-import { UpsertArea } from "./resources/Area/UpsertArea"
+import {UpsertArea} from "./resources/Area/UpsertArea"
 
 interface AppProps {}
 
@@ -227,7 +227,12 @@ const App: React.FC<AppProps> = () => {
                     options={{label: "Reports"}}
                 />
 
-                <Resource name="user" edit={UpsertArea} list={ListUsers} options={{label: "Users"}} />
+                <Resource
+                    name="user"
+                    edit={UpsertArea}
+                    list={ListUsers}
+                    options={{label: "Users"}}
+                />
             </Admin>
         </StyledAppAtom>
     )

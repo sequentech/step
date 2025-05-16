@@ -36,7 +36,7 @@ import styled from "@emotion/styled"
 import {UPSERT_AREAS} from "@/queries/UpsertAreas"
 import {ResetFilters} from "@/components/ResetFilters"
 import {useAreaPermissions} from "./useAreaPermissions"
-import { UpsertArea } from "./UpsertArea"
+import {UpsertArea} from "./UpsertArea"
 
 const ActionsBox = styled(Box)`
     display: flex;

@@ -3,16 +3,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {useEffect, useState} from "react"
-import {
-    Create,
-    Identifier,
-    EditBase,
-} from "react-admin"
+import {Create, Identifier, EditBase} from "react-admin"
 import {Sequent_Backend_Election_Event} from "../../gql/graphql"
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
 import {useQuery} from "@apollo/client"
 import {GET_AREAS_EXTENDED} from "@/queries/GetAreasExtended"
-import { FormContent } from "./FormContent"
+import {FormContent} from "./FormContent"
 
 export interface UpsertAreaProps {
     record?: Sequent_Backend_Election_Event
@@ -38,7 +34,7 @@ export interface UpsertAreaProps {
  */
 export const UpsertArea: React.FC<UpsertAreaProps> = (props) => {
     const {record, id, electionEventId, close} = props
-    
+
     const [renderUI, setRenderUI] = useState(false)
 
     const {data: areas} = useQuery(GET_AREAS_EXTENDED, {
@@ -91,4 +87,3 @@ export const UpsertArea: React.FC<UpsertAreaProps> = (props) => {
         return null
     }
 }
-
