@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::authorization::authorize;
-use anyhow::anyhow;
 use anyhow::{Context, Result};
 use chrono;
 use deadpool_postgres::Client as DbClient;
@@ -17,7 +16,7 @@ use serde_json::Value as JsonValue;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 use windmill::postgres::area::{
-    insert_area_contests, insert_areas, update_areas,
+    delete_area_contests, insert_area_contests, insert_areas, update_areas,
 };
 use windmill::services::database::get_hasura_pool;
 use windmill::services::import::import_election_event::upsert_b3_and_elog;
@@ -114,6 +113,20 @@ pub async fn upsert_area(
             ))
         }
     };
+
+    delete_area_contests(
+        &hasura_transaction,
+        &area_id,
+        &election_event_id,
+        &tenant_id,
+    )
+    .await
+    .map_err(|e| {
+        (
+            Status::InternalServerError,
+            format!("Failed to insert area_contests: {:?}", e),
+        )
+    })?;
 
     insert_area_contests(
         &hasura_transaction,

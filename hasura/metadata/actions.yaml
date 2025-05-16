@@ -1245,6 +1245,8 @@ actions:
                   template: "{{$body.input}}"
               template_engine: Kriti
               version: 2
+      permissions:
+          - role: admin-user
     - name: upsert_areas
       definition:
           kind: synchronous

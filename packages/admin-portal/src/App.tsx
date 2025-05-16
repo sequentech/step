@@ -5,7 +5,6 @@ import {Admin, CustomRoutes, DataProvider, Resource} from "react-admin"
 import React, {useContext, useEffect, useState} from "react"
 import {ElectionEventBaseTabs} from "./resources/ElectionEvent/ElectionEventBaseTabs"
 
-import {CreateArea} from "./resources/Area/CreateArea"
 import {CreateAreaContest} from "./resources/AreaContest/CreateAreaContest"
 import {CreateBallotStyle} from "./resources/BallotStyle/CreateBallotStyle"
 import {CreateCandidate} from "./resources/Candidate/CreateCandidate"
@@ -32,7 +31,6 @@ import {ListUsers} from "./resources/User/ListUsers"
 import {CreateElectionList} from "./resources/ElectionEvent/CreateElectionEvent"
 import {CustomLayout} from "./components/CustomLayout"
 import {EditBallotStyle} from "./resources/BallotStyle/EditBallotStyle"
-import {EditArea} from "./resources/Area/EditArea"
 import {EditAreaContest} from "./resources/AreaContest/EditAreaContest"
 import {EditTenant} from "./resources/Tenant/EditTenant"
 import {CreateTenant} from "./resources/Tenant/CreateTenant"
@@ -55,6 +53,7 @@ import {TemplateEdit} from "./resources/Template/TemplateEdit"
 import {TemplateList} from "./resources/Template/TemplateList"
 import {TemplateCreate} from "./resources/Template/TemplateCreate"
 import ListReports from "./resources/Reports/ListReports"
+import { UpsertArea } from "./resources/Area/UpsertArea"
 
 interface AppProps {}
 
@@ -174,9 +173,9 @@ const App: React.FC<AppProps> = () => {
                 />
                 <Resource
                     name="sequent_backend_area"
-                    edit={EditArea}
+                    edit={UpsertArea}
                     list={ListArea}
-                    create={CreateArea}
+                    create={UpsertArea}
                     options={{label: "Area"}}
                 />
                 <Resource
@@ -228,7 +227,7 @@ const App: React.FC<AppProps> = () => {
                     options={{label: "Reports"}}
                 />
 
-                <Resource name="user" edit={EditArea} list={ListUsers} options={{label: "Users"}} />
+                <Resource name="user" edit={UpsertArea} list={ListUsers} options={{label: "Users"}} />
             </Admin>
         </StyledAppAtom>
     )

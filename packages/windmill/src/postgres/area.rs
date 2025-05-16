@@ -8,6 +8,7 @@ use deadpool_postgres::Transaction;
 use sequent_core::services::area_tree::{TreeNode, TreeNodeArea};
 use sequent_core::types::{hasura::core::Area, keycloak::UserArea};
 use serde::{Deserialize, Serialize};
+use sha2::digest::const_oid::db::rfc5911::ID_AES_192_CBC;
 use std::collections::HashMap;
 use tokio_postgres::row::Row;
 use tracing::instrument;
@@ -591,28 +592,60 @@ pub async fn insert_area_contests(
     election_event_id: &Uuid,
     tenant_id: &Uuid,
 ) -> Result<()> {
-    // Delete existing area_contest rows for this area
-    hasura_transaction
-        .execute("DELETE FROM area_contest WHERE area_id = $1", &[area_id])
-        .await
-        .context("Failed to delete existing area_contests")?;
-
     // Insert new area_contests
     for contest_id in contest_ids {
-        hasura_transaction
-            .execute(
-                "INSERT INTO area_contest (area_id, contest_id, election_event_id, tenant_id)
-             VALUES ($1, $2, $3, $4)",
-                &[area_id, contest_id, election_event_id, tenant_id],
+        let id = Uuid::new_v4();
+
+        let statement = hasura_transaction
+            .prepare(
+                r#"
+                INSERT INTO sequent_backend.area_contest
+                (id, tenant_id, election_event_id, contest_id, area_id, created_at, last_updated_at)
+                VALUES
+                ($1, $2, $3, $4, $5, NOW(), NOW());
+            "#,
+            )
+            .await?;
+
+        let _rows: Vec<Row> = hasura_transaction
+            .query(
+                &statement,
+                &[&id, tenant_id, election_event_id, contest_id, area_id],
             )
             .await
-            .with_context(|| {
-                format!(
-                    "Failed to insert area_contest for contest_id {}",
-                    contest_id
-                )
-            })?;
+            .map_err(|err| anyhow!("Error running the document query: {err}"))?;
     }
+
+    Ok(())
+}
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn delete_area_contests(
+    hasura_transaction: &Transaction<'_>,
+    area_id: &Uuid,
+    election_event_id: &Uuid,
+    tenant_id: &Uuid,
+) -> Result<()> {
+    // Delete existing area_contest rows for this area
+    let query: String = format!(
+        r#"
+            DELETE FROM sequent_backend.area_contest 
+            WHERE area_id = $1 
+            AND tenant_id = $2 
+            AND election_event_id = $3;
+            "#
+    );
+
+    // Now prepare the statement with the dynamically generated query
+    let statement = hasura_transaction.prepare(&query).await?;
+
+    hasura_transaction
+        .execute(
+            &statement,
+                &[area_id, tenant_id, election_event_id],
+        )
+        .await
+        .map_err(|err| anyhow!("Error executing the delete query: {err}"))?;
 
     Ok(())
 }
