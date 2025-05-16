@@ -33,10 +33,6 @@ struct Cli {
     #[clap(long)]
     election_event_id: String,
 
-    /// Election ID (used to identify the immudb log)
-    #[clap(long)]
-    election_id: String,
-
     /// Path to the output folder where CSV files will be saved
     #[clap(long)]
     output_folder_path: PathBuf,
@@ -99,12 +95,9 @@ async fn connect_immudb(config: &Config) -> Result<Client> {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // Initialize tracing subscriber
-    // Default to `info` level for this crate if RUST_LOG is not set.
-    // Example: RUST_LOG=generate_logs=debug,warn
     let filter = EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| EnvFilter::new("info")) // Default to info if RUST_LOG is not set
-        .add_directive("generate_logs=info".parse()?); // Ensure this crate's info logs are shown by default
+        .unwrap_or_else(|_| EnvFilter::new("info"))
+        .add_directive("generate_logs=info".parse()?);
 
     tracing_subscriber::fmt().with_env_filter(filter).init();
 
@@ -113,15 +106,11 @@ async fn main() -> Result<()> {
     info!(
         tenant_id = %cli.tenant_id,
         election_event_id = %cli.election_event_id,
-        election_id = %cli.election_id,
         output_folder_path = %cli.output_folder_path.display(),
         config_path = %cli.config.display(),
         "Starting log generation process with CLI arguments."
     );
 
-    let election_id = cli.election_id.clone();
-
-    // Load configuration
     let config_content = fs::read_to_string(&cli.config)
         .with_context(|| format!("Failed to read config file: {}", cli.config.display()))?;
     let config: Config = toml::from_str(&config_content).with_context(|| {
@@ -131,13 +120,11 @@ async fn main() -> Result<()> {
         )
     })?;
 
-    info!(config = ?config, "Configuration loaded successfully."); // Use ? for Debug formatting of Config
+    info!(config = ?config, "Configuration loaded successfully.");
 
-    // Get board name
     let board_name = get_event_board_name(&cli.tenant_id, &cli.election_event_id);
     info!(%board_name, "Target Immudb board name determined.");
 
-    // Create output directory
     fs::create_dir_all(&cli.output_folder_path).with_context(|| {
         format!(
             "Failed to create output folder: {}",
@@ -146,10 +133,8 @@ async fn main() -> Result<()> {
     })?;
     info!(output_folder = %cli.output_folder_path.display(), "Output folder ensured.");
 
-    // HashMap to store CSV writers, keyed by sanitized filename stem
     let mut csv_writers: HashMap<String, Writer<File>> = HashMap::new();
 
-    // Connect to immudb and open session
     let mut client = connect_immudb(&config).await?;
     info!("Successfully connected to Immudb.");
 
@@ -162,97 +147,136 @@ async fn main() -> Result<()> {
     let mut total_rows_fetched = 0;
     let mut activity_log_written_counts: HashMap<String, usize> = HashMap::new();
 
-    info!("Starting log retrieval from Immudb via streaming query.");
+    // --- Pagination Logic ---
+    const IMMUDB_QUERY_LIMIT: usize = 2500; // Immudb's default max limit
+    let mut current_offset: usize = 0;
+    let mut continue_fetching = true;
 
-    let sql = "SELECT id, created, statement_timestamp, statement_kind, message, user_id \
-               FROM electoral_log_messages \
-               ORDER BY id ASC"
-        .to_string();
+    info!(limit = IMMUDB_QUERY_LIMIT, "Starting paginated log retrieval from Immudb.");
 
-    // Call to streaming_sql_query for immudb-rs v0.1.0 (does not take TxMode)
-    let response_stream = client.streaming_sql_query(&sql, Vec::new())
-        .await
-        .with_context(|| "Failed to execute streaming_sql_query using immudb-rs v0.1.0. This version streams batches (SqlQueryResult).")?;
+    while continue_fetching {
+        let sql = format!(
+            "SELECT id, created, statement_timestamp, statement_kind, message, user_id \
+             FROM electoral_log_messages \
+             ORDER BY id ASC \
+             LIMIT {} OFFSET {}",
+            IMMUDB_QUERY_LIMIT, current_offset
+        );
 
-    let mut stream = response_stream.into_inner(); // Get the tonic::Streaming<SqlQueryResult>
+        debug!(offset = current_offset, "Executing paginated SQL query: {}", sql);
 
-    while let Some(batch_result) = stream.next().await {
-        // Iterates over SqlQueryResult batches
-        match batch_result {
-            Ok(sql_query_result_batch) => {
-                if sql_query_result_batch.rows.is_empty() && total_rows_fetched > 0 {
-                    debug!(
-                        "Received an empty batch in stream; could signify end or an empty chunk."
-                    );
-                    // Continue, as the stream ending is the true signal.
-                }
-
-                for individual_row in &sql_query_result_batch.rows {
-                    // Iterate over individual rows within the batch
-                    total_rows_fetched += 1;
-                    if total_rows_fetched % 1000 == 0 {
-                        info!(total_rows_fetched, "Processed rows from stream...");
-                    }
-
-                    let elog_row = match ElectoralLogRow::try_from(individual_row) {
-                        Ok(elog_row) => elog_row,
-                        Err(e) => {
-                            warn!(error = %e, "Failed to parse ImmudbRow into ElectoralLogRow from stream batch.");
-                            continue;
-                        }
-                    };
-                    debug!(
-                        log_id = elog_row.id,
-                        "Successfully parsed ElectoralLogRow from stream batch."
-                    );
-
-                    let activity_log_row = match ActivityLogRow::try_from(elog_row.clone()) {
-                        Ok(activity_log_row) => activity_log_row,
-                        Err(e) => {
-                            warn!(log_id = elog_row.id, error = %e, "Failed to transform ElectoralLogRow.");
-                            continue;
-                        }
-                    };
-
-                    let filename_stem_key = config
-                            .elections
-                            .get(&election_id)
-                            .map(|s| s.as_str())
-                            .unwrap_or(&election_id)
-                            .to_string();
-                    let sanitized_stem = sanitize_filename(&filename_stem_key);
-
-                    if !csv_writers.contains_key(&sanitized_stem) {
-                        let csv_path = cli
-                            .output_folder_path
-                            .join(format!("{}.csv", sanitized_stem));
-                        info!(file_path = %csv_path.display(), election_id_key = %filename_stem_key, "Creating new CSV file.");
-                        let file = File::create(&csv_path).with_context(|| {
-                            format!("Failed to create CSV file: {}", csv_path.display())
-                        })?;
-                        csv_writers.insert(sanitized_stem.clone(), Writer::from_writer(file));
-                    }
-
-                    if let Some(writer) = csv_writers.get_mut(&sanitized_stem) {
-                        if let Err(e) = writer.serialize(&activity_log_row) {
-                            error!(log_id = elog_row.id, election_file_stem = %sanitized_stem, error = %e, "Failed to serialize ActivityLogRow to CSV.");
-                        } else {
-                            *activity_log_written_counts
-                                .entry(sanitized_stem.clone())
-                                .or_insert(0) += 1;
-                        }
-                    }
-                }
-            }
+        // Call to streaming_sql_query for immudb-rs v0.1.0
+        let response_stream = match client.streaming_sql_query(&sql, Vec::new()).await {
+            Ok(rs) => rs,
             Err(e) => {
-                error!(error = %e, "Error receiving batch from Immudb stream.");
-                // Depending on the error, you might want to break or continue.
-                // For now, we'll log and break for stream errors to avoid infinite loops on persistent errors.
-                break;
+                error!(error = %e, offset = current_offset, "Failed to execute paginated streaming_sql_query.");
+                // Decide if you want to break or try again, for now, we break.
+                return Err(e).with_context(|| format!("Immudb query failed at offset {}", current_offset));
             }
+        };
+
+        let mut stream = response_stream.into_inner(); // Get the tonic::Streaming<SqlQueryResult>
+        let mut rows_in_current_page = 0;
+        let mut received_data_in_current_page = false;
+
+        while let Some(batch_result) = stream.next().await {
+            match batch_result {
+                Ok(sql_query_result_batch) => {
+                    if !sql_query_result_batch.rows.is_empty() {
+                        received_data_in_current_page = true;
+                    } else {
+                        debug!(offset = current_offset, "Received an empty batch in stream for current page.");
+                        // Continue, stream might send more batches or end.
+                    }
+
+                    for individual_row in &sql_query_result_batch.rows {
+                        rows_in_current_page += 1;
+                        total_rows_fetched += 1;
+
+                        if total_rows_fetched % 1000 == 0 {
+                            info!(total_rows_fetched, "Processed rows from stream...");
+                        }
+
+                        let elog_row = match ElectoralLogRow::try_from(individual_row) {
+                            Ok(elog_row) => elog_row,
+                            Err(e) => {
+                                warn!(error = %e, "Failed to parse ImmudbRow into ElectoralLogRow from stream batch.");
+                                continue;
+                            }
+                        };
+                        debug!(
+                            log_id = elog_row.id,
+                            "Successfully parsed ElectoralLogRow from stream batch."
+                        );
+
+                        let activity_log_row = match ActivityLogRow::try_from(elog_row.clone()) {
+                            Ok(activity_log_row) => activity_log_row,
+                            Err(e) => {
+                                warn!(log_id = elog_row.id, error = %e, "Failed to transform ElectoralLogRow.");
+                                continue;
+                            }
+                        };
+
+                        let filename_stem_key = "general_logs".to_string(); // Or derive from election_event_id/name if needed
+                        let sanitized_stem = sanitize_filename(&filename_stem_key);
+
+                        if !csv_writers.contains_key(&sanitized_stem) {
+                            let csv_path = cli
+                                .output_folder_path
+                                .join(format!("{}.csv", sanitized_stem));
+                            info!(file_path = %csv_path.display(), election_id_key = %filename_stem_key, "Creating new CSV file.");
+                            let file = File::create(&csv_path).with_context(|| {
+                                format!("Failed to create CSV file: {}", csv_path.display())
+                            })?;
+                            csv_writers.insert(sanitized_stem.clone(), Writer::from_writer(file));
+                        }
+
+                        if let Some(writer) = csv_writers.get_mut(&sanitized_stem) {
+                            if let Err(e) = writer.serialize(&activity_log_row) {
+                                error!(log_id = elog_row.id, election_file_stem = %sanitized_stem, error = %e, "Failed to serialize ActivityLogRow to CSV.");
+                            } else {
+                                *activity_log_written_counts
+                                    .entry(sanitized_stem.clone())
+                                    .or_insert(0) += 1;
+                            }
+                        }
+                    }
+                }
+                Err(e) => {
+                    error!(error = %e, offset = current_offset, "Error receiving batch from Immudb stream for current page.");
+                    // If a stream for a specific paginated query fails, we stop all processing.
+                    continue_fetching = false; // Stop the outer loop
+                    break; // Break the inner loop (processing batches for current page)
+                }
+            }
+        } // End of inner while loop (processing batches for current page)
+
+        if !continue_fetching { // If an error in the inner loop set this
+            break; // Break the outer pagination loop
         }
-    }
-    info!("Finished processing all batches from Immudb stream.");
+
+        info!(
+            offset = current_offset,
+            rows_fetched_this_page = rows_in_current_page,
+            limit = IMMUDB_QUERY_LIMIT,
+            "Finished processing page from Immudb stream."
+        );
+
+        if !received_data_in_current_page || rows_in_current_page < IMMUDB_QUERY_LIMIT {
+            // If no data was received at all for this page, or if fewer rows than the limit were returned,
+            // it means we've fetched all available data.
+            debug!(
+                "Fetched {} rows in the last page (limit was {}). Assuming end of data.",
+                rows_in_current_page, IMMUDB_QUERY_LIMIT
+            );
+            continue_fetching = false;
+        } else {
+            // Prepare for the next page
+            current_offset += IMMUDB_QUERY_LIMIT;
+        }
+    } // End of outer while loop (pagination)
+
+    info!("Finished processing all pages from Immudb.");
 
     for (filename_stem, writer) in csv_writers.iter_mut() {
         writer
