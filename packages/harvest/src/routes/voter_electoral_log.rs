@@ -58,22 +58,19 @@ pub async fn list_cast_vote_messages(
     })?; // TODO: Temporary till merging the ballot performace inprovements.
 
     // Check that the policy is enabled
-    let election_event = provide_hasura_transaction(|hasura_transaction| {
+    provide_hasura_transaction(|hasura_transaction| {
         let tenant_id = claims.hasura_claims.tenant_id.clone();
         let election_event_id = input.election_event_id.clone();
         Box::pin(async move {
             let election_event: ElectionEvent = get_election_event_by_id(
-                &hasura_transaction,
+                hasura_transaction,
                 &tenant_id,
                 &election_event_id,
             )
             .await?;
             let policy = election_event.presentation.and_then(
                 |val| val.get("show_cast_vote_logs")
-                    .and_then(|value| {
-                        let ob = serde_json::from_value::<ShowCastVoteLogs>(value.clone()).unwrap_or_default();
-                        Some(ob)
-                    })
+                    .map(|value| serde_json::from_value::<ShowCastVoteLogs>(value.clone()).unwrap_or_default())
             ).unwrap_or_default();
             match policy {
                 ShowCastVoteLogs::ShowLogsTab => {
@@ -87,9 +84,10 @@ pub async fn list_cast_vote_messages(
     })
     .await
     .map_err(|error| {
-        (
+        ErrorResponse::new(
             Status::Forbidden,
-            format!("Failed to confirm that the show_cast_vote_logs policy is enabled: {error:?}"),
+            &format!("Failed to confirm that the show_cast_vote_logs policy is enabled: {error:?}"),
+            ErrorCode::ConfirmPolicyShowCastVoteLogsFailed,
         )
     })?;
 
