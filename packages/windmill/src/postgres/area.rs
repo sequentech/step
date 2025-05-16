@@ -640,10 +640,7 @@ pub async fn delete_area_contests(
     let statement = hasura_transaction.prepare(&query).await?;
 
     hasura_transaction
-        .execute(
-            &statement,
-                &[area_id, tenant_id, election_event_id],
-        )
+        .execute(&statement, &[area_id, tenant_id, election_event_id])
         .await
         .map_err(|err| anyhow!("Error executing the delete query: {err}"))?;
 

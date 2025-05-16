@@ -89,6 +89,7 @@ export const FormContent: React.FC<UpsertAreaProps> = (props) => {
     }
 
     const onSubmit = async (values: any) => {
+
         try {
             const {data} = await upsertArea({
                 variables: {
@@ -98,7 +99,7 @@ export const FormContent: React.FC<UpsertAreaProps> = (props) => {
                     presentation: values.presentation,
                     tenantId: tenantId,
                     electionEventId,
-                    parentId: values.parentId,
+                    parentId: values.parent_id,
                     areaContestsIds: values.area_contest_ids,
                     annotations: values.annotations,
                     labels: values.labels,
