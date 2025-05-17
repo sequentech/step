@@ -46,6 +46,10 @@ impl fmt::Display for Message {
 }
 
 impl Message {
+    pub fn election_id_string(&self) -> Option<String> {
+        self.statement.body.election_id_string()
+    }
+
     pub fn cast_vote_message(
         event: EventIdString,
         election: ElectionIdString,

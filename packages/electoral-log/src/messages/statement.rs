@@ -252,6 +252,34 @@ pub enum StatementBody {
     AdminPublicKey(TenantIdString, Option<String>, PublicKeyDerB64),
 }
 
+impl StatementBody {
+    pub fn election_id_string(&self) -> Option<String> {
+        match self {
+            StatementBody::CastVote(election_id, _, _, _, _) => election_id.0.clone(),
+            StatementBody::CastVoteError(election_id, _, _, _, _) => election_id.0.clone(),
+            StatementBody::ElectionPublish(election_id, _) => election_id.0.clone(),
+            StatementBody::ElectionVotingPeriodOpen(election_id, _) => election_id.0.clone(),
+            StatementBody::ElectionVotingPeriodPause(election_id, _) => election_id.0.clone(),
+            StatementBody::ElectionVotingPeriodClose(election_id, _) => election_id.0.clone(),
+            StatementBody::TallyOpen(election_id) => election_id.0.clone(),
+            StatementBody::TallyClose(election_id) => election_id.0.clone(),
+
+            // Variants that do not contain a singular ElectionIdString
+            StatementBody::ElectionEventVotingPeriodOpen(_, _, _)
+            | StatementBody::ElectionEventVotingPeriodPause(_, _)
+            | StatementBody::ElectionEventVotingPeriodClose(_, _, _)
+            | StatementBody::KeyGeneration
+            | StatementBody::KeyInsertionStart
+            | StatementBody::KeyInsertionCeremony(_)
+            | StatementBody::SendTemplate
+            | StatementBody::SendCommunications(_)
+            | StatementBody::KeycloakUserEvent(_, _)
+            | StatementBody::VoterPublicKey(_, _, _, _)
+            | StatementBody::AdminPublicKey(_, _, _) => None,
+        }
+    }
+}
+
 #[derive(BorshSerialize, BorshDeserialize, Display, Deserialize, Serialize, Debug, Clone)]
 pub enum StatementType {
     Unknown,

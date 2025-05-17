@@ -40,6 +40,10 @@ struct Cli {
     /// Path to the configuration TOML file
     #[clap(long)]
     config: PathBuf,
+
+    // Maximum query limit
+    #[clap(long)]
+    limit: Option<usize>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -48,7 +52,6 @@ struct Config {
     immudb_user: String,
     immudb_password: String,
     elections: HashMap<String, String>, // election_id -> election_name (for CSV filename)
-    limit: Option<usize>,
 }
 
 // --- Helper Functions ---
@@ -109,6 +112,7 @@ async fn main() -> Result<()> {
         election_event_id = %cli.election_event_id,
         output_folder_path = %cli.output_folder_path.display(),
         config_path = %cli.config.display(),
+        limit = %cli.limit,
         "Starting log generation process with CLI arguments."
     );
 
@@ -149,7 +153,7 @@ async fn main() -> Result<()> {
     let mut activity_log_written_counts: HashMap<String, usize> = HashMap::new();
 
     // --- Pagination Logic ---
-    let immudb_query_limit: usize = config.limit.clone().unwrap_or(2500);
+    let immudb_query_limit: usize = cli.limit.clone().unwrap_or(2500);
     let mut current_offset: usize = 0;
     let mut continue_fetching = true;
 
