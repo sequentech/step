@@ -149,11 +149,14 @@ async fn main() -> Result<()> {
     let mut activity_log_written_counts: HashMap<String, usize> = HashMap::new();
 
     // --- Pagination Logic ---
-    const IMMUDB_QUERY_LIMIT: usize = config.limit.clone().unwrap_or(2500);
+    let immudb_query_limit: usize = config.limit.clone().unwrap_or(2500);
     let mut current_offset: usize = 0;
     let mut continue_fetching = true;
 
-    info!(limit = IMMUDB_QUERY_LIMIT, "Starting paginated log retrieval from Immudb.");
+    info!(
+        limit = immudb_query_limit,
+        "Starting paginated log retrieval from Immudb."
+    );
 
     while continue_fetching {
         let sql = format!(
@@ -161,10 +164,13 @@ async fn main() -> Result<()> {
              FROM electoral_log_messages \
              ORDER BY id ASC \
              LIMIT {} OFFSET {}",
-            IMMUDB_QUERY_LIMIT, current_offset
+            immudb_query_limit, current_offset
         );
 
-        debug!(offset = current_offset, "Executing paginated SQL query: {}", sql);
+        debug!(
+            offset = current_offset,
+            "Executing paginated SQL query: {}", sql
+        );
 
         // Call to streaming_sql_query for immudb-rs v0.1.0
         let response_stream = match client.streaming_sql_query(&sql, Vec::new()).await {
@@ -172,7 +178,8 @@ async fn main() -> Result<()> {
             Err(e) => {
                 error!(error = %e, offset = current_offset, "Failed to execute paginated streaming_sql_query.");
                 // Decide if you want to break or try again, for now, we break.
-                return Err(e).with_context(|| format!("Immudb query failed at offset {}", current_offset));
+                return Err(e)
+                    .with_context(|| format!("Immudb query failed at offset {}", current_offset));
             }
         };
 
@@ -186,7 +193,10 @@ async fn main() -> Result<()> {
                     if !sql_query_result_batch.rows.is_empty() {
                         received_data_in_current_page = true;
                     } else {
-                        debug!(offset = current_offset, "Received an empty batch in stream for current page.");
+                        debug!(
+                            offset = current_offset,
+                            "Received an empty batch in stream for current page."
+                        );
                         // Continue, stream might send more batches or end.
                     }
 
@@ -252,28 +262,29 @@ async fn main() -> Result<()> {
             }
         } // End of inner while loop (processing batches for current page)
 
-        if !continue_fetching { // If an error in the inner loop set this
+        if !continue_fetching {
+            // If an error in the inner loop set this
             break; // Break the outer pagination loop
         }
 
         info!(
             offset = current_offset,
             rows_fetched_this_page = rows_in_current_page,
-            limit = IMMUDB_QUERY_LIMIT,
+            limit = immudb_query_limit,
             "Finished processing page from Immudb stream."
         );
 
-        if !received_data_in_current_page || rows_in_current_page < IMMUDB_QUERY_LIMIT {
+        if !received_data_in_current_page || rows_in_current_page < immudb_query_limit {
             // If no data was received at all for this page, or if fewer rows than the limit were returned,
             // it means we've fetched all available data.
             debug!(
                 "Fetched {} rows in the last page (limit was {}). Assuming end of data.",
-                rows_in_current_page, IMMUDB_QUERY_LIMIT
+                rows_in_current_page, immudb_query_limit
             );
             continue_fetching = false;
         } else {
             // Prepare for the next page
-            current_offset += IMMUDB_QUERY_LIMIT;
+            current_offset += immudb_query_limit;
         }
     } // End of outer while loop (pagination)
 
