@@ -48,6 +48,7 @@ struct Config {
     immudb_user: String,
     immudb_password: String,
     elections: HashMap<String, String>, // election_id -> election_name (for CSV filename)
+    limit: Option<usize>,
 }
 
 // --- Helper Functions ---
@@ -148,7 +149,7 @@ async fn main() -> Result<()> {
     let mut activity_log_written_counts: HashMap<String, usize> = HashMap::new();
 
     // --- Pagination Logic ---
-    const IMMUDB_QUERY_LIMIT: usize = 2500; // Immudb's default max limit
+    const IMMUDB_QUERY_LIMIT: usize = config.limit.clone().unwrap_or(2500);
     let mut current_offset: usize = 0;
     let mut continue_fetching = true;
 
