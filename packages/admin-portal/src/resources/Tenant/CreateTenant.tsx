@@ -12,6 +12,9 @@ import {useTranslation} from "react-i18next"
 import {useNavigate} from "react-router"
 import {isNull} from "@sequentech/ui-core"
 import {AuthContext} from "@/providers/AuthContextProvider"
+import {useWidgetStore} from "@/providers/WidgetsContextProvider"
+import {WidgetProps} from "@/components/Widget"
+import {ETasksExecution} from "@/types/tasksExecution"
 
 interface CreateTenantProps {
     isDrawerOpen: boolean
@@ -24,6 +27,7 @@ export const CreateTenant: React.FC<CreateTenantProps> = ({isDrawerOpen, setIsDr
     const [newId, setNewId] = useState<string | null>(null)
     const [isLoading, setIsLoading] = useState(false)
     const authContext = useContext(AuthContext)
+    const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
     const {t} = useTranslation()
     const navigate = useNavigate()
     const refresh = useRefresh()
@@ -54,6 +58,7 @@ export const CreateTenant: React.FC<CreateTenantProps> = ({isDrawerOpen, setIsDr
     }, [isLoading, newTenant, isOneLoading, error, newId, refresh, authContext, navigate])
 
     const onSubmit: SubmitHandler<FieldValues> = async ({slug}) => {
+        const currWidget: WidgetProps = addWidget(ETasksExecution.CREATE_TEMANT)
         let {data, errors} = await createTenant({
             variables: {
                 slug,
@@ -63,9 +68,12 @@ export const CreateTenant: React.FC<CreateTenantProps> = ({isDrawerOpen, setIsDr
         if (data?.insertTenant?.id) {
             setNewId(data?.insertTenant?.id)
             setIsLoading(true)
+            let taskId = data?.insertTenant.task_execution?.id
+            setWidgetTaskId(currWidget.identifier, taskId)
         } else {
             notify(t("tenantScreen.createError"), {type: "error"})
             setIsLoading(false)
+            updateWidgetFail(currWidget.identifier)
         }
     }
     return (

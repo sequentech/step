@@ -1051,6 +1051,7 @@ type CreateElectionEventOutput {
 type InsertTenantOutput {
     id: uuid!
     slug: String!
+    task_execution: tasks_execution_type
 }
 
 type KeycloakUserArea {

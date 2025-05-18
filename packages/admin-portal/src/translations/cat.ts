@@ -48,6 +48,7 @@ const catalanTranslation: TranslationType = {
                 EXPORT_TENANT_CONFIG: "Exporta la Configuració del Llogater",
                 IMPORT_TENANT_CONFIG: "Importa la Configuració del Llogater",
                 RENDER_DOCUMENT_PDF: "Generar el document PDF",
+                CREATE_TENANT: "Crear Llogater",
             },
             widget: {
                 taskTitle: "Tasca: {{title}}",

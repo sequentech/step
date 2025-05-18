@@ -81,6 +81,7 @@ const tagalogTranslation: TranslationType = {
                 EXPORT_TENANT_CONFIG: "I-export ang Configurasyon ng Tenant",
                 IMPORT_TENANT_CONFIG: "I-import ang Configurasyon ng Tenant",
                 RENDER_DOCUMENT_PDF: "I-render ang dokumento bilang PDF",
+                CREATE_TENANT: "Lumikha ng Tenant",
             },
             widget: {
                 taskTitle: "Gawain: {{title}}",

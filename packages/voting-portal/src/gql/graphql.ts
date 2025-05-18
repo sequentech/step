@@ -554,6 +554,7 @@ export type InsertTenantOutput = {
   __typename?: 'InsertTenantOutput';
   id: Scalars['uuid']['output'];
   slug: Scalars['String']['output'];
+  task_execution?: Maybe<Tasks_Execution_Type>;
 };
 
 /** Boolean expression to compare columns of type "Int". All fields are combined with logical 'AND'. */
