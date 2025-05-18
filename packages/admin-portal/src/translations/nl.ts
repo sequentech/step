@@ -80,6 +80,7 @@ const dutchTranslation: TranslationType = {
                 EXPORT_TENANT_CONFIG: "Tenantconfiguratie Exporteren",
                 IMPORT_TENANT_CONFIG: "Tenantconfiguratie Importeren",
                 RENDER_DOCUMENT_PDF: "Document als PDF renderen",
+                EXPORT_VERIFIABLE_BULLETIN_BOARD: "Verifieerbaar prikbord exporteren",
             },
             widget: {
                 taskTitle: "Taak: {{title}}",
