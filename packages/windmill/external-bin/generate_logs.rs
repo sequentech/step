@@ -21,6 +21,7 @@ use tracing_subscriber::EnvFilter;
 use windmill::services::electoral_log::ElectoralLogRow;
 use windmill::services::reports::activity_log::ActivityLogRow;
 
+const DEFAULT_SQL_LIMIT: usize = 100_000_000;
 /// Generates a CSV report of activity logs from immudb.
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
@@ -41,7 +42,7 @@ struct Cli {
     #[clap(long)]
     config: PathBuf,
 
-    // Maximum query limit
+    // Maximum query limit, default 100_000_000
     #[clap(long)]
     limit: Option<usize>,
 }
@@ -112,7 +113,7 @@ async fn main() -> Result<()> {
         election_event_id = %cli.election_event_id,
         output_folder_path = %cli.output_folder_path.display(),
         config_path = %cli.config.display(),
-        limit = %cli.limit,
+        limit = %cli.limit.clone().unwrap_or(DEFAULT_SQL_LIMIT),
         "Starting log generation process with CLI arguments."
     );
 
@@ -153,7 +154,7 @@ async fn main() -> Result<()> {
     let mut activity_log_written_counts: HashMap<String, usize> = HashMap::new();
 
     // --- Pagination Logic ---
-    let immudb_query_limit: usize = cli.limit.clone().unwrap_or(2500);
+    let immudb_query_limit: usize = cli.limit.clone().unwrap_or(DEFAULT_SQL_LIMIT);
     let mut current_offset: usize = 0;
     let mut continue_fetching = true;
 
@@ -231,8 +232,24 @@ async fn main() -> Result<()> {
                                 continue;
                             }
                         };
+                        let binary_message = general_purpose::STANDARD_NO_PAD.decode(elog_row.data)
+                            .with_context(|| "Error reading base 64 message into binary")?;
+                        
+                        let deserialized_message =
+                            Message::strand_deserialize(&binary_message)
+                            .with_context(|| "Error deserializing message")?;
 
-                        let filename_stem_key = "general_logs".to_string(); // Or derive from election_event_id/name if needed
+                        let extracted_election_id_opt = deserialized_message.election_id_string();
+
+                        let filename_stem_key = match &extracted_election_id_opt {
+                            Some(id) => config
+                                .elections
+                                .get(id)
+                                .map(|s| s.as_str())
+                                .unwrap_or(id)
+                                .to_string(),
+                            None => "general_logs".to_string(),
+                        };
                         let sanitized_stem = sanitize_filename(&filename_stem_key);
 
                         if !csv_writers.contains_key(&sanitized_stem) {
