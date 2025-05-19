@@ -737,7 +737,7 @@ impl ElectoralLog {
 }
 
 // Enumeration for the valid fields in the immudb table
-#[derive(Debug, Deserialize, Hash, PartialEq, Eq, EnumString, Display)]
+#[derive(Debug, Deserialize, Hash, PartialEq, Eq, EnumString, Display, Clone)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum OrderField {
@@ -755,7 +755,7 @@ pub enum OrderField {
     Version,
 }
 
-#[derive(Deserialize, Debug, Default)]
+#[derive(Deserialize, Debug, Default, Clone)]
 pub struct GetElectoralLogBody {
     pub tenant_id: String,
     pub election_event_id: String,
@@ -1232,54 +1232,26 @@ pub async fn list_cast_vote_messages(
     input: GetElectoralLogBody,
     ballot_id_filter: &str,
 ) -> Result<CastVoteMessagesOutput> {
-    let input = GetElectoralLogBody {
-        statement_kind: Some(StatementType::CastVote),
-        ..input
-    };
+    // The limits are used to cut the output after filtering the ballot id.
+    // Because ballot_id cannot be filtered at SQL level the sql limit is constant
+    let output_limit = input.limit.unwrap_or(50) as usize;
+    // Set 1000 limit for each query:
+    let limit_sql = PgConfig::from_env()?.low_sql_limit.into();
+    let mut offset_count = input.offset.unwrap_or(0) as i64;
     let input_bytes = ballot_id_to_byte_array(ballot_id_filter)
         .map_err(|e| anyhow!(format!("Error parsing ballot_id_filter: {e:?}")))?;
 
     let mut client: Client = get_immudb_client().await?;
     let board_name = get_event_board(input.tenant_id.as_str(), input.election_event_id.as_str());
     event!(Level::INFO, "database name = {board_name}");
-    info!("input = {:?}", input);
     client.open_session(&board_name).await?;
-    let (clauses, params) = input.as_sql(false)?;
+
+    // Count the total number of CastVote messages without ballot_id filter:
+    let input = GetElectoralLogBody {
+        statement_kind: Some(StatementType::CastVote),
+        ..input
+    };
     let (clauses_to_count, count_params) = input.as_sql(true)?;
-    info!("clauses ?:= {clauses}");
-    let sql = format!(
-        r#"
-        SELECT
-            id,
-            created,
-            sender_pk,
-            statement_timestamp,
-            statement_kind,
-            message,
-            user_id,
-            username
-        FROM electoral_log_messages
-        {clauses}
-        "#,
-    );
-
-    info!("query: {sql}");
-    let sql_query_response = client.streaming_sql_query(&sql, params).await?;
-    let limit: usize = input.limit.unwrap_or(IMMUDB_ROWS_LIMIT as i64).try_into()?;
-    let mut list: Vec<CastVoteEntry> = Vec::with_capacity(limit);
-    let mut resp_stream = sql_query_response.into_inner();
-    while let Some(streaming_batch) = resp_stream.next().await {
-        let items = streaming_batch?
-            .rows
-            .iter()
-            .map(|row| CastVoteEntry::from_row_with_ballot_id(row, &input_bytes))
-            .collect::<Result<Vec<Option<CastVoteEntry>>>>()?
-            .into_iter()
-            .flatten()
-            .collect::<Vec<CastVoteEntry>>();
-        list.extend(items);
-    }
-
     let sql = format!(
         r#"
         SELECT
@@ -1304,7 +1276,56 @@ pub async fn list_cast_vote_messages(
         n if n.is_positive() => n as usize,
         _ => 0,
     };
+
+    // Query batches of limit_sql CastVote messages, then filter by ballot_id
+    // and in the end return the first output_limit CastVote messages
+    let mut list: Vec<CastVoteEntry> = Vec::with_capacity(IMMUDB_ROWS_LIMIT);
+    info!("total = {total}, output_limit = {output_limit}, offset_count = {offset_count}");
+    while list.len() < output_limit && offset_count < total as i64 {
+        let input = GetElectoralLogBody {
+            statement_kind: Some(StatementType::CastVote),
+            offset: Some(offset_count),
+            limit: Some(limit_sql),
+            ..input.clone()
+        };
+        info!("input = {:?}", input);
+        let (clauses, params) = input.as_sql(false)?;
+        info!("clauses ?:= {clauses}");
+        let sql = format!(
+            r#"
+            SELECT
+                id,
+                created,
+                sender_pk,
+                statement_timestamp,
+                statement_kind,
+                message,
+                user_id,
+                username
+            FROM electoral_log_messages
+            {clauses}
+            "#,
+        );
+
+        info!("query: {sql}");
+        info!("params: {params:?}");
+        let sql_query_response = client.streaming_sql_query(&sql, params).await?;
+        let mut resp_stream = sql_query_response.into_inner();
+        while let Some(streaming_batch) = resp_stream.next().await {
+            let items = streaming_batch?
+                .rows
+                .iter()
+                .map(|row| CastVoteEntry::from_row_with_ballot_id(row, &input_bytes))
+                .collect::<Result<Vec<Option<CastVoteEntry>>>>()?
+                .into_iter()
+                .flatten()
+                .collect::<Vec<CastVoteEntry>>();
+            list.extend(items);
+        }
+        offset_count += limit_sql;
+    }
     client.close_session().await?;
+    list.truncate(output_limit);
     Ok(CastVoteMessagesOutput { list, total })
 }
 
@@ -1360,7 +1381,7 @@ pub fn ballot_id_to_byte_array(ballot_id: &str) -> Result<Vec<u8>> {
     Ok(byte_array)
 }
 
-#[instrument(skip(msg, input_filter_hash))]
+// #[instrument(skip(msg, input_filter_hash))]
 pub fn find_ballot_id_in_message(msg: &Message, input_filter_hash: &Vec<u8>) -> Option<String> {
     let inmudb_hash: [u8; STRAND_HASH_LENGTH_BYTES] = match &msg.statement.body {
         StatementBody::CastVote(_, _, cv_hash, _, _) => cv_hash.0.clone().into_inner(),
