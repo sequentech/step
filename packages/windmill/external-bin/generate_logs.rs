@@ -23,9 +23,9 @@ use windmill::services::electoral_log::ElectoralLogRow;
 use windmill::services::reports::activity_log::ActivityLogRow;
 
 const DEFAULT_SQL_LIMIT: usize = 100_000_000; // Default value seems very high, ensure this is intended.
-                                            // Typical DB limits are much smaller for single queries.
-                                            // However, this is for the *total* if not paginated by user args.
-                                            // The code *does* paginate internally with this value.
+                                              // Typical DB limits are much smaller for single queries.
+                                              // However, this is for the *total* if not paginated by user args.
+                                              // The code *does* paginate internally with this value.
 
 /// Generates a CSV report of activity logs from immudb.
 #[derive(Parser, Debug)]
@@ -190,25 +190,24 @@ async fn main() -> Result<()> {
                 // Best effort to close the old session
                 match client.close_session().await {
                     Ok(_) => info!("Old Immudb session closed successfully before reconnecting."),
-                    Err(e) => warn!(error = %e, "Failed to close old Immudb session (might have already expired or been invalid). Proceeding with reconnection."),
+                    Err(e) => {
+                        warn!(error = %e, "Failed to close old Immudb session (might have already expired or been invalid). Proceeding with reconnection.")
+                    }
                 }
                 // Also good to ensure client is dropped if logout/close isn't enough, though assigning a new one should do it.
                 // For immudb-rs, creating a new Client and logging in effectively gives a new connection.
 
-                client = connect_immudb(&config)
-                    .await
-                    .context("Failed to re-establish connection to Immudb during periodic reconnect")?;
+                client = connect_immudb(&config).await.context(
+                    "Failed to re-establish connection to Immudb during periodic reconnect",
+                )?;
                 info!("Successfully reconnected to Immudb.");
 
-                client
-                    .open_session(&board_name)
-                    .await
-                    .with_context(|| {
-                        format!(
-                            "Failed to open session on new connection to board: {}",
-                            board_name
-                        )
-                    })?;
+                client.open_session(&board_name).await.with_context(|| {
+                    format!(
+                        "Failed to open session on new connection to board: {}",
+                        board_name
+                    )
+                })?;
                 info!(%board_name, "Successfully opened session to board on new connection.");
                 last_connection_time = Instant::now(); // Reset the timer
             }
@@ -219,7 +218,8 @@ async fn main() -> Result<()> {
              FROM electoral_log_messages \
              ORDER BY id ASC \
              LIMIT {} OFFSET {}",
-            immudb_page_limit, current_offset // Use page_limit here
+            immudb_page_limit,
+            current_offset // Use page_limit here
         );
 
         debug!(
@@ -256,7 +256,8 @@ async fn main() -> Result<()> {
                         rows_in_current_page += 1;
                         total_rows_fetched += 1;
 
-                        if total_rows_fetched % 1000 == 0 { // Consider making this logging interval configurable or less frequent
+                        if total_rows_fetched % 1000 == 0 {
+                            // Consider making this logging interval configurable or less frequent
                             info!(total_rows_fetched, "Processed rows from stream...");
                         }
 
@@ -279,12 +280,19 @@ async fn main() -> Result<()> {
                                 continue;
                             }
                         };
-                        let binary_message = general_purpose::STANDARD_NO_PAD.decode(&elog_row.data) // Pass by reference
-                            .with_context(|| format!("Error reading base64 message into binary for log_id: {}", elog_row.id))?;
+                        let binary_message = general_purpose::STANDARD_NO_PAD
+                            .decode(&elog_row.data) // Pass by reference
+                            .with_context(|| {
+                                format!(
+                                    "Error reading base64 message into binary for log_id: {}",
+                                    elog_row.id
+                                )
+                            })?;
 
-                        let deserialized_message =
-                            Message::strand_deserialize(&binary_message)
-                            .with_context(|| format!("Error deserializing message for log_id: {}", elog_row.id))?;
+                        let deserialized_message = Message::strand_deserialize(&binary_message)
+                            .with_context(|| {
+                                format!("Error deserializing message for log_id: {}", elog_row.id)
+                            })?;
 
                         let extracted_election_id_opt = deserialized_message.election_id_string();
 
@@ -349,10 +357,12 @@ async fn main() -> Result<()> {
             "Finished processing page from Immudb stream."
         );
 
-        if !received_data_in_current_page || rows_in_current_page < immudb_page_limit { // Use page_limit
+        if !received_data_in_current_page || rows_in_current_page < immudb_page_limit {
+            // Use page_limit
             debug!(
                 "Fetched {} rows in the last page (page limit was {}). Assuming end of data.",
-                rows_in_current_page, immudb_page_limit // Use page_limit
+                rows_in_current_page,
+                immudb_page_limit // Use page_limit
             );
             continue_fetching = false;
         } else {
@@ -387,9 +397,10 @@ async fn main() -> Result<()> {
     // as data processing is already complete.
     match client.close_session().await {
         Ok(_) => info!("Successfully closed immudb session."),
-        Err(e) => warn!(error = %e, "Failed to close immudb session after processing. This might be due to a prior session timeout but data processing should be complete."),
+        Err(e) => {
+            warn!(error = %e, "Failed to close immudb session after processing. This might be due to a prior session timeout but data processing should be complete.")
+        }
     }
-
 
     Ok(())
 }
