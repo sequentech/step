@@ -168,6 +168,8 @@ const BallotLocator: React.FC = () => {
                     electionId,
                     ballotId: inputBallotId,
                     orderBy: { [headerName ?? "username"]: newOrder ?? "desc" },
+                    limit: 3000,
+                    offset: 0,
                 },
             })
             if (result.data?.list_cast_vote_messages) {

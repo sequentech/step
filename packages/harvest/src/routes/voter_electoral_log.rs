@@ -92,18 +92,14 @@ pub async fn list_cast_vote_messages(
     })?;
 
     let ballot_id = input.ballot_id.as_str();
-    let mut filter_map: HashMap<OrderField, String> = HashMap::new();
-    filter_map.insert(OrderField::StatementKind, "CastVote".to_string());
     let elog_input = GetElectoralLogBody {
         tenant_id: input.tenant_id,
         election_event_id: input.election_event_id,
         limit: input.limit,
         offset: input.offset,
-        filter: Some(filter_map),
         order_by: input.order_by,
         election_id: input.election_id,
-        area_ids: None,
-        only_with_user: None, //???
+        ..Default::default()
     };
 
     let ret_val = electoral_log::list_cast_vote_messages(elog_input, ballot_id)

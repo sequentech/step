@@ -26,7 +26,7 @@ use electoral_log::messages::newtypes::ErrorMessageString;
 use electoral_log::messages::newtypes::KeycloakEventTypeString;
 use electoral_log::messages::newtypes::*;
 use electoral_log::messages::statement::StatementBody;
-use electoral_log::messages::statement::StatementHead;
+use electoral_log::messages::statement::StatementType;
 use electoral_log::ElectoralLogMessage;
 use immudb_rs::{sql_value::Value, Client, NamedParam, Row, SqlValue, TxMode};
 use sequent_core::ballot::VotingStatusChannel;
@@ -755,7 +755,7 @@ pub enum OrderField {
     Version,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Default)]
 pub struct GetElectoralLogBody {
     pub tenant_id: String,
     pub election_event_id: String,
@@ -766,6 +766,7 @@ pub struct GetElectoralLogBody {
     pub election_id: Option<String>,
     pub area_ids: Option<Vec<String>>,
     pub only_with_user: Option<bool>,
+    pub statement_kind: Option<StatementType>,
 }
 
 impl GetElectoralLogBody {
@@ -865,6 +866,15 @@ impl GetElectoralLogBody {
         // Handle only_with_user
         if self.only_with_user.unwrap_or(false) {
             extra_where_clauses.push("(user_id IS NOT NULL AND user_id <> '')".to_string());
+        }
+
+        // Handle
+        if let Some(statement_kind) = &self.statement_kind {
+            params.push(create_named_param(
+                "param_statement_kind".to_string(),
+                Value::S(statement_kind.to_string()),
+            ));
+            extra_where_clauses.push("(statement_kind = @param_statement_kind)".to_string());
         }
 
         if !extra_where_clauses.is_empty() {
@@ -1048,6 +1058,9 @@ impl TryFrom<&Row> for ElectoralLogRow {
                 _ => return Err(anyhow!("invalid column found '{}'", column.as_str())),
             }
         }
+
+        info!("{statement_kind:?}, Message len: {}", message.len());
+        info!("{username:?}");
         let deserialized_message =
             Message::strand_deserialize(&message).with_context(|| "Error deserializing message")?;
         let serialized = general_purpose::STANDARD_NO_PAD.encode(message);
@@ -1082,8 +1095,7 @@ pub struct CastVoteMessagesOutput {
 impl CastVoteEntry {
     pub fn from_row_with_ballot_id(
         row: &Row,
-        input_ballot_id_len: usize,
-        input_ballot_id_hash: &[u8],
+        input_filter_hash: &Vec<u8>,
     ) -> Result<Option<Self>, anyhow::Error> {
         let mut statement_timestamp: i64 = 0;
         let mut statement_kind = String::from("");
@@ -1114,28 +1126,22 @@ impl CastVoteEntry {
                 _ => return Err(anyhow!("invalid column found '{}'", column.as_str())),
             }
         }
-
-        let deserialized_message =
-            Message::strand_deserialize(&message).with_context(|| "Error deserializing message")?;
-
-        let inmudb_hash: [u8; STRAND_HASH_LENGTH_BYTES] = match deserialized_message.statement.body
-        {
-            StatementBody::CastVote(_, _, cv_hash, _, _) => cv_hash.0.into_inner(),
-            _ => {
-                warn!("Message is not a CastVote, but method is expecting only CastVote statement_kind´s");
+        let deserialized_message = match Message::strand_deserialize(&message) {
+            Ok(m) => m,
+            Err(e) => {
+                warn!("Error deserializing message. {statement_kind:?}, {username:?}, Message len: {}. Error: {e:?}",
+                message.len());
                 return Ok(None);
             }
         };
 
-        let ballot_id: String = inmudb_hash[..BALLOT_ID_LENGTH_BYTES]
-            .iter()
-            .map(|b| format!("{:02x}", b))
-            .collect();
-        let n_bytes = input_ballot_id_len / 2;
-        if inmudb_hash[..n_bytes] != input_ballot_id_hash.to_owned() {
-            trace!("Hashes do not match");
-            return Ok(None);
-        }
+        let ballot_id = match find_ballot_id_in_message(&deserialized_message, input_filter_hash) {
+            Some(h) => h,
+            None => {
+                trace!("Hashes do not match");
+                return Ok(None);
+            }
+        };
 
         Ok(Some(CastVoteEntry {
             statement_timestamp,
@@ -1218,25 +1224,20 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
     })
 }
 
-/// Returns the entries for statement_kind = "CastVote" which ballot_id matches the input.
+/// Returns the entries for statement_kind = "CastVote" which ballot_id matches the input
+/// ballot_id_filter is restricted to be am even number of characters, so that can be converted
+/// to a byte array
 #[instrument(err)]
 pub async fn list_cast_vote_messages(
     input: GetElectoralLogBody,
-    ballot_id: &str,
+    ballot_id_filter: &str,
 ) -> Result<CastVoteMessagesOutput> {
-    ensure!(
-        ballot_id.len() % 2 == 0,
-        "Incorrect ballot_id, the length must be an even number of characters"
-    );
-    let mut ballot_id_hash: Vec<u8> = Vec::with_capacity(BALLOT_ID_LENGTH_BYTES);
-    ballot_id_hash = (0..ballot_id.len())
-        .step_by(2)
-        .map(|i| {
-            let res = u8::from_str_radix(&ballot_id[i..i + 2], 16).map_err(|e| e.to_string())?;
-            Ok(res)
-        })
-        .collect::<Result<Vec<u8>, String>>()
-        .map_err(|e| anyhow!(format!("Error parsing ballot_id: {e:?}")))?;
+    let input = GetElectoralLogBody {
+        statement_kind: Some(StatementType::CastVote),
+        ..input
+    };
+    let input_bytes = ballot_id_to_byte_array(ballot_id_filter)
+        .map_err(|e| anyhow!(format!("Error parsing ballot_id_filter: {e:?}")))?;
 
     let mut client: Client = get_immudb_client().await?;
     let board_name = get_event_board(input.tenant_id.as_str(), input.election_event_id.as_str());
@@ -1270,13 +1271,7 @@ pub async fn list_cast_vote_messages(
         let items = streaming_batch?
             .rows
             .iter()
-            .map(|row| {
-                CastVoteEntry::from_row_with_ballot_id(
-                    row,
-                    ballot_id.len(),
-                    ballot_id_hash.as_slice(),
-                )
-            })
+            .map(|row| CastVoteEntry::from_row_with_ballot_id(row, &input_bytes))
             .collect::<Result<Vec<Option<CastVoteEntry>>>>()?
             .into_iter()
             .flatten()
@@ -1320,4 +1315,46 @@ pub async fn count_electoral_log(input: GetElectoralLogBody) -> Result<i64> {
 
     client.close_session().await?;
     Ok(aggregate.count as i64)
+}
+
+#[instrument(err)]
+pub fn ballot_id_to_byte_array(ballot_id: &str) -> Result<Vec<u8>> {
+    ensure!(
+        ballot_id.len() % 2 == 0,
+        "Incorrect ballot_id, the length must be an even number of characters"
+    );
+    let mut byte_array: Vec<u8> = Vec::with_capacity(BALLOT_ID_LENGTH_BYTES);
+    byte_array = (0..ballot_id.len())
+        .step_by(2)
+        .map(|i| {
+            let res = u8::from_str_radix(&ballot_id[i..i + 2], 16).map_err(|e| e.to_string())?;
+            Ok(res)
+        })
+        .collect::<Result<Vec<u8>, String>>()
+        .map_err(|e| anyhow!(format!("Error parsing ballot_id_filter: {e:?}")))?;
+    Ok(byte_array)
+}
+
+#[instrument(skip(msg, input_filter_hash))]
+pub fn find_ballot_id_in_message(msg: &Message, input_filter_hash: &Vec<u8>) -> Option<String> {
+    let inmudb_hash: [u8; STRAND_HASH_LENGTH_BYTES] = match &msg.statement.body {
+        StatementBody::CastVote(_, _, cv_hash, _, _) => cv_hash.0.clone().into_inner(),
+        _ => {
+            warn!(
+                "Message is not a CastVote, but method is expecting only CastVote statement_kind´s"
+            );
+            return None;
+        }
+    };
+    let input_bytes_len = input_filter_hash.len();
+    match inmudb_hash[..input_bytes_len] == input_filter_hash[..] {
+        true => {
+            let ballot_id: String = inmudb_hash[..BALLOT_ID_LENGTH_BYTES]
+                .iter()
+                .map(|b| format!("{:02x}", b))
+                .collect();
+            Some(ballot_id)
+        }
+        false => None,
+    }
 }
