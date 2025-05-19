@@ -106,7 +106,11 @@ export const FormContent: React.FC<UpsertAreaProps> = (props) => {
                 },
             })
             refresh()
-            notify(t("areas.createAreaSuccess"), {type: "success"})
+            if (values.id) {
+                notify(t("areas.updateAreaSuccess"), {type: "success"})
+            } else {
+                notify(t("areas.createAreaSuccess"), {type: "success"})
+            }
             if (close) {
                 close()
             }

@@ -98,6 +98,7 @@ const englishTranslation = {
                 deleteError: "Error deleting area",
             },
             createAreaSuccess: "Area created",
+            updateAreaSuccess: "Area updated",
             createAreaError: "Could not create Area",
             sequent_backend_area_contest: "Contests",
             empty: {

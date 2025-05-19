@@ -16,7 +16,7 @@ use serde_json::Value as JsonValue;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 use windmill::postgres::area::{
-    delete_area_contests, insert_area_contests, insert_areas, update_areas,
+    delete_area_contests, insert_area_contests, insert_area, update_area,
 };
 use windmill::services::database::get_hasura_pool;
 use windmill::services::import::import_election_event::upsert_b3_and_elog;
@@ -84,11 +84,11 @@ pub async fn upsert_area(
 
     // Perform insert or update based on presence of ID
     if body.id.is_some() {
-        update_areas(&hasura_transaction, &vec![area.clone()])
+        update_area(&hasura_transaction, area.clone())
             .await
             .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
     } else {
-        insert_areas(&hasura_transaction, &vec![area.clone()])
+        insert_area(&hasura_transaction, area.clone())
             .await
             .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
     }

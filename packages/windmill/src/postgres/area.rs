@@ -646,3 +646,89 @@ pub async fn delete_area_contests(
 
     Ok(())
 }
+
+#[instrument(err, skip_all)]
+pub async fn update_area(hasura_transaction: &Transaction<'_>, area: Area) -> Result<()> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                UPDATE sequent_backend.area
+                SET
+                    last_updated_at = NOW(),
+                    labels = $1,
+                    annotations = $2,
+                    name = $3,
+                    description = $4,
+                    type = $5,
+                    parent_id = $6
+                WHERE id = $7 AND tenant_id = $8 AND election_event_id = $9;
+                "#,
+        )
+        .await?;
+
+    let parent_id: Option<Uuid> = area
+        .parent_id
+        .clone()
+        .map(|parent_id| Uuid::parse_str(&parent_id).ok())
+        .flatten();
+
+    let _rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &area.labels,
+                &area.annotations,
+                &area.name,
+                &area.description,
+                &area.r#type,
+                &parent_id,
+                &Uuid::parse_str(&area.id)?,
+                &Uuid::parse_str(&area.tenant_id)?,
+                &Uuid::parse_str(&area.election_event_id)?,
+            ],
+        )
+        .await
+        .map_err(|err| anyhow!("Error executing update query: {err}"))?;
+
+    Ok(())
+}
+
+#[instrument(err, skip_all)]
+pub async fn insert_area(hasura_transaction: &Transaction<'_>, area: Area) -> Result<()> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                INSERT INTO sequent_backend.area
+                (id, tenant_id, election_event_id, created_at, last_updated_at, labels, annotations, name, description, type, parent_id)
+                VALUES
+                ($1, $2, $3, NOW(), NOW(), $4, $5, $6, $7, $8, $9);
+            "#,
+        )
+        .await?;
+
+    let parent_id: Option<Uuid> = area
+        .parent_id
+        .clone()
+        .map(|parent_id| Uuid::parse_str(&parent_id).ok())
+        .flatten();
+
+    let _rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &Uuid::parse_str(&area.id)?,
+                &Uuid::parse_str(&area.tenant_id)?,
+                &Uuid::parse_str(&area.election_event_id)?,
+                &area.labels,
+                &area.annotations,
+                &area.name,
+                &area.description,
+                &area.r#type,
+                &parent_id,
+            ],
+        )
+        .await
+        .map_err(|err| anyhow!("Error running the document query: {err}"))?;
+
+    Ok(())
+}
