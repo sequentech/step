@@ -16,6 +16,7 @@ pub mod create_election_event;
 pub mod create_electoral_logs;
 pub mod create_voter;
 pub mod duplicate_votes;
+pub mod export_cast_votes;
 pub mod generate_voters;
 pub mod hash_passwords;
 pub mod import_election_event;
