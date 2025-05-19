@@ -1245,6 +1245,7 @@ pub async fn list_cast_vote_messages(
     info!("input = {:?}", input);
     client.open_session(&board_name).await?;
     let (clauses, params) = input.as_sql(false)?;
+    let (clauses_to_count, count_params) = input.as_sql(true)?;
     info!("clauses ?:= {clauses}");
     let sql = format!(
         r#"
@@ -1279,7 +1280,31 @@ pub async fn list_cast_vote_messages(
         list.extend(items);
     }
 
-    let total = list.len();
+    let sql = format!(
+        r#"
+        SELECT
+            COUNT(*)
+        FROM electoral_log_messages
+        {clauses_to_count}
+        "#,
+    );
+    let sql_query_response = client.sql_query(&sql, count_params).await?;
+    let mut rows_iter = sql_query_response
+        .get_ref()
+        .rows
+        .iter()
+        .map(Aggregate::try_from);
+
+    let aggregate = rows_iter
+        // get the first item
+        .next()
+        // unwrap the Result and Option
+        .ok_or(anyhow!("No aggregate found"))??;
+    let total = match aggregate.count {
+        n if n.is_positive() => n as usize,
+        _ => 0,
+    };
+    client.close_session().await?;
     Ok(CastVoteMessagesOutput { list, total })
 }
 

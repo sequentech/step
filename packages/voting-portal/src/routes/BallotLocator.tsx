@@ -43,6 +43,7 @@ import TableSortLabel from "@mui/material/TableSortLabel"
 import TableBody from "@mui/material/TableBody"
 import TableCell from "@mui/material/TableCell"
 import TableContainer from "@mui/material/TableContainer"
+import TablePagination from "@mui/material/TablePagination"
 import TableHead from "@mui/material/TableHead"
 import TableRow from "@mui/material/TableRow"
 import Paper from "@mui/material/Paper"
@@ -102,7 +103,9 @@ function isHex(str: string) {
     if (str.trim() === "") {
         return true
     }
-
+    if (str.length % 2 !== 0) {
+        return false
+    }
     const regex = /^[0-9a-fA-F]+$/
     return regex.test(str)
 }
@@ -146,6 +149,9 @@ const BallotLocator: React.FC = () => {
     const validatedBallotId = isHex(inputBallotId ?? "")
     const [showCVLogsPolicy, setShowCVLogsPolicy] = useState(false)
     const {globalSettings} = useContext(SettingsContext)
+    const [page, setPage] = React.useState(0)
+    const [rowsPerPage, setRowsPerPage] = React.useState(5)
+
     const {data: dataElectionEvent} = useQuery<GetElectionEventQuery>(GET_ELECTION_EVENT, {
         variables: {
             electionEventId: eventId,
@@ -160,7 +166,12 @@ const BallotLocator: React.FC = () => {
     const customCss = dataElectionEvent?.sequent_backend_election_event[0]?.presentation?.css
 
     const requestCVMsgs = async (headerName?: string, newOrder?: string) => {
+        if (inputBallotId.length % 2 !== 0) {
+            return
+        }
         try {
+            let limit = rowsPerPage
+            let offset = page * rowsPerPage
             let result = await listCastVoteMessages({
                 variables: {
                     tenantId,
@@ -168,8 +179,8 @@ const BallotLocator: React.FC = () => {
                     electionId,
                     ballotId: inputBallotId,
                     orderBy: {[headerName ?? "username"]: newOrder ?? "desc"},
-                    limit: 3000,
-                    offset: 0,
+                    limit,
+                    offset,
                 },
             })
             if (result.data?.list_cast_vote_messages) {
@@ -191,11 +202,21 @@ const BallotLocator: React.FC = () => {
             ?.show_cast_vote_logs as EShowCastVoteLogsPolicy
         setShowCVLogsPolicy(showLogs === EShowCastVoteLogsPolicy.SHOW_LOGS_TAB)
         // the length must be an even number of characters
-        if (showLogs && inputBallotId.length % 2 === 0 && allowSendRequest.current) {
+        if (showLogs && allowSendRequest.current) {
             allowSendRequest.current = false
             requestCVMsgs()
         }
-    }, [inputBallotId, dataElectionEvent])
+    }, [inputBallotId, dataElectionEvent, page, rowsPerPage])
+    
+    const handleChangePage = (event: unknown, newPage: number) => {
+        allowSendRequest.current = true
+        setPage(newPage)
+    }
+    const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
+        allowSendRequest.current = true
+        setRowsPerPage(parseInt(event.target.value, 10))
+        setPage(0)
+    }
 
     const a11yProps = (index: number) => {
         return {
@@ -242,7 +263,15 @@ const BallotLocator: React.FC = () => {
                         placeholderLabel="ballotLocator.filterByBallotId"
                     />
                 </Box>
-                <LogsTable rows={rows} total={total} onOrderBy={onClickHeader} />
+                <LogsTable
+                    rows={rows}
+                    total={total}
+                    onOrderBy={onClickHeader}
+                    rowsPerPage={rowsPerPage}
+                    handleChangeRowsPerPage={handleChangeRowsPerPage}
+                    page={page}
+                    handleChangePage={handleChangePage}
+                />
             </CustomTabPanel>
             <Box sx={{order: {xs: 1, md: 2}, marginTop: "20px"}}>
                 <StyledLink
@@ -262,12 +291,25 @@ interface LogsTableProps {
     rows: ICastVoteEntry[]
     total: number
     onOrderBy?: (headerName: string, newOrder: string) => void
+    rowsPerPage: number
+    handleChangeRowsPerPage: (event: React.ChangeEvent<HTMLInputElement>) => void
+    page: number
+    handleChangePage: (event: unknown, newValue: number) => void
 }
 
-const LogsTable: React.FC<LogsTableProps> = ({rows, total, onOrderBy}) => {
+const LogsTable: React.FC<LogsTableProps> = ({
+    rows,
+    total,
+    onOrderBy,
+    rowsPerPage,
+    handleChangeRowsPerPage,
+    page,
+    handleChangePage,
+}) => {
     const {t} = useTranslation()
     const [orderBy, setOrderBy] = useState<string>("")
     const [order, setOrder] = useState<"desc" | "asc" | undefined>("desc")
+
     const onClickHeader = (headerName: string) => {
         setOrderBy(headerName)
         const newOrder = order === "desc" ? "asc" : "desc"
@@ -326,6 +368,15 @@ const LogsTable: React.FC<LogsTableProps> = ({rows, total, onOrderBy}) => {
                     </TableBody>
                 </Table>
             </TableContainer>
+            <TablePagination
+                rowsPerPageOptions={[5, 10, 25, 50]}
+                component="div"
+                count={total}
+                rowsPerPage={rowsPerPage}
+                page={page}
+                onPageChange={handleChangePage}
+                onRowsPerPageChange={handleChangeRowsPerPage}
+            />
         </>
     )
 }
