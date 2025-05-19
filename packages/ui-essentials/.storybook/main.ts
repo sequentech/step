@@ -1,6 +1,9 @@
 // SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+const webpack = require("webpack")
+const path = require("path")
+
 module.exports = {
     stories: ["../src/**/*.mdx", "../src/**/*.stories.mdx", "../src/**/*.stories.@(js|jsx|ts|tsx)"],
     addons: [
@@ -31,6 +34,16 @@ module.exports = {
             ...config.experiments,
             asyncWebAssembly: true,
         }
+
+        config.plugins.push(
+            new webpack.BannerPlugin({
+                banner: `SPDX-FileCopyrightText: 2025 Enric Badia <enric@xtremis.com>
+SPDX-License-Identifier: AGPL-3.0-only`,
+                raw: true,
+                entryOnly: true,
+            })
+        )
+
         return config
     },
 }
