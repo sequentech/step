@@ -34,7 +34,7 @@ def main():
     json_file_path = sys.argv[1]
     csv_file_path = sys.argv[2]
     error_report_file = 'error_log.txt'
-    validate_clusteredPrecinct = False
+    validate_clusteredPrecinct = True
 
     # --------------------------------------------------------------------------
     # LOAD JSON
@@ -118,6 +118,7 @@ def main():
             if country_attr:
                 validations = country_attr.get('validations', {})
                 c_opts = validations.get('options', {}).get('options', [])
+                #breakpoint()
                 
                 for opt in c_opts:
                     # e.g. "ROME/ITALY PE"
@@ -125,17 +126,18 @@ def main():
                     if '/' in opt:
                         country, embassy = opt.split('/', 1)
                         country = country.strip()
-                        embassy = embassy.strip().lower()  # Store embassy keys in lowercase
+                        embassy = embassy.strip()  # Store embassy keys in lowercase
+                        embassy_key = embassy.upper()
 
                         # Ensure embassy key exists and append (country, embassy)
-                        if embassy not in cou_emb_dict:
-                            cou_emb_dict[embassy] = []
+                        if embassy_key not in cou_emb_dict:
+                            cou_emb_dict[embassy_key] = []
                         
-                        cou_emb_dict[embassy].append((country, embassy.title()))  # Store embassy with proper casing
+                        cou_emb_dict[embassy_key].append((country, embassy))  # Store embassy with proper casing
 
                     else:
                         # e.g. "CANADA" with no slash → country with unknown embassy
-                        country = opt.strip().lower()
+                        country = opt.strip()
                         
                         if country not in cou_emb_dict:
                             cou_emb_dict[country] = []
@@ -250,14 +252,13 @@ def main():
                 #    We do a no-case-sensitive (case-insensitive) match on the EMBASSY portion
                 #    by splitting the alias on " - ", then looking up in cou_emb_dict.
                 # --------------------------------------------------------------
-                official_country_embassy = 'Unknown/Unknown'
 
                 if dedup_aliases:
                     first_alias = dedup_aliases[0]
 
                     # Extract the EMBASSY candidate before " - " (case-insensitive)
                     if ' - ' in first_alias:
-                        embassy_candidate = first_alias.split(' - ', 1)[0].strip().lower()  # Normalize for lookup
+                        embassy_candidate = first_alias.split(' - ', 1)[0].strip()  # No longer converting to lowercase
 
                         # Find all possible matches in `cou_emb_dict`
                         possible_matches = cou_emb_dict.get(embassy_candidate, [])
@@ -265,33 +266,33 @@ def main():
                         if isinstance(possible_matches, list) and possible_matches:
                             # Ensure all possible matches are stored in the expected format
                             official_country_embassy_list = [f"{country}/{embassy}" for country, embassy in possible_matches]
-                            normalized_expected_list = [entry.lower() for entry in official_country_embassy_list]  # Normalize for comparison
+                            expected_list = official_country_embassy_list  # No longer normalizing to lowercase
                         elif isinstance(possible_matches, tuple):
                             # If a single tuple exists instead of a list
                             official_country_embassy_list = [f"{possible_matches[0]}/{possible_matches[1]}"]
-                            normalized_expected_list = [official_country_embassy_list[0].lower()]
+                            expected_list = official_country_embassy_list
                         else:
                             # Fallback if no match is found
                             official_country_embassy_list = [f"{embassy_candidate.title()}/Unknown"]
-                            normalized_expected_list = [official_country_embassy_list[0].lower()]
+                            expected_list = official_country_embassy_list
 
                     else:
                         # If no " - ", fallback to "alias/Unknown"
                         official_country_embassy_list = [f"{first_alias.title()}/Unknown"]
-                        normalized_expected_list = [official_country_embassy_list[0].lower()]
+                        expected_list = official_country_embassy_list
                 else:
                     # If no aliases are found, default to "Unknown/Unknown"
                     official_country_embassy_list = ["Unknown/Unknown"]
-                    normalized_expected_list = ["unknown/unknown"]
+                    expected_list = ["Unknown/Unknown"]
 
                 # Compare with the CSV row's "country" field (normalized)
                 actual_country_field = row.get('country', '').strip()
-                normalized_actual = actual_country_field.lower()
+                actual = actual_country_field  # No longer normalizing to lowercase
 
                 if not actual_country_field:
                     errors.append((row_index, 'country', 'Missing country/embassy'))
                 else:
-                    if normalized_actual not in normalized_expected_list:
+                    if actual not in expected_list:  # Case-sensitive comparison
                         msg = (
                             f"Country mismatch: got '{actual_country_field}', "
                             f"expected one of {official_country_embassy_list} (from first alias)"
