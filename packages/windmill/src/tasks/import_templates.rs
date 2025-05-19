@@ -3,25 +3,29 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::template::insert_templates;
+use crate::services::providers::transactions_provider::provide_hasura_transaction;
+use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::types::error::{Error, Result};
 use crate::{postgres::document::get_document, services::documents::get_document_as_temp_file};
+use anyhow::{anyhow, Error as AnyhowError, Result as AnyhowResult};
+use celery::error::TaskError;
 use deadpool_postgres::Transaction;
-use sequent_core::types::hasura::core::Template;
-use sequent_core::util::integrity_check::integrity_check;
+use sequent_core::types::hasura::core::{TasksExecution, Template};
+use sequent_core::util::integrity_check::{integrity_check, HashFileVerifyError};
 use std::io::Seek;
 use tracing::{info, instrument};
 use uuid::Uuid;
 
 #[instrument(err)]
-pub async fn import_templates_task(
+pub async fn import_templates(
     hasura_transaction: &Transaction<'_>,
     tenant_id: String,
     document_id: String,
     sha256: Option<String>,
-) -> Result<()> {
+) -> AnyhowResult<()> {
     let document = get_document(hasura_transaction, &tenant_id, None, &document_id)
         .await
-        .map_err(|e| "Error obtaining the document: {:e?}")?
+        .map_err(|e| anyhow!("Error obtaining the document: {:?}", e))?
         .ok_or(Error::String("document not found".to_string()))?;
 
     let mut temp_file = get_document_as_temp_file(&tenant_id, &document).await?;
@@ -32,8 +36,13 @@ pub async fn import_templates_task(
             Ok(_) => {
                 info!("Hash verified !");
             }
+            Err(HashFileVerifyError::HashMismatch(input_hash, gen_hash)) => {
+                let err_str = format!("Failed to verify the integrity: Hash of voters file: {gen_hash} does not match with the input hash: {input_hash}");
+                return Err(AnyhowError::new(Error::String(err_str)));
+            }
             Err(err) => {
-                return Err(err.into());
+                let err_str = format!("Failed to verify the integrity: {err:?}");
+                return Err(AnyhowError::new(Error::String(err_str)));
             }
         },
         _ => {
@@ -49,7 +58,7 @@ pub async fn import_templates_task(
     let mut templates: Vec<Template> = vec![];
 
     for result in rdr.records() {
-        let record = result.map_err(|e| "Error reading CSV record: {:e?}")?;
+        let record = result.map_err(|e| anyhow!("Error reading CSV record: {:?}", e))?;
 
         let template_alias = record.get(0).unwrap_or("");
         let tenant_id = record.get(1).unwrap_or("");
@@ -86,4 +95,33 @@ pub async fn import_templates_task(
     insert_templates(hasura_transaction, &templates).await?;
 
     Ok(())
+}
+
+#[instrument(err)]
+#[wrap_map_err::wrap_map_err(TaskError)]
+#[celery::task(max_retries = 0)]
+pub async fn import_templates_task(
+    tenant_id: String,
+    document_id: String,
+    sha256: Option<String>,
+    task_execution: TasksExecution,
+) -> Result<()> {
+    let result = provide_hasura_transaction(|hasura_transaction| {
+        let document_copy = document_id.clone();
+        Box::pin(async move {
+            import_templates(hasura_transaction, tenant_id, document_copy, sha256).await
+        })
+    })
+    .await;
+    match result {
+        Ok(_) => {
+            let _res = update_complete(&task_execution, Some(document_id.clone())).await;
+            Ok(())
+        }
+        Err(err) => {
+            let err_str = format!("Error importing templates: {err:?}");
+            let _res = update_fail(&task_execution, &err.to_string()).await;
+            Err(err_str.into())
+        }
+    }
 }

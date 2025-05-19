@@ -81,6 +81,8 @@ const dutchTranslation: TranslationType = {
                 IMPORT_TENANT_CONFIG: "Tenantconfiguratie Importeren",
                 RENDER_DOCUMENT_PDF: "Document als PDF renderen",
                 CREATE_TENANT: "Tenant Aanmaken",
+                EXPORT_TEMPLATES: "Sjablonen Exporteren",
+                IMPORT_TEMPLATES: "Sjablonen Importeren",
             },
             widget: {
                 taskTitle: "Taak: {{title}}",

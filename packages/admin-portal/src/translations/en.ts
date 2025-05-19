@@ -81,6 +81,8 @@ const englishTranslation = {
                 IMPORT_TENANT_CONFIG: "Import Tenant Config",
                 RENDER_DOCUMENT_PDF: "Render Document PDF",
                 CREATE_TENANT: "Create Tenant",
+                EXPORT_TEMPLATES: "Export Templates",
+                IMPORT_TEMPLATES: "Import Templates",
             },
             widget: {
                 taskTitle: "Task: {{title}}",

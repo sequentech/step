@@ -1396,11 +1396,13 @@ type LimitAccessByCountriesOutput {
 type ExportTemplateOutput {
     error_msg: String
     document_id: String!
+    task_execution: tasks_execution_type
 }
 
 type templateOutput {
     error_msg: String
     document_id: String!
+    task_execution: tasks_execution_type
 }
 
 type GetTopCastVotesByIpOutput {
