@@ -19,6 +19,14 @@ pub struct StartKeyCeremony {
     /// Threshold - the minimum number of trustees required to tally
     #[arg(long, default_value_t = 2)]
     threshold: i64,
+
+    /// Election id - optional specific election to start the key ceremony for
+    #[arg(long)]
+    election_id: Option<String>,
+
+    /// Name - optional name for the key ceremony
+    #[arg(long)]
+    name: Option<String>,
 }
 
 #[derive(GraphQLQuery)]
@@ -31,7 +39,12 @@ pub struct CreateKeysCeremony;
 
 impl StartKeyCeremony {
     pub fn run(&self) {
-        match start_ceremony(&self.election_event_id, self.threshold) {
+        match start_ceremony(
+            &self.election_event_id,
+            self.threshold,
+            self.election_id.as_deref(),
+            self.name.as_deref(),
+        ) {
             Ok(id) => {
                 println!("Success! Successfully started key ceremony. ID: {}", id);
             }
@@ -45,15 +58,19 @@ impl StartKeyCeremony {
 pub fn start_ceremony(
     election_event_id: &str,
     threshold: i64,
+    election_id: Option<&str>,
+    name: Option<&str>,
 ) -> Result<String, Box<dyn std::error::Error>> {
     let config = read_config()?;
     let client = reqwest::blocking::Client::new();
-
     let trustees = GetTrustees::get_names()?;
+    println!("Trustees: {:?}", trustees);
     let variables = create_keys_ceremony::Variables {
         election_event_id: election_event_id.to_string(),
         threshold,
         trustee_names: Some(trustees),
+        election_id: election_id.map(|id| id.to_string()),
+        name: name.map(|n| n.to_string()),
     };
 
     let request_body = CreateKeysCeremony::build_query(variables);
