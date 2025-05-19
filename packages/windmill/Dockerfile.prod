@@ -19,28 +19,29 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Install the specific nightly toolchain
 RUN rustup toolchain install nightly-2024-09-01 \
     && rustup default nightly-2024-09-01
-COPY ./braid ./braid
-COPY ./b3 ./b3
-COPY ./electoral-log ./electoral-log
-COPY ./harvest ./harvest
-COPY ./strand ./strand
-COPY ./immu-board ./immu-board
-COPY ./immudb-rs ./immudb-rs
-COPY ./sequent-core ./sequent-core
-COPY ./velvet ./velvet
-COPY ./windmill ./windmill
-COPY ./e2e ./e2e
-COPY ./step-cli ./step-cli
-COPY ./orare ./orare
-COPY ./wrap-map-err ./wrap-map-err
-COPY ./braid/scripts ./braid/scripts
-COPY ./Cargo.toml ./Cargo.toml
-COPY ./Cargo.lock ./Cargo.lock
-COPY ./.cargo ./.cargo
+COPY ./packages/braid ./packages/braid
+COPY ./packages/b3 ./packages/b3
+COPY ./packages/electoral-log ./packages/electoral-log
+COPY ./packages/harvest ./packages/harvest
+COPY ./packages/strand ./packages/strand
+COPY ./packages/immu-board ./packages/immu-board
+COPY ./packages/immudb-rs ./packages/immudb-rs
+COPY ./packages/sequent-core ./packages/sequent-core
+COPY ./packages/velvet ./packages/velvet
+COPY ./packages/windmill ./packages/windmill
+COPY ./packages/e2e ./packages/e2e
+COPY ./packages/step-cli ./packages/step-cli
+COPY ./packages/orare ./packages/orare
+COPY ./packages/wrap-map-err ./packages/wrap-map-err
+COPY ./packages/braid/scripts ./packages/braid/scripts
+COPY ./packages/Cargo.toml ./packages/Cargo.toml
+COPY ./packages/Cargo.lock ./packages/Cargo.lock
+COPY ./packages/.cargo ./packages/.cargo
+COPY ./.devcontainer/minio/public-assets ./.devcontainer/minio/public-assets
 
-RUN cp /app/windmill/external-bin/ecies-tool.jar /usr/local/bin/
+RUN cp /app/packages/windmill/external-bin/ecies-tool.jar /usr/local/bin/
 
-WORKDIR /app/windmill
+WORKDIR /app/packages/step-cli
 RUN cargo build --release --locked
 
 
@@ -58,10 +59,8 @@ RUN wget https://download.java.net/java/GA/jdk22.0.2/c9ecb94cd31b495da20a27d4581
     && update-alternatives --install /usr/bin/java java /usr/local/jdk-22.0.2/bin/java 1 \
     && update-alternatives --install /usr/bin/javac javac /usr/local/jdk-22.0.2/bin/javac 1
 # Copy the compiled binaries from the builder stage (beat + windmill:main)
-COPY --from=builder /app/target/release/main /usr/local/bin/main
-COPY --from=builder /app/target/release/beat /usr/local/bin/beat
-COPY --from=builder /usr/local/bin/ecies-tool.jar /usr/local/bin/ecies-tool.jar
+COPY --from=builder /app/packages/target/release/step-cli /usr/local/bin/step-cli
 VOLUME /import
 WORKDIR /usr/local/bin
 # Run the windmill binary, it's possible to run 'beat' as well
-CMD ["main", "consume", "-q", "short_queue", "tally_queue", "beat", "reports_queue", "communication_queue", "import_export_queue"]
+CMD ["tail", "-f", "/dev/null"]
