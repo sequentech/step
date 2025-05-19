@@ -4,7 +4,7 @@
 
 use anyhow::{anyhow, Context, Result};
 use std::fmt::Debug;
-use tonic::{metadata::MetadataValue, transport::Channel, Request, Response};
+use tonic::{metadata::MetadataValue, transport::Channel, Request, Response, Streaming};
 use tracing::{debug, info, instrument};
 
 use crate::schema::immu_service_client::ImmuServiceClient;
@@ -124,24 +124,14 @@ impl Client {
         Ok(())
     }
 
-    pub async fn sql_query(
-        &mut self,
-        sql: &str,
-        params: Vec<NamedParam>,
-    ) -> AsyncResponse<SqlQueryResult> {
-        let sql_query_request = self.get_request(SqlQueryRequest {
-            sql: sql.into(),
-            reuse_snapshot: false,
-            params: params,
-        })?;
-        let sql_query_response = self.client.sql_query(sql_query_request).await?;
-        debug!("sql-query-response={:?}", sql_query_response);
-        Ok(sql_query_response)
-    }
-
     /// Creates a new transaction, returning the transaction id
     pub async fn new_tx(&mut self, mode: TxMode) -> Result<String> {
-        let new_tx_request = self.get_request(NewTxRequest { mode: mode.into() })?;
+        let new_tx_request = self.get_request(NewTxRequest {
+            mode: mode.into(),
+            snapshot_must_include_tx_id: None,
+            snapshot_renewal_period: None,
+            unsafe_mvcc: false,
+        })?;
         let new_tx_response = self.client.new_tx(new_tx_request).await?;
         debug!("new-tx-response={:?}", new_tx_response);
         Ok(new_tx_response.get_ref().transaction_id.clone())
@@ -192,16 +182,49 @@ impl Client {
         Ok(())
     }
 
+    pub async fn sql_query(
+        &mut self,
+        sql: &str,
+        params: Vec<NamedParam>,
+    ) -> AsyncResponse<SqlQueryResult> {
+        let sql_query_request = self.get_request(SqlQueryRequest {
+            sql: sql.into(),
+            params: params,
+            reuse_snapshot: false,
+            accept_stream: false,
+        })?;
+        let sql_query_response = self.client.unary_sql_query(sql_query_request).await?;
+        debug!("sql-query-response={:?}", sql_query_response);
+        Ok(sql_query_response)
+    }
+
+    pub async fn streaming_sql_query(
+        &mut self,
+        sql: &str,
+        params: Vec<NamedParam>,
+    ) -> AsyncResponse<Streaming<SqlQueryResult>> {
+        let sql_query_request = self.get_request(SqlQueryRequest {
+            sql: sql.into(),
+            params: params,
+            reuse_snapshot: false,
+            accept_stream: true,
+        })?;
+        let sql_query_response = self.client.sql_query(sql_query_request).await?;
+        debug!("sql-query-response={:?}", sql_query_response);
+        Ok(sql_query_response)
+    }
+
     pub async fn tx_sql_query(
         &mut self,
         sql: &str,
         transaction_id: &String,
         params: Vec<NamedParam>,
-    ) -> AsyncResponse<SqlQueryResult> {
+    ) -> AsyncResponse<Streaming<SqlQueryResult>> {
         let mut sql_query_request = self.get_request(SqlQueryRequest {
             sql: sql.into(),
-            reuse_snapshot: false,
             params: params,
+            reuse_snapshot: false,
+            accept_stream: false,
         })?;
         let tx_id: MetadataValue<_> = transaction_id.parse()?;
         sql_query_request

@@ -35,15 +35,15 @@ pub enum ReportFormat {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ActivityLogRow {
-    id: i64,
-    created: String,
-    statement_timestamp: String,
-    statement_kind: String,
-    event_type: String,
-    log_type: String,
-    description: String,
-    message: String,
-    user_id: String,
+    pub id: i64,
+    pub created: String,
+    pub statement_timestamp: String,
+    pub statement_kind: String,
+    pub event_type: String,
+    pub log_type: String,
+    pub description: String,
+    pub message: String,
+    pub user_id: String,
 }
 
 /// Struct for User Data
