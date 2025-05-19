@@ -35,15 +35,6 @@ module.exports = {
             asyncWebAssembly: true,
         }
 
-        config.plugins.push(
-            new webpack.BannerPlugin({
-                banner: `SPDX-FileCopyrightText: 2025 Enric Badia <enric@xtremis.com>
-SPDX-License-Identifier: AGPL-3.0-only`,
-                raw: true,
-                entryOnly: true,
-            })
-        )
-
         return config
     },
 }
