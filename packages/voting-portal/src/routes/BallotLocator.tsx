@@ -207,7 +207,7 @@ const BallotLocator: React.FC = () => {
             requestCVMsgs()
         }
     }, [inputBallotId, dataElectionEvent, page, rowsPerPage])
-    
+
     const handleChangePage = (event: unknown, newPage: number) => {
         allowSendRequest.current = true
         setPage(newPage)
