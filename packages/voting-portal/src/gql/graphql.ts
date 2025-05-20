@@ -198,7 +198,9 @@ export type DataListPgAudit = {
 
 export type DeleteElectionEvent = {
   __typename?: 'DeleteElectionEvent';
+  error_msg?: Maybe<Scalars['String']['output']>;
   id?: Maybe<Scalars['String']['output']>;
+  task_execution?: Maybe<Tasks_Execution_Type>;
 };
 
 export type DeleteUserOutput = {
