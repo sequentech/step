@@ -5,7 +5,7 @@
 import {gql} from "@apollo/client"
 
 export const LIST_CAST_VOTE_MESSAGES = gql`
-    mutation listCastVoteMessages(
+    query listCastVoteMessages(
         $tenantId: String!
         $electionEventId: String!
         $electionId: String

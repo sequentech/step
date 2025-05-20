@@ -25,7 +25,7 @@ import {
     GetBallotStylesQuery,
     GetCastVoteQuery,
     GetElectionEventQuery,
-    ListCastVoteMessagesMutation,
+    ListCastVoteMessagesQuery,
 } from "../gql/graphql"
 import {faAngleLeft, faCircleQuestion} from "@fortawesome/free-solid-svg-icons"
 import {GET_BALLOT_STYLES} from "../queries/GetBallotStyles"
@@ -139,8 +139,6 @@ const BallotLocator: React.FC = () => {
     const {t} = useTranslation()
     const location = useLocation()
     const {tenantId, eventId, electionId} = useParams()
-    const [listCastVoteMessages] =
-        useMutation<ListCastVoteMessagesMutation>(LIST_CAST_VOTE_MESSAGES)
     const allowSendRequest = useRef<boolean>(true)
     const [value, setValue] = React.useState(0)
     const [inputBallotId, setInputBallotId] = useState("")
@@ -151,7 +149,7 @@ const BallotLocator: React.FC = () => {
     const {globalSettings} = useContext(SettingsContext)
     const [page, setPage] = React.useState(0)
     const [rowsPerPage, setRowsPerPage] = React.useState(5)
-
+    const lastCVRequestTimestamp = useRef<number | undefined>(undefined) // Timestamp of last LIST_CAST_VOTE_MESSAGES request
     const {data: dataElectionEvent} = useQuery<GetElectionEventQuery>(GET_ELECTION_EVENT, {
         variables: {
             electionEventId: eventId,
@@ -160,38 +158,68 @@ const BallotLocator: React.FC = () => {
         skip: globalSettings.DISABLE_AUTH, // Skip query if in demo mode
     })
 
+    const {refetch} = useQuery<ListCastVoteMessagesQuery>(LIST_CAST_VOTE_MESSAGES, {
+        variables: {
+            tenantId,
+            electionEventId: eventId,
+            electionId,
+            ballotId: inputBallotId,
+        },
+        skip: true,
+    })
+
     useUpdateTranslation({
         electionEvent: dataElectionEvent?.sequent_backend_election_event[0] as IElectionEvent,
     }) // Overwrite translations
     const customCss = dataElectionEvent?.sequent_backend_election_event[0]?.presentation?.css
+    let fetchTimeout: any = useRef()
 
     const requestCVMsgs = async (headerName?: string, newOrder?: string) => {
-        if (inputBallotId.length % 2 !== 0) {
-            return
-        }
-        try {
-            let limit = rowsPerPage
-            let offset = page * rowsPerPage
-            let result = await listCastVoteMessages({
-                variables: {
-                    tenantId,
-                    electionEventId: eventId,
-                    electionId,
+        let duration = lastCVRequestTimestamp.current ? Date.now() - lastCVRequestTimestamp.current : undefined
+        let tooQuick = duration ? duration < 500 : false
+        lastCVRequestTimestamp.current = Date.now()
+        async function tryFetchMessages() {
+            try {
+                let limit = rowsPerPage
+                let offset = page * rowsPerPage
+                const { data } = await refetch({
                     ballotId: inputBallotId,
-                    orderBy: {[headerName ?? "username"]: newOrder ?? "desc"},
+                    orderBy: { [headerName ?? "username"]: newOrder ?? "desc" },
                     limit,
                     offset,
-                },
-            })
-            if (result.data?.list_cast_vote_messages) {
-                setRows((result.data?.list_cast_vote_messages?.list ?? []) as ICastVoteEntry[])
-                setTotal(result.data?.list_cast_vote_messages?.total)
+                }
+                )
+                console.log(data)
+                if (data?.list_cast_vote_messages) {
+                    setRows((data?.list_cast_vote_messages?.list ?? []) as ICastVoteEntry[])
+                    setTotal(data?.list_cast_vote_messages?.total)
+                }
+            } catch (e) {
+                // TODO: Notify to the user.
+                console.log("ERROR")
+                console.log(e)
             }
-        } catch (e) {
-            // TODO: Notify to the user.
-            console.log("ERROR")
-            console.log(e)
         }
+
+        if (tooQuick) {
+            // Start interval
+            // if timeout is already running, destroy it and create a new one.
+            if (fetchTimeout.current) {
+                clearTimeout(fetchTimeout.current)
+                fetchTimeout.current = setTimeout(async() => {
+                    await tryFetchMessages()
+                }, 1000)
+            } else {
+                fetchTimeout.current = setTimeout(async() => {
+                    await tryFetchMessages()
+                }, 1000)
+            }
+        } 
+
+        if ( globalSettings.DISABLE_AUTH || tooQuick || !validatedBallotId) {
+            return
+        }
+        await tryFetchMessages()
     }
 
     const onClickHeader = (headerName: string, newOrder: string) => {
