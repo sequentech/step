@@ -204,16 +204,10 @@ const BallotLocator: React.FC = () => {
         if (tooQuick) {
             // Start interval
             // if timeout is already running, destroy it and create a new one.
-            if (fetchTimeout.current) {
-                clearTimeout(fetchTimeout.current)
-                fetchTimeout.current = setTimeout(async() => {
-                    await tryFetchMessages()
-                }, 1000)
-            } else {
-                fetchTimeout.current = setTimeout(async() => {
-                    await tryFetchMessages()
-                }, 1000)
-            }
+            clearTimeout(fetchTimeout.current)
+            fetchTimeout.current = setTimeout(async() => {
+                await tryFetchMessages()
+            }, 1000)
         } 
 
         if ( globalSettings.DISABLE_AUTH || tooQuick || !validatedBallotId) {
@@ -473,7 +467,7 @@ const BallotLocatorLogic: React.FC<BallotLocatorLogicProps> = ({customCss}) => {
             electionId,
             ballotId,
         },
-        skip: globalSettings.DISABLE_AUTH, // Skip query if in demo mode
+        skip: globalSettings.DISABLE_AUTH || !hasBallotId, // Skip query if in demo mode
     })
 
     useEffect(() => {
