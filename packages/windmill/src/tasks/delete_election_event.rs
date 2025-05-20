@@ -13,7 +13,7 @@ use crate::{
     },
     types::error::Result,
 };
-use anyhow::Result as AnyhowResult;
+use anyhow::{anyhow, Result as AnyhowResult};
 use celery::error::TaskError;
 use sequent_core::types::hasura::core::TasksExecution;
 use tracing::{info, instrument};
