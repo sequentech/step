@@ -171,6 +171,7 @@ export type CreateKeysCeremonyInput = {
 
 export type CreateKeysCeremonyOutput = {
   __typename?: 'CreateKeysCeremonyOutput';
+  error_message?: Maybe<Scalars['String']['output']>;
   keys_ceremony_id: Scalars['String']['output'];
 };
 

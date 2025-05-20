@@ -16,7 +16,9 @@ use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
 use windmill::postgres;
 use windmill::postgres::election::get_elections;
-use windmill::services::ceremonies::keys_ceremony;
+use windmill::services::ceremonies::keys_ceremony::{
+    self, validate_permission_labels,
+};
 use windmill::services::database::get_hasura_pool;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -176,6 +178,7 @@ pub struct CreateKeysCeremonyInput {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CreateKeysCeremonyOutput {
     keys_ceremony_id: String,
+    error_message: Option<String>,
 }
 
 // The main function to start a key ceremony
@@ -194,6 +197,8 @@ pub async fn create_keys_ceremony(
     let input = body.into_inner();
     let tenant_id = claims.hasura_claims.tenant_id.clone();
     let user_id = claims.hasura_claims.user_id;
+    let user_permission_labels = claims.hasura_claims.permission_labels;
+
     let username = claims.preferred_username.unwrap_or("-".to_string());
 
     let mut hasura_db_client: DbClient = get_hasura_pool()
@@ -206,6 +211,23 @@ pub async fn create_keys_ceremony(
         .transaction()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    let valid_permissions_label = validate_permission_labels(
+        &hasura_transaction,
+        &tenant_id,
+        &input.election_event_id,
+        input.election_id.clone(),
+        user_permission_labels,
+    )
+    .await;
+    if let Err(err) = valid_permissions_label {
+        return Ok(Json(CreateKeysCeremonyOutput {
+            keys_ceremony_id: "".to_string(),
+            error_message: Some(format!(
+                "user permission labels are not valid"
+            )),
+        }));
+    }
 
     let keys_ceremony_id = keys_ceremony::create_keys_ceremony(
         &hasura_transaction,
@@ -234,7 +256,10 @@ pub async fn create_keys_ceremony(
         keys_ceremony_id,
         input.election_id,
     );
-    Ok(Json(CreateKeysCeremonyOutput { keys_ceremony_id }))
+    Ok(Json(CreateKeysCeremonyOutput {
+        keys_ceremony_id,
+        error_message: None,
+    }))
 }
 
 #[derive(Serialize, Deserialize, Debug)]

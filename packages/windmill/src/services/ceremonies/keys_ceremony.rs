@@ -3,7 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::election::{
-    get_election_by_id, get_elections_by_keys_ceremony_id, set_election_keys_ceremony,
+    get_election_by_id, get_election_permission_label, get_elections_by_keys_ceremony_id,
+    set_election_keys_ceremony,
 };
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::keys_ceremony;
@@ -463,4 +464,48 @@ pub async fn create_keys_ceremony(
         .with_context(|| "error posting to the electoral log")?;
 
     Ok(keys_ceremony_id)
+}
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn validate_permission_labels(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: Option<String>,
+    user_permission_labels: Option<String>,
+) -> Result<()> {
+    let elections_permission_label = get_election_permission_label(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        election_id.clone(),
+    )
+    .await
+    .map_err(|e| anyhow::anyhow!("Error getting election permissionlabel {:?}", e))?;
+
+    let user_permission_labels = match user_permission_labels {
+        Some(perms) => perms,
+        None => return Err(anyhow!("user dont have permission labels")),
+    };
+
+    let user_permission_labels_json = user_permission_labels
+        .trim()
+        .strip_prefix('{')
+        .unwrap_or(&user_permission_labels)
+        .strip_suffix('}')
+        .unwrap_or(&user_permission_labels)
+        .to_string();
+    let user_permission_labels_json = format!("[{}]", user_permission_labels_json);
+
+    let permission_labels: Vec<String> = serde_json::from_str(&user_permission_labels_json)?;
+    let permission_labels: HashSet<String> = permission_labels.into_iter().collect();
+
+    let is_valid_permission_labels = elections_permission_label
+        .iter()
+        .all(|c| permission_labels.contains(c));
+    if !is_valid_permission_labels {
+        return Err(anyhow!("user permission labels are not valid"));
+    }
+
+    Ok(())
 }

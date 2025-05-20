@@ -1228,6 +1228,18 @@
         "description": null,
         "fields": [
           {
+            "name": "error_message",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "keys_ceremony_id",
             "description": null,
             "args": [],

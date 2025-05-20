@@ -198,6 +198,10 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                 name: name ?? t("keysGeneration.configureStep.name"),
             },
         })
+        if (data?.create_keys_ceremony?.error_message) {
+            setErrors(data.create_keys_ceremony.error_message)
+            return null
+        }
         if (errors) {
             setErrors(t("keysGeneration.configureStep.errorCreatingCeremony", {code: error + ""}))
             return null
