@@ -175,20 +175,21 @@ const BallotLocator: React.FC = () => {
     let fetchTimeout: any = useRef()
 
     const requestCVMsgs = async (headerName?: string, newOrder?: string) => {
-        let duration = lastCVRequestTimestamp.current ? Date.now() - lastCVRequestTimestamp.current : undefined
+        let duration = lastCVRequestTimestamp.current
+            ? Date.now() - lastCVRequestTimestamp.current
+            : undefined
         let tooQuick = duration ? duration < 500 : false
         lastCVRequestTimestamp.current = Date.now()
         async function tryFetchMessages() {
             try {
                 let limit = rowsPerPage
                 let offset = page * rowsPerPage
-                const { data } = await refetch({
+                const {data} = await refetch({
                     ballotId: inputBallotId,
-                    orderBy: { [headerName ?? "username"]: newOrder ?? "desc" },
+                    orderBy: {[headerName ?? "username"]: newOrder ?? "desc"},
                     limit,
                     offset,
-                }
-                )
+                })
                 console.log(data)
                 if (data?.list_cast_vote_messages) {
                     setRows((data?.list_cast_vote_messages?.list ?? []) as ICastVoteEntry[])
@@ -205,12 +206,12 @@ const BallotLocator: React.FC = () => {
             // Start interval
             // if timeout is already running, destroy it and create a new one.
             clearTimeout(fetchTimeout.current)
-            fetchTimeout.current = setTimeout(async() => {
+            fetchTimeout.current = setTimeout(async () => {
                 await tryFetchMessages()
             }, 1000)
-        } 
+        }
 
-        if ( globalSettings.DISABLE_AUTH || tooQuick || !validatedBallotId) {
+        if (globalSettings.DISABLE_AUTH || tooQuick || !validatedBallotId) {
             return
         }
         await tryFetchMessages()
