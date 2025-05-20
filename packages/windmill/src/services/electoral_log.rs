@@ -14,6 +14,7 @@ use crate::tasks::electoral_log::{
 };
 use crate::types::resources::{Aggregate, DataList, OrderDirection, TotalAggregate};
 use anyhow::{anyhow, ensure, Context, Result};
+use b3::messages::message::Signer;
 use base64::engine::general_purpose;
 use base64::Engine;
 use deadpool_postgres::Transaction;
@@ -30,7 +31,6 @@ use electoral_log::BoardClient;
 use electoral_log::ElectoralLogMessage;
 use immudb_rs::{sql_value::Value, Client, NamedParam, Row, SqlValue, TxMode};
 use rust_decimal::prelude::ToPrimitive;
-
 use sequent_core::serialization::deserialize_with_path;
 use sequent_core::services::date::ISO8601;
 use serde::{Deserialize, Serialize};
