@@ -7,7 +7,9 @@ use crate::postgres::tenant::{
 };
 use crate::services::database::get_hasura_pool;
 use crate::services::jwks::upsert_realm_jwks;
+use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::types::error::Result;
+use anyhow::Context;
 use celery::error::TaskError;
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
@@ -16,6 +18,7 @@ use sequent_core::services::connection;
 use sequent_core::services::keycloak::get_client_credentials;
 use sequent_core::services::keycloak::get_tenant_realm;
 use sequent_core::services::keycloak::KeycloakAdminClient;
+use sequent_core::types::hasura::core::TasksExecution;
 use std::{env, fs};
 use tracing::{event, instrument, Level};
 
@@ -69,9 +72,7 @@ pub async fn check_tenant_exists(hasura_transaction: &Transaction<'_>, slug: &st
 }
 
 #[instrument(err)]
-#[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task]
-pub async fn insert_tenant(tenant_id: String, slug: String) -> Result<()> {
+pub async fn process_insert_tenant(tenant_id: String, slug: String) -> Result<()> {
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
         .get()
@@ -97,5 +98,28 @@ pub async fn insert_tenant(tenant_id: String, slug: String) -> Result<()> {
         .await
         .map_err(|err| format!("Error committing hasura transaction: {err}"))?;
 
+    Ok(())
+}
+
+#[instrument(err)]
+#[wrap_map_err::wrap_map_err(TaskError)]
+#[celery::task]
+pub async fn insert_tenant(
+    tenant_id: String,
+    slug: String,
+    task_execution: TasksExecution,
+) -> Result<()> {
+    let res = process_insert_tenant(tenant_id.clone(), slug.clone()).await;
+    if let Err(err) = res {
+        let err_str = format!("Error inserting tenant: {}", err);
+        event!(Level::ERROR, err_str);
+        update_fail(&task_execution, &err_str)
+            .await
+            .context("Failed to update task insert tenant to FAILED")?;
+        return Err(err);
+    }
+    update_complete(&task_execution, None)
+        .await
+        .context("Failed to update task execution status to COMPLETED")?;
     Ok(())
 }

@@ -553,6 +553,7 @@ export type InsertCastVoteOutput = {
 
 export type InsertTenantOutput = {
   __typename?: 'InsertTenantOutput';
+  error_msg?: Maybe<Scalars['String']['output']>;
   id: Scalars['uuid']['output'];
   slug: Scalars['String']['output'];
   task_execution?: Maybe<Tasks_Execution_Type>;

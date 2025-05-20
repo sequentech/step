@@ -1052,6 +1052,7 @@ type InsertTenantOutput {
     id: uuid!
     slug: String!
     task_execution: tasks_execution_type
+    error_msg: String
 }
 
 type KeycloakUserArea {

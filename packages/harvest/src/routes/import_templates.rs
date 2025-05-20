@@ -42,24 +42,12 @@ pub async fn import_templates_route(
     input: Json<ImportTemplatesInput>,
 ) -> Result<Json<ImportTemplatesOutput>, (Status, String)> {
     let body = input.into_inner();
-    authorize(
-        &claims,
-        true,
-        Some(claims.hasura_claims.tenant_id.clone()),
-        vec![Permissions::TEMPLATE_WRITE],
-    )?;
-
-    let celery_app = get_celery_app().await;
-
+    let tenant_id = body.tenant_id.clone();
     let executer_name = claims
         .name
         .clone()
         .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
 
-    let tenant_id = body.tenant_id.clone();
-    let document_id = body.document_id.clone();
-
-    // Insert the task execution record
     let task_execution = post(
         &tenant_id,
         None,
@@ -73,6 +61,23 @@ pub async fn import_templates_route(
             format!("Failed to insert task execution record: {error:?}"),
         )
     })?;
+
+    if let Err(error) = authorize(
+        &claims,
+        true,
+        Some(claims.hasura_claims.tenant_id.clone()),
+        vec![Permissions::TEMPLATE_WRITE],
+    ) {
+        let _ = update_fail(
+            &task_execution,
+            &format!("Failed to authorize executing the task: {error:?}"),
+        )
+        .await;
+        return Err(error);
+    };
+
+    let celery_app = get_celery_app().await;
+    let document_id = body.document_id.clone();
 
     let celery_task_results = celery_app
         .send_task(import_templates_task::new(

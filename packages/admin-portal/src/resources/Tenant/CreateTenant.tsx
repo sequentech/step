@@ -62,7 +62,7 @@ export const CreateTenant: React.FC<CreateTenantProps> = ({isDrawerOpen, setIsDr
                     slug,
                 },
             })
-            if (errors || !data?.insertTenant?.id) {
+            if (errors || data?.insertTenant?.error_msg) {
                 setIsLoading(false)
                 updateWidgetFail(currWidget.identifier)
                 return

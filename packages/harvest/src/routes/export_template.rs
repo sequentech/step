@@ -36,15 +36,6 @@ pub async fn export_template(
     let body = input.into_inner();
     let tenant_id = claims.hasura_claims.tenant_id.clone();
 
-    authorize(
-        &claims,
-        true,
-        Some(body.tenant_id.clone()),
-        vec![Permissions::TEMPLATE_WRITE],
-    )?;
-
-    let document_id = Uuid::new_v4().to_string();
-
     let executer_name = claims
         .name
         .clone()
@@ -65,31 +56,43 @@ pub async fn export_template(
         )
     })?;
 
+    if let Err(error) = authorize(
+        &claims,
+        true,
+        Some(body.tenant_id.clone()),
+        vec![Permissions::TEMPLATE_WRITE],
+    ) {
+        let _ = update_fail(
+            &task_execution,
+            &format!("Failed to authorize executing the task: {error:?}"),
+        )
+        .await;
+        return Err(error);
+    };
+
+    let document_id = Uuid::new_v4().to_string();
+
     let celery_app = get_celery_app().await;
     let celery_task = celery_app
         .send_task(export_templates::export_templates::new(
             tenant_id.clone(),
             document_id.clone(),
+            task_execution.clone(),
         ))
         .await;
 
     let _celery_task = match celery_task {
         Ok(celery_task) => celery_task,
         Err(error) => {
-            let _ = update_fail(
-                &task_execution,
-                &format!("Error sending insert_tenant task: {error:?}"),
-            )
-            .await;
-            return Err((
-                Status::InternalServerError,
-                format!("Error sending insert_tenant task: {error:?}"),
-            ));
+            return Ok(Json(ExportTemplateOutput {
+                document_id: document_id.clone(),
+                error_msg: Some(format!(
+                    "Failed to send task to Celery: {error:?}"
+                )),
+                task_execution: task_execution.clone(),
+            }));
         }
     };
-
-    info!("Sent EXPORT_TEMPLATES task {task_execution:?}");
-    let _res = update_complete(&task_execution, None).await;
 
     let output = ExportTemplateOutput {
         document_id,

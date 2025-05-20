@@ -8,6 +8,7 @@ export const INSERT_TENANT = gql`
         insertTenant(slug: $slug) {
             id
             slug
+            error_msg
             task_execution {
                 id
                 name

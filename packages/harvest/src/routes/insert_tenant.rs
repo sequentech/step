@@ -24,6 +24,7 @@ pub struct CreateTenantInput {
 pub struct CreateTenantOutput {
     id: String,
     slug: String,
+    error_msg: Option<String>,
     task_execution: TasksExecution,
 }
 
@@ -33,21 +34,12 @@ pub async fn insert_tenant(
     body: Json<CreateTenantInput>,
     claims: JwtClaims,
 ) -> Result<Json<CreateTenantOutput>, (Status, String)> {
-    authorize(&claims, true, None, vec![Permissions::TENANT_CREATE])?;
-
-    let celery_app = get_celery_app().await;
-
+    let tenant_id = claims.hasura_claims.tenant_id.clone();
     let executer_name = claims
         .name
         .clone()
         .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
 
-    // always set an id;
-    let id = Uuid::new_v4().to_string();
-
-    let tenant_id = claims.hasura_claims.tenant_id.clone();
-
-    // Insert the task execution record
     let task_execution = post(
         &tenant_id,
         None,
@@ -62,34 +54,48 @@ pub async fn insert_tenant(
         )
     })?;
 
+    if let Err(error) =
+        authorize(&claims, true, None, vec![Permissions::TENANT_CREATE])
+    {
+        let _ = update_fail(
+            &task_execution,
+            &format!("Failed to authorize executing the task: {error:?}"),
+        )
+        .await;
+        return Err(error);
+    };
+
+    let celery_app = get_celery_app().await;
+
+    // always set an id;
+    let id = Uuid::new_v4().to_string();
+
     let celery_task_result = celery_app
         .send_task(tasks::insert_tenant::insert_tenant::new(
             id.clone(),
             body.slug.clone(),
+            task_execution.clone(),
         ))
         .await;
 
     let _celery_task = match celery_task_result {
         Ok(task) => task,
         Err(error) => {
-            let _ = update_fail(
-                &task_execution,
-                &format!("Error sending insert_tenant task: {error:?}"),
-            )
-            .await;
-            return Err((
-                Status::InternalServerError,
-                format!("Error sending insert_tenant task: {error:?}"),
-            ));
+            return Ok(Json(CreateTenantOutput {
+                id,
+                slug: body.slug.clone(),
+                task_execution: task_execution.clone(),
+                error_msg: Some(format!(
+                    "Failed to send task to Celery: {error:?}"
+                )),
+            }));
         }
     };
-
-    info!("Sent CREATE_TENANT task {task_execution:?}");
-    let _res = update_complete(&task_execution, None).await;
 
     Ok(Json(CreateTenantOutput {
         id,
         slug: body.slug.clone(),
         task_execution: task_execution.clone(),
+        error_msg: None,
     }))
 }
