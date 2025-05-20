@@ -668,6 +668,7 @@ export const ReviewScreen: React.FC = () => {
                     } catch (error) {
                         sessionStorage.removeItem("ballotData")
                         console.error("Error casting ballot:", error)
+                    }
                 }
             } else {
                 console.log("Navigating to election-chooser")
