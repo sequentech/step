@@ -79,7 +79,15 @@ impl ExportCastVotes {
 
         println!("Getting messages");
         let electoral_log_messages = client
-            .get_electoral_log_messages_filtered(&self.board_db, "CastVote", None, None, None)
+            .get_electoral_log_messages_filtered(
+                &self.board_db,
+                "CastVote",
+                None,
+                None,
+                None,
+                None,
+                None,
+            )
             .await
             .map_err(|err| anyhow!("Failed to get filtered messages: {:?}", err))?;
 

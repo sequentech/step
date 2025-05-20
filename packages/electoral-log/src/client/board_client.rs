@@ -229,8 +229,10 @@ impl BoardClient {
         sender_pk: Option<&str>,
         min_ts: Option<i64>,
         max_ts: Option<i64>,
+        limit: Option<i64>,
+        offset: Option<i64>,
     ) -> Result<Vec<ElectoralLogMessage>> {
-        self.get_filtered(board_db, kind, sender_pk, min_ts, max_ts)
+        self.get_filtered(board_db, kind, sender_pk, min_ts, max_ts, limit, offset)
             .await
     }
 
@@ -241,6 +243,8 @@ impl BoardClient {
         sender_pk: Option<&str>,
         min_ts: Option<i64>,
         max_ts: Option<i64>,
+        limit: Option<i64>,
+        offset: Option<i64>,
     ) -> Result<Vec<ElectoralLogMessage>> {
         let (min_clause, min_clause_value) = if let Some(min_ts) = min_ts {
             ("AND created >= @min_ts", min_ts)
@@ -265,6 +269,7 @@ impl BoardClient {
             r#"
         SELECT
             id,
+            username,
             created,
             sender_pk,
             statement_timestamp,
@@ -276,7 +281,9 @@ impl BoardClient {
         {}
         {}
         {}
-        ORDER BY id;
+        ORDER BY id
+        LIMIT @limit
+        OFFSET @offset;
         "#,
             ELECTORAL_LOG_TABLE, min_clause, max_clause, sender_pk_clause
         );
@@ -311,6 +318,20 @@ impl BoardClient {
                 }),
             })
         }
+
+        params.push(NamedParam {
+            name: String::from("limit"),
+            value: Some(SqlValue {
+                value: Some(Value::N(limit.unwrap_or(IMMUDB_DEFAULT_LIMIT as i64))),
+            }),
+        });
+
+        params.push(NamedParam {
+            name: String::from("offset"),
+            value: Some(SqlValue {
+                value: Some(Value::N(offset.unwrap_or(IMMUDB_DEFAULT_OFFSET as i64))),
+            }),
+        });
 
         let sql_query_response = self.client.sql_query(&sql, params).await?;
         let messages = sql_query_response
@@ -712,27 +733,59 @@ pub(crate) mod tests {
         let ret = b.get_electoral_log_messages(BOARD_DB).await.unwrap();
         assert_eq!(messages, ret);
         let ret = b
-            .get_electoral_log_messages_filtered(BOARD_DB, "", Some(""), None, None)
+            .get_electoral_log_messages_filtered(BOARD_DB, "", Some(""), None, None, None, None)
             .await
             .unwrap();
         assert_eq!(messages, ret);
         let ret = b
-            .get_electoral_log_messages_filtered(BOARD_DB, "", Some(""), Some(1i64), None)
+            .get_electoral_log_messages_filtered(
+                BOARD_DB,
+                "",
+                Some(""),
+                Some(1i64),
+                None,
+                None,
+                None,
+            )
             .await
             .unwrap();
         assert_eq!(messages, ret);
         let ret = b
-            .get_electoral_log_messages_filtered(BOARD_DB, "", Some(""), None, Some(556i64))
+            .get_electoral_log_messages_filtered(
+                BOARD_DB,
+                "",
+                Some(""),
+                None,
+                Some(556i64),
+                None,
+                None,
+            )
             .await
             .unwrap();
         assert_eq!(messages, ret);
         let ret = b
-            .get_electoral_log_messages_filtered(BOARD_DB, "", Some(""), Some(1i64), Some(556i64))
+            .get_electoral_log_messages_filtered(
+                BOARD_DB,
+                "",
+                Some(""),
+                Some(1i64),
+                Some(556i64),
+                None,
+                None,
+            )
             .await
             .unwrap();
         assert_eq!(messages, ret);
         let ret = b
-            .get_electoral_log_messages_filtered(BOARD_DB, "", Some(""), Some(556i64), Some(666i64))
+            .get_electoral_log_messages_filtered(
+                BOARD_DB,
+                "",
+                Some(""),
+                Some(556i64),
+                Some(666i64),
+                None,
+                None,
+            )
             .await
             .unwrap();
         assert_eq!(ret.len(), 0);
