@@ -283,6 +283,7 @@ const ConfirmationScreen: React.FC = () => {
     const [openDemoBallotUrlHelp, setDemoBallotUrlHelp] = useState(false)
     const {hashBallot, hashMultiBallot} = provideBallotService()
     const oneBallotStyle = useAppSelector(selectFirstBallotStyle)
+    
     const getBallotId = (): {
         ballotIdStored: string | undefined
         isDemoStored: boolean | undefined

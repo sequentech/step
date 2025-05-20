@@ -268,12 +268,18 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     })
 
     const castBallotAction = async () => {
+        console.log("aa let's go castBallotAction", isDemo)
+
         const isGoldenPolicy =
             ballotStyle?.ballot_eml.election_presentation?.cast_vote_gold_level ===
             ECastVoteGoldLevelPolicy.GOLD_LEVEL
         const errorType = VotingPortalErrorType.UNABLE_TO_CAST_BALLOT
+
+        console.log("aa effect auditableBallot", auditableBallot)
+
         if (isDemo || globalSettings.DISABLE_AUTH) {
             if (isGoldenPolicy) {
+                console.log("aa let's go casting for golden")
                 // Save contests to session storage and perform reauthentication
                 const ballotData: SessionBallotData = {
                     ballotId,
@@ -285,23 +291,27 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                 try {
                     const baseUrl = new URL(window.location.href)
                     await reauthWithGold(baseUrl.toString())
+                    console.log("aa faking casting demo vote data", ballotData)
                     return submit(null, {method: "post"})
                 } catch (error) {
                     console.error("Re-authentication failed:", error)
                     return submit({error: errorType}, {method: "post"})
                 }
             }
-            console.log("faking casting demo vote")
             const newCastVote = fakeCastVote()
+            console.log("aa faking casting demo vote", newCastVote)
             dispatch(addCastVotes([newCastVote]))
             return submit(null, {method: "post"})
         }
+
         isCastingBallot.current = true
 
         try {
             const {data} = await refetchElectionEvent()
 
-            if (!(data && data.sequent_backend_election_event.length > 0)) {
+            // The code checks whether there are any election events available in the backend data
+            // before proceeding with ballot casting
+            if (!(data?.sequent_backend_election_event?.length > 0)) {
                 isCastingBallot.current = false
                 setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.LOAD_ELECTION_EVENT}`))
                 return submit({error: errorType}, {method: "post"})
@@ -310,6 +320,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
             const record = data?.sequent_backend_election_event?.[0]
             const eventStatus = record?.status as IElectionEventStatus | undefined
 
+            // This code checks if an election event is open for voting and handles the error case when it's not
             if (eventStatus?.voting_status !== EVotingStatus.OPEN) {
                 isCastingBallot.current = false
                 setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.ELECTION_EVENT_NOT_OPEN}`))
@@ -323,6 +334,8 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
             const hashableBallot = isMultiContest
                 ? toHashableMultiBallot(auditableBallot as IAuditableMultiBallot)
                 : toHashableBallot(auditableBallot as IAuditableSingleBallot)
+
+            console.log("aa hashableBallot", hashableBallot)
 
             if (isGoldenPolicy) {
                 // Save contests to session storage and perform reauthentication
@@ -350,6 +363,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                     content: JSON.stringify(hashableBallot),
                 },
             })
+
             if (result.errors) {
                 // As the exception occurs above this error is not set, leading
                 // to unknown error.
@@ -359,6 +373,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
             }
 
             let newCastVote = result.data?.insert_cast_vote
+
             if (newCastVote) {
                 dispatch(addCastVotes([newCastVote]))
             }
@@ -501,6 +516,10 @@ export const ReviewScreen: React.FC = () => {
 
     const ballotId = auditableBallot && hashableBallot
 
+    // console.log("aa auditableBallot", auditableBallot);
+    // console.log("aa hashableBallot", hashableBallot);
+    // console.log("aa hashableBallot", ballotId);
+
     const selectionState = useAppSelector(
         selectBallotSelectionByElectionId(ballotStyle?.election_id ?? "")
     )
@@ -553,18 +572,20 @@ export const ReviewScreen: React.FC = () => {
             | undefined
 
         if (!ballotData) {
-            console.log("No stored ballot found")
+            console.log("aa No stored ballot found")
             isCastingBallot.current = false
             setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.UNABLE_TO_FETCH_DATA}`))
             return submit({error: errorType}, {method: "post"})
         }
 
         if (ballotData?.isDemo) {
-            console.log("faking casting demo vote")
+            console.log("aa faking casting demo vote")
             const newCastVote = fakeCastVote()
             dispatch(addCastVotes([newCastVote]))
             return submit(null, {method: "post"})
         }
+
+        console.log("aa continue cast")
 
         try {
             const {data} = await refetchElectionEvent()
@@ -583,6 +604,7 @@ export const ReviewScreen: React.FC = () => {
                 setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.ELECTION_EVENT_NOT_OPEN}`))
                 return submit({error: errorType.toString()}, {method: "post"})
             }
+
             let result = await insertCastVote({
                 variables: {
                     electionId: ballotData.electionId,
@@ -590,6 +612,7 @@ export const ReviewScreen: React.FC = () => {
                     content: ballotData.ballot,
                 },
             })
+
             // cause error for testing
             if (result.errors) {
                 // As the exception occurs above this error is not set, leading
@@ -621,26 +644,37 @@ export const ReviewScreen: React.FC = () => {
     }
 
     useEffect(() => {
+        console.log("aa effect final")
+
+        console.log("aa ===================")
+        console.log("aa effect ballotStyle", ballotStyle)
+        console.log("aa effect selectionState", selectionState)
+        console.log("aa effect auditableBallot", auditableBallot)
+        console.log("aa effect isGoldenPolicy", isGoldenPolicy)
+        console.log("aa effect isGoldUser()", isGoldUser())
+        console.log("aa ===================")
+        console.log(
+            "aa effect entro?",
+            (!ballotStyle || !auditableBallot || !selectionState) && isGoldenPolicy
+        )
+
         if ((!ballotStyle || !auditableBallot || !selectionState) && isGoldenPolicy) {
             if (isGoldUser()) {
                 if (!isCastingBallot.current) {
-                    console.log("Gold user flow")
+                    console.log("aa Gold user flow")
                     isCastingBallot.current = true
-                    automaticCastBallot()
-                        .then(() => {
-                            console.log("automaticCastBallot succeeded. Navigating to confirmation")
-                        })
-                        .catch((error) => {
-                            sessionStorage.removeItem("ballotData")
-                            console.error("Error casting ballot:", error)
-                        })
+                    try {
+                        automaticCastBallot()
+                    } catch (error) {
+                        sessionStorage.removeItem("ballotData")
+                        console.error("Error casting ballot:", error)
                 }
             } else {
                 console.log("Navigating to election-chooser")
                 navigate(`/tenant/${tenantId}/event/${eventId}/election-chooser`)
             }
         } else {
-            console.log("Normal flow")
+            console.log("aa Normal flow")
         }
     }, [ballotStyle, selectionState, auditableBallot, isGoldenPolicy])
 
