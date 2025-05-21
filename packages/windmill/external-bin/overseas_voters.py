@@ -9,17 +9,36 @@ import argparse
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import logging
-from concurrent.futures import ThreadPoolExecutor
-from typing import List, Dict, Optional, Tuple, Set
+from typing import List, Dict, Optional, Tuple
+import tempfile
+import subprocess # For system sort
+import shutil # For fallback copy operations
 
-# Set up logging
+# --- Global Constants ---
+REALM_NAME = "tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-e3713d09-a955-48ad-9bc4-4177a158a3f1"
+TENANT_ID = "90505c8a-23a9-4cdf-a26b-4e19f6a097d5"
+ELECTION_EVENT_ID_CONST = "e3713d09-a955-48ad-9bc4-4177a158a3f1"
+
+AREA_ID_ATTR_NAME = "area-id"
+VALIDATE_ID_ATTR_NAME = "validate_id"
+VALIDATE_ID_REGISTERED_VOTER = "registered-voter"
+
+FINAL_CSV_FIELDNAMES = [
+    'Voter ID', 'Username', 'First Name', 'Middle Name', 'Last Name',
+    'Suffix', 'Area', 'Registered', 'Voted', 'Vote Date'
+]
+# Sort order: Last Name, First Name, Middle Name
+SYSTEM_SORT_PRIMARY_KEYS = ['Last Name', 'First Name', 'Middle Name']
+
+
+# --- Logging Setup ---
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
 
-# Database connection information will come from environment variables
+# --- Database Configuration ---
 HASURA_DB_CONFIG = {
     'user': os.environ.get('HASURA_DB__USER'),
     'password': os.environ.get('HASURA_DB__PASSWORD'),
@@ -27,7 +46,6 @@ HASURA_DB_CONFIG = {
     'port': os.environ.get('HASURA_DB__PORT', '5432'),
     'dbname': os.environ.get('HASURA_DB__DBNAME', 'hasura')
 }
-
 KEYCLOAK_DB_CONFIG = {
     'user': os.environ.get('KEYCLOAK_DB__USER'),
     'password': os.environ.get('KEYCLOAK_DB__PASSWORD'),
@@ -36,13 +54,9 @@ KEYCLOAK_DB_CONFIG = {
     'dbname': os.environ.get('KEYCLOAK_DB__DBNAME', 'keycloak')
 }
 
-# Constants from the Rust code
-AREA_ID_ATTR_NAME = "area_id"
-VALIDATE_ID_ATTR_NAME = "validate_id"
-VALIDATE_ID_REGISTERED_VOTER = "registered-voter"
+# --- Helper Functions ---
 
 def connect_to_db(config: Dict[str, str]):
-    """Establish a database connection with the given configuration."""
     try:
         conn = psycopg2.connect(**config)
         return conn
@@ -50,608 +64,428 @@ def connect_to_db(config: Dict[str, str]):
         logger.error(f"Database connection error: {e}")
         raise
 
-def get_realm_id(conn, realm_name: str) -> str:
-    """Get the realm ID from Keycloak database."""
-    with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+# --- Database Query Functions ---
+def get_election_by_alias_pattern(hasura_conn, tenant_id: str, election_event_id: str, alias_pattern: str) -> Optional[Dict]:
+    """Get the first election whose alias matches the pattern (ILIKE), ordered deterministically."""
+    sql_like_pattern = alias_pattern
+    if '%' not in sql_like_pattern and '_' not in sql_like_pattern:
+        sql_like_pattern = f"%{alias_pattern}%"
+    
+    logger.info(f"Searching for election with alias pattern: '{sql_like_pattern}'")
+    with hasura_conn.cursor(cursor_factory=RealDictCursor) as cursor:
         cursor.execute("""
-            SELECT id::VARCHAR AS id
-            FROM realm
-            WHERE realm.name = %s
-        """, (realm_name,))
-        
-        rows = cursor.fetchall()
-        if not rows:
-            raise ValueError(f"Realm not found: {realm_name}")
-        if len(rows) > 1:
-            raise ValueError(f"Found too many realms with same name: {len(rows)}")
-        
-        return rows[0]['id']
+            SELECT id, alias, name
+            FROM sequent_backend.election
+            WHERE tenant_id = %s AND election_event_id = %s AND alias ILIKE %s
+            ORDER BY alias, id -- Deterministic ordering for "first"
+            LIMIT 1
+        """, (tenant_id, election_event_id, sql_like_pattern))
+        row = cursor.fetchone()
+        return row
 
 def get_areas_by_election_id(hasura_conn, tenant_id: str, election_event_id: str, election_id: str) -> List[Dict]:
-    """Get areas related to a specific election."""
     with hasura_conn.cursor(cursor_factory=RealDictCursor) as cursor:
         cursor.execute("""
-            SELECT DISTINCT ON (a.id)
-                a.*
-            FROM
-                sequent_backend.area a
-            JOIN
-                sequent_backend.area_contest ac ON
-                    a.id = ac.area_id AND
-                    a.election_event_id = ac.election_event_id AND
-                    a.tenant_id = ac.tenant_id
-            JOIN
-                sequent_backend.contest c ON
-                    ac.contest_id = c.id AND
-                    ac.election_event_id = c.election_event_id AND
-                    ac.tenant_id = c.tenant_id
-            WHERE
-                c.tenant_id = %s AND
-                c.election_event_id = %s AND
-                c.election_id = %s
-        """, (
-            tenant_id,
-            election_event_id,
-            election_id,
-        ))
-        
+            SELECT DISTINCT ON (a.id) a.* FROM sequent_backend.area a
+            JOIN sequent_backend.area_contest ac ON a.id = ac.area_id AND a.election_event_id = ac.election_event_id AND a.tenant_id = ac.tenant_id
+            JOIN sequent_backend.contest c ON ac.contest_id = c.id AND ac.election_event_id = c.election_event_id AND ac.tenant_id = c.tenant_id
+            WHERE c.tenant_id = %s AND c.election_event_id = %s AND c.election_id = %s
+        """, (tenant_id, election_event_id, election_id))
         return cursor.fetchall()
 
-def get_election_by_id(hasura_conn, tenant_id: str, election_event_id: str, election_id: str) -> Optional[Dict]:
-    """Get election details by ID."""
-    with hasura_conn.cursor(cursor_factory=RealDictCursor) as cursor:
-        cursor.execute("""
-            SELECT
-                *
-            FROM
-                sequent_backend.election
-            WHERE
-                tenant_id = %s AND
-                election_event_id = %s AND
-                id = %s
-        """, (
-            tenant_id,
-            election_event_id,
-            election_id,
-        ))
-        
-        rows = cursor.fetchall()
-        return rows[0] if rows else None
 
 def get_non_test_elections(hasura_conn, tenant_id: str, election_event_id: str) -> List[Dict]:
-    """Get all non-test elections."""
+    logger.info(f"getting non test election for tenant_id={tenant_id} and election_event_id={election_event_id}")
     with hasura_conn.cursor(cursor_factory=RealDictCursor) as cursor:
-        cursor.execute("""
-            SELECT
-                *
-            FROM
-                sequent_backend.election
-            WHERE
-                tenant_id = %s AND
-                election_event_id = %s AND
-                name NOT ILIKE '%Test%' AND
-                alias NOT ILIKE '%Test%'
-        """, (
-            tenant_id,
-            election_event_id,
-        ))
-        
+        cursor.execute(f"""
+            SELECT id FROM sequent_backend.election
+            WHERE tenant_id = '{tenant_id}' AND election_event_id = '{election_event_id}'
+            AND name NOT ILIKE '%Test%' AND (alias IS NULL OR alias NOT ILIKE '%Test%')
+        """)
         return cursor.fetchall()
 
-def get_voters_by_area_id(keycloak_conn, realm: str, area_id: str, 
+
+def get_voters_by_area_id(keycloak_conn, realm_name: str, area_id_value: str,
                           batch_size: int = 1000, offset: int = 0) -> Tuple[List[Dict], Optional[int]]:
-    """
-    Get voters by area ID with pagination.
-    Returns a tuple of (voters_list, next_offset)
-    """
     with keycloak_conn.cursor(cursor_factory=RealDictCursor) as cursor:
         sql = f"""
         SELECT
-            u.id,
-            u.first_name,
-            u.last_name,
-            u.username,
+            u.id, u.first_name, u.last_name, u.username,
             COALESCE(attr_json.attributes ->> 'middleName', '') AS middle_name,
             COALESCE(attr_json.attributes ->> 'suffix', '') AS suffix,
             COALESCE(attr_json.attributes ->> '{VALIDATE_ID_ATTR_NAME}', '') AS validate_id,
             COUNT(u.id) OVER() AS total_count
-        FROM
-            user_entity u
-        INNER JOIN
-            realm AS ra ON ra.id = u.realm_id
+        FROM user_entity u
+        INNER JOIN realm AS ra ON ra.id = u.realm_id
         LEFT JOIN LATERAL (
-            SELECT
-                json_object_agg(ua.name, ua.value) AS attributes
-            FROM user_attribute ua
-            WHERE ua.user_id = u.id
-            GROUP BY ua.user_id
+            SELECT json_object_agg(ua.name, ua.value) AS attributes
+            FROM user_attribute ua WHERE ua.user_id = u.id GROUP BY ua.user_id
         ) attr_json ON true
         WHERE
             ra.name = %s AND
             EXISTS (
-                SELECT 1
-                FROM user_attribute ua
-                WHERE ua.user_id = u.id
-                AND ua.name = '{AREA_ID_ATTR_NAME}'
-                AND ua.value = %s
+                SELECT 1 FROM user_attribute ua_area
+                WHERE ua_area.user_id = u.id
+                AND ua_area.name = '{AREA_ID_ATTR_NAME}'
+                AND ua_area.value = %s
             )
-        ORDER BY u.last_name, u.first_name
+        ORDER BY u.id
         LIMIT %s OFFSET %s
         """
-        
-        cursor.execute(sql, (realm, area_id, batch_size, offset))
+        cursor.execute(sql, (realm_name, area_id_value, batch_size, offset))
         rows = cursor.fetchall()
-        
-        # Process the results
-        voters = []
-        for row in rows:
-            voter = {
-                'id': row['id'],
-                'first_name': row['first_name'],
-                'last_name': row['last_name'],
-                'username': row['username'],
-                'middle_name': row['middle_name'],
-                'suffix': row['suffix'],
-                'status': None if row['validate_id'] == VALIDATE_ID_REGISTERED_VOTER else "Did Not Pre-enroll",
-                'date_voted': None,
-                'registered': row['validate_id'] == VALIDATE_ID_REGISTERED_VOTER
-            }
-            voters.append(voter)
-        
-        # Calculate next offset for pagination
+        voters = [{
+            'id': row['id'], 'first_name': row.get('first_name'), 'last_name': row.get('last_name'),
+            'username': row.get('username'), 'middle_name': row.get('middle_name'),
+            'suffix': row.get('suffix'),
+            'registered': row.get('validate_id') == VALIDATE_ID_REGISTERED_VOTER
+        } for row in rows]
         total_count = int(rows[0]['total_count']) if rows else 0
         next_offset = offset + len(rows) if offset + len(rows) < total_count else None
-        
         return voters, next_offset
-
-def get_cast_votes(hasura_conn, tenant_id: str, election_event_id: str, 
-                  area_id: Optional[str] = None, election_ids: Optional[List[str]] = None,
-                  batch_size: int = 1000, offset: int = 0) -> List[Dict]:
-    """
-    Get cast votes for specific election(s) and area, filtered to only include 
-    non-test elections. Uses streaming through batches.
-    """
-    election_filter = "AND v.election_id = ANY(%s)" if election_ids else ""
-    area_filter = "AND v.area_id = %s" if area_id else ""
-    
-    with hasura_conn.cursor(cursor_factory=RealDictCursor) as cursor:
-        sql = f"""
-        SELECT 
-            v.voter_id_string,
-            v.election_id,
-            MAX(v.created_at) AS voted_date,
-            e.name AS election_name,
-            e.alias AS election_alias
-        FROM 
-            sequent_backend.cast_vote v
-        JOIN
-            sequent_backend.election e ON v.election_id = e.id
-        WHERE 
-            v.tenant_id = %s AND
-            v.election_event_id = %s
-            {area_filter}
-            {election_filter}
-            AND e.name NOT ILIKE '%Test%'
-            AND (e.alias IS NULL OR e.alias NOT ILIKE '%Test%')
-        GROUP BY 
-            v.voter_id_string, 
-            v.election_id,
-            e.name,
-            e.alias
-        ORDER BY 
-            v.voter_id_string
-        LIMIT %s OFFSET %s
-        """
-        
-        params = [tenant_id, election_event_id]
-        if area_id:
-            params.append(area_id)
-        if election_ids:
-            params.append(election_ids)
-        params.extend([batch_size, offset])
-        
-        cursor.execute(sql, params)
-        return cursor.fetchall()
-
-def process_area(area: Dict, tenant_id: str, election_event_id: str, election_id: str, 
-                realm: str, output_file: str, hasura_conn, keycloak_conn) -> None:
-    """
-    Process a single area - retrieve voters and their voting status,
-    then write to CSV using streaming.
-    """
-    area_id = area['id']
-    area_name = area.get('name', '')
-    
-    logger.info(f"Processing area: {area_name} (ID: {area_id})")
-    
-    # Get non-test election IDs for this election event
-    non_test_elections = get_non_test_elections(hasura_conn, tenant_id, election_event_id)
-    non_test_election_ids = [e['id'] for e in non_test_elections]
-    
-    # Open the output file in append mode to collect all areas
-    with open(output_file, 'a', newline='') as csvfile:
-        fieldnames = ['Voter ID', 'Username', 'First Name', 'Middle Name', 'Last Name', 
-                     'Suffix', 'Area', 'Registered', 'Voted', 'Vote Date']
-        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-        
-        # Write header only if file is empty
-        if csvfile.tell() == 0:
-            writer.writeheader()
-        
-        # Get all cast votes for this area - we'll use in-memory dictionary 
-        # since votes are typically far fewer than voters
-        vote_dict = {}
-        offset = 0
-        while True:
-            votes_batch = get_cast_votes(
-                hasura_conn, 
-                tenant_id, 
-                election_event_id, 
-                area_id, 
-                non_test_election_ids,
-                batch_size=1000, 
-                offset=offset
-            )
-            
-            if not votes_batch:
-                break
-                
-            for vote in votes_batch:
-                voter_id = vote['voter_id_string']
-                if voter_id not in vote_dict or vote['voted_date'] > vote_dict[voter_id]['voted_date']:
-                    vote_dict[voter_id] = vote
-                    
-            offset += len(votes_batch)
-            if len(votes_batch) < 1000:
-                break                                                                                                                                                                 
-            params.append(election_ids)
-        params.extend([batch_size, offset])
-
-        cursor.execute(sql, params)
-        return cursor.fetchall()
-
-def process_area(area: Dict, tenant_id: str, election_event_id: str, election_id: str,
-                realm: str, output_file: str, hasura_conn, keycloak_conn) -> None:
-    """
-    Process a single area - retrieve voters and their voting status,
-    then write to CSV using streaming.
-    """
-    area_id = area['id']
-    area_name = area.get('name', '')
-
-    logger.info(f"Processing area: {area_name} (ID: {area_id})")
-
-    # Get non-test election IDs for this election event
-    non_test_elections = get_non_test_elections(hasura_conn, tenant_id, election_event_id)
-    non_test_election_ids = [e['id'] for e in non_test_elections]
-
-    # Open the output file in append mode to collect all areas
-    with open(output_file, 'a', newline='') as csvfile:
-        fieldnames = ['Voter ID', 'Username', 'First Name', 'Middle Name', 'Last Name',
-                     'Suffix', 'Area', 'Registered', 'Voted', 'Vote Date']
-        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-
-        # Write header only if file is empty
-        if csvfile.tell() == 0:
-            writer.writeheader()
-
-        # Get all cast votes for this area - we'll use in-memory dictionary
-        # since votes are typically far fewer than voters
-        vote_dict = {}
-        offset = 0
-        while True:
-            votes_batch = get_cast_votes(
-                hasura_conn,
-                tenant_id,
-                election_event_id,
-                area_id,
-                non_test_election_ids,
-                batch_size=1000,
-                offset=offset
-            )
-
-            if not votes_batch:
-                break
-
-            for vote in votes_batch:
-                voter_id = vote['voter_id_string']
-                if voter_id not in vote_dict or vote['voted_date'] > vote_dict[voter_id]['voted_date']:
-                    vote_dict[voter_id] = vote
-
-            offset += len(votes_batch)
-            if len(votes_batch) < 1000:
-                break
 
 def get_cast_votes(
     hasura_conn,
     tenant_id: str,
     election_event_id: str,
-    area_id: Optional[str] = None,
-    election_ids: Optional[List[str]] = None,
+    election_id: str,
+    area_id: str,
     batch_size: int = 1000,
     offset: int = 0
 ) -> List[Dict]:
-    """
-    Get cast votes for specific election(s) and area, filtered to only include
-    non-test elections. Uses streaming through batches.
-    """
-    election_filter = "AND v.election_id = ANY(%s)" if election_ids else ""
-    area_filter = "AND v.area_id = %s" if area_id else ""
-
     with hasura_conn.cursor(cursor_factory=RealDictCursor) as cursor:
         sql = f"""
-        SELECT
-            v.voter_id_string,
-            v.election_id,
-            MAX(v.created_at) AS voted_date,
-            e. name AS election_name,
-            e.alias AS election_alias
-        FROM
-            sequent_backend.cast_vote v
-        JOIN
-            sequent_backend. election e ON v.election_id = e. id
-        WHERE
-            v. tenant_id = %s AND
-            v.election_event_id = %s
-            {area_filter}
-            {election_filter}
-            AND e.name NOT ILIKE '%test%'
-            AND (e.alias IS NULL OR e.alias NOT ILIKE '%test%' )
-        GROUP BY
-            v.voter_id_string,
-            v.election_id,
-            e.name, e.alias
-        ORDER BY
-            v.voter_id_string
-        LIMIT %S OFFSET %s
+        WITH RankedVotes AS (
+            SELECT
+                v.voter_id_string, v.created_at AS voted_date,
+                ROW_NUMBER() OVER(PARTITION BY v.voter_id_string ORDER BY v.created_at DESC) as rn
+            FROM sequent_backend.cast_vote v
+            JOIN sequent_backend.election e ON v.election_id = e.id
+                AND v.tenant_id = e.tenant_id 
+                AND v.election_event_id = e.election_event_id
+            WHERE
+                v.tenant_id = '{tenant_id}' AND
+                v.election_event_id = '{election_event_id}' AND
+                v.election_id = '{election_id}' AND
+                v.area_id = '{area_id}'
+        )
+        SELECT voter_id_string, voted_date FROM RankedVotes
+        WHERE rn = 1 ORDER BY voter_id_string LIMIT {batch_size} OFFSET {offset}
         """
-
-        params = [tenant_id, election_event_id]
-        if area_id:
-            params.append(area_id)
-        if election_ids:
-            params.append(election_ids)
-        params.extend([batch_size, offset])
-
-        cursor.execute(sql, params)
+        cursor.execute(sql, ())
         return cursor.fetchall()
 
-def process_area(
-    area: Dict, 
-    tenant_id: str, 
-    election_event_id: str, 
+
+# --- File Dumping Helper Functions ---
+def dump_all_voters_to_file(keycloak_conn, realm_name: str, area_id_value: str, temp_voter_filename: str) -> int:
+    logger.info(f"Dumping all voters for area {area_id_value} to {temp_voter_filename}")
+    total_voters_dumped = 0
+    with open(temp_voter_filename, 'w', newline='', encoding='utf-8') as f_voters:
+        voter_writer = csv.writer(f_voters)
+        voter_writer.writerow(['id', 'username', 'first_name', 'middle_name', 'last_name', 'suffix', 'registered_str'])
+        offset, batch_size = 0, 1000
+        while True:
+            voters_batch, next_offset = get_voters_by_area_id(
+                keycloak_conn, realm_name, area_id_value, batch_size, offset)
+            if not voters_batch: break
+            
+            batch_dump_count = 0
+            for v_data in voters_batch:
+                voter_writer.writerow([
+                    v_data['id'], v_data.get('username', ''), v_data.get('first_name', ''),
+                    v_data.get('middle_name', ''), v_data.get('last_name', ''),
+                    v_data.get('suffix', ''), 'Yes' if v_data.get('registered') else 'No'])
+                batch_dump_count += 1
+            total_voters_dumped += batch_dump_count
+            logger.info(f"Dumped {batch_dump_count} voters (batch) for area {area_id_value}. Total dumped for this area so far: {total_voters_dumped}")
+
+            if not next_offset: break
+            offset = next_offset
+    logger.info(f"Finished dumping voters for area {area_id_value}. Total voters dumped: {total_voters_dumped}.")
+    return total_voters_dumped
+
+
+def dump_all_cast_votes_to_file(
+    hasura_conn,
+    tenant_id: str,
+    election_event_id: str,
     election_id: str,
-    realm: str, 
-    output_file: str, 
-    hasura_conn, 
-    keycloak_conn
-) -> None:
-    """
-    Process a single area - retrieve voters and their voting status,
-    then write to CSV using streaming.
-    """
-    area_id = area['id']
-    area_name = area.get('name', '')
-
-    logger.info(f"Processing area: {area_name} (ID: {area_id})")
-
-    # Get non-test election IDs for this election event
-    non_test_elections = get_non_test_elections(hasura_conn, tenant_id, election_event_id)
-    non_test_election_ids = [e['id'] for e in non_test_elections]
-
-    # Open the output file in append mode to collect all areas
-    with open(output_file, 'a', newline='') as csvfile:
-        fieldnames = ['Voter ID', 'Username', 'First Name', 'Middle Name', 'Last Name',
-                     'Suffix', 'Area', 'Registered', 'Voted', 'Vote Date']
-        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-
-        # Write header only if file is empty
-        if csvfile.tell() == 0:
-            writer.writeheader()
-
-        # Get all cast votes for this area - we'll use in-memory dictionary
-        # since votes are typically far fewer than voters
-        vote_dict = {}
-        offset = 0
+    area_id_value: str,
+    temp_vote_filename: str) -> int:
+    logger.info(f"Dumping all cast votes for area {area_id_value} to {temp_vote_filename}")
+    total_votes_dumped = 0
+    with open(temp_vote_filename, 'w', newline='', encoding='utf-8') as f_votes:
+        vote_writer = csv.writer(f_votes)
+        vote_writer.writerow(['voter_id', 'voted_date_iso'])
+        offset, batch_size = 0, 1000
         while True:
             votes_batch = get_cast_votes(
-                hasura_conn,
-                tenant_id,
-                election_event_id,
-                area_id,
-                non_test_election_ids,
-                batch_size=1000,
-                offset=offset
-            )
+                hasura_conn, tenant_id, election_event_id, election_id, area_id_value, batch_size, offset)
+            if not votes_batch: break
+            
+            batch_dump_count = 0
+            for vote_data in votes_batch:
+                vote_writer.writerow([vote_data['voter_id_string'], vote_data['voted_date'].isoformat()])
+                batch_dump_count +=1
+            total_votes_dumped += batch_dump_count
+            logger.info(f"Dumped {batch_dump_count} cast votes (batch) for area {area_id_value}. Total dumped for this area so far: {total_votes_dumped}")
 
-            if not votes_batch:
-                break
-
-            for vote in votes_batch:
-                voter_id = vote['voter_id_string']
-                if voter_id not in vote_dict or vote['voted_date'] > vote_dict[voter_id]['voted_date']:
-                    vote_dict[voter_id] = vote
-
+            if len(votes_batch) < batch_size: break # No more full batches means we are done
             offset += len(votes_batch)
-            if len(votes_batch) < 1000:
-                break
+    logger.info(f"Finished dumping cast votes for area {area_id_value}. Total votes dumped: {total_votes_dumped}.")
+    return total_votes_dumped
 
-        # Now stream all voters and join with votes information
-        offset = 0
-        while True:
-            voters_batch, next_offset = get_voters_by_area_id(
-                keycloak_conn,
-                realm,
-                area_id,
-                batch_size=1000,
-                offset=offset
-            )
-            if not voters_batch:
-                break
+# --- Core Processing Function ---
+def process_area(area_dict: Dict, tenant_id: str, election_event_id: str,
+                keycloak_realm_name: str, main_temp_output_file: str,
+                election_id: str,
+                hasura_conn, keycloak_conn) -> int:
+    area_id = area_dict['id']
+    area_name = area_dict.get('name', '')
+    logger.info(f"Processing area: {area_name} (ID: {area_id}) using file-based merge.")
 
-            # Process each voter and join with voting info
-            for voter in voters_batch:
-                voter_id = voter['id']
-                vote_info = vote_dict.get(voter_id)
+    temp_voters_file, temp_votes_file = None, None
+    num_voters_for_area = 0
+    num_votes_for_area = 0
+    written_records_count = 0
+    try:
+        with tempfile.NamedTemporaryFile(mode='w', delete=False, prefix=f"area_{area_id}_voters_", suffix='.csv') as tmp_f_v:
+            temp_voters_file = tmp_f_v.name
+        num_voters_for_area = dump_all_voters_to_file(keycloak_conn, keycloak_realm_name, area_id, temp_voters_file)
 
-                # Write to CSV
-                writer.writerow({
-                    'Voter ID': voter_id,
-                    'Username': voter.get('username', ''),
-                    'First Name': voter.get('first_name', ''),
-                    'Middle Name': voter.get('middle_name', ''),
-                    'Last Name': voter.get('last_name', ''),
-                    'Suffix': voter.get('suffix', ''),
-                    'Area': area_name,
-                    'Registered': 'Yes' if voter.get('registered') else 'No',
-                    'Voted': 'Yes' if vote_info else 'No',
-                    'Vote Date': vote_info['voted_date'] if vote_info else ''
-                })
+        with tempfile.NamedTemporaryFile(mode='w', delete=False, prefix=f"area_{area_id}_votes_", suffix='.csv') as tmp_f_c:
+            temp_votes_file = tmp_f_c.name
+        num_votes_for_area = dump_all_cast_votes_to_file(hasura_conn, tenant_id, election_event_id, election_id, area_id, temp_votes_file)
+        
+        logger.info(f"Area {area_name} (ID: {area_id}): Dumped {num_voters_for_area} voters and {num_votes_for_area} cast vote records to temporary files.")
 
-            if not next_offset:
-                break
+        if num_voters_for_area == 0:
+            logger.info(f"No voters found for area {area_name} (ID: {area_id}). Skipping merge; 0 records will be written for this area.")
+        else:
+            with open(main_temp_output_file, 'a', newline='', encoding='utf-8') as main_csv_f, \
+                 open(temp_voters_file, 'r', newline='', encoding='utf-8') as voters_f, \
+                 open(temp_votes_file, 'r', newline='', encoding='utf-8') as votes_f:
 
-            offset = next_offset
+                main_writer = csv.DictWriter(main_csv_f, fieldnames=FINAL_CSV_FIELDNAMES)
+                voter_reader, vote_reader = csv.DictReader(voters_f), csv.DictReader(votes_f)
+                current_voter, current_vote = next(voter_reader, None), next(vote_reader, None)
 
-    logger.info(f"Completed processing area: {area_name}")
+                while current_voter:
+                    v_id = current_voter['id']
+                    voted, vote_date = 'No', ''
+                    while current_vote and current_vote['voter_id'] < v_id: current_vote = next(vote_reader, None)
+                    if current_vote and current_vote['voter_id'] == v_id:
+                        voted, vote_date = 'Yes', current_vote['voted_date_iso']
+                        current_vote = next(vote_reader, None)
+                    
+                    main_writer.writerow({
+                        'Voter ID': v_id, 'Username': current_voter.get('username', ''),
+                        'First Name': current_voter.get('first_name', ''), 'Middle Name': current_voter.get('middle_name', ''),
+                        'Last Name': current_voter.get('last_name', ''), 'Suffix': current_voter.get('suffix', ''),
+                        'Area': area_name, 'Registered': current_voter.get('registered_str', 'No'),
+                        'Voted': voted, 'Vote Date': vote_date})
+                    written_records_count += 1
+                    current_voter = next(voter_reader, None)
+    finally:
+        for f_path in [temp_voters_file, temp_votes_file]:
+            if f_path and os.path.exists(f_path): os.remove(f_path); logger.debug(f"Removed temp file: {f_path}")
+    logger.info(f"Completed processing area (file-based): {area_name} (ID: {area_id}). Wrote {written_records_count} records to combined report.")
+    return written_records_count
 
-def main():
-    parser = argparse.ArgumentParser(description='Generate list of overseas voters and their registration/voting status')
-    parser.add_argument('election_id', help='The election ID to process')
-    parser.add_argument('--output', default='overseas_voters.csv', help='Output CSV file (default: overseas_voters.csv)')
-    parser.add_argument('--tenant-id', default=os.environ.get('SUPER_ADMIN_TENANT_ID'), help='Tenant ID')
-    parser.add_argument('--election-event-id', help='Election event ID')
-    parser.add_argument('--batch-size', type=int, default=1000, help='Batch size for database queries')
-    parser.add_argument('--threads', type=int, default=1, help='Number of threads to use for processing')
+# --- Final Output Sorting Function (Using System `sort`) ---
+def sort_csv_with_system_sort(input_filename: str, output_filename: str, header_fields: List[str], sort_key_names: List[str]) -> int:
+    logger.info(f"Sorting '{input_filename}' by {sort_key_names} using system sort -> '{output_filename}'.")
 
-    args = parser.parse_args()
-
-    # Validate required arguments
-    if not args.tenant_id:
-        parser.error("Tenant ID must be provided either through --tenant-id or SUPER_ADMIN_TENANT_ID environment variable")
-
-    # Connect to databases
-    logger.info("Connecting to databases...")
-    hasura_conn = connect_to_db(HASURA_DB_CONFIG)
-    keycloak_conn = connect_to_db(KEYCLOAK_DB_CONFIG)
+    header_line = ""
+    data_temp_path = None
+    sorted_data_temp_path = None
+    data_lines_count = 0 
 
     try:
-        # Retrieve election information
-        election = get_election_by_id(hasura_conn, args.tenant_id, args.election_event_id, args.election_id)
-        if not election:
-            logger.error(f"Election not found: {args.election_id}")
-            return 1
-
-        logger.info(f"Processing election: {election.get('name', '')} (ID: {args.election_id})")
-
-        # Determine the realm for Keycloak queries
-        realm = f"tenant-{args.tenant_id}-event-{args.election_event_id}"
-        # Now stream all voters and join with votes information
-        offset = 0
-        while True:
-            voters_batch, next_offset = get_voters_by_area_id(
-                keycloak_conn, 
-                realm, 
-                area_id,
-                batch_size=1000, 
-                offset=offset
-            )
+        with open(input_filename, 'r', newline='', encoding='utf-8') as infile:
+            first_line = infile.readline()
+            if not first_line: 
+                logger.warning(f"Input file '{input_filename}' is empty. Output will be empty.")
+                open(output_filename, 'w').close() 
+                return 0
             
-            if not voters_batch:
-                break
-                
-            # Process each voter and join with voting info
-            for voter in voters_batch:
-                voter_id = voter['id']
-                vote_info = vote_dict.get(voter_id)
-                
-                # Write to CSV
-                writer.writerow({
-                    'Voter ID': voter_id,
-                    'Username': voter.get('username', ''),
-                    'First Name': voter.get('first_name', ''),
-                    'Middle Name': voter.get('middle_name', ''),
-                    'Last Name': voter.get('last_name', ''),
-                    'Suffix': voter.get('suffix', ''),
-                    'Area': area_name,
-                    'Registered': 'Yes' if voter.get('registered') else 'No',
-                    'Voted': 'Yes' if vote_info else 'No',
-                    'Vote Date': vote_info['voted_date'].isoformat() if vote_info and vote_info.get('voted_date') else ''
-                })
-            
-            if not next_offset:
-                break
-                
-            offset = next_offset
-    
-    logger.info(f"Completed processing area: {area_name}")
+            header_line = first_line.strip()
+            actual_header_cols = [h.strip() for h in header_line.split(',')] 
 
+            sort_key_indices = []
+            for key_name in sort_key_names:
+                try:
+                    idx = actual_header_cols.index(key_name) + 1 
+                    sort_key_indices.append(f"-k{idx},{idx}f") 
+                except ValueError:
+                    logger.error(f"Sort key '{key_name}' not found in header: {actual_header_cols}. Outputting unsorted.")
+                    shutil.copy(input_filename, output_filename)
+                    # Count lines in unsorted copied file
+                    copied_lines = 0
+                    with open(input_filename, 'r', newline='', encoding='utf-8') as src_f:
+                        next(src_f, None) # skip header
+                        for _ in src_f: copied_lines +=1
+                    return copied_lines
+            
+            if not sort_key_indices:
+                logger.error(f"No valid sort keys derived. Outputting unsorted.")
+                shutil.copy(input_filename, output_filename)
+                copied_lines = 0
+                with open(input_filename, 'r', newline='', encoding='utf-8') as src_f:
+                    next(src_f, None) # skip header
+                    for _ in src_f: copied_lines +=1
+                return copied_lines
+
+            with tempfile.NamedTemporaryFile(mode='w', delete=False, prefix="data_to_sort_", suffix=".csv", newline='', encoding='utf-8') as data_temp_file:
+                data_temp_path = data_temp_file.name
+                line = infile.readline()
+                while line:
+                    data_temp_file.write(line)
+                    data_lines_count += 1 
+                    line = infile.readline()
+        
+        logger.info(f"Extracted {data_lines_count} data lines from '{input_filename}' to '{data_temp_path}' for sorting.")
+        
+        if data_lines_count == 0: 
+            logger.info("Input file contained only a header. Writing header to output.")
+            with open(output_filename, 'w', newline='', encoding='utf-8') as outfile:
+                outfile.write(header_line + '\n')
+            return 0
+
+        with tempfile.NamedTemporaryFile(mode='w', delete=False, prefix="sorted_data_", suffix=".csv", newline='', encoding='utf-8') as sorted_data_file:
+            sorted_data_temp_path = sorted_data_file.name
+
+        sort_command = ['sort', '-t', ',']
+        sort_command.extend(sort_key_indices)
+        sort_command.extend([data_temp_path, '-o', sorted_data_temp_path])
+
+        logger.debug(f"Executing sort command: {' '.join(sort_command)}")
+        result = subprocess.run(sort_command, capture_output=True, text=True)
+
+        if result.returncode != 0:
+            logger.error(f"System sort command failed. Stderr: {result.stderr}. Stdout: {result.stdout}")
+            logger.error(f"Outputting {data_lines_count} unsorted data lines as a fallback.")
+            shutil.copy(input_filename, output_filename)
+            return data_lines_count
+
+        with open(output_filename, 'w', newline='', encoding='utf-8') as final_outfile:
+            final_outfile.write(header_line + '\n') 
+            with open(sorted_data_temp_path, 'r', encoding='utf-8') as sorted_data_infile:
+                shutil.copyfileobj(sorted_data_infile, final_outfile) 
+        
+        logger.info(f"System sort successful. {data_lines_count} data lines sorted. Sorted report saved to '{output_filename}'.")
+        return data_lines_count
+
+    except FileNotFoundError: 
+        logger.error(f"Input file for sorting '{input_filename}' not found.")
+        open(output_filename, 'w').close()
+        return 0
+    except Exception as e:
+        logger.error(f"An error occurred during system sort: {e}", exc_info=True)
+        try:
+            if os.path.exists(input_filename):
+                shutil.copy(input_filename, output_filename)
+                # data_lines_count would be from the attempt to read input_filename
+                logger.info(f"Fallback: Copied {data_lines_count if data_lines_count > 0 else 'unsorted'} data to '{output_filename}' due to sort error.")
+                return data_lines_count # Returns lines read before error, or 0 if error was early
+        except Exception as copy_e:
+            logger.error(f"Fallback copy also failed: {copy_e}")
+        return 0 
+    finally:
+        for f_path in [data_temp_path, sorted_data_temp_path]:
+            if f_path and os.path.exists(f_path):
+                try:
+                    os.remove(f_path)
+                    logger.debug(f"Removed sort temp file: {f_path}")
+                except Exception as e_remove:
+                    logger.warning(f"Could not remove sort temp file {f_path}: {e_remove}")
+
+# --- Main Execution ---
 def main():
-    parser = argparse.ArgumentParser(description='Generate list of overseas voters and their registration/voting status')
-    parser.add_argument('election_id', help='The election ID to process')
-    parser.add_argument('--output', default='overseas_voters.csv', help='Output CSV file (default: overseas_voters.csv)')
-    parser.add_argument('--tenant-id', required=True, help='Tenant ID (e.g., from SUPER_ADMIN_TENANT_ID env var)')
-    parser.add_argument('--election-event-id', required=True, help='Election event ID')
-    # Removed --threads as we are doing single-threaded processing
-    # Batch size is used internally by functions, not a direct user arg for threading control
-    
+    parser = argparse.ArgumentParser(description='Generate list of voters and their registration/voting status, sorted by name.')
+    parser.add_argument('election_alias_pattern', help='Pattern for ILIKE matching election alias.')
+    parser.add_argument('--output', default='voter_report_sorted.csv', help='Output CSV file name.')
     args = parser.parse_args()
-    
-    # Clear the output file if it exists before starting
-    if os.path.exists(args.output):
-        os.remove(args.output)
-        logger.info(f"Removed existing output file: {args.output}")
 
-    # Connect to databases
-    logger.info("Connecting to databases...")
-    hasura_conn = connect_to_db(HASURA_DB_CONFIG)
-    keycloak_conn = connect_to_db(KEYCLOAK_DB_CONFIG)
+    temp_unsorted_report_file = None
+    hasura_conn, keycloak_conn = None, None 
+    total_records_written_to_unsorted_file = 0
     
     try:
-        # Retrieve election information (to confirm it exists, primarily)
-        election = get_election_by_id(hasura_conn, args.tenant_id, args.election_event_id, args.election_id)
-        if not election:
-            logger.error(f"Election not found: {args.election_id} for tenant {args.tenant_id} and event {args.election_event_id}")
+        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='_combined_unsorted.csv', newline='', encoding='utf-8') as tmp_f:
+            temp_unsorted_report_file = tmp_f.name
+            csv.DictWriter(tmp_f, fieldnames=FINAL_CSV_FIELDNAMES).writeheader()
+
+        logger.info("Connecting to databases...")
+        hasura_conn = connect_to_db(HASURA_DB_CONFIG)
+        keycloak_conn = connect_to_db(KEYCLOAK_DB_CONFIG)
+
+        found_election = get_election_by_alias_pattern(
+            hasura_conn, TENANT_ID, ELECTION_EVENT_ID_CONST, args.election_alias_pattern
+        )
+
+        if not found_election:
+            logger.error(f"No election found matching alias pattern '{args.election_alias_pattern}' for tenant '{TENANT_ID}' and event '{ELECTION_EVENT_ID_CONST}'. Process aborted. 0 elections processed.")
+            if temp_unsorted_report_file and os.path.exists(temp_unsorted_report_file):
+                os.remove(temp_unsorted_report_file)
             sys.exit(1)
         
-        logger.info(f"Processing election: {election.get('name', '')} (ID: {args.election_id})")
+        logger.info(f"Found 1 election to process.")
+        found_election_id = found_election['id']
+        found_election_alias = found_election['alias']
+        found_election_name = found_election.get('name', 'N/A')
         
-        # Determine the realm for Keycloak queries
-        # The Rust code uses: get_event_realm(&self.ids.tenant_id, &self.ids.election_event_id);
-        # which constructs a string like: "tenant-{tenant_id}-event-{election_event_id}"
-        realm = f"tenant-{args.tenant_id}-event-{args.election_event_id}"
+        print(f"Processing Election: ID='{found_election_id}', Alias='{found_election_alias}', Name='{found_election_name}'")
+        logger.info(f"Processing Election: ID='{found_election_id}', Alias='{found_election_alias}', Name='{found_election_name}'")
+
+        areas = get_areas_by_election_id(hasura_conn, TENANT_ID, ELECTION_EVENT_ID_CONST, found_election_id)
+        logger.info(f"Found {len(areas)} areas for this election.")
         
-        # Get areas for the specified election
-        areas = get_areas_by_election_id(hasura_conn, args.tenant_id, args.election_event_id, args.election_id)
         if not areas:
-            logger.warning(f"No areas found for election ID: {args.election_id}")
-            sys.exit(0) # Not an error, just no data
+            logger.warning(f"No areas found for election ID: {found_election_id}. Report will contain only header.")
+        else:
+            area_processing_summary_logs = []
+            for i, area_data in enumerate(areas):
+                logger.info(f"--- Processing Area {i+1}/{len(areas)}: {area_data.get('name', 'N/A')} (ID: {area_data.get('id')}) ---")
+                records_from_area = process_area(
+                    area_data, TENANT_ID, ELECTION_EVENT_ID_CONST,
+                    REALM_NAME, temp_unsorted_report_file,
+                    found_election_id,
+                    hasura_conn, keycloak_conn
+                )
+                total_records_written_to_unsorted_file += records_from_area
+                area_processing_summary_logs.append(f"Area '{area_data.get('name', 'N/A')}': {records_from_area} records written to combined report.")
             
-        logger.info(f"Found {len(areas)} areas for election {args.election_id}. Processing sequentially...")
+            if area_processing_summary_logs: # Log summary if there was any area processing
+                logger.info("--- Area Processing Summary ---")
+                for summary_line in area_processing_summary_logs:
+                    logger.info(summary_line)
+        
+        logger.info(f"All areas processed. A total of {total_records_written_to_unsorted_file} records written to unsorted file '{temp_unsorted_report_file}'.")
+        
+        logger.info("Now sorting the combined report by name using system sort...")
+        sorted_data_lines_count = sort_csv_with_system_sort(temp_unsorted_report_file, args.output, FINAL_CSV_FIELDNAMES, SYSTEM_SORT_PRIMARY_KEYS)
+        
+        # sorted_data_lines_count will be >= 0. -1 isn't a typical return for line counts.
+        logger.info(f"Successfully generated sorted report: {args.output} with {sorted_data_lines_count} data records.")
 
-        for area in areas:
-            process_area(
-                area,
-                args.tenant_id,
-                args.election_event_id,
-                args.election_id,
-                realm,
-                args.output, # Pass the main output file
-                hasura_conn,
-                keycloak_conn
-            )
-            
-        logger.info(f"Successfully generated report: {args.output}")
-
-    except Exception as e:
-        logger.error(f"An error occurred: {e}", exc_info=True)
+    except Exception as e: 
+        logger.error(f"A critical error occurred: {e}", exc_info=True)
+        if temp_unsorted_report_file and os.path.exists(temp_unsorted_report_file) and args.output:
+             if not (os.path.exists(args.output) and os.path.getsize(args.output) > 0) : 
+                try:
+                    shutil.copy(temp_unsorted_report_file, args.output)
+                    logger.info(f"Fallback: Copied unsorted data (approx. {total_records_written_to_unsorted_file} records) to {args.output} due to critical error.")
+                except Exception as copy_e:
+                    logger.error(f"Fallback copy also failed: {copy_e}")
         sys.exit(1)
     finally:
-        if 'hasura_conn' in locals() and hasura_conn:
-            hasura_conn.close()
-        if 'keycloak_conn' in locals() and keycloak_conn:
-            keycloak_conn.close()
+        if hasura_conn: hasura_conn.close()
+        if keycloak_conn: keycloak_conn.close()
         logger.info("Database connections closed.")
+        if temp_unsorted_report_file and os.path.exists(temp_unsorted_report_file):
+            os.remove(temp_unsorted_report_file)
+            logger.info(f"Removed temporary unsorted report file: {temp_unsorted_report_file}")
 
 if __name__ == '__main__':
     main()
