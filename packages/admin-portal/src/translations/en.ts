@@ -1090,7 +1090,7 @@ const englishTranslation = {
             },
             message: {
                 delete: "Are you sure you want to delete this item?",
-                continueOrLogout: "Do you want to continue connected to this tenant or logout?",
+                continueOrLogout: "Do you want to stay connected to this tenant or logout?",
             },
         },
         createResource: {
