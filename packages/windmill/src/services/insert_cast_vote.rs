@@ -60,6 +60,10 @@ use strum_macros::Display;
 use tracing::info;
 use tracing::{error, event, instrument, Level};
 use uuid::Uuid;
+// Added imports
+use sequent_core::encrypt::hash_multi_ballot;
+use sequent_core::encrypt::hash_ballot;
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct InsertCastVoteInput {
     pub ballot_id: String,
@@ -171,6 +175,9 @@ pub enum CastVoteError {
     BallotVoterSignatureFailed(String),
     #[serde(rename = "uuid_parse_failed")]
     UuidParseFailed(String, String),
+    #[serde(rename = "ballot_id_mismatch")]
+    #[strum(to_string = "ballot_id_mismatch")]
+    BallotIdMismatch(String),
     #[serde(rename = "unknown_error")]
     UnknownError(String),
 }
@@ -239,6 +246,9 @@ pub async fn try_insert_cast_vote(
     } else {
         false
     };
+
+    // verify ballot_id vs content
+    verify_ballot_id_matches_content(&input, is_multi_contest).map_err(|e| e)?;
 
     let (pseudonym_h, vote_h) = if is_multi_contest {
         deserialize_and_check_multi_ballot(&input.content, voter_id)?
@@ -957,3 +967,50 @@ fn check_popk_multi(ballot_contest: &HashableMultiBallotContests<RistrettoCtx>) 
 
     Ok(())
 }
+
+/// Verifies that the ballot_id corresponds to the hash of the ballot content
+/// The function serves as a security check to ensure that 
+/// a ballot's content matches its claimed ID. 
+/// This is crucial for maintaining the integrity of the voting system 
+/// by preventing ballot tampering or substitution.
+pub fn verify_ballot_id_matches_content(
+    input: &InsertCastVoteInput,
+    is_multi_contest: bool,
+) -> Result<(), CastVoteError> {
+    // Calculate the expected hash based on content
+    /// Computes the hash of the ballot content based on the contest type.
+    ///
+    /// If `is_multi_contest` is `true`, the function deserializes the input content as a `HashableMultiBallot`
+    /// and computes its hash using `hash_multi_ballot`. Otherwise, it deserializes the content as a `HashableBallot`
+    /// and computes its hash using `hash_ballot`.
+    ///
+    /// Returns a result containing the computed hash or a `CastVoteError` if deserialization or hashing fails.
+    let computed_hash = if is_multi_contest {
+        // Deserialize content as HashableMultiBallot
+        let hashable_ballot: HashableMultiBallot = deserialize_str(&input.content)
+            .map_err(|e| CastVoteError::DeserializeBallotFailed(e.to_string()))?;
+        
+        // Hash the ballot using the imported function
+        hash_multi_ballot(&hashable_ballot)
+            .map_err(|e| CastVoteError::SerializeBallotFailed(e.to_string()))?
+    } else {
+        // Deserialize content as HashableBallot
+        let hashable_ballot: HashableBallot = deserialize_str(&input.content)
+            .map_err(|e| CastVoteError::DeserializeBallotFailed(e.to_string()))?;
+        
+        // Hash the ballot using the imported function
+        hash_ballot(&hashable_ballot)
+            .map_err(|e| CastVoteError::SerializeBallotFailed(e.to_string()))?
+    };
+    
+    // Verify that the computed hash matches the provided ballot_id
+    if computed_hash != input.ballot_id {
+        return Err(CastVoteError::BallotIdMismatch(format!(
+            "Expected {} but got {}",
+            computed_hash, input.ballot_id
+        )));
+    }
+    
+    Ok(())
+}
+

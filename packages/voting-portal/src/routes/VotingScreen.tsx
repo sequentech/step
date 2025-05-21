@@ -350,7 +350,7 @@ const VotingScreen: React.FC = () => {
                 ? encryptMultiBallotSelection(selectionState, ballotStyle.ballot_eml)
                 : encryptBallotSelection(selectionState, ballotStyle.ballot_eml)
 
-            // console.log("aa auditableBallot", auditableBallot)
+            console.log("aa auditableBallot", auditableBallot)
 
             dispatch(
                 setAuditableBallot({
@@ -363,7 +363,7 @@ const VotingScreen: React.FC = () => {
                 ? decodeAuditableMultiBallot(auditableBallot as IAuditableMultiBallot)
                 : decodeAuditableBallot(auditableBallot as IAuditableSingleBallot)
 
-            // console.log("aa decodedSelectionState   ", decodedSelectionState   )
+            console.log("aa decodedSelectionState   ", decodedSelectionState)
 
             if (null !== decodedSelectionState) {
                 dispatch(

@@ -277,6 +277,16 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
 
         console.log("aa effect auditableBallot", auditableBallot)
 
+        const isMultiContest =
+            auditableBallot?.config.election_event_presentation?.contest_encryption_policy ==
+            EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
+
+        const hashableBallot = isMultiContest
+            ? toHashableMultiBallot(auditableBallot as IAuditableMultiBallot)
+            : toHashableBallot(auditableBallot as IAuditableSingleBallot)
+
+        console.log("aa hashableBallot *****", hashableBallot)
+
         if (isDemo || globalSettings.DISABLE_AUTH) {
             if (isGoldenPolicy) {
                 console.log("aa let's go casting for golden")
@@ -307,6 +317,8 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
         isCastingBallot.current = true
 
         try {
+            console.log("aa MANUAL CAST");
+
             const {data} = await refetchElectionEvent()
 
             // The code checks whether there are any election events available in the backend data
@@ -356,6 +368,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                 }
             }
 
+            console.log("aa MANUAL INSERT");
             let result = await insertCastVote({
                 variables: {
                     electionId: ballotStyle.election_id,
@@ -566,6 +579,9 @@ export const ReviewScreen: React.FC = () => {
     }
 
     const automaticCastBallot = async () => {
+
+        console.log("aa AUTOMATIC CAST");
+        
         const errorType = VotingPortalErrorType.UNABLE_TO_CAST_BALLOT
         const ballotData = JSON.parse(sessionStorage.getItem("ballotData") ?? "{}") as
             | SessionBallotData
@@ -605,6 +621,7 @@ export const ReviewScreen: React.FC = () => {
                 return submit({error: errorType.toString()}, {method: "post"})
             }
 
+            console.log("aa AUTOMATIC INSERT");
             let result = await insertCastVote({
                 variables: {
                     electionId: ballotData.electionId,
@@ -652,11 +669,11 @@ export const ReviewScreen: React.FC = () => {
         console.log("aa effect auditableBallot", auditableBallot)
         console.log("aa effect isGoldenPolicy", isGoldenPolicy)
         console.log("aa effect isGoldUser()", isGoldUser())
-        console.log("aa ===================")
         console.log(
             "aa effect entro?",
             (!ballotStyle || !auditableBallot || !selectionState) && isGoldenPolicy
         )
+        console.log("aa ===================")
 
         if ((!ballotStyle || !auditableBallot || !selectionState) && isGoldenPolicy) {
             if (isGoldUser()) {
