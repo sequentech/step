@@ -978,13 +978,13 @@ pub fn verify_ballot_id_matches_content(
     is_multi_contest: bool,
 ) -> Result<(), CastVoteError> {
     // Calculate the expected hash based on content
-    /// Computes the hash of the ballot content based on the contest type.
-    ///
-    /// If `is_multi_contest` is `true`, the function deserializes the input content as a `HashableMultiBallot`
-    /// and computes its hash using `hash_multi_ballot`. Otherwise, it deserializes the content as a `HashableBallot`
-    /// and computes its hash using `hash_ballot`.
-    ///
-    /// Returns a result containing the computed hash or a `CastVoteError` if deserialization or hashing fails.
+    // Computes the hash of the ballot content based on the contest type.
+    //
+    // If `is_multi_contest` is `true`, the function deserializes the input content as a `HashableMultiBallot`
+    // and computes its hash using `hash_multi_ballot`. Otherwise, it deserializes the content as a `HashableBallot`
+    // and computes its hash using `hash_ballot`.
+    //
+    // Returns a result containing the computed hash or a `CastVoteError` if deserialization or hashing fails.
     let computed_hash = if is_multi_contest {
         // Deserialize content as HashableMultiBallot
         let hashable_ballot: HashableMultiBallot = deserialize_str(&input.content)
