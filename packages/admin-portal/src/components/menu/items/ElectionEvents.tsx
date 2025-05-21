@@ -7,7 +7,7 @@ import {useAtom} from "jotai"
 import archivedElectionEventSelection from "@/atoms/archived-election-event-selection"
 import {useLocation, useNavigate} from "react-router-dom"
 import styled from "@emotion/styled"
-import {IconButton, adminTheme} from "@sequentech/ui-essentials"
+import {Dialog, IconButton, adminTheme} from "@sequentech/ui-essentials"
 import {
     Sequent_Backend_Election_Event,
     Sequent_Backend_Election,
@@ -239,6 +239,22 @@ export default function ElectionEvents() {
 
     const {getCandidateIdFlag} = useElectionEventTallyStore()
 
+    const [openModal, setOpenModal] = React.useState(false)
+
+    useEffect(() => {
+        const referrer = document.referrer
+        const baseUrl = window.location.origin
+        const isFromMainPath =
+            referrer === baseUrl ||
+            referrer === `${baseUrl}/` ||
+            window.location.href === baseUrl ||
+            window.location.href === `${baseUrl}/`
+
+        if (localStorage.getItem("has-token") && isFromMainPath) {
+            setOpenModal(true)
+        }
+    }, [])
+
     /**
      * Hooks to load data for entities
      */
@@ -357,6 +373,7 @@ export default function ElectionEvents() {
 
     // Instead of setting variables in the options, we now call the lazy queries
     // only when variables exist.
+    // Force reload election event data when tenant ID changes or component mounts
     useEffect(() => {
         if (tenantId) {
             getElectionEventTree({
@@ -365,8 +382,11 @@ export default function ElectionEvents() {
                     isArchived: isArchivedElectionEvents,
                 },
             })
+
+            // Also reload other data that might depend on tenant ID
+            originalRefetch()
         }
-    }, [tenantId, isArchivedElectionEvents, getElectionEventTree])
+    }, [tenantId, isArchivedElectionEvents, getElectionEventTree, originalRefetch])
 
     useEffect(() => {
         if (tenantId && electionEventId) {
@@ -754,6 +774,24 @@ export default function ElectionEvents() {
                     </Box>
                 </MMenuItem>
             </MMenu>
+            <Dialog
+                variant="info"
+                hasCloseButton={false}
+                open={openModal}
+                cancel={t("common.label.logout")}
+                ok={t("common.label.continue")}
+                title={t("common.label.warning")}
+                handleClose={(result: boolean) => {
+                    if (result) {
+                        localStorage.removeItem("has-token")
+                        setOpenModal(false)
+                    } else {
+                        authContext.logout()
+                    }
+                }}
+            >
+                {t("common.message.continueOrLogout")}
+            </Dialog>
         </>
     )
 }
