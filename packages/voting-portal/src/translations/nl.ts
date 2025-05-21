@@ -147,6 +147,8 @@ const dutchTranslation: TranslationType = {
                     "Er was een fout bij het serialiseren van het stembiljet. Probeer het later opnieuw of neem contact op met ondersteuning voor hulp.",
                 UNKNOWN_ERROR:
                     "Er is een fout opgetreden. Probeer het later opnieuw of neem contact op met ondersteuning voor hulp.",
+                CAST_VOTE_BallotIdMismatch:
+                    "Er is een fout opgetreden bij het serialiseren van het stembiljet. De stembiljet-ID komt niet overeen met de uitgebrachte stem.",
             },
         },
         confirmationScreen: {

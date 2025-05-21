@@ -148,6 +148,8 @@ const spanishTranslation: TranslationType = {
                     "Hubo un error al serializar la papeleta. Por favor, inténtalo de nuevo más tarde o contacta con el soporte para obtener ayuda.",
                 UNKNOWN_ERROR:
                     "Hubo un error. Por favor, inténtalo de nuevo más tarde o contacta con el soporte para obtener ayuda.",
+                CAST_VOTE_BallotIdMismatch:
+                    "Hubo un error al serializar la papeleta. El identificador de la papeleta no coincide con el del voto emitido.",
             },
         },
         confirmationScreen: {

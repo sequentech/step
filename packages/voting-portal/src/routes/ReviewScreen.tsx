@@ -317,7 +317,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
         isCastingBallot.current = true
 
         try {
-            console.log("aa MANUAL CAST");
+            console.log("aa MANUAL CAST")
 
             const {data} = await refetchElectionEvent()
 
@@ -368,7 +368,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                 }
             }
 
-            console.log("aa MANUAL INSERT");
+            console.log("aa MANUAL INSERT")
             let result = await insertCastVote({
                 variables: {
                     electionId: ballotStyle.election_id,
@@ -579,9 +579,8 @@ export const ReviewScreen: React.FC = () => {
     }
 
     const automaticCastBallot = async () => {
+        console.log("aa AUTOMATIC CAST")
 
-        console.log("aa AUTOMATIC CAST");
-        
         const errorType = VotingPortalErrorType.UNABLE_TO_CAST_BALLOT
         const ballotData = JSON.parse(sessionStorage.getItem("ballotData") ?? "{}") as
             | SessionBallotData
@@ -621,7 +620,7 @@ export const ReviewScreen: React.FC = () => {
                 return submit({error: errorType.toString()}, {method: "post"})
             }
 
-            console.log("aa AUTOMATIC INSERT");
+            console.log("aa AUTOMATIC INSERT")
             let result = await insertCastVote({
                 variables: {
                     electionId: ballotData.electionId,

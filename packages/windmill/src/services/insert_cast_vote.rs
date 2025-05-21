@@ -61,8 +61,8 @@ use tracing::info;
 use tracing::{error, event, instrument, Level};
 use uuid::Uuid;
 // Added imports
-use sequent_core::encrypt::hash_multi_ballot;
 use sequent_core::encrypt::hash_ballot;
+use sequent_core::encrypt::hash_multi_ballot;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct InsertCastVoteInput {
@@ -969,9 +969,9 @@ fn check_popk_multi(ballot_contest: &HashableMultiBallotContests<RistrettoCtx>) 
 }
 
 /// Verifies that the ballot_id corresponds to the hash of the ballot content
-/// The function serves as a security check to ensure that 
-/// a ballot's content matches its claimed ID. 
-/// This is crucial for maintaining the integrity of the voting system 
+/// The function serves as a security check to ensure that
+/// a ballot's content matches its claimed ID.
+/// This is crucial for maintaining the integrity of the voting system
 /// by preventing ballot tampering or substitution.
 pub fn verify_ballot_id_matches_content(
     input: &InsertCastVoteInput,
@@ -989,7 +989,7 @@ pub fn verify_ballot_id_matches_content(
         // Deserialize content as HashableMultiBallot
         let hashable_ballot: HashableMultiBallot = deserialize_str(&input.content)
             .map_err(|e| CastVoteError::DeserializeBallotFailed(e.to_string()))?;
-        
+
         // Hash the ballot using the imported function
         hash_multi_ballot(&hashable_ballot)
             .map_err(|e| CastVoteError::SerializeBallotFailed(e.to_string()))?
@@ -997,12 +997,12 @@ pub fn verify_ballot_id_matches_content(
         // Deserialize content as HashableBallot
         let hashable_ballot: HashableBallot = deserialize_str(&input.content)
             .map_err(|e| CastVoteError::DeserializeBallotFailed(e.to_string()))?;
-        
+
         // Hash the ballot using the imported function
         hash_ballot(&hashable_ballot)
             .map_err(|e| CastVoteError::SerializeBallotFailed(e.to_string()))?
     };
-    
+
     // Verify that the computed hash matches the provided ballot_id
     if computed_hash != input.ballot_id {
         return Err(CastVoteError::BallotIdMismatch(format!(
@@ -1010,7 +1010,6 @@ pub fn verify_ballot_id_matches_content(
             computed_hash, input.ballot_id
         )));
     }
-    
+
     Ok(())
 }
-
