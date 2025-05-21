@@ -186,7 +186,7 @@ const BallotLocator: React.FC = () => {
                 let offset = page * rowsPerPage
                 const {data} = await refetch({
                     ballotId: inputBallotId,
-                    orderBy: {[headerName ?? "username"]: newOrder ?? "desc"},
+                    orderBy: {[headerName ?? "statement_timestamp"]: newOrder ?? "desc"},
                     limit,
                     offset,
                 })

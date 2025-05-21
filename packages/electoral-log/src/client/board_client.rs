@@ -238,6 +238,7 @@ impl BoardClient {
         .await
     }
 
+    #[instrument(skip_all, err)]
     async fn get_filtered<V: Display, K: Display>(
         &mut self,
         board_db: &str,
@@ -345,6 +346,7 @@ impl BoardClient {
             }),
         });
 
+        info!("SQL query: {}", sql);
         let sql_query_response = self.client.sql_query(&sql, params).await?;
         let messages = sql_query_response
             .get_ref()

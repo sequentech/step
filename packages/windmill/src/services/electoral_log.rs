@@ -1219,22 +1219,25 @@ pub async fn list_cast_vote_messages(
     let username = env::var("IMMUDB_USER").context("IMMUDB_USER must be set")?;
     let password = env::var("IMMUDB_PASSWORD").context("IMMUDB_PASSWORD must be set")?;
     let server_url = env::var("IMMUDB_SERVER_URL").context("IMMUDB_SERVER_URL must be set")?;
+    let order_by = input.order_by.clone();
 
     info!("Creating client");
     let mut client = BoardClient::new(&server_url, &username, &password)
         .await
         .map_err(|err| anyhow!("Failed to create the client: {:?}", err))?;
 
-    info!("Getting messages");
     let limit: i64 = match ballot_id_filter.is_empty() {
         false => IMMUDB_ROWS_LIMIT as i64, // When there is a filter, all entries are needed, so we can filter all.
         true => input.limit.unwrap_or(MAX_ROWS_PER_PAGE as i64),
     };
     let mut offset: i64 = input.offset.unwrap_or(0);
     let mut list: Vec<CastVoteEntry> = Vec::with_capacity(MAX_ROWS_PER_PAGE); // Filtered messages.
-    let mut finished = false;
-
-    while (list.len() as i64) < output_limit && !finished {
+    let input = GetElectoralLogBody {
+        statement_kind: Some(StatementType::CastVote),
+        ..input
+    };
+    let total = count_electoral_log(input).await?.to_u64().unwrap_or(0) as usize;
+    while (list.len() as i64) < output_limit && (offset < total as i64) {
         let electoral_log_messages = client
             .get_electoral_log_messages_filtered(
                 &board_name,
@@ -1244,14 +1247,13 @@ pub async fn list_cast_vote_messages(
                 None,
                 Some(limit),
                 Some(offset),
-                input.order_by.clone(),
+                order_by.clone(),
             )
             .await
             .map_err(|err| anyhow!("Failed to get filtered messages: {:?}", err))?;
 
-        let t_entries = electoral_log_messages.len() as i64;
-        finished = electoral_log_messages.is_empty() || t_entries < limit;
-
+        let t_entries = electoral_log_messages.len();
+        info!("Got {t_entries} entries. Offset: {offset}, limit: {limit}, total: {total}");
         for message in electoral_log_messages.iter() {
             match CastVoteEntry::from_row_with_ballot_id(&message, &input_bytes)? {
                 Some(entry) => {
@@ -1263,14 +1265,9 @@ pub async fn list_cast_vote_messages(
                 break;
             }
         }
-        offset += t_entries;
+        offset += limit;
     }
 
-    let input = GetElectoralLogBody {
-        statement_kind: Some(StatementType::CastVote),
-        ..input
-    };
-    let total = count_electoral_log(input).await?.to_u64().unwrap_or(0) as usize;
     Ok(CastVoteMessagesOutput { list, total })
 }
 
