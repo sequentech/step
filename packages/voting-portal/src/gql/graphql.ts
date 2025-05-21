@@ -14,6 +14,7 @@ export type Scalars = {
   Boolean: { input: boolean; output: boolean; }
   Int: { input: number; output: number; }
   Float: { input: number; output: number; }
+  bigint: { input: any; output: any; }
   bytea: { input: any; output: any; }
   date: { input: any; output: any; }
   json: { input: any; output: any; }
@@ -952,6 +953,19 @@ export type ApplicationOutput = {
   document_id?: Maybe<Scalars['String']['output']>;
   error_msg?: Maybe<Scalars['String']['output']>;
   task_execution?: Maybe<Tasks_Execution_Type>;
+};
+
+/** Boolean expression to compare columns of type "bigint". All fields are combined with logical 'AND'. */
+export type Bigint_Comparison_Exp = {
+  _eq?: InputMaybe<Scalars['bigint']['input']>;
+  _gt?: InputMaybe<Scalars['bigint']['input']>;
+  _gte?: InputMaybe<Scalars['bigint']['input']>;
+  _in?: InputMaybe<Array<Scalars['bigint']['input']>>;
+  _is_null?: InputMaybe<Scalars['Boolean']['input']>;
+  _lt?: InputMaybe<Scalars['bigint']['input']>;
+  _lte?: InputMaybe<Scalars['bigint']['input']>;
+  _neq?: InputMaybe<Scalars['bigint']['input']>;
+  _nin?: InputMaybe<Array<Scalars['bigint']['input']>>;
 };
 
 /** Boolean expression to compare columns of type "bytea". All fields are combined with logical 'AND'. */
@@ -8528,7 +8542,7 @@ export type Sequent_Backend_Document = {
   last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
   media_type?: Maybe<Scalars['String']['output']>;
   name?: Maybe<Scalars['String']['output']>;
-  size?: Maybe<Scalars['Int']['output']>;
+  size?: Maybe<Scalars['bigint']['output']>;
   tenant_id?: Maybe<Scalars['uuid']['output']>;
 };
 
@@ -8600,7 +8614,7 @@ export type Sequent_Backend_Document_Bool_Exp = {
   last_updated_at?: InputMaybe<Timestamptz_Comparison_Exp>;
   media_type?: InputMaybe<String_Comparison_Exp>;
   name?: InputMaybe<String_Comparison_Exp>;
-  size?: InputMaybe<Int_Comparison_Exp>;
+  size?: InputMaybe<Bigint_Comparison_Exp>;
   tenant_id?: InputMaybe<Uuid_Comparison_Exp>;
 };
 
@@ -8630,7 +8644,7 @@ export type Sequent_Backend_Document_Delete_Key_Input = {
 
 /** input type for incrementing numeric columns in table "sequent_backend.document" */
 export type Sequent_Backend_Document_Inc_Input = {
-  size?: InputMaybe<Scalars['Int']['input']>;
+  size?: InputMaybe<Scalars['bigint']['input']>;
 };
 
 /** input type for inserting data into table "sequent_backend.document" */
@@ -8644,7 +8658,7 @@ export type Sequent_Backend_Document_Insert_Input = {
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
   media_type?: InputMaybe<Scalars['String']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
-  size?: InputMaybe<Scalars['Int']['input']>;
+  size?: InputMaybe<Scalars['bigint']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
 };
 
@@ -8657,7 +8671,7 @@ export type Sequent_Backend_Document_Max_Fields = {
   last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
   media_type?: Maybe<Scalars['String']['output']>;
   name?: Maybe<Scalars['String']['output']>;
-  size?: Maybe<Scalars['Int']['output']>;
+  size?: Maybe<Scalars['bigint']['output']>;
   tenant_id?: Maybe<Scalars['uuid']['output']>;
 };
 
@@ -8670,7 +8684,7 @@ export type Sequent_Backend_Document_Min_Fields = {
   last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
   media_type?: Maybe<Scalars['String']['output']>;
   name?: Maybe<Scalars['String']['output']>;
-  size?: Maybe<Scalars['Int']['output']>;
+  size?: Maybe<Scalars['bigint']['output']>;
   tenant_id?: Maybe<Scalars['uuid']['output']>;
 };
 
@@ -8753,7 +8767,7 @@ export type Sequent_Backend_Document_Set_Input = {
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
   media_type?: InputMaybe<Scalars['String']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
-  size?: InputMaybe<Scalars['Int']['input']>;
+  size?: InputMaybe<Scalars['bigint']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
 };
 
@@ -8794,14 +8808,14 @@ export type Sequent_Backend_Document_Stream_Cursor_Value_Input = {
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
   media_type?: InputMaybe<Scalars['String']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
-  size?: InputMaybe<Scalars['Int']['input']>;
+  size?: InputMaybe<Scalars['bigint']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
 };
 
 /** aggregate sum on columns */
 export type Sequent_Backend_Document_Sum_Fields = {
   __typename?: 'sequent_backend_document_sum_fields';
-  size?: Maybe<Scalars['Int']['output']>;
+  size?: Maybe<Scalars['bigint']['output']>;
 };
 
 /** update columns of table "sequent_backend.document" */
