@@ -146,8 +146,12 @@ const galegoTranslation: TranslationType = {
                     "Houbo un erro ao serializar a papeleta. Inténtao de novo máis tarde ou contacta co soporte para obter axuda.",
                 UNKNOWN_ERROR:
                     "Houbo un erro. Inténtao de novo máis tarde ou contacta co soporte para obter axuda.",
+                REAUTH_FAILED:
+                    "A autenticación fallou. Inténtao de novo ou contacta co soporte para obter axuda.",
+                SESSION_EXPIRED:
+                    "A túa sesión expirou. Por favor, comeza de novo dende o principio.",
                 CAST_VOTE_BallotIdMismatch:
-                    "Produciuse un erro ao serializar a papeleta. O identificador da papeleta non coincide co do voto emitido.",
+                    "O identificador da papeleta non coincide co do voto emitido.",
             },
         },
         confirmationScreen: {
