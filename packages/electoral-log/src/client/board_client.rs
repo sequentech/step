@@ -2,15 +2,14 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::{anyhow, Context, Result};
-use log::info;
-use serde::{Deserialize, Serialize};
-use tracing::{event, instrument, Level};
-
 use crate::assign_value;
+use anyhow::{anyhow, Context, Result};
 use immudb_rs::{sql_value::Value, Client, CommittedSqlTx, NamedParam, Row, SqlValue, TxMode};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fmt::Debug;
-use tokio::time::{sleep, Duration};
+use std::fmt::Display;
+use tracing::{info, instrument, Level};
 
 const IMMUDB_DEFAULT_LIMIT: usize = 900;
 const IMMUDB_DEFAULT_ENTRIES_TX_LIMIT: usize = 50;
@@ -222,7 +221,7 @@ impl BoardClient {
         Ok(messages)
     }
 
-    pub async fn get_electoral_log_messages_filtered(
+    pub async fn get_electoral_log_messages_filtered<V: Display, K: Display>(
         &mut self,
         board_db: &str,
         kind: &str,
@@ -231,12 +230,15 @@ impl BoardClient {
         max_ts: Option<i64>,
         limit: Option<i64>,
         offset: Option<i64>,
+        order_by: Option<HashMap<V, K>>,
     ) -> Result<Vec<ElectoralLogMessage>> {
-        self.get_filtered(board_db, kind, sender_pk, min_ts, max_ts, limit, offset)
-            .await
+        self.get_filtered(
+            board_db, kind, sender_pk, min_ts, max_ts, limit, offset, order_by,
+        )
+        .await
     }
 
-    async fn get_filtered(
+    async fn get_filtered<V: Display, K: Display>(
         &mut self,
         board_db: &str,
         kind: &str,
@@ -245,6 +247,7 @@ impl BoardClient {
         max_ts: Option<i64>,
         limit: Option<i64>,
         offset: Option<i64>,
+        order_by: Option<HashMap<V, K>>,
     ) -> Result<Vec<ElectoralLogMessage>> {
         let (min_clause, min_clause_value) = if let Some(min_ts) = min_ts {
             ("AND created >= @min_ts", min_ts)
@@ -264,6 +267,16 @@ impl BoardClient {
             ("", "")
         };
 
+        let order_by_clauses = if let Some(order_by) = order_by {
+            order_by
+                .iter()
+                .map(|(field, direction)| format!("ORDER BY {field} {direction}"))
+                .collect::<Vec<String>>()
+                .join(", ")
+        } else {
+            format!("ORDER BY id")
+        };
+
         self.client.use_database(board_db).await?;
         let sql = format!(
             r#"
@@ -276,16 +289,15 @@ impl BoardClient {
             statement_kind,
             message,
             version
-        FROM {}
+        FROM {ELECTORAL_LOG_TABLE}
         WHERE statement_kind = @statement_kind
-        {}
-        {}
-        {}
-        ORDER BY id
+        {min_clause}
+        {max_clause}
+        {sender_pk_clause}
+        {order_by_clauses}
         LIMIT @limit
         OFFSET @offset;
-        "#,
-            ELECTORAL_LOG_TABLE, min_clause, max_clause, sender_pk_clause
+        "#
         );
 
         let mut params = vec![NamedParam {
@@ -632,24 +644,32 @@ impl BoardClient {
     pub async fn upsert_electoral_log_db(&mut self, board_dbname: &str) -> Result<()> {
         let sql = format!(
             r#"
-         CREATE TABLE IF NOT EXISTS {} (
+         CREATE TABLE IF NOT EXISTS {ELECTORAL_LOG_TABLE} (
             id INTEGER AUTO_INCREMENT,
             created TIMESTAMP,
             sender_pk VARCHAR,
             statement_timestamp TIMESTAMP,
-            statement_kind VARCHAR,
+            statement_kind VARCHAR[64],
             message BLOB,
             version VARCHAR,
-            user_id VARCHAR,
+            user_id VARCHAR[64],
             username VARCHAR,
-            election_id VARCHAR,
-            area_id VARCHAR,
+            election_id VARCHAR[64],
+            area_id VARCHAR[64],
             PRIMARY KEY id
         );
-        "#,
-            ELECTORAL_LOG_TABLE
+        "#
         );
-        self.upsert_database(board_dbname, &sql).await
+
+        let elog_indexes = vec![
+            format!("CREATE INDEX IF NOT EXISTS ON {ELECTORAL_LOG_TABLE} (statement_kind, statement_timestamp)"),
+            format!("CREATE INDEX IF NOT EXISTS ON {ELECTORAL_LOG_TABLE} (election_id, area_id, user_id)"),
+            format!("CREATE INDEX IF NOT EXISTS ON {ELECTORAL_LOG_TABLE} (user_id, area_id)"),
+            format!("CREATE INDEX IF NOT EXISTS ON {ELECTORAL_LOG_TABLE} (area_id, election_id, statement_kind)"),
+        ];
+
+        self.upsert_database(board_dbname, &sql, elog_indexes.as_slice())
+            .await
     }
 
     /// Deletes the immudb database.
@@ -662,20 +682,29 @@ impl BoardClient {
     }
 
     /// Creates the requested immudb database, only if it doesn't exist. It also creates
-    /// the requested tables if they don't exist.
-    async fn upsert_database(&mut self, database_name: &str, tables: &str) -> Result<()> {
+    /// the requested tables and indexes if they don't exist.
+    async fn upsert_database(
+        &mut self,
+        database_name: &str,
+        tables: &str,
+        indexes: &[String],
+    ) -> Result<()> {
         // create database if it doesn't exist
         if !self.client.has_database(database_name).await? {
             println!("Database not found, creating..");
             self.client.create_database(database_name).await?;
-            event!(Level::INFO, "Database created!");
+            info!("Database created!");
         };
         self.client.use_database(database_name).await?;
 
         // List tables and create them if missing
         if !self.client.has_tables().await? {
-            event!(Level::INFO, "no tables! let's create them");
+            info!("no tables! let's create them");
             self.client.sql_exec(&tables, vec![]).await?;
+        }
+        for index in indexes {
+            info!("Inserting index...");
+            self.client.sql_exec(index, vec![]).await?;
         }
         Ok(())
     }
@@ -733,7 +762,16 @@ pub(crate) mod tests {
         let ret = b.get_electoral_log_messages(BOARD_DB).await.unwrap();
         assert_eq!(messages, ret);
         let ret = b
-            .get_electoral_log_messages_filtered(BOARD_DB, "", Some(""), None, None, None, None)
+            .get_electoral_log_messages_filtered(
+                BOARD_DB,
+                "",
+                Some(""),
+                None,
+                None,
+                None,
+                None,
+                None,
+            )
             .await
             .unwrap();
         assert_eq!(messages, ret);
@@ -743,6 +781,7 @@ pub(crate) mod tests {
                 "",
                 Some(""),
                 Some(1i64),
+                None,
                 None,
                 None,
                 None,
@@ -759,6 +798,7 @@ pub(crate) mod tests {
                 Some(556i64),
                 None,
                 None,
+                None,
             )
             .await
             .unwrap();
@@ -770,6 +810,7 @@ pub(crate) mod tests {
                 Some(""),
                 Some(1i64),
                 Some(556i64),
+                None,
                 None,
                 None,
             )
@@ -783,6 +824,7 @@ pub(crate) mod tests {
                 Some(""),
                 Some(556i64),
                 Some(666i64),
+                None,
                 None,
                 None,
             )

@@ -87,6 +87,7 @@ impl ExportCastVotes {
                 None,
                 None,
                 None,
+                None,
             )
             .await
             .map_err(|err| anyhow!("Failed to get filtered messages: {:?}", err))?;

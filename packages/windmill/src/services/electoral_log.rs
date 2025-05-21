@@ -1244,6 +1244,7 @@ pub async fn list_cast_vote_messages(
                 None,
                 Some(limit),
                 Some(offset),
+                input.order_by.clone(),
             )
             .await
             .map_err(|err| anyhow!("Failed to get filtered messages: {:?}", err))?;
