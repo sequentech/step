@@ -47,6 +47,7 @@ const catalanTranslation: TranslationType = {
                 EXPORT_APPLICATION: "Exportar Sol·licituds",
                 EXPORT_TENANT_CONFIG: "Exporta la Configuració del Llogater",
                 IMPORT_TENANT_CONFIG: "Importa la Configuració del Llogater",
+                RENDER_DOCUMENT_PDF: "Generar el document PDF",
             },
             widget: {
                 taskTitle: "Tasca: {{title}}",
@@ -488,6 +489,7 @@ const catalanTranslation: TranslationType = {
                 copiedError: "Error copiant la contrasenya",
                 reports: "Informes",
                 applications: "Aplicacions",
+                tally: "Recompte",
             },
             taskNotification:
                 "{{action}} ha començat. Podeu veure el seu estat a la taula d'Execució de Tasques.",
@@ -1102,6 +1104,7 @@ const catalanTranslation: TranslationType = {
                 fr: "Francès",
                 cat: "Valencià",
                 tl: "Tagal",
+                gl: "Galego",
                 nl: "Holandés",
             },
             channel: {

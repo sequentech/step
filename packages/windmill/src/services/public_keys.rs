@@ -44,7 +44,7 @@ pub async fn create_keys(
         .clone()
         .into_iter()
         .map(deserialize_public_key)
-        .collect::<Result<_>>()?;
+        .collect::<Result<Vec<_>>>()?;
 
     // add config to board on immudb
     protocol_manager::add_config_to_board::<RistrettoCtx>(threshold, board_name, trustee_pks, pm)

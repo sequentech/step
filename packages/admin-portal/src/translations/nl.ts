@@ -79,6 +79,7 @@ const dutchTranslation: TranslationType = {
                 EXPORT_APPLICATION: "Applicaties Exporteren",
                 EXPORT_TENANT_CONFIG: "Tenantconfiguratie Exporteren",
                 IMPORT_TENANT_CONFIG: "Tenantconfiguratie Importeren",
+                RENDER_DOCUMENT_PDF: "Document als PDF renderen",
             },
             widget: {
                 taskTitle: "Taak: {{title}}",
@@ -485,6 +486,7 @@ const dutchTranslation: TranslationType = {
                 copiedError: "Fout bij kopiëren wachtwoord",
                 reports: "Rapporten",
                 applications: "Applicaties",
+                tally: "Telling",
             },
             taskNotification:
                 "{{action}} is gestart. U kunt de status ervan zien in de tabel Taakuitvoering.",
@@ -1084,6 +1086,7 @@ const dutchTranslation: TranslationType = {
                 fr: "Frans",
                 cat: "Valenciaans",
                 tl: "Tagalog",
+                gl: "Galicisch",
                 nl: "Nederlands",
             },
             channel: {

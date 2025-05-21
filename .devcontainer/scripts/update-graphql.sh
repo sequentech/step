@@ -21,7 +21,6 @@ gq http://graphql-engine:8080/v1/graphql \
 
 # Copy the schema to the apps
 cd ..
-cp admin-portal/graphql.schema.json windmill/src/graphql/schema.json
 cp admin-portal/graphql.schema.json voting-portal/graphql.schema.json
 cp admin-portal/graphql.schema.json ballot-verifier/graphql.schema.json
 cp admin-portal/graphql.schema.json ..

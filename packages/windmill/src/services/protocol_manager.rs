@@ -17,7 +17,6 @@ use strand::context::Ctx;
 use strand::elgamal::Ciphertext;
 use strand::serialization::StrandDeserialize;
 use strand::serialization::StrandSerialize;
-use strand::symm::EncryptionData;
 use strand::util::StrandError;
 
 use anyhow::{anyhow, Context, Result};
@@ -43,7 +42,7 @@ pub async fn create_protocol_manager_keys(
     board_name: &str,
 ) -> Result<()> {
     // create protocol manager keys
-    let protocol_manager = gen_protocol_manager::<RistrettoCtx>();
+    let protocol_manager = gen_protocol_manager::<RistrettoCtx>()?;
     // save protocol manager keys in vault
     let protocol_config = serialize_protocol_manager::<RistrettoCtx>(&protocol_manager)?;
     let protocol_key = get_protocol_manager_secret_path(board_name);
@@ -59,14 +58,14 @@ pub async fn create_protocol_manager_keys(
 }
 
 #[instrument]
-pub fn gen_protocol_manager<C: Ctx>() -> ProtocolManager<C> {
-    let pmkey: StrandSignatureSk = StrandSignatureSk::gen().unwrap();
+pub fn gen_protocol_manager<C: Ctx>() -> Result<ProtocolManager<C>> {
+    let pmkey: StrandSignatureSk = StrandSignatureSk::gen().map_err(|err| anyhow!("{:?}", err))?;
     let pm: ProtocolManager<C> = ProtocolManager {
         signing_key: pmkey,
         phantom: PhantomData,
     };
 
-    pm
+    Ok(pm)
 }
 
 #[instrument]
@@ -75,10 +74,11 @@ pub fn serialize_protocol_manager<C: Ctx>(pm: &ProtocolManager<C>) -> Result<Str
     toml::to_string(&pmc).map_err(|err| anyhow!("{:?}", err))
 }
 
-#[instrument(err)]
+#[instrument]
 pub fn deserialize_protocol_manager<C: Ctx>(contents: String) -> Result<ProtocolManager<C>> {
-    let pmc: ProtocolManagerConfig = toml::from_str(&contents)?;
-    let pmkey = pmc.get_signing_key()?;
+    let pmc: ProtocolManagerConfig =
+        toml::from_str(&contents).map_err(|err| anyhow!("{:?}", err))?;
+    let pmkey = pmc.get_signing_key().map_err(|err| anyhow!("{:?}", err))?;
     Ok(ProtocolManager::new(pmkey))
 }
 
@@ -161,7 +161,8 @@ pub async fn get_board_public_key<C: Ctx>(board_name: &str) -> Result<C::E> {
             board_name
         )
     })?;
-    let dkgpk = DkgPublicKey::<C>::strand_deserialize(&bytes).unwrap();
+    let dkgpk =
+        DkgPublicKey::<C>::strand_deserialize(&bytes).map_err(|err| anyhow!("{:?}", err))?;
     Ok(dkgpk.pk)
 }
 
@@ -245,7 +246,8 @@ pub async fn get_trustee_encrypted_private_key<C: Ctx>(
             board_name
         )
     })?;
-    let channel = Channel::<C>::strand_deserialize(&channel_bytes).unwrap();
+    let channel =
+        Channel::<C>::strand_deserialize(&channel_bytes).map_err(|err| anyhow!("{:?}", err))?;
 
     let ret = TrusteeShareData {
         channel,
@@ -265,9 +267,12 @@ pub fn get_configuration<C: Ctx>(messages: &Vec<Message>) -> Result<Configuratio
             StatementType::Configuration == message.statement.get_kind()
                 && message.artifact.is_some()
         })
-        .unwrap();
+        .ok_or(anyhow!("Can't find configuration message"))?;
     Ok(Configuration::<C>::strand_deserialize(
-        &configuration_msg.artifact.clone().unwrap(),
+        &configuration_msg
+            .artifact
+            .clone()
+            .ok_or(anyhow!("Missing artifact on configuration message"))?,
     )?)
 }
 
@@ -278,12 +283,15 @@ pub fn get_public_key_hash<C: Ctx>(messages: &Vec<Message>) -> Result<PublicKeyH
         .find(|message| {
             StatementType::PublicKey == message.statement.get_kind() && message.artifact.is_some()
         })
-        .unwrap();
-    let public_key_bytes = public_key_message.artifact.clone().unwrap();
-    let dkgpk = DkgPublicKey::<C>::strand_deserialize(&public_key_bytes).unwrap();
+        .ok_or(anyhow!("Can't find public key message"))?;
+    let public_key_bytes = public_key_message
+        .artifact
+        .clone()
+        .ok_or(anyhow!("Public key message artifact missing"))?;
+    let dkgpk = DkgPublicKey::<C>::strand_deserialize(&public_key_bytes)?;
     let pk_bytes = dkgpk.strand_serialize()?;
     let pk_h = strand::hash::hash_to_array(&pk_bytes)?;
-    Ok(PublicKeyHash(strand::util::to_u8_array(&pk_h).unwrap()))
+    Ok(PublicKeyHash(strand::util::to_u8_array(&pk_h)?))
 }
 
 #[instrument(skip_all)]

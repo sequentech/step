@@ -78,8 +78,9 @@ const spanishTranslation: TranslationType = {
                 GENERATE_TRANSMISSION_REPORT: "Generar Informe de Transmisión",
                 EXPORT_TRUSTEES: "Exportar Autoridades",
                 EXPORT_APPLICATION: "Exportar Solicitudes",
-                EXPORT_TENANT_CONFIG: "Exportar Configuración del Inquilino",
-                IMPORT_TENANT_CONFIG: "Importar Configuración del Inquilino",
+                EXPORT_TENANT_CONFIG: "Exportar Configuración del Cliente",
+                IMPORT_TENANT_CONFIG: "Importar Configuración del Cliente",
+                RENDER_DOCUMENT_PDF: "Renderizar el documento PDF",
             },
             widget: {
                 taskTitle: "Tarea: {{title}}",
@@ -487,6 +488,7 @@ const spanishTranslation: TranslationType = {
                 copiedError: "Error al copiar la contraseña",
                 reports: "Informes",
                 applications: "Aplicaciones",
+                tally: "Recuento",
             },
             taskNotification:
                 "{{action}} ha comenzado. Puedes ver su estado en la tabla de Ejecución de Tareas.",
@@ -1092,6 +1094,7 @@ const spanishTranslation: TranslationType = {
                 fr: "Francés",
                 cat: "Valenciano",
                 tl: "Tagalo",
+                gl: "Galego",
                 nl: "Holandes",
             },
             channel: {

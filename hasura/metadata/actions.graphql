@@ -500,6 +500,14 @@ type Mutation {
 }
 
 type Mutation {
+    render_document_pdf(
+        document_id: uuid!
+        election_event_id: uuid
+        tally_session_id: uuid
+    ): RenderDocumentPDFOutput
+}
+
+type Mutation {
     restore_private_key(
         object: RestorePrivateKeyInput!
     ): RestorePrivateKeyOutput
@@ -864,6 +872,7 @@ input ExportOptions {
     scheduled_events: Boolean
     reports: Boolean
     applications: Boolean
+    tally: Boolean
 }
 
 input ApplicationVerifyBody {
@@ -1558,4 +1567,9 @@ type ApplicationChangeStatusOutput {
 
 type CountUsersOutput {
     count: Int!
+}
+
+type RenderDocumentPDFOutput {
+    document_id: String
+    task_execution: tasks_execution_type
 }

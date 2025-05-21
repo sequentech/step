@@ -2,7 +2,6 @@
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::hasura;
 use crate::postgres;
 use crate::postgres::area::get_area_by_id;
 use crate::postgres::election::get_election_by_id;
@@ -11,6 +10,7 @@ use crate::postgres::election_event::{get_election_event_by_id, ElectionEventDat
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::cast_votes::get_voter_signing_key;
 use crate::services::cast_votes::CastVote;
+use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::datafix;
 use crate::services::datafix::types::SoapRequest;
 use crate::services::datafix::utils::is_datafix_election_event;
@@ -19,10 +19,6 @@ use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::protocol_manager::get_protocol_manager;
 use crate::services::users::{get_username_by_id, list_users, ListUsersFilter};
-use crate::{
-    hasura::election_event::get_election_event::GetElectionEventSequentBackendElectionEvent,
-    services::database::{get_hasura_pool, get_keycloak_pool},
-};
 use anyhow::{anyhow, Context, Result};
 use b3::messages::message::Signer;
 use chrono::{DateTime, Duration, Local};
@@ -46,7 +42,6 @@ use sequent_core::encrypt::DEFAULT_PLAINTEXT_LABEL;
 use sequent_core::multi_ballot::HashableMultiBallot;
 use sequent_core::multi_ballot::HashableMultiBallotContests;
 use sequent_core::serialization::deserialize_with_path::*;
-use sequent_core::services::connection::AuthHeaders;
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::keycloak::KeycloakAdminClient;
@@ -675,29 +670,6 @@ async fn get_electoral_log(
     .await;
 
     Ok((electoral_log?, sk.clone()))
-}
-
-#[instrument(skip_all, err)]
-async fn get_election_event(
-    auth_headers: &AuthHeaders,
-    tenant_id: &str,
-    election_event_id: &str,
-) -> Result<GetElectionEventSequentBackendElectionEvent> {
-    let hasura_response = hasura::election_event::get_election_event(
-        auth_headers.clone(),
-        tenant_id.to_string(),
-        election_event_id.to_string(),
-    )
-    .await
-    .context("Cannot retrieve election event data")?;
-
-    // TODO expect
-    let election_event = &hasura_response
-        .data
-        .expect("expected data".into())
-        .sequent_backend_election_event[0];
-
-    Ok(election_event.clone())
 }
 
 #[instrument(skip_all, err)]

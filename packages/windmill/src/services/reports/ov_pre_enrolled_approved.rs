@@ -30,21 +30,16 @@ use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
 use futures::executor::block_on;
-use futures::future::join_all;
 use once_cell::sync::Lazy;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use rayon::ThreadPoolBuilder;
 use sequent_core::ballot::StringifiedPeriodDates;
-use sequent_core::serialization::deserialize_with_path::{deserialize_str, deserialize_value};
 use sequent_core::services::keycloak::{self, get_event_realm};
 use sequent_core::services::s3::get_minio_url;
 use sequent_core::services::{pdf, reports};
 use sequent_core::types::hasura::core::Election;
 use sequent_core::types::hasura::core::TasksExecution;
-use sequent_core::types::templates::{
-    CommunicationTemplatesExtraConfig, EmailConfig, PrintToPdfOptionsLocal, ReportExtraConfig,
-    ReportOptions, SendTemplateBody, SmsConfig,
-};
+use sequent_core::types::templates::ReportExtraConfig;
 use sequent_core::types::to_map::ToMap;
 use sequent_core::util::temp_path::*;
 use serde::{Deserialize, Serialize};
@@ -589,10 +584,6 @@ impl TemplateRenderer for PreEnrolledVoterTemplate {
             final_file_path, file_size, final_report_name, mimetype
         );
 
-        let auth_headers = keycloak::get_client_credentials()
-            .await
-            .map_err(|err| anyhow!("Error getting client credentials: {err:?}"))?;
-
         let encrypted_temp_data: Option<TempPath> = if let Some(report) = &report {
             if report.encryption_policy == EReportEncryption::ConfiguredPassword {
                 let secret_key =
@@ -634,13 +625,13 @@ impl TemplateRenderer for PreEnrolledVoterTemplate {
                 .with_context(|| "Error obtaining file size")?;
             let enc_report_name: String = format!("{}.epdf", self.prefix());
             let _document = upload_and_return_document(
-                encrypted_temp_path,
+                hasura_transaction,
+                &encrypted_temp_path,
                 enc_temp_size,
-                mimetype.clone(),
-                auth_headers.clone(),
-                tenant_id.to_string(),
-                election_event_id.to_string(),
-                enc_report_name.clone(),
+                &mimetype,
+                tenant_id,
+                Some(election_event_id.to_string()),
+                &enc_report_name,
                 Some(document_id.to_string()),
                 true,
             )
@@ -674,13 +665,13 @@ impl TemplateRenderer for PreEnrolledVoterTemplate {
             }
         } else {
             let _document = upload_and_return_document(
-                final_file_path.clone(),
+                hasura_transaction,
+                &final_file_path,
                 file_size,
-                mimetype.clone(),
-                auth_headers.clone(),
-                tenant_id.to_string(),
-                election_event_id.to_string(),
-                final_report_name.clone(),
+                &mimetype,
+                tenant_id,
+                Some(election_event_id.to_string()),
+                &final_report_name,
                 Some(document_id.to_string()),
                 true,
             )

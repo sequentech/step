@@ -80,6 +80,7 @@ const frenchTranslation: TranslationType = {
                 EXPORT_APPLICATION: "Exporter les Demandes",
                 EXPORT_TENANT_CONFIG: "Exporter la Configuration du Locataire",
                 IMPORT_TENANT_CONFIG: "Importer la Configuration du Locataire",
+                RENDER_DOCUMENT_PDF: "Générer le document PDF",
             },
             widget: {
                 taskTitle: "Tâche: {{title}}",
@@ -489,6 +490,7 @@ const frenchTranslation: TranslationType = {
                 copiedError: "Erreur lors de la copie",
                 reports: "Rapports",
                 applications: "Applications",
+                tally: "Décompte",
             },
             taskNotification:
                 "{{action}} a commencé. Vous pouvez voir son statut dans le tableau d'Exécution des Tâches.",
@@ -1099,6 +1101,7 @@ const frenchTranslation: TranslationType = {
                 fr: "Français",
                 cat: "Valencien",
                 tl: "Tagalog",
+                gl: "Galego",
                 nl: "Néerlandais",
             },
             channel: {

@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::template::get_templates_by_tenant_id;
 use crate::services::database::get_hasura_pool;
-use crate::services::documents::upload_and_return_document_postgres;
+use crate::services::documents::upload_and_return_document;
 use anyhow::{anyhow, Result};
 use csv::Writer;
 use deadpool_postgres::{Client as DbClient, Transaction};
@@ -90,7 +90,7 @@ pub async fn write_export_document(
             .map_err(|e| anyhow!("Error writing into named temp file: {e:?}"))?;
 
     if let Some(first_template) = data.first() {
-        upload_and_return_document_postgres(
+        upload_and_return_document(
             transaction,
             &temp_path_string,
             file_size,
