@@ -1083,6 +1083,7 @@ const englishTranslation = {
                 tl: "Tagalog",
                 gl: "Galician",
                 nl: "Dutch",
+                eu: "Euskera"
             },
             channel: {
                 online: "Online",
