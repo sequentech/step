@@ -1101,7 +1101,7 @@ impl CastVoteEntry {
             Some(entry_username) if entry_username.eq(input_username) => {
                 Some(entry_username.clone())
             }
-            _ => None, // usernames of other users remains anonimous
+            _ => None, // usernames of other users remains anonymous
         };
         let deserialized_message = match Message::strand_deserialize(&entry.message) {
             Ok(m) => m,

@@ -446,7 +446,6 @@ impl BoardClient {
             .map(ElectoralLogMessage::try_from)
             .collect::<Result<Vec<ElectoralLogMessage>>>()?;
 
-        info!("Found {messages:?} messages");
         Ok(messages)
     }
 
