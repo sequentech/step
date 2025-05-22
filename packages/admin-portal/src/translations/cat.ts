@@ -1106,7 +1106,7 @@ const catalanTranslation: TranslationType = {
                 tl: "Tagal",
                 gl: "Galego",
                 nl: "Holandés",
-                eu: "Euskera"
+                eu: "Euskera",
             },
             channel: {
                 online: "En línia",

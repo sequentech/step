@@ -222,7 +222,8 @@ const basqueTranslation: TranslationType = {
                 showMore: "Erakutsi Gehiago",
                 showLess: "Erakutsi Gutxiago",
                 adminPortal: "Admin Portala",
-                allowPublishAfterLockdown: "Hauteskunde gertaera argitalpena blokearen ondoren soilik baimendu",
+                allowPublishAfterLockdown:
+                    "Hauteskunde gertaera argitalpena blokearen ondoren soilik baimendu",
                 reset: "Berrezarri iragazki pertsonalizatua",
             },
             edit: {
@@ -299,8 +300,10 @@ const basqueTranslation: TranslationType = {
                     COUNTDOWN_WITH_ALERT: "Kontaketa Atzera alerta batekin",
                     sectionTitle: "Bozketa Portala",
                     policyLabel: "Bozketa Portal Kontaketa Atzera politika",
-                    coundownSecondsLabel: "iraungitze aurretik kontaketa atzera erakusteko denbora segundotan",
-                    alertSecondsLabel: "iraungitze aurretik Saioa Itxi alerta erakusteko denbora segundotan",
+                    coundownSecondsLabel:
+                        "iraungitze aurretik kontaketa atzera erakusteko denbora segundotan",
+                    alertSecondsLabel:
+                        "iraungitze aurretik Saioa Itxi alerta erakusteko denbora segundotan",
                 },
                 voterSigningPolicy: {
                     "policyLabel": "Bozkatzaile Sinadura Politika",
@@ -446,7 +449,8 @@ const basqueTranslation: TranslationType = {
                 sha: "Osotasun Egiaztapena (SHA-256)",
                 cancel: "Ezeztatu",
                 import: "Inportatu",
-                fileUploadSuccess: "Fitxategia zerbitzarira igo da - baina ez da inportatu oraindik",
+                fileUploadSuccess:
+                    "Fitxategia zerbitzarira igo da - baina ez da inportatu oraindik",
                 fileUploadError: "Errorea fitxategia igotzean",
                 importVotersSuccess: "Bozkatzaileen Inportazioa Arrakastaz Programatua",
                 importVotersError: "Errorea Bozkatzaileak inportatzerakoan",
@@ -592,7 +596,8 @@ const basqueTranslation: TranslationType = {
             editPassword: {
                 label: "Aldatu pasahitza",
                 temporatyLabel: "Behin-behinekoa",
-                temporatyInfo: "Gaituta badago, erabiltzaileak pasahitza aldatu beharko du hurrengo sarreran",
+                temporatyInfo:
+                    "Gaituta badago, erabiltzaileak pasahitza aldatu beharko du hurrengo sarreran",
             },
             users: {
                 title: "Erabiltzaileak",
@@ -621,10 +626,8 @@ const basqueTranslation: TranslationType = {
                     "savePassword": "Gorde Pasahitza",
                     "passwordMismatch": "Pasahitzek bat egin behar dute",
                     "passwordLengthValidate": "Pasahitzak gutxienez 8 karaktere izan behar ditu",
-                    "passwordUppercaseValidate":
-                        "Pasahitzak gutxienez maiuskula bat izan behar du",
-                    "passwordLowercaseValidate":
-                        "Pasahitzak gutxienez minuskula bat izan behar du",
+                    "passwordUppercaseValidate": "Pasahitzak gutxienez maiuskula bat izan behar du",
+                    "passwordLowercaseValidate": "Pasahitzak gutxienez minuskula bat izan behar du",
                     "passwordDigitValidate": "Pasahitzak gutxienez zenbaki bat izan behar du",
                     "passwordSpecialCharValidate":
                         "Pasahitzak gutxienez karaktere berezi bat izan behar du",
@@ -826,7 +829,8 @@ const basqueTranslation: TranslationType = {
                 "ee-voters-filters": "Ikusi Hauteskunde Gertaera Bozkatzaileen Iragazkiak",
                 "voter-delete": "Ezabatu Bozkatzailea",
                 "voter-change-password": "Aldatu Bozkatzaile Pasahitza",
-                "election-event-localization-selector": "Hauteskunde Gertaera Lokalizazio Hautatzailea",
+                "election-event-localization-selector":
+                    "Hauteskunde Gertaera Lokalizazio Hautatzailea",
                 "localization-create": "Sortu Lokalizazioa",
                 "localization-read": "Irakurri Lokalizazioa",
                 "localization-write": "Editatu Lokalizazioa",
@@ -847,7 +851,8 @@ const basqueTranslation: TranslationType = {
                 "logs-export": "Esportatu Egunkariak",
                 "election-event-logs-columns": "Hauteskunde Gertaera Egunkarien Zutabeak",
                 "election-events-logs-filters": "Hauteskunde Gertaera Egunkarien Iragazkiak",
-                "election-event-scheduled-event-columns": "Hauteskunde Gertaera Programatutako Gertaeren Zutabeak",
+                "election-event-scheduled-event-columns":
+                    "Hauteskunde Gertaera Programatutako Gertaeren Zutabeak",
                 "scheduled-event-create": "Sortu Programatutako Gertaera",
                 "scheduled-event-delete": "Ezabatu Programatutako Gertaera",
                 "election-event-reports-columns": "Hauteskunde Gertaera Txostenen Zutabeak",
@@ -865,7 +870,8 @@ const basqueTranslation: TranslationType = {
                     "Irakurri Monitorizazio Automatiko Onartu Ezarri Bozkatzaileak",
                 "monitor-manually-approve-disapprove-voters":
                     "Irakurri Monitorizazio Eskuz Onartu Ezarri Bozkatzaileak",
-                "monitor-enrolled-overseas-voters": "Irakurri Monitorizazio Matrikulatutako Atzerriko Bozkatzaileak",
+                "monitor-enrolled-overseas-voters":
+                    "Irakurri Monitorizazio Matrikulatutako Atzerriko Bozkatzaileak",
                 "monitor-posts-already-closed-voting":
                     "Irakurri Monitorizazio Bozketa Itxi duten Postuak",
                 "monitor-posts-already-generated-election-results":
@@ -877,8 +883,10 @@ const basqueTranslation: TranslationType = {
                 "monitor-posts-initialized-the-system":
                     "Irakurri Monitorizazio Sistema Hasieratu duten Postuak",
                 "monitor-posts-started-voting": "Irakurri Monitorizazio Bozketa Hasi duten Postuak",
-                "monitor-posts-transmitted-results": "Irakurri Monitorizazio Emaitzak Transmititu dituzten Postuak",
-                "monitor-voters-voted-test-election": "Irakurri Monitorizazio Proba Hauteskunden Bozkatu duten Bozkatzaileak",
+                "monitor-posts-transmitted-results":
+                    "Irakurri Monitorizazio Emaitzak Transmititu dituzten Postuak",
+                "monitor-voters-voted-test-election":
+                    "Irakurri Monitorizazio Proba Hauteskunden Bozkatu duten Bozkatzaileak",
                 "monitor-voters-who-voted": "Irakurri Monitorizazio Bozkatu duten Bozkatzaileak",
                 "election-event-publish-preview": "Aurreikusi Hauteskunde Gertaera Argitalpena",
                 "election-event-publish-back-button": "Itzuli Hauteskunde Gertaera Argitalpenara",
@@ -989,7 +997,8 @@ const basqueTranslation: TranslationType = {
                 OV_USERS_WHO_VOTED: "Bozkatu duten Atzerriko Bozkatzaileen zerrenda",
                 OV_WITH_VOTING_STATUS: "Bozketa Egoerarekin Atzerriko Bozkatzaileen zerrenda",
                 OVCS_STATISTICS: "Atzerriko Bozketa Monitorizazioa - OVCS Estatistikak",
-                PRE_ENROLLED_OV_BUT_DISAPPROVED: "Aurre-matrikulatu baina Ezarri diren ABen zerrenda",
+                PRE_ENROLLED_OV_BUT_DISAPPROVED:
+                    "Aurre-matrikulatu baina Ezarri diren ABen zerrenda",
                 PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
                     "Aurre-matrikulatu baina Eskuzko Baliozkotzearen menpean dauden ABen zerrenda",
             },
@@ -1084,7 +1093,7 @@ const basqueTranslation: TranslationType = {
                 tl: "Tagaloa",
                 gl: "Galiziera",
                 nl: "Nederlandera",
-                eu: "Euskera"
+                eu: "Euskera",
             },
             channel: {
                 online: "Linea",
@@ -1237,7 +1246,8 @@ const basqueTranslation: TranslationType = {
                 "label": "Baliogabeko Boto Politika",
                 "allowed": "Baimenduta",
                 "warn": "Abisatu",
-                "warn-invalid-implicit-and-explicit": "Abisatu Baliogabeko Inplizitu eta Esplizitua",
+                "warn-invalid-implicit-and-explicit":
+                    "Abisatu Baliogabeko Inplizitu eta Esplizitua",
                 "not-allowed": "Ez Baimenduta",
             },
             candidatesIconCheckboxPolicy: {
@@ -1358,7 +1368,8 @@ const basqueTranslation: TranslationType = {
                 title: "Egiaztatu zure Zifratutako Giltza Pribatu Babeskopiak",
                 subtitle:
                     "Igo Zifratutako Giltza Pribatu Babeskopia bat zuzena dela egiaztatzeko. Behar adina aldiz saia zaitezke, zure babeskopia desberdinetatik:",
-                errorUploading: "Zifratutako Giltza Pribatu Babeskopia baliogabea, mesedez saiatu berriro",
+                errorUploading:
+                    "Zifratutako Giltza Pribatu Babeskopia baliogabea, mesedez saiatu berriro",
                 errorEmptyFile: "Fitxategia hutsa edo ez da aurkitu",
                 verified: "Babeskopia arrakastaz egiaztatua.",
                 downloaded: "Zifratutako Giltza Pribatua arrakastaz sortua.",
@@ -1595,15 +1606,12 @@ const basqueTranslation: TranslationType = {
                 info: "Ekintza sentikorr batean klikatu duzu, beraz behar dugu berretsi jarraitzeko",
                 initializationInfo:
                     "Hasierako txostena sortzean noa. Ziur zaude jarraitu nahi duzula?",
-                startInfo:
-                    "Bozketa aldia hasten ari naiz. Ziur zaude jarraitu nahi duzula?",
+                startInfo: "Bozketa aldia hasten ari naiz. Ziur zaude jarraitu nahi duzula?",
                 stopInfo: "Bozketa aldia gelditzera noa. Ziur zaude jarraitu nahi duzula?",
                 kioskStopInfo:
                     "Kiosko bozketa aldia gelditzera noa. Ziur zaude jarraitu nahi duzula?",
-                pauseInfo:
-                    "Bozketa aldia pausatuzera noa. Ziur zaude jarraitu nahi duzula?",
-                publishInfo:
-                    "Argitalpen bat sortzera noa. Ziur zaude jarraitu nahi duzula?",
+                pauseInfo: "Bozketa aldia pausatuzera noa. Ziur zaude jarraitu nahi duzula?",
+                publishInfo: "Argitalpen bat sortzera noa. Ziur zaude jarraitu nahi duzula?",
                 ok: "Berretsi",
                 ko: "Ezeztatu",
                 error: "Errorea bozketa argitalpena kargatzerakoan",
@@ -1819,7 +1827,8 @@ const basqueTranslation: TranslationType = {
                 OVCS_EVENTS: "Atzerriko Bozketa Monitorizazioa - OVCS Gertaerak",
                 OVCS_STATISTICS: "Atzerriko Bozketa Monitorizazioa - OVCS Estatistikak",
                 OV_WHO_VOTED: "Bozkatu duten AB Erabiltzaileak",
-                PRE_ENROLLED_OV_BUT_DISAPPROVED: "Aurre-matrikulatu baina Ezarri diren ABen zerrenda",
+                PRE_ENROLLED_OV_BUT_DISAPPROVED:
+                    "Aurre-matrikulatu baina Ezarri diren ABen zerrenda",
                 LIST_OF_OVERSEAS_VOTERS: "Atzerriko Bozkatzaileen Zerrenda",
                 OV_TURNOUT_PERCENTAGE: "Atzerriko Bozkatzaileen Parte-hartzea",
                 OV_TURNOUT_PER_ABOARD_STATUS_SEX:

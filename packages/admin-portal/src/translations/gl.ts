@@ -1098,7 +1098,7 @@ const galegoTranslation: TranslationType = {
                 tl: "Tagalo",
                 gl: "Galego",
                 nl: "Holandés",
-                eu: "Euskera"
+                eu: "Euskera",
             },
             channel: {
                 online: "En Liña",

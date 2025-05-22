@@ -22,7 +22,7 @@ const basqueTranslation: TranslationType = {
             ballotHelpDialog: {
                 title: "Informazioa: Bozketa pantaila",
                 content:
-                    "Pantaila honek zuk bozkatzeko eskubidea duzun lehiaketa erakusten du. Zure hautaketa egin dezakezu eskuinaldeko Hautagaia/Erantzunaren kontrol-laukia aktibatuz. Zure hautaketak berrezartzeko, sakatu \"<b>Hautaketa garbitu</b>\" botoia, hurrengo urratsera joateko, sakatu beheko \"<b>Hurrengoa</b>\" botoia.",
+                    'Pantaila honek zuk bozkatzeko eskubidea duzun lehiaketa erakusten du. Zure hautaketa egin dezakezu eskuinaldeko Hautagaia/Erantzunaren kontrol-laukia aktibatuz. Zure hautaketak berrezartzeko, sakatu "<b>Hautaketa garbitu</b>" botoia, hurrengo urratsera joateko, sakatu beheko "<b>Hurrengoa</b>" botoia.',
                 ok: "Ados",
             },
             nonVotedDialog: {
@@ -51,9 +51,9 @@ const basqueTranslation: TranslationType = {
         reviewScreen: {
             title: "Berrikusi zure bozketa",
             description:
-                "Zure hautaketetan aldaketak egiteko, sakatu \"<b>Editatu bozketa</b>\" botoia, zure hautaketak berresteko, sakatu beheko \"<b>Eman zure bozketa</b>\" botoia, eta zure bozketa auditatzeko sakatu beheko \"<b>Auditatu Bozketa</b>\" botoia.",
+                'Zure hautaketetan aldaketak egiteko, sakatu "<b>Editatu bozketa</b>" botoia, zure hautaketak berresteko, sakatu beheko "<b>Eman zure bozketa</b>" botoia, eta zure bozketa auditatzeko sakatu beheko "<b>Auditatu Bozketa</b>" botoia.',
             descriptionNoAudit:
-                "Zure hautaketetan aldaketak egiteko, sakatu \"<b>Editatu bozketa</b>\" botoia, zure hautaketak berresteko, sakatu beheko \"<b>Eman zure bozketa</b>\" botoia.",
+                'Zure hautaketetan aldaketak egiteko, sakatu "<b>Editatu bozketa</b>" botoia, zure hautaketak berresteko, sakatu beheko "<b>Eman zure bozketa</b>" botoia.',
             backButton: "Editatu bozketa",
             castBallotButton: "Eman zure bozketa",
             auditButton: "Auditatu bozketa",
@@ -88,7 +88,8 @@ const basqueTranslation: TranslationType = {
                     "Sare arazoa izan da. Mesedez, saiatu berriro geroago edo jarri harremanetan laguntzarekin.",
                 UNABLE_TO_FETCH_DATA:
                     "Arazoa izan da datuak eskuratzean. Mesedez, saiatu berriro geroago edo jarri harremanetan laguntzarekin.",
-                LOAD_ELECTION_EVENT: "Ezin da hauteskunde gertaera kargatu. Mesedez, saiatu berriro geroago.",
+                LOAD_ELECTION_EVENT:
+                    "Ezin da hauteskunde gertaera kargatu. Mesedez, saiatu berriro geroago.",
                 CAST_VOTE:
                     "Errore ezezaguna izan da botoa ematean. Mesedez, saiatu berriro geroago edo jarri harremanetan laguntzarekin.",
                 CAST_VOTE_AreaNotFound:
@@ -127,11 +128,14 @@ const basqueTranslation: TranslationType = {
                     "Errore ezezaguna izan da botoa ematean. Mesedez, saiatu berriro geroago edo jarri harremanetan laguntzarekin.",
                 NO_BALLOT_SELECTION:
                     "Hauteskunde honetarako hautaketa egoera ez dago presente. Mesedez, ziurtatu zure aukerak zuzen hautatu dituzula edo jarri harremanetan laguntzarekin.",
-                NO_BALLOT_STYLE: "Bozketa estiloa ez dago eskuragarri. Mesedez, jarri harremanetan laguntzarekin.",
-                NO_AUDITABLE_BALLOT: "Ez dago auditatu daitekeen bozketarik eskuragarri. Mesedez, jarri harremanetan laguntzarekin.",
+                NO_BALLOT_STYLE:
+                    "Bozketa estiloa ez dago eskuragarri. Mesedez, jarri harremanetan laguntzarekin.",
+                NO_AUDITABLE_BALLOT:
+                    "Ez dago auditatu daitekeen bozketarik eskuragarri. Mesedez, jarri harremanetan laguntzarekin.",
                 INCONSISTENT_HASH:
                     "Errorea izan da bozketa hash prozesuan. BallotId: {{ballotId}} ez da koherentea auditatu daitekeen Bozketa Hash-arekin: {{auditableBallotHash}}. Mesedez, eman arazo honen berri laguntzari.",
-                ELECTION_EVENT_NOT_OPEN: "Hauteskunde gertaera itxita dago. Mesedez, jarri harremanetan laguntzarekin.",
+                ELECTION_EVENT_NOT_OPEN:
+                    "Hauteskunde gertaera itxita dago. Mesedez, jarri harremanetan laguntzarekin.",
                 PARSE_ERROR:
                     "Errorea izan da bozketa aztertzerakoan. Mesedez, saiatu berriro geroago edo jarri harremanetan laguntzarekin.",
                 DESERIALIZE_AUDITABLE_ERROR:
@@ -280,7 +284,8 @@ const basqueTranslation: TranslationType = {
                 blankVote: "Boto Zuria: 0 aukera hautatu",
             },
             explicit: {
-                notAllowed: "Bozketa espresuki baliogabe markatu da baina galderak ez du baimentzen",
+                notAllowed:
+                    "Bozketa espresuki baliogabe markatu da baina galderak ez du baimentzen",
                 alert: "Markatutako hautaketa baliogabeko bototzat hartuko da.",
             },
             page: {
@@ -320,6 +325,5 @@ const basqueTranslation: TranslationType = {
         },
     },
 }
-
 
 export default basqueTranslation

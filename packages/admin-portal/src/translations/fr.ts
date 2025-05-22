@@ -1103,7 +1103,7 @@ const frenchTranslation: TranslationType = {
                 tl: "Tagalog",
                 gl: "Galego",
                 nl: "Néerlandais",
-                eu: "Euskera"
+                eu: "Euskera",
             },
             channel: {
                 online: "En ligne",
