@@ -150,8 +150,7 @@ const tagalogTranslation: TranslationType = {
                     "Nabigo ang authentication. Pakisubukan muli o makipag-ugnayan sa helpdesk para sa tulong.",
                 SESSION_EXPIRED:
                     "Ang iyong session ay nag-expire na. Pakisubukan muli mula sa simula.",
-                CAST_VOTE_BallotIdMismatch:
-                    "Hindi tumutugma ang ballot ID sa ibinotong boto.",
+                CAST_VOTE_BallotIdMismatch: "Hindi tumutugma ang ballot ID sa ibinotong boto.",
             },
         },
         confirmationScreen: {

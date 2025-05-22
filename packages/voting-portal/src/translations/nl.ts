@@ -149,8 +149,7 @@ const dutchTranslation: TranslationType = {
                     "Er is een fout opgetreden. Probeer het later opnieuw of neem contact op met ondersteuning voor hulp.",
                 REAUTH_FAILED:
                     "Authenticatie is mislukt. Probeer het opnieuw of neem contact op met ondersteuning voor hulp.",
-                SESSION_EXPIRED:
-                    "Uw sessie is verlopen. Begin opnieuw vanaf het begin.",
+                SESSION_EXPIRED: "Uw sessie is verlopen. Begin opnieuw vanaf het begin.",
                 CAST_VOTE_BallotIdMismatch:
                     "De stembiljet-ID komt niet overeen met de uitgebrachte stem.",
             },
