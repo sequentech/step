@@ -6,10 +6,13 @@ use crate::assign_value;
 use anyhow::{anyhow, Context, Result};
 use immudb_rs::{sql_value::Value, Client, CommittedSqlTx, NamedParam, Row, SqlValue, TxMode};
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::fmt::Display;
-use tracing::{info, instrument, Level};
+use strand::hash::info;
+use strum_macros::Display;
+use tracing::{info, instrument};
 
 const IMMUDB_DEFAULT_LIMIT: usize = 900;
 const IMMUDB_DEFAULT_ENTRIES_TX_LIMIT: usize = 50;
@@ -19,6 +22,18 @@ const ELECTORAL_LOG_TABLE: &'static str = "electoral_log_messages";
 #[derive(Debug)]
 pub struct BoardClient {
     client: Client,
+}
+
+#[derive(Debug, Clone, Display, PartialEq, Eq, Ord, PartialOrd)]
+#[strum(serialize_all = "snake_case")]
+pub enum ElectoralLogVarCharColumn {
+    StatementKind,
+    UserId,
+    Username,
+    SenderPk,
+    ElectionId,
+    AreaId,
+    Version,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -133,6 +148,26 @@ impl TryFrom<&Row> for ElectoralLogMessage {
     }
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Aggregate {
+    pub count: i64,
+}
+
+impl TryFrom<&Row> for Aggregate {
+    type Error = anyhow::Error;
+
+    fn try_from(row: &Row) -> Result<Self, Self::Error> {
+        let mut count = 0;
+
+        for (column, value) in row.columns.iter().zip(row.values.iter()) {
+            match column.as_str() {
+                _ => assign_value!(Value::N, value, count),
+            }
+        }
+        Ok(Aggregate { count })
+    }
+}
+
 impl BoardClient {
     #[instrument(skip(password), level = "trace")]
     pub async fn new(server_url: &str, username: &str, password: &str) -> Result<BoardClient> {
@@ -221,34 +256,89 @@ impl BoardClient {
         Ok(messages)
     }
 
-    pub async fn get_electoral_log_messages_filtered<V: Display, K: Display>(
+    /// columns_matcher represents the columns that will be used to filter the messages,
+    /// The order as defined ElectoralLogVarCharColumn is important for preformance to match the indexes.
+    /// BTreeMap ensures the order is preserved no matter the insertion sequence.
+    pub async fn get_electoral_log_messages_filtered<K: Display, V: Display>(
         &mut self,
         board_db: &str,
-        kind: &str,
-        sender_pk: Option<&str>,
+        columns_matcher: Option<BTreeMap<ElectoralLogVarCharColumn, String>>,
         min_ts: Option<i64>,
         max_ts: Option<i64>,
         limit: Option<i64>,
         offset: Option<i64>,
-        order_by: Option<HashMap<V, K>>,
+        order_by: Option<HashMap<K, V>>,
     ) -> Result<Vec<ElectoralLogMessage>> {
         self.get_filtered(
-            board_db, kind, sender_pk, min_ts, max_ts, limit, offset, order_by,
+            board_db,
+            columns_matcher,
+            min_ts,
+            max_ts,
+            limit,
+            offset,
+            order_by,
         )
         .await
     }
 
-    #[instrument(skip_all, err)]
-    async fn get_filtered<V: Display, K: Display>(
+    #[instrument(err)]
+    pub async fn count_electoral_log_messages(
         &mut self,
         board_db: &str,
-        kind: &str,
-        sender_pk: Option<&str>,
+        columns_matcher: Option<BTreeMap<ElectoralLogVarCharColumn, String>>,
+    ) -> Result<i64> {
+        let mut where_clause = String::from("statement_kind IS NOT NULL ");
+        if let Some(columns_matcher) = &columns_matcher {
+            for (key, _) in columns_matcher {
+                where_clause.push_str(&format!("AND {key} = @{key} "));
+            }
+        }
+
+        self.client.use_database(board_db).await?;
+        let sql = format!(
+            r#"
+            SELECT COUNT(*)
+            FROM {ELECTORAL_LOG_TABLE}
+            WHERE {where_clause}
+            "#,
+        );
+
+        let mut params = vec![];
+        if let Some(columns_matcher) = columns_matcher {
+            for (key, value) in columns_matcher {
+                params.push(NamedParam {
+                    name: key.to_string(),
+                    value: Some(SqlValue {
+                        value: Some(Value::S(value.to_string())),
+                    }),
+                })
+            }
+        }
+
+        info!("SQL query: {}", sql);
+        let sql_query_response = self.client.sql_query(&sql, params).await?;
+        let mut rows_iter = sql_query_response
+            .get_ref()
+            .rows
+            .iter()
+            .map(Aggregate::try_from);
+        let aggregate = rows_iter
+            .next()
+            .ok_or_else(|| anyhow!("No aggregate found"))??;
+
+        Ok(aggregate.count as i64)
+    }
+
+    #[instrument(skip_all, err)]
+    async fn get_filtered<K: Display, V: Display>(
+        &mut self,
+        board_db: &str,
+        columns_matcher: Option<BTreeMap<ElectoralLogVarCharColumn, String>>,
         min_ts: Option<i64>,
         max_ts: Option<i64>,
         limit: Option<i64>,
         offset: Option<i64>,
-        order_by: Option<HashMap<V, K>>,
+        order_by: Option<HashMap<K, V>>,
     ) -> Result<Vec<ElectoralLogMessage>> {
         let (min_clause, min_clause_value) = if let Some(min_ts) = min_ts {
             ("AND created >= @min_ts", min_ts)
@@ -262,11 +352,12 @@ impl BoardClient {
             ("", 0)
         };
 
-        let (sender_pk_clause, sender_pk_value) = if let Some(sender_pk) = sender_pk {
-            ("AND sender_pk = @sender_pk", sender_pk)
-        } else {
-            ("", "")
-        };
+        let mut where_clause = String::from("statement_kind IS NOT NULL ");
+        if let Some(columns_matcher) = &columns_matcher {
+            for (key, _) in columns_matcher {
+                where_clause.push_str(&format!("AND {key} = @{key} "));
+            }
+        }
 
         let order_by_clauses = if let Some(order_by) = order_by {
             order_by
@@ -275,7 +366,7 @@ impl BoardClient {
                 .collect::<Vec<String>>()
                 .join(", ")
         } else {
-            format!("ORDER BY id")
+            format!("ORDER BY id desc")
         };
 
         self.client.use_database(board_db).await?;
@@ -284,6 +375,9 @@ impl BoardClient {
         SELECT
             id,
             username,
+            user_id,
+            area_id,
+            election_id,
             created,
             sender_pk,
             statement_timestamp,
@@ -291,22 +385,27 @@ impl BoardClient {
             message,
             version
         FROM {ELECTORAL_LOG_TABLE}
-        WHERE statement_kind = @statement_kind
+        WHERE {where_clause}
         {min_clause}
         {max_clause}
-        {sender_pk_clause}
         {order_by_clauses}
         LIMIT @limit
         OFFSET @offset;
         "#
         );
 
-        let mut params = vec![NamedParam {
-            name: String::from("statement_kind"),
-            value: Some(SqlValue {
-                value: Some(Value::S(kind.to_string())),
-            }),
-        }];
+        let mut params = vec![];
+        if let Some(columns_matcher) = columns_matcher {
+            for (key, value) in columns_matcher {
+                params.push(NamedParam {
+                    name: key.to_string(),
+                    value: Some(SqlValue {
+                        value: Some(Value::S(value.to_string())),
+                    }),
+                })
+            }
+        }
+
         if min_clause_value != 0 {
             params.push(NamedParam {
                 name: String::from("min_ts"),
@@ -320,14 +419,6 @@ impl BoardClient {
                 name: String::from("max_ts"),
                 value: Some(SqlValue {
                     value: Some(Value::Ts(max_clause_value)),
-                }),
-            })
-        }
-        if !sender_pk_value.is_empty() {
-            params.push(NamedParam {
-                name: String::from("sender_pk"),
-                value: Some(SqlValue {
-                    value: Some(Value::S(sender_pk_value.to_string())),
                 }),
             })
         }
@@ -355,6 +446,7 @@ impl BoardClient {
             .map(ElectoralLogMessage::try_from)
             .collect::<Result<Vec<ElectoralLogMessage>>>()?;
 
+        info!("Found {messages:?} messages");
         Ok(messages)
     }
 
@@ -663,11 +755,20 @@ impl BoardClient {
         "#
         );
 
+        // This is the order of the cols in the wherer clauses, as defined in ElectoralLogVarCharColumn
+        // Note Username cannot be indexed because it is not constrained to 512B, but is not needded since we have user_id
+        // StatementKind, UserId, Username, SenderPk, ElectionId, AreaId, Version,
         let elog_indexes = vec![
-            format!("CREATE INDEX IF NOT EXISTS ON {ELECTORAL_LOG_TABLE} (statement_kind, statement_timestamp)"),
-            format!("CREATE INDEX IF NOT EXISTS ON {ELECTORAL_LOG_TABLE} (election_id, area_id, user_id)"),
-            format!("CREATE INDEX IF NOT EXISTS ON {ELECTORAL_LOG_TABLE} (user_id, area_id)"),
-            format!("CREATE INDEX IF NOT EXISTS ON {ELECTORAL_LOG_TABLE} (area_id, election_id, statement_kind)"),
+            format!("CREATE INDEX IF NOT EXISTS ON {ELECTORAL_LOG_TABLE} (statement_kind, user_id, election_id)"), // To list or count cast_vote_messages.
+            format!("CREATE INDEX IF NOT EXISTS ON {ELECTORAL_LOG_TABLE} (statement_kind, user_id, election_id, id)"), // Order by id
+            format!("CREATE INDEX IF NOT EXISTS ON {ELECTORAL_LOG_TABLE} (statement_kind, user_id, election_id, statement_timestamp)"), // Order by statement_timestamp
+            format!("CREATE INDEX IF NOT EXISTS ON {ELECTORAL_LOG_TABLE} (statement_kind, election_id)"),
+            format!("CREATE INDEX IF NOT EXISTS ON {ELECTORAL_LOG_TABLE} (statement_kind, election_id, id)"), // Order by id
+            format!("CREATE INDEX IF NOT EXISTS ON {ELECTORAL_LOG_TABLE} (statement_kind, election_id, statement_timestamp)"), // Order by statement_timestamp
+            format!("CREATE INDEX IF NOT EXISTS ON {ELECTORAL_LOG_TABLE} (statement_kind, user_id, election_id, area_id)"), // Other posible filters...
+            format!("CREATE INDEX IF NOT EXISTS ON {ELECTORAL_LOG_TABLE} (statement_kind, user_id, sender_pk, election_id, area_id)"),
+            format!("CREATE INDEX IF NOT EXISTS ON {ELECTORAL_LOG_TABLE} (statement_kind)"),
+            format!("CREATE INDEX IF NOT EXISTS ON {ELECTORAL_LOG_TABLE} (election_id)"),
         ];
 
         self.upsert_database(board_dbname, &sql, elog_indexes.as_slice())
@@ -763,11 +864,15 @@ pub(crate) mod tests {
 
         let ret = b.get_electoral_log_messages(BOARD_DB).await.unwrap();
         assert_eq!(messages, ret);
+
+        let cols_match = BTreeMap::from([
+            (ElectoralLogVarCharColumn::StatementKind, "".to_string()),
+            (ElectoralLogVarCharColumn::SenderPk, "".to_string()),
+        ]);
         let ret = b
             .get_electoral_log_messages_filtered(
                 BOARD_DB,
-                "",
-                Some(""),
+                Some(cols_match),
                 None,
                 None,
                 None,
@@ -780,8 +885,7 @@ pub(crate) mod tests {
         let ret = b
             .get_electoral_log_messages_filtered(
                 BOARD_DB,
-                "",
-                Some(""),
+                Some(cols_match),
                 Some(1i64),
                 None,
                 None,
@@ -794,8 +898,7 @@ pub(crate) mod tests {
         let ret = b
             .get_electoral_log_messages_filtered(
                 BOARD_DB,
-                "",
-                Some(""),
+                Some(cols_match),
                 None,
                 Some(556i64),
                 None,
@@ -808,8 +911,7 @@ pub(crate) mod tests {
         let ret = b
             .get_electoral_log_messages_filtered(
                 BOARD_DB,
-                "",
-                Some(""),
+                Some(cols_match),
                 Some(1i64),
                 Some(556i64),
                 None,
@@ -822,8 +924,7 @@ pub(crate) mod tests {
         let ret = b
             .get_electoral_log_messages_filtered(
                 BOARD_DB,
-                "",
-                Some(""),
+                Some(cols_match),
                 Some(556i64),
                 Some(666i64),
                 None,

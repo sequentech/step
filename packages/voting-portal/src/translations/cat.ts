@@ -311,6 +311,7 @@ const catalanTranslation: TranslationType = {
             notFound: "El teu ID de Papereta {{ballotId}} no ha estat localitzat",
             contentDesc: "Aquest és el contingut de la teva Papereta: ",
             wrongFormatBallotId: "Format incorrecte per l'ID de la Papereta",
+            ballotIdNotFoundAtFilter: "No trobat, comprova que l'ID de la Papereta estigui correcte i pertanyi a l'usuari actual.",
             filterByBallotId: "Filtra per ID de la Papereta",
             totalBallots: "Paperetes: {{total}}",
             steps: {

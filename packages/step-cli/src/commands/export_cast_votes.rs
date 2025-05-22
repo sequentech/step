@@ -77,12 +77,15 @@ impl ExportCastVotes {
             .await
             .map_err(|err| anyhow!("Failed to create the client: {:?}", err))?;
 
+        let cols_match = BTreeMap::from([(
+            ElectoralLogColumn::StatementKind,
+            StatementType::CastVote.to_string(),
+        )]);
         println!("Getting messages");
         let electoral_log_messages = client
             .get_electoral_log_messages_filtered(
                 &self.board_db,
-                "CastVote",
-                None,
+                Some(cols_match),
                 None,
                 None,
                 None,

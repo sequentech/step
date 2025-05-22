@@ -43,7 +43,10 @@ pub async fn list_cast_vote_messages(
     let input = body.into_inner();
     // let election_id = input.election_id.as_deref().unwrap_or_default();
     let election_id = input.election_id.clone().unwrap_or_default(); // TODO: Temporary till merging the ballot performace inprovements.
-                                                                     // Check auth.
+    let username = claims.preferred_username.clone().unwrap_or_default();
+    let user_id = claims.hasura_claims.user_id.clone();
+
+    // Check auth.
     let (_area_id, _voting_channel) = authorize_voter_election(
         &claims,
         vec![VoterPermissions::CAST_VOTE],
@@ -102,15 +105,17 @@ pub async fn list_cast_vote_messages(
         ..Default::default()
     };
 
-    let ret_val = electoral_log::list_cast_vote_messages(elog_input, ballot_id)
-        .await
-        .map_err(|e| {
-            ErrorResponse::new(
-                Status::InternalServerError,
-                &format!("Error to list cast vote messages: {e:?}"),
-                ErrorCode::InternalServerError,
-            )
-        })?;
+    let ret_val = electoral_log::list_cast_vote_messages(
+        elog_input, ballot_id, &user_id, &username,
+    )
+    .await
+    .map_err(|e| {
+        ErrorResponse::new(
+            Status::InternalServerError,
+            &format!("Error to list cast vote messages: {e:?}"),
+            ErrorCode::InternalServerError,
+        )
+    })?;
 
     Ok(Json(ret_val))
 }

@@ -144,6 +144,7 @@ const BallotLocator: React.FC = () => {
     const [inputBallotId, setInputBallotId] = useState("")
     const [rows, setRows] = useState<ICastVoteEntry[]>([])
     const [total, setTotal] = useState(0)
+    const [ballotIdNotFoundErr, setBallotIdNotFoundErr] = useState(false)
     const validatedBallotId = isHex(inputBallotId ?? "")
     const [showCVLogsPolicy, setShowCVLogsPolicy] = useState(false)
     const {globalSettings} = useContext(SettingsContext)
@@ -186,7 +187,7 @@ const BallotLocator: React.FC = () => {
                 let offset = page * rowsPerPage
                 const {data} = await refetch({
                     ballotId: inputBallotId,
-                    orderBy: {[headerName ?? "statement_timestamp"]: newOrder ?? "desc"},
+                    orderBy: {[headerName ?? "id"]: newOrder ?? "desc"},
                     limit,
                     offset,
                 })
@@ -194,6 +195,7 @@ const BallotLocator: React.FC = () => {
                 if (data?.list_cast_vote_messages) {
                     setRows((data?.list_cast_vote_messages?.list ?? []) as ICastVoteEntry[])
                     setTotal(data?.list_cast_vote_messages?.total)
+                    setBallotIdNotFoundErr(inputBallotId.length > 0 && data?.list_cast_vote_messages?.list.length === 0)
                 }
             } catch (e) {
                 // TODO: Notify to the user.
@@ -285,6 +287,9 @@ const BallotLocator: React.FC = () => {
                         captureEnter={captureEnter}
                         placeholderLabel="ballotLocator.filterByBallotId"
                     />
+                    {ballotIdNotFoundErr && (
+                        <StyledError>{t("ballotLocator.ballotIdNotFoundAtFilter")}</StyledError>
+                    )}
                 </Box>
                 <LogsTable
                     rows={rows}
@@ -380,7 +385,7 @@ const LogsTable: React.FC<LogsTableProps> = ({
                     <TableBody>
                         {rows.map((row, index) => (
                             <TableRow key={index}>
-                                <TableCell align="justify">{row.username}</TableCell>
+                                <TableCell align="justify">{row.username ?? "****"}</TableCell>
                                 <TableCell align="justify">{row.ballot_id}</TableCell>
                                 <TableCell align="justify">{row.statement_kind}</TableCell>
                                 <TableCell align="justify">
