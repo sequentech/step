@@ -27,7 +27,7 @@ pub fn generate_keycloak_token(
         ("client_secret", client_secret),
         ("username", username),
         ("password", password),
-        ("acr_values", "gold")
+        ("require_auth_time", "true"),
     ];
     println!("params: {:?}", params);
     let realm = format!("tenant-{}", tenant_id);

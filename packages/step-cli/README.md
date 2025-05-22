@@ -32,23 +32,22 @@ Run ```step refresh-token```
 Run ```step create-election-event --name <ELECTION_EVENT_NAME> --description <DESCRIPTION> --encryption-protocol "RSA256" --is-archived```
 
 - name - the election event name - required*
-- description - the election event desciption - optional*
+- description - the election event description - optional*
 - encryption_protocol - optional*
 - is_archived - boolean if should be archived - optional*
-
 
 ## Create Election
 Run ```step create-election --name <ELECTION_NAME> --description <DESCRIPTION> --election-event-id <ELECTION_EVENT_ID>```
 
 - name - the election name - required*
-- description - the election desciption - optional*
+- description - the election description - optional*
 - election_event_id - The associated election event id - required*
 
 ## Create Contest
 Run ```step create-contest --name <CONTEST_NAME> --description <DESCRIPTION> --election-event-id <ELECTION_EVENT_ID>```
 
 - name - the contest name - required*
-- description - the contest desciption - optional*
+- description - the contest description - optional*
 - election_event_id - The associated election event id - required*
 - election_id - The associated election id - required*
 
@@ -56,7 +55,7 @@ Run ```step create-contest --name <CONTEST_NAME> --description <DESCRIPTION> --e
 Run ```step create-candidate --name <CANDIDATE_NAME> --description <DESCRIPTION> --election-event-id <ELECTION_EVENT_ID>```
 
 - name - the candidate name - required*
-- description - the candidate desciption - optional*
+- description - the candidate description - optional*
 - election_event_id - The associated election event id - required*
 - contest_id - The associated contest id - required*
 
@@ -64,7 +63,7 @@ Run ```step create-candidate --name <CANDIDATE_NAME> --description <DESCRIPTION>
 Run ```step create-area --name <AREA_NAME> --description <DESCRIPTION> --election-event-id <ELECTION_EVENT_ID>```
 
 - name - the area name - required*
-- description - the area desciption - optional*
+- description - the area description - optional*
 - election_event_id - The associated election event id - required*
 
 ## Create Area Contest
@@ -131,12 +130,14 @@ Run ```step publish --election-event-id <ELECTION_EVENT_ID>```
 
 > This <b>only</b> starts a key ceremony - make sure to first run in .devcontainer  ```docker compose up -d --no-deps beat trustee1 trustee2``` 
 
-Run ```step start-key-ceremony --election-event-id <ELECTION_EVENT_ID>```
+Run ```step start-key-ceremony --election-event-id <ELECTION_EVENT_ID> --threshold <THRESHOLD> --election-id <ELECTION_ID> --name <NAME>```
 
 - Election event id - the election event to be associated with - required*
+- Threshold - the minimum number of trustees required to tally - optional* (default: 2)
+- Election id - optional specific election to start the key ceremony for - optional*
+- Name - optional name or alias of the election - optional*
 
 ## Complete Key Ceremony
-
 > This needs to be done by a trustee - authenticate with a trustee using the config command
 
 Run ```step complete-key-ceremony --election-event-id <ELECTION_EVENT_ID> --key-ceremony-id <KEY_CEREMONY_ID>```
@@ -145,14 +146,13 @@ Run ```step complete-key-ceremony --election-event-id <ELECTION_EVENT_ID> --key-
 - Key ceremony id - the key ceremony to complete - required*
 
 ## Start Tally Ceremony
-
-Run ```step start-tally --election-event-id <ELECTION_EVENT_ID>```
+Run ```step start-tally --election-event-id <ELECTION_EVENT_ID> --election-ids <ELECTION_IDS> --tally-type <TALLY_TYPE>```
 
 - Election event id - the election event to be associated with - required*
-- Election ids - optional string vec of election ids - optional*
+- Election ids - optional specific elections to start the tally for - optional*
+- Tally type - the type of tally to perform (ELECTORAL_RESULTS or INITIALIZATION_REPORT) - required*
 
 ## Confirm Trustee Key For Tally Ceremony
-
 > This needs to be done by a trustee - authenticate with a trustee using the config command
 
 Run ```step confirm-key-tally --election-event-id <ELECTION_EVENT_ID> --tally-id <TALLY_ID>```
@@ -161,7 +161,6 @@ Run ```step confirm-key-tally --election-event-id <ELECTION_EVENT_ID> --tally-id
 - Tally id - the tally ceremony id to confirm the key for - required*
 
 ## Update Tally Ceremony Status
-
 > This can be used to complete the tally ceremony after the trustee keys have been confirmed
 
 Run ```step update-tally --election-event-id <ELECTION_EVENT_ID> --tally-id <TALLY_ID> --status <STATUS>```
@@ -169,6 +168,7 @@ Run ```step update-tally --election-event-id <ELECTION_EVENT_ID> --tally-id <TAL
 - Election event id - the election event to be associated with - required*
 - Tally id - the tally ceremony id to confirm the key for - required*
 - Status - the status of the tally - enter <b>IN_PROGRESS</b> for completing the tally ceremony
+
 ## Render Template
 > This can be used to renders a handlerbars file into html
 > Run ```step render-template [--base-template <PATH_TO_TEMPLATE_FILE>] --template <PATH_TO_TEMPLATE_FILE> --vars <PATH_TO_VARIABLES_FILE> --output  <PATH_TO_OUTPUT_FILE>```

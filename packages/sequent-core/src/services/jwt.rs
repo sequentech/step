@@ -75,6 +75,7 @@ pub struct JwtClaims {
 
 #[instrument(err, skip_all)]
 pub fn decode_jwt(token: &str) -> Result<JwtClaims> {
+    debug!("token: {:?}", token);
     let parts: Vec<&str> = token.split('.').collect();
     let part = parts.get(1).ok_or(anyhow::anyhow!("Bad token (no '.')"))?;
     let bytes = general_purpose::URL_SAFE_NO_PAD
@@ -128,8 +129,15 @@ pub fn has_gold_permission(claims: &JwtClaims) -> bool {
         {
             auth_time_parsed
         } else {
-            warn!("ISO8601::timestamp_ms_utc_to_date_opt(auth_time_int={auth_time_int:?}) failed");
-            return false;
+            // Try to use iat if auth_time parsing failed
+            if let Ok(iat_parsed) = 
+                ISO8601::timestamp_ms_utc_to_date_opt(claims.iat * 1000) 
+            {
+                iat_parsed
+            } else {
+                warn!("Failed to parse both auth_time and iat");
+                return false;
+            }
         }
     } else {
         warn!("claims.auth_time is None");
@@ -138,9 +146,9 @@ pub fn has_gold_permission(claims: &JwtClaims) -> bool {
     // Let's asume fresh means token has at most 1 minute since authentication
     let freshness_limit = ISO8601::now() - Duration::seconds(60);
     let is_fresh = auth_time_local > freshness_limit;
-    warn!("is_fresh={is_fresh:?}, auth_time_local={auth_time_local:?}, freshness_limit={freshness_limit:?}");
     let is_gold = claims.acr == Permissions::GOLD.to_string();
-
+    info!("is_gold={is_gold:?}");
+    info!("is_fresh={is_fresh:?}, auth_time_local={auth_time_local:?}, freshness_limit={freshness_limit:?}");
     is_fresh && is_gold
 }
 
