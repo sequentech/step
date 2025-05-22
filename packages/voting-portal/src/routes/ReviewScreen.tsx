@@ -548,10 +548,6 @@ export const ReviewScreen: React.FC = () => {
     const castVoteConfirmModal =
         ballotStyle?.ballot_eml?.election_presentation?.cast_vote_confirm ?? false
 
-    // console.log("aa auditableBallot", auditableBallot);
-    // console.log("aa hashableBallot", hashableBallot);
-    // console.log("aa hashableBallot", ballotId);
-
     const errorSelectionState = useMemo(() => {
         if (!selectionState || !ballotStyle) {
             return []
@@ -603,6 +599,10 @@ export const ReviewScreen: React.FC = () => {
                 sessionStorage.getItem("ballotDataExpiration") || "0",
                 10
             )
+
+            console.log("aa expirationTime", expirationTime)
+            console.log("aa Date.now()", Date.now())
+
             if (expirationTime && Date.now() > expirationTime) {
                 // Data has expired, clean up and return error
                 sessionStorage.removeItem("ballotData")
@@ -706,6 +706,21 @@ export const ReviewScreen: React.FC = () => {
             return submit({error: errorType}, {method: "post"})
         }
     }
+
+    // Selectively clear ballot-related session data when component mounts
+    useEffect(() => {
+        // Only clear session data if we're not in the middle of a golden policy flow
+        if (
+            !(
+                (!ballotStyle || !auditableBallot || !selectionState) &&
+                isGoldenPolicy &&
+                isGoldUser()
+            )
+        ) {
+            sessionStorage.removeItem("ballotData")
+            sessionStorage.removeItem("ballotDataExpiration")
+        }
+    }, [])
 
     useEffect(() => {
         // Handle the golden user flow after reauthentication
