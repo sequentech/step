@@ -361,8 +361,8 @@ const LogsTable: React.FC<LogsTableProps> = ({
                                     username
                                 </TableSortLabel>
                             </TableCell>
-                            <TableCell align="justify">ballot_id</TableCell>
-                            <TableCell align="justify">
+                            <TableCell align="justify" sx={{fontWeight: "bold"}}>ballot_id</TableCell>
+                            <TableCell align="justify" sx={{fontWeight: "bold"}}>
                                 <TableSortLabel
                                     active={orderBy === "statement_kind"}
                                     direction={orderBy === "statement_kind" ? order : "asc"}
@@ -371,7 +371,7 @@ const LogsTable: React.FC<LogsTableProps> = ({
                                     statement_kind
                                 </TableSortLabel>
                             </TableCell>
-                            <TableCell align="justify">
+                            <TableCell align="justify" sx={{fontWeight: "bold"}}>
                                 <TableSortLabel
                                     active={orderBy === "statement_timestamp"}
                                     direction={orderBy === "statement_timestamp" ? order : "asc"}

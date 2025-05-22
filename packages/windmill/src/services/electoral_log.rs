@@ -1056,8 +1056,6 @@ impl TryFrom<&Row> for ElectoralLogRow {
             }
         }
 
-        info!("{statement_kind:?}, Message len: {}", message.len());
-        info!("{username:?}");
         let deserialized_message =
             Message::strand_deserialize(&message).with_context(|| "Error deserializing message")?;
         let serialized = general_purpose::STANDARD_NO_PAD.encode(message);
