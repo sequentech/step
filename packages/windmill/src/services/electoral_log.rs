@@ -1233,7 +1233,7 @@ pub async fn list_cast_vote_messages(
     };
     let mut offset: i64 = input.offset.unwrap_or(0);
     let mut list: Vec<CastVoteEntry> = Vec::with_capacity(MAX_ROWS_PER_PAGE); // Filtered messages.
-    let mut cols_match = BTreeMap::from([
+    let cols_match_count = BTreeMap::from([
         (
             ElectoralLogVarCharColumn::StatementKind,
             StatementType::CastVote.to_string(),
@@ -1243,13 +1243,13 @@ pub async fn list_cast_vote_messages(
             input.election_id.clone().unwrap_or_default(),
         ),
     ]);
+    let mut cols_match_select = cols_match_count.clone();
     // Restrict the SQL query to user_id in case of filtering, so to avoid having to decode all messages in electoral_log
     if !ballot_id_filter.is_empty() {
-        cols_match.insert(ElectoralLogVarCharColumn::UserId, user_id.to_string());
+        cols_match_select.insert(ElectoralLogVarCharColumn::UserId, user_id.to_string());
     }
-
     let total = client
-        .count_electoral_log_messages(&board_name, Some(cols_match.clone()))
+        .count_electoral_log_messages(&board_name, Some(cols_match_count))
         .await?
         .to_u64()
         .unwrap_or(0) as usize;
@@ -1257,7 +1257,7 @@ pub async fn list_cast_vote_messages(
         let electoral_log_messages = client
             .get_electoral_log_messages_filtered(
                 &board_name,
-                Some(cols_match.clone()),
+                Some(cols_match_select.clone()),
                 None,
                 None,
                 Some(limit),
