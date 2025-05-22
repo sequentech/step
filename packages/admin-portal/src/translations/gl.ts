@@ -1084,6 +1084,11 @@ const galegoTranslation: TranslationType = {
                 kind: "Tipo de ficheiro",
                 filter: "Filtros Personalizados",
                 approve: "Aprobar",
+                continue: "Continuar",
+                logout: "Pechar sesión",
+                selectTenant: "Seleccionar cliente",
+                processing: "Procesando...",
+                tenantName: "Nome do inquilino",
             },
             language: {
                 es: "Español",
@@ -1100,6 +1105,7 @@ const galegoTranslation: TranslationType = {
             },
             message: {
                 delete: "¿Estás seguro de que queres eliminar este elemento?",
+                continueOrLogout: "¿Queres continuar ou pechar sesión?",
             },
         },
         createResource: {

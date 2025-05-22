@@ -1079,6 +1079,11 @@ const dutchTranslation: TranslationType = {
                 kind: "Bestandstype",
                 filter: "Aangepaste Filters",
                 approve: "Goedkeuren",
+                continue: "Doorgaan",
+                logout: "Uitloggen",
+                selectTenant: "Huurder selecteren",
+                processing: "Bezig met verwerken...",
+                tenantName: "Naam van de huurder",
             },
             language: {
                 es: "Spaans",
@@ -1095,6 +1100,7 @@ const dutchTranslation: TranslationType = {
             },
             message: {
                 delete: "Weet u zeker dat u dit item wilt verwijderen?",
+                continueOrLogout: "Wil je doorgaan of uitloggen?",
             },
         },
         createResource: {
