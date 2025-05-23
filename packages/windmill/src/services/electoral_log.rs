@@ -1323,7 +1323,7 @@ pub async fn count_electoral_log(input: GetElectoralLogBody) -> Result<i64> {
 #[instrument(err)]
 pub fn ballot_id_to_byte_array(ballot_id: &str) -> Result<Vec<u8>> {
     ensure!(
-        ballot_id.len() % 2 == 0,
+        ballot_id.chars().count() % 2 == 0 && ballot_id.is_ascii(),
         "Incorrect ballot_id, the length must be an even number of characters"
     );
     let mut byte_array: Vec<u8> = Vec::with_capacity(BALLOT_ID_LENGTH_BYTES);
@@ -1338,7 +1338,6 @@ pub fn ballot_id_to_byte_array(ballot_id: &str) -> Result<Vec<u8>> {
     Ok(byte_array)
 }
 
-// #[instrument(skip(msg, input_filter_hash))]
 pub fn find_ballot_id_in_message(msg: &Message, input_filter_hash: &Vec<u8>) -> Option<String> {
     let inmudb_hash: [u8; STRAND_HASH_LENGTH_BYTES] = match &msg.statement.body {
         StatementBody::CastVote(_, _, cv_hash, _, _) => cv_hash.0.clone().into_inner(),

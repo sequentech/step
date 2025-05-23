@@ -223,6 +223,9 @@ const BallotLocator: React.FC = () => {
         requestCVMsgs(headerName, newOrder)
     }
     useEffect(() => {
+        if (validatedBallotId) {
+            setBallotIdNotFoundErr(false)
+        }
         const showLogs = dataElectionEvent?.sequent_backend_election_event[0]?.presentation
             ?.show_cast_vote_logs as EShowCastVoteLogsPolicy
         setShowCVLogsPolicy(showLogs === EShowCastVoteLogsPolicy.SHOW_LOGS_TAB)
@@ -284,12 +287,10 @@ const BallotLocator: React.FC = () => {
                         inputBallotId={inputBallotId}
                         setInputBallotId={setInputBallotId}
                         validatedBallotId={validatedBallotId}
+                        ballotIdNotFoundErr={ballotIdNotFoundErr}
                         captureEnter={captureEnter}
                         placeholderLabel="ballotLocator.filterByBallotId"
                     />
-                    {ballotIdNotFoundErr && (
-                        <StyledError>{t("ballotLocator.ballotIdNotFoundAtFilter")}</StyledError>
-                    )}
                 </Box>
                 <LogsTable
                     rows={rows}
@@ -413,6 +414,7 @@ interface BallotIdInputProps {
     inputBallotId: string
     setInputBallotId: (value: string) => void
     validatedBallotId: boolean
+    ballotIdNotFoundErr?: boolean
     captureEnter: React.KeyboardEventHandler<HTMLDivElement>
     placeholderLabel: string
 }
@@ -421,6 +423,7 @@ const BallotIdInput: React.FC<BallotIdInputProps> = ({
     inputBallotId,
     setInputBallotId,
     validatedBallotId,
+    ballotIdNotFoundErr = false,
     captureEnter,
     placeholderLabel,
 }) => {
@@ -442,6 +445,9 @@ const BallotIdInput: React.FC<BallotIdInputProps> = ({
             />
             {!validatedBallotId && (
                 <StyledError>{t("ballotLocator.wrongFormatBallotId")}</StyledError>
+            )}
+            {ballotIdNotFoundErr && validatedBallotId && (
+                <StyledError>{t("ballotLocator.ballotIdNotFoundAtFilter")}</StyledError>
             )}
         </>
     )
