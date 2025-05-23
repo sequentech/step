@@ -1089,6 +1089,11 @@ const spanishTranslation: TranslationType = {
                 kind: "Tipo de archivo",
                 filter: "Filtros Personalizados",
                 approve: "Aprobar",
+                continue: "Continuar",
+                logout: "Cerrar Sesión",
+                selectTenant: "Seleccionar Inquilino",
+                processing: "Procesando...",
+                tenantName: "Nombre del Inquilino",
             },
             language: {
                 es: "Español",
@@ -1105,6 +1110,7 @@ const spanishTranslation: TranslationType = {
             },
             message: {
                 delete: "¿Estás seguro que quieres borrar este elemento?",
+                continueOrLogout: "¿Quieres continuar o cerrar sesión?",
             },
         },
         createResource: {

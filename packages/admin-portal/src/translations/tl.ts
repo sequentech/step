@@ -1091,6 +1091,11 @@ const tagalogTranslation: TranslationType = {
                 kind: "Uri ng file",
                 filter: "Pasadyang mga filter",
                 approve: "Aprubahan",
+                continue: "Magpatuloy",
+                logout: "Mag-logout",
+                selectTenant: "Pumili ng Tenant",
+                processing: "Nagpro-process...",
+                tenantName: "Pangalan ng Tenant",
             },
             language: {
                 es: "Espanyol",
@@ -1107,6 +1112,7 @@ const tagalogTranslation: TranslationType = {
             },
             message: {
                 delete: "Sigurado ka bang gusto mong tanggalin ang item na ito?",
+                continueOrLogout: "Gusto mo bang magpatuloy o mag-logout?",
             },
         },
         createResource: {
