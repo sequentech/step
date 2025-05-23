@@ -23,7 +23,7 @@ use electoral_log::messages::message::{Message, SigningData};
 use electoral_log::messages::newtypes::*;
 use electoral_log::messages::statement::{StatementBody, StatementType};
 use electoral_log::{BoardClient, ElectoralLogMessage, ElectoralLogVarCharColumn};
-use immudb_rs::{sql_value::Value, Client, NamedParam, Row, SqlValue, TxMode};
+use immudb_rs::{sql_value::Value, Client, NamedParam, Row, TxMode};
 use rust_decimal::prelude::ToPrimitive;
 use sequent_core::serialization::deserialize_with_path;
 use sequent_core::services::date::ISO8601;
@@ -36,7 +36,7 @@ use strand::hash::HashWrapper;
 use strand::hash::STRAND_HASH_LENGTH_BYTES;
 use strand::serialization::StrandDeserialize;
 use strand::signature::StrandSignatureSk;
-use strum_macros::{Display, EnumString, ToString};
+use strum_macros::{Display, EnumString};
 use tempfile::NamedTempFile;
 use tokio_stream::StreamExt;
 use tracing::{event, info, instrument, trace, warn, Level};
@@ -1088,23 +1088,15 @@ pub struct CastVoteMessagesOutput {
 }
 
 impl CastVoteEntry {
-    pub fn from_row_with_ballot_id(
+    pub fn from_message_with_ballot_id(
         entry: &ElectoralLogMessage,
         input_filter_hash: &Vec<u8>,
         input_username: &str,
     ) -> Result<Option<Self>, anyhow::Error> {
-        let statement_timestamp = entry.statement_timestamp;
-        let statement_kind = entry.statement_kind.clone();
-        let username = match entry.username.as_ref() {
-            Some(entry_username) if entry_username.eq(input_username) => {
-                Some(entry_username.clone())
-            }
-            _ => None, // usernames of other users remains anonymous
-        };
         let deserialized_message = match Message::strand_deserialize(&entry.message) {
             Ok(m) => m,
             Err(e) => {
-                warn!("Error deserializing message. {statement_kind:?}, {username:?}, Message len: {}. Error: {e:?}",
+                warn!("Error deserializing message. Id: {:?}, Username: {:?}, Message len: {}. Error: {e:?}", entry.id.clone(), entry.username.clone(),
                 entry.message.len());
                 return Ok(None);
             }
@@ -1118,9 +1110,10 @@ impl CastVoteEntry {
             }
         };
 
+        let username = entry.username.clone().filter(|s| s.eq(input_username)); // Keep other usernames anonymous on the table
         Ok(Some(CastVoteEntry {
-            statement_timestamp,
-            statement_kind,
+            statement_timestamp: entry.statement_timestamp,
+            statement_kind: StatementType::CastVote.to_string(),
             ballot_id,
             username,
         }))
@@ -1228,7 +1221,7 @@ pub async fn list_cast_vote_messages(
         .map_err(|err| anyhow!("Failed to create the client: {:?}", err))?;
 
     let limit: i64 = match ballot_id_filter.is_empty() {
-        false => IMMUDB_ROWS_LIMIT as i64, // When there is a filter, all entries are needed, so we can filter all.
+        false => IMMUDB_ROWS_LIMIT as i64, // When there is a filter, need to fetch all entries by batches.
         true => input.limit.unwrap_or(MAX_ROWS_PER_PAGE as i64),
     };
     let mut offset: i64 = input.offset.unwrap_or(0);
@@ -1253,7 +1246,8 @@ pub async fn list_cast_vote_messages(
         .await?
         .to_u64()
         .unwrap_or(0) as usize;
-    while (list.len() as i64) < output_limit && (offset < total as i64) {
+    let mut filter_matched = false; // Exit at the first match if the filter is not empty
+    while (list.len() as i64) < output_limit && (offset < total as i64) && !filter_matched {
         let electoral_log_messages = client
             .get_electoral_log_messages_filtered(
                 &board_name,
@@ -1270,13 +1264,19 @@ pub async fn list_cast_vote_messages(
         let t_entries = electoral_log_messages.len();
         info!("Got {t_entries} entries. Offset: {offset}, limit: {limit}, total: {total}");
         for message in electoral_log_messages.iter() {
-            match CastVoteEntry::from_row_with_ballot_id(&message, &input_bytes, username)? {
+            match CastVoteEntry::from_message_with_ballot_id(&message, &input_bytes, username)? {
+                Some(entry) if !ballot_id_filter.is_empty() => {
+                    // If there is filter exit at the first match
+                    filter_matched = true;
+                    list.push(entry);
+                }
                 Some(entry) => {
+                    // Add all the entries till the limit, when there is no filter
                     list.push(entry);
                 }
                 None => {}
             }
-            if (list.len() as i64) >= output_limit {
+            if (list.len() as i64) >= output_limit || filter_matched {
                 break;
             }
         }
@@ -1338,6 +1338,9 @@ pub fn ballot_id_to_byte_array(ballot_id: &str) -> Result<Vec<u8>> {
     Ok(byte_array)
 }
 
+/// Find the ballot_id in the message and return it if matches the input_filter_hash.
+/// When input_filter_hash is empty, return the ballot_id from the message.
+/// When there is no match, return None.
 pub fn find_ballot_id_in_message(msg: &Message, input_filter_hash: &Vec<u8>) -> Option<String> {
     let inmudb_hash: [u8; STRAND_HASH_LENGTH_BYTES] = match &msg.statement.body {
         StatementBody::CastVote(_, _, cv_hash, _, _) => cv_hash.0.clone().into_inner(),
