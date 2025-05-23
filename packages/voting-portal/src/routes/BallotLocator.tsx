@@ -195,7 +195,9 @@ const BallotLocator: React.FC = () => {
                 if (data?.list_cast_vote_messages) {
                     setRows((data?.list_cast_vote_messages?.list ?? []) as ICastVoteEntry[])
                     setTotal(data?.list_cast_vote_messages?.total)
-                    setBallotIdNotFoundErr(inputBallotId.length > 0 && data?.list_cast_vote_messages?.list.length === 0)
+                    setBallotIdNotFoundErr(
+                        inputBallotId.length > 0 && data?.list_cast_vote_messages?.list.length === 0
+                    )
                 }
             } catch (e) {
                 // TODO: Notify to the user.
@@ -362,7 +364,9 @@ const LogsTable: React.FC<LogsTableProps> = ({
                                     username
                                 </TableSortLabel>
                             </TableCell>
-                            <TableCell align="justify" sx={{fontWeight: "bold"}}>ballot_id</TableCell>
+                            <TableCell align="justify" sx={{fontWeight: "bold"}}>
+                                ballot_id
+                            </TableCell>
                             <TableCell align="justify" sx={{fontWeight: "bold"}}>
                                 <TableSortLabel
                                     active={orderBy === "statement_kind"}

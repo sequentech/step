@@ -12,7 +12,7 @@ use csv::WriterBuilder;
 use electoral_log::messages::message::Message;
 use electoral_log::messages::newtypes::ElectionIdString;
 use electoral_log::messages::statement::StatementBody;
-use electoral_log::BoardClient;
+use electoral_log::{BoardClient, ElectoralLogColumn};
 use sequent_core::encrypt::shorten_hash;
 use serde::Serialize;
 use serde_json::Value;

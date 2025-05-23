@@ -311,7 +311,8 @@ const dutchTranslation: TranslationType = {
             notFound: "Uw stembiljet ID {{ballotId}} is niet gelokaliseerd",
             contentDesc: "Dit is de inhoud van uw stembiljet: ",
             wrongFormatBallotId: "Verkeerd formaat voor Stembiljet ID",
-            ballotIdNotFoundAtFilter: "Niet gevonden, controleer dat uw Stembiljet ID correct is en behoort tot deze gebruiker.",
+            ballotIdNotFoundAtFilter:
+                "Niet gevonden, controleer dat uw Stembiljet ID correct is en behoort tot deze gebruiker.",
             filterByBallotId: "Filteren op Stembiljet ID",
             totalBallots: "Aantal stembiljet: {{total}}",
             steps: {
