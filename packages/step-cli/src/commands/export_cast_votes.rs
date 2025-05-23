@@ -11,7 +11,7 @@ use clap::Args;
 use csv::WriterBuilder;
 use electoral_log::messages::message::Message;
 use electoral_log::messages::newtypes::ElectionIdString;
-use electoral_log::messages::statement::StatementBody;
+use electoral_log::messages::statement::{StatementBody, StatementType};
 use electoral_log::{BoardClient, ElectoralLogVarCharColumn};
 use sequent_core::encrypt::shorten_hash;
 use serde::Serialize;
