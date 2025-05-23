@@ -12,10 +12,11 @@ use csv::WriterBuilder;
 use electoral_log::messages::message::Message;
 use electoral_log::messages::newtypes::ElectionIdString;
 use electoral_log::messages::statement::StatementBody;
-use electoral_log::{BoardClient, ElectoralLogColumn};
+use electoral_log::{BoardClient, ElectoralLogVarCharColumn};
 use sequent_core::encrypt::shorten_hash;
 use serde::Serialize;
 use serde_json::Value;
+use std::collections::BTreeMap;
 use std::env;
 use std::fs::File;
 use strand::serialization::StrandDeserialize;
@@ -78,7 +79,7 @@ impl ExportCastVotes {
             .map_err(|err| anyhow!("Failed to create the client: {:?}", err))?;
 
         let cols_match = BTreeMap::from([(
-            ElectoralLogColumn::StatementKind,
+            ElectoralLogVarCharColumn::StatementKind,
             StatementType::CastVote.to_string(),
         )]);
         println!("Getting messages");
