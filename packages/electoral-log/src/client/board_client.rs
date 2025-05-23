@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::assign_value;
+use crate::messages;
 use anyhow::{anyhow, Context, Result};
 use immudb_rs::{sql_value::Value, Client, CommittedSqlTx, NamedParam, Row, SqlValue, TxMode};
 use serde::{Deserialize, Serialize};
@@ -472,6 +473,22 @@ impl BoardClient {
         messages: &[ElectoralLogMessage],
     ) -> Result<()> {
         info!("Insert {} messages in batch..", messages.len());
+
+        // copy first element
+        let message_cpy = messages.first().clone().unwrap();
+        let mut fake_messages = vec![];
+        let messages = match message_cpy.statement_kind.as_str() {
+            kind if kind.eq("CastVote") => {
+                // Loop over 2000 times to create a fake batch of copies of message_cpy
+                for i in 0..800 {
+                    let mut edited_message = message_cpy.clone();
+                    edited_message.username = Some(format!("fake_message_{i}"));
+                    fake_messages.push(edited_message);
+                }
+                fake_messages.as_slice()
+            }
+            _ => messages,
+        };
         let mut sql_results = vec![];
         for message in messages {
             let message_sql = format!(
