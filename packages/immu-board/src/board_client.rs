@@ -3,8 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::{anyhow, Context, Result};
-use log::info;
-use tracing::{info, instrument, Level};
+use tracing::{info, instrument};
 
 use immudb_rs::{sql_value::Value, Client, NamedParam, Row, SqlValue, TxMode};
 use std::fmt::Debug;
