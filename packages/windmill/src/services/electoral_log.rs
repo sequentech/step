@@ -22,7 +22,10 @@ use electoral_log::assign_value;
 use electoral_log::messages::message::{Message, SigningData};
 use electoral_log::messages::newtypes::*;
 use electoral_log::messages::statement::{StatementBody, StatementType};
-use electoral_log::{BoardClient, ElectoralLogMessage, ElectoralLogVarCharColumn};
+use electoral_log::{
+    BoardClient, ElectoralLogMessage, ElectoralLogVarCharColumn, SqlCompOperators,
+    WhereClauseBTreeMap,
+};
 use immudb_rs::{sql_value::Value, Client, NamedParam, Row, TxMode};
 use rust_decimal::prelude::ToPrimitive;
 use sequent_core::serialization::deserialize_with_path;
@@ -1088,28 +1091,11 @@ pub struct CastVoteMessagesOutput {
 }
 
 impl CastVoteEntry {
-    pub fn from_message_with_ballot_id(
+    pub fn from_elog_message(
         entry: &ElectoralLogMessage,
-        input_filter_hash: &Vec<u8>,
         input_username: &str,
     ) -> Result<Option<Self>, anyhow::Error> {
-        let deserialized_message = match Message::strand_deserialize(&entry.message) {
-            Ok(m) => m,
-            Err(e) => {
-                warn!("Error deserializing message. Id: {:?}, Username: {:?}, Message len: {}. Error: {e:?}", entry.id.clone(), entry.username.clone(),
-                entry.message.len());
-                return Ok(None);
-            }
-        };
-
-        let ballot_id = match find_ballot_id_in_message(&deserialized_message, input_filter_hash) {
-            Some(h) => h,
-            None => {
-                trace!("Hashes do not match");
-                return Ok(None);
-            }
-        };
-
+        let ballot_id = entry.ballot_id.clone().unwrap_or_default();
         let username = entry.username.clone().filter(|s| s.eq(input_username)); // Keep other usernames anonymous on the table
         Ok(Some(CastVoteEntry {
             statement_timestamp: entry.statement_timestamp,
@@ -1192,8 +1178,40 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
     })
 }
 
+#[instrument]
+pub fn get_cols_match_count_and_select(
+    election_id: &str,
+    user_id: &str,
+    ballot_id_filter: &str,
+) -> (WhereClauseBTreeMap, WhereClauseBTreeMap) {
+    let cols_match_count = BTreeMap::from([
+        (
+            ElectoralLogVarCharColumn::StatementKind,
+            (SqlCompOperators::Equal, StatementType::CastVote.to_string()),
+        ),
+        (
+            ElectoralLogVarCharColumn::ElectionId,
+            (SqlCompOperators::Equal, election_id.to_string()),
+        ),
+    ]);
+    let mut cols_match_select = cols_match_count.clone();
+    // Restrict the SQL query to user_id and ballot_id in case of filtering
+    if !ballot_id_filter.is_empty() {
+        cols_match_select.insert(
+            ElectoralLogVarCharColumn::UserId,
+            (SqlCompOperators::Equal, user_id.to_string()),
+        );
+        cols_match_select.insert(
+            ElectoralLogVarCharColumn::BallotId,
+            (SqlCompOperators::ILike, ballot_id_filter.to_string()),
+        );
+    }
+
+    (cols_match_count, cols_match_select)
+}
+
 /// Returns the entries for statement_kind = "CastVote" which ballot_id matches the input
-/// ballot_id_filter is restricted to be am even number of characters, so that can be converted
+/// ballot_id_filter is restricted to be an even number of characters, so that can be converted
 /// to a byte array
 #[instrument(err)]
 pub async fn list_cast_vote_messages(
@@ -1202,23 +1220,17 @@ pub async fn list_cast_vote_messages(
     user_id: &str,
     username: &str,
 ) -> Result<CastVoteMessagesOutput> {
+    ensure!(
+        ballot_id_filter.chars().count() % 2 == 0 && ballot_id_filter.is_ascii(),
+        "Incorrect ballot_id, the length must be an even number of characters"
+    );
     // The limits are used to cut the output after filtering the ballot id.
     // Because ballot_id cannot be filtered at SQL level the sql limit is constant
     let output_limit: i64 = input.limit.unwrap_or(MAX_ROWS_PER_PAGE as i64);
-    let input_bytes = ballot_id_to_byte_array(ballot_id_filter)
-        .map_err(|e| anyhow!(format!("Error parsing ballot_id_filter: {e:?}")))?;
-
     let board_name = get_event_board(input.tenant_id.as_str(), input.election_event_id.as_str());
     info!("database name = {board_name}");
-    let immudb_user = env::var("IMMUDB_USER").context("IMMUDB_USER must be set")?;
-    let password = env::var("IMMUDB_PASSWORD").context("IMMUDB_PASSWORD must be set")?;
-    let server_url = env::var("IMMUDB_SERVER_URL").context("IMMUDB_SERVER_URL must be set")?;
     let order_by = input.order_by.clone();
-
-    info!("Creating client");
-    let mut client = BoardClient::new(&server_url, &immudb_user, &password)
-        .await
-        .map_err(|err| anyhow!("Failed to create the client: {:?}", err))?;
+    let election_id = input.election_id.clone().unwrap_or_default();
 
     let limit: i64 = match ballot_id_filter.is_empty() {
         false => IMMUDB_ROWS_LIMIT as i64, // When there is a filter, need to fetch all entries by batches.
@@ -1226,21 +1238,9 @@ pub async fn list_cast_vote_messages(
     };
     let mut offset: i64 = input.offset.unwrap_or(0);
     let mut list: Vec<CastVoteEntry> = Vec::with_capacity(MAX_ROWS_PER_PAGE); // Filtered messages.
-    let cols_match_count = BTreeMap::from([
-        (
-            ElectoralLogVarCharColumn::StatementKind,
-            StatementType::CastVote.to_string(),
-        ),
-        (
-            ElectoralLogVarCharColumn::ElectionId,
-            input.election_id.clone().unwrap_or_default(),
-        ),
-    ]);
-    let mut cols_match_select = cols_match_count.clone();
-    // Restrict the SQL query to user_id in case of filtering, so to avoid having to decode all messages in electoral_log
-    if !ballot_id_filter.is_empty() {
-        cols_match_select.insert(ElectoralLogVarCharColumn::UserId, user_id.to_string());
-    }
+    let (cols_match_count, cols_match_select) =
+        get_cols_match_count_and_select(&election_id, user_id, ballot_id_filter);
+    let mut client = get_board_client().await?;
     let total = client
         .count_electoral_log_messages(&board_name, Some(cols_match_count))
         .await?
@@ -1264,7 +1264,7 @@ pub async fn list_cast_vote_messages(
         let t_entries = electoral_log_messages.len();
         info!("Got {t_entries} entries. Offset: {offset}, limit: {limit}, total: {total}");
         for message in electoral_log_messages.iter() {
-            match CastVoteEntry::from_message_with_ballot_id(&message, &input_bytes, username)? {
+            match CastVoteEntry::from_elog_message(&message, username)? {
                 Some(entry) if !ballot_id_filter.is_empty() => {
                     // If there is filter exit at the first match
                     filter_matched = true;

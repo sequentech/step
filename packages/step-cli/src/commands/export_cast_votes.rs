@@ -12,7 +12,7 @@ use csv::WriterBuilder;
 use electoral_log::messages::message::Message;
 use electoral_log::messages::newtypes::ElectionIdString;
 use electoral_log::messages::statement::{StatementBody, StatementType};
-use electoral_log::{BoardClient, ElectoralLogVarCharColumn};
+use electoral_log::{BoardClient, ElectoralLogVarCharColumn, SqlCompOperators};
 use sequent_core::encrypt::shorten_hash;
 use serde::Serialize;
 use serde_json::Value;
@@ -80,7 +80,7 @@ impl ExportCastVotes {
 
         let cols_match = BTreeMap::from([(
             ElectoralLogVarCharColumn::StatementKind,
-            StatementType::CastVote.to_string(),
+            (SqlCompOperators::Equal, StatementType::CastVote.to_string()),
         )]);
         println!("Getting messages");
         let electoral_log_messages = client

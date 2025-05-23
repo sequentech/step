@@ -29,6 +29,7 @@ pub struct BoardClient {
 pub enum ElectoralLogVarCharColumn {
     StatementKind,
     UserId,
+    BallotId,
     Username,
     SenderPk,
     ElectionId,
@@ -36,6 +37,31 @@ pub enum ElectoralLogVarCharColumn {
     Version,
 }
 
+#[derive(Display, Debug, Clone)]
+pub enum SqlCompOperators {
+    #[strum(to_string = "=")]
+    Equal,
+    #[strum(to_string = "!=")]
+    NotEqual,
+    #[strum(to_string = ">")]
+    GreaterThan,
+    #[strum(to_string = "<")]
+    LessThan,
+    #[strum(to_string = ">=")]
+    GreaterThanOrEqual,
+    #[strum(to_string = "<=")]
+    LessThanOrEqual,
+    #[strum(to_string = "LIKE")]
+    Like,
+    #[strum(to_string = "ILIKE")]
+    ILike,
+    #[strum(to_string = "IN")]
+    In,
+    #[strum(to_string = "NOT IN")]
+    NotIn,
+}
+
+pub type WhereClauseBTreeMap = BTreeMap<ElectoralLogVarCharColumn, (SqlCompOperators, String)>;
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ElectoralLogMessage {
     pub id: i64,
@@ -49,6 +75,7 @@ pub struct ElectoralLogMessage {
     pub username: Option<String>,
     pub election_id: Option<String>,
     pub area_id: Option<String>,
+    pub ballot_id: Option<String>,
 }
 
 impl TryFrom<&Row> for ElectoralLogMessage {
@@ -66,6 +93,7 @@ impl TryFrom<&Row> for ElectoralLogMessage {
         let mut username: Option<String> = None;
         let mut election_id: Option<String> = None;
         let mut area_id: Option<String> = None;
+        let mut ballot_id: Option<String> = None;
 
         for (column, value) in row.columns.iter().zip(row.values.iter()) {
             // FIXME for some reason columns names appear with parentheses
@@ -128,6 +156,17 @@ impl TryFrom<&Row> for ElectoralLogMessage {
                         ))
                     }
                 },
+                "ballod_id" => match value.value.as_ref() {
+                    Some(Value::S(inner)) => ballot_id = Some(inner.clone()),
+                    Some(Value::Null(_)) => ballot_id = None,
+                    None => ballot_id = None,
+                    _ => {
+                        return Err(anyhow!(
+                            "invalid column value for 'ballod_id': {:?}",
+                            value.value.as_ref()
+                        ))
+                    }
+                },
                 _ => return Err(anyhow!("invalid column found '{}'", bare_column)),
             }
         }
@@ -144,6 +183,7 @@ impl TryFrom<&Row> for ElectoralLogMessage {
             username,
             election_id,
             area_id,
+            ballot_id,
         })
     }
 }
@@ -226,6 +266,8 @@ impl BoardClient {
             message,
             version,
             user_id,
+            area_id,
+            ballot_id,
             username
         FROM {}
         WHERE id > @last_id
@@ -262,7 +304,7 @@ impl BoardClient {
     pub async fn get_electoral_log_messages_filtered<K: Display, V: Display>(
         &mut self,
         board_db: &str,
-        columns_matcher: Option<BTreeMap<ElectoralLogVarCharColumn, String>>,
+        columns_matcher: Option<WhereClauseBTreeMap>,
         min_ts: Option<i64>,
         max_ts: Option<i64>,
         limit: Option<i64>,
@@ -281,59 +323,11 @@ impl BoardClient {
         .await
     }
 
-    #[instrument(err)]
-    pub async fn count_electoral_log_messages(
-        &mut self,
-        board_db: &str,
-        columns_matcher: Option<BTreeMap<ElectoralLogVarCharColumn, String>>,
-    ) -> Result<i64> {
-        let mut where_clause = String::from("statement_kind IS NOT NULL ");
-        if let Some(columns_matcher) = &columns_matcher {
-            for (key, _) in columns_matcher {
-                where_clause.push_str(&format!("AND {key} = @{key} "));
-            }
-        }
-
-        self.client.use_database(board_db).await?;
-        let sql = format!(
-            r#"
-            SELECT COUNT(*)
-            FROM {ELECTORAL_LOG_TABLE}
-            WHERE {where_clause}
-            "#,
-        );
-
-        let mut params = vec![];
-        if let Some(columns_matcher) = columns_matcher {
-            for (key, value) in columns_matcher {
-                params.push(NamedParam {
-                    name: key.to_string(),
-                    value: Some(SqlValue {
-                        value: Some(Value::S(value.to_string())),
-                    }),
-                })
-            }
-        }
-
-        info!("SQL query: {}", sql);
-        let sql_query_response = self.client.sql_query(&sql, params).await?;
-        let mut rows_iter = sql_query_response
-            .get_ref()
-            .rows
-            .iter()
-            .map(Aggregate::try_from);
-        let aggregate = rows_iter
-            .next()
-            .ok_or_else(|| anyhow!("No aggregate found"))??;
-
-        Ok(aggregate.count as i64)
-    }
-
     #[instrument(skip_all, err)]
     async fn get_filtered<K: Display, V: Display>(
         &mut self,
         board_db: &str,
-        columns_matcher: Option<BTreeMap<ElectoralLogVarCharColumn, String>>,
+        columns_matcher: Option<WhereClauseBTreeMap>,
         min_ts: Option<i64>,
         max_ts: Option<i64>,
         limit: Option<i64>,
@@ -352,10 +346,17 @@ impl BoardClient {
             ("", 0)
         };
 
+        let mut params = vec![];
         let mut where_clause = String::from("statement_kind IS NOT NULL ");
         if let Some(columns_matcher) = &columns_matcher {
-            for (key, _) in columns_matcher {
-                where_clause.push_str(&format!("AND {key} = @{key} "));
+            for (key, (op, value)) in columns_matcher {
+                where_clause.push_str(&format!("AND {key} {op} @{key} "));
+                params.push(NamedParam {
+                    name: key.to_string(),
+                    value: Some(SqlValue {
+                        value: Some(Value::S(value.to_owned())),
+                    }),
+                })
             }
         }
 
@@ -378,6 +379,7 @@ impl BoardClient {
             user_id,
             area_id,
             election_id,
+            ballot_id,
             created,
             sender_pk,
             statement_timestamp,
@@ -393,18 +395,6 @@ impl BoardClient {
         OFFSET @offset;
         "#
         );
-
-        let mut params = vec![];
-        if let Some(columns_matcher) = columns_matcher {
-            for (key, value) in columns_matcher {
-                params.push(NamedParam {
-                    name: key.to_string(),
-                    value: Some(SqlValue {
-                        value: Some(Value::S(value.to_string())),
-                    }),
-                })
-            }
-        }
 
         if min_clause_value != 0 {
             params.push(NamedParam {
@@ -449,6 +439,49 @@ impl BoardClient {
         Ok(messages)
     }
 
+    #[instrument(err)]
+    pub async fn count_electoral_log_messages(
+        &mut self,
+        board_db: &str,
+        columns_matcher: Option<BTreeMap<ElectoralLogVarCharColumn, (SqlCompOperators, String)>>,
+    ) -> Result<i64> {
+        let mut params = vec![];
+        let mut where_clause = String::from("statement_kind IS NOT NULL ");
+        if let Some(columns_matcher) = &columns_matcher {
+            for (key, (op, value)) in columns_matcher {
+                where_clause.push_str(&format!("AND {key} {op} @{key} "));
+                params.push(NamedParam {
+                    name: key.to_string(),
+                    value: Some(SqlValue {
+                        value: Some(Value::S(value.to_owned())),
+                    }),
+                })
+            }
+        }
+
+        self.client.use_database(board_db).await?;
+        let sql = format!(
+            r#"
+            SELECT COUNT(*)
+            FROM {ELECTORAL_LOG_TABLE}
+            WHERE {where_clause}
+            "#,
+        );
+
+        info!("SQL query: {}", sql);
+        let sql_query_response = self.client.sql_query(&sql, params).await?;
+        let mut rows_iter = sql_query_response
+            .get_ref()
+            .rows
+            .iter()
+            .map(Aggregate::try_from);
+        let aggregate = rows_iter
+            .next()
+            .ok_or_else(|| anyhow!("No aggregate found"))??;
+
+        Ok(aggregate.count as i64)
+    }
+
     pub async fn open_session(&mut self, database_name: &str) -> Result<()> {
         self.client.open_session(database_name).await
     }
@@ -487,6 +520,7 @@ impl BoardClient {
                     username,
                     election_id,
                     area_id
+                    ballot_id
                 ) VALUES (
                     @created,
                     @sender_pk,
@@ -498,6 +532,7 @@ impl BoardClient {
                     @username,
                     @election_id,
                     @area_id
+                    @ballot_id
                 );
             "#,
                 ELECTORAL_LOG_TABLE
@@ -571,6 +606,15 @@ impl BoardClient {
                     value: Some(SqlValue {
                         value: match message.area_id.clone() {
                             Some(area_id) => Some(Value::S(area_id)),
+                            None => None,
+                        },
+                    }),
+                },
+                NamedParam {
+                    name: String::from("ballot_id"),
+                    value: Some(SqlValue {
+                        value: match message.ballot_id.clone() {
+                            Some(ballot_id) => Some(Value::S(ballot_id)),
                             None => None,
                         },
                     }),
@@ -614,6 +658,7 @@ impl BoardClient {
                     username,
                     election_id,
                     area_id
+                    ballot_id
                 ) VALUES (
                     @created,
                     @sender_pk,
@@ -625,6 +670,7 @@ impl BoardClient {
                     @username,
                     @election_id,
                     @area_id
+                    @ballot_id
                 );
             "#,
                 ELECTORAL_LOG_TABLE
@@ -698,6 +744,15 @@ impl BoardClient {
                     value: Some(SqlValue {
                         value: match message.area_id.clone() {
                             Some(area_id) => Some(Value::S(area_id)),
+                            None => None,
+                        },
+                    }),
+                },
+                NamedParam {
+                    name: String::from("ballot_id"),
+                    value: Some(SqlValue {
+                        value: match message.ballot_id.clone() {
+                            Some(ballot_id) => Some(Value::S(ballot_id)),
                             None => None,
                         },
                     }),
@@ -749,6 +804,7 @@ impl BoardClient {
             username VARCHAR,
             election_id VARCHAR[64],
             area_id VARCHAR[64],
+            ballod_id VARCHAR[64],
             PRIMARY KEY id
         );
         "#
@@ -853,6 +909,7 @@ pub(crate) mod tests {
             username: None,
             election_id: None,
             area_id: None,
+            ballot_id: None,
         };
         let messages = vec![electoral_log_message];
 
@@ -864,8 +921,14 @@ pub(crate) mod tests {
         assert_eq!(messages, ret);
 
         let cols_match = BTreeMap::from([
-            (ElectoralLogVarCharColumn::StatementKind, "".to_string()),
-            (ElectoralLogVarCharColumn::SenderPk, "".to_string()),
+            (
+                ElectoralLogVarCharColumn::StatementKind,
+                (SqlCompOperators::Equal, "".to_string()),
+            ),
+            (
+                ElectoralLogVarCharColumn::SenderPk,
+                (SqlCompOperators::Equal, "".to_string()),
+            ),
         ]);
         let ret = b
             .get_electoral_log_messages_filtered(
