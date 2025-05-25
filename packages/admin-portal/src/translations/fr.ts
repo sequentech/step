@@ -81,6 +81,9 @@ const frenchTranslation: TranslationType = {
                 EXPORT_TENANT_CONFIG: "Exporter la Configuration du Locataire",
                 IMPORT_TENANT_CONFIG: "Importer la Configuration du Locataire",
                 RENDER_DOCUMENT_PDF: "Générer le document PDF",
+                CREATE_TENANT: "Créer un locataire",
+                EXPORT_TEMPLATES: "Exporter les Modèles",
+                IMPORT_TEMPLATES: "Importer les Modèles",
             },
             widget: {
                 taskTitle: "Tâche: {{title}}",

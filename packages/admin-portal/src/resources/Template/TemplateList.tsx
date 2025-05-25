@@ -21,7 +21,6 @@ import {
     useRefresh,
     WrapperField,
     Button as ReactAdminButton,
-    useNotify,
 } from "react-admin"
 
 import {IPermissions} from "@/types/keycloak"
@@ -44,6 +43,9 @@ import {ExportTemplateMutation, ImportTemplatesMutation} from "@/gql/graphql"
 import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
 import {IMPORT_TEMPLATES} from "@/queries/ImportTemplate"
 import {EIntegrityCheckError} from "@/types/templates"
+import {useWidgetStore} from "@/providers/WidgetsContextProvider"
+import {ETasksExecution} from "@/types/tasksExecution"
+import {WidgetProps} from "@/components/Widget"
 
 const TemplateEmpty = styled(Box)`
     display: flex;
@@ -86,8 +88,8 @@ export const TemplateList: React.FC = () => {
     const [recordId, setRecordId] = React.useState<Identifier | undefined>(undefined)
     const [ExportTemplate] = useMutation<ExportTemplateMutation>(EXPORT_TEMPLATE)
     const [ImportTemplate] = useMutation<ImportTemplatesMutation>(IMPORT_TEMPLATES)
+    const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
     const refresh = useRefresh()
-    const notify = useNotify()
 
     const handleExport = async () => {
         setExporting(false)
@@ -96,20 +98,24 @@ export const TemplateList: React.FC = () => {
     }
 
     const confirmExportAction = async () => {
+        const currWidget: WidgetProps = addWidget(ETasksExecution.EXPORT_TEMPLATES)
         try {
             setExporting(true)
+            setOpenExport(false)
             const {data, errors} = await ExportTemplate({variables: {tenantId}})
-            notify("Templates exported successfully", {type: "success"})
             if (errors) {
                 setExporting(false)
-                notify("Error exporting templates", {type: "error"})
+                updateWidgetFail(currWidget.identifier)
                 return
             }
             const documentId = data?.export_template?.document_id
+            const taskId = data?.export_template?.task_execution?.id
+
             setExportDocumentId(documentId)
+            setWidgetTaskId(currWidget.identifier, taskId)
         } catch (error) {
             console.log(error)
-            notify("Error exporting templates", {type: "error"})
+            updateWidgetFail(currWidget.identifier)
         }
     }
 
@@ -160,6 +166,7 @@ export const TemplateList: React.FC = () => {
 
     const handleImportTemplates = async (documentId: string, sha256: string) => {
         setOpenImportDrawer(false)
+        const currWidget: WidgetProps = addWidget(ETasksExecution.IMPORT_TEMPLATES)
         try {
             const {data, errors} = await ImportTemplate({
                 variables: {
@@ -168,21 +175,19 @@ export const TemplateList: React.FC = () => {
                     sha256,
                 },
             })
-            let errMsg = data?.import_templates?.error_msg
-            if (errMsg) {
-                let errType = errMsg as EIntegrityCheckError
-                if (errType == EIntegrityCheckError.HASH_MISSMATCH) {
-                    notify(t("importResource.ImportHashMismatch"), {type: "error"})
-                } else {
-                    notify("Error importing templates", {type: "error"})
-                }
+
+            if (errors) {
+                updateWidgetFail(currWidget.identifier)
                 return
             }
-            notify("Templates imported successfully", {type: "success"})
+
+            let taskId = data?.import_templates?.task_execution?.id
+            setWidgetTaskId(currWidget.identifier, taskId)
+
             refresh()
         } catch (err) {
             console.log(err)
-            notify("Error importing templates", {type: "error"})
+            updateWidgetFail(currWidget.identifier)
         }
     }
 
@@ -309,23 +314,19 @@ export const TemplateList: React.FC = () => {
                 }}
             >
                 {t("common.export")}
-                <FormStyles.ReservedProgressSpace>
-                    {exporting ? <FormStyles.ShowProgress /> : null}
-                    {exporting && exportDocumentId ? (
-                        <DownloadDocument
-                            documentId={exportDocumentId}
-                            fileName={`templates-export.csv`}
-                            onDownload={() => {
-                                console.log("onDownload called")
-                                setExportDocumentId(undefined)
-                                setExporting(false)
-                                setOpenExport(false)
-                            }}
-                        />
-                    ) : null}
-                </FormStyles.ReservedProgressSpace>
             </Dialog>
-
+            {exporting && exportDocumentId ? (
+                <DownloadDocument
+                    documentId={exportDocumentId}
+                    fileName={`templates-export.csv`}
+                    onDownload={() => {
+                        console.log("onDownload called")
+                        setExportDocumentId(undefined)
+                        setExporting(false)
+                        setOpenExport(false)
+                    }}
+                />
+            ) : null}
             <ImportDataDrawer
                 open={openImportDrawer}
                 closeDrawer={() => setOpenImportDrawer(false)}

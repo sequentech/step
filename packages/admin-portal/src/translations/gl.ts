@@ -81,6 +81,9 @@ const galegoTranslation: TranslationType = {
                 EXPORT_TENANT_CONFIG: "Exportar Configuración del Cliente",
                 IMPORT_TENANT_CONFIG: "Importar Configuración del Cliente",
                 RENDER_DOCUMENT_PDF: "Renderizar el documento PDF",
+                CREATE_TENANT: "Crear Cliente",
+                EXPORT_TEMPLATES: "Exportar Plantillas",
+                IMPORT_TEMPLATES: "Importar Plantillas",
             },
             widget: {
                 taskTitle: "Tarefa: {{title}}",

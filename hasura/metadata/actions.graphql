@@ -1049,6 +1049,8 @@ type CreateElectionEventOutput {
 type InsertTenantOutput {
     id: uuid!
     slug: String!
+    task_execution: tasks_execution_type
+    error_msg: String
 }
 
 type KeycloakUserArea {
@@ -1393,11 +1395,13 @@ type LimitAccessByCountriesOutput {
 type ExportTemplateOutput {
     error_msg: String
     document_id: String!
+    task_execution: tasks_execution_type
 }
 
 type templateOutput {
     error_msg: String
     document_id: String!
+    task_execution: tasks_execution_type
 }
 
 type GetTopCastVotesByIpOutput {

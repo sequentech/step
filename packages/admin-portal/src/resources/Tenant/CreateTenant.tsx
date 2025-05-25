@@ -12,6 +12,9 @@ import {useTranslation} from "react-i18next"
 import {useNavigate} from "react-router"
 import {isNull} from "@sequentech/ui-core"
 import {AuthContext} from "@/providers/AuthContextProvider"
+import {useWidgetStore} from "@/providers/WidgetsContextProvider"
+import {WidgetProps} from "@/components/Widget"
+import {ETasksExecution} from "@/types/tasksExecution"
 
 interface CreateTenantProps {
     isDrawerOpen: boolean
@@ -20,10 +23,10 @@ interface CreateTenantProps {
 
 export const CreateTenant: React.FC<CreateTenantProps> = ({isDrawerOpen, setIsDrawerOpen}) => {
     const [createTenant] = useMutation<InsertTenantMutation>(INSERT_TENANT)
-    const notify = useNotify()
     const [newId, setNewId] = useState<string | null>(null)
     const [isLoading, setIsLoading] = useState(false)
     const authContext = useContext(AuthContext)
+    const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
     const {t} = useTranslation()
     const navigate = useNavigate()
     const refresh = useRefresh()
@@ -41,31 +44,37 @@ export const CreateTenant: React.FC<CreateTenantProps> = ({isDrawerOpen, setIsDr
         }
         if (isLoading && error && !isOneLoading) {
             setIsLoading(false)
-            notify(t("tenantScreen.createError"), {type: "error"})
             setIsDrawerOpen(false)
             refresh()
             return
         }
         if (isLoading && !error && !isOneLoading && newTenant) {
             setIsLoading(false)
-            notify(t("tenantScreen.createSuccess"), {type: "success"})
             setIsDrawerOpen(false)
         }
     }, [isLoading, newTenant, isOneLoading, error, newId, refresh, authContext, navigate])
 
     const onSubmit: SubmitHandler<FieldValues> = async ({slug}) => {
-        let {data, errors} = await createTenant({
-            variables: {
-                slug,
-            },
-        })
+        const currWidget: WidgetProps = addWidget(ETasksExecution.CREATE_TEMANT)
+        try {
+            let {data, errors} = await createTenant({
+                variables: {
+                    slug,
+                },
+            })
+            if (errors || data?.insertTenant?.error_msg) {
+                setIsLoading(false)
+                updateWidgetFail(currWidget.identifier)
+                return
+            }
 
-        if (data?.insertTenant?.id) {
             setNewId(data?.insertTenant?.id)
             setIsLoading(true)
-        } else {
-            notify(t("tenantScreen.createError"), {type: "error"})
+            let taskId = data?.insertTenant?.task_execution?.id
+            setWidgetTaskId(currWidget.identifier, taskId)
+        } catch (e) {
             setIsLoading(false)
+            updateWidgetFail(currWidget.identifier)
         }
     }
     return (

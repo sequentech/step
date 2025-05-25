@@ -5,17 +5,21 @@
 use crate::services::authorization::authorize;
 use rocket::http::Status;
 use rocket::serde::json::Json;
-use sequent_core::services::jwt;
 use sequent_core::types::permissions::Permissions;
+use sequent_core::{services::jwt, types::hasura::core::TasksExecution};
 use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
 use windmill::{
     services::providers::transactions_provider::provide_hasura_transaction,
     tasks::{
-        import_templates::import_templates_task,
+        import_templates::{import_templates, import_templates_task},
         upsert_areas::upsert_areas_task,
     },
 };
+
+use windmill::services::celery_app::get_celery_app;
+use windmill::services::tasks_execution::*;
+use windmill::types::tasks::ETasksExecution;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ImportTemplatesInput {
@@ -28,6 +32,7 @@ pub struct ImportTemplatesInput {
 pub struct ImportTemplatesOutput {
     error_msg: Option<String>,
     document_id: String,
+    task_execution: TasksExecution,
 }
 
 #[instrument(skip(claims))]
@@ -37,37 +42,60 @@ pub async fn import_templates_route(
     input: Json<ImportTemplatesInput>,
 ) -> Result<Json<ImportTemplatesOutput>, (Status, String)> {
     let body = input.into_inner();
-    authorize(
+    let tenant_id = body.tenant_id.clone();
+    let executer_name = claims
+        .name
+        .clone()
+        .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
+
+    let task_execution = post(
+        &tenant_id,
+        None,
+        ETasksExecution::IMPORT_TEMPLATES,
+        &executer_name,
+    )
+    .await
+    .map_err(|error| {
+        (
+            Status::InternalServerError,
+            format!("Failed to insert task execution record: {error:?}"),
+        )
+    })?;
+
+    if let Err(error) = authorize(
         &claims,
         true,
         Some(claims.hasura_claims.tenant_id.clone()),
         vec![Permissions::TEMPLATE_WRITE],
-    )?;
+    ) {
+        let _ = update_fail(
+            &task_execution,
+            &format!("Failed to authorize executing the task: {error:?}"),
+        )
+        .await;
+        return Err(error);
+    };
 
-    match provide_hasura_transaction(|hasura_transaction| {
-        let tenant_id = claims.hasura_claims.tenant_id.clone();
-        let document_id = body.document_id.clone();
-        Box::pin(async move {
-            // Your async code here
-            import_templates_task(
-                hasura_transaction,
-                tenant_id,
-                document_id,
-                body.sha256.clone(),
-            )
-            .await?;
-            Ok(())
-        })
-    })
-    .await
-    {
-        Ok(_) => Ok(Json(ImportTemplatesOutput {
-            error_msg: None,
-            document_id: body.document_id,
-        })),
-        Err(err) => Ok(Json(ImportTemplatesOutput {
-            error_msg: Some(err.to_string()),
-            document_id: body.document_id,
-        })),
-    }
+    let celery_app = get_celery_app().await;
+    let document_id = body.document_id.clone();
+
+    let celery_task_results = celery_app
+        .send_task(import_templates_task::new(
+            tenant_id,
+            document_id,
+            body.sha256.clone(),
+            task_execution.clone(),
+        ))
+        .await;
+
+    let error_msg = match celery_task_results {
+        Ok(_) => None,
+        Err(err) => Some(err.to_string()),
+    };
+
+    Ok(Json(ImportTemplatesOutput {
+        error_msg,
+        document_id: body.document_id,
+        task_execution,
+    }))
 }

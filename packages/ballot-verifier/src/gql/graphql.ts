@@ -382,6 +382,7 @@ export type ExportTemplateOutput = {
     __typename?: "ExportTemplateOutput"
     document_id: Scalars["String"]["output"]
     error_msg?: Maybe<Scalars["String"]["output"]>
+    task_execution?: Maybe<Tasks_Execution_Type>
 }
 
 export type ExportTenantUsersOutput = {
@@ -555,8 +556,10 @@ export type InsertCastVoteOutput = {
 
 export type InsertTenantOutput = {
     __typename?: "InsertTenantOutput"
+    error_msg?: Maybe<Scalars["String"]["output"]>
     id: Scalars["uuid"]["output"]
     slug: Scalars["String"]["output"]
+    task_execution?: Maybe<Tasks_Execution_Type>
 }
 
 /** Boolean expression to compare columns of type "Int". All fields are combined with logical 'AND'. */
@@ -19882,6 +19885,7 @@ export type TemplateOutput = {
     __typename?: "templateOutput"
     document_id: Scalars["String"]["output"]
     error_msg?: Maybe<Scalars["String"]["output"]>
+    task_execution?: Maybe<Tasks_Execution_Type>
 }
 
 /** Boolean expression to compare columns of type "timestamptz". All fields are combined with logical 'AND'. */
