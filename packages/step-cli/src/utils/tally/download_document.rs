@@ -3,7 +3,7 @@ use crate::{
     utils::read_config::read_config,
 };
 use graphql_client::{GraphQLQuery, Response};
-use std::fs;
+use std::{fs, io};
 use std::path::Path;
 
 #[derive(GraphQLQuery)]
@@ -61,14 +61,29 @@ pub fn fetch_document(
 }
 
 pub fn download_file(url: &str, output_path: &str) -> Result<(), Box<dyn std::error::Error>> {
-    let client = reqwest::blocking::Client::new();
+    let client = reqwest::blocking::Client::builder()
+        .redirect(reqwest::redirect::Policy::default())
+        .build()?;
     
     // Create output directory if it doesn't exist
     let output_dir = Path::new(output_path).parent().unwrap_or(Path::new("."));
     fs::create_dir_all(output_dir)?;
 
-    // Download the file
-    let mut response = client.get(url).send()?;
+    // Replace 127.0.0.1:9000 with minio:9000 in the URL
+    // let new_url = url.replace("127.0.0.1:9000", "minio:9001");
+    // let parsed_url = reqwest::Url::parse(&new_url)?;
+    
+    // Download the file with proper headers
+    let mut response = client
+        .get(url)
+        .send()?;
+
+    // Check if the response is an error
+    if !response.status().is_success() {
+        let error_text = response.text()?;
+        return Err(format!("Failed to download file: {}", error_text).into());
+    }
+
     let mut file = fs::File::create(output_path)?;
     response.copy_to(&mut file)?;
     

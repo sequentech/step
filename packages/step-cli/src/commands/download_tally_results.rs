@@ -41,7 +41,6 @@ pub fn download_results(
     election_event_id: &str,
 ) -> Result<(), Box<dyn Error>> {
     let config = crate::utils::read_config::read_config()?;
-    let tenant_id = config.tenant_id;
 
     // Get the results event ID from the tally session execution
     let results_event_id = get_tally_session_execution::get_tally_session_execution(tally_id)?;
@@ -61,7 +60,7 @@ pub fn download_results(
 
     // Get the document URL and download it
     let document = download_document::fetch_document(&election_event_id, tar_gz_id)?;
-    let output_path = format!("{}/results.tar.gz", output_dir);
+    let output_path = format!("{}/tally.tar.gz", output_dir);
     download_document::download_file(&document.url, &output_path)?;
 
     Ok(())

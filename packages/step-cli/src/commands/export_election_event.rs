@@ -135,38 +135,37 @@ pub fn export_election_event(
     let response_body: graphql_client::Response<export_election_event::ResponseData> = response.json()?;
 
     println!("response_body: {:?}", response_body);
-    Ok(())
 
-    // match (response_body.data, response_body.errors) {
-    //     (Some(data), _) => {
-    //         let export_data = data
-    //             .export_election_event
-    //             .ok_or("No export data returned")?;
+    match (response_body.data, response_body.errors) {
+        (Some(data), _) => {
+            let export_data = data
+                .export_election_event
+                .ok_or("No export data returned")?;
 
-    //         let document_id = export_data.document_id;
+            let document_id = export_data.document_id;
           
-    //         let document = crate::utils::tally::download_document::fetch_document(
-    //             election_event_id,
-    //             &document_id,
-    //         )?;
+            let document = crate::utils::tally::download_document::fetch_document(
+                election_event_id,
+                &document_id,
+            )?;
 
-    //         let output_path = format!("{}/election_event_export.zip", output_dir);
-    //         crate::utils::tally::download_document::download_file(&document.url, &output_path)?;
+            let output_path = format!("{}/election_event_export.zip", output_dir);
+            crate::utils::tally::download_document::download_file(&document.url, &output_path)?;
 
-    //         if let Some(password) = export_data.password {
-    //             println!("🔑  Export password: {password}");
-    //         }
+            if let Some(password) = export_data.password {
+                println!("🔑  Export password: {password}");
+            }
 
-    //         Ok(())
-    //     }
-    //     (None, Some(errors)) => {
-    //         let messages = errors
-    //             .into_iter()
-    //             .map(|e| e.message)
-    //             .collect::<Vec<_>>()
-    //             .join(", ");
-    //         Err(messages.into())
-    //     }
-    //     _ => Err("Unknown error: empty data and no GraphQL errors".into()),
-    // }
+            Ok(())
+        }
+        (None, Some(errors)) => {
+            let messages = errors
+                .into_iter()
+                .map(|e| e.message)
+                .collect::<Vec<_>>()
+                .join(", ");
+            Err(messages.into())
+        }
+        _ => Err("Unknown error: empty data and no GraphQL errors".into()),
+    }
 } 
