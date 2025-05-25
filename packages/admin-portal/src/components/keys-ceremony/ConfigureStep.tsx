@@ -49,6 +49,7 @@ import {WizardStyles} from "@/components/styles/WizardStyles"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {IPermissions} from "@/types/keycloak"
 import {Clear} from "@mui/icons-material"
+import {CreateKeysError} from "@/types/ceremonies"
 
 const ITEM_HEIGHT = 48
 const ITEM_PADDING_TOP = 8
@@ -198,9 +199,13 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                 name: name ?? t("keysGeneration.configureStep.name"),
             },
         })
-        if (data?.create_keys_ceremony?.error_message) {
-            setErrors(data.create_keys_ceremony.error_message)
-            return null
+
+        let error_message = data?.create_keys_ceremony?.error_message
+        if (error_message) {
+            let error = error_message as CreateKeysError
+            if (error == CreateKeysError.PERMISSION_LABELS) {
+                setErrors(t("keysGeneration.configureStep.errorPermisionLabels"))
+            }
         }
         if (errors) {
             setErrors(t("keysGeneration.configureStep.errorCreatingCeremony", {code: error + ""}))

@@ -13,6 +13,7 @@ use sequent_core::services::jwt::{decode_permission_labels, JwtClaims};
 use sequent_core::types::hasura::core::KeysCeremony;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
+use strum_macros::Display;
 use tracing::{event, instrument, Level};
 use windmill::postgres;
 use windmill::postgres::election::get_elections;
@@ -175,6 +176,12 @@ pub struct CreateKeysCeremonyInput {
     name: Option<String>,
 }
 
+#[derive(Debug, Display)]
+pub enum CreateKeysError {
+    #[strum(serialize = "permission-labels")]
+    PermissionLabels,
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CreateKeysCeremonyOutput {
     keys_ceremony_id: String,
@@ -219,13 +226,18 @@ pub async fn create_keys_ceremony(
         input.election_id.clone(),
         user_permission_labels,
     )
-    .await;
-    if let Err(err) = valid_permissions_label {
+    .await
+    .map_err(|e| {
+        (
+            Status::BadRequest,
+            format!("Error validating permission labels: {:?}", e),
+        )
+    })?;
+
+    if !valid_permissions_label {
         return Ok(Json(CreateKeysCeremonyOutput {
             keys_ceremony_id: "".to_string(),
-            error_message: Some(format!(
-                "user permission labels are not valid"
-            )),
+            error_message: Some(CreateKeysError::PermissionLabels.to_string()),
         }));
     }
 

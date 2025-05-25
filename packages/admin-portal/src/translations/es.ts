@@ -1305,6 +1305,8 @@ const spanishTranslation: TranslationType = {
                         "Estás a punto de Crear una Ceremonia de Claves. Esta acción notificará a las Autoridades para participar en la creación y distribución de las Claves del Evento Electoral.",
                 },
                 filterTrustees: "Filtrar Autoridades",
+                errorPermisionLabels:
+                    "No se puede crear la ceremonia de claves: falta una o más etiquetas de permisos.",
             },
             ceremonyStep: {
                 cancel: "Cancelar Ceremonia de Claves",

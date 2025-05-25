@@ -473,7 +473,7 @@ pub async fn validate_permission_labels(
     election_event_id: &str,
     election_id: Option<String>,
     user_permission_labels: Option<String>,
-) -> Result<()> {
+) -> Result<bool> {
     let elections_permission_label = get_election_permission_label(
         hasura_transaction,
         tenant_id,
@@ -503,9 +503,6 @@ pub async fn validate_permission_labels(
     let is_valid_permission_labels = elections_permission_label
         .iter()
         .all(|c| permission_labels.contains(c));
-    if !is_valid_permission_labels {
-        return Err(anyhow!("user permission labels are not valid"));
-    }
 
-    Ok(())
+    Ok(is_valid_permission_labels)
 }
