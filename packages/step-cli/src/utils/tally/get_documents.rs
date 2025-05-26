@@ -1,10 +1,7 @@
-use crate::{
-    types::hasura_types::*,
-    utils::read_config::read_config,
-};
+use crate::{types::hasura_types::*, utils::read_config::read_config};
+use ::uuid::Uuid;
 use graphql_client::{GraphQLQuery, Response};
 use serde_json::Value;
-use ::uuid::Uuid;
 
 #[derive(GraphQLQuery)]
 #[graphql(
@@ -14,9 +11,7 @@ use ::uuid::Uuid;
 )]
 pub struct GetResultsEvent;
 
-pub fn get_documents(
-    results_event_id: &str,
-) -> Result<Value, Box<dyn std::error::Error>> {
+pub fn get_documents(results_event_id: &str) -> Result<Value, Box<dyn std::error::Error>> {
     let config = read_config()?;
     let client = reqwest::blocking::Client::new();
 
@@ -38,7 +33,7 @@ pub fn get_documents(
             if let Some(event) = data.sequent_backend_results_event.first() {
                 match event.documents.clone() {
                     Some(docs) => Ok(docs),
-                    None => Err(Box::from("Results event documents were null"))
+                    None => Err(Box::from("Results event documents were null")),
                 }
             } else {
                 Err(Box::from("No results event found"))
@@ -55,4 +50,4 @@ pub fn get_documents(
         let error = format!("HTTP Status: {}\nError Message: {}", status, error_message);
         Err(Box::from(error))
     }
-} 
+}

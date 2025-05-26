@@ -25,8 +25,6 @@ pub struct PublishChanges {
 
     #[arg(long)]
     election_id: Option<String>,
-
-   
 }
 
 #[derive(GraphQLQuery)]
@@ -39,7 +37,10 @@ pub struct PublishBallot;
 
 impl PublishChanges {
     pub fn run(&self) {
-        match publish_changes(&self.election_event_id, self.election_id.as_ref().map(String::as_str)) {
+        match publish_changes(
+            &self.election_event_id,
+            self.election_id.as_ref().map(String::as_str),
+        ) {
             Ok(id) => {
                 println!("Success! Published successfully! ID: {}", id);
             }
@@ -50,12 +51,16 @@ impl PublishChanges {
     }
 }
 
-pub fn publish_changes(election_event_id: &str, election_id: Option<&str>) -> Result<String, Box<dyn std::error::Error>> {
+pub fn publish_changes(
+    election_event_id: &str,
+    election_id: Option<&str>,
+) -> Result<String, Box<dyn std::error::Error>> {
     let config = read_config()?;
 
     let client = reqwest::blocking::Client::new();
 
-    let ballot_publication_id = GenerateBallotPublication::generate(election_event_id, election_id)?;
+    let ballot_publication_id =
+        GenerateBallotPublication::generate(election_event_id, election_id)?;
     println!("Ballot Publication ID: {}", ballot_publication_id);
 
     // Wait for publication to generate

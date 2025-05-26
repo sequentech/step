@@ -45,7 +45,10 @@ impl CreateElectionEventCLI {
             self.is_archived,
         ) {
             Ok(id) => {
-                println!("Success! Election event created successfully! ID: {}", id.unwrap_or_else(|| "None".to_string()));
+                println!(
+                    "Success! Election event created successfully! ID: {}",
+                    id.unwrap_or_else(|| "None".to_string())
+                );
             }
             Err(err) => {
                 eprintln!("Error! Failed to create election event: {}", err)

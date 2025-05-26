@@ -2,8 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::utils::tally::{download_document, get_documents, get_tally_session_execution};
 use clap::Args;
-use crate::utils::tally::{get_documents, get_tally_session_execution, download_document};
 use std::error::Error;
 
 #[derive(Args)]
@@ -52,10 +52,14 @@ pub fn download_results(
 
     // Get the documents from the results event
     let documents = get_documents::get_documents(&results_event_id)?;
-    println!("Found documents: {}", serde_json::to_string_pretty(&documents)?);
+    println!(
+        "Found documents: {}",
+        serde_json::to_string_pretty(&documents)?
+    );
 
     // Extract the tar_gz document ID
-    let tar_gz_id = documents["tar_gz"].as_str()
+    let tar_gz_id = documents["tar_gz"]
+        .as_str()
         .ok_or_else(|| Box::<dyn Error>::from("No tar_gz document found"))?;
 
     // Get the document URL and download it
@@ -64,4 +68,4 @@ pub fn download_results(
     download_document::download_file(&document.url, &output_path)?;
 
     Ok(())
-} 
+}

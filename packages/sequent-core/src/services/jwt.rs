@@ -75,7 +75,6 @@ pub struct JwtClaims {
 
 #[instrument(err, skip_all)]
 pub fn decode_jwt(token: &str) -> Result<JwtClaims> {
-    debug!("token: {:?}", token);
     let parts: Vec<&str> = token.split('.').collect();
     let part = parts.get(1).ok_or(anyhow::anyhow!("Bad token (no '.')"))?;
     let bytes = general_purpose::URL_SAFE_NO_PAD
@@ -121,34 +120,32 @@ pub fn decode_permission_labels(claims: &JwtClaims) -> Vec<String> {
  */
 #[instrument(skip_all)]
 pub fn has_gold_permission(claims: &JwtClaims) -> bool {
-    let auth_time_local: DateTime<Local> = if let Some(auth_time_int) =
-        claims.auth_time
-    {
-        if let Ok(auth_time_parsed) =
-            ISO8601::timestamp_ms_utc_to_date_opt(auth_time_int * 1000)
-        {
-            auth_time_parsed
-        } else {
-            // Try to use iat if auth_time parsing failed
-            if let Ok(iat_parsed) = 
-                ISO8601::timestamp_ms_utc_to_date_opt(claims.iat * 1000) 
+    let auth_time_local: DateTime<Local> =
+        if let Some(auth_time_int) = claims.auth_time {
+            if let Ok(auth_time_parsed) =
+                ISO8601::timestamp_ms_utc_to_date_opt(auth_time_int * 1000)
             {
-                iat_parsed
+                auth_time_parsed
             } else {
-                warn!("Failed to parse both auth_time and iat");
-                return false;
+                // Try to use iat if auth_time parsing failed
+                if let Ok(iat_parsed) =
+                    ISO8601::timestamp_ms_utc_to_date_opt(claims.iat * 1000)
+                {
+                    iat_parsed
+                } else {
+                    warn!("Failed to parse both auth_time and iat");
+                    return false;
+                }
             }
-        }
-    } else {
-        warn!("claims.auth_time is None");
-        return false;
-    };
+        } else {
+            warn!("claims.auth_time is None");
+            return false;
+        };
     // Let's asume fresh means token has at most 1 minute since authentication
     let freshness_limit = ISO8601::now() - Duration::seconds(60);
     let is_fresh = auth_time_local > freshness_limit;
+    warn!("is_fresh={is_fresh:?}, auth_time_local={auth_time_local:?}, freshness_limit={freshness_limit:?}");
     let is_gold = claims.acr == Permissions::GOLD.to_string();
-    info!("is_gold={is_gold:?}");
-    info!("is_fresh={is_fresh:?}, auth_time_local={auth_time_local:?}, freshness_limit={freshness_limit:?}");
     is_fresh && is_gold
 }
 

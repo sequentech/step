@@ -1,23 +1,22 @@
-
-
 use std::str::FromStr;
 
-use crate::{utils::read_config::read_config, types::hasura_types::*};
+use crate::{types::hasura_types::*, utils::read_config::read_config};
 use clap::Args;
 use graphql_client::{GraphQLQuery, Response};
 use update_event_voting_status::VotingStatus;
-
 
 impl FromStr for update_event_voting_status::VotingStatus {
     type Err = String;
 
     fn from_str(input: &str) -> Result<Self, Self::Err> {
         match input {
-            "OPEN"   => Ok(VotingStatus::OPEN),
+            "OPEN" => Ok(VotingStatus::OPEN),
             "CLOSE" => Ok(VotingStatus::CLOSED),
             "PAUSE" => Ok(VotingStatus::PAUSED),
             // …and so on for every variant in your schema’s VotingStatus enum
-            _ => Err(format!("Invalid voting status, status must be one of: OPEN, CLOSE, PAUSE")),
+            _ => Err(format!(
+                "Invalid voting status, status must be one of: OPEN, CLOSE, PAUSE"
+            )),
         }
     }
 }
@@ -45,7 +44,10 @@ impl UpdateElectionEventVotingStatus {
     pub fn run(&self) {
         match update_event_voting_status(&self.election_event_id, &self.voting_status) {
             Ok(id) => {
-                println!("Success! Updated successfully! ID: {}", id.unwrap_or_else(|| "None".to_string()));
+                println!(
+                    "Success! Updated successfully! ID: {}",
+                    id.unwrap_or_else(|| "None".to_string())
+                );
             }
             Err(err) => {
                 eprintln!("Error! Failed to update: {}", err)
@@ -70,10 +72,10 @@ pub fn update_event_voting_status(
     let request_body = UpdateEventVotingStatus::build_query(variables);
 
     let response = client
-    .post(&config.endpoint_url)
-    .bearer_auth(config.auth_token)
-    .json(&request_body)
-    .send()?;
+        .post(&config.endpoint_url)
+        .bearer_auth(config.auth_token)
+        .json(&request_body)
+        .send()?;
 
     if response.status().is_success() {
         let response_body: Response<update_event_voting_status::ResponseData> = response.json()?;
@@ -96,5 +98,3 @@ pub fn update_event_voting_status(
         Err(Box::from(error))
     }
 }
-
-

@@ -54,7 +54,9 @@ enum StepCommands {
     CreateElectoralLogs(commands::create_electoral_logs::CreateElectoralLogs),
     HashPassword(commands::hash_passwords::HashPasswords),
     UpdateEventVotingStatus(commands::update_event_voting_status::UpdateElectionEventVotingStatus),
-    UpdateElectionVotingStatus(commands::update_election_voting_status::UpdateElectionVotingStatusCommand),
+    UpdateElectionVotingStatus(
+        commands::update_election_voting_status::UpdateElectionVotingStatusCommand,
+    ),
     DownloadTallyResults(commands::download_tally_results::DownloadTallyResults),
 }
 
@@ -88,8 +90,12 @@ fn main() {
             StepCommands::CreateApplications(render) => render.run(),
             StepCommands::CreateElectoralLogs(render) => render.run(),
             StepCommands::HashPassword(render) => render.run(),
-            StepCommands::UpdateEventVotingStatus(update_event_voting_status) => update_event_voting_status.run(),
-            StepCommands::UpdateElectionVotingStatus(update_election_voting_status) => update_election_voting_status.run(),
+            StepCommands::UpdateEventVotingStatus(update_event_voting_status) => {
+                update_event_voting_status.run()
+            }
+            StepCommands::UpdateElectionVotingStatus(update_election_voting_status) => {
+                update_election_voting_status.run()
+            }
             StepCommands::DownloadTallyResults(download) => download.run(),
         },
     }

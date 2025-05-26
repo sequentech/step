@@ -104,7 +104,7 @@ pub fn export_election_event(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let config = read_config()?;
     let client = reqwest::blocking::Client::new();
-    
+
     let is_encrypted = bulletin_board || reports || applications;
 
     let variables = export_election_event::Variables {
@@ -132,7 +132,8 @@ pub fn export_election_event(
         .json(&request_body)
         .send()?;
 
-    let response_body: graphql_client::Response<export_election_event::ResponseData> = response.json()?;
+    let response_body: graphql_client::Response<export_election_event::ResponseData> =
+        response.json()?;
 
     println!("response_body: {:?}", response_body);
 
@@ -143,7 +144,7 @@ pub fn export_election_event(
                 .ok_or("No export data returned")?;
 
             let document_id = export_data.document_id;
-          
+
             let document = crate::utils::tally::download_document::fetch_document(
                 election_event_id,
                 &document_id,
@@ -168,4 +169,4 @@ pub fn export_election_event(
         }
         _ => Err("Unknown error: empty data and no GraphQL errors".into()),
     }
-} 
+}

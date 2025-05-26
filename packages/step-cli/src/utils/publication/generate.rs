@@ -15,7 +15,10 @@ use graphql_client::{GraphQLQuery, Response};
 pub struct GenerateBallotPublication;
 
 impl GenerateBallotPublication {
-    pub fn generate(election_event_id: &str, election_id: Option<&str>) -> Result<String, Box<dyn std::error::Error>> {
+    pub fn generate(
+        election_event_id: &str,
+        election_id: Option<&str>,
+    ) -> Result<String, Box<dyn std::error::Error>> {
         let config = read_config()?;
         let client = reqwest::blocking::Client::new();
 

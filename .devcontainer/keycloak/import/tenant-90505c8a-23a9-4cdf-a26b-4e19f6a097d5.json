@@ -1,5 +1,5 @@
 {
-   "id" : "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+  "id" : "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
   "realm" : "tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
   "displayName" : "Sequent Admin Portal",
   "displayNameHtml" : "",
@@ -2024,7 +2024,7 @@
     "attributes" : {
       "sequent.read-only.otp-method" : [ "email-or-sms" ],
       "sequent.read-only.mobile-number" : [ "+34666000222" ],
-      "permission_labels" : [ "TELAVIVPE" ],
+      "permission_labels" : [ "TELAVIVPE", "DHAKAPE" ],
       "tenant-id" : [ "90505c8a-23a9-4cdf-a26b-4e19f6a097d5" ]
     },
     "createdTimestamp" : 1692312554121,
@@ -2187,7 +2187,7 @@
     "attributes" : {
       "sequent.read-only.otp-method" : [ "email-or-sms" ],
       "sequent.read-only.mobile-number" : [ "+34666000222" ],
-      "permission_labels" : [ "TELAVIVPE" ],
+      "permission_labels" : [ "TELAVIVPE", "DHAKAPE" ],
       "trustee" : [ "trustee1" ],
       "tenant-id" : [ "90505c8a-23a9-4cdf-a26b-4e19f6a097d5" ]
     },
@@ -2216,7 +2216,7 @@
     "emailVerified" : true,
     "attributes" : {
       "sequent.read-only.mobile-number" : [ "+34666000222" ],
-      "permission_labels" : [ "TELAVIVPE" ],
+      "permission_labels" : [ "TELAVIVPE", "DHAKAPE" ],
       "trustee" : [ "trustee2" ],
       "tenant-id" : [ "90505c8a-23a9-4cdf-a26b-4e19f6a097d5" ]
     },
@@ -2540,14 +2540,27 @@
     "frontchannelLogout" : true,
     "protocol" : "openid-connect",
     "attributes" : {
-      "oidc.ciba.grant.enabled" : "false",
       "client.secret.creation.time" : "1721740319",
-      "backchannel.logout.session.required" : "true",
       "post.logout.redirect.uris" : "*",
       "oauth2.device.authorization.grant.enabled" : "false",
-      "backchannel.logout.revoke.offline.tokens" : "false"
+      "backchannel.logout.revoke.offline.tokens" : "false",
+      "use.refresh.tokens" : "true",
+      "oidc.ciba.grant.enabled" : "false",
+      "client.use.lightweight.access.token.enabled" : "false",
+      "backchannel.logout.session.required" : "true",
+      "client_credentials.use_refresh_token" : "false",
+      "acr.loa.map" : "{\"gold\":\"2\",\"silver\":\"1\"}",
+      "tls.client.certificate.bound.access.tokens" : "false",
+      "require.pushed.authorization.requests" : "false",
+      "display.on.consent.screen" : "false",
+      "token.response.type.bearer.lower-case" : "false",
+      "dpop.bound.access.tokens" : "false",
+      "default.acr.values" : "gold"
     },
-    "authenticationFlowBindingOverrides" : { },
+    "authenticationFlowBindingOverrides" : {
+      "direct_grant" : "7191847e-d249-4a3d-b513-84d16d1de9a2",
+      "browser" : "7191847e-d249-4a3d-b513-84d16d1de9a2"
+    },
     "fullScopeAllowed" : true,
     "nodeReRegistrationTimeout" : -1,
     "protocolMappers" : [ {
@@ -2581,6 +2594,23 @@
         "access.token.claim" : "true",
         "claim.name" : "https://hasura\\.io/jwt/claims.x-hasura-default-role",
         "jsonType.label" : "String",
+        "access.tokenResponse.claim" : "false"
+      }
+    }, {
+      "id" : "f1804544-7b49-4f44-8cea-8349be5875bc",
+      "name" : "auth_time",
+      "protocol" : "openid-connect",
+      "protocolMapper" : "oidc-usersessionmodel-note-mapper",
+      "consentRequired" : false,
+      "config" : {
+        "user.session.note" : "AUTH_TIME",
+        "introspection.token.claim" : "true",
+        "userinfo.token.claim" : "true",
+        "id.token.claim" : "true",
+        "lightweight.claim" : "false",
+        "access.token.claim" : "true",
+        "claim.name" : "https://hasura\\.io/jwt/auth_time",
+        "jsonType.label" : "long",
         "access.tokenResponse.claim" : "false"
       }
     }, {
@@ -2629,6 +2659,22 @@
         "lightweight.claim" : "false",
         "access.token.claim" : "true",
         "claim.name" : "https://hasura\\.io/jwt/claims.x-hasura-user-id",
+        "jsonType.label" : "String"
+      }
+    }, {
+      "id" : "5c333dda-dcd9-49eb-b680-d5c082304e27",
+      "name" : "trustee",
+      "protocol" : "openid-connect",
+      "protocolMapper" : "oidc-usermodel-attribute-mapper",
+      "consentRequired" : false,
+      "config" : {
+        "introspection.token.claim" : "true",
+        "userinfo.token.claim" : "true",
+        "user.attribute" : "trustee",
+        "id.token.claim" : "true",
+        "lightweight.claim" : "false",
+        "access.token.claim" : "true",
+        "claim.name" : "trustee",
         "jsonType.label" : "String"
       }
     }, {
@@ -3940,6 +3986,36 @@
       "userSetupAllowed" : false
     } ]
   }, {
+    "id" : "5d0c5ff8-1bf7-40b7-ae4c-fbfa0bfb4f98",
+    "alias" : "LoA step-up",
+    "description" : "",
+    "providerId" : "basic-flow",
+    "topLevel" : false,
+    "builtIn" : false,
+    "authenticationExecutions" : [ {
+      "authenticatorConfig" : "gold - LoA2",
+      "authenticator" : "conditional-level-of-authentication",
+      "authenticatorFlow" : false,
+      "requirement" : "REQUIRED",
+      "priority" : 0,
+      "autheticatorFlow" : false,
+      "userSetupAllowed" : false
+    }, {
+      "authenticator" : "direct-grant-validate-username",
+      "authenticatorFlow" : false,
+      "requirement" : "REQUIRED",
+      "priority" : 1,
+      "autheticatorFlow" : false,
+      "userSetupAllowed" : false
+    }, {
+      "authenticator" : "direct-grant-validate-password",
+      "authenticatorFlow" : false,
+      "requirement" : "DISABLED",
+      "priority" : 2,
+      "autheticatorFlow" : false,
+      "userSetupAllowed" : false
+    } ]
+  }, {
     "id" : "14312dc7-73f8-4ff3-8da4-b90d7d15f885",
     "alias" : "Message OTP Subflow",
     "description" : "Flow to determine if the Message OTP is required for the authentication",
@@ -4394,6 +4470,21 @@
       "userSetupAllowed" : false
     } ]
   }, {
+    "id" : "7191847e-d249-4a3d-b513-84d16d1de9a2",
+    "alias" : "gold direct grant",
+    "description" : "OpenID Connect Resource Owner Grant",
+    "providerId" : "basic-flow",
+    "topLevel" : true,
+    "builtIn" : false,
+    "authenticationExecutions" : [ {
+      "authenticatorFlow" : true,
+      "requirement" : "CONDITIONAL",
+      "priority" : 32,
+      "autheticatorFlow" : true,
+      "flowAlias" : "LoA step-up",
+      "userSetupAllowed" : false
+    } ]
+  }, {
     "id" : "2131bb6e-13d7-4bc0-8097-a758c4b041f6",
     "alias" : "registration",
     "description" : "registration flow",
@@ -4649,6 +4740,20 @@
     "config" : {
       "loa-condition-level" : "2",
       "loa-max-age" : "0"
+    }
+  }, {
+    "id" : "d0b1b9bb-22c3-4585-b094-c4e10e32bbe2",
+    "alias" : "gold - LoA2",
+    "config" : {
+      "loa-condition-level" : "2",
+      "loa-max-age" : "0"
+    }
+  }, {
+    "id" : "7caf408d-0ad1-45e7-89f6-095565b1b1a5",
+    "alias" : "gold - LoA2",
+    "config" : {
+      "loa-condition-level" : "2",
+      "loa-max-age" : "36000"
     }
   }, {
     "id" : "1804dd46-135e-4f00-995c-59d9cd66e802",

@@ -1,9 +1,6 @@
-use crate::{
-    types::hasura_types::*,
-    utils::read_config::read_config,
-};
-use graphql_client::{GraphQLQuery, Response};
+use crate::{types::hasura_types::*, utils::read_config::read_config};
 use ::uuid::Uuid;
+use graphql_client::{GraphQLQuery, Response};
 
 #[derive(GraphQLQuery)]
 #[graphql(
@@ -50,4 +47,4 @@ pub fn get_tally_session_execution(
         let error = format!("HTTP Status: {}\nError Message: {}", status, error_message);
         Err(Box::from(error))
     }
-} 
+}

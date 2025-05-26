@@ -1,8 +1,8 @@
-use std::str::FromStr;
-use anyhow::{Context, Result, anyhow};
-use crate::{utils::read_config::read_config, types::hasura_types::*};
+use crate::{types::hasura_types::*, utils::read_config::read_config};
+use anyhow::{anyhow, Context, Result};
 use clap::Args;
 use graphql_client::{GraphQLQuery, Response};
+use std::str::FromStr;
 
 use update_election_voting_status::VotingStatus;
 
@@ -53,9 +53,16 @@ pub struct UpdateElectionVotingStatus;
 
 impl UpdateElectionVotingStatusCommand {
     pub fn run(&self) {
-        match update_election_voting_status(&self.election_event_id, &self.election_id, &self.voting_status) {
+        match update_election_voting_status(
+            &self.election_event_id,
+            &self.election_id,
+            &self.voting_status,
+        ) {
             Ok(id) => {
-                println!("Success! Updated successfully! ID: {}", id.unwrap_or_else(|| "None".to_string()));
+                println!(
+                    "Success! Updated successfully! ID: {}",
+                    id.unwrap_or_else(|| "None".to_string())
+                );
             }
             Err(err) => {
                 eprintln!("Error! Failed to update: {}", err);
@@ -93,7 +100,7 @@ pub fn update_election_voting_status(
     };
 
     let request_body = UpdateElectionVotingStatus::build_query(variables);
-    
+
     let response = client
         .post(&config.endpoint_url)
         .bearer_auth(config.auth_token)
@@ -102,9 +109,8 @@ pub fn update_election_voting_status(
         .context("Failed to send request to update election voting status")?;
 
     if response.status().is_success() {
-        let response_body: Response<update_election_voting_status::ResponseData> = response
-            .json()
-            .context("Failed to parse response JSON")?;
+        let response_body: Response<update_election_voting_status::ResponseData> =
+            response.json().context("Failed to parse response JSON")?;
         println!("Response body: {:?}", response_body);
         if let Some(data) = response_body.data {
             if let Some(update_election_voting_status) = data.update_election_voting_status {
@@ -124,7 +130,7 @@ pub fn update_election_voting_status(
         let error_message = response
             .text()
             .context("Failed to read error response body")?;
-        
+
         Err(anyhow!(
             "Request failed with status {}: {}",
             status,
@@ -132,5 +138,3 @@ pub fn update_election_voting_status(
         ))
     }
 }
-
-
