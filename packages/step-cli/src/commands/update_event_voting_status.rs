@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 use std::str::FromStr;
 
 use crate::{types::hasura_types::*, utils::read_config::read_config};

@@ -36,8 +36,8 @@ hex = "0.4"
 ring = "0.17"
 sha2 = "0.10"
 base64 = "0.21.0"
-flate2 = "1.0"
-tar = "0.4"
+
+
 [[bin]]
 name = "seq"
 path = "src/main.rs"
