@@ -23,8 +23,7 @@ use electoral_log::messages::message::{Message, SigningData};
 use electoral_log::messages::newtypes::*;
 use electoral_log::messages::statement::{StatementBody, StatementType};
 use electoral_log::{
-    BoardClient, ElectoralLogMessage, ElectoralLogVarCharColumn, SqlCompOperators,
-    WhereClauseBTreeMap,
+    ElectoralLogMessage, ElectoralLogVarCharColumn, SqlCompOperators, WhereClauseBTreeMap,
 };
 use immudb_rs::{sql_value::Value, Client, NamedParam, Row, TxMode};
 use rust_decimal::prelude::ToPrimitive;
@@ -33,7 +32,6 @@ use sequent_core::services::date::ISO8601;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::collections::HashMap;
-use std::env;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::hash::HashWrapper;
 use strand::hash::STRAND_HASH_LENGTH_BYTES;
@@ -42,7 +40,7 @@ use strand::signature::StrandSignatureSk;
 use strum_macros::{Display, EnumString};
 use tempfile::NamedTempFile;
 use tokio_stream::StreamExt;
-use tracing::{event, info, instrument, trace, warn, Level};
+use tracing::{event, info, instrument, warn, Level};
 
 pub const IMMUDB_ROWS_LIMIT: usize = 2500;
 pub const MAX_ROWS_PER_PAGE: usize = 50;
@@ -1203,7 +1201,7 @@ pub fn get_cols_match_count_and_select(
         );
         cols_match_select.insert(
             ElectoralLogVarCharColumn::BallotId,
-            (SqlCompOperators::ILike, ballot_id_filter.to_string()),
+            (SqlCompOperators::Like, ballot_id_filter.to_string()),
         );
     }
 
@@ -1318,48 +1316,4 @@ pub async fn count_electoral_log(input: GetElectoralLogBody) -> Result<i64> {
 
     client.close_session().await?;
     Ok(aggregate.count as i64)
-}
-
-#[instrument(err)]
-pub fn ballot_id_to_byte_array(ballot_id: &str) -> Result<Vec<u8>> {
-    ensure!(
-        ballot_id.chars().count() % 2 == 0 && ballot_id.is_ascii(),
-        "Incorrect ballot_id, the length must be an even number of characters"
-    );
-    let mut byte_array: Vec<u8> = Vec::with_capacity(BALLOT_ID_LENGTH_BYTES);
-    byte_array = (0..ballot_id.len())
-        .step_by(2)
-        .map(|i| {
-            let res = u8::from_str_radix(&ballot_id[i..i + 2], 16).map_err(|e| e.to_string())?;
-            Ok(res)
-        })
-        .collect::<Result<Vec<u8>, String>>()
-        .map_err(|e| anyhow!(format!("Error parsing ballot_id_filter: {e:?}")))?;
-    Ok(byte_array)
-}
-
-/// Find the ballot_id in the message and return it if matches the input_filter_hash.
-/// When input_filter_hash is empty, return the ballot_id from the message.
-/// When there is no match, return None.
-pub fn find_ballot_id_in_message(msg: &Message, input_filter_hash: &Vec<u8>) -> Option<String> {
-    let inmudb_hash: [u8; STRAND_HASH_LENGTH_BYTES] = match &msg.statement.body {
-        StatementBody::CastVote(_, _, cv_hash, _, _) => cv_hash.0.clone().into_inner(),
-        _ => {
-            warn!(
-                "Message is not a CastVote, but method is expecting only CastVote statement_kind´s"
-            );
-            return None;
-        }
-    };
-    let input_bytes_len = input_filter_hash.len();
-    match inmudb_hash[..input_bytes_len] == input_filter_hash[..] {
-        true => {
-            let ballot_id: String = inmudb_hash[..BALLOT_ID_LENGTH_BYTES]
-                .iter()
-                .map(|b| format!("{:02x}", b))
-                .collect();
-            Some(ballot_id)
-        }
-        false => None,
-    }
 }

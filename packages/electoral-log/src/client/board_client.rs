@@ -10,7 +10,6 @@ use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::fmt::Display;
-use strand::hash::info;
 use strum_macros::Display;
 use tracing::{info, instrument};
 
@@ -43,6 +42,8 @@ pub enum ElectoralLogVarCharColumn {
     Version,
 }
 
+/// SQL comparison operators supported by immudb.
+/// ILIKE is not supported.
 #[derive(Display, Debug, Clone)]
 pub enum SqlCompOperators {
     #[strum(to_string = "=")]
@@ -59,8 +60,6 @@ pub enum SqlCompOperators {
     LessThanOrEqual,
     #[strum(to_string = "LIKE")]
     Like,
-    #[strum(to_string = "ILIKE")]
-    ILike,
     #[strum(to_string = "IN")]
     In,
     #[strum(to_string = "NOT IN")]
