@@ -17,13 +17,13 @@ use sequent_core::encrypt::shorten_hash;
 use serde::Serialize;
 use serde_json::Value;
 use std::collections::BTreeMap;
+use std::collections::HashMap;
 use std::env;
 use std::fs::File;
 use strand::serialization::StrandDeserialize;
 use tokio_postgres::Transaction;
 use uuid::Uuid;
 use windmill::services::providers::transactions_provider::provide_hasura_transaction;
-
 #[derive(Serialize)]
 struct Record {
     created: i64,
