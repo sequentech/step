@@ -27,9 +27,8 @@ pub fn generate_keycloak_token(
         ("client_secret", client_secret),
         ("username", username),
         ("password", password),
-        ("require_auth_time", "true"),
     ];
-    println!("params: {:?}", params);
+
     let realm = format!("tenant-{}", tenant_id);
     let url = format!(
         "{}/realms/{}/protocol/openid-connect/token",
@@ -41,7 +40,6 @@ pub fn generate_keycloak_token(
 
     if response.status().is_success() {
         let token_response: KeycloakTokenResponse = response.json()?;
-        print!("{}\n", token_response.access_token);
         Ok(token_response)
     } else {
         let status = response.status();

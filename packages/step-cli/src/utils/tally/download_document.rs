@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 use crate::{types::hasura_types::*, utils::read_config::read_config};
 use graphql_client::{GraphQLQuery, Response};
 use std::path::Path;
@@ -62,18 +66,11 @@ pub fn download_file(url: &str, output_path: &str) -> Result<(), Box<dyn std::er
         .redirect(reqwest::redirect::Policy::default())
         .build()?;
 
-    // Create output directory if it doesn't exist
     let output_dir = Path::new(output_path).parent().unwrap_or(Path::new("."));
     fs::create_dir_all(output_dir)?;
 
-    // Replace 127.0.0.1:9000 with minio:9000 in the URL
-    // let new_url = url.replace("127.0.0.1:9000", "minio:9001");
-    // let parsed_url = reqwest::Url::parse(&new_url)?;
-
-    // Download the file with proper headers
     let mut response = client.get(url).send()?;
 
-    // Check if the response is an error
     if !response.status().is_success() {
         let error_text = response.text()?;
         return Err(format!("Failed to download file: {}", error_text).into());

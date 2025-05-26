@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+    
 use crate::{types::hasura_types::*, utils::read_config::read_config};
 use anyhow::{anyhow, Context, Result};
 use clap::Args;
