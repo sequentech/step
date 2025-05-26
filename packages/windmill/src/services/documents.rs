@@ -122,9 +122,6 @@ pub async fn get_document_url(
     election_event_id: Option<&str>,
     document_id: &str,
 ) -> anyhow::Result<Option<String>> {
-    info!("tenant_id: {tenant_id}");
-    info!("election_event_id: {:?}", election_event_id);
-    info!("document_id: {document_id}");
     let document = postgres::document::get_document(
         hasura_transaction,
         tenant_id,
