@@ -156,7 +156,7 @@ impl TryFrom<&Row> for ElectoralLogMessage {
                         ))
                     }
                 },
-                "ballod_id" => match value.value.as_ref() {
+                "ballot_id" => match value.value.as_ref() {
                     Some(Value::S(inner)) => ballot_id = Some(inner.clone()),
                     Some(Value::Null(_)) => ballot_id = None,
                     None => ballot_id = None,
@@ -804,7 +804,7 @@ impl BoardClient {
             username VARCHAR,
             election_id VARCHAR[64],
             area_id VARCHAR[64],
-            ballod_id VARCHAR[64],
+            ballot_id VARCHAR[64],
             PRIMARY KEY id
         );
         "#
