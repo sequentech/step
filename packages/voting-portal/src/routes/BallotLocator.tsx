@@ -365,7 +365,13 @@ const LogsTable: React.FC<LogsTableProps> = ({
                                 </TableSortLabel>
                             </TableCell>
                             <TableCell align="justify" sx={{fontWeight: "bold"}}>
-                                ballot_id
+                                <TableSortLabel
+                                    active={orderBy === "ballot_id"}
+                                    direction={orderBy === "ballot_id" ? order : "asc"}
+                                    onClick={() => onClickHeader("ballot_id")}
+                                >
+                                    ballot_id
+                                </TableSortLabel>
                             </TableCell>
                             <TableCell align="justify" sx={{fontWeight: "bold"}}>
                                 <TableSortLabel

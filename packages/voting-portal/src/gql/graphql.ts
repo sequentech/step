@@ -304,10 +304,10 @@ export type ElectoralLogFilter = {
   statement_kind?: InputMaybe<Scalars['String']['input']>;
   statement_timestamp?: InputMaybe<Scalars['String']['input']>;
   user_id?: InputMaybe<Scalars['String']['input']>;
-  username?: InputMaybe<Scalars['String']['input']>;
 };
 
 export type ElectoralLogOrderBy = {
+  ballot_id?: InputMaybe<OrderDirection>;
   created?: InputMaybe<OrderDirection>;
   id?: InputMaybe<OrderDirection>;
   statement_kind?: InputMaybe<OrderDirection>;
@@ -20654,7 +20654,7 @@ export type GetDocumentQueryVariables = Exact<{
 }>;
 
 
-export type GetDocumentQuery = { __typename?: 'query_root', sequent_backend_document: Array<{ __typename?: 'sequent_backend_document', id: any, tenant_id?: any | null, election_event_id?: any | null, name?: string | null, media_type?: string | null, size?: number | null, labels?: any | null, annotations?: any | null, created_at?: any | null, last_updated_at?: any | null, is_public?: boolean | null }> };
+export type GetDocumentQuery = { __typename?: 'query_root', sequent_backend_document: Array<{ __typename?: 'sequent_backend_document', id: any, tenant_id?: any | null, election_event_id?: any | null, name?: string | null, media_type?: string | null, size?: any | null, labels?: any | null, annotations?: any | null, created_at?: any | null, last_updated_at?: any | null, is_public?: boolean | null }> };
 
 export type GetElectionEventQueryVariables = Exact<{
   electionEventId: Scalars['uuid']['input'];

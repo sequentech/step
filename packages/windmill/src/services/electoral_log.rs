@@ -746,6 +746,7 @@ pub enum OrderField {
     Message,
     UserId,
     Username,
+    BallotId,
     SenderPk,
     LogType,
     EventType,
@@ -787,7 +788,7 @@ impl GetElectoralLogBody {
                         where_clauses.push(format!("id = @{}", param_name));
                         params.push(create_named_param(param_name, Value::N(int_value)));
                     }
-                    OrderField::SenderPk | OrderField::UserId | OrderField::Username | OrderField::StatementKind | OrderField::Version => { // sql VARCHAR type
+                    OrderField::SenderPk | OrderField::UserId | OrderField::Username | OrderField::BallotId | OrderField::StatementKind | OrderField::Version => { // sql VARCHAR type
                         where_clauses.push(format!("{field} LIKE @{}", param_name));
                         params.push(create_named_param(param_name, Value::S(value.to_string())));
                     }

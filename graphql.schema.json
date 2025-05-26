@@ -2371,16 +2371,6 @@
               "ofType": null
             },
             "defaultValue": null
-          },
-          {
-            "name": "username",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "defaultValue": null
           }
         ],
         "interfaces": null,
@@ -2393,6 +2383,16 @@
         "description": null,
         "fields": null,
         "inputFields": [
+          {
+            "name": "ballot_id",
+            "description": null,
+            "type": {
+              "kind": "ENUM",
+              "name": "OrderDirection",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
           {
             "name": "created",
             "description": null,

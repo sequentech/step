@@ -675,6 +675,8 @@ input ElectoralLogOrderBy {
     statement_timestamp: OrderDirection
     statement_kind: OrderDirection
     user_id: OrderDirection
+    username: OrderDirection
+    ballot_id: OrderDirection
 }
 
 input SampleInput {
