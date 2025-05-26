@@ -443,7 +443,7 @@ impl BoardClient {
     pub async fn count_electoral_log_messages(
         &mut self,
         board_db: &str,
-        columns_matcher: Option<BTreeMap<ElectoralLogVarCharColumn, (SqlCompOperators, String)>>,
+        columns_matcher: Option<WhereClauseBTreeMap>,
     ) -> Result<i64> {
         let mut params = vec![];
         let mut where_clause = String::from("statement_kind IS NOT NULL ");
@@ -810,19 +810,17 @@ impl BoardClient {
         "#
         );
 
-        // This is the order of the cols in the wherer clauses, as defined in ElectoralLogVarCharColumn
+        // This is the order of the cols in the where clauses, as defined in ElectoralLogVarCharColumn
         // Note Username cannot be indexed because it is not constrained to 512B, but is not needded since we have user_id
-        // StatementKind, UserId, Username, SenderPk, ElectionId, AreaId, Version,
+        // StatementKind, UserId, BallotId, Username, SenderPk, ElectionId, AreaId, Version,
         let elog_indexes = vec![
-            format!("CREATE INDEX IF NOT EXISTS ON {ELECTORAL_LOG_TABLE} (statement_kind, user_id, election_id)"), // To list or count cast_vote_messages.
-            format!("CREATE INDEX IF NOT EXISTS ON {ELECTORAL_LOG_TABLE} (statement_kind, user_id, election_id, id)"), // Order by id
-            format!("CREATE INDEX IF NOT EXISTS ON {ELECTORAL_LOG_TABLE} (statement_kind, user_id, election_id, statement_timestamp)"), // Order by statement_timestamp
-            format!("CREATE INDEX IF NOT EXISTS ON {ELECTORAL_LOG_TABLE} (statement_kind, election_id)"),
+            format!("CREATE INDEX IF NOT EXISTS ON {ELECTORAL_LOG_TABLE} (statement_kind, user_id, ballot_id, election_id, id)"), // To list or count cast_vote_messages and Order by id
+            format!("CREATE INDEX IF NOT EXISTS ON {ELECTORAL_LOG_TABLE} (statement_kind, user_id, ballot_id, election_id, statement_timestamp)"), // Order by statement_timestamp
             format!("CREATE INDEX IF NOT EXISTS ON {ELECTORAL_LOG_TABLE} (statement_kind, election_id, id)"), // Order by id
             format!("CREATE INDEX IF NOT EXISTS ON {ELECTORAL_LOG_TABLE} (statement_kind, election_id, statement_timestamp)"), // Order by statement_timestamp
-            format!("CREATE INDEX IF NOT EXISTS ON {ELECTORAL_LOG_TABLE} (statement_kind, user_id, election_id, area_id)"), // Other posible filters...
-            format!("CREATE INDEX IF NOT EXISTS ON {ELECTORAL_LOG_TABLE} (statement_kind)"),
-            format!("CREATE INDEX IF NOT EXISTS ON {ELECTORAL_LOG_TABLE} (election_id)"),
+            format!("CREATE INDEX IF NOT EXISTS ON {ELECTORAL_LOG_TABLE} (user_id, election_id, area_id, id)"), // Other posible filters...
+            format!("CREATE INDEX IF NOT EXISTS ON {ELECTORAL_LOG_TABLE} (election_id, area_id, id)"),
+            format!("CREATE INDEX IF NOT EXISTS ON {ELECTORAL_LOG_TABLE} (area_id, id)"),
         ];
 
         self.upsert_database(board_dbname, &sql, elog_indexes.as_slice())
