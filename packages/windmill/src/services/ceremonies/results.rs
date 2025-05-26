@@ -1,3 +1,8 @@
+use crate::postgres::area::{self, get_areas, get_areas_by_ids, get_event_areas};
+use crate::postgres::area_contest::{export_area_contests, get_area_contests_by_area_contest_ids};
+use crate::postgres::contest::{export_contests, get_contest_by_election_ids};
+use crate::postgres::election::{get_elections, get_elections_by_ids};
+use crate::postgres::election_event::get_election_event_by_id;
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
@@ -8,12 +13,20 @@ use crate::postgres::results_contest_candidate::insert_results_contest_candidate
 use crate::postgres::results_election::insert_results_elections;
 use crate::postgres::results_event::insert_results_event;
 use crate::services::ceremonies::result_documents::save_result_documents;
+use crate::sqlite::area::create_area_table;
+use crate::sqlite::area_contest::create_area_contest_table;
+use crate::sqlite::candidate::create_candidate_table;
+use crate::sqlite::contests::create_contest_table;
+use crate::sqlite::election::create_election_table;
+use crate::sqlite::election_event::create_election_event_table;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
+use rusqlite::Connection;
+use rusqlite::Transaction as SqliteTransaction;
 use sequent_core::services::connection;
 use sequent_core::types::ceremonies::TallyType;
-use sequent_core::types::hasura::core::Area;
 use sequent_core::types::hasura::core::TallySessionExecution;
+use sequent_core::types::hasura::core::{Area, TallySession};
 use sequent_core::types::results::*;
 use serde_json::json;
 use std::cmp;
@@ -308,8 +321,102 @@ pub async fn generate_results_id_if_necessary(
     Ok(Some(results_event.id))
 }
 
+async fn populate_election_event_data(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    sqlite_transaction: &SqliteTransaction<'_>,
+    election_ids: Option<Vec<String>>,
+    areas_ids: Option<Vec<String>>,
+) -> Result<()> {
+    let election_event = get_election_event_by_id(hasura_transaction, tenant_id, election_event_id)
+        .await
+        .context("Failed to get election event by ID")?;
+    create_election_event_table(&sqlite_transaction, election_event)
+        .await
+        .context("Failed to create election event table")?;
+
+    let elections = match election_ids.clone() {
+        Some(ids) => {
+            get_elections_by_ids(hasura_transaction, tenant_id, election_event_id, &ids).await
+        }
+        None => get_elections(hasura_transaction, tenant_id, election_event_id, None).await,
+    }
+    .context("Failed to get elections")?;
+
+    create_election_table(&sqlite_transaction, elections)
+        .await
+        .context("Failed to create election table")?;
+
+    let contests = match election_ids {
+        Some(ids) => {
+            get_contest_by_election_ids(hasura_transaction, tenant_id, election_event_id, &ids)
+                .await
+                .context("Failed to export contests")?
+        }
+        None => export_contests(hasura_transaction, tenant_id, election_event_id)
+            .await
+            .context("Failed to export contests")?,
+    };
+
+    create_contest_table(sqlite_transaction, contests.clone())
+        .await
+        .context("Failed to create contest table")?;
+
+    let contests_ids: Vec<String> = contests.iter().map(|c| c.id.clone()).collect();
+
+    create_candidate_table(
+        hasura_transaction,
+        sqlite_transaction,
+        &contests_ids,
+        tenant_id,
+        election_event_id,
+    )
+    .await
+    .context("Failed to create candidate table")?;
+
+    let areas = match areas_ids.clone() {
+        Some(ids) => get_areas_by_ids(hasura_transaction, tenant_id, election_event_id, &ids)
+            .await
+            .context("Failed to get event areas by IDs")?,
+        None => get_event_areas(hasura_transaction, tenant_id, election_event_id)
+            .await
+            .context("Failed to get event areas")?,
+    };
+
+    create_area_table(sqlite_transaction, areas)
+        .await
+        .context("Failed to create area table")?;
+
+    let area_contests = match areas_ids {
+        Some(ids) => get_area_contests_by_area_contest_ids(
+            hasura_transaction,
+            tenant_id,
+            election_event_id,
+            &ids,
+            &contests_ids,
+        )
+        .await
+        .context("Failed to get areas contestby IDs")?,
+        None => export_area_contests(hasura_transaction, tenant_id, election_event_id)
+            .await
+            .context("Failed to export area contests")?,
+    };
+
+    create_area_contest_table(
+        sqlite_transaction,
+        tenant_id,
+        election_event_id,
+        area_contests,
+    )
+    .await
+    .context("Failed to create area contest table")?;
+
+    Ok(())
+}
+
 #[instrument(skip_all)]
-pub async fn populate_results_tables(
+pub async fn process_results_tables(
     hasura_transaction: &Transaction<'_>,
     base_tally_path: &PathBuf,
     state_opt: Option<State>,
@@ -320,7 +427,22 @@ pub async fn populate_results_tables(
     areas: &Vec<Area>,
     default_language: &str,
     tally_type_enum: TallyType,
+    sqlite_transaction: &SqliteTransaction<'_>,
+    tally_session: &TallySession,
 ) -> Result<Option<String>> {
+    let elections_ids = tally_session.election_ids.clone();
+    let areas_ids = tally_session.area_ids.clone();
+
+    let _ = populate_election_event_data(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        &sqlite_transaction,
+        elections_ids,
+        areas_ids,
+    )
+    .await?;
+
     let results_event_id_opt = generate_results_id_if_necessary(
         hasura_transaction,
         tenant_id,
@@ -358,4 +480,45 @@ pub async fn populate_results_tables(
     } else {
         Ok(previous_execution.results_event_id)
     }
+}
+
+#[instrument(skip_all)]
+pub async fn populate_results_tables(
+    hasura_transaction: &Transaction<'_>,
+    base_tally_path: &PathBuf,
+    state_opt: Option<State>,
+    tenant_id: &str,
+    election_event_id: &str,
+    session_ids: Option<Vec<i64>>,
+    previous_execution: TallySessionExecution,
+    areas: &Vec<Area>,
+    default_language: &str,
+    tally_type_enum: TallyType,
+    tally_session: &TallySession,
+) -> Result<Option<String>> {
+    let result = tokio::task::block_in_place(|| -> anyhow::Result<Option<String>> {
+        let mut sqlite_connection = Connection::open("temp.db")?;
+        let sqlite_transaction = sqlite_connection.transaction()?;
+        let process_result = tokio::runtime::Handle::current().block_on(async {
+            process_results_tables(
+                hasura_transaction,
+                base_tally_path,
+                state_opt,
+                tenant_id,
+                election_event_id,
+                session_ids,
+                previous_execution,
+                areas,
+                default_language,
+                tally_type_enum,
+                &sqlite_transaction,
+                tally_session,
+            )
+            .await
+        })?;
+        sqlite_transaction.commit()?;
+        Ok(process_result)
+    })?;
+
+    Ok(result)
 }
