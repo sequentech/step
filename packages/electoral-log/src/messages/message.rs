@@ -7,6 +7,7 @@ use anyhow::Result;
 use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
 
+use strand::hash::STRAND_HASH_LENGTH_BYTES;
 use strand::serialization::StrandSerialize;
 use strand::signature::StrandSignature;
 use strand::signature::StrandSignaturePk;
@@ -67,8 +68,10 @@ impl Message {
             .0
             .into_inner()
             .iter()
+            .take(STRAND_HASH_LENGTH_BYTES / 2)
             .map(|b| format!("{:02x}", b))
             .collect();
+
         Self::from_body(
             event,
             body,

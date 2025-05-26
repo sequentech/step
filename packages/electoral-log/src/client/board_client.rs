@@ -18,6 +18,12 @@ const IMMUDB_DEFAULT_LIMIT: usize = 900;
 const IMMUDB_DEFAULT_ENTRIES_TX_LIMIT: usize = 50;
 const IMMUDB_DEFAULT_OFFSET: usize = 0;
 const ELECTORAL_LOG_TABLE: &'static str = "electoral_log_messages";
+/// 36 chars + EOL + some padding
+const ID_VARCHAR_LENGTH: usize = 40;
+/// Longest possible statement kind must be < 40
+const STATEMENT_KIND_VARCHAR_LENGTH: usize = 40;
+/// 64 chars + EOL + some padding
+const BALLOT_ID_VARCHAR_LENGTH: usize = 70;
 
 #[derive(Debug)]
 pub struct BoardClient {
@@ -519,7 +525,7 @@ impl BoardClient {
                     user_id,
                     username,
                     election_id,
-                    area_id
+                    area_id,
                     ballot_id
                 ) VALUES (
                     @created,
@@ -531,7 +537,7 @@ impl BoardClient {
                     @user_id,
                     @username,
                     @election_id,
-                    @area_id
+                    @area_id,
                     @ballot_id
                 );
             "#,
@@ -657,7 +663,7 @@ impl BoardClient {
                     user_id,
                     username,
                     election_id,
-                    area_id
+                    area_id,
                     ballot_id
                 ) VALUES (
                     @created,
@@ -669,7 +675,7 @@ impl BoardClient {
                     @user_id,
                     @username,
                     @election_id,
-                    @area_id
+                    @area_id,
                     @ballot_id
                 );
             "#,
@@ -797,14 +803,14 @@ impl BoardClient {
             created TIMESTAMP,
             sender_pk VARCHAR,
             statement_timestamp TIMESTAMP,
-            statement_kind VARCHAR[64],
+            statement_kind VARCHAR[{STATEMENT_KIND_VARCHAR_LENGTH}],
             message BLOB,
             version VARCHAR,
-            user_id VARCHAR[64],
+            user_id VARCHAR[{ID_VARCHAR_LENGTH}],
             username VARCHAR,
-            election_id VARCHAR[64],
-            area_id VARCHAR[64],
-            ballot_id VARCHAR[64],
+            election_id VARCHAR[{ID_VARCHAR_LENGTH}],
+            area_id VARCHAR[{ID_VARCHAR_LENGTH}],
+            ballot_id VARCHAR[{BALLOT_ID_VARCHAR_LENGTH}],
             PRIMARY KEY id
         );
         "#
