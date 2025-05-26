@@ -145,6 +145,7 @@ const BallotLocator: React.FC = () => {
     const [rows, setRows] = useState<ICastVoteEntry[]>([])
     const [total, setTotal] = useState(0)
     const [ballotIdNotFoundErr, setBallotIdNotFoundErr] = useState(false)
+    const [somethingWentWrongErr, setSomethingWentWrongErr] = useState(false)
     const validatedBallotId = isHex(inputBallotId ?? "")
     const [showCVLogsPolicy, setShowCVLogsPolicy] = useState(false)
     const {globalSettings} = useContext(SettingsContext)
@@ -200,9 +201,7 @@ const BallotLocator: React.FC = () => {
                     )
                 }
             } catch (e) {
-                // TODO: Notify to the user.
-                console.log("ERROR")
-                console.log(e)
+                setSomethingWentWrongErr(true)
             }
         }
 
@@ -302,6 +301,7 @@ const BallotLocator: React.FC = () => {
                     handleChangeRowsPerPage={handleChangeRowsPerPage}
                     page={page}
                     handleChangePage={handleChangePage}
+                    somethingWentWrongErr={somethingWentWrongErr}
                 />
             </CustomTabPanel>
             <Box sx={{order: {xs: 1, md: 2}, marginTop: "20px"}}>
@@ -326,6 +326,7 @@ interface LogsTableProps {
     handleChangeRowsPerPage: (event: React.ChangeEvent<HTMLInputElement>) => void
     page: number
     handleChangePage: (event: unknown, newValue: number) => void
+    somethingWentWrongErr: boolean
 }
 
 const LogsTable: React.FC<LogsTableProps> = ({
@@ -336,6 +337,7 @@ const LogsTable: React.FC<LogsTableProps> = ({
     handleChangeRowsPerPage,
     page,
     handleChangePage,
+    somethingWentWrongErr = false,
 }) => {
     const {t} = useTranslation()
     const [orderBy, setOrderBy] = useState<string>("")
@@ -416,6 +418,7 @@ const LogsTable: React.FC<LogsTableProps> = ({
                 onPageChange={handleChangePage}
                 onRowsPerPageChange={handleChangeRowsPerPage}
             />
+            {somethingWentWrongErr && <StyledError>{t("errors.page.somethingWrong")}</StyledError>}
         </>
     )
 }
