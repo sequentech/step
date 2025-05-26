@@ -82,6 +82,7 @@ impl ExportCastVotes {
             ElectoralLogVarCharColumn::StatementKind,
             (SqlCompOperators::Equal, StatementType::CastVote.to_string()),
         )]);
+        let order_by: Option<HashMap<String, String>> = None;
         println!("Getting messages");
         let electoral_log_messages = client
             .get_electoral_log_messages_filtered(
@@ -91,7 +92,7 @@ impl ExportCastVotes {
                 None,
                 None,
                 None,
-                None,
+                order_by,
             )
             .await
             .map_err(|err| anyhow!("Failed to get filtered messages: {:?}", err))?;
