@@ -326,6 +326,16 @@ const spanishTranslation: TranslationType = {
                     "Esta pantalla le permite al votante encontrar su Papeleta utilizando el ID de la Papeleta para recuperarlo. Este procedimiento permite comprobar que su voto fue emitido correctamente y que el voto registrado coincide con el voto cifrado que emitió.",
                 ok: "OK",
             },
+            tabs: {
+                logs: "Logs",
+                ballotLocator: "Localizador de Papeletas",
+            },
+            column: {
+                statement_kind: "Tipo",
+                statement_timestamp: "Marca de tiempo",
+                username: "Usuario",
+                ballot_id: "ID de Papeleta",
+            },
         },
     },
 }

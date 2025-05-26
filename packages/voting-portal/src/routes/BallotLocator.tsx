@@ -275,8 +275,10 @@ const BallotLocator: React.FC = () => {
                     value={value}
                     onChange={handleChange}
                 >
-                    <Tab label="BALLOT LOCATOR" {...a11yProps(0)} />
-                    {showCVLogsPolicy && <Tab label="LOGS" {...a11yProps(1)} />}
+                    <Tab label={t("ballotLocator.tabs.ballotLocator")} {...a11yProps(0)} />
+                    {showCVLogsPolicy && (
+                        <Tab label={t("ballotLocator.tabs.logs")} {...a11yProps(1)} />
+                    )}
                 </Tabs>
             </Box>
             <CustomTabPanel value={value} index={0}>
@@ -363,7 +365,7 @@ const LogsTable: React.FC<LogsTableProps> = ({
                                     direction={orderBy === "username" ? order : "asc"}
                                     onClick={() => onClickHeader("username")}
                                 >
-                                    username
+                                    {t("ballotLocator.column.username")}
                                 </TableSortLabel>
                             </TableCell>
                             <TableCell align="justify" sx={{fontWeight: "bold"}}>
@@ -372,7 +374,7 @@ const LogsTable: React.FC<LogsTableProps> = ({
                                     direction={orderBy === "ballot_id" ? order : "asc"}
                                     onClick={() => onClickHeader("ballot_id")}
                                 >
-                                    ballot_id
+                                    {t("ballotLocator.column.ballot_id")}
                                 </TableSortLabel>
                             </TableCell>
                             <TableCell align="justify" sx={{fontWeight: "bold"}}>
@@ -381,7 +383,7 @@ const LogsTable: React.FC<LogsTableProps> = ({
                                     direction={orderBy === "statement_kind" ? order : "asc"}
                                     onClick={() => onClickHeader("statement_kind")}
                                 >
-                                    statement_kind
+                                    {t("ballotLocator.column.statement_kind")}
                                 </TableSortLabel>
                             </TableCell>
                             <TableCell align="justify" sx={{fontWeight: "bold"}}>
@@ -390,7 +392,7 @@ const LogsTable: React.FC<LogsTableProps> = ({
                                     direction={orderBy === "statement_timestamp" ? order : "asc"}
                                     onClick={() => onClickHeader("statement_timestamp")}
                                 >
-                                    statement_timestamp
+                                    {t("ballotLocator.column.statement_timestamp")}
                                 </TableSortLabel>
                             </TableCell>
                         </TableRow>

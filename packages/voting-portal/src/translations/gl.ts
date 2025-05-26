@@ -324,6 +324,16 @@ const galegoTranslation: TranslationType = {
                     "Esta pantalla permite ao votante atopar o seu voto utilizando o ID da papeleta para recuperalo. Este procedemento permite verificar que a súa papeleta foi emitida correctamente e que a papeleta rexistrada coincide coa papeleta encriptada enviada.",
                 ok: "Aceptar",
             },
+            tabs: {
+                logs: "Logs",
+                ballotLocator: "Localiza a tua Papeleta",
+            },
+            column: {
+                statement_kind: "Tipo",
+                statement_timestamp: "Marca de tempo",
+                username: "Nome de usuario",
+                ballot_id: "ID da papeleta",
+            },
         },
     },
 }

@@ -324,6 +324,16 @@ const tagalogTranslation: TranslationType = {
                     "Sa screen na ito maaring hanapin ng botante ang kaniyang boto gamit ang Ballot ID upang matagpuan ito. Sa ganitong pamamaraan, maaring suriin kung ang balota ay nai-submit nang tama at kung ang naitalang balota ay tumutugma sa encrypted na balota na kanilang ipinadala.",
                 ok: "OK",
             },
+            tabs: {
+                logs: "Logs",
+                ballotLocator: "Lokaliseer uw Stembiljet",
+            },
+            column: {
+                statement_kind: "Type",
+                statement_timestamp: "Tijdstip",
+                username: "Gebruikersnaam",
+                ballot_id: "Stembiljet ID",
+            },
         },
     },
 }

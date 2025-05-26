@@ -325,6 +325,16 @@ const dutchTranslation: TranslationType = {
                     "Dit scherm stelt de kiezer in staat om zijn/haar stem te vinden door de Stembiljet ID te gebruiken om deze op te halen. Deze procedure maakt het mogelijk te controleren of hun stembiljet correct is uitgebracht en of het geregistreerde stembiljet overeenkomt met het versleutelde stembiljet dat ze hebben verzonden.",
                 ok: "OK",
             },
+            tabs: {
+                logs: "Logs",
+                ballotLocator: "Lokaliseer uw Stembiljet",
+            },
+            column: {
+                statement_kind: "Type",
+                statement_timestamp: "Tijdstip",
+                username: "Gebruikersnaam",
+                ballot_id: "Stembiljet ID",
+            },
         },
     },
 }

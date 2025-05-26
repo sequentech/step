@@ -325,6 +325,16 @@ const frenchTranslation: TranslationType = {
                     "Cet écran permet au votant de trouver son bulletin en utilisant l'ID du Bulletin pour le récupérer. Cette procédure permet de vérifier que son vote a été émis correctement et que le vote enregistré correspond au vote chiffré émis.",
                 ok: "OK",
             },
+            tabs: {
+                logs: "Logs",
+                ballotLocator: "Localisez votre Bulletin",
+            },
+            column: {
+                statement_kind: "Type",
+                statement_timestamp: "Marque de temps",
+                username: "Nom d'utilisateur",
+                ballot_id: "ID de Bulletin",
+            },
         },
     },
 }

@@ -325,6 +325,16 @@ const catalanTranslation: TranslationType = {
                     "Aquesta pantalla permet al votant trobar la seva Papereta utilitzant l'ID de la Papereta per recuperar-la. Aquest procediment permet comprovar que el seu vot va ser emès correctament i que el vot registrat coincideix amb el vot xifrat que va emetre.",
                 ok: "D'acord",
             },
+            tabs: {
+                logs: "Logs",
+                ballotLocator: "Localitzador de la Papereta",
+            },
+            column: {
+                statement_kind: "Tipus",
+                statement_timestamp: "Marca de temps",
+                username: "Usuari",
+                ballot_id: "ID de la Papereta",
+            },
         },
     },
 }
