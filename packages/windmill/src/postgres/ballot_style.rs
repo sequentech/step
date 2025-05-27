@@ -111,6 +111,7 @@ pub async fn insert_ballot_style(
 pub async fn get_all_ballot_styles(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
+    election_event_id: &str,
     area_id: &str,
     authorized_election_ids: &Vec<String>,
 ) -> Result<Vec<BallotStyle>> {
@@ -123,8 +124,9 @@ pub async fn get_all_ballot_styles(
                 sequent_backend.ballot_style
             WHERE
                 tenant_id = $1 AND
-                area_id = $2 AND
-                election_id = ANY($3) AND
+                election_event_id = $2 AND
+                area_id = $3 AND
+                election_id = ANY($4) AND
                 deleted_at IS NULL;
             "#,
         )
@@ -132,7 +134,15 @@ pub async fn get_all_ballot_styles(
         .map_err(|err| anyhow!("Error preparing statement: {}", err))?;
 
     let rows: Vec<Row> = hasura_transaction
-        .query(&query, &[&tenant_id, &area_id, authorized_election_ids])
+        .query(
+            &query,
+            &[
+                &tenant_id,
+                &election_event_id,
+                &area_id,
+                authorized_election_ids,
+            ],
+        )
         .await
         .map_err(|err| anyhow!("Error executing query: {}", err))?;
 
