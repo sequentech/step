@@ -8,3 +8,6 @@ pub mod candidate;
 pub mod contests;
 pub mod election;
 pub mod election_event;
+pub mod results_area_contest;
+pub mod results_contest;
+pub mod results_event;

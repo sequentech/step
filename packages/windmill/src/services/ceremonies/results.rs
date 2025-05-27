@@ -19,6 +19,9 @@ use crate::sqlite::candidate::create_candidate_table;
 use crate::sqlite::contests::create_contest_table;
 use crate::sqlite::election::create_election_table;
 use crate::sqlite::election_event::create_election_event_table;
+use crate::sqlite::results_area_contest::create_results_area_contests_table;
+use crate::sqlite::results_contest::create_results_contest_table;
+use crate::sqlite::results_event::create_results_event_table;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use rusqlite::Connection;
@@ -39,6 +42,7 @@ use velvet::pipes::generate_reports::ElectionReportDataComputed;
 #[instrument(skip_all)]
 pub async fn save_results(
     hasura_transaction: &Transaction<'_>,
+    sqlite_transaction: &SqliteTransaction<'_>,
     results: Vec<ElectionReportDataComputed>,
     tenant_id: &str,
     election_event_id: &str,
@@ -256,17 +260,22 @@ pub async fn save_results(
         tenant_id.into(),
         election_event_id.into(),
         results_event_id.into(),
-        results_contests,
+        results_contests.clone(),
     )
     .await?;
+
+    create_results_contest_table(sqlite_transaction, results_contests).await?;
+
     insert_results_area_contests(
         hasura_transaction,
         tenant_id.into(),
         election_event_id.into(),
         results_event_id.into(),
-        results_area_contests,
+        results_area_contests.clone(),
     )
     .await?;
+
+    create_results_area_contests_table(sqlite_transaction, results_area_contests).await?;
 
     insert_results_elections(
         hasura_transaction,
@@ -301,6 +310,7 @@ pub async fn save_results(
 #[instrument(skip_all)]
 pub async fn generate_results_id_if_necessary(
     hasura_transaction: &Transaction<'_>,
+    sqlite_transaction: &SqliteTransaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
     session_ids_opt: Option<Vec<i64>>,
@@ -318,6 +328,15 @@ pub async fn generate_results_id_if_necessary(
     }
     let results_event =
         insert_results_event(hasura_transaction, &tenant_id, &election_event_id).await?;
+
+    let _ = create_results_event_table(
+        sqlite_transaction,
+        tenant_id,
+        election_event_id,
+        &results_event.id,
+    )
+    .await
+    .context("Failed to create results event table")?;
     Ok(Some(results_event.id))
 }
 
@@ -437,7 +456,7 @@ pub async fn process_results_tables(
         hasura_transaction,
         tenant_id,
         election_event_id,
-        &sqlite_transaction,
+        sqlite_transaction,
         elections_ids,
         areas_ids,
     )
@@ -445,6 +464,7 @@ pub async fn process_results_tables(
 
     let results_event_id_opt = generate_results_id_if_necessary(
         hasura_transaction,
+        sqlite_transaction,
         tenant_id,
         election_event_id,
         session_ids,
@@ -457,6 +477,7 @@ pub async fn process_results_tables(
         if let Ok(results) = state.get_results(false) {
             save_results(
                 hasura_transaction,
+                sqlite_transaction,
                 results.clone(),
                 tenant_id,
                 election_event_id,
