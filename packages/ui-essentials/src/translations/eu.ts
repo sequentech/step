@@ -43,8 +43,7 @@ const basqueTranslation = {
         },
         confirmationScreen: {
             title: "Sequent Txartel Egiaztatzailea",
-            topDescription1:
-                "Inportatutako Txartel Auditagarrian oinarrituta, hau kalkulatu dugu:",
+            topDescription1: "Inportatutako Txartel Auditagarrian oinarrituta, hau kalkulatu dugu:",
             topDescription2: "Hau Hauteskunde Kabinan erakutsitako Txartelaren IDa bada:",
             bottomDescription1:
                 "Zure txartela zuzen enkriptatu da. Orain leiho hau itxi eta Hauteskunde Kabinara itzul zaitezke.",
@@ -58,8 +57,7 @@ const basqueTranslation = {
         ballotSelectionsScreen: {
             statusModal: {
                 title: "Egoera",
-                content:
-                    "Egoera panelak egindako egiaztapenei buruzko informazioa ematen dizu.",
+                content: "Egoera panelak egindako egiaztapenei buruzko informazioa ematen dizu.",
                 ok: "Ados",
             },
         },
@@ -80,7 +78,8 @@ const basqueTranslation = {
                     "Hautatutako aukera kopurua {{numSelected}} minimoa {{min}} baino txikiagoa da",
             },
             explicit: {
-                notAllowed: "Txartela espresuki baliogabetzat markatuta baina galderak ez du onartzen",
+                notAllowed:
+                    "Txartela espresuki baliogabetzat markatuta baina galderak ez du onartzen",
             },
         },
         ballotHash: "Zure Txartelaren IDa: {{ballotId}}",
