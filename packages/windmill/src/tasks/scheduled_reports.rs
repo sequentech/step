@@ -161,9 +161,14 @@ pub async fn scheduled_reports() -> Result<()> {
             .await
             .map_err(|err| anyhow!("Error sending generate_report task: {err:?}"))?;
 
-        update_report_last_document_time(&hasura_transaction, &report.tenant_id, &report.id)
-            .await
-            .map_err(|err| anyhow!("Error updating report last document time: {err:?}"))?;
+        update_report_last_document_time(
+            &hasura_transaction,
+            &report.tenant_id,
+            &report.election_event_id,
+            &report.id,
+        )
+        .await
+        .map_err(|err| anyhow!("Error updating report last document time: {err:?}"))?;
 
         event!(
             Level::INFO,
