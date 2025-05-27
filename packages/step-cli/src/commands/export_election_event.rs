@@ -7,6 +7,8 @@ use crate::utils::read_config::read_config;
 use clap::Args;
 use graphql_client::{GraphQLQuery, Response};
 use serde_json::Value;
+use std::thread::sleep;
+use std::time::{Duration, Instant};
 
 #[derive(Args, Debug)]
 #[command(about = "Export an election event", long_about = None)]
@@ -52,7 +54,7 @@ pub struct ExportElectionEventCommand {
     tally: bool,
 
     /// Output directory for downloaded files
-    #[arg(long, default_value = "output")]
+    #[arg(long, default_value = "./data")]
     output_dir: String,
 }
 
@@ -144,7 +146,37 @@ pub fn export_election_event(
                 .ok_or("No export data returned")?;
 
             let document_id = export_data.document_id;
+            let task_execution = export_data.task_execution;
 
+            // Wait for task to complete using polling
+            let start_time = Instant::now();
+            let timeout = Duration::from_secs(60); // 60 second timeout
+            let polling_interval = Duration::from_secs(3); // Poll every 3 seconds
+
+            loop {
+                match crate::utils::tasks::get_task_status(&task_execution.id) {
+                    Ok(status) => {
+                        if status == "SUCCESS" {
+                            break;
+                        } else if status == "FAILED" {
+                            return Err("Export task failed".into());
+                        } else {
+                            // Task is still running, check timeout
+                            if Instant::now().duration_since(start_time) >= timeout {
+                                return Err(
+                                    "Timeout while waiting for export task to complete".into()
+                                );
+                            }
+                            sleep(polling_interval);
+                        }
+                    }
+                    Err(e) => {
+                        return Err(format!("Error checking task status: {}", e).into());
+                    }
+                }
+            }
+
+            // Now download the document
             let document = crate::utils::tally::download_document::fetch_document(
                 election_event_id,
                 &document_id,

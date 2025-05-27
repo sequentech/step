@@ -5,5 +5,9 @@ mutation ExportElectionEvent($electionEventId: String, $exportConfigurations: Ex
         ) {
             password
             document_id
+            task_execution {
+                id
+                execution_status
+            }
         }
     }
