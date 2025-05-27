@@ -49,6 +49,7 @@ use crate::tasks::manage_election_voting_period_end::manage_election_voting_peri
 use crate::tasks::manual_verification_report::generate_manual_verification_report;
 use crate::tasks::miru_plugin_tasks::create_transmission_package_task;
 use crate::tasks::miru_plugin_tasks::send_transmission_package_task;
+use crate::tasks::prepare_publication_preview::prepare_publication_preview;
 use crate::tasks::process_board::process_board;
 use crate::tasks::render_document_pdf::render_document_pdf;
 use crate::tasks::render_report::render_report;
@@ -219,6 +220,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             process_electoral_log_events_batch,
             electoral_log_batch_dispatcher,
             render_document_pdf,
+            prepare_publication_preview,
         ],
         task_routes = [
             create_keys::NAME => Queue::Short.as_ref(),
@@ -264,6 +266,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             enqueue_electoral_log_event::NAME => Queue::ElectoralLogEvent.as_ref(),
             process_electoral_log_events_batch::NAME => Queue::ElectoralLogBatch.as_ref(),
             electoral_log_batch_dispatcher::NAME => Queue::ElectoralLogBeat.as_ref(),
+            prepare_publication_preview::NAME => Queue::Beat.as_ref(),
         ],
         prefetch_count = prefetch_count,
         acks_late = acks_late,

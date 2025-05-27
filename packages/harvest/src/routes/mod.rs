@@ -5,6 +5,7 @@
 pub mod api_datafix;
 pub mod applications;
 pub mod ballot_publication;
+pub mod ballot_publication_prepare_preview;
 pub mod create_ballot_receipt;
 pub mod custom_urls;
 pub mod delete_election_event;
