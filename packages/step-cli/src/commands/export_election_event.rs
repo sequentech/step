@@ -13,47 +13,39 @@ use std::time::{Duration, Instant};
 #[derive(Args, Debug)]
 #[command(about = "Export an election event", long_about = None)]
 pub struct ExportElectionEventCommand {
-    /// ID of the election event to export
     #[arg(long)]
     election_event_id: String,
 
-    /// Whether to include voters in the export
     #[arg(long, default_value_t = false)]
     include_voters: bool,
 
-    /// Whether to include activity logs in the export
     #[arg(long, default_value_t = false)]
     activity_logs: bool,
 
-    /// Whether to include bulletin board in the export
     #[arg(long, default_value_t = false)]
     bulletin_board: bool,
 
-    /// Whether to include publications in the export
     #[arg(long, default_value_t = false)]
     publications: bool,
 
-    /// Whether to include S3 files in the export
     #[arg(long, default_value_t = false)]
     s3_files: bool,
 
-    /// Whether to include scheduled events in the export
     #[arg(long, default_value_t = false)]
     scheduled_events: bool,
 
-    /// Whether to include reports in the export
     #[arg(long, default_value_t = false)]
     reports: bool,
 
-    /// Whether to include applications in the export
     #[arg(long, default_value_t = false)]
     applications: bool,
 
-    /// Whether to include tally in the export
     #[arg(long, default_value_t = false)]
     tally: bool,
 
-    /// Output directory for downloaded files
+    #[arg(long, default_value_t = false)]
+    encrypted: bool,
+
     #[arg(long, default_value = "./data")]
     output_dir: String,
 }
@@ -80,6 +72,7 @@ impl ExportElectionEventCommand {
             self.reports,
             self.applications,
             self.tally,
+            self.encrypted,
         ) {
             Ok(_) => {
                 println!("Success! Election event exported successfully!");
@@ -103,11 +96,16 @@ pub fn export_election_event(
     reports: bool,
     applications: bool,
     tally: bool,
+    encrypted: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let config = read_config()?;
     let client = reqwest::blocking::Client::new();
 
-    let is_encrypted = bulletin_board || reports || applications;
+    if tally && !bulletin_board {
+        return Err("Error: bulletin_board must be exported when tally is exported".into());
+    }
+
+    let is_encrypted = bulletin_board || reports || applications || tally || encrypted;
 
     let variables = export_election_event::Variables {
         election_event_id: Some(election_event_id.to_string()),
@@ -181,8 +179,8 @@ pub fn export_election_event(
                 election_event_id,
                 &document_id,
             )?;
-
-            let output_path = format!("{}/election_event_export.zip", output_dir);
+            let extension = if is_encrypted { "ezip" } else { "zip" };
+            let output_path = format!("{}/election_event_export.{}", output_dir, extension);
             crate::utils::tally::download_document::download_file(&document.url, &output_path)?;
 
             if let Some(password) = export_data.password {
