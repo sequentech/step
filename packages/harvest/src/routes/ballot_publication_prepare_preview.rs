@@ -31,8 +31,12 @@ pub struct PreparePublPreviewOutput {
 }
 
 #[instrument(skip(claims))]
-#[post("/prepare-publication-preview", format = "json", data = "<input>")]
-pub async fn prepare_publication_preview(
+#[post(
+    "/prepare-ballot-publication-preview",
+    format = "json",
+    data = "<input>"
+)]
+pub async fn prepare_ballot_publication_preview(
     claims: jwt::JwtClaims,
     input: Json<PreparePublPreviewInput>,
 ) -> Result<Json<PreparePublPreviewOutput>, (Status, String)> {
