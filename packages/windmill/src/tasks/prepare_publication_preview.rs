@@ -102,6 +102,10 @@ pub async fn prepare_publication_preview_task(
             .await
             .with_context(|| "Can't find open elections")?;
 
+    // TODO:
+    // Get the support materials filtering by tenant_id, election_event_id and is_hidden false.
+    // Get the documents filtering by tenant_id, election_event_id and JOIN with id = support_materials.document_id
+
     let pub_preview = PublicationPreview {
         ballot_styles_json,
         election_event_json,

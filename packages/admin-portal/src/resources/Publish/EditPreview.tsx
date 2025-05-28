@@ -255,6 +255,7 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
             const fileData = prepareFileData()
             const dataStr = JSON.stringify(fileData, null, 2)
             const file = new File([dataStr], `${id}.json`, {type: "application/json"})
+            console.log(file)
             const docId = await uploadFileToS3(file)
             setDocumentId(docId)
         }
