@@ -1,13 +1,23 @@
 import React, { useState, useEffect, useRef } from 'react';
-import initSqlJs from 'sql.js';
+import initSqlJs, { Database, SqlJsStatic } from 'sql.js';
 
-function DatabaseLoader() {
-    const [SQL, setSQL] = useState(null);
-    const [db, setDb] = useState(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [results, setResults] = useState([]);
-    const [tables, setTables] = useState([]);
-    const fileInputRef = useRef(null);
+interface QueryResult {
+    [key: string]: any;
+}
+
+interface ErrorResult {
+    error: string;
+}
+
+type ResultType = QueryResult | ErrorResult;
+
+function TestSql() {
+    const [SQL, setSQL] = useState<SqlJsStatic | null>(null);
+    const [db, setDb] = useState<Database | null>(null);
+    const [isLoading, setIsLoading] = useState<boolean>(true);
+    const [results, setResults] = useState<ResultType[]>([]);
+    const [tables, setTables] = useState<string[]>([]);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         const initializeSQL = async () => {
@@ -27,18 +37,20 @@ function DatabaseLoader() {
     }, []);
 
     // Method 1: Load database from file upload
-    const loadDatabaseFromFile = (event) => {
-        const file = event.target.files[0];
+    const loadDatabaseFromFile = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
         if (!file || !SQL) return;
 
         const reader = new FileReader();
-        reader.onload = (e) => {
+        reader.onload = (e: ProgressEvent<FileReader>) => {
             try {
-                const uInt8Array = new Uint8Array(e.target.result);
-                const database = new SQL.Database(uInt8Array);
-                setDb(database);
-                loadTableList(database);
-                console.log('Database loaded successfully!');
+                if (e.target?.result) {
+                    const uInt8Array = new Uint8Array(e.target.result as ArrayBuffer);
+                    const database = new SQL.Database(uInt8Array);
+                    setDb(database);
+                    loadTableList(database);
+                    console.log('Database loaded successfully!');
+                }
             } catch (error) {
                 console.error('Error loading database:', error);
             }
@@ -47,7 +59,7 @@ function DatabaseLoader() {
     };
 
     // Method 2: Load database from URL
-    const loadDatabaseFromURL = async (url) => {
+    const loadDatabaseFromURL = async (url: string) => {
         if (!SQL) return;
 
         try {
@@ -64,7 +76,7 @@ function DatabaseLoader() {
     };
 
     // Method 3: Create database from SQL dump
-    const loadDatabaseFromSQL = (sqlDump) => {
+    const loadDatabaseFromSQL = (sqlDump: string) => {
         if (!SQL) return;
 
         try {
@@ -80,7 +92,7 @@ function DatabaseLoader() {
     };
 
     // Method 4: Load from Base64 encoded database
-    const loadDatabaseFromBase64 = (base64String) => {
+    const loadDatabaseFromBase64 = (base64String: string) => {
         if (!SQL) return;
 
         try {
@@ -99,12 +111,13 @@ function DatabaseLoader() {
     };
 
     // Helper function to get list of tables
-    const loadTableList = (database) => {
+    const loadTableList = (database: Database) => {
         try {
             const stmt = database.prepare("SELECT name FROM sqlite_master WHERE type='table';");
-            const tableList = [];
+            const tableList: string[] = [];
             while (stmt.step()) {
-                tableList.push(stmt.getAsObject().name);
+                const row = stmt.getAsObject();
+                tableList.push(row.name as string);
             }
             stmt.free();
             setTables(tableList);
@@ -114,12 +127,12 @@ function DatabaseLoader() {
     };
 
     // Execute query on loaded database
-    const executeQuery = (query) => {
+    const executeQuery = (query: string) => {
         if (!db) return;
 
         try {
             const stmt = db.prepare(query);
-            const queryResults = [];
+            const queryResults: QueryResult[] = [];
             
             while (stmt.step()) {
                 queryResults.push(stmt.getAsObject());
@@ -129,7 +142,8 @@ function DatabaseLoader() {
             setResults(queryResults);
         } catch (error) {
             console.error('Query error:', error);
-            setResults([{ error: error.message }]);
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            setResults([{ error: errorMessage }]);
         }
     };
 
@@ -179,9 +193,10 @@ function DatabaseLoader() {
                     <input
                         type="text"
                         placeholder="https://example.com/database.sqlite"
-                        onKeyPress={(e) => {
+                        onKeyPress={(e: React.KeyboardEvent<HTMLInputElement>) => {
                             if (e.key === 'Enter') {
-                                loadDatabaseFromURL(e.target.value);
+                                const target = e.target as HTMLInputElement;
+                                loadDatabaseFromURL(target.value);
                             }
                         }}
                         style={{ marginLeft: '10px', width: '300px' }}
@@ -191,7 +206,7 @@ function DatabaseLoader() {
                 {/* Sample Database Buttons */}
                 <div style={{ marginBottom: '10px' }}>
                     <button 
-                        onClick={() => loadDatabaseFromURL('https://github.com/lerocha/chinook-database/raw/master/ChinookDatabase/DataSources/Chinook_Sqlite.sqlite')}
+                        onClick={() => loadDatabaseFromURL('https://github.com/lerocha/chinook-database/blob/master/ChinookDatabase/DataSources/Chinook_Sqlite.sqlite')}
                         style={{ marginRight: '10px' }}
                     >
                         Load Sample Database (Chinook)
@@ -245,11 +260,12 @@ function DatabaseLoader() {
                     <div style={{ marginBottom: '10px' }}>
                         <textarea
                             placeholder="Enter SQL query here..."
-                            rows="4"
+                            rows={4}
                             style={{ width: '100%' }}
-                            onKeyPress={(e) => {
+                            onKeyPress={(e: React.KeyboardEvent<HTMLTextAreaElement>) => {
                                 if (e.key === 'Enter' && e.ctrlKey) {
-                                    executeQuery(e.target.value);
+                                    const target = e.target as HTMLTextAreaElement;
+                                    executeQuery(target.value);
                                 }
                             }}
                         />
@@ -283,108 +299,4 @@ function DatabaseLoader() {
     );
 }
 
-export default DatabaseLoader;
-
-
-
-
-
-
-
-// import React, { useState, useEffect } from "react";
-// import initSqlJs, { Database, QueryExecResult } from "sql.js";
-
-// // NOTE: Do not import the wasm file directly. Instead, ensure it is available in the public directory or build output.
-
-// export default function TestSql() {
-//   const [db, setDb] = useState<Database | null>(null);
-//   const [error, setError] = useState<Error | null>(null);
-
-//   useEffect(() => {
-//     const initializeDb = async () => {
-//       try {
-//         const SQL = await initSqlJs({
-//           locateFile: (file) => `/sql-wasm.wasm`
-//         });
-//         setDb(new SQL.Database());
-//       } catch (err) {
-//         console.error('SQL.js initialization error:', err);
-//         setError(err as Error);
-//       }
-//     };
-    
-//     initializeDb();
-//   }, []);
-
-//   if (error) return <pre>{error.message}</pre>;
-//   else if (!db) return <pre>Loading...</pre>;
-//   else return <SQLRepl db={db} />;
-// }
-
-// interface SQLReplProps {
-//   db: Database;
-// }
-
-// function SQLRepl({ db }: SQLReplProps) {
-//   const [error, setError] = useState<string | null>(null);
-//   const [results, setResults] = useState<QueryExecResult[]>([]);
-//   const [sql, setSql] = useState<string>('');
-
-//   function exec() {
-//     try {
-//       setResults(db.exec(sql));
-//       setError(null);
-//     } catch (err) {
-//       setError((err as Error).message);
-//       setResults([]);
-//     }
-//   }
-
-//   return (
-//     <div className="App">
-//       <h1>React SQL interpreter</h1>
-
-//       <textarea
-//         value={sql}
-//         onChange={(e) => setSql(e.target.value)}
-//         placeholder="Enter some SQL. No inspiration? Try 'select sqlite_version()'"
-//       ></textarea>
-//       <button onClick={exec}>Run Query</button>
-
-//       {error && <pre className="error">{error}</pre>}
-
-//       {results.map((result, i) => (
-//         <ResultsTable key={i} result={result} />
-//       ))}
-//     </div>
-//   );
-// }
-
-// interface ResultsTableProps {
-//   result: QueryExecResult;
-// }
-
-// function ResultsTable({ result }: ResultsTableProps) {
-//   const { columns, values } = result;
-  
-//   return (
-//     <table>
-//       <thead>
-//         <tr>
-//           {columns.map((columnName, i) => (
-//             <th key={i}>{columnName}</th>
-//           ))}
-//         </tr>
-//       </thead>
-//       <tbody>
-//         {values.map((row, rowIndex) => (
-//           <tr key={rowIndex}>
-//             {row.map((value, colIndex) => (
-//               <td key={colIndex}>{value}</td>
-//             ))}
-//           </tr>
-//         ))}
-//       </tbody>
-//     </table>
-//   );
-// }
+export default TestSql;
