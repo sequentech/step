@@ -163,6 +163,7 @@ module.exports = {
       items: [
         'developers/api_reference',
         'developers/developers_cli',
+        'developers/add_new_language',
         {
           type: 'category',
           label: 'Admin Portal',
