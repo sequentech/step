@@ -7,6 +7,8 @@ use chrono::{DateTime, Local};
 use deadpool_postgres::Transaction;
 use sequent_core::services::date::ISO8601;
 use sequent_core::types::hasura::core::BallotStyle;
+use serde::Serialize;
+use serde_json::Value;
 use tokio_postgres::row::Row;
 use tracing::instrument;
 use uuid::Uuid;
@@ -286,6 +288,107 @@ pub async fn get_ballot_styles_by_elections(
         .map_err(|err| anyhow!("Error collecting ballot styles: {}", err))?;
 
     Ok(results)
+}
+
+#[derive(Debug, Serialize)]
+struct InsertableBallotStyle {
+    id: Uuid,
+    tenant_id: Uuid,
+    election_event_id: Uuid,
+    election_id: Uuid,
+    area_id: Option<Uuid>,
+    created_at: Option<DateTime<Local>>,
+    last_updated_at: Option<DateTime<Local>>,
+    labels: Option<Value>,
+    annotations: Option<Value>,
+    ballot_eml: Option<String>,
+    ballot_signature: Option<Vec<u8>>,
+    status: Option<String>,
+    deleted_at: Option<DateTime<Local>>,
+    ballot_publication_id: Uuid,
+}
+
+#[instrument(err, skip_all)]
+pub async fn insert_many_ballot_styles(
+    hasura_transaction: &Transaction<'_>,
+    ballot_styles: Vec<BallotStyle>,
+) -> Result<Vec<BallotStyle>> {
+    if ballot_styles.is_empty() {
+        return Ok(vec![]);
+    }
+
+    let insertable: Vec<InsertableBallotStyle> = ballot_styles
+        .into_iter()
+        .map(|b| {
+            let area_id = b.area_id.map(|id| Uuid::parse_str(&id)).transpose()?;
+
+            Ok(InsertableBallotStyle {
+                id: Uuid::parse_str(&b.id)?,
+                tenant_id: Uuid::parse_str(&b.tenant_id)?,
+                election_event_id: Uuid::parse_str(&b.election_event_id)?,
+                election_id: Uuid::parse_str(&b.election_id)?,
+                area_id: area_id,
+                created_at: b.created_at,
+                last_updated_at: b.last_updated_at,
+                labels: b.labels.clone(),
+                annotations: b.annotations.clone(),
+                ballot_eml: b.ballot_eml.clone(),
+                ballot_signature: b.ballot_signature.clone(),
+                status: b.status.clone(),
+                deleted_at: b.deleted_at,
+                ballot_publication_id: Uuid::parse_str(&b.ballot_publication_id)?,
+            })
+        })
+        .collect::<Result<_>>()?;
+
+    let json_data = serde_json::to_value(&insertable)?;
+
+    let sql = r#"
+    WITH data AS (
+        SELECT * FROM jsonb_to_recordset($1::jsonb) AS t(
+            id UUID,
+            tenant_id UUID,
+            election_event_id UUID,
+            election_id UUID,
+            area_id UUID,
+            created_at TIMESTAMPTZ,
+            last_updated_at TIMESTAMPTZ,
+            labels JSONB,
+            annotations JSONB,
+            ballot_eml TEXT,
+            ballot_signature BYTEA,
+            status TEXT,
+            deleted_at TIMESTAMPTZ,
+            ballot_publication_id UUID
+        )
+    )
+    INSERT INTO sequent_backend.ballot_style (
+        id, tenant_id, election_event_id, election_id, area_id,
+        created_at, last_updated_at, labels, annotations,
+        ballot_eml, ballot_signature, status, deleted_at,
+        ballot_publication_id
+    )
+    SELECT
+        id, tenant_id, election_event_id, election_id, area_id,
+        created_at, last_updated_at, labels, annotations,
+        ballot_eml, ballot_signature, status, deleted_at,
+        ballot_publication_id
+    FROM data
+    RETURNING *;
+"#;
+
+    let statement = hasura_transaction.prepare(sql).await?;
+    let rows = hasura_transaction.query(&statement, &[&json_data]).await?;
+
+    let inserted = rows
+        .into_iter()
+        .map(|row| {
+            let wrapper: BallotStyleWrapper = row.try_into()?;
+            Ok(wrapper.0)
+        })
+        .collect::<Result<Vec<BallotStyle>>>()?;
+
+    Ok(inserted)
 }
 
 #[instrument(skip(hasura_transaction), err)]

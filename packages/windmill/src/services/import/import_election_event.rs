@@ -88,6 +88,11 @@ use sequent_core::types::hasura::core::{Area, Candidate, Contest, Election, Elec
 use sequent_core::types::scheduled_event::*;
 use sequent_core::util::temp_path::{generate_temp_file, get_file_size};
 
+const MAX_UNCOMPRESSED_PER_FILE: u64 = 300 * 1024 * 1024; // 300 MiB
+const MAX_TOTAL_UNCOMPRESSED: u64 = 500 * 1024 * 1024; // 500 MiB
+const MAX_ENTRIES: usize = 1_000;
+const MAX_RATIO_NUM: u64 = 100; // allow up to 100× expansion
+const MAX_RATIO_DEN: u64 = 1;
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ImportElectionEventSchema {
     pub tenant_id: Uuid,
@@ -778,54 +783,134 @@ pub async fn process_s3_files(
 }
 
 // return zip entries, and the original string of the json schema
+// check for zip bomb
 #[instrument(err, skip(temp_file_path))]
 pub async fn get_zip_entries(
     temp_file_path: NamedTempFile,
     document_type: &str,
 ) -> Result<(Vec<(String, Vec<u8>)>, String)> {
-    let (mut zip_entries, election_event_schema) =
-        if document_type == "application/ezip" || matches_mime("zip", document_type) {
-            tokio::task::spawn_blocking(move || -> Result<(Vec<(String, Vec<u8>)>, String)> {
-                let file = File::open(&temp_file_path)?;
-                let mut zip = ZipArchive::new(file)?;
-                let mut entries: Vec<(String, Vec<u8>)> = Vec::new();
+    let max_size_per_file = env::var("MAX_UNCOMPRESSED_PER_FILE")
+        .unwrap_or_else(|_| MAX_UNCOMPRESSED_PER_FILE.to_string())
+        .parse::<u64>()
+        .unwrap_or(MAX_UNCOMPRESSED_PER_FILE);
+    let max_total_size = env::var("MAX_TOTAL_UNCOMPRESSED")
+        .unwrap_or_else(|_| MAX_TOTAL_UNCOMPRESSED.to_string())
+        .parse::<u64>()
+        .unwrap_or(MAX_TOTAL_UNCOMPRESSED);
+    let max_entries = env::var("MAX_ENTRIES")
+        .unwrap_or_else(|_| MAX_ENTRIES.to_string())
+        .parse::<usize>()
+        .unwrap_or(MAX_ENTRIES);
+    let ratio_num: u64 = env::var("MAX_RATIO_NUM")
+        .unwrap_or_else(|_| MAX_RATIO_NUM.to_string())
+        .parse::<u64>()
+        .unwrap_or(MAX_RATIO_NUM);
+    let ratio_den = env::var("MAX_RATIO_DEN")
+        .unwrap_or_else(|_| MAX_RATIO_DEN.to_string())
+        .parse::<u64>()
+        .unwrap_or(MAX_RATIO_DEN);
+    //ratio_num and ratio_den together define the maximum allowed compression ratio
+    //(uncompressed size ÷ compressed size) before you reject an entry as suspicious.
 
-                let mut election_event_schema: Option<String> = None;
-                for i in 0..zip.len() {
-                    let mut file = zip.by_index(i)?;
-                    let file_name = file.name().to_string();
-                    if file_name.ends_with(".json") {
-                        // Regular JSON document processing
-                        let mut file_str = String::new();
-                        file.read_to_string(&mut file_str)?;
-                        election_event_schema = Some(file_str);
-                    } else {
-                        let mut file_contents = Vec::new();
-                        file.read_to_end(&mut file_contents)?;
-                        entries.push((file_name, file_contents));
-                    }
+    let (mut zip_entries, election_event_schema) = if document_type == "application/ezip"
+        || matches_mime("zip", document_type)
+    {
+        tokio::task::spawn_blocking(move || -> Result<(Vec<(String, Vec<u8>)>, String)> {
+            // --- open the file and read headers ---
+            let path = temp_file_path.path();
+            let file = File::open(path).with_context(|| format!("opening {:?}", path))?;
+            let mut archive = ZipArchive::new(&file).context("parsing zip archive")?;
+
+            // 1) check if has too many entries
+            if archive.len() > max_entries {
+                return Err(anyhow!(
+                    "Archive has {} entries (max {})",
+                    archive.len(),
+                    max_entries
+                ));
+            }
+
+            // 2) header scan: per-file size, ratio, and running total
+            let mut total_uncomp = 0u64;
+            for i in 0..archive.len() {
+                let f = archive.by_index(i)?;
+                let comp = f.compressed_size();
+                let uncomp = f.size();
+
+                if uncomp > max_size_per_file {
+                    return Err(anyhow!(
+                        "Entry {} uncompressed too large: {} bytes",
+                        f.name(),
+                        uncomp
+                    ));
                 }
-                if let Some(schema_str) = election_event_schema {
-                    Ok((entries, schema_str))
+                if uncomp > comp.saturating_mul(ratio_num) / ratio_den {
+                    return Err(anyhow!(
+                        "Suspicious ratio in {}: {} → {} bytes",
+                        f.name(),
+                        comp,
+                        uncomp
+                    ));
+                }
+                total_uncomp = total_uncomp.saturating_add(uncomp);
+                if total_uncomp > max_total_size {
+                    return Err(anyhow!(
+                        "Total uncompressed size {} exceeds limit",
+                        total_uncomp
+                    ));
+                }
+            }
+
+            // --- second pass: actually extract each entry with streaming caps ---
+            // reopen so we start fresh
+            let file = File::open(path)?;
+            let mut zip = ZipArchive::new(file)?;
+            let mut entries: Vec<(String, Vec<u8>)> = Vec::new();
+            let mut schema_opt: Option<String> = None;
+
+            for i in 0..zip.len() {
+                let mut entry = zip.by_index(i)?;
+                let name = entry.name().to_string();
+
+                // cap reads at MAX_UNCOMPRESSED_PER_FILE
+                let mut reader = entry.take(max_size_per_file);
+
+                if name.contains(EDocuments::ELECTION_EVENT.to_file_name())
+                    && name.ends_with(".json")
+                {
+                    let mut s = String::new();
+                    reader
+                        .read_to_string(&mut s)
+                        .with_context(|| format!("reading schema {}", name))?;
+                    schema_opt = Some(s);
                 } else {
-                    Err(anyhow!("No JSON file found in ZIP"))
+                    let mut buf = Vec::new();
+                    reader
+                        .read_to_end(&mut buf)
+                        .with_context(|| format!("reading {}", name))?;
+                    entries.push((name, buf));
                 }
-            })
-            .await??
-        } else {
-            // Regular JSON document processing
-            let mut file = File::open(temp_file_path)?;
-            let mut data_str = String::new();
-            file.read_to_string(&mut data_str)?;
-            (vec![], data_str)
-        };
+            }
+
+            let schema = schema_opt.ok_or_else(|| anyhow!("No JSON schema file found in ZIP"))?;
+            Ok((entries, schema))
+        })
+        .await??
+    } else {
+        // Regular JSON document processing
+        let mut file = File::open(temp_file_path)?;
+        let mut data_str = String::new();
+        file.read_to_string(&mut data_str)?;
+        (vec![], data_str)
+    };
 
     // Sort the ZIP entries by importance:
     // 1. Protocol Manager keys are imported first (rank 0)
     // 2. Regular files come next (rank 1)
+    // 3. Ballot styles are imported after the regular files which contain ballot publications file (rank 2)
     // 3. Inside the TALLY directory:
-    //    - TALLY_SESSION and RESULTS_EVENT files are imported just before others (rank 2)
-    //    - All other TALLY files come last (rank 3)
+    //    - TALLY_SESSION and RESULTS_EVENT files are imported just before others (rank 3)
+    //    - All other TALLY files come last (rank 4)
     zip_entries.sort_by_key(|(file_name, _)| {
         let rank = if file_name.contains(EDocuments::PROTOCOL_MANAGER_KEYS.to_file_name()) {
             0
@@ -833,10 +918,12 @@ pub async fn get_zip_entries(
             if file_name.contains(ETallyDocuments::TALLY_SESSION.to_file_name())
                 || file_name.contains(ETallyDocuments::RESULTS_EVENT.to_file_name())
             {
-                2
-            } else {
                 3
+            } else {
+                4
             }
+        } else if file_name.contains(EDocuments::BALLOT_STYLE.to_file_name()) {
+            2
         } else {
             1
         };
@@ -848,13 +935,46 @@ pub async fn get_zip_entries(
 }
 
 #[instrument(err, skip_all)]
+pub async fn process_document_schema(
+    zip_entries: &Vec<(String, Vec<u8>)>,
+    file_election_event_schema: String,
+) -> Result<String> {
+    let mut schema = file_election_event_schema;
+
+    // Find optional files inside the zip
+    let tally_session = zip_entries
+        .iter()
+        .find(|(name, _)| name.contains(ETallyDocuments::TALLY_SESSION.to_file_name()));
+    let results_event = zip_entries
+        .iter()
+        .find(|(name, _)| name.contains(ETallyDocuments::RESULTS_EVENT.to_file_name()));
+    let ballot_publications = zip_entries
+        .iter()
+        .find(|(name, _)| name.contains(EDocuments::PUBLICATIONS.to_file_name()));
+
+    if let (Some((_, tally_bytes)), Some((_, results_bytes))) = (tally_session, results_event) {
+        let tally_content = String::from_utf8(tally_bytes.clone())?;
+        let results_content = String::from_utf8(results_bytes.clone())?;
+        schema = format!("{schema}\n{tally_content}\n{results_content}");
+    }
+
+    if let Some((_, publications_bytes)) = ballot_publications {
+        let publications_content = String::from_utf8(publications_bytes.clone())?;
+        schema = format!("{schema}\n{publications_content}");
+    }
+
+    Ok(schema)
+}
+
+#[instrument(err, skip_all)]
 pub async fn process_document(
     hasura_transaction: &Transaction<'_>,
     object: ImportElectionEventBody,
     election_event_id: String,
     tenant_id: String,
+    executer_id: String,
 ) -> Result<()> {
-    let (temp_file_path, document, document_type) = get_document(
+    let (temp_file_path, _document, document_type) = get_document(
         hasura_transaction,
         object.clone(),
         Some(election_event_id.clone()),
@@ -872,31 +992,10 @@ pub async fn process_document(
         ))
     });
 
-    let election_event_id_clone = election_event_id.clone();
-
-    let tally_session_file = zip_entries
-        .iter()
-        .find(|(name, _)| name.contains(ETallyDocuments::TALLY_SESSION.to_file_name()));
-    let results_event_file = zip_entries
-        .iter()
-        .find(|(name, _)| name.contains(ETallyDocuments::RESULTS_EVENT.to_file_name()));
-    let mut tally_files_content: Option<String> = None;
-    if let (Some(tally_session_file), Some(results_event_file)) =
-        (tally_session_file, results_event_file)
-    {
-        let tally_session_file_content = String::from_utf8(tally_session_file.1.clone())?;
-        let results_event_file_content = String::from_utf8(results_event_file.1.clone())?;
-        tally_files_content = Some(format!(
-            "\n{}\n{}",
-            tally_session_file_content, results_event_file_content
-        ));
-    }
-    let file_election_event_schema = match tally_files_content {
-        Some(tally_files_content) => {
-            format!("{}\n{}", file_election_event_schema, tally_files_content)
-        }
-        None => file_election_event_schema,
-    };
+    let file_election_event_schema =
+        process_document_schema(&zip_entries, file_election_event_schema.clone())
+            .await
+            .map_err(|err| anyhow!("Error processing document schema: {err}"))?;
 
     let (election_event_schema, replacement_map) = process_election_event_file(
         hasura_transaction,
@@ -1037,7 +1136,9 @@ pub async fn process_document(
                 .with_context(|| "Error managing dates")?;
             }
 
-            if file_name.contains(&format!("{}", EDocuments::PUBLICATIONS.to_file_name())) {
+            if file_name.contains(&format!("{}", EDocuments::PUBLICATIONS.to_file_name()))
+                || file_name.contains(&format!("{}", EDocuments::BALLOT_STYLE.to_file_name()))
+            {
                 let mut temp_file = NamedTempFile::new()
                     .context("Failed to create ballot publications temporary file")?;
 
@@ -1046,12 +1147,16 @@ pub async fn process_document(
                 )?;
                 temp_file.as_file_mut().rewind()?;
 
+                let publication_file_name = file_name.split(".").next().unwrap();
+
                 import_ballot_publications(
                     hasura_transaction,
+                    &temp_file,
+                    publication_file_name.to_string(),
                     &election_event_schema.tenant_id.to_string(),
                     &election_event_schema.election_event.id,
-                    temp_file,
                     replacement_map.clone(),
+                    executer_id.clone(),
                 )
                 .await
                 .with_context(|| "Error importing publications")?;
@@ -1093,8 +1198,8 @@ pub async fn process_document(
                     .ok_or(anyhow!("Unexpected, tally without filename"))?
                     .split(".")
                     .next()
-                    .ok_or(anyhow!("Unexpected tally without extension"))?;
-                println!("tally_file_name:: {:?}", &tally_file_name);
+                    .unwrap();
+
                 process_tally_file(
                     hasura_transaction,
                     &temp_file,
