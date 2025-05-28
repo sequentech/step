@@ -21,7 +21,7 @@ use crate::postgres::results_event::get_results_event_by_id;
 use crate::postgres::tally_session::{get_tally_session_by_id, update_tally_session_annotation};
 use crate::postgres::tally_session_execution::get_last_tally_session_execution;
 use crate::services::ceremonies::velvet_tally::generate_initial_state;
-use crate::services::compress::decompress_file;
+use crate::services::compress::extract_archive_to_temp_dir;
 use crate::services::consolidation::eml_types::ACMTrustee;
 use crate::services::database::get_hasura_pool;
 use crate::services::documents::get_document_as_temp_file;
@@ -312,7 +312,7 @@ pub async fn create_transmission_package_service(
     )
     .await?;
 
-    let tally_path = decompress_file(tar_gz_file.path())?;
+    let tally_path = extract_archive_to_temp_dir(tar_gz_file.path(), false)?;
 
     let tally_path_path = tally_path.into_path();
 

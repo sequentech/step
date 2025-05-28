@@ -15,7 +15,9 @@ use std::io::BufRead;
 use std::path::Path;
 
 use std::str::FromStr;
-use tracing::instrument;
+use tracing::{instrument, warn};
+
+use rayon::prelude::*;
 
 use crate::pipes::pipe_name::{PipeName, PipeNameOutputDir};
 
@@ -67,57 +69,84 @@ impl DecodeBallots {
 impl Pipe for DecodeBallots {
     #[instrument(err, skip_all, name = "DecodeBallots::exec")]
     fn exec(&self) -> Result<()> {
-        for election_input in &self.pipe_inputs.election_list {
-            for contest_input in &election_input.contest_list {
-                for area_input in &contest_input.area_list {
-                    let path_ballots = PipeInputs::build_path(
-                        self.pipe_inputs.root_path_ballots.as_path(),
-                        &election_input.id,
-                        Some(&contest_input.id),
-                        Some(&area_input.id),
-                    )
-                    .join(BALLOTS_FILE);
+        // Collect all tasks: iterate through elections, contests, and areas
+        //    to create a flat list of (election_input, contest_input, area_input) tuples.
+        let tasks: Vec<_> = self
+            .pipe_inputs
+            .election_list
+            .iter()
+            .flat_map(|election_input| {
+                election_input
+                    .contest_list
+                    .iter()
+                    .flat_map(move |contest_input| {
+                        // `move` election_input into this closure
+                        contest_input.area_list.iter().map(move |area_input| {
+                            // `move` contest_input into this closure
+                            (election_input, contest_input, area_input)
+                        })
+                    })
+            })
+            .collect();
 
-                    let res = DecodeBallots::decode_ballots(
-                        path_ballots.as_path(),
-                        &contest_input.contest,
-                    );
+        // Process tasks in parallel using Rayon's `par_iter` and `try_for_each`.
+        //    `try_for_each` is useful here as it allows early exit if any task returns an Err,
+        //    consistent with your original code's intent for most errors.
+        tasks.par_iter().try_for_each(
+            |(election_input, contest_input, area_input)| -> Result<()> {
+                let path_ballots = PipeInputs::build_path(
+                    self.pipe_inputs.root_path_ballots.as_path(),
+                    &election_input.id,
+                    Some(&contest_input.id),
+                    Some(&area_input.id),
+                )
+                .join(BALLOTS_FILE);
 
-                    match res {
-                        Ok(decoded_ballots) => {
-                            let mut output_path = PipeInputs::build_path(
-                                self.pipe_inputs
-                                    .cli
-                                    .output_dir
-                                    .join(PipeNameOutputDir::DecodeBallots.as_ref())
-                                    .as_path(),
-                                &election_input.id,
-                                Some(&contest_input.id),
-                                Some(&area_input.id),
+                let res =
+                    DecodeBallots::decode_ballots(path_ballots.as_path(), &contest_input.contest);
+
+                match res {
+                    Ok(decoded_ballots) => {
+                        let mut output_path = PipeInputs::build_path(
+                            self.pipe_inputs
+                                .cli
+                                .output_dir
+                                .join(PipeNameOutputDir::DecodeBallots.as_ref())
+                                .as_path(),
+                            &election_input.id,
+                            Some(&contest_input.id),
+                            Some(&area_input.id),
+                        );
+
+                        fs::create_dir_all(&output_path)?; // This is thread-safe.
+                        output_path.push(OUTPUT_DECODED_BALLOTS_FILE);
+                        let file = File::create(&output_path)
+                            .map_err(|e| Error::FileAccess(output_path.clone(), e))?; // Ensure path is cloned for error
+
+                        serde_json::to_writer(file, &decoded_ballots)?;
+                        Ok(()) // Successfully processed this item
+                    }
+                    Err(e) => {
+                        // Handle errors within the parallel task:
+                        //    - If it's a "File not found" error (Error::FileAccess from decode_ballots),
+                        //      print a message and return Ok(()). This specific task is skipped,
+                        //      but other parallel tasks continue, and the whole operation doesn't fail.
+                        //    - For any other error, propagate it by returning Err(e). This will cause
+                        //      `try_for_each` to stop all processing and return this error.
+                        if let Error::FileAccess(file, _) = &e {
+                            warn!(
+                                "[{}] File not found: {} -- Not processed",
+                                PipeName::DecodeBallots.as_ref(),
+                                file.display()
                             );
-
-                            fs::create_dir_all(&output_path)?;
-                            output_path.push(OUTPUT_DECODED_BALLOTS_FILE);
-                            let file = File::create(&output_path)
-                                .map_err(|e| Error::FileAccess(output_path, e))?;
-
-                            serde_json::to_writer(file, &decoded_ballots)?;
-                        }
-                        Err(e) => {
-                            if let Error::FileAccess(file, _) = &e {
-                                println!(
-                                    "[{}] File not found: {} -- Not processed",
-                                    PipeName::DecodeBallots.as_ref(),
-                                    file.display()
-                                )
-                            } else {
-                                return Err(e);
-                            }
+                            Ok(()) // This item failed "softly", continue with others.
+                        } else {
+                            Err(e) // This is a "hard" error, propagate it.
                         }
                     }
                 }
-            }
-        }
+            },
+        )?; // The `?` here propagates the first "hard" error from any parallel task.
 
         Ok(())
     }
