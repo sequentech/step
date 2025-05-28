@@ -2,13 +2,14 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use rusqlite::{params, Transaction};
+use sequent_core::types::results::ResultDocuments;
+use serde_json::to_string;
 use tracing::instrument;
-use uuid::Uuid;
 
 #[instrument(err, skip_all)]
-pub async fn create_results_event_table(
+pub async fn create_results_event_sqlite(
     sqlite_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
@@ -16,7 +17,7 @@ pub async fn create_results_event_table(
 ) -> Result<String> {
     sqlite_transaction.execute_batch(
         "
-        CREATE TABLE results_event (
+        CREATE TABLE IF NOT EXISTS results_event (
             id TEXT NOT NULL PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))), 
             tenant_id TEXT NOT NULL,
             election_event_id TEXT NOT NULL,
@@ -29,7 +30,7 @@ pub async fn create_results_event_table(
         );",
     )?;
     let mut statement = sqlite_transaction.prepare(
-        "INSERT INTO results_event (
+        "INSERT OR REPLACE INTO results_event (
                 id, tenant_id, election_event_id
             ) VALUES (
                 $1, $2, $3
@@ -39,4 +40,36 @@ pub async fn create_results_event_table(
     statement.execute(params![results_event_id, tenant_id, election_event_id,])?;
 
     Ok(results_event_id.to_string())
+}
+
+#[instrument(err, skip_all)]
+pub async fn update_results_event_documents_sqlite(
+    sqlite_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    results_event_id: &str,
+    election_event_id: &str,
+    documents: &ResultDocuments,
+) -> Result<()> {
+    let docs_json = to_string(documents)
+        .map_err(|e| anyhow!("Failed to serialize documents to JSON: {}", e))?;
+
+    let insert_count = sqlite_transaction.execute(
+        "
+        UPDATE results_event
+        SET documents = ?1
+        WHERE tenant_id = ?2
+          AND id = ?3
+          AND election_event_id = ?4
+        ",
+        params![docs_json, tenant_id, results_event_id, election_event_id],
+    )?;
+
+    match insert_count {
+        1 => Ok(()),
+        0 => Err(anyhow!("Rows not found in table results_event")),
+        count => Err(anyhow!(
+            "Too many affected rows in table results_event: {}",
+            count
+        )),
+    }
 }

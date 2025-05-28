@@ -9,7 +9,7 @@ use sequent_core::types::hasura::core::AreaContest;
 use tracing::instrument;
 
 #[instrument(err, skip_all)]
-pub async fn create_area_contest_table(
+pub async fn create_area_contest_sqlite(
     sqlite_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,

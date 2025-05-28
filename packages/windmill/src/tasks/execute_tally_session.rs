@@ -1206,7 +1206,7 @@ pub async fn execute_tally_session_wrapped(
 
     let default_language = election_event.get_default_language();
 
-    let results_event_id = populate_results_tables(
+    let (results_event_id, tally_session_execution_documents) = populate_results_tables(
         hasura_transaction,
         &base_tempdir.path().to_path_buf(),
         status,
@@ -1240,6 +1240,7 @@ pub async fn execute_tally_session_wrapped(
         Some(new_status),
         results_event_id,
         session_ids_i32,
+        tally_session_execution_documents,
     )
     .await?;
 

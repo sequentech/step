@@ -7,15 +7,13 @@ use csv::ReaderBuilder;
 use deadpool_postgres::Transaction;
 use futures::{pin_mut, StreamExt};
 use rusqlite::{params, Transaction as SqliteTransaction};
-use sequent_core::types::hasura::core::Candidate;
-use serde_json::to_string;
-use tempfile::{NamedTempFile, TempPath};
+use tempfile::NamedTempFile;
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 use tracing::instrument;
 
 #[instrument(err, skip_all)]
-pub async fn create_candidate_table(
+pub async fn create_candidate_sqlite(
     hasura_transaction: &Transaction<'_>,
     sqlite_transaction: &SqliteTransaction<'_>,
     contest_ids: &Vec<String>,
@@ -104,7 +102,7 @@ pub async fn create_candidate_table(
             ) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15)",
         )?;
 
-        let mut rdr = csv::ReaderBuilder::new()
+        let mut rdr = ReaderBuilder::new()
             .has_headers(true)
             .from_path(&tmp_path)
             .context("opening candidate CSV")?;

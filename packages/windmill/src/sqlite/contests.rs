@@ -9,7 +9,7 @@ use serde_json::to_string;
 use tracing::instrument;
 
 #[instrument(err, skip_all)]
-pub async fn create_contest_table(
+pub async fn create_contest_sqlite(
     sqlite_transaction: &Transaction<'_>,
     contests: Vec<Contest>,
 ) -> Result<()> {

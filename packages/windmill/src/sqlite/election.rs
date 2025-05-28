@@ -9,7 +9,7 @@ use serde_json::to_string;
 use tracing::instrument;
 
 #[instrument(err, skip_all)]
-pub async fn create_election_table(
+pub async fn create_election_sqlite(
     sqlite_transaction: &Transaction<'_>,
     elections: Vec<Election>,
 ) -> Result<()> {

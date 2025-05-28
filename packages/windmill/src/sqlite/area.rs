@@ -9,7 +9,7 @@ use serde_json::to_string;
 use tracing::instrument;
 
 #[instrument(err, skip_all)]
-pub async fn create_area_table(
+pub async fn create_area_sqlite(
     sqlite_transaction: &Transaction<'_>,
     areas: Vec<Area>,
 ) -> Result<()> {

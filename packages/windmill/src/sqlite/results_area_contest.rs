@@ -1,36 +1,22 @@
 // SPDX-FileCopyrightText: 2024 Sequent Legal <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use anyhow::Result;
-use chrono::Local;
-use ordered_float::NotNan;
+use super::utils::{opt_f64, opt_json};
+use anyhow::{anyhow, Result};
 use rusqlite::{params, Transaction};
-use sequent_core::types::results::ResultsAreaContest;
-use serde_json::Value;
+use sequent_core::types::results::{ResultDocuments, ResultsAreaContest};
+use serde_json::to_string;
 use tracing::instrument;
-use uuid::Uuid;
-
-fn opt_str<T: ToString>(opt: &Option<T>) -> Option<String> {
-    opt.as_ref().map(|v| v.to_string())
-}
-
-fn opt_json(opt: &Option<Value>) -> Option<String> {
-    opt.as_ref().and_then(|v| serde_json::to_string(v).ok())
-}
-
-fn opt_f64(opt: &Option<NotNan<f64>>) -> Option<f64> {
-    opt.map(|n| n.into_inner())
-}
 
 #[instrument(err, skip_all)]
-pub async fn create_results_area_contests_table(
+pub async fn create_results_area_contests_sqlite(
     sqlite_transaction: &Transaction<'_>,
     area_contests: Vec<ResultsAreaContest>,
 ) -> Result<Vec<ResultsAreaContest>> {
-    // 1) create the SQLite table
     sqlite_transaction.execute_batch(
         "
-        CREATE TABLE results_area_contest (
+        CREATE TABLE IF NOT EXISTS results_area_contest (
+            id TEXT NOT NULL PRIMARY KEY,
             tenant_id TEXT NOT NULL,
             election_event_id TEXT NOT NULL,
             election_id TEXT NOT NULL,
@@ -80,10 +66,8 @@ pub async fn create_results_area_contests_table(
         );",
     )?;
 
-    // 3) Execute for each ResultsAreaContest
     for c in &area_contests {
         insert.execute(params![
-            // 1–7: UUIDs/text
             c.id,
             c.tenant_id,
             c.election_event_id,
@@ -91,7 +75,6 @@ pub async fn create_results_area_contests_table(
             c.contest_id,
             c.area_id,
             c.results_event_id,
-            // 8–12: integer counts
             c.elegible_census,
             c.total_valid_votes,
             c.explicit_invalid_votes,
@@ -99,14 +82,12 @@ pub async fn create_results_area_contests_table(
             c.blank_votes,
             opt_json(&c.labels),
             opt_json(&c.annotations),
-            // 17–22: vote percentages & invalid votes
             opt_f64(&c.total_valid_votes_percent),
             c.total_invalid_votes,
             opt_f64(&c.total_invalid_votes_percent),
             opt_f64(&c.explicit_invalid_votes_percent),
             opt_f64(&c.blank_votes_percent),
             opt_f64(&c.implicit_invalid_votes_percent),
-            // 23–27: totals, documents, audit fields
             c.total_votes,
             opt_f64(&c.total_votes_percent),
             c.total_auditable_votes,
@@ -115,4 +96,51 @@ pub async fn create_results_area_contests_table(
     }
 
     Ok(area_contests)
+}
+
+#[instrument(err, skip_all)]
+pub async fn update_results_area_contest_documents_sqlite(
+    sqlite_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    results_event_id: &str,
+    election_event_id: &str,
+    election_id: &str,
+    contest_id: &str,
+    area_id: &str,
+    documents: &ResultDocuments,
+) -> Result<()> {
+    let docs_json = to_string(documents)
+        .map_err(|e| anyhow!("Failed to serialize documents to JSON: {}", e))?;
+
+    let insert_count = sqlite_transaction.execute(
+        "
+        UPDATE results_area_contest
+        SET documents = ?1
+        WHERE 
+            tenant_id = ?2
+            AND results_event_id = ?3
+            AND election_event_id = ?4
+            AND election_id = ?5
+            AND contest_id = ?6
+            AND area_id = ?7
+        ",
+        params![
+            docs_json,
+            tenant_id,
+            results_event_id,
+            election_event_id,
+            election_id,
+            contest_id,
+            area_id
+        ],
+    )?;
+
+    match insert_count {
+        1 => Ok(()),
+        0 => Err(anyhow!("Rows not found in table results_area_contest")),
+        count => Err(anyhow!(
+            "Too many affected rows in table results_area_contest: {}",
+            count
+        )),
+    }
 }
