@@ -2,58 +2,75 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use std::str::FromStr;
+
 use crate::{types::hasura_types::*, utils::read_config::read_config};
 use clap::Args;
 use graphql_client::{GraphQLQuery, Response};
-use sequent_core::ballot::VotingStatus;
-use std::str::FromStr;
+use update_event_voting_status::VotingStatus;
+
+impl FromStr for update_event_voting_status::VotingStatus {
+    type Err = String;
+
+    fn from_str(input: &str) -> Result<Self, Self::Err> {
+        match input {
+            "OPEN" => Ok(VotingStatus::OPEN),
+            "CLOSE" => Ok(VotingStatus::CLOSED),
+            "PAUSE" => Ok(VotingStatus::PAUSED),
+            // …and so on for every variant in your schema’s VotingStatus enum
+            _ => Err(format!(
+                "Invalid voting status, status must be one of: OPEN, CLOSE, PAUSE"
+            )),
+        }
+    }
+}
 
 #[derive(Args)]
-#[command(about = "Update election event status", long_about = None)]
-pub struct UpdateElectionEventStatus {
-    /// Election event id - the election event to be associated with
+#[command(about = "Update election event voting status", long_about = None)]
+
+pub struct UpdateElectionEventVotingStatus {
     #[arg(long)]
     election_event_id: String,
 
-    /// Status - the desired status
     #[arg(long)]
-    status: String,
+    voting_status: VotingStatus,
 }
 
 #[derive(GraphQLQuery)]
 #[graphql(
     schema_path = "src/graphql/schema.json",
-    query_path = "src/graphql/update_election_event_voting_status.graphql",
+    query_path = "src/graphql/update_event_voting_status.graphql",
     response_derives = "Debug,Clone,Deserialize,Serialize"
 )]
 pub struct UpdateEventVotingStatus;
 
-impl UpdateElectionEventStatus {
+impl UpdateElectionEventVotingStatus {
     pub fn run(&self) {
-        match update_status(&self.election_event_id, &self.status) {
+        match update_event_voting_status(&self.election_event_id, &self.voting_status) {
             Ok(id) => {
-                println!("Success! Successfully updated status to {}", &self.status);
+                println!(
+                    "Success! Updated successfully! ID: {}",
+                    id.unwrap_or_else(|| "None".to_string())
+                );
             }
             Err(err) => {
-                eprintln!("Error! Failed to update status: {}", err)
+                eprintln!("Error! Failed to update: {}", err)
             }
         }
     }
 }
-
-pub fn update_status(
+pub fn update_event_voting_status(
     election_event_id: &str,
-    status: &str,
-) -> Result<(), Box<dyn std::error::Error>> {
+    voting_status: &VotingStatus,
+) -> Result<Option<String>, Box<dyn std::error::Error>> {
     let config = read_config()?;
-    let client = reqwest::blocking::Client::new();
 
-    // Validate status
-    VotingStatus::from_str(status).map_err(|_| format!("Invalid status: {}", status))?;
+    let client = reqwest::blocking::Client::new();
 
     let variables = update_event_voting_status::Variables {
         election_event_id: election_event_id.to_string(),
-        status: status.to_string(),
+        voting_status: voting_status.clone(),
+        voting_channel: None,
     };
 
     let request_body = UpdateEventVotingStatus::build_query(variables);
@@ -67,10 +84,10 @@ pub fn update_status(
     if response.status().is_success() {
         let response_body: Response<update_event_voting_status::ResponseData> = response.json()?;
         if let Some(data) = response_body.data {
-            if let Some(_) = data.update_event_voting_status {
-                Ok(())
+            if let Some(update_event_voting_status) = data.update_event_voting_status {
+                Ok(update_event_voting_status.election_event_id)
             } else {
-                Err(Box::from("failed updating status"))
+                Err(Box::from("No data found in the response"))
             }
         } else if let Some(errors) = response_body.errors {
             let error_messages: Vec<String> = errors.into_iter().map(|e| e.message).collect();

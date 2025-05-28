@@ -129,6 +129,7 @@ pub async fn get_document_url(
         document_id,
     )
     .await?;
+
     let Some(document) = document else {
         info!("document is None");
         return Ok(None);
