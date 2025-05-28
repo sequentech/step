@@ -16,6 +16,7 @@ import {EElectionEventLockedDown, i18n, translateElection} from "@sequentech/ui-
 import {Box, CircularProgress} from "@mui/material"
 import {Tabs} from "@/components/Tabs"
 import {Dialog} from "@sequentech/ui-essentials"
+import TestSql from "@/components/TestSql"
 
 // Lazy load the tab components
 const DashboardElectionEvent = lazy(() => import("@/components/dashboard/election-event/Dashboard"))
@@ -224,10 +225,11 @@ export const ElectionEventTabs: React.FC = () => {
                                       component: () => (
                                           <Suspense fallback={<div>Loading Dashboard...</div>}>
                                               <Box sx={{overflowX: "auto"}}>
-                                                  <DashboardElectionEvent
+                                                <TestSql />
+                                                  {/* <DashboardElectionEvent
                                                       refreshRef={refreshRef}
                                                       onMount={handleChildMount}
-                                                  />
+                                                  /> */}
                                               </Box>
                                           </Suspense>
                                       ),
