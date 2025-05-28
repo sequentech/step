@@ -1,7 +1,6 @@
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::postgres::document;
 use crate::{
     services::tasks_execution::{update_complete, update_fail},
     types::error::Result,
@@ -13,20 +12,20 @@ use sequent_core::types::hasura::core::TasksExecution;
 use tracing::{info, instrument};
 use uuid::Uuid;
 
-use crate::postgres::ballot_publication::get_ballot_publication_by_id;
-use crate::postgres::ballot_style::get_publication_ballot_styles;
 use crate::postgres::election::get_elections;
 use crate::postgres::election_event::{get_election_event_by_id, update_election_event_status};
 use crate::services::ballot_styles::ballot_publication::get_publication_json;
 use crate::services::database::get_hasura_pool;
+use crate::services::documents::upload_and_return_document;
 use crate::services::election_event_status::get_election_status;
-use sequent_core::ballot::{ElectionEventStatus, ElectionStatus, VotingStatus};
+use sequent_core::ballot::VotingStatus;
 use sequent_core::types::hasura::core::ElectionEvent;
+use sequent_core::util::temp_path::write_into_named_temp_file;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::Value;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct PublicationPreviewJson {
+pub struct PublicationPreview {
     ballot_styles_json: Value,
     election_event_json: Value,
     elections_json: Value,
@@ -103,24 +102,39 @@ pub async fn prepare_publication_preview_task(
             .await
             .with_context(|| "Can't find open elections")?;
 
-    let pub_preview = PublicationPreviewJson {
+    let pub_preview = PublicationPreview {
         ballot_styles_json,
         election_event_json,
         elections_json,
     };
 
-    // TODO: Upload file to S3...
-    let document_id = Uuid::new_v4().to_string();
-    // ballot_publication_id: ballot_publication_id.clone(),
-    // ballot_styles
+    let pub_preview_data: Vec<u8> = serde_json::to_value(pub_preview)
+        .with_context(|| "Error serializing publication preview")?
+        .to_string()
+        .as_bytes()
+        .to_vec();
 
-    // {
-    //     ballot_styles: ballotData?.current?.ballot_styles,
-    //     election_event: electionEvent,
-    //     elections: openElections,
-    //     support_materials: supportMaterials, ??
-    //     documents: documents, ??
-    // }
+    let document_id = Uuid::new_v4().to_string();
+    let doc_name_s3 = format!("{ballot_publication_id}.json");
+    let temp_name = format!("publication-preview-{document_id}-");
+    // let file_path = s3::get_public_document_key(&tenant_id, &document_id, name);
+    let (_temp_path, temp_path_string, file_size) =
+        write_into_named_temp_file(&pub_preview_data, &temp_name, ".json")
+            .with_context(|| "Error writing to file")?;
+
+    let _document = upload_and_return_document(
+        hasura_transaction,
+        &temp_path_string,
+        file_size,
+        "application/json",
+        &tenant_id,
+        Some(election_event_id.to_string()),
+        &doc_name_s3,
+        Some(document_id.clone()),
+        true,
+    )
+    .await
+    .map_err(|err| anyhow!("Error uploading document: {err:?}"))?;
 
     Ok(document_id)
 }
