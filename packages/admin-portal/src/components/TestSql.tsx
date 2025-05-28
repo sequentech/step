@@ -1,32 +1,25 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import initSqlJs, { Database, SqlJsStatic } from 'sql.js';
 
-interface QueryResult {
-    [key: string]: any;
-}
-
-interface ErrorResult {
-    error: string;
-}
-
-type ResultType = QueryResult | ErrorResult;
-
-function TestSql() {
+function LocalDatabaseLoader() {
     const [SQL, setSQL] = useState<SqlJsStatic | null>(null);
     const [db, setDb] = useState<Database | null>(null);
     const [isLoading, setIsLoading] = useState<boolean>(true);
-    const [results, setResults] = useState<ResultType[]>([]);
+    const [results, setResults] = useState<any[]>([]);
     const [tables, setTables] = useState<string[]>([]);
-    const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         const initializeSQL = async () => {
             try {
+                // Initialize SQL.js
                 const sql = await initSqlJs({
                     locateFile: file => `https://sql.js.org/dist/${file}`
                 });
                 setSQL(sql);
-                setIsLoading(false);
+
+                // Load database from public folder
+                await loadLocalDatabase(sql);
+                
             } catch (error) {
                 console.error('Failed to initialize SQL.js:', error);
                 setIsLoading(false);
@@ -36,81 +29,53 @@ function TestSql() {
         initializeSQL();
     }, []);
 
-    // Method 1: Load database from file upload
-    const loadDatabaseFromFile = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (!file || !SQL) return;
-
-        const reader = new FileReader();
-        reader.onload = (e: ProgressEvent<FileReader>) => {
-            try {
-                if (e.target?.result) {
-                    const uInt8Array = new Uint8Array(e.target.result as ArrayBuffer);
-                    const database = new SQL.Database(uInt8Array);
-                    setDb(database);
-                    loadTableList(database);
-                    console.log('Database loaded successfully!');
-                }
-            } catch (error) {
-                console.error('Error loading database:', error);
+    const loadLocalDatabase = async (sql: SqlJsStatic) => {
+        try {
+            // Load from public folder - adjust the filename as needed
+            const response = await fetch('/results-a98ed291-5111-4201-915d-04adc4af157c.db');
+            
+            if (!response.ok) {
+                throw new Error(`Failed to load database: ${response.statusText}`);
             }
-        };
-        reader.readAsArrayBuffer(file);
+
+            const buffer = await response.arrayBuffer();
+            const uInt8Array = new Uint8Array(buffer);
+            const database = new sql.Database(uInt8Array);
+            
+            setDb(database);
+            loadTableList(database);
+            setIsLoading(false);
+            console.log('Local database loaded successfully!');
+            
+        } catch (error) {
+            console.error('Error loading local database:', error);
+            setIsLoading(false);
+        }
     };
 
-    // Method 2: Load database from URL
-    const loadDatabaseFromURL = async (url: string) => {
+    // Alternative: Load different databases on demand
+    const loadSpecificDatabase = async (filename: string) => {
         if (!SQL) return;
 
         try {
-            const response = await fetch(url);
+            const response = await fetch(`/${filename}`);
+            if (!response.ok) {
+                throw new Error(`Database file not found: ${filename}`);
+            }
+
             const buffer = await response.arrayBuffer();
             const uInt8Array = new Uint8Array(buffer);
             const database = new SQL.Database(uInt8Array);
+            
             setDb(database);
             loadTableList(database);
-            console.log('Database loaded from URL!');
+            console.log(`Database ${filename} loaded successfully!`);
+            
         } catch (error) {
-            console.error('Error loading database from URL:', error);
+            console.error(`Error loading ${filename}:`, error);
         }
     };
 
-    // Method 3: Create database from SQL dump
-    const loadDatabaseFromSQL = (sqlDump: string) => {
-        if (!SQL) return;
-
-        try {
-            const database = new SQL.Database();
-            // Execute the SQL dump
-            database.exec(sqlDump);
-            setDb(database);
-            loadTableList(database);
-            console.log('Database created from SQL dump!');
-        } catch (error) {
-            console.error('Error creating database from SQL:', error);
-        }
-    };
-
-    // Method 4: Load from Base64 encoded database
-    const loadDatabaseFromBase64 = (base64String: string) => {
-        if (!SQL) return;
-
-        try {
-            const binaryString = atob(base64String);
-            const bytes = new Uint8Array(binaryString.length);
-            for (let i = 0; i < binaryString.length; i++) {
-                bytes[i] = binaryString.charCodeAt(i);
-            }
-            const database = new SQL.Database(bytes);
-            setDb(database);
-            loadTableList(database);
-            console.log('Database loaded from Base64!');
-        } catch (error) {
-            console.error('Error loading database from Base64:', error);
-        }
-    };
-
-    // Helper function to get list of tables
     const loadTableList = (database: Database) => {
         try {
             const stmt = database.prepare("SELECT name FROM sqlite_master WHERE type='table';");
@@ -126,13 +91,12 @@ function TestSql() {
         }
     };
 
-    // Execute query on loaded database
     const executeQuery = (query: string) => {
         if (!db) return;
 
         try {
             const stmt = db.prepare(query);
-            const queryResults: QueryResult[] = [];
+            const queryResults: any[] = [];
             
             while (stmt.step()) {
                 queryResults.push(stmt.getAsObject());
@@ -147,101 +111,32 @@ function TestSql() {
         }
     };
 
-    // Export current database
-    const exportDatabase = () => {
-        if (!db) return;
-
-        try {
-            const data = db.export();
-            const blob = new Blob([data], { type: 'application/x-sqlite3' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'database.sqlite';
-            a.click();
-            URL.revokeObjectURL(url);
-        } catch (error) {
-            console.error('Export error:', error);
-        }
-    };
-
-    if (isLoading) return <div>Loading SQL.js...</div>;
+    if (isLoading) return <div>Loading database from file system...</div>;
 
     return (
         <div style={{ padding: '20px', maxWidth: '1200px' }}>
-            <h2>SQL.js Database Loader</h2>
+            <h2>Local Database Loader</h2>
             
-            {/* Database Loading Options */}
+            {/* Quick Load Buttons */}
             <div style={{ marginBottom: '20px', border: '1px solid #ccc', padding: '15px' }}>
-                <h3>Load Database</h3>
-                
-                {/* File Upload */}
-                <div style={{ marginBottom: '10px' }}>
-                    <label>Load from file (.sqlite, .db):</label>
-                    <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept=".sqlite,.db,.sqlite3"
-                        onChange={loadDatabaseFromFile}
-                        style={{ marginLeft: '10px' }}
-                    />
-                </div>
-
-                {/* URL Loading */}
-                <div style={{ marginBottom: '10px' }}>
-                    <label>Load from URL:</label>
-                    <input
-                        type="text"
-                        placeholder="https://example.com/database.sqlite"
-                        onKeyPress={(e: React.KeyboardEvent<HTMLInputElement>) => {
-                            if (e.key === 'Enter') {
-                                const target = e.target as HTMLInputElement;
-                                loadDatabaseFromURL(target.value);
-                            }
-                        }}
-                        style={{ marginLeft: '10px', width: '300px' }}
-                    />
-                </div>
-
-                {/* Sample Database Buttons */}
-                <div style={{ marginBottom: '10px' }}>
-                    <button 
-                        onClick={() => loadDatabaseFromURL('https://github.com/lerocha/chinook-database/blob/master/ChinookDatabase/DataSources/Chinook_Sqlite.sqlite')}
-                        style={{ marginRight: '10px' }}
-                    >
-                        Load Sample Database (Chinook)
-                    </button>
-                    
-                    <button onClick={() => {
-                        const sampleSQL = `
-                            CREATE TABLE customers (
-                                id INTEGER PRIMARY KEY,
-                                name TEXT NOT NULL,
-                                email TEXT UNIQUE,
-                                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-                            );
-                            
-                            INSERT INTO customers (name, email) VALUES 
-                            ('John Doe', 'john@example.com'),
-                            ('Jane Smith', 'jane@example.com'),
-                            ('Bob Johnson', 'bob@example.com');
-                            
-                            CREATE TABLE orders (
-                                id INTEGER PRIMARY KEY,
-                                customer_id INTEGER,
-                                total DECIMAL(10,2),
-                                order_date DATETIME DEFAULT CURRENT_TIMESTAMP,
-                                FOREIGN KEY (customer_id) REFERENCES customers(id)
-                            );
-                            
-                            INSERT INTO orders (customer_id, total) VALUES 
-                            (1, 99.99), (2, 149.50), (1, 75.25);
-                        `;
-                        loadDatabaseFromSQL(sampleSQL);
-                    }}>
-                        Create Sample Database
-                    </button>
-                </div>
+                <h3>Load Pre-placed Databases</h3>
+                <button 
+                    onClick={() => loadSpecificDatabase('sample-database.sqlite')}
+                    style={{ marginRight: '10px' }}
+                >
+                    Load Sample Database
+                </button>
+                <button 
+                    onClick={() => loadSpecificDatabase('test.db')}
+                    style={{ marginRight: '10px' }}
+                >
+                    Load Test Database
+                </button>
+                <button 
+                    onClick={() => loadSpecificDatabase('production.sqlite')}
+                >
+                    Load Production Database
+                </button>
             </div>
 
             {/* Database Info */}
@@ -249,38 +144,46 @@ function TestSql() {
                 <div style={{ marginBottom: '20px', border: '1px solid #ccc', padding: '15px' }}>
                     <h3>Database Info</h3>
                     <p><strong>Tables:</strong> {tables.join(', ')}</p>
-                    <button onClick={exportDatabase}>Export Database</button>
                 </div>
             )}
 
-            {/* Query Interface */}
+            {/* Quick Queries */}
+            {db && tables.length > 0 && (
+                <div style={{ marginBottom: '20px', border: '1px solid #ccc', padding: '15px' }}>
+                    <h3>Quick Table Views</h3>
+                    {tables.map(table => (
+                        <button
+                            key={table}
+                            onClick={() => executeQuery(`SELECT * FROM ${table} LIMIT 10;`)}
+                            style={{ marginRight: '5px', marginBottom: '5px' }}
+                        >
+                            View {table}
+                        </button>
+                    ))}
+                </div>
+            )}
+
+            {/* Custom Query */}
             {db && (
                 <div style={{ marginBottom: '20px', border: '1px solid #ccc', padding: '15px' }}>
-                    <h3>Query Database</h3>
-                    <div style={{ marginBottom: '10px' }}>
-                        <textarea
-                            placeholder="Enter SQL query here..."
-                            rows={4}
-                            style={{ width: '100%' }}
-                            onKeyPress={(e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-                                if (e.key === 'Enter' && e.ctrlKey) {
-                                    const target = e.target as HTMLTextAreaElement;
-                                    executeQuery(target.value);
-                                }
-                            }}
-                        />
-                    </div>
-                    <div>
-                        {tables.map(table => (
-                            <button
-                                key={table}
-                                onClick={() => executeQuery(`SELECT * FROM ${table} LIMIT 10;`)}
-                                style={{ marginRight: '5px', marginBottom: '5px' }}
-                            >
-                                View {table}
-                            </button>
-                        ))}
-                    </div>
+                    <h3>Custom Query</h3>
+                    <textarea
+                        placeholder="Enter SQL query here..."
+                        rows={4}
+                        style={{ width: '100%', marginBottom: '10px' }}
+                        onKeyPress={(e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+                            if (e.key === 'Enter' && e.ctrlKey) {
+                                const target = e.target as HTMLTextAreaElement;
+                                executeQuery(target.value);
+                            }
+                        }}
+                    />
+                    <button onClick={(e) => {
+                        const textarea = e.currentTarget.previousElementSibling as HTMLTextAreaElement;
+                        executeQuery(textarea.value);
+                    }}>
+                        Execute Query
+                    </button>
                 </div>
             )}
 
@@ -299,4 +202,4 @@ function TestSql() {
     );
 }
 
-export default TestSql;
+export default LocalDatabaseLoader;
