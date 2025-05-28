@@ -1,10 +1,10 @@
 {
-  "election_event_json_file": "export_election_event-439e7d48-1061-4797-a321-6b1c436d55db.json",
-  "realm_name": "tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-439e7d48-1061-4797-a321-6b1c436d55db",
+  "election_event_json_file": "export_election_event-8d112040-cc69-49ae-a09b-98ac7240c603.json",
+  "realm_name": "tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-8d112040-cc69-49ae-a09b-98ac7240c603",
   "tenant_id": "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
-  "election_event_id": "439e7d48-1061-4797-a321-6b1c436d55db",
+  "election_event_id": "8d112040-cc69-49ae-a09b-98ac7240c603",
   "area_id": "a696a9ae-d772-4ab7-9eb6-4e58dfdee725",
-  "election_id": "4caf065b-ba42-4312-ae98-7f36d981a217",
+  "election_id": "3adc070f-1b45-4c66-8108-8512bd0d7840",
   "generate_voters": {
     "csv_file_name": "generated_users",
     "fields": [
@@ -26,23 +26,22 @@
       "hashed_password"
     ],
     "excluded_columns": [
-      "password",
-      "password_salt",
-      "hashed_password"
+      "authorized-election-ids",
+      "password"
     ],
     "email_prefix": "testsequent2025",
     "domain": "mailinator.com",
     "sequence_email_number": true,
     "sequence_start_number": 0,
     "voter_password": "Qwerty1234!",
-    "password_salt": "sppXH6/iePtmIgcXfTHmjPS2QpLfILVMfmmVOLPKlic=",
-    "hashed_password": "V0rb8+HmTneV64qto5f0G2+OY09x2RwPeqtK605EUz0=",
+    "password_salt": "O+lcM4K2AuQWC0FveCb5Zw==",
+    "hashed_password": "SW4FREDiEBx0/8Nkmv35NWMMJTq9Ikui20VGDrSp/N8uVmygEX4Nmg9J613O4tApGP4KCc6tgz2LiRQNC1KBnQ==",
     "overseas_reference": "B",
     "min_age": 18,
     "max_age": 90
   },
   "duplicate_votes": {
-    "row_id_to_clone": "4b2ab2fb-f562-475a-8872-6d4a01631d59"
+    "row_id_to_clone": "3b46a87b-83ac-4ef9-a554-57db35c5a190"
   },
   "generate_applications": {
     "applicant_data": {

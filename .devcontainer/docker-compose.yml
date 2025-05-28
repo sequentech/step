@@ -382,6 +382,7 @@ services:
       - 3322:3322 # immudb service
       - 3324:9497 # prometheus
       - 3325:8080 # web console
+      - 3326:5432 # psql
     volumes:
       - immudb_data:/var/lib/immudb
       - immudb_logs:/var/log/immudb
@@ -568,27 +569,71 @@ services:
         VAULT_TOKEN: ${VAULT_TOKEN}
         B3_URL: ${B3_URL}
 
-  # trustee3:
-  #   profiles: ["full"]
-  #   stdin_open: true
-  #   image: sequentech.local/braid
-  #   container_name: trustee3
-  #   volumes:
-  #     - trustee3_data:/opt/braid
-  #   # depending on the `trustee1` container to ensure that the
-  #   # `sequentech.local/braid` image is locally build, so that we can reuse
-  #   # it:
-  #   depends_on:
-  #     - trustee1
-  #     - immudb
-  #   environment:
-  #       TRUSTEE_NAME: trustee3
-  #       TRUSTEE_CONFIG: ${TRUSTEE3_CONFIG}
-  #       IGNORE_BOARDS: ${IGNORE_BOARDS}
-  #       SECRETS_BACKEND: ${SECRETS_BACKEND}
-  #       VAULT_SERVER_URL: ${VAULT_SERVER_URL}
-  #       VAULT_TOKEN: ${VAULT_TOKEN}
-  #       B3_URL: ${B3_URL}
+  trustee3:
+    profiles: ["full"]
+    stdin_open: true
+    image: sequentech.local/braid
+    container_name: trustee3
+    volumes:
+      - trustee3_data:/opt/braid
+    # depending on the `trustee1` container to ensure that the
+    # `sequentech.local/braid` image is locally build, so that we can reuse
+    # it:
+    depends_on:
+      - trustee1
+      - immudb
+    environment:
+        TRUSTEE_NAME: trustee3
+        TRUSTEE_CONFIG: ${TRUSTEE3_CONFIG}
+        IGNORE_BOARDS: ${IGNORE_BOARDS}
+        SECRETS_BACKEND: ${SECRETS_BACKEND}
+        VAULT_SERVER_URL: ${VAULT_SERVER_URL}
+        VAULT_TOKEN: ${VAULT_TOKEN}
+        B3_URL: ${B3_URL}
+
+  trustee4:
+    profiles: ["full"]
+    stdin_open: true
+    image: sequentech.local/braid
+    container_name: trustee4
+    volumes:
+      - trustee4_data:/opt/braid
+    # depending on the `trustee1` container to ensure that the
+    # `sequentech.local/braid` image is locally build, so that we can reuse
+    # it:
+    depends_on:
+      - trustee1
+      - immudb
+    environment:
+        TRUSTEE_NAME: trustee4
+        TRUSTEE_CONFIG: ${TRUSTEE4_CONFIG}
+        IGNORE_BOARDS: ${IGNORE_BOARDS}
+        SECRETS_BACKEND: ${SECRETS_BACKEND}
+        VAULT_SERVER_URL: ${VAULT_SERVER_URL}
+        VAULT_TOKEN: ${VAULT_TOKEN}
+        B3_URL: ${B3_URL}
+
+  trustee5:
+    profiles: ["full"]
+    stdin_open: true
+    image: sequentech.local/braid
+    container_name: trustee5
+    volumes:
+      - trustee5_data:/opt/braid
+    # depending on the `trustee1` container to ensure that the
+    # `sequentech.local/braid` image is locally build, so that we can reuse
+    # it:
+    depends_on:
+      - trustee1
+      - immudb
+    environment:
+        TRUSTEE_NAME: trustee5
+        TRUSTEE_CONFIG: ${TRUSTEE5_CONFIG}
+        IGNORE_BOARDS: ${IGNORE_BOARDS}
+        SECRETS_BACKEND: ${SECRETS_BACKEND}
+        VAULT_SERVER_URL: ${VAULT_SERVER_URL}
+        VAULT_TOKEN: ${VAULT_TOKEN}
+        B3_URL: ${B3_URL}
 
   # Create collection in immudb
   immudb-log-audit-init:
@@ -821,7 +866,7 @@ services:
       "--ignore",
       "windmill/core",
       "-x",
-      "run --bin main consume -q beat short_queue tally_queue reports_queue communication_queue import_export_queue electoral_log_batch_queue electoral_log_beat_queue --prefetch-count 1"
+      "run --release --bin main consume -q beat short_queue reports_queue communication_queue import_export_queue electoral_log_batch_queue electoral_log_beat_queue --prefetch-count 1"
     ]
     volumes_from:
       - devcontainer
@@ -932,7 +977,7 @@ services:
       "--ignore",
       "rust-local-target/",
       "-x",
-      "run --bin beat"
+      "run --release --bin beat"
     ]
     environment:
       RUSTFLAGS: ${RUSTFLAGS}
@@ -996,7 +1041,7 @@ services:
       "--features",
       "\"server sqlcopy\"",
       "-x",
-      "run --bin server -- --host $B3_PG_HOST --port $B3_PG_PORT --username $B3_PG_USER --password $B3_PG_PASSWORD --database $B3_PG_DATABASE --bind $B3_BIND",
+      "run --release --bin server -- --host $B3_PG_HOST --port $B3_PG_PORT --username $B3_PG_USER --password $B3_PG_PASSWORD --database $B3_PG_DATABASE --bind $B3_BIND",
     ]
     environment:
       RUSTFLAGS: ${RUSTFLAGS}
@@ -1023,6 +1068,8 @@ volumes:
   trustee1_data:
   trustee2_data:
   trustee3_data:
+  trustee4_data:
+  trustee5_data:
   protocol_manager_data:
   vault-volume:
   b3_db_logs:

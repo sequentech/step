@@ -154,6 +154,7 @@
             "args": [
                 "compose",
                 "logs",
+                "-t",
                 "-f",
                 "--tail",
                 "200",
@@ -269,6 +270,7 @@
             "args": [
                 "compose",
                 "logs",
+                "-t",
                 "-f",
                 "--tail",
                 "200",
@@ -328,6 +330,7 @@
             "args": [
                 "compose",
                 "logs",
+                "-t",
                 "-f",
                 "--tail",
                 "200",
@@ -387,6 +390,7 @@
             "args": [
                 "compose",
                 "logs",
+                "-t",
                 "-f",
                 "--tail",
                 "200",
@@ -418,6 +422,7 @@
             "args": [
                 "compose",
                 "logs",
+                "-t",
                 "-f",
                 "--tail",
                 "200",
@@ -449,6 +454,7 @@
             "args": [
                 "compose",
                 "logs",
+                "-t",
                 "-f",
                 "--tail",
                 "200",
@@ -508,6 +514,7 @@
             "args": [
                 "compose",
                 "logs",
+                "-t",
                 "-f",
                 "--tail",
                 "200",
@@ -566,7 +573,7 @@
             "command": "bash",
             "args": [
                 "-c",
-                "docker compose logs -f --tail 100 trustee1 trustee2",
+                "docker compose logs -f --tail 100 trustee1 trustee2 trustee3 trustee4 trustee5",
             ],
             "options": {
                 "env": {
@@ -650,7 +657,7 @@
             "command": "bash",
             "args": [
                 "-c",
-                "docker compose stop trustee1 trustee2; docker compose up -d --no-deps trustee1 trustee2 && docker compose logs -f --tail 100 trustee1 trustee2",
+                "docker compose stop trustee1 trustee2 trustee3 trustee4 trustee5; docker compose up -d --no-deps trustee1 trustee2 trustee3 trustee4 trustee5 && docker compose logs -f --tail 100 trustee1 trustee2 trustee3 trustee4 trustee5",
             ],
             "options": {
                 "env": {
@@ -795,6 +802,7 @@
             "args": [
                 "compose",
                 "logs",
+                "-t",
                 "-f",
                 "--tail",
                 "200",
@@ -855,6 +863,7 @@
             "args": [
                 "compose",
                 "logs",
+                "-t",
                 "-f",
                 "--tail",
                 "200",

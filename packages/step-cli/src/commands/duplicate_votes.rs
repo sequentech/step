@@ -49,17 +49,32 @@ impl DuplicateVotes {
             .map_err(|e| anyhow::anyhow!("Error getting hasura client: {}", e.to_string()))?;
 
         let keycloak_query = "\
-            SELECT ue.id FROM user_entity AS ue \
+            SELECT ue.id as id, ua.value as area_id FROM user_entity AS ue \
             JOIN realm AS r ON ue.realm_id = r.id \
-            WHERE r.name = $1 LIMIT $2 OFFSET 0";
+            JOIN user_attribute as ua ON ua.user_id = ue.id \
+            WHERE r.name = $1 \
+            AND ua.name = 'area-id' \
+            LIMIT $2 OFFSET 0";
+
+        // SELECT ue.id, ua."value" FROM user_entity AS ue 
+        // JOIN realm AS r ON ue.realm_id = r.id 
+        // JOIN user_attribute as ua ON ua.user_id = ue.id
+        // WHERE r.name = 'tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-8d112040-cc69-49ae-a09b-98ac7240c603'
+        // AND ua.name = 'area-id'
+        // LIMIT 1000 
+        // OFFSET 0;
 
         let kc_rows = kc_client
             .query(keycloak_query, &[&realm_name, &(num_votes as i64)])
             .await?;
-        let existing_user_ids: Vec<String> = kc_rows
+        let existing_user_ids: Vec<(String, Uuid)> = kc_rows
             .iter()
-            .filter_map(|row| row.get::<_, Option<String>>(0))
-            .collect();
+            .map(|row| -> Result<(String, Uuid)> {
+                let id = row.try_get("id")?;
+                let area_id = Uuid::parse_str(row.try_get("area_id")?)?;
+                Ok((id, area_id))
+            })
+            .collect::<Result<Vec<(String, Uuid)>>>()?;
         println!("Number of existing user IDs::: {}", existing_user_ids.len());
 
         provide_hasura_transaction(|hasura_transaction| {
@@ -79,7 +94,7 @@ impl DuplicateVotes {
 
 async fn insert_votes(
     hasura_transaction: &Transaction<'_>,
-    existing_user_ids: Vec<String>,
+    existing_user_ids: Vec<(String, Uuid)>,
     row_id_to_clone: String,
 ) -> Result<()> {
     let base_query = "\
@@ -96,7 +111,7 @@ async fn insert_votes(
     let tenant_id = row.try_get::<_, Uuid>(0)?;
     let election_event_id = row.try_get::<_, Uuid>(1)?;
     let election_id = row.try_get::<_, Uuid>(2)?;
-    let area_id = row.try_get::<_, Uuid>(3)?;
+    // let area_id = row.try_get::<_, Uuid>(3)?;
     let annotations: Value = row.get(4);
     let content: String = row.get::<_, &str>(5).to_string();
     let cast_ballot_signature: Vec<u8> = row.get(6);
@@ -121,7 +136,7 @@ async fn insert_votes(
 
         let mut placeholders = Vec::with_capacity(batch.len());
 
-        for (i, uid) in batch.iter().enumerate() {
+        for (i, (uid, area_id)) in batch.iter().enumerate() {
             let start = i * row_param_count + 1;
             let placeholder = (start..start + row_param_count)
                 .map(|idx| format!("${}", idx))
@@ -134,7 +149,7 @@ async fn insert_votes(
             params.push(uid);
             params.push(&election_id);
             params.push(&tenant_id);
-            params.push(&area_id);
+            params.push(area_id);
             params.push(&annotations);
             params.push(&content);
             params.push(&cast_ballot_signature);
