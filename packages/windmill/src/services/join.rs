@@ -5,7 +5,7 @@
 use csv::ReaderBuilder;
 use std::{cmp::Ordering, fs::File};
 
-use tracing::instrument;
+use tracing::{info, instrument};
 
 use anyhow::{anyhow, Result};
 
@@ -89,6 +89,7 @@ pub fn merge_join_csv(
                         file1_output_index
                     )
                 })?;
+
                 result.push(value.to_string());
 
                 // Advance both iterators.
