@@ -76,6 +76,24 @@ function LocalDatabaseLoader() {
         }
     };
 
+    const loadDatabaseForEnvironment = async (sql: SqlJsStatic) => {
+    const env = process.env.NODE_ENV || 'development';
+    const databaseMap = {
+        'development': 'dev-database.sqlite',
+        'test': 'test-database.sqlite',
+        'production': 'prod-database.sqlite'
+    };
+    
+    const filename = databaseMap[env as keyof typeof databaseMap] || 'default.sqlite';
+    
+    try {
+        const response = await fetch(`/${filename}`);
+        // ... rest of loading logic
+    } catch (error) {
+        console.error(`Failed to load ${filename}:`, error);
+    }
+};
+
     const loadTableList = (database: Database) => {
         try {
             const stmt = database.prepare("SELECT name FROM sqlite_master WHERE type='table';");
@@ -126,7 +144,7 @@ function LocalDatabaseLoader() {
                 >
                     Load Sample Database
                 </button>
-                <button 
+                {/* <button 
                     onClick={() => loadSpecificDatabase('test.db')}
                     style={{ marginRight: '10px' }}
                 >
@@ -136,7 +154,7 @@ function LocalDatabaseLoader() {
                     onClick={() => loadSpecificDatabase('production.sqlite')}
                 >
                     Load Production Database
-                </button>
+                </button> */}
             </div>
 
             {/* Database Info */}
