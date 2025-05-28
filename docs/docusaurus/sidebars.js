@@ -6,62 +6,6 @@ module.exports = {
         'system_introduction/system_introduction',
     {
       type: 'category',
-      label: 'Reference',
-      "link": {
-        "type": "doc",
-        "id": 'reference/reference'
-      },
-      items:[
-        'reference/glossary',
-        {
-          type: 'category',
-          label: 'Tally Deep Dive',
-          "link": {
-            "type": "doc",
-            "id": 'reference/Tally Deep Dive/tally_deep_dive',
-          },
-          items: [
-            'reference/Tally Deep Dive/tally_benchmarks',
-            'reference/Tally Deep Dive/tally_dump_votes',
-            'reference/Tally Deep Dive/tally_mixnet',
-            'reference/Tally Deep Dive/tally_decrypt',
-            'reference/Tally Deep Dive/tally_consolidate',
-            'reference/Tally Deep Dive/tally_results',
-          ],
-        },
-
-        {
-          type: 'category',
-          label: 'Cryptography and Security',
-          "link": {
-            "type": "doc",
-            "id": 'reference/cryptography_security/cryptography/cryptography',
-          },
-          items: [
-            {
-              type: 'category',
-              label: 'Cryptography',
-              items: [
-                'reference/cryptography_security/cryptography/mixnet',
-                'reference/cryptography_security/cryptography/proofs',
-                
-              ],
-            },
-            {
-              type: 'category',
-              label: 'Security',
-              items: [
-                'reference/cryptography_security/security/permissions',
-                'reference/cryptography_security/security/threat_model'
-              ],
-            },
-          ],
-        },
-
-      ],
-    },
-    {
-      type: 'category',
       label: 'Election Managers',
       items: [
         'admin_portal/election_management',
@@ -182,6 +126,62 @@ module.exports = {
           label: 'Velvet',
           items: ['developers/Velvet/developers_velvet'],
         },
+      ],
+    },
+    {
+      type: 'category',
+      label: 'Reference',
+      "link": {
+        "type": "doc",
+        "id": 'reference/reference'
+      },
+      items:[
+        'reference/glossary',
+        {
+          type: 'category',
+          label: 'Tally Deep Dive',
+          "link": {
+            "type": "doc",
+            "id": 'reference/Tally Deep Dive/tally_deep_dive',
+          },
+          items: [
+            'reference/Tally Deep Dive/tally_benchmarks',
+            'reference/Tally Deep Dive/tally_dump_votes',
+            'reference/Tally Deep Dive/tally_mixnet',
+            'reference/Tally Deep Dive/tally_decrypt',
+            'reference/Tally Deep Dive/tally_consolidate',
+            'reference/Tally Deep Dive/tally_results',
+          ],
+        },
+
+        {
+          type: 'category',
+          label: 'Cryptography and Security',
+          "link": {
+            "type": "doc",
+            "id": 'reference/cryptography_security/cryptography/cryptography',
+          },
+          items: [
+            {
+              type: 'category',
+              label: 'Cryptography',
+              items: [
+                'reference/cryptography_security/cryptography/mixnet',
+                'reference/cryptography_security/cryptography/proofs',
+                
+              ],
+            },
+            {
+              type: 'category',
+              label: 'Security',
+              items: [
+                'reference/cryptography_security/security/permissions',
+                'reference/cryptography_security/security/threat_model'
+              ],
+            },
+          ],
+        },
+
       ],
     },
   ],
