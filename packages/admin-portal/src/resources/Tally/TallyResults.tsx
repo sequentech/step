@@ -19,6 +19,7 @@ import {useAtomValue} from "jotai"
 import {tallyQueryData} from "@/atoms/tally-candidates"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {useKeysPermissions} from "../ElectionEvent/useKeysPermissions"
+import {useSQLQuery} from "../../hooks/useSQLiteDatabase"
 
 interface TallyResultsProps {
     tally: Sequent_Backend_Tally_Session | undefined
@@ -46,22 +47,40 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
             [tallyData?.sequent_backend_area]
         )
 
-        const resultsElection: Array<Sequent_Backend_Results_Election> | undefined = useMemo(
-            () =>
-                tallyData?.sequent_backend_results_election?.filter(
-                    (election) => election.election_id === electionId
-                ),
-            [electionId, tallyData?.sequent_backend_results_election]
+        const {data: resultsElection} = useSQLQuery(
+            "SELECT * FROM results_election WHERE election_id = ? ORDER BY name",
+            ["b3f79d05-77b2-4155-8c7e-c5b024db3ac7"],
+            {
+                databaseUrl: "/results-a98ed291-5111-4201-915d-04adc4af157c.db",
+            }
         )
+        // console.log("aa resultsElection", resultsElection);
 
-        const resultsElectionArea: Array<Sequent_Backend_Results_Election_Area> | undefined =
-            useMemo(
-                () =>
-                    tallyData?.sequent_backend_results_election_area?.filter(
-                        (election) => election.election_id === electionId
-                    ),
-                [electionId, tallyData?.sequent_backend_results_election_area]
-            )
+        // const gresultsElection: Array<Sequent_Backend_Results_Election> | undefined = useMemo(
+        //     () =>
+        //         tallyData?.sequent_backend_results_election?.filter(
+        //             (election) => election.election_id === electionId
+        //         ),
+        //     [electionId, tallyData?.sequent_backend_results_election]
+        // )
+
+        const {data: resultsElectionArea} = useSQLQuery(
+            "SELECT * FROM results_election_area WHERE election_id = ? ORDER BY name",
+            ["b3f79d05-77b2-4155-8c7e-c5b024db3ac7"],
+            {
+                databaseUrl: "/results-a98ed291-5111-4201-915d-04adc4af157c.db",
+            }
+        )
+        // console.log("aa resultsElectionArea", resultsElectionArea)
+
+        // const gresultsElectionArea: Array<Sequent_Backend_Results_Election_Area> | undefined =
+        //     useMemo(
+        //         () =>
+        //             tallyData?.sequent_backend_results_election_area?.filter(
+        //                 (election) => election.election_id === electionId
+        //             ),
+        //         [electionId, tallyData?.sequent_backend_results_election_area]
+        //     )
 
         const elections: Array<Sequent_Backend_Election> | undefined = useMemo(
             () =>

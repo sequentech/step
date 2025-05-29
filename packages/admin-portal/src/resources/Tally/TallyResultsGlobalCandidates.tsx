@@ -28,6 +28,7 @@ import {Sequent_Backend_Candidate_Extended} from "./types"
 import {formatPercentOne, isNumber} from "@sequentech/ui-core"
 import {useAtomValue} from "jotai"
 import {tallyQueryData} from "@/atoms/tally-candidates"
+import {useSQLQuery} from "@/hooks/useSQLiteDatabase"
 
 interface TallyResultsGlobalCandidatesProps {
     contestId: string
@@ -58,33 +59,63 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
 
     const [resultsData, setResultsData] = useState<Array<Sequent_Backend_Candidate_Extended>>([])
 
-    const candidates: Array<Sequent_Backend_Candidate> | undefined = useMemo(
-        () =>
-            tallyData?.sequent_backend_candidate?.filter(
-                (candidate) => contestId === candidate.contest_id
-            ),
-        [tallyData?.sequent_backend_candidate, contestId]
+    const {data: candidates} = useSQLQuery(
+        "SELECT * FROM candidate WHERE contest_id = ?",
+        ["030f3020-780e-4486-a4bd-38d50ec0fc85"],
+        {
+            databaseUrl: "/results-a98ed291-5111-4201-915d-04adc4af157c.db",
+        }
     )
+    // console.log("aa candidates", candidates)
 
-    const general: Array<Sequent_Backend_Results_Contest> | undefined = useMemo(
-        () =>
-            tallyData?.sequent_backend_results_contest?.filter(
-                (resultsContest) =>
-                    contestId === resultsContest.contest_id &&
-                    electionId === resultsContest.election_id
-            ),
-        [tallyData?.sequent_backend_results_contest, contestId, electionId]
-    )
+    // const candidates: Array<Sequent_Backend_Candidate> | undefined = useMemo(
+    //     () =>
+    //         tallyData?.sequent_backend_candidate?.filter(
+    //             (candidate) => contestId === candidate.contest_id
+    //         ),
+    //     [tallyData?.sequent_backend_candidate, contestId]
+    // )
 
-    const results: Array<Sequent_Backend_Results_Contest_Candidate> | undefined = useMemo(
-        () =>
-            tallyData?.sequent_backend_results_contest_candidate?.filter(
-                (resultsContestCandidate) =>
-                    contestId === resultsContestCandidate.contest_id &&
-                    electionId === resultsContestCandidate.election_id
-            ),
-        [tallyData?.sequent_backend_results_contest_candidate, contestId, electionId]
+    const {data: general} = useSQLQuery(
+        "SELECT * FROM results_contest WHERE contest_id = ? and election_id = ?",
+        ["030f3020-780e-4486-a4bd-38d50ec0fc85", "b3f79d05-77b2-4155-8c7e-c5b024db3ac7"],
+        {
+            databaseUrl: "/results-a98ed291-5111-4201-915d-04adc4af157c.db",
+        }
     )
+    // console.log("aa general", general)
+
+    // const general: Array<Sequent_Backend_Results_Contest> | undefined = useMemo(
+    //     () =>
+    //         tallyData?.sequent_backend_results_contest?.filter(
+    //             (resultsContest) =>
+    //                 contestId === resultsContest.contest_id &&
+    //                 electionId === resultsContest.election_id
+    //         ),
+    //     [tallyData?.sequent_backend_results_contest, contestId, electionId]
+    // )
+
+    const {data: results} = useSQLQuery(
+        "SELECT * FROM results_contest_candidate WHERE contest_id = ? and election_id = ?",
+        [
+            "030f3020-780e-4486-a4bd-38d50ec0fc85",
+            "b3f79d05-77b2-4155-8c7e-c5b024db3ac7",
+        ],
+        {
+            databaseUrl: "/results-a98ed291-5111-4201-915d-04adc4af157c.db",
+        }
+    )
+    // console.log("aa results", results)
+
+    // const results: Array<Sequent_Backend_Results_Contest_Candidate> | undefined = useMemo(
+    //     () =>
+    //         tallyData?.sequent_backend_results_contest_candidate?.filter(
+    //             (resultsContestCandidate) =>
+    //                 contestId === resultsContestCandidate.contest_id &&
+    //                 electionId === resultsContestCandidate.election_id
+    //         ),
+    //     [tallyData?.sequent_backend_results_contest_candidate, contestId, electionId]
+    // )
 
     useEffect(() => {
         if (results && candidates) {
@@ -101,6 +132,8 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
                         cast_votes: candidateResult?.cast_votes,
                         cast_votes_percent: candidateResult?.cast_votes_percent,
                         winning_position: candidateResult?.winning_position,
+                        election_event_id: electionEventId,
+                        tenant_id: tenantId,
                     }
                 }
             )
