@@ -225,7 +225,7 @@ export const ElectionEventTabs: React.FC = () => {
                                       component: () => (
                                           <Suspense fallback={<div>Loading Dashboard...</div>}>
                                               <Box sx={{overflowX: "auto"}}>
-                                                <TestSql />
+                                                  <TestSql />
                                                   {/* <DashboardElectionEvent
                                                       refreshRef={refreshRef}
                                                       onMount={handleChildMount}

@@ -206,13 +206,13 @@ export const TallyCeremony: React.FC = () => {
             databaseUrl: "/results-a98ed291-5111-4201-915d-04adc4af157c.db",
         }
     )
-    
+
     const ids = tallySession?.election_ids || []
     const {data: contests} = useSQLQuery(
         `SELECT * FROM contest WHERE tenant_id = ? and eletion_event_id = ? and election_id IN (${ids
             .map(() => "?")
             .join(",")})`,
-        [tenantId,  record?.id, ...ids],
+        [tenantId, record?.id, ...ids],
         {
             databaseUrl: "/results-a98ed291-5111-4201-915d-04adc4af157c.db",
         }
@@ -734,7 +734,7 @@ export const TallyCeremony: React.FC = () => {
                             resultsEventId={resultsEventId}
                             electionEventId={record?.id}
                             isTallyCompleted={isTallyCompleted}
-                            contests={contests as Sequent_Backend_Contest[]?? []}
+                            contests={(contests as Sequent_Backend_Contest[]) ?? []}
                             electionIds={tallySession?.election_ids ?? []}
                         />
                     ) : null}

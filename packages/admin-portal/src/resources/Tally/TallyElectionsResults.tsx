@@ -13,7 +13,7 @@ import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {formatPercentOne, isNumber} from "@sequentech/ui-core"
 import {useAtomValue} from "jotai"
 import {tallyQueryData} from "@/atoms/tally-candidates"
-import { useSQLQuery } from "@/hooks/useSQLiteDatabase"
+import {useSQLQuery} from "@/hooks/useSQLiteDatabase"
 
 interface TallyElectionsResultsProps {
     tenantId: string | null
@@ -41,20 +41,16 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
 
     const ids = electionIds || []
     const {data: elections} = useSQLQuery(
-        `SELECT * FROM election WHERE id IN (${ids.map(() => '?').join(',')})`,
+        `SELECT * FROM election WHERE id IN (${ids.map(() => "?").join(",")})`,
         ids,
         {
             databaseUrl: "/results-a98ed291-5111-4201-915d-04adc4af157c.db",
         }
     )
 
-    const {data: results} = useSQLQuery(
-        "SELECT * FROM results_election",
-        [],
-        {
-            databaseUrl: "/results-a98ed291-5111-4201-915d-04adc4af157c.db",
-        }
-    )
+    const {data: results} = useSQLQuery("SELECT * FROM results_election", [], {
+        databaseUrl: "/results-a98ed291-5111-4201-915d-04adc4af157c.db",
+    })
 
     useEffect(() => {
         if (elections && results) {
@@ -63,7 +59,7 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
                     const result = results?.find((r) => r.election_id === item.id)
 
                     return {
-                        ...item as Sequent_Backend_Election,
+                        ...(item as Sequent_Backend_Election),
                         rowId: index,
                         id: item.id || "",
                         name: item.name,

@@ -65,11 +65,7 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
 
     const {data: general} = useSQLQuery(
         "SELECT * FROM results_area_contest WHERE contest_id = ? and area_id = ? and election_id = ?",
-        [
-            contestId,
-            areaId,
-            electionId,
-        ],
+        [contestId, areaId, electionId],
         {
             databaseUrl: "/results-a98ed291-5111-4201-915d-04adc4af157c.db",
         }
@@ -77,11 +73,7 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
 
     const {data: results} = useSQLQuery(
         "SELECT * FROM results_area_contest_candidate WHERE contest_id = ? and area_id = ? and election_id = ?",
-        [
-            contestId,
-            areaId,
-            electionId,
-        ],
+        [contestId, areaId, electionId],
         {
             databaseUrl: "/results-a98ed291-5111-4201-915d-04adc4af157c.db",
         }

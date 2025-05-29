@@ -77,7 +77,7 @@ export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> =
     useEffect(() => {
         if (contestData) {
             setContest({
-                ...contestData[0] as Sequent_Backend_Contest,
+                ...(contestData[0] as Sequent_Backend_Contest),
                 candidates: [],
                 candidates_aggregate: {nodes: []},
             })

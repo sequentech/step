@@ -37,12 +37,8 @@ if (fse.existsSync(path.join(sqlJsSourceDir, "sql-wasm.wasm"))) {
 
 // Copy JS file
 if (fse.existsSync(path.join(sqlJsSourceDir, "sql-wasm.js"))) {
-    fse.copySync(
-        path.join(sqlJsSourceDir, "sql-wasm.js"),
-        path.join(publicDir, "sql-wasm.js"),
-        {
-            overwrite: true,
-        }
-    )
+    fse.copySync(path.join(sqlJsSourceDir, "sql-wasm.js"), path.join(publicDir, "sql-wasm.js"), {
+        overwrite: true,
+    })
     console.log("✓ Copied sql-wasm.js to public/")
 }
