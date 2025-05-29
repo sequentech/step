@@ -1,0 +1,10 @@
+query GetTaskExecution($taskExecutionId: uuid!) {
+  sequent_backend_tasks_execution(
+    where: {
+      id: {_eq: $taskExecutionId}
+    }
+  ) {
+    id
+    execution_status
+  }
+} 

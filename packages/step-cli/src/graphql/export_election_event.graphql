@@ -1,0 +1,13 @@
+mutation ExportElectionEvent($electionEventId: String, $exportConfigurations: ExportOptions) {
+        export_election_event(
+            election_event_id: $electionEventId
+            export_configurations: $exportConfigurations
+        ) {
+            password
+            document_id
+            task_execution {
+                id
+                execution_status
+            }
+        }
+    }

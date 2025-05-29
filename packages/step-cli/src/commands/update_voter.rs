@@ -46,6 +46,9 @@ pub struct UpdateVoter {
     /// mobile - user mobile_number
     #[arg(long, default_value = "")]
     mobile: String,
+
+    #[arg(long, default_value_t = false)]
+    temporary: bool,
 }
 
 #[derive(GraphQLQuery)]
@@ -68,6 +71,7 @@ impl UpdateVoter {
             &self.password,
             &self.area_id,
             &self.mobile,
+            &self.temporary,
         ) {
             Ok(id) => {
                 println!("Success! Voter updated successfully! ID: {}", id);
@@ -89,6 +93,7 @@ pub fn edit_voter(
     password: &str,
     area_id: &str,
     mobile: &str,
+    temporary: &bool,
 ) -> Result<String, Box<dyn std::error::Error>> {
     let config = read_config()?;
     let client = reqwest::blocking::Client::new();
@@ -148,6 +153,7 @@ pub fn edit_voter(
             enabled: Some(true),
             groups: None,
             election_event_id: Some(election_event_id.to_string()),
+            temporary: Some(temporary.clone()),
         },
     };
 

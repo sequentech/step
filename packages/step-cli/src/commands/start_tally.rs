@@ -19,6 +19,10 @@ pub struct StartTallyCeremony {
     /// Election ids- optional specific elections to start the tally for - if not provided - all elections will be tallied
     #[arg(long)]
     election_ids: Option<Vec<String>>,
+
+    /// Tally type - the type of tally to perform (ELECTORAL_RESULTS or INITIALIZATION_REPORT)
+    #[arg(long)]
+    tally_type: String,
 }
 
 #[derive(GraphQLQuery)]
@@ -31,7 +35,11 @@ pub struct CreateTallyCeremony;
 
 impl StartTallyCeremony {
     pub fn run(&self) {
-        match start_ceremony(&self.election_event_id, self.election_ids.clone()) {
+        match start_ceremony(
+            &self.election_event_id,
+            self.election_ids.clone(),
+            &self.tally_type,
+        ) {
             Ok(id) => {
                 println!("Success! Successfully started Tally ceremony. ID: {}", id);
             }
@@ -45,6 +53,7 @@ impl StartTallyCeremony {
 pub fn start_ceremony(
     election_event_id: &str,
     election_ids: Option<Vec<String>>,
+    tally_type: &str,
 ) -> Result<String, Box<dyn std::error::Error>> {
     let config = read_config()?;
     let client = reqwest::blocking::Client::new();
@@ -58,6 +67,7 @@ pub fn start_ceremony(
         election_event_id: election_event_id.to_string(),
         election_ids: elections,
         configuration: None,
+        tally_type: Some(tally_type.to_string()),
     };
 
     let request_body = CreateTallyCeremony::build_query(variables);
