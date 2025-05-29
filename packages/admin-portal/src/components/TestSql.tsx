@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 import React, {useState, useEffect} from "react"
 import initSqlJs, {Database, SqlJsStatic} from "sql.js"
 
