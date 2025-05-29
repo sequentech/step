@@ -19,6 +19,7 @@ pub fn generate_keycloak_token(
     client_id: &str,
     client_secret: &str,
     tenant_id: &str,
+    election_event_id: &Option<String>,
 ) -> Result<KeycloakTokenResponse, Box<dyn Error>> {
     let params = [
         ("grant_type", "password"),
@@ -29,7 +30,10 @@ pub fn generate_keycloak_token(
         ("password", password),
     ];
 
-    let realm = format!("tenant-{}", tenant_id);
+    let realm = match election_event_id {
+        Some(eid) => format!("tenant-{}-event-{}", tenant_id, eid),
+        None => format!("tenant-{}", tenant_id),
+    };
     let url = format!(
         "{}/realms/{}/protocol/openid-connect/token",
         keycloak_url, realm
@@ -55,6 +59,7 @@ pub fn refresh_keycloak_token(
     client_id: &str,
     client_secret: &str,
     tenant_id: &str,
+    election_event_id: &Option<String>,
 ) -> Result<KeycloakTokenResponse, Box<dyn Error>> {
     let params = [
         ("grant_type", "refresh_token"),
@@ -63,7 +68,10 @@ pub fn refresh_keycloak_token(
         ("refresh_token", refresh_token),
     ];
 
-    let realm = format!("tenant-{}", tenant_id);
+    let realm = match election_event_id {
+        Some(eid) => format!("tenant-{}-event-{}", tenant_id, eid),
+        None => format!("tenant-{}", tenant_id),
+    };
     let url = format!(
         "{}/realms/{}/protocol/openid-connect/token",
         keycloak_url, realm

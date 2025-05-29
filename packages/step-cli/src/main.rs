@@ -58,6 +58,7 @@ enum StepCommands {
         commands::update_election_voting_status::UpdateElectionVotingStatusCommand,
     ),
     DownloadTallyResults(commands::download_tally_results::DownloadTallyResults),
+    InsertMultipleVotes(commands::insert_multiple_votes::InsertMultipleVotes),
 }
 
 fn main() {
@@ -97,6 +98,7 @@ fn main() {
                 update_election_voting_status.run()
             }
             StepCommands::DownloadTallyResults(download) => download.run(),
+            StepCommands::InsertMultipleVotes(insert_multiple_votes) => insert_multiple_votes.run(),
         },
     }
 }

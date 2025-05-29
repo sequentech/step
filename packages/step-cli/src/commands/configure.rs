@@ -39,6 +39,10 @@ pub struct Config {
     /// Keycloak Client secret
     #[arg(long)]
     keycloak_client_secret: String,
+
+    /// Election Event ID (optional)
+    #[arg(long)]
+    election_event_id: Option<String>,
 }
 
 impl Config {
@@ -51,6 +55,7 @@ impl Config {
             &self.keycloak_client_id,
             &self.keycloak_client_secret,
             &self.tenant_id,
+            &self.election_event_id,
         ) {
             Ok(_) => {}
             Err(err) => {
@@ -68,6 +73,7 @@ pub fn create_config(
     client_id: &str,
     client_secret: &str,
     tenant_id: &str,
+    election_event_id: &Option<String>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let auth_details = generate_keycloak_token(
         &keycloak_url,
@@ -76,6 +82,7 @@ pub fn create_config(
         &client_id,
         &client_secret,
         &tenant_id,
+        election_event_id,
     )?;
     let config_data = ConfigData {
         endpoint_url: endpoint_url.to_string(),
@@ -86,6 +93,7 @@ pub fn create_config(
         client_id: client_id.to_string(),
         client_secret: client_secret.to_string(),
         username: username.to_string(),
+        election_event_id: election_event_id.clone(),
     };
 
     let config_dir = get_config_dir()?;

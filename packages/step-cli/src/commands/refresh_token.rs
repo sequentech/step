@@ -32,6 +32,7 @@ fn refresh_token() -> Result<(), Box<dyn std::error::Error>> {
         &config_data.client_id,
         &config_data.client_secret,
         &config_data.tenant_id,
+        &config_data.election_event_id,
     )?;
 
     let config_data = ConfigData {
@@ -43,6 +44,7 @@ fn refresh_token() -> Result<(), Box<dyn std::error::Error>> {
         client_id: config_data.client_id.clone(),
         client_secret: config_data.client_secret.clone(),
         username: config_data.username.clone(),
+        election_event_id: config_data.election_event_id.clone(),
     };
 
     let config_dir = get_config_dir()?;

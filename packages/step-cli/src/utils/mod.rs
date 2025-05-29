@@ -12,3 +12,4 @@ pub mod tally;
 pub mod tasks;
 pub mod trustees;
 pub mod upload_file;
+pub mod cast_vote;

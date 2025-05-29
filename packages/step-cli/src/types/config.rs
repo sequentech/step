@@ -17,6 +17,7 @@ pub struct ConfigData {
     pub client_id: String,
     pub client_secret: String,
     pub username: String,
+    pub election_event_id: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
