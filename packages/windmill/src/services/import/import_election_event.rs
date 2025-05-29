@@ -102,6 +102,7 @@ pub struct ImportElectionEventSchema {
     pub reports: Vec<Report>,
     pub keys_ceremonies: Option<Vec<KeysCeremony>>,
     pub applications: Option<Vec<Application>>,
+    pub version: String,
 }
 
 #[instrument(err)]
@@ -398,6 +399,42 @@ pub async fn decrypt_document(
     Ok(temp_file_path)
 }
 
+fn extract_major(version: &str) -> Option<u32> {
+    version.split('.')
+        .next()
+        .and_then(|v| v.parse::<u32>().ok())
+}
+
+fn check_version_compatibility(imported_version: &str, current_version: &str) -> Result<()> {
+    
+    
+    info!("Checking version compatibility - Current: {}, Imported: {}", current_version, imported_version);
+    
+    // If current version is "dev", allow any import
+    if current_version == "dev" {
+        info!("Current version is 'dev', allowing import");
+        return Ok(());
+    }
+
+    if imported_version == "dev" {
+        info!("Imported version is 'dev' while system is not in dev mode, rejecting import");
+        return Err(anyhow!("Imported version is 'dev', which is not compatible with current version {}. Please use a different version.", current_version));
+    }
+
+    let current_major_parsed = extract_major(&current_version).ok_or_else(|| anyhow!("Could not parse current version"))?;
+    let imported_major_parsed = extract_major(imported_version).ok_or_else(|| anyhow!("Could not parse imported version"))?;
+
+
+    if current_major_parsed < imported_major_parsed {
+        return Err(anyhow!(
+            "Version mismatch: Imported version {} is not compatible with current version {}. Please upgrade your system.",
+            imported_version,
+            current_version
+        ));
+    }
+    Ok(())
+}
+
 #[instrument(err, skip_all)]
 pub async fn get_election_event_schema(
     data_str: &str,
@@ -405,6 +442,8 @@ pub async fn get_election_event_schema(
     tenant_id: String,
 ) -> Result<(ImportElectionEventSchema, HashMap<String, String>)> {
     let original_data: ImportElectionEventSchema = deserialize_str(data_str)?;
+    let current_version = std::env::var("APP_VERSION").unwrap_or_else(|_| "dev".to_string());
+    check_version_compatibility(&original_data.version, &current_version).with_context(|| anyhow!("Version mismatch: Imported version {} is not compatible with current version {}. Please upgrade your system.", original_data.version, current_version))?;
     replace_ids(data_str, &original_data, id, tenant_id.clone())
 }
 
@@ -424,7 +463,8 @@ pub async fn process_election_event_file(
         tenant_id.clone(),
     )
     .await
-    .with_context(|| format!("Error getting document for election event ID {election_event_id} and tenant ID {tenant_id}"))?;
+    .map_err(|err| anyhow!("Error getting document for election event ID {election_event_id} and tenant ID {tenant_id}: {err}"))?;
+
 
     let election_ids: Vec<String> = data
         .elections

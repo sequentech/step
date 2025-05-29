@@ -136,6 +136,8 @@ pub async fn read_export_data(
         vec![]
     };
 
+    let version = std::env::var("APP_VERSION").unwrap_or_else(|_| "dev".to_string());
+
     Ok(ImportElectionEventSchema {
         tenant_id: Uuid::parse_str(&tenant_id)?,
         keycloak_event_realm: Some(realm),
@@ -149,6 +151,7 @@ pub async fn read_export_data(
         reports: export_reports,
         keys_ceremonies: Some(export_keys_ceremonies),
         applications: Some(export_applications),
+        version,
     })
 }
 
