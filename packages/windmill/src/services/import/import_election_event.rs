@@ -400,16 +400,18 @@ pub async fn decrypt_document(
 }
 
 fn extract_major(version: &str) -> Option<u32> {
-    version.split('.')
+    version
+        .split('.')
         .next()
         .and_then(|v| v.parse::<u32>().ok())
 }
 
 fn check_version_compatibility(imported_version: &str, current_version: &str) -> Result<()> {
-    
-    
-    info!("Checking version compatibility - Current: {}, Imported: {}", current_version, imported_version);
-    
+    info!(
+        "Checking version compatibility - Current: {}, Imported: {}",
+        current_version, imported_version
+    );
+
     // If current version is "dev", allow any import
     if current_version == "dev" {
         info!("Current version is 'dev', allowing import");
@@ -421,9 +423,10 @@ fn check_version_compatibility(imported_version: &str, current_version: &str) ->
         return Err(anyhow!("Imported version is 'dev', which is not compatible with current version {}. Please use a different version.", current_version));
     }
 
-    let current_major_parsed = extract_major(&current_version).ok_or_else(|| anyhow!("Could not parse current version"))?;
-    let imported_major_parsed = extract_major(imported_version).ok_or_else(|| anyhow!("Could not parse imported version"))?;
-
+    let current_major_parsed = extract_major(&current_version)
+        .ok_or_else(|| anyhow!("Could not parse current version"))?;
+    let imported_major_parsed = extract_major(imported_version)
+        .ok_or_else(|| anyhow!("Could not parse imported version"))?;
 
     if current_major_parsed < imported_major_parsed {
         return Err(anyhow!(
@@ -464,7 +467,6 @@ pub async fn process_election_event_file(
     )
     .await
     .map_err(|err| anyhow!("Error getting document for election event ID {election_event_id} and tenant ID {tenant_id}: {err}"))?;
-
 
     let election_ids: Vec<String> = data
         .elections
