@@ -61,61 +61,27 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
 
     const {data: candidates} = useSQLQuery(
         "SELECT * FROM candidate WHERE contest_id = ?",
-        ["030f3020-780e-4486-a4bd-38d50ec0fc85"],
+        [contestId],
         {
             databaseUrl: "/results-a98ed291-5111-4201-915d-04adc4af157c.db",
         }
     )
-    // console.log("aa candidates", candidates)
-
-    // const candidates: Array<Sequent_Backend_Candidate> | undefined = useMemo(
-    //     () =>
-    //         tallyData?.sequent_backend_candidate?.filter(
-    //             (candidate) => contestId === candidate.contest_id
-    //         ),
-    //     [tallyData?.sequent_backend_candidate, contestId]
-    // )
 
     const {data: general} = useSQLQuery(
         "SELECT * FROM results_contest WHERE contest_id = ? and election_id = ?",
-        ["030f3020-780e-4486-a4bd-38d50ec0fc85", "b3f79d05-77b2-4155-8c7e-c5b024db3ac7"],
+        [contestId, electionId],
         {
             databaseUrl: "/results-a98ed291-5111-4201-915d-04adc4af157c.db",
         }
     )
-    // console.log("aa general", general)
-
-    // const general: Array<Sequent_Backend_Results_Contest> | undefined = useMemo(
-    //     () =>
-    //         tallyData?.sequent_backend_results_contest?.filter(
-    //             (resultsContest) =>
-    //                 contestId === resultsContest.contest_id &&
-    //                 electionId === resultsContest.election_id
-    //         ),
-    //     [tallyData?.sequent_backend_results_contest, contestId, electionId]
-    // )
 
     const {data: results} = useSQLQuery(
         "SELECT * FROM results_contest_candidate WHERE contest_id = ? and election_id = ?",
-        [
-            "030f3020-780e-4486-a4bd-38d50ec0fc85",
-            "b3f79d05-77b2-4155-8c7e-c5b024db3ac7",
-        ],
+        [contestId, electionId],
         {
             databaseUrl: "/results-a98ed291-5111-4201-915d-04adc4af157c.db",
         }
     )
-    // console.log("aa results", results)
-
-    // const results: Array<Sequent_Backend_Results_Contest_Candidate> | undefined = useMemo(
-    //     () =>
-    //         tallyData?.sequent_backend_results_contest_candidate?.filter(
-    //             (resultsContestCandidate) =>
-    //                 contestId === resultsContestCandidate.contest_id &&
-    //                 electionId === resultsContestCandidate.election_id
-    //         ),
-    //     [tallyData?.sequent_backend_results_contest_candidate, contestId, electionId]
-    // )
 
     useEffect(() => {
         if (results && candidates) {

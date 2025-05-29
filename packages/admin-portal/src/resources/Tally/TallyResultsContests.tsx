@@ -15,6 +15,7 @@ import {tallyQueryData} from "@/atoms/tally-candidates"
 import {useAtomValue} from "jotai"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {useKeysPermissions} from "../ElectionEvent/useKeysPermissions"
+import { useSQLQuery } from "@/hooks/useSQLiteDatabase"
 
 interface TallyResultsContestProps {
     areas: RaRecord<Identifier>[] | undefined
@@ -41,27 +42,25 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
 
     const {canExportCeremony} = useKeysPermissions()
 
-    const resultsContests: Array<Sequent_Backend_Results_Contest> | undefined = useMemo(
-        () =>
-            tallyData?.sequent_backend_results_contest?.filter(
-                (areaContest) =>
-                    contestId === areaContest.contest_id && electionId === areaContest.election_id
-            ),
-        [tallyData?.sequent_backend_results_contest, contestId, electionId]
+    const {data: resultsContests} = useSQLQuery(
+        "SELECT * FROM results_contest WHERE election_id = ? AND id = ?",
+        [
+            "b3f79d05-77b2-4155-8c7e-c5b024db3ac7",
+            "030f3020-780e-4486-a4bd-38d50ec0fc85"
+        ],
+        {
+            databaseUrl: "/results-a98ed291-5111-4201-915d-04adc4af157c.db",
+        }
     )
 
-    const contests: Array<Sequent_Backend_Contest> | undefined = useMemo(
-        () =>
-            tallyData?.sequent_backend_contest
-                ?.map(
-                    (contest): Sequent_Backend_Contest => ({
-                        ...contest,
-                        candidates: [],
-                        candidates_aggregate: {nodes: []},
-                    })
-                )
-                ?.filter((contest) => electionData === contest.election_id),
-        [tallyData?.sequent_backend_contest, electionData]
+    const {data: contests} = useSQLQuery(
+        "SELECT * FROM contest WHERE election_id = ?",
+        [
+            "b3f79d05-77b2-4155-8c7e-c5b024db3ac7",
+        ],
+        {
+            databaseUrl: "/results-a98ed291-5111-4201-915d-04adc4af157c.db",
+        }
     )
 
     useEffect(() => {
@@ -90,7 +89,7 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
 
     useEffect(() => {
         if (electionData) {
-            setContestsData(contests || [])
+            setContestsData(contests as Sequent_Backend_Contest[] || [])
             if (contests?.[0]?.id) {
                 tabClicked(contests?.[0]?.id, 0)
             }

@@ -89,6 +89,7 @@ import {ETasksExecution} from "@/types/tasksExecution"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import {LIST_KEYS_CEREMONY} from "@/queries/ListKeysCeremonies"
 import {useKeysPermissions} from "../ElectionEvent/useKeysPermissions"
+import {useSQLQuery} from "@/hooks/useSQLiteDatabase"
 
 const WizardSteps = {
     Start: 0,
@@ -198,36 +199,24 @@ export const TallyCeremony: React.FC = () => {
         },
     })
 
-    // TODO: fix the "perPage 9999"
-    const {data: elections} = useGetList<Sequent_Backend_Election>("sequent_backend_election", {
-        pagination: {page: 1, perPage: 9999},
-        filter: {
-            election_event_id: record?.id,
-            tenant_id: tenantId,
-            id: tallySession
-                ? {
-                      format: "hasura-raw-query",
-                      value: {
-                          _in: tallySession?.election_ids ?? [],
-                      },
-                  }
-                : undefined,
-        },
-    })
-
-    const {data: contests} = useGetList<Sequent_Backend_Contest>("sequent_backend_contest", {
-        pagination: {page: 1, perPage: 9999},
-        filter: {
-            election_event_id: record?.id,
-            tenant_id: tenantId,
-            election_id: {
-                format: "hasura-raw-query",
-                value: {
-                    _in: tallySession?.election_ids ?? [],
-                },
-            },
-        },
-    })
+    const {data: elections} = useSQLQuery(
+        `SELECT * FROM election WHERE tenant_id = ? and election_event_id = ?`,
+        [tenantId, record?.id],
+        {
+            databaseUrl: "/results-a98ed291-5111-4201-915d-04adc4af157c.db",
+        }
+    )
+    
+    const ids = tallySession?.election_ids || []
+    const {data: contests} = useSQLQuery(
+        `SELECT * FROM contest WHERE tenant_id = ? and eletion_event_id = ? and election_id IN (${ids
+            .map(() => "?")
+            .join(",")})`,
+        [tenantId,  record?.id, ...ids],
+        {
+            databaseUrl: "/results-a98ed291-5111-4201-915d-04adc4af157c.db",
+        }
+    )
 
     const {data: allTallySessions} = useGetList<Sequent_Backend_Tally_Session>(
         "sequent_backend_tally_session",
@@ -745,7 +734,7 @@ export const TallyCeremony: React.FC = () => {
                             resultsEventId={resultsEventId}
                             electionEventId={record?.id}
                             isTallyCompleted={isTallyCompleted}
-                            contests={contests ?? []}
+                            contests={contests as Sequent_Backend_Contest[]?? []}
                             electionIds={tallySession?.election_ids ?? []}
                         />
                     ) : null}
@@ -771,7 +760,7 @@ export const TallyCeremony: React.FC = () => {
                                 subtitle={"tally.ceremonySubTitle"}
                             />
                             <TallyElectionsList
-                                elections={elections}
+                                elections={elections as Sequent_Backend_Election[]}
                                 update={(elections) => setSelectedElections(elections)}
                                 disabled={isTallyElectionListDisabled}
                                 electionEventId={record?.id}
@@ -823,7 +812,7 @@ export const TallyCeremony: React.FC = () => {
                                 </Alert>
                             )}
                             <TallyElectionsList
-                                elections={elections}
+                                elections={elections as Sequent_Backend_Election[]}
                                 electionEventId={record?.id}
                                 disabled={true}
                                 update={(elections) => setSelectedElections(elections)}
@@ -876,7 +865,7 @@ export const TallyCeremony: React.FC = () => {
                                     <TallyElectionsProgress
                                         tally={tally}
                                         tallySessionExecutions={tallySessionExecutions}
-                                        allElections={elections}
+                                        allElections={elections as Sequent_Backend_Election[]}
                                     />
                                 </WizardStyles.AccordionDetails>
                             </Accordion>
@@ -976,7 +965,7 @@ export const TallyCeremony: React.FC = () => {
                                     <TallyElectionsProgress
                                         tally={tally}
                                         tallySessionExecutions={tallySessionExecutions}
-                                        allElections={elections}
+                                        allElections={elections as Sequent_Backend_Election[]}
                                     />
                                 </WizardStyles.AccordionDetails>
                             </Accordion>

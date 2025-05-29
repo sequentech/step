@@ -36,6 +36,9 @@ export const TallyElectionsProgress: React.FC<TallyElectionsProgressProps> = ({
 }) => {
     const {t} = useTranslation()
 
+    console.log("bb ALL ELEC", allElections);
+    
+
     const elections = useMemo(() => {
         return (
             allElections?.filter((election) =>

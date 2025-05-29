@@ -39,7 +39,7 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
     const tallyData = useAtomValue(tallyQueryData)
     const aliasRenderer = useAliasRenderer()
 
-    const ids = ["b3f79d05-77b2-4155-8c7e-c5b024db3ac7"]
+    const ids = electionIds || []
     const {data: elections} = useSQLQuery(
         `SELECT * FROM election WHERE id IN (${ids.map(() => '?').join(',')})`,
         ids,
@@ -47,31 +47,14 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
             databaseUrl: "/results-a98ed291-5111-4201-915d-04adc4af157c.db",
         }
     )
-    console.log("aa e elections", elections)
-
-    const gelections: Array<Sequent_Backend_Election> | undefined = useMemo(
-        () =>
-            tallyData?.sequent_backend_election
-                ?.filter((election) => electionIds?.includes(election.id))
-                ?.map((election): Sequent_Backend_Election => election as any),
-        [tallyData?.sequent_backend_election, electionIds]
-    )
 
     const {data: results} = useSQLQuery(
-        "SELECT * FROM results_election WHERE election_id = ?",
-        [
-            "b3f79d05-77b2-4155-8c7e-c5b024db3ac7",
-        ],
+        "SELECT * FROM results_election",
+        [],
         {
             databaseUrl: "/results-a98ed291-5111-4201-915d-04adc4af157c.db",
         }
     )
-    console.log("aa e results", results)
-
-    // const results: Array<Sequent_Backend_Results_Election> | undefined = useMemo(
-    //     () => tallyData?.sequent_backend_results_election,
-    //     [tallyData?.sequent_backend_results_election]
-    // )
 
     useEffect(() => {
         if (elections && results) {
@@ -91,9 +74,6 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
                     }
                 }
             )
-
-            console.log("aa temp", temp);
-            
 
             setResultsData(temp)
         }

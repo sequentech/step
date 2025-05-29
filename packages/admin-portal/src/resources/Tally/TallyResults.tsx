@@ -54,15 +54,6 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
                 databaseUrl: "/results-a98ed291-5111-4201-915d-04adc4af157c.db",
             }
         )
-        // console.log("aa resultsElection", resultsElection);
-
-        // const gresultsElection: Array<Sequent_Backend_Results_Election> | undefined = useMemo(
-        //     () =>
-        //         tallyData?.sequent_backend_results_election?.filter(
-        //             (election) => election.election_id === electionId
-        //         ),
-        //     [electionId, tallyData?.sequent_backend_results_election]
-        // )
 
         const {data: resultsElectionArea} = useSQLQuery(
             "SELECT * FROM results_election_area WHERE election_id = ? ORDER BY name",
@@ -71,16 +62,6 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
                 databaseUrl: "/results-a98ed291-5111-4201-915d-04adc4af157c.db",
             }
         )
-        // console.log("aa resultsElectionArea", resultsElectionArea)
-
-        // const gresultsElectionArea: Array<Sequent_Backend_Results_Election_Area> | undefined =
-        //     useMemo(
-        //         () =>
-        //             tallyData?.sequent_backend_results_election_area?.filter(
-        //                 (election) => election.election_id === electionId
-        //             ),
-        //         [electionId, tallyData?.sequent_backend_results_election_area]
-        //     )
 
         const elections: Array<Sequent_Backend_Election> | undefined = useMemo(
             () =>

@@ -57,68 +57,35 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
 
     const {data: candidates} = useSQLQuery(
         "SELECT * FROM candidate WHERE contest_id = ?",
-        ["030f3020-780e-4486-a4bd-38d50ec0fc85"],
+        [contestId],
         {
             databaseUrl: "/results-a98ed291-5111-4201-915d-04adc4af157c.db",
         }
     )
-    // console.log("aa candidates", candidates)
-
-    // const gcandidates: Array<Sequent_Backend_Candidate> | undefined = useMemo(
-    //     () =>
-    //         tallyData?.sequent_backend_candidate
-    //             ?.filter((candidate) => contestId === candidate.contest_id)
-    //             ?.map((candidate): Sequent_Backend_Candidate => candidate),
-    //     [tallyData?.sequent_backend_candidate, contestId]
-    // )
 
     const {data: general} = useSQLQuery(
         "SELECT * FROM results_area_contest WHERE contest_id = ? and area_id = ? and election_id = ?",
         [
-            "030f3020-780e-4486-a4bd-38d50ec0fc85",
-            "3a11da51-c229-4264-875f-7129613a6651",
-            "b3f79d05-77b2-4155-8c7e-c5b024db3ac7",
+            contestId,
+            areaId,
+            electionId,
         ],
         {
             databaseUrl: "/results-a98ed291-5111-4201-915d-04adc4af157c.db",
         }
     )
-    // console.log("aa general", general)
-
-    // const ggeneral: Array<Sequent_Backend_Results_Area_Contest> | undefined = useMemo(
-    //     () =>
-    //         tallyData?.sequent_backend_results_area_contest?.filter(
-    //             (areaContest) =>
-    //                 contestId === areaContest.contest_id &&
-    //                 electionId === areaContest.election_id &&
-    //                 areaId === areaContest.area_id
-    //         ),
-    //     [tallyData?.sequent_backend_results_area_contest, contestId, electionId, areaId]
-    // )
 
     const {data: results} = useSQLQuery(
         "SELECT * FROM results_area_contest_candidate WHERE contest_id = ? and area_id = ? and election_id = ?",
         [
-            "030f3020-780e-4486-a4bd-38d50ec0fc85",
-            "3a11da51-c229-4264-875f-7129613a6651",
-            "b3f79d05-77b2-4155-8c7e-c5b024db3ac7",
+            contestId,
+            areaId,
+            electionId,
         ],
         {
             databaseUrl: "/results-a98ed291-5111-4201-915d-04adc4af157c.db",
         }
     )
-    // console.log("aa results", results)
-
-    // const gresults: Array<Sequent_Backend_Results_Area_Contest_Candidate> | undefined = useMemo(
-    //     () =>
-    //         tallyData?.sequent_backend_results_area_contest_candidate?.filter(
-    //             (areaContestCandidate) =>
-    //                 contestId === areaContestCandidate.contest_id &&
-    //                 electionId === areaContestCandidate.election_id &&
-    //                 areaId === areaContestCandidate.area_id
-    //         ),
-    //     [tallyData?.sequent_backend_results_area_contest_candidate, contestId, electionId]
-    // )
 
     useEffect(() => {
         if (results && candidates) {
