@@ -48,6 +48,22 @@ variables in your Keycloak docker image:
 These AWS variables are used by the [DefaultCredentialsProvider] which is used
 by the [`SnsClient.create()`] function call in the `AwsSnsService` class.
 
+### Cross-Account Role Assumption for AWS SNS
+
+For deployments where the Keycloak instance runs in a child AWS account but needs to access SNS resources in a root account, you can configure cross-account role assumption. This requires configuring the SMS sender provider with the following parameters:
+
+- `senderId`: The sender ID for SMS messages
+- `roleArn`: The ARN of the IAM role to assume in the root account (optional)
+- `sessionName`: A name for the assumed role session (optional, defaults to "AwsSmsSenderSession")
+
+If `roleArn` is not provided or is empty, the provider will use the default AWS credentials as before. When `roleArn` is provided, the provider will:
+
+1. Use STS (Security Token Service) to assume the specified role
+2. Create temporary credentials with a 1-hour session duration
+3. Use these temporary credentials to create the SNS client for sending SMS
+
+This allows secure cross-account access without permanently storing credentials for the root account in the child account.
+
 You can configure the SMTP credentials for sending emails with the following
 environment variables in your keycloak docker image:
 - `SMTP_HOST`
