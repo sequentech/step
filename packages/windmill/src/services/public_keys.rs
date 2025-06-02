@@ -10,10 +10,11 @@ use deadpool_postgres::Transaction;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::serialization::StrandSerialize;
 use strand::signature::StrandSignaturePk;
-use tracing::instrument;
+use tracing::{info, instrument};
 
 use super::protocol_manager;
 
+#[instrument(err)]
 pub fn deserialize_public_key(public_key_string: String) -> Result<StrandSignaturePk> {
     StrandSignaturePk::from_der_b64_string(&public_key_string).map_err(|err| anyhow!("{:?}", err))
 }
@@ -35,6 +36,8 @@ pub async fn create_keys(
         board_name,
     )
     .await?;
+
+    info!("test felix");
 
     // create trustees keys from input strings
     let trustee_pks: Vec<StrandSignaturePk> = trustee_pks
