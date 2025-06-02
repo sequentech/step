@@ -259,8 +259,8 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
             try {
                 let {data} = await preparePreview({
                     variables: {
-                        election_event_id: electionEventId,
-                        ballot_publication_id: id,
+                        electionEventId: electionEventId,
+                        ballotPublicationId: id,
                     },
                 })
 
