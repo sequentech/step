@@ -114,6 +114,7 @@ pub async fn prepare_publication_preview_task(
         documents_json,
     };
 
+    info!("pub_preview: {pub_preview:#?}");
     let pub_preview_data: Vec<u8> = serde_json::to_value(pub_preview)
         .with_context(|| "Error serializing publication preview")?
         .to_string()
@@ -123,7 +124,6 @@ pub async fn prepare_publication_preview_task(
     let document_id = Uuid::new_v4().to_string();
     let doc_name_s3 = format!("{ballot_publication_id}.json");
     let temp_name = format!("publication-preview-{document_id}-");
-    // let file_path = s3::get_public_document_key(&tenant_id, &document_id, name);
     let (_temp_path, temp_path_string, file_size) =
         write_into_named_temp_file(&pub_preview_data, &temp_name, ".json")
             .with_context(|| "Error writing to file")?;

@@ -48,8 +48,8 @@ impl TryFrom<Row> for SupportMaterialDocumentWrapper {
         Ok(SupportMaterialDocumentWrapper {
             support_material: SupportMaterial {
                 id: row.try_get::<_, Uuid>("support_material_id")?.to_string(),
-                created_at: row.get("created_at"),
-                last_updated_at: row.get("last_updated_at"),
+                created_at: row.get("sm_created_at"),
+                last_updated_at: row.get("sm_last_updated_at"),
                 kind: row.try_get("kind")?,
                 data: row.try_get("data")?,
                 tenant_id: row.try_get::<_, Uuid>("tenant_id")?.to_string(),
@@ -68,8 +68,8 @@ impl TryFrom<Row> for SupportMaterialDocumentWrapper {
                 size: row.try_get("size")?,
                 labels: row.try_get("doc_labels")?,
                 annotations: row.try_get("doc_annotations")?,
-                created_at: row.try_get("created_at")?,
-                last_updated_at: row.try_get("last_updated_at")?,
+                created_at: row.try_get("doc_created_at")?,
+                last_updated_at: row.try_get("doc_last_updated_at")?,
                 is_public: row.try_get("is_public")?,
             },
         })
@@ -152,13 +152,19 @@ pub async fn get_support_material_documents(
                 sm.labels AS sm_labels,
                 sm.annotations AS sm_annotations,
                 sm.is_hidden,
+                sm.created_at AS sm_created_at,
+                sm.last_updated_at AS sm_last_updated_at,
                 d.id AS document_id,
+                d.tenant_id AS tenant_id,
+                d.election_event_id AS election_event_id,
                 d.name,
                 d.media_type,
                 d.size,
                 d.labels AS doc_labels,
                 d.annotations AS doc_annotations,
-                d.is_public
+                d.is_public,
+                d.created_at AS doc_created_at,
+                d.last_updated_at AS doc_last_updated_at
             FROM
                 "sequent_backend".support_material sm
             JOIN
@@ -180,7 +186,6 @@ pub async fn get_support_material_documents(
         .query(&document_statement, &[&tenant_uuid, &election_event_uuid])
         .await
         .map_err(|err| anyhow!("Error running the get_support_material_documents query: {err}"))?;
-    info!("Rows: {rows:#?}");
     let documents: Vec<(SupportMaterial, Document)> = rows
         .into_iter()
         .map(|row| -> Result<(SupportMaterial, Document)> {

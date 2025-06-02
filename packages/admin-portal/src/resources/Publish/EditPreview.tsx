@@ -265,17 +265,20 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
                         ballotPublicationId: id,
                     },
                 })
-
+                setIsUploading(false)
                 console.log(data)
-
-                if (data?.prepare_ballot_publication_preview?.document_id) {
-                    notify(t("publish.preview.success"), {type: "success"}) // TODO: Add translations
+                if (!data?.prepare_ballot_publication_preview?.document_id) {
+                    console.log(data?.prepare_ballot_publication_preview?.error_msg)
+                    notify(t("publish.dialog.error_preview"), {type: "error"})
                     return
                 }
-                // wip
+                notify(t("publish.preview.success"), {type: "success"}) // TODO: Add translations
+                return data?.prepare_ballot_publication_preview?.document_id
             } catch (_error) {
+                setIsUploading(false)
                 notify(t("publish.dialog.error_preview"), {type: "error"}) // TODO: Add translations
                 // wip
+                return
             }
         }
 
@@ -284,14 +287,15 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
             const dataStr = JSON.stringify(fileData, null, 2)
             const file = new File([dataStr], `${id}.json`, {type: "application/json"})
             console.log(dataStr)
-            // new endpoint test
-            await preparePreviewData()
             const docId = await uploadFileToS3(file)
             setDocumentId(docId)
         }
 
         const handleDocumentProcess = async () => {
-            await startUpload()
+            // await startUpload()
+            // new endpoint test
+            const docId = await preparePreviewData()
+            setDocumentId(docId)
         }
 
         if (
