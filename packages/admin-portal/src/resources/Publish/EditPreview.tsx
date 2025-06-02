@@ -20,6 +20,7 @@ import {
     GetBallotPublicationChangesOutput,
     GetDocumentByNameQuery,
     GetUploadUrlMutation,
+    PrepareBallotPublicationPreviewMutation,
     Sequent_Backend_Document,
     Sequent_Backend_Election,
     Sequent_Backend_Election_Event,
@@ -27,6 +28,7 @@ import {
 } from "@/gql/graphql"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {useLazyQuery, useMutation, useQuery} from "@apollo/client"
+import {PREPARE_BALLOT_PUBLICATION_PREVIEW} from "@/queries/PrepareBallotPublicationPreview"
 import {GET_AREAS} from "@/queries/GetAreas"
 import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
 import {TenantContext} from "@/providers/TenantContextProvider"
@@ -52,6 +54,8 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
     const {globalSettings} = useContext(SettingsContext)
     const [sourceAreas, setSourceAreas] = useState([])
     const [getUploadUrl] = useMutation<GetUploadUrlMutation>(GET_UPLOAD_URL)
+    const [preparePreview] = useMutation<PrepareBallotPublicationPreviewMutation>(PREPARE_BALLOT_PUBLICATION_PREVIEW)
+
     const [isUploading, setIsUploading] = React.useState<boolean>(false)
     const {tenantId} = useContext(TenantContext)
     const [areaId, setAreaId] = useState<string | null>(null)
@@ -251,11 +255,34 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
             }
         }
 
+        const preparePreviewData = async () => {
+            try {
+                let {data} = await preparePreview({
+                    variables: {
+                        election_event_id: electionEventId,
+                        ballot_publication_id: id,
+                    },
+                })
+
+                if (!data?.prepare_ballot_publication_preview?.document_id) {
+                    notify(t("publish.preview.success"), {type: "success"}) // TODO: Add translations
+                    return
+                }
+                // wip
+
+            } catch (_error) {
+                notify(t("publish.dialog.error_preview"), {type: "error"}) // TODO: Add translations
+                // wip
+            }
+        }
+
         const startUpload = async () => {
             const fileData = prepareFileData()
             const dataStr = JSON.stringify(fileData, null, 2)
             const file = new File([dataStr], `${id}.json`, {type: "application/json"})
             console.log(file)
+            // new endpoint test
+            await preparePreviewData()
             const docId = await uploadFileToS3(file)
             setDocumentId(docId)
         }
