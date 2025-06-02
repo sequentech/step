@@ -210,6 +210,13 @@ type Mutation {
 }
 
 type Mutation {
+    prepare_ballot_publication_preview(
+        election_event_id: String!
+        ballot_publication_id: String!
+    ): PrepareBallotPublicationPreviewOutput
+}
+
+type Mutation {
     export_users(
         tenant_id: String!
         election_event_id: String
@@ -1127,6 +1134,12 @@ type SetRolePermissionOutput {
 
 type OptionalId {
     id: String
+}
+
+type PrepareBallotPublicationPreviewOutput {
+    error_msg: String
+    task_execution: tasks_execution_type
+    document_id: String!
 }
 
 type ExportUsersOutput {
