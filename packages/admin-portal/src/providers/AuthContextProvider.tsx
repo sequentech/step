@@ -17,6 +17,10 @@ import {GetAllTenantsQuery} from "@/gql/graphql"
  */
 export interface AuthContextValues {
     /**
+     * The Keycloak instance
+     */
+    keycloak: Keycloak | null
+    /**
      * Whether or not a user is currently authenticated
      */
     isAuthenticated: boolean
@@ -64,6 +68,8 @@ export interface AuthContextValues {
 
     updateTokenAndPermissionLabels: () => void
 
+    initKeycloak: (tenantId: string) => Promise<boolean>
+
     /**
      * Check whether the user has permissions for an action or data
      * @param tenantId
@@ -92,6 +98,7 @@ export interface AuthContextValues {
  * Default values for the {@link AuthContext}
  */
 const defaultAuthContextValues: AuthContextValues = {
+    keycloak: null,
     isAuthenticated: false,
     userId: "",
     username: "",
@@ -108,6 +115,9 @@ const defaultAuthContextValues: AuthContextValues = {
     updateTokenAndPermissionLabels: () => {},
     isGoldUser: () => false,
     reauthWithGold: async () => {},
+    initKeycloak: async (tenantId: string) => {
+        return false
+    },
 }
 
 /**
@@ -131,9 +141,8 @@ interface AuthContextProviderProps {
  * @param props
  */
 const AuthContextProvider = (props: AuthContextProviderProps) => {
-    console.log("rendering AuthContextProvider")
     const {loaded, globalSettings} = useContext(SettingsContext)
-    const [keycloak, setKeycloak] = useState<Keycloak | null>()
+    const [keycloak, setKeycloak] = useState<Keycloak | null>(null)
     const [isKeycloakInitialized, setIsKeycloakInitialized] = useState<boolean>(false)
     const [isGetTenantChecked, setIsGetTenantChecked] = useState<boolean>(false)
 
@@ -147,9 +156,11 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     const [tenantId, setTenantId] = useState<string>("")
     const [trustee, setTrustee] = useState<string>("")
     const [permissionLabels, setPermissionLabels] = useState<string[]>([])
+    const [isTenantSelected, setIsTenantSelected] = useState<boolean>(false) // New state
 
     const sleepSecs = 50
     const bufferSecs = 10
+
     const navigate = useNavigate()
     const location = useLocation()
 
@@ -176,6 +187,92 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         }
     }
 `
+
+    /**
+     * Initializes the Keycloak instance for the specified tenant and handles authentication.
+     *
+     * @param {string} tenantId - The ID of the tenant to initialize Keycloak for.
+     * @returns {Promise<boolean>} - A promise that resolves to `true` if the user is authenticated, `false` otherwise.
+     *
+     * @throws {Error} - Throws an error if the initialization process fails.
+     *
+     * @remarks
+     * This function performs the following steps:
+     * 1. Creates a Keycloak instance with the specified tenant configuration.
+     * 2. Stores the tenant ID in local storage.
+     * 3. Attempts to initialize Keycloak with the `login-required` option to force login if not authenticated.
+     * 4. If the initial initialization fails, it retries with the `check-sso` option to check for an existing session.
+     * 5. Updates the state with the new Keycloak instance and authentication status.
+     * 6. Sets a timeout to periodically update the token.
+     * 7. Redirects to the home page on failure.
+     */
+    const initKeycloak = async (tenantId: string) => {
+        try {
+            // Create the Keycloak instance with the specified tenant
+            const keycloakConfig: KeycloakConfig = {
+                realm: `tenant-${tenantId}`,
+                clientId: globalSettings.ONLINE_VOTING_CLIENT_ID,
+                url: globalSettings.KEYCLOAK_URL,
+            }
+            const newKeycloak = new Keycloak(keycloakConfig)
+
+            // Store the tenant ID for initialization
+            localStorage.setItem("selected-tenant-id", tenantId)
+
+            // Initialize Keycloak with login-required to force login if not authenticated
+            const keycloakInitOptions: KeycloakInitOptions = {
+                onLoad: "login-required", // Force login if not authenticated
+                checkLoginIframe: false,
+                // redirectUri: window.location.origin // + "/?tenant=" + tenantId
+            }
+
+            try {
+                // Initialize and get authentication status
+                const isAuthenticatedResponse = await newKeycloak.init(keycloakInitOptions)
+
+                // Update state with the new Keycloak instance
+                setKeycloak(newKeycloak)
+
+                // User should be authenticated now due to login-required
+                localStorage.setItem("token", newKeycloak.token || "")
+                setAuthenticated(true)
+                setIsKeycloakInitialized(true)
+                setTimeout(updateTokenPeriodically, 4e3)
+                return true
+            } catch (initError) {
+                // If initialization fails, try with check-sso instead
+                const fallbackOptions: KeycloakInitOptions = {
+                    onLoad: "check-sso",
+                    checkLoginIframe: false,
+                }
+
+                const fallbackResponse = await newKeycloak.init(fallbackOptions)
+
+                // Update state with the new Keycloak instance
+                setKeycloak(newKeycloak)
+
+                if (fallbackResponse) {
+                    // User is authenticated
+                    localStorage.setItem("token", newKeycloak.token || "")
+                    setAuthenticated(true)
+                    setIsKeycloakInitialized(true)
+                    setTimeout(updateTokenPeriodically, 4e3)
+                    return true
+                } else {
+                    // User is not authenticated, but we have a Keycloak instance
+                    setAuthenticated(false)
+                    setIsKeycloakInitialized(true)
+                    return false
+                }
+            }
+        } catch (error) {
+            setAuthenticated(false)
+            // navigate("/select-tenant") // Redirect back on failure
+            navigate("/") // Redirect back on failure
+            return false
+        }
+    }
+
     const fetchGetTenant = async (): Promise<ExecutionResult<GetAllTenantsQuery>> => {
         return fetchGraphQL(operation, "GetTenant", {})
     }
@@ -208,128 +305,86 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         }
     }
 
-    useEffect(() => {
-        const getTenant = async (slug: string) => {
-            try {
-                const {data, errors} = await fetchGetTenant()
-
-                if (errors) {
-                    console.error(errors)
-                    return
-                }
-                const tenants = data?.sequent_backend_tenant
-                const tenantIdFromParam = slug
-
-                if (tenants && tenantIdFromParam) {
-                    const matchedTenant = tenants.find(
-                        (tenant: {id: string; slug: string}) => tenant.slug === tenantIdFromParam
-                    )
-
-                    if (matchedTenant) {
-                        const currentTenantId = localStorage.getItem("selected-tenant-id")
-
-                        if (currentTenantId !== matchedTenant.id) {
-                            localStorage.setItem("selected-tenant-id", matchedTenant.id)
-                            createKeycloak()
-                            navigate(`/`)
-                        } else {
-                            navigate(`/`)
-                        }
-                    }
-                } else {
-                    console.error("Tenant not found")
-                }
-            } catch (error) {
-                console.error(error)
-            }
-            setIsGetTenantChecked(true)
-        }
-
-        if (location.pathname.includes("/admin/login")) {
-            const slug = location.pathname.split("/").pop()
-            if (slug) {
-                getTenant(slug || "")
-            }
-        } else {
-            setIsGetTenantChecked(true)
-            createKeycloak()
-        }
-    }, [])
-
-    const createKeycloak = () => {
+    const createKeycloak = (tenantId?: string) => {
         if (keycloak) {
             return
         }
-        console.log("create Keycloak")
         /**
          * KeycloakConfig configures the connection to the Keycloak server.
          */
-        let localStoredTenant = localStorage.getItem("selected-tenant-id")
-        let newTenant = localStoredTenant ? localStoredTenant : globalSettings.DEFAULT_TENANT_ID
+        const storedTenantId =
+            tenantId ||
+            localStorage.getItem("selected-tenant-id") ||
+            globalSettings.DEFAULT_TENANT_ID
 
         const keycloakConfig: KeycloakConfig = {
-            realm: `tenant-${newTenant}`,
+            realm: `tenant-${storedTenantId}`,
             clientId: globalSettings.ONLINE_VOTING_CLIENT_ID,
             url: globalSettings.KEYCLOAK_URL,
         }
-
-        // Create the Keycloak client instance
         const newKeycloak = new Keycloak(keycloakConfig)
         setKeycloak(newKeycloak)
     }
 
     const initializeKeycloak = async () => {
         if (!keycloak) {
-            console.log("CAN'T initialize Keycloak")
             return
         }
-        console.log("initialize Keycloak")
         try {
             /**
              * KeycloakInitOptions configures the Keycloak client.
              */
             const keycloakInitOptions: KeycloakInitOptions = {
                 // Configure that Keycloak will check if a user is already authenticated (when
-                // opening the app or reloading the page). If not authenticated the user will
-                // be send to the login form. If already authenticated the webapp will open.
-                onLoad: "login-required",
+                // opening the app or reloading the page). If not authenticated, we'll handle
+                // this in the App component by showing the SelectTenant screen.
+                onLoad: "check-sso",
                 checkLoginIframe: false,
+                flow: "standard", // Use standard flow instead of implicit
+                responseMode: "fragment", // Use fragment response mode
             }
             const isAuthenticatedResponse = await keycloak.init(keycloakInitOptions)
 
-            // If the authentication was not successfull the user is send back to the Keycloak login form
+            // If the authentication was not successful, we'll let the App component handle it
+            // by showing the SelectTenant screen
             if (!isAuthenticatedResponse) {
-                console.log("user is not yet authenticated. forwarding user to login.")
-                await keycloak.login()
+                setAuthenticated(false)
+                setIsKeycloakInitialized(true) // Still mark as initialized so we can use it for login
+                return
             }
             if (!keycloak.token) {
-                console.log("error authenticating user")
-                console.log("error initializing Keycloak")
                 setAuthenticated(false)
+                setIsKeycloakInitialized(true) // Still mark as initialized so we can use it for login
                 return
             }
             // If we get here the user is authenticated and we can update the state accordingly
             localStorage.setItem("token", keycloak.token)
             setAuthenticated(true)
             setTimeout(updateTokenPeriodically, 4e3)
-            console.log("user is authenticated")
             setIsKeycloakInitialized(true)
         } catch (error) {
-            console.log("error initializing Keycloak")
-            console.log(error)
             setAuthenticated(false)
+            setIsKeycloakInitialized(true) // Still mark as initialized so we can use it for login
         }
     }
 
+    // We'll only create and initialize Keycloak if we have a stored tenant ID
+    // This prevents the automatic redirect when first loading the app
     useEffect(() => {
-        if (keycloak || !loaded || !isGetTenantChecked) {
-            return
-        }
-        createKeycloak()
-    }, [loaded, keycloak, isGetTenantChecked])
+        const storedTenantId = localStorage.getItem("selected-tenant-id")
 
+        // Only proceed if we have a stored tenant ID and settings are loaded
+        if (loaded && !keycloak && storedTenantId) {
+            createKeycloak(storedTenantId)
+        }
+    }, [loaded, keycloak])
+
+    // Only initialize Keycloak if it exists and isn't already initialized
+    // and we have a stored tenant ID
     useEffect(() => {
-        if (!keycloak || isKeycloakInitialized) {
+        const storedTenantId = localStorage.getItem("selected-tenant-id")
+
+        if (!keycloak || isKeycloakInitialized || !storedTenantId) {
             return
         }
         initializeKeycloak()
@@ -339,7 +394,6 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         if (keycloak) {
             const refreshed = await keycloak.updateToken(sleepSecs + bufferSecs)
             if (!keycloak.token) {
-                console.log(`error updating token`)
                 return
             }
             if (refreshed) {
@@ -369,6 +423,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
             if (!keycloak) {
                 return
             }
+
             try {
                 const profile = await keycloak.loadUserProfile()
                 if (profile.id) {
@@ -422,9 +477,14 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
             return
         }
         localStorage.removeItem("token")
+        localStorage.removeItem("has-token")
+        localStorage.removeItem("selected-tenant-id")
         sessionStorage.removeItem("selected-election-event-tally-id")
 
-        keycloak.logout()
+        // Redirect to the main route after logout
+        keycloak.logout({
+            redirectUri: window.location.origin,
+        })
     }
 
     /**
@@ -488,6 +548,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     return (
         <AuthContext.Provider
             value={{
+                keycloak,
                 isAuthenticated,
                 userId,
                 username,
@@ -504,6 +565,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 updateTokenAndPermissionLabels,
                 isGoldUser,
                 reauthWithGold,
+                initKeycloak,
             }}
         >
             {props.children}

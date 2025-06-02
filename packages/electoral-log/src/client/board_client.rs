@@ -226,7 +226,7 @@ impl BoardClient {
         &mut self,
         board_db: &str,
         kind: &str,
-        sender_pk: &str,
+        sender_pk: Option<&str>,
         min_ts: Option<i64>,
         max_ts: Option<i64>,
     ) -> Result<Vec<ElectoralLogMessage>> {
@@ -238,7 +238,7 @@ impl BoardClient {
         &mut self,
         board_db: &str,
         kind: &str,
-        sender_pk: &str,
+        sender_pk: Option<&str>,
         min_ts: Option<i64>,
         max_ts: Option<i64>,
     ) -> Result<Vec<ElectoralLogMessage>> {
@@ -254,6 +254,12 @@ impl BoardClient {
             ("", 0)
         };
 
+        let (sender_pk_clause, sender_pk_value) = if let Some(sender_pk) = sender_pk {
+            ("AND sender_pk = @sender_pk", sender_pk)
+        } else {
+            ("", "")
+        };
+
         self.client.use_database(board_db).await?;
         let sql = format!(
             r#"
@@ -266,28 +272,21 @@ impl BoardClient {
             message,
             version
         FROM {}
-        WHERE sender_pk = @sender_pk AND statement_kind = @statement_kind
+        WHERE statement_kind = @statement_kind
+        {}
         {}
         {}
         ORDER BY id;
         "#,
-            ELECTORAL_LOG_TABLE, min_clause, max_clause,
+            ELECTORAL_LOG_TABLE, min_clause, max_clause, sender_pk_clause
         );
 
-        let mut params = vec![
-            NamedParam {
-                name: String::from("sender_pk"),
-                value: Some(SqlValue {
-                    value: Some(Value::S(sender_pk.to_string())),
-                }),
-            },
-            NamedParam {
-                name: String::from("statement_kind"),
-                value: Some(SqlValue {
-                    value: Some(Value::S(kind.to_string())),
-                }),
-            },
-        ];
+        let mut params = vec![NamedParam {
+            name: String::from("statement_kind"),
+            value: Some(SqlValue {
+                value: Some(Value::S(kind.to_string())),
+            }),
+        }];
         if min_clause_value != 0 {
             params.push(NamedParam {
                 name: String::from("min_ts"),
@@ -301,6 +300,14 @@ impl BoardClient {
                 name: String::from("max_ts"),
                 value: Some(SqlValue {
                     value: Some(Value::Ts(max_clause_value)),
+                }),
+            })
+        }
+        if !sender_pk_value.is_empty() {
+            params.push(NamedParam {
+                name: String::from("sender_pk"),
+                value: Some(SqlValue {
+                    value: Some(Value::S(sender_pk_value.to_string())),
                 }),
             })
         }
@@ -705,27 +712,27 @@ pub(crate) mod tests {
         let ret = b.get_electoral_log_messages(BOARD_DB).await.unwrap();
         assert_eq!(messages, ret);
         let ret = b
-            .get_electoral_log_messages_filtered(BOARD_DB, "", "", None, None)
+            .get_electoral_log_messages_filtered(BOARD_DB, "", Some(""), None, None)
             .await
             .unwrap();
         assert_eq!(messages, ret);
         let ret = b
-            .get_electoral_log_messages_filtered(BOARD_DB, "", "", Some(1i64), None)
+            .get_electoral_log_messages_filtered(BOARD_DB, "", Some(""), Some(1i64), None)
             .await
             .unwrap();
         assert_eq!(messages, ret);
         let ret = b
-            .get_electoral_log_messages_filtered(BOARD_DB, "", "", None, Some(556i64))
+            .get_electoral_log_messages_filtered(BOARD_DB, "", Some(""), None, Some(556i64))
             .await
             .unwrap();
         assert_eq!(messages, ret);
         let ret = b
-            .get_electoral_log_messages_filtered(BOARD_DB, "", "", Some(1i64), Some(556i64))
+            .get_electoral_log_messages_filtered(BOARD_DB, "", Some(""), Some(1i64), Some(556i64))
             .await
             .unwrap();
         assert_eq!(messages, ret);
         let ret = b
-            .get_electoral_log_messages_filtered(BOARD_DB, "", "", Some(556i64), Some(666i64))
+            .get_electoral_log_messages_filtered(BOARD_DB, "", Some(""), Some(556i64), Some(666i64))
             .await
             .unwrap();
         assert_eq!(ret.len(), 0);
