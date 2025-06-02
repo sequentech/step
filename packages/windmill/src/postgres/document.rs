@@ -5,6 +5,7 @@
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::types::hasura::core::Document;
+use strand::info;
 use tokio_postgres::row::Row;
 use tracing::{info, instrument};
 use uuid::Uuid;
@@ -74,6 +75,7 @@ pub async fn get_document(
         )
         .await
         .map_err(|err| anyhow!("Error running the document query: {err}"))?;
+    info!("Rows: {rows:#?}");
 
     let documents: Vec<Document> = rows
         .into_iter()
@@ -85,6 +87,68 @@ pub async fn get_document(
         .with_context(|| "Error converting rows into documents")?;
 
     Ok(documents.get(0).cloned())
+}
+
+#[instrument(err, skip(hasura_transaction))]
+pub async fn get_support_material_documents(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<Option<Vec<Document>>> {
+    let tenant_uuid: uuid::Uuid =
+        Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
+    let election_event_uuid: uuid::Uuid = Uuid::parse_str(election_event_id)
+        .with_context(|| "Error parsing election_event_id as UUID")?;
+
+    let document_statement = hasura_transaction
+        .prepare(
+            r#"
+            SELECT
+                sm.id AS support_material_id,
+                sm.kind,
+                sm.data,
+                sm.labels AS sm_labels,
+                sm.annotations AS sm_annotations,
+                sm.is_hidden,
+                d.id AS document_id,
+                d.name,
+                d.media_type,
+                d.size,
+                d.labels AS doc_labels,
+                d.annotations AS doc_annotations,
+                d.is_public
+            FROM
+                "sequent_backend".support_material sm
+            JOIN
+                "sequent_backend".document d
+            ON
+                sm.document_id = d.id
+            WHERE
+                sm.tenant_id = $1
+                AND sm.election_event_id = $2
+                AND sm.is_hidden = false
+                AND d.tenant_id = sm.tenant_id
+                AND d.election_event_id = sm.election_event_id;
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(&document_statement, &[&tenant_uuid, &election_event_uuid])
+        .await
+        .map_err(|err| anyhow!("Error running the get_support_material_documents query: {err}"))?;
+    info!("Rows: {rows:#?}");
+    let documents: Vec<Document> = vec![];
+    // let documents: Vec<Document> = rows
+    //     .into_iter()
+    //     .map(|row| -> Result<Document> {
+    //         row.try_into()
+    //             .map(|res: DocumentWrapper| -> Document { res.0 })
+    //     })
+    //     .collect::<Result<Vec<Document>>>()
+    //     .with_context(|| "Error converting rows into documents")?;
+
+    Ok(Some(documents))
 }
 
 #[instrument(err, skip(hasura_transaction))]

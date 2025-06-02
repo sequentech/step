@@ -12,6 +12,7 @@ use sequent_core::types::hasura::core::TasksExecution;
 use tracing::{info, instrument};
 use uuid::Uuid;
 
+use crate::postgres::document::{get_document, get_support_material_documents};
 use crate::postgres::election::get_elections;
 use crate::postgres::election_event::{get_election_event_by_id, update_election_event_status};
 use crate::services::ballot_styles::ballot_publication::get_publication_json;
@@ -105,6 +106,19 @@ pub async fn prepare_publication_preview_task(
     // TODO:
     // Get the support materials filtering by tenant_id, election_event_id and is_hidden false.
     // Get the documents filtering by tenant_id, election_event_id and JOIN with id = support_materials.document_id
+
+    let _doc = get_document(
+        hasura_transaction,
+        &tenant_id,
+        Some(election_event_id.clone()),
+        "",
+    )
+    .await
+    .with_context(|| "Can't document")?;
+
+    let _docs = get_support_material_documents(hasura_transaction, &tenant_id, &election_event_id)
+        .await
+        .with_context(|| "Can't find support materials")?;
 
     let pub_preview = PublicationPreview {
         ballot_styles_json,
