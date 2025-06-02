@@ -54,7 +54,9 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
     const {globalSettings} = useContext(SettingsContext)
     const [sourceAreas, setSourceAreas] = useState([])
     const [getUploadUrl] = useMutation<GetUploadUrlMutation>(GET_UPLOAD_URL)
-    const [preparePreview] = useMutation<PrepareBallotPublicationPreviewMutation>(PREPARE_BALLOT_PUBLICATION_PREVIEW)
+    const [preparePreview] = useMutation<PrepareBallotPublicationPreviewMutation>(
+        PREPARE_BALLOT_PUBLICATION_PREVIEW
+    )
 
     const [isUploading, setIsUploading] = React.useState<boolean>(false)
     const {tenantId} = useContext(TenantContext)
@@ -264,12 +266,13 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
                     },
                 })
 
-                if (!data?.prepare_ballot_publication_preview?.document_id) {
+                console.log(data)
+
+                if (data?.prepare_ballot_publication_preview?.document_id) {
                     notify(t("publish.preview.success"), {type: "success"}) // TODO: Add translations
                     return
                 }
                 // wip
-
             } catch (_error) {
                 notify(t("publish.dialog.error_preview"), {type: "error"}) // TODO: Add translations
                 // wip
@@ -280,7 +283,7 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
             const fileData = prepareFileData()
             const dataStr = JSON.stringify(fileData, null, 2)
             const file = new File([dataStr], `${id}.json`, {type: "application/json"})
-            console.log(file)
+            console.log(dataStr)
             // new endpoint test
             await preparePreviewData()
             const docId = await uploadFileToS3(file)

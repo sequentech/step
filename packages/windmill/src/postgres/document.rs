@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
-use sequent_core::types::hasura::core::Document;
+use sequent_core::types::hasura::core::{Document, SupportMaterial};
 use strand::info;
 use tokio_postgres::row::Row;
 use tracing::{info, instrument};
@@ -33,6 +33,46 @@ impl TryFrom<Row> for DocumentWrapper {
             last_updated_at: item.get("last_updated_at"),
             is_public: item.try_get("is_public")?,
         }))
+    }
+}
+
+pub struct SupportMaterialDocumentWrapper {
+    pub support_material: SupportMaterial,
+    pub document: Document,
+}
+
+impl TryFrom<Row> for SupportMaterialDocumentWrapper {
+    type Error = anyhow::Error;
+
+    fn try_from(row: Row) -> Result<Self> {
+        Ok(SupportMaterialDocumentWrapper {
+            support_material: SupportMaterial {
+                id: row.try_get::<_, Uuid>("support_material_id")?.to_string(),
+                created_at: row.get("created_at"),
+                last_updated_at: row.get("last_updated_at"),
+                kind: row.try_get("kind")?,
+                data: row.try_get("data")?,
+                tenant_id: row.try_get::<_, Uuid>("tenant_id")?.to_string(),
+                election_event_id: row.try_get::<_, Uuid>("election_event_id")?.to_string(),
+                labels: row.try_get("sm_labels")?,
+                annotations: row.try_get("sm_annotations")?,
+                document_id: Some(row.try_get::<_, Uuid>("document_id")?.to_string()),
+                is_hidden: row.try_get("is_hidden")?,
+            },
+            document: Document {
+                id: row.try_get::<_, Uuid>("document_id")?.to_string(),
+                tenant_id: Some(row.try_get::<_, Uuid>("tenant_id")?.to_string()),
+                election_event_id: Some(row.try_get::<_, Uuid>("election_event_id")?.to_string()),
+                name: row.try_get("name")?,
+                media_type: row.try_get("media_type")?,
+                size: row.try_get("size")?,
+                labels: row.try_get("doc_labels")?,
+                annotations: row.try_get("doc_annotations")?,
+                created_at: row.try_get("created_at")?,
+                last_updated_at: row.try_get("last_updated_at")?,
+                is_public: row.try_get("is_public")?,
+            },
+        })
     }
 }
 
@@ -89,12 +129,14 @@ pub async fn get_document(
     Ok(documents.get(0).cloned())
 }
 
+/// Returns a vector of tuples of the (SupportMaterial, Document)s
+/// associated with a given election event.
 #[instrument(err, skip(hasura_transaction))]
 pub async fn get_support_material_documents(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
-) -> Result<Option<Vec<Document>>> {
+) -> Result<Option<Vec<(SupportMaterial, Document)>>> {
     let tenant_uuid: uuid::Uuid =
         Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
     let election_event_uuid: uuid::Uuid = Uuid::parse_str(election_event_id)
@@ -122,7 +164,7 @@ pub async fn get_support_material_documents(
             JOIN
                 "sequent_backend".document d
             ON
-                sm.document_id = d.id
+                sm.document_id::uuid = d.id
             WHERE
                 sm.tenant_id = $1
                 AND sm.election_event_id = $2
@@ -131,22 +173,22 @@ pub async fn get_support_material_documents(
                 AND d.election_event_id = sm.election_event_id;
             "#,
         )
-        .await?;
+        .await
+        .with_context(|| "Error preparing the get_support_material_documents query")?;
 
     let rows: Vec<Row> = hasura_transaction
         .query(&document_statement, &[&tenant_uuid, &election_event_uuid])
         .await
         .map_err(|err| anyhow!("Error running the get_support_material_documents query: {err}"))?;
     info!("Rows: {rows:#?}");
-    let documents: Vec<Document> = vec![];
-    // let documents: Vec<Document> = rows
-    //     .into_iter()
-    //     .map(|row| -> Result<Document> {
-    //         row.try_into()
-    //             .map(|res: DocumentWrapper| -> Document { res.0 })
-    //     })
-    //     .collect::<Result<Vec<Document>>>()
-    //     .with_context(|| "Error converting rows into documents")?;
+    let documents: Vec<(SupportMaterial, Document)> = rows
+        .into_iter()
+        .map(|row| -> Result<(SupportMaterial, Document)> {
+            row.try_into()
+                .map(|res: SupportMaterialDocumentWrapper| (res.support_material, res.document))
+        })
+        .collect::<Result<Vec<(SupportMaterial, Document)>>>()
+        .with_context(|| "Error converting rows into (SupportMaterial, Document)")?;
 
     Ok(Some(documents))
 }

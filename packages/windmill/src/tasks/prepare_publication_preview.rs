@@ -1,17 +1,6 @@
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::{
-    services::tasks_execution::{update_complete, update_fail},
-    types::error::Result,
-};
-use anyhow::{anyhow, Context, Result as AnyhowResult};
-use celery::error::TaskError;
-use deadpool_postgres::Transaction;
-use sequent_core::types::hasura::core::TasksExecution;
-use tracing::{info, instrument};
-use uuid::Uuid;
-
 use crate::postgres::document::{get_document, get_support_material_documents};
 use crate::postgres::election::get_elections;
 use crate::postgres::election_event::{get_election_event_by_id, update_election_event_status};
@@ -19,17 +8,30 @@ use crate::services::ballot_styles::ballot_publication::get_publication_json;
 use crate::services::database::get_hasura_pool;
 use crate::services::documents::upload_and_return_document;
 use crate::services::election_event_status::get_election_status;
+use crate::{
+    services::tasks_execution::{update_complete, update_fail},
+    types::error::Result,
+};
+use anyhow::{anyhow, Context, Result as AnyhowResult};
+use celery::error::TaskError;
+use deadpool_postgres::Transaction;
 use sequent_core::ballot::VotingStatus;
 use sequent_core::types::hasura::core::ElectionEvent;
+use sequent_core::types::hasura::core::TasksExecution;
+use sequent_core::types::hasura::core::{Document, SupportMaterial};
 use sequent_core::util::temp_path::write_into_named_temp_file;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use tracing::{info, instrument};
+use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PublicationPreview {
     ballot_styles_json: Value,
     election_event_json: Value,
     elections_json: Value,
+    support_materials_json: Value,
+    documents_json: Value,
 }
 
 #[instrument(err)]
@@ -100,30 +102,16 @@ pub async fn prepare_publication_preview_task(
 
     let elections_json =
         get_elections_json_with_open_status(&hasura_transaction, &tenant_id, &election_event_id)
-            .await
-            .with_context(|| "Can't find open elections")?;
-
-    // TODO:
-    // Get the support materials filtering by tenant_id, election_event_id and is_hidden false.
-    // Get the documents filtering by tenant_id, election_event_id and JOIN with id = support_materials.document_id
-
-    let _doc = get_document(
-        hasura_transaction,
-        &tenant_id,
-        Some(election_event_id.clone()),
-        "",
-    )
-    .await
-    .with_context(|| "Can't document")?;
-
-    let _docs = get_support_material_documents(hasura_transaction, &tenant_id, &election_event_id)
-        .await
-        .with_context(|| "Can't find support materials")?;
-
+            .await?;
+    let (support_materials_json, documents_json) =
+        get_support_material_documents_json(&hasura_transaction, &tenant_id, &election_event_id)
+            .await?;
     let pub_preview = PublicationPreview {
         ballot_styles_json,
         election_event_json,
         elections_json,
+        support_materials_json,
+        documents_json,
     };
 
     let pub_preview_data: Vec<u8> = serde_json::to_value(pub_preview)
@@ -157,13 +145,32 @@ pub async fn prepare_publication_preview_task(
     Ok(document_id)
 }
 
+/// Get the support materials and document vectors in json.
+pub async fn get_support_material_documents_json(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> AnyhowResult<(Value, Value)> {
+    let support_material_docs: Vec<(SupportMaterial, Document)> =
+        get_support_material_documents(hasura_transaction, tenant_id, election_event_id)
+            .await
+            .with_context(|| "Can't find support materials")?
+            .unwrap_or_default();
+
+    let (sm, d): (Vec<SupportMaterial>, Vec<Document>) = support_material_docs.into_iter().unzip();
+    let support_materials =
+        serde_json::to_value(sm).with_context(|| "Error serializing support materials")?;
+    let documents = serde_json::to_value(d).with_context(|| "Error serializing documents")?;
+    Ok((support_materials, documents))
+}
+
 /// Get the elections and mutate the status.voting_status to open
 pub async fn get_elections_json_with_open_status(
     hasura_transaction: &Transaction<'_>,
-    tenant_id: &String,
-    election_event_id: &String,
+    tenant_id: &str,
+    election_event_id: &str,
 ) -> AnyhowResult<Value> {
-    let mut elections = get_elections(&hasura_transaction, &tenant_id, &election_event_id, None)
+    let mut elections = get_elections(&hasura_transaction, tenant_id, election_event_id, None)
         .await
         .with_context(|| "Can't find open elections")?;
 

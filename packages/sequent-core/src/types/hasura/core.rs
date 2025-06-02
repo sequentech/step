@@ -180,6 +180,21 @@ pub struct Document {
     pub is_public: Option<bool>,
 }
 
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
+pub struct SupportMaterial {
+    pub id: String,
+    pub created_at: DateTime<Local>,
+    pub last_updated_at: DateTime<Local>,
+    pub kind: String,
+    pub data: Value,
+    pub tenant_id: String,
+    pub election_event_id: String,
+    pub labels: Value,
+    pub annotations: Value,
+    pub document_id: Option<String>,
+    pub is_hidden: Option<bool>,
+}
+
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct VotingChannels {
     pub online: Option<bool>,
