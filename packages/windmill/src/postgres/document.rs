@@ -5,7 +5,6 @@
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::types::hasura::core::{Document, SupportMaterial};
-use strand::info;
 use tokio_postgres::row::Row;
 use tracing::{info, instrument};
 use uuid::Uuid;
@@ -115,7 +114,6 @@ pub async fn get_document(
         )
         .await
         .map_err(|err| anyhow!("Error running the document query: {err}"))?;
-    info!("Rows: {rows:#?}");
 
     let documents: Vec<Document> = rows
         .into_iter()

@@ -1,9 +1,9 @@
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::postgres::document::{get_document, get_support_material_documents};
+use crate::postgres::document::get_support_material_documents;
 use crate::postgres::election::get_elections;
-use crate::postgres::election_event::{get_election_event_by_id, update_election_event_status};
+use crate::postgres::election_event::get_election_event_by_id;
 use crate::services::ballot_styles::ballot_publication::get_publication_json;
 use crate::services::database::get_hasura_pool;
 use crate::services::documents::upload_and_return_document;
