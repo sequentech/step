@@ -80,7 +80,6 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
                 areaIds.some((areaId: any) => areaId.id === area.id)
             )
             setSourceAreas(filtered)
-            console.log("filtered", filtered)
         }
     }, [areas, areaIds])
 
@@ -125,7 +124,7 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
     // This useEffect handles file upload
     useEffect(() => {
         const preparePreviewData = async () => {
-            let currWidget: WidgetProps = addWidget(ETasksExecution.PREPARE_PUBLICATION_PREVIEW);
+            let currWidget: WidgetProps = addWidget(ETasksExecution.PREPARE_PUBLICATION_PREVIEW)
             try {
                 let {data} = await preparePreview({
                     variables: {
@@ -140,9 +139,11 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
                     return
                 }
 
-                const task_id =data?.prepare_ballot_publication_preview?.task_execution?.id
+                const task_id = data?.prepare_ballot_publication_preview?.task_execution?.id
                 task_id
-                    ? setWidgetTaskId(currWidget.identifier, task_id, () => onSuccessPreparePreview())
+                    ? setWidgetTaskId(currWidget.identifier, task_id, () =>
+                          onSuccessPreparePreview()
+                      )
                     : updateWidgetFail(currWidget.identifier)
                 return data?.prepare_ballot_publication_preview?.document_id
             } catch (_error) {
@@ -158,11 +159,7 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
             setDocumentId(docId)
         }
 
-        if (
-            isUploading &&
-            areaId &&
-            undefined !== Sequent_Backend_Support_Material_Select_Column
-        ) {
+        if (isUploading && areaId && undefined !== Sequent_Backend_Support_Material_Select_Column) {
             handleDocumentProcess()
         }
     }, [isUploading, areaId])
@@ -185,11 +182,11 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
     }
 
     const notifyActionError = () => {
-            if (action === ActionType.Copy) {
-                notify(t("publish.preview.copy_error"), {type: "error"})
-            } else if (action === ActionType.Open) {
-                notify(t("publish.dialog.error_preview"), {type: "error"})
-            }
+        if (action === ActionType.Copy) {
+            notify(t("publish.preview.copy_error"), {type: "error"})
+        } else if (action === ActionType.Open) {
+            notify(t("publish.dialog.error_preview"), {type: "error"})
+        }
     }
 
     // This useEffect handles logic for action (open or copy)
