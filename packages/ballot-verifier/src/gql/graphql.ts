@@ -16400,7 +16400,6 @@ export type Sequent_Backend_Tally_Session_Execution_Delete_At_Path_Input = {
 
 /** delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array */
 export type Sequent_Backend_Tally_Session_Execution_Delete_Elem_Input = {
-    documents?: InputMaybe<Scalars["Int"]["input"]>
     annotations?: InputMaybe<Scalars["Int"]["input"]>
     documents?: InputMaybe<Scalars["Int"]["input"]>
     labels?: InputMaybe<Scalars["Int"]["input"]>
