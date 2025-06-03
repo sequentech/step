@@ -27,6 +27,9 @@ import {GET_AREAS} from "@/queries/GetAreas"
 import {TenantContext} from "@/providers/TenantContextProvider"
 import {GET_DOCUMENT_BY_NAME} from "@/queries/GetDocumentByName"
 import {CircularProgress} from "@mui/material"
+import {useWidgetStore} from "@/providers/WidgetsContextProvider"
+import {WidgetProps} from "@/components/Widget"
+import {ETasksExecution} from "@/types/tasksExecution"
 
 enum ActionType {
     Copy,
@@ -44,6 +47,7 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
     const {t} = useTranslation()
     const notify = useNotify()
     const {globalSettings} = useContext(SettingsContext)
+    const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
     const [sourceAreas, setSourceAreas] = useState([])
     const [preparePreview] = useMutation<PrepareBallotPublicationPreviewMutation>(
         PREPARE_BALLOT_PUBLICATION_PREVIEW
@@ -121,6 +125,7 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
     // This useEffect handles file upload
     useEffect(() => {
         const preparePreviewData = async () => {
+            let currWidget: WidgetProps = addWidget(ETasksExecution.PREPARE_PUBLICATION_PREVIEW);
             try {
                 let {data} = await preparePreview({
                     variables: {
@@ -128,19 +133,22 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
                         ballotPublicationId: publicationId,
                     },
                 })
-                setIsUploading(false) // TODO: Set to false only when the task is completed
-                console.log(data)
                 if (!data?.prepare_ballot_publication_preview?.document_id) {
                     console.log(data?.prepare_ballot_publication_preview?.error_msg)
-                    notify(t("publish.dialog.error_preview"), {type: "error"})
+                    updateWidgetFail(currWidget.identifier)
+                    notifyActionError()
                     return
                 }
-                notify(t("publish.preview.success"), {type: "success"}) // TODO: Add translations
+
+                const task_id =data?.prepare_ballot_publication_preview?.task_execution?.id
+                task_id
+                    ? setWidgetTaskId(currWidget.identifier, task_id, () => onSuccessPreparePreview())
+                    : updateWidgetFail(currWidget.identifier)
                 return data?.prepare_ballot_publication_preview?.document_id
             } catch (_error) {
                 setIsUploading(false)
-                notify(t("publish.dialog.error_preview"), {type: "error"}) // TODO: Add translations
-                // wip
+                currWidget && updateWidgetFail(currWidget.identifier)
+                notifyActionError()
                 return
             }
         }
@@ -149,7 +157,7 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
             const docId = await preparePreviewData()
             setDocumentId(docId)
         }
-        console.log("isUploading {", isUploading, "}", "areaId {", areaId, "}")
+
         if (
             isUploading &&
             areaId &&
@@ -159,6 +167,9 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
         }
     }, [isUploading, areaId])
 
+    const onSuccessPreparePreview = () => {
+        setIsUploading(false) // This will trigger and validate the condition in useEffect for action (open or copy)
+    }
     const onPreviewClick = async (res: any) => {
         if (!documentId) {
             setIsUploading(true)
@@ -167,11 +178,18 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
     }
 
     const onCopyPreviewLinkClick = async () => {
-        console.log("onCopyPreviewLinkClick", isUploading, documentId)
         if (!documentId) {
             setIsUploading(true)
         }
         setAction(ActionType.Copy)
+    }
+
+    const notifyActionError = () => {
+            if (action === ActionType.Copy) {
+                notify(t("publish.preview.copy_error"), {type: "error"})
+            } else if (action === ActionType.Open) {
+                notify(t("publish.dialog.error_preview"), {type: "error"})
+            }
     }
 
     // This useEffect handles logic for action (open or copy)
@@ -198,7 +216,6 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
 
         if (documentId && !isUploading) {
             const previewUrl = getPreviewUrl(documentId)
-            console.log("previewUrl: ", previewUrl)
             if (previewUrl && action === ActionType.Copy) {
                 copyPreviewLink(previewUrl)
             } else if (previewUrl && action === ActionType.Open) {
