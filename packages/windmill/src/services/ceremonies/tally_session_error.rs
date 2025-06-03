@@ -69,6 +69,7 @@ pub async fn handle_tally_session_error(
         Some(status),
         last_execution.results_event_id.clone(),
         last_execution.session_ids.clone(),
+        None,
     )
     .await?;
 

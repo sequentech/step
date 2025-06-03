@@ -1096,6 +1096,7 @@ const spanishTranslation: TranslationType = {
                 tl: "Tagalo",
                 gl: "Galego",
                 nl: "Holandes",
+                eu: "Euskera",
             },
             channel: {
                 online: "En línea",

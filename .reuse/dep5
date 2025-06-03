@@ -46,6 +46,7 @@ Files:
   packages/keycloak-extensions/inetum-authenticator/src/main/resources/theme-resources/resources/inetum-sdk-4.0.2/*
   packages/keycloak-extensions/conditional-authenticators/src/main/resources/META-INF/services/org.keycloak.protocol.ProtocolMapper
   docs/assets/*
+  docs/docusaurus/*
   .devcontainer/minio/public-assets/*
   packages/orare/doc_renderer/assets/*
   packages/windmill/external-bin/janitor/*.xlsx
