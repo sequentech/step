@@ -102,8 +102,8 @@ jobs:
         file: ${{ matrix.file }}
         push: ${{ inputs.push }}
         tags: |
-          ${{ vars.AWS_ECR_REGISTRY_GLOBALDOT }}/${{ matrix.service }}:${{ env.SHORT_SHA }}
-          ${{ vars.AWS_ECR_REGISTRY_GLOBALDOT }}/${{ matrix.service }}:${{ inputs.tag || github.run_number }}
+          ${{ vars.AWS_ECR_REGISTRY }}/${{ matrix.service }}:${{ env.SHORT_SHA }}
+          ${{ vars.AWS_ECR_REGISTRY }}/${{ matrix.service }}:${{ inputs.tag || github.run_number }}
         cache-from: type=gha,scope=${{ matrix.service }}
         cache-to: type=gha,mode=max,scope=${{ matrix.service }}
         build-args: |
