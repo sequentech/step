@@ -171,8 +171,12 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
                     console.error("Error fetching document:", error)
                     return false
                 }
-
-                return data?.sequent_backend_document[0]?.id
+                const length = data?.sequent_backend_document?.length || 0
+                if (length === 0) {
+                    return false
+                }
+                const last = length > 0 ? length - 1 : 0
+                return data?.sequent_backend_document[last]?.id
             } catch (err) {
                 console.error("Exception in fetchDocumentId:", err)
                 return false
@@ -292,12 +296,13 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
         }
 
         const handleDocumentProcess = async () => {
-            // await startUpload()
+            console.log("handleDocumentProcess")
+            await startUpload()
             // new endpoint test
-            const docId = await preparePreviewData()
-            setDocumentId(docId)
+            // const docId = await preparePreviewData()
+            // setDocumentId(docId)
         }
-
+        console.log("isUploading {", isUploading, "}", "electionEvent {", !!electionEvent, "}", "elections {", !!elections, "}", "areaId {", areaId, "}", "supportMaterials {",!!supportMaterials, "}", "documents {", !!documents, "}")
         if (
             isUploading &&
             electionEvent &&
@@ -332,15 +337,16 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
             }
         }
 
-        if (documentId) {
+        if (documentId && !isUploading) {
             const previewUrl = getPreviewUrl(documentId)
+            console.log("previewUrl: ", previewUrl)
             if (previewUrl && action === ActionType.Copy) {
                 copyPreviewLink(previewUrl)
             } else if (previewUrl && action === ActionType.Open) {
                 openPreview(previewUrl)
             }
         }
-    }, [documentId, action])
+    }, [documentId, action, isUploading])
 
     // Create preview url from data
     const previewUrlTemplate = useMemo(() => {
@@ -358,11 +364,14 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
     )
 
     const onPreviewClick = async (res: any) => {
-        setIsUploading(true)
+        if (!documentId) {
+            setIsUploading(true)
+        }
         setAction(ActionType.Open)
     }
 
     const onCopyPreviewLinkClick = async () => {
+        console.log("onCopyPreviewLinkClick", isUploading, documentId)
         if (!documentId) {
             setIsUploading(true)
         }
