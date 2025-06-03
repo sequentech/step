@@ -33,14 +33,14 @@ enum ActionType {
     Open,
 }
 interface EditPreviewProps {
-    id?: string | Identifier | null
+    publicationId?: string | Identifier | null
     electionEventId: Identifier | undefined
     close?: () => void
     ballotData: GetBallotPublicationChangesOutput | null
 }
 
 export const EditPreview: React.FC<EditPreviewProps> = (props) => {
-    const {id, close, electionEventId, ballotData} = props
+    const {publicationId: publicationId, close, electionEventId, ballotData} = props
     const {t} = useTranslation()
     const notify = useNotify()
     const {globalSettings} = useContext(SettingsContext)
@@ -48,14 +48,12 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
     const [preparePreview] = useMutation<PrepareBallotPublicationPreviewMutation>(
         PREPARE_BALLOT_PUBLICATION_PREVIEW
     )
-
     const [isUploading, setIsUploading] = React.useState<boolean>(false)
     const {tenantId} = useContext(TenantContext)
     const [areaId, setAreaId] = useState<string | null>(null)
     const [documentId, setDocumentId] = useState<string | null | undefined>(null)
     const [action, setAction] = useState<ActionType | null>(null)
     const [getDocumentByName] = useLazyQuery<GetDocumentByNameQuery>(GET_DOCUMENT_BY_NAME)
-
     const {data: areas} = useQuery(GET_AREAS, {
         variables: {
             electionEventId,
@@ -78,6 +76,7 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
                 areaIds.some((areaId: any) => areaId.id === area.id)
             )
             setSourceAreas(filtered)
+            console.log("filtered", filtered)
         }
     }, [areas, areaIds])
 
@@ -110,7 +109,7 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
         }
 
         const getDocumentId = async () => {
-            const docId = await fetchDocumentId(`${id}.json`)
+            const docId = await fetchDocumentId(`${publicationId}.json`)
             setDocumentId(docId)
         }
 
@@ -126,7 +125,7 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
                 let {data} = await preparePreview({
                     variables: {
                         electionEventId: electionEventId,
-                        ballotPublicationId: id,
+                        ballotPublicationId: publicationId,
                     },
                 })
                 setIsUploading(false) // TODO: Set to false only when the task is completed
@@ -211,16 +210,16 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
     // Create preview url from data
     const previewUrlTemplate = useMemo(() => {
         return `${globalSettings.VOTING_PORTAL_URL}/preview/${tenantId}`
-    }, [globalSettings.VOTING_PORTAL_URL, id])
+    }, [globalSettings.VOTING_PORTAL_URL, publicationId])
 
     const getPreviewUrl = useCallback(
         (documentId: string | undefined | null) => {
-            if (!documentId || !areaId || !id) {
+            if (!documentId || !areaId || !publicationId) {
                 return null
             }
-            return `${previewUrlTemplate}/${documentId}/${areaId}/${id}`
+            return `${previewUrlTemplate}/${documentId}/${areaId}/${publicationId}`
         },
-        [previewUrlTemplate, areaId, id]
+        [previewUrlTemplate, areaId, publicationId]
     )
 
     return (
