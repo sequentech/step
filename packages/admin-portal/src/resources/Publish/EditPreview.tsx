@@ -33,7 +33,6 @@ import {GET_AREAS} from "@/queries/GetAreas"
 import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
 import {TenantContext} from "@/providers/TenantContextProvider"
 import {GET_DOCUMENT_BY_NAME} from "@/queries/GetDocumentByName"
-import {ElectionEventStatus} from "./EPublishStatus"
 import {CircularProgress} from "@mui/material"
 
 enum ActionType {
@@ -195,72 +194,6 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
 
     // This useEffect handles file upload
     useEffect(() => {
-        const uploadFile = async (url: string, file: File) => {
-            await fetch(url, {
-                method: "PUT",
-                headers: {
-                    "Content-Type": file.type,
-                },
-                body: file,
-            })
-            setIsUploading(false)
-        }
-
-        const uploadFileToS3 = async (theFile: File) => {
-            try {
-                let {data} = await getUploadUrl({
-                    variables: {
-                        name: theFile.name,
-                        media_type: theFile.type,
-                        size: theFile.size,
-                        is_public: true,
-                    },
-                })
-
-                if (!data?.get_upload_url?.url) {
-                    notify(t("electionEventScreen.import.fileUploadError"), {type: "error"})
-                    return
-                }
-
-                await uploadFile(data.get_upload_url.url, theFile)
-                return data.get_upload_url.document_id
-            } catch (_error) {
-                setIsUploading(false)
-                notify(t("electionEventScreen.import.fileUploadError"), {type: "error"})
-            }
-        }
-
-        const updateElectionStatus = (elections: Array<Sequent_Backend_Election> | undefined) => {
-            return elections?.map((election) => {
-                if (election?.status) {
-                    return {
-                        ...election,
-                        status: {
-                            ...election.status,
-                            voting_status: ElectionEventStatus.Open,
-                        },
-                    }
-                }
-                return election
-            })
-        }
-
-        const prepareFileData = () => {
-            const openElections = updateElectionStatus(elections)
-
-            if (electionEvent?.status) {
-                electionEvent.status.voting_status = ElectionEventStatus.Open
-            }
-
-            return {
-                ballot_styles: ballotData?.current?.ballot_styles,
-                election_event: electionEvent,
-                elections: openElections,
-                support_materials: supportMaterials,
-                documents: documents,
-            }
-        }
-
         const preparePreviewData = async () => {
             try {
                 let {data} = await preparePreview({
@@ -269,7 +202,7 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
                         ballotPublicationId: id,
                     },
                 })
-                setIsUploading(false)
+                setIsUploading(false) // TODO: Set to false only when the task is completed
                 console.log(data)
                 if (!data?.prepare_ballot_publication_preview?.document_id) {
                     console.log(data?.prepare_ballot_publication_preview?.error_msg)
@@ -286,21 +219,9 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
             }
         }
 
-        const startUpload = async () => {
-            const fileData = prepareFileData()
-            const dataStr = JSON.stringify(fileData, null, 2)
-            const file = new File([dataStr], `${id}.json`, {type: "application/json"})
-            console.log(dataStr)
-            const docId = await uploadFileToS3(file)
-            setDocumentId(docId)
-        }
-
         const handleDocumentProcess = async () => {
-            console.log("handleDocumentProcess")
-            await startUpload()
-            // new endpoint test
-            // const docId = await preparePreviewData()
-            // setDocumentId(docId)
+            const docId = await preparePreviewData()
+            setDocumentId(docId)
         }
         console.log("isUploading {", isUploading, "}", "electionEvent {", !!electionEvent, "}", "elections {", !!elections, "}", "areaId {", areaId, "}", "supportMaterials {",!!supportMaterials, "}", "documents {", !!documents, "}")
         if (
@@ -314,6 +235,21 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
             handleDocumentProcess()
         }
     }, [isUploading, electionEvent, elections, areaId, supportMaterials, documents])
+
+    const onPreviewClick = async (res: any) => {
+        if (!documentId) {
+            setIsUploading(true)
+        }
+        setAction(ActionType.Open)
+    }
+
+    const onCopyPreviewLinkClick = async () => {
+        console.log("onCopyPreviewLinkClick", isUploading, documentId)
+        if (!documentId) {
+            setIsUploading(true)
+        }
+        setAction(ActionType.Copy)
+    }
 
     // This useEffect handles logic for action (open or copy)
     useEffect(() => {
@@ -362,21 +298,6 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
         },
         [previewUrlTemplate, areaId, id]
     )
-
-    const onPreviewClick = async (res: any) => {
-        if (!documentId) {
-            setIsUploading(true)
-        }
-        setAction(ActionType.Open)
-    }
-
-    const onCopyPreviewLinkClick = async () => {
-        console.log("onCopyPreviewLinkClick", isUploading, documentId)
-        if (!documentId) {
-            setIsUploading(true)
-        }
-        setAction(ActionType.Copy)
-    }
 
     return (
         <SimpleForm toolbar={false} onSubmit={onPreviewClick}>
