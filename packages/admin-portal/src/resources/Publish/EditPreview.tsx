@@ -10,8 +10,6 @@ import {
     SaveButton,
     SimpleForm,
     Toolbar,
-    useGetList,
-    useGetOne,
     useNotify,
 } from "react-admin"
 import {Preview, ContentCopy} from "@mui/icons-material"
@@ -19,18 +17,13 @@ import {useTranslation} from "react-i18next"
 import {
     GetBallotPublicationChangesOutput,
     GetDocumentByNameQuery,
-    GetUploadUrlMutation,
     PrepareBallotPublicationPreviewMutation,
-    Sequent_Backend_Document,
-    Sequent_Backend_Election,
-    Sequent_Backend_Election_Event,
-    Sequent_Backend_Support_Material,
+    Sequent_Backend_Support_Material_Select_Column,
 } from "@/gql/graphql"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {useLazyQuery, useMutation, useQuery} from "@apollo/client"
 import {PREPARE_BALLOT_PUBLICATION_PREVIEW} from "@/queries/PrepareBallotPublicationPreview"
 import {GET_AREAS} from "@/queries/GetAreas"
-import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
 import {TenantContext} from "@/providers/TenantContextProvider"
 import {GET_DOCUMENT_BY_NAME} from "@/queries/GetDocumentByName"
 import {CircularProgress} from "@mui/material"
@@ -52,7 +45,6 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
     const notify = useNotify()
     const {globalSettings} = useContext(SettingsContext)
     const [sourceAreas, setSourceAreas] = useState([])
-    const [getUploadUrl] = useMutation<GetUploadUrlMutation>(GET_UPLOAD_URL)
     const [preparePreview] = useMutation<PrepareBallotPublicationPreviewMutation>(
         PREPARE_BALLOT_PUBLICATION_PREVIEW
     )
@@ -69,71 +61,6 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
             electionEventId,
         },
     })
-
-    const {data: electionEvent} = useGetOne<Sequent_Backend_Election_Event>(
-        "sequent_backend_election_event",
-        {
-            id: electionEventId,
-        },
-        {
-            refetchIntervalInBackground: true,
-            refetchOnWindowFocus: false,
-            refetchOnReconnect: false,
-            refetchOnMount: false,
-        }
-    )
-
-    const {data: elections} = useGetList<Sequent_Backend_Election>(
-        "sequent_backend_election",
-        {
-            pagination: {page: 1, perPage: 9999},
-            sort: {field: "created_at", order: "DESC"},
-            filter: {
-                election_event_id: electionEventId,
-                tenant_id: tenantId,
-            },
-        },
-        {
-            refetchOnWindowFocus: false,
-            refetchOnReconnect: false,
-            refetchOnMount: false,
-        }
-    )
-
-    const {data: supportMaterials} = useGetList<Sequent_Backend_Support_Material>(
-        "sequent_backend_support_material",
-        {
-            pagination: {page: 1, perPage: 9999},
-            sort: {field: "created_at", order: "DESC"},
-            filter: {
-                is_hidden: false,
-                election_event_id: electionEventId,
-                tenant_id: tenantId,
-            },
-        },
-        {
-            refetchOnWindowFocus: false,
-            refetchOnReconnect: false,
-            refetchOnMount: false,
-        }
-    )
-
-    const {data: documents} = useGetList<Sequent_Backend_Document>(
-        "sequent_backend_document",
-        {
-            pagination: {page: 1, perPage: 9999},
-            sort: {field: "created_at", order: "DESC"},
-            filter: {
-                election_event_id: electionEventId,
-                tenant_id: tenantId,
-            },
-        },
-        {
-            refetchOnWindowFocus: false,
-            refetchOnReconnect: false,
-            refetchOnMount: false,
-        }
-    )
 
     //Show only relevant areas in dropdown
     const areaIds = useMemo(() => {
@@ -223,18 +150,15 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
             const docId = await preparePreviewData()
             setDocumentId(docId)
         }
-        console.log("isUploading {", isUploading, "}", "electionEvent {", !!electionEvent, "}", "elections {", !!elections, "}", "areaId {", areaId, "}", "supportMaterials {",!!supportMaterials, "}", "documents {", !!documents, "}")
+        console.log("isUploading {", isUploading, "}", "areaId {", areaId, "}")
         if (
             isUploading &&
-            electionEvent &&
-            elections &&
             areaId &&
-            undefined !== supportMaterials &&
-            undefined !== documents
+            undefined !== Sequent_Backend_Support_Material_Select_Column
         ) {
             handleDocumentProcess()
         }
-    }, [isUploading, electionEvent, elections, areaId, supportMaterials, documents])
+    }, [isUploading, areaId])
 
     const onPreviewClick = async (res: any) => {
         if (!documentId) {
