@@ -11,6 +11,7 @@ use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::{info, instrument};
+use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::tasks_execution::*;
 use windmill::types::tasks::ETasksExecution;
@@ -46,6 +47,7 @@ pub async fn prepare_ballot_publication_preview(
         vec![Permissions::DOCUMENT_UPLOAD],
     )?;
 
+    let document_id = Uuid::new_v4().to_string();
     let ballot_publication_id = body.ballot_publication_id.clone();
     let tenant_id = claims.hasura_claims.tenant_id.clone();
     let election_event_id = body.election_event_id.clone();
@@ -69,7 +71,7 @@ pub async fn prepare_ballot_publication_preview(
                 error_msg: Some(format!(
                     "Failed to insert task execution record: {err:?}"
                 )),
-                document_id: "".to_string(),
+                document_id,
                 task_execution: None,
             }));
         }
@@ -83,6 +85,7 @@ pub async fn prepare_ballot_publication_preview(
                 election_event_id,
                 ballot_publication_id,
                 task_execution.clone(),
+                document_id.clone(),
             ),
         )
         .await
@@ -93,7 +96,7 @@ pub async fn prepare_ballot_publication_preview(
                 error_msg: Some(format!(
                     "Error sending prepare_publication_preview task: ${err}"
                 )),
-                document_id: "".to_string(),
+                document_id,
                 task_execution: Some(task_execution),
             }));
         }
@@ -101,7 +104,7 @@ pub async fn prepare_ballot_publication_preview(
 
     Ok(Json(PreparePublPreviewOutput {
         error_msg: None,
-        document_id: "".to_string(),
+        document_id,
         task_execution: Some(task_execution),
     }))
 }

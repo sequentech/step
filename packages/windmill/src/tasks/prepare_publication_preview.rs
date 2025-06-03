@@ -23,15 +23,14 @@ use sequent_core::util::temp_path::write_into_named_temp_file;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::{info, instrument};
-use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PublicationPreview {
-    ballot_styles_json: Value,
-    election_event_json: Value,
-    elections_json: Value,
-    support_materials_json: Value,
-    documents_json: Value,
+    ballot_styles: Value,
+    election_event: Value,
+    elections: Value,
+    support_materials: Value,
+    documents: Value,
 }
 
 #[instrument(err)]
@@ -42,6 +41,7 @@ pub async fn prepare_publication_preview(
     election_event_id: String,
     ballot_publication_id: String,
     task_execution: TasksExecution,
+    document_id: String,
 ) -> Result<()> {
     let mut hasura_db_client = get_hasura_pool()
         .await
@@ -59,6 +59,7 @@ pub async fn prepare_publication_preview(
         tenant_id,
         election_event_id,
         ballot_publication_id,
+        document_id,
     )
     .await;
 
@@ -81,6 +82,7 @@ pub async fn prepare_publication_preview_task(
     tenant_id: String,
     election_event_id: String,
     ballot_publication_id: String,
+    document_id: String,
 ) -> AnyhowResult<String> {
     let ballot_styles_json = get_publication_json(
         &hasura_transaction,
@@ -107,21 +109,19 @@ pub async fn prepare_publication_preview_task(
         get_support_material_documents_json(&hasura_transaction, &tenant_id, &election_event_id)
             .await?;
     let pub_preview = PublicationPreview {
-        ballot_styles_json,
-        election_event_json,
-        elections_json,
-        support_materials_json,
-        documents_json,
+        ballot_styles: ballot_styles_json,
+        election_event: election_event_json,
+        elections: elections_json,
+        support_materials: support_materials_json,
+        documents: documents_json,
     };
 
-    info!("pub_preview: {pub_preview:#?}");
     let pub_preview_data: Vec<u8> = serde_json::to_value(pub_preview)
         .with_context(|| "Error serializing publication preview")?
         .to_string()
         .as_bytes()
         .to_vec();
 
-    let document_id = Uuid::new_v4().to_string();
     let doc_name_s3 = format!("{ballot_publication_id}.json");
     let temp_name = format!("publication-preview-{document_id}-");
     let (_temp_path, temp_path_string, file_size) =
