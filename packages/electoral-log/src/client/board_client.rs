@@ -2,15 +2,15 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::{anyhow, Context, Result};
-use serde::{Deserialize, Serialize};
-use tracing::{event, instrument, Level};
 use crate::assign_value;
+use anyhow::{anyhow, Context, Result};
 use immudb_rs::{sql_value::Value, Client, CommittedSqlTx, NamedParam, Row, SqlValue, TxMode};
+use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use tokio::time::{sleep, Duration};
 use tokio_stream::StreamExt; // Added for streaming
 use tracing::{debug, error, info, warn};
+use tracing::{event, instrument, Level};
 
 const IMMUDB_DEFAULT_LIMIT: usize = 900;
 const IMMUDB_DEFAULT_ENTRIES_TX_LIMIT: usize = 50;
