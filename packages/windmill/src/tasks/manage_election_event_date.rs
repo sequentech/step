@@ -49,8 +49,13 @@ pub async fn manage_election_event_date_wrapped(
         EventProcessors::END_VOTING_PERIOD => VotingStatus::CLOSED,
         _ => {
             info!("Invalid scheduled event type: {:?}", event_processor);
-            stop_scheduled_event(&hasura_transaction, &tenant_id, &scheduled_manage_date.id)
-                .await?;
+            stop_scheduled_event(
+                &hasura_transaction,
+                &tenant_id,
+                &election_event_id,
+                &scheduled_manage_date.id,
+            )
+            .await?;
             return Ok(());
         }
     };
@@ -65,7 +70,13 @@ pub async fn manage_election_event_date_wrapped(
     )
     .await?;
 
-    stop_scheduled_event(&hasura_transaction, &tenant_id, &scheduled_manage_date.id).await?;
+    stop_scheduled_event(
+        &hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &scheduled_manage_date.id,
+    )
+    .await?;
 
     Ok(())
 }

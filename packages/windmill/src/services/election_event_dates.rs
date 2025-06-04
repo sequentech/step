@@ -46,6 +46,7 @@ pub async fn manage_dates(
                 update_scheduled_event(
                     hasura_transaction,
                     tenant_id,
+                    election_event_id,
                     &old_scheduled_event.id,
                     cron_config,
                 )
@@ -72,9 +73,14 @@ pub async fn manage_dates(
         // Archive previous task if the date is set to null and we found some
         // task
         if let Some(old_scheduled_event) = old_scheduled_event_opt {
-            archive_scheduled_event(hasura_transaction, tenant_id, &old_scheduled_event.id)
-                .await
-                .map_err(|e| anyhow!("error archiving scheduled event: {e:?}"))?;
+            archive_scheduled_event(
+                hasura_transaction,
+                tenant_id,
+                election_event_id,
+                &old_scheduled_event.id,
+            )
+            .await
+            .map_err(|e| anyhow!("error archiving scheduled event: {e:?}"))?;
         }
     }
 

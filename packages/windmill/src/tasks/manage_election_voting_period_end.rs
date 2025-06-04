@@ -89,9 +89,14 @@ async fn manage_election_voting_period_end_wrapped(
     )
     .await?;
 
-    stop_scheduled_event(&hasura_transaction, &tenant_id, &scheduled_event.id)
-        .await
-        .with_context(|| "Error stopping scheduled event")?;
+    stop_scheduled_event(
+        &hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &scheduled_event.id,
+    )
+    .await
+    .with_context(|| "Error stopping scheduled event")?;
 
     Ok(())
 }
