@@ -466,8 +466,6 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         }
     }, [isAuthenticated, keycloak])
 
-
-
     /**
      * Initiate the logout
      */
@@ -565,11 +563,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 initKeycloak,
             }}
         >
-            {isAuthenticated || getAccessToken() ? (
-                props.children
-            ) : (
-                <SelectTenant />
-            )}
+            {isAuthenticated || getAccessToken() ? props.children : <SelectTenant />}
         </AuthContext.Provider>
     )
 }
