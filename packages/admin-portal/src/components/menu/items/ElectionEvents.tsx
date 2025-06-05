@@ -778,15 +778,16 @@ export default function ElectionEvents() {
                 variant="info"
                 hasCloseButton={false}
                 open={openModal}
-                cancel={t("common.label.logout")}
-                ok={t("common.label.continue")}
+                ok={t("common.label.logout")}
+                cancel={t("common.label.continue")}
                 title={t("common.label.warning")}
                 handleClose={(result: boolean) => {
                     if (result) {
                         localStorage.removeItem("has-token")
-                        setOpenModal(false)
-                    } else {
+                        localStorage.removeItem("selected-tenant-id")
                         authContext.logout()
+                    } else {
+                        setOpenModal(false)
                     }
                 }}
             >

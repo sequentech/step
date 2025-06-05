@@ -358,6 +358,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
             setAuthenticated(true)
             setTimeout(updateTokenPeriodically, 4e3)
             setIsKeycloakInitialized(true)
+            navigate("/")
         } catch (error) {
             setAuthenticated(false)
             setIsKeycloakInitialized(true) // Still mark as initialized so we can use it for login
@@ -476,7 +477,6 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         }
         localStorage.removeItem("token")
         localStorage.removeItem("has-token")
-        localStorage.removeItem("selected-tenant-id")
         sessionStorage.removeItem("selected-election-event-tally-id")
 
         // Redirect to the main route after logout
