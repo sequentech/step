@@ -34,8 +34,11 @@ impl TryFrom<Row> for TemplateWrapper {
 pub async fn get_template_by_alias(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
+    election_event_id: &str,
     template_alias: &str,
 ) -> Result<Option<Template>> {
+    let election_event_uuid = Uuid::parse_str(election_event_id)
+        .map_err(|err| anyhow!("Error parsing task UUID: {}", err))?;
     let statement = hasura_transaction
         .prepare(
             r#"
@@ -54,13 +57,21 @@ pub async fn get_template_by_alias(
                 sequent_backend.template
             WHERE
                 tenant_id = $1 AND
-                alias = $2;
+                election_event_id = $2 AND
+                alias = $3;
             "#,
         )
         .await?;
 
     let rows: Vec<Row> = hasura_transaction
-        .query(&statement, &[&Uuid::parse_str(tenant_id)?, &template_alias])
+        .query(
+            &statement,
+            &[
+                &Uuid::parse_str(tenant_id)?,
+                &election_event_uuid,
+                &template_alias,
+            ],
+        )
         .await?;
 
     let elections: Vec<Template> = rows

@@ -211,6 +211,7 @@ pub trait TemplateRenderer: Debug {
         let template_table_opt = template::get_template_by_alias(
             hasura_transaction,
             &self.get_tenant_id(),
+            &self.get_election_event_id(),
             &template_alias,
         )
         .await

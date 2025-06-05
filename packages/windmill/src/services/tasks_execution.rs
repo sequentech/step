@@ -41,7 +41,6 @@ pub async fn post(
     Ok(task)
 }
 
-// TODO filter also by tenant-id and document-id
 pub async fn update(
     tenant_id: &str,
     task_id: &str,
