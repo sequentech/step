@@ -11,6 +11,7 @@ import {SettingsContext} from "./SettingsContextProvider"
 import {useLocation, useNavigate} from "react-router"
 import {ExecutionResult} from "graphql"
 import {GetAllTenantsQuery} from "@/gql/graphql"
+import SelectTenant from "@/screens/SelectTenant"
 
 /**
  * AuthContextValues defines the structure for the default values of the {@link AuthContext}.
@@ -542,6 +543,11 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                     console.log("error updating token", error)
                 })
         }
+    }
+
+    // Show SelectTenant when not authenticated
+    if (!isAuthenticated && !getAccessToken()) {
+        return <SelectTenant />
     }
 
     // Setup the context provider
