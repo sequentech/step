@@ -12,6 +12,8 @@ import {useLocation, useNavigate} from "react-router"
 import {ExecutionResult} from "graphql"
 import {GetAllTenantsQuery} from "@/gql/graphql"
 import SelectTenant from "@/screens/SelectTenant"
+import {Dialog, IconButton, adminTheme} from "@sequentech/ui-essentials"
+import {useTranslation} from "react-i18next"
 
 /**
  * AuthContextValues defines the structure for the default values of the {@link AuthContext}.
@@ -53,7 +55,7 @@ export interface AuthContextValues {
     /**
      * Function to initiate the logout
      */
-    logout: () => void
+    logout: (redirectUri? : string) => void
     /**
      * Check if the user has the given role
      */
@@ -154,6 +156,9 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     const [permissionLabels, setPermissionLabels] = useState<string[]>([])
     const [isTenantSelected, setIsTenantSelected] = useState<boolean>(false) // New state
 
+    const [openModal, setOpenModal] = React.useState(false)
+    const {t, i18n} = useTranslation()
+
     const sleepSecs = 50
     const bufferSecs = 10
 
@@ -183,6 +188,12 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         }
     }
 `
+
+    useEffect(() => {
+        if (localStorage.getItem("token") && location.pathname.endsWith('/tenant')) {
+            setOpenModal(true)
+        }
+    }, [])
 
     /**
      * Initializes the Keycloak instance for the specified tenant and handles authentication.
@@ -214,6 +225,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
 
             // Store the tenant ID for initialization
             localStorage.setItem("selected-tenant-id", tenantId)
+            navigate("/")
 
             // Initialize Keycloak with login-required to force login if not authenticated
             const keycloakInitOptions: KeycloakInitOptions = {
@@ -234,6 +246,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 setAuthenticated(true)
                 setIsKeycloakInitialized(true)
                 setTimeout(updateTokenPeriodically, 4e3)
+                navigate("/")
                 return true
             } catch (initError) {
                 // If initialization fails, try with check-sso instead
@@ -263,8 +276,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
             }
         } catch (error) {
             setAuthenticated(false)
-            // navigate("/select-tenant") // Redirect back on failure
-            navigate("/") // Redirect back on failure
+            navigate("/tenant") // Redirect back on failure
             return false
         }
     }
@@ -313,6 +325,12 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
             localStorage.getItem("selected-tenant-id") ||
             globalSettings.DEFAULT_TENANT_ID
 
+        if (location.pathname.endsWith("/tenant") && !localStorage.getItem("selected-tenant-id")) {
+            return
+        }
+
+        localStorage.setItem("selected-tenant-id", storedTenantId)
+
         const keycloakConfig: KeycloakConfig = {
             realm: `tenant-${storedTenantId}`,
             clientId: globalSettings.ONLINE_VOTING_CLIENT_ID,
@@ -358,30 +376,20 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
             setAuthenticated(true)
             setTimeout(updateTokenPeriodically, 4e3)
             setIsKeycloakInitialized(true)
-            navigate("/")
         } catch (error) {
             setAuthenticated(false)
             setIsKeycloakInitialized(true) // Still mark as initialized so we can use it for login
         }
     }
 
-    // We'll only create and initialize Keycloak if we have a stored tenant ID
-    // This prevents the automatic redirect when first loading the app
     useEffect(() => {
-        const storedTenantId = localStorage.getItem("selected-tenant-id")
-
-        // Only proceed if we have a stored tenant ID and settings are loaded
-        if (loadedGlobalSettings && !keycloak && storedTenantId) {
-            createKeycloak(storedTenantId)
+        if (loadedGlobalSettings && !keycloak) {
+            createKeycloak()
         }
     }, [loadedGlobalSettings, keycloak])
 
-    // Only initialize Keycloak if it exists and isn't already initialized
-    // and we have a stored tenant ID
     useEffect(() => {
-        const storedTenantId = localStorage.getItem("selected-tenant-id")
-
-        if (!keycloak || isKeycloakInitialized || !storedTenantId) {
+        if (!keycloak || isKeycloakInitialized) {
             return
         }
         initializeKeycloak()
@@ -469,17 +477,18 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     /**
      * Initiate the logout
      */
-    const logout = () => {
+    const logout = (redirectUri?: string) => {
         if (!keycloak) {
             return
         }
         localStorage.removeItem("token")
-        localStorage.removeItem("has-token")
         sessionStorage.removeItem("selected-election-event-tally-id")
+
+        let redirect = redirectUri ? redirectUri : window.location.origin;
 
         // Redirect to the main route after logout
         keycloak.logout({
-            redirectUri: window.location.origin,
+            redirectUri: redirect,
         })
     }
 
@@ -563,7 +572,25 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 initKeycloak,
             }}
         >
-            {isAuthenticated || getAccessToken() ? props.children : <SelectTenant />}
+            {localStorage.getItem("selected-tenant-id") ? props.children : <SelectTenant /> }
+            <Dialog
+                variant="info"
+                hasCloseButton={false}
+                open={openModal}
+                ok={t("common.label.logout")}
+                cancel={t("common.label.continue")}
+                title={t("common.label.warning")}
+                handleClose={(result: boolean) => {
+                    if (result) {
+                        localStorage.removeItem("selected-tenant-id")
+                        logout(window.location.origin + "/tenant")
+                    } else {
+                        setOpenModal(false)
+                    }
+                }}
+            >
+                {t("common.message.continueOrLogout")}
+            </Dialog>
         </AuthContext.Provider>
     )
 }
