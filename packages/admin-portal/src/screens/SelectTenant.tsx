@@ -200,16 +200,14 @@ export const SelectTenant = () => {
     useEffect(() => {
         if (isAuthenticated) {
             navigate("/") // Redirect to the app if already authenticated
-        } else {
-            initKeycloak(globalSettings.DEFAULT_TENANT_ID)
         }
     }, [isAuthenticated, navigate])
 
-    // useEffect(() => {
-    //     if (globalSettings) {
-    //         getDefaultTenant() // Redirect to the app if already authenticated
-    //     }
-    // }, [globalSettings])
+    useEffect(() => {
+        if (globalSettings) {
+            getDefaultTenant() // Redirect to the app if already authenticated
+        }
+    }, [globalSettings])
 
     const handleClose = (event: React.SyntheticEvent | Event) => {
         setOpen(false)

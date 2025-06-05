@@ -545,11 +545,6 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         }
     }
 
-    // Show SelectTenant when not authenticated
-    if (!isAuthenticated && !getAccessToken()) {
-        return <SelectTenant />
-    }
-
     // Setup the context provider
     return (
         <AuthContext.Provider
@@ -574,7 +569,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 initKeycloak,
             }}
         >
-            {props.children}
+            {isAuthenticated || getAccessToken() ? props.children : <SelectTenant />}
         </AuthContext.Provider>
     )
 }
