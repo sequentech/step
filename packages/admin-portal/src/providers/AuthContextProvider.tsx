@@ -18,10 +18,6 @@ import SelectTenant from "@/screens/SelectTenant"
  */
 export interface AuthContextValues {
     /**
-     * The Keycloak instance
-     */
-    keycloak: Keycloak | null
-    /**
      * Whether or not a user is currently authenticated
      */
     isAuthenticated: boolean
@@ -99,7 +95,6 @@ export interface AuthContextValues {
  * Default values for the {@link AuthContext}
  */
 const defaultAuthContextValues: AuthContextValues = {
-    keycloak: null,
     isAuthenticated: false,
     userId: "",
     username: "",
@@ -142,7 +137,7 @@ interface AuthContextProviderProps {
  * @param props
  */
 const AuthContextProvider = (props: AuthContextProviderProps) => {
-    const {loaded, globalSettings} = useContext(SettingsContext)
+    const {loaded: loadedGlobalSettings, globalSettings} = useContext(SettingsContext)
     const [keycloak, setKeycloak] = useState<Keycloak | null>(null)
     const [isKeycloakInitialized, setIsKeycloakInitialized] = useState<boolean>(false)
     const [isGetTenantChecked, setIsGetTenantChecked] = useState<boolean>(false)
@@ -339,7 +334,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 // Configure that Keycloak will check if a user is already authenticated (when
                 // opening the app or reloading the page). If not authenticated, we'll handle
                 // this in the App component by showing the SelectTenant screen.
-                onLoad: "check-sso",
+                onLoad: "login-required",
                 checkLoginIframe: false,
                 flow: "standard", // Use standard flow instead of implicit
                 responseMode: "fragment", // Use fragment response mode
@@ -375,10 +370,10 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         const storedTenantId = localStorage.getItem("selected-tenant-id")
 
         // Only proceed if we have a stored tenant ID and settings are loaded
-        if (loaded && !keycloak && storedTenantId) {
+        if (loadedGlobalSettings && !keycloak && storedTenantId) {
             createKeycloak(storedTenantId)
         }
-    }, [loaded, keycloak])
+    }, [loadedGlobalSettings, keycloak])
 
     // Only initialize Keycloak if it exists and isn't already initialized
     // and we have a stored tenant ID
@@ -470,6 +465,8 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         }
     }, [isAuthenticated, keycloak])
 
+
+
     /**
      * Initiate the logout
      */
@@ -549,7 +546,6 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     return (
         <AuthContext.Provider
             value={{
-                keycloak,
                 isAuthenticated,
                 userId,
                 username,
@@ -569,7 +565,11 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 initKeycloak,
             }}
         >
-            {isAuthenticated || getAccessToken() ? props.children : <SelectTenant />}
+            {isAuthenticated || getAccessToken() ? (
+                props.children
+            ) : (
+                <SelectTenant />
+            )}
         </AuthContext.Provider>
     )
 }
