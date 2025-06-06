@@ -190,8 +190,13 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
 `
 
     useEffect(() => {
-        if (localStorage.getItem("token") && location.pathname.endsWith("/tenant")) {
-            setOpenModal(true)
+        if (location.pathname.endsWith("/tenant")) {
+            if (localStorage.getItem("token")) {
+                setOpenModal(true)
+            }
+            else {
+                localStorage.removeItem("selected-tenant-id")
+            }
         }
     }, [])
 
