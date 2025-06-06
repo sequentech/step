@@ -101,7 +101,7 @@
                 <strong>Number of Registered Voters:</strong>
               </td>
               <td class="value">
-                {{format_u64 (parse_i64 report.area_annotations.registered_voters)}}
+                {{format_u64 report.contest_result.census}}
               </td>
             </tr>
             <tr>
@@ -117,8 +117,7 @@
                 <strong>Voters Turnout (%):</strong>
               </td>
               <td class="value">{{format_percentage (expr (multiply 100 (divide report.contest_result.total_votes
-                (parse_i64
-                report.area_annotations.registered_voters))))}}%</td>
+                report.contest_result.census)))}}%</td>
             </tr>
           </table>
         </div>
