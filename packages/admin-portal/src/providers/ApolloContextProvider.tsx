@@ -10,7 +10,6 @@ import {ApolloProvider} from "@apollo/client"
 import {SettingsContext} from "./SettingsContextProvider"
 import {getOperationRole} from "@/services/Permissions"
 import {IPermissions} from "@/types/keycloak"
-import SelectTenant from "@/screens/SelectTenant"
 
 interface ApolloContextValues {
     apolloClient: ApolloClient<NormalizedCacheObject> | null
@@ -113,12 +112,6 @@ export const ApolloContextProvider = ({children, role}: ApolloContextProviderPro
 
 export const ApolloWrapper: React.FC<PropsWithChildren> = ({children}) => {
     const {apolloClient} = useContext(ApolloContext)
-    const {isAuthenticated, getAccessToken} = useContext(AuthContext)
-
-    // Show SelectTenant when not authenticated
-    if (!isAuthenticated && !getAccessToken()) {
-        return <SelectTenant />
-    }
 
     // Show loading spinner while waiting for client
     if (null === apolloClient) {
