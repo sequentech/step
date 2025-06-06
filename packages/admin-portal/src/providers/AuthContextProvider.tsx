@@ -193,8 +193,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         if (location.pathname.endsWith("/tenant")) {
             if (localStorage.getItem("token")) {
                 setOpenModal(true)
-            }
-            else {
+            } else {
                 localStorage.removeItem("selected-tenant-id")
             }
         }
