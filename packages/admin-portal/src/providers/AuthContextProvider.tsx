@@ -55,7 +55,7 @@ export interface AuthContextValues {
     /**
      * Function to initiate the logout
      */
-    logout: (redirectUri? : string) => void
+    logout: (redirectUri?: string) => void
     /**
      * Check if the user has the given role
      */
@@ -190,7 +190,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
 `
 
     useEffect(() => {
-        if (localStorage.getItem("token") && location.pathname.endsWith('/tenant')) {
+        if (localStorage.getItem("token") && location.pathname.endsWith("/tenant")) {
             setOpenModal(true)
         }
     }, [])
@@ -484,7 +484,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         localStorage.removeItem("token")
         sessionStorage.removeItem("selected-election-event-tally-id")
 
-        let redirect = redirectUri ? redirectUri : window.location.origin;
+        let redirect = redirectUri ? redirectUri : window.location.origin
 
         // Redirect to the main route after logout
         keycloak.logout({
@@ -572,7 +572,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 initKeycloak,
             }}
         >
-            {localStorage.getItem("selected-tenant-id") ? props.children : <SelectTenant /> }
+            {localStorage.getItem("selected-tenant-id") ? props.children : <SelectTenant />}
             <Dialog
                 variant="info"
                 hasCloseButton={false}
