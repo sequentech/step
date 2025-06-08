@@ -37,6 +37,7 @@ pub mod keycloak_events;
 pub mod limit_access_by_countries;
 pub mod password;
 pub mod pg_lock;
+pub mod plugin_manager;
 pub mod private_keys;
 pub mod probe;
 pub mod protocol_manager;

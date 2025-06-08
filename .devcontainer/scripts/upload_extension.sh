@@ -17,18 +17,15 @@ if [[ -z "$CRATE" ]]; then
   exit 1
 fi
 
-# ─── Locate artefact ────────────────────────────────────────────────────────
 WASM_PATH="./packages/extensions/test/rust-local-target/wasm32-unknown-unknown/debug/test.wasm"
 [[ -f "$WASM_PATH" ]] || {
   echo "❌ Wasm artefact not found: $WASM_PATH" >&2
   exit 1
 }
 
-# ─── Bucket & folder (override in .env / devcontainer) ──────────────────────
 BUCKET=$AWS_S3_PUBLIC_BUCKET
-OBJECT_KEY="extentions/${CRATE}.wasm"
+OBJECT_KEY="extensions/${CRATE}.wasm"
 
-# ─── Upload via `mc` (alias must be configured once) ────────────────────────
 mc cp "$WASM_PATH" "myminio/$BUCKET/$OBJECT_KEY"
 
 echo "✅ Done  uploading – $OBJECT_KEY"
