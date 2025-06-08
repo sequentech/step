@@ -6,10 +6,9 @@ let
     sha256 = "1m3925fwf7hq3vcdn9fl554mzip6y4rqbrq7jb377h2l5rq6p9nd";
   });
 
-  #Extend the *existing* pkgs set so all other packages still come from it
   pkgs' = pkgs.extend rustOverlay;
-  
-  rustToolchain = pkgs'.rust-bin.stable.latest.default.override {
+
+  rustNightly = pkgs'.rust-bin.nightly.latest.default.override {
     targets    = [ "wasm32-unknown-unknown" ];
     extensions = [ "rust-src" ];
   };
@@ -31,8 +30,8 @@ in
   # https://devenv.sh/packages/
   packages = with pkgs; [
 
-    # Binary Rust tool-chain
-    rustToolchain
+    # Binary Rust
+    rustNightly
 
     # AWS
     (aws-sam-cli.overridePythonAttrs { doCheck = false; })
@@ -106,7 +105,8 @@ in
     export LD_LIBRARY_PATH=${pkgs.openssl.out}/lib:$LD_LIBRARY_PATH
     export PATH=/workspaces/step/packages/step-cli/rust-local-target/release:$PATH
     set +a
-    export RUSTC=${rustToolchain}/bin/rustc
+
+    export RUSTC=${rustNightly}/bin/rustc
   '';
 
 
