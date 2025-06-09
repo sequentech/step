@@ -1159,6 +1159,7 @@ pub async fn count_electoral_log(input: GetElectoralLogBody) -> Result<i64> {
         .next()
         .ok_or_else(|| anyhow!("No aggregate found"))??;
 
+    info!("Count: {}", aggregate.count);
     client.close_session().await?;
     Ok(aggregate.count as i64)
 }

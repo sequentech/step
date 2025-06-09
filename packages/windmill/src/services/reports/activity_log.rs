@@ -75,6 +75,63 @@ impl ActivityLogsTemplate {
     pub fn new(ids: ReportOrigins, report_format: ReportFormat) -> Self {
         ActivityLogsTemplate { ids, report_format }
     }
+
+    // Export data
+    #[instrument(err, skip(self, hasura_transaction))]
+    pub async fn generate_export_data(
+        &self,
+        hasura_transaction: &Transaction<'_>,
+        name: &str,
+    ) -> Result<NamedTempFile> {
+        let limit = PgConfig::from_env()
+            .with_context(|| "Error obtaining Pg config from env.")?
+            .default_sql_batch_size as i64;
+        let mut offset: i64 = 0;
+
+        // Create a temporary file to write CSV data
+        let mut temp_file =
+            generate_temp_file(&name, ".csv").with_context(|| "Error creating named temp file")?;
+        let mut csv_writer = WriterBuilder::new().from_writer(temp_file.as_file_mut());
+        let total = self
+            .count_items(hasura_transaction)
+            .await
+            .map_err(|e| anyhow!("Error count_items in activity logs data: {e:?}"))?
+            .unwrap_or(0);
+        while offset < total {
+            info!("offset: {offset}, total: {total}");
+            // Prepare user data
+            let user_data = self
+                .prepare_user_data_batch(hasura_transaction, hasura_transaction, &mut offset, limit)
+                .await
+                .map_err(|e| anyhow!("Error preparing activity logs data: {e:?}"))?;
+
+            let s1 = user_data.electoral_log.len() * (mem::size_of::<ElectoralLogRow>());
+            let s2 = user_data.act_log.len() * (mem::size_of::<ActivityLogRow>());
+            let kb = (s1 + s2) as f64 / KB;
+            let mb = (s1 + s2) as f64 / MB;
+            info!("Logs batch size: {kb:.2} KB, {mb:.2} MB");
+
+            for item in user_data.electoral_log {
+                let mut item_clone = item.clone();
+
+                // Replace newline characters in the message field
+                item_clone.message = item_clone.message.replace('\n', " ").replace('\r', " ");
+                // Serialize each item to CSV
+                csv_writer
+                    .serialize(item_clone)
+                    .map_err(|e| anyhow!("Error serializing to CSV: {e:?}"))?;
+            }
+            offset += limit;
+        }
+
+        // Flush and finish writing to the temporary file
+        csv_writer
+            .flush()
+            .map_err(|e| anyhow!("Error flushing CSV writer: {e:?}"))?;
+        drop(csv_writer);
+
+        Ok(temp_file)
+    }
 }
 
 impl TryFrom<ElectoralLogRow> for ActivityLogRow {
@@ -205,14 +262,12 @@ impl TemplateRenderer for ActivityLogsTemplate {
             let log_type = head_data.log_type;
             let description = head_data.description;
             let activity_log = electoral_log.try_into()?;
-            info!("activity_log = {activity_log:?}");
             let activity_log = ActivityLogRow {
                 event_type,
                 log_type,
                 description,
                 ..activity_log
             };
-            info!("activity_log = {activity_log:?}");
             act_log.push(activity_log);
         }
 
@@ -439,63 +494,4 @@ pub async fn generate_report_data(act_log: &[ActivityLogRow], name: &str) -> Res
     drop(csv_writer);
 
     Ok(temp_file)
-}
-
-impl ActivityLogsTemplate {
-    // Export data
-    #[instrument(err, skip(self, hasura_transaction))]
-    pub async fn generate_export_data(
-        &self,
-        hasura_transaction: &Transaction<'_>,
-        name: &str,
-    ) -> Result<NamedTempFile> {
-        let limit = PgConfig::from_env()
-            .with_context(|| "Error obtaining Pg config from env.")?
-            .default_sql_batch_size as i64;
-        let mut offset: i64 = 0;
-
-        // Create a temporary file to write CSV data
-        let mut temp_file =
-            generate_temp_file(&name, ".csv").with_context(|| "Error creating named temp file")?;
-        let mut csv_writer = WriterBuilder::new().from_writer(temp_file.as_file_mut());
-        let total = self
-            .count_items(hasura_transaction)
-            .await
-            .map_err(|e| anyhow!("Error count_items in activity logs data: {e:?}"))?
-            .unwrap_or(0);
-
-        while offset < total {
-            // Prepare user data
-            let user_data = self
-                .prepare_user_data_batch(hasura_transaction, hasura_transaction, &mut offset, limit)
-                .await
-                .map_err(|e| anyhow!("Error preparing activity logs data: {e:?}"))?;
-
-            let s1 = user_data.electoral_log.len() * (mem::size_of::<ElectoralLogRow>());
-            let s2 = user_data.act_log.len() * (mem::size_of::<ActivityLogRow>());
-            let kb = (s1 + s2) as f64 / KB;
-            let mb = (s1 + s2) as f64 / MB;
-            info!("Logs batch size: {kb:.2} KB, {mb:.2} MB");
-
-            for item in user_data.electoral_log {
-                let mut item_clone = item.clone();
-
-                // Replace newline characters in the message field
-                item_clone.message = item_clone.message.replace('\n', " ").replace('\r', " ");
-                // Serialize each item to CSV
-                csv_writer
-                    .serialize(item_clone)
-                    .map_err(|e| anyhow!("Error serializing to CSV: {e:?}"))?;
-            }
-            offset += limit;
-        }
-
-        // Flush and finish writing to the temporary file
-        csv_writer
-            .flush()
-            .map_err(|e| anyhow!("Error flushing CSV writer: {e:?}"))?;
-        drop(csv_writer);
-
-        Ok(temp_file)
-    }
 }
