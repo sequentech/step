@@ -1118,6 +1118,7 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
         .next()
         // unwrap the Result and Option
         .ok_or(anyhow!("No aggregate found"))??;
+    info!("Count: {}", aggregate.count);
 
     client.close_session().await?;
     Ok(DataList {
