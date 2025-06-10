@@ -1882,6 +1882,10 @@ const galegoTranslation: TranslationType = {
                 isHidden: "Está Oculto",
                 publicUrl: "URL Pública",
             },
+            empty: {
+                header: "Aínda non hai material de apoio",
+                action: "Xerar material de apoio",
+            },
         },
         widget: {
             logs: "Rexistros",
