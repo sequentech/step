@@ -1,12 +1,13 @@
+---
+id: tally_decrypt
+title: Decrypting the Votes
+---
+
 <!--
 SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
----
-id: tally_decrypt
-title: Decrypting the Votes
----
 
 This is a placeholder page for the section: Decrypting Votes
 

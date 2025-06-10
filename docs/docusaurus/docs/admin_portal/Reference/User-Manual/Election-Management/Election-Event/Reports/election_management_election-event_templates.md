@@ -1,12 +1,13 @@
+---
+id: election_management_election_event_templates
+title: Templates
+---
+
 <!--
 SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
----
-id: election_management_election_event_templates
-title: Templates
----
 
 Managing Templates is essential for consistent report generation. Each Report Type is associated with a Template to form a “recipe” used when generating reports.
 

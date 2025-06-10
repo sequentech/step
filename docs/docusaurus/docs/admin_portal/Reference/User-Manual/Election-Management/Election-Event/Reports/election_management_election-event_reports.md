@@ -1,12 +1,13 @@
+---
+id: election_management_election_event_reports
+title: Reports
+---
+
 <!--
 SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
----
-id: election_management_election_event_reports
-title: Reports
----
 
 The Reports tab allows for the configuration, generation, and scheduling of reports using predefined Templates (see the Templates section for details). Some reports (e.g., Initialization Report, Manual Verification, Ballot Receipt) are triggered automatically by system actions. Other reports (e.g., Statistical Report, Voter List Summary) can be scheduled or generated manually as needed. This tab provides full control over report configuration and scheduling, ensuring flexibility and automation where required.
 

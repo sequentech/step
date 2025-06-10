@@ -1,12 +1,13 @@
+---
+id: election_management_election_event_tally
+title: Tally Ceremony
+---
+
 <!--
 SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
----
-id: election_management_election_event_tally
-title: Tally Ceremony
----
 
 ## Introduction
 The Tally section covers the essential procedures required to consolidate resultd after voting has concluded. Election Board members are guided through starting the tally ceremony, verifying key fragments, running the tally, and reviewing results. By following these instructions, the post-election phase is handled with integrity and precision, ensuring that results are verified and published correctly and that the process remains transparent and trustworthy.

@@ -1,12 +1,13 @@
+---
+id: election_management_election_publish
+title: Publish
+---
+
 <!--
 SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
----
-id: election_management_election_publish
-title: Publish
----
 
 To commit any changes to an Election, they must be published using this tab. Additionally, you can start, pause, and stop individual Elections here.
 

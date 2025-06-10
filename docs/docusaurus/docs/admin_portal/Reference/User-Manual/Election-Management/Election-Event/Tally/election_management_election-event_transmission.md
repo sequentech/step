@@ -1,12 +1,13 @@
+---
+id: election_management_election_event_transmission
+title: Transmission
+---
+
 <!--
 SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
----
-id: election_management_election_event_transmission
-title: Transmission
----
 
 The Transmission module under the Tally tab enables sending election results to external servers that have been predefined in the system environment. This feature ensures that encrypted and signed tally data can be securely delivered to authorized endpoints for archival, auditing, or further processing.
 

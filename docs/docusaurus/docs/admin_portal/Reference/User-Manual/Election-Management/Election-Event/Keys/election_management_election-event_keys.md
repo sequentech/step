@@ -1,12 +1,13 @@
+---
+id: election_management_election_event_keys
+title: Keys
+---
+
 <!--
 SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
----
-id: election_management_election_event_keys
-title: Keys
----
 
 The Key Ceremony establishes the collective private key used to decrypt votes and publishes a corresponding public key for voters to encrypt their ballots. During this ceremony, trustees collaboratively generate fragments of the private key, ensuring no single party holds the full secret. Each trustee downloads, securely backs up, and verifies their key fragment. Only after all trustees complete these steps can the election proceed to stages such as ballot publication, voting, and tallying. This distributed approach guarantees that votes encrypted under the shared public key remain confidential and tamper-resistant, and that the combined private key—reconstructed only when a threshold of trustees collaborates—preserves integrity and availability of decryption throughout the election lifecycle.
 

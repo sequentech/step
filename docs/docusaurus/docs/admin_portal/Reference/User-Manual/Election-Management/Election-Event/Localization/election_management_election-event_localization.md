@@ -1,12 +1,13 @@
+---
+id: election_management_election_event_localization
+title: Localization
+---
+
 <!--
 SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
----
-id: election_management_election_event_localization
-title: Localization
----
 
 This section allows you to configure specific visual elements in the Voting Portal, with support for displaying different content per language. A map of keys to elements in the Voting Portal is available in a separate file.
 

@@ -1,12 +1,13 @@
+---
+id: election_management_election_data
+title: Data
+---
+
 <!--
 SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
----
-id: election_management_election_data
-title: Data
----
 
 Manage data related to the Election. This tab allows configuration of core settings for an individual Election, similar in structure to the Election Event Data tab but scoped to this specific Election.
 

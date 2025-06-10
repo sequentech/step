@@ -1,12 +1,13 @@
+---
+id: election_management_election_event_voters
+title: Voters
+---
+
 <!--
 SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
----
-id: election_management_election_event_voters
-title: Voters
----
 
 Displays the currently configured voters for this Election Event.
 

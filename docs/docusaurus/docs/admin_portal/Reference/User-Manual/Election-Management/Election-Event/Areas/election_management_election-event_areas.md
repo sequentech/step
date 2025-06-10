@@ -1,12 +1,12 @@
-<!--
-SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
-SPDX-License-Identifier: AGPL-3.0-only
--->
-
 ---
 id: election_management_election_event_areas
 title: Areas
 ---
+
+<!--
+SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
+SPDX-License-Identifier: AGPL-3.0-only
+-->
 
 Represents geographical or organizational divisions within which elections are conducted. These can range from small precincts or wards to larger regions such as districts or states.
 

@@ -1,13 +1,11 @@
-<!--
-SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
-SPDX-License-Identifier: AGPL-3.0-only
--->
-
 ---
 id: election_management_candidate_data
 title: Data
 ---
-
+<!--
+SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
+SPDX-License-Identifier: AGPL-3.0-only
+-->
 The Candidate Data tab allows administrators to configure and manage details for a specific candidate within a Contest. Many settings parallel those in other data tabs (e.g., Election Event, Election, Contest), adapted for candidate-specific context. Below are the main sections and their details.
 
 ## Sections Overview
