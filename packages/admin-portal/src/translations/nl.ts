@@ -1100,6 +1100,7 @@ const dutchTranslation: TranslationType = {
                 tl: "Tagalog",
                 gl: "Galicisch",
                 nl: "Nederlands",
+                eu: "Euskera",
             },
             channel: {
                 online: "Online",

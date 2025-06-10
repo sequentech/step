@@ -94,13 +94,6 @@ const App: React.FC<AppProps> = () => {
 
     if (!dataProvider) return <p>{t("loadingDataProvider")}</p>
 
-    // Check authentication
-    if (!isAuthenticated) {
-        // If we're not authenticated, show the SelectTenant screen
-        // This prevents automatic redirection to Keycloak login
-        return <SelectTenant />
-    }
-
     return (
         <StyledAppAtom>
             <Admin
@@ -117,7 +110,7 @@ const App: React.FC<AppProps> = () => {
                         index
                     />
                     {/* <Route path="/logs" element={<Logs />} /> */}
-                    <Route path="/admin/tenant/login" element={<SelectTenant />} />
+                    <Route path="/tenant" element={<SelectTenant />} />
                     <Route path="/user-roles" element={<UserAndRoles />} />
                     <Route path="/messages" element={<Messages />} />
                     <Route path="/settings/" element={<SettingsScreen />} />

@@ -1105,6 +1105,7 @@ const tagalogTranslation: TranslationType = {
                 tl: "Tagalog",
                 gl: "Galego",
                 nl: "Nederlands",
+                eu: "Euskera",
             },
             channel: {
                 online: "Online",
