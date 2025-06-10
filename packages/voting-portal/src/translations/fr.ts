@@ -311,6 +311,10 @@ const frenchTranslation: TranslationType = {
             notFound: "Votre ID de Bulletin {{ballotId}} n'a pas été localisé",
             contentDesc: "Voici le contenu de votre Bulletin : ",
             wrongFormatBallotId: "Format incorrect pour l'ID du Bulletin",
+            ballotIdNotFoundAtFilter:
+                "Non trouvé, veuillez verifier que l'ID du Bulletin soit correct et appartenir a cet utilisateur.",
+            filterByBallotId: "Filtrez par ID de Bulletin",
+            totalBallots: "Total: {{total}}",
             steps: {
                 lookup: "Localisez votre Bulletin",
                 result: "Résultat",
@@ -320,6 +324,16 @@ const frenchTranslation: TranslationType = {
                 content:
                     "Cet écran permet au votant de trouver son bulletin en utilisant l'ID du Bulletin pour le récupérer. Cette procédure permet de vérifier que son vote a été émis correctement et que le vote enregistré correspond au vote chiffré émis.",
                 ok: "OK",
+            },
+            tabs: {
+                logs: "Logs",
+                ballotLocator: "Localisez votre Bulletin",
+            },
+            column: {
+                statement_kind: "Type",
+                statement_timestamp: "Marque de temps",
+                username: "Nom d'utilisateur",
+                ballot_id: "ID de Bulletin",
             },
         },
     },

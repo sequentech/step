@@ -311,6 +311,10 @@ const dutchTranslation: TranslationType = {
             notFound: "Uw stembiljet ID {{ballotId}} is niet gelokaliseerd",
             contentDesc: "Dit is de inhoud van uw stembiljet: ",
             wrongFormatBallotId: "Verkeerd formaat voor Stembiljet ID",
+            ballotIdNotFoundAtFilter:
+                "Niet gevonden, controleer dat uw Stembiljet ID correct is en behoort tot deze gebruiker.",
+            filterByBallotId: "Filteren op Stembiljet ID",
+            totalBallots: "Aantal stembiljet: {{total}}",
             steps: {
                 lookup: "Lokaliseer uw Stembiljet",
                 result: "Resultaat",
@@ -320,6 +324,16 @@ const dutchTranslation: TranslationType = {
                 content:
                     "Dit scherm stelt de kiezer in staat om zijn/haar stem te vinden door de Stembiljet ID te gebruiken om deze op te halen. Deze procedure maakt het mogelijk te controleren of hun stembiljet correct is uitgebracht en of het geregistreerde stembiljet overeenkomt met het versleutelde stembiljet dat ze hebben verzonden.",
                 ok: "OK",
+            },
+            tabs: {
+                logs: "Logs",
+                ballotLocator: "Lokaliseer uw Stembiljet",
+            },
+            column: {
+                statement_kind: "Type",
+                statement_timestamp: "Tijdstip",
+                username: "Gebruikersnaam",
+                ballot_id: "Stembiljet ID",
             },
         },
     },

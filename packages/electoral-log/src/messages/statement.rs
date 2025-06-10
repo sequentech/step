@@ -252,6 +252,7 @@ pub enum StatementBody {
     AdminPublicKey(TenantIdString, Option<String>, PublicKeyDerB64),
 }
 
+// Note: When creating new variants, consider that the length limit STATEMENT_KIND_VARCHAR_LENGTH is 40.
 #[derive(BorshSerialize, BorshDeserialize, Display, Deserialize, Serialize, Debug, Clone)]
 pub enum StatementType {
     Unknown,

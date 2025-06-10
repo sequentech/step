@@ -435,6 +435,18 @@ type Mutation {
 }
 
 type Query {
+    list_cast_vote_messages(
+        tenant_id: String!
+        election_event_id: String!
+        election_id: String
+        ballot_id: String!
+        limit: Int
+        offset: Int
+        order_by: ElectoralLogOrderBy
+    ): ListCastVoteMessagesOutput
+}
+
+type Query {
     listElectoralLog(
         limit: Int
         offset: Int
@@ -663,6 +675,8 @@ input ElectoralLogOrderBy {
     statement_timestamp: OrderDirection
     statement_kind: OrderDirection
     user_id: OrderDirection
+    username: OrderDirection
+    ballot_id: OrderDirection
 }
 
 input SampleInput {
@@ -1020,6 +1034,18 @@ type ElectoralLogRow {
     statement_kind: String!
     message: String!
     user_id: String!
+}
+
+type CastVoteEntry {
+    statement_timestamp: Int!
+    statement_kind: String!
+    ballot_id: String!
+    username: String!
+}
+
+type ListCastVoteMessagesOutput {
+    list: [CastVoteEntry]!
+    total: Int!
 }
 
 type DataListElectoralLog {

@@ -51,6 +51,7 @@ import {
     EElectionEventOTP,
     EElectionEventContestEncryptionPolicy,
     EVoterSigningPolicy,
+    EShowCastVoteLogsPolicy,
 } from "@sequentech/ui-core"
 import {ListActions} from "@/components/ListActions"
 import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
@@ -458,6 +459,13 @@ export const EditElectionEventDataForm: React.FC = () => {
         }))
     }
 
+    const showCastVoteLogsChoices = (): Array<EnumChoice<EShowCastVoteLogsPolicy>> => {
+        return Object.values(EShowCastVoteLogsPolicy).map((value) => ({
+            id: value,
+            name: t(`electionEventScreen.field.showCastVoteLogs.options.${value.toLowerCase()}`),
+        }))
+    }
+
     const handleImportCandidates = async (documentId: string, sha256: string) => {
         setOpenImportCandidates(false)
         const currWidget = addWidget(ETasksExecution.IMPORT_CANDIDATES)
@@ -799,6 +807,15 @@ export const EditElectionEventDataForm: React.FC = () => {
                                         source="presentation.elections_order"
                                         choices={orderAnswerChoices()}
                                         validate={required()}
+                                    />
+                                    <SelectInput
+                                        source="presentation.show_cast_vote_logs"
+                                        choices={showCastVoteLogsChoices()}
+                                        validate={required()}
+                                        defaultValue={EShowCastVoteLogsPolicy.HIDE_LOGS_TAB}
+                                        label={t(
+                                            "electionEventScreen.field.showCastVoteLogs.policyLabel"
+                                        )}
                                     />
                                     <FormDataConsumer>
                                         {({formData, ...rest}) => {

@@ -280,6 +280,13 @@ const tagalogTranslation: TranslationType = {
                 css: "Custom CSS",
                 skipElectionList: "Laktawan ang Screen ng Listahan ng Halalan",
                 showUserProfile: "Ipakita ang Profile ng Gumagamit",
+                showCastVoteLogs: {
+                    policyLabel: "Patakaran sa Ipakita ng mga Log ng Pagboto",
+                    options: {
+                        "show-logs-tab": "Ipakita ang Tab ng mga Log ng Pagboto",
+                        "hide-logs-tab": "Laktawan ang Tab ng mga Log ng Pagboto",
+                    },
+                },
                 lockdownState: {
                     policyLabel: "Kalagayan ng Lockdown",
                     options: {
