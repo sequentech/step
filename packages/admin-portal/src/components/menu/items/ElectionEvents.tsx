@@ -239,22 +239,6 @@ export default function ElectionEvents() {
 
     const {getCandidateIdFlag} = useElectionEventTallyStore()
 
-    const [openModal, setOpenModal] = React.useState(false)
-
-    useEffect(() => {
-        const referrer = document.referrer
-        const baseUrl = window.location.origin
-        const isFromMainPath =
-            referrer === baseUrl ||
-            referrer === `${baseUrl}/` ||
-            window.location.href === baseUrl ||
-            window.location.href === `${baseUrl}/`
-
-        if (localStorage.getItem("has-token") && isFromMainPath) {
-            setOpenModal(true)
-        }
-    }, [])
-
     /**
      * Hooks to load data for entities
      */
@@ -774,24 +758,6 @@ export default function ElectionEvents() {
                     </Box>
                 </MMenuItem>
             </MMenu>
-            <Dialog
-                variant="info"
-                hasCloseButton={false}
-                open={openModal}
-                cancel={t("common.label.logout")}
-                ok={t("common.label.continue")}
-                title={t("common.label.warning")}
-                handleClose={(result: boolean) => {
-                    if (result) {
-                        localStorage.removeItem("has-token")
-                        setOpenModal(false)
-                    } else {
-                        authContext.logout()
-                    }
-                }}
-            >
-                {t("common.message.continueOrLogout")}
-            </Dialog>
         </>
     )
 }
