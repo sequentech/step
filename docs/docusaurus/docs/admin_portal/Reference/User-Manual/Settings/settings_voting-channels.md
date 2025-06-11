@@ -1,6 +1,6 @@
 ---
-id: admin_portal_reference_user_manual_settings_voting_channels
-title: Admin Portal Reference User Manual Settings Voting Channels
+id: settings_voting-channels
+title: Voting Channels
 ---
 
 <!--

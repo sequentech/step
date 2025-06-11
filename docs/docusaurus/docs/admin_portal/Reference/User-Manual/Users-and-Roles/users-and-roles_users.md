@@ -1,6 +1,6 @@
 ---
-id: admin_portal_reference_user_manual_settings
-title: Admin Portal Reference User Manual Settings
+id: users-and-roles_users
+title: Users
 ---
 
 <!--
@@ -11,6 +11,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 
 
-This is a placeholder page for the section: Settings.
+This is a placeholder page for the section: Users.
 
 Content will be added here soon.

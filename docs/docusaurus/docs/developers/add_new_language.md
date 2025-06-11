@@ -1,6 +1,6 @@
 ---
 id: add_new_language
-title: Add a new Language
+title: Add a New Language
 ---
 
 <!--

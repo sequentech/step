@@ -1,6 +1,6 @@
 ---
-id: admin_portal_reference_user_manual_settings_languages
-title: Admin Portal Reference User Manual Settings Languages
+id: settings_languages
+title: Languages
 ---
 
 <!--

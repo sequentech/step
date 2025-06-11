@@ -1,6 +1,6 @@
 ---
-id: admin_portal_reference_user_manual_settings_election_types__deprecated_
-title: Admin Portal Reference User Manual Settings Election Types Deprecated
+id: settings_election-types-deprecated
+title: Election Types (Deprecated)
 ---
 
 <!--

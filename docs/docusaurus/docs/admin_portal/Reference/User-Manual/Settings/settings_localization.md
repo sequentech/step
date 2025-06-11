@@ -1,6 +1,6 @@
 ---
-id: admin_portal_reference_user_manual_settings_localization
-title: Admin Portal Reference User Manual Settings Localization
+id: settings_localization
+title: Localization
 ---
 
 <!--
