@@ -929,6 +929,16 @@ impl GetElectoralLogBody {
     }
 }
 
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct StatementHeadDataString {
+    pub event: String,
+    pub kind: String,
+    pub timestamp: i64,
+    pub event_type: String,
+    pub log_type: String,
+    pub description: String,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ElectoralLogRow {
     pub id: i64,
@@ -939,15 +949,6 @@ pub struct ElectoralLogRow {
     pub data: String,
     pub user_id: Option<String>,
     pub username: Option<String>,
-}
-#[derive(Deserialize, Serialize, Debug, Clone)]
-pub struct StatementHeadDataString {
-    pub event: String,
-    pub kind: String,
-    pub timestamp: i64,
-    pub event_type: String,
-    pub log_type: String,
-    pub description: String,
 }
 
 impl ElectoralLogRow {

@@ -26,7 +26,7 @@ use std::fmt;
 /// a cross-event statement
 pub const GENERIC_EVENT: &'static str = "Generic Event";
 
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, std::fmt::Debug)]
+#[derive(Clone, BorshSerialize, BorshDeserialize, Serialize, Deserialize, std::fmt::Debug)]
 pub struct Message {
     pub sender: Sender,
     pub sender_signature: StrandSignature,
@@ -409,6 +409,7 @@ impl TryFrom<&Message> for ElectoralLogMessage {
             created: crate::timestamp() as i64,
             statement_timestamp: message.statement.head.timestamp as i64,
             statement_kind: message.statement.head.kind.to_string(),
+            deserialized_message: Some(message.clone()),
             message: message.strand_serialize()?,
             sender_pk: message.sender.pk.to_der_b64_string()?,
             version: crate::get_schema_version(),

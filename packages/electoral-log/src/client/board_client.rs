@@ -3,13 +3,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::assign_value;
+use crate::messages::message::Message;
 use anyhow::{anyhow, Context, Result};
 use immudb_rs::{sql_value::Value, Client, CommittedSqlTx, NamedParam, Row, SqlValue, TxMode};
 use serde::{Deserialize, Serialize};
+use serde_json;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::fmt::Display;
+use strand::serialization::StrandDeserialize;
 use strum_macros::Display;
 use tokio_stream::StreamExt; // Added for streaming
 use tracing::{error, info, instrument, warn};
@@ -68,7 +71,7 @@ pub enum SqlCompOperators {
 }
 
 pub type WhereClauseBTreeMap = BTreeMap<ElectoralLogVarCharColumn, (SqlCompOperators, String)>;
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ElectoralLogMessage {
     pub id: i64,
     pub created: i64,
@@ -76,6 +79,7 @@ pub struct ElectoralLogMessage {
     pub statement_timestamp: i64,
     pub statement_kind: String,
     pub message: Vec<u8>,
+    pub deserialized_message: Option<Message>,
     pub version: String,
     pub user_id: Option<String>,
     pub username: Option<String>,
@@ -177,6 +181,12 @@ impl TryFrom<&Row> for ElectoralLogMessage {
             }
         }
 
+        let deserialized_message =
+            Message::strand_deserialize(&message).with_context(|| "Error deserializing message")?;
+
+        // let deserialized_message = serde_json::to_string_pretty(&deserialized_message)
+        //     .with_context(|| "Error serializing message to json")?;
+
         Ok(ElectoralLogMessage {
             id,
             created,
@@ -184,6 +194,7 @@ impl TryFrom<&Row> for ElectoralLogMessage {
             statement_timestamp,
             statement_kind,
             message,
+            deserialized_message: Some(deserialized_message),
             version,
             user_id,
             username,
@@ -194,6 +205,35 @@ impl TryFrom<&Row> for ElectoralLogMessage {
     }
 }
 
+// impl ElectoralLogMessage {
+//     pub fn statement_head_data(&self) -> Result<StatementHeadDataString> {
+//         let message: serde_json::Value = serde_json::from_str(&self.message).map_err(|err| {
+//             anyhow!(format!(
+//                 "{:?}, Failed to parse message: {}",
+//                 err, self.message
+//             ))
+//         })?;
+
+//         let Some(statement) = message.get("statement") else {
+//             return Err(anyhow!(
+//                 "Failed to get statement from message: {}",
+//                 self.message
+//             ));
+//         };
+
+//         let Some(head) = statement.get("head") else {
+//             return Err(anyhow!(
+//                 "Failed to get head from statement: {}",
+//                 self.message
+//             ));
+//         };
+
+//         let data: StatementHeadDataString = serde_json::from_value(head.clone())
+//             .map_err(|err| anyhow!(format!("{:?}, Failed to parse head: {}", err, head)))?;
+
+//         Ok(data)
+//     }
+// }
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Aggregate {
     pub count: i64,
@@ -956,6 +996,7 @@ pub(crate) mod tests {
             statement_timestamp: 0,
             statement_kind: "".to_string(),
             message: vec![],
+            deserialized_message: None,
             version: "".to_string(),
             user_id: None,
             username: None,

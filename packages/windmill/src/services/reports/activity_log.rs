@@ -7,7 +7,7 @@ use crate::postgres::reports::{Report, ReportType};
 use crate::services::database::PgConfig;
 use crate::services::documents::upload_and_return_document;
 use crate::services::electoral_log::{
-    count_electoral_log, list_electoral_log, ElectoralLogRow, GetElectoralLogBody,
+    list_electoral_log, ElectoralLogRow, GetElectoralLogBody, StatementHeadDataString,
 };
 use crate::services::protocol_manager::{get_board_client, get_event_board};
 use crate::services::providers::email_sender::{Attachment, EmailSender};
@@ -17,7 +17,8 @@ use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use csv::WriterBuilder;
 use deadpool_postgres::Transaction;
-use electoral_log::client::board_client::BoardClient;
+use electoral_log::client::board_client::{BoardClient, ElectoralLogMessage};
+use electoral_log::messages::message::{Message, SigningData};
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak::{self};
 use sequent_core::services::s3::get_minio_url;
@@ -147,17 +148,17 @@ impl ActivityLogsTemplate {
     }
 }
 
-impl TryFrom<ElectoralLogRow> for ActivityLogRow {
+impl TryFrom<ElectoralLogMessage> for ActivityLogRow {
     type Error = anyhow::Error;
 
-    fn try_from(electoral_log: ElectoralLogRow) -> Result<Self, Self::Error> {
-        let user_id = match electoral_log.user_id() {
+    fn try_from(electoral_log: ElectoralLogMessage) -> Result<Self, Self::Error> {
+        let user_id = match electoral_log.user_id {
             Some(user_id) => user_id.to_string(),
             None => "-".to_string(),
         };
 
         let statement_timestamp: String = if let Ok(datetime_parsed) =
-            ISO8601::timestamp_secs_utc_to_date_opt(electoral_log.statement_timestamp())
+            ISO8601::timestamp_secs_utc_to_date_opt(electoral_log.statement_timestamp)
         {
             datetime_parsed.to_rfc3339()
         } else {
@@ -165,30 +166,34 @@ impl TryFrom<ElectoralLogRow> for ActivityLogRow {
         };
 
         let created: String = if let Ok(datetime_parsed) =
-            ISO8601::timestamp_secs_utc_to_date_opt(electoral_log.created())
+            ISO8601::timestamp_secs_utc_to_date_opt(electoral_log.created)
         {
             datetime_parsed.to_rfc3339()
         } else {
             return Err(anyhow::anyhow!("Error parsing created"));
         };
 
-        let head_data = electoral_log
-            .statement_head_data()
-            .with_context(|| "Error to get head data.")?;
-        let event_type = head_data.event_type;
-        let log_type = head_data.log_type;
-        let description = head_data.description;
+        let deserialized_message = if let Some(msg) = electoral_log.deserialized_message {
+            msg
+        } else {
+            return Err(anyhow::anyhow!("No deserialized_message"));
+        };
+
+        let head_data = deserialized_message.statement.head.clone();
+        let event_type = head_data.event_type.to_string();
+        let log_type = head_data.log_type.to_string();
+        let description = head_data.description.to_string();
 
         Ok(ActivityLogRow {
-            id: electoral_log.id(),
+            id: electoral_log.id,
             user_id: user_id,
             created,
             statement_timestamp,
-            statement_kind: electoral_log.statement_kind().to_string(),
+            statement_kind: electoral_log.statement_kind,
             event_type,
             log_type,
             description,
-            message: electoral_log.message().to_string(),
+            message: deserialized_message.to_string(),
         })
     }
 }
@@ -247,41 +252,25 @@ impl TemplateRenderer for ActivityLogsTemplate {
         let mut elect_logs: Vec<ElectoralLogRow> = vec![];
 
         let mut client = self.board_client.lock().await;
-        let e_logs = client
+        let electoral_logs = client
             .get_electoral_log_messages_batch(&self.board_name, limit, *offset)
             .await
             .map_err(|err| anyhow!("Failed to get filtered messages: {:?}", err))?;
 
-        let electoral_logs: DataList<ElectoralLogRow> = list_electoral_log(GetElectoralLogBody {
-            tenant_id: self.ids.tenant_id.clone(),
-            election_event_id: self.ids.election_event_id.clone(),
-            limit: Some(limit),
-            offset: Some(*offset),
-            filter: None,
-            order_by: None,
-            area_ids: None,
-            only_with_user: None,
-            election_id: None,
-            statement_kind: None,
-        })
-        .await
-        .map_err(|e| anyhow!("Error listing electoral logs: {e:?}"))?;
+        for electoral_log in electoral_logs {
+            // TODO: elect_logs.push(electoral_log.clone().try_into()?);
 
-        for electoral_log in electoral_logs.items {
-            elect_logs.push(electoral_log.clone());
-            let head_data = electoral_log
-                .statement_head_data()
-                .with_context(|| "Error to get head data.")?;
-            let event_type = head_data.event_type;
-            let log_type = head_data.log_type;
-            let description = head_data.description;
+            // let head_data = electoral_log.deserialized_message
+            // let event_type = head_data.event_type;
+            // let log_type = head_data.log_type;
+            // let description = head_data.description;
             let activity_log = electoral_log.try_into()?;
-            let activity_log = ActivityLogRow {
-                event_type,
-                log_type,
-                description,
-                ..activity_log
-            };
+            // let activity_log = ActivityLogRow {
+            //     event_type,
+            //     log_type,
+            //     description,
+            //     ..activity_log
+            // };
             act_log.push(activity_log);
         }
 
@@ -297,62 +286,66 @@ impl TemplateRenderer for ActivityLogsTemplate {
         _hasura_transaction: &Transaction<'_>,
         _keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
-        let mut act_log: Vec<ActivityLogRow> = vec![];
-        let mut elect_logs: Vec<ElectoralLogRow> = vec![];
-        let mut offset = 0;
-        let limit = PgConfig::from_env()
-            .with_context(|| "Error obtaining Pg config from env.")?
-            .default_sql_batch_size as i64;
+        Err(anyhow!(
+            "prepare_user_data is not implemented for this report type"
+        ))
 
-        loop {
-            let electoral_logs: DataList<ElectoralLogRow> =
-                list_electoral_log(GetElectoralLogBody {
-                    tenant_id: self.ids.tenant_id.clone(),
-                    election_event_id: self.ids.election_event_id.clone(),
-                    limit: Some(limit),
-                    offset: Some(offset),
-                    filter: None,
-                    order_by: None,
-                    area_ids: None,
-                    only_with_user: None,
-                    election_id: None,
-                    statement_kind: None,
-                })
-                .await
-                .map_err(|e| anyhow!("Error listing electoral logs: {e:?}"))?;
+        // let mut act_log: Vec<ActivityLogRow> = vec![];
+        // let mut elect_logs: Vec<ElectoralLogRow> = vec![];
+        // let mut offset = 0;
+        // let limit = PgConfig::from_env()
+        //     .with_context(|| "Error obtaining Pg config from env.")?
+        //     .default_sql_batch_size as i64;
 
-            let is_empty = electoral_logs.items.is_empty();
+        // loop {
+        //     let electoral_logs: DataList<ElectoralLogRow> =
+        //         list_electoral_log(GetElectoralLogBody {
+        //             tenant_id: self.ids.tenant_id.clone(),
+        //             election_event_id: self.ids.election_event_id.clone(),
+        //             limit: Some(limit),
+        //             offset: Some(offset),
+        //             filter: None,
+        //             order_by: None,
+        //             area_ids: None,
+        //             only_with_user: None,
+        //             election_id: None,
+        //             statement_kind: None,
+        //         })
+        //         .await
+        //         .map_err(|e| anyhow!("Error listing electoral logs: {e:?}"))?;
 
-            for electoral_log in electoral_logs.items {
-                elect_logs.push(electoral_log.clone());
-                let head_data = electoral_log
-                    .statement_head_data()
-                    .with_context(|| "Error to get head data.")?;
-                let event_type = head_data.event_type;
-                let log_type = head_data.log_type;
-                let description = head_data.description;
-                let activity_log = electoral_log.try_into()?;
-                let activity_log = ActivityLogRow {
-                    event_type,
-                    log_type,
-                    description,
-                    ..activity_log
-                };
-                act_log.push(activity_log);
-            }
+        //     let is_empty = electoral_logs.items.is_empty();
 
-            let total = electoral_logs.total.aggregate.count;
-            if is_empty || offset >= total {
-                break;
-            }
+        //     for electoral_log in electoral_logs.items {
+        //         elect_logs.push(electoral_log.clone());
+        //         let head_data = electoral_log
+        //             .statement_head_data()
+        //             .with_context(|| "Error to get head data.")?;
+        //         let event_type = head_data.event_type;
+        //         let log_type = head_data.log_type;
+        //         let description = head_data.description;
+        //         let activity_log = electoral_log.try_into()?;
+        //         let activity_log = ActivityLogRow {
+        //             event_type,
+        //             log_type,
+        //             description,
+        //             ..activity_log
+        //         };
+        //         act_log.push(activity_log);
+        //     }
 
-            offset += limit;
-        }
+        //     let total = electoral_logs.total.aggregate.count;
+        //     if is_empty || offset >= total {
+        //         break;
+        //     }
 
-        Ok(UserData {
-            act_log,
-            electoral_log: elect_logs,
-        })
+        //     offset += limit;
+        // }
+
+        // Ok(UserData {
+        //     act_log,
+        //     electoral_log: elect_logs,
+        // })
     }
 
     #[instrument(err, skip_all)]
