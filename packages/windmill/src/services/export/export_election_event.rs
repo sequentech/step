@@ -355,7 +355,8 @@ pub async fn process_export_zip(
                 tally_session_id: None,
             },
             ReportFormat::CSV, // Assuming CSV format for this export
-        );
+        )
+        .await?;
 
         // Generate the CSV file using generate_export_data
         let temp_activity_logs_file = activity_logs_template

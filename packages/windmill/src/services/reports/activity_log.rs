@@ -9,6 +9,7 @@ use crate::services::documents::upload_and_return_document;
 use crate::services::electoral_log::{
     count_electoral_log, list_electoral_log, ElectoralLogRow, GetElectoralLogBody,
 };
+use crate::services::protocol_manager::{get_board_client, get_event_board};
 use crate::services::providers::email_sender::{Attachment, EmailSender};
 use crate::services::temp_path::*;
 use crate::types::resources::DataList;
@@ -16,6 +17,7 @@ use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use csv::WriterBuilder;
 use deadpool_postgres::Transaction;
+use electoral_log::client::board_client::BoardClient;
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak::{self};
 use sequent_core::services::s3::get_minio_url;
@@ -24,8 +26,10 @@ use sequent_core::types::templates::{ReportExtraConfig, SendTemplateBody};
 use sequent_core::util::temp_path::*;
 use serde::{Deserialize, Serialize};
 use std::mem;
+use std::sync::Arc;
 use strum_macros::EnumString;
 use tempfile::NamedTempFile;
+use tokio::sync::Mutex;
 use tracing::{debug, info, instrument, warn};
 
 const KB: f64 = 1024.0;
@@ -69,11 +73,20 @@ pub struct SystemData {
 pub struct ActivityLogsTemplate {
     ids: ReportOrigins,
     report_format: ReportFormat,
+    board_client: Arc<Mutex<BoardClient>>,
+    board_name: String,
 }
 
 impl ActivityLogsTemplate {
-    pub fn new(ids: ReportOrigins, report_format: ReportFormat) -> Self {
-        ActivityLogsTemplate { ids, report_format }
+    pub async fn new(ids: ReportOrigins, report_format: ReportFormat) -> Result<Self> {
+        let board_client = get_board_client().await?;
+        let board_name = get_event_board(ids.tenant_id.as_str(), ids.election_event_id.as_str());
+        Ok(ActivityLogsTemplate {
+            ids,
+            report_format,
+            board_client: Arc::new(Mutex::new(board_client)),
+            board_name,
+        })
     }
 
     // Export data
@@ -214,19 +227,12 @@ impl TemplateRenderer for ActivityLogsTemplate {
     }
 
     async fn count_items(&self, _hasura_transaction: &Transaction<'_>) -> Result<Option<i64>> {
-        let input = GetElectoralLogBody {
-            tenant_id: self.ids.tenant_id.clone(),
-            election_event_id: self.ids.election_event_id.clone(),
-            limit: None,
-            offset: None,
-            filter: None,
-            order_by: None,
-            area_ids: None,
-            only_with_user: None,
-            election_id: None,
-            statement_kind: None,
-        };
-        Ok(count_electoral_log(input).await.ok())
+        let mut client = self.board_client.lock().await;
+        let total = client
+            .count_electoral_log_messages(&self.board_name, None)
+            .await
+            .map_err(|e| anyhow!("Error counting electoral log messages: {e:?}"))?;
+        Ok(Some(total))
     }
 
     #[instrument(err, skip_all)]
@@ -239,6 +245,12 @@ impl TemplateRenderer for ActivityLogsTemplate {
     ) -> Result<Self::UserData> {
         let mut act_log: Vec<ActivityLogRow> = vec![];
         let mut elect_logs: Vec<ElectoralLogRow> = vec![];
+
+        let mut client = self.board_client.lock().await;
+        let e_logs = client
+            .get_electoral_log_messages_batch(&self.board_name, limit, *offset)
+            .await
+            .map_err(|err| anyhow!("Failed to get filtered messages: {:?}", err))?;
 
         let electoral_logs: DataList<ElectoralLogRow> = list_electoral_log(GetElectoralLogBody {
             tenant_id: self.ids.tenant_id.clone(),

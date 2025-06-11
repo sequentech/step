@@ -330,6 +330,25 @@ impl BoardClient {
     }
 
     #[instrument(skip_all, err)]
+    pub async fn get_electoral_log_messages_batch(
+        &mut self,
+        board_db: &str,
+        limit: i64,
+        offset: i64,
+    ) -> Result<Vec<ElectoralLogMessage>> {
+        self.get_filtered::<String, String>(
+            board_db,
+            None,
+            None,
+            None,
+            Some(limit),
+            Some(offset),
+            None,
+        )
+        .await
+    }
+
+    #[instrument(skip_all, err)]
     async fn get_filtered<K: Display, V: Display>(
         &mut self,
         board_db: &str,

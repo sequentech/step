@@ -183,7 +183,7 @@ pub async fn generate_report(
             execute_report!(report);
         }
         Ok(ReportType::ACTIVITY_LOGS) => {
-            let report = ActivityLogsTemplate::new(ids, ReportFormat::PDF);
+            let report = ActivityLogsTemplate::new(ids, ReportFormat::PDF).await?;
             execute_report!(report);
         }
         Ok(ReportType::MANUAL_VERIFICATION) => {
