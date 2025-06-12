@@ -311,7 +311,7 @@ impl BoardClient {
     /// columns_matcher represents the columns that will be used to filter the messages,
     /// The order as defined ElectoralLogVarCharColumn is important for preformance to match the indexes.
     /// BTreeMap ensures the order is preserved no matter the insertion sequence.
-    pub async fn get_electoral_log_messages_filtered<K: Display, V: Display>(
+    pub async fn get_electoral_log_messages_filtered<K, V>(
         &mut self,
         board_db: &str,
         columns_matcher: Option<WhereClauseBTreeMap>,
@@ -320,7 +320,11 @@ impl BoardClient {
         limit: Option<i64>,
         offset: Option<i64>,
         order_by: Option<HashMap<K, V>>,
-    ) -> Result<Vec<ElectoralLogMessage>> {
+    ) -> Result<Vec<ElectoralLogMessage>>
+    where
+        K: Debug + Display,
+        V: Debug + Display,
+    {
         self.get_filtered(
             board_db,
             columns_matcher,
@@ -352,8 +356,8 @@ impl BoardClient {
         .await
     }
 
-    #[instrument(skip_all, err)]
-    async fn get_filtered<K: Display, V: Display>(
+    #[instrument(skip(board_db, order_by), err)]
+    async fn get_filtered<K, V>(
         &mut self,
         board_db: &str,
         columns_matcher: Option<WhereClauseBTreeMap>,
@@ -362,7 +366,11 @@ impl BoardClient {
         limit: Option<i64>,
         offset: Option<i64>,
         order_by: Option<HashMap<K, V>>,
-    ) -> Result<Vec<ElectoralLogMessage>> {
+    ) -> Result<Vec<ElectoralLogMessage>>
+    where
+        K: Debug + Display,
+        V: Debug + Display,
+    {
         let (min_clause, min_clause_value) = if let Some(min_ts) = min_ts {
             ("AND created >= @min_ts", min_ts)
         } else {
@@ -497,7 +505,7 @@ impl BoardClient {
         Ok(messages)
     }
 
-    #[instrument(err)]
+    #[instrument(skip_all, err)]
     pub async fn count_electoral_log_messages(
         &mut self,
         board_db: &str,

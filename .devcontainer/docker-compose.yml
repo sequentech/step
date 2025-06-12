@@ -907,7 +907,8 @@ services:
       B3_PG_PASSWORD: ${B3_PG_PASSWORD}
       B3_PG_DATABASE: ${B3_PG_DATABASE}
       DOC_RENDERER_BACKEND: ${DOC_RENDERER_BACKEND}
-
+      BALLOT_VERIFIER_URL: ${BALLOT_VERIFIER_URL}
+  
   beat:
     profiles: ["full"]
     stdin_open: true
