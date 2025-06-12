@@ -311,6 +311,7 @@ impl BoardClient {
     /// columns_matcher represents the columns that will be used to filter the messages,
     /// The order as defined ElectoralLogVarCharColumn is important for preformance to match the indexes.
     /// BTreeMap ensures the order is preserved no matter the insertion sequence.
+    #[instrument(skip_all, err)]
     pub async fn get_electoral_log_messages_filtered<K, V>(
         &mut self,
         board_db: &str,
@@ -356,7 +357,7 @@ impl BoardClient {
         .await
     }
 
-    #[instrument(skip(board_db, order_by), err)]
+    #[instrument(skip(self, board_db, order_by), err)]
     async fn get_filtered<K, V>(
         &mut self,
         board_db: &str,
@@ -505,7 +506,7 @@ impl BoardClient {
         Ok(messages)
     }
 
-    #[instrument(skip_all, err)]
+    #[instrument(skip(self, board_db), err)]
     pub async fn count_electoral_log_messages(
         &mut self,
         board_db: &str,
