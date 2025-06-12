@@ -1230,9 +1230,8 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
         .unwrap_or(0) as usize;
 
     let limit: i64 = input.limit.unwrap_or(IMMUDB_ROWS_LIMIT as i64);
-    let mut offset: i64 = input.offset.unwrap_or(0);
+    let offset: i64 = input.offset.unwrap_or(0);
     let mut rows: Vec<ElectoralLogRow> = vec![];
-    // while offset < limit as i64 {
     let electoral_log_messages = client
         .get_electoral_log_messages_filtered(
             &board_name,
@@ -1251,10 +1250,7 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
     for message in electoral_log_messages {
         rows.push(message.try_into()?);
     }
-    //     offset += limit;
-    // }
 
-    client.close_session().await?;
     Ok(DataList {
         items: rows,
         total: TotalAggregate {
@@ -1369,7 +1365,6 @@ pub async fn list_cast_vote_messages(
         }
         offset += limit;
     }
-    client.close_session().await?;
     Ok(CastVoteMessagesOutput { list, total })
 }
 
