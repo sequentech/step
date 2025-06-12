@@ -32,6 +32,7 @@ use sequent_core::services::date::ISO8601;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::collections::HashMap;
+use std::str::FromStr;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::hash::HashWrapper;
 use strand::hash::STRAND_HASH_LENGTH_BYTES;
@@ -929,6 +930,88 @@ impl GetElectoralLogBody {
     }
 }
 
+impl GetElectoralLogBody {
+    #[instrument(skip_all)]
+    pub fn get_min_max_ts(&self) -> Result<(Option<i64>, Option<i64>)> {
+        let mut min_ts: Option<i64> = None;
+        let mut max_ts: Option<i64> = None;
+        if let Some(filters_map) = &self.filter {
+            for (field, value) in filters_map.iter() {
+                match field {
+                    OrderField::Created | OrderField::StatementTimestamp => {
+                        let datetime = ISO8601::to_date_utc(&value)
+                            .map_err(|err| anyhow!("Failed to parse timestamp: {:?}", err))?;
+                        let ts: i64 = datetime.timestamp();
+                        let ts_end: i64 = ts + 60; // Search along that minute, the second is not specified by the front.
+                        min_ts = Some(ts);
+                        max_ts = Some(ts_end);
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        Ok((min_ts, max_ts))
+    }
+
+    #[instrument(skip_all)]
+    pub fn as_count_and_select_where_clauses(&self) -> Result<WhereClauseBTreeMap> {
+        let mut cols_match_select = WhereClauseBTreeMap::new();
+        if let Some(filters_map) = &self.filter {
+            for (field, value) in filters_map.iter() {
+                match field {
+                    OrderField::Id => {} // Impl this filter in BoardClient is i64
+                    OrderField::SenderPk | OrderField::UserId | OrderField::Username | OrderField::BallotId | OrderField::StatementKind | OrderField::Version => { // sql VARCHAR type
+                        let variant = ElectoralLogVarCharColumn::from_str(field.to_string().as_str()).map_err(|_| anyhow!("Field not found"))?; 
+                        cols_match_select.insert(
+                            variant,
+                            (SqlCompOperators::Like, value.clone()),
+                        );
+                    }
+                    OrderField::StatementTimestamp | OrderField::Created => {} // handled by `get_min_max_ts`
+                    OrderField::EventType | OrderField::LogType | OrderField::Description // these have no column but are inside of Message
+                    | OrderField::Message => {} // Message column is sql BLOB type and it´s encrypted so we can't search it without expensive operations
+                }
+            }
+        }
+        //"(user_id IS NOT NULL AND user_id <> '')"
+        if self.only_with_user.clone().unwrap_or(false) {
+            cols_match_select.insert(
+                ElectoralLogVarCharColumn::UserId,
+                (SqlCompOperators::NotEqual, String::from("")),
+            );
+            // TODO: IS NOT NULL
+        }
+        if let Some(election_id) = &self.election_id {
+            if !election_id.is_empty() {
+                cols_match_select.insert(
+                    ElectoralLogVarCharColumn::ElectionId,
+                    (SqlCompOperators::Like, election_id.clone()),
+                );
+            }
+        }
+
+        if let Some(area_ids) = &self.area_ids {
+            if !area_ids.is_empty() {
+                // NOTE: `IN` values must be handled later in SQL building, here we just join them
+                cols_match_select.insert(
+                    ElectoralLogVarCharColumn::AreaId,
+                    (SqlCompOperators::In, area_ids.join(",")), // TODO: NullOrIn
+                );
+            }
+        }
+
+        if let Some(statement_kind) = &self.statement_kind {
+            cols_match_select.insert(
+                ElectoralLogVarCharColumn::StatementKind,
+                (SqlCompOperators::Equal, statement_kind.to_string()),
+            );
+        }
+
+        Ok(cols_match_select)
+    }
+}
+
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct StatementHeadDataString {
     pub event: String,
@@ -1024,10 +1107,8 @@ impl TryFrom<ElectoralLogMessage> for ElectoralLogRow {
 
     fn try_from(elog_msg: ElectoralLogMessage) -> Result<Self, Self::Error> {
         let serialized = general_purpose::STANDARD_NO_PAD.encode(elog_msg.message.clone());
-        let deserialized_message = match elog_msg.deserialized_message.clone() {
-            Some(msg) => msg,
-            None => return Err(anyhow!("No deserialized_message")),
-        };
+        let deserialized_message = Message::strand_deserialize(&elog_msg.message)
+            .with_context(|| "Error deserializing message")?;
 
         Ok(ElectoralLogRow {
             id: elog_msg.id,
@@ -1134,73 +1215,52 @@ impl CastVoteEntry {
 
 #[instrument(err)]
 pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<ElectoralLogRow>> {
-    let mut client: Client = get_immudb_client().await?;
+    let mut client = get_board_client().await?;
     let board_name = get_event_board(input.tenant_id.as_str(), input.election_event_id.as_str());
+    info!("database name = {board_name}");
+    let cols_match_select = input.as_count_and_select_where_clauses()?;
+    let cols_match_count = cols_match_select.clone();
 
-    event!(Level::INFO, "database name = {board_name}");
-    info!("input = {:?}", input);
-    client.open_session(&board_name).await?;
-    let (clauses, params) = input.as_sql(false)?;
-    let (clauses_to_count, count_params) = input.as_sql(true)?;
-    info!("clauses ?:= {clauses}");
-    let sql = format!(
-        r#"
-        SELECT
-            id,
-            created,
-            sender_pk,
-            statement_timestamp,
-            statement_kind,
-            message,
-            user_id,
-            username
-        FROM electoral_log_messages
-        {clauses}
-        "#,
-    );
-    info!("query: {sql}");
-    let sql_query_response = client.streaming_sql_query(&sql, params).await?;
+    let order_by = input.order_by.clone();
+    let (min_ts, max_ts) = input.get_min_max_ts()?;
+    let total = client
+        .count_electoral_log_messages(&board_name, Some(cols_match_count))
+        .await?
+        .to_u64()
+        .unwrap_or(0) as usize;
 
-    let limit: usize = input.limit.unwrap_or(IMMUDB_ROWS_LIMIT as i64).try_into()?;
+    let limit: i64 = input.limit.unwrap_or(IMMUDB_ROWS_LIMIT as i64);
+    let mut offset: i64 = input.offset.unwrap_or(0);
+    let mut rows: Vec<ElectoralLogRow> = vec![];
+    // while offset < limit as i64 {
+    let electoral_log_messages = client
+        .get_electoral_log_messages_filtered(
+            &board_name,
+            Some(cols_match_select.clone()),
+            min_ts,
+            max_ts,
+            Some(limit),
+            Some(offset),
+            order_by.clone(),
+        )
+        .await
+        .map_err(|err| anyhow!("Failed to get filtered messages: {:?}", err))?;
 
-    let mut rows: Vec<ElectoralLogRow> = Vec::with_capacity(limit);
-    let mut resp_stream = sql_query_response.into_inner();
-    while let Some(streaming_batch) = resp_stream.next().await {
-        let items = streaming_batch?
-            .rows
-            .iter()
-            .map(ElectoralLogRow::try_from)
-            .collect::<Result<Vec<ElectoralLogRow>>>()?;
-        rows.extend(items);
+    let t_entries = electoral_log_messages.len();
+    info!("Got {t_entries} entries. Offset: {offset}, limit: {limit}, total: {total}");
+    for message in electoral_log_messages {
+        rows.push(message.try_into()?);
     }
-
-    let sql = format!(
-        r#"
-        SELECT
-            COUNT(*)
-        FROM electoral_log_messages
-        {clauses_to_count}
-        "#,
-    );
-    let sql_query_response = client.sql_query(&sql, count_params).await?;
-    let mut rows_iter = sql_query_response
-        .get_ref()
-        .rows
-        .iter()
-        .map(Aggregate::try_from);
-
-    let aggregate = rows_iter
-        // get the first item
-        .next()
-        // unwrap the Result and Option
-        .ok_or(anyhow!("No aggregate found"))??;
-    info!("Count: {}", aggregate.count);
+    //     offset += limit;
+    // }
 
     client.close_session().await?;
     Ok(DataList {
         items: rows,
         total: TotalAggregate {
-            aggregate: aggregate,
+            aggregate: Aggregate {
+                count: total as i64,
+            },
         },
     })
 }
@@ -1309,7 +1369,7 @@ pub async fn list_cast_vote_messages(
         }
         offset += limit;
     }
-
+    client.close_session().await?;
     Ok(CastVoteMessagesOutput { list, total })
 }
 

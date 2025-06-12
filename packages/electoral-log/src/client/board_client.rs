@@ -14,6 +14,7 @@ use std::fmt::Debug;
 use std::fmt::Display;
 use strand::serialization::StrandDeserialize;
 use strum_macros::Display;
+use strum_macros::EnumString;
 use tokio_stream::StreamExt; // Added for streaming
 use tracing::{error, info, instrument, warn};
 
@@ -33,7 +34,7 @@ pub struct BoardClient {
     client: Client,
 }
 
-#[derive(Debug, Clone, Display, PartialEq, Eq, Ord, PartialOrd)]
+#[derive(Debug, Clone, Display, PartialEq, Eq, Ord, PartialOrd, EnumString)]
 #[strum(serialize_all = "snake_case")]
 pub enum ElectoralLogVarCharColumn {
     StatementKind,
@@ -79,7 +80,6 @@ pub struct ElectoralLogMessage {
     pub statement_timestamp: i64,
     pub statement_kind: String,
     pub message: Vec<u8>,
-    pub deserialized_message: Option<Message>,
     pub version: String,
     pub user_id: Option<String>,
     pub username: Option<String>,
@@ -181,9 +181,6 @@ impl TryFrom<&Row> for ElectoralLogMessage {
             }
         }
 
-        let deserialized_message =
-            Message::strand_deserialize(&message).with_context(|| "Error deserializing message")?;
-
         Ok(ElectoralLogMessage {
             id,
             created,
@@ -191,7 +188,6 @@ impl TryFrom<&Row> for ElectoralLogMessage {
             statement_timestamp,
             statement_kind,
             message,
-            deserialized_message: Some(deserialized_message),
             version,
             user_id,
             username,
@@ -964,7 +960,6 @@ pub(crate) mod tests {
             statement_timestamp: 0,
             statement_kind: "".to_string(),
             message: vec![],
-            deserialized_message: None,
             version: "".to_string(),
             user_id: None,
             username: None,

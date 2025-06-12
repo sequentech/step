@@ -7,7 +7,7 @@ use crate::postgres::reports::{Report, ReportType};
 use crate::services::database::PgConfig;
 use crate::services::documents::upload_and_return_document;
 use crate::services::electoral_log::{
-    ElectoralLogRow, GetElectoralLogBody, StatementHeadDataString,
+    ElectoralLogRow, GetElectoralLogBody, StatementHeadDataString, IMMUDB_ROWS_LIMIT,
 };
 use crate::services::protocol_manager::{get_board_client, get_event_board};
 use crate::services::providers::email_sender::{Attachment, EmailSender};
@@ -26,6 +26,7 @@ use sequent_core::util::temp_path::*;
 use serde::{Deserialize, Serialize};
 use std::mem;
 use std::sync::Arc;
+use strand::serialization::StrandDeserialize;
 use strum_macros::EnumString;
 use tempfile::NamedTempFile;
 use tokio::sync::Mutex;
@@ -35,7 +36,7 @@ const KB: f64 = 1024.0;
 const MB: f64 = 1024.0 * KB;
 const GB: f64 = 1024.0 * MB;
 
-#[derive(Serialize, Deserialize, Debug, Clone, EnumString, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, EnumString, PartialEq, Copy)]
 pub enum ReportFormat {
     CSV,
     PDF,
@@ -79,11 +80,8 @@ impl TryFrom<ElectoralLogMessage> for ActivityLogRow {
             return Err(anyhow::anyhow!("Error parsing created"));
         };
 
-        let deserialized_message = if let Some(msg) = electoral_log.deserialized_message {
-            msg
-        } else {
-            return Err(anyhow::anyhow!("No deserialized_message"));
-        };
+        let deserialized_message = Message::strand_deserialize(&electoral_log.message)
+            .with_context(|| "Error deserializing message")?;
 
         let head_data = deserialized_message.statement.head.clone();
         let event_type = head_data.event_type.to_string();
@@ -105,11 +103,13 @@ impl TryFrom<ElectoralLogMessage> for ActivityLogRow {
 }
 
 /// Struct for User Data
+/// act_log is for PDF
+/// electoral_log is for CSV
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
     // TODO: This should be an Enum to inprove performance and reduce RAM memory usage.
-    pub act_log: Vec<ActivityLogRow>,        // For PDFs
-    pub electoral_log: Vec<ElectoralLogRow>, // For CSV
+    pub act_log: Vec<ActivityLogRow>,
+    pub electoral_log: Vec<ElectoralLogRow>,
 }
 
 /// Struct for System Data
@@ -146,11 +146,8 @@ impl ActivityLogsTemplate {
         hasura_transaction: &Transaction<'_>,
         name: &str,
     ) -> Result<NamedTempFile> {
-        let limit = PgConfig::from_env()
-            .with_context(|| "Error obtaining Pg config from env.")?
-            .default_sql_batch_size as i64;
+        let limit = IMMUDB_ROWS_LIMIT as i64;
         let mut offset: i64 = 0;
-
         // Create a temporary file to write CSV data
         let mut temp_file =
             generate_temp_file(&name, ".csv").with_context(|| "Error creating named temp file")?;
@@ -248,23 +245,28 @@ impl TemplateRenderer for ActivityLogsTemplate {
         limit: i64,
     ) -> Result<Self::UserData> {
         let mut act_log: Vec<ActivityLogRow> = vec![];
-        let mut elect_logs: Vec<ElectoralLogRow> = vec![];
+        let mut electoral_log: Vec<ElectoralLogRow> = vec![];
 
         let mut client = self.board_client.lock().await;
-        let electoral_logs = client
+        let electoral_log_msgs = client
             .get_electoral_log_messages_batch(&self.board_name, limit, *offset)
             .await
             .map_err(|err| anyhow!("Failed to get filtered messages: {:?}", err))?;
-
-        for electoral_log in electoral_logs {
-            elect_logs.push(electoral_log.clone().try_into()?);
-            let activity_log = electoral_log.try_into()?;
-            act_log.push(activity_log);
+        info!("Format: {:#?}", self.report_format);
+        for entry in electoral_log_msgs {
+            match self.report_format {
+                ReportFormat::PDF => {
+                    act_log.push(entry.try_into()?);
+                }
+                ReportFormat::CSV => {
+                    electoral_log.push(entry.clone().try_into()?);
+                }
+            }
         }
 
         Ok(UserData {
             act_log,
-            electoral_log: elect_logs,
+            electoral_log,
         })
     }
 
@@ -275,7 +277,7 @@ impl TemplateRenderer for ActivityLogsTemplate {
         _keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
         Err(anyhow!(
-            "prepare_user_data is not implemented for this report type"
+            "prepare_user_data is not implemented for this report type, use prepare_user_data_batch instead"
         ))
 
         // let mut act_log: Vec<ActivityLogRow> = vec![];
