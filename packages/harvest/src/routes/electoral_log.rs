@@ -13,12 +13,11 @@ use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use windmill::services::electoral_log::{
-    filter_all_electoral_log, list_electoral_log as get_logs, ElectoralLogRow,
-    GetElectoralLogBody,
+    list_electoral_log as get_logs, ElectoralLogRow, GetElectoralLogBody,
 };
 use windmill::types::resources::DataList;
 
-#[instrument]
+#[instrument(skip(claims))]
 #[post("/immudb/electoral-log", format = "json", data = "<body>")]
 pub async fn list_electoral_log(
     body: Json<GetElectoralLogBody>,
@@ -32,14 +31,9 @@ pub async fn list_electoral_log(
         vec![Permissions::LOGS_READ],
     )?;
 
-    let ret_val = match &input.filter {
-        Some(filter) if !filter.is_empty() => filter_all_electoral_log(input)
-            .await
-            .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?,
-        _ => get_logs(input)
-            .await
-            .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?,
-    };
+    let ret_val = get_logs(input)
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     Ok(Json(ret_val))
 }

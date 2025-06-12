@@ -1025,65 +1025,6 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
     })
 }
 
-/// Filter all electoral log messages till output_limit is reached (input.limit)
-#[instrument(err)]
-pub async fn filter_all_electoral_log(
-    input: GetElectoralLogBody,
-) -> Result<DataList<ElectoralLogRow>> {
-    let mut client = get_board_client().await?;
-    let board_name = get_event_board(input.tenant_id.as_str(), input.election_event_id.as_str());
-    info!("database name = {board_name}");
-    let cols_match_select = input.as_where_clause_map()?;
-    let cols_match_count = cols_match_select.clone();
-
-    let order_by = input.order_by.clone();
-    let (min_ts, max_ts) = input.get_min_max_ts()?;
-    let total = client
-        .count_electoral_log_messages(&board_name, Some(cols_match_count))
-        .await?
-        .to_u64()
-        .unwrap_or(0) as usize;
-
-    let limit: i64 = IMMUDB_ROWS_LIMIT as i64;
-    let output_limit: i64 = input.limit.unwrap_or(MAX_ROWS_PER_PAGE as i64);
-    let mut offset: i64 = input.offset.unwrap_or(0);
-    let mut rows: Vec<ElectoralLogRow> = vec![];
-    info!("total: {total}, output_limit: {output_limit}");
-    while offset < total as i64 && rows.len() < output_limit as usize {
-        let electoral_log_messages = client
-            .get_electoral_log_messages_filtered(
-                &board_name,
-                Some(cols_match_select.clone()),
-                min_ts,
-                max_ts,
-                Some(limit),
-                Some(offset),
-                order_by.clone(),
-            )
-            .await
-            .map_err(|err| anyhow!("Failed to get filtered messages: {:?}", err))?;
-
-        let t_entries = electoral_log_messages.len();
-        info!("Got {t_entries} entries. Offset: {offset}, limit: {limit}, total: {total}");
-        for message in electoral_log_messages {
-            rows.push(message.try_into()?);
-            if rows.len() >= output_limit as usize {
-                break;
-            }
-        }
-        offset += limit;
-    }
-
-    Ok(DataList {
-        items: rows,
-        total: TotalAggregate {
-            aggregate: Aggregate {
-                count: total as i64,
-            },
-        },
-    })
-}
-
 #[instrument]
 pub fn get_cols_match_count_and_select(
     election_id: &str,
