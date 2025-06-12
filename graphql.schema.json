@@ -2371,6 +2371,16 @@
               "ofType": null
             },
             "defaultValue": null
+          },
+          {
+            "name": "username",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null
           }
         ],
         "interfaces": null,
@@ -2435,6 +2445,16 @@
           },
           {
             "name": "user_id",
+            "description": null,
+            "type": {
+              "kind": "ENUM",
+              "name": "OrderDirection",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "username",
             "description": null,
             "type": {
               "kind": "ENUM",
