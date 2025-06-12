@@ -1,0 +1,17 @@
+# SPDX-FileCopyrightText: 2023-2024 Sequent Tech <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+name: Build & Push to ECR
+
+on:
+  push:
+      branches: [ 'feat/re-build-v5.1.1-rc.6/v5.1.1-rc.6' ]
+
+jobs:
+  build-and-push:
+    uses: ./.github/workflows/reusable_build_push.yml
+    secrets: inherit
+    with:
+      push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/feat/re-build-v5.1.1-rc.6/v5.1.1-rc.6' }}
+      tag: 'v5.1.1-rc.6'
