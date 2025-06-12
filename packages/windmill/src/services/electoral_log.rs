@@ -951,65 +951,7 @@ pub struct ElectoralLogRow {
     pub username: Option<String>,
 }
 
-impl ElectoralLogRow {
-    pub fn id(&self) -> i64 {
-        self.id
-    }
-
-    pub fn created(&self) -> i64 {
-        self.created
-    }
-
-    pub fn statement_timestamp(&self) -> i64 {
-        self.statement_timestamp
-    }
-
-    pub fn statement_kind(&self) -> &str {
-        &self.statement_kind
-    }
-
-    pub fn message(&self) -> &str {
-        &self.message
-    }
-
-    pub fn user_id(&self) -> Option<&str> {
-        self.user_id.as_ref().map(|s| s.as_str())
-    }
-
-    pub fn username(&self) -> Option<&str> {
-        self.username.as_ref().map(|s| s.as_str())
-    }
-
-    pub fn statement_head_data(&self) -> Result<StatementHeadDataString> {
-        let message: serde_json::Value = deserialize_with_path::deserialize_str(&self.message)
-            .map_err(|err| {
-                anyhow!(format!(
-                    "{:?}, Failed to parse message: {}",
-                    err, self.message
-                ))
-            })?;
-
-        let Some(statement) = message.get("statement") else {
-            return Err(anyhow!(
-                "Failed to get statement from message: {}",
-                self.message
-            ));
-        };
-
-        let Some(head) = statement.get("head") else {
-            return Err(anyhow!(
-                "Failed to get head from statement: {}",
-                self.message
-            ));
-        };
-
-        let data: StatementHeadDataString = deserialize_with_path::deserialize_value(head.clone())
-            .map_err(|err| anyhow!(format!("{:?}, Failed to parse head: {}", err, head)))?;
-
-        Ok(data)
-    }
-}
-
+//TODO: REMOVE
 impl TryFrom<&Row> for ElectoralLogRow {
     type Error = anyhow::Error;
 
@@ -1073,6 +1015,90 @@ impl TryFrom<&Row> for ElectoralLogRow {
             user_id,
             username,
         })
+    }
+}
+
+// Removing this step would inprove performance.
+impl TryFrom<ElectoralLogMessage> for ElectoralLogRow {
+    type Error = anyhow::Error;
+
+    fn try_from(elog_msg: ElectoralLogMessage) -> Result<Self, Self::Error> {
+        let serialized = general_purpose::STANDARD_NO_PAD.encode(elog_msg.message.clone());
+        let deserialized_message = match elog_msg.deserialized_message.clone() {
+            Some(msg) => msg,
+            None => return Err(anyhow!("No deserialized_message")),
+        };
+
+        Ok(ElectoralLogRow {
+            id: elog_msg.id,
+            created: elog_msg.created,
+            statement_timestamp: elog_msg.statement_timestamp,
+            statement_kind: elog_msg.statement_kind.clone(),
+            message: serde_json::to_string_pretty(&deserialized_message)
+                .with_context(|| "Error serializing message to json")?,
+            data: serialized,
+            user_id: elog_msg.user_id.clone(),
+            username: elog_msg.username.clone(),
+        })
+    }
+}
+
+impl ElectoralLogRow {
+    pub fn id(&self) -> i64 {
+        self.id
+    }
+
+    pub fn created(&self) -> i64 {
+        self.created
+    }
+
+    pub fn statement_timestamp(&self) -> i64 {
+        self.statement_timestamp
+    }
+
+    pub fn statement_kind(&self) -> &str {
+        &self.statement_kind
+    }
+
+    pub fn message(&self) -> &str {
+        &self.message
+    }
+
+    pub fn user_id(&self) -> Option<&str> {
+        self.user_id.as_ref().map(|s| s.as_str())
+    }
+
+    pub fn username(&self) -> Option<&str> {
+        self.username.as_ref().map(|s| s.as_str())
+    }
+
+    pub fn statement_head_data(&self) -> Result<StatementHeadDataString> {
+        let message: serde_json::Value = deserialize_with_path::deserialize_str(&self.message)
+            .map_err(|err| {
+                anyhow!(format!(
+                    "{:?}, Failed to parse message: {}",
+                    err, self.message
+                ))
+            })?;
+
+        let Some(statement) = message.get("statement") else {
+            return Err(anyhow!(
+                "Failed to get statement from message: {}",
+                self.message
+            ));
+        };
+
+        let Some(head) = statement.get("head") else {
+            return Err(anyhow!(
+                "Failed to get head from statement: {}",
+                self.message
+            ));
+        };
+
+        let data: StatementHeadDataString = deserialize_with_path::deserialize_value(head.clone())
+            .map_err(|err| anyhow!(format!("{:?}, Failed to parse head: {}", err, head)))?;
+
+        Ok(data)
     }
 }
 

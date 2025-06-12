@@ -184,9 +184,6 @@ impl TryFrom<&Row> for ElectoralLogMessage {
         let deserialized_message =
             Message::strand_deserialize(&message).with_context(|| "Error deserializing message")?;
 
-        // let deserialized_message = serde_json::to_string_pretty(&deserialized_message)
-        //     .with_context(|| "Error serializing message to json")?;
-
         Ok(ElectoralLogMessage {
             id,
             created,
@@ -205,35 +202,6 @@ impl TryFrom<&Row> for ElectoralLogMessage {
     }
 }
 
-// impl ElectoralLogMessage {
-//     pub fn statement_head_data(&self) -> Result<StatementHeadDataString> {
-//         let message: serde_json::Value = serde_json::from_str(&self.message).map_err(|err| {
-//             anyhow!(format!(
-//                 "{:?}, Failed to parse message: {}",
-//                 err, self.message
-//             ))
-//         })?;
-
-//         let Some(statement) = message.get("statement") else {
-//             return Err(anyhow!(
-//                 "Failed to get statement from message: {}",
-//                 self.message
-//             ));
-//         };
-
-//         let Some(head) = statement.get("head") else {
-//             return Err(anyhow!(
-//                 "Failed to get head from statement: {}",
-//                 self.message
-//             ));
-//         };
-
-//         let data: StatementHeadDataString = serde_json::from_value(head.clone())
-//             .map_err(|err| anyhow!(format!("{:?}, Failed to parse head: {}", err, head)))?;
-
-//         Ok(data)
-//     }
-// }
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Aggregate {
     pub count: i64,

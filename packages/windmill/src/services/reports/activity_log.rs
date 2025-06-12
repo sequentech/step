@@ -7,11 +7,10 @@ use crate::postgres::reports::{Report, ReportType};
 use crate::services::database::PgConfig;
 use crate::services::documents::upload_and_return_document;
 use crate::services::electoral_log::{
-    list_electoral_log, ElectoralLogRow, GetElectoralLogBody, StatementHeadDataString,
+    ElectoralLogRow, GetElectoralLogBody, StatementHeadDataString,
 };
 use crate::services::protocol_manager::{get_board_client, get_event_board};
 use crate::services::providers::email_sender::{Attachment, EmailSender};
-use crate::services::temp_path::*;
 use crate::types::resources::DataList;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
@@ -20,7 +19,6 @@ use deadpool_postgres::Transaction;
 use electoral_log::client::board_client::{BoardClient, ElectoralLogMessage};
 use electoral_log::messages::message::{Message, SigningData};
 use sequent_core::services::date::ISO8601;
-use sequent_core::services::keycloak::{self};
 use sequent_core::services::s3::get_minio_url;
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::templates::{ReportExtraConfig, SendTemplateBody};
@@ -56,11 +54,62 @@ pub struct ActivityLogRow {
     user_id: String,
 }
 
+impl TryFrom<ElectoralLogMessage> for ActivityLogRow {
+    type Error = anyhow::Error;
+
+    fn try_from(electoral_log: ElectoralLogMessage) -> Result<Self, Self::Error> {
+        let user_id = match electoral_log.user_id {
+            Some(user_id) => user_id.to_string(),
+            None => "-".to_string(),
+        };
+
+        let statement_timestamp: String = if let Ok(datetime_parsed) =
+            ISO8601::timestamp_secs_utc_to_date_opt(electoral_log.statement_timestamp)
+        {
+            datetime_parsed.to_rfc3339()
+        } else {
+            return Err(anyhow::anyhow!("Error parsing statement_timestamp"));
+        };
+
+        let created: String = if let Ok(datetime_parsed) =
+            ISO8601::timestamp_secs_utc_to_date_opt(electoral_log.created)
+        {
+            datetime_parsed.to_rfc3339()
+        } else {
+            return Err(anyhow::anyhow!("Error parsing created"));
+        };
+
+        let deserialized_message = if let Some(msg) = electoral_log.deserialized_message {
+            msg
+        } else {
+            return Err(anyhow::anyhow!("No deserialized_message"));
+        };
+
+        let head_data = deserialized_message.statement.head.clone();
+        let event_type = head_data.event_type.to_string();
+        let log_type = head_data.log_type.to_string();
+        let description = head_data.description;
+
+        Ok(ActivityLogRow {
+            id: electoral_log.id,
+            user_id: user_id,
+            created,
+            statement_timestamp,
+            statement_kind: electoral_log.statement_kind,
+            event_type,
+            log_type,
+            description,
+            message: deserialized_message.to_string(),
+        })
+    }
+}
+
 /// Struct for User Data
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
-    pub act_log: Vec<ActivityLogRow>,
-    pub electoral_log: Vec<ElectoralLogRow>,
+    // TODO: This should be an Enum to inprove performance and reduce RAM memory usage.
+    pub act_log: Vec<ActivityLogRow>,        // For PDFs
+    pub electoral_log: Vec<ElectoralLogRow>, // For CSV
 }
 
 /// Struct for System Data
@@ -148,56 +197,6 @@ impl ActivityLogsTemplate {
     }
 }
 
-impl TryFrom<ElectoralLogMessage> for ActivityLogRow {
-    type Error = anyhow::Error;
-
-    fn try_from(electoral_log: ElectoralLogMessage) -> Result<Self, Self::Error> {
-        let user_id = match electoral_log.user_id {
-            Some(user_id) => user_id.to_string(),
-            None => "-".to_string(),
-        };
-
-        let statement_timestamp: String = if let Ok(datetime_parsed) =
-            ISO8601::timestamp_secs_utc_to_date_opt(electoral_log.statement_timestamp)
-        {
-            datetime_parsed.to_rfc3339()
-        } else {
-            return Err(anyhow::anyhow!("Error parsing statement_timestamp"));
-        };
-
-        let created: String = if let Ok(datetime_parsed) =
-            ISO8601::timestamp_secs_utc_to_date_opt(electoral_log.created)
-        {
-            datetime_parsed.to_rfc3339()
-        } else {
-            return Err(anyhow::anyhow!("Error parsing created"));
-        };
-
-        let deserialized_message = if let Some(msg) = electoral_log.deserialized_message {
-            msg
-        } else {
-            return Err(anyhow::anyhow!("No deserialized_message"));
-        };
-
-        let head_data = deserialized_message.statement.head.clone();
-        let event_type = head_data.event_type.to_string();
-        let log_type = head_data.log_type.to_string();
-        let description = head_data.description.to_string();
-
-        Ok(ActivityLogRow {
-            id: electoral_log.id,
-            user_id: user_id,
-            created,
-            statement_timestamp,
-            statement_kind: electoral_log.statement_kind,
-            event_type,
-            log_type,
-            description,
-            message: deserialized_message.to_string(),
-        })
-    }
-}
-
 #[async_trait]
 impl TemplateRenderer for ActivityLogsTemplate {
     type UserData = UserData;
@@ -258,19 +257,8 @@ impl TemplateRenderer for ActivityLogsTemplate {
             .map_err(|err| anyhow!("Failed to get filtered messages: {:?}", err))?;
 
         for electoral_log in electoral_logs {
-            // TODO: elect_logs.push(electoral_log.clone().try_into()?);
-
-            // let head_data = electoral_log.deserialized_message
-            // let event_type = head_data.event_type;
-            // let log_type = head_data.log_type;
-            // let description = head_data.description;
+            elect_logs.push(electoral_log.clone().try_into()?);
             let activity_log = electoral_log.try_into()?;
-            // let activity_log = ActivityLogRow {
-            //     event_type,
-            //     log_type,
-            //     description,
-            //     ..activity_log
-            // };
             act_log.push(activity_log);
         }
 
