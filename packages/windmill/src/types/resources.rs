@@ -18,15 +18,6 @@ pub struct TotalAggregate {
     pub aggregate: Aggregate,
 }
 
-// Enumeration for the valid order directions
-#[derive(Debug, Deserialize, EnumString, Display, Clone)]
-#[serde(rename_all = "lowercase")]
-#[strum(serialize_all = "lowercase")]
-pub enum OrderDirection {
-    Asc,
-    Desc,
-}
-
 #[derive(Serialize, Deserialize, Debug)]
 pub struct DataList<T> {
     pub items: Vec<T>,

@@ -2,18 +2,13 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::assign_value;
-use crate::messages::message::Message;
+use crate::client::types::*;
 use anyhow::{anyhow, Context, Result};
 use immudb_rs::{sql_value::Value, Client, CommittedSqlTx, NamedParam, Row, SqlValue, TxMode};
-use serde::{Deserialize, Serialize};
-use serde_json;
-use std::collections::BTreeMap;
+
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::fmt::Display;
-use strum_macros::Display;
-use strum_macros::EnumString;
 use tokio_stream::StreamExt; // Added for streaming
 use tracing::{error, info, instrument, warn};
 
@@ -31,190 +26,6 @@ const BALLOT_ID_VARCHAR_LENGTH: usize = 70;
 #[derive(Debug)]
 pub struct BoardClient {
     client: Client,
-}
-
-#[derive(Debug, Clone, Display, PartialEq, Eq, Ord, PartialOrd, EnumString)]
-#[strum(serialize_all = "snake_case")]
-pub enum ElectoralLogVarCharColumn {
-    StatementKind,
-    UserId,
-    BallotId,
-    Username,
-    SenderPk,
-    ElectionId,
-    AreaId,
-    Version,
-}
-
-/// SQL comparison operators supported by immudb.
-/// ILIKE is not supported.
-#[derive(Display, Debug, Clone)]
-pub enum SqlCompOperators {
-    #[strum(to_string = "=")]
-    Equal,
-    #[strum(to_string = "!=")]
-    NotEqual,
-    #[strum(to_string = ">")]
-    GreaterThan,
-    #[strum(to_string = "<")]
-    LessThan,
-    #[strum(to_string = ">=")]
-    GreaterThanOrEqual,
-    #[strum(to_string = "<=")]
-    LessThanOrEqual,
-    #[strum(to_string = "LIKE")]
-    Like,
-    #[strum(to_string = "IN")]
-    In,
-    #[strum(to_string = "NOT IN")]
-    NotIn,
-}
-
-pub type WhereClauseBTreeMap = BTreeMap<ElectoralLogVarCharColumn, (SqlCompOperators, String)>;
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ElectoralLogMessage {
-    pub id: i64,
-    pub created: i64,
-    pub sender_pk: String,
-    pub statement_timestamp: i64,
-    pub statement_kind: String,
-    pub message: Vec<u8>,
-    pub version: String,
-    pub user_id: Option<String>,
-    pub username: Option<String>,
-    pub election_id: Option<String>,
-    pub area_id: Option<String>,
-    pub ballot_id: Option<String>,
-}
-
-impl TryFrom<&Row> for ElectoralLogMessage {
-    type Error = anyhow::Error;
-
-    fn try_from(row: &Row) -> Result<Self, Self::Error> {
-        let mut id = 0;
-        let mut created = 0;
-        let mut sender_pk = String::from("");
-        let mut statement_timestamp = 0;
-        let mut statement_kind = String::from("");
-        let mut message = vec![];
-        let mut version = String::from("");
-        let mut user_id: Option<String> = None;
-        let mut username: Option<String> = None;
-        let mut election_id: Option<String> = None;
-        let mut area_id: Option<String> = None;
-        let mut ballot_id: Option<String> = None;
-
-        for (column, value) in row.columns.iter().zip(row.values.iter()) {
-            // FIXME for some reason columns names appear with parentheses
-            let dot = column
-                .find('.')
-                .ok_or(anyhow!("invalid column found '{}'", column.as_str()))?;
-            let bare_column = &column[dot + 1..column.len() - 1];
-
-            match bare_column {
-                "id" => assign_value!(Value::N, value, id),
-                "created" => assign_value!(Value::Ts, value, created),
-                "sender_pk" => assign_value!(Value::S, value, sender_pk),
-                "statement_timestamp" => {
-                    assign_value!(Value::Ts, value, statement_timestamp)
-                }
-                "statement_kind" => assign_value!(Value::S, value, statement_kind),
-                "message" => assign_value!(Value::Bs, value, message),
-                "version" => assign_value!(Value::S, value, version),
-                "user_id" => match value.value.as_ref() {
-                    Some(Value::S(inner)) => user_id = Some(inner.clone()),
-                    Some(Value::Null(_)) => user_id = None,
-                    None => user_id = None,
-                    _ => {
-                        return Err(anyhow!(
-                            "invalid column value for 'user_id': {:?}",
-                            value.value.as_ref()
-                        ))
-                    }
-                },
-                "username" => match value.value.as_ref() {
-                    Some(Value::S(inner)) => username = Some(inner.clone()),
-                    Some(Value::Null(_)) => username = None,
-                    None => username = None,
-                    _ => {
-                        return Err(anyhow!(
-                            "invalid column value for 'username': {:?}",
-                            value.value.as_ref()
-                        ))
-                    }
-                },
-                "election_id" => match value.value.as_ref() {
-                    Some(Value::S(inner)) => election_id = Some(inner.clone()),
-                    Some(Value::Null(_)) => election_id = None,
-                    None => election_id = None,
-                    _ => {
-                        return Err(anyhow!(
-                            "invalid column value for 'election_id': {:?}",
-                            value.value.as_ref()
-                        ))
-                    }
-                },
-                "area_id" => match value.value.as_ref() {
-                    Some(Value::S(inner)) => area_id = Some(inner.clone()),
-                    Some(Value::Null(_)) => area_id = None,
-                    None => area_id = None,
-                    _ => {
-                        return Err(anyhow!(
-                            "invalid column value for 'area_id': {:?}",
-                            value.value.as_ref()
-                        ))
-                    }
-                },
-                "ballot_id" => match value.value.as_ref() {
-                    Some(Value::S(inner)) => ballot_id = Some(inner.clone()),
-                    Some(Value::Null(_)) => ballot_id = None,
-                    None => ballot_id = None,
-                    _ => {
-                        return Err(anyhow!(
-                            "invalid column value for 'ballod_id': {:?}",
-                            value.value.as_ref()
-                        ))
-                    }
-                },
-                _ => return Err(anyhow!("invalid column found '{}'", bare_column)),
-            }
-        }
-
-        Ok(ElectoralLogMessage {
-            id,
-            created,
-            sender_pk,
-            statement_timestamp,
-            statement_kind,
-            message,
-            version,
-            user_id,
-            username,
-            election_id,
-            area_id,
-            ballot_id,
-        })
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct Aggregate {
-    pub count: i64,
-}
-
-impl TryFrom<&Row> for Aggregate {
-    type Error = anyhow::Error;
-
-    fn try_from(row: &Row) -> Result<Self, Self::Error> {
-        let mut count = 0;
-
-        for (column, value) in row.columns.iter().zip(row.values.iter()) {
-            match column.as_str() {
-                _ => assign_value!(Value::N, value, count),
-            }
-        }
-        Ok(Aggregate { count })
-    }
 }
 
 impl BoardClient {
@@ -372,13 +183,13 @@ impl BoardClient {
         V: Debug + Display,
     {
         let (min_clause, min_clause_value) = if let Some(min_ts) = min_ts {
-            ("AND created >= @min_ts", min_ts)
+            ("AND statement_timestamp >= @min_ts", min_ts)
         } else {
             ("", 0)
         };
 
         let (max_clause, max_clause_value) = if let Some(max_ts) = max_ts {
-            ("AND created <= @max_ts", max_ts)
+            ("AND statement_timestamp <= @max_ts", max_ts)
         } else {
             ("", 0)
         };
@@ -406,32 +217,6 @@ impl BoardClient {
         } else {
             format!("ORDER BY id desc")
         };
-
-        self.client.use_database(board_db).await?;
-        let sql = format!(
-            r#"
-        SELECT
-            id,
-            username,
-            user_id,
-            area_id,
-            election_id,
-            ballot_id,
-            created,
-            sender_pk,
-            statement_timestamp,
-            statement_kind,
-            message,
-            version
-        FROM {ELECTORAL_LOG_TABLE}
-        WHERE {where_clause}
-        {min_clause}
-        {max_clause}
-        {order_by_clauses}
-        LIMIT @limit
-        OFFSET @offset;
-        "#
-        );
 
         if min_clause_value != 0 {
             params.push(NamedParam {
@@ -463,6 +248,32 @@ impl BoardClient {
                 value: Some(Value::N(offset.unwrap_or(IMMUDB_DEFAULT_OFFSET as i64))),
             }),
         });
+
+        self.client.use_database(board_db).await?;
+        let sql = format!(
+            r#"
+        SELECT
+            id,
+            username,
+            user_id,
+            area_id,
+            election_id,
+            ballot_id,
+            created,
+            sender_pk,
+            statement_timestamp,
+            statement_kind,
+            message,
+            version
+        FROM {ELECTORAL_LOG_TABLE}
+        WHERE {where_clause}
+        {min_clause}
+        {max_clause}
+        {order_by_clauses}
+        LIMIT @limit
+        OFFSET @offset;
+        "#
+        );
 
         info!("SQL query: {}", sql);
         let response_stream = self.client.streaming_sql_query(&sql, params)

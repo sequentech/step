@@ -20,8 +20,7 @@ use crate::services::database::PgConfig;
 use crate::services::documents::upload_and_return_document;
 use crate::services::election_dates::get_election_dates;
 use crate::services::electoral_log::{
-    count_electoral_log, list_electoral_log, ElectoralLogRow, GetElectoralLogBody,
-    IMMUDB_ROWS_LIMIT,
+    count_electoral_log, list_electoral_log, ElectoralLogRow, IMMUDB_ROWS_LIMIT,
 };
 use crate::services::providers::email_sender::{Attachment, EmailSender};
 use crate::services::tasks_execution::{update_complete, update_fail};
@@ -39,6 +38,7 @@ use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use chrono::{DateTime, Local};
 use deadpool_postgres::Transaction;
+use electoral_log::client::types::*;
 use futures::executor::block_on;
 use once_cell::sync::Lazy;
 use rand::seq;

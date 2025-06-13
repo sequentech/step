@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::ElectoralLogMessage;
+use crate::client::types::ElectoralLogMessage;
 use anyhow::Result;
 use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};

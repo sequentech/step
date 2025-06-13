@@ -2,12 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::election_event::get_election_event_by_id;
-use crate::{
-    postgres::scheduled_event::{insert_new_scheduled_event, insert_scheduled_event},
-    types::resources::OrderDirection,
-};
+use crate::postgres::scheduled_event::{insert_new_scheduled_event, insert_scheduled_event};
 use anyhow::Result;
 use deadpool_postgres::Transaction;
+use electoral_log::client::types::OrderDirection;
 use rocket::http::Status;
 use sequent_core::services::keycloak;
 use sequent_core::types::hasura::core::ElectionEvent;

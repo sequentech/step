@@ -6,6 +6,8 @@
 use crate::services::authorization::authorize_voter_election;
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use anyhow::Result;
+use electoral_log::client::types::OrderDirection;
+use electoral_log::client::types::*;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::ballot::ShowCastVoteLogs;
@@ -21,7 +23,6 @@ use windmill::services::electoral_log::{
     CastVoteMessagesOutput, GetElectoralLogBody, OrderField,
 };
 use windmill::services::providers::transactions_provider::provide_hasura_transaction;
-use windmill::types::resources::OrderDirection;
 
 #[derive(Deserialize, Debug)]
 pub struct CastVoteMessagesInput {

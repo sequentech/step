@@ -18,15 +18,6 @@ pub struct TotalAggregate {
     pub aggregate: Aggregate,
 }
 
-// Enumeration for the valid order directions
-#[derive(Debug, Deserialize, EnumString, Display)]
-#[serde(rename_all = "lowercase")]
-#[strum(serialize_all = "lowercase")]
-pub enum OrderDirection {
-    Asc,
-    Desc,
-}
-
 #[derive(Deserialize, Debug)]
 pub struct SortPayload {
     pub field: String,

@@ -15,13 +15,12 @@ use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context};
 use celery::error::TaskError;
 use deadpool_postgres::Client as DbClient;
-use electoral_log::client::board_client::ElectoralLogMessage;
-use electoral_log::messages::message::Message;
+use electoral_log::client::types::ElectoralLogMessage;
 use immudb_rs::TxMode;
 use sequent_core::services::keycloak::get_event_realm;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use tracing::{event, info, instrument};
+use tracing::{info, instrument};
 
 use lapin::{
     options::{BasicAckOptions, BasicGetOptions, QueueDeclareOptions},

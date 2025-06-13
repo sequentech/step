@@ -12,36 +12,28 @@ use crate::services::vault;
 use crate::tasks::electoral_log::{
     enqueue_electoral_log_event, LogEventInput, INTERNAL_MESSAGE_TYPE,
 };
-use crate::types::resources::{Aggregate, DataList, OrderDirection, TotalAggregate};
+use crate::types::resources::{Aggregate, DataList, TotalAggregate};
 use anyhow::{anyhow, ensure, Context, Result};
 use b3::messages::message::Signer;
 use base64::engine::general_purpose;
 use base64::Engine;
 use deadpool_postgres::Transaction;
-use electoral_log::assign_value;
+use electoral_log::client::types::*;
 use electoral_log::messages::message::{Message, SigningData};
 use electoral_log::messages::newtypes::*;
 use electoral_log::messages::statement::{StatementBody, StatementType};
-use electoral_log::{
-    ElectoralLogMessage, ElectoralLogVarCharColumn, SqlCompOperators, WhereClauseBTreeMap,
-};
 use immudb_rs::{sql_value::Value, Client, NamedParam, Row, TxMode};
 use rust_decimal::prelude::ToPrimitive;
 use sequent_core::serialization::deserialize_with_path;
-use sequent_core::services::date::ISO8601;
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
-use std::collections::HashMap;
-use std::str::FromStr;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::hash::HashWrapper;
 use strand::hash::STRAND_HASH_LENGTH_BYTES;
 use strand::serialization::StrandDeserialize;
 use strand::signature::StrandSignatureSk;
-use strum_macros::{Display, EnumString};
 use tempfile::NamedTempFile;
 use tokio_stream::StreamExt;
-use tracing::{event, info, instrument, warn, Level};
+use tracing::{info, instrument, warn};
 
 pub const IMMUDB_ROWS_LIMIT: usize = 2500;
 pub const MAX_ROWS_PER_PAGE: usize = 50;
@@ -735,114 +727,6 @@ impl ElectoralLog {
     }
 }
 
-// Enumeration for the valid fields in the immudb table
-#[derive(Debug, Deserialize, Hash, PartialEq, Eq, EnumString, Display, Clone)]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum OrderField {
-    Id,
-    Created,
-    StatementTimestamp,
-    StatementKind,
-    Message,
-    UserId,
-    Username,
-    BallotId,
-    SenderPk,
-    LogType,
-    EventType,
-    Description,
-    Version,
-}
-
-#[derive(Deserialize, Debug, Default, Clone)]
-pub struct GetElectoralLogBody {
-    pub tenant_id: String,
-    pub election_event_id: String,
-    pub limit: Option<i64>,
-    pub offset: Option<i64>,
-    pub filter: Option<HashMap<OrderField, String>>,
-    pub order_by: Option<HashMap<OrderField, OrderDirection>>,
-    pub election_id: Option<String>,
-    pub area_ids: Option<Vec<String>>,
-    pub only_with_user: Option<bool>,
-    pub statement_kind: Option<StatementType>,
-}
-
-impl GetElectoralLogBody {
-    #[instrument(skip_all)]
-    pub fn get_min_max_ts(&self) -> Result<(Option<i64>, Option<i64>)> {
-        let mut min_ts: Option<i64> = None;
-        let mut max_ts: Option<i64> = None;
-        if let Some(filters_map) = &self.filter {
-            for (field, value) in filters_map.iter() {
-                match field {
-                    OrderField::Created | OrderField::StatementTimestamp => {
-                        let datetime = ISO8601::to_date_utc(&value)
-                            .map_err(|err| anyhow!("Failed to parse timestamp: {:?}", err))?;
-                        let ts: i64 = datetime.timestamp();
-                        let ts_end: i64 = ts + 60; // Search along that minute, the second is not specified by the front.
-                        min_ts = Some(ts);
-                        max_ts = Some(ts_end);
-                    }
-                    _ => {}
-                }
-            }
-        }
-
-        Ok((min_ts, max_ts))
-    }
-
-    #[instrument(skip_all)]
-    pub fn as_where_clause_map(&self) -> Result<WhereClauseBTreeMap> {
-        let mut cols_match_select = WhereClauseBTreeMap::new();
-        if let Some(filters_map) = &self.filter {
-            for (field, value) in filters_map.iter() {
-                match field {
-                    OrderField::Id => {} // Impl this filter in BoardClient is i64
-                    OrderField::SenderPk | OrderField::UserId | OrderField::Username | OrderField::BallotId | OrderField::StatementKind | OrderField::Version => { // sql VARCHAR type
-                        let variant = ElectoralLogVarCharColumn::from_str(field.to_string().as_str()).map_err(|_| anyhow!("Field not found"))?; 
-                        cols_match_select.insert(
-                            variant,
-                            (SqlCompOperators::Like, value.clone()),
-                        );
-                    }
-                    OrderField::StatementTimestamp | OrderField::Created => {} // handled by `get_min_max_ts`
-                    OrderField::EventType | OrderField::LogType | OrderField::Description // these have no column but are inside of Message
-                    | OrderField::Message => {} // Message column is sql BLOB type and it´s encrypted so we can't search it without expensive operations
-                }
-            }
-        }
-        if let Some(election_id) = &self.election_id {
-            if !election_id.is_empty() {
-                cols_match_select.insert(
-                    ElectoralLogVarCharColumn::ElectionId,
-                    (SqlCompOperators::Like, election_id.clone()),
-                );
-            }
-        }
-
-        if let Some(area_ids) = &self.area_ids {
-            if !area_ids.is_empty() {
-                // NOTE: `IN` values must be handled later in SQL building, here we just join them
-                cols_match_select.insert(
-                    ElectoralLogVarCharColumn::AreaId,
-                    (SqlCompOperators::In, area_ids.join(",")), // TODO: NullOrIn
-                );
-            }
-        }
-
-        if let Some(statement_kind) = &self.statement_kind {
-            cols_match_select.insert(
-                ElectoralLogVarCharColumn::StatementKind,
-                (SqlCompOperators::Equal, statement_kind.to_string()),
-            );
-        }
-
-        Ok(cols_match_select)
-    }
-}
-
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct StatementHeadDataString {
     pub event: String,
@@ -1025,38 +909,6 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
     })
 }
 
-#[instrument]
-pub fn get_cols_match_count_and_select(
-    election_id: &str,
-    user_id: &str,
-    ballot_id_filter: &str,
-) -> (WhereClauseBTreeMap, WhereClauseBTreeMap) {
-    let cols_match_count = BTreeMap::from([
-        (
-            ElectoralLogVarCharColumn::StatementKind,
-            (SqlCompOperators::Equal, StatementType::CastVote.to_string()),
-        ),
-        (
-            ElectoralLogVarCharColumn::ElectionId,
-            (SqlCompOperators::Equal, election_id.to_string()),
-        ),
-    ]);
-    let mut cols_match_select = cols_match_count.clone();
-    // Restrict the SQL query to user_id and ballot_id in case of filtering
-    if !ballot_id_filter.is_empty() {
-        cols_match_select.insert(
-            ElectoralLogVarCharColumn::UserId,
-            (SqlCompOperators::Equal, user_id.to_string()),
-        );
-        cols_match_select.insert(
-            ElectoralLogVarCharColumn::BallotId,
-            (SqlCompOperators::Like, ballot_id_filter.to_string()),
-        );
-    }
-
-    (cols_match_count, cols_match_select)
-}
-
 /// Returns the entries for statement_kind = "CastVote" which ballot_id matches the input
 /// ballot_id_filter is restricted to be an even number of characters, so that can be converted
 /// to a byte array
@@ -1086,7 +938,7 @@ pub async fn list_cast_vote_messages(
     let mut offset: i64 = input.offset.unwrap_or(0);
     let mut list: Vec<CastVoteEntry> = Vec::with_capacity(MAX_ROWS_PER_PAGE); // Filtered messages.
     let (cols_match_count, cols_match_select) =
-        get_cols_match_count_and_select(&election_id, user_id, ballot_id_filter);
+        input.as_cast_vote_count_and_select_clauses(&election_id, user_id, ballot_id_filter);
     let mut client = get_board_client().await?;
     let total = client
         .count_electoral_log_messages(&board_name, Some(cols_match_count))

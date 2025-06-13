@@ -6,9 +6,7 @@ use super::template_renderer::*;
 use crate::postgres::reports::{Report, ReportType};
 use crate::services::database::PgConfig;
 use crate::services::documents::upload_and_return_document;
-use crate::services::electoral_log::{
-    ElectoralLogRow, GetElectoralLogBody, StatementHeadDataString, IMMUDB_ROWS_LIMIT,
-};
+use crate::services::electoral_log::{ElectoralLogRow, IMMUDB_ROWS_LIMIT};
 use crate::services::protocol_manager::{get_board_client, get_event_board};
 use crate::services::providers::email_sender::{Attachment, EmailSender};
 use crate::types::resources::DataList;
@@ -16,7 +14,8 @@ use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use csv::WriterBuilder;
 use deadpool_postgres::Transaction;
-use electoral_log::client::board_client::{BoardClient, ElectoralLogMessage};
+use electoral_log::client::board_client::BoardClient;
+use electoral_log::client::types::*;
 use electoral_log::messages::message::{Message, SigningData};
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::s3::get_minio_url;

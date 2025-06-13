@@ -6,6 +6,7 @@
 use crate::services::authorization::authorize;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Client as DbClient;
+use electoral_log::client::types::*;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt::JwtClaims;
