@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {gql} from "@apollo/client"
 
-const validOrderBy = ["id", "created", "statement_timestamp", "statement_kind", "user_id"]
+const validOrderBy = ["id", "created", "statement_timestamp", "statement_kind", "user_id", "username"]
 
 export const getElectoralLogVariables = (input: any) => {
     return {
