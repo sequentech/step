@@ -5,16 +5,14 @@
 
 use crate::services::authorization::authorize;
 use anyhow::{anyhow, Context, Result};
-use deadpool_postgres::Client as DbClient;
 use electoral_log::client::types::*;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::Permissions;
-use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use windmill::services::electoral_log::{
-    list_electoral_log as get_logs, ElectoralLogRow, GetElectoralLogBody,
+    list_electoral_log as windmill_list_electoral_log, ElectoralLogRow,
 };
 use windmill::types::resources::DataList;
 
@@ -32,7 +30,7 @@ pub async fn list_electoral_log(
         vec![Permissions::LOGS_READ],
     )?;
 
-    let ret_val = get_logs(input)
+    let ret_val = windmill_list_electoral_log(input)
         .await
         .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 

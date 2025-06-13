@@ -6,7 +6,6 @@
 use crate::services::authorization::authorize_voter_election;
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use anyhow::Result;
-use electoral_log::client::types::OrderDirection;
 use electoral_log::client::types::*;
 use rocket::http::Status;
 use rocket::serde::json::Json;
@@ -18,10 +17,8 @@ use serde::Deserialize;
 use std::collections::HashMap;
 use tracing::instrument;
 use windmill::postgres::election_event::get_election_event_by_id;
-use windmill::services::electoral_log;
-use windmill::services::electoral_log::{
-    CastVoteMessagesOutput, GetElectoralLogBody, OrderField,
-};
+use windmill::services::electoral_log::list_cast_vote_messages as windmill_list_cast_vote_messages;
+use windmill::services::electoral_log::CastVoteMessagesOutput;
 use windmill::services::providers::transactions_provider::provide_hasura_transaction;
 
 #[derive(Deserialize, Debug)]
@@ -106,7 +103,7 @@ pub async fn list_cast_vote_messages(
         ..Default::default()
     };
 
-    let ret_val = electoral_log::list_cast_vote_messages(
+    let ret_val = windmill_list_cast_vote_messages(
         elog_input, ballot_id, &user_id, &username,
     )
     .await
