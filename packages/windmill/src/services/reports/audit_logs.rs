@@ -102,7 +102,7 @@ pub struct SystemData {
 
 #[derive(Debug)]
 pub struct AuditLogsTemplate {
-    ids: ReportOrigins,
+    ids: ReportOrigins, // TODO: It should have board_name and board_client as in ActivityLogsTemplate to ue them in the traits to get the data from the electoral log
 }
 
 impl AuditLogsTemplate {

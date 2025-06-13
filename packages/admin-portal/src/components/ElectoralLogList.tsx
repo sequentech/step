@@ -270,7 +270,7 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                     <TextField source="statement_kind" />
                     <FunctionField
                         source="event_type"
-                        label={t("logsScreen.column.statement_kind")}
+                        label={t("logsScreen.column.event_type")}
                         render={(record: any) => getHeadField(record, "event_type")}
                     />
                     <FunctionField
