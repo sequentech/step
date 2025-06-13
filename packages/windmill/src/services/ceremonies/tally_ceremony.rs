@@ -421,6 +421,7 @@ pub async fn create_tally_ceremony(
         Some(initial_status),
         None,
         None,
+        None,
     )
     .await?;
 
@@ -711,6 +712,7 @@ pub async fn set_private_key(
         tally_session_execution.current_message_id,
         &tally_session_id,
         Some(new_status.clone()),
+        None,
         None,
         None,
     )

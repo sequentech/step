@@ -1872,6 +1872,10 @@ const basqueTranslation: TranslationType = {
                 isHidden: "Ezkutatuta dago",
                 publicUrl: "URL Publikoa",
             },
+            empty: {
+                header: "Ez dago laguntza materialak",
+                action: "Laguntza materiala sortu",
+            },
         },
         widget: {
             logs: "Egunkariak",

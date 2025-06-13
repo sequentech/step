@@ -2,15 +2,15 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::{anyhow, Context, Result};
-use log::info;
-use serde::{Deserialize, Serialize};
-use tracing::{event, instrument, Level};
-
 use crate::assign_value;
+use anyhow::{anyhow, Context, Result};
 use immudb_rs::{sql_value::Value, Client, CommittedSqlTx, NamedParam, Row, SqlValue, TxMode};
+use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use tokio::time::{sleep, Duration};
+use tokio_stream::StreamExt; // Added for streaming
+use tracing::{debug, error, info, warn};
+use tracing::{event, instrument, Level};
 
 const IMMUDB_DEFAULT_LIMIT: usize = 900;
 const IMMUDB_DEFAULT_ENTRIES_TX_LIMIT: usize = 50;
@@ -312,13 +312,42 @@ impl BoardClient {
             })
         }
 
-        let sql_query_response = self.client.sql_query(&sql, params).await?;
-        let messages = sql_query_response
-            .get_ref()
-            .rows
-            .iter()
-            .map(ElectoralLogMessage::try_from)
-            .collect::<Result<Vec<ElectoralLogMessage>>>()?;
+        let response_stream = self.client.streaming_sql_query(&sql, params)
+            .await
+            .with_context(|| "Failed to execute streaming_sql_query using immudb-rs v0.1.0. This version streams batches (SqlQueryResult).")?;
+        let mut stream = response_stream.into_inner(); // Get the tonic::Streaming<SqlQueryResult>
+
+        let mut messages: Vec<ElectoralLogMessage> = vec![];
+        let mut total_rows_fetched = 0;
+
+        while let Some(batch_result) = stream.next().await {
+            // Iterates over SqlQueryResult batches
+            match batch_result {
+                Ok(sql_query_result_batch) => {
+                    for individual_row in &sql_query_result_batch.rows {
+                        total_rows_fetched += 1;
+                        if total_rows_fetched % 1000 == 0 {
+                            info!(total_rows_fetched, "Processed rows from stream...");
+                        }
+
+                        let elog_row = match ElectoralLogMessage::try_from(individual_row) {
+                            Ok(elog_row) => elog_row,
+                            Err(e) => {
+                                warn!(error = %e, "Failed to parse ImmudbRow into ElectoralLogRow from stream batch.");
+                                continue;
+                            }
+                        };
+                        messages.push(elog_row);
+                    }
+                }
+                Err(e) => {
+                    error!(error = %e, "Error receiving batch from Immudb stream.");
+                    // Depending on the error, you might want to break or continue.
+                    // For now, we'll log and break for stream errors to avoid infinite loops on persistent errors.
+                    break;
+                }
+            }
+        }
 
         Ok(messages)
     }

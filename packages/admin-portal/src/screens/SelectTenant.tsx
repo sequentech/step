@@ -171,10 +171,6 @@ export const SelectTenant = () => {
     }
 
     useEffect(() => {
-        if (localStorage.getItem("token") !== null) {
-            localStorage.setItem("has-token", "true")
-        }
-
         // Check for previous attempts
         const nextAttempt = localStorage.getItem("next-tenant-attempt")
         if (nextAttempt) {
