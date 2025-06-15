@@ -208,32 +208,32 @@
             "problemMatcher": []
         },
         {
-          "label": "logs.restart.simplesaml",
-          "command": "bash",
-          "args": [
-            "-c",
-            "docker compose stop simplesaml; docker compose build simplesaml && docker compose up -d --no-deps simplesaml && docker compose logs -f --tail 100 simplesaml"
-          ],
-          "options": {
-            "env": {
-              "COMPOSE_PROJECT_NAME": "step_devcontainer",
-              "COMPOSE_PROFILES": "base"
+            "label": "logs.restart.simplesaml",
+            "command": "bash",
+            "args": [
+                "-c",
+                "docker compose stop simplesaml; docker compose build simplesaml && docker compose up -d --no-deps simplesaml && docker compose logs -f --tail 100 simplesaml"
+            ],
+            "options": {
+                "env": {
+                    "COMPOSE_PROJECT_NAME": "step_devcontainer",
+                    "COMPOSE_PROFILES": "base"
+                },
+                "cwd": "${workspaceFolder}/.devcontainer"
             },
-            "cwd": "${workspaceFolder}/.devcontainer"
-          },
-          "presentation": {
-            "echo": true,
-            "reveal": "always",
-            "focus": false,
-            "panel": "dedicated",
-            "showReuseMessage": true,
-            "clear": false
-          },
-          "isBackground": true,
-          "runOptions": {
-            "runOn": "default"
-          },
-          "problemMatcher": []
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "isBackground": true,
+            "runOptions": {
+                "runOn": "default"
+            },
+            "problemMatcher": []
         },
         {
             "label": "logs.restart.hasura",
@@ -881,38 +881,38 @@
             "problemMatcher": []
         },
         {
-          "label": "free.space",
-          "command": "devenv",
-          "args": [
-            "shell",
-            "bash",
-            "--",
-            "-c",
-            "./.devcontainer/scripts/free-space.sh"
-          ],
-          "presentation": {
-            "echo": true,
-            "reveal": "always",
-            "focus": false,
-            "panel": "dedicated",
-            "showReuseMessage": true,
-            "clear": false
-          },
-          "isBackground": true,
-          "runOptions": {
-            "runOn": "default"
-          },
-          "problemMatcher": []
-        },
-                {
-            "label": "upload.extention",
+            "label": "free.space",
             "command": "devenv",
             "args": [
                 "shell",
                 "bash",
                 "--",
                 "-c",
-                "./.devcontainer/scripts/upload_extension.sh"
+                "./.devcontainer/scripts/free-space.sh"
+            ],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "isBackground": true,
+            "runOptions": {
+                "runOn": "default"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "upload.plugins",
+            "command": "devenv",
+            "args": [
+                "shell",
+                "bash",
+                "--",
+                "-c",
+                "./.devcontainer/scripts/upload_plugins_s3.sh"
             ],
             "presentation": {
                 "echo": true,

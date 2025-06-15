@@ -564,3 +564,65 @@ pub async fn get_files_from_s3(
 
     Ok(file_paths)
 }
+
+#[instrument(err)]
+pub async fn get_files_bytes_from_s3(
+    s3_bucket: String,
+    prefix: String,
+) -> Result<Vec<Vec<u8>>> {
+    // Load AWS/S3 config and create client
+    let config = get_s3_aws_config(true)
+        .await
+        .with_context(|| "Error getting S3 AWS config")?;
+    let client = get_s3_client(config)
+        .await
+        .with_context(|| "Error creating S3 client")?;
+
+    let mut files_data = Vec::new();
+
+    // List objects under the given prefix
+    let list_output = client
+        .list_objects_v2()
+        .bucket(&s3_bucket)
+        .prefix(&prefix)
+        .send()
+        .await
+        .with_context(|| {
+            format!(
+                "Error listing objects in bucket `{}` with prefix `{}`",
+                s3_bucket, prefix
+            )
+        })?;
+
+    // For each object, fetch and collect its bytes
+    if let Some(contents) = list_output.contents {
+        for object in contents {
+            if let Some(key) = object.key {
+                if !key.contains("export") {
+                    let get_obj_output = client
+                        .get_object()
+                        .bucket(&s3_bucket)
+                        .key(&key)
+                        .send()
+                        .await
+                        .with_context(|| {
+                            format!("Error getting object `{}`", key)
+                        })?;
+
+                    // ByteStream -> Bytes -> Vec<u8>
+                    let bytes = ByteStream::collect(get_obj_output.body)
+                        .await
+                        .with_context(|| {
+                            format!("Error streaming object `{}` body", key)
+                        })?
+                        .into_bytes()
+                        .to_vec();
+
+                    files_data.push(bytes);
+                }
+            }
+        }
+    }
+
+    Ok(files_data)
+}
