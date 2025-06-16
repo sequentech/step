@@ -194,20 +194,7 @@ impl BoardClient {
             ("", 0)
         };
 
-        let mut params = vec![];
-        let mut where_clause = String::from("statement_kind IS NOT NULL ");
-        if let Some(columns_matcher) = &columns_matcher {
-            for (key, (op, value)) in columns_matcher {
-                where_clause.push_str(&format!("AND {key} {op} @{key} "));
-                params.push(NamedParam {
-                    name: key.to_string(),
-                    value: Some(SqlValue {
-                        value: Some(Value::S(value.to_owned())),
-                    }),
-                })
-            }
-        }
-
+        let (where_clause, mut params) = BoardClient::to_where_clause(columns_matcher);
         let order_by_clauses = if let Some(order_by) = order_by {
             order_by
                 .iter()
@@ -322,20 +309,7 @@ impl BoardClient {
         board_db: &str,
         columns_matcher: Option<WhereClauseBTreeMap>,
     ) -> Result<i64> {
-        let mut params = vec![];
-        let mut where_clause = String::from("statement_kind IS NOT NULL ");
-        if let Some(columns_matcher) = &columns_matcher {
-            for (key, (op, value)) in columns_matcher {
-                where_clause.push_str(&format!("AND {key} {op} @{key} "));
-                params.push(NamedParam {
-                    name: key.to_string(),
-                    value: Some(SqlValue {
-                        value: Some(Value::S(value.to_owned())),
-                    }),
-                })
-            }
-        }
-
+        let (where_clause, mut params) = BoardClient::to_where_clause(columns_matcher);
         self.client.use_database(board_db).await?;
         let sql = format!(
             r#"
@@ -357,6 +331,47 @@ impl BoardClient {
             .ok_or_else(|| anyhow!("No aggregate found"))??;
 
         Ok(aggregate.count as i64)
+    }
+
+    fn to_where_clause(columns_matcher: Option<WhereClauseBTreeMap>) -> (String, Vec<NamedParam>) {
+        let mut params = vec![];
+        let mut where_clause = String::from("statement_kind IS NOT NULL ");
+        for (key, op) in columns_matcher.unwrap_or_default().iter() {
+            match op {
+                SqlCompOperators::In(values_vec) | SqlCompOperators::NotIn(values_vec) => {
+                    let placeholders: Vec<String> = values_vec
+                        .iter()
+                        .enumerate()
+                        .map(|(i, _)| format!("@param_{key}{i}"))
+                        .collect();
+                    for (i, value) in values_vec.into_iter().enumerate() {
+                        params.push(NamedParam {
+                            name: format!("param_{key}{i}"),
+                            value: Some(SqlValue {
+                                value: Some(Value::S(value.to_owned())),
+                            }),
+                        });
+                    }
+                    where_clause.push_str(&format!("AND {key} IN ({})", placeholders.join(", ")));
+                }
+                SqlCompOperators::Equal(value)
+                | SqlCompOperators::NotEqual(value)
+                | SqlCompOperators::GreaterThan(value)
+                | SqlCompOperators::LessThan(value)
+                | SqlCompOperators::GreaterThanOrEqual(value)
+                | SqlCompOperators::LessThanOrEqual(value)
+                | SqlCompOperators::Like(value) => {
+                    where_clause.push_str(&format!("AND {key} {op} @{key} "));
+                    params.push(NamedParam {
+                        name: key.to_string(),
+                        value: Some(SqlValue {
+                            value: Some(Value::S(value.to_owned())),
+                        }),
+                    });
+                }
+            }
+        }
+        (where_clause, params)
     }
 
     pub async fn open_session(&mut self, database_name: &str) -> Result<()> {

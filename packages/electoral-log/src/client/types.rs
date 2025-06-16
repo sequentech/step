@@ -33,26 +33,26 @@ pub enum ElectoralLogVarCharColumn {
 #[derive(Display, Debug, Clone)]
 pub enum SqlCompOperators {
     #[strum(to_string = "=")]
-    Equal,
+    Equal(String),
     #[strum(to_string = "!=")]
-    NotEqual,
+    NotEqual(String),
     #[strum(to_string = ">")]
-    GreaterThan,
+    GreaterThan(String),
     #[strum(to_string = "<")]
-    LessThan,
+    LessThan(String),
     #[strum(to_string = ">=")]
-    GreaterThanOrEqual,
+    GreaterThanOrEqual(String),
     #[strum(to_string = "<=")]
-    LessThanOrEqual,
+    LessThanOrEqual(String),
     #[strum(to_string = "LIKE")]
-    Like,
+    Like(String),
     #[strum(to_string = "IN")]
-    In,
+    In(Vec<String>),
     #[strum(to_string = "NOT IN")]
-    NotIn,
+    NotIn(Vec<String>),
 }
 
-pub type WhereClauseBTreeMap = BTreeMap<ElectoralLogVarCharColumn, (SqlCompOperators, String)>;
+pub type WhereClauseBTreeMap = BTreeMap<ElectoralLogVarCharColumn, SqlCompOperators>;
 
 // Enumeration for the valid fields in the immudb table
 #[derive(Debug, Deserialize, Hash, PartialEq, Eq, EnumString, Display, Clone)]
@@ -133,7 +133,7 @@ impl GetElectoralLogBody {
                         let variant = ElectoralLogVarCharColumn::from_str(field.to_string().as_str()).map_err(|_| anyhow!("Field not found"))?; 
                         cols_match_select.insert(
                             variant,
-                            (SqlCompOperators::Like, value.clone()),
+                            SqlCompOperators::Like(value.clone()),
                         );
                     }
                     OrderField::StatementTimestamp | OrderField::Created => {} // handled by `get_min_max_ts`
@@ -146,7 +146,7 @@ impl GetElectoralLogBody {
             if !election_id.is_empty() {
                 cols_match_select.insert(
                     ElectoralLogVarCharColumn::ElectionId,
-                    (SqlCompOperators::Like, election_id.clone()),
+                    SqlCompOperators::Like(election_id.clone()),
                 );
             }
         }
@@ -156,7 +156,7 @@ impl GetElectoralLogBody {
                 // NOTE: `IN` values must be handled later in SQL building, here we just join them
                 cols_match_select.insert(
                     ElectoralLogVarCharColumn::AreaId,
-                    (SqlCompOperators::In, area_ids.join(",")), // TODO: NullOrIn
+                    SqlCompOperators::In(area_ids.clone()), // TODO: NullOrIn
                 );
             }
         }
@@ -164,7 +164,7 @@ impl GetElectoralLogBody {
         if let Some(statement_kind) = &self.statement_kind {
             cols_match_select.insert(
                 ElectoralLogVarCharColumn::StatementKind,
-                (SqlCompOperators::Equal, statement_kind.to_string()),
+                SqlCompOperators::Equal(statement_kind.to_string()),
             );
         }
 
@@ -181,11 +181,11 @@ impl GetElectoralLogBody {
         let cols_match_count = BTreeMap::from([
             (
                 ElectoralLogVarCharColumn::StatementKind,
-                (SqlCompOperators::Equal, StatementType::CastVote.to_string()),
+                SqlCompOperators::Equal(StatementType::CastVote.to_string()),
             ),
             (
                 ElectoralLogVarCharColumn::ElectionId,
-                (SqlCompOperators::Equal, election_id.to_string()),
+                SqlCompOperators::Equal(election_id.to_string()),
             ),
         ]);
         let mut cols_match_select = cols_match_count.clone();
@@ -193,11 +193,11 @@ impl GetElectoralLogBody {
         if !ballot_id_filter.is_empty() {
             cols_match_select.insert(
                 ElectoralLogVarCharColumn::UserId,
-                (SqlCompOperators::Equal, user_id.to_string()),
+                SqlCompOperators::Equal(user_id.to_string()),
             );
             cols_match_select.insert(
                 ElectoralLogVarCharColumn::BallotId,
-                (SqlCompOperators::Like, ballot_id_filter.to_string()),
+                SqlCompOperators::Like(ballot_id_filter.to_string()),
             );
         }
 

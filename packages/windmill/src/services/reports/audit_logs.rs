@@ -321,6 +321,8 @@ impl TemplateRenderer for AuditLogsTemplate {
     fn prefix(&self) -> String {
         format!("audit_logs_{}", self.ids.election_event_id)
     }
+
+    #[instrument(err, skip_all)]
     async fn count_items(
         &self,
         hasura_transaction: Option<&Transaction<'_>>,
