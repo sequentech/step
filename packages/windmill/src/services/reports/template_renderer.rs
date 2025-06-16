@@ -111,13 +111,16 @@ pub trait TemplateRenderer: Debug {
     /// or from other place than the reports TAB.
     fn get_initial_template_alias(&self) -> Option<String>;
 
-    async fn count_items(&self, hasura_transaction: &Transaction<'_>) -> Result<Option<i64>> {
+    async fn count_items(
+        &self,
+        hasura_transaction: Option<&Transaction<'_>>,
+    ) -> Result<Option<i64>> {
         Ok(None)
     }
     async fn prepare_user_data_batch(
         &self,
-        hasura_transaction: &Transaction<'_>,
-        keycloak_transaction: &Transaction<'_>,
+        hasura_transaction: Option<&Transaction<'_>>,
+        keycloak_transaction: Option<&Transaction<'_>>,
         offset: &mut i64,
         limit: i64,
     ) -> Result<Self::UserData> {
@@ -384,9 +387,14 @@ pub trait TemplateRenderer: Debug {
         } else {
             if let (Some(o), Some(l)) = (offset, limit) {
                 info!("Batched processing: offset = {o}, limit = {l}");
-                self.prepare_user_data_batch(hasura_transaction, keycloak_transaction, o, l)
-                    .await
-                    .map_err(|e| anyhow!("Error preparing batched user data: {e:?}"))?
+                self.prepare_user_data_batch(
+                    Some(hasura_transaction),
+                    Some(keycloak_transaction),
+                    o,
+                    l,
+                )
+                .await
+                .map_err(|e| anyhow!("Error preparing batched user data: {e:?}"))?
             } else {
                 self.prepare_user_data(hasura_transaction, keycloak_transaction)
                     .await
@@ -499,7 +507,10 @@ pub trait TemplateRenderer: Debug {
                 anyhow!("Error providing the user template and extra config: {e:?}")
             })?;
 
-        let items_count = self.count_items(&hasura_transaction).await?.unwrap_or(0);
+        let items_count = self
+            .count_items(Some(&hasura_transaction))
+            .await?
+            .unwrap_or(0);
         let report_options = ext_cfg.report_options.clone();
         let per_report_limit = report_options
             .max_items_per_report

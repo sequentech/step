@@ -359,7 +359,7 @@ pub async fn process_export_zip(
 
         // Generate the CSV file using generate_export_data
         let temp_activity_logs_file = activity_logs_template
-            .generate_export_data(&hasura_transaction, &activity_logs_filename)
+            .generate_export_csv_data(&activity_logs_filename)
             .await
             .map_err(|e| anyhow!("Error generating export data: {e:?}"))?;
 

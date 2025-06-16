@@ -129,12 +129,8 @@ impl ActivityLogsTemplate {
     }
 
     // Export data
-    #[instrument(err, skip(self, hasura_transaction))]
-    pub async fn generate_export_data(
-        &self,
-        hasura_transaction: &Transaction<'_>,
-        name: &str,
-    ) -> Result<NamedTempFile> {
+    #[instrument(err, skip(self))]
+    pub async fn generate_export_csv_data(&self, name: &str) -> Result<NamedTempFile> {
         let limit = IMMUDB_ROWS_LIMIT as i64;
         let mut offset: i64 = 0;
         // Create a temporary file to write CSV data
@@ -142,7 +138,7 @@ impl ActivityLogsTemplate {
             generate_temp_file(&name, ".csv").with_context(|| "Error creating named temp file")?;
         let mut csv_writer = WriterBuilder::new().from_writer(temp_file.as_file_mut());
         let total = self
-            .count_items(hasura_transaction)
+            .count_items(None)
             .await
             .map_err(|e| anyhow!("Error count_items in activity logs data: {e:?}"))?
             .unwrap_or(0);
@@ -150,7 +146,7 @@ impl ActivityLogsTemplate {
             info!("offset: {offset}, total: {total}");
             // Prepare user data
             let user_data = self
-                .prepare_user_data_batch(hasura_transaction, hasura_transaction, &mut offset, limit)
+                .prepare_user_data_batch(None, None, &mut offset, limit)
                 .await
                 .map_err(|e| anyhow!("Error preparing activity logs data: {e:?}"))?;
 
@@ -216,7 +212,10 @@ impl TemplateRenderer for ActivityLogsTemplate {
         format!("activity_logs_{}", rand::random::<u64>())
     }
 
-    async fn count_items(&self, _hasura_transaction: &Transaction<'_>) -> Result<Option<i64>> {
+    async fn count_items(
+        &self,
+        _hasura_transaction: Option<&Transaction<'_>>,
+    ) -> Result<Option<i64>> {
         let mut client = get_board_client().await?;
         let total = client
             .count_electoral_log_messages(&self.board_name, None)
@@ -228,8 +227,8 @@ impl TemplateRenderer for ActivityLogsTemplate {
     #[instrument(err, skip_all)]
     async fn prepare_user_data_batch(
         &self,
-        _hasura_transaction: &Transaction<'_>,
-        _keycloak_transaction: &Transaction<'_>,
+        _hasura_transaction: Option<&Transaction<'_>>,
+        _keycloak_transaction: Option<&Transaction<'_>>,
         offset: &mut i64,
         limit: i64,
     ) -> Result<Self::UserData> {
@@ -265,65 +264,8 @@ impl TemplateRenderer for ActivityLogsTemplate {
         _keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
         Err(anyhow!(
-            "prepare_user_data is not implemented for this report type, use prepare_user_data_batch instead"
+            "prepare_user_data should not be used for this report type, use prepare_user_data_batch instead"
         ))
-
-        // let mut act_log: Vec<ActivityLogRow> = vec![];
-        // let mut elect_logs: Vec<ElectoralLogRow> = vec![];
-        // let mut offset = 0;
-        // let limit = PgConfig::from_env()
-        //     .with_context(|| "Error obtaining Pg config from env.")?
-        //     .default_sql_batch_size as i64;
-
-        // loop {
-        //     let electoral_logs: DataList<ElectoralLogRow> =
-        //         list_electoral_log(GetElectoralLogBody {
-        //             tenant_id: self.ids.tenant_id.clone(),
-        //             election_event_id: self.ids.election_event_id.clone(),
-        //             limit: Some(limit),
-        //             offset: Some(offset),
-        //             filter: None,
-        //             order_by: None,
-        //             area_ids: None,
-        //             only_with_user: None,
-        //             election_id: None,
-        //             statement_kind: None,
-        //         })
-        //         .await
-        //         .map_err(|e| anyhow!("Error listing electoral logs: {e:?}"))?;
-
-        //     let is_empty = electoral_logs.items.is_empty();
-
-        //     for electoral_log in electoral_logs.items {
-        //         elect_logs.push(electoral_log.clone());
-        //         let head_data = electoral_log
-        //             .statement_head_data()
-        //             .with_context(|| "Error to get head data.")?;
-        //         let event_type = head_data.event_type;
-        //         let log_type = head_data.log_type;
-        //         let description = head_data.description;
-        //         let activity_log = electoral_log.try_into()?;
-        //         let activity_log = ActivityLogRow {
-        //             event_type,
-        //             log_type,
-        //             description,
-        //             ..activity_log
-        //         };
-        //         act_log.push(activity_log);
-        //     }
-
-        //     let total = electoral_logs.total.aggregate.count;
-        //     if is_empty || offset >= total {
-        //         break;
-        //     }
-
-        //     offset += limit;
-        // }
-
-        // Ok(UserData {
-        //     act_log,
-        //     electoral_log: elect_logs,
-        // })
     }
 
     #[instrument(err, skip_all)]
@@ -370,16 +312,10 @@ impl TemplateRenderer for ActivityLogsTemplate {
             )
             .await
         } else {
-            // Generate CSV report
-            // Prepare user data
-            let user_data = self
-                .prepare_user_data(hasura_transaction, keycloak_transaction)
-                .await
-                .map_err(|e| anyhow!("Error preparing activity logs data into CSV: {e:?}"))?;
-
-            // Generate CSV file using generate_report_data
+            // Generate CSV file using generate_export_csv_data
             let name = format!("export-election-event-logs-{}", election_event_id);
-            let temp_file = generate_report_data(&user_data.act_log, &name)
+            let temp_file = self
+                .generate_export_csv_data(&name)
                 .await
                 .map_err(|e| anyhow!("Error generating export data: {e:?}"))?;
 
@@ -452,32 +388,4 @@ impl TemplateRenderer for ActivityLogsTemplate {
             Ok(())
         }
     }
-}
-
-/// Maintains the generate_export_data function as before.
-/// This function can be used by other report types that need to generate CSV files.
-#[instrument(err, skip(act_log))]
-pub async fn generate_report_data(act_log: &[ActivityLogRow], name: &str) -> Result<NamedTempFile> {
-    // Create a temporary file to write CSV data
-    let mut temp_file =
-        generate_temp_file(&name, ".csv").with_context(|| "Error creating named temp file")?;
-    let mut csv_writer = WriterBuilder::new().from_writer(temp_file.as_file_mut());
-
-    for item in act_log {
-        let mut item_clean = item.clone();
-
-        // Replace newline characters in the message field
-        item_clean.message = item_clean.message.replace('\n', " ").replace('\r', " ");
-        // Serialize each item to CSV
-        csv_writer
-            .serialize(item_clean)
-            .map_err(|e| anyhow!("Error serializing to CSV: {e:?}"))?;
-    }
-    // Flush and finish writing to the temporary file
-    csv_writer
-        .flush()
-        .map_err(|e| anyhow!("Error flushing CSV writer: {e:?}"))?;
-    drop(csv_writer);
-
-    Ok(temp_file)
 }
