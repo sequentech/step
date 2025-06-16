@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-name: Build & Push to ECR
+name: Build & Push to ECR- v5.1.1-rc.6
 
 on:
   push:

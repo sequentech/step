@@ -48,9 +48,6 @@ jobs:
             context: packages
             file: packages/harvest/Dockerfile.prod
             
-          - service: b3
-            context: packages
-            file: packages/b3/Dockerfile.prod
 
           - service: braid
             context: packages
@@ -67,10 +64,6 @@ jobs:
           - service: immudb
             context: packages
             file: packages/Dockerfile.immudb
-            
-          - service: mock_server
-            context: packages/e2e/src/mock_server
-            file: packages/e2e/src/mock_server/Dockerfile.prod
 
       fail-fast: false
 
