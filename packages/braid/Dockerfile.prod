@@ -15,7 +15,6 @@ RUN rustup toolchain install nightly-2024-09-01 \
 # copy projects
 #TODO: Copy only necessary files
 WORKDIR /app
-COPY ./braid/scripts/Cargo.toml ./Cargo.toml
 COPY ./braid ./braid
 COPY ./board-messages ./board-messages
 COPY ./sequent-core ./sequent-core
@@ -23,13 +22,15 @@ COPY ./immu-board ./immu-board
 COPY ./immudb-rs ./immudb-rs
 COPY ./strand ./strand
 COPY ./wrap-map-err ./wrap-map-err
+COPY ./Cargo.toml ./Cargo.toml
+COPY ./Cargo.lock ./Cargo.lock
 
 # build projects
 WORKDIR /app/immu-board
-RUN cargo build --release
+RUN cargo build --release --locked
 
 WORKDIR /app/braid
-RUN cargo build --release
+RUN cargo build --release --locked
 
 
 
