@@ -82,18 +82,23 @@ export const customBuildQuery =
                     name: resourceName,
                 },
             }
-            const builtVariables = buildVariables(introspectionResults)(resource, raFetchType, params, null);
-            const finalVariables = getElectoralLogVariables(builtVariables);
+            const builtVariables = buildVariables(introspectionResults)(
+                resource,
+                raFetchType,
+                params,
+                null
+            )
+            const finalVariables = getElectoralLogVariables(builtVariables)
             return {
                 query: getElectoralLog(params),
                 variables: finalVariables,
                 parseResponse: (res: any) => {
-                    const response = res.data.listElectoralLog;
+                    const response = res.data.listElectoralLog
                     let output = {
                         data: response.items,
                         total: response.total.aggregate.count,
-                    };
-                    return output;
+                    }
+                    return output
                 },
             }
         } else if (resourceName === "sequent_backend_report" && raFetchType === "GET_LIST") {

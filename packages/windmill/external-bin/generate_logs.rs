@@ -8,6 +8,7 @@ use base64::Engine;
 use chrono::{TimeZone, Utc};
 use clap::Parser;
 use csv::Writer;
+use electoral_log::client::types::ElectoralLogMessage;
 use electoral_log::messages::message::Message;
 use immudb_rs::{sql_value::Value as ImmudbSqlValue, Client};
 use serde::Deserialize;
@@ -187,10 +188,18 @@ async fn main() -> Result<()> {
                         info!(total_rows_fetched, "Processed rows from stream...");
                     }
 
-                    let elog_row = match ElectoralLogRow::try_from(individual_row) {
+                    let elog_msg = match ElectoralLogMessage::try_from(individual_row) {
+                        Ok(elog_msg) => elog_msg,
+                        Err(e) => {
+                            warn!(error = %e, "Failed to parse ImmudbRow into ElectoralLogMessage from stream batch.");
+                            continue;
+                        }
+                    };
+
+                    let elog_row = match ElectoralLogRow::try_from(elog_msg.clone()) {
                         Ok(elog_row) => elog_row,
                         Err(e) => {
-                            warn!(error = %e, "Failed to parse ImmudbRow into ElectoralLogRow from stream batch.");
+                            warn!(error = %e, "Failed to parse ImmudbRow into ElectoralLogRow from ElectoralLogMessage.");
                             continue;
                         }
                     };
@@ -217,10 +226,10 @@ async fn main() -> Result<()> {
                     };
                     let extracted_election_id_opt = message.election_id.clone();
 
-                    let activity_log_row = match ActivityLogRow::try_from(elog_row.clone()) {
+                    let activity_log_row = match ActivityLogRow::try_from(elog_msg.clone()) {
                         Ok(activity_log_row) => activity_log_row,
                         Err(e) => {
-                            warn!(log_id = elog_row.id, error = %e, "Failed to transform ElectoralLogRow.");
+                            warn!(log_id = elog_msg.id, error = %e, "Failed to transform ElectoralLogMessage.");
                             continue;
                         }
                     };
