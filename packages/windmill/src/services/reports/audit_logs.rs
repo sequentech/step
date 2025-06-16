@@ -41,7 +41,6 @@ use deadpool_postgres::Transaction;
 use electoral_log::client::types::*;
 use futures::executor::block_on;
 use once_cell::sync::Lazy;
-use rand::seq;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use rayon::ThreadPoolBuilder;
 use sequent_core::ballot::StringifiedPeriodDates;
@@ -102,7 +101,7 @@ pub struct SystemData {
 
 #[derive(Debug)]
 pub struct AuditLogsTemplate {
-    ids: ReportOrigins, // TODO: It should have board_name and board_client as in ActivityLogsTemplate to ue them in the traits to get the data from the electoral log
+    ids: ReportOrigins, // TODO: It should have board_name and board_client like in ActivityLogsTemplate to use them in the traits to get the data from the electoral log
 }
 
 impl AuditLogsTemplate {

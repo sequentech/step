@@ -4,17 +4,14 @@
 
 use super::template_renderer::*;
 use crate::postgres::reports::{Report, ReportType};
-use crate::services::database::PgConfig;
 use crate::services::documents::upload_and_return_document;
 use crate::services::electoral_log::{ElectoralLogRow, IMMUDB_ROWS_LIMIT};
 use crate::services::protocol_manager::{get_board_client, get_event_board};
 use crate::services::providers::email_sender::{Attachment, EmailSender};
-use crate::types::resources::DataList;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use csv::WriterBuilder;
 use deadpool_postgres::Transaction;
-use electoral_log::client::board_client::BoardClient;
 use electoral_log::client::types::*;
 use electoral_log::messages::message::{Message, SigningData};
 use sequent_core::services::date::ISO8601;
@@ -24,16 +21,13 @@ use sequent_core::types::templates::{ReportExtraConfig, SendTemplateBody};
 use sequent_core::util::temp_path::*;
 use serde::{Deserialize, Serialize};
 use std::mem;
-use std::sync::Arc;
 use strand::serialization::StrandDeserialize;
 use strum_macros::EnumString;
 use tempfile::NamedTempFile;
-use tokio::sync::Mutex;
 use tracing::{debug, info, instrument, warn};
 
 const KB: f64 = 1024.0;
 const MB: f64 = 1024.0 * KB;
-const GB: f64 = 1024.0 * MB;
 
 #[derive(Serialize, Deserialize, Debug, Clone, EnumString, PartialEq, Copy)]
 pub enum ReportFormat {
@@ -106,7 +100,6 @@ impl TryFrom<ElectoralLogMessage> for ActivityLogRow {
 /// electoral_log is for CSV
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
-    // TODO: This should be an Enum to inprove performance and reduce RAM memory usage.
     pub act_log: Vec<ActivityLogRow>,
     pub electoral_log: Vec<ElectoralLogRow>,
 }
@@ -122,20 +115,17 @@ pub struct SystemData {
 pub struct ActivityLogsTemplate {
     ids: ReportOrigins,
     report_format: ReportFormat,
-    board_client: Arc<Mutex<BoardClient>>,
     board_name: String,
 }
 
 impl ActivityLogsTemplate {
-    pub async fn new(ids: ReportOrigins, report_format: ReportFormat) -> Result<Self> {
-        let board_client = get_board_client().await?;
+    pub fn new(ids: ReportOrigins, report_format: ReportFormat) -> Self {
         let board_name = get_event_board(ids.tenant_id.as_str(), ids.election_event_id.as_str());
-        Ok(ActivityLogsTemplate {
+        ActivityLogsTemplate {
             ids,
             report_format,
-            board_client: Arc::new(Mutex::new(board_client)),
             board_name,
-        })
+        }
     }
 
     // Export data
@@ -227,7 +217,7 @@ impl TemplateRenderer for ActivityLogsTemplate {
     }
 
     async fn count_items(&self, _hasura_transaction: &Transaction<'_>) -> Result<Option<i64>> {
-        let mut client = self.board_client.lock().await;
+        let mut client = get_board_client().await?;
         let total = client
             .count_electoral_log_messages(&self.board_name, None)
             .await
@@ -245,8 +235,7 @@ impl TemplateRenderer for ActivityLogsTemplate {
     ) -> Result<Self::UserData> {
         let mut act_log: Vec<ActivityLogRow> = vec![];
         let mut electoral_log: Vec<ElectoralLogRow> = vec![];
-
-        let mut client = self.board_client.lock().await;
+        let mut client = get_board_client().await?;
         let electoral_log_msgs = client
             .get_electoral_log_messages_batch(&self.board_name, limit, *offset)
             .await

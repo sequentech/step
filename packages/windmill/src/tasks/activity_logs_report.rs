@@ -66,8 +66,7 @@ pub async fn generate_activity_logs_report(
             tally_session_id: None,
         },
         format,
-    )
-    .await?;
+    );
 
     info!("Generating activity logs report");
     let _ = report
