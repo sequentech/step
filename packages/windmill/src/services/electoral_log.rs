@@ -756,7 +756,7 @@ impl TryFrom<ElectoralLogMessage> for ElectoralLogRow {
     fn try_from(elog_msg: ElectoralLogMessage) -> Result<Self, Self::Error> {
         let serialized = general_purpose::STANDARD_NO_PAD.encode(elog_msg.message.clone());
         let deserialized_message = Message::strand_deserialize(&elog_msg.message)
-            .with_context(|| "Error deserializing message")?;
+            .map_err(|e| anyhow!("Error deserializing message: {e:?}"))?;
 
         Ok(ElectoralLogRow {
             id: elog_msg.id,

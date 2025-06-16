@@ -80,7 +80,7 @@ impl TryFrom<ElectoralLogMessage> for ActivityLogRow {
         };
 
         let deserialized_message = Message::strand_deserialize(&electoral_log.message)
-            .with_context(|| "Error deserializing message")?;
+            .map_err(|e| anyhow!("Error deserializing message: {e:?}"))?;
 
         let head_data = deserialized_message.statement.head.clone();
         let event_type = head_data.event_type.to_string();
