@@ -20,17 +20,19 @@ import {tallyQueryData} from "@/atoms/tally-candidates"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {useKeysPermissions} from "../ElectionEvent/useKeysPermissions"
 import {useSQLQuery} from "../../hooks/useSQLiteDatabase"
+import {FetchDocumentQuery} from "@/gql/graphql"
 
 interface TallyResultsProps {
     tally: Sequent_Backend_Tally_Session | undefined
     resultsEventId: string | null
     loading?: boolean
+    databaseBuffer: Uint8Array | null
     onCreateTransmissionPackage: (v: {area_id: string; election_id: string}) => void
 }
 
 const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> = memo(
     (props: TallyResultsProps): React.JSX.Element => {
-        const {tally, resultsEventId, onCreateTransmissionPackage, loading} = props
+        const {tally, resultsEventId, onCreateTransmissionPackage, loading, databaseBuffer} = props
 
         const {t} = useTranslation()
         const [value, setValue] = React.useState<number | null>(0)
@@ -47,19 +49,24 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
             [tallyData?.sequent_backend_area]
         )
 
+        console.log("AAAAAAAAAAAAAAA")
+        console.log(databaseBuffer)
+
         const {data: resultsElection} = useSQLQuery(
             "SELECT * FROM results_election WHERE election_id = ? ORDER BY name",
-            ["b3f79d05-77b2-4155-8c7e-c5b024db3ac7"],
+            [electionId],
             {
-                databaseUrl: "/results-a98ed291-5111-4201-915d-04adc4af157c.db",
+                databaseBuffer: databaseBuffer,
+                enabled: !!databaseBuffer && !!electionId,
             }
         )
 
         const {data: resultsElectionArea} = useSQLQuery(
             "SELECT * FROM results_election_area WHERE election_id = ? ORDER BY name",
-            ["b3f79d05-77b2-4155-8c7e-c5b024db3ac7"],
+            [electionId],
             {
-                databaseUrl: "/results-a98ed291-5111-4201-915d-04adc4af157c.db",
+                databaseBuffer: databaseBuffer,
+                enabled: !!databaseBuffer && !!electionId,
             }
         )
 
@@ -218,6 +225,7 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
                             tenantId={election.tenant_id}
                             resultsEventId={resultsEventId}
                             tallySessionId={tally?.id ?? null}
+                            databaseBuffer={databaseBuffer}
                         />
                     </CustomTabPanel>
                 ))}

@@ -103,7 +103,7 @@ export function useDatabaseManager() {
 export {DatabaseContext}
 
 // Main hook for SQLite database operations
-export function useSQLiteDatabase(databaseUrl?: string) {
+export function useSQLiteDatabase(databaseUrl?: string, databaseBuffer?: Uint8Array | null) {
     const [SQL, setSQL] = useState<SqlJsStatic | null>(null)
     const [db, setDb] = useState<Database | null>(null)
     const [state, setState] = useState<DatabaseState>({
@@ -130,7 +130,21 @@ export function useSQLiteDatabase(databaseUrl?: string) {
                 setSQL(sql)
 
                 // Load database if URL provided
-                if (databaseUrl) {
+                if (databaseBuffer) {
+                    const database = new sql.Database(databaseBuffer)
+                    setDb(database)
+                    const tables = await getTableList(database)
+
+                    setState((prev) => ({
+                        ...prev,
+                        isLoading: false,
+                        isReady: true,
+                        tables,
+                    }))
+
+                    // Clear cache when new database is loaded
+                    queryCache.current.clear()
+                } else if (databaseUrl) {
                     await loadDatabase(sql, databaseUrl)
                 } else {
                     // Create empty database
@@ -363,8 +377,12 @@ export function useSQLiteDatabase(databaseUrl?: string) {
 }
 
 // Hook for specific table operations
-export function useTable(tableName: string, databaseUrl?: string) {
-    const db = useSQLiteDatabase(databaseUrl)
+export function useTable(
+    tableName: string,
+    databaseUrl?: string,
+    databaseBuffer?: Uint8Array | null
+) {
+    const db = useSQLiteDatabase(databaseUrl, databaseBuffer)
 
     // Get all records from table
     const getAll = useCallback(
@@ -453,14 +471,15 @@ export function useSQLQuery<T = QueryResult>(
     options: QueryOptions & {
         enabled?: boolean
         databaseUrl?: string
+        databaseBuffer?: Uint8Array | null // Add this new option
         databaseName?: string
     } = {}
 ) {
-    const {enabled = true, databaseUrl, databaseName, ...queryOptions} = options
+    const {enabled = true, databaseUrl, databaseName, databaseBuffer, ...queryOptions} = options
 
     // Try to get database from context first, then fall back to direct connection
     const context = useContext(DatabaseContext)
-    const directDb = useSQLiteDatabase(databaseUrl)
+    const directDb = useSQLiteDatabase(databaseUrl, databaseBuffer)
 
     // Determine which database to use
     const getDatabaseQuery = () => {

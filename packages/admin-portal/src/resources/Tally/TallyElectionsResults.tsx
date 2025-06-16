@@ -20,6 +20,7 @@ interface TallyElectionsResultsProps {
     electionEventId: string | null
     resultsEventId: string | null
     electionIds?: string[] | null
+    databaseBuffer: Uint8Array | null
 }
 
 type Sequent_Backend_Election_Extended = Sequent_Backend_Election & {
@@ -32,7 +33,7 @@ type Sequent_Backend_Election_Extended = Sequent_Backend_Election & {
 }
 
 export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (props) => {
-    const {tenantId, electionEventId, resultsEventId, electionIds} = props
+    const {tenantId, electionEventId, resultsEventId, electionIds, databaseBuffer} = props
     const {t} = useTranslation()
     const {globalSettings} = useContext(SettingsContext)
     const [resultsData, setResultsData] = useState<Array<Sequent_Backend_Election_Extended>>([])
@@ -44,12 +45,14 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
         `SELECT * FROM election WHERE id IN (${ids.map(() => "?").join(",")})`,
         ids,
         {
-            databaseUrl: "/results-a98ed291-5111-4201-915d-04adc4af157c.db",
+            databaseBuffer: databaseBuffer,
+            enabled: !!databaseBuffer,
         }
     )
 
     const {data: results} = useSQLQuery("SELECT * FROM results_election", [], {
-        databaseUrl: "/results-a98ed291-5111-4201-915d-04adc4af157c.db",
+        databaseBuffer: databaseBuffer,
+        enabled: !!databaseBuffer,
     })
 
     useEffect(() => {

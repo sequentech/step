@@ -36,6 +36,7 @@ interface TallyResultsGlobalCandidatesProps {
     electionEventId: string
     tenantId: string
     resultsEventId: string | null
+    databaseBuffer: Uint8Array | null
 }
 
 // Define the comparator function
@@ -52,7 +53,7 @@ const winningPositionComparator: GridComparatorFn<string> = (v1, v2) => {
 export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidatesProps> = (
     props
 ) => {
-    const {contestId, electionId, electionEventId, tenantId, resultsEventId} = props
+    const {contestId, electionId, electionEventId, tenantId, resultsEventId, databaseBuffer} = props
     const {t} = useTranslation()
     const {globalSettings} = useContext(SettingsContext)
     const tallyData = useAtomValue(tallyQueryData)
@@ -63,7 +64,8 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
         "SELECT * FROM candidate WHERE contest_id = ?",
         [contestId],
         {
-            databaseUrl: "/results-a98ed291-5111-4201-915d-04adc4af157c.db",
+            databaseBuffer: databaseBuffer,
+            enabled: !!databaseBuffer && !!contestId,
         }
     )
 
@@ -71,7 +73,8 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
         "SELECT * FROM results_contest WHERE contest_id = ? and election_id = ?",
         [contestId, electionId],
         {
-            databaseUrl: "/results-a98ed291-5111-4201-915d-04adc4af157c.db",
+            databaseBuffer: databaseBuffer,
+            enabled: !!databaseBuffer && !!contestId && !!electionId,
         }
     )
 
@@ -79,7 +82,8 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
         "SELECT * FROM results_contest_candidate WHERE contest_id = ? and election_id = ?",
         [contestId, electionId],
         {
-            databaseUrl: "/results-a98ed291-5111-4201-915d-04adc4af157c.db",
+            databaseBuffer: databaseBuffer,
+            enabled: !!databaseBuffer && !!contestId && !!electionId,
         }
     )
 

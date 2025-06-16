@@ -20,6 +20,7 @@ insert_permissions:
               - status
               - tally_session_id
               - tenant_id
+              - documents
       role: admin-user
     - comment: ""
       permission:
@@ -37,6 +38,7 @@ insert_permissions:
               - status
               - tally_session_id
               - tenant_id
+              - documents
       role: service-account
 select_permissions:
     - comment: ""
@@ -75,6 +77,7 @@ select_permissions:
               - status
               - tally_session_id
               - tenant_id
+              - documents
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
@@ -95,6 +98,7 @@ select_permissions:
               - status
               - tally_session_id
               - tenant_id
+              - documents
           filter: {}
       role: service-account
     - comment: ""
@@ -136,6 +140,7 @@ update_permissions:
               - status
               - tally_session_id
               - tenant_id
+              - documents
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
@@ -156,6 +161,7 @@ update_permissions:
               - status
               - tally_session_id
               - tenant_id
+              - documents
           filter: {}
       role: service-account
 delete_permissions:

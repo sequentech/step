@@ -24,10 +24,19 @@ interface TallyResultsContestProps {
     tenantId: string | null
     resultsEventId: string | null
     tallySessionId: string | null
+    databaseBuffer: Uint8Array | null
 }
 
 export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) => {
-    const {areas, electionId, electionEventId, tenantId, resultsEventId, tallySessionId} = props
+    const {
+        areas,
+        electionId,
+        electionEventId,
+        tenantId,
+        resultsEventId,
+        tallySessionId,
+        databaseBuffer,
+    } = props
     const [value, setValue] = React.useState<number | null>(0)
     const [contestsData, setContestsData] = useState<Array<Sequent_Backend_Contest>>([])
     const [contestId, setContestId] = useState<string | null>()
@@ -44,17 +53,19 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
 
     const {data: resultsContests} = useSQLQuery(
         "SELECT * FROM results_contest WHERE election_id = ? AND id = ?",
-        ["b3f79d05-77b2-4155-8c7e-c5b024db3ac7", "030f3020-780e-4486-a4bd-38d50ec0fc85"],
+        [electionId, contestId],
         {
-            databaseUrl: "/results-a98ed291-5111-4201-915d-04adc4af157c.db",
+            databaseBuffer: databaseBuffer,
+            enabled: !!databaseBuffer && !!electionId && !!contestId,
         }
     )
 
     const {data: contests} = useSQLQuery(
         "SELECT * FROM contest WHERE election_id = ?",
-        ["b3f79d05-77b2-4155-8c7e-c5b024db3ac7"],
+        [electionId],
         {
-            databaseUrl: "/results-a98ed291-5111-4201-915d-04adc4af157c.db",
+            databaseBuffer: databaseBuffer,
+            enabled: !!databaseBuffer && !!electionId,
         }
     )
 
@@ -180,6 +191,7 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
                         tenantId={contest?.tenant_id}
                         resultsEventId={resultsEventId}
                         tallySessionId={tallySessionId}
+                        databaseBuffer={databaseBuffer}
                     />
                 </CustomTabPanel>
             ))}

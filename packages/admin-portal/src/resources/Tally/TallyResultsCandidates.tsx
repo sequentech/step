@@ -36,6 +36,7 @@ interface TallyResultsCandidatesProps {
     electionEventId: string
     tenantId: string
     resultsEventId: string | null
+    databaseBuffer: Uint8Array | null
 }
 
 // Define the comparator function
@@ -49,7 +50,15 @@ const winningPositionComparator: GridComparatorFn<string> = (v1, v2) => {
     return pos1 - pos2
 }
 export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (props) => {
-    const {areaId, contestId, electionId, electionEventId, tenantId, resultsEventId} = props
+    const {
+        areaId,
+        contestId,
+        electionId,
+        electionEventId,
+        tenantId,
+        resultsEventId,
+        databaseBuffer,
+    } = props
     const [resultsData, setResultsData] = useState<Array<Sequent_Backend_Candidate>>([])
     const {t} = useTranslation()
     const {globalSettings} = useContext(SettingsContext)
@@ -59,7 +68,8 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
         "SELECT * FROM candidate WHERE contest_id = ?",
         [contestId],
         {
-            databaseUrl: "/results-a98ed291-5111-4201-915d-04adc4af157c.db",
+            databaseBuffer: databaseBuffer,
+            enabled: !!databaseBuffer && !!contestId,
         }
     )
 
@@ -67,7 +77,8 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
         "SELECT * FROM results_area_contest WHERE contest_id = ? and area_id = ? and election_id = ?",
         [contestId, areaId, electionId],
         {
-            databaseUrl: "/results-a98ed291-5111-4201-915d-04adc4af157c.db",
+            databaseBuffer: databaseBuffer,
+            enabled: !!databaseBuffer && !!contestId && !!areaId && !!electionId,
         }
     )
 
@@ -75,7 +86,8 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
         "SELECT * FROM results_area_contest_candidate WHERE contest_id = ? and area_id = ? and election_id = ?",
         [contestId, areaId, electionId],
         {
-            databaseUrl: "/results-a98ed291-5111-4201-915d-04adc4af157c.db",
+            databaseBuffer: databaseBuffer,
+            enabled: !!databaseBuffer && !!contestId && !!areaId && !!electionId,
         }
     )
 

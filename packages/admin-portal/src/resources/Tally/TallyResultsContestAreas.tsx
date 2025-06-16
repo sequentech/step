@@ -30,6 +30,7 @@ interface TallyResultsContestAreasProps {
     tenantId: string | null
     resultsEventId: string | null
     tallySessionId: string | null
+    databaseBuffer: Uint8Array | null
 }
 
 export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> = (props) => {
@@ -41,6 +42,7 @@ export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> =
         tenantId,
         resultsEventId,
         tallySessionId,
+        databaseBuffer,
     } = props
     const {t} = reactI18next.useTranslation()
 
@@ -58,7 +60,8 @@ export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> =
         "SELECT * FROM results_area_contest WHERE election_id = ? AND contest_id = ? AND area_id = ?",
         [electionId, contestId, selectedArea],
         {
-            databaseUrl: "/results-a98ed291-5111-4201-915d-04adc4af157c.db",
+            databaseBuffer: databaseBuffer,
+            enabled: !!databaseBuffer && !!electionId && !!contestId && !!selectedArea,
         }
     )
 
@@ -66,12 +69,14 @@ export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> =
         "SELECT * FROM area_contest WHERE contest_id = ?",
         [contestId],
         {
-            databaseUrl: "/results-a98ed291-5111-4201-915d-04adc4af157c.db",
+            databaseBuffer: databaseBuffer,
+            enabled: !!databaseBuffer && !!electionId && !!contestId && !!selectedArea,
         }
     )
 
     const {data: contestData} = useSQLQuery("SELECT * FROM contest WHERE id = ?", [contestId], {
-        databaseUrl: "/results-a98ed291-5111-4201-915d-04adc4af157c.db",
+        databaseBuffer: databaseBuffer,
+        enabled: !!databaseBuffer && !!contestId,
     })
 
     useEffect(() => {
@@ -194,6 +199,7 @@ export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> =
                     electionId={contest?.election_id}
                     contestId={contest?.id}
                     resultsEventId={resultsEventId}
+                    databaseBuffer={databaseBuffer}
                 />
             </CustomTabPanel>
             {areasData?.map((area, index) => (
@@ -205,6 +211,7 @@ export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> =
                         contestId={contest?.id}
                         areaId={selectedArea}
                         resultsEventId={resultsEventId}
+                        databaseBuffer={databaseBuffer}
                     />
                 </CustomTabPanel>
             ))}
