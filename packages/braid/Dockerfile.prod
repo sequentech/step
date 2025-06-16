@@ -16,12 +16,16 @@ RUN rustup toolchain install nightly-2024-09-01 \
 #TODO: Copy only necessary files
 WORKDIR /app
 COPY ./braid ./braid
-COPY ./board-messages ./board-messages
-COPY ./sequent-core ./sequent-core
+COPY ./harvest ./harvest
+COPY ./strand ./strand
 COPY ./immu-board ./immu-board
 COPY ./immudb-rs ./immudb-rs
-COPY ./strand ./strand
+COPY ./sequent-core ./sequent-core
+COPY ./board-messages ./board-messages
+COPY ./velvet ./velvet
+COPY ./windmill ./windmill
 COPY ./wrap-map-err ./wrap-map-err
+COPY ./step-cli ./step-cli
 COPY ./Cargo.toml ./Cargo.toml
 COPY ./Cargo.lock ./Cargo.lock
 

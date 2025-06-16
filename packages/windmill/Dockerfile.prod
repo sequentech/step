@@ -16,16 +16,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN rustup toolchain install nightly-2024-09-01 \
     && rustup default nightly-2024-09-01
 
+COPY ./braid ./braid
+COPY ./harvest ./harvest
+COPY ./strand ./strand
 COPY ./immu-board ./immu-board
 COPY ./immudb-rs ./immudb-rs
-COPY ./strand ./strand
-COPY ./board-messages ./board-messages
 COPY ./sequent-core ./sequent-core
+COPY ./board-messages ./board-messages
+COPY ./velvet ./velvet
 COPY ./windmill ./windmill
 COPY ./wrap-map-err ./wrap-map-err
-COPY ./velvet ./velvet
-COPY ./Cargo.lock ./Cargo.lock
+COPY ./step-cli ./step-cli
 COPY ./Cargo.toml ./Cargo.toml
+COPY ./Cargo.lock ./Cargo.lock
 
 RUN cp /app/windmill/external-bin/ecies-tool.jar /usr/local/bin/
 
