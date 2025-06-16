@@ -81,7 +81,7 @@ impl ExportCastVotes {
 
         let cols_match = BTreeMap::from([(
             ElectoralLogVarCharColumn::StatementKind,
-            (SqlCompOperators::Equal, StatementType::CastVote.to_string()),
+            SqlCompOperators::Equal(StatementType::CastVote.to_string()),
         )]);
         let order_by: Option<HashMap<String, String>> = None;
         println!("Getting messages");
