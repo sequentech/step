@@ -47,8 +47,8 @@ RUN wget https://download.java.net/java/GA/jdk22.0.2/c9ecb94cd31b495da20a27d4581
     && update-alternatives --install /usr/bin/java java /usr/local/jdk-22.0.2/bin/java 1 \
     && update-alternatives --install /usr/bin/javac javac /usr/local/jdk-22.0.2/bin/javac 1
 # Copy the compiled binaries from the builder stage (beat + windmill:main)
-COPY --from=builder /app/windmill/target/release/main /usr/local/bin/main
-COPY --from=builder /app/windmill/target/release/beat /usr/local/bin/beat
+COPY --from=builder /app/target/release/main /usr/local/bin/main
+COPY --from=builder /app/target/release/beat /usr/local/bin/beat
 COPY --from=builder /usr/local/bin/ecies-tool.jar /usr/local/bin/ecies-tool.jar
 VOLUME /import
 WORKDIR /usr/local/bin
