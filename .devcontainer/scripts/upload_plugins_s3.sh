@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# SPDX-FileCopyrightText: 2023-2024 Sequent Tech <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
 set -euo pipefail
 
 PROTOCOL="${AWS_S3_PRIVATE_URI%%://*}"

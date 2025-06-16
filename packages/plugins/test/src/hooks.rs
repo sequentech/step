@@ -5,18 +5,18 @@ use extism_pdk::*;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct AddRequest {
+pub struct SumRequest {
     pub a: i64,
     pub b: i64,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct AddResponse {
+pub struct SumResponse {
     pub result: i64,
 }
 
-pub fn add(req: AddRequest) -> FnResult<AddResponse> {
-    Ok(AddResponse {
+pub fn sum(req: SumRequest) -> FnResult<SumResponse> {
+    Ok(SumResponse {
         result: req.a + req.b,
     })
 }

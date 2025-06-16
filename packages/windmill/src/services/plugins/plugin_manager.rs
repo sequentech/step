@@ -70,8 +70,8 @@ impl Plugin {
 }
 
 pub struct PluginManager {
-    plugins: DashMap<String, Plugin>,    // plugin name -> Plugin
-    hook_index: DashMap<String, String>, // hook -> plugin name
+    plugins: DashMap<String, Plugin>,
+    hook_index: DashMap<String, String>,
 }
 
 impl PluginManager {

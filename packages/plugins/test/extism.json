@@ -2,10 +2,10 @@
   "name": "test",
   "version": "0.1.0",
   "hooks": [
-    { "name": "add_hook", "input": "AddRequest", "output": "AddResponse" }
+    { "name": "sum_hook", "input": "SumRequest", "output": "SumResponse" }
   ],
   "routes":[
-    {"path": "/test/add", "handler": "add_hook"},
+    {"path": "/test/sum", "handler": "sum_hook"},
     {"path": "/test/hello", "handler": "hello_hook"}
   ]
 }
