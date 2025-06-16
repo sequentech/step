@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 import {useState, useEffect} from "react"
 import {openDB} from "idb"
 import {FETCH_DOCUMENT} from "@/queries/FetchDocument"

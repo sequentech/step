@@ -16,7 +16,6 @@ import {EElectionEventLockedDown, i18n, translateElection} from "@sequentech/ui-
 import {Box, CircularProgress} from "@mui/material"
 import {Tabs} from "@/components/Tabs"
 import {Dialog} from "@sequentech/ui-essentials"
-import TestSql from "@/components/TestSql"
 
 // Lazy load the tab components
 const DashboardElectionEvent = lazy(() => import("@/components/dashboard/election-event/Dashboard"))

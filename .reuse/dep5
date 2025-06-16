@@ -89,12 +89,6 @@ Copyright:
 License: MIT
 
 Files:
-  packages/admin-portal/public/results-a98ed291-5111-4201-915d-04adc4af157c.db
-Copyright:
-  2025 Sequent Tech <legal@sequentech.io>
-License: MIT
-
-Files:
   packages/admin-portal/public/sql-wasm.js
 Copyright:
   2025 Sequent Tech <legal@sequentech.io>
