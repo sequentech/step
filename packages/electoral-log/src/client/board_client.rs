@@ -236,6 +236,19 @@ impl BoardClient {
             }),
         });
 
+        let where_clauses =
+            if !where_clause.is_empty() || !min_clause.is_empty() || !max_clause.is_empty() {
+                format!(
+                    r#"
+                    WHERE {where_clause}
+                    {min_clause}
+                    {max_clause}
+                "#
+                )
+            } else {
+                String::from("")
+            };
+
         self.client.use_database(board_db).await?;
         let sql = format!(
             r#"
@@ -253,9 +266,7 @@ impl BoardClient {
             message,
             version
         FROM {ELECTORAL_LOG_TABLE}
-        WHERE {where_clause}
-        {min_clause}
-        {max_clause}
+        {where_clauses}
         {order_by_clauses}
         LIMIT @limit
         OFFSET @offset;
@@ -310,12 +321,22 @@ impl BoardClient {
         columns_matcher: Option<WhereClauseBTreeMap>,
     ) -> Result<i64> {
         let (where_clause, mut params) = BoardClient::to_where_clause(columns_matcher);
+        let where_clauses = if !where_clause.is_empty() {
+            format!(
+                r#"
+                    WHERE {where_clause}
+                "#
+            )
+        } else {
+            String::from("")
+        };
+
         self.client.use_database(board_db).await?;
         let sql = format!(
             r#"
             SELECT COUNT(*)
             FROM {ELECTORAL_LOG_TABLE}
-            WHERE {where_clause}
+            {where_clauses}
             "#,
         );
 
@@ -335,7 +356,7 @@ impl BoardClient {
 
     fn to_where_clause(columns_matcher: Option<WhereClauseBTreeMap>) -> (String, Vec<NamedParam>) {
         let mut params = vec![];
-        let mut where_clause = String::from("statement_kind IS NOT NULL ");
+        let mut where_clause = String::from("");
         for (key, op) in columns_matcher.unwrap_or_default().iter() {
             match op {
                 SqlCompOperators::In(values_vec) | SqlCompOperators::NotIn(values_vec) => {
@@ -352,7 +373,12 @@ impl BoardClient {
                             }),
                         });
                     }
-                    where_clause.push_str(&format!("AND {key} IN ({})", placeholders.join(", ")));
+                    if where_clause.is_empty() {
+                        where_clause.push_str(&format!("{key} IN ({})", placeholders.join(", ")));
+                    } else {
+                        where_clause
+                            .push_str(&format!("AND {key} IN ({})", placeholders.join(", ")));
+                    }
                 }
                 SqlCompOperators::Equal(value)
                 | SqlCompOperators::NotEqual(value)
@@ -361,7 +387,11 @@ impl BoardClient {
                 | SqlCompOperators::GreaterThanOrEqual(value)
                 | SqlCompOperators::LessThanOrEqual(value)
                 | SqlCompOperators::Like(value) => {
-                    where_clause.push_str(&format!("AND {key} {op} @{key} "));
+                    if where_clause.is_empty() {
+                        where_clause.push_str(&format!("{key} {op} @{key} "));
+                    } else {
+                        where_clause.push_str(&format!("AND {key} {op} @{key} "));
+                    }
                     params.push(NamedParam {
                         name: key.to_string(),
                         value: Some(SqlValue {
