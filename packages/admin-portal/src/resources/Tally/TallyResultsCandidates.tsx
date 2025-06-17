@@ -27,7 +27,7 @@ import {Sequent_Backend_Candidate_Extended} from "./types"
 import {formatPercentOne, isNumber} from "@sequentech/ui-core"
 import {useAtomValue} from "jotai"
 import {tallyQueryData} from "@/atoms/tally-candidates"
-import {useSQLQuery} from "@/hooks/useSQLiteDatabase"
+import {useManagedDatabase, useSQLQuery} from "@/hooks/useSQLiteDatabase"
 
 interface TallyResultsCandidatesProps {
     areaId: string | null | undefined
@@ -36,7 +36,7 @@ interface TallyResultsCandidatesProps {
     electionEventId: string
     tenantId: string
     resultsEventId: string | null
-    databaseBuffer: Uint8Array | null
+    databaseName: string | undefined
 }
 
 // Define the comparator function
@@ -50,26 +50,24 @@ const winningPositionComparator: GridComparatorFn<string> = (v1, v2) => {
     return pos1 - pos2
 }
 export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (props) => {
-    const {
-        areaId,
-        contestId,
-        electionId,
-        electionEventId,
-        tenantId,
-        resultsEventId,
-        databaseBuffer,
-    } = props
+    const {areaId, contestId, electionId, electionEventId, tenantId, resultsEventId, databaseName} =
+        props
     const [resultsData, setResultsData] = useState<Array<Sequent_Backend_Candidate>>([])
     const {t} = useTranslation()
     const {globalSettings} = useContext(SettingsContext)
     const tallyData = useAtomValue(tallyQueryData)
 
+    const {isLoading: isDbLoading, error: dbError} = useManagedDatabase(
+        databaseName,
+        electionEventId ? electionEventId : undefined
+    )
+
     const {data: candidates} = useSQLQuery(
         "SELECT * FROM candidate WHERE contest_id = ?",
         [contestId],
         {
-            databaseBuffer: databaseBuffer,
-            enabled: !!databaseBuffer && !!contestId,
+            databaseName: databaseName,
+            enabled: !isDbLoading && !!contestId,
         }
     )
 
@@ -77,8 +75,8 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
         "SELECT * FROM results_area_contest WHERE contest_id = ? and area_id = ? and election_id = ?",
         [contestId, areaId, electionId],
         {
-            databaseBuffer: databaseBuffer,
-            enabled: !!databaseBuffer && !!contestId && !!areaId && !!electionId,
+            databaseName: databaseName,
+            enabled: !isDbLoading && !!contestId && !!areaId && !!electionId,
         }
     )
 
@@ -86,8 +84,8 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
         "SELECT * FROM results_area_contest_candidate WHERE contest_id = ? and area_id = ? and election_id = ?",
         [contestId, areaId, electionId],
         {
-            databaseBuffer: databaseBuffer,
-            enabled: !!databaseBuffer && !!contestId && !!areaId && !!electionId,
+            databaseName: databaseName,
+            enabled: !isDbLoading && !!contestId && !!areaId && !!electionId,
         }
     )
 

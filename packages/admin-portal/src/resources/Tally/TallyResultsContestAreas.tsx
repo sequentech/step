@@ -20,7 +20,7 @@ import {useAtomValue} from "jotai"
 import {tallyQueryData} from "@/atoms/tally-candidates"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {useKeysPermissions} from "../ElectionEvent/useKeysPermissions"
-import {useSQLQuery} from "@/hooks/useSQLiteDatabase"
+import {useManagedDatabase, useSQLQuery} from "@/hooks/useSQLiteDatabase"
 
 interface TallyResultsContestAreasProps {
     areas: RaRecord<Identifier>[] | undefined
@@ -30,7 +30,7 @@ interface TallyResultsContestAreasProps {
     tenantId: string | null
     resultsEventId: string | null
     tallySessionId: string | null
-    databaseBuffer: Uint8Array | null
+    databaseName: string | undefined
 }
 
 export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> = (props) => {
@@ -42,7 +42,7 @@ export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> =
         tenantId,
         resultsEventId,
         tallySessionId,
-        databaseBuffer,
+        databaseName,
     } = props
     const {t} = reactI18next.useTranslation()
 
@@ -56,12 +56,17 @@ export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> =
 
     const {canExportCeremony} = useKeysPermissions()
 
+    const {isLoading: isDbLoading, error: dbError} = useManagedDatabase(
+        databaseName,
+        electionEventId ? electionEventId : undefined
+    )
+
     const {data: resultsContests} = useSQLQuery(
         "SELECT * FROM results_area_contest WHERE election_id = ? AND contest_id = ? AND area_id = ?",
         [electionId, contestId, selectedArea],
         {
-            databaseBuffer: databaseBuffer,
-            enabled: !!databaseBuffer && !!electionId && !!contestId && !!selectedArea,
+            databaseName: databaseName,
+            enabled: !isDbLoading && !!electionId && !!contestId && !!selectedArea,
         }
     )
 
@@ -69,14 +74,14 @@ export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> =
         "SELECT * FROM area_contest WHERE contest_id = ?",
         [contestId],
         {
-            databaseBuffer: databaseBuffer,
-            enabled: !!databaseBuffer && !!electionId && !!contestId && !!selectedArea,
+            databaseName: databaseName,
+            enabled: !isDbLoading && !!electionId && !!contestId && !!selectedArea,
         }
     )
 
     const {data: contestData} = useSQLQuery("SELECT * FROM contest WHERE id = ?", [contestId], {
-        databaseBuffer: databaseBuffer,
-        enabled: !!databaseBuffer && !!contestId,
+        databaseName: databaseName,
+        enabled: !isDbLoading && !!contestId,
     })
 
     useEffect(() => {
@@ -199,7 +204,7 @@ export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> =
                     electionId={contest?.election_id}
                     contestId={contest?.id}
                     resultsEventId={resultsEventId}
-                    databaseBuffer={databaseBuffer}
+                    databaseName={databaseName}
                 />
             </CustomTabPanel>
             {areasData?.map((area, index) => (
@@ -211,7 +216,7 @@ export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> =
                         contestId={contest?.id}
                         areaId={selectedArea}
                         resultsEventId={resultsEventId}
-                        databaseBuffer={databaseBuffer}
+                        databaseName={databaseName}
                     />
                 </CustomTabPanel>
             ))}

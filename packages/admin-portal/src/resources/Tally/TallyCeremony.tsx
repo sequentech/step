@@ -89,7 +89,6 @@ import {ETasksExecution} from "@/types/tasksExecution"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import {LIST_KEYS_CEREMONY} from "@/queries/ListKeysCeremonies"
 import {useKeysPermissions} from "../ElectionEvent/useKeysPermissions"
-import {useCachedDatabase} from "../../hooks/useCachedDatabase"
 
 const WizardSteps = {
     Start: 0,
@@ -273,15 +272,11 @@ export const TallyCeremony: React.FC = () => {
 
     let resultsEventId = tallySessionExecutions?.[0]?.results_event_id ?? null
 
-    console.log("Documents: " + tallySessionExecutions?.[0]?.documents)
+    console.log(`tallySessionExecutions id: ${tallySessionExecutions?.[0]?.id}`)
 
     const resultsSQLiteDocumentId = tallySessionExecutions?.[0]?.documents?.sqlite ?? null
 
-    const {
-        dbData: databaseBuffer,
-        isLoading: isDbLoading,
-        error: dbError,
-    } = useCachedDatabase(record?.id, resultsSQLiteDocumentId)
+    console.log(`resultsSQLiteDocumentId: ${resultsSQLiteDocumentId}`)
 
     const tallySessionData = useMemo(() => {
         try {
@@ -918,7 +913,7 @@ export const TallyCeremony: React.FC = () => {
                                         electionEventId={tally?.election_event_id}
                                         electionIds={tally?.election_ids}
                                         resultsEventId={resultsEventId}
-                                        databaseBuffer={databaseBuffer}
+                                        databaseName={resultsSQLiteDocumentId}
                                     />
                                 </WizardStyles.AccordionDetails>
                             </Accordion>
@@ -947,7 +942,7 @@ export const TallyCeremony: React.FC = () => {
                                         onCreateTransmissionPackage={
                                             handleCreateTransmissionPackage
                                         }
-                                        databaseBuffer={databaseBuffer}
+                                        databaseName={resultsSQLiteDocumentId}
                                     />
                                 </WizardStyles.AccordionDetails>
                             </Accordion>
@@ -1020,7 +1015,7 @@ export const TallyCeremony: React.FC = () => {
                                         electionEventId={tally?.election_event_id}
                                         electionIds={tally?.election_ids}
                                         resultsEventId={resultsEventId}
-                                        databaseBuffer={databaseBuffer}
+                                        databaseName={resultsSQLiteDocumentId}
                                     />
                                 </WizardStyles.AccordionDetails>
                             </Accordion>
@@ -1083,7 +1078,7 @@ export const TallyCeremony: React.FC = () => {
                                             handleCreateTransmissionPackage
                                         }
                                         loading={transmissionLoading}
-                                        databaseBuffer={databaseBuffer}
+                                        databaseName={resultsSQLiteDocumentId}
                                     />
                                 </WizardStyles.AccordionDetails>
                             </Accordion>

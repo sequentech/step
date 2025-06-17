@@ -19,20 +19,19 @@ import {useAtomValue} from "jotai"
 import {tallyQueryData} from "@/atoms/tally-candidates"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {useKeysPermissions} from "../ElectionEvent/useKeysPermissions"
-import {useSQLQuery} from "../../hooks/useSQLiteDatabase"
-import {FetchDocumentQuery} from "@/gql/graphql"
+import {useManagedDatabase, useSQLQuery} from "@/hooks/useSQLiteDatabase"
 
 interface TallyResultsProps {
     tally: Sequent_Backend_Tally_Session | undefined
     resultsEventId: string | null
     loading?: boolean
-    databaseBuffer: Uint8Array | null
+    databaseName: string | undefined
     onCreateTransmissionPackage: (v: {area_id: string; election_id: string}) => void
 }
 
 const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> = memo(
     (props: TallyResultsProps): React.JSX.Element => {
-        const {tally, resultsEventId, onCreateTransmissionPackage, loading, databaseBuffer} = props
+        const {tally, resultsEventId, onCreateTransmissionPackage, loading, databaseName} = props
 
         const {t} = useTranslation()
         const [value, setValue] = React.useState<number | null>(0)
@@ -49,15 +48,19 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
             [tallyData?.sequent_backend_area]
         )
 
-        console.log("AAAAAAAAAAAAAAA")
-        console.log(databaseBuffer)
+        const {isLoading: isDbLoading, error: dbError} = useManagedDatabase(
+            databaseName,
+            resultsEventId ? resultsEventId : undefined
+        )
 
         const {data: resultsElection} = useSQLQuery(
             "SELECT * FROM results_election WHERE election_id = ? ORDER BY name",
             [electionId],
             {
-                databaseBuffer: databaseBuffer,
-                enabled: !!databaseBuffer && !!electionId,
+                // Tell the hook to use the database with this name from the context.
+                databaseName: databaseName,
+                // Only enable the query once the database is ready in the context.
+                enabled: !isDbLoading && !!electionId,
             }
         )
 
@@ -65,8 +68,8 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
             "SELECT * FROM results_election_area WHERE election_id = ? ORDER BY name",
             [electionId],
             {
-                databaseBuffer: databaseBuffer,
-                enabled: !!databaseBuffer && !!electionId,
+                databaseName: databaseName,
+                enabled: !isDbLoading && !!electionId,
             }
         )
 
@@ -225,7 +228,7 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
                             tenantId={election.tenant_id}
                             resultsEventId={resultsEventId}
                             tallySessionId={tally?.id ?? null}
-                            databaseBuffer={databaseBuffer}
+                            databaseName={databaseName}
                         />
                     </CustomTabPanel>
                 ))}

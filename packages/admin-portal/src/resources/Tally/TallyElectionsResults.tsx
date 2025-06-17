@@ -13,14 +13,14 @@ import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {formatPercentOne, isNumber} from "@sequentech/ui-core"
 import {useAtomValue} from "jotai"
 import {tallyQueryData} from "@/atoms/tally-candidates"
-import {useSQLQuery} from "@/hooks/useSQLiteDatabase"
+import {useManagedDatabase, useSQLQuery} from "@/hooks/useSQLiteDatabase"
 
 interface TallyElectionsResultsProps {
     tenantId: string | null
     electionEventId: string | null
     resultsEventId: string | null
     electionIds?: string[] | null
-    databaseBuffer: Uint8Array | null
+    databaseName: string | undefined
 }
 
 type Sequent_Backend_Election_Extended = Sequent_Backend_Election & {
@@ -33,26 +33,31 @@ type Sequent_Backend_Election_Extended = Sequent_Backend_Election & {
 }
 
 export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (props) => {
-    const {tenantId, electionEventId, resultsEventId, electionIds, databaseBuffer} = props
+    const {tenantId, electionEventId, resultsEventId, electionIds, databaseName} = props
     const {t} = useTranslation()
     const {globalSettings} = useContext(SettingsContext)
     const [resultsData, setResultsData] = useState<Array<Sequent_Backend_Election_Extended>>([])
     const tallyData = useAtomValue(tallyQueryData)
     const aliasRenderer = useAliasRenderer()
 
+    const {isLoading: isDbLoading, error: dbError} = useManagedDatabase(
+        databaseName,
+        electionEventId ? electionEventId : undefined
+    )
+
     const ids = electionIds || []
     const {data: elections} = useSQLQuery(
         `SELECT * FROM election WHERE id IN (${ids.map(() => "?").join(",")})`,
         ids,
         {
-            databaseBuffer: databaseBuffer,
-            enabled: !!databaseBuffer,
+            databaseName: databaseName,
+            enabled: !isDbLoading && ids.length > 0,
         }
     )
 
     const {data: results} = useSQLQuery("SELECT * FROM results_election", [], {
-        databaseBuffer: databaseBuffer,
-        enabled: !!databaseBuffer,
+        databaseName: databaseName,
+        enabled: !isDbLoading,
     })
 
     useEffect(() => {

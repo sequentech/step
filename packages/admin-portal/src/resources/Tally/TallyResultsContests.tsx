@@ -15,7 +15,7 @@ import {tallyQueryData} from "@/atoms/tally-candidates"
 import {useAtomValue} from "jotai"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {useKeysPermissions} from "../ElectionEvent/useKeysPermissions"
-import {useSQLQuery} from "@/hooks/useSQLiteDatabase"
+import {useManagedDatabase, useSQLQuery} from "@/hooks/useSQLiteDatabase"
 
 interface TallyResultsContestProps {
     areas: RaRecord<Identifier>[] | undefined
@@ -24,7 +24,7 @@ interface TallyResultsContestProps {
     tenantId: string | null
     resultsEventId: string | null
     tallySessionId: string | null
-    databaseBuffer: Uint8Array | null
+    databaseName: string | undefined
 }
 
 export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) => {
@@ -35,7 +35,7 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
         tenantId,
         resultsEventId,
         tallySessionId,
-        databaseBuffer,
+        databaseName,
     } = props
     const [value, setValue] = React.useState<number | null>(0)
     const [contestsData, setContestsData] = useState<Array<Sequent_Backend_Contest>>([])
@@ -51,12 +51,17 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
 
     const {canExportCeremony} = useKeysPermissions()
 
+    const {isLoading: isDbLoading, error: dbError} = useManagedDatabase(
+        databaseName,
+        electionEventId ? electionEventId : undefined
+    )
+
     const {data: resultsContests} = useSQLQuery(
         "SELECT * FROM results_contest WHERE election_id = ? AND id = ?",
         [electionId, contestId],
         {
-            databaseBuffer: databaseBuffer,
-            enabled: !!databaseBuffer && !!electionId && !!contestId,
+            databaseName: databaseName,
+            enabled: !isDbLoading && !!electionId && !!contestId,
         }
     )
 
@@ -64,8 +69,8 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
         "SELECT * FROM contest WHERE election_id = ?",
         [electionId],
         {
-            databaseBuffer: databaseBuffer,
-            enabled: !!databaseBuffer && !!electionId,
+            databaseName: databaseName,
+            enabled: !isDbLoading && !!electionId,
         }
     )
 
@@ -191,7 +196,7 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
                         tenantId={contest?.tenant_id}
                         resultsEventId={resultsEventId}
                         tallySessionId={tallySessionId}
-                        databaseBuffer={databaseBuffer}
+                        databaseName={databaseName}
                     />
                 </CustomTabPanel>
             ))}
