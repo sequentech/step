@@ -243,8 +243,6 @@ export function useSQLQuery<T = QueryResult>(
     const [error, setError] = useState<string | null>(null)
 
     const executeQuery = useCallback(async () => {
-        console.log("Database name: " + databaseName + " isLoading: " + isLoading)
-
         // We now check for the databaseName and enabled status right at the start.
         if (!enabled || !databaseName) {
             // setData([]) // Clear data if disabled or no DB name is provided
@@ -253,8 +251,6 @@ export function useSQLQuery<T = QueryResult>(
 
         // We get the specific database instance from the map inside the callback.
         const db = databases.get(databaseName)
-
-        console.log("Loaded db: " + db)
 
         // If the database isn't loaded into the context yet, we just wait.
         if (!db) {

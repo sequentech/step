@@ -75,7 +75,7 @@ export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> =
         [contestId],
         {
             databaseName: databaseName,
-            enabled: !isDbLoading && !!electionId && !!contestId && !!selectedArea,
+            enabled: !isDbLoading && !!contestId,
         }
     )
 
