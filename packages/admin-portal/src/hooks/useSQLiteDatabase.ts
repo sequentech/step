@@ -245,7 +245,6 @@ export function useSQLQuery<T = QueryResult>(
     const executeQuery = useCallback(async () => {
         // We now check for the databaseName and enabled status right at the start.
         if (!enabled || !databaseName) {
-            // setData([]) // Clear data if disabled or no DB name is provided
             return
         }
 
