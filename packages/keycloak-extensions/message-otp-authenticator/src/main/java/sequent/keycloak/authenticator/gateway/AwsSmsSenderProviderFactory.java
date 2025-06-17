@@ -12,15 +12,19 @@ import org.keycloak.models.KeycloakSessionFactory;
 @AutoService(SmsSenderProviderFactory.class)
 public class AwsSmsSenderProviderFactory implements SmsSenderProviderFactory {
   private String senderId;
+  private String roleArn;
+  private String sessionName;
 
   @Override
   public SmsSenderProvider create(KeycloakSession session) {
-    return new AwsSmsSenderProvider(senderId);
+    return new AwsSmsSenderProvider(senderId, roleArn, sessionName);
   }
 
   @Override
   public void init(Config.Scope config) {
     senderId = config.get("senderId");
+    roleArn = config.get("roleArn");
+    sessionName = config.get("sessionName", "AwsSmsSenderSession");
   }
 
   @Override
