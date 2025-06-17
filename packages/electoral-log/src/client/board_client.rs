@@ -9,6 +9,8 @@ use immudb_rs::{sql_value::Value, Client, CommittedSqlTx, NamedParam, Row, SqlVa
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::fmt::Display;
+use std::time::Duration;
+use std::time::Instant;
 use tokio_stream::StreamExt; // Added for streaming
 use tracing::{error, info, instrument, warn};
 
@@ -182,6 +184,7 @@ impl BoardClient {
         K: Debug + Display,
         V: Debug + Display,
     {
+        let start = Instant::now();
         let (min_clause, min_clause_value) = if let Some(min_ts) = min_ts {
             ("AND statement_timestamp >= @min_ts", min_ts)
         } else {
@@ -194,7 +197,7 @@ impl BoardClient {
             ("", 0)
         };
 
-        let (where_clause, mut params) = BoardClient::to_where_clause(columns_matcher);
+        let (where_clause, mut params) = BoardClient::to_where_clause(columns_matcher.clone());
         let order_by_clauses = if let Some(order_by) = order_by {
             order_by
                 .iter()
@@ -249,6 +252,8 @@ impl BoardClient {
                 String::from("")
             };
 
+        let use_index_clause = BoardClient::to_use_index_clause(columns_matcher);
+
         self.client.use_database(board_db).await?;
         let sql = format!(
             r#"
@@ -266,6 +271,7 @@ impl BoardClient {
             message,
             version
         FROM {ELECTORAL_LOG_TABLE}
+        {use_index_clause}
         {where_clauses}
         {order_by_clauses}
         LIMIT @limit
@@ -310,7 +316,12 @@ impl BoardClient {
                 }
             }
         }
-
+        let duration = start.elapsed();
+        info!(
+            "Processed {} rows from stream in {}ms",
+            total_rows_fetched,
+            duration.as_millis()
+        );
         Ok(messages)
     }
 
@@ -352,6 +363,24 @@ impl BoardClient {
             .ok_or_else(|| anyhow!("No aggregate found"))??;
 
         Ok(aggregate.count as i64)
+    }
+
+    /// If the first element of the map (first column in the where clause) has an index, it will be used.
+    /// The columns that have indexes are statement_kind, user_id, election_id or area_id.
+    fn to_use_index_clause(columns_matcher: Option<WhereClauseBTreeMap>) -> String {
+        match columns_matcher.unwrap_or_default().iter().next() {
+            Some((key, _)) => match key {
+                ElectoralLogVarCharColumn::StatementKind
+                | ElectoralLogVarCharColumn::UserId
+                | ElectoralLogVarCharColumn::ElectionId
+                | ElectoralLogVarCharColumn::AreaId => {
+                    format!(" USE INDEX ON ({key}) ")
+                    // format!(" USE INDEX ON (user_id, election_id, area_id, id) ")
+                }
+                _ => String::from(""),
+            },
+            None => String::from(""),
+        }
     }
 
     fn to_where_clause(columns_matcher: Option<WhereClauseBTreeMap>) -> (String, Vec<NamedParam>) {
@@ -736,13 +765,13 @@ impl BoardClient {
         // Note Username cannot be indexed because it is not constrained to 512B, but is not needded since we have user_id
         // StatementKind, UserId, BallotId, Username, SenderPk, ElectionId, AreaId, Version,
         let elog_indexes = vec![
-            format!("CREATE INDEX IF NOT EXISTS ON {ELECTORAL_LOG_TABLE} (statement_kind, user_id, ballot_id, election_id, id)"), // To list or count cast_vote_messages and Order by id
-            format!("CREATE INDEX IF NOT EXISTS ON {ELECTORAL_LOG_TABLE} (statement_kind, user_id, ballot_id, election_id, statement_timestamp)"), // Order by statement_timestamp
-            format!("CREATE INDEX IF NOT EXISTS ON {ELECTORAL_LOG_TABLE} (statement_kind, election_id, id)"), // Order by id
-            format!("CREATE INDEX IF NOT EXISTS ON {ELECTORAL_LOG_TABLE} (statement_kind, election_id, statement_timestamp)"), // Order by statement_timestamp
-            format!("CREATE INDEX IF NOT EXISTS ON {ELECTORAL_LOG_TABLE} (user_id, election_id, area_id, id)"), // Other posible filters...
-            format!("CREATE INDEX IF NOT EXISTS ON {ELECTORAL_LOG_TABLE} (election_id, area_id, id)"),
-            format!("CREATE INDEX IF NOT EXISTS ON {ELECTORAL_LOG_TABLE} (area_id, id)"),
+            format!("CREATE INDEX IF NOT EXISTS ON {ELECTORAL_LOG_TABLE} (statement_kind, user_id, ballot_id)"), // To list or count cast_vote_message
+            format!("CREATE INDEX IF NOT EXISTS ON {ELECTORAL_LOG_TABLE} (statement_kind, user_id, ballot_id, statement_timestamp)"), // Order by statement_timestamp
+            format!("CREATE INDEX IF NOT EXISTS ON {ELECTORAL_LOG_TABLE} (statement_kind"),
+            format!("CREATE INDEX IF NOT EXISTS ON {ELECTORAL_LOG_TABLE} (user_id"),
+            format!("CREATE INDEX IF NOT EXISTS ON {ELECTORAL_LOG_TABLE} (user_id, election_id, area_id)"), // Other posible filters...
+            format!("CREATE INDEX IF NOT EXISTS ON {ELECTORAL_LOG_TABLE} (election_id)"),
+            format!("CREATE INDEX IF NOT EXISTS ON {ELECTORAL_LOG_TABLE} (area_id)"),
         ];
 
         self.upsert_database(board_dbname, &sql, elog_indexes.as_slice())

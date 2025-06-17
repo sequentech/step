@@ -871,12 +871,6 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
 
     let order_by = input.order_by.clone();
     let (min_ts, max_ts) = input.get_min_max_ts()?;
-    let total = client
-        .count_electoral_log_messages(&board_name, Some(cols_match_count))
-        .await?
-        .to_u64()
-        .unwrap_or(0) as usize;
-
     let limit: i64 = input.limit.unwrap_or(IMMUDB_ROWS_LIMIT as i64);
     let offset: i64 = input.offset.unwrap_or(0);
     let mut rows: Vec<ElectoralLogRow> = vec![];
@@ -894,7 +888,7 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
         .map_err(|err| anyhow!("Failed to get filtered messages: {:?}", err))?;
 
     let t_entries = electoral_log_messages.len();
-    info!("Got {t_entries} entries. Offset: {offset}, limit: {limit}, total: {total}");
+    info!("Got {t_entries} entries. Offset: {offset}, limit: {limit}");
     for message in electoral_log_messages {
         rows.push(message.try_into()?);
     }
@@ -903,7 +897,7 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
         items: rows,
         total: TotalAggregate {
             aggregate: Aggregate {
-                count: total as i64,
+                count: t_entries as i64,
             },
         },
     })
