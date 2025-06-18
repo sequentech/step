@@ -4,6 +4,7 @@
 
 use crate::client::types::*;
 use anyhow::{anyhow, Context, Result};
+use chrono::format;
 use immudb_rs::{sql_value::Value, Client, CommittedSqlTx, NamedParam, Row, SqlValue, TxMode};
 
 use std::collections::HashMap;
@@ -396,7 +397,7 @@ impl BoardClient {
             }
             for index in MULTI_COLUMN_INDEXES {
                 if index.contains(&try_index_clause.as_str()) {
-                    last_index_clause_match = String::from(index);
+                    last_index_clause_match = format!("USE INDEX ON {index}");
                 }
             }
         }
