@@ -2,7 +2,21 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {tallyQueryData} from "@/atoms/tally-candidates"
-import {GetTallyDataQuery, Sequent_Backend_Area, Sequent_Backend_Area_Contest, Sequent_Backend_Candidate, Sequent_Backend_Contest, Sequent_Backend_Election, Sequent_Backend_Results_Area_Contest, Sequent_Backend_Results_Area_Contest_Candidate, Sequent_Backend_Results_Contest, Sequent_Backend_Results_Contest_Candidate, Sequent_Backend_Results_Election, Sequent_Backend_Results_Election_Area, Sequent_Backend_Results_Event} from "@/gql/graphql"
+import {
+    GetTallyDataQuery,
+    Sequent_Backend_Area,
+    Sequent_Backend_Area_Contest,
+    Sequent_Backend_Candidate,
+    Sequent_Backend_Contest,
+    Sequent_Backend_Election,
+    Sequent_Backend_Results_Area_Contest,
+    Sequent_Backend_Results_Area_Contest_Candidate,
+    Sequent_Backend_Results_Contest,
+    Sequent_Backend_Results_Contest_Candidate,
+    Sequent_Backend_Results_Election,
+    Sequent_Backend_Results_Election_Area,
+    Sequent_Backend_Results_Event,
+} from "@/gql/graphql"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {useSetAtom} from "jotai"
@@ -35,7 +49,7 @@ export const ResultsDataLoader: React.FC<ResultsDataLoaderProps> = ({
     const contestIds = useMemo(() => contests.map((c) => c.id), [contests])
 
     const {isLoading: isDbLoading, error: dbError} = useManagedDatabase(
-            databaseName,
+        databaseName,
         electionEventId ? electionEventId : undefined
     )
 
@@ -51,7 +65,9 @@ export const ResultsDataLoader: React.FC<ResultsDataLoaderProps> = ({
     console.log(area)
 
     const {data: area_contest} = useSQLQuery(
-        `SELECT * FROM area_contest WHERE election_event_id = ? and tenant_id = ? and contest_id in (${contestIds.map(() => "?").join(",")})`,
+        `SELECT * FROM area_contest WHERE election_event_id = ? and tenant_id = ? and contest_id in (${contestIds
+            .map(() => "?")
+            .join(",")})`,
         [electionEventId, tenantId, ...contestIds],
         {
             databaseName: databaseName,
@@ -60,7 +76,9 @@ export const ResultsDataLoader: React.FC<ResultsDataLoaderProps> = ({
     )
 
     const {data: election} = useSQLQuery(
-        `SELECT * FROM election WHERE election_event_id = ? and tenant_id = ? and id in (${electionIds.map(() => "?").join(",")})`,
+        `SELECT * FROM election WHERE election_event_id = ? and tenant_id = ? and id in (${electionIds
+            .map(() => "?")
+            .join(",")})`,
         [electionEventId, tenantId, ...electionIds],
         {
             databaseName: databaseName,
@@ -69,7 +87,9 @@ export const ResultsDataLoader: React.FC<ResultsDataLoaderProps> = ({
     )
 
     const {data: candidate} = useSQLQuery(
-        `SELECT * FROM candidate WHERE election_event_id = ? and tenant_id = ? and contest_id in (${contestIds.map(() => "?").join(",")})`,
+        `SELECT * FROM candidate WHERE election_event_id = ? and tenant_id = ? and contest_id in (${contestIds
+            .map(() => "?")
+            .join(",")})`,
         [electionEventId, tenantId, ...contestIds],
         {
             databaseName: databaseName,
@@ -78,7 +98,9 @@ export const ResultsDataLoader: React.FC<ResultsDataLoaderProps> = ({
     )
 
     const {data: contest} = useSQLQuery(
-        `SELECT * FROM contest WHERE election_event_id = ? and tenant_id = ? and id in (${contestIds.map(() => "?").join(",")})`,
+        `SELECT * FROM contest WHERE election_event_id = ? and tenant_id = ? and id in (${contestIds
+            .map(() => "?")
+            .join(",")})`,
         [electionEventId, tenantId, ...contestIds],
         {
             databaseName: databaseName,
@@ -156,12 +178,16 @@ export const ResultsDataLoader: React.FC<ResultsDataLoaderProps> = ({
         sequent_backend_candidate: candidate as Sequent_Backend_Candidate[],
         sequent_backend_contest: contest as Sequent_Backend_Contest[],
         sequent_backend_results_event: results_event as Sequent_Backend_Results_Event[],
-        sequent_backend_results_election: results_election  as Sequent_Backend_Results_Election[],
-        sequent_backend_results_contest_candidate: results_contest_candidate as Sequent_Backend_Results_Contest_Candidate[],
+        sequent_backend_results_election: results_election as Sequent_Backend_Results_Election[],
+        sequent_backend_results_contest_candidate:
+            results_contest_candidate as Sequent_Backend_Results_Contest_Candidate[],
         sequent_backend_results_contest: results_contest as Sequent_Backend_Results_Contest[],
-        sequent_backend_results_area_contest_candidate: results_area_contest_candidate as Sequent_Backend_Results_Area_Contest_Candidate[],
-        sequent_backend_results_area_contest: results_area_contest as Sequent_Backend_Results_Area_Contest[],
-        sequent_backend_results_election_area: results_election_area as Sequent_Backend_Results_Election_Area[]
+        sequent_backend_results_area_contest_candidate:
+            results_area_contest_candidate as Sequent_Backend_Results_Area_Contest_Candidate[],
+        sequent_backend_results_area_contest:
+            results_area_contest as Sequent_Backend_Results_Area_Contest[],
+        sequent_backend_results_election_area:
+            results_election_area as Sequent_Backend_Results_Election_Area[],
     }
 
     useEffect(() => {
