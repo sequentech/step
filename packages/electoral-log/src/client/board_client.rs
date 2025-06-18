@@ -25,6 +25,19 @@ const STATEMENT_KIND_VARCHAR_LENGTH: usize = 40;
 /// 64 chars + EOL + some padding
 const BALLOT_ID_VARCHAR_LENGTH: usize = 70;
 
+/// This is the order of the cols in the where clauses, as defined in ElectoralLogVarCharColumn:
+/// StatementKind, AreaId, ElectionId, UserId, BallotId, statement_timestamp.
+///
+/// Other columns that have no length constraint are not indexable.
+/// 'create' is not indexed, we use statement_timestamp intead.
+const MULTI_COLUMN_INDEXES: [&'static str; 5] = [
+    "(statement_kind, election_id, user_id, ballot_id)", // COUNT or SELECT cast_vote_messages and filter by ballot_id
+    "(statement_kind, user_id, statement_timestamp)",    // Filters in Admin portal LOGS tab.
+    "(user_id, statement_timestamp)", // Filters in Admin portal LOGS tab and for the User´s logs.
+    "(statement_timestamp)",          // Filters in Admin portal LOGS tab.
+    "(statement_kind, statement_timestamp)", // Filters in Admin portal LOGS tab.
+];
+
 #[derive(Debug)]
 pub struct BoardClient {
     client: Client,
@@ -331,7 +344,8 @@ impl BoardClient {
         board_db: &str,
         columns_matcher: Option<WhereClauseBTreeMap>,
     ) -> Result<i64> {
-        let (where_clause, mut params) = BoardClient::to_where_clause(columns_matcher);
+        let start = Instant::now();
+        let (where_clause, params) = BoardClient::to_where_clause(columns_matcher.clone());
         let where_clauses = if !where_clause.is_empty() {
             format!(
                 r#"
@@ -341,12 +355,14 @@ impl BoardClient {
         } else {
             String::from("")
         };
+        let use_index_clause = BoardClient::to_use_index_clause(columns_matcher);
 
         self.client.use_database(board_db).await?;
         let sql = format!(
             r#"
             SELECT COUNT(*)
-            FROM {ELECTORAL_LOG_TABLE}
+            FROM {ELECTORAL_LOG_TABLE} 
+            {use_index_clause} 
             {where_clauses}
             "#,
         );
@@ -362,25 +378,29 @@ impl BoardClient {
             .next()
             .ok_or_else(|| anyhow!("No aggregate found"))??;
 
+        let duration = start.elapsed();
+        info!("COUNT query took {}ms", duration.as_millis());
         Ok(aggregate.count as i64)
     }
 
     /// If the first element of the map (first column in the where clause) has an index, it will be used.
-    /// The columns that have indexes are statement_kind, user_id, election_id or area_id.
+    /// This will match the longest possible index.
     fn to_use_index_clause(columns_matcher: Option<WhereClauseBTreeMap>) -> String {
-        match columns_matcher.unwrap_or_default().iter().next() {
-            Some((key, _)) => match key {
-                ElectoralLogVarCharColumn::StatementKind
-                | ElectoralLogVarCharColumn::UserId
-                | ElectoralLogVarCharColumn::ElectionId
-                | ElectoralLogVarCharColumn::AreaId => {
-                    format!(" USE INDEX ON ({key}) ")
-                    // format!(" USE INDEX ON (user_id, election_id, area_id, id) ")
+        let mut try_index_clause = String::from("");
+        let mut last_index_clause_match = String::from("");
+        for (key, _) in columns_matcher.unwrap_or_default().iter() {
+            if try_index_clause.is_empty() {
+                try_index_clause.push_str(&format!("({key}")); // For the contains() is important to mark with '(' the beginning of the index.
+            } else {
+                try_index_clause.push_str(&format!(", {key}"));
+            }
+            for index in MULTI_COLUMN_INDEXES {
+                if index.contains(&try_index_clause.as_str()) {
+                    last_index_clause_match = String::from(index);
                 }
-                _ => String::from(""),
-            },
-            None => String::from(""),
+            }
         }
+        last_index_clause_match
     }
 
     fn to_where_clause(columns_matcher: Option<WhereClauseBTreeMap>) -> (String, Vec<NamedParam>) {
@@ -761,18 +781,12 @@ impl BoardClient {
         "#
         );
 
-        // This is the order of the cols in the where clauses, as defined in ElectoralLogVarCharColumn
-        // Note Username cannot be indexed because it is not constrained to 512B, but is not needded since we have user_id
-        // StatementKind, UserId, BallotId, Username, SenderPk, ElectionId, AreaId, Version,
-        let elog_indexes = vec![
-            format!("CREATE INDEX IF NOT EXISTS ON {ELECTORAL_LOG_TABLE} (statement_kind, user_id, ballot_id)"), // To list or count cast_vote_message
-            format!("CREATE INDEX IF NOT EXISTS ON {ELECTORAL_LOG_TABLE} (statement_kind, user_id, ballot_id, statement_timestamp)"), // Order by statement_timestamp
-            format!("CREATE INDEX IF NOT EXISTS ON {ELECTORAL_LOG_TABLE} (statement_kind"),
-            format!("CREATE INDEX IF NOT EXISTS ON {ELECTORAL_LOG_TABLE} (user_id"),
-            format!("CREATE INDEX IF NOT EXISTS ON {ELECTORAL_LOG_TABLE} (user_id, election_id, area_id)"), // Other posible filters...
-            format!("CREATE INDEX IF NOT EXISTS ON {ELECTORAL_LOG_TABLE} (election_id)"),
-            format!("CREATE INDEX IF NOT EXISTS ON {ELECTORAL_LOG_TABLE} (area_id)"),
-        ];
+        let mut elog_indexes = vec![];
+        for mult_col_idx in MULTI_COLUMN_INDEXES {
+            elog_indexes.push(format!(
+                "CREATE INDEX IF NOT EXISTS ON {ELECTORAL_LOG_TABLE} {mult_col_idx}"
+            ));
+        }
 
         self.upsert_database(board_dbname, &sql, elog_indexes.as_slice())
             .await

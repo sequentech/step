@@ -19,12 +19,12 @@ use tracing::{error, info, instrument, warn};
 #[strum(serialize_all = "snake_case")]
 pub enum ElectoralLogVarCharColumn {
     StatementKind,
+    AreaId,
+    ElectionId,
     UserId,
     BallotId,
     Username,
     SenderPk,
-    ElectionId,
-    AreaId,
     Version,
 }
 
