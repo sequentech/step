@@ -358,31 +358,70 @@ impl BoardClient {
             String::from("")
         };
         let use_index_clause = BoardClient::to_use_index_clause(columns_matcher);
-
         self.client.use_database(board_db).await?;
-        let sql = format!(
-            r#"
-            SELECT COUNT(*)
-            FROM {ELECTORAL_LOG_TABLE} 
-            {use_index_clause} 
-            {where_clauses}
-            "#,
-        );
 
-        info!("SQL query: {}", sql);
-        let sql_query_response = self.client.sql_query(&sql, params).await?;
-        let mut rows_iter = sql_query_response
-            .get_ref()
-            .rows
-            .iter()
-            .map(Aggregate::try_from);
-        let aggregate = rows_iter
-            .next()
-            .ok_or_else(|| anyhow!("No aggregate found"))??;
+        let count = if use_index_clause.is_empty() && where_clauses.is_empty() && params.is_empty()
+        {
+            // if there are no constraints, just get the last id as the count to avoid a full scan of the table.
+            let sql = format!(
+                r#"
+                SELECT
+                    id,
+                    username,
+                    user_id,
+                    area_id,
+                    election_id,
+                    ballot_id,
+                    created,
+                    sender_pk,
+                    statement_timestamp,
+                    statement_kind,
+                    message,
+                    version
+                FROM {ELECTORAL_LOG_TABLE}
+                ORDER BY id desc
+                LIMIT 1
+                OFFSET 0;
+                "#
+            );
+            info!("SQL query: {}", sql);
+            let sql_query_response = self.client.sql_query(&sql, vec![]).await?;
+            let elog_msg = sql_query_response
+                .get_ref()
+                .rows
+                .iter()
+                .map(ElectoralLogMessage::try_from)
+                .next();
+            match elog_msg {
+                Some(elog_msg) => elog_msg?.id,
+                None => 0,
+            }
+        } else {
+            let sql = format!(
+                r#"
+                SELECT COUNT(*)
+                FROM {ELECTORAL_LOG_TABLE} 
+                {use_index_clause} 
+                {where_clauses}
+                "#,
+            );
+
+            info!("SQL query: {}", sql);
+            let sql_query_response = self.client.sql_query(&sql, params).await?;
+            let mut rows_iter = sql_query_response
+                .get_ref()
+                .rows
+                .iter()
+                .map(Aggregate::try_from);
+            let aggregate = rows_iter
+                .next()
+                .ok_or_else(|| anyhow!("No aggregate found"))??;
+            aggregate.count
+        };
 
         let duration = start.elapsed();
         info!("COUNT query took {}ms", duration.as_millis());
-        Ok(aggregate.count as i64)
+        Ok(count as i64)
     }
 
     /// If the first element of the map (first column in the where clause) has an index, it will be used.
@@ -474,7 +513,8 @@ impl BoardClient {
         self.client.commit(transaction_id).await
     }
 
-    // Insert messages in batch using an existing session/transaction
+    /// Insert messages in batch using an existing session/transaction
+    #[instrument(skip(self), err)]
     pub async fn insert_electoral_log_messages_batch(
         &mut self,
         transaction_id: &String,
