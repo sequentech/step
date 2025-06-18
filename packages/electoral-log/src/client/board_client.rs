@@ -21,6 +21,7 @@ const IMMUDB_DEFAULT_OFFSET: usize = 0;
 const ELECTORAL_LOG_TABLE: &'static str = "electoral_log_messages";
 /// 36 chars + EOL + some padding
 const ID_VARCHAR_LENGTH: usize = 40;
+const ID_KEY_VARCHAR_LENGTH: usize = 4;
 /// Longest possible statement kind must be < 40
 const STATEMENT_KIND_VARCHAR_LENGTH: usize = 40;
 /// 64 chars + EOL + some padding
@@ -32,11 +33,11 @@ const BALLOT_ID_VARCHAR_LENGTH: usize = 70;
 /// Other columns that have no length constraint are not indexable.
 /// 'create' is not indexed, we use statement_timestamp intead.
 const MULTI_COLUMN_INDEXES: [&'static str; 5] = [
-    "(statement_kind, election_id, user_id, ballot_id)", // COUNT or SELECT cast_vote_messages and filter by ballot_id
-    "(statement_kind, user_id, statement_timestamp)",    // Filters in Admin portal LOGS tab.
-    "(user_id, statement_timestamp)", // Filters in Admin portal LOGS tab and for the User´s logs.
-    "(statement_timestamp)",          // Filters in Admin portal LOGS tab.
-    "(statement_kind, statement_timestamp)", // Filters in Admin portal LOGS tab.
+    "(statement_kind, election_id, user_id_key, user_id, ballot_id)", // COUNT or SELECT cast_vote_messages and filter by ballot_id
+    "(statement_kind, user_id_key, user_id, statement_timestamp)", // Filters in Admin portal LOGS tab.
+    "(user_id_key, user_id, statement_timestamp)", // Filters in Admin portal LOGS tab and for the User´s logs.
+    "(statement_timestamp)",                       // Filters in Admin portal LOGS tab.
+    "(statement_kind, statement_timestamp)",       // Filters in Admin portal LOGS tab.
 ];
 
 #[derive(Debug)]
@@ -389,11 +390,11 @@ impl BoardClient {
     fn to_use_index_clause(columns_matcher: Option<WhereClauseBTreeMap>) -> String {
         let mut try_index_clause = String::from("");
         let mut last_index_clause_match = String::from("");
-        for (key, _) in columns_matcher.unwrap_or_default().iter() {
+        for (col_name, _) in columns_matcher.unwrap_or_default().iter() {
             if try_index_clause.is_empty() {
-                try_index_clause.push_str(&format!("({key}")); // For the contains() is important to mark with '(' the beginning of the index.
+                try_index_clause.push_str(&format!("({col_name}")); // For the contains() is important to mark with '(' the beginning of the index.
             } else {
-                try_index_clause.push_str(&format!(", {key}"));
+                try_index_clause.push_str(&format!(", {col_name}"));
             }
             for index in MULTI_COLUMN_INDEXES {
                 if index.contains(&try_index_clause.as_str()) {
@@ -407,27 +408,30 @@ impl BoardClient {
     fn to_where_clause(columns_matcher: Option<WhereClauseBTreeMap>) -> (String, Vec<NamedParam>) {
         let mut params = vec![];
         let mut where_clause = String::from("");
-        for (key, op) in columns_matcher.unwrap_or_default().iter() {
+        for (col_name, op) in columns_matcher.unwrap_or_default().iter() {
             match op {
                 SqlCompOperators::In(values_vec) | SqlCompOperators::NotIn(values_vec) => {
                     let placeholders: Vec<String> = values_vec
                         .iter()
                         .enumerate()
-                        .map(|(i, _)| format!("@param_{key}{i}"))
+                        .map(|(i, _)| format!("@param_{col_name}{i}"))
                         .collect();
                     for (i, value) in values_vec.into_iter().enumerate() {
                         params.push(NamedParam {
-                            name: format!("param_{key}{i}"),
+                            name: format!("param_{col_name}{i}"),
                             value: Some(SqlValue {
                                 value: Some(Value::S(value.to_owned())),
                             }),
                         });
                     }
                     if where_clause.is_empty() {
-                        where_clause.push_str(&format!("{key} IN ({})", placeholders.join(", ")));
-                    } else {
                         where_clause
-                            .push_str(&format!("AND {key} IN ({})", placeholders.join(", ")));
+                            .push_str(&format!("{col_name} {op} ({})", placeholders.join(", ")));
+                    } else {
+                        where_clause.push_str(&format!(
+                            "AND {col_name} {op} ({})",
+                            placeholders.join(", ")
+                        ));
                     }
                 }
                 SqlCompOperators::Equal(value)
@@ -438,12 +442,12 @@ impl BoardClient {
                 | SqlCompOperators::LessThanOrEqual(value)
                 | SqlCompOperators::Like(value) => {
                     if where_clause.is_empty() {
-                        where_clause.push_str(&format!("{key} {op} @{key} "));
+                        where_clause.push_str(&format!("{col_name} {op} @{col_name} "));
                     } else {
-                        where_clause.push_str(&format!("AND {key} {op} @{key} "));
+                        where_clause.push_str(&format!("AND {col_name} {op} @{col_name} "));
                     }
                     params.push(NamedParam {
-                        name: key.to_string(),
+                        name: col_name.to_string(),
                         value: Some(SqlValue {
                             value: Some(Value::S(value.to_owned())),
                         }),
@@ -488,6 +492,7 @@ impl BoardClient {
                     statement_timestamp,
                     message,
                     version,
+                    user_id_key,
                     user_id,
                     username,
                     election_id,
@@ -500,6 +505,7 @@ impl BoardClient {
                     @statement_timestamp,
                     @message,
                     @version,
+                    @user_id_key,
                     @user_id,
                     @username,
                     @election_id,
@@ -544,6 +550,15 @@ impl BoardClient {
                     name: String::from("version"),
                     value: Some(SqlValue {
                         value: Some(Value::S(message.version.clone())),
+                    }),
+                },
+                NamedParam {
+                    name: String::from("user_id_key"),
+                    value: Some(SqlValue {
+                        value: match message.user_id.clone() {
+                            Some(user_id) => Some(Value::S(user_id.chars().take(3).collect())),
+                            None => None,
+                        },
                     }),
                 },
                 NamedParam {
@@ -626,6 +641,7 @@ impl BoardClient {
                     statement_timestamp,
                     message,
                     version,
+                    user_id_key,
                     user_id,
                     username,
                     election_id,
@@ -638,6 +654,7 @@ impl BoardClient {
                     @statement_timestamp,
                     @message,
                     @version,
+                    @user_id_key,
                     @user_id,
                     @username,
                     @election_id,
@@ -682,6 +699,15 @@ impl BoardClient {
                     name: String::from("version"),
                     value: Some(SqlValue {
                         value: Some(Value::S(message.version.clone())),
+                    }),
+                },
+                NamedParam {
+                    name: String::from("user_id_key"),
+                    value: Some(SqlValue {
+                        value: match message.user_id.clone() {
+                            Some(user_id) => Some(Value::S(user_id.chars().take(3).collect())),
+                            None => None,
+                        },
                     }),
                 },
                 NamedParam {
@@ -772,6 +798,7 @@ impl BoardClient {
             statement_kind VARCHAR[{STATEMENT_KIND_VARCHAR_LENGTH}],
             message BLOB,
             version VARCHAR,
+            user_id_key VARCHAR[{ID_KEY_VARCHAR_LENGTH}],
             user_id VARCHAR[{ID_VARCHAR_LENGTH}],
             username VARCHAR,
             election_id VARCHAR[{ID_VARCHAR_LENGTH}],

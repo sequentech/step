@@ -21,6 +21,7 @@ pub enum ElectoralLogVarCharColumn {
     StatementKind,
     AreaId,
     ElectionId,
+    UserIdKey,
     UserId,
     BallotId,
     Username,
@@ -129,7 +130,19 @@ impl GetElectoralLogBody {
             for (field, value) in filters_map.iter() {
                 match field {
                     OrderField::Id => {} // Why would someone filter the electoral log by id?
-                    OrderField::SenderPk | OrderField::UserId | OrderField::Username | OrderField::BallotId | OrderField::StatementKind | OrderField::Version => { // sql VARCHAR type
+                    OrderField::SenderPk | OrderField::Username | OrderField::BallotId | OrderField::StatementKind | OrderField::Version => { // sql VARCHAR type
+                        let variant = ElectoralLogVarCharColumn::from_str(field.to_string().as_str()).map_err(|_| anyhow!("Field not found"))?; 
+                        cols_match_select.insert(
+                            variant,
+                            SqlCompOperators::Like(value.clone()),
+                        );
+                    }
+                    OrderField::UserId => {
+                        // insert user_id_mod
+                        cols_match_select.insert(
+                            ElectoralLogVarCharColumn::UserIdKey,
+                            SqlCompOperators::Equal(value.clone().chars().take(3).collect()),
+                        );
                         let variant = ElectoralLogVarCharColumn::from_str(field.to_string().as_str()).map_err(|_| anyhow!("Field not found"))?; 
                         cols_match_select.insert(
                             variant,
@@ -191,6 +204,10 @@ impl GetElectoralLogBody {
         let mut cols_match_select = cols_match_count.clone();
         // Restrict the SQL query to user_id and ballot_id in case of filtering
         if !ballot_id_filter.is_empty() {
+            cols_match_select.insert(
+                ElectoralLogVarCharColumn::UserIdKey,
+                SqlCompOperators::Equal(user_id.clone().chars().take(3).collect()),
+            );
             cols_match_select.insert(
                 ElectoralLogVarCharColumn::UserId,
                 SqlCompOperators::Equal(user_id.to_string()),
