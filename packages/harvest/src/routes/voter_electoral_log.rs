@@ -17,7 +17,7 @@ use serde::Deserialize;
 use std::collections::HashMap;
 use tracing::instrument;
 use windmill::postgres::election_event::get_election_event_by_id;
-use windmill::services::electoral_log::list_cast_vote_messages as windmill_list_cast_vote_messages;
+use windmill::services::electoral_log::list_cast_vote_messages_and_count;
 use windmill::services::electoral_log::CastVoteMessagesOutput;
 use windmill::services::providers::transactions_provider::provide_hasura_transaction;
 
@@ -103,7 +103,7 @@ pub async fn list_cast_vote_messages(
         ..Default::default()
     };
 
-    let ret_val = windmill_list_cast_vote_messages(
+    let ret_val = list_cast_vote_messages_and_count(
         elog_input, ballot_id, &user_id, &username,
     )
     .await

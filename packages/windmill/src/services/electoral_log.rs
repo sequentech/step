@@ -901,11 +901,11 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
     })
 }
 
-/// Returns the entries for statement_kind = "CastVote" which ballot_id matches the input
-/// ballot_id_filter is restricted to be an even number of characters, so that can be converted
-/// to a byte array
-#[instrument(err)]
-pub async fn list_cast_vote_messages(
+/// Returns the entries for statement_kind = "CastVote" which ballot_id matches the input.
+/// ballot_id_filter is restricted to be an even number of characters, so thatnit can be converted
+/// to a byte array.
+#[instrument(err, skip_all)]
+pub async fn list_cast_vote_messages_and_count(
     input: GetElectoralLogBody,
     ballot_id_filter: &str,
     user_id: &str,
@@ -915,13 +915,53 @@ pub async fn list_cast_vote_messages(
         ballot_id_filter.chars().count() % 2 == 0 && ballot_id_filter.is_ascii(),
         "Incorrect ballot_id, the length must be an even number of characters"
     );
+    let election_id = input.election_id.clone().unwrap_or_default();
+    let (cols_match_count, cols_match_select) =
+        input.as_cast_vote_count_and_select_clauses(&election_id, user_id, ballot_id_filter);
+
+    let (data_res, count_res) = tokio::join!(
+        list_cast_vote_messages(
+            input.clone(),
+            ballot_id_filter,
+            user_id,
+            username,
+            cols_match_select
+        ),
+        async {
+            let mut client = get_board_client().await?;
+            let board_name =
+                get_event_board(input.tenant_id.as_str(), input.election_event_id.as_str());
+            info!("database name = {board_name}");
+            let total: usize = client
+                .count_electoral_log_messages(&board_name, Some(cols_match_count))
+                .await?
+                .to_usize()
+                .unwrap_or(0);
+            Ok(total)
+        }
+    );
+
+    let mut data = data_res.map_err(|e| anyhow!("Eror listing electoral log: {e:?}"))?;
+    data.total =
+        count_res.map_err(|e: anyhow::Error| anyhow!("Error counting electoral log: {e:?}"))?;
+
+    Ok(data)
+}
+
+#[instrument(err)]
+pub async fn list_cast_vote_messages(
+    input: GetElectoralLogBody,
+    ballot_id_filter: &str,
+    user_id: &str,
+    username: &str,
+    cols_match_select: WhereClauseBTreeMap,
+) -> Result<CastVoteMessagesOutput> {
     // The limits are used to cut the output after filtering the ballot id.
     // Because ballot_id cannot be filtered at SQL level the sql limit is constant
     let output_limit: i64 = input.limit.unwrap_or(MAX_ROWS_PER_PAGE as i64);
     let board_name = get_event_board(input.tenant_id.as_str(), input.election_event_id.as_str());
     info!("database name = {board_name}");
     let order_by = input.order_by.clone();
-    let election_id = input.election_id.clone().unwrap_or_default();
 
     let limit: i64 = match ballot_id_filter.is_empty() {
         false => IMMUDB_ROWS_LIMIT as i64, // When there is a filter, need to fetch all entries by batches.
@@ -929,16 +969,10 @@ pub async fn list_cast_vote_messages(
     };
     let mut offset: i64 = input.offset.unwrap_or(0);
     let mut list: Vec<CastVoteEntry> = Vec::with_capacity(MAX_ROWS_PER_PAGE); // Filtered messages.
-    let (cols_match_count, cols_match_select) =
-        input.as_cast_vote_count_and_select_clauses(&election_id, user_id, ballot_id_filter);
+
     let mut client = get_board_client().await?;
-    let total = client
-        .count_electoral_log_messages(&board_name, Some(cols_match_count))
-        .await?
-        .to_u64()
-        .unwrap_or(0) as usize;
-    let mut filter_matched = false; // Exit at the first match if the filter is not empty
-    while (list.len() as i64) < output_limit && (offset < total as i64) && !filter_matched {
+    let mut exit = false; // Exit at the first match if the filter is not empty or when the query returns 0 entries
+    while (list.len() as i64) < output_limit && !exit {
         let electoral_log_messages = client
             .get_electoral_log_messages_filtered(
                 &board_name,
@@ -953,12 +987,12 @@ pub async fn list_cast_vote_messages(
             .map_err(|err| anyhow!("Failed to get filtered messages: {:?}", err))?;
 
         let t_entries = electoral_log_messages.len();
-        info!("Got {t_entries} entries. Offset: {offset}, limit: {limit}, total: {total}");
+        info!("Got {t_entries} entries. Offset: {offset}, limit: {limit}");
         for message in electoral_log_messages.iter() {
             match CastVoteEntry::from_elog_message(&message, username)? {
                 Some(entry) if !ballot_id_filter.is_empty() => {
                     // If there is filter exit at the first match
-                    filter_matched = true;
+                    exit = true;
                     list.push(entry);
                 }
                 Some(entry) => {
@@ -967,13 +1001,14 @@ pub async fn list_cast_vote_messages(
                 }
                 None => {}
             }
-            if (list.len() as i64) >= output_limit || filter_matched {
+            if (list.len() as i64) >= output_limit || exit {
                 break;
             }
         }
+        exit = exit || t_entries == 0;
         offset += limit;
     }
-    Ok(CastVoteMessagesOutput { list, total })
+    Ok(CastVoteMessagesOutput { list, total: 0 })
 }
 
 #[instrument(err)]
