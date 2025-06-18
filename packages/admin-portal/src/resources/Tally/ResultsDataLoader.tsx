@@ -5,8 +5,6 @@ import {tallyQueryData} from "@/atoms/tally-candidates"
 import {GetTallyDataQuery, Sequent_Backend_Area, Sequent_Backend_Area_Contest, Sequent_Backend_Candidate, Sequent_Backend_Contest, Sequent_Backend_Election, Sequent_Backend_Results_Area_Contest, Sequent_Backend_Results_Area_Contest_Candidate, Sequent_Backend_Results_Contest, Sequent_Backend_Results_Contest_Candidate, Sequent_Backend_Results_Election, Sequent_Backend_Results_Election_Area, Sequent_Backend_Results_Event} from "@/gql/graphql"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {useTenantStore} from "@/providers/TenantContextProvider"
-import {GET_TALLY_DATA} from "@/queries/GetTallyData"
-import {useQuery} from "@apollo/client"
 import {useSetAtom} from "jotai"
 import React, {useContext, useEffect, useMemo, useState} from "react"
 import {useManagedDatabase, useSQLQuery} from "@/hooks/useSQLiteDatabase"
@@ -167,7 +165,6 @@ export const ResultsDataLoader: React.FC<ResultsDataLoaderProps> = ({
     }
 
     useEffect(() => {
-        console.log(tallyData)
         setTallyQueryData(tallyData ?? null)
     }, [tallyData])
 
