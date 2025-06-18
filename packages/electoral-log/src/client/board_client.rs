@@ -514,7 +514,7 @@ impl BoardClient {
     }
 
     /// Insert messages in batch using an existing session/transaction
-    #[instrument(skip(self), err)]
+    #[instrument(skip(self, messages), err)]
     pub async fn insert_electoral_log_messages_batch(
         &mut self,
         transaction_id: &String,
