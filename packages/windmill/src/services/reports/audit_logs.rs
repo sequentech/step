@@ -702,8 +702,8 @@ impl TemplateRenderer for AuditLogsTemplate {
             let batch_size = electoral_logs_batch.items.len();
             offset += batch_size as i64;
             electoral_logs.items.extend(electoral_logs_batch.items);
-            electoral_logs.total.aggregate.count = electoral_logs_batch.total.aggregate.count;
             if batch_size < IMMUDB_ROWS_LIMIT {
+                electoral_logs.total.aggregate.count = electoral_logs.items.len() as i64;
                 break;
             }
         }

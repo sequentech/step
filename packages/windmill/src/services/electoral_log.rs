@@ -867,8 +867,6 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
     let board_name = get_event_board(input.tenant_id.as_str(), input.election_event_id.as_str());
     info!("database name = {board_name}");
     let cols_match_select = input.as_where_clause_map()?;
-    let cols_match_count = cols_match_select.clone();
-
     let order_by = input.order_by.clone();
     let (min_ts, max_ts) = input.get_min_max_ts()?;
     let limit: i64 = input.limit.unwrap_or(IMMUDB_ROWS_LIMIT as i64);

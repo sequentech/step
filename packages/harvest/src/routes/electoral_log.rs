@@ -12,7 +12,8 @@ use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::Permissions;
 use tracing::instrument;
 use windmill::services::electoral_log::{
-    list_electoral_log as windmill_list_electoral_log, ElectoralLogRow,
+    count_electoral_log, list_electoral_log as windmill_list_electoral_log,
+    ElectoralLogRow,
 };
 use windmill::types::resources::DataList;
 
@@ -30,9 +31,23 @@ pub async fn list_electoral_log(
         vec![Permissions::LOGS_READ],
     )?;
 
-    let ret_val = windmill_list_electoral_log(input)
-        .await
-        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+    let (data_res, count_res) = tokio::join!(
+        windmill_list_electoral_log(input.clone()),
+        count_electoral_log(input)
+    );
 
-    Ok(Json(ret_val))
+    let mut data = data_res.map_err(|e| {
+        (
+            Status::InternalServerError,
+            format!("Eror listing electoral log: {e:?}"),
+        )
+    })?;
+    data.total.aggregate.count = count_res.map_err(|e| {
+        (
+            Status::InternalServerError,
+            format!("Error counting electoral log: {e:?}"),
+        )
+    })?;
+
+    Ok(Json(data))
 }
