@@ -4,3 +4,4 @@
 pub mod plugin_db_manager;
 pub mod plugin_manager;
 pub mod plugins_hooks;
+pub mod wasmtime_test_db;

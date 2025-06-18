@@ -122,5 +122,8 @@ unicode-normalization = "0.1.24"
 num_cpus = "1.16.0"
 ordered-float = { version = "4.4.0", features = ["serde"] }
 
-extism = "1"
+extism = "1.4.1"
 dashmap = "5"  
+
+wasmtime = "33.0.0"
+wasmtime-wasi = "33.0.0"
