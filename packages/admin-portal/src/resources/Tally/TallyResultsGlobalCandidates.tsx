@@ -28,7 +28,6 @@ import {Sequent_Backend_Candidate_Extended} from "./types"
 import {formatPercentOne, isNumber} from "@sequentech/ui-core"
 import {useAtomValue} from "jotai"
 import {tallyQueryData} from "@/atoms/tally-candidates"
-import {useManagedDatabase, useSQLQuery} from "@/hooks/useSQLiteDatabase"
 
 interface TallyResultsGlobalCandidatesProps {
     contestId: string
@@ -36,7 +35,6 @@ interface TallyResultsGlobalCandidatesProps {
     electionEventId: string
     tenantId: string
     resultsEventId: string | null
-    databaseName: string | undefined
 }
 
 // Define the comparator function
@@ -53,43 +51,39 @@ const winningPositionComparator: GridComparatorFn<string> = (v1, v2) => {
 export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidatesProps> = (
     props
 ) => {
-    const {contestId, electionId, electionEventId, tenantId, resultsEventId, databaseName} = props
+    const {contestId, electionId, electionEventId, tenantId, resultsEventId} = props
     const {t} = useTranslation()
     const {globalSettings} = useContext(SettingsContext)
     const tallyData = useAtomValue(tallyQueryData)
 
     const [resultsData, setResultsData] = useState<Array<Sequent_Backend_Candidate_Extended>>([])
 
-    const {isLoading: isDbLoading, error: dbError} = useManagedDatabase(
-        databaseName,
-        electionEventId ? electionEventId : undefined
+    const candidates: Array<Sequent_Backend_Candidate> | undefined = useMemo(
+        () =>
+            tallyData?.sequent_backend_candidate?.filter(
+                (candidate) => contestId === candidate.contest_id
+            ),
+        [tallyData?.sequent_backend_candidate, contestId]
     )
 
-    const {data: candidates} = useSQLQuery(
-        "SELECT * FROM candidate WHERE contest_id = ?",
-        [contestId],
-        {
-            databaseName: databaseName,
-            enabled: !isDbLoading && !!contestId,
-        }
+    const general: Array<Sequent_Backend_Results_Contest> | undefined = useMemo(
+        () =>
+            tallyData?.sequent_backend_results_contest?.filter(
+                (resultsContest) =>
+                    contestId === resultsContest.contest_id &&
+                    electionId === resultsContest.election_id
+            ),
+        [tallyData?.sequent_backend_results_contest, contestId, electionId]
     )
 
-    const {data: general} = useSQLQuery(
-        "SELECT * FROM results_contest WHERE contest_id = ? and election_id = ?",
-        [contestId, electionId],
-        {
-            databaseName: databaseName,
-            enabled: !isDbLoading && !!contestId && !!electionId,
-        }
-    )
-
-    const {data: results} = useSQLQuery(
-        "SELECT * FROM results_contest_candidate WHERE contest_id = ? and election_id = ?",
-        [contestId, electionId],
-        {
-            databaseName: databaseName,
-            enabled: !isDbLoading && !!contestId && !!electionId,
-        }
+    const results: Array<Sequent_Backend_Results_Contest_Candidate> | undefined = useMemo(
+        () =>
+            tallyData?.sequent_backend_results_contest_candidate?.filter(
+                (resultsContestCandidate) =>
+                    contestId === resultsContestCandidate.contest_id &&
+                    electionId === resultsContestCandidate.election_id
+            ),
+        [tallyData?.sequent_backend_results_contest_candidate, contestId, electionId]
     )
 
     useEffect(() => {
@@ -107,8 +101,6 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
                         cast_votes: candidateResult?.cast_votes,
                         cast_votes_percent: candidateResult?.cast_votes_percent,
                         winning_position: candidateResult?.winning_position,
-                        election_event_id: electionEventId,
-                        tenant_id: tenantId,
                     }
                 }
             )

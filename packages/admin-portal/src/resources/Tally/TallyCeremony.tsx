@@ -272,11 +272,7 @@ export const TallyCeremony: React.FC = () => {
 
     let resultsEventId = tallySessionExecutions?.[0]?.results_event_id ?? null
 
-    console.log(`tallySessionExecutions id: ${tallySessionExecutions?.[0]?.id}`)
-
     const resultsSQLiteDocumentId = tallySessionExecutions?.[0]?.documents?.sqlite ?? null
-
-    console.log(`resultsSQLiteDocumentId: ${resultsSQLiteDocumentId}`)
 
     const tallySessionData = useMemo(() => {
         try {
@@ -753,6 +749,7 @@ export const TallyCeremony: React.FC = () => {
                             isTallyCompleted={isTallyCompleted}
                             contests={contests ?? []}
                             electionIds={tallySession?.election_ids ?? []}
+                            databaseName={resultsSQLiteDocumentId}
                         />
                     ) : null}
                     {page === WizardSteps.Start && (
@@ -913,7 +910,6 @@ export const TallyCeremony: React.FC = () => {
                                         electionEventId={tally?.election_event_id}
                                         electionIds={tally?.election_ids}
                                         resultsEventId={resultsEventId}
-                                        databaseName={resultsSQLiteDocumentId}
                                     />
                                 </WizardStyles.AccordionDetails>
                             </Accordion>
@@ -942,7 +938,6 @@ export const TallyCeremony: React.FC = () => {
                                         onCreateTransmissionPackage={
                                             handleCreateTransmissionPackage
                                         }
-                                        databaseName={resultsSQLiteDocumentId}
                                     />
                                 </WizardStyles.AccordionDetails>
                             </Accordion>
@@ -1015,7 +1010,6 @@ export const TallyCeremony: React.FC = () => {
                                         electionEventId={tally?.election_event_id}
                                         electionIds={tally?.election_ids}
                                         resultsEventId={resultsEventId}
-                                        databaseName={resultsSQLiteDocumentId}
                                     />
                                 </WizardStyles.AccordionDetails>
                             </Accordion>
@@ -1078,7 +1072,6 @@ export const TallyCeremony: React.FC = () => {
                                             handleCreateTransmissionPackage
                                         }
                                         loading={transmissionLoading}
-                                        databaseName={resultsSQLiteDocumentId}
                                     />
                                 </WizardStyles.AccordionDetails>
                             </Accordion>

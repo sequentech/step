@@ -27,7 +27,6 @@ import {Sequent_Backend_Candidate_Extended} from "./types"
 import {formatPercentOne, isNumber} from "@sequentech/ui-core"
 import {useAtomValue} from "jotai"
 import {tallyQueryData} from "@/atoms/tally-candidates"
-import {useManagedDatabase, useSQLQuery} from "@/hooks/useSQLiteDatabase"
 
 interface TallyResultsCandidatesProps {
     areaId: string | null | undefined
@@ -36,7 +35,6 @@ interface TallyResultsCandidatesProps {
     electionEventId: string
     tenantId: string
     resultsEventId: string | null
-    databaseName: string | undefined
 }
 
 // Define the comparator function
@@ -50,43 +48,40 @@ const winningPositionComparator: GridComparatorFn<string> = (v1, v2) => {
     return pos1 - pos2
 }
 export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (props) => {
-    const {areaId, contestId, electionId, electionEventId, tenantId, resultsEventId, databaseName} =
-        props
+    const {areaId, contestId, electionId, electionEventId, tenantId, resultsEventId} = props
     const [resultsData, setResultsData] = useState<Array<Sequent_Backend_Candidate>>([])
     const {t} = useTranslation()
     const {globalSettings} = useContext(SettingsContext)
     const tallyData = useAtomValue(tallyQueryData)
 
-    const {isLoading: isDbLoading, error: dbError} = useManagedDatabase(
-        databaseName,
-        electionEventId ? electionEventId : undefined
+    const candidates: Array<Sequent_Backend_Candidate> | undefined = useMemo(
+        () =>
+            tallyData?.sequent_backend_candidate
+                ?.filter((candidate) => contestId === candidate.contest_id)
+                ?.map((candidate): Sequent_Backend_Candidate => candidate),
+        [tallyData?.sequent_backend_candidate, contestId]
     )
 
-    const {data: candidates} = useSQLQuery(
-        "SELECT * FROM candidate WHERE contest_id = ?",
-        [contestId],
-        {
-            databaseName: databaseName,
-            enabled: !isDbLoading && !!contestId,
-        }
+    const general: Array<Sequent_Backend_Results_Area_Contest> | undefined = useMemo(
+        () =>
+            tallyData?.sequent_backend_results_area_contest?.filter(
+                (areaContest) =>
+                    contestId === areaContest.contest_id &&
+                    electionId === areaContest.election_id &&
+                    areaId === areaContest.area_id
+            ),
+        [tallyData?.sequent_backend_results_area_contest, contestId, electionId, areaId]
     )
 
-    const {data: general} = useSQLQuery(
-        "SELECT * FROM results_area_contest WHERE contest_id = ? and area_id = ? and election_id = ?",
-        [contestId, areaId, electionId],
-        {
-            databaseName: databaseName,
-            enabled: !isDbLoading && !!contestId && !!areaId && !!electionId,
-        }
-    )
-
-    const {data: results} = useSQLQuery(
-        "SELECT * FROM results_area_contest_candidate WHERE contest_id = ? and area_id = ? and election_id = ?",
-        [contestId, areaId, electionId],
-        {
-            databaseName: databaseName,
-            enabled: !isDbLoading && !!contestId && !!areaId && !!electionId,
-        }
+    const results: Array<Sequent_Backend_Results_Area_Contest_Candidate> | undefined = useMemo(
+        () =>
+            tallyData?.sequent_backend_results_area_contest_candidate?.filter(
+                (areaContestCandidate) =>
+                    contestId === areaContestCandidate.contest_id &&
+                    electionId === areaContestCandidate.election_id &&
+                    areaId === areaContestCandidate.area_id
+            ),
+        [tallyData?.sequent_backend_results_area_contest_candidate, contestId, electionId]
     )
 
     useEffect(() => {
@@ -104,8 +99,6 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
                         cast_votes: candidateResult?.cast_votes,
                         cast_votes_percent: candidateResult?.cast_votes_percent,
                         winning_position: candidateResult?.winning_position,
-                        election_event_id: electionEventId,
-                        tenant_id: tenantId,
                     }
                 }
             )

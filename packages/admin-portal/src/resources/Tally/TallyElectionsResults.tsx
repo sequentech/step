@@ -13,14 +13,12 @@ import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {formatPercentOne, isNumber} from "@sequentech/ui-core"
 import {useAtomValue} from "jotai"
 import {tallyQueryData} from "@/atoms/tally-candidates"
-import {useManagedDatabase, useSQLQuery} from "@/hooks/useSQLiteDatabase"
 
 interface TallyElectionsResultsProps {
     tenantId: string | null
     electionEventId: string | null
     resultsEventId: string | null
     electionIds?: string[] | null
-    databaseName: string | undefined
 }
 
 type Sequent_Backend_Election_Extended = Sequent_Backend_Election & {
@@ -33,32 +31,25 @@ type Sequent_Backend_Election_Extended = Sequent_Backend_Election & {
 }
 
 export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (props) => {
-    const {tenantId, electionEventId, resultsEventId, electionIds, databaseName} = props
+    const {tenantId, electionEventId, resultsEventId, electionIds} = props
     const {t} = useTranslation()
     const {globalSettings} = useContext(SettingsContext)
     const [resultsData, setResultsData] = useState<Array<Sequent_Backend_Election_Extended>>([])
     const tallyData = useAtomValue(tallyQueryData)
     const aliasRenderer = useAliasRenderer()
 
-    const {isLoading: isDbLoading, error: dbError} = useManagedDatabase(
-        databaseName,
-        electionEventId ? electionEventId : undefined
+    const elections: Array<Sequent_Backend_Election> | undefined = useMemo(
+        () =>
+            tallyData?.sequent_backend_election
+                ?.filter((election) => electionIds?.includes(election.id))
+                ?.map((election): Sequent_Backend_Election => election as any),
+        [tallyData?.sequent_backend_election, electionIds]
     )
 
-    const ids = electionIds || []
-    const {data: elections} = useSQLQuery(
-        `SELECT * FROM election WHERE id IN (${ids.map(() => "?").join(",")})`,
-        ids,
-        {
-            databaseName: databaseName,
-            enabled: !isDbLoading && ids.length > 0,
-        }
+    const results: Array<Sequent_Backend_Results_Election> | undefined = useMemo(
+        () => tallyData?.sequent_backend_results_election,
+        [tallyData?.sequent_backend_results_election]
     )
-
-    const {data: results} = useSQLQuery("SELECT * FROM results_election", [], {
-        databaseName: databaseName,
-        enabled: !isDbLoading,
-    })
 
     useEffect(() => {
         if (elections && results) {
@@ -67,7 +58,7 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
                     const result = results?.find((r) => r.election_id === item.id)
 
                     return {
-                        ...(item as Sequent_Backend_Election),
+                        ...item,
                         rowId: index,
                         id: item.id || "",
                         name: item.name,

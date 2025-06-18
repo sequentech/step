@@ -15,7 +15,6 @@ import {tallyQueryData} from "@/atoms/tally-candidates"
 import {useAtomValue} from "jotai"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {useKeysPermissions} from "../ElectionEvent/useKeysPermissions"
-import {useManagedDatabase, useSQLQuery} from "@/hooks/useSQLiteDatabase"
 
 interface TallyResultsContestProps {
     areas: RaRecord<Identifier>[] | undefined
@@ -24,19 +23,10 @@ interface TallyResultsContestProps {
     tenantId: string | null
     resultsEventId: string | null
     tallySessionId: string | null
-    databaseName: string | undefined
 }
 
 export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) => {
-    const {
-        areas,
-        electionId,
-        electionEventId,
-        tenantId,
-        resultsEventId,
-        tallySessionId,
-        databaseName,
-    } = props
+    const {areas, electionId, electionEventId, tenantId, resultsEventId, tallySessionId} = props
     const [value, setValue] = React.useState<number | null>(0)
     const [contestsData, setContestsData] = useState<Array<Sequent_Backend_Contest>>([])
     const [contestId, setContestId] = useState<string | null>()
@@ -51,27 +41,27 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
 
     const {canExportCeremony} = useKeysPermissions()
 
-    const {isLoading: isDbLoading, error: dbError} = useManagedDatabase(
-        databaseName,
-        electionEventId ? electionEventId : undefined
+    const resultsContests: Array<Sequent_Backend_Results_Contest> | undefined = useMemo(
+        () =>
+            tallyData?.sequent_backend_results_contest?.filter(
+                (areaContest) =>
+                    contestId === areaContest.contest_id && electionId === areaContest.election_id
+            ),
+        [tallyData?.sequent_backend_results_contest, contestId, electionId]
     )
 
-    const {data: resultsContests} = useSQLQuery(
-        "SELECT * FROM results_contest WHERE election_id = ? AND id = ?",
-        [electionId, contestId],
-        {
-            databaseName: databaseName,
-            enabled: !isDbLoading && !!electionId && !!contestId,
-        }
-    )
-
-    const {data: contests} = useSQLQuery(
-        "SELECT * FROM contest WHERE election_id = ?",
-        [electionId],
-        {
-            databaseName: databaseName,
-            enabled: !isDbLoading && !!electionId,
-        }
+    const contests: Array<Sequent_Backend_Contest> | undefined = useMemo(
+        () =>
+            tallyData?.sequent_backend_contest
+                ?.map(
+                    (contest): Sequent_Backend_Contest => ({
+                        ...contest,
+                        candidates: [],
+                        candidates_aggregate: {nodes: []},
+                    })
+                )
+                ?.filter((contest) => electionData === contest.election_id),
+        [tallyData?.sequent_backend_contest, electionData]
     )
 
     useEffect(() => {
@@ -100,7 +90,7 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
 
     useEffect(() => {
         if (electionData) {
-            setContestsData((contests as Sequent_Backend_Contest[]) || [])
+            setContestsData(contests || [])
             if (contests?.[0]?.id) {
                 tabClicked(contests?.[0]?.id, 0)
             }
@@ -196,7 +186,6 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
                         tenantId={contest?.tenant_id}
                         resultsEventId={resultsEventId}
                         tallySessionId={tallySessionId}
-                        databaseName={databaseName}
                     />
                 </CustomTabPanel>
             ))}
