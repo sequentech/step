@@ -54,7 +54,8 @@ pybars3==0.9.7`
 
 Create a `config.json` file in your working directory (the directory you pass to the tool with the `--working-directory` option). Below is an example configuration:
 
-`{
+```json
+{
   "election_event_json_file": "export_election_event-012597c9-3940-4888-8a8e-cc6bb82e2edf.json",
   "realm_name": "tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-012597c9-3940-4888-8a8e-cc6bb82e2edf",
   "tenant_id": "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
@@ -164,7 +165,8 @@ Create a `config.json` file in your working directory (the directory you pass to
       "manual_verify_reason": null
     }
   }
-}` 
+}
+``` 
 
 Customize the configuration as needed for your environment.
 
