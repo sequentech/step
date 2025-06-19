@@ -32,12 +32,10 @@ const BALLOT_ID_VARCHAR_LENGTH: usize = 70;
 ///
 /// Other columns that have no length constraint are not indexable.
 /// 'create' is not indexed, we use statement_timestamp intead.
-const MULTI_COLUMN_INDEXES: [&'static str; 5] = [
+const MULTI_COLUMN_INDEXES: [&'static str; 3] = [
     "(statement_kind, election_id, user_id_key, user_id, ballot_id)", // COUNT or SELECT cast_vote_messages and filter by ballot_id
-    "(statement_kind, user_id_key, user_id, statement_timestamp)", // Filters in Admin portal LOGS tab.
-    "(user_id_key, user_id, statement_timestamp)", // Filters in Admin portal LOGS tab and for the User´s logs.
-    "(statement_timestamp)",                       // Filters in Admin portal LOGS tab.
-    "(statement_kind, statement_timestamp)",       // Filters in Admin portal LOGS tab.
+    "(statement_kind, user_id_key, user_id)", // Filters in Admin portal LOGS tab.
+    "(user_id_key, user_id)", // Filters in Admin portal LOGS tab and for the User´s logs.
 ];
 
 #[derive(Debug)]
