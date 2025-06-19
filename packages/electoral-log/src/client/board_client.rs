@@ -210,7 +210,10 @@ impl BoardClient {
             ("", 0)
         };
 
-        let (where_clause, mut params) = columns_matcher.clone().unwrap_or_default().to_where_clause();
+        let (where_clause, mut params) = columns_matcher
+            .clone()
+            .unwrap_or_default()
+            .to_where_clause();
         let order_by_clauses = if let Some(order_by) = order_by {
             order_by
                 .iter()
@@ -345,7 +348,10 @@ impl BoardClient {
         columns_matcher: Option<WhereClauseOrdMap>,
     ) -> Result<i64> {
         let start = Instant::now();
-        let (where_clause, params) = columns_matcher.clone().unwrap_or_default().to_where_clause();
+        let (where_clause, params) = columns_matcher
+            .clone()
+            .unwrap_or_default()
+            .to_where_clause();
         let where_clauses = if !where_clause.is_empty() {
             format!(
                 r#"
