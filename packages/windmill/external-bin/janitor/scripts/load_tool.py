@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2024 Sequent Legal <legal@sequentech.io>
+# SPDX-FileCopyrightText: 2024-2025 Sequent Legal <legal@sequentech.io>
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
@@ -7,12 +7,12 @@ import argparse
 import json
 import csv
 import random
+import re
 import os
 from itertools import cycle
 from datetime import datetime, timedelta
 import psycopg2
-from psycopg2.extras import execute_values
-import io
+import io # Required for csv.writer in helper generator and StringIteratorIO
 from faker import Faker
 
 # Initialize Faker
@@ -20,8 +20,8 @@ fake = Faker()
 
 # ------------------------------
 # Utility Functions
+# (load_config, deduplicate_preserve_order - assumed to be here and unchanged)
 # ------------------------------
-
 def load_config(working_dir):
     config_path = os.path.join(working_dir, "config.json")
     with open(config_path, "r", encoding="utf-8") as f:
@@ -38,16 +38,17 @@ def deduplicate_preserve_order(items):
 
 # ------------------------------
 # Action: generate-voters
+# (run_generate_voters - assumed to be here and unchanged)
 # ------------------------------
-
 def run_generate_voters(args):
+    # ... (original run_generate_voters code) ...
     working_dir = args.working_directory
     num_users = args.num_users
     config = load_config(working_dir)
     
-    # Load settings from config.json
     election_event_file = os.path.join(working_dir, config.get("election_event_json_file", "export_election_event.json"))
     voters_config = config.get("generate_voters", {})
+    areas_regex = voters_config.get("areas_regex", ".*")
     csv_file = os.path.join(working_dir, voters_config.get("csv_file_name", "generated_users.csv"))
     fields = voters_config.get("fields", [
         'username', 'last_name', 'first_name', 'middleName', 'dateOfBirth',
@@ -62,21 +63,23 @@ def run_generate_voters(args):
     voter_password = voters_config.get("voter_password", "Qwerty1234!")
     password_salt = voters_config.get("password_salt", "sppXH6/iePtmIgcXfTHmjPS2QpLfILVMfmmVOLPKlic=")
     hashed_password = voters_config.get("hashed_password", "V0rb8+HmTneV64qto5f0G2+OY09x2RwPeqtK605EUz0=")
-    # Use Faker's date_of_birth for birth dates.
     min_age = voters_config.get("min_age", 18)
     max_age = voters_config.get("max_age", 90)
     overseas_reference = voters_config.get("overseas_reference", "B")
 
-    # Load the JSON data
     with open(election_event_file, 'r', encoding='utf-8') as f:
         data = json.load(f)
 
     areas = data.get('areas', [])
+    areas = [
+        area
+        for area in areas
+        if re.match(areas_regex, area.get("name", ""))
+    ]
     area_contests = data.get('area_contests', [])
     contests = data.get('contests', [])
     elections = data.get('elections', [])
 
-    # Build election map: election.id -> (alias, clustered precinct)
     election_map = {}
     for el in elections:
         e_id = el.get('id')
@@ -85,7 +88,6 @@ def run_generate_voters(args):
         cluster_prec = ann.get('clustered_precint_id', 'Unknown')
         election_map[e_id] = (alias, cluster_prec)
 
-    # Build area -> contest mapping
     area_contest_map = {}
     for ac in area_contests:
         a_id = ac.get('area_id')
@@ -94,14 +96,12 @@ def run_generate_voters(args):
             area_contest_map[a_id] = []
         area_contest_map[a_id].append(c_id)
 
-    # Build contest to election mapping
     contest_election_map = {}
     for c in contests:
         c_id = c.get('id')
         e_id = c.get('election_id', 'Unknown')
         contest_election_map[c_id] = e_id
 
-    # Parse Keycloak config for country/embassy
     cou_emb_dict = {}
     kc_event = data.get('keycloak_event_realm', {})
     components = kc_event.get('components', {})
@@ -133,7 +133,6 @@ def run_generate_voters(args):
                         cou_emb_dict[emb.lower()] = (ctry.strip(), emb.strip())
                     else:
                         cou_emb_dict[opt.lower()] = (opt.strip(), 'Unknown')
-
     users = []
     username_counter = 1
     area_cycle = cycle(areas)
@@ -206,97 +205,238 @@ def run_generate_voters(args):
                 if k not in final_fields:
                     del outrow[k]
             writer.writerow(outrow)
-
     print(f"Successfully generated {num_users} users. CSV file created at: {os.path.abspath(csv_file)}")
 
-# ------------------------------
-# Action: duplicate-votes
-# ------------------------------
 
+# NEW ADAPTER CLASS
+class StringIteratorIO:
+    """
+    Adapter class to make a string iterator behave like a file-like object
+    for psycopg2's COPY command. It provides read() and readline() methods
+    that return bytes.
+    """
+    def __init__(self, string_iterator, encoding='utf-8'):
+        self.iterator = iter(string_iterator)
+        self.encoding = encoding
+        self._buffer = b'' # Internal buffer for leftover bytes from a read
+
+    def read(self, size=-1):
+        # If the buffer is empty, try to fill it by getting the next line
+        # from the wrapped string iterator and encoding it.
+        if not self._buffer:
+            try:
+                line_str = next(self.iterator)
+                self._buffer = line_str.encode(self.encoding)
+            except StopIteration:
+                # Iterator is exhausted, no more data.
+                return b'' # Signify EOF
+
+        # Now, serve data from the buffer
+        if size < 0 or size >= len(self._buffer):
+            # Request is for all data in buffer or more than available
+            data_to_return = self._buffer
+            self._buffer = b'' # Clear buffer as it's fully consumed
+            return data_to_return
+        else:
+            # Request is for a specific size chunk from the buffer
+            data_to_return = self._buffer[:size]
+            self._buffer = self._buffer[size:] # Keep the remainder
+            return data_to_return
+
+    def readline(self):
+        # Combines current buffer with new data until a newline is found or EOF.
+        line_bytes = self._buffer
+        self._buffer = b'' # Clear existing buffer as it's moved to line_bytes
+
+        while b'\n' not in line_bytes:
+            try:
+                next_chunk_str = next(self.iterator)
+                line_bytes += next_chunk_str.encode(self.encoding)
+            except StopIteration:
+                # EOF reached on the iterator
+                break 
+        
+        # Find the first newline in the accumulated line_bytes
+        nl_pos = line_bytes.find(b'\n')
+        if nl_pos != -1:
+            # Newline found, return the line and buffer the rest
+            data_to_return = line_bytes[:nl_pos + 1]
+            self._buffer = line_bytes[nl_pos + 1:] # Buffer the remainder
+            return data_to_return
+        else:
+            # No newline found (it's the last line or empty)
+            return line_bytes # Return whatever is left
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        line = self.readline()
+        if not line: # readline returns b'' at EOF
+            raise StopIteration
+        return line
+
+
+# Helper generator for run_duplicate_votes (no changes needed here)
+def generate_csv_formatted_rows_for_copy(user_ids_iterable, base_row_data_tuple, annotations_json_str, total_rows_to_generate):
+    election_id, tenant_id, area_id, _original_annotations_obj, content, cast_ballot_signature, election_event_id, ballot_id = base_row_data_tuple
+    for i, user_id in enumerate(user_ids_iterable):
+        if (i + 1) % 20000 == 0 or i == 0 or (i + 1) == total_rows_to_generate:
+            if total_rows_to_generate > 0:
+                 print(f"Preparing data for vote {i+1}/{total_rows_to_generate} ({(i+1)*100/total_rows_to_generate:.2f}%)...")
+        row_tuple = (
+            str(user_id), election_id, tenant_id, area_id, annotations_json_str,
+            content, cast_ballot_signature, election_event_id, ballot_id
+        )
+        sio = io.StringIO()
+        csv_writer = csv.writer(sio, delimiter='\t', quoting=csv.QUOTE_MINIMAL, lineterminator='\n')
+        csv_writer.writerow(row_tuple)
+        yield sio.getvalue()
+
+# ------------------------------
+# Action: duplicate-votes (Optimized Version)
+# ------------------------------
 def run_duplicate_votes(args):
     working_dir = args.working_directory
-    num_votes = args.num_votes
+    num_votes_requested = args.num_votes
     config = load_config(working_dir)
     realm_name = config.get("realm_name", "")
     duplicate_votes_config = config.get("duplicate_votes", {})
     row_id_to_clone = duplicate_votes_config.get("row_id_to_clone", "")
 
-    keycloak_conn = psycopg2.connect(
-        dbname=os.getenv("KC_DB"),
-        user=os.getenv("KC_DB_USERNAME"),
-        password=os.getenv("KC_DB_PASSWORD"),
-        host=os.getenv("KC_DB_URL_HOST"),
-        port=os.getenv("KC_DB_URL_PORT")
-    )
-    hasura_conn = psycopg2.connect(
-        dbname=os.getenv("HASURA_PG_DBNAME"),
-        user=os.getenv("HASURA_PG_USER"),
-        password=os.getenv("HASURA_PG_PASSWORD"),
-        host=os.getenv("HASURA_PG_HOST"),
-        port=os.getenv("HASURA_PG_PORT")
-    )
-    print("Number of rows to clone: ", num_votes)
-    kc_cursor = keycloak_conn.cursor()
-    hasura_cursor = hasura_conn.cursor()
-    #Offset should start at 0 and can be changed if you want to add more votes
-    get_user_ids_query = """
-    SELECT ue.id, ue.username, r.name AS realm_name
-    FROM user_entity AS ue
-    JOIN realm AS r ON ue.realm_id = r.id
-    WHERE r.name = %s
-    LIMIT %s
-    OFFSET 0;
-    """
-    kc_cursor.execute(get_user_ids_query, (realm_name, num_votes))
-    existing_user_ids = [row[0] for row in kc_cursor.fetchall()]
-    print("Number of existing user ids: ", len(existing_user_ids))
-    hasura_cursor.execute(
+    keycloak_conn_params = {
+        "dbname": os.getenv("KEYCLOAK_DB__DBNAME"),
+        "user": os.getenv("KEYCLOAK_DB__USER"),
+        "password": os.getenv("KEYCLOAK_DB__PASSWORD"),
+        "host": os.getenv("KEYCLOAK_DB__HOST"),
+        "port": os.getenv("KEYCLOAK_DB__PORT")
+    }
+    hasura_conn_params = {
+        "dbname": os.getenv("HASURA_DB__DBNAME"),
+        "user": os.getenv("HASURA_DB__USER"),
+        "password": os.getenv("HASURA_DB__PASSWORD"),
+        "host": os.getenv("HASURA_DB__HOST"),
+        "port": os.getenv("HASURA_DB__PORT")
+    }
+
+    keycloak_conn = None
+    hasura_conn = None
+    kc_cursor = None
+    hasura_cursor = None
+
+    try:
+        print(f"Connecting to Keycloak DB: host={keycloak_conn_params.get('host')}, dbname={keycloak_conn_params.get('dbname')}")
+        keycloak_conn = psycopg2.connect(**keycloak_conn_params)
+        kc_cursor = keycloak_conn.cursor()
+        print("Successfully connected to Keycloak DB.")
+
+        print(f"Connecting to Hasura DB: host={hasura_conn_params.get('host')}, dbname={hasura_conn_params.get('dbname')}")
+        hasura_conn = psycopg2.connect(**hasura_conn_params)
+        hasura_cursor = hasura_conn.cursor()
+        print("Successfully connected to Hasura DB.")
+        
+        print(f"\nAttempting to clone data from sequent_backend.cast_vote row ID '{row_id_to_clone}' to generate {num_votes_requested} new vote records.")
+        
+        hasura_cursor.execute(
+            """
+            SELECT election_id, tenant_id, area_id, annotations, content, cast_ballot_signature, election_event_id, ballot_id
+                FROM sequent_backend.cast_vote WHERE id = %s
+            """, (row_id_to_clone,)
+        )
+        base_row_data_tuple = hasura_cursor.fetchone()
+
+        if not base_row_data_tuple:
+            print(f"FATAL: No row found in sequent_backend.cast_vote with id = '{row_id_to_clone}'. Cannot proceed.")
+            return
+
+        annotations_object = base_row_data_tuple[3]
+        annotations_json_string = json.dumps(annotations_object)
+        cloned_row_area_id = base_row_data_tuple[2]
+        
+        get_user_ids_query = """
+        SELECT ue.id
+        FROM user_entity AS ue
+        JOIN realm AS r ON ue.realm_id = r.id
+        INNER JOIN user_attribute AS us ON us.user_id = ue.id
+        WHERE r.name = %s AND us.name = 'area-id' AND us.value = %s
+        ORDER BY random()
+        LIMIT %s; 
         """
-        SELECT election_id, tenant_id, area_id, annotations, content, cast_ballot_signature, election_event_id, ballot_id
-            FROM sequent_backend.cast_vote WHERE id = %s""", (row_id_to_clone,))
-    base_row = hasura_cursor.fetchone()
-    if not base_row:
-        print("No row found to clone.")
-    else:
-        election_id, tenant_id, area_id,annotations, content, cast_ballot_signature, election_event_id, ballot_id = base_row
-        annotations_json = json.dumps(annotations)
-        rows_to_insert = []
-        for i in range(len(existing_user_ids)):
-            uid = existing_user_ids[i]
-            rows_to_insert.append((
-                uid, election_id, tenant_id, area_id,annotations_json, content,
-                cast_ballot_signature, election_event_id, ballot_id
-            ))
-        print("rows_to_insert", len(rows_to_insert))
-        output = io.StringIO()
-        writer = csv.writer(output, delimiter='\t', quoting=csv.QUOTE_MINIMAL)
-        for row in rows_to_insert:
-            writer.writerow(row)
-        output.seek(0)
+        
+        print(f"Fetching up to {num_votes_requested} voter IDs from Keycloak realm '{realm_name}' for area_id '{cloned_row_area_id}'...")
+        kc_cursor.execute(get_user_ids_query, (realm_name, cloned_row_area_id, num_votes_requested))
+        user_ids = [row[0] for row in kc_cursor.fetchall()]
+
+        if not user_ids:
+            print(f"No user IDs found in realm '{realm_name}' for area_id '{cloned_row_area_id}'. Cannot generate votes.")
+            return
+        
+        actual_users_found = len(user_ids)
+        if actual_users_found < num_votes_requested:
+            print(f"Warning: Requested {num_votes_requested} votes, but only found {actual_users_found} suitable users. Proceeding with {actual_users_found} votes.")
+        
+        if actual_users_found == 0:
+            print("No users found to create votes for. Exiting.")
+            return
+
+        print(f"Found {actual_users_found} user IDs. Preparing data for bulk insert into Hasura DB...")
+        print(f"Starting data generation for {actual_users_found} votes for COPY operation...")
+
+        data_generator_iterable = generate_csv_formatted_rows_for_copy(
+            user_ids, 
+            base_row_data_tuple, 
+            annotations_json_string,
+            actual_users_found
+        )
+        
+        # MODIFICATION: Wrap the generator in the StringIteratorIO adapter
+        file_like_adapter = StringIteratorIO(data_generator_iterable)
+
         copy_sql = """
         COPY sequent_backend.cast_vote (
             voter_id_string, election_id, tenant_id, area_id, annotations, content,
             cast_ballot_signature, election_event_id, ballot_id
         )
-        FROM STDIN WITH (FORMAT csv, DELIMITER E'\t')
+        FROM STDIN WITH (FORMAT CSV, DELIMITER E'\t')
         """
+
+        print("\nStarting database insert using COPY FROM STDIN...")
         start_time = datetime.now()
-        print("Start time:", start_time)
-        hasura_cursor.copy_expert(copy_sql, output)
+        print(f"SQL Start time: {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
+        
+        # Use the adapter here
+        hasura_cursor.copy_expert(sql=copy_sql, file=file_like_adapter)
         hasura_conn.commit()
+        
         end_time = datetime.now()
-        print("End time:", end_time)
-    # Cleanup
-    kc_cursor.close()
-    keycloak_conn.close()
-    hasura_cursor.close()
-    hasura_conn.close()
+        print(f"SQL End time: {end_time.strftime('%Y-%m-%d %H:%M:%S')}")
+        duration = end_time - start_time
+        print(f"Successfully inserted {actual_users_found} duplicated vote records.")
+        print(f"Insertion duration: {duration}")
+
+    except psycopg2.Error as db_err:
+        print(f"\nDatabase error occurred: {db_err}")
+        if hasura_conn:
+            print("Rolling back Hasura transaction due to error.")
+            hasura_conn.rollback()
+    except IOError as io_err:
+        print(f"\nFile/IO error: {io_err}")
+    except Exception as e:
+        print(f"\nAn unexpected error occurred: {e}")
+    finally:
+        print("\nClosing database connections...")
+        if kc_cursor: kc_cursor.close()
+        if keycloak_conn: keycloak_conn.close()
+        if hasura_cursor: hasura_cursor.close()
+        if hasura_conn: hasura_conn.close()
+        print("Database connections closed.")
 
 # ------------------------------
 # Action: generate-applications
+# (run_generate_applications - assumed to be here and unchanged)
 # ------------------------------
-
 def run_generate_applications(args):
+    # ... (original run_generate_applications code) ...
     working_dir = args.working_directory
     status = args.status
     verification_type = args.type
@@ -327,7 +467,6 @@ def run_generate_applications(args):
     print("number of rows to clone: ", num_applications)
     kc_cursor = keycloak_conn.cursor()
     hasura_cursor = hasura_conn.cursor()
-    #Offset should start at 0 and can be changed if you want to add more votes
     get_user_query = """
     SELECT 
         ue.id,
@@ -367,7 +506,6 @@ def run_generate_applications(args):
         embassy = user[7]
         dateOfBirth = user[8]
 
-        # Copy the default applicant data and update with user details.
         applicant_data = default_applicant_data.copy()
         applicant_data.update({
             "email": email,
@@ -410,57 +548,48 @@ def run_generate_applications(args):
     end_time = datetime.now()
     print("End time:", end_time)
 
-    # Cleanup
     kc_cursor.close()
     keycloak_conn.close()
     hasura_cursor.close()
     hasura_conn.close()
-    
+
 # ------------------------------
 # Action: generate-activity-logs
+# (run_generate_activity_logs - assumed to be here and unchanged)
 # ------------------------------
-
 def run_generate_activity_logs(args):
     print("generate-activity-logs action is not implemented yet.")
 
 # ------------------------------
 # Main Dispatcher
 # ------------------------------
-
 def main():
     parser = argparse.ArgumentParser(description="Load Testing Tool")
+    parser.add_argument("--working-directory", default=".", help="Path to working directory (input/output directory)")
     subparsers = parser.add_subparsers(dest="action", required=True, help="Action to perform")
     
-    # Global argument for working directory
-    parser.add_argument("--working-directory", required=True, help="Path to working directory (input/output directory)")
-
-    # Sub-command for generate-voters
     parser_voters = subparsers.add_parser("generate-voters", help="Generate random voters CSV file")
     parser_voters.add_argument("--num-users", type=int, required=True, help="Number of users to generate")
     parser_voters.set_defaults(func=run_generate_voters)
 
-    # Sub-command for duplicate-votes
     parser_votes = subparsers.add_parser("duplicate-votes", help="Duplicate cast votes in the database")
     parser_votes.add_argument("--num-votes", type=int, required=True, help="Number of votes to generate")
     parser_votes.set_defaults(func=run_duplicate_votes)
 
-
-    # Sub-command for generate-applications
     parser_applications = subparsers.add_parser("generate-applications", help="Generate applications in different states")
     parser_applications.add_argument("--num-applications", type=int, required=True, help="Number of applications to generate")
     parser_applications.add_argument("--status",type=str,choices=["PENDING", "REJECTED", "ACCEPTED"], default="PENDING", help="Application status (default: PENDING)")
     parser_applications.add_argument("--type",required=False,type=str,choices=["AUTOMATIC","MANUAL"], help="Application verification type")
     parser_applications.set_defaults(func=run_generate_applications)
     
-    # Sub-command for generate-activity-logs
     parser_logs = subparsers.add_parser("generate-activity-logs", help="Generate activity logs")
     parser_logs.set_defaults(func=run_generate_activity_logs)
     
-
-    
     args = parser.parse_args()
-    args.func(args)
-
+    if hasattr(args, 'func'):
+        args.func(args)
+    else:
+        parser.print_help()
 
 if __name__ == "__main__":
     main()
