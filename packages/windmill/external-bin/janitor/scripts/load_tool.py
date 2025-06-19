@@ -294,15 +294,13 @@ def generate_csv_formatted_rows_for_copy(user_ids_iterable, base_row_data_tuple,
         yield sio.getvalue()
 
 # ------------------------------
-# Action: duplicate-votes (Optimized Version)
+# Action: duplicate-votes (Refactored for CLI args, efficient streaming)
 # ------------------------------
 def run_duplicate_votes(args):
-    working_dir = args.working_directory
     num_votes_requested = args.num_votes
-    config = load_config(working_dir)
-    realm_name = config.get("realm_name", "")
-    duplicate_votes_config = config.get("duplicate_votes", {})
-    row_id_to_clone = duplicate_votes_config.get("row_id_to_clone", "")
+    election_event_id = args.election_event_id
+    election_id = args.election_id
+    tenant_id = args.tenant_id
 
     keycloak_conn_params = {
         "dbname": os.getenv("KEYCLOAK_DB__DBNAME"),
@@ -327,32 +325,55 @@ def run_duplicate_votes(args):
     try:
         print(f"Connecting to Keycloak DB: host={keycloak_conn_params.get('host')}, dbname={keycloak_conn_params.get('dbname')}")
         keycloak_conn = psycopg2.connect(**keycloak_conn_params)
-        kc_cursor = keycloak_conn.cursor()
+        kc_cursor = keycloak_conn.cursor(name='kc_voters_cursor')
         print("Successfully connected to Keycloak DB.")
 
         print(f"Connecting to Hasura DB: host={hasura_conn_params.get('host')}, dbname={hasura_conn_params.get('dbname')}")
         hasura_conn = psycopg2.connect(**hasura_conn_params)
-        hasura_cursor = hasura_conn.cursor()
+        hasura_cursor = hasura_conn.cursor(name='hasura_votes_cursor')
         print("Successfully connected to Hasura DB.")
-        
-        print(f"\nAttempting to clone data from sequent_backend.cast_vote row ID '{row_id_to_clone}' to generate {num_votes_requested} new vote records.")
-        
-        hasura_cursor.execute(
+
+        # 1. Find a vote for this election_event_id (and optionally election_id)
+        if election_id:
+            hasura_cursor.execute(
             """
-            SELECT election_id, tenant_id, area_id, annotations, content, cast_ballot_signature, election_event_id, ballot_id
-                FROM sequent_backend.cast_vote WHERE id = %s
-            """, (row_id_to_clone,)
-        )
-        base_row_data_tuple = hasura_cursor.fetchone()
-
-        if not base_row_data_tuple:
-            print(f"FATAL: No row found in sequent_backend.cast_vote with id = '{row_id_to_clone}'. Cannot proceed.")
+                SELECT
+                    election_id,
+                                  area_id
+                FROM sequent_backend.cast_vote
+                WHERE
+                    tenant_id = %s
+                    AND election_event_id = %s
+                    AND election_id = %s
+                LIMIT 1
+            """, (tenant_id, election_event_id, election_id))
+        else:
+            hasura_cursor.execute(
+            """
+                SELECT
+                    election_id,
+                    area_id 
+                FROM sequent_backend.cast_vote
+                WHERE
+                    tenant_id = %s
+                    AND election_event_id = %s
+                LIMIT 1
+            """, (tenant_id, election_event_id))
+        row = hasura_cursor.fetchone()
+        if not row:
+            print(f"No cast votes found for election_event_id={election_event_id} (and election_id={election_id} if provided). Cannot proceed.")
             return
+        found_election_id, found_area_id = row
+        if not election_id:
+            election_id = found_election_id
+        area_id = found_area_id
+        print(f"Using election_id={election_id}, area_id={area_id}")
 
-        annotations_object = base_row_data_tuple[3]
-        annotations_json_string = json.dumps(annotations_object)
-        cloned_row_area_id = base_row_data_tuple[2]
-        
+        # 2. Find the realm name for this election event and tenant
+        realm_name = f"tenant-{tenant_id}-event-{election_event_id}"
+        print(f"Using realm_name={realm_name}")
+
+        # 3. Get eligible voter IDs for the area (limit to num_votes_requested, random order)
         get_user_ids_query = """
         SELECT ue.id
         FROM user_entity AS ue
@@ -360,38 +381,52 @@ def run_duplicate_votes(args):
         INNER JOIN user_attribute AS us ON us.user_id = ue.id
         WHERE r.name = %s AND us.name = 'area-id' AND us.value = %s
         ORDER BY random()
-        LIMIT %s; 
+        LIMIT %s;
         """
-        
-        print(f"Fetching up to {num_votes_requested} voter IDs from Keycloak realm '{realm_name}' for area_id '{cloned_row_area_id}'...")
-        kc_cursor.execute(get_user_ids_query, (realm_name, cloned_row_area_id, num_votes_requested))
+        print(f"Fetching up to {num_votes_requested} voter IDs from Keycloak realm '{realm_name}' for area_id '{area_id}'...")
+        kc_cursor.execute(get_user_ids_query, (realm_name, area_id, num_votes_requested))
         user_ids = [row[0] for row in kc_cursor.fetchall()]
-
         if not user_ids:
-            print(f"No user IDs found in realm '{realm_name}' for area_id '{cloned_row_area_id}'. Cannot generate votes.")
+            print(f"No user IDs found in realm '{realm_name}' for area_id '{area_id}'. Cannot generate votes.")
             return
-        
         actual_users_found = len(user_ids)
         if actual_users_found < num_votes_requested:
             print(f"Warning: Requested {num_votes_requested} votes, but only found {actual_users_found} suitable users. Proceeding with {actual_users_found} votes.")
-        
-        if actual_users_found == 0:
-            print("No users found to create votes for. Exiting.")
+        print(f"Found {actual_users_found} user IDs. Will generate votes for these users.")
+
+        # 4. Get existing votes for this election/area (streaming, not all in memory)
+        get_votes_query = """
+        SELECT election_id, tenant_id, area_id, annotations, content, cast_ballot_signature, election_event_id, ballot_id
+        FROM sequent_backend.cast_vote
+        WHERE election_id = %s AND area_id = %s
+        """
+        hasura_cursor.execute(get_votes_query, (election_id, area_id))
+        print("Streaming existing votes for election/area...")
+        base_votes = []
+        for row in hasura_cursor:
+            base_votes.append(row)
+        if not base_votes:
+            print(f"No existing votes found for election_id={election_id}, area_id={area_id}. Cannot duplicate.")
             return
+        print(f"Found {len(base_votes)} base votes to use for duplication.")
 
-        print(f"Found {actual_users_found} user IDs. Preparing data for bulk insert into Hasura DB...")
-        print(f"Starting data generation for {actual_users_found} votes for COPY operation...")
+        # 5. Prepare generator for new votes (cycle through base_votes if needed)
+        def vote_row_generator(user_ids, base_votes, total_rows):
+            from itertools import islice, cycle
+            base_votes_cycle = cycle(base_votes)
+            for i, (user_id, base_vote) in enumerate(zip(user_ids, islice(base_votes_cycle, total_rows))):
+                election_id, tenant_id, area_id, annotations_obj, content, cast_ballot_signature, election_event_id, ballot_id = base_vote
+                annotations_json_str = json.dumps(annotations_obj)
+                row_tuple = (
+                    str(user_id), election_id, tenant_id, area_id, annotations_json_str,
+                    content, cast_ballot_signature, election_event_id, ballot_id
+                )
+                sio = io.StringIO()
+                csv_writer = csv.writer(sio, delimiter='\t', quoting=csv.QUOTE_MINIMAL, lineterminator='\n')
+                csv_writer.writerow(row_tuple)
+                yield sio.getvalue()
 
-        data_generator_iterable = generate_csv_formatted_rows_for_copy(
-            user_ids, 
-            base_row_data_tuple, 
-            annotations_json_string,
-            actual_users_found
-        )
-        
-        # MODIFICATION: Wrap the generator in the StringIteratorIO adapter
-        file_like_adapter = StringIteratorIO(data_generator_iterable)
-
+        file_like_adapter = StringIteratorIO(vote_row_generator(user_ids, base_votes, actual_users_found))
         copy_sql = """
         COPY sequent_backend.cast_vote (
             voter_id_string, election_id, tenant_id, area_id, annotations, content,
@@ -399,15 +434,11 @@ def run_duplicate_votes(args):
         )
         FROM STDIN WITH (FORMAT CSV, DELIMITER E'\t')
         """
-
         print("\nStarting database insert using COPY FROM STDIN...")
         start_time = datetime.now()
         print(f"SQL Start time: {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
-        
-        # Use the adapter here
-        hasura_cursor.copy_expert(sql=copy_sql, file=file_like_adapter)
+        hasura_conn.cursor().copy_expert(sql=copy_sql, file=file_like_adapter)
         hasura_conn.commit()
-        
         end_time = datetime.now()
         print(f"SQL End time: {end_time.strftime('%Y-%m-%d %H:%M:%S')}")
         duration = end_time - start_time
@@ -566,7 +597,7 @@ def run_generate_activity_logs(args):
 def main():
     parser = argparse.ArgumentParser(description="Load Testing Tool")
     parser.add_argument("--working-directory", default=".", help="Path to working directory (input/output directory)")
-    subparsers = parser.add_subparsers(dest="action", required=True, help="Action to perform")
+    subparsers = parser.add_subparsers(dest="action", required=False, help="Action to perform")
     
     parser_voters = subparsers.add_parser("generate-voters", help="Generate random voters CSV file")
     parser_voters.add_argument("--num-users", type=int, required=True, help="Number of users to generate")
@@ -574,6 +605,9 @@ def main():
 
     parser_votes = subparsers.add_parser("duplicate-votes", help="Duplicate cast votes in the database")
     parser_votes.add_argument("--num-votes", type=int, required=True, help="Number of votes to generate")
+    parser_votes.add_argument("--election-event-id", type=str, required=True, help="Election event ID to duplicate votes for")
+    parser_votes.add_argument("--election-id", type=str, required=False, help="Election ID to duplicate votes for")
+    parser_votes.add_argument("--tenant-id", type=str, default="90505c8a-23a9-4cdf-a26b-4e19f6a097d5" required=False, help="Tenant ID for realm name")
     parser_votes.set_defaults(func=run_duplicate_votes)
 
     parser_applications = subparsers.add_parser("generate-applications", help="Generate applications in different states")
