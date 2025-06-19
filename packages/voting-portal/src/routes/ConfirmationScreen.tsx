@@ -12,6 +12,7 @@ import {
     IAuditableMultiBallot,
     IAuditableSingleBallot,
     EElectionEventContestEncryptionPolicy,
+    overwriteTranslations,
 } from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import {faPrint, faCircleQuestion, faCheck} from "@fortawesome/free-solid-svg-icons"
@@ -22,7 +23,7 @@ import Link from "@mui/material/Link"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {selectAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
 import {canVoteSomeElection} from "../store/castVotes/castVotesSlice"
-import {selectElectionEventById} from "../store/electionEvents/electionEventsSlice"
+import {IElectionEvent, selectElectionEventById} from "../store/electionEvents/electionEventsSlice"
 import {TenantEventType} from ".."
 import {clearBallot} from "../store/ballotSelections/ballotSelectionsSlice"
 import {
@@ -38,10 +39,15 @@ import Stepper from "../components/Stepper"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import {provideBallotService} from "../services/BallotService"
 import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortalError"
-import {GetElectionsQuery} from "../gql/graphql"
+import {GetBallotStylesQuery, GetElectionEventQuery, GetElectionsQuery} from "../gql/graphql"
 import {GET_ELECTIONS} from "../queries/GetElections"
 import {downloadUrl} from "@sequentech/ui-core"
 import {SessionBallotData} from "../store/castVotes/castVotesSlice"
+import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
+import useUpdateTranslation from "../hooks/useUpdateTranslation"
+import useLanguage from "../hooks/useLanguage"
+import {GET_BALLOT_STYLES} from "../queries/GetBallotStyles"
+import {updateBallotStyleAndSelection} from "../services/BallotStyles"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -277,12 +283,18 @@ const ConfirmationScreen: React.FC = () => {
     const {tenantId, eventId} = useParams<TenantEventType>()
     const {electionId} = useParams<{electionId?: string}>()
     const auditableBallot = useAppSelector(selectAuditableBallot(String(electionId)))
-    const {t} = useTranslation()
+    const electionEvent = useAppSelector(selectElectionEventById(eventId))
+    const {t, i18n} = useTranslation()
     const [openBallotIdHelp, setOpenBallotIdHelp] = useState(false)
     const [openConfirmationHelp, setOpenConfirmationHelp] = useState(false)
     const [openDemoBallotUrlHelp, setDemoBallotUrlHelp] = useState(false)
     const {hashBallot, hashMultiBallot} = provideBallotService()
+
     const oneBallotStyle = useAppSelector(selectFirstBallotStyle)
+    useLanguage({ballotStyle: oneBallotStyle})
+
+    const {globalSettings} = useContext(SettingsContext)
+
     const getBallotId = (): {
         ballotIdStored: string | undefined
         isDemoStored: boolean | undefined
@@ -321,6 +333,7 @@ const ConfirmationScreen: React.FC = () => {
     const [demoBallotIdHelp, setDemoBallotIdHelp] = useState<boolean>(false)
     const [isDemo, setIsDemo] = useState<boolean>(false)
     const [ballotTrackerUrl, setBallotTrackerUrl] = useState<string | undefined>(undefined)
+    const {data: dataBallotStyles} = useQuery<GetBallotStylesQuery>(GET_BALLOT_STYLES)
 
     if (
         gotData.current &&
@@ -332,6 +345,27 @@ const ConfirmationScreen: React.FC = () => {
         )
         throw new VotingPortalError(VotingPortalErrorType.INCONSISTENT_HASH)
     }
+
+    const {data: dataElectionEvent} = useQuery<GetElectionEventQuery>(GET_ELECTION_EVENT, {
+        variables: {
+            electionEventId: eventId,
+            tenantId,
+        },
+        skip: globalSettings.DISABLE_AUTH, // Skip query if in demo mode
+    })
+
+    // Update translations based on election event data
+    useUpdateTranslation({
+        electionEvent: dataElectionEvent?.sequent_backend_election_event[0] as IElectionEvent,
+    }) // Overwrite translations
+    const dispatch = useAppDispatch()
+
+    // Update ballot style and selection when ballot style data changes
+    useEffect(() => {
+        if (dataBallotStyles && dataBallotStyles.sequent_backend_ballot_style.length > 0) {
+            updateBallotStyleAndSelection(dataBallotStyles, dispatch)
+        }
+    }, [dataBallotStyles, dispatch])
 
     useEffect(() => {
         if (!gotData.current) {
