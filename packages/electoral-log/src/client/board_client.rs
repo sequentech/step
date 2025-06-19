@@ -32,7 +32,7 @@ const BALLOT_ID_VARCHAR_LENGTH: usize = 70;
 ///
 /// Other columns that have no length constraint are not indexable.
 /// 'create' is not indexed, we use statement_timestamp intead.
-const MULTI_COLUMN_INDEXES: [&'static str; 3] = [
+pub const MULTI_COLUMN_INDEXES: [&'static str; 3] = [
     "(statement_kind, election_id, user_id_key, user_id, ballot_id)", // COUNT or SELECT cast_vote_messages and filter by ballot_id
     "(statement_kind, user_id_key, user_id)", // Filters in Admin portal LOGS tab.
     "(user_id_key, user_id)", // Filters in Admin portal LOGS tab and for the User´s logs.
@@ -140,7 +140,7 @@ impl BoardClient {
     pub async fn get_electoral_log_messages_filtered<K, V>(
         &mut self,
         board_db: &str,
-        columns_matcher: Option<WhereClauseBTreeMap>,
+        columns_matcher: Option<WhereClauseOrdMap>,
         min_ts: Option<i64>,
         max_ts: Option<i64>,
         limit: Option<i64>,
@@ -186,7 +186,7 @@ impl BoardClient {
     async fn get_filtered<K, V>(
         &mut self,
         board_db: &str,
-        columns_matcher: Option<WhereClauseBTreeMap>,
+        columns_matcher: Option<WhereClauseOrdMap>,
         min_ts: Option<i64>,
         max_ts: Option<i64>,
         limit: Option<i64>,
@@ -210,7 +210,7 @@ impl BoardClient {
             ("", 0)
         };
 
-        let (where_clause, mut params) = BoardClient::to_where_clause(columns_matcher.clone());
+        let (where_clause, mut params) = columns_matcher.clone().unwrap_or_default().to_where_clause();
         let order_by_clauses = if let Some(order_by) = order_by {
             order_by
                 .iter()
@@ -265,7 +265,7 @@ impl BoardClient {
                 String::from("")
             };
 
-        let use_index_clause = BoardClient::to_use_index_clause(columns_matcher);
+        let use_index_clause = columns_matcher.unwrap_or_default().to_use_index_clause();
 
         self.client.use_database(board_db).await?;
         let sql = format!(
@@ -342,10 +342,10 @@ impl BoardClient {
     pub async fn count_electoral_log_messages(
         &mut self,
         board_db: &str,
-        columns_matcher: Option<WhereClauseBTreeMap>,
+        columns_matcher: Option<WhereClauseOrdMap>,
     ) -> Result<i64> {
         let start = Instant::now();
-        let (where_clause, params) = BoardClient::to_where_clause(columns_matcher.clone());
+        let (where_clause, params) = columns_matcher.clone().unwrap_or_default().to_where_clause();
         let where_clauses = if !where_clause.is_empty() {
             format!(
                 r#"
@@ -355,7 +355,7 @@ impl BoardClient {
         } else {
             String::from("")
         };
-        let use_index_clause = BoardClient::to_use_index_clause(columns_matcher);
+        let use_index_clause = columns_matcher.unwrap_or_default().to_use_index_clause();
         self.client.use_database(board_db).await?;
 
         let count = if use_index_clause.is_empty() && where_clauses.is_empty() && params.is_empty()
@@ -420,79 +420,6 @@ impl BoardClient {
         let duration = start.elapsed();
         info!("COUNT query took {}ms", duration.as_millis());
         Ok(count as i64)
-    }
-
-    /// If the first element of the map (first column in the where clause) has an index, it will be used.
-    /// This will match the longest possible index.
-    fn to_use_index_clause(columns_matcher: Option<WhereClauseBTreeMap>) -> String {
-        let mut try_index_clause = String::from("");
-        let mut last_index_clause_match = String::from("");
-        for (col_name, _) in columns_matcher.unwrap_or_default().iter() {
-            if try_index_clause.is_empty() {
-                try_index_clause.push_str(&format!("({col_name}")); // For the contains() is important to mark with '(' the beginning of the index.
-            } else {
-                try_index_clause.push_str(&format!(", {col_name}"));
-            }
-            for index in MULTI_COLUMN_INDEXES {
-                if index.contains(&try_index_clause.as_str()) {
-                    last_index_clause_match = format!("USE INDEX ON {index}");
-                }
-            }
-        }
-        last_index_clause_match
-    }
-
-    fn to_where_clause(columns_matcher: Option<WhereClauseBTreeMap>) -> (String, Vec<NamedParam>) {
-        let mut params = vec![];
-        let mut where_clause = String::from("");
-        for (col_name, op) in columns_matcher.unwrap_or_default().iter() {
-            match op {
-                SqlCompOperators::In(values_vec) | SqlCompOperators::NotIn(values_vec) => {
-                    let placeholders: Vec<String> = values_vec
-                        .iter()
-                        .enumerate()
-                        .map(|(i, _)| format!("@param_{col_name}{i}"))
-                        .collect();
-                    for (i, value) in values_vec.into_iter().enumerate() {
-                        params.push(NamedParam {
-                            name: format!("param_{col_name}{i}"),
-                            value: Some(SqlValue {
-                                value: Some(Value::S(value.to_owned())),
-                            }),
-                        });
-                    }
-                    if where_clause.is_empty() {
-                        where_clause
-                            .push_str(&format!("{col_name} {op} ({})", placeholders.join(", ")));
-                    } else {
-                        where_clause.push_str(&format!(
-                            "AND {col_name} {op} ({})",
-                            placeholders.join(", ")
-                        ));
-                    }
-                }
-                SqlCompOperators::Equal(value)
-                | SqlCompOperators::NotEqual(value)
-                | SqlCompOperators::GreaterThan(value)
-                | SqlCompOperators::LessThan(value)
-                | SqlCompOperators::GreaterThanOrEqual(value)
-                | SqlCompOperators::LessThanOrEqual(value)
-                | SqlCompOperators::Like(value) => {
-                    if where_clause.is_empty() {
-                        where_clause.push_str(&format!("{col_name} {op} @{col_name} "));
-                    } else {
-                        where_clause.push_str(&format!("AND {col_name} {op} @{col_name} "));
-                    }
-                    params.push(NamedParam {
-                        name: col_name.to_string(),
-                        value: Some(SqlValue {
-                            value: Some(Value::S(value.to_owned())),
-                        }),
-                    });
-                }
-            }
-        }
-        (where_clause, params)
     }
 
     pub async fn open_session(&mut self, database_name: &str) -> Result<()> {
@@ -949,7 +876,7 @@ pub(crate) mod tests {
         let ret = b.get_electoral_log_messages(BOARD_DB).await.unwrap();
         assert_eq!(messages, ret);
 
-        let cols_match = BTreeMap::from([
+        let cols_match = WhereClauseOrdMap::from(&[
             (
                 ElectoralLogVarCharColumn::StatementKind,
                 (SqlCompOperators::Equal, "".to_string()),

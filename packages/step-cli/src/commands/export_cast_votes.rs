@@ -79,7 +79,7 @@ impl ExportCastVotes {
             .await
             .map_err(|err| anyhow!("Failed to create the client: {:?}", err))?;
 
-        let cols_match = BTreeMap::from([(
+        let cols_match = WhereClauseOrdMap::from(&[(
             ElectoralLogVarCharColumn::StatementKind,
             SqlCompOperators::Equal(StatementType::CastVote.to_string()),
         )]);

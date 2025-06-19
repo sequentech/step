@@ -3,10 +3,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::assign_value;
+use crate::client::board_client::MULTI_COLUMN_INDEXES;
 use crate::messages::statement::{StatementBody, StatementType};
 use anyhow::{anyhow, Result};
 use chrono::{DateTime, Utc};
-use immudb_rs::{sql_value::Value, Row};
+use immudb_rs::{sql_value::Value, NamedParam, Row, SqlValue};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::collections::HashMap;
@@ -53,7 +54,118 @@ pub enum SqlCompOperators {
     NotIn(Vec<String>),
 }
 
-pub type WhereClauseBTreeMap = BTreeMap<ElectoralLogVarCharColumn, SqlCompOperators>;
+/// Each column in the map is unique but it can have several filters associated with it.
+/// The type will keep the order of the columns to match the multicolumn indexes.
+#[derive(Debug, Clone, Default)]
+pub struct WhereClauseOrdMap(BTreeMap<ElectoralLogVarCharColumn, Vec<SqlCompOperators>>);
+
+impl WhereClauseOrdMap {
+    pub fn new() -> Self {
+        Self(BTreeMap::new())
+    }
+
+    pub fn from(tuples: &[(ElectoralLogVarCharColumn, SqlCompOperators)]) -> Self {
+        let mut map = WhereClauseOrdMap::new();
+        for (key, value) in tuples {
+            map.insert(key.clone(), value.clone());
+        }
+        map
+    }
+
+    /// If the column already exists, the comparisson will be added to the existing ones.
+    /// Otherwise it will create the first one.
+    pub fn insert(&mut self, key: ElectoralLogVarCharColumn, value: SqlCompOperators) {
+        self.0
+            .entry(key)
+            .and_modify(|vec| vec.push(value.clone()))
+            .or_insert(vec![value]);
+    }
+
+    pub fn iter(
+        &self,
+    ) -> std::collections::btree_map::Iter<ElectoralLogVarCharColumn, Vec<SqlCompOperators>> {
+        self.0.iter()
+    }
+
+    /// If the first element of the map (first column in the where clause) has an index, it will be used.
+    /// This will match the longest possible index.
+    pub fn to_use_index_clause(&self) -> String {
+        let mut try_index_clause = String::from("");
+        let mut last_index_clause_match = String::from("");
+        for (col_name, _) in self.iter() {
+            if try_index_clause.is_empty() {
+                try_index_clause.push_str(&format!("({col_name}")); // For the contains() is important to mark with '(' the beginning of the index.
+            } else {
+                try_index_clause.push_str(&format!(", {col_name}"));
+            }
+            for index in MULTI_COLUMN_INDEXES {
+                if index.contains(&try_index_clause.as_str()) {
+                    last_index_clause_match = format!("USE INDEX ON {index}");
+                }
+            }
+        }
+        last_index_clause_match
+    }
+
+    pub fn to_where_clause(&self) -> (String, Vec<NamedParam>) {
+        let mut params = vec![];
+        let mut where_clause = String::from("");
+        for (col_name, comparissons) in self.iter() {
+            for (i, op) in comparissons.iter().enumerate() {
+                match op {
+                    SqlCompOperators::In(values_vec) | SqlCompOperators::NotIn(values_vec) => {
+                        let placeholders: Vec<String> = values_vec
+                            .iter()
+                            .enumerate()
+                            .map(|(j, _)| format!("@param_{col_name}{i}{j}"))
+                            .collect();
+                        for (j, value) in values_vec.into_iter().enumerate() {
+                            params.push(NamedParam {
+                                name: format!("param_{col_name}{i}{j}"),
+                                value: Some(SqlValue {
+                                    value: Some(Value::S(value.to_owned())),
+                                }),
+                            });
+                        }
+                        if where_clause.is_empty() {
+                            where_clause.push_str(&format!(
+                                "{col_name} {op} ({})",
+                                placeholders.join(", ")
+                            ));
+                        } else {
+                            where_clause.push_str(&format!(
+                                "AND {col_name} {op} ({})",
+                                placeholders.join(", ")
+                            ));
+                        }
+                    }
+                    SqlCompOperators::Equal(value)
+                    | SqlCompOperators::NotEqual(value)
+                    | SqlCompOperators::GreaterThan(value)
+                    | SqlCompOperators::LessThan(value)
+                    | SqlCompOperators::GreaterThanOrEqual(value)
+                    | SqlCompOperators::LessThanOrEqual(value)
+                    | SqlCompOperators::Like(value) => {
+                        if where_clause.is_empty() {
+                            where_clause
+                                .push_str(&format!("{col_name} {op} @param_{col_name}{i} "));
+                        } else {
+                            where_clause
+                                .push_str(&format!("AND {col_name} {op} @param_{col_name}{i} "));
+                        }
+                        params.push(NamedParam {
+                            name: format!("param_{col_name}{i}"),
+                            value: Some(SqlValue {
+                                value: Some(Value::S(value.to_owned())),
+                            }),
+                        });
+                    }
+                }
+            }
+        }
+        (where_clause, params)
+    }
+}
 
 // Enumeration for the valid fields in the immudb table
 #[derive(Debug, Deserialize, Hash, PartialEq, Eq, EnumString, Display, Clone)]
@@ -124,8 +236,8 @@ impl GetElectoralLogBody {
     }
 
     #[instrument(skip_all)]
-    pub fn as_where_clause_map(&self) -> Result<WhereClauseBTreeMap> {
-        let mut cols_match_select = WhereClauseBTreeMap::new();
+    pub fn as_where_clause_map(&self) -> Result<WhereClauseOrdMap> {
+        let mut cols_match_select = WhereClauseOrdMap::new();
         if let Some(filters_map) = &self.filter {
             for (field, value) in filters_map.iter() {
                 match field {
@@ -190,8 +302,8 @@ impl GetElectoralLogBody {
         election_id: &str,
         user_id: &str,
         ballot_id_filter: &str,
-    ) -> (WhereClauseBTreeMap, WhereClauseBTreeMap) {
-        let cols_match_count = BTreeMap::from([
+    ) -> (WhereClauseOrdMap, WhereClauseOrdMap) {
+        let cols_match_count = WhereClauseOrdMap::from(&[
             (
                 ElectoralLogVarCharColumn::StatementKind,
                 SqlCompOperators::Equal(StatementType::CastVote.to_string()),

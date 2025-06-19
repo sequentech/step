@@ -954,7 +954,7 @@ pub async fn list_cast_vote_messages(
     ballot_id_filter: &str,
     user_id: &str,
     username: &str,
-    cols_match_select: WhereClauseBTreeMap,
+    cols_match_select: WhereClauseOrdMap,
 ) -> Result<CastVoteMessagesOutput> {
     // The limits are used to cut the output after filtering the ballot id.
     // Because ballot_id cannot be filtered at SQL level the sql limit is constant
