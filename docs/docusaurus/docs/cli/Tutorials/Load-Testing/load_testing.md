@@ -17,6 +17,10 @@ You need:
 - A [kubeconfig file][kubeconfig] that gives access to the cluster. We'll assume
   it's in `~/.kube/prod1-euw1-kubeconfig.yml` throughout the tutorial.
 
+## Creating an election
+
+
+
 ## Duplicating votes
 
 ### 1. Access and Configuration
@@ -31,15 +35,13 @@ export KUBECONFIG=~/.kube/prod1-euw1-kubeconfig.yml
 Let's review the windmill pods using the following command:
 
 ```bash
-kubectl get pods -n dev-apps | grep "^windmill-[^-]*-[^-]*[[:space:]]"
+kubectl get pods -n dev-apps | grep "^testing-pod"
 ```
 
 The output should looks something like:
 
 ```bash
-windmill-bcb484fcc-b9fs8                  1/1     Running   2 (8h ago)   14h
-windmill-bcb484fcc-tp48p                  1/1     Running   1 (8h ago)   15h
-windmill-bcb484fcc-wtntl                  1/1     Running   2 (8h ago)   13h
+testing-pod-6ff8c58cbc-5ps6t              1/1     Running   0             148m
 ```
 
 Please note that we are filtering for pods in `dev-apps` namespace. Change this
@@ -50,19 +52,19 @@ We can connect to any of these windmill pods using the following kind of
 command. Please change the pod name and the namespace name accordingly:
 
 ```bash
-kubectl exec -it windmill-bcb484fcc-tp48p -n dev-apps -- /bin/bash
+kubectl exec -it testing-pod-6ff8c58cbc-5ps6t -n dev-apps -- /bin/bash
 ```
 
 This should give you a prompt very much like this:
 
 ```bash
-root@windmill-bcb484fcc-tp48p:/usr/local/bin# 
+root@testing-pod-6ff8c58cbc-5ps6t:/usr/local/bin# 
 ```
 
 Good! Now we are inside our windmill pod, let's install our load tool:
 
 ```bash
-wget -qO- https://gist.githubusercontent.com/edulix/875a9a5d26407e1530f7769419dd8961/raw/ef164b724d8785d3aa2ef2b520faa9f5f66acb59/setup.sh | bash
+wget -qO- https://gist.githubusercontent.com/edulix/875a9a5d26407e1530f7769419dd8961/raw/ed6de0e38a1ed454f9222ff4cf43b3c765b22ebb/setup.sh | bash
 ```
 
 The result of the installation should look like this:

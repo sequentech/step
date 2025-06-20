@@ -33,7 +33,19 @@ apt update -y
 
 # Install system dependencies
 echo -e "${GREEN}Step 2/7:${RESET} Installing Python 3, pip, venv, and system dependencies..."
-apt install -y python3 python3-pip python3-venv python3-dev libpq-dev curl
+apt install -y python3 python3-pip python3-venv python3-dev libpq-dev curl wget gnupg2
+
+# Install Google Chrome and chromedriver (Ubuntu)
+echo -e "${GREEN}Step 2b/7:${RESET} Installing Google Chrome and chromedriver..."
+if ! command -v google-chrome &> /dev/null; then
+    wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor > /usr/share/keyrings/google-chrome.gpg
+    echo 'deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] https://dl.google.com/linux/chrome/deb/ stable main' > /etc/apt/sources.list.d/google-chrome.list
+    apt update -y
+    apt install -y google-chrome-stable
+else
+    echo -e "${YELLOW}Google Chrome already installed.${RESET}"
+fi
+apt install -y chromium-driver
 
 # Check Python version
 echo -e "${GREEN}Step 3/7:${RESET} Checking Python installation..."
