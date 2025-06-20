@@ -140,7 +140,6 @@ pub fn count_unique_csv(
 
         // Extract the join keys.
         let Some(key1) = rec1.get(file1_join_index) else {
-            count = count + 1;
             // Advance file1.
             rec1_opt = iter1.next();
             continue;
@@ -148,21 +147,18 @@ pub fn count_unique_csv(
 
         // Extract the join keys.
         let Some(key2) = rec2.get(file2_join_index) else {
-            count = count + 1;
             // Advance file1.
             rec2_opt = iter2.next();
             continue;
         };
 
         let Some(ballot_election_id) = rec1.get(ballot_election_id_index) else {
-            count = count + 1;
             // Advance file1.
             rec1_opt = iter1.next();
             continue;
         };
 
         if ballot_election_id != election_id {
-            count = count + 1;
             // Advance file1.
             rec1_opt = iter1.next();
             continue;
