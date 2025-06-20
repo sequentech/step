@@ -88,3 +88,22 @@ Copyright:
   2012-2016 Dan Wheeler and Dropbox, Inc.
 License: MIT
 
+Files:
+  packages/admin-portal/public/intl-tel-input/*
+  packages/keycloak-extensions/sequent-theme/src/main/resources/theme/comelec.admin-portal/login/resources/intl-tel-input-23.3.2/*
+Copyright:
+  2014-2016 Jack O'Connor
+License: MIT
+
+Files:
+  packages/keycloak-extensions/sequent-theme/src/main/resources/theme/comelec.admin-portal/login/resources/js/jquery-3.7.1.slim.min.js
+Copyright:
+  OpenJS Foundation and other contributors, https://openjsf.org/
+License: MIT
+
+Files:
+  packages/keycloak-extensions/sequent-theme/src/main/resources/theme/comelec.admin-portal/login/resources/js/zxcvbn.js
+Copyright:
+  2012-2016 Dan Wheeler and Dropbox, Inc.
+License: MIT
+

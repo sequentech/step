@@ -13,6 +13,20 @@
                 "login",
                 "account"
             ]
+        },
+        {
+            "name": "comelec.admin-portal",
+            "types": [
+                "login",
+                "account"
+            ]
+        },
+        {
+            "name": "comelec.voting-portal",
+            "types": [
+                "login",
+                "account"
+            ]
         }
     ]
 }

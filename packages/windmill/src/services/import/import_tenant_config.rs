@@ -143,6 +143,14 @@ pub async fn import_tenant_config_zip(
                 realm.localization_texts
             );
 
+            if imported_realm.login_theme.is_some() {
+                realm.login_theme = imported_realm.login_theme;
+            }
+
+            if imported_realm.account_theme.is_some() {
+                realm.account_theme = imported_realm.account_theme;
+            }
+
             // Serialize and upsert the updated realm in Keycloak
             let realm_string = serde_json::to_string(&realm)
                 .with_context(|| "Failed to serialize updated realm configuration")?;
