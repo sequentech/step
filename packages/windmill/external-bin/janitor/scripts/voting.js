@@ -23,20 +23,21 @@
  *   npx nightwatch voting.js --env chrome
  *
  * Environment variables:
- *   ENV_NAME           - (default: 'dev') Environment name for the voting URL
- *   TENANT_ID          - (default: demo UUID) Tenant UUID
- *   ELECTION_EVENT_ID  - (default: demo UUID) Election event UUID
- *   VOTING_PASSWORD    - (default: 'User1234567!') Password for all users
- *   NUMBER_OF_VOTES    - (default: 4096) Number of unique users to simulate
- *   USERNAME_PATTERN   - (default: 'testsequent2025+{n}@mailinator.com') 
- *                        Username pattern, {n} will be replaced with a random
- *                        number
- *  SAVE_SCREENSHOTS    - (default: 'false') Whether to save screenshots
+ *   ENV_NAME            - (default: 'dev') Environment name for the voting URL
+ *   TENANT_ID           - (default: demo UUID) Tenant UUID
+ *   ELECTION_EVENT_ID   - (default: demo UUID) Election event UUID
+ *   VOTING_PASSWORD     - (default: 'User1234567!') Password for all users
+ *   NUMBER_OF_VOTES     - (default: 4096) Number of unique users to simulate
+ *   USERNAME_PATTERN    - (default: 'testsequent2025+{n}@mailinator.com') 
+ *                         Username pattern, {n} will be replaced with a random
+ *                         number
+ *   SAVE_SCREENSHOTS    - (default: 'false') Whether to save screenshots
  *
- * The script will run in an infinite loop, simulating a new user each
+ * The script will run in an infinite loop, simulating a new cast vote each
  * iteration.
  *
- * Screenshots are saved for each major step for debugging and audit purposes.
+ * Screenshots are saved for each major step for debugging and audit purposes, 
+ * in case it is enabled.
  */
 
 module.exports = {

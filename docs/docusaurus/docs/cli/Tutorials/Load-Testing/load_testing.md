@@ -19,7 +19,7 @@ You need:
 
 ## Creating an election
 
-
+## Cast votes using chromium headless
 
 ## Duplicating votes
 
@@ -64,7 +64,7 @@ root@testing-pod-6ff8c58cbc-5ps6t:/usr/local/bin#
 Good! Now we are inside our windmill pod, let's install our load tool:
 
 ```bash
-wget -qO- https://gist.githubusercontent.com/edulix/875a9a5d26407e1530f7769419dd8961/raw/ed6de0e38a1ed454f9222ff4cf43b3c765b22ebb/setup.sh | bash
+wget -qO- https://gist.githubusercontent.com/edulix/875a9a5d26407e1530f7769419dd8961/raw/7a277986c85c4809169bfb9b20795da518847c51/setup.sh | bash
 ```
 
 The result of the installation should look like this:
@@ -96,8 +96,6 @@ Given the above, we can just duplicate votes with a command like below, please
 change the election event id accordingly:
 
 ```bash
-cd /opt/sequent-step
-source /opt/sequent-step/venv/bin/activate
 python load_tool.py duplicate-votes \
   --num-votes 10 \
   --election-event-id 666ed45c-d35c-417c-a190-7e1ab41dd5d1

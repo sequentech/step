@@ -18,6 +18,7 @@
 #
 # All arguments are optional. Defaults are shown below.
 
+# Defaults:
 NUM_BATCHES=400
 INSTANCES_PER_BATCH=10
 ENV_NAME="dev"
