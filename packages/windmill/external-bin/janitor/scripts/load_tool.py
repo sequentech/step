@@ -321,16 +321,17 @@ def run_duplicate_votes(args):
     hasura_conn = None
     kc_cursor = None
     hasura_cursor = None
+    votes_stream_cursor = None
 
     try:
         print(f"Connecting to Keycloak DB: host={keycloak_conn_params.get('host')}, dbname={keycloak_conn_params.get('dbname')}")
         keycloak_conn = psycopg2.connect(**keycloak_conn_params)
-        kc_cursor = keycloak_conn.cursor(name='kc_voters_cursor')
+        kc_cursor = keycloak_conn.cursor()  # regular cursor
         print("Successfully connected to Keycloak DB.")
 
         print(f"Connecting to Hasura DB: host={hasura_conn_params.get('host')}, dbname={hasura_conn_params.get('dbname')}")
         hasura_conn = psycopg2.connect(**hasura_conn_params)
-        hasura_cursor = hasura_conn.cursor(name='hasura_votes_cursor')
+        hasura_cursor = hasura_conn.cursor()  # regular cursor
         print("Successfully connected to Hasura DB.")
 
         # 1. Find a vote for this election_event_id (and optionally election_id)
@@ -339,7 +340,7 @@ def run_duplicate_votes(args):
             """
                 SELECT
                     election_id,
-                                  area_id
+                    area_id
                 FROM sequent_backend.cast_vote
                 WHERE
                     tenant_id = %s
@@ -400,11 +401,13 @@ def run_duplicate_votes(args):
         FROM sequent_backend.cast_vote
         WHERE election_id = %s AND area_id = %s
         """
-        hasura_cursor.execute(get_votes_query, (election_id, area_id))
+        votes_stream_cursor = hasura_conn.cursor(name='votes_stream_cursor')  # named cursor for streaming
+        votes_stream_cursor.execute(get_votes_query, (election_id, area_id))
         print("Streaming existing votes for election/area...")
         base_votes = []
-        for row in hasura_cursor:
+        for row in votes_stream_cursor:
             base_votes.append(row)
+        votes_stream_cursor.close()
         if not base_votes:
             print(f"No existing votes found for election_id={election_id}, area_id={area_id}. Cannot duplicate.")
             return
@@ -437,7 +440,7 @@ def run_duplicate_votes(args):
         print("\nStarting database insert using COPY FROM STDIN...")
         start_time = datetime.now()
         print(f"SQL Start time: {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
-        hasura_conn.cursor().copy_expert(sql=copy_sql, file=file_like_adapter)
+        hasura_cursor.copy_expert(sql=copy_sql, file=file_like_adapter)
         hasura_conn.commit()
         end_time = datetime.now()
         print(f"SQL End time: {end_time.strftime('%Y-%m-%d %H:%M:%S')}")
@@ -456,10 +459,21 @@ def run_duplicate_votes(args):
         print(f"\nAn unexpected error occurred: {e}")
     finally:
         print("\nClosing database connections...")
-        if kc_cursor: kc_cursor.close()
-        if keycloak_conn: keycloak_conn.close()
-        if hasura_cursor: hasura_cursor.close()
-        if hasura_conn: hasura_conn.close()
+        if kc_cursor:
+            try: kc_cursor.close()
+            except Exception: pass
+        if keycloak_conn:
+            try: keycloak_conn.close()
+            except Exception: pass
+        if votes_stream_cursor:
+            try: votes_stream_cursor.close()
+            except Exception: pass
+        if hasura_cursor:
+            try: hasura_cursor.close()
+            except Exception: pass
+        if hasura_conn:
+            try: hasura_conn.close()
+            except Exception: pass
         print("Database connections closed.")
 
 # ------------------------------
@@ -596,7 +610,11 @@ def run_generate_activity_logs(args):
 # ------------------------------
 def main():
     parser = argparse.ArgumentParser(description="Load Testing Tool")
-    parser.add_argument("--working-directory", default=".", help="Path to working directory (input/output directory)")
+    parser.add_argument(
+        "--working-directory",
+        default=".",
+        help="Path to working directory (input/output directory)"
+    )
     subparsers = parser.add_subparsers(dest="action", required=False, help="Action to perform")
     
     parser_voters = subparsers.add_parser("generate-voters", help="Generate random voters CSV file")
@@ -607,7 +625,7 @@ def main():
     parser_votes.add_argument("--num-votes", type=int, required=True, help="Number of votes to generate")
     parser_votes.add_argument("--election-event-id", type=str, required=True, help="Election event ID to duplicate votes for")
     parser_votes.add_argument("--election-id", type=str, required=False, help="Election ID to duplicate votes for")
-    parser_votes.add_argument("--tenant-id", type=str, default="90505c8a-23a9-4cdf-a26b-4e19f6a097d5" required=False, help="Tenant ID for realm name")
+    parser_votes.add_argument("--tenant-id", type=str, default="90505c8a-23a9-4cdf-a26b-4e19f6a097d5", required=False, help="Tenant ID for realm name")
     parser_votes.set_defaults(func=run_duplicate_votes)
 
     parser_applications = subparsers.add_parser("generate-applications", help="Generate applications in different states")

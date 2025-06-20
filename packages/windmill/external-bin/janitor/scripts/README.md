@@ -242,7 +242,7 @@ To generate 100 fake voter records, run:
 
 To duplicate 50,000 vote records, run:
 
-`python load_tool.py duplicate-votes --working-directory "/workspaces/step/packages/windmill/external-bin/janitor/scripts" --num-votes 50000` 
+`python load_tool.py duplicate-votes --num-votes 50000 --election-event-id whatever` 
 
 To generate 100,000 applications with status REJECTED and verification type MANUAL, run:
 

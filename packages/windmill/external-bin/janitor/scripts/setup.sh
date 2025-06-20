@@ -8,7 +8,7 @@ set -e  # Exit on any error
 
 INSTALL_DIR="/opt/sequent-step"
 VENV_DIR="$INSTALL_DIR/venv"
-GIST_LOAD_TOOL="https://gist.githubusercontent.com/edulix/875a9a5d26407e1530f7769419dd8961/raw/1542c44de071d561333dd2f0f1844b5993a60b83/load_tool.py"
+GIST_LOAD_TOOL="https://gist.githubusercontent.com/edulix/875a9a5d26407e1530f7769419dd8961/raw/341d7bab0482913d6b56efad512f383e5869eb85/load_tool.py"
 
 # Color definitions
 RED='\033[0;31m'
@@ -78,9 +78,9 @@ echo -e "${YELLOW}The load testing tool is now installed and ready to use.${RESE
 echo -e "You can run it from this directory: ${BOLD}$INSTALL_DIR${RESET}"
 echo ""
 echo -e "${GREEN}To use the tool, activate the virtual environment first:${RESET}"
+echo -e "  ${BOLD}cd ${INSTALL_DIR}${RESET}"
 echo -e "  ${BOLD}source $VENV_DIR/bin/activate${RESET}"
 echo ""
 echo -e "${GREEN}Example usage:${RESET}"
-echo -e "  ${BOLD}python load_tool.py generate-voters --working-directory . --num-users 100${RESET}"
-echo -e "  ${BOLD}python load_tool.py duplicate-votes --working-directory . --num-votes 1000${RESET}"
+echo -e "  ${BOLD}python load_tool.py duplicate-votes --num-votes 1000 --election-event-id <ID>${RESET}"
 echo ""
