@@ -8,12 +8,12 @@ use immudb_rs::{sql_value::Value, Client, NamedParam, Row, SqlValue};
 use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumString};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub struct Aggregate {
     pub count: i64,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub struct TotalAggregate {
     pub aggregate: Aggregate,
 }
@@ -22,6 +22,15 @@ pub struct TotalAggregate {
 pub struct DataList<T> {
     pub items: Vec<T>,
     pub total: TotalAggregate,
+}
+
+impl<T> Default for DataList<T> {
+    fn default() -> Self {
+        DataList {
+            items: vec![],
+            total: TotalAggregate::default(),
+        }
+    }
 }
 
 impl TryFrom<&Row> for Aggregate {

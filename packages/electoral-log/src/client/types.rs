@@ -246,7 +246,7 @@ impl GetElectoralLogBody {
                         let variant = ElectoralLogVarCharColumn::from_str(field.to_string().as_str()).map_err(|_| anyhow!("Field not found"))?; 
                         cols_match_select.insert(
                             variant,
-                            SqlCompOperators::Like(value.clone()),
+                            SqlCompOperators::Equal(value.clone()), // Using 'Like' here would not scale for millions of entries, causing no response from immudb is some cases.
                         );
                     }
                     OrderField::UserId => {
@@ -258,7 +258,7 @@ impl GetElectoralLogBody {
                         let variant = ElectoralLogVarCharColumn::from_str(field.to_string().as_str()).map_err(|_| anyhow!("Field not found"))?; 
                         cols_match_select.insert(
                             variant,
-                            SqlCompOperators::Like(value.clone()),
+                            SqlCompOperators::Equal(value.clone()),
                         );
                     }
                     OrderField::StatementTimestamp | OrderField::Created => {} // handled by `get_min_max_ts`
@@ -271,7 +271,7 @@ impl GetElectoralLogBody {
             if !election_id.is_empty() {
                 cols_match_select.insert(
                     ElectoralLogVarCharColumn::ElectionId,
-                    SqlCompOperators::Like(election_id.clone()),
+                    SqlCompOperators::Equal(election_id.clone()),
                 );
             }
         }
@@ -318,7 +318,7 @@ impl GetElectoralLogBody {
         if !ballot_id_filter.is_empty() {
             cols_match_select.insert(
                 ElectoralLogVarCharColumn::UserIdKey,
-                SqlCompOperators::Equal(user_id.clone().chars().take(3).collect()),
+                SqlCompOperators::Equal(user_id.chars().take(3).collect()),
             );
             cols_match_select.insert(
                 ElectoralLogVarCharColumn::UserId,
