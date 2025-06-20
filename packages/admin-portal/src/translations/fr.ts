@@ -80,6 +80,7 @@ const frenchTranslation: TranslationType = {
                 EXPORT_APPLICATION: "Exporter les Demandes",
                 EXPORT_TENANT_CONFIG: "Exporter la Configuration du Locataire",
                 IMPORT_TENANT_CONFIG: "Importer la Configuration du Locataire",
+                RENDER_DOCUMENT_PDF: "Générer le document PDF",
             },
             widget: {
                 taskTitle: "Tâche: {{title}}",
@@ -418,6 +419,10 @@ const frenchTranslation: TranslationType = {
                         "La Cérémonie de Dépouillement ne peut pas commencer tant que vous n'avez pas créé une publication dans l'onglet Publier.",
                     participateNow:
                         "Vous avez été invité à participer à une Cérémonie de Comptage. Veuillez <1>cliquer ci-dessous sur l'action de clé de la cérémonie</1> pour participer.",
+                    startDisabled:
+                        "Vous ne pouvez pas continuer la cérémonie car aucune élection n'est sélectionnée ou les élections ne sont pas publiées.",
+                    ceremonyDisabled:
+                        "Vous ne pouvez pas continuer la cérémonie car la session de dépouillement n'est pas connectée ou le début de la cérémonie n'est pas autorisé.",
                 },
             },
             importAreas: {
@@ -485,6 +490,7 @@ const frenchTranslation: TranslationType = {
                 copiedError: "Erreur lors de la copie",
                 reports: "Rapports",
                 applications: "Applications",
+                tally: "Décompte",
             },
             taskNotification:
                 "{{action}} a commencé. Vous pouvez voir son statut dans le tableau d'Exécution des Tâches.",
@@ -561,6 +567,13 @@ const frenchTranslation: TranslationType = {
                 "label": "Initialiser la Politique de Rapport",
                 "not-required": "Non Requis",
                 "required": "Requis",
+            },
+            castVoteGoldLevelPolicy: {
+                label: "Gold level Authentication Policy",
+                options: {
+                    "gold-level": "Gold level Authentication",
+                    "no-gold-level": "No Gold level Authentication",
+                },
             },
         },
         tenantScreen: {
@@ -1076,6 +1089,11 @@ const frenchTranslation: TranslationType = {
                 kind: "Type de fichier",
                 filter: "Filtres personnalisés",
                 approve: "Approuver",
+                continue: "Continuer",
+                logout: "Déconnexion",
+                selectTenant: "Sélectionner un locataire",
+                processing: "Traitement en cours...",
+                tenantName: "Nom du locataire",
             },
             language: {
                 es: "Espagnol",
@@ -1083,6 +1101,9 @@ const frenchTranslation: TranslationType = {
                 fr: "Français",
                 cat: "Valencien",
                 tl: "Tagalog",
+                gl: "Galego",
+                nl: "Néerlandais",
+                eu: "Euskera",
             },
             channel: {
                 online: "En ligne",
@@ -1090,6 +1111,7 @@ const frenchTranslation: TranslationType = {
             },
             message: {
                 delete: "Êtes-vous sûr de vouloir supprimer cet élément ?",
+                continueOrLogout: "Voulez-vous continuer ou vous déconnecter ?",
             },
         },
         createResource: {
@@ -1867,6 +1889,10 @@ const frenchTranslation: TranslationType = {
             fields: {
                 isHidden: "Caché",
                 publicUrl: "Lien public",
+            },
+            empty: {
+                header: "Pas encore de matériel de support",
+                action: "Générer du matériel de support",
             },
         },
         widget: {

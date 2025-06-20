@@ -1,15 +1,10 @@
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::hasura::election::get_all_elections_for_event;
-use crate::hasura::tally_session::set_tally_session_completed;
-use crate::hasura::tally_session_execution::get_last_tally_session_execution::ResponseData;
-use crate::hasura::tally_session_execution::{
-    get_last_tally_session_execution, insert_tally_session_execution,
-};
-use crate::hasura::trustee::get_trustees_by_name;
+// use crate::hasura::trustee::get_trustees_by_name;
+use crate::postgres::election::get_elections;
+use crate::postgres::trustee::get_trustees_by_name;
 use crate::services::cast_votes::{find_area_ballots, CastVote};
-use crate::services::ceremonies::insert_ballots::get_last_tally_session_execution::GetLastTallySessionExecutionSequentBackendTallySessionContest;
 use crate::services::database::PgConfig;
 use crate::services::join::{count_unique_csv, merge_join_csv};
 use crate::services::protocol_manager::*;
@@ -31,33 +26,28 @@ use sequent_core::ballot::{ContestEncryptionPolicy, ElectionPresentation, Hashab
 use sequent_core::multi_ballot::HashableMultiBallot;
 use sequent_core::serialization::base64::{Base64Deserialize, Base64Serialize};
 use sequent_core::serialization::deserialize_with_path::{deserialize_str, deserialize_value};
-use sequent_core::services::connection::AuthHeaders;
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak::get_event_realm;
+use sequent_core::types::hasura::core::TallySessionContest;
 use std::collections::HashMap;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::elgamal::Ciphertext;
 use strand::signature::StrandSignaturePk;
 use tempfile::NamedTempFile;
-use tracing::{event, instrument, Level};
+use tracing::{event, info, instrument, Level};
 
 #[instrument(skip_all, err)]
 pub async fn insert_ballots_messages(
-    auth_headers: &AuthHeaders,
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
     board_name: &str,
     trustee_names: Vec<String>,
-    tally_session_contests: Vec<GetLastTallySessionExecutionSequentBackendTallySessionContest>,
+    tally_session_contests: Vec<TallySessionContest>,
     contest_encryption_policy: ContestEncryptionPolicy,
 ) -> Result<()> {
-    let trustees = get_trustees_by_name(&auth_headers, &tenant_id, &trustee_names)
-        .await?
-        .data
-        .with_context(|| "can't find trustees")?
-        .sequent_backend_trustee;
+    let trustees = get_trustees_by_name(hasura_transaction, &tenant_id, &trustee_names).await?;
 
     event!(Level::INFO, "trustees len: {:?}", trustees.len());
 
@@ -65,8 +55,13 @@ pub async fn insert_ballots_messages(
     let deserialized_trustee_pks: Vec<StrandSignaturePk> = trustees
         .clone()
         .into_iter()
-        .map(|trustee| deserialize_public_key(trustee.public_key.unwrap()))
-        .collect();
+        .map(|trustee| {
+            let public_key = trustee
+                .public_key
+                .ok_or(anyhow!("Missing trustee public key"))?;
+            deserialize_public_key(public_key)
+        })
+        .collect::<Result<Vec<_>>>()?;
 
     event!(
         Level::INFO,
@@ -75,7 +70,13 @@ pub async fn insert_ballots_messages(
     );
 
     let realm = get_event_realm(&tenant_id, &election_event_id);
-    let protocol_manager = get_protocol_manager(board_name).await?;
+    let protocol_manager = get_protocol_manager(
+        hasura_transaction,
+        tenant_id,
+        Some(election_event_id),
+        board_name,
+    )
+    .await?;
     let mut board = get_b3_pgsql_client().await?;
     let board_messages: Vec<Message> =
         get_board_messages::<RistrettoCtx>(board_name, &mut board).await?;
@@ -94,10 +95,6 @@ pub async fn insert_ballots_messages(
             tally_session_contest.session_id,
         );
 
-        // Use find_area_ballots with pagination
-        let mut offset = 0;
-        let batch_size = PgConfig::from_env()?.default_sql_batch_size.into();
-
         // Create a temporary file (auto-deleted when dropped)
         let ballots_temp_file = NamedTempFile::new()
             .map_err(|error| anyhow!("Failed to create temp file {}", error))?;
@@ -106,76 +103,17 @@ pub async fn insert_ballots_messages(
             "Creating temporary file for ballots with path {:?}",
             ballots_temp_file.path()
         );
-        let mut writer = WriterBuilder::new()
-            .has_headers(false)
-            .from_writer(&ballots_temp_file);
 
-        loop {
-            let ballots_list = find_area_ballots(
-                &hasura_transaction,
-                &tenant_id,
-                &election_event_id,
-                &tally_session_contest.area_id,
-                batch_size,
-                offset,
-            )
-            .await?;
-
-            event!(Level::INFO, "ballots_list len: {:?}", ballots_list.len());
-
-            if ballots_list.is_empty() {
-                break;
-            }
-
-            for ballot in ballots_list {
-                let ballot_str = ballot.content.ok_or(anyhow!("Empty ballot content"))?;
-
-                let ciphertext: Ciphertext<RistrettoCtx> =
-                    if ContestEncryptionPolicy::MULTIPLE_CONTESTS == contest_encryption_policy {
-                        let hashable_multi_ballot: HashableMultiBallot =
-                            deserialize_str(&ballot_str)?;
-
-                        let hashable_multi_ballot_contests = hashable_multi_ballot
-                            .deserialize_contests()
-                            .map_err(|err| anyhow!("{:?}", err))?;
-                        Some(hashable_multi_ballot_contests.ciphertext)
-                    } else {
-                        let hashable_ballot: HashableBallot = deserialize_str(&ballot_str)?;
-                        let contests = hashable_ballot
-                            .deserialize_contests()
-                            .map_err(|err| anyhow!("{:?}", err))?;
-                        contests
-                            .iter()
-                            .find(|contest| {
-                                contest.contest_id
-                                    == tally_session_contest.contest_id.clone().unwrap_or_default()
-                            })
-                            .map(|contest| contest.ciphertext.clone())
-                    }
-                    .ok_or(anyhow!("Could not get ciphertext"))?;
-
-                let ciphertext_base64 = ciphertext.serialize()?;
-
-                writer
-                    .serialize((
-                        &ballot.voter_id_string,
-                        &ballot.election_id,
-                        &ciphertext_base64,
-                    ))
-                    .map_err(|error| anyhow!("Failed to write row {}", error))?;
-            }
-
-            writer
-                .flush()
-                .map_err(|error| anyhow!("Failed to flush writer {}", error))?;
-
-            // Move to next batch
-            offset += batch_size;
-        }
+        find_area_ballots(
+            &hasura_transaction,
+            &tenant_id,
+            &election_event_id,
+            &tally_session_contest.area_id,
+            &ballots_temp_file.path().to_path_buf(),
+        )
+        .await?;
 
         let ballots_temp_file = ballots_temp_file.reopen()?;
-
-        // Use pagination and write the contents to a file
 
         // Create a temporary file (auto-deleted when dropped)
         let users_temp_file = NamedTempFile::new()
@@ -185,43 +123,14 @@ pub async fn insert_ballots_messages(
             "Creating temporary file for users with path {:?}",
             users_temp_file.path()
         );
-        let mut writer = WriterBuilder::new()
-            .has_headers(false)
-            .from_writer(&users_temp_file);
 
-        // Reset offset
-        offset = 0;
-        let batch_size = batch_size * 100;
-
-        loop {
-            let users_map = list_keycloak_enabled_users_by_area_id(
-                keycloak_transaction,
-                &realm,
-                &tally_session_contest.area_id,
-                batch_size,
-                offset,
-            )
-            .await?;
-
-            event!(Level::INFO, "users_map len: {:?}", users_map.len());
-
-            if users_map.is_empty() {
-                break;
-            }
-
-            for user in &users_map {
-                writer
-                    .serialize(user)
-                    .map_err(|error| anyhow!("Failed to write row: {}", error))?;
-            }
-
-            writer
-                .flush()
-                .map_err(|error| anyhow!("Failed to flush writer: {}", error))?;
-
-            // Move to next batch
-            offset += batch_size;
-        }
+        list_keycloak_enabled_users_by_area_id(
+            keycloak_transaction,
+            &realm,
+            &tally_session_contest.area_id,
+            &users_temp_file.path().to_path_buf(),
+        )
+        .await?;
 
         let users_temp_file = users_temp_file.reopen()?;
 
@@ -230,6 +139,8 @@ pub async fn insert_ballots_messages(
         let ballots_join_indexes = 0;
         let ballot_election_id_index = 1;
         let users_join_idexes = 0;
+
+        let contest_encryption_policy = contest_encryption_policy.clone();
 
         let handle = tokio::task::spawn_blocking({
             move || {
@@ -244,10 +155,37 @@ pub async fn insert_ballots_messages(
                         &tally_session_contest.election_id,
                     )?
                     .into_iter()
-                    .map(|serialized_ciphertext| {
-                        Base64Deserialize::deserialize(serialized_ciphertext).map_err(|error| {
-                            anyhow!("Error while deserializng ciphertext: {}", error)
-                        })
+                    .map(|ballot_str| {
+                        info!("ballot_str: {ballot_str}");
+                        let ciphertext: Ciphertext<RistrettoCtx> =
+                            if ContestEncryptionPolicy::MULTIPLE_CONTESTS
+                                == contest_encryption_policy
+                            {
+                                let hashable_multi_ballot: HashableMultiBallot =
+                                    deserialize_str(&ballot_str)?;
+
+                                let hashable_multi_ballot_contests = hashable_multi_ballot
+                                    .deserialize_contests()
+                                    .map_err(|err| anyhow!("{:?}", err))?;
+                                Some(hashable_multi_ballot_contests.ciphertext)
+                            } else {
+                                let hashable_ballot: HashableBallot = deserialize_str(&ballot_str)?;
+                                let contests = hashable_ballot
+                                    .deserialize_contests()
+                                    .map_err(|err| anyhow!("{:?}", err))?;
+                                contests
+                                    .iter()
+                                    .find(|contest| {
+                                        contest.contest_id
+                                            == tally_session_contest
+                                                .contest_id
+                                                .clone()
+                                                .unwrap_or_default()
+                                    })
+                                    .map(|contest| contest.ciphertext.clone())
+                            }
+                            .ok_or(anyhow!("Could not get ciphertext"))?;
+                        Ok(ciphertext)
                     })
                     .collect::<Result<Vec<_>>>()
                 })
@@ -286,49 +224,44 @@ pub async fn insert_ballots_messages(
 
 #[instrument(skip_all, err)]
 pub async fn get_elections_end_dates(
-    auth_headers: &AuthHeaders,
+    hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<HashMap<String, Option<DateTime<Utc>>>> {
     // Use ballot publications instead?
-    let elections_dates: HashMap<String, Option<DateTime<_>>> = get_all_elections_for_event(
-        auth_headers.clone(),
-        tenant_id.to_string(),
-        election_event_id.to_string(),
-    )
-    .await?
-    .data
-    .ok_or(anyhow!("Expected election dates to have data"))?
-    .sequent_backend_election
-    .into_iter()
-    .map(|election| {
-        let election_presentation: ElectionPresentation = election
-            .presentation
-            .clone()
-            .map(|presentation| deserialize_value(presentation))
-            .transpose()
-            .map_err(|err| anyhow!("Error parsing election presentation {:?}", err))?
-            .unwrap_or(Default::default());
-        let current_dates = election_presentation
-            .dates
-            .clone()
-            .unwrap_or(Default::default());
-        let end_date = current_dates
-            .end_date
-            .clone()
-            .map(|val| ISO8601::to_date_utc(&val).ok())
-            .flatten();
-        Ok((election.id, end_date))
-    })
-    .collect::<Result<HashMap<_, _>>>()
-    .map_err(|err| anyhow!("Error parsing election dates {:?}", err))?;
+    let elections = get_elections(hasura_transaction, tenant_id, election_event_id, None)
+        .await
+        .map_err(|err| anyhow!("Error getting elections {:?}", err))?;
+
+    let elections_dates: HashMap<String, Option<DateTime<_>>> = elections
+        .into_iter()
+        .map(|election| {
+            let election_presentation: ElectionPresentation = election
+                .presentation
+                .clone()
+                .map(|presentation| deserialize_value(presentation))
+                .transpose()
+                .map_err(|err| anyhow!("Error parsing election presentation {:?}", err))?
+                .unwrap_or(Default::default());
+            let current_dates = election_presentation
+                .dates
+                .clone()
+                .unwrap_or(Default::default());
+            let end_date = current_dates
+                .end_date
+                .clone()
+                .map(|val| ISO8601::to_date_utc(&val).ok())
+                .flatten();
+            Ok((election.id, end_date))
+        })
+        .collect::<Result<HashMap<_, _>>>()
+        .map_err(|err| anyhow!("Error parsing election dates {:?}", err))?;
     Ok(elections_dates)
 }
 
 #[instrument(skip_all, err, ret)]
 pub async fn count_auditable_ballots(
     elections_end_dates: &HashMap<String, Option<DateTime<Utc>>>,
-    auth_headers: &AuthHeaders,
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -344,10 +277,6 @@ pub async fn count_auditable_ballots(
 
     let realm = get_event_realm(tenant_id, election_event_id);
 
-    // Use find_area_ballots with pagination
-    let mut offset = 0;
-    let batch_size = PgConfig::from_env()?.default_sql_batch_size.into();
-
     // Create a temporary file (auto-deleted when dropped)
     let ballots_temp_file =
         NamedTempFile::new().map_err(|error| anyhow!("Failed to create temp file {}", error))?;
@@ -356,44 +285,15 @@ pub async fn count_auditable_ballots(
         "Creating temporary file for ballots with path {:?}",
         ballots_temp_file.path()
     );
-    let mut writer = WriterBuilder::new()
-        .has_headers(false)
-        .from_writer(&ballots_temp_file);
 
-    loop {
-        let ballots_list = find_area_ballots(
-            &hasura_transaction,
-            &tenant_id,
-            &election_event_id,
-            area_id,
-            batch_size,
-            offset,
-        )
-        .await?;
-
-        event!(Level::INFO, "ballots_list len: {:?}", ballots_list.len());
-
-        if ballots_list.is_empty() {
-            break;
-        }
-
-        for ballot in ballots_list {
-            writer
-                .serialize((
-                    &ballot.voter_id_string,
-                    &ballot.election_id,
-                    &ballot.content,
-                ))
-                .map_err(|error| anyhow!("Failed to write row: {}", error))?;
-        }
-
-        writer
-            .flush()
-            .map_err(|error| anyhow!("Failed to flush writer: {}", error))?;
-
-        // Move to next batch
-        offset += batch_size;
-    }
+    find_area_ballots(
+        &hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        area_id,
+        &ballots_temp_file.path().to_path_buf(),
+    )
+    .await?;
 
     let ballots_temp_file = ballots_temp_file.reopen()?;
 
@@ -407,43 +307,14 @@ pub async fn count_auditable_ballots(
         "Creating temporary file for users with path {:?}",
         users_temp_file.path()
     );
-    let mut writer = WriterBuilder::new()
-        .has_headers(false)
-        .from_writer(&users_temp_file);
 
-    // Reset offset
-    offset = 0;
-    let batch_size = batch_size * 100;
-
-    loop {
-        let users_map = list_keycloak_enabled_users_by_area_id(
-            keycloak_transaction,
-            &realm,
-            &area_id,
-            batch_size,
-            offset,
-        )
-        .await?;
-
-        event!(Level::INFO, "users_map len: {:?}", users_map.len());
-
-        if users_map.is_empty() {
-            break;
-        }
-
-        for user in &users_map {
-            writer
-                .serialize(user)
-                .map_err(|error| anyhow!("Failed to write row: {}", error))?;
-        }
-
-        writer
-            .flush()
-            .map_err(|error| anyhow!("Failed to flush writer: {}", error))?;
-
-        // Move to next batch
-        offset += batch_size;
-    }
+    list_keycloak_enabled_users_by_area_id(
+        keycloak_transaction,
+        &realm,
+        &area_id,
+        &users_temp_file.path().to_path_buf(),
+    )
+    .await?;
 
     let users_temp_file = users_temp_file.reopen()?;
 

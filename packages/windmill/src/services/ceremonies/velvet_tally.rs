@@ -1,7 +1,6 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::hasura::tally_session_execution::get_last_tally_session_execution::GetLastTallySessionExecutionSequentBackendTallySessionContest;
 use crate::postgres::election::export_elections;
 use crate::postgres::reports::ReportType;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
@@ -27,7 +26,9 @@ use sequent_core::services::s3;
 use sequent_core::services::translations::Name;
 use sequent_core::signatures::ecies_encrypt::EciesKeyPair;
 use sequent_core::types::ceremonies::TallyType;
-use sequent_core::types::hasura::core::{Area, Election, ElectionEvent, TallySession, TallySheet};
+use sequent_core::types::hasura::core::{
+    Area, Election, ElectionEvent, TallySession, TallySessionContest, TallySheet,
+};
 use sequent_core::types::scheduled_event::ScheduledEvent;
 use sequent_core::types::templates::{
     PrintToPdfOptionsLocal, ReportExtraConfig, SendTemplateBody, VoteReceiptPipeType,
@@ -40,7 +41,7 @@ use std::fs::{self, File, OpenOptions};
 use std::io::Write;
 use std::path::PathBuf;
 use strand::{backend::ristretto::RistrettoCtx, context::Ctx};
-use tracing::{event, instrument, warn, Level};
+use tracing::{event, info, instrument, warn, Level};
 use uuid::Uuid;
 use velvet::cli::state::State;
 use velvet::cli::CliRun;
@@ -52,7 +53,7 @@ use velvet::pipes::pipe_name::PipeName;
 #[derive(Debug, Clone)]
 pub struct AreaContestDataType {
     pub plaintexts: Vec<<RistrettoCtx as Ctx>::P>,
-    pub last_tally_session_execution: GetLastTallySessionExecutionSequentBackendTallySessionContest,
+    pub last_tally_session_execution: TallySessionContest,
     pub contest: Contest,
     pub ballot_style: BallotStyle,
     pub eligible_voters: u64,
@@ -546,9 +547,12 @@ pub async fn build_ballot_images_pipe_config(
     minio_endpoint_base: String,
     public_asset_path: String,
 ) -> Result<PipeConfigVoteReceipts> {
+    let tenant_id = &tally_session.tenant_id;
+    let election_event_id = &tally_session.election_event_id;
+
     let ballot_images_renderer = BallotImagesTemplate::new(ReportOrigins {
-        tenant_id: tally_session.tenant_id.clone(),
-        election_event_id: tally_session.election_event_id.clone(),
+        tenant_id: tenant_id.to_string(),
+        election_event_id: election_event_id.to_string(),
         election_id: None,
         template_alias: None,
         voter_id: None,
@@ -580,7 +584,7 @@ pub async fn build_ballot_images_pipe_config(
         ),
     };
 
-    let acm_key = get_acm_key_pair().await?;
+    let acm_key = get_acm_key_pair(hasura_transaction, &tenant_id, &election_event_id).await?;
 
     let ballot_images_pipe_config = PipeConfigVoteReceipts {
         template: user_tpl_document,
@@ -640,7 +644,7 @@ async fn build_reports_pipe_config(
     ]);
 
     Ok(PipeConfigGenerateReports {
-        enable_pdfs: true,
+        enable_pdfs: false,
         report_content_template,
         execution_annotations,
         system_template: report_system_template,
@@ -678,6 +682,8 @@ pub async fn create_config_file(
         tally_type,
     )
     .await?;
+
+    info!("FFF enable pdfs: {}", gen_report_pipe_config.enable_pdfs);
 
     let stages_def = {
         let mut map = HashMap::new();

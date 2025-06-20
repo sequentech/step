@@ -14,6 +14,7 @@ use anyhow::{anyhow, Context};
 use celery::error::TaskError;
 use deadpool_postgres::Client as DbClient;
 use sequent_core::types::date_time::{DateFormat, TimeZone};
+use sequent_core::types::hasura::core::TasksExecution;
 use tracing::instrument;
 
 #[instrument(err)]
@@ -29,6 +30,7 @@ pub async fn create_ballot_receipt(
     area_id: String,
     voter_id: String,
     timezone: String,
+    task_execution: TasksExecution,
 ) -> Result<()> {
     let _permit = acquire_semaphore().await?;
     // Spawn the task using an async block
@@ -92,7 +94,7 @@ pub async fn create_ballot_receipt(
                         None,
                         &hasura_transaction,
                         &keycloak_transaction,
-                        None,
+                        Some(task_execution),
                     )
                     .await
                     .map_err(|err| anyhow!("Error generating ballot receipt report: {err:?}"))?;

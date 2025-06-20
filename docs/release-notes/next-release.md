@@ -158,6 +158,7 @@ Environment variables to add, in production:
 - `AWS_S3_MAX_UPLOAD_BYTES`
 - `AWS_S3_UPLOAD_EXPIRATION_SECS`
 - `AWS_S3_FETCH_EXPIRATION_SECS`
+- `BALLOT_VERIFIER_URL` 
 
 Impacted services:
 
@@ -221,3 +222,13 @@ CREATE INDEX IF NOT EXISTS idx_user_attribute_user_id ON user_attribute(user_id)
 -- A composite index on user_attribute for covering queries on user_id, name, and value
 CREATE INDEX IF NOT EXISTS idx_user_attribute_userid_name_value ON user_attribute(user_id, name, value);
 ```
+
+## ✨ Create PostgreSQL constraint on number of allowed revotes
+A new constraint has been added to check the number of allowed revotes at SQL level that will raise the exception:
+```
+insert_failed_exceeds_allowed_revotes
+```
+
+Migration files in the folder:
+_1744797160789_add_check_revote_limit_at_trigger_to_cast_vote_
+

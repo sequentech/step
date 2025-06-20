@@ -76,8 +76,6 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
         [tallyData?.sequent_backend_results_contest, contestId, electionId]
     )
 
-    console.log("TallyResultsGlobalCandidates :: general", general)
-
     const results: Array<Sequent_Backend_Results_Contest_Candidate> | undefined = useMemo(
         () =>
             tallyData?.sequent_backend_results_contest_candidate?.filter(
@@ -106,8 +104,6 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
                     }
                 }
             )
-
-            console.log("TallyResultsGlobalCandidates :: temp", temp)
 
             setResultsData(temp)
         }

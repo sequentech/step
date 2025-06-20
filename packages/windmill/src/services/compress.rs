@@ -37,7 +37,7 @@ pub fn compress_folder(folder_path: &Path) -> Result<(TempPath, String, u64)> {
     // Finish writing the .tar.gz file and get the file (temporary file in this
     // case)
     let finished_file = tar_builder.into_inner()?.finish()?;
-    let file_size = finished_file.metadata().unwrap().len();
+    let file_size = finished_file.metadata()?.len();
     event!(Level::INFO, " Tar file size: {file_size}");
 
     Ok((tar_file_temp_path, tar_file_str, file_size))

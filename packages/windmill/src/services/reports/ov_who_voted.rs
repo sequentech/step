@@ -12,7 +12,9 @@ use crate::postgres::election::{get_election_by_id, get_elections};
 use crate::postgres::reports::{Report, ReportType};
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::celery_app::get_worker_threads;
+use crate::services::documents::upload_and_return_document;
 use crate::services::election_dates::get_election_dates;
+use crate::services::reports::pre_enrolled_ov_but_disapproved::first_n_codepoints;
 use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::services::temp_path::PUBLIC_ASSETS_QRCODE_LIB;
 use anyhow::{anyhow, Context, Result};
@@ -248,11 +250,13 @@ impl OVUsersWhoVotedTemplate {
             .await
             .with_context(|| format!("Error rendering PDF for batch {}", batch_index))?;
 
-            let prefix = self.prefix();
+            let prefix = first_n_codepoints(&self.prefix(), 5);
             let file_suffix = ".pdf";
+            let area_id = first_n_codepoints(&area.area_id, 5);
+
             let batch_file_name = format!(
-                "{}_area_{:.20}_{}{}",
-                prefix, area.area_name, batch, file_suffix
+                "{}_area_{}{}_{}{}",
+                prefix, area.area_name, area_id, batch, file_suffix
             );
             info!(
                 "Batch {} => batch_file_name: {}",
@@ -564,10 +568,6 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
             final_file_path, file_size, final_report_name, mimetype
         );
 
-        let auth_headers = sequent_core::services::keycloak::get_client_credentials()
-            .await
-            .map_err(|err| anyhow!("Error getting client credentials: {err:?}"))?;
-
         let encrypted_temp_data: Option<TempPath> = if let Some(report) = &report {
             if report.encryption_policy == EReportEncryption::ConfiguredPassword {
                 let secret_key = crate::services::reports_vault::get_report_secret_key(
@@ -575,9 +575,14 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
                     &election_event_id,
                     Some(report.id.clone()),
                 );
-                let encryption_password = crate::services::vault::read_secret(secret_key.clone())
-                    .await?
-                    .ok_or_else(|| anyhow!("Encryption password not found"))?;
+                let encryption_password = crate::services::vault::read_secret(
+                    hasura_transaction,
+                    tenant_id,
+                    Some(election_event_id),
+                    &secret_key,
+                )
+                .await?
+                .ok_or_else(|| anyhow!("Encryption password not found"))?;
                 let enc_file = generate_temp_file(self.base_name().as_str(), ".epdf")
                     .with_context(|| "Error creating named temp file")?;
                 let enc_temp_path = enc_file.into_temp_path();
@@ -601,14 +606,14 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
             let enc_temp_size = get_file_size(encrypted_temp_path.as_str())
                 .with_context(|| "Error obtaining file size")?;
             let enc_report_name: String = format!("{}.epdf", self.prefix());
-            let _document = crate::services::documents::upload_and_return_document(
-                encrypted_temp_path,
+            let _document = upload_and_return_document(
+                hasura_transaction,
+                &encrypted_temp_path,
                 enc_temp_size,
-                mimetype.clone(),
-                auth_headers.clone(),
-                tenant_id.to_string(),
-                election_event_id.to_string(),
-                enc_report_name.clone(),
+                &mimetype,
+                tenant_id,
+                Some(election_event_id.to_string()),
+                &enc_report_name,
                 Some(document_id.to_string()),
                 true,
             )
@@ -641,14 +646,14 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
                     .map_err(|err| anyhow!("Error sending email: {err:?}"))?;
             }
         } else {
-            let _document = crate::services::documents::upload_and_return_document(
-                final_file_path.clone(),
+            let _document = upload_and_return_document(
+                hasura_transaction,
+                &final_file_path,
                 file_size,
-                mimetype.clone(),
-                auth_headers.clone(),
-                tenant_id.to_string(),
-                election_event_id.to_string(),
-                final_report_name.clone(),
+                &mimetype,
+                tenant_id,
+                Some(election_event_id.to_string()),
+                &final_report_name,
                 Some(document_id.to_string()),
                 true,
             )

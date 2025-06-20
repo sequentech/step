@@ -53,7 +53,7 @@ pub async fn verify_user_application(
 ) -> Result<Json<ApplicationVerificationResult>, JsonError> {
     let input: ApplicationVerifyBody = body.into_inner();
 
-    info!("Verifiying application: {input:?}");
+    info!("Verifiying application");
 
     let required_perm: Permissions = Permissions::SERVICE_ACCOUNT;
 

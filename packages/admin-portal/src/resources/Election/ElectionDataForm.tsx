@@ -54,6 +54,7 @@ import {CustomTabPanel} from "../../components/CustomTabPanel"
 import {ElectionStyles} from "../../components/styles/ElectionStyles"
 import {
     ContestsOrder,
+    ECastVoteGoldLevelPolicy,
     EGracePeriodPolicy,
     EVotingPortalAuditButtonCfg,
     IContestPresentation,
@@ -492,6 +493,13 @@ export const ElectionDataForm: React.FC = () => {
         }))
     }
 
+    const goldLevelChoices = (): Array<EnumChoice<ECastVoteGoldLevelPolicy>> => {
+        return Object.values(ECastVoteGoldLevelPolicy).map((value) => ({
+            id: value,
+            name: t(`electionScreen.castVoteGoldLevelPolicy.options.${value.toLowerCase()}`),
+        }))
+    }
+
     const auditButtonConfigChoices = (): Array<EnumChoice<EVotingPortalAuditButtonCfg>> => {
         return Object.values(EVotingPortalAuditButtonCfg).map((value) => ({
             id: value,
@@ -754,6 +762,13 @@ export const ElectionDataForm: React.FC = () => {
                                     source="num_allowed_revotes"
                                     label={t("electionScreen.edit.numAllowedVotes")}
                                     min={0}
+                                />
+                                <SelectInput
+                                    label={t("electionScreen.castVoteGoldLevelPolicy.label")}
+                                    source="presentation.cast_vote_gold_level"
+                                    choices={goldLevelChoices()}
+                                    defaultValue={ECastVoteGoldLevelPolicy.NO_GOLD_LEVEL}
+                                    validate={required()}
                                 />
                                 {canEditPermissionLabel && (
                                     <TextInput

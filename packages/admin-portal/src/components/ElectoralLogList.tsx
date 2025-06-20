@@ -17,10 +17,9 @@ import {
     DateField,
     DateTimeInput,
 } from "react-admin"
-import {useTenantStore} from "@/providers/TenantContextProvider"
 import {ListActions} from "@/components/ListActions"
 import {useTranslation} from "react-i18next"
-import {Sequent_Backend_Election_Event} from "@/gql/graphql"
+import {Sequent_Backend_Election, Sequent_Backend_Election_Event} from "@/gql/graphql"
 import {Dialog} from "@sequentech/ui-essentials"
 import {FormStyles} from "./styles/FormStyles"
 import {DownloadDocument} from "@/resources/User/DownloadDocument"
@@ -42,6 +41,8 @@ enum ExportFormat {
     // turns out that the pdf is zipped
     PDF = "PDF",
 }
+
+const OMIT_FIELDS = ["user_id"]
 
 interface ExportWrapperProps {
     electionEventId: string
@@ -134,6 +135,7 @@ export interface ElectoralLogListProps {
     aside?: ReactElement
     filterToShow?: ElectoralLogFilters
     filterValue?: string
+    electionEventId?: string
     showActions?: boolean
 }
 
@@ -141,18 +143,20 @@ export enum ElectoralLogFilters {
     ID = "id",
     STATEMENT_KIND = "statement_kind",
     USER_ID = "user_id",
+    USERNAME = "username",
 }
 
 export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
     aside,
     filterToShow,
     filterValue,
+    electionEventId,
     showActions = true,
 }) => {
-    const record = useRecordContext<Sequent_Backend_Election_Event>()
+    const record = useRecordContext<Sequent_Backend_Election_Event | Sequent_Backend_Election>()
     const {t} = useTranslation()
 
-    const {canReadLogs, canExportLogs, showLogsColumns, showLogsFilters} = useLogsPermissions()
+    const {canExportLogs, showLogsColumns} = useLogsPermissions()
 
     const getHeadField = (record: any, field: string) => {
         const message = JSON.parse(record?.message)
@@ -177,7 +181,7 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
     }
 
     const filterObject: {[key: string]: any} = {
-        election_event_id: record?.id || undefined,
+        election_event_id: electionEventId || record?.id || undefined,
     }
 
     if (filterToShow) {
@@ -188,6 +192,7 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
 
     const filters: Array<ReactElement> = [
         <TextInput key={"user_id"} source={"user_id"} label={t("logsScreen.column.user_id")} />,
+        <TextInput key={"username"} source={"username"} label={t("logsScreen.column.username")} />,
         <DateTimeInput key={"created"} source={"created"} label={t("logsScreen.column.created")} />,
         <DateTimeInput
             key={"statement_timestamp"}
@@ -226,8 +231,20 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                 aside={aside}
             >
                 <ResetFilters />
-                <DatagridConfigurable bulkActionButtons={false}>
+                <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={false}>
                     <NumberField source="id" label={t("logsScreen.column.id")} />
+                    <FunctionField
+                        source="user_id"
+                        label={t("logsScreen.column.user_id")}
+                        render={(record: any) => {
+                            const userId = JSON.parse(record.message).user_id
+                            return (
+                                <span style={{display: "block", textAlign: "center"}}>
+                                    {!userId || userId === "null" ? <span>-</span> : userId}
+                                </span>
+                            )
+                        }}
+                    />
                     <FunctionField
                         source="username"
                         label={t("logsScreen.column.username")}

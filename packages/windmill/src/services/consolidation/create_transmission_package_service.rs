@@ -25,7 +25,7 @@ use crate::services::compress::decompress_file;
 use crate::services::consolidation::eml_types::ACMTrustee;
 use crate::services::database::get_hasura_pool;
 use crate::services::documents::get_document_as_temp_file;
-use crate::services::documents::upload_and_return_document_postgres;
+use crate::services::documents::upload_and_return_document;
 use crate::services::folders::list_files;
 use crate::types::miru_plugin::{
     MiruCcsServer, MiruDocument, MiruDocumentIds, MiruTransmissionPackageData,
@@ -163,7 +163,7 @@ pub async fn generate_all_servers_document(
     logs: &Vec<Log>,
     election_annotations: &MiruElectionAnnotations,
 ) -> Result<Document> {
-    let acm_key_pair = get_acm_key_pair().await?;
+    let acm_key_pair = get_acm_key_pair(hasura_transaction, tenant_id, election_event_id).await?;
     let temp_dir = tempdir().with_context(|| "Error generating temp directory")?;
     let temp_dir_path = temp_dir.path();
 
@@ -214,7 +214,7 @@ pub async fn generate_all_servers_document(
     let file_size =
         get_file_size(dst_file_string.as_str()).with_context(|| "Error obtaining file size")?;
 
-    let document = upload_and_return_document_postgres(
+    let document = upload_and_return_document(
         &hasura_transaction,
         &dst_file_string,
         file_size,
@@ -363,7 +363,7 @@ pub async fn create_transmission_package_service(
     let xz_name = format!("er_{}.xz", transaction_id);
     let (temp_path, temp_path_string, file_size) =
         write_into_named_temp_file(&base_compressed_xml, &xz_name, ".xz")?;
-    let xz_document = upload_and_return_document_postgres(
+    let xz_document = upload_and_return_document(
         &hasura_transaction,
         &temp_path_string,
         file_size,
@@ -380,7 +380,7 @@ pub async fn create_transmission_package_service(
     let eml_name = format!("er_{}.xml", transaction_id);
     let (temp_path, temp_path_string, file_size) =
         write_into_named_temp_file(&eml.as_bytes().to_vec(), &eml_name, ".eml")?;
-    let eml_document = upload_and_return_document_postgres(
+    let eml_document = upload_and_return_document(
         &hasura_transaction,
         &temp_path_string,
         file_size,

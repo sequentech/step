@@ -7,7 +7,7 @@
 extern crate rocket;
 
 use dotenv::dotenv;
-use sequent_core::services::connection::LastAccessToken;
+use sequent_core::services::connection::LastDatafixAccessToken;
 use sequent_core::util::init_log::init_log;
 use windmill::services::{
     celery_app::set_is_app_active,
@@ -118,6 +118,7 @@ async fn rocket() -> _ {
                 routes::import_templates::import_templates_route,
                 routes::election_event_stats::get_election_event_top_votes_by_ip,
                 routes::export_ballot_publication::export_ballot_publication_route,
+                routes::reports::render_document_pdf,
                 routes::reports::generate_template,
                 routes::reports::generate_report,
                 routes::reports::encrypt_report_route,
@@ -133,5 +134,5 @@ async fn rocket() -> _ {
                 routes::set_voter_authentication::set_voter_authentication,
             ],
         )
-        .manage(LastAccessToken::init())
+        .manage(LastDatafixAccessToken::init())
 }

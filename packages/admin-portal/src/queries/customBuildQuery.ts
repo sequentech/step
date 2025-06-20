@@ -1,3 +1,4 @@
+import {Order_By} from "./../../../voting-portal/src/gql/graphql"
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
@@ -65,6 +66,7 @@ export const customBuildQuery =
             let validFilters = [
                 "election_event_id",
                 "user_id",
+                "username",
                 "created",
                 "statement_timestamp",
                 "statement_kind",
@@ -109,6 +111,9 @@ export const customBuildQuery =
                         validOrderBy.includes(key)
                     )
                 )
+                if (ret?.variables?.order_by) {
+                    ret.variables.order_by = [{...ret.variables.order_by}, {id: "asc"}]
+                }
             }
             return ret
         } else if (
@@ -145,6 +150,11 @@ export const customBuildQuery =
             raFetchType === "GET_LIST"
         ) {
             let ret = buildQuery(introspectionResults)(raFetchType, resourceName, params)
+
+            if (ret?.variables?.order_by) {
+                ret.variables.order_by = [{...ret.variables.order_by}, {id: "asc"}]
+            }
+
             let electionIds: Array<string> | undefined =
                 params?.filter?.event_payload?.value?._contains?.election_id
             if (electionIds) {
@@ -308,7 +318,44 @@ export const customBuildQuery =
                 )
             }
 
+            const {filter} = params
+            const transformedRawParams = {...ret?.variables.where}
+            const transformedParams = ret?.variables.where["_and"]
+
+            // Transform applicant_data
+            Object.keys(filter).forEach((key) => {
+                if (key === "applicant_data" && typeof filter[key] === "object") {
+                    const flattened = flattenObject(filter[key])
+                    Object.keys(flattened).forEach((newField) => {
+                        transformedParams.push({
+                            applicant_data: {
+                                _contains: {[newField]: flattened[newField]},
+                            },
+                        })
+                    })
+                }
+            })
+
+            ret.variables.where = transformedRawParams
+
             return ret
         }
         return buildQuery(introspectionResults)(raFetchType, resourceName, params)
     }
+
+function flattenObject(obj: any, prefix = "") {
+    let result: any = {}
+
+    Object.keys(obj).forEach((key) => {
+        const newKey = prefix ? `${prefix}.${key}` : key
+        if (typeof obj[key] === "object" && obj[key] !== null && !("_ilike" in obj[key])) {
+            // Recursively flatten only if it's an object and doesn't have `_ilike`
+            Object.assign(result, flattenObject(obj[key], newKey))
+        } else if ("_ilike" in obj[key]) {
+            // Extract `_ilike` value
+            result[newKey] = obj[key]["_ilike"]
+        }
+    })
+
+    return result
+}

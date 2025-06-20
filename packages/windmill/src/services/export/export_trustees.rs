@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::export_election_event::generate_encrypted_zip;
 use crate::postgres::trustee::get_all_trustees;
-use crate::services::documents::upload_and_return_document_postgres;
+use crate::services::documents::upload_and_return_document;
 use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::services::vault::{self, get_vault, VaultManagerType};
 use anyhow::{anyhow, Context, Result};
@@ -48,7 +48,7 @@ pub async fn read_trustees_config_base(
             .clone()
             .ok_or(anyhow!("Missing trustee name"))?;
         let trustee_key = format!("{}{}_config", secret_prefix, trustee_name);
-        let secret = vault::read_secret(trustee_key.clone())
+        let secret = vault::read_secret(transaction, tenant_id, None, &trustee_key)
             .await?
             .ok_or(anyhow!(
                 "Missing vault secret for '{}'  and key '{}'",
@@ -79,9 +79,11 @@ pub async fn read_trustees_config_base(
     let zip_size = std::fs::metadata(&encrypted_zip_path)?.len();
 
     // Upload the ZIP file (encrypted or original) to Hasura
-    let document = upload_and_return_document_postgres(
+    let document = upload_and_return_document(
         &transaction,
-        encrypted_zip_path.to_str().unwrap(),
+        encrypted_zip_path
+            .to_str()
+            .ok_or(anyhow!("Empty encrypted zip path"))?,
         zip_size,
         "application/zip",
         &tenant_id.to_string(),

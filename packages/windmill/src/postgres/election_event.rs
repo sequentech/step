@@ -47,9 +47,9 @@ impl TryFrom<Row> for ElectionEventWrapper {
 #[instrument(err, skip_all)]
 pub async fn insert_election_event(
     hasura_transaction: &Transaction<'_>,
-    data: &ImportElectionEventSchema,
+    election_event: &ElectionEventData,
 ) -> Result<()> {
-    data.election_event.validate()?;
+    election_event.validate()?;
 
     let statement = hasura_transaction
         .prepare(
@@ -62,32 +62,31 @@ pub async fn insert_election_event(
         )
         .await?;
 
-    let rows: Vec<Row> = hasura_transaction
+    let _rows: Vec<Row> = hasura_transaction
         .query(
             &statement,
             &[
-                &Uuid::parse_str(&data.election_event.id)?,
-                &data.election_event.labels,
-                &data.election_event.annotations,
-                &Uuid::parse_str(&data.election_event.tenant_id)?,
-                &data.election_event.name,
-                &data.election_event.description,
-                &data.election_event.presentation,
-                &data.election_event.bulletin_board_reference,
-                &data.election_event.is_archived,
-                &data.election_event.voting_channels,
-                &data.election_event.status,
-                &data.election_event.user_boards,
-                &data.election_event.encryption_protocol,
-                &data.election_event.is_audit,
-                &data
-                    .election_event
+                &Uuid::parse_str(&election_event.id)?,
+                &election_event.labels,
+                &election_event.annotations,
+                &Uuid::parse_str(&election_event.tenant_id)?,
+                &election_event.name,
+                &election_event.description,
+                &election_event.presentation,
+                &election_event.bulletin_board_reference,
+                &election_event.is_archived,
+                &election_event.voting_channels,
+                &election_event.status,
+                &election_event.user_boards,
+                &election_event.encryption_protocol,
+                &election_event.is_audit,
+                &election_event
                     .audit_election_event_id
                     .as_ref()
                     .and_then(|s| Uuid::parse_str(&s).ok()),
-                &data.election_event.public_key,
-                &data.election_event.alias,
-                &data.election_event.statistics,
+                &election_event.public_key,
+                &election_event.alias,
+                &election_event.statistics,
             ],
         )
         .await
@@ -106,7 +105,7 @@ pub async fn get_election_event_by_id(
         .prepare(
             r#"
                 SELECT
-                    id, created_at, updated_at, labels, annotations, tenant_id, name, description, presentation, bulletin_board_reference, is_archived, voting_channels, status, user_boards, encryption_protocol, is_audit, audit_election_event_id, public_key, alias, statistics
+                    *
                 FROM
                     sequent_backend.election_event
                 WHERE
@@ -140,6 +139,50 @@ pub async fn get_election_event_by_id(
         .ok_or(anyhow!("Election event {election_event_id} not found"))
 }
 
+#[instrument(err, skip_all)]
+pub async fn get_election_event_by_id_if_exist(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<Option<ElectionEventData>> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT
+                    *
+                FROM
+                    sequent_backend.election_event
+                WHERE
+                    tenant_id = $1 AND
+                    id = $2;
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(election_event_id)?,
+            ],
+        )
+        .await?;
+
+    let election_events: Vec<ElectionEventData> = rows
+        .into_iter()
+        .map(|row| -> Result<ElectionEventData> {
+            row.try_into()
+                .map(|res: ElectionEventWrapper| -> ElectionEventData { res.0 })
+        })
+        .collect::<Result<Vec<ElectionEventData>>>()?;
+
+    let election_event = election_events
+        .get(0)
+        .map(|election_event| election_event.clone());
+    Ok((election_event))
+}
+
 /// Returns all the Election events as ElectionEventDatafix
 #[instrument(err, skip_all)]
 pub async fn get_all_tenant_election_events(
@@ -154,7 +197,8 @@ pub async fn get_all_tenant_election_events(
                 FROM
                     sequent_backend.election_event
                 WHERE
-                    tenant_id = $1
+                    tenant_id = $1 AND
+                    is_archived = false
             "#,
         )
         .await?;
@@ -391,6 +435,7 @@ pub async fn delete_election_event(
     election_event_id: &str,
 ) -> Result<()> {
     let related_tables = vec![
+        "secret",
         "area_contest",
         "results_election_area",
         "results_area_contest_candidate",
@@ -469,20 +514,69 @@ pub async fn delete_election_event(
     Ok(())
 }
 
-/// Get the ElectionEvent, check if its DATAFIX event (has DATAFIX annotations).
-#[instrument(skip(hasura_transaction), err)]
-pub async fn is_datafix_election_event(
+#[instrument(err, skip_all)]
+pub async fn update_bulletin_board(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
-) -> Result<bool> {
-    let election_event = get_election_event_by_id(hasura_transaction, tenant_id, election_event_id)
-        .await
-        .map_err(|e| anyhow!("{:?}", e))?;
+    board: &serde_json::Value,
+) -> Result<()> {
+    let update_bulletin_board = hasura_transaction
+        .prepare(
+            r#"
+             UPDATE sequent_backend.election_event
+             SET bulletin_board_reference = $1
+             WHERE tenant_id = $2 AND id = $3;
+             "#,
+        )
+        .await?;
 
-    let datafix_object = election_event
-        .annotations
-        .as_ref()
-        .and_then(|v| v.get("DATAFIX"));
-    Ok(datafix_object.is_some())
+    hasura_transaction
+         .execute(
+             &update_bulletin_board,
+             &[
+                 &board,
+                 &Uuid::parse_str(tenant_id)?,
+                 &Uuid::parse_str(election_event_id)?,
+             ],
+         )
+         .await
+         .with_context(|| format!("Error updating election event with board reference for tenant ID {} and election event ID {}", tenant_id, election_event_id))?;
+
+    Ok(())
+}
+
+#[instrument(err, skip_all)]
+pub async fn get_batch_election_events(
+    hasura_transaction: &Transaction<'_>,
+    limit: i64,
+    offset: i64,
+) -> Result<Vec<ElectionEventData>> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+            SELECT 
+                *
+            FROM sequent_backend.election_event
+            WHERE is_archived = false
+            ORDER BY created_at ASC
+            LIMIT $1
+            OFFSET $2;
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(&statement, &[&limit, &offset])
+        .await?;
+
+    let election_events: Vec<ElectionEventData> = rows
+        .into_iter()
+        .map(|row| -> Result<ElectionEventData> {
+            row.try_into()
+                .map(|res: ElectionEventWrapper| -> ElectionEventData { res.0 })
+        })
+        .collect::<Result<Vec<ElectionEventData>>>()?;
+
+    Ok(election_events)
 }

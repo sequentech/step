@@ -18,6 +18,7 @@ use crate::services::consolidation::zip::compress_folder_to_zip;
 use crate::services::documents::upload_and_return_document;
 use crate::services::election_dates::get_election_dates;
 use crate::services::providers::email_sender::{Attachment, EmailSender};
+use crate::services::reports::pre_enrolled_ov_but_disapproved::first_n_codepoints;
 use crate::services::reports::voters::get_not_enrolled_voters_by_area_id;
 use crate::services::reports_vault::get_report_secret_key;
 use crate::services::tasks_execution::{update_complete, update_fail};
@@ -192,13 +193,14 @@ impl NotPreEnrolledListTemplate {
             .await
             .with_context(|| format!("Error rendering PDF for batch {}", batch_index))?;
 
-            let prefix = self.prefix();
+            let prefix = first_n_codepoints(&self.prefix(), 5);
             let extension_suffix = "pdf";
             let file_suffix = format!(".{}", extension_suffix);
+            let area_id = first_n_codepoints(&area.area_id, 5);
 
             let batch_file_name = format!(
-                "{}_area_{:.20}_{}{}",
-                prefix, area.area_name, batch, file_suffix
+                "{}_area_{}{}_{}{}",
+                prefix, area.area_name, area_id, batch, file_suffix
             );
             info!(
                 "Batch {} => batch_file_name: {}",
@@ -509,17 +511,18 @@ impl TemplateRenderer for NotPreEnrolledListTemplate {
             final_file_path, file_size, final_report_name, mimetype
         );
 
-        let auth_headers = keycloak::get_client_credentials()
-            .await
-            .map_err(|err| anyhow!("Error getting client credentials: {err:?}"))?;
-
         let encrypted_temp_data: Option<TempPath> = if let Some(report) = &report {
             if report.encryption_policy == EReportEncryption::ConfiguredPassword {
                 let secret_key =
                     get_report_secret_key(&tenant_id, &election_event_id, Some(report.id.clone()));
-                let encryption_password = vault::read_secret(secret_key.clone())
-                    .await?
-                    .ok_or_else(|| anyhow!("Encryption password not found"))?;
+                let encryption_password = vault::read_secret(
+                    hasura_transaction,
+                    tenant_id,
+                    Some(election_event_id),
+                    &secret_key,
+                )
+                .await?
+                .ok_or_else(|| anyhow!("Encryption password not found"))?;
 
                 let enc_file: NamedTempFile =
                     generate_temp_file(self.base_name().as_str(), ".epdf")
@@ -549,13 +552,13 @@ impl TemplateRenderer for NotPreEnrolledListTemplate {
                 .with_context(|| "Error obtaining file size")?;
             let enc_report_name: String = format!("{}.epdf", self.prefix());
             let _document = upload_and_return_document(
-                encrypted_temp_path,
+                hasura_transaction,
+                &encrypted_temp_path,
                 enc_temp_size,
-                mimetype.clone(),
-                auth_headers.clone(),
-                tenant_id.to_string(),
-                election_event_id.to_string(),
-                enc_report_name.clone(),
+                &mimetype,
+                tenant_id,
+                Some(election_event_id.to_string()),
+                &enc_report_name,
                 Some(document_id.to_string()),
                 true,
             )
@@ -589,13 +592,13 @@ impl TemplateRenderer for NotPreEnrolledListTemplate {
             }
         } else {
             let _document = upload_and_return_document(
-                final_file_path.clone(),
+                hasura_transaction,
+                &final_file_path,
                 file_size,
-                mimetype.clone(),
-                auth_headers.clone(),
-                tenant_id.to_string(),
-                election_event_id.to_string(),
-                final_report_name.clone(),
+                &mimetype,
+                tenant_id,
+                Some(election_event_id.to_string()),
+                &final_report_name,
                 Some(document_id.to_string()),
                 true,
             )

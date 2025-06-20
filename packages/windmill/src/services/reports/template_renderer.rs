@@ -112,8 +112,8 @@ pub trait TemplateRenderer: Debug {
     /// or from other place than the reports TAB.
     fn get_initial_template_alias(&self) -> Option<String>;
 
-    async fn count_items(&self) -> Option<i64> {
-        None
+    async fn count_items(&self, hasura_transaction: &Transaction<'_>) -> Result<Option<i64>> {
+        Ok(None)
     }
     async fn prepare_user_data_batch(
         &self,
@@ -500,7 +500,7 @@ pub trait TemplateRenderer: Debug {
                 anyhow!("Error providing the user template and extra config: {e:?}")
             })?;
 
-        let items_count = self.count_items().await.unwrap_or(0);
+        let items_count = self.count_items(&hasura_transaction).await?.unwrap_or(0);
         let report_options = ext_cfg.report_options.clone();
         let per_report_limit = report_options
             .max_items_per_report
@@ -627,17 +627,18 @@ pub trait TemplateRenderer: Debug {
             final_file_path, file_size, final_report_name, mimetype
         );
 
-        let auth_headers = keycloak::get_client_credentials()
-            .await
-            .map_err(|err| anyhow!("Error getting client credentials: {err:?}"))?;
-
         let encrypted_temp_data: Option<TempPath> = if let Some(report) = &report {
             if report.encryption_policy == EReportEncryption::ConfiguredPassword {
                 let secret_key =
                     get_report_secret_key(&tenant_id, &election_event_id, Some(report.id.clone()));
-                let encryption_password = vault::read_secret(secret_key.clone())
-                    .await?
-                    .ok_or_else(|| anyhow!("Encryption password not found"))?;
+                let encryption_password = vault::read_secret(
+                    hasura_transaction,
+                    tenant_id,
+                    Some(election_event_id),
+                    &secret_key,
+                )
+                .await?
+                .ok_or_else(|| anyhow!("Encryption password not found"))?;
 
                 let enc_file: NamedTempFile =
                     generate_temp_file(self.base_name().as_str(), ".epdf")
@@ -667,13 +668,13 @@ pub trait TemplateRenderer: Debug {
                 .with_context(|| "Error obtaining file size")?;
             let enc_report_name: String = format!("{}.epdf", self.prefix());
             let _document = upload_and_return_document(
-                encrypted_temp_path,
+                hasura_transaction,
+                &encrypted_temp_path,
                 enc_temp_size,
-                mimetype.clone(),
-                auth_headers.clone(),
-                tenant_id.to_string(),
-                election_event_id.to_string(),
-                enc_report_name.clone(),
+                &mimetype,
+                tenant_id,
+                Some(election_event_id.to_string()),
+                &enc_report_name,
                 Some(document_id.to_string()),
                 true,
             )
@@ -707,13 +708,13 @@ pub trait TemplateRenderer: Debug {
             }
         } else {
             let _document = upload_and_return_document(
-                final_file_path.clone(),
+                hasura_transaction,
+                &final_file_path,
                 file_size,
-                mimetype.clone(),
-                auth_headers.clone(),
-                tenant_id.to_string(),
-                election_event_id.to_string(),
-                final_report_name.clone(),
+                &mimetype,
+                tenant_id,
+                Some(election_event_id.to_string()),
+                &final_report_name,
                 Some(document_id.to_string()),
                 true,
             )
