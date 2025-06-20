@@ -9189,20 +9189,6 @@
                 "defaultValue": null
               },
               {
-                "name": "tenant_id",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "SCALAR",
-                    "name": "uuid",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null
-              },
-              {
                 "name": "user_timezone",
                 "description": null,
                 "type": {
