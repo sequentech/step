@@ -9,7 +9,9 @@ use base64::engine::general_purpose;
 use base64::Engine;
 use clap::Args;
 use csv::WriterBuilder;
-use electoral_log::client::types::{ElectoralLogVarCharColumn, SqlCompOperators};
+use electoral_log::client::types::{
+    ElectoralLogVarCharColumn, SqlCompOperators, WhereClauseOrdMap,
+};
 use electoral_log::messages::message::Message;
 use electoral_log::messages::newtypes::ElectionIdString;
 use electoral_log::messages::statement::{StatementBody, StatementType};
