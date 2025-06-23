@@ -402,6 +402,7 @@ pub async fn create_election(
                     created_at,
                     last_updated_at,
                     name,
+                    alias,
                     description,
 					presentation
                 )
@@ -412,6 +413,7 @@ pub async fn create_election(
                     NOW(),
                     NOW(),
                     $3,
+                    $6,
                     $4,
 					$5
                 )
@@ -429,6 +431,7 @@ pub async fn create_election(
                 &name.to_string(),
                 &description,
                 &presentation_value,
+                &name.to_string(),
             ],
         )
         .await
