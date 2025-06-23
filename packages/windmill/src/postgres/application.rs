@@ -199,7 +199,7 @@ pub async fn update_application_status(
         RETURNING *;
     "#;
     // Serialize group names to JSON string
-    let group_names_json = serde_json::to_string(&group_names).unwrap();
+    let group_names_json = serde_json::to_string(&group_names)?;
 
     // Build annotations update dynamically
     let annotations_update = {
@@ -326,10 +326,11 @@ pub async fn get_applications(
 
         if filters.verification_type.is_some() {
             query.push_str(format!(" AND verification_type = ${}", param_index).as_str());
-            verification_type =
-                <std::option::Option<ApplicationType> as Clone>::clone(&filters.verification_type)
-                    .unwrap()
-                    .to_string();
+            verification_type = filters
+                .verification_type
+                .clone()
+                .ok_or(anyhow!("Empty application type"))?
+                .to_string();
             params.push(&verification_type);
             param_index += 1;
         }
@@ -454,10 +455,11 @@ pub async fn count_applications(
         if filters.verification_type.is_some() {
             let place = current_param_place.to_string();
             query.push_str(&format!(" AND verification_type = ${place}"));
-            verification_type =
-                <std::option::Option<ApplicationType> as Clone>::clone(&filters.verification_type)
-                    .unwrap()
-                    .to_string();
+            verification_type = filters
+                .verification_type
+                .clone()
+                .ok_or(anyhow!("Empty application type"))?
+                .to_string();
             params.push(&verification_type);
         }
     }

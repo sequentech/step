@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::hasura::election_event::get_election_event;
 use crate::postgres::area::get_elections_by_area;
+use crate::postgres::election_event::get_election_event_by_id_if_exist;
 use crate::services::celery_app::get_celery_app;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_statistics::update_election_event_statistics;
@@ -10,7 +10,6 @@ use crate::services::election_statistics::update_election_statistics;
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::providers::{email_sender::EmailSender, sms_sender::SmsSender};
 use crate::services::users::{list_users, list_users_with_vote_info, ListUsersFilter};
-use crate::tasks::send_template::get_election_event::GetElectionEventSequentBackendElectionEvent;
 use crate::types::error::Result;
 
 use crate::services::database::{get_hasura_pool, get_keycloak_pool, PgConfig};
@@ -29,6 +28,7 @@ use sequent_core::services::generate_urls::get_auth_url;
 use sequent_core::services::generate_urls::AuthAction;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
 use sequent_core::services::{keycloak, reports};
+use sequent_core::types::hasura::core::ElectionEvent;
 use sequent_core::types::keycloak::{User, UserArea, AREA_ID_ATTR_NAME};
 use sequent_core::types::templates::{
     AudienceSelection, EmailConfig, SendTemplateBody, SmsConfig, TemplateMethod,
@@ -44,7 +44,7 @@ use tracing::{event, info, instrument, Level};
 #[instrument(err)]
 fn get_variables(
     user: &User,
-    election_event: Option<GetElectionEventSequentBackendElectionEvent>,
+    election_event: Option<ElectionEvent>,
     tenant_id: String,
     auth_action: AuthAction,
 ) -> Result<Map<String, Value>> {
@@ -270,7 +270,7 @@ async fn update_stats(
 
 async fn on_success_send_message(
     hasura_transaction: &Transaction<'_>,
-    election_event: Option<GetElectionEventSequentBackendElectionEvent>,
+    election_event: Option<ElectionEvent>,
     user_id: Option<String>,
     username: Option<String>,
     message: &str,
@@ -325,30 +325,28 @@ pub async fn send_template(
     admin_id: String,
     election_event_id: Option<String>,
 ) -> Result<()> {
-    let auth_headers = keycloak::get_client_credentials().await?;
     let celery_app = get_celery_app().await;
     let realm = match election_event_id {
         Some(ref election_event_id) => get_event_realm(&tenant_id, &election_event_id),
         None => get_tenant_realm(&tenant_id),
     };
 
+    let mut hasura_db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .map_err(|err| format!("Error getting hasura db pool: {err}"))?;
+
+    let hasura_transaction = hasura_db_client
+        .transaction()
+        .await
+        .map_err(|err| format!("Error starting hasura transaction: {err}"))?;
+
     let election_event = match election_event_id.clone() {
         None => None,
         Some(election_event_id) => {
-            let event = get_election_event(
-                auth_headers.clone(),
-                tenant_id.clone(),
-                election_event_id.clone(),
-            )
-            .await?
-            .data
-            .ok_or(anyhow!("Election event not found: {}", election_event_id))?
-            .sequent_backend_election_event;
-            if (event.is_empty()) {
-                None
-            } else {
-                Some(event[0].clone())
-            }
+            get_election_event_by_id_if_exist(&hasura_transaction, &tenant_id, &election_event_id)
+                .await?
         }
     };
 
@@ -390,19 +388,13 @@ pub async fn send_template(
 
     let elections_by_area = match election_event_id.clone() {
         None => HashMap::new(),
-        Some(ref election_event_id) => {
-            let hasura_transaction = hasura_db_client
-                .transaction()
-                .await
-                .with_context(|| "Error creating a transaction")?;
-            get_elections_by_area(
-                &hasura_transaction,
-                tenant_id.as_str(),
-                election_event_id.as_str(),
-            )
-            .await
-            .with_context(|| "Error listing elections by area")?
-        }
+        Some(ref election_event_id) => get_elections_by_area(
+            &hasura_transaction,
+            tenant_id.as_str(),
+            election_event_id.as_str(),
+        )
+        .await
+        .with_context(|| "Error listing elections by area")?,
     };
 
     loop {
@@ -480,7 +472,7 @@ pub async fn send_template(
                 &user,
                 &election_event,
                 &tenant_id,
-                Some(&admin_id),
+                Some(admin_id.clone()),
                 &body.email,
                 &body.sms,
                 &email_sender,
@@ -539,9 +531,9 @@ pub async fn send_template(
 pub async fn send_template_email_or_sms(
     hasura_transaction: &Transaction<'_>,
     user: &User,
-    election_event: &Option<GetElectionEventSequentBackendElectionEvent>,
+    election_event: &Option<ElectionEvent>,
     tenant_id: &str,
-    admin_id: Option<&String>,
+    admin_id_opt: Option<String>,
     email_config: &Option<EmailConfig>,
     sms_config: &Option<SmsConfig>,
     email_sender: &EmailSender,
@@ -554,6 +546,7 @@ pub async fn send_template_email_or_sms(
         id = user.id,
         email = user.email,
     );
+    let admin_id = admin_id_opt.unwrap_or("".into());
     let variables: Map<String, Value> = get_variables(
         user,
         election_event.clone(),
@@ -578,7 +571,6 @@ pub async fn send_template_email_or_sms(
             .await;
             match sending_result {
                 Ok(Some(message)) if user.id.is_some() => {
-                    let admin_id = admin_id.unwrap();
                     if let Err(e) = on_success_send_message(
                         hasura_transaction,
                         election_event.clone(),
@@ -586,7 +578,7 @@ pub async fn send_template_email_or_sms(
                         user.username.clone(),
                         &message,
                         &tenant_id,
-                        admin_id,
+                        &admin_id,
                         user_area_id,
                     )
                     .await
@@ -616,7 +608,6 @@ pub async fn send_template_email_or_sms(
             .await;
             match sending_result {
                 Ok(Some(message)) if user.id.is_some() => {
-                    let admin_id = admin_id.unwrap();
                     if let Err(e) = on_success_send_message(
                         hasura_transaction,
                         election_event.clone(),
@@ -624,7 +615,7 @@ pub async fn send_template_email_or_sms(
                         None,
                         &message,
                         tenant_id,
-                        admin_id,
+                        &admin_id,
                         user_area_id,
                     )
                     .await

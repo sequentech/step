@@ -2403,64 +2403,6 @@
       "clientRoles": {}
     },
     {
-      "id": "60a781c0-1e95-4bd7-b00e-16b8908f6698",
-      "name": "sbei",
-      "path": "/sbei",
-      "subGroups": [],
-      "attributes": {},
-      "realmRoles": [
-        "default-roles-electoral-process",
-        "election-dashboard-tab",
-        "communication-template-write",
-        "miru-download",
-        "miru-send",
-        "cast-vote-read",
-        "notification-send",
-        "tally-sheet-create",
-        "tally-results-read",
-        "tally-sheet-view",
-        "logs-read",
-        "election-state-write",
-        "election-approvals-tab",
-        "admin-ceremony",
-        "tally-read",
-        "area-read",
-        "trustee-ceremony",
-        "tenant-read",
-        "report-read",
-        "election-event-tally-tab",
-        "election-event-reports-tab",
-        "tally-start",
-        "admin-user",
-        "voter-write",
-        "miru-sign",
-        "tally-sheet-publish",
-        "document-upload",
-        "voter-read",
-        "election-event-logs-tab",
-        "election-voters-tab",
-        "notification-write",
-        "keys-read",
-        "publish-write",
-        "communication-template-read",
-        "election-publish-tab",
-        "document-read",
-        "notification-read",
-        "document-write",
-        "tenant-write",
-        "document-download",
-        "election-read",
-        "tasks-read",
-        "election-event-read",
-        "publish-read",
-        "export-ceremony",
-        "create-ceremony",
-        "election-event-keys-columns",
-        "application-write"
-      ],
-      "clientRoles": {}
-    },
-    {
       "id": "dbc85f9a-a33d-4b3f-9bf1-20282931130b",
       "name": "admin-light",
       "path": "/admin-light",
@@ -2584,9 +2526,7 @@
     "totpAppMicrosoftAuthenticatorName"
   ],
   "localizationTexts": {
-    "en": {
-      "loginCustomCss": ".pf-c-input-group:has(input[id=password])::after '{' content: \"<div class=\" pf-c-form__helper-text pf-c-form__helper-text-after\" id=\" form-help-text-after-registerVia\" aria-live=\" polite\">(Please ensure that the mobile no./email is active. Check both options if both mobile no. and email are available.)</div>\" '}' .col-xs-12:has(label[for=termsOfService]) '{' display: none; '}' :root '{' #kc-header-wrapper div.logo '{' background-image: url('https://i.imgur.com/LNDAELo.png') !important; height: 60px;  '}' '}' .login-pf body '{' background-image: linear-gradient(1deg, #ffffff, transparent), url('https://filipinotimes.net/wp-content/uploads/2021/08/COMELEC-scaled.jpg') !important; background-repeat: repeat-y !important; background-size: 100% auto !important; background-position: top center !important; height: 100vh !important; object-fit:cover !important; '}' #kc-title '{' color: white !important; '}'@media (max-width: 767px) '{' #kc-title '{' color: white !important; '}' '}' #kc-title '{' color: white !important; '}'@media (max-width: 767px) '{' #kc-title '{' color: white !important; '}' '}' .pf-c-check__label '{' font-size: 12px !important; '}' .pf-c-form-control '{' font-size: 12px !important; '}' input::placeholder '{' font-size: 12px !important; '}' .iti__selected-country '{' font-size: 12px !important; '}' .pf-c-form__label-text '{' font-weight: bold !important; '}' .dob-sdk-root-container '{' background-color: white !important; '}' .pf-c-form__label[for=\"sequent.read-only.id-card-number\"] '{' visibility: hidden; '}' div > div > div > div '{' color: #991b1b;'}' label '{' color: black;'}'"
-    }
+    "en": {}
   },
   "webAuthnPolicyRpEntityName": "keycloak",
   "webAuthnPolicySignatureAlgorithms": [
@@ -2618,8 +2558,8 @@
     {
       "id": "a20376d6-e53a-4edf-afc3-cc18bb8e23e5",
       "username": "admin",
-      "firstName": "Eduardo",
-      "lastName": "Robles",
+      "firstName": "Admin",
+      "lastName": "admin",
       "email": "edu@sequentech.io",
       "emailVerified": true,
       "attributes": {
@@ -2698,121 +2638,6 @@
       "notBefore": 0,
       "groups": [
         "/admin"
-      ]
-    },
-    {
-      "id": "0516ed22-3a8f-48ca-9514-83020e242159",
-      "username": "felix",
-      "emailVerified": true,
-      "attributes": {
-        "sequent.read-only.otp-method": [
-          "email-or-sms"
-        ],
-        "sequent.read-only.email-address": [
-          "edu@sequentech.io"
-        ],
-        "area-id": [
-          "2f312a36-f39c-46e4-9670-1d1ce4625745"
-        ],
-        "locale": [
-          "en"
-        ],
-        "tenant-id": [
-          "90505c8a-23a9-4cdf-a26b-4e19f6a097d5"
-        ]
-      },
-      "createdTimestamp": 1691702289318,
-      "enabled": true,
-      "totp": false,
-      "credentials": [
-        {
-          "id": "6d4932d1-daf6-4e97-ae40-29a10f241f63",
-          "type": "password",
-          "createdDate": 1691859697573,
-          "secretData": "{\"value\":\"mK/30PwVYlFEAFIKu8qUpNhOBLx79a4sbvfv44Gw9SM=\",\"salt\":\"lDLeIwt1qLrDKr2CTwJ/hw==\",\"additionalParameters\":{}}",
-          "credentialData": "{\"hashIterations\":27500,\"algorithm\":\"pbkdf2-sha256\",\"additionalParameters\":{}}"
-        }
-      ],
-      "disableableCredentialTypes": [],
-      "requiredActions": [],
-      "realmRoles": [
-        "default-roles-electoral-process"
-      ],
-      "clientRoles": {
-        "voting-portal": [
-          "user"
-        ]
-      },
-      "notBefore": 0,
-      "groups": []
-    },
-    {
-      "id": "f3ea1cd2-2eca-4b83-87d5-a013a4c12618",
-      "username": "omrio2@moveo.co.il",
-      "firstName": "Omri2",
-      "lastName": "Ovadia2",
-      "email": "omrio2@moveo.co.il",
-      "emailVerified": false,
-      "attributes": {
-        "tenant-id": [
-          "90505c8a-23a9-4cdf-a26b-4e19f6a097d5"
-        ],
-        "permission_label": [
-          "test3"
-        ]
-      },
-      "createdTimestamp": 1727800035203,
-      "enabled": true,
-      "totp": false,
-      "credentials": [],
-      "disableableCredentialTypes": [],
-      "requiredActions": [],
-      "realmRoles": [
-        "default-roles-electoral-process"
-      ],
-      "notBefore": 0,
-      "groups": [
-        "/admin-light"
-      ]
-    },
-    {
-      "id": "0a305107-2309-4ae7-b4d1-11829d6aa01a",
-      "username": "omrio@moveo.co.il",
-      "firstName": "Omri",
-      "lastName": "Ovadia",
-      "email": "omrio@moveo.co.il",
-      "emailVerified": false,
-      "attributes": {
-        "permission_labels": [
-          "election-test"
-        ],
-        "tenant-id": [
-          "90505c8a-23a9-4cdf-a26b-4e19f6a097d5"
-        ]
-      },
-      "createdTimestamp": 1727346268199,
-      "enabled": true,
-      "totp": false,
-      "credentials": [
-        {
-          "id": "8a7dc465-5578-42a9-993a-c56b25b8aa01",
-          "type": "password",
-          "userLabel": "My password",
-          "createdDate": 1727346283276,
-          "secretData": "{\"value\":\"egUjZq10BhUpvN557QNLOKAtT5w7ojfY6nk0dAHEAzhU6NXH5QAwBBZ+cq2dM0fLwUiHMmTxNrrcyHLXPOuNjg==\",\"salt\":\"+uZXi0yq2zWEJD5+0YPlaw==\",\"additionalParameters\":{}}",
-          "credentialData": "{\"hashIterations\":210000,\"algorithm\":\"pbkdf2-sha512\",\"additionalParameters\":{}}"
-        }
-      ],
-      "disableableCredentialTypes": [],
-      "requiredActions": [
-        "UPDATE_PASSWORD"
-      ],
-      "realmRoles": [
-        "default-roles-electoral-process"
-      ],
-      "notBefore": 0,
-      "groups": [
-        "/admin-light"
       ]
     },
     {
@@ -3793,18 +3618,15 @@
           "id": "6a6163f0-130f-4339-8655-89273dd3218e",
           "name": "x-hasura-tenant-id",
           "protocol": "openid-connect",
-          "protocolMapper": "oidc-hardcoded-claim-mapper",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
           "consentRequired": false,
           "config": {
-            "introspection.token.claim": "true",
-            "claim.value": "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
             "userinfo.token.claim": "true",
+            "user.attribute": "tenant-id",
             "id.token.claim": "true",
-            "lightweight.claim": "false",
             "access.token.claim": "true",
             "claim.name": "https://hasura\\.io/jwt/claims.x-hasura-tenant-id",
-            "jsonType.label": "String",
-            "access.tokenResponse.claim": "false"
+            "jsonType.label": "String"
           }
         },
         {

@@ -207,7 +207,7 @@ impl Client {
             sql: sql.into(),
             params: params,
             reuse_snapshot: false,
-            accept_stream: false,
+            accept_stream: true,
         })?;
         let sql_query_response = self.client.sql_query(sql_query_request).await?;
         debug!("sql-query-response={:?}", sql_query_response);
