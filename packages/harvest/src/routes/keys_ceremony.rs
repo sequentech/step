@@ -14,7 +14,7 @@ use sequent_core::types::hasura::core::KeysCeremony;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use strum_macros::Display;
-use tracing::{event, instrument, Level};
+use tracing::{error, event, instrument, Level};
 use windmill::postgres;
 use windmill::postgres::election::get_elections;
 use windmill::services::ceremonies::keys_ceremony::{
@@ -235,6 +235,7 @@ pub async fn create_keys_ceremony(
     })?;
 
     if !valid_permissions_label {
+        error!("User does not have permission labels");
         return Ok(Json(CreateKeysCeremonyOutput {
             keys_ceremony_id: "".to_string(),
             error_message: Some(CreateKeysError::PermissionLabels.to_string()),

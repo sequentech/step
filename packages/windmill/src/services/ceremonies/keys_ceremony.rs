@@ -28,7 +28,7 @@ use sequent_core::types::hasura::core::KeysCeremony;
 use serde_json::Value;
 use std::collections::HashSet;
 use tracing::instrument;
-use tracing::{event, Level};
+use tracing::{event, info, Level};
 use uuid::Uuid;
 
 // returns (board_name, election_id), where the election_id might be None for an event Board
@@ -497,12 +497,15 @@ pub async fn validate_permission_labels(
         .to_string();
     let user_permission_labels_json = format!("[{}]", user_permission_labels_json);
 
-    let permission_labels: Vec<String> = serde_json::from_str(&user_permission_labels_json)?;
-    let permission_labels: HashSet<String> = permission_labels.into_iter().collect();
+    let user_permission_labels_vec: HashSet<String> =
+        serde_json::from_str(&user_permission_labels_json)?;
+
+    info!(elections_permission_label = ?elections_permission_label);
+    info!(user_permission_labels_vec = ?user_permission_labels_vec);
 
     let is_valid_permission_labels = elections_permission_label
         .iter()
-        .all(|c| permission_labels.contains(c));
+        .all(|c| user_permission_labels_vec.contains(c));
 
     Ok(is_valid_permission_labels)
 }

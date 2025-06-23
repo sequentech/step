@@ -844,13 +844,13 @@ pub async fn get_election_permission_label(
         return Err(anyhow!("No election found"));
     }
 
-    let perms: Vec<String> = rows
+    let perms: Vec<Option<String>> = rows
         .into_iter()
-        .map(|row| -> Result<String> {
+        .map(|row: Row| -> Result<Option<String>> {
             let permission_label: Option<String> = row.try_get(0)?;
-            Ok(permission_label.unwrap_or_default())
+            Ok(permission_label)
         })
-        .collect::<Result<Vec<String>>>()?;
+        .collect::<Result<Vec<Option<String>>>>()?;
 
-    Ok(perms)
+    Ok(perms.into_iter().flatten().collect())
 }
