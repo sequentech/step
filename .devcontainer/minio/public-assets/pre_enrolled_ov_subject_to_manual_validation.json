@@ -65,7 +65,7 @@
           "id": "VOT12345",
           "disapproval_reason": "",
           "enrollment_date": "2024-05-02T10:45:00-04:00",
-          "manual_verify_reason":"Mismatch at Last Name"
+          "manual_verify_reason": "Mismatch at Last Name"
         },
         {
           "last_name": "Doe",
@@ -75,7 +75,7 @@
           "id": "VOT12346",
           "disapproval_reason": "",
           "enrollment_date": "2024-05-02T10:45:00-04:00",
-          "manual_verify_reason":"Mismatch at First Name"
+          "manual_verify_reason": "Mismatch at First Name"
         },
         {
           "last_name": "Brown",
@@ -85,7 +85,7 @@
           "id": "VOT12347",
           "disapproval_reason": "",
           "enrollment_date": "2024-05-02T10:45:00-04:00",
-          "manual_verify_reason":"Mismatch at Last Name"
+          "manual_verify_reason": "Mismatch at Last Name"
         },
         {
           "last_name": "Taylor",
@@ -95,7 +95,7 @@
           "id": "VOT12348",
           "disapproval_reason": "",
           "enrollment_date": "2024-05-02T10:45:00-04:00",
-          "manual_verify_reason":"Mismatch at Last Name, Post"
+          "manual_verify_reason": "Mismatch at Last Name, Post"
         },
         {
           "last_name": "Davis",
@@ -105,7 +105,7 @@
           "id": "VOT12349",
           "disapproval_reason": "",
           "enrollment_date": "2024-05-02T10:45:00-04:00",
-          "manual_verify_reason":"Mismatch at Last Name"
+          "manual_verify_reason": "Mismatch at Last Name"
         },
         {
           "last_name": "Wilson",
@@ -115,7 +115,7 @@
           "id": "VOT12350",
           "disapproval_reason": "",
           "enrollment_date": "2024-05-02T10:45:00-04:00",
-          "manual_verify_reason":"Mismatch at Last Name"
+          "manual_verify_reason": "Mismatch at Last Name"
         },
         {
           "last_name": "Miller",
@@ -125,7 +125,7 @@
           "id": "VOT12351",
           "disapproval_reason": "",
           "enrollment_date": "2024-05-02T10:45:00-04:00",
-          "manual_verify_reason":"Mismatch at First Name"
+          "manual_verify_reason": "Mismatch at First Name"
         },
         {
           "last_name": "Lee",
@@ -135,7 +135,7 @@
           "id": "VOT12352",
           "disapproval_reason": "",
           "enrollment_date": "2024-05-02T10:45:00-04:00",
-          "manual_verify_reason":"Mismatch at Last Name"
+          "manual_verify_reason": "Mismatch at Last Name"
         },
         {
           "last_name": "Martin",
@@ -145,7 +145,7 @@
           "id": "VOT12353",
           "disapproval_reason": "",
           "enrollment_date": "2024-05-02T10:45:00-04:00",
-          "manual_verify_reason":"Mismatch at Last Name"
+          "manual_verify_reason": "Mismatch at Last Name"
         }
       ]
     }

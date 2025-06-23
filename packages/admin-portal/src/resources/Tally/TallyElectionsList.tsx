@@ -40,16 +40,22 @@ export const TallyElectionsList: React.FC<TallyElectionsListProps> = (props) => 
         return elections?.filter((election) => election.keys_ceremony_id === keysCeremonyId)
     }, [elections, keysCeremonyId, tallyData])
 
+    const sortedfilteredElections = useMemo(() => {
+        // Ensure filteredElections and its nested properties exist
+        const items = filteredElections
+        if (!items) return []
+
+        // Create a shallow copy and sort it
+        return [...items].sort((a, b) => {
+            if (!a?.name || !b?.name) return 0
+            return a.name.localeCompare(b.name)
+        })
+        // Dependency array: re-run only when the original items array changes
+    }, [filteredElections])
+
     useEffect(() => {
         if (filteredElections) {
-            const temp: Array<Sequent_Backend_Election_Extended> = (filteredElections || [])
-                .sort((a, b) => {
-                    if (a.alias && b.alias) {
-                        return a.alias.localeCompare(b.alias)
-                    } else {
-                        return a.name.localeCompare(b.name)
-                    }
-                })
+            const temp: Array<Sequent_Backend_Election_Extended> = sortedfilteredElections
                 .map((election, index) => ({
                     ...election,
                     rowId: index,

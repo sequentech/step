@@ -2,15 +2,15 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::{anyhow, Context, Result};
-use log::info;
-use serde::{Deserialize, Serialize};
-use tracing::{event, instrument, Level};
-
 use crate::assign_value;
+use anyhow::{anyhow, Context, Result};
 use immudb_rs::{sql_value::Value, Client, CommittedSqlTx, NamedParam, Row, SqlValue, TxMode};
+use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use tokio::time::{sleep, Duration};
+use tokio_stream::StreamExt; // Added for streaming
+use tracing::{debug, error, info, warn};
+use tracing::{event, instrument, Level};
 
 const IMMUDB_DEFAULT_LIMIT: usize = 900;
 const IMMUDB_DEFAULT_ENTRIES_TX_LIMIT: usize = 50;
@@ -226,7 +226,7 @@ impl BoardClient {
         &mut self,
         board_db: &str,
         kind: &str,
-        sender_pk: &str,
+        sender_pk: Option<&str>,
         min_ts: Option<i64>,
         max_ts: Option<i64>,
     ) -> Result<Vec<ElectoralLogMessage>> {
@@ -238,7 +238,7 @@ impl BoardClient {
         &mut self,
         board_db: &str,
         kind: &str,
-        sender_pk: &str,
+        sender_pk: Option<&str>,
         min_ts: Option<i64>,
         max_ts: Option<i64>,
     ) -> Result<Vec<ElectoralLogMessage>> {
@@ -254,6 +254,12 @@ impl BoardClient {
             ("", 0)
         };
 
+        let (sender_pk_clause, sender_pk_value) = if let Some(sender_pk) = sender_pk {
+            ("AND sender_pk = @sender_pk", sender_pk)
+        } else {
+            ("", "")
+        };
+
         self.client.use_database(board_db).await?;
         let sql = format!(
             r#"
@@ -266,28 +272,21 @@ impl BoardClient {
             message,
             version
         FROM {}
-        WHERE sender_pk = @sender_pk AND statement_kind = @statement_kind
+        WHERE statement_kind = @statement_kind
+        {}
         {}
         {}
         ORDER BY id;
         "#,
-            ELECTORAL_LOG_TABLE, min_clause, max_clause,
+            ELECTORAL_LOG_TABLE, min_clause, max_clause, sender_pk_clause
         );
 
-        let mut params = vec![
-            NamedParam {
-                name: String::from("sender_pk"),
-                value: Some(SqlValue {
-                    value: Some(Value::S(sender_pk.to_string())),
-                }),
-            },
-            NamedParam {
-                name: String::from("statement_kind"),
-                value: Some(SqlValue {
-                    value: Some(Value::S(kind.to_string())),
-                }),
-            },
-        ];
+        let mut params = vec![NamedParam {
+            name: String::from("statement_kind"),
+            value: Some(SqlValue {
+                value: Some(Value::S(kind.to_string())),
+            }),
+        }];
         if min_clause_value != 0 {
             params.push(NamedParam {
                 name: String::from("min_ts"),
@@ -304,14 +303,51 @@ impl BoardClient {
                 }),
             })
         }
+        if !sender_pk_value.is_empty() {
+            params.push(NamedParam {
+                name: String::from("sender_pk"),
+                value: Some(SqlValue {
+                    value: Some(Value::S(sender_pk_value.to_string())),
+                }),
+            })
+        }
 
-        let sql_query_response = self.client.sql_query(&sql, params).await?;
-        let messages = sql_query_response
-            .get_ref()
-            .rows
-            .iter()
-            .map(ElectoralLogMessage::try_from)
-            .collect::<Result<Vec<ElectoralLogMessage>>>()?;
+        let response_stream = self.client.streaming_sql_query(&sql, params)
+            .await
+            .with_context(|| "Failed to execute streaming_sql_query using immudb-rs v0.1.0. This version streams batches (SqlQueryResult).")?;
+        let mut stream = response_stream.into_inner(); // Get the tonic::Streaming<SqlQueryResult>
+
+        let mut messages: Vec<ElectoralLogMessage> = vec![];
+        let mut total_rows_fetched = 0;
+
+        while let Some(batch_result) = stream.next().await {
+            // Iterates over SqlQueryResult batches
+            match batch_result {
+                Ok(sql_query_result_batch) => {
+                    for individual_row in &sql_query_result_batch.rows {
+                        total_rows_fetched += 1;
+                        if total_rows_fetched % 1000 == 0 {
+                            info!(total_rows_fetched, "Processed rows from stream...");
+                        }
+
+                        let elog_row = match ElectoralLogMessage::try_from(individual_row) {
+                            Ok(elog_row) => elog_row,
+                            Err(e) => {
+                                warn!(error = %e, "Failed to parse ImmudbRow into ElectoralLogRow from stream batch.");
+                                continue;
+                            }
+                        };
+                        messages.push(elog_row);
+                    }
+                }
+                Err(e) => {
+                    error!(error = %e, "Error receiving batch from Immudb stream.");
+                    // Depending on the error, you might want to break or continue.
+                    // For now, we'll log and break for stream errors to avoid infinite loops on persistent errors.
+                    break;
+                }
+            }
+        }
 
         Ok(messages)
     }
@@ -705,27 +741,27 @@ pub(crate) mod tests {
         let ret = b.get_electoral_log_messages(BOARD_DB).await.unwrap();
         assert_eq!(messages, ret);
         let ret = b
-            .get_electoral_log_messages_filtered(BOARD_DB, "", "", None, None)
+            .get_electoral_log_messages_filtered(BOARD_DB, "", Some(""), None, None)
             .await
             .unwrap();
         assert_eq!(messages, ret);
         let ret = b
-            .get_electoral_log_messages_filtered(BOARD_DB, "", "", Some(1i64), None)
+            .get_electoral_log_messages_filtered(BOARD_DB, "", Some(""), Some(1i64), None)
             .await
             .unwrap();
         assert_eq!(messages, ret);
         let ret = b
-            .get_electoral_log_messages_filtered(BOARD_DB, "", "", None, Some(556i64))
+            .get_electoral_log_messages_filtered(BOARD_DB, "", Some(""), None, Some(556i64))
             .await
             .unwrap();
         assert_eq!(messages, ret);
         let ret = b
-            .get_electoral_log_messages_filtered(BOARD_DB, "", "", Some(1i64), Some(556i64))
+            .get_electoral_log_messages_filtered(BOARD_DB, "", Some(""), Some(1i64), Some(556i64))
             .await
             .unwrap();
         assert_eq!(messages, ret);
         let ret = b
-            .get_electoral_log_messages_filtered(BOARD_DB, "", "", Some(556i64), Some(666i64))
+            .get_electoral_log_messages_filtered(BOARD_DB, "", Some(""), Some(556i64), Some(666i64))
             .await
             .unwrap();
         assert_eq!(ret.len(), 0);

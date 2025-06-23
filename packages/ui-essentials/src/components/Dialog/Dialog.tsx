@@ -45,6 +45,7 @@ export interface DialogProps extends PropsWithChildren {
     fullWidth?: boolean
     maxWidth?: Breakpoint | false
     errorMessage?: string
+    hasCloseButton?: boolean
 }
 
 const Dialog: React.FC<DialogProps> = ({
@@ -60,6 +61,7 @@ const Dialog: React.FC<DialogProps> = ({
     fullWidth = false,
     maxWidth = "xs",
     errorMessage,
+    hasCloseButton,
 }) => {
     const okVariant =
         "info" === variant ? "primary" : "softwarning" === variant ? "softWarning" : "solidWarning"
@@ -104,12 +106,14 @@ const Dialog: React.FC<DialogProps> = ({
                 >
                     {title}
                 </Box>
-                <IconButton
-                    icon={faTimesCircle}
-                    variant="primary"
-                    onClick={closeDialog}
-                    className="dialog-icon-close"
-                />
+                {hasCloseButton ? (
+                    <IconButton
+                        icon={faTimesCircle}
+                        variant="primary"
+                        onClick={closeDialog}
+                        className="dialog-icon-close"
+                    />
+                ) : null}
             </DialogTitle>
             <DialogContent className="dialog-content"> {children} </DialogContent>
             <StyledDialogErrorContent className="dialog-content">
