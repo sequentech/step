@@ -47,6 +47,7 @@ const catalanTranslation: TranslationType = {
                 EXPORT_APPLICATION: "Exportar Sol·licituds",
                 EXPORT_TENANT_CONFIG: "Exporta la Configuració del Llogater",
                 IMPORT_TENANT_CONFIG: "Importa la Configuració del Llogater",
+                RENDER_DOCUMENT_PDF: "Generar el document PDF",
             },
             widget: {
                 taskTitle: "Tasca: {{title}}",
@@ -488,6 +489,7 @@ const catalanTranslation: TranslationType = {
                 copiedError: "Error copiant la contrasenya",
                 reports: "Informes",
                 applications: "Aplicacions",
+                tally: "Recompte",
             },
             taskNotification:
                 "{{action}} ha començat. Podeu veure el seu estat a la taula d'Execució de Tasques.",
@@ -1090,6 +1092,11 @@ const catalanTranslation: TranslationType = {
                 kind: "Tipus d'arxiu",
                 filter: "Filtres Personalizats",
                 approve: "Aprovar",
+                continue: "Continuar",
+                logout: "Sortir",
+                selectTenant: "Seleccionar Llogater",
+                processing: "Processant...",
+                tenantName: "Nom del Llogater",
             },
             language: {
                 es: "Espanyol",
@@ -1097,7 +1104,9 @@ const catalanTranslation: TranslationType = {
                 fr: "Francès",
                 cat: "Valencià",
                 tl: "Tagal",
+                gl: "Galego",
                 nl: "Holandés",
+                eu: "Euskera",
             },
             channel: {
                 online: "En línia",
@@ -1105,6 +1114,7 @@ const catalanTranslation: TranslationType = {
             },
             message: {
                 delete: "Estàs segur que vols esborrar aquest element?",
+                continueOrLogout: "Vols continuar conectat o sortir?",
             },
         },
         createResource: {
@@ -1878,6 +1888,10 @@ const catalanTranslation: TranslationType = {
             fields: {
                 isHidden: "Ocult",
                 publicUrl: "Enllaç públic",
+            },
+            empty: {
+                header: "Encara no hi ha material de suport",
+                action: "Genera material de suport",
             },
         },
         widget: {

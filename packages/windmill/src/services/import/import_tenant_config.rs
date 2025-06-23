@@ -50,8 +50,7 @@ pub async fn import_tenant_config_zip(
 
     let temp_zip_file = documents::get_document_as_temp_file(tenant_id, &document)
         .await
-        .map_err(|err| anyhow!("Error trying to get document as temporary file {err}"))
-        .unwrap();
+        .map_err(|err| anyhow!("Error trying to get document as temporary file {err}"))?;
 
     match sha256 {
         Some(hash) if !hash.is_empty() => match integrity_check(&temp_zip_file, hash) {

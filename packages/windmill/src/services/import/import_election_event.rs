@@ -3,18 +3,22 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::application::insert_applications;
-use crate::postgres::election_event::update_bulletin_board;
+use crate::postgres::election_event::{get_election_event_by_id_if_exist, update_bulletin_board};
 use crate::postgres::reports::insert_reports;
 use crate::postgres::reports::Report;
 use crate::postgres::trustee::get_all_trustees;
 use crate::services::import::import_publications::import_ballot_publications;
 use crate::services::import::import_scheduled_events::import_scheduled_events;
+use crate::services::import::import_tally::process_tally_file;
 use crate::services::protocol_manager::get_event_board;
 use crate::services::reports::template_renderer::EReportEncryption;
 use crate::services::reports_vault::get_report_key_pair;
 use crate::services::tasks_execution::update_fail;
+use crate::tasks::insert_election_event::CreateElectionEventInput;
+use crate::types::documents::ETallyDocuments;
 use ::keycloak::types::RealmRepresentation;
 use anyhow::{anyhow, Context, Result};
+use chrono::format;
 use chrono::{DateTime, Utc};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use futures::future::try_join_all;
@@ -56,9 +60,6 @@ use uuid::Uuid;
 use zip::read::ZipArchive;
 
 use super::import_users::import_users_file;
-use crate::hasura::election_event::get_election_event;
-use crate::hasura::election_event::insert_election_event as insert_election_event_hasura;
-use crate::hasura::election_event::insert_election_event::sequent_backend_election_event_insert_input as InsertElectionEventInput;
 use crate::postgres;
 use crate::postgres::area::insert_areas;
 use crate::postgres::area_contest::insert_area_contests;
@@ -70,7 +71,7 @@ use crate::postgres::keys_ceremony;
 use crate::postgres::scheduled_event::insert_scheduled_event;
 use crate::services::consolidation::aes_256_cbc_encrypt::decrypt_file_aes_256_cbc;
 use crate::services::documents;
-use crate::services::documents::upload_and_return_document_postgres;
+use crate::services::documents::upload_and_return_document;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_board::BoardSerializable;
 use crate::services::electoral_log::ElectoralLog;
@@ -232,25 +233,25 @@ pub async fn upsert_keycloak_realm(
     Ok(())
 }
 
-#[instrument(skip(auth_headers), err)]
+#[instrument(skip(hasura_transaction), err)]
 pub async fn insert_election_event_db(
-    auth_headers: &connection::AuthHeaders,
-    object: &InsertElectionEventInput,
+    hasura_transaction: &Transaction<'_>,
+    object: &CreateElectionEventInput,
 ) -> Result<()> {
-    let election_event_id = object.id.clone().unwrap();
-    let tenant_id = object.tenant_id.clone().unwrap();
+    let election_event_id = object
+        .id
+        .clone()
+        .ok_or(anyhow!("Empty election event id"))?;
+    let tenant_id = object.tenant_id.clone();
     // fetch election_event
-    let found_election_event = get_election_event(
-        auth_headers.clone(),
-        tenant_id.clone(),
-        election_event_id.clone(),
+    let found_election_event = get_election_event_by_id_if_exist(
+        hasura_transaction,
+        &tenant_id.clone(),
+        &election_event_id.clone(),
     )
-    .await?
-    .data
-    .expect("expected data".into())
-    .sequent_backend_election_event;
+    .await?;
 
-    if found_election_event.len() > 0 {
+    if found_election_event.is_some() {
         event!(
             Level::INFO,
             "Election event {} for tenant {} already exists",
@@ -260,17 +261,36 @@ pub async fn insert_election_event_db(
         return Ok(());
     }
 
-    let new_election_input = InsertElectionEventInput {
+    let new_election_input = ElectionEvent {
+        id: election_event_id.clone(),
+        tenant_id: object.tenant_id.clone(),
+        name: object.name.clone(),
+        description: object.description.clone(),
+        public_key: object.public_key.clone(),
+        status: object.status.clone(),
+        created_at: None,
+        updated_at: None,
+        labels: object.labels.clone(),
+        annotations: object.annotations.clone(),
+        presentation: object.presentation.clone(),
+        bulletin_board_reference: object.bulletin_board_reference.clone(),
+        is_archived: object.is_archived.unwrap_or(false),
+        voting_channels: object.voting_channels.clone(),
+        user_boards: object.user_boards.clone(),
+        encryption_protocol: object
+            .encryption_protocol
+            .clone()
+            .unwrap_or("RSA256".to_string()),
+        is_audit: object.is_audit.clone(),
+        audit_election_event_id: object.audit_election_event_id.clone(),
+        alias: object.alias.clone(),
         statistics: Some(json!({
             "num_emails_sent": 0,
             "num_sms_sent": 0
         })),
-        ..object.clone()
     };
 
-    let _hasura_response =
-        insert_election_event_hasura(auth_headers.clone(), new_election_input).await?;
-
+    insert_election_event(&hasura_transaction, &new_election_input).await?;
     Ok(())
 }
 
@@ -335,8 +355,7 @@ pub async fn get_document(
 
     let mut temp_file = documents::get_document_as_temp_file(&object.tenant_id, &document)
         .await
-        .map_err(|err| anyhow!("Error trying to get document as temporary file {err}"))
-        .unwrap();
+        .map_err(|err| anyhow!("Error trying to get document as temporary file {err}"))?;
 
     let document_type = document
         .clone()
@@ -468,7 +487,7 @@ pub async fn process_election_event_file(
     .await
     .with_context(|| format!("Error upserting Keycloak realm for tenant ID {tenant_id} and election event ID {election_event_id}"))?;
 
-    insert_election_event(hasura_transaction, &data)
+    insert_election_event(hasura_transaction, &data.election_event)
         .await
         .with_context(|| "Error inserting election event")?;
 
@@ -736,13 +755,13 @@ pub async fn process_s3_files(
 
     let file_suffix = Path::new(&file_path_string)
         .extension()
-        .unwrap()
+        .ok_or(anyhow!("Empty extension"))?
         .to_str()
-        .unwrap();
+        .ok_or(anyhow!("Empty file suffix"))?;
     let document_type = get_mime_types(file_suffix)[0];
 
     // Upload the file and return the document
-    let _document = upload_and_return_document_postgres(
+    let _document = upload_and_return_document(
         hasura_transaction,
         &file_path_string.clone(),
         file_size,
@@ -801,16 +820,28 @@ pub async fn get_zip_entries(
             (vec![], data_str)
         };
 
-    // sort it so that first we import the protocol manager keys files
-    zip_entries.sort_by(|(file_name_a, _), (file_name_b, _)| {
-        let is_a_target = file_name_a.contains(&EDocuments::PROTOCOL_MANAGER_KEYS.to_file_name());
-        let is_b_target = file_name_b.contains(&EDocuments::PROTOCOL_MANAGER_KEYS.to_file_name());
+    // Sort the ZIP entries by importance:
+    // 1. Protocol Manager keys are imported first (rank 0)
+    // 2. Regular files come next (rank 1)
+    // 3. Inside the TALLY directory:
+    //    - TALLY_SESSION and RESULTS_EVENT files are imported just before others (rank 2)
+    //    - All other TALLY files come last (rank 3)
+    zip_entries.sort_by_key(|(file_name, _)| {
+        let rank = if file_name.contains(EDocuments::PROTOCOL_MANAGER_KEYS.to_file_name()) {
+            0
+        } else if file_name.contains(EDocuments::TALLY.to_file_name()) {
+            if file_name.contains(ETallyDocuments::TALLY_SESSION.to_file_name())
+                || file_name.contains(ETallyDocuments::RESULTS_EVENT.to_file_name())
+            {
+                2
+            } else {
+                3
+            }
+        } else {
+            1
+        };
 
-        match (is_a_target, is_b_target) {
-            (true, false) => std::cmp::Ordering::Less,
-            (false, true) => std::cmp::Ordering::Greater,
-            _ => std::cmp::Ordering::Equal,
-        }
+        (rank, file_name.clone()) // rank first, then alphabetically within rank
     });
 
     Ok((zip_entries, election_event_schema))
@@ -842,6 +873,31 @@ pub async fn process_document(
     });
 
     let election_event_id_clone = election_event_id.clone();
+
+    let tally_session_file = zip_entries
+        .iter()
+        .find(|(name, _)| name.contains(ETallyDocuments::TALLY_SESSION.to_file_name()));
+    let results_event_file = zip_entries
+        .iter()
+        .find(|(name, _)| name.contains(ETallyDocuments::RESULTS_EVENT.to_file_name()));
+    let mut tally_files_content: Option<String> = None;
+    if let (Some(tally_session_file), Some(results_event_file)) =
+        (tally_session_file, results_event_file)
+    {
+        let tally_session_file_content = String::from_utf8(tally_session_file.1.clone())?;
+        let results_event_file_content = String::from_utf8(results_event_file.1.clone())?;
+        tally_files_content = Some(format!(
+            "\n{}\n{}",
+            tally_session_file_content, results_event_file_content
+        ));
+    }
+    let file_election_event_schema = match tally_files_content {
+        Some(tally_files_content) => {
+            format!("{}\n{}", file_election_event_schema, tally_files_content)
+        }
+        None => file_election_event_schema,
+    };
+
     let (election_event_schema, replacement_map) = process_election_event_file(
         hasura_transaction,
         &document_type,
@@ -1021,6 +1077,34 @@ pub async fn process_document(
                 )
                 .await
                 .context("Failed to import protocol manager keys")?;
+            }
+
+            if file_name.contains(&format!("{}/", EDocuments::TALLY.to_file_name())) {
+                let mut temp_file = NamedTempFile::new()
+                    .context("Failed to create ballot publications temporary file")?;
+
+                io::copy(&mut cursor, &mut temp_file).context(
+                    "Failed to copy contents of ballot publications file to temporary file",
+                )?;
+                temp_file.as_file_mut().rewind()?;
+                let tally_file_name = file_name
+                    .split("/")
+                    .last()
+                    .ok_or(anyhow!("Unexpected, tally without filename"))?
+                    .split(".")
+                    .next()
+                    .ok_or(anyhow!("Unexpected tally without extension"))?;
+                println!("tally_file_name:: {:?}", &tally_file_name);
+                process_tally_file(
+                    hasura_transaction,
+                    &temp_file,
+                    tally_file_name.to_string(),
+                    &election_event_schema.tenant_id.to_string(),
+                    &election_event_schema.election_event.id,
+                    replacement_map.clone(),
+                )
+                .await
+                .context("Failed to import tally_file")?;
             }
         }
     };

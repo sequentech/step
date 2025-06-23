@@ -80,6 +80,7 @@ const tagalogTranslation: TranslationType = {
                 EXPORT_APPLICATION: "I-export ang Mga Aplikasyon",
                 EXPORT_TENANT_CONFIG: "I-export ang Configurasyon ng Tenant",
                 IMPORT_TENANT_CONFIG: "I-import ang Configurasyon ng Tenant",
+                RENDER_DOCUMENT_PDF: "I-render ang dokumento bilang PDF",
             },
             widget: {
                 taskTitle: "Gawain: {{title}}",
@@ -487,6 +488,7 @@ const tagalogTranslation: TranslationType = {
                 copiedError: "Error sa pag-copy ng password sa clipboard",
                 reports: "Mga Ulat",
                 applications: "Mga Aplikasyon",
+                tally: "Bilang",
             },
             taskNotification:
                 "{{action}} ay nagsimula na. Maaari mong makita ang status nito sa Talahanayan ng Pagpapatupad ng Mga Gawain.",
@@ -1082,6 +1084,11 @@ const tagalogTranslation: TranslationType = {
                 kind: "Uri ng file",
                 filter: "Pasadyang mga filter",
                 approve: "Aprubahan",
+                continue: "Magpatuloy",
+                logout: "Mag-logout",
+                selectTenant: "Pumili ng Tenant",
+                processing: "Nagpro-process...",
+                tenantName: "Pangalan ng Tenant",
             },
             language: {
                 es: "Espanyol",
@@ -1089,7 +1096,9 @@ const tagalogTranslation: TranslationType = {
                 fr: "Pranses",
                 cat: "Valencian",
                 tl: "Tagalog",
+                gl: "Galego",
                 nl: "Nederlands",
+                eu: "Euskera",
             },
             channel: {
                 online: "Online",
@@ -1097,6 +1106,7 @@ const tagalogTranslation: TranslationType = {
             },
             message: {
                 delete: "Sigurado ka bang gusto mong tanggalin ang item na ito?",
+                continueOrLogout: "Gusto mo bang magpatuloy o mag-logout?",
             },
         },
         createResource: {
@@ -1872,6 +1882,10 @@ const tagalogTranslation: TranslationType = {
             fields: {
                 isHidden: "Nakatago",
                 publicUrl: "Publikong URL",
+            },
+            empty: {
+                header: "Wala pang support material",
+                action: "Gumawa ng support material",
             },
         },
         widget: {

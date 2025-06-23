@@ -2,34 +2,28 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{anyhow, Context, Result};
-use sequent_core::services::keycloak;
+use deadpool_postgres::Transaction;
 use sequent_core::services::{pdf, reports};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use serde_json::{Map, Value};
 use tracing::instrument;
 
-use crate::hasura;
+use crate::postgres::tenant::get_tenant_by_id;
 use crate::services::documents::upload_and_return_document;
 use crate::tasks::render_report::{FormatType, RenderTemplateBody};
 use sequent_core::util::temp_path::write_into_named_temp_file;
 
-#[instrument(err)]
+#[instrument(err, skip(hasura_transaction))]
 pub async fn render_report_task(
+    hasura_transaction: &Transaction<'_>,
     input: RenderTemplateBody,
     tenant_id: String,
     election_event_id: String,
 ) -> Result<()> {
-    let auth_headers = keycloak::get_client_credentials().await?;
-    println!("auth headers: {:#?}", auth_headers);
-    let hasura_response =
-        hasura::tenant::get_tenant(auth_headers.clone(), tenant_id.clone()).await?;
-    let username = hasura_response
-        .data
-        .expect("expected data".into())
-        .sequent_backend_tenant[0]
-        .slug
-        .clone();
+    let tenant = get_tenant_by_id(hasura_transaction, &tenant_id).await?;
+
+    let username = tenant.slug.clone();
     let mut variables_map = input.variables.clone();
     if !variables_map.contains_key("username") {
         variables_map.insert("username".to_string(), json!(username));
@@ -45,13 +39,13 @@ pub async fn render_report_task(
             write_into_named_temp_file(&render.into_bytes(), "reports-", ".html")
                 .with_context(|| "Error writing to file")?;
         upload_and_return_document(
-            temp_path_string,
+            &hasura_transaction,
+            &temp_path_string,
             file_size,
-            "text/plain".to_string(),
-            auth_headers.clone(),
-            tenant_id,
-            election_event_id,
-            input.name,
+            "text/plain",
+            &tenant_id,
+            Some(election_event_id),
+            &input.name,
             None,
             false,
         )
@@ -65,18 +59,17 @@ pub async fn render_report_task(
                 .with_context(|| "Error writing to file")?;
 
         let _document = upload_and_return_document(
-            temp_path_string,
+            &hasura_transaction,
+            &temp_path_string,
             file_size,
-            "application/pdf".to_string(),
-            auth_headers.clone(),
-            tenant_id,
-            election_event_id,
-            input.name,
+            "application/pdf",
+            &tenant_id,
+            Some(election_event_id),
+            &input.name,
             None,
             false,
         )
         .await?;
     }
-
     Ok(())
 }
