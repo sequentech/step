@@ -687,17 +687,49 @@ services:
       - immudb
       - immudb-log-audit-init-keycloak
 
-
-  rabbitmq:
+  rabbitmq1:
     profiles: ["full", "base"]
     image: rabbitmq:3.12.11-management
-    container_name: rabbitmq
+    container_name: rabbitmq1
+    hostname: rabbitmq1 # Set a predictable hostname
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+      # This MUST be the same for all nodes in the cluster
+      RABBITMQ_ERLANG_COOKIE: "a-very-long-and-secret-erlang-cookie-string"
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      # Expose ports on the first node for external access
+      - "5672:5672"   # AMQP port for clients
+      - "15672:15672" # Management UI
+    volumes:
+      # Mount the shared configuration file
+      - ./rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
+    healthcheck:
+      test: rabbitmq-diagnostics -q check_running
+      interval: 30s
+      timeout: 30s
+      retries: 3
+
+  rabbitmq2:
+    profiles: ["full", "base"]
+    image: rabbitmq:3.12.11-management
+    container_name: rabbitmq2
+    hostname: rabbitmq2 # Set a predictable hostname
+    depends_on:
+      - rabbitmq1
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+      # This MUST be the same for all nodes in the cluster
+      RABBITMQ_ERLANG_COOKIE: "a-very-long-and-secret-erlang-cookie-string"
+    volumes:
+      # Mount the same shared configuration file
+      - ./rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
+    healthcheck:
+      test: rabbitmq-diagnostics -q check_running
+      interval: 30s
+      timeout: 30s
+      retries: 3
 
   immudb-init:
     profiles: ["full", "base"]
@@ -1028,3 +1060,4 @@ volumes:
   vault-volume:
   b3_db_logs:
   b3_db_data:
+  rabbitmq-conf:
