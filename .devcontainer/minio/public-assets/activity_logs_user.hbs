@@ -3,8 +3,14 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 --}}
 
-<div>
-  {{{logo}}}
+<div class="logo-container">
+  {{#if logo_img}}
+    <img
+      class="logo"
+      alt="logo"
+      src="{{logo}}"
+    />
+  {{/if}}
 </div>
 <div>
   <h2>Election Event Activity Logs</h2>
@@ -14,7 +20,7 @@ SPDX-License-Identifier: AGPL-3.0-only
   <tr>
     <td style="margin: 16px 0">
       <div style="margin: 16px 0">
-        <table style="width: 100%; border: 1px solid black">
+        <table style="width: 100%; border: 1px solid black; border-collapse: collapse;">
           <thead>
             <tr>
               <td
@@ -182,7 +188,7 @@ SPDX-License-Identifier: AGPL-3.0-only
                   border: 1px solid black;
                 "
               >
-                <div style="font-size: 6px">{{message}}</div>
+                <span>{{message}}</span>
               </td>
             </tr>
             {{/each}}

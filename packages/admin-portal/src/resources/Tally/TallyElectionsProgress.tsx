@@ -1,21 +1,18 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useContext, useEffect, useState} from "react"
-import {useGetOne, useGetMany, useGetList, useReferenceOneFieldController} from "react-admin"
+import React, {useEffect, useMemo, useState} from "react"
 
 import {
     Sequent_Backend_Election,
     Sequent_Backend_Tally_Session,
     Sequent_Backend_Tally_Session_Execution,
 } from "../../gql/graphql"
-import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
 import {ElectionStatusItem} from "@/components/ElectionStatusItem"
 import styled from "@emotion/styled"
 import {LinearProgress, Typography, linearProgressClasses} from "@mui/material"
 import {useTranslation} from "react-i18next"
-import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {ITallyCeremonyStatus, ITallyElectionStatus} from "@/types/ceremonies"
 import {formatPercentOne} from "@sequentech/ui-core"
 
@@ -26,43 +23,28 @@ type Sequent_Backend_Election_Extended = Sequent_Backend_Election & {
     progress: number
 }
 
-export const TallyElectionsProgress: React.FC = () => {
-    const {tallyId} = useElectionEventTallyStore()
+interface TallyElectionsProgressProps {
+    tally?: Sequent_Backend_Tally_Session
+    tallySessionExecutions?: Array<Sequent_Backend_Tally_Session_Execution>
+    allElections?: Array<Sequent_Backend_Election>
+}
+
+export const TallyElectionsProgress: React.FC<TallyElectionsProgressProps> = ({
+    tally,
+    tallySessionExecutions: execution,
+    allElections,
+}) => {
     const {t} = useTranslation()
-    const {globalSettings} = useContext(SettingsContext)
+
+    const elections = useMemo(() => {
+        return (
+            allElections?.filter((election) =>
+                (tally?.election_ids ?? []).includes(election?.id)
+            ) ?? []
+        )
+    }, [tally?.election_ids, allElections])
 
     const [electionsData, setElectionsData] = useState<Array<Sequent_Backend_Election_Extended>>([])
-
-    const {data: tally} = useGetOne<Sequent_Backend_Tally_Session>(
-        "sequent_backend_tally_session",
-        {
-            id: tallyId,
-        },
-        {
-            refetchOnWindowFocus: false,
-            refetchOnReconnect: false,
-            refetchOnMount: false,
-        }
-    )
-
-    const {data: execution} = useGetList<Sequent_Backend_Tally_Session_Execution>(
-        "sequent_backend_tally_session_execution",
-        {
-            filter: {tally_session_id: tallyId},
-            sort: {field: "created_at", order: "DESC"},
-            pagination: {page: 1, perPage: 1},
-        },
-        {
-            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
-            refetchOnWindowFocus: false,
-            refetchOnReconnect: false,
-            refetchOnMount: false,
-        }
-    )
-
-    const {data: elections} = useGetMany<Sequent_Backend_Election>("sequent_backend_election", {
-        ids: tally?.election_ids || [],
-    })
 
     useEffect(() => {
         if (elections) {

@@ -1,7 +1,6 @@
 // SPDX-FileCopyrightText: 2022 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::ballot;
 use crate::ballot::*;
 use crate::ballot_codec::*;
 use crate::plaintext::*;
@@ -13,12 +12,20 @@ pub struct RawBallotContest {
     pub bases: Vec<u64>,
     pub choices: Vec<u64>,
 }
+impl RawBallotContest {
+    // FIXME add validation (eg all values within range)
+    // FIXME ensure this struct is always created with via RawBallotContest::new
+    pub fn new(bases: Vec<u64>, choices: Vec<u64>) -> Self {
+        RawBallotContest { bases, choices }
+    }
+}
 
 pub trait RawBallotCodec {
     fn encode_to_raw_ballot(
         &self,
         plaintext: &DecodedVoteContest,
     ) -> Result<RawBallotContest, String>;
+
     fn decode_from_raw_ballot(
         &self,
         raw_ballot: &RawBallotContest,
@@ -58,7 +65,7 @@ impl RawBallotCodec for Contest {
         &self,
         plaintext: &DecodedVoteContest,
     ) -> Result<RawBallotContest, String> {
-        let mut bases = self.get_bases();
+        let mut bases = self.get_bases().map_err(|e| e.to_string())?;
         let mut choices: Vec<u64> = vec![];
 
         let char_map = self.get_char_map();

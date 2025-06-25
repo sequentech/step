@@ -91,7 +91,7 @@ fn get_board_name_for_event_or_election(
     }
 }
 
-#[instrument(err)]
+#[instrument(err, skip(replacement_map))]
 pub async fn import_protocol_manager_keys(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -99,7 +99,7 @@ pub async fn import_protocol_manager_keys(
     temp_file: NamedTempFile,
     replacement_map: HashMap<String, String>,
 ) -> Result<()> {
-    let elections = get_elections(hasura_transaction, tenant_id, election_event_id).await?;
+    let elections = get_elections(hasura_transaction, tenant_id, election_event_id, None).await?;
     let mut keys_map: HashMap<Option<String>, String> = HashMap::new();
     let separator = b',';
 
@@ -160,9 +160,15 @@ pub async fn import_protocol_manager_keys(
     if let Some(value) = keys_map.get(&None).cloned() {
         let board_name = get_event_board(tenant_id, election_event_id);
         let protocol_manager_key = get_protocol_manager_secret_path(&board_name);
-        vault::save_secret(protocol_manager_key, value)
-            .await
-            .context("protocol manager secret not saved")?
+        vault::save_secret(
+            hasura_transaction,
+            tenant_id,
+            Some(election_event_id),
+            &protocol_manager_key,
+            &value,
+        )
+        .await
+        .context("protocol manager secret not saved")?
     } else {
         return Err(anyhow!("Missing event protocol manager keys"));
     }
@@ -172,9 +178,15 @@ pub async fn import_protocol_manager_keys(
         if let Some(value) = keys_map.get(&Some(election.id.clone())).cloned() {
             let board_name = get_election_board(tenant_id, &election.id);
             let protocol_manager_key = get_protocol_manager_secret_path(&board_name);
-            vault::save_secret(protocol_manager_key, value)
-                .await
-                .context("protocol manager secret not saved")?
+            vault::save_secret(
+                hasura_transaction,
+                tenant_id,
+                Some(election_event_id),
+                &protocol_manager_key,
+                &value,
+            )
+            .await
+            .context("protocol manager secret not saved")?
         } else {
             return Err(anyhow!(
                 "Missing election protocol manager keys for election"
@@ -243,16 +255,28 @@ pub async fn import_bulletin_boards(
         } else {
             None
         };
+
         let board_name =
             get_board_name_for_event_or_election(tenant_id, election_event_id, new_election_id);
+        let mut board_client = get_b3_pgsql_client().await?;
+
+        let existing_board: Option<b3::client::pgsql::B3IndexRow> =
+            board_client.get_board(board_name.as_str()).await?;
+
+        if existing_board.is_none() {
+            return Err(anyhow!(
+                "Can't import messages for bulletin board {} because the table doesn't exist",
+                board_name
+            ));
+        }
 
         // Sort messages by 'created' in ascending order
         let mut new_records = records.clone();
         new_records.sort_by_key(|msg| msg.created);
 
-        let mut client = get_b3_pgsql_client().await?;
-        client.create_board_ine(&board_name).await?;
-        client.insert_messages(&board_name, &new_records).await?;
+        board_client
+            .insert_messages(&board_name, &new_records)
+            .await?;
     }
 
     Ok(())

@@ -8,6 +8,13 @@ use crate::types::tasks::ETasksExecution;
 use anyhow::{Context, Result};
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::hasura::extra::TasksExecutionStatus;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct TaskAnnotations {
+    document_id: Option<String>,
+}
 
 pub async fn post(
     tenant_id: &str,
@@ -34,30 +41,39 @@ pub async fn post(
     Ok(task)
 }
 
+// TODO filter also by tenant-id and document-id
 pub async fn update(
+    tenant_id: &str,
     task_id: &str,
     status: TasksExecutionStatus,
     logs: serde_json::Value,
+    document_id: Option<String>,
 ) -> Result<(), anyhow::Error> {
-    update_task_execution_status(task_id, status, Some(logs))
+    let annotations = serde_json::to_value(TaskAnnotations { document_id })?;
+    update_task_execution_status(tenant_id, task_id, status, Some(logs), annotations)
         .await
         .context("Failed to update task execution record")?;
     Ok(())
 }
 
-pub async fn update_complete(task: &TasksExecution) -> Result<(), anyhow::Error> {
+// TODO filter also by tenant-id and document-id
+pub async fn update_complete(
+    task: &TasksExecution,
+    document_id: Option<String>,
+) -> Result<(), anyhow::Error> {
     let task_id = &task.id;
     let new_status = TasksExecutionStatus::SUCCESS;
     let logs = task.logs.clone();
     let new_msg = "Task completed successfully";
     let new_logs = serde_json::to_value(append_general_log(&logs, new_msg))?;
 
-    update(&task_id, new_status, new_logs)
+    update(&task.tenant_id, &task_id, new_status, new_logs, document_id)
         .await
         .context("Failed to update task execution record")?;
     Ok(())
 }
 
+// TODO filter also by tenant-id and document-id
 pub async fn update_fail(task: &TasksExecution, err_message: &str) -> Result<(), anyhow::Error> {
     let task_id = &task.id;
     let new_status = TasksExecutionStatus::FAILED;
@@ -66,10 +82,17 @@ pub async fn update_fail(task: &TasksExecution, err_message: &str) -> Result<(),
         &logs,
         &("Error: ".to_owned() + err_message),
     ))?;
+    let annotations = serde_json::to_value(TaskAnnotations { document_id: None })?;
 
-    update_task_execution_status(task_id, new_status, Some(new_logs))
-        .await
-        .context("Failed to update task execution record with failure status")?;
+    update_task_execution_status(
+        &task.tenant_id,
+        task_id,
+        new_status,
+        Some(new_logs),
+        annotations,
+    )
+    .await
+    .context("Failed to update task execution record with failure status")?;
 
     Ok(())
 }

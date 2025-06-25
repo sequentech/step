@@ -12,12 +12,16 @@ import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider
 import {useLocation, useNavigate} from "react-router"
 import {v4 as uuidv4} from "uuid"
 import {EPublishType} from "../Publish/EPublishType"
-import {EElectionEventLockedDown} from "@sequentech/ui-core"
-import {Box} from "@mui/material"
+import {EElectionEventLockedDown, i18n, translateElection} from "@sequentech/ui-core"
+import {Box, CircularProgress} from "@mui/material"
 import {Tabs} from "@/components/Tabs"
+import {Dialog} from "@sequentech/ui-essentials"
 
 // Lazy load the tab components
 const DashboardElectionEvent = lazy(() => import("@/components/dashboard/election-event/Dashboard"))
+const OVOFDashboardElectionEvent = lazy(
+    () => import("@/components/monitoring-dashboard/election-event/MonitoringDashboard")
+)
 const EditElectionEventData = lazy(() =>
     import("./EditElectionEventData").then((module) => ({default: module.EditElectionEventData}))
 )
@@ -75,13 +79,19 @@ export const ElectionEventTabs: React.FC = () => {
     const {t} = useTranslation()
     const isElectionEventLocked =
         record?.presentation?.locked_down == EElectionEventLockedDown.LOCKED_DOWN
-    const {setTallyId, setCreatingFlag, setSelectedTallySessionData} = useElectionEventTallyStore()
+    const {setTallyId} = useElectionEventTallyStore()
     const [open] = useSidebarState()
 
     const showDashboard = authContext.isAuthorized(
         true,
         authContext.tenantId,
         IPermissions.ADMIN_DASHBOARD_VIEW
+    )
+
+    const showMonitoringDashboard = authContext.isAuthorized(
+        true,
+        authContext.tenantId,
+        IPermissions.MONITORING_DASHBOARD_VIEW_ELECTION_EVENT
     )
     const showData =
         !isElectionEventLocked &&
@@ -146,7 +156,11 @@ export const ElectionEventTabs: React.FC = () => {
     )
     const showApprovalsExecution =
         !isElectionEventLocked &&
-        authContext.isAuthorized(true, authContext.tenantId, IPermissions.TASKS_READ)
+        authContext.isAuthorized(
+            true,
+            authContext.tenantId,
+            IPermissions.ELECTION_EVENT_APPROVALS_TAB
+        )
 
     const [loadedChildren, setLoadedChildren] = React.useState<number>(0)
     const [value, setValue] = React.useState(0)
@@ -156,9 +170,11 @@ export const ElectionEventTabs: React.FC = () => {
     }
 
     useEffect(() => {
-        const locArr = location.pathname.split("/").slice(0, 3).join("/")
-        navigate(locArr)
-    }, [location.pathname, navigate])
+        if (record) {
+            const locArr = location.pathname.split("/").slice(0, 3).join("/")
+            navigate(locArr)
+        }
+    }, [location.pathname, navigate, record])
 
     // Code to refresh the dashboard when the user navigates to it
     const handleChildMount = () => {
@@ -171,12 +187,29 @@ export const ElectionEventTabs: React.FC = () => {
         }
     }, [loadedChildren])
 
+    if (!record) {
+        return (
+            <Box>
+                <CircularProgress />
+            </Box>
+        )
+    }
+
     return (
         <Box
             sx={{maxWidth: `calc(100vw - ${open ? "352px" : "96px"})`, bgcolor: "background.paper"}}
             className="events-box"
         >
-            <ElectionHeader title={record?.name} subtitle="electionEventScreen.common.subtitle" />
+            <ElectionHeader
+                title={
+                    translateElection(record, "alias", i18n.language) ||
+                    translateElection(record, "name", i18n.language) ||
+                    record.alias ||
+                    record.name ||
+                    "-"
+                }
+                subtitle="electionEventScreen.common.subtitle"
+            />
             <Box
                 sx={{
                     bgcolor: "background.paper",
@@ -190,7 +223,24 @@ export const ElectionEventTabs: React.FC = () => {
                                       label: t("electionEventScreen.tabs.dashboard"),
                                       component: () => (
                                           <Suspense fallback={<div>Loading Dashboard...</div>}>
-                                              <DashboardElectionEvent
+                                              <Box sx={{overflowX: "auto"}}>
+                                                  <DashboardElectionEvent
+                                                      refreshRef={refreshRef}
+                                                      onMount={handleChildMount}
+                                                  />
+                                              </Box>
+                                          </Suspense>
+                                      ),
+                                  },
+                              ]
+                            : []),
+                        ...(showMonitoringDashboard
+                            ? [
+                                  {
+                                      label: t("electionEventScreen.tabs.monitoring"),
+                                      component: () => (
+                                          <Suspense fallback={<div>Loading Dashboard...</div>}>
+                                              <OVOFDashboardElectionEvent
                                                   refreshRef={refreshRef}
                                                   onMount={handleChildMount}
                                               />
@@ -293,7 +343,11 @@ export const ElectionEventTabs: React.FC = () => {
                                               />
                                           </Suspense>
                                       ),
-                                      action: () => {
+                                      action: (index: number) => {
+                                          localStorage.setItem(
+                                              "electionEventPublishTabIndex",
+                                              index.toString()
+                                          )
                                           setShowPublishList(uuidv4())
                                       },
                                   },
@@ -368,6 +422,7 @@ export const ElectionEventTabs: React.FC = () => {
                                       ),
                                       action: () => {
                                           setShowApprovalList(uuidv4())
+                                          localStorage.setItem("approvals_status_filter", "pending")
                                       },
                                   },
                               ]

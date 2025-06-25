@@ -53,6 +53,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<version>3.0.2</version>
 		</dependency>
 		<dependency>
+			<groupId>com.rabbitmq</groupId>
+			<artifactId>amqp-client</artifactId>
+			<version>5.16.0</version>
+		</dependency>
+		<dependency>
 			<groupId>org.freemarker</groupId>
 			<artifactId>freemarker</artifactId>
 			<version>${freemarker.version}</version>
@@ -118,6 +123,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 							<artifactSet>
 								<includes>
 									<include>org.reactivestreams:reactive-streams</include>
+									<include>com.rabbitmq:*</include>
 								</includes>
 							</artifactSet>
 						</configuration>

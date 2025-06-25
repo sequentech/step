@@ -36,19 +36,6 @@ pub async fn manage_dates(
         return Err(anyhow!("Election not found"));
     };
 
-    if election
-        .get_presentation()
-        .initialization_report_policy
-        .unwrap_or(EInitializeReportPolicy::default())
-        == EInitializeReportPolicy::REQUIRED
-        && !election
-            .clone()
-            .initialization_report_generated
-            .unwrap_or(false)
-    {
-        return Err(anyhow!("Initialization report must be generated"));
-    }
-
     let event_processor_val: EventProcessors = EventProcessors::from_str(&event_processor)
         .map_err(|err| {
             anyhow!("Error mapping {event_processor:?} into an EventProcessor: {err:?}")

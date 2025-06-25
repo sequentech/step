@@ -10,12 +10,14 @@ export const IMPORT_ELECTION_EVENT = gql`
         $documentId: String!
         $password: String
         $checkOnly: Boolean
+        $sha256: String
     ) {
         import_election_event(
             tenant_id: $tenantId
             document_id: $documentId
             password: $password
             check_only: $checkOnly
+            sha256: $sha256
         ) {
             id
             message

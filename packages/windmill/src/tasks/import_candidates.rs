@@ -5,25 +5,22 @@
 use crate::postgres::candidate::insert_candidates;
 use crate::postgres::contest::export_contests;
 use crate::services::tasks_execution::*;
-use crate::types::error::Error;
 use crate::{
-    postgres::{document::get_document, tasks_execution::insert_tasks_execution},
+    postgres::document::get_document,
     services::{database::get_hasura_pool, documents::get_document_as_temp_file},
 };
 use anyhow::{anyhow, Context, Result};
-use csv::ReaderBuilder;
 use deadpool_postgres::Client as DbClient;
-use deadpool_postgres::Transaction;
 use encoding_rs::WINDOWS_1252;
 use encoding_rs_io::DecodeReaderBytesBuilder;
 use sequent_core::ballot::ContestPresentation;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::types::hasura::core::Contest;
 use sequent_core::types::hasura::core::{Candidate, TasksExecution};
-use std::fs::File;
+use sequent_core::util::integrity_check::{integrity_check, HashFileVerifyError};
 use std::io::BufReader;
 use std::io::Seek;
-use tracing::{event, instrument, Level};
+use tracing::{event, info, instrument, Level};
 use uuid::Uuid;
 
 #[instrument(ret)]
@@ -295,6 +292,7 @@ pub async fn import_candidates_task(
     election_event_id: String,
     document_id: String,
     task_execution: TasksExecution,
+    sha256: Option<String>,
 ) -> Result<()> {
     let mut hasura_db_client: DbClient = match get_hasura_pool().await.get().await {
         Ok(client) => client,
@@ -320,7 +318,7 @@ pub async fn import_candidates_task(
         }
         Err(err) => {
             update_fail(&task_execution, "Error obtaining the document").await?;
-            return Err(anyhow!("Error obtaining the document: {}", err));
+            return Err(anyhow!("Error obtaining the document: {err:?}"));
         }
     };
 
@@ -329,7 +327,7 @@ pub async fn import_candidates_task(
         Ok(contests) => contests,
         Err(err) => {
             update_fail(&task_execution, "Document not found").await?;
-            return Err(anyhow!("Error obtaining the document"));
+            return Err(anyhow!("Error obtaining the contests: {err:?}"));
         }
     };
 
@@ -337,11 +335,33 @@ pub async fn import_candidates_task(
         Ok(temp_file) => temp_file,
         Err(err) => {
             update_fail(&task_execution, "Document not found").await?;
-            return Err(anyhow!("Error obtaining the tmp document"));
+            return Err(anyhow!("Error obtaining the tmp document: {err:?}"));
         }
     };
 
     temp_file.rewind()?;
+
+    match sha256 {
+        Some(hash) if !hash.is_empty() => match integrity_check(&temp_file, hash) {
+            Ok(_) => {
+                info!("Hash verified !");
+            }
+            Err(HashFileVerifyError::HashMismatch(input_hash, gen_hash)) => {
+                let err_str = format!("Failed to verify the integrity: Hash of voters file: {gen_hash} does not match with the input hash: {input_hash}");
+                update_fail(&task_execution, &err_str).await?;
+                return Err(anyhow!(err_str));
+            }
+            Err(err) => {
+                let err_str = format!("Failed to verify the integrity: {err:?}");
+                update_fail(&task_execution, &err_str).await?;
+                return Err(anyhow!(err_str));
+            }
+        },
+        _ => {
+            info!("No hash provided, skipping integrity check");
+        }
+    }
+
     let reader = BufReader::new(temp_file.as_file());
 
     // Decode the file using the specified encoding
@@ -419,7 +439,7 @@ pub async fn import_candidates_task(
         }
     };
 
-    update_complete(&task_execution)
+    update_complete(&task_execution, Some(document_id.clone()))
         .await
         .context("Failed to update task execution status to COMPLETED")?;
 

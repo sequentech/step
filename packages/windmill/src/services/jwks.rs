@@ -1,9 +1,9 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::services::s3;
-use crate::services::temp_path::generate_temp_file;
 use anyhow::{anyhow, Context, Result};
+use sequent_core::services::s3;
+use sequent_core::util::temp_path::generate_temp_file;
 use serde::{Deserialize, Serialize};
 use std::env;
 use std::io::{BufWriter, Write};
@@ -27,7 +27,7 @@ pub struct JwksOutput {
     pub keys: Vec<JWKKey>,
 }
 
-fn get_jwks_secret_path() -> String {
+pub fn get_jwks_secret_path() -> String {
     "certs.json".to_string()
 }
 
@@ -127,6 +127,7 @@ pub async fn upsert_realm_jwks(realm: &str) -> Result<()> {
         /* media_type */ "application/json".to_string(),
         /* file_path */ temp_path.to_string_lossy().to_string(),
         /* cache_control_policy */ Some(get_cache_policy()?),
+        /* download filed name */ None,
     )
     .await
     .with_context(|| "Error uploading file to s3")?;
@@ -170,6 +171,7 @@ pub async fn remove_realm_jwks(realm: &str) -> Result<()> {
         /* media_type */ "application/json".to_string(),
         /* file_path */ temp_path.to_string_lossy().to_string(),
         /* cache_control_policy */ Some(get_cache_policy()?),
+        /* download filed name */ None,
     )
     .await
     .with_context(|| "Error uploading file to s3")?;

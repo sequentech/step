@@ -1,0 +1,20 @@
+# SPDX-FileCopyrightText: 2023-2024 Sequent Tech <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Dockerfile
+ARG SPA_NAME
+FROM ${SPA_NAME}-dependencies
+WORKDIR /usr/src/app/
+
+COPY ui-core ui-core
+COPY ui-essentials ui-essentials
+COPY voting-portal voting-portal
+COPY admin-portal admin-portal
+COPY ballot-verifier ballot-verifier
+
+ARG SPA_NAME
+
+RUN yarn build:ui-core
+RUN yarn build:ui-essentials
+RUN yarn build:${SPA_NAME}

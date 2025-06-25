@@ -11,6 +11,9 @@ use serde::{
 use sha2::Sha256;
 use sha2::Sha512;
 use sha3::Shake256;
+use std::fs::File;
+use std::io::{self, Read};
+use std::path::PathBuf;
 
 use crate::util::StrandError;
 
@@ -99,6 +102,28 @@ pub fn hash(bytes: &[u8]) -> Result<Vec<u8>, StrandError> {
 pub fn hash_sha256(bytes: &[u8]) -> Result<Vec<u8>, StrandError> {
     let mut hasher = Sha256::new();
     curve25519_dalek::digest::Update::update(&mut hasher, bytes);
+    Ok(hasher.finalize().to_vec())
+}
+
+pub fn hash_sha256_file(path: &PathBuf) -> Result<Vec<u8>, StrandError> {
+    let mut file =
+        File::open(path).map_err(|e| StrandError::SerializationError(e))?;
+    let mut hasher = Sha256::new();
+    let mut buffer = [0u8; 8192];
+
+    loop {
+        let bytes_read = file
+            .read(&mut buffer)
+            .map_err(|e| StrandError::SerializationError(e))?;
+        if bytes_read == 0 {
+            break;
+        }
+        curve25519_dalek::digest::Update::update(
+            &mut hasher,
+            &buffer[..bytes_read],
+        );
+    }
+
     Ok(hasher.finalize().to_vec())
 }
 

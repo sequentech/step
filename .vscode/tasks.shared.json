@@ -789,5 +789,120 @@
             },
             "problemMatcher": []
         },
+        {
+            "label": "logs.orare",
+            "command": "docker",
+            "args": [
+                "compose",
+                "logs",
+                "-f",
+                "--tail",
+                "200",
+                "orare",
+            ],
+            "options": {
+                "env": {
+                    "COMPOSE_PROJECT_NAME": "step_devcontainer",
+                    "COMPOSE_PROFILES": "base",
+                }
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "isBackground": true,
+            "runOptions": {
+                "runOn": "default"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "logs.restart.orare",
+            "command": "bash",
+            "args": [
+                "-c",
+                "docker compose stop openwhisk orare; docker compose up -d --no-deps openwhisk && sleep 10 && docker compose up -d --no-deps orare && docker compose logs -f --tail 100 openwhisk orare"
+            ],
+            "options": {
+                "env": {
+                    "COMPOSE_PROJECT_NAME": "step_devcontainer",
+                    "COMPOSE_PROFILES": "base",
+                    "PDF_TRANSPORT_NAME": "orare-openwhisk"
+                },
+                "cwd": "${workspaceFolder}/.devcontainer"
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "isBackground": true,
+            "runOptions": {
+                "runOn": "default"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "logs.openwhisk",
+            "command": "docker",
+            "args": [
+                "compose",
+                "logs",
+                "-f",
+                "--tail",
+                "200",
+                "openwhisk"
+            ],
+            "options": {
+                "env": {
+                    "COMPOSE_PROJECT_NAME": "step_devcontainer",
+                    "COMPOSE_PROFILES": "base"
+                }
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "isBackground": true,
+            "runOptions": {
+                "runOn": "default"
+            },
+            "problemMatcher": []
+        },
+        {
+          "label": "free.space",
+          "command": "devenv",
+          "args": [
+            "shell",
+            "bash",
+            "--",
+            "-c",
+            "./.devcontainer/scripts/free-space.sh"
+          ],
+          "presentation": {
+            "echo": true,
+            "reveal": "always",
+            "focus": false,
+            "panel": "dedicated",
+            "showReuseMessage": true,
+            "clear": false
+          },
+          "isBackground": true,
+          "runOptions": {
+            "runOn": "default"
+          },
+          "problemMatcher": []
+        }
     ]
 }

@@ -15,10 +15,15 @@ import {
     sort_contests_list_js,
     sort_candidates_list_js,
     decode_auditable_ballot_js,
+    decode_auditable_multi_ballot_js,
     to_hashable_ballot_js,
+    to_hashable_multi_ballot_js,
     hash_auditable_ballot_js,
+    hash_auditable_multi_ballot_js,
     encrypt_decoded_contest_js,
+    encrypt_decoded_multi_contest_js,
     test_contest_reencoding_js,
+    test_multi_contest_reencoding_js,
     get_write_in_available_characters_js,
     check_is_blank_js,
     IDecodedVoteContest,
@@ -29,12 +34,14 @@ import {
     CandidatesOrder,
     ContestsOrder,
     ElectionsOrder,
-    IAuditableBallot,
+    IAuditableSingleBallot,
+    IAuditableMultiBallot,
     IBallotStyle,
     ICandidate,
     IContest,
     IElection,
-    IHashableBallot,
+    IHashableSingleBallot,
+    IHashableMultiBallot,
 } from ".."
 
 export type {
@@ -100,7 +107,9 @@ export const sortCandidatesInContest = (
     }
 }
 
-export const toHashableBallot = (auditableBallot: IAuditableBallot): IHashableBallot => {
+export const toHashableBallot = (
+    auditableBallot: IAuditableSingleBallot
+): IHashableSingleBallot => {
     try {
         return to_hashable_ballot_js(auditableBallot)
     } catch (error) {
@@ -109,9 +118,29 @@ export const toHashableBallot = (auditableBallot: IAuditableBallot): IHashableBa
     }
 }
 
-export const hashBallot = (auditableBallot: IAuditableBallot): string => {
+export const toHashableMultiBallot = (
+    auditableMultiBallot: IAuditableMultiBallot
+): IHashableMultiBallot => {
+    try {
+        return to_hashable_multi_ballot_js(auditableMultiBallot)
+    } catch (error) {
+        console.log(error)
+        throw error
+    }
+}
+
+export const hashBallot = (auditableBallot: IAuditableSingleBallot): string => {
     try {
         return hash_auditable_ballot_js(auditableBallot)
+    } catch (error) {
+        console.log(error)
+        throw error
+    }
+}
+
+export const hashMultiBallot = (auditableMultiBallot: IAuditableMultiBallot): string => {
+    try {
+        return hash_auditable_multi_ballot_js(auditableMultiBallot)
     } catch (error) {
         console.log(error)
         throw error
@@ -121,9 +150,21 @@ export const hashBallot = (auditableBallot: IAuditableBallot): string => {
 export const encryptBallotSelection = (
     ballotSelection: BallotSelection,
     election: IBallotStyle
-): IAuditableBallot => {
+): IAuditableSingleBallot => {
     try {
         return encrypt_decoded_contest_js(ballotSelection, election)
+    } catch (error) {
+        console.log(error)
+        throw error
+    }
+}
+
+export const encryptMultiBallotSelection = (
+    ballotSelection: BallotSelection,
+    election: IBallotStyle
+): IAuditableMultiBallot => {
+    try {
+        return encrypt_decoded_multi_contest_js(ballotSelection, election)
     } catch (error) {
         console.log(error)
         throw error
@@ -137,11 +178,31 @@ export const encryptBallotSelection = (
  * to check that the ballot selection is the same.
  */
 export const interpretContestSelection = (
-    contestSelection: IDecodedVoteContest,
+    ballotSelection: BallotSelection,
     election: IBallotStyle
-): IDecodedVoteContest => {
+): BallotSelection => {
     try {
-        return test_contest_reencoding_js(contestSelection, election)
+        return ballotSelection.map((contestSelection) =>
+            test_contest_reencoding_js(contestSelection, election)
+        )
+    } catch (error) {
+        console.log(error)
+        throw error
+    }
+}
+
+/*
+ * Encodes and decodes the multi contest selection.
+ * The result is getting the ballot selection back from sequent-core,
+ * but this time with the invalid errors. Also this allows the system
+ * to check that the multi ballot selection is the same.
+ */
+export const interpretMultiContestSelection = (
+    ballotSelection: BallotSelection,
+    election: IBallotStyle
+): BallotSelection => {
+    try {
+        return test_multi_contest_reencoding_js(ballotSelection, election)
     } catch (error) {
         console.log(error)
         throw error
@@ -161,10 +222,22 @@ export const getWriteInAvailableCharacters = (
 }
 
 export const decodeAuditableBallot = (
-    auditableBallot: IAuditableBallot
+    auditableBallot: IAuditableSingleBallot
 ): Array<IDecodedVoteContest> | null => {
     try {
         let decodedBallot = decode_auditable_ballot_js(auditableBallot)
+        return decodedBallot as Array<IDecodedVoteContest>
+    } catch (error) {
+        console.log(error)
+        throw error
+    }
+}
+
+export const decodeAuditableMultiBallot = (
+    auditableBallot: IAuditableMultiBallot
+): Array<IDecodedVoteContest> | null => {
+    try {
+        let decodedBallot = decode_auditable_multi_ballot_js(auditableBallot)
         return decodedBallot as Array<IDecodedVoteContest>
     } catch (error) {
         console.log(error)
@@ -206,7 +279,7 @@ export const check_voting_error_dialog_bool = (
     }
 }
 
-export const hashBallot512 = (auditableBallot: IAuditableBallot): string => {
+export const hashBallot512 = (auditableBallot: IAuditableSingleBallot): string => {
     try {
         return hash_auditable_ballot_js(auditableBallot)
     } catch (e) {
@@ -235,9 +308,9 @@ export const getPoints = (question: IContest, answer: IDecodedVoteChoice): numbe
     }
 }
 
-export const generateSampleAuditableBallot = (): IAuditableBallot | null => {
+export const generateSampleAuditableBallot = (): IAuditableSingleBallot | null => {
     try {
-        let auditableBallot: IAuditableBallot = generate_sample_auditable_ballot_js()
+        let auditableBallot: IAuditableSingleBallot = generate_sample_auditable_ballot_js()
         return auditableBallot
     } catch (error) {
         console.log(error)

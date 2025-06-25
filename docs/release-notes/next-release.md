@@ -6,144 +6,229 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 # Release NEXT
 
-## ✨ Keycloak: Send OTP SMS to US
+## ✨ Remove tagalo from admin settings in janitor
 
-We have added support to sending SMS OTP via Twilio Verify. To use it, the
-deployment should change like it follows:
+In order to ensure that tagalo is not active as a language in the admin portal, ensure
+that in the excel file you're using for janitor, you have this configuration: in the
+`Parameters` tab, add a row with:
 
-1. Add the appropriate env vars for keycloak:
+- type: admin
+- key: tenant_configurations.settings.language_conf.enabled_language_codes
+- value: ["en"]
 
-```bash
-TWILIO_ACCOUNT_SID="ACaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-TWILIO_SERVICE_SID="VAaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-TWILIO_AUTH_TOKEN="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+## ✨ Move all PDF generation to Lambda functions
+
+PDF generation backend is now configurable and allows Lambdas to
+perform this action. Generated PDF's might also be pushed to S3 --if
+the Lambda backend is configured as AWS.--
+
+The **environment variable** that mandates which PDF renderer backend
+to use is called `DOC_RENDERER_BACKEND`.
+
+There are three renderers allowed:
+
+- `DOC_RENDERER_BACKEND=aws_lambda`: this uses the AWS Lambda service -- only through a
+  Function URL in with `NONE` `Auth type`
+  (https://docs.aws.amazon.com/lambda/latest/dg/urls-configuration.html). This
+  backend is used in **production.**
+- `DOC_RENDERER_BACKEND=inplace`: this forks chrome/chromium,
+  generating the PDF in place. This is how PDF's have been generated
+  in the past. This is still the default in the development
+  environment, until `openwhisk` is promoted to the default in this
+  environment.
+- `DOC_RENDERER_BACKEND=openwhisk`: this service can be started in
+  development mode (`.devcontainer/docker-compose.yaml`), and the PDF renderer
+  lambda will be built and served locally in this mode.
+
+Depending on the chosen renderer, other environment variables might be
+relevant. **Note that this environment variables, both
+`DOC_RENDERER_BACKEND` and the ones following based on the backend
+that was chosen will need to be configured on multiple services, as
+the renderer decision that reads the `DOC_RENDERER_BACKEND` is inside
+`sequent-core`.**
+
+### Lambda input
+
+The input to the Lambda, is a JSON file of the form:
+
+```
+{
+  "html": "raw html with escaped quotes",
+  "pdf_options": {
+    "landscape": <bool>,
+    "displayHeaderFooter": <bool>,
+    "printBackground": <bool>,
+    "scale": <float>,
+    "paperWidth": <float>,
+    "paperHeight": <float>,
+    "marginTop": <float>,
+    "marginBottom": <float>,
+    "marginLeft": <float>,
+    "marginRight": <float>,
+    "pageRanges": <string>,
+    "ignoreInvalidPageRanges": <bool>,
+    "headerTemplate": <string>,
+    "footerTemplate": <string>,
+    "preferCssPageSize": <bool>,
+    "transferMode": {
+      "mode": <string>
+    }
+  },
+  "bucket": <string>,
+  "bucket_path": <string>
+}
 ```
 
-2. Configur the `twilio-verify` sms-sender in keycloak:
+**All keys are optional, except for `html`.**
+
+### Backends
+
+#### `aws_lambda`
+
+The environment variable that ponits to the AWS Lambda endpoint is
+`AWS_LAMBDA_DOC_RENDERER_ENDPOINT`. It has not a default value, so
+that the PDF generation will fail if it is missing.
+
+**In the AWS Lambda mode, if the Lambda is provided with a bucket, it
+will try to upload the generated PDF to S3 at the provided path and S3
+bucket. If the upload to S3 fails, the generation of the PDF as a
+whole will return failure, as if it was never generated.**
+
+#### Test
+
+First create the Lambda, assume we got as Function URL
+`https://rq5jtxuv4rxo5viu5jmxmpxuqq0oisgh.lambda-url.us-east-1.on.aws/`
+in this example.
+
+In a terminal, go to `step`, run `devenv shell`. Now, `cd
+packages/sequent-core`. From this location, run:
 
 ```
---spi-sms-sender-provider=twilio-verify
---spi-sms-sender-twilio-verify-enabled=true
---spi-sms-sender-aws-enabled=false
+step/packages/sequent-core $ AWS_LAMBDA_DOC_RENDERER_ENDPOINT=https://rq5jtxuv4rxo5viu5jmxmpxuqq0oisgh.lambda-url.us-east-1.on.aws/ cargo run -q --features=reports,lambda_aws_lambda --example render_pdf
+PDF correctly generated. Lambda is working as expected.
 ```
 
-## ✨ Admin Portal > Publish and Results changes on `election_dates` field
+If you see the message `PDF correctly generated. Lambda is working as
+expected.`, the Lambda is accessible and reporting a valid response.
 
-The `election_dates` for publications, for electoral results and for templates
-have been updated to include more information and a different internal
-structure. On migrations, this requires:
-1. Publishing a new publication for the ballot to work well
-2. Update all reports that use these dates in S3
+##### Testing lambda with curl
 
-## ✨ Admin Portal > Reports > Audit Logs: Improve 
+You can also test the lambda manually with curl, like so:
 
-Windmill now requires `APP_VERSION` and `APP_HASH` for reports.
+```
+$ curl -H 'Content-Type: application/json' \
+    -d '{ "html": "Hello, world" }' \
+    https://rq5jtxuv4rxo5viu5jmxmpxuqq0oisgh.lambda-url.us-east-1.on.aws/ | jq
+```
 
-## ✨ Ask for Admin password for sensitive actions
+#### `inplace`
 
-This feature changes the behavior of some sensitive actions like starting an
-election voting period or publishing a new publication of the ballot styles.
+**This mode is not relevant in production mode.**
 
-The way it works is by requiring gold level of authentication and for that the
-user needs to re-authenticate.
+No extra envvars are relevant other than `PATH`, or `CHROME` if you
+want to point explicitly to a specific Chrome executable.
 
-### Keycloak: Migration to add `gold` level of authentication support
+#### `openwhisk`
 
-In the Admin Portal Realm:
-1. Click `Realm Settings` in the sidebar
-2. In the `General` tab, click `Add ACR to LoA Mapping`
-3. Add two key-values pairs:
-    - key: `silver`
-      value: `1`
-    - key: `gold`
-      value: `2`
-4. Click `Authentication` in the sidebar
-5. Click `sequent browser blow` and ensure that:
-   1. All the normal authentication flow is under a `normal / silver`
-      connditional subflow with a required condition of type
-   `Condition - Level of Authentication` and value `1`.
-   2. it has a new conditional subflow
-   called `advanced / gold condition` with a required condition of type
-   `Condition - Level of Authentication` and value `2` and a Required
-   `Password Form` step.
+**This mode is not relevant in production mode.**
 
-## ✨ Admin Portal: Reports: Prepare templates from Annex A
+The environment variable that points to the OpenWhisk endpoint is
+called `OPENWHISK_DOC_RENDERER_ENDPOINT`. If its value is not provided, it will be
+defaulted to `http://$OPENWHISK_API_HOST:3233/api/v1/namespaces/_/actions/pdf-tools/doc_renderer?blocking=true&result=true`.
 
-We have added new reports to be generated:
+### Services to update with the new environment variables
 
-SBEI:
-- Initializaton Report
-- Status Report
-- Ballot receipt
-- Election Returns of National Positions
-- Transmission Reports
-- Audit Logs
-- OVCS Information
-- Overseas Voters' Turnout
-- List of Overseas Voters
-- Transmission Report
+Environment variables to add, in production:
 
-OFOV:
-- Overseas Voting Monitoring - OVCS Events
-- Overseas Voting Monitoring - OVCS Statistics
-- Overseas Voters’ Turnout - per Aboard Status and Sex
-- Overseas Voters’ Turnout - per Aboard Status, Sex and with Percentage
-- List of OV who Pre-enrolled (Approved)
-- List of OV who Pre-enrolled but subject for Manual Validation
-- List of OV who Pre-enrolled but Disapproved
-- List of OV who have not yet Pre-enrolled
-- List of Overseas Voters who Voted
-- List of Overseas Voters with Voting Status
-- No. of OV who have not yet Pre-enrolled
+- `DOC_RENDERER_BACKEND=aws_lambda`
+- `AWS_LAMBDA_DOC_RENDERER_ENDPOINT=<endpoint>`: this endpoint should
+  be the Function URL, with **NONE** **Auth type**. The requests that
+  are issued by `sequent-core` to the Lamdba **are not IAM
+  authenticated at this time**. It is of the form
+  `https://rq5jtxuv4rxo5viu5jmxmpxuqq0oisgh.lambda-url.us-east-1.on.aws/`
+  (**DO NOT USE THIS ONE IN PARTICULAR, AS IT WILL PROBABLY NOT
+  EXIST.**)
+- `AWS_S3_PRIVATE_URI`
+- `AWS_S3_PUBLIC_URI`
+- `AWS_S3_BUCKET`
+- `AWS_S3_PUBLIC_BUCKET`
+- `AWS_REGION`
+- `AWS_S3_ACCESS_KEY`
+- `AWS_S3_ACCESS_SECRET`
+- `AWS_S3_MAX_UPLOAD_BYTES`
+- `AWS_S3_UPLOAD_EXPIRATION_SECS`
+- `AWS_S3_FETCH_EXPIRATION_SECS`
+- `BALLOT_VERIFIER_URL` 
 
-### S3: New files to be uploaded
+Impacted services:
 
-For existing environments the following files need to be uploaded to S3:
+- `windmill`
+- `harvest`
 
-- .devcontainer/minio/public-assets/audit_logs.json
-- .devcontainer/minio/public-assets/audit_logs_system.hbs
-- .devcontainer/minio/public-assets/election_returns_for_national_positions.json
-- .devcontainer/minio/public-assets/election_returns_for_national_positions_system.hbs
-- .devcontainer/minio/public-assets/initialization.json
-- .devcontainer/minio/public-assets/initialization_system.hbs
-- .devcontainer/minio/public-assets/ov_users.json
-- .devcontainer/minio/public-assets/ov_users_system.hbs
-- .devcontainer/minio/public-assets/ov_users_who_voted.json
-- .devcontainer/minio/public-assets/ov_users_who_voted_system.hbs
-- .devcontainer/minio/public-assets/ovcs_events.json
-- .devcontainer/minio/public-assets/ovcs_events_system.hbs
-- .devcontainer/minio/public-assets/ovcs_information.json
-- .devcontainer/minio/public-assets/ovcs_information_system.hbs
-- .devcontainer/minio/public-assets/ovcs_statistics.json
-- .devcontainer/minio/public-assets/ovcs_statistics_system.hbs
-- .devcontainer/minio/public-assets/overseas_voters.json
-- .devcontainer/minio/public-assets/overseas_voters_system.hbs
-- .devcontainer/minio/public-assets/pre_enrolled_ov_but_disapproved.json
-- .devcontainer/minio/public-assets/pre_enrolled_ov_but_disapproved_system.hbs
-- .devcontainer/minio/public-assets/pre_enrolled_ov_subject_to_manual_validation.json
-- .devcontainer/minio/public-assets/pre_enrolled_ov_subject_to_manual_validation_system.hbs
-- .devcontainer/minio/public-assets/pre_enrolled_users.json
-- .devcontainer/minio/public-assets/pre_enrolled_users_system.hbs
-- .devcontainer/minio/public-assets/statistical_report.json
-- .devcontainer/minio/public-assets/statistical_report_system.hbs
-- .devcontainer/minio/public-assets/status.json
-- .devcontainer/minio/public-assets/status_system.hbs
-- .devcontainer/minio/public-assets/transmission.json
-- .devcontainer/minio/public-assets/transmission_system.hbs
+As a rule of thumb, **anything** that calls to `render_pdf` from
+`packages/sequent-core/src/services/pdf.rs` will have this
+behavior. This **applies transitively** across dependencies.
 
-## Environment Variables - devcontainer:
-Add `PUBLIC_ASSETS_PATH: ${PUBLIC_ASSETS_PATH}` to the harvest container in the following files:
+## ✨ Windmill > Enrollment: improved fuzzy search with indexes
 
-- .devcontainer/docker-compose-airgap-preparation.yml
-- .devcontainer/docker-compose.yml
+A new function needs to be created to normalize search values:
+```
+CREATE OR REPLACE FUNCTION normalize_text(input_text TEXT)
+RETURNS TEXT AS $$
+BEGIN
+RETURN lower(
+        regexp_replace(
+            unaccent(btrim(input_text)),
+            '[-\s]+', -- Match hyphens and whitespace
+            '',
+            'g'      -- Globally replace
+        )
+        );
+END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+```
 
-## ✨ Manual voter application approval flow
+And a few index that make use of the new normalizing function
+```
+-- Normalized User entity
+CREATE INDEX idx_user_entity_first_name_normalize ON user_entity((normalize_text(first_name)));
+CREATE INDEX idx_user_entity_last_name_normalize ON user_entity((normalize_text(last_name)));
+-- Normalized attribute
+CREATE INDEX idx_user_attribute_name_value_normalize_text ON user_attribute(name, (normalize_text(value)));
+```
 
-There's a new tab `Approvals` in the Election Event.
+## ✨ CANADA: Datafix integration
 
-### Migration to add permissions to keycloak realm
+New endpoints have been created, the definition and the json files can be found in _docs/datafix-integration_.
+Steps to configure the tenant and election event:
+1. Add the 2 new user attributes _voted-channel_ and _disable-comment_ into the election event realm in Realm Settings > User profile > Create attribute.
 
-It requires to add a couple of permissions In order use Election event
-`Approvals` tab:
-1. Go to realm roles, select the admin role and click on `Create role`
-2. Add the following roles: `application-read` and `application-write`
+2. Import new client _datafix-account.json_ into Sequent Admin Portal > Clients
+
+3. Set the election event annotations column in database - Hasura - as indicated in one of the examples: _election-event-annotations-example1.json_ or _election-event-annotations-example2.json_
+
+## ✨ Postgres add indexes
+
+Look into the file [init.sh](https://github.com/sequentech/step/blame/main/.devcontainer/postgresql/init.sh) to see which indexes
+are missing and need to be deployed. It looks like this PR [added new indexes](https://github.com/sequentech/step/pull/1628):
+
+```
+-- Index on user_entity.realm_id to optimize the join with realm
+CREATE INDEX IF NOT EXISTS idx_user_entity_realm_id ON user_entity(realm_id);
+
+-- Index on user_attribute.user_id to optimize the lateral join and aggregation
+CREATE INDEX IF NOT EXISTS idx_user_attribute_user_id ON user_attribute(user_id);
+  
+-- A composite index on user_attribute for covering queries on user_id, name, and value
+CREATE INDEX IF NOT EXISTS idx_user_attribute_userid_name_value ON user_attribute(user_id, name, value);
+```
+
+## ✨ Create PostgreSQL constraint on number of allowed revotes
+A new constraint has been added to check the number of allowed revotes at SQL level that will raise the exception:
+```
+insert_failed_exceeds_allowed_revotes
+```
+
+Migration files in the folder:
+_1744797160789_add_check_revote_limit_at_trigger_to_cast_vote_
+

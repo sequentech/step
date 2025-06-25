@@ -53,8 +53,8 @@ crepe! {
     //      the configuration has been signed by all trustees and we are at position self_p,
     //      the public key has been signed by all,
     //      the ballots contain ciphertexts source_h,
-    //      we have not mixed,
-    //      we are the first trustee in the selected set.
+    //      self_p has not mixed,
+    //      self_p is the first trustee in the selected set.
     A(Action::Mix(cfg_h, batch, source_h, pk_h, PROTOCOL_MANAGER_INDEX, 1, trustees)) <-
     ConfigurationSignedAll(cfg_h, self_p, _num_t, _threshold),
     PublicKeySignedAll(cfg_h, pk_h, _shares_h),

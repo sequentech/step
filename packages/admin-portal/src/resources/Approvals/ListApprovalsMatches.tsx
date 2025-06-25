@@ -2,14 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {
-    PropsWithChildren,
-    ReactElement,
-    useContext,
-    useEffect,
-    useMemo,
-    useState,
-} from "react"
+import React, {ReactElement, useContext, useMemo, useState} from "react"
 import {
     DatagridConfigurable,
     List,
@@ -21,38 +14,35 @@ import {
     FunctionField,
     BooleanInput,
     DateInput,
-    useListContext,
 } from "react-admin"
 import {useTenantStore} from "@/providers/TenantContextProvider"
-import DescriptionIcon from "@mui/icons-material/Description"
+import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline"
 import {ListActions} from "@/components/ListActions"
-import {Chip, Typography} from "@mui/material"
+import {Chip, Tooltip, Typography} from "@mui/material"
 import {Dialog} from "@sequentech/ui-essentials"
 import {useTranslation} from "react-i18next"
 import {Action, ActionsColumn} from "@/components/ActionButons"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {
-    ApplicationConfirmationBody,
+    ChangeApplicationStatusMutation,
     GetUserProfileAttributesQuery,
     Sequent_Backend_Applications,
     UserProfileAttribute,
 } from "@/gql/graphql"
-import {IPermissions} from "@/types/keycloak"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {IUser} from "@sequentech/ui-core"
-import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {USER_PROFILE_ATTRIBUTES} from "@/queries/GetUserProfileAttributes"
-import {getAttributeLabel} from "@/services/UserService"
+import {getAttributeLabel, getTranslationLabel, userBasicInfo} from "@/services/UserService"
 import CustomDateField from "../User/CustomDateField"
 import {styled} from "@mui/material/styles"
 import eStyled from "@emotion/styled"
 import SelectArea from "@/components/area/SelectArea"
-import {ResetFilters} from "@/components/ResetFilters"
 import ElectionHeader from "@/components/ElectionHeader"
-import {APPLICATION_CONFIRM} from "@/queries/ApplicationConfirm"
+import {CHANGE_APPLICATION_STATUS} from "@/queries/ChangeApplicationStatus"
 import {useMutation, useQuery} from "@apollo/client"
-import {FilterValues, PreloadedList} from "./PreloadedList"
+import {PreloadedList} from "./PreloadedList"
 import {convertToSnakeCase, convertToCamelCase, convertOneToSnakeCase} from "./UtilsApprovals"
+import {ApplicationsError} from "@/types/applications"
 
 const StyledChip = styled(Chip)`
     margin: 4px;
@@ -86,7 +76,7 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
     const authContext = useContext(AuthContext)
 
     // const canEditUsers = authContext.isAuthorized(true, tenantId, IPermissions.VOTER_WRITE)
-    const [approveVoter] = useMutation<ApplicationConfirmationBody>(APPLICATION_CONFIRM)
+    const [approveVoter] = useMutation<ChangeApplicationStatusMutation>(CHANGE_APPLICATION_STATUS)
 
     const userApprovalInfo = Object.entries(convertToSnakeCase(task.applicant_data)).map(
         ([key, value]) => key
@@ -115,7 +105,8 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
         for (const attr of userAttributes.get_user_profile_attributes) {
             if (attr.name && searchAttrs.includes(`${attr.name}`)) {
                 filters[attr.name] = {IsLike: ""}
-                filters[attr.name].IsLike = task.applicant_data[convertToCamelCase(attr.name)]
+                filters[attr.name].IsLike =
+                    task.applicant_data?.[convertToCamelCase(attr.name)] ?? ""
             }
         }
         return filters
@@ -132,7 +123,7 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
                         <DateInput
                             key={attr.name}
                             source={`attributes.${attr.name}`}
-                            label={getAttributeLabel(attr.display_name ?? "")}
+                            label={getTranslationLabel(attr.name, attr.display_name, t)}
                         />
                     )
                 }
@@ -140,11 +131,11 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
                     <TextInput
                         key={attr.name}
                         source={
-                            searchAttrs.includes(`${attr.name}`)
+                            attr.name && userBasicInfo.includes(attr.name)
                                 ? `${attr.name}.IsLike`
                                 : `attributes.${source}`
                         }
-                        label={getAttributeLabel(attr.display_name ?? "")}
+                        label={getTranslationLabel(attr.name, attr.display_name, t)}
                         // alwaysOn={searchAttrs.includes(`${attr.name}`)}
                     />
                 )
@@ -183,7 +174,7 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
     }
 
     const confirmApproveAction = async () => {
-        const {errors} = await approveVoter({
+        const {data, errors} = await approveVoter({
             variables: {
                 tenant_id: tenantId,
                 id: task?.id,
@@ -192,9 +183,16 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
                 election_event_id: electionEventId,
             },
         })
-        if (errors) {
-            notify(t(`approvalsScreen.notifications.approveError`), {type: "error"})
-            console.log(`Error deleting user: ${errors}`)
+        if (data?.ApplicationChangeStatus?.error || errors) {
+            let errorMessage =
+                data?.ApplicationChangeStatus?.error &&
+                data?.ApplicationChangeStatus?.error === ApplicationsError.APPROVED_VOTER
+                    ? t(`approvalsScreen.notifications.VoterApprovedAlready`)
+                    : t(`approvalsScreen.notifications.approveError`)
+            notify(errorMessage, {type: "error"})
+            console.log(
+                `Error approve user: ${errors ?? ""} ${data?.ApplicationChangeStatus?.error ?? ""}`
+            )
             return
         }
         notify(t(`approvalsScreen.notifications.approveSuccess`), {type: "success"})
@@ -204,9 +202,30 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
 
     const actions: Action[] = [
         {
-            icon: <DescriptionIcon className="approve-voter-icon" />,
+            icon: (
+                <Tooltip title={t(`common.label.approve`)} placement="right">
+                    <CheckCircleOutlineIcon
+                        color="success"
+                        className="approve-voter-icon"
+                        sx={{
+                            "cursor": "pointer",
+                            "transform": "scale(1.2)",
+                            "width": "48px",
+                            "padding": "1px",
+                            "borderRadius": "4px",
+                            "backgroundColor": "rgba(0, 128, 0, 0.1)",
+                            "transition": "transform 0.2s, background-color 0.2s, box-shadow 0.2s",
+                            "&:hover": {
+                                backgroundColor: "rgba(0, 128, 0, 0.2)",
+                                boxShadow: "0 4px 8px rgba(0, 0, 0, 0.2)",
+                                transform: "scale(1.2)",
+                            },
+                        }}
+                    />
+                </Tooltip>
+            ),
             action: approveAction,
-            showAction: () => task?.status === "PENDING",
+            showAction: () => task?.status === "PENDING" || task?.status === "REJECTED",
             label: t(`common.label.delete`),
             className: "approve-voter-icon",
         },
@@ -257,13 +276,14 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
                     <FunctionField
                         key={attr.name}
                         source={`attributes['${attr.name}']`}
-                        label={getAttributeLabel(attr.display_name ?? "")}
+                        label={getTranslationLabel(attr.name, attr.display_name, t)}
                         render={(record: IUser, source: string | undefined) => {
                             return (
                                 <CustomDateField
                                     key={attr.name}
+                                    base="attributes"
                                     source={`${attr.name}`}
-                                    label={getAttributeLabel(attr.display_name ?? "")}
+                                    label={getTranslationLabel(attr.name, attr.display_name, t)}
                                     emptyText="-"
                                 />
                             )
@@ -274,7 +294,7 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
                 return (
                     <FunctionField
                         key={attr.name}
-                        label={getAttributeLabel(attr.display_name ?? "")}
+                        label={getTranslationLabel(attr.name, attr.display_name, t)}
                         render={(record: IUser, source: string | undefined) => {
                             let value: any =
                                 attr.name && userApprovalInfo.includes(attr.name)
@@ -298,18 +318,23 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
                     />
                 )
             }
-            return (
-                <TextField
-                    key={attr.name}
-                    source={
-                        attr.name && userApprovalInfo.includes(attr.name)
-                            ? attr.name
-                            : `attributes['${attr.name}']`
-                    }
-                    label={getAttributeLabel(attr.display_name ?? "")}
-                    emptyText="-"
-                />
-            )
+
+            if (attr.name) {
+                return (
+                    <TextField
+                        key={attr.name}
+                        source={
+                            userBasicInfo.includes(attr.name)
+                                ? attr.name
+                                : `attributes['${attr.name}']`
+                        }
+                        label={getTranslationLabel(attr.name, attr.display_name, t)}
+                        emptyText="-"
+                    />
+                )
+            } else {
+                return null
+            }
         })
 
     return (

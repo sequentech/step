@@ -1,75 +1,101 @@
-<html lang="en-US">
+{{!--
+SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+  SPDX-License-Identifier: AGPL-3.0-only
+  --}}
+  <html lang="en-US">
 
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>{{title}}</title>
-  <script src="{{file_qrcode_lib}}"></script>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: auto;
-      max-width: 640px;
-    }
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>SEQUENT ONLINE VOTING</title>
+    <script src="{{file_qrcode_lib}}"></script>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0 48px;
+      }
 
-    h1, h2, h3, h4 {
-      margin-top: 48px;
-      margin-bottom: 48px;
-    }
+      .report {
+        width: 100%;
+        margin: 0;
+        padding: 10px;
+        display: flex;
+        justify-content:
+          flex-start;
+        flex-direction: column;
+        align-items: center;
+        gap: 20px;
+      }
 
-    .logo {
-      content: url("{{file_logo}}");
-      text-align: center;
-      margin: 16px auto;
-    }
+      .report-header {
+        width: 100%;
+        display: flex;
+        justify-content:
+          space-between;
+        vertical-align: top;
+      }
 
-    .main {
-      margin-top: 32px;
-    }
+      .report-header .left img {
+        width:
+          150px;
+      }
 
-    .main div {
-      margin-top: 32px;
-    }
+      .report-header .right {
+        width: 180px;
+        ;
+      }
 
-    .id-content {
-      print-color-adjust: exact;
-      font-family: monospace;
-      font-size:11px;
-      padding: 6px 12px;
-      background: #ecfdf5;
-      color: #191d23;
-      border-radius: 4px;
-    }
+      .report-body {
+        width: 100%;
+      }
+
+      .data {
+        line-height: 2;
+      }
+
+      .id-content {
+        print-color-adjust: exact;
+        padding: 6px 12px;
+        background: #ecfdf5;
+        color:
+          #191d23;
+        border-radius: 4px;
+      }
+
+      .timestamp-content {
+        print-color-adjust:
+          exact;
+        padding: 6px 12px;
+        color: #191d23;
+        border-radius: 4px;
+      }
+
+      .info {
+        margin: 32px 0;
+      }
+
+      #qrcode {
+        margin-top: 32px;
+        display: flex;
+        justify-content: center;
+      }
+
+      #qrcode img {
+        width: 300px;
+      }
       
-    .timestamp-content {
-      print-color-adjust: exact;
-      font-family: monospace;
-      font-size:11px;
-      padding: 6px 12px;
-      color: #191d23;
-      border-radius: 4px;
-    }
-      
-    .info {
-      margin: 32px 0;
-    }
-    .info p {
-      margin: 12px 0;
-    }
+      .info .key {
+        margin-right: 10px;
+      }
+    </style>
+  </head>
 
-    #qrcode {
-      margin-top: 32px;
-      display: flex;
-      justify-content: center;
-    }
-  </style>
-</head>
-
-<body>
-  <main class="main">
+  <body>
+    <main class="main">
       {{{rendered_user_template}}}
-  </main>
-</body>
+    </main>
+  </body>
 
-</html>
-
+  </html>

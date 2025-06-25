@@ -2,12 +2,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useContext, useEffect, useState} from "react"
+import React, {useContext, useEffect, useMemo, useState} from "react"
 import {useAtom} from "jotai"
 import archivedElectionEventSelection from "@/atoms/archived-election-event-selection"
-import {useLocation} from "react-router-dom"
+import {useLocation, useNavigate} from "react-router-dom"
 import styled from "@emotion/styled"
-import {IconButton, adminTheme} from "@sequentech/ui-essentials"
+import {Dialog, IconButton, adminTheme} from "@sequentech/ui-essentials"
 import {
     Sequent_Backend_Election_Event,
     Sequent_Backend_Election,
@@ -23,22 +23,36 @@ import {
     ICandidate,
 } from "@sequentech/ui-core"
 import SearchIcon from "@mui/icons-material/Search"
-import {Box, CircularProgress, TextField, MenuItem as MMenuItem, Menu as MMenu} from "@mui/material"
-import {Menu, useGetOne, useSidebarState} from "react-admin"
+import {
+    Button,
+    Box,
+    CircularProgress,
+    TextField,
+    MenuItem as MMenuItem,
+    Menu as MMenu,
+} from "@mui/material"
+import {Menu, useGetOne, useNotify, useSidebarState} from "react-admin"
 import {TreeMenu} from "./election-events/TreeMenu"
 import {faPlusCircle} from "@fortawesome/free-solid-svg-icons"
 import WebIcon from "@mui/icons-material/Web"
 import {HorizontalBox} from "../../HorizontalBox"
-import {Link} from "react-router-dom"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {useTranslation} from "react-i18next"
 import {IPermissions} from "../../../types/keycloak"
 import {useTreeMenuData} from "./use-tree-menu-hook"
-import {cloneDeep} from "lodash"
-import {sortCandidatesInContest, sortContestList, sortElectionList} from "@sequentech/ui-core"
+import {cloneDeep, debounce} from "lodash"
 import {useUrlParams} from "@/hooks/useUrlParams"
 import {useCreateElectionEventStore} from "@/providers/CreateElectionEventContextProvider"
+import {useLazyQuery} from "@apollo/client"
+import {
+    FETCH_CANDIDATE_TREE,
+    FETCH_CONTEST_TREE,
+    FETCH_ELECTION_EVENTS_TREE,
+    FETCH_ELECTIONS_TREE,
+} from "@/queries/GetElectionEventsTree"
+import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
+import {sortCandidatesInContest, sortContestList, sortElectionList} from "@sequentech/ui-core"
 
 const MenuItem = styled(Menu.Item)`
     color: ${adminTheme.palette.brandColor};
@@ -56,6 +70,30 @@ const StyledIconButton = styled(IconButton)`
     font-size: 1rem;
     line-height: 1.5rem;
 `
+
+const StyledButton = styled(Button)(({theme}) => ({
+    "backgroundColor": "white",
+    "color": theme.palette.brandColor,
+    "border": "none",
+    "boxShadow": "none",
+    "&:hover": {
+        color: theme.palette.brandColor,
+        backgroundColor: "rgba(0, 0, 0, 0.04)",
+        boxShadow: "none",
+    },
+    "&:active": {
+        color: theme.palette.brandColor,
+        backgroundColor: "rgba(0, 0, 0, 0.04)",
+        border: "none",
+        boxShadow: "none",
+    },
+    "&:focus": {
+        color: theme.palette.brandColor,
+        backgroundColor: "rgba(0, 0, 0, 0.04)",
+        border: "none",
+        boxShadow: "none",
+    },
+}))
 
 const Container = styled("div")<{isActive?: boolean}>`
     background-color: ${({isActive}) => (isActive ? adminTheme.palette.green.light : "initial")};
@@ -143,14 +181,19 @@ export type DynEntityType = {
     candidates?: CandidateType[]
 }
 
-export type DataTreeMenuType = BaseType | CandidateType | ElectionType | ElectionEventType
+export type DataTreeMenuType = (BaseType | CandidateType | ElectionType | ElectionEventType) & {
+    active?: boolean
+}
 
 function filterTree(tree: any, filterName: string): any {
     if (Array.isArray(tree)) {
         return tree.map((subTree) => filterTree(subTree, filterName)).filter((v) => v !== null)
     } else if (typeof tree === "object" && tree !== null) {
         for (let key in tree) {
-            if (tree.name?.toLowerCase().search(filterName.toLowerCase()) > -1) {
+            if (
+                tree.name?.toLowerCase().search(filterName.toLowerCase()) > -1 ||
+                tree.alias?.toLowerCase().search(filterName.toLowerCase()) > -1
+            ) {
                 return tree
             } else if (ENTITY_FIELD_NAMES.includes(key as EntityFieldName)) {
                 let filteredSubTree = filterTree(tree[key], filterName)
@@ -169,13 +212,17 @@ function filterTree(tree: any, filterName: string): any {
 export default function ElectionEvents() {
     const [tenantId] = useTenantStore()
     const [isOpenSidebar] = useSidebarState()
+    const [instantSearchInput, setInstantSearchInput] = useState<string>("")
     const [searchInput, setSearchInput] = useState<string>("")
+    const navigate = useNavigate()
+
     const [isArchivedElectionEvents, setArchivedElectionEvents] = useAtom(
         archivedElectionEventSelection
     )
-    const {toggleImportDrawer, openCreateDrawer} = useCreateElectionEventStore()
+    const {openCreateDrawer, openImportDrawer} = useCreateElectionEventStore()
+    const {election_event_id, election_id, contest_id, candidate_id} = useUrlParams()
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
-    const {data, loading} = useTreeMenuData(isArchivedElectionEvents)
+    const {data, loading, refetch: originalRefetch} = useTreeMenuData(isArchivedElectionEvents)
 
     const authContext = useContext(AuthContext)
     const showAddElectionEvent = authContext.isAuthorized(
@@ -185,68 +232,244 @@ export default function ElectionEvents() {
     )
     const {t, i18n} = useTranslation()
 
-    const [electionEventId, setElectionEventId] = useState("")
-    const {election_event_id, election_id, contest_id, candidate_id} = useUrlParams()
+    const [electionEventId, setElectionEventId] = useState<string | null>("")
+    const [electionId, setElectionId] = useState<string | null>("")
+    const [contestId, setContestId] = useState<string | null>("")
+    const [candidateId, setCandidateId] = useState<string | null>("")
 
-    const {data: electionEventData, isLoading: isElectionEventLoading} =
+    const {getCandidateIdFlag} = useElectionEventTallyStore()
+
+    /**
+     * Hooks to load data for entities
+     */
+    const {data: electionEventData, refetch: electionEventDataRefetch} =
         useGetOne<Sequent_Backend_Election_Event>(
             "sequent_backend_election_event",
-            {id: election_event_id || electionEventId},
-            {enabled: !!election_event_id || !!electionEventId}
+            {id: election_event_id},
+            {
+                enabled: !!election_event_id,
+                onSuccess: (data) => {
+                    setElectionEventId(data.id)
+                    setElectionId("")
+                    setContestId("")
+                    setCandidateId("")
+                },
+            }
         )
-
-    useGetOne<Sequent_Backend_Election>(
+    const {refetch: refetchElectionData} = useGetOne<Sequent_Backend_Election>(
         "sequent_backend_election",
         {id: election_id},
         {
             enabled: !!election_id,
             onSuccess: (data) => {
                 setElectionEventId(data.election_event_id)
+                setElectionId(data.id)
+                setContestId("")
+                setCandidateId("")
             },
         }
     )
-    useGetOne<Sequent_Backend_Contest>(
+    const {refetch: refetchContestData} = useGetOne<Sequent_Backend_Contest>(
         "sequent_backend_contest",
-        {id: contest_id},
+        {id: contest_id || contestId},
         {
             enabled: !!contest_id,
             onSuccess: (data) => {
+                setElectionId(data.election_id)
                 setElectionEventId(data.election_event_id)
+                setContestId(data.id)
+                setCandidateId("")
             },
         }
     )
-    useGetOne<Sequent_Backend_Candidate>(
+    const {refetch: candidateData} = useGetOne<Sequent_Backend_Candidate>(
         "sequent_backend_candidate",
         {id: candidate_id},
         {
             enabled: !!candidate_id,
             onSuccess: (data) => {
+                setContestId(data.contest_id)
                 setElectionEventId(data.election_event_id)
+                setCandidateId(data.id)
             },
         }
     )
+    // Get subtrees
+    const [
+        getElectionEventTree,
+        {data: electionEventTreeData, refetch: _electionEventTreeRefetch},
+    ] = useLazyQuery(FETCH_ELECTION_EVENTS_TREE)
+
+    const [getElectionTree, {data: electionTreeData, refetch: _electionTreeRefetch}] =
+        useLazyQuery(FETCH_ELECTIONS_TREE)
+
+    const [getContestTree, {data: contestTreeData, refetch: _contestTreeRefetch}] =
+        useLazyQuery(FETCH_CONTEST_TREE)
+
+    const [getCandidateTree, {data: candidateTreeData, refetch: _candidateTreeRefetch}] =
+        useLazyQuery(FETCH_CANDIDATE_TREE)
+
+    // Wrapper refetch functions: only call the internal refetch if variables
+    // are set
+    const electionEventTreeRefetch = () => {
+        if (tenantId && electionEventId) {
+            getElectionEventTree({
+                variables: {
+                    tenantId,
+                    isArchived: isArchivedElectionEvents,
+                },
+            })
+        }
+    }
+
+    const electionTreeRefetch = () => {
+        if (tenantId && electionEventId) {
+            _electionTreeRefetch({
+                variables: {
+                    tenantId,
+                    electionEventId,
+                },
+            })
+        }
+    }
+
+    const contestTreeRefetch = () => {
+        if (tenantId && electionId) {
+            _contestTreeRefetch({
+                variables: {
+                    tenantId,
+                    electionId,
+                },
+            })
+        }
+    }
+
+    const candidateTreeRefetch = () => {
+        if (tenantId && contestId) {
+            _candidateTreeRefetch({
+                variables: {
+                    tenantId,
+                    contestId,
+                },
+            })
+        }
+    }
+
+    // Instead of setting variables in the options, we now call the lazy queries
+    // only when variables exist.
+    // Force reload election event data when tenant ID changes or component mounts
+    useEffect(() => {
+        if (tenantId) {
+            getElectionEventTree({
+                variables: {
+                    tenantId,
+                    isArchived: isArchivedElectionEvents,
+                },
+            })
+
+            // Also reload other data that might depend on tenant ID
+            originalRefetch()
+        }
+    }, [tenantId, isArchivedElectionEvents, getElectionEventTree, originalRefetch])
 
     useEffect(() => {
-        if (!electionEventData) return
-        setArchivedElectionEvents(electionEventData?.is_archived ?? false)
-    }, [electionEventData, setArchivedElectionEvents])
+        if (tenantId && electionEventId) {
+            getElectionTree({
+                variables: {
+                    tenantId,
+                    electionEventId,
+                },
+            })
+        }
+    }, [tenantId, electionEventId, getElectionTree])
 
-    function handleSearchChange(searchInput: string) {
-        setSearchInput(searchInput)
-    }
+    useEffect(() => {
+        if (tenantId && electionId) {
+            getContestTree({
+                variables: {
+                    tenantId,
+                    electionId,
+                },
+            })
+        }
+    }, [tenantId, electionId, getContestTree])
 
-    function changeArchiveSelection(val: number) {
-        setArchivedElectionEvents(val === 1)
-    }
+    useEffect(() => {
+        if (tenantId && contestId) {
+            getCandidateTree({
+                variables: {
+                    tenantId,
+                    contestId,
+                },
+            })
+        }
+    }, [tenantId, contestId, candidateId, getCandidateTree])
 
     const location = useLocation()
     const isElectionEventActive = TREE_RESOURCE_NAMES.some(
         (route) => location.pathname.search(route) > -1
     )
 
-    let resultData = data
-    if (!loading && data && data.sequent_backend_election_event) {
-        resultData = filterTree({electionEvents: data?.sequent_backend_election_event}, searchInput)
+    useEffect(() => {
+        const callerPath = location.pathname.split("/")[1]
+
+        if (callerPath === "sequent_backend_election") {
+            electionTreeRefetch()
+            refetchElectionData()
+        } else if (callerPath === "sequent_backend_contest") {
+            contestTreeRefetch()
+            refetchContestData()
+        } else if (callerPath === "sequent_backend_candidate") {
+            candidateData()
+            candidateTreeRefetch()
+        } else {
+            // do nothing
+        }
+    }, [location])
+
+    useEffect(() => {
+        const hasCandidateIdFlag = location.pathname
+            .toLowerCase()
+            .includes("/sequent_backend_candidate/")
+
+        if (location.pathname.split("/").length > 2 && hasCandidateIdFlag) {
+            if (getCandidateIdFlag() === location.pathname.split("/")[2]) {
+                refetchContestData()
+
+                setTimeout(() => {
+                    candidateTreeRefetch()
+                }, 400)
+            }
+        }
+    }, [getCandidateIdFlag, candidate_id])
+
+    useEffect(() => {
+        if (!electionEventData || !electionEventId) return
+        if (electionEventData?.id === electionEventId && electionEventData?.is_archived) {
+            setArchivedElectionEvents(electionEventData?.is_archived ?? false)
+        }
+    }, [electionEventId, electionEventData, setArchivedElectionEvents])
+
+    let resultData = {...data}
+
+    function changeArchiveSelection(val: number) {
+        setArchivedElectionEvents(val === 1)
+        resultData = {}
+        navigate("/sequent_backend_election_event/")
+    }
+
+    const handleOpenCreateElectionEventMenu = (e: React.MouseEvent<HTMLElement>) => {
+        setAnchorEl(e.currentTarget)
+    }
+
+    const handleOpenCreateElectionEventForm = (e: React.MouseEvent<HTMLElement>) => {
+        setAnchorEl(null)
+        openCreateDrawer?.()
+    }
+
+    const handleOpenImportElectionEventForm = (e: React.MouseEvent<HTMLElement>) => {
+        setAnchorEl(null)
+        openImportDrawer?.()
     }
 
     const transformElectionsForSort = (elections: ElectionType[]): IElection[] => {
@@ -255,7 +478,7 @@ export default function ElectionEvents() {
                 ...election,
                 tenant_id: tenantId || "",
                 image_document_id: election.image_document_id ?? "",
-                contests: transformContestsForSort(election.contests),
+                contests: [],
             }
         })
     }
@@ -265,7 +488,7 @@ export default function ElectionEvents() {
             return {
                 ...contest,
                 tenant_id: tenantId || "",
-                candidates: transformCandidatesForSort(contest),
+                candidates: [],
                 max_votes: 0,
                 min_votes: 0,
                 winning_candidates_num: 0,
@@ -274,72 +497,168 @@ export default function ElectionEvents() {
         })
     }
 
-    const transformCandidatesForSort = (contest: IContest): ICandidate[] => {
-        return contest.candidates.map((candidate: ICandidate, index) => {
+    const transformCandidatesForSort = (candidates: ICandidate[]): ICandidate[] => {
+        return candidates.map((candidate: ICandidate) => {
             return {
                 ...candidate,
                 id: candidate.id,
-                election_id: contest.election_id,
+                election_id: electionId || "",
                 tenant_id: tenantId || "",
             }
         })
     }
-    const handleOpenCreateElectionEventMenu = (e: React.MouseEvent<HTMLElement>) => {
-        setAnchorEl(e.currentTarget)
+
+    if (!loading && data && data.sequent_backend_election_event) {
+        resultData = {
+            electionEvents: [...(data.sequent_backend_election_event ?? [])],
+        }
     }
 
-    const handleOpenCreateElectionEventForm = (e: React.MouseEvent<HTMLElement>) => {
-        console.log({e})
-        setAnchorEl(null)
-        openCreateDrawer?.()
-    }
-
-    const handleOpenImportElectionEventForm = (e: React.MouseEvent<HTMLElement>) => {
-        console.log({e})
-        setAnchorEl(null)
-        toggleImportDrawer?.((prev) => !prev)
-    }
-
-    resultData = {
-        electionEvents: cloneDeep(resultData?.electionEvents ?? [])?.map(
-            (electionEvent: ElectionEventType) => {
-                const electionOrderType = electionEvent?.presentation?.elections_order
-                return {
-                    ...electionEvent,
-                    elections: sortElectionList(
-                        transformElectionsForSort(electionEvent.elections),
-                        electionOrderType
-                    ).map((election: any) => {
-                        const contestOrderType = election?.presentation?.contests_order
-                        return {
-                            ...election,
-                            contests: sortContestList(election.contests, contestOrderType).map(
-                                (contest: any) => {
-                                    let orderType = contest.presentation?.candidates_order
-
-                                    contest.candidates = sortCandidatesInContest(
-                                        contest.candidates,
-                                        orderType
-                                    ) as any
-
-                                    return contest
-                                }
-                            ),
-                        }
-                    }),
+    let finalResultData = useMemo(() => {
+        return {
+            electionEvents: cloneDeep(resultData?.electionEvents ?? [])?.map(
+                (electionEvent: ElectionEventType) => {
+                    const electionOrderType = electionEvent?.presentation?.elections_order
+                    return {
+                        ...electionEvent,
+                        ...(electionEvent.id === electionEventId
+                            ? {
+                                  active: true,
+                                  elections:
+                                      sortElectionList(
+                                          transformElectionsForSort(
+                                              electionTreeData?.sequent_backend_election || []
+                                          ),
+                                          electionOrderType
+                                      )?.map?.((e: any) => {
+                                          const contestOrderType = e?.presentation?.contests_order
+                                          return {
+                                              ...e,
+                                              ...(e.id === electionId
+                                                  ? {
+                                                        active: true,
+                                                        contests:
+                                                            sortContestList(
+                                                                transformContestsForSort(
+                                                                    contestTreeData?.sequent_backend_contest ||
+                                                                        []
+                                                                ),
+                                                                contestOrderType
+                                                            )?.map?.((c: any) => {
+                                                                let orderType =
+                                                                    c.presentation?.candidates_order
+                                                                return {
+                                                                    ...c,
+                                                                    ...(c.id === contestId
+                                                                        ? {
+                                                                              active: true,
+                                                                              candidates:
+                                                                                  sortCandidatesInContest(
+                                                                                      transformCandidatesForSort(
+                                                                                          candidateTreeData?.sequent_backend_candidate ||
+                                                                                              []
+                                                                                      ),
+                                                                                      orderType
+                                                                                  )
+                                                                                      ?.map(
+                                                                                          (
+                                                                                              ca: any
+                                                                                          ) => ({
+                                                                                              ...ca,
+                                                                                              active:
+                                                                                                  ca.id ===
+                                                                                                  candidateId,
+                                                                                          })
+                                                                                      )
+                                                                                      ?.map(
+                                                                                          (
+                                                                                              ca: any
+                                                                                          ) => ({
+                                                                                              ...ca,
+                                                                                              active:
+                                                                                                  ca.id ===
+                                                                                                  candidateId,
+                                                                                          })
+                                                                                      ) ?? [],
+                                                                          }
+                                                                        : {
+                                                                              active: false,
+                                                                              candidates:
+                                                                                  sortCandidatesInContest(
+                                                                                      transformCandidatesForSort(
+                                                                                          candidateTreeData?.sequent_backend_candidate ||
+                                                                                              []
+                                                                                      ),
+                                                                                      orderType
+                                                                                  )?.map(
+                                                                                      (
+                                                                                          ca: any
+                                                                                      ) => ({
+                                                                                          ...ca,
+                                                                                          active: false,
+                                                                                      })
+                                                                                  ) ?? [],
+                                                                          }),
+                                                                }
+                                                            }) ?? [],
+                                                    }
+                                                  : {active: false, contests: []}),
+                                          }
+                                      }) || [],
+                              }
+                            : {active: false, elections: []}),
+                    }
                 }
-            }
-        ),
+            ),
+        }
+    }, [
+        electionEventId,
+        electionId,
+        contestId,
+        candidateId,
+        electionEventTreeData,
+        electionTreeData,
+        contestTreeData,
+        candidateTreeData,
+        data,
+        searchInput,
+    ])
+
+    finalResultData = filterTree(finalResultData, searchInput)
+
+    const reloadTreeMenu = () => {
+        candidateTreeRefetch()
+        contestTreeRefetch()
+        electionTreeRefetch()
+        electionEventTreeRefetch()
+
+        originalRefetch()
+        navigate("/sequent_backend_election_event/")
     }
+
+    const debouncedSearchChange = useMemo(() => {
+        const debouncedFn = debounce((value) => {
+            console.log(`edu: debounce: ${value}`)
+            // Expensive operation or API call
+            setSearchInput(value)
+        }, 300)
+
+        return (value: any) => {
+            // Update state immediately
+            setInstantSearchInput(value)
+            debouncedFn(value)
+        }
+    }, [])
 
     const treeMenu = loading ? (
         <CircularProgress />
     ) : (
         <TreeMenu
-            data={resultData}
+            data={finalResultData}
             treeResourceNames={TREE_RESOURCE_NAMES}
             isArchivedElectionEvents={isArchivedElectionEvents}
             onArchiveElectionEventsSelect={changeArchiveSelection}
+            reloadTree={reloadTreeMenu}
         />
     )
 
@@ -380,8 +699,8 @@ export default function ElectionEvents() {
                                 dir={i18n.dir(i18n.language)}
                                 label={t("sideMenu.search")}
                                 size="small"
-                                value={searchInput}
-                                onChange={(e) => handleSearchChange(e.target.value)}
+                                value={instantSearchInput}
+                                onChange={(e) => debouncedSearchChange(e.target.value)}
                             />
                             <SearchIcon />
                         </SideBarContainer>

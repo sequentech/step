@@ -27,7 +27,7 @@ pub struct Stage {
 }
 
 impl State {
-    #[instrument]
+    #[instrument(err, skip(config), name = "State::new")]
     pub fn new(cli: &CliRun, config: &Config) -> Result<Self> {
         let stages =
             config

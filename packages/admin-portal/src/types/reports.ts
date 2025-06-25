@@ -14,6 +14,8 @@ export enum ReportActions {
 
 export enum EReportType {
     BALLOT_RECEIPT = ETemplateType.BALLOT_RECEIPT,
+    BALLOT_IMAGES = ETemplateType.BALLOT_IMAGES,
+    VOTE_RECEIPT = ETemplateType.VOTE_RECEIPT,
     ELECTORAL_RESULTS = ETemplateType.ELECTORAL_RESULTS,
     MANUAL_VERIFICATION = ETemplateType.MANUAL_VERIFICATION,
     STATISTICAL_REPORT = ETemplateType.STATISTICAL_REPORT,
@@ -22,25 +24,20 @@ export enum EReportType {
     ACTIVITY_LOGS = ETemplateType.ACTIVITY_LOGS,
     STATUS = ETemplateType.STATUS,
     OVCS_INFORMATION = ETemplateType.OVCS_INFORMATION,
-    OVERSEAS_VOTERS = ETemplateType.OVERSEAS_VOTERS,
-    OV_USERS = ETemplateType.OV_USERS,
-    OV_USERS_WHO_VOTED = ETemplateType.OV_USERS_WHO_VOTED,
-    OV_USERS_WHO_PRE_ENROLLED = ETemplateType.OV_USERS_WHO_PRE_ENROLLED,
+    LIST_OF_OVERSEAS_VOTERS = ETemplateType.LIST_OF_OVERSEAS_VOTERS,
+    OV_WHO_VOTED = ETemplateType.OV_WHO_VOTED,
     OVCS_STATISTICS = ETemplateType.OVCS_STATISTICS,
     PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION = ETemplateType.PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION,
     PRE_ENROLLED_OV_BUT_DISAPPROVED = ETemplateType.PRE_ENROLLED_OV_BUT_DISAPPROVED,
-    INITIALIZATION = ETemplateType.INITIALIZATION,
-    TRANSMISSION_REPORTS = ETemplateType.TRANSMISSION_REPORTS,
-    OVERSEAS_VOTERS_TURNOUT = ETemplateType.OVERSEAS_VOTERS_TURNOUT,
-    OVERSEAS_VOTING_MONITORING_OVCS_EVENTS = ETemplateType.OVERSEAS_VOTING_MONITORING_OVCS_EVENTS,
-    OVERSEAS_VOTING_MONITORING_OVCS_STATISTICS = ETemplateType.OVERSEAS_VOTING_MONITORING_OVCS_STATISTICS,
-    OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_AND_SEX = ETemplateType.OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_AND_SEX,
-    OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_SEX_AND_WITH_PERCENTAGE = ETemplateType.OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_SEX_AND_WITH_PERCENTAGE,
-    LIST_OF_OV_WHO_PRE_ENROLLED_APPROVED = ETemplateType.LIST_OF_OV_WHO_PRE_ENROLLED_APPROVED,
-    LIST_OF_OV_WHO_PRE_ENROLLED_BUT_SUBJECT_FOR_MANUAL_VALIDATION = ETemplateType.LIST_OF_OV_WHO_PRE_ENROLLED_BUT_SUBJECT_FOR_MANUAL_VALIDATION,
-    LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED = ETemplateType.LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED,
-    LIST_OF_OVERSEAS_VOTERS_WITH_VOTING_STATUS = ETemplateType.LIST_OF_OVERSEAS_VOTERS_WITH_VOTING_STATUS,
-    NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED = ETemplateType.NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED,
+    INITIALIZATION_REPORT = ETemplateType.INITIALIZATION_REPORT,
+    TRANSMISSION_REPORT = ETemplateType.TRANSMISSION_REPORT,
+    OV_TURNOUT_PERCENTAGE = ETemplateType.OV_TURNOUT_PERCENTAGE,
+    OV_TURNOUT_PER_ABOARD_STATUS_SEX = ETemplateType.OV_TURNOUT_PER_ABOARD_STATUS_SEX,
+    OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE = ETemplateType.OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE,
+    OV_PRE_ENROLLED_APPROVED = ETemplateType.OV_PRE_ENROLLED_APPROVED,
+    OV_NOT_YET_PRE_ENROLLED_LIST = ETemplateType.OV_NOT_YET_PRE_ENROLLED_LIST,
+    OV_WITH_VOTING_STATUS = ETemplateType.OV_WITH_VOTING_STATUS,
+    OV_NOT_YET_PRE_ENROLLED_NUMBER = ETemplateType.OV_NOT_YET_PRE_ENROLLED_NUMBER,
 }
 
 export enum EReportElectionPolicy {
@@ -62,6 +59,18 @@ export const reportTypeConfig: {
         templateRequired: false,
         electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
         associatedTemplateType: ETemplateType.BALLOT_RECEIPT,
+    },
+    [EReportType.VOTE_RECEIPT]: {
+        actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],
+        templateRequired: false,
+        electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
+        associatedTemplateType: ETemplateType.VOTE_RECEIPT,
+    },
+    [EReportType.BALLOT_IMAGES]: {
+        actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],
+        templateRequired: false,
+        electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
+        associatedTemplateType: ETemplateType.BALLOT_IMAGES,
     },
     [EReportType.ELECTORAL_RESULTS]: {
         actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],
@@ -96,7 +105,7 @@ export const reportTypeConfig: {
             ReportActions.GENERATE_SCHEDULED,
         ],
         templateRequired: false,
-        electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
+        electionPolicy: EReportElectionPolicy.ELECTION_NOT_ALLOWED,
         associatedTemplateType: ETemplateType.OVCS_EVENTS,
     },
     [EReportType.AUDIT_LOGS]: {
@@ -144,7 +153,7 @@ export const reportTypeConfig: {
             ReportActions.GENERATE_SCHEDULED,
         ],
         templateRequired: false,
-        electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
+        electionPolicy: EReportElectionPolicy.ELECTION_NOT_ALLOWED,
         associatedTemplateType: ETemplateType.OVCS_STATISTICS,
     },
     [EReportType.OVCS_INFORMATION]: {
@@ -159,7 +168,7 @@ export const reportTypeConfig: {
         electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
         associatedTemplateType: ETemplateType.OVCS_INFORMATION,
     },
-    [EReportType.OVERSEAS_VOTERS]: {
+    [EReportType.LIST_OF_OVERSEAS_VOTERS]: {
         actions: [
             ReportActions.EDIT,
             ReportActions.DELETE,
@@ -169,9 +178,9 @@ export const reportTypeConfig: {
         ],
         templateRequired: false,
         electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
-        associatedTemplateType: ETemplateType.OVERSEAS_VOTERS,
+        associatedTemplateType: ETemplateType.LIST_OF_OVERSEAS_VOTERS,
     },
-    [EReportType.OV_USERS_WHO_VOTED]: {
+    [EReportType.OV_WHO_VOTED]: {
         actions: [
             ReportActions.EDIT,
             ReportActions.DELETE,
@@ -180,32 +189,8 @@ export const reportTypeConfig: {
             ReportActions.GENERATE_SCHEDULED,
         ],
         templateRequired: false,
-        electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
-        associatedTemplateType: ETemplateType.OV_USERS_WHO_VOTED,
-    },
-    [EReportType.OV_USERS]: {
-        actions: [
-            ReportActions.EDIT,
-            ReportActions.DELETE,
-            ReportActions.PREVIEW,
-            ReportActions.GENERATE,
-            ReportActions.GENERATE_SCHEDULED,
-        ],
-        templateRequired: false,
-        electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
-        associatedTemplateType: ETemplateType.OV_USERS,
-    },
-    [EReportType.OV_USERS_WHO_PRE_ENROLLED]: {
-        actions: [
-            ReportActions.EDIT,
-            ReportActions.DELETE,
-            ReportActions.PREVIEW,
-            ReportActions.GENERATE,
-            ReportActions.GENERATE_SCHEDULED,
-        ],
-        templateRequired: false,
-        electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
-        associatedTemplateType: ETemplateType.OV_USERS_WHO_PRE_ENROLLED,
+        electionPolicy: EReportElectionPolicy.ELECTION_NOT_ALLOWED,
+        associatedTemplateType: ETemplateType.OV_WHO_VOTED,
     },
     [EReportType.PRE_ENROLLED_OV_BUT_DISAPPROVED]: {
         actions: [
@@ -216,7 +201,7 @@ export const reportTypeConfig: {
             ReportActions.GENERATE_SCHEDULED,
         ],
         templateRequired: false,
-        electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
+        electionPolicy: EReportElectionPolicy.ELECTION_NOT_ALLOWED,
         associatedTemplateType: ETemplateType.PRE_ENROLLED_OV_BUT_DISAPPROVED,
     },
     [EReportType.PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION]: {
@@ -228,22 +213,22 @@ export const reportTypeConfig: {
             ReportActions.GENERATE_SCHEDULED,
         ],
         templateRequired: false,
-        electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
+        electionPolicy: EReportElectionPolicy.ELECTION_NOT_ALLOWED,
         associatedTemplateType: ETemplateType.PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION,
     },
-    [EReportType.INITIALIZATION]: {
+    [EReportType.INITIALIZATION_REPORT]: {
         actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],
         templateRequired: false,
         electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
-        associatedTemplateType: ETemplateType.INITIALIZATION,
+        associatedTemplateType: ETemplateType.INITIALIZATION_REPORT,
     },
-    [EReportType.TRANSMISSION_REPORTS]: {
+    [EReportType.TRANSMISSION_REPORT]: {
         actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],
         templateRequired: false,
         electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
-        associatedTemplateType: ETemplateType.TRANSMISSION_REPORTS,
+        associatedTemplateType: ETemplateType.TRANSMISSION_REPORT,
     },
-    [EReportType.OVERSEAS_VOTERS_TURNOUT]: {
+    [EReportType.OV_TURNOUT_PERCENTAGE]: {
         actions: [
             ReportActions.EDIT,
             ReportActions.DELETE,
@@ -253,9 +238,9 @@ export const reportTypeConfig: {
         ],
         templateRequired: false,
         electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
-        associatedTemplateType: ETemplateType.OVERSEAS_VOTERS_TURNOUT,
+        associatedTemplateType: ETemplateType.OV_TURNOUT_PERCENTAGE,
     },
-    [EReportType.OVERSEAS_VOTING_MONITORING_OVCS_EVENTS]: {
+    [EReportType.OV_TURNOUT_PER_ABOARD_STATUS_SEX]: {
         actions: [
             ReportActions.EDIT,
             ReportActions.DELETE,
@@ -264,10 +249,10 @@ export const reportTypeConfig: {
             ReportActions.GENERATE_SCHEDULED,
         ],
         templateRequired: false,
-        electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
-        associatedTemplateType: ETemplateType.OVERSEAS_VOTING_MONITORING_OVCS_EVENTS,
+        electionPolicy: EReportElectionPolicy.ELECTION_NOT_ALLOWED,
+        associatedTemplateType: ETemplateType.OV_TURNOUT_PER_ABOARD_STATUS_SEX,
     },
-    [EReportType.OVERSEAS_VOTING_MONITORING_OVCS_STATISTICS]: {
+    [EReportType.OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE]: {
         actions: [
             ReportActions.EDIT,
             ReportActions.DELETE,
@@ -276,10 +261,10 @@ export const reportTypeConfig: {
             ReportActions.GENERATE_SCHEDULED,
         ],
         templateRequired: false,
-        electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
-        associatedTemplateType: ETemplateType.OVERSEAS_VOTING_MONITORING_OVCS_STATISTICS,
+        electionPolicy: EReportElectionPolicy.ELECTION_NOT_ALLOWED,
+        associatedTemplateType: ETemplateType.OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE,
     },
-    [EReportType.OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_AND_SEX]: {
+    [EReportType.OV_PRE_ENROLLED_APPROVED]: {
         actions: [
             ReportActions.EDIT,
             ReportActions.DELETE,
@@ -288,10 +273,10 @@ export const reportTypeConfig: {
             ReportActions.GENERATE_SCHEDULED,
         ],
         templateRequired: false,
-        electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
-        associatedTemplateType: ETemplateType.OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_AND_SEX,
+        electionPolicy: EReportElectionPolicy.ELECTION_NOT_ALLOWED,
+        associatedTemplateType: ETemplateType.OV_PRE_ENROLLED_APPROVED,
     },
-    [EReportType.OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_SEX_AND_WITH_PERCENTAGE]: {
+    [EReportType.OV_NOT_YET_PRE_ENROLLED_LIST]: {
         actions: [
             ReportActions.EDIT,
             ReportActions.DELETE,
@@ -300,11 +285,10 @@ export const reportTypeConfig: {
             ReportActions.GENERATE_SCHEDULED,
         ],
         templateRequired: false,
-        electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
-        associatedTemplateType:
-            ETemplateType.OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_SEX_AND_WITH_PERCENTAGE,
+        electionPolicy: EReportElectionPolicy.ELECTION_NOT_ALLOWED,
+        associatedTemplateType: ETemplateType.OV_NOT_YET_PRE_ENROLLED_LIST,
     },
-    [EReportType.LIST_OF_OV_WHO_PRE_ENROLLED_APPROVED]: {
+    [EReportType.OV_WITH_VOTING_STATUS]: {
         actions: [
             ReportActions.EDIT,
             ReportActions.DELETE,
@@ -313,10 +297,10 @@ export const reportTypeConfig: {
             ReportActions.GENERATE_SCHEDULED,
         ],
         templateRequired: false,
-        electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
-        associatedTemplateType: ETemplateType.LIST_OF_OV_WHO_PRE_ENROLLED_APPROVED,
+        electionPolicy: EReportElectionPolicy.ELECTION_NOT_ALLOWED,
+        associatedTemplateType: ETemplateType.OV_WITH_VOTING_STATUS,
     },
-    [EReportType.LIST_OF_OV_WHO_PRE_ENROLLED_BUT_SUBJECT_FOR_MANUAL_VALIDATION]: {
+    [EReportType.OV_NOT_YET_PRE_ENROLLED_NUMBER]: {
         actions: [
             ReportActions.EDIT,
             ReportActions.DELETE,
@@ -325,45 +309,8 @@ export const reportTypeConfig: {
             ReportActions.GENERATE_SCHEDULED,
         ],
         templateRequired: false,
-        electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
-        associatedTemplateType:
-            ETemplateType.LIST_OF_OV_WHO_PRE_ENROLLED_BUT_SUBJECT_FOR_MANUAL_VALIDATION,
-    },
-    [EReportType.LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED]: {
-        actions: [
-            ReportActions.EDIT,
-            ReportActions.DELETE,
-            ReportActions.PREVIEW,
-            ReportActions.GENERATE,
-            ReportActions.GENERATE_SCHEDULED,
-        ],
-        templateRequired: false,
-        electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
-        associatedTemplateType: ETemplateType.LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED,
-    },
-    [EReportType.LIST_OF_OVERSEAS_VOTERS_WITH_VOTING_STATUS]: {
-        actions: [
-            ReportActions.EDIT,
-            ReportActions.DELETE,
-            ReportActions.PREVIEW,
-            ReportActions.GENERATE,
-            ReportActions.GENERATE_SCHEDULED,
-        ],
-        templateRequired: false,
-        electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
-        associatedTemplateType: ETemplateType.LIST_OF_OVERSEAS_VOTERS_WITH_VOTING_STATUS,
-    },
-    [EReportType.NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED]: {
-        actions: [
-            ReportActions.EDIT,
-            ReportActions.DELETE,
-            ReportActions.PREVIEW,
-            ReportActions.GENERATE,
-            ReportActions.GENERATE_SCHEDULED,
-        ],
-        templateRequired: false,
-        electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
-        associatedTemplateType: ETemplateType.NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED,
+        electionPolicy: EReportElectionPolicy.ELECTION_NOT_ALLOWED,
+        associatedTemplateType: ETemplateType.OV_NOT_YET_PRE_ENROLLED_NUMBER,
     },
     default: {
         actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],

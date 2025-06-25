@@ -11,7 +11,10 @@ on:
 
 jobs:
   locs:
-    runs-on: ubuntu-latest
+    runs-on:
+      - runs-on=${{ github.run_id }}
+      - runner=2cpu-linux-x64
+      - image=ubuntu24-full-x64
 
     steps:
     - name: Checkout code
@@ -37,7 +40,7 @@ jobs:
         cat locs_report/locs_report.md >> "$GITHUB_STEP_SUMMARY"
 
     - name: Upload build artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: locs_report
         path: locs_report/

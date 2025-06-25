@@ -7,3 +7,14 @@ export enum IApplicationsStatus {
     ACCEPTED = "ACCEPTED",
     REJECTED = "REJECTED",
 }
+
+export enum RejectReason {
+    INSUFFICIENT_INFORMATION = "insufficient-information",
+    NO_VOTER = "no-matching-voter",
+    ALREADY_APPROVED = "voter-already-approved",
+    OTHER = "other", //mandatory comment
+}
+
+export enum ApplicationsError {
+    APPROVED_VOTER = "Approved_Voter",
+}

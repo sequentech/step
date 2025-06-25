@@ -2,14 +2,29 @@
 
 {
   # https://devenv.sh/basics/
-  env.GREET = "devenv";
+  env = {
+    REGISTRY = "localhost:5000";
+    OPENWHISK_BASIC_AUTH = "23bc46b1-71f6-4ed5-8c54-816aa4f8c502:123zO3xZCLrMN6v2BKK1dXYFpXlPkccOFqm12CdAsMgRU4VrNZ9lyGVCGuMDGIwP";
+    # NOTE(ereslibre): You will find this Base Image duplicated in
+    # multiple places; we know it's a pinned version that works to
+    # render PDF with our current version of headless_chrome. The
+    # places where this pinned version is duplicated is either because
+    # they don't allow to use environment variables as an input, or
+    # because they don't run within the devenv environment.
+    ALPINE_LAMBDA_BASE_IMAGE = "alpine:3.17@sha256:8fc3dacfb6d69da8d44e42390de777e48577085db99aa4e4af35f483eb08b989";
+  };
 
   # https://devenv.sh/packages/
   packages = with pkgs; [
+    # AWS
+    (aws-sam-cli.overridePythonAttrs { doCheck = false; })
+
     git
     hasura-cli
     reuse
     openssl
+    glibc
+    openssh
     postgresql_15
     python3
     openssh

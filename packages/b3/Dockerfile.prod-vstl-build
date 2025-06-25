@@ -1,0 +1,12 @@
+# SPDX-FileCopyrightText: 2023-2024 Sequent Tech <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+FROM b3-build-dependencies
+
+COPY --from=b3-compile /app/target/release/server /usr/bin/b3
+
+# init index db
+RUN mkdir /tmp/cache
+
+ENTRYPOINT ["/usr/bin/b3"]

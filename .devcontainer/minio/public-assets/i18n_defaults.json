@@ -1,0 +1,50 @@
+{
+  "en": {
+    "application": {
+      "accepted": {
+        "email": {
+          "subject": "Application accepted",
+          "plaintext_body": "Hello {{{user.first_name}}} {{{user.last_name}}}!\n\nYour application to vote online has been accepted successfully.\n\nYou can now use {{{user.email}}} as username to login and the provided password during registration.\n\n\n\nRegards,",
+          "html_body": "<div>Hello {{{user.first_name}}} {{{user.last_name}}}!<br><br>Your application to vote online has been accepted successfully.<br><br>You can now use {{{user.email}}} as username to login and the provided password during registration.<br><br><div><p><a href={{vote_url}}>Login Link</a></p></div><br><br>Regards,<br><br></div>"
+        },
+        "sms": {
+          "message": "Hello {{{user.first_name}}} {{{user.last_name}}}. Your application to vote online has been accepted successfully. You can now use your phone_number as username to login and the provided password during registration. Login link: {{{vote_url}}}"
+        }
+      },
+      "rejected": {
+        "email": {
+          "subject": "Application rejected",
+          "plaintext_body": "Hello {{{user.first_name}}} {{{user.last_name}}}!\n\nYour application to vote online has been rejected.\n\n\n\nRegards,",
+          "html_body": "Hello {{{user.first_name}}} {{{user.last_name}}}!<br><br>Your application to vote online has been rejected.<br><br><br><br>Regards,<br><br>"
+        },
+        "sms": {
+          "message": "Hello {{{user.first_name}}} {{{user.last_name}}}. Your application to vote online has been rejected."
+        }
+      }
+    }
+  },
+  "tl": {
+    "application": {
+      "accepted": {
+        "email": {
+          "subject": "Ang aplikasyon ay tinanggap",
+          "plaintext_body": "Kumusta {{{user.first_name}}} {{{user.last_name}}}!\n\nAng iyong aplikasyon para sa online voting ay tinanggap nang matagumpay.\n\nMaaari mo nang gamitin ang {{{user.email}}} bilang username para mag-login at ang password na ibinigay sa panahon ng pagpaparehistro.\n\n\n\nMabuting araw,",
+          "html_body": "<div>Kumusta {{{user.first_name}}} {{{user.last_name}}}!<br><br>Ang iyong aplikasyon para sa online voting ay tinanggap nang matagumpay.<br><br>Maaari mo nang gamitin ang {{{user.email}}} bilang username para mag-login at ang password na ibinigay sa panahon ng pagpaparehistro.<br><br><div><p><a href={{vote_url}}>Link sa Login</a></p></div><br><br>Mabuting araw,<br><br></div>"
+        },
+        "sms": {
+          "message": "Kumusta {{{user.first_name}}} {{{user.last_name}}}. Ang iyong aplikasyon para sa online voting ay tinanggap nang matagumpay. Maaari mo nang gamitin ang iyong phone_number bilang username para mag-login at ang password na ibinigay sa panahon ng pagpaparehistro. Link sa Login: {{{vote_url}}}"
+        }
+      },
+      "rejected": {
+        "email": {
+          "subject": "Ang aplikasyon ay tinanggi",
+          "plaintext_body": "Kumusta {{{user.first_name}}} {{{user.last_name}}}!\n\nAng iyong aplikasyon para sa online voting ay tinanggi.\n\n\n\nMabuting araw,",
+          "html_body": "Kumusta {{{user.first_name}}} {{{user.last_name}}}!<br><br>Ang iyong aplikasyon para sa online voting ay tinanggi.<br><br><br><br>Mabuting araw,<br><br>"
+        },
+        "sms": {
+          "message": "Kumusta {{{user.first_name}}} {{{user.last_name}}}. Ang iyong aplikasyon para sa online voting ay tinanggi."
+        }
+      }
+    }
+  }
+}

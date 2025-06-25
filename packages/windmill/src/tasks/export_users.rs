@@ -1,17 +1,17 @@
 // SPDX-FileCopyrightText: 2024 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-
-use crate::hasura;
+use crate::postgres::document::insert_document;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool, PgConfig};
+use crate::services::documents::upload_and_return_document;
 use crate::services::export::export_users::{export_users_file, ExportBody};
-use crate::services::s3;
 use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context};
 use celery::error::TaskError;
 use deadpool_postgres::{Client as DbClient, Transaction as _};
 use sequent_core::services::keycloak;
+use sequent_core::services::s3;
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::util;
 use serde::{Deserialize, Serialize};
@@ -104,6 +104,7 @@ pub async fn export_users(
         media_type.clone(),
         temp_path.to_string_lossy().to_string(),
         None,
+        Some(name.clone()),
     )
     .await
     {
@@ -120,45 +121,34 @@ pub async fn export_users(
         .close()
         .with_context(|| "Error closing temporary file path")?;
 
-    let auth_headers = match keycloak::get_client_credentials().await {
-        Ok(auth_headers) => auth_headers,
-        Err(err) => {
-            if let Some(task_execution) = &task_execution {
-                update_fail(&task_execution, "Error acquiring client credentials").await?;
-            }
-            return Err(Error::String(format!(
-                "Error acquiring client credentials: {err:?}"
-            )));
-        }
-    };
-
-    let _document = &hasura::document::insert_document(
-        auth_headers,
-        tenant_id.clone(),
+    let _document = insert_document(
+        &hasura_transaction,
+        &tenant_id,
         match &body {
             ExportBody::Users {
                 election_event_id, ..
             } => election_event_id.clone(),
             ExportBody::TenantUsers { .. } => None,
         },
-        name.clone(),
-        media_type,
-        size as i64,
+        &name,
+        &media_type,
+        size.try_into()?,
         false,
-        Some(document_id),
+        Some(document_id.clone()),
     )
-    .await?
-    .data
-    .ok_or(anyhow!("Missing data in document insertion response"))?
-    .insert_sequent_backend_document
-    .ok_or(anyhow!("Missing document in insertion response"))?
-    .returning[0];
+    .await
+    .map_err(|err| format!("Error inserting document: {:?}", err))?;
 
     if let Some(task_execution) = &task_execution {
-        update_complete(&task_execution)
+        update_complete(&task_execution, Some(document_id.to_string()))
             .await
             .context("Failed to update task execution status to COMPLETED")?;
     }
+
+    hasura_transaction
+        .commit()
+        .await
+        .with_context(|| "Failed to commit Hasura transaction")?;
 
     Ok(())
 }

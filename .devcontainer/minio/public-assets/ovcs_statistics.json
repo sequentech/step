@@ -1,10 +1,12 @@
 {
+  "election_event_title": "National Elections",
   "execution_annotations": {
     "date_printed": "2024-10-09T14:30:00-04:00",
     "report_hash": "a1b2c3d4e5",
     "software_version": "1.0.0",
     "app_version": "2.3.4",
-    "app_hash": "z9y8x7w6v5"
+    "app_hash": "z9y8x7w6v5",
+    "executer_username": "User"
   },
   "elections": [
     {
@@ -50,217 +52,217 @@
             "stopped_at": "-"
           }
         }
-      },
-      "regions": [
-        {
-          "name": "North America",
-          "data": [
-            {
-              "post": "Washington DC",
-              "country": "United States",
-              "total": 5000,
-              "not_pre_enrolled": 100,
-              "pre_enrolled": 4900,
-              "pre_enrolled_not_voted": 200,
-              "pre_enrolled_voted": 4700,
-              "voted": 4800,
-              "password_reset_request": 50,
-              "remarks": "High turnout"
-            },
-            {
-              "post": "New York",
-              "country": "United States",
-              "total": 4000,
-              "not_pre_enrolled": 80,
-              "pre_enrolled": 3920,
-              "pre_enrolled_not_voted": 150,
-              "pre_enrolled_voted": 3770,
-              "voted": 3850,
-              "password_reset_request": 40,
-              "remarks": "Smooth process"
-            },
-            {
-              "post": "Los Angeles",
-              "country": "United States",
-              "total": 3000,
-              "not_pre_enrolled": 70,
-              "pre_enrolled": 2930,
-              "pre_enrolled_not_voted": 120,
-              "pre_enrolled_voted": 2810,
-              "voted": 2890,
-              "password_reset_request": 30,
-              "remarks": "Good engagement"
-            }
-          ]
-        },
-        {
-          "name": "Europe",
-          "data": [
-            {
-              "post": "London",
-              "country": "United Kingdom",
-              "total": 3500,
-              "not_pre_enrolled": 90,
-              "pre_enrolled": 3410,
-              "pre_enrolled_not_voted": 110,
-              "pre_enrolled_voted": 3300,
-              "voted": 3380,
-              "password_reset_request": 35,
-              "remarks": "Everything on track"
-            },
-            {
-              "post": "Paris",
-              "country": "France",
-              "total": 3200,
-              "not_pre_enrolled": 60,
-              "pre_enrolled": 3140,
-              "pre_enrolled_not_voted": 100,
-              "pre_enrolled_voted": 3040,
-              "voted": 3100,
-              "password_reset_request": 25,
-              "remarks": "Good voter participation"
-            },
-            {
-              "post": "Berlin",
-              "country": "Germany",
-              "total": 2800,
-              "not_pre_enrolled": 50,
-              "pre_enrolled": 2750,
-              "pre_enrolled_not_voted": 90,
-              "pre_enrolled_voted": 2660,
-              "voted": 2700,
-              "password_reset_request": 20,
-              "remarks": "Smooth voting process"
-            }
-          ]
-        },
-        {
-          "name": "Asia",
-          "data": [
-            {
-              "post": "Tokyo",
-              "country": "Japan",
-              "total": 4500,
-              "not_pre_enrolled": 120,
-              "pre_enrolled": 4380,
-              "pre_enrolled_not_voted": 200,
-              "pre_enrolled_voted": 4180,
-              "voted": 4300,
-              "password_reset_request": 60,
-              "remarks": "High voter turnout"
-            },
-            {
-              "post": "Beijing",
-              "country": "China",
-              "total": 4000,
-              "not_pre_enrolled": 110,
-              "pre_enrolled": 3890,
-              "pre_enrolled_not_voted": 150,
-              "pre_enrolled_voted": 3740,
-              "voted": 3850,
-              "password_reset_request": 55,
-              "remarks": "Efficient voting process"
-            },
-            {
-              "post": "Seoul",
-              "country": "South Korea",
-              "total": 3800,
-              "not_pre_enrolled": 100,
-              "pre_enrolled": 3700,
-              "pre_enrolled_not_voted": 140,
-              "pre_enrolled_voted": 3560,
-              "voted": 3660,
-              "password_reset_request": 50,
-              "remarks": "Good participation"
-            }
-          ]
-        },
-        {
-          "name": "Oceania",
-          "data": [
-            {
-              "post": "Sydney",
-              "country": "Australia",
-              "total": 2700,
-              "not_pre_enrolled": 80,
-              "pre_enrolled": 2620,
-              "pre_enrolled_not_voted": 120,
-              "pre_enrolled_voted": 2500,
-              "voted": 2600,
-              "password_reset_request": 45,
-              "remarks": "All went smoothly"
-            },
-            {
-              "post": "Melbourne",
-              "country": "Australia",
-              "total": 2500,
-              "not_pre_enrolled": 60,
-              "pre_enrolled": 2440,
-              "pre_enrolled_not_voted": 110,
-              "pre_enrolled_voted": 2330,
-              "voted": 2400,
-              "password_reset_request": 35,
-              "remarks": "No major issues"
-            },
-            {
-              "post": "Auckland",
-              "country": "New Zealand",
-              "total": 2300,
-              "not_pre_enrolled": 50,
-              "pre_enrolled": 2250,
-              "pre_enrolled_not_voted": 100,
-              "pre_enrolled_voted": 2150,
-              "voted": 2200,
-              "password_reset_request": 30,
-              "remarks": "Good overall"
-            }
-          ]
-        },
-        {
-          "name": "Africa",
-          "data": [
-            {
-              "post": "Cairo",
-              "country": "Egypt",
-              "total": 2100,
-              "not_pre_enrolled": 70,
-              "pre_enrolled": 2030,
-              "pre_enrolled_not_voted": 80,
-              "pre_enrolled_voted": 1950,
-              "voted": 2000,
-              "password_reset_request": 25,
-              "remarks": "Good turnout"
-            },
-            {
-              "post": "Nairobi",
-              "country": "Kenya",
-              "total": 1900,
-              "not_pre_enrolled": 60,
-              "pre_enrolled": 1840,
-              "pre_enrolled_not_voted": 90,
-              "pre_enrolled_voted": 1750,
-              "voted": 1800,
-              "password_reset_request": 20,
-              "remarks": "Smooth process"
-            },
-            {
-              "post": "Johannesburg",
-              "country": "South Africa",
-              "total": 1700,
-              "not_pre_enrolled": 50,
-              "pre_enrolled": 1650,
-              "pre_enrolled_not_voted": 70,
-              "pre_enrolled_voted": 1580,
-              "voted": 1650,
-              "password_reset_request": 15,
-              "remarks": "No issues"
-            }
-          ]
-        }
-      ],
-      "ofov_disapproved": 15,
-      "sbei_disapproved": 10,
-      "system_disapproved": 5
+      }
     }
-  ]
+  ],
+  "regions": [
+    {
+      "name": "North America",
+      "stats": [
+        {
+          "post": "Washington DC",
+          "country": "United States",
+          "total": 5000,
+          "not_pre_enrolled": 100,
+          "pre_enrolled": 4900,
+          "pre_enrolled_not_voted": 200,
+          "pre_enrolled_voted": 4700,
+          "voted": 4800,
+          "password_reset_request": 50,
+          "remarks": "High turnout"
+        },
+        {
+          "post": "New York",
+          "country": "United States",
+          "total": 4000,
+          "not_pre_enrolled": 80,
+          "pre_enrolled": 3920,
+          "pre_enrolled_not_voted": 150,
+          "pre_enrolled_voted": 3770,
+          "voted": 3850,
+          "password_reset_request": 40,
+          "remarks": "Smooth process"
+        },
+        {
+          "post": "Los Angeles",
+          "country": "United States",
+          "total": 3000,
+          "not_pre_enrolled": 70,
+          "pre_enrolled": 2930,
+          "pre_enrolled_not_voted": 120,
+          "pre_enrolled_voted": 2810,
+          "voted": 2890,
+          "password_reset_request": 30,
+          "remarks": "Good engagement"
+        }
+      ]
+    },
+    {
+      "name": "Europe",
+      "stats": [
+        {
+          "post": "London",
+          "country": "United Kingdom",
+          "total": 3500,
+          "not_pre_enrolled": 90,
+          "pre_enrolled": 3410,
+          "pre_enrolled_not_voted": 110,
+          "pre_enrolled_voted": 3300,
+          "voted": 3380,
+          "password_reset_request": 35,
+          "remarks": "Everything on track"
+        },
+        {
+          "post": "Paris",
+          "country": "France",
+          "total": 3200,
+          "not_pre_enrolled": 60,
+          "pre_enrolled": 3140,
+          "pre_enrolled_not_voted": 100,
+          "pre_enrolled_voted": 3040,
+          "voted": 3100,
+          "password_reset_request": 25,
+          "remarks": "Good voter participation"
+        },
+        {
+          "post": "Berlin",
+          "country": "Germany",
+          "total": 2800,
+          "not_pre_enrolled": 50,
+          "pre_enrolled": 2750,
+          "pre_enrolled_not_voted": 90,
+          "pre_enrolled_voted": 2660,
+          "voted": 2700,
+          "password_reset_request": 20,
+          "remarks": "Smooth voting process"
+        }
+      ]
+    },
+    {
+      "name": "Asia",
+      "stats": [
+        {
+          "post": "Tokyo",
+          "country": "Japan",
+          "total": 4500,
+          "not_pre_enrolled": 120,
+          "pre_enrolled": 4380,
+          "pre_enrolled_not_voted": 200,
+          "pre_enrolled_voted": 4180,
+          "voted": 4300,
+          "password_reset_request": 60,
+          "remarks": "High voter turnout"
+        },
+        {
+          "post": "Beijing",
+          "country": "China",
+          "total": 4000,
+          "not_pre_enrolled": 110,
+          "pre_enrolled": 3890,
+          "pre_enrolled_not_voted": 150,
+          "pre_enrolled_voted": 3740,
+          "voted": 3850,
+          "password_reset_request": 55,
+          "remarks": "Efficient voting process"
+        },
+        {
+          "post": "Seoul",
+          "country": "South Korea",
+          "total": 3800,
+          "not_pre_enrolled": 100,
+          "pre_enrolled": 3700,
+          "pre_enrolled_not_voted": 140,
+          "pre_enrolled_voted": 3560,
+          "voted": 3660,
+          "password_reset_request": 50,
+          "remarks": "Good participation"
+        }
+      ]
+    },
+    {
+      "name": "Oceania",
+      "stats": [
+        {
+          "post": "Sydney",
+          "country": "Australia",
+          "total": 2700,
+          "not_pre_enrolled": 80,
+          "pre_enrolled": 2620,
+          "pre_enrolled_not_voted": 120,
+          "pre_enrolled_voted": 2500,
+          "voted": 2600,
+          "password_reset_request": 45,
+          "remarks": "All went smoothly"
+        },
+        {
+          "post": "Melbourne",
+          "country": "Australia",
+          "total": 2500,
+          "not_pre_enrolled": 60,
+          "pre_enrolled": 2440,
+          "pre_enrolled_not_voted": 110,
+          "pre_enrolled_voted": 2330,
+          "voted": 2400,
+          "password_reset_request": 35,
+          "remarks": "No major issues"
+        },
+        {
+          "post": "Auckland",
+          "country": "New Zealand",
+          "total": 2300,
+          "not_pre_enrolled": 50,
+          "pre_enrolled": 2250,
+          "pre_enrolled_not_voted": 100,
+          "pre_enrolled_voted": 2150,
+          "voted": 2200,
+          "password_reset_request": 30,
+          "remarks": "Good overall"
+        }
+      ]
+    },
+    {
+      "name": "Africa",
+      "stats": [
+        {
+          "post": "Cairo",
+          "country": "Egypt",
+          "total": 2100,
+          "not_pre_enrolled": 70,
+          "pre_enrolled": 2030,
+          "pre_enrolled_not_voted": 80,
+          "pre_enrolled_voted": 1950,
+          "voted": 2000,
+          "password_reset_request": 25,
+          "remarks": "Good turnout"
+        },
+        {
+          "post": "Nairobi",
+          "country": "Kenya",
+          "total": 1900,
+          "not_pre_enrolled": 60,
+          "pre_enrolled": 1840,
+          "pre_enrolled_not_voted": 90,
+          "pre_enrolled_voted": 1750,
+          "voted": 1800,
+          "password_reset_request": 20,
+          "remarks": "Smooth process"
+        },
+        {
+          "post": "Johannesburg",
+          "country": "South Africa",
+          "total": 1700,
+          "not_pre_enrolled": 50,
+          "pre_enrolled": 1650,
+          "pre_enrolled_not_voted": 70,
+          "pre_enrolled_voted": 1580,
+          "voted": 1650,
+          "password_reset_request": 15,
+          "remarks": "No issues"
+        }
+      ]
+    }
+  ],
+  "ofov_disapproved": 15,
+  "sbei_disapproved": 10,
+  "system_disapproved": 5
 }

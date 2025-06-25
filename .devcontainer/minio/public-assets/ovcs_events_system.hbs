@@ -1,52 +1,244 @@
+{{!--
+SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+  SPDX-License-Identifier: AGPL-3.0-only
+  --}}
 <!doctype html>
 <html xmlns="http://www.w3.org/1999/xhtml">
-  <head>
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <script src="{{file_qrcode_lib}}"></script>
-    <style type="text/css">
-      body {
-        margin: 0;
-        padding: 0;
-        -webkit-text-size-adjust: 100%;
-        -ms-text-size-adjust: 100%;
-        background-color: #ffffff;
-        font-family: serif;
-        font-size: 14px;
-      }
-      table,
-      td {
-        border-collapse: collapse;
-      }
-      img {
-        border: 0;
-        height: auto;
-        line-height: 100%;
-        outline: none;
-        text-decoration: none;
-      }
-      p,
-      h1,
-      h2,
-      h3 {
-        margin: 14px 0;
-      }
-      a {
-        text-decoration: none;
-        color: inherit;
-      }
-      .qrcode {
-        margin-top: 10px;
-        display: flex;
-        justify-content: center;
-        page-break-inside: avoid;
-      }
-    </style>
-  </head>
 
-  <body style="background-color: #ffffff">
-    {{{rendered_user_template}}}
-  </body>
+<head>
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="{{file_qrcode_lib}}"></script>
+  <style type="text/css">
+      body {
+        font-family: Arial, sans-serif;
+        margin: auto;
+        max-width: 1024px;
+        padding: 0 30px;
+      }
+
+      @media print {
+        @page {
+          size: auto;
+          margin: 0 0.6in;
+        }
+        body {
+          width: 100%;
+          font-size: 9px;
+          margin: 0;
+          padding: 0;
+        }
+      }
+
+    table,
+    td {
+      border-collapse: collapse;
+    }
+
+    .report {
+      margin: 0 auto;
+      break-after: page;
+    }
+
+    .top-header .left {
+      font-family: "Arial", sans-serif;
+      text-align: left;
+      margin: 16px 0;
+      margin-top: 5px;
+      font-size: 10pt;
+      font-style: italic;
+
+    }
+
+    .top-header .right {
+      font-family: "Arial", sans-serif;
+      text-transform: uppercase;
+      text-align: right;
+      margin: 16px 0;
+      margin-top: 5px;
+      font-size: 10pt;
+    }
+
+    .main-header {
+      width: 100%;
+    }
+
+    .main-header .left img {
+      max-width: 100px;
+      margin-top: 8px;
+      text-align: left;
+      vertical-align: top;
+
+    }
+
+    .main-header .center {
+      text-align: center;
+      padding-top: 10px;
+    }
+
+    .main-header .right img {
+      max-width: 90px;
+      margin-top: 8px;
+      text-align: right;
+      vertical-align: top;
+    }
+
+    .main-header .center {
+      font-size: 10pt;
+    }
+
+    .main-header .center .country {
+      font-weight: 100;
+      font-size: 11pt;
+      text-transform: uppercase;
+      font-family: "Arial", sans-serif;
+    }
+
+    .main-header .center .commission {
+      text-transform: uppercase;
+      font-family: "Arial", sans-serif;
+      font-weight: bold;
+      font-size: 12pt;
+
+    }
+
+    .main-header .center .election-date {
+      text-transform: uppercase;
+      font-family: "Arial", sans-serif;
+
+    }
+
+    .main-header .center .election-name {
+      text-transform: uppercase;
+      font-family: "Arial", sans-serif;
+    }
+
+    .main-header .center .online {
+      padding-top: 25px;
+      text-transform: uppercase;
+      font-family: "Arial", sans-serif;
+      font-weight: bold;
+    }
+
+    .main-header .center .voting-period {
+      padding-top: 3px;
+      font-family: "Arial", sans-serif;
+      font-size: 10pt;
+      font-weight: lighter;
+      font-style: italic;
+    }
+
+    .main-title {
+      text-transform: uppercase;
+      font-family: "Arial", sans-serif;
+      font-weight: bold;
+      font-size: 12pt;
+    }
+
+    .main-table {
+      width: 100%;
+      border: 1px solid black
+    }
+
+
+    .main-table td {
+      font-family: "Arial", sans-serif;
+      text-align: center;
+      vertical-align: top;
+      border: 1px solid black;
+    }
+
+    .stats-table {
+      margin: 32px 10px;
+    }
+
+    .key-value {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .stats-table .key {
+      margin-left: 15px;
+      font-family: "Arial", sans-serif;
+      font-size: 10pt;
+      font-weight: bold;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    .stats-table .value {
+      font-family: "Arial", sans-serif;
+      font-size: 10pt;
+      text-align: left;
+    }
+
+    .qr-codes td {
+      text-align: center;
+      padding: 12px;
+    }
+
+    .qrcode {
+      margin-top: 10px;
+      display: flex;
+      justify-content: center;
+      page-break-inside: avoid;
+    }
+
+
+    .sys-info {
+      page-break-inside: avoid;
+      text-align: center;
+      margin-top: 10px;
+    }
+
+    .sys-info td div {
+      font-family: "Arial", sans-serif;
+      font-size: 11pt;
+      text-align: center;
+      margin-top: 24px;
+      line-height: 15pt;
+      padding-bottom: 40px;
+    }
+
+    tr.report-end td {
+      font-family: "Arial", sans-serif;
+      text-align: center;
+      margin: 16px 0;
+      margin-top: 30px;
+      text-transform: uppercase;
+    }
+
+    tr.report-end hr {
+      text-align: center;
+      margin: 0 24px;
+      border-top: 3px solid black;
+    }
+
+    .word-break {
+      word-break: break-all;
+    }
+
+    footer {
+      position: fixed;
+      bottom: 0;
+      width: 100%;
+      text-align: center;
+      padding: 10px 0;
+      background-color: #f1f1f1;
+    }
+
+    .no-page-break {
+      page-break-inside: avoid;
+      page-break-before: auto;
+      page-break-after: auto;
+    }
+  </style>
+</head>
+
+<body style="background-color: #ffffff">
+  {{{rendered_user_template}}}
+</body>
 
 </html>

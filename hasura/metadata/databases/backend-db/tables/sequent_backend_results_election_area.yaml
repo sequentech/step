@@ -1,0 +1,126 @@
+table:
+    name: results_election_area
+    schema: sequent_backend
+insert_permissions:
+    - comment: ""
+      permission:
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          columns:
+              - area_id
+              - created_at
+              - documents
+              - election_event_id
+              - election_id
+              - id
+              - last_updated_at
+              - name
+              - results_event_id
+              - tenant_id
+      role: admin-user
+    - comment: ""
+      permission:
+          check: {}
+          columns:
+              - area_id
+              - created_at
+              - documents
+              - election_event_id
+              - election_id
+              - id
+              - last_updated_at
+              - name
+              - results_event_id
+              - tenant_id
+      role: service-account
+select_permissions:
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - area_id
+              - created_at
+              - documents
+              - election_event_id
+              - election_id
+              - id
+              - last_updated_at
+              - name
+              - results_event_id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: admin-user
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - area_id
+              - created_at
+              - documents
+              - election_event_id
+              - election_id
+              - id
+              - last_updated_at
+              - name
+              - results_event_id
+              - tenant_id
+          filter: {}
+      role: service-account
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - area_id
+              - created_at
+              - documents
+              - election_event_id
+              - election_id
+              - id
+              - last_updated_at
+              - name
+              - results_event_id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: tally-results-read
+update_permissions:
+    - comment: ""
+      permission:
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          columns:
+              - area_id
+              - created_at
+              - documents
+              - election_event_id
+              - election_id
+              - id
+              - last_updated_at
+              - name
+              - results_event_id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: admin-user
+    - comment: ""
+      permission:
+          check: {}
+          columns:
+              - documents
+              - name
+              - created_at
+              - last_updated_at
+              - area_id
+              - election_event_id
+              - election_id
+              - id
+              - results_event_id
+              - tenant_id
+          filter: {}
+      role: service-account

@@ -6,7 +6,7 @@
     "accessTokenLifespanForImplicitFlow": 900,
     "accountTheme": "sequent.voting-portal",
     "actionTokenGeneratedByAdminLifespan": 43200,
-    "actionTokenGeneratedByUserLifespan": 300,
+    "actionTokenGeneratedByUserLifespan": 900,
     "adminEventsDetailsEnabled": false,
     "adminEventsEnabled": false,
     "adminTheme": "",
@@ -24,7 +24,7 @@
         "cibaInterval": "5",
         "realmReusableOtpCode": "false",
         "oauth2DeviceCodeLifespan": "600",
-        "acr.loa.map": "{}"
+        "acr.loa.map": "{\"silver\":\"1\",\"gold\":\"2\"}"
     },
     "authenticationFlows": [
         {
@@ -237,6 +237,77 @@
             "topLevel": false
         },
         {
+            "alias": "advanced / gold condition",
+            "authenticationExecutions": [{
+                    "authenticator": "conditional-level-of-authentication",
+                    "authenticatorConfig": "gold",
+                    "authenticatorFlow": false,
+                    "autheticatorFlow": false,
+                    "priority": 0,
+                    "requirement": "REQUIRED",
+                    "userSetupAllowed": false
+                }, {
+                    "authenticator": "auth-password-form",
+                    "authenticatorFlow": false,
+                    "autheticatorFlow": false,
+                    "priority": 1,
+                    "requirement": "REQUIRED",
+                    "userSetupAllowed": false
+                }
+            ],
+            "builtIn": false,
+            "description": "",
+            "id": "3fc33f0b-ce4c-4e50-a951-bccafdd89a9d",
+            "providerId": "basic-flow",
+            "topLevel": false
+        }, {
+            "alias": "basic / silver condition",
+            "authenticationExecutions": [{
+                    "authenticator": "conditional-level-of-authentication",
+                    "authenticatorConfig": "silver",
+                    "authenticatorFlow": false,
+                    "autheticatorFlow": false,
+                    "priority": 0,
+                    "requirement": "REQUIRED",
+                    "userSetupAllowed": false
+                }, {
+                    "authenticator": "auth-username-password-form",
+                    "authenticatorFlow": false,
+                    "autheticatorFlow": false,
+                    "priority": 1,
+                    "requirement": "REQUIRED",
+                    "userSetupAllowed": false
+                }, {
+                    "authenticator": "user-session-limits",
+                    "authenticatorConfig": "session-count-limit",
+                    "authenticatorFlow": false,
+                    "autheticatorFlow": false,
+                    "priority": 2,
+                    "requirement": "DISABLED",
+                    "userSetupAllowed": false
+                }, {
+                    "authenticatorFlow": true,
+                    "autheticatorFlow": true,
+                    "flowAlias": "message-otp-subflow",
+                    "priority": 3,
+                    "requirement": "DISABLED",
+                    "userSetupAllowed": false
+                }, {
+                    "authenticatorFlow": true,
+                    "autheticatorFlow": true,
+                    "flowAlias": "sequent browser flow Browser - Conditional OTP",
+                    "priority": 4,
+                    "requirement": "DISABLED",
+                    "userSetupAllowed": false
+                }
+            ],
+            "builtIn": false,
+            "description": "",
+            "id": "7e75060c-2824-45ed-ae6a-3767490cb382",
+            "providerId": "basic-flow",
+            "topLevel": false
+        },
+        {
             "alias": "browser",
             "authenticationExecutions": [
                 {
@@ -333,6 +404,23 @@
                     "userSetupAllowed": false
                 },
                 {
+                    "authenticatorFlow" : true,
+                    "requirement" : "CONDITIONAL",
+                    "priority" : 14,
+                    "autheticatorFlow" : true,
+                    "flowAlias" : "deferred-otp-subflow-email",
+                    "userSetupAllowed" : false
+                },
+                {
+                    "authenticatorConfig" : "deferred-otp-subflow-sms",
+                    "authenticatorFlow" : true,
+                    "requirement" : "CONDITIONAL",
+                    "priority" : 15,
+                    "autheticatorFlow" : true,
+                    "flowAlias" : "deferred-otp-subflow",
+                    "userSetupAllowed" : false
+                },
+                {
                     "authenticator": "message-otp-authenticator",
                     "authenticatorConfig": "otp",
                     "authenticatorFlow": false,
@@ -393,6 +481,61 @@
             "id": "4bde24b5-72b3-41c0-8df5-0420e2d69162",
             "providerId": "form-flow",
             "topLevel": false
+        },
+        {
+            "id" : "7b248f81-6142-4a51-abbf-d4ea838cdee6",
+            "alias" : "deferred-otp-subflow",
+            "description" : "",
+            "providerId" : "basic-flow",
+            "topLevel" : false,
+            "builtIn" : false,
+            "authenticationExecutions" : [
+                {
+                    "authenticatorConfig" : "cond-sms",
+                    "authenticator" : "conditional-auth-note",
+                    "authenticatorFlow" : false,
+                    "requirement" : "REQUIRED",
+                    "priority" : 3,
+                    "autheticatorFlow" : false,
+                    "userSetupAllowed" : false
+                },
+                {
+                    "authenticatorConfig" : "otp-sms",
+                    "authenticator" : "message-otp-authenticator",
+                    "authenticatorFlow" : false,
+                    "requirement" : "REQUIRED",
+                    "priority" : 4,
+                    "autheticatorFlow" : false,
+                    "userSetupAllowed" : false
+                }
+            ]
+        }, {
+            "id" : "ec150b9a-3bac-4e44-9a48-748e147335e9",
+            "alias" : "deferred-otp-subflow-email",
+            "description" : "",
+            "providerId" : "basic-flow",
+            "topLevel" : false,
+            "builtIn" : false,
+            "authenticationExecutions" : [
+                {
+                    "authenticatorConfig" : "cond-email",
+                    "authenticator" : "conditional-auth-note",
+                    "authenticatorFlow" : false,
+                    "requirement" : "REQUIRED",
+                    "priority" : 0,
+                    "autheticatorFlow" : false,
+                    "userSetupAllowed" : false
+                },
+                {
+                    "authenticatorConfig" : "otp-email",
+                    "authenticator" : "message-otp-authenticator",
+                    "authenticatorFlow" : false,
+                    "requirement" : "REQUIRED",
+                    "priority" : 1,
+                    "autheticatorFlow" : false,
+                    "userSetupAllowed" : false
+                }
+            ]
         },
         {
             "alias": "direct grant",
@@ -519,6 +662,33 @@
             "topLevel": true
         },
         {
+            "id" : "6d2bbc26-4c5a-4312-bae6-aa6cc060cb17",
+            "alias" : "message-otp-subflow",
+            "description" : "",
+            "providerId" : "basic-flow",
+            "topLevel" : false,
+            "builtIn" : false,
+            "authenticationExecutions" : [
+                {
+                    "authenticator" : "conditional-user-configured",
+                    "authenticatorFlow" : false,
+                    "requirement" : "REQUIRED",
+                    "priority" : 1,
+                    "autheticatorFlow" : false,
+                    "userSetupAllowed" : false
+                },
+                {
+                    "authenticatorConfig" : "email-sms",
+                    "authenticator" : "message-otp-authenticator",
+                    "authenticatorFlow" : false,
+                    "requirement" : "REQUIRED",
+                    "priority" : 3,
+                    "autheticatorFlow" : false,
+                    "userSetupAllowed" : false
+                }
+            ]
+        },
+        {
             "alias": "registration",
             "authenticationExecutions": [
                 {
@@ -614,34 +784,6 @@
             "topLevel": true
         },
         {
-            "alias": "reset.subflow",
-            "authenticationExecutions": [
-                {
-                    "authenticator": "conditional-user-attr",
-                    "authenticatorConfig": "reset.has.tlf",
-                    "authenticatorFlow": false,
-                    "autheticatorFlow": false,
-                    "priority": 0,
-                    "requirement": "REQUIRED",
-                    "userSetupAllowed": false
-                },
-                {
-                    "authenticator": "message-otp-authenticator",
-                    "authenticatorConfig": "reset.send.otp.tlf",
-                    "authenticatorFlow": false,
-                    "autheticatorFlow": false,
-                    "priority": 1,
-                    "requirement": "REQUIRED",
-                    "userSetupAllowed": false
-                }
-            ],
-            "builtIn": false,
-            "description": "",
-            "id": "25512b71-6726-4eeb-87a9-931a6f6c338a",
-            "providerId": "basic-flow",
-            "topLevel": false
-        },
-        {
             "alias": "saml ecp",
             "authenticationExecutions": [
                 {
@@ -702,39 +844,50 @@
             "topLevel": true
         },
         {
-            "alias": "sequent browser flow forms",
-            "authenticationExecutions": [
-                {
-                    "authenticator": "expiry-username-password-form",
-                    "authenticatorConfig": "UPF-apec",
+            "alias": "sequent browser flow Browser - Conditional OTP",
+            "authenticationExecutions": [{
+                    "authenticator": "conditional-user-configured",
                     "authenticatorFlow": false,
                     "autheticatorFlow": false,
                     "priority": 21,
                     "requirement": "REQUIRED",
                     "userSetupAllowed": false
-                },
-                {
-                    "authenticator": "user-session-limits",
-                    "authenticatorConfig": "session-count-limit",
+                }, {
+                    "authenticator": "auth-otp-form",
                     "authenticatorFlow": false,
                     "autheticatorFlow": false,
                     "priority": 25,
                     "requirement": "REQUIRED",
                     "userSetupAllowed": false
-                },
-                {
-                    "authenticator": "message-otp-authenticator",
-                    "authenticatorConfig": "login-tlf-otp",
-                    "authenticatorFlow": false,
-                    "autheticatorFlow": false,
-                    "priority": 26,
-                    "requirement": "REQUIRED",
+                }
+            ],
+            "builtIn": false,
+            "description": "Flow to determine if the OTP is required for the authentication",
+            "id": "b5170960-8148-4baa-835c-a7bda9628afb",
+            "providerId": "basic-flow",
+            "topLevel": false
+        },
+        {
+            "alias": "sequent browser flow forms",
+            "authenticationExecutions": [{
+                    "authenticatorFlow": true,
+                    "autheticatorFlow": true,
+                    "flowAlias": "basic / silver condition",
+                    "priority": 27,
+                    "requirement": "CONDITIONAL",
+                    "userSetupAllowed": false
+                }, {
+                    "authenticatorFlow": true,
+                    "autheticatorFlow": true,
+                    "flowAlias": "advanced / gold condition",
+                    "priority": 28,
+                    "requirement": "CONDITIONAL",
                     "userSetupAllowed": false
                 }
             ],
             "builtIn": false,
             "description": "Username, password, otp and other auth forms.",
-            "id": "bec3a378-e0f0-4bfb-aea0-3a288aa13475",
+            "id": "c36d83e7-7e0b-4329-92a5-27d03e04d9f8",
             "providerId": "basic-flow",
             "topLevel": false
         },
@@ -751,19 +904,12 @@
                     "userSetupAllowed": false
                 },
                 {
-                    "authenticator": "reset-credential-email",
+                    "authenticator": "message-otp-authenticator",
+                    "authenticatorConfig": "reset.send.otp.tlf",
                     "authenticatorFlow": false,
                     "autheticatorFlow": false,
-                    "priority": 21,
                     "requirement": "REQUIRED",
-                    "userSetupAllowed": false
-                },
-                {
-                    "authenticatorFlow": true,
-                    "autheticatorFlow": true,
-                    "flowAlias": "reset.subflow",
                     "priority": 22,
-                    "requirement": "CONDITIONAL",
                     "userSetupAllowed": false
                 },
                 {
@@ -835,6 +981,22 @@
         }
     ],
     "authenticatorConfig": [
+        {
+            "alias": "gold",
+            "config": {
+                "loa-max-age": "0",
+                "loa-condition-level": "2"
+            },
+            "id": "671af2c7-9e15-4ca0-a6a0-aa26cd9e7453"
+        },
+        {
+            "alias": "silver",
+            "config": {
+                "loa-condition-level": "1",
+                "loa-max-age": "36000"
+            },
+            "id": "597fd51e-3c01-4033-adf1-ae90cf7c03ba"
+        },
         {
             "alias": "UPF-apec",
             "config": {
@@ -923,15 +1085,13 @@
         {
             "alias": "drupc",
             "config": {
-                "user-status": "sequent.read-only.id-card-number-validated",
-                "search-attributes": "country"
+                "user-status": "sequent.read-only.id-card-number-validated"
             },
             "id": "f0f0bd0e-530e-4495-838f-f5230143a9c8"
         },
         {
             "alias": "drupc",
             "config": {
-                "search-attributes": "country",
                 "user-status": "sequent.read-only.id-card-number-validated"
             },
             "id": "d2708c8b-05d7-4344-b1d2-1653e47ecd1b"
@@ -974,7 +1134,8 @@
                 "recaptchaEnabled": "false",
                 "disablePassword": "true",
                 "recaptchaMinScore": "0.5",
-                "passwordExpirationUserAttribute": "whatever"
+                "passwordExpirationUserAttribute": "whatever",
+                "hideUserNotFound": "true"
             },
             "id": "8b0f7838-60b0-40be-b12f-dd0ac09d06e5"
         },
@@ -989,16 +1150,17 @@
         {
             "alias": "inetum-registration",
             "config": {
-                "attributes-to-validate": "{\n    \"PhilSys ID\": [\n        {\n            \"type\": \"equalValue\",\n            \"equalValue\": \"Identity Card\",\n            \"inetumAttributePath\": \"/response/docVerification/documentIdentification/0/type\",\n            \"errorMsg\": \"attributesInetumError\"\n        },\n        {\n            \"type\": \"equalValue\",\n            \"equalValue\": \"PHL\",\n            \"inetumAttributePath\": \"/response/ocr/issuing_state_code\",\n            \"errorMsg\": \"attributesInetumError\"\n        },\n        {\n            \"type\": \"intMinValue\",\n            \"intMinValue\": \"20\",\n            \"inetumAttributePath\": \"/response/resultData/scoreDocumental\",\n            \"errorMsg\": \"scoringInetumError\"\n        },\n        {\n            \"type\": \"intMinValue\",\n            \"intMinValue\": \"20\",\n            \"inetumAttributePath\": \"/response/resultData/scoreFacial\",\n            \"errorMsg\": \"scoringInetumError\"\n        }\n    ],\n    \"Seaman Book\": [\n        {\n            \"type\": \"equalValue\",\n            \"equalValue\": \"PHL\",\n            \"inetumAttributePath\": \"/response/mrz/issuing_state_code\",\n            \"errorMsg\": \"attributesInetumError\"\n        },\n        {\n            \"type\": \"equalAuthnoteAttributeId\",\n            \"equalAuthnoteAttributeId\": \"firstName\",\n            \"inetumAttributePath\": \"/response/mrz/given_names\",\n            \"errorMsg\": \"attributesInetumError\"\n        },\n        {\n            \"type\": \"equalAuthnoteAttributeId\",\n            \"equalAuthnoteAttributeId\": \"lastName\",\n            \"inetumAttributePath\": \"/response/mrz/surname\",\n            \"errorMsg\": \"attributesInetumError\"\n        },\n        {\n            \"type\": \"equalDateAuthnoteAttributeId\",\n            \"equalDateAuthnoteAttributeId\": \"birthDate\",\n            \"valueDateFormat\": \"yyyy-MM-dd\",\n            \"inetumAttributePath\": \"/response/mrz/date_of_birth\",\n            \"inetumDateFormat\": \"dd/MM/yyyy\",\n            \"errorMsg\": \"attributesInetumError\"\n        },\n        {\n            \"type\": \"intMinValue\",\n            \"intMinValue\": \"20\",\n            \"inetumAttributePath\": \"/response/resultData/scoreValCamposCriticos\",\n            \"errorMsg\": \"scoringInetumError\"\n        },\n        {\n            \"type\": \"intMinValue\",\n            \"intMinValue\": \"20\",\n            \"inetumAttributePath\": \"/response/resultData/scoreFacial\",\n            \"errorMsg\": \"scoringInetumError\"\n        }\n    ],\n    \"Philippine Passport\": [\n        {\n            \"type\": \"equalValue\",\n            \"equalValue\": \"PHL\",\n            \"inetumAttributePath\": \"/response/mrz/issuing_state_code\",\n            \"errorMsg\": \"attributesInetumError\"\n        },\n        {\n            \"type\": \"intMinValue\",\n            \"intMinValue\": \"20\",\n            \"inetumAttributePath\": \"/response/resultData/scoreValCamposCriticos\",\n            \"errorMsg\": \"scoringInetumError\"\n        },\n        {\n            \"type\": \"intMinValue\",\n            \"intMinValue\": \"20\",\n            \"inetumAttributePath\": \"/response/resultData/scoreFacial\",\n            \"errorMsg\": \"scoringInetumError\"\n        }\n    ],\n    \"Drivers License\": [\n        {\n            \"type\": \"intMinValue\",\n            \"intMinValue\": \"20\",\n            \"inetumAttributePath\": \"/response/resultData/scoreValCamposCriticos\",\n            \"errorMsg\": \"scoringInetumError\"\n        },\n        {\n            \"type\": \"intMinValue\",\n            \"intMinValue\": \"20\",\n            \"inetumAttributePath\": \"/response/resultData/scoreFacial\",\n            \"errorMsg\": \"scoringInetumError\"\n        }\n    ],\n    \"IBP\": [\n        {\n            \"type\": \"intMinValue\",\n            \"intMinValue\": \"20\",\n            \"inetumAttributePath\": \"/response/resultData/scoreValCamposCriticos\",\n            \"errorMsg\": \"scoringInetumError\"\n        },\n        {\n            \"type\": \"intMinValue\",\n            \"intMinValue\": \"20\",\n            \"inetumAttributePath\": \"/response/resultData/scoreFacial\",\n            \"errorMsg\": \"scoringInetumError\"\n        }\n    ]\n}",
+                 "attributes-to-validate": "{\n    \"philSysID\": [\n        {\n            \"type\": \"equalValue\",\n            \"equalValue\": \"Identity Card\",\n            \"inetumAttributePath\": \"/response/docVerification/documentIdentification/0/type\",\n            \"errorMsg\": \"attributesInetumError\"\n        },\n        {\n            \"type\": \"equalValue\",\n            \"equalValue\": \"PHL\",\n            \"inetumAttributePath\": \"/response/ocr/issuing_state_code\",\n            \"errorMsg\": \"attributesInetumError\"\n        },\n        {\n            \"type\": \"intMinValue\",\n            \"intMinValue\": \"50\",\n            \"inetumAttributePath\": \"/response/resultData/scoreDocumental\",\n            \"errorMsg\": \"scoringInetumError\"\n        },\n        {\n            \"type\": \"intMinValue\",\n            \"intMinValue\": \"50\",\n            \"inetumAttributePath\": \"/response/resultData/scoreFacial\",\n            \"errorMsg\": \"scoringInetumError\"\n        },\n        {\n            \"type\": \"intMinValue\",\n            \"intMinValue\": \"1\",\n            \"inetumAttributePath\": \"/response/scoring\",\n            \"errorMsg\": \"scoringInetumError\"\n        },\n        {\n            \"type\": \"equalValue\",\n            \"equalValue\": \"true\",\n            \"inetumAttributePath\": \"/response/docVerification/documentalConfidence\",\n            \"errorMsg\": \"scoringInetumError\"\n        }\n    ],\n    \"seamanBook\": [\n        {\n            \"type\": \"equalValue\",\n            \"equalValue\": \"PHL\",\n            \"inetumAttributePath\": \"/response/mrz/issuing_state_code\",\n            \"errorMsg\": \"attributesInetumError\"\n        },\n        {\n            \"type\": \"intMinValue\",\n            \"intMinValue\": \"50\",\n            \"inetumAttributePath\": \"/response/resultData/scoreValCamposCriticos\",\n            \"errorMsg\": \"scoringInetumError\"\n        },\n        {\n            \"type\": \"intMinValue\",\n            \"intMinValue\": \"50\",\n            \"inetumAttributePath\": \"/response/resultData/scoreFacial\",\n            \"errorMsg\": \"scoringInetumError\"\n        },\n        {\n            \"type\": \"intMinValue\",\n            \"intMinValue\": \"1\",\n            \"inetumAttributePath\": \"/response/scoring\",\n            \"errorMsg\": \"scoringInetumError\"\n        },\n        {\n            \"type\": \"equalValue\",\n            \"equalValue\": \"true\",\n            \"inetumAttributePath\": \"/response/docVerification/documentalConfidence\",\n            \"errorMsg\": \"scoringInetumError\"\n        }\n        \n    ],\n    \"philippinePassport\": [\n        {\n            \"type\": \"equalValue\",\n            \"equalValue\": \"PHL\",\n            \"inetumAttributePath\": \"/response/mrz/issuing_state_code\",\n            \"errorMsg\": \"attributesInetumError\"\n        },\n        {\n            \"type\": \"intMinValue\",\n            \"intMinValue\": \"50\",\n            \"inetumAttributePath\": \"/response/resultData/scoreValCamposCriticos\",\n            \"errorMsg\": \"scoringInetumError\"\n        },\n        {\n            \"type\": \"intMinValue\",\n            \"intMinValue\": \"50\",\n            \"inetumAttributePath\": \"/response/resultData/scoreFacial\",\n            \"errorMsg\": \"scoringInetumError\"\n        },\n        {\n            \"type\": \"intMinValue\",\n            \"intMinValue\": \"1\",\n            \"inetumAttributePath\": \"/response/scoring\",\n            \"errorMsg\": \"scoringInetumError\"\n        },\n        {\n            \"type\": \"equalValue\",\n            \"equalValue\": \"true\",\n            \"inetumAttributePath\": \"/response/docVerification/documentalConfidence\",\n            \"errorMsg\": \"scoringInetumError\"\n        }\n    ],\n    \"driversLicense\": [\n        {\n            \"type\": \"equalValue\",\n            \"equalValue\": \"PHL\",\n            \"inetumAttributePath\": \"/response/ocr/issuing_state_code\",\n            \"errorMsg\": \"attributesInetumError\"\n        },\n        {\n            \"type\": \"intMinValue\",\n            \"intMinValue\": \"40\",\n            \"inetumAttributePath\": \"/response/resultData/scoreValCamposCriticos\",\n            \"errorMsg\": \"scoringInetumError\"\n        },\n        {\n            \"type\": \"intMinValue\",\n            \"intMinValue\": \"50\",\n            \"inetumAttributePath\": \"/response/resultData/scoreFacial\",\n            \"errorMsg\": \"scoringInetumError\"\n        },\n        {\n            \"type\": \"intMinValue\",\n            \"intMinValue\": \"1\",\n            \"inetumAttributePath\": \"/response/scoring\",\n            \"errorMsg\": \"scoringInetumError\"\n        },\n        {\n            \"type\": \"equalValue\",\n            \"equalValue\": \"true\",\n            \"inetumAttributePath\": \"/response/docVerification/documentalConfidence\",\n            \"errorMsg\": \"scoringInetumError\"\n        }\n    ],\n    \"iBP\": [\n        {\n            \"type\": \"intMinValue\",\n            \"intMinValue\": \"50\",\n            \"inetumAttributePath\": \"/response/resultData/scoreValCamposCriticos\",\n            \"errorMsg\": \"scoringInetumError\"\n        },\n        {\n            \"type\": \"intMinValue\",\n            \"intMinValue\": \"50\",\n            \"inetumAttributePath\": \"/response/resultData/scoreFacial\",\n            \"errorMsg\": \"scoringInetumError\"\n        },\n        {\n            \"type\": \"intMinValue\",\n            \"intMinValue\": \"1\",\n            \"inetumAttributePath\": \"/response/scoring\",\n            \"errorMsg\": \"scoringInetumError\"\n        },\n        {\n            \"type\": \"equalValue\",\n            \"equalValue\": \"true\",\n            \"inetumAttributePath\": \"/response/docVerification/documentalConfidence\",\n            \"errorMsg\": \"scoringInetumError\"\n        }\n    ]\n}",
                 "user-status": "sequent.read-only.id-card-number-validated",
-                "base-url": "https://des.digitalonboarding.es/dob-api/2.0.0",
-                "client-id": "demosequentech",
+                "base-url": "https://pro2.digitalonboarding.es/sequentech/dob-api/2.0.0",
+                "sdk-version": "4.0.3",
+                "client-id": "DOB_SEQUENTECH",
                 "doc-id": "sequent.read-only.id-card-number",
-                "attributes-to-store": "{\n\t\"PhilSys ID\": [\n\t\t{\n\t\t\t\"UserAttribute\": \"firstName\",\n\t\t\t\"inetumAttributePath\": \"/response/ocr/given_names\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"lastName\",\n\t\t\t\"inetumAttributePath\": \"/response/ocr/surname\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"sequent.read-only.id-card-number\",\n\t\t\t\"inetumAttributePath\": \"/response/ocr/personal_number\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"birthDate\",\n\t\t\t\"inetumAttributePath\": \"/response/ocr/date_of_birth\",\n\t\t\t\"type\": \"date\",\n\t\t\t\"storeDateFormat\": \"yyyy-MM-dd\",\n\t\t\t\"inetumDateFormat\": \"dd/MM/yyyy\"\n\t\t}\n\t],\n\t\"Seaman Book\": [\n\t\t{\n\t\t\t\"UserAttribute\": \"firstName\",\n\t\t\t\"inetumAttributePath\": \"/response/mrz/given_names\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"lastName\",\n\t\t\t\"inetumAttributePath\": \"/response/mrz/surname\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"sequent.read-only.id-card-number\",\n\t\t\t\"inetumAttributePath\": \"/response/mrz/personal_number\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"birthDate\",\n\t\t\t\"inetumAttributePath\": \"/response/mrz/date_of_birth\",\n\t\t\t\"type\": \"date\",\n\t\t\t\"storeDateFormat\": \"yyyy-MM-dd\",\n\t\t\t\"inetumDateFormat\": \"dd/MM/yyyy\"\n\t\t}\n\t],\n\t\"Philippine Passport\": [\n\t\t{\n\t\t\t\"UserAttribute\": \"firstName\",\n\t\t\t\"inetumAttributePath\": \"/response/mrz/given_names\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"lastName\",\n\t\t\t\"inetumAttributePath\": \"/response/mrz/surname\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"sequent.read-only.id-card-number\",\n\t\t\t\"inetumAttributePath\": \"/response/mrz/document_number\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"birthDate\",\n\t\t\t\"inetumAttributePath\": \"/response/mrz/date_of_birth\",\n\t\t\t\"type\": \"date\",\n\t\t\t\"storeDateFormat\": \"yyyy-MM-dd\",\n\t\t\t\"inetumDateFormat\": \"dd/MM/yyyy\"\n\t\t}\n\t],\n\t\"Drivers License\": [\n\t\t{\n\t\t\t\"UserAttribute\": \"firstName\",\n\t\t\t\"inetumAttributePath\": \"/response/ocr/given_names\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"lastName\",\n\t\t\t\"inetumAttributePath\": \"/response/ocr/surname\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"sequent.read-only.id-card-number\",\n\t\t\t\"inetumAttributePath\": \"/response/ocr/personal_number\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"birthDate\",\n\t\t\t\"inetumAttributePath\": \"/response/ocr/date_of_birth\",\n\t\t\t\"type\": \"date\",\n\t\t\t\"storeDateFormat\": \"yyyy-MM-dd\",\n\t\t\t\"inetumDateFormat\": \"dd/MM/yyyy\"\n\t\t}\n\t],\n\t\"IBP\": [\n{\n\t\t\t\"UserAttribute\": \"firstName\",\n\t\t\t\"inetumAttributePath\": \"/response/mrz/given_names\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"lastName\",\n\t\t\t\"inetumAttributePath\": \"/response/mrz/surname\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"sequent.read-only.id-card-number\",\n\t\t\t\"inetumAttributePath\": \"/response/mrz/personal_number\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"birthDate\",\n\t\t\t\"inetumAttributePath\": \"/response/mrz/date_of_birth\",\n\t\t\t\"type\": \"date\",\n\t\t\t\"storeDateFormat\": \"yyyy-MM-dd\",\n\t\t\t\"inetumDateFormat\": \"dd/MM/yyyy\"\n\t\t}\n\t]\n}",
-                "api-key": "fd2280f6-4fb8-3ba3-b55f-5a425b64f07f",
+                "attributes-to-store": "{\n\t\"philSysID\": [\n\t\t{\n\t\t\t\"UserAttribute\": \"firstName\",\n\t\t\t\"inetumAttributePath\": \"/response/ocr/given_names\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"middleName\",\n\t\t\t\"inetumAttributePath\": \"/response/ocr/middle_name\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"lastName\",\n\t\t\t\"inetumAttributePath\": \"/response/ocr/surname\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"sequent.read-only.id-card-number\",\n\t\t\t\"inetumAttributePath\": \"/response/ocr/personal_number\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"dateOfBirth\",\n\t\t\t\"inetumAttributePath\": \"/response/ocr/date_of_birth\",\n\t\t\t\"type\": \"date\",\n\t\t\t\"storeDateFormat\": \"yyyy-MM-dd\",\n\t\t\t\"inetumDateFormat\": \"dd/MM/yyyy\"\n\t\t}\n\t],\n\t\"seamanBook\": [\n\t\t{\n\t\t\t\"UserAttribute\": \"firstName\",\n\t\t\t\"inetumAttributePath\": \"/response/mrz/given_names\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"middleName\",\n\t\t\t\"inetumAttributePath\": \"/response/ocr/middle_name\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"lastName\",\n\t\t\t\"inetumAttributePath\": \"/response/mrz/surname\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"sequent.read-only.id-card-number\",\n\t\t\t\"inetumAttributePath\": \"/response/mrz/personal_number\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"dateOfBirth\",\n\t\t\t\"inetumAttributePath\": \"/response/mrz/date_of_birth\",\n\t\t\t\"type\": \"date\",\n\t\t\t\"storeDateFormat\": \"yyyy-MM-dd\",\n\t\t\t\"inetumDateFormat\": \"dd/MM/yyyy\"\n\t\t}\n\t],\n\t\"philippinePassport\": [\n\t\t{\n\t\t\t\"UserAttribute\": \"firstName\",\n\t\t\t\"inetumAttributePath\": \"/response/mrz/given_names\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"middleName\",\n\t\t\t\"inetumAttributePath\": \"/response/ocr/middle_name\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"lastName\",\n\t\t\t\"inetumAttributePath\": \"/response/mrz/surname\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"sequent.read-only.id-card-number\",\n\t\t\t\"inetumAttributePath\": \"/response/mrz/document_number\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"dateOfBirth\",\n\t\t\t\"inetumAttributePath\": \"/response/mrz/date_of_birth\",\n\t\t\t\"type\": \"date\",\n\t\t\t\"storeDateFormat\": \"yyyy-MM-dd\",\n\t\t\t\"inetumDateFormat\": \"dd/MM/yyyy\"\n\t\t}\n\t],\n\t\"driversLicense\": [\n\t\t{\n\t\t\t\"UserAttribute\": \"firstName\",\n\t\t\t\"inetumAttributePath\": \"/response/ocr/given_names\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"middleName\",\n\t\t\t\"inetumAttributePath\": \"/response/ocr/middle_name\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"lastName\",\n\t\t\t\"inetumAttributePath\": \"/response/ocr/surname\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"sequent.read-only.id-card-number\",\n\t\t\t\"inetumAttributePath\": \"/response/ocr/personal_number\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"dateOfBirth\",\n\t\t\t\"inetumAttributePath\": \"/response/ocr/date_of_birth\",\n\t\t\t\"type\": \"date\",\n\t\t\t\"storeDateFormat\": \"yyyy-MM-dd\",\n\t\t\t\"inetumDateFormat\": \"dd/MM/yyyy\"\n\t\t}\n\t],\n\t\"iBP\": [\n\t\t{\n\t\t\t\"UserAttribute\": \"firstName\",\n\t\t\t\"inetumAttributePath\": \"/response/mrz/given_names\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"middleName\",\n\t\t\t\"inetumAttributePath\": \"/response/ocr/middle_name\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"lastName\",\n\t\t\t\"inetumAttributePath\": \"/response/mrz/surname\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"sequent.read-only.id-card-number\",\n\t\t\t\"inetumAttributePath\": \"/response/mrz/personal_number\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"dateOfBirth\",\n\t\t\t\"inetumAttributePath\": \"/response/mrz/date_of_birth\",\n\t\t\t\"type\": \"date\",\n\t\t\t\"storeDateFormat\": \"yyyy-MM-dd\",\n\t\t\t\"inetumDateFormat\": \"dd/MM/yyyy\"\n\t\t}\n\t]\n}",
+                "api-key": "289d42a8-39c4-3142-af00-d96ada617b40",
                 "sdk": "{}",
-                "app-id": "7349cfcc-b3a1-4dd7-b399-d135be0a2f43",
-                "env-config": "{\n\tenvironment: 0,\n\tisWebView: true,\n\tcustomTextsConfig: myStrings,\n\tuploadAndCheckIdentifiers: [\"ESP\"],\n\tshowLogs: false,\n\tlogTypes: ['ERROR', 'INFO'],\n\tdesign: design,\n\tbamEnabled: true,\n\tocrCountdown: false,\n\tvideoSelfieShowDNI: false,\n\tcancelProcessButton: true,\n\tshowPermissionsHelp: true,\n\tqrEnabled: false,\n\tvoiceEnabled: false,\n\tvoiceLanguage: VoiceLanguage.englishUS,\n\tcustomIOSBrowsersConfig: [IOSBrowser.safari, IOSBrowser.chrome, IOSBrowser.firefox],\n\totpEmailAddress: 'xxxxxxx@inetum.com',\n\totpPhoneNumber: 'xxxxxxxx',\n\tcountryCode: CountryCode.unitedStates,\n\tapplicationId: window.DOB_APP_ID,\n\tbroadcast: new LocalBroadcastManager(),\n\tsequent: {\n\t\tdisableStreaming: false\n\t}\n}",
+                "app-id": "24d98f6c-88ef-41ef-b252-444485f0588a",
+                "env-config": "{\n\tenvironment: 3,\n\tisWebView: true,\n\tcustomTextsConfig: myStrings,\n\tuploadAndCheckIdentifiers: [\"ESP\"],\n\tshowLogs: false,\n\tlogTypes: ['ERROR', 'INFO'],\n\tdesign: design,\n\tbamEnabled: true,\n\tocrCountdown: false,\n\tvideoSelfieShowDNI: false,\n\tcancelProcessButton: true,\n\tshowPermissionsHelp: true,\n\tqrEnabled: false,\n\tvoiceEnabled: false,\n\tvoiceLanguage: VoiceLanguage.englishUS,\n\tcustomIOSBrowsersConfig: [IOSBrowser.safari, IOSBrowser.chrome, IOSBrowser.firefox],\n\totpEmailAddress: 'xxxxxxx@inetum.com',\n\totpPhoneNumber: 'xxxxxxxx',\n\tcountryCode: CountryCode.unitedStates,\n\tapplicationId: window.DOB_APP_ID,\n\tbroadcast: new LocalBroadcastManager(),\n\tcustomProtocol: 'https',\n\tcustomHost: 'pro2.digitalonboarding.es',\n\tcustomPort: '443',\n\tclientContext: 'sequentech',\n\tsequent: {\n\t\tdisableStreaming: true,\n\t\tvideoStepLength: 22,\n\t\tphotoStepLength: 10,\n\t\tuserPhotoLength: 30,\n\t}\n}",
                 "transaction-new": "{\n\t\"wFtype_Facial\": true,\n\t\"wFtype_OCR\": true,\n\t\"wFtype_Video\": false,\n\t\"wFtype_Anti_Spoofing\": false,\n\t\"wFtype_Sign\": false,\n\t\"wFtype_VerifAvan\": false,\n\t\"wFtype_UECertificate\": false,\n\t\"docID\": \"\",\n\t\"name\": \"\",\n\t\"lastname1\": \"\",\n\t\"lastname2\": \"\",\n\t\"country\": \"\",\n\t\"mobilePhone\": \"\",\n\t\"eMail\": \"\",\n\t\"priority\": 3,\n\t\"maxRetries\": 3,\n\t\"maxProcessTime\": 30,\n\t\"application\": \"sequent-keycloak\",\n\t\"clienteID\": \"${client_id}\"\n}",
                 "doc-id-type": "sequent.read-only.id-card-type",
                 "max-retries": "5"
@@ -1039,10 +1201,10 @@
                 "auto-login": "false",
                 "messageCourierAttribute": "BOTH",
                 "telUserAttribute": "sequent.read-only.mobile-number",
-                "update-attributes": "sequent.read-only.id-card-number-validated,email,sequent.read-only.mobile-number,embassy,country,emailAndOrMobile,sequent.read-only.id-card-number",
-                "search-attributes": "firstName,lastName",
+                "update-attributes": "sequent.read-only.id-card-number-validated,email,sequent.read-only.mobile-number,emailAndOrMobile,sequent.read-only.id-card-number,sequent.read-only.id-card-type",
+                "search-attributes": "firstName,middleName,lastName,embassy,dateOfBirth",
                 "auto-2fa": "true",
-                "unset-attributes": "email, sequent.read-only.mobile-number"
+                "unset-attributes": "email,sequent.read-only.mobile-number,sequent.read-only.id-card-number-validated"
             },
             "id": "d51051b5-d9b5-414b-9fee-259a4de08ba3"
         },
@@ -1208,7 +1370,7 @@
             "alias": "reset.send.otp.tlf",
             "config": {
                 "length": "6",
-                "messageCourierAttribute": "SMS",
+                "messageCourierAttribute": "BOTH",
                 "senderId": "Keycloak",
                 "telUserAttribute": "sequent.read-only.mobile-number",
                 "resendCoudActivationTimer": "60",
@@ -2855,7 +3017,7 @@
             {
                 "config": {
                     "kc.user.profile.config": [
-                        "{\"attributes\":[{\"name\":\"sequent.read-only.id-card-type\",\"displayName\":\"ID Card Type\",\"validations\":{\"options\":{\"options\":[\"Philippine Passport\",\"Seaman Book\",\"PhilSys ID\",\"IBP\",\"Drivers License\"]} },\"annotations\":{\"inputType\":\"select\"},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"firstName\",\"displayName\":\"${firstName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{} },\"annotations\":{\"html-attribute:autocomplete\":\"given-name\"},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"lastName\",\"displayName\":\"${lastName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{} },\"annotations\":{},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"middleName\",\"displayName\":\"${middleName}\",\"validations\":{},\"annotations\":{\"inputHelperTextAfter\":\"NOTE :  If  Middle Name is not available, put \\\"_\\\" instead.\"},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"username\",\"displayName\":\"${username}\",\"validations\":{\"length\":{\"min\":3,\"max\":255},\"username-prohibited-characters\":{},\"up-username-not-idn-homograph\":{} },\"annotations\":{\"passwordStrengthBar\":\"true\",\"hidden\":\"true\",\"passwordHelperTextBefore\":\"At least 8 characters, uppercase, lowercase, number and special characters.\"},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"emailAndOrMobile\",\"displayName\":\"Register via\",\"validations\":{\"options\":{\"options\":[\"sequent.read-only.mobile-number\",\"email\"]},\"multivalued\":{\"min\":\"0\",\"max\":\"2\"} },\"annotations\":{\"inputType\":\"multiselect-checkboxes\",\"default\":[\"email\"],\"inputOptionLabels\":{\"sequent.read-only.mobile-number\":\"Mobile No.\",\"email\":\"${email}\"},\"disableAttribute\":\"true\"},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":true},{\"name\":\"sequent.read-only.mobile-number\",\"displayName\":\"Mobile No.\",\"validations\":{},\"annotations\":{\"inputType\":\"html5-tel\"},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"email\",\"displayName\":\"${email}\",\"validations\":{\"email\":{},\"length\":{\"max\":255} },\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"dateOfBirth\",\"displayName\":\"Date of birth\",\"validations\":{},\"annotations\":{\"inputType\":\"html5-date\"},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"tenant-id\",\"displayName\":\"Tenant Id\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"area-id\",\"displayName\":\"Area Id\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.otp-method\",\"displayName\":\"OTP Method\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"embassy\",\"displayName\":\"Post/Embassy\",\"validations\":{\"options\":{\"options\":[\"Tokyo PE\", \"Athens PE\", \"Dubai PCG\", \"New York PCG\", \"Washington D.C. PE\"]} },\"annotations\":{\"inputType\":\"select\",\"filterSelectAttribute\":\"country\"},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"country\",\"displayName\":\"Country\",\"validations\":{\"options\":{\"options\":[\"Japan/Tokyo PE\", \"Greece/Athens PE\", \"United Arab Emirates/Dubai PCG\", \"United States Of America/New York PCG\", \"Washington DC USA/Washington D.C. PE\"]} },\"annotations\":{\"inputType\":\"select\"},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.id-card-number-validated\",\"displayName\":\"ID Validated?\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"authorized-election-ids\",\"displayName\":\"Authorized Elections\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":true},{\"name\":\"termsOfService\",\"displayName\":\"${termsOfService}\",\"validations\":{\"options\":{\"options\":[\"By proceeding with accomplishing this form, you give consent to the processing of your personal information by the Commission on Elections, pursuant to its mandate in relation to the conduct elections.\"]} },\"annotations\":{\"inputType\":\"multiselect-checkboxes\"},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.id-card-number\",\"displayName\":\"ID No.\",\"validations\":{},\"annotations\":{\"html-attribute:autocomplete\":\"off\",\"default\":\"1\",\"html-attribute:style\":\"visibility:hidden\"},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"sex\",\"displayName\":\"Sex\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"landBasedOrSeafarer\",\"displayName\":\"Land-based/Seafarer\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"clusteredPrecinct\",\"displayName\":\"Clustered precinct\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"overseasReferences\",\"displayName\":\"Overseas references\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false}],\"groups\":[]}"
+                        "{\"attributes\":[{\"name\":\"sequent.read-only.id-card-type\",\"displayName\":\"${idCardType}\",\"validations\":{\"options\":{\"options\":[\"philippinePassport\",\"seamanBook\",\"philSysID\",\"iBP\",\"driversLicense\"]}},\"annotations\":{\"inputType\":\"select\",\"inputOptionLabels\":{\"philSysID\": \"${philSysID}\",\"iBP\": \"${iBP}\",\"philippinePassport\":\"${philippinePassport}\",\"seamanBook\":\"${seamanBook}\",\"driversLicense\":\"${driversLicense}\"}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"firstName\",\"displayName\":\"${firstName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"annotations\":{\"html-attribute:autocomplete\":\"given-name\"},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"lastName\",\"displayName\":\"${lastName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"annotations\":{},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"middleName\",\"displayName\":\"${middleName}\",\"validations\":{},\"annotations\":{\"inputHelperTextAfter\":\"NOTE : If Middle Name is not available, put \\\"_\\\" instead.\"},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"username\",\"displayName\":\"${username}\",\"validations\":{\"length\":{\"min\":3,\"max\":40},\"up-username-not-idn-homograph\":{}},\"annotations\":{\"passwordStrengthBar\":\"true\",\"hidden\":\"true\",\"passwordHelperTextBefore\":\"${passwordHelperTextBefore}\"},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"emailAndOrMobile\",\"displayName\":\"${emailAndOrMobile}\",\"validations\":{\"options\":{\"options\":[\"sequent.read-only.mobile-number\",\"email\"]},\"multivalued\":{\"min\":\"0\",\"max\":\"2\"}},\"annotations\":{\"inputType\":\"multiselect-checkboxes\",\"default\":[\"email\"],\"inputOptionLabels\":{\"sequent.read-only.mobile-number\":\"Mobile No.\",\"email\":\"${email}\"},\"disableAttribute\":\"true\"},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":true},{\"name\":\"sequent.read-only.mobile-number\",\"displayName\":\"${mobileNumber}\",\"validations\":{},\"annotations\":{\"inputType\":\"html5-tel\"},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"email\",\"displayName\":\"${email}\",\"validations\":{\"email\":{},\"length\":{\"max\":255}},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"dateOfBirth\",\"displayName\":\"${dateOfBirth}\",\"validations\":{},\"annotations\":{\"inputType\":\"html5-date\"},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"tenant-id\",\"displayName\":\"Tenant Id\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"area-id\",\"displayName\":\"Area Id\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.otp-method\",\"displayName\":\"OTP Method\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"embassy\",\"displayName\":\"${embassy}\",\"validations\":{\"options\":{\"options\":[{{{embassy_list}}}]}},\"annotations\":{\"inputType\":\"select\",\"filterSelectAttribute\":\"country\"},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"country\",\"displayName\":\"${country}\",\"validations\":{\"options\":{\"options\":[{{{country_list}}}]}},\"annotations\":{\"inputType\":\"select\"},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.id-card-number-validated\",\"displayName\":\"ID Validated?\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"authorized-election-ids\",\"displayName\":\"Authorized Elections\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":true},{\"name\":\"sequent.read-only.id-card-number\",\"displayName\":\"ID No.\",\"validations\":{},\"annotations\":{\"html-attribute:autocomplete\":\"off\",\"default\":\"1\",\"html-attribute:style\":\"visibility:hidden\"},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"sex\",\"displayName\":\"Sex\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"landBasedOrSeafarer\",\"displayName\":\"Land-based/Seafarer\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"clusteredPrecinct\",\"displayName\":\"Clustered precinct\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"overseasReferences\",\"displayName\":\"Overseas references\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"termsOfService\",\"displayName\":\"${termsOfService}\",\"validations\":{\"options\":{\"options\":[\"termsOfServiceText\"]},\"multivalued\":{\"min\":\"0\",\"max\":\"2\"}},\"annotations\":{\"inputType\":\"multiselect-checkboxes\",\"inputOptionLabels\":{\"termsOfServiceText\":\"${termsOfServiceText}\"},\"disableElement\":\"true\"},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":true}],\"groups\":[]}"
                     ]
                 },
                 "id": "b14658b9-44d1-4183-b83d-381598780096",
@@ -3062,7 +3224,8 @@
             "name": "voter",
             "path": "/voter",
             "realmRoles": [
-                "user"
+                "user",
+                "default-roles-tenant0833905f41f34133858d70064ab210e5event33f18502a67c48538333a58630663559"
             ],
             "subGroups": []
         }
@@ -3073,50 +3236,124 @@
     "internationalizationEnabled": true,
     "keycloakVersion": "24.0.5",
     "localizationTexts": {
+        "tl": {
+            "maxRetriesError": "Ikinalulungkot naming ipaalam na ang kalidad ng mga ibinigay na larawan ay hindi umayon sa pamantayan matapos ang tatlong pagsubok, kaya''t hindi naging matagumpay ang inyong pag-enroll.<br><br>Kung kailangan ninyo ng karagdagang tulong upang makapag-enroll, huwag mag-atubiling makipag-ugnayan sa aming support team <a href=\"https://comelec.gov.ph/?r=2025NLESupport\">i-click dito</a>.<br><br>Maraming salamat!",
+            "registerTitle": "FORM SA PAG-ENROLL SA INTERNET VOTING",
+            "messageOtp.sendCode.email.htmlBody": "Kumusta!<br><br>Ang iyong OTP ay <strong>{1}</strong> at ito ay may bisa sa loob ng {2} minuto.<br><br>Salamat,",
+            "doRegister": "MAG-ENROLL",
+            "usernameOrEmail": "Email / Numero ng mobile",
+            "middleName": "Gitnang pangalan",
+            "idCardNumberValidator": "Tanging mga letra at numero lamang ang pinapayagan",
+            "IdCardNo": "ID No.",
+            "sequent.read-only.mobile-number": "Numero ng mobile",
+            "postEmbassy": "Embahada/Konsulado/MECO",
+            "messageOtp.auth.resend.timer": "Hindi pa natatanggap ang OTP? Maghintay ng {0} segundo upang magpadala muli.",
+            "suffix": "Suffix",
+            "sequent.read-only.id-card-number": "ID no.",
+            "messageOtp.auth.instructionEmail": "Ilagay ang OTP na ipinadala namin sa iyong email.",
+            "birthDate": "Araw ng kapanganakan",
+            "messageOtp.sendLink.email.htmlBody": "Maligayang bati!<br><br>Matagumpay ang iyong pag-enroll.<br><br>Upang mag-login, gamitin ang {1} bilang username at ang password na nilikha mo sa pag-enroll.<br><br>Mag-login dito:<br><br><a href=\"{3}\">Mag-login sa Voting Portal</a><br><br>Salamat,<br>Commission on Elections<br><br> <b>PAALALA SA KOMPIDENSIYALIDAD:</b> Ang nilalaman ng mensaheng ito at anumang kalakip ay tanging para lamang sa nakatakdang tagatanggap at maaaring naglalaman ng kompidensiyal o pribilehiyadong impormasyon na legal na protektado laban sa pagsisiwalat. Kung hindi ikaw ang nakatakdang tagatanggap, ipaalam agad ito sa nagpadala sa pamamagitan ng reply email at burahin ang mensahe at anumang kalakip. <br><br> <b>PAALALA SA DATA PRIVACY:</b> Ang lahat ng awtorisadong tagatanggap ng anumang personal na data o impormasyon ay kailangang sumunod sa Data Privacy Act of 2012 (R.A. No. 10173).",
+            "registerFinishMessage": "Maligayang bati! <br>Matagumpay ang iyong pag-enroll. Hintayin ang SMS o email para sa susunod na hakbang. <br>Salamat!",
+            "messageSuccessEmailSubject": "2025 NLE Kumpirmasyon ng Pag-enroll sa Internet Voting",
+            "messageSuccessEmailTextBody": "Maligayang bati!\n\nMatagumpay ang iyong pag-enroll.\n\nMaaari mo nang ma-access ang Voting Portal gamit ang link na ito:\n\n{3}\n\nPara mag-login, gamitin ang {1} bilang iyong username at ang password na nilikha noong nag-enroll.\n\nSalamat,\nCommission on Elections\n\nPAALALA SA KOMPIDENSIYALIDAD: Ang nilalaman ng mensaheng ito ay tanging para lamang sa nakatakdang tagatanggap at maaaring naglalaman ng pribilehiyadong impormasyon. Kung hindi ikaw ang nakatakdang tagatanggap, burahin ito agad. \n\nPAALALA SA DATA PRIVACY: Ang lahat ng tumatanggap ng impormasyong personal ay kailangang sumunod sa mga umiiral na batas ukol dito.",
+            "registerVia": "Magrehistro sa pamamagitan ng",
+            "loginAccountTitle": "Mag-login upang bumoto",
+            "messageOtp.auth.resend.button": "Hindi pa natatanggap ang OTP? I-click dito upang magpadala muli",
+            "termsOfService": " ",
+            "messageOtp.otl.resend.timer": "Hindi pa natatanggap ang Link? Maghintay ng {0} segundo upang magpadala muli",
+            "messageOtp.auth.instructionBoth": "Ilagay ang OTP na ipinadala sa iyo sa pamamagitan ng SMS o Email.",
+            "noAccount": "Hindi pa nakapag-enroll?",
+            "messageOtp.auth.title": "Ang OTP (One Time Password) ay ipinadala sa",
+            "messageOtp.auth.ttlTime": "Ang OTP ay may bisa sa loob ng {0} minuto.",
+            "ConfirmationTitle": "Pagpapatunay ng Botante",
+            "auditBallotHelpDialog": "Ipinapakita ng audit ballot ang mga kandidato na iyong napili upang tiyakin na tama ang naitala ng sistema. Gusto mo bang magpatuloy sa audit ballot?",
+            "messageOtp.sendCode.sms.text": "Ang iyong OTP ay {1} at ito ay may bisa sa loob ng {2} minuto.",
+            "messageOtp.auth.label": "OTP",
+            "messageOtp.auth.instructionSms": "Ilagay ang OTP na ipinadala namin sa iyong mobile device sa pamamagitan ng SMS.",
+            "messageOtp.sendCode.email.subject": "Ang iyong OTP",
+            "emailInstructionUsername": "Ilagay ang iyong email o numero ng mobile at padadalhan ka namin ng mga tagubilin kung paano lumikha ng bagong password.",
+            "country": "Bansa",
+            "idCardType": "Uri ng ID Card",
+            "emailAndOrMobile": "Magrehistro sa pamamagitan ng",
+            "mobileNumber": "Numero ng mobile.",
+            "embassy": "Embahada",
+            "dateOfBirth": "Petsa ng kapanganakan",
+            "passwordConfirm": "Kumpirmahin ang password",
+            "password": "Password",
+            "termsOfServiceText": "Sa pagpapatuloy sa pagsagot sa form na ito, nagbibigay ka ng pahintulot sa Commission on Elections sa pagproseso ng iyong personal na impormasyon, alinsunod sa mandato nito kaugnay sa pagsasagawa ng mga halalan.",
+            "email": "Email",
+            "passwordHelperTextBefore": "Hindi bababa sa 8 character, uppercase, lowercase, numero at mga espesyal na character.",
+            "philSysID": "PhilSys ID",
+            "iBP": "IBP",
+            "philippinePassport": "Pasaporte ng Pilipinas",
+            "driversLicense": "Lisensya sa pagmamaneho",
+            "seamanBook": "Libro ng seaman"
+        },
         "en": {
+            "maxRetriesError": "We regret to inform you that the quality of the provided images did not meet the required standards after three attempts, resulting in an unsuccessful enrollment.<br><br>If you require further assistance to complete the enrollment process successfully, please feel free to contact our support team by <a href=\"https://comelec.gov.ph/?r=2025NLESupport\">clicking here</a>.<br><br>Thank you!",
             "registerTitle": "INTERNET VOTING ENROLLMENT FORM",
             "messageOtp.sendCode.email.htmlBody": "Hello!<br><br>Your OTP is <strong>{1}</strong> and is valid for {2} minutes.<br><br>Regards,",
             "doRegister": "ENROLL",
             "usernameOrEmail": "Email / Mobile No.",
-            "middleName": "Middle Name",
-            "loginCustomCss": ".pf-c-input-group:has(input[id=password])::after '{' content: \"<div class=\" pf-c-form__helper-text pf-c-form__helper-text-after\" id=\" form-help-text-after-registerVia\" aria-live=\" polite\">(Please ensure that the mobile no./email is active. Check both options if both mobile no. and email are available.)</div>\" '}' .col-xs-12:has(label[for=termsOfService]) '{' display: none; '}' :root '{' #kc-header-wrapper div.logo '{' background-image: url(https://upload.wikimedia.org/wikipedia/commons/7/73/Commission_on_Elections_%28COMELEC%29.svg) !important; '}' '}' .login-pf body '{' background-image: linear-gradient(1deg, #ffffff, transparent), url(https://filipinotimes.net/wp-content/uploads/2021/08/COMELEC-scaled.jpg) !important; '}' #kc-title '{' color: white !important; '}'@media (max-width: 767px) '{' #kc-title '{' color: white !important; '}' '}' #kc-title '{' color: white !important; '}'@media (max-width: 767px) '{' #kc-title '{' color: white !important; '}' '}' .pf-c-check__label '{' font-size: 12px !important; '}' .pf-c-form-control '{' font-size: 12px !important; '}' input::placeholder '{' font-size: 12px !important; '}' .iti__selected-country '{' font-size: 12px !important; '}' .pf-c-form__label-text '{' font-weight: bold !important; '}' .dob-sdk-root-container '{' background-color: white !important; '}' .pf-c-form__label[for=\"sequent.read-only.id-card-number\"] '{' visibility: hidden; '}' div > div > div > div '{' color: #991b1b;'}' label '{' color: black;'}'",
+            "middleName": "Middle name",
+            "loginCustomCss": ".pf-c-input-group:has(input[id=password])::after '{' content: \"<div class=\" pf-c-form__helper-text pf-c-form__helper-text-after\" id=\" form-help-text-after-registerVia\" aria-live=\" polite\">(Please ensure that the mobile no./email is active. Check both options if both mobile no. and email are available.)</div>\" '}' .col-xs-12:has(label[for=termsOfService]) '{' display: none; '}' :root '{' #kc-header-wrapper div.logo '{' background-image: url('https://upload.wikimedia.org/wikipedia/commons/7/73/Commission_on_Elections_%28COMELEC%29.svg') !important; height: 60px;  '}' '}' .login-pf body '{' background-image: linear-gradient(1deg, #ffffff, transparent), url('https://filipinotimes.net/wp-content/uploads/2021/08/COMELEC-scaled.jpg') !important; background-repeat: repeat-y !important; background-size: 100% auto !important; background-position: top center !important; height: 100vh !important; object-fit:cover !important; '}' #kc-title '{' color: white !important; '}'@media (max-width: 767px) '{' #kc-title '{' color: white !important; '}' '}' #kc-title '{' color: white !important; '}'@media (max-width: 767px) '{' #kc-title '{' color: white !important; '}' '}' .pf-c-check__label '{' font-size: 12px !important; '}' .pf-c-form-control '{' font-size: 12px !important; '}' input::placeholder '{' font-size: 12px !important; '}' .iti__selected-country '{' font-size: 12px !important; '}' .pf-c-form__label-text '{' font-weight: bold !important; '}' .dob-sdk-root-container '{' background-color: white !important; '}' .pf-c-form__label[for=\"sequent.read-only.id-card-number\"] '{' visibility: hidden; '}' div > div > div > div '{' color: #991b1b;'}' label '{' color: black;'}'",
             "idCardNumberValidator": "Only letters and numbers allowed",
             "IdCardNo": "ID No.",
             "sequent.read-only.mobile-number": "Mobile No.",
             "postEmbassy": "Embassy/Consulate/MECO",
-            "messageSuccessEmailSubject": "2025 NLE Internet Voting Enrollment Confirmation",
             "messageOtp.auth.resend.timer": "Did not receive the OTP yet? Wait for {0} seconds to resend.",
             "suffix": "Suffix",
             "sequent.read-only.id-card-number": "ID. No",
             "messageOtp.auth.instructionEmail": "Enter the OTP we sent to your email.",
             "birthDate": "Date of Birth",
-            "messageOtp.sendLink.email.htmlBody": "Hello!<br><br>Validate your mobile and continue in the link below:<br><br><a href=\"{1}\" target=\"_blank\">Link to validate and continue</a><br><br>This link is valid for {2} minutes.<br><br>Regards,",
-            "messageSuccessEmailTextBody": "Hello!<br><br>Your enrollment has been successfully validated.<br><br>You may now access the Voting Portal through this link: <br><br><a href=\"https://voting-portal-dev.sequent.vote/tenant/0833905f-41f3-4133-858d-70064ab210e5/event/03ca20fc-1f65-46d8-bc82-e3e43a6816b6/login\">Login to Voting Portal</a><br><br>To login, use {1} as your username and your created password during enrollment as your password.<br><br>Regards,<br>Commission on Elections <br><br> <b>CONFIDENTIALITY NOTICE:</b> The contents of this e-mail message and any attachments are intended solely for the addressee(s) and may contain confidential and/or privileged information and may be legally protected from disclosure. If you are not the intended recipient of this message or their agent, or if this message has been addressed to you in error, please immediately alert the sender by reply e-mail and then delete this message and any attachments. If you are not the intended recipient, you are hereby notified that any use, dissemination, copying, or storage of this message or its attachments is strictly prohibited. <br><br> <b>NOTICE ON DATA PRIVACY:</b> All authorized recipients of any personal data, personal information, privileged information and sensitive personal information contained in this document, including other pertinent documents attached thereto that are shared by the Commission on Elections in compliance with existing laws and rules, and in conformity with the Data Privacy Act of 2012 (R.A. No. 10173) and its Implementing Rules and Regulations, as well as the pertinent Circulars of the National Privacy Commission, are similarly bound to comply with the said laws, rules and regulations relating to data privacy, security, confidentiality, protection and accountability.",
+            "messageOtp.sendLink.email.htmlBody": "Hello!<br><br>Your application has been accepted successfully.<br><br>You can now use {1} as username to login and the provided password during registration.<br><br>You can login in the following URL:<br><br><a href=\"{3}\">Login to Voting Portal</a><br><br>Regards,<br>Commission on Elections <br><br> <b>CONFIDENTIALITY NOTICE:</b> The contents of this e-mail message and any attachments are intended solely for the addressee(s) and may contain confidential and/or privileged information and may be legally protected from disclosure. If you are not the intended recipient of this message or their agent, or if this message has been addressed to you in error, please immediately alert the sender by reply e-mail and then delete this message and any attachments. If you are not the intended recipient, you are hereby notified that any use, dissemination, copying, or storage of this message or its attachments is strictly prohibited. <br><br> <b>NOTICE ON DATA PRIVACY:</b> All authorized recipients of any personal data, personal information, privileged information and sensitive personal information contained in this document, including other pertinent documents attached thereto that are shared by the Commission on Elections in compliance with existing laws and rules, and in conformity with the Data Privacy Act of 2012 (R.A. No. 10173) and its Implementing Rules and Regulations, as well as the pertinent Circulars of the National Privacy Commission, are similarly bound to comply with the said laws, rules and regulations relating to data privacy, security, confidentiality, protection and accountability.",
+            "messageSuccessEmailSubject": "2025 NLE Internet Voting Enrollment Confirmation",
+            "messageSuccessEmailTextBody": "Hello!\n\nYour enrollment has been successfully validated.\n\nYou may now access the Voting Portal through this link: \n\n{3}\n\nTo login, use {1} as your username and your created password during enrollment as your password.\n\nRegards,\nCommission on Elections \n\n CONFIDENTIALITY NOTICE: The contents of this e-mail message and any attachments are intended solely for the addressee(s) and may contain confidential and/or privileged information and may be legally protected from disclosure. If you are not the intended recipient of this message or their agent, or if this message has been addressed to you in error, please immediately alert the sender by reply e-mail and then delete this message and any attachments. If you are not the intended recipient, you are hereby notified that any use, dissemination, copying, or storage of this message or its attachments is strictly prohibited. \n\n NOTICE ON DATA PRIVACY: All authorized recipients of any personal data, personal information, privileged information and sensitive personal information contained in this document, including other pertinent documents attached thereto that are shared by the Commission on Elections in compliance with existing laws and rules, and in conformity with the Data Privacy Act of 2012 (R.A. No. 10173) and its Implementing Rules and Regulations, as well as the pertinent Circulars of the National Privacy Commission, are similarly bound to comply with the said laws, rules and regulations relating to data privacy, security, confidentiality, protection and accountability.",
+            "messageSuccessEmailHtmlBody": "Hello!<br><br>Your enrollment has been successfully validated.<br><br>You may now access the Voting Portal through this link: <br><br><a href=\"{3}\">Login to Voting Portal</a><br><br>To login, use {1} as your username and your created password during enrollment as your password.<br><br>Regards,<br>Commission on Elections <br><br> <b>CONFIDENTIALITY NOTICE:</b> The contents of this e-mail message and any attachments are intended solely for the addressee(s) and may contain confidential and/or privileged information and may be legally protected from disclosure. If you are not the intended recipient of this message or their agent, or if this message has been addressed to you in error, please immediately alert the sender by reply e-mail and then delete this message and any attachments. If you are not the intended recipient, you are hereby notified that any use, dissemination, copying, or storage of this message or its attachments is strictly prohibited. <br><br> <b>NOTICE ON DATA PRIVACY:</b> All authorized recipients of any personal data, personal information, privileged information and sensitive personal information contained in this document, including other pertinent documents attached thereto that are shared by the Commission on Elections in compliance with existing laws and rules, and in conformity with the Data Privacy Act of 2012 (R.A. No. 10173) and its Implementing Rules and Regulations, as well as the pertinent Circulars of the National Privacy Commission, are similarly bound to comply with the said laws, rules and regulations relating to data privacy, security, confidentiality, protection and accountability.",
+            "messageSuccessEmailTextBodyKiosk": "Hello!\n\nYour enrollment has been successfully validated.\n\nYou may now access the Voting Portal through this link: \n\n{3}\n\nTo login, use {1} as your username and your created password during enrollment as your password.\n\nRegards,\nCommission on Elections \n\n CONFIDENTIALITY NOTICE: The contents of this e-mail message and any attachments are intended solely for the addressee(s) and may contain confidential and/or privileged information and may be legally protected from disclosure. If you are not the intended recipient of this message or their agent, or if this message has been addressed to you in error, please immediately alert the sender by reply e-mail and then delete this message and any attachments. If you are not the intended recipient, you are hereby notified that any use, dissemination, copying, or storage of this message or its attachments is strictly prohibited. \n\n NOTICE ON DATA PRIVACY: All authorized recipients of any personal data, personal information, privileged information and sensitive personal information contained in this document, including other pertinent documents attached thereto that are shared by the Commission on Elections in compliance with existing laws and rules, and in conformity with the Data Privacy Act of 2012 (R.A. No. 10173) and its Implementing Rules and Regulations, as well as the pertinent Circulars of the National Privacy Commission, are similarly bound to comply with the said laws, rules and regulations relating to data privacy, security, confidentiality, protection and accountability.",
+            "messageSuccessEmailHtmlBodyKiosk": "Hello!<br><br>Your enrollment has been successfully validated.<br><br>You may now access the Voting Portal through this link: <br><br><a href=\"{3}\">Login to Voting Portal</a><br><br>To login, use {1} as your username and your created password during enrollment as your password.<br><br>Regards,<br>Commission on Elections <br><br> <b>CONFIDENTIALITY NOTICE:</b> The contents of this e-mail message and any attachments are intended solely for the addressee(s) and may contain confidential and/or privileged information and may be legally protected from disclosure. If you are not the intended recipient of this message or their agent, or if this message has been addressed to you in error, please immediately alert the sender by reply e-mail and then delete this message and any attachments. If you are not the intended recipient, you are hereby notified that any use, dissemination, copying, or storage of this message or its attachments is strictly prohibited. <br><br> <b>NOTICE ON DATA PRIVACY:</b> All authorized recipients of any personal data, personal information, privileged information and sensitive personal information contained in this document, including other pertinent documents attached thereto that are shared by the Commission on Elections in compliance with existing laws and rules, and in conformity with the Data Privacy Act of 2012 (R.A. No. 10173) and its Implementing Rules and Regulations, as well as the pertinent Circulars of the National Privacy Commission, are similarly bound to comply with the said laws, rules and regulations relating to data privacy, security, confidentiality, protection and accountability.",
             "registerFinishMessage": "Congratulations! <br>You are successfully validated.​ Please expect to receive SMS or email for further instructions. <br>Thank you!​",
             "registerVia": "Register via",
             "loginAccountTitle": "Login to Vote",
             "messageOtp.auth.resend.button": "Did not receive the OTP yet? Click here to resend",
-            "mobileNumber": "Mobile No.",
-            "messageSuccessEmailHtmlBody": "Hello!<br><br>Your enrollment has been successfully validated.<br><br>You may now access the Voting Portal through this link: <br><br><a href=\"https://voting-portal-dev.sequent.vote/tenant/0833905f-41f3-4133-858d-70064ab210e5/event/03ca20fc-1f65-46d8-bc82-e3e43a6816b6/login\">Login to Voting Portal</a><br><br>To login, use {1} as your username and your created password during enrollment as your password.<br><br>Regards,<br>Commission on Elections <br><br> <b>CONFIDENTIALITY NOTICE:</b> The contents of this e-mail message and any attachments are intended solely for the addressee(s) and may contain confidential and/or privileged information and may be legally protected from disclosure. If you are not the intended recipient of this message or their agent, or if this message has been addressed to you in error, please immediately alert the sender by reply e-mail and then delete this message and any attachments. If you are not the intended recipient, you are hereby notified that any use, dissemination, copying, or storage of this message or its attachments is strictly prohibited. <br><br> <b>NOTICE ON DATA PRIVACY:</b> All authorized recipients of any personal data, personal information, privileged information and sensitive personal information contained in this document, including other pertinent documents attached thereto that are shared by the Commission on Elections in compliance with existing laws and rules, and in conformity with the Data Privacy Act of 2012 (R.A. No. 10173) and its Implementing Rules and Regulations, as well as the pertinent Circulars of the National Privacy Commission, are similarly bound to comply with the said laws, rules and regulations relating to data privacy, security, confidentiality, protection and accountability.",
+            "messageSuccessDiffPostEmailTextBody": "Hello!\n\nYour application has been accepted successfully.\n\nYou can now use {1} as username to login and the provided password during registration. Your actual post/embassy is {2}.\n\nYou may now access the Voting Portal through this link: \n\n{4}\n\nTo login, use {1} as your username and your created password during enrollment as your password.\n\nRegards,\nCommission on Elections \n\n CONFIDENTIALITY NOTICE: The contents of this e-mail message and any attachments are intended solely for the addressee(s) and may contain confidential and/or privileged information and may be legally protected from disclosure. If you are not the intended recipient of this message or their agent, or if this message has been addressed to you in error, please immediately alert the sender by reply e-mail and then delete this message and any attachments. If you are not the intended recipient, you are hereby notified that any use, dissemination, copying, or storage of this message or its attachments is strictly prohibited. \n\n NOTICE ON DATA PRIVACY: All authorized recipients of any personal data, personal information, privileged information and sensitive personal information contained in this document, including other pertinent documents attached thereto that are shared by the Commission on Elections in compliance with existing laws and rules, and in conformity with the Data Privacy Act of 2012 (R.A. No. 10173) and its Implementing Rules and Regulations, as well as the pertinent Circulars of the National Privacy Commission, are similarly bound to comply with the said laws, rules and regulations relating to data privacy, security, confidentiality, protection and accountability.",
+            "messageSuccessDiffPostEmailHtmlBody": "Hello!<br><br>Your application has been accepted successfully.<br><br>You can now use {1} as username to login and the provided password during registration. Your actual post/embassy is {2}.<br><br>You may now access the Voting Portal through this link: <br><br><a href=\"{4}\">Login to Voting Portal</a> and your created password during enrollment as your password.<br><br>Regards,<br>Commission on Elections <br><br> <b>CONFIDENTIALITY NOTICE:</b> The contents of this e-mail message and any attachments are intended solely for the addressee(s) and may contain confidential and/or privileged information and may be legally protected from disclosure. If you are not the intended recipient of this message or their agent, or if this message has been addressed to you in error, please immediately alert the sender by reply e-mail and then delete this message and any attachments. If you are not the intended recipient, you are hereby notified that any use, dissemination, copying, or storage of this message or its attachments is strictly prohibited. <br><br> <b>NOTICE ON DATA PRIVACY:</b> All authorized recipients of any personal data, personal information, privileged information and sensitive personal information contained in this document, including other pertinent documents attached thereto that are shared by the Commission on Elections in compliance with existing laws and rules, and in conformity with the Data Privacy Act of 2012 (R.A. No. 10173) and its Implementing Rules and Regulations, as well as the pertinent Circulars of the National Privacy Commission, are similarly bound to comply with the said laws, rules and regulations relating to data privacy, security, confidentiality, protection and accountability.",
             "messageOtp.otl.resend.timer": "Did not receive the Link yet? Wait {0} seconds to resend",
             "messageOtp.auth.instructionBoth": "Enter the OTP sent to you via SMS or Email.",
-            "email": "Email",
             "noAccount": "Not yet enrolled?",
-            "messageOtp.auth.title": "Your OTP",
+            "messageOtp.auth.title": "OTP (One Time Password) was sent to",
             "messageOtp.auth.ttlTime": "The OTP is valid for {0} minutes.",
             "ConfirmationTitle": "Voter Validation",
             "auditBallotHelpDialog": "The audit ballot will display the candidates you have selected to ensure that the system accurately records your vote. After reviewing the ballot, your votes will be cleared, and you will need to select the candidates again. Do you want to proceed with the ballot audit?",
             "messageOtp.sendCode.sms.text": "Your OTP is {1} and is valid for {2} minutes.",
             "messageOtp.otl.resend.button": "Did not receive the Link yet? Click here to resend",
-            "idCardType": "Valid ID",
             "termsOfService": " ",
             "messageOtp.sendCode.email.textBody": "Hello!\\n\\nYour OTP is {1} .\\n\\n This code is valid for {2} minutes.\\n\\nRegards,\\n\\nCommission on Elections",
             "messageOtp.auth.label": "OTP",
             "messageOtp.auth.instructionSms": "Enter the OTP we sent to your mobile device via sms.",
             "messageOtp.sendCode.email.subject": "Your OTP",
             "emailInstructionUsername": "Enter your email or mobile number and we will send you instructions on how to create a new password.",
-            "messageOtp.auth.address": "OTP (One Time Password) was sent to",
-            "registerEmail": "Email"
+            "emailInstruction": "Enter your Email / Mobile No. and we will send you instructions on how to create a new password.",
+            "forgotPasswrodPhoneNumberHint": "For Mobile No. add the country prefix, i.e. +63 for the Philippines.",
+            "forgotPassword.success.display.message": "You should receive an {0} shortly with further instructions.",
+            "country": "Country",
+            "idCardType": "Valid ID",
+            "emailAndOrMobile": "Register via",
+            "mobileNumber": "Mobile No.",
+            "embassy": "Embassy",
+            "firstName": "First Name",
+            "lastName": "Last Name",
+            "dateOfBirth": "Date of birth",
+            "passwordConfirm": "Confirm password",
+            "password": "Password",
+            "termsOfServiceText": "By proceeding with accomplishing this form, you give consent to the processing of your personal information by the Commission on Elections, pursuant to its mandate in relation to the conduct elections.",
+            "email": "Email",
+            "passwordHelperTextBefore": "At least 8 characters, uppercase, lowercase, number and special characters.",
+            "philSysID": "PhilSys ID",
+            "iBP": "IBP",
+            "philippinePassport": "Philippine Passport",
+            "driversLicense": "Driver''s License",
+            "seamanBook": "Seaman's Book"
         }
     },
     "loginTheme": "sequent.voting-portal",
@@ -3148,7 +3385,7 @@
     "quickLoginCheckMilliSeconds": 1000,
     "realm": "tenant-0833905f-41f3-4133-858d-70064ab210e5-event-03ca20fc-1f65-46d8-bc82-e3e43a6816b6",
     "refreshTokenMaxReuse": 0,
-    "registrationAllowed": true,
+    "registrationAllowed": false,
     "registrationEmailAsUsername": false,
     "registrationFlow": "comelec-registration",
     "rememberMe": false,
@@ -3292,7 +3529,7 @@
             "alias": "verify-email-otp-ra",
             "config": {},
             "defaultAction": false,
-            "enabled": true,
+            "enabled": false,
             "name": "Verify Email using OTP",
             "priority": 1004,
             "providerId": "verify-email-otp-ra"
@@ -3302,7 +3539,7 @@
         "password"
     ],
     "resetCredentialsFlow": "sequent reset credentials",
-    "resetPasswordAllowed": false,
+    "resetPasswordAllowed": true,
     "revokeRefreshToken": false,
     "roles": {
         "client": {
@@ -3707,7 +3944,8 @@
     "ssoSessionMaxLifespan": 36000,
     "ssoSessionMaxLifespanRememberMe": 0,
     "supportedLocales": [
-        "en"
+        "en",
+        "tl"
     ],
     "userManagedAccessAllowed": false,
     "users": [

@@ -9,6 +9,7 @@ extern crate cfg_if;
 pub mod ballot;
 pub mod ballot_style;
 pub mod error;
+pub mod multi_ballot;
 pub mod types;
 //pub use ballot::*;
 pub mod ballot_codec;
@@ -20,6 +21,12 @@ pub mod plaintext;
 pub mod serialization;
 pub mod services;
 pub mod util;
+
+#[cfg(feature = "reports")]
+pub mod temp_path;
+
+#[cfg(feature = "signatures")]
+pub mod signatures;
 
 /// Webassembly API.
 #[cfg(feature = "wasm")]

@@ -2,8 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {Sequent_Backend_Election_Event} from "@/gql/graphql"
+import {GetTaskByIdQuery, Sequent_Backend_Election_Event} from "@/gql/graphql"
 import React, {useContext, useState} from "react"
+import DownloadIcon from "@mui/icons-material/Download"
 import {useTranslation} from "react-i18next"
 import {theme, Dialog} from "@sequentech/ui-essentials"
 import {WizardStyles} from "@/components/styles/WizardStyles"
@@ -16,13 +17,16 @@ import TableCell from "@mui/material/TableCell"
 import TableContainer from "@mui/material/TableContainer"
 import TableRow from "@mui/material/TableRow"
 import Paper from "@mui/material/Paper"
-import {Identifier} from "react-admin"
+import {Button, Identifier} from "react-admin"
 import {Logs} from "@/components/Logs"
 import {ETaskExecutionStatus} from "@sequentech/ui-core"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {useQuery} from "@apollo/client"
 import {GET_TASK_BY_ID} from "@/queries/GetTaskById"
 import {CancelButton} from "../Tally/styles"
+import {useTasksPermissions} from "./useTasksPermissions"
+import {DownloadDocument} from "../User/DownloadDocument"
+import {DownloaButton} from "@/components/styles/WidgetStyle"
 
 export const statusColor: (status: string) => string = (status) => {
     if (status === ETaskExecutionStatus.STARTED) {
@@ -54,11 +58,15 @@ export const ViewTask: React.FC<ViewTaskProps> = ({
     const {t} = useTranslation()
     const [progressExpanded, setProgressExpanded] = useState(true)
     const {globalSettings} = useContext(SettingsContext)
+    const [exportDocumentId, setExportDocumentId] = useState<string | undefined>(undefined)
+    const [downloading, setDownloading] = useState<boolean>(false)
 
-    const {data: taskData} = useQuery(GET_TASK_BY_ID, {
+    const {showTasksBackButton} = useTasksPermissions()
+
+    const {data: taskData} = useQuery<GetTaskByIdQuery>(GET_TASK_BY_ID, {
         variables: {task_id: currTaskId},
         skip: !currTaskId,
-        pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+        pollInterval: globalSettings.QUERY_FAST_POLL_INTERVAL_MS,
     })
 
     const task = taskData?.sequent_backend_tasks_execution[0]
@@ -158,11 +166,42 @@ export const ViewTask: React.FC<ViewTaskProps> = ({
 
             <WizardStyles.FooterContainer>
                 <WizardStyles.StyledFooter>
-                    <CancelButton className="list-actions" onClick={goBack}>
-                        <ArrowBackIosIcon />
-                        {t("common.label.back")}
-                    </CancelButton>
+                    {showTasksBackButton ? (
+                        <CancelButton className="list-actions" onClick={goBack}>
+                            <ArrowBackIosIcon />
+                            {t("common.label.back")}
+                        </CancelButton>
+                    ) : null}
+                    {task?.election_event_id && task?.annotations?.document_id ? (
+                        <DownloaButton
+                            onClick={() => {
+                                setDownloading(true)
+                                setExportDocumentId(task?.annotations?.document_id)
+                            }}
+                            disabled={
+                                downloading ||
+                                task?.execution_status !== ETaskExecutionStatus.SUCCESS
+                            }
+                            label={t("tasksScreen.widget.downloadDocument")}
+                        >
+                            <DownloadIcon />
+                        </DownloaButton>
+                    ) : null}
                 </WizardStyles.StyledFooter>
+
+                {exportDocumentId && (
+                    <>
+                        <DownloadDocument
+                            documentId={exportDocumentId ?? ""}
+                            electionEventId={task?.election_event_id ?? ""}
+                            fileName={null}
+                            onDownload={() => {
+                                setDownloading(false)
+                                setExportDocumentId(undefined)
+                            }}
+                        />
+                    </>
+                )}
             </WizardStyles.FooterContainer>
         </WizardStyles.WizardContainer>
     )

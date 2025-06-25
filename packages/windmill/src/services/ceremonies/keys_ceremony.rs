@@ -2,10 +2,8 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-
-use crate::hasura::keys_ceremony::{get_keys_ceremony_by_id, update_keys_ceremony_status};
 use crate::postgres::election::{
-    get_election_by_id, get_election_by_keys_ceremony_id, set_election_keys_ceremony,
+    get_election_by_id, get_elections_by_keys_ceremony_id, set_election_keys_ceremony,
 };
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::keys_ceremony;
@@ -21,14 +19,13 @@ use crate::tasks::create_keys::{create_keys, CreateKeysBody};
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::serialization::deserialize_with_path::*;
-use sequent_core::services::connection;
 use sequent_core::services::jwt::JwtClaims;
-use sequent_core::services::keycloak;
 use sequent_core::types::ceremonies::{
     KeysCeremonyExecutionStatus, KeysCeremonyStatus, Trustee, TrusteeStatus,
 };
 use sequent_core::types::hasura::core::KeysCeremony;
 use serde_json::Value;
+use std::collections::HashSet;
 use tracing::instrument;
 use tracing::{event, Level};
 use uuid::Uuid;
@@ -51,17 +48,21 @@ pub async fn get_keys_ceremony_board(
             .with_context(|| "missing bulletin board")?;
         Ok((board_name, None))
     } else {
-        let election = get_election_by_keys_ceremony_id(
+        let election = get_elections_by_keys_ceremony_id(
             transaction,
             tenant_id,
             election_event_id,
             &keys_ceremony.id,
         )
         .await?
-        .ok_or(anyhow!(
-            "Can't find election with keys ceremony {}",
-            keys_ceremony.id
-        ))?;
+        .into_iter()
+        .next()
+        .ok_or_else(|| {
+            anyhow!(
+                "Can't find election with keys ceremony {}",
+                keys_ceremony.id
+            )
+        })?;
         let board = get_election_board(tenant_id, &election.id);
         Ok((board, Some(election.id)))
     }
@@ -314,6 +315,7 @@ pub async fn create_keys_ceremony(
     transaction: &Transaction<'_>,
     tenant_id: String,
     user_id: &str,
+    username: &str,
     election_event_id: String,
     threshold: usize,
     trustee_names: Vec<String>,
@@ -399,6 +401,23 @@ pub async fn create_keys_ceremony(
     })?;
     let is_default = election_id.is_none();
 
+    let elections = set_election_keys_ceremony(
+        &transaction,
+        &tenant_id,
+        &election_event_id,
+        election_id.clone(),
+        &keys_ceremony_id,
+    )
+    .await?;
+
+    // Get permission labels, removing duplicates
+    let permission_labels: Vec<String> = elections
+        .into_iter()
+        .filter_map(|election| election.permission_label)
+        .collect::<HashSet<_>>() // Remove duplicates
+        .into_iter()
+        .collect(); // Convert back to Vec
+
     // insert keys-ceremony into the database using postgres
     keys_ceremony::insert_keys_ceremony(
         &transaction,
@@ -412,27 +431,34 @@ pub async fn create_keys_ceremony(
         name,
         None,
         is_default,
+        permission_labels,
     )
     .await
     .with_context(|| "couldn't insert keys ceremony")?;
-
-    set_election_keys_ceremony(
-        &transaction,
-        &tenant_id,
-        &election_event_id,
-        election_id.clone(),
-        &keys_ceremony_id,
-    )
-    .await?;
 
     // Save it in the electoral log
     let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
         .with_context(|| "missing bulletin board")?;
 
     // let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
-    let electoral_log = ElectoralLog::for_admin_user(&board_name, &tenant_id, user_id).await?;
+    let electoral_log = ElectoralLog::for_admin_user(
+        &transaction,
+        &board_name,
+        &tenant_id,
+        &election_event.id,
+        user_id,
+        Some(username.to_string()),
+        election_id.clone(),
+        None,
+    )
+    .await?;
     electoral_log
-        .post_keygen(election_event_id.clone())
+        .post_keygen(
+            election_event_id.clone(),
+            Some(user_id.to_string()),
+            Some(username.to_string()),
+            election_id.clone(),
+        )
         .await
         .with_context(|| "error posting to the electoral log")?;
 

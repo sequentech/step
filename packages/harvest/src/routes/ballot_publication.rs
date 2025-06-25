@@ -6,6 +6,7 @@ use anyhow::Result;
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
+use sequent_core::types::hasura;
 use sequent_core::types::permissions::Permissions;
 use sequent_core::{
     ballot::{ElectionEventPresentation, LockedDown},
@@ -14,6 +15,7 @@ use sequent_core::{
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::instrument;
+use windmill::services::providers::transactions_provider::provide_hasura_transaction;
 use windmill::{
     postgres::election_event::get_election_event_by_id,
     services::{
@@ -91,6 +93,7 @@ pub async fn generate_ballot_publication(
     }
 
     let ballot_publication_id = add_ballot_publication(
+        &hasura_transaction,
         tenant_id.clone(),
         input.election_event_id.clone(),
         input.election_id.clone(),
@@ -98,6 +101,10 @@ pub async fn generate_ballot_publication(
     )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    let _commit = hasura_transaction.commit().await.map_err(|err| {
+        (Status::InternalServerError, format!("Commit failed: {err}"))
+    })?;
 
     Ok(Json(GenerateBallotPublicationOutput {
         ballot_publication_id,
@@ -128,17 +135,32 @@ pub async fn publish_ballot(
         vec![Permissions::PUBLISH_WRITE],
     )?;
     let input = body.into_inner();
-    let tenant_id = claims.hasura_claims.tenant_id.clone();
-    let user_id = claims.hasura_claims.user_id.clone();
 
-    update_publish_ballot(
-        user_id,
-        tenant_id.clone(),
-        input.election_event_id.clone(),
-        input.ballot_publication_id.clone(),
-    )
+    provide_hasura_transaction(|hasura_transaction| {
+        let tenant_id = claims.hasura_claims.tenant_id.clone();
+        let user_id = claims.hasura_claims.user_id.clone();
+        let username = claims.preferred_username.unwrap_or("-".to_string());
+        let election_event_id = input.election_event_id.clone();
+        let ballot_publication_id = input.ballot_publication_id.clone();
+        Box::pin(async move {
+            update_publish_ballot(
+                hasura_transaction,
+                user_id,
+                username,
+                tenant_id,
+                election_event_id,
+                ballot_publication_id,
+            )
+            .await
+        })
+    })
     .await
-    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    .map_err(|error| {
+        (
+            Status::InternalServerError,
+            format!("Error publishing ballot: {error:?}"),
+        )
+    })?;
 
     Ok(Json(PublishBallotOutput {
         ballot_publication_id: input.ballot_publication_id.clone(),
@@ -179,7 +201,19 @@ pub async fn get_ballot_publication_changes(
     let input = body.into_inner();
     let tenant_id = claims.hasura_claims.tenant_id.clone();
 
+    let mut hasura_db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    let hasura_transaction = hasura_db_client
+        .transaction()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
     let diff = get_ballot_publication_diff(
+        &hasura_transaction,
         tenant_id.clone(),
         input.election_event_id.clone(),
         input.ballot_publication_id.clone(),

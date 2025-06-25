@@ -1,5 +1,5 @@
 
-CREATE SCHEMA "sequent_backend";
+CREATE SCHEMA IF NOT EXISTS "sequent_backend";
 
 CREATE TABLE "sequent_backend"."tenant" (
     "id" uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -828,7 +828,7 @@ alter table "sequent_backend"."area_contest"
   references "sequent_backend"."contest"
   ("election_event_id", "tenant_id", "id") on update restrict on delete restrict;
 
-INSERT INTO "sequent_backend"."tenant"("is_active", "annotations", "labels", "username", "created_at", "updated_at", "id") VALUES (true, null, null, E'tenant_user', E'2023-08-10T22:04:32.314715+00:00', E'2023-08-10T22:04:32.314715+00:00', E'90505c8a-23a9-4cdf-a26b-4e19f6a097d5');
+INSERT INTO "sequent_backend"."tenant"("is_active", "annotations", "labels", "username", "created_at", "updated_at", "id") VALUES (true, null, null, E'COMELEC-EMS-OV', E'2023-08-10T22:04:32.314715+00:00', E'2023-08-10T22:04:32.314715+00:00', E'90505c8a-23a9-4cdf-a26b-4e19f6a097d5');
 
 INSERT INTO "sequent_backend"."election_event"("is_archived", "is_audit", "encryption_protocol", "name", "user_boards", "annotations", "bulletin_board_reference", "dates", "labels", "presentation", "status", "voting_channels", "description", "created_at", "updated_at", "audit_election_event_id", "id", "tenant_id") VALUES (false, null, E'RSA256', E'election_event', null, null, null, null, null, null, E'{"i18n":{"en":{"name":"election_event","alias":null,"description":null},"es":{"name":null,"alias":null,"description":null}},"language_conf":{"enabled_language_codes":["en","es"]}}', null, null, E'2023-08-10T22:05:22.214163+00:00', E'2023-08-10T22:05:22.214163+00:00', null, E'33f18502-a67c-4853-8333-a58630663559', E'90505c8a-23a9-4cdf-a26b-4e19f6a097d5');
 

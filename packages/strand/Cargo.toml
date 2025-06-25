@@ -64,7 +64,7 @@ sha3 = "0.10"
 # Serialization
 # borsh = "0.9.3"
 borsh = { version = "=1.5.1", features = ["derive"] }
-base64 = "0.22"
+base64 = "0.22.1"
 
 # RNG
 rand = { package="rand", version = "0.8" }

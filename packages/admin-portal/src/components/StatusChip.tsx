@@ -6,6 +6,8 @@ import React from "react"
 import {ITallyExecutionStatus} from "@/types/ceremonies"
 import styled from "@emotion/styled"
 import {statusColor} from "@/resources/Tally/constants"
+import {Chip} from "@mui/material"
+import {theme} from "@sequentech/ui-essentials"
 
 interface TrusteeItemsProps {
     status: string
@@ -19,33 +21,18 @@ const StyledChips = styled.div`
     gap: 4px;
 `
 
-const StyledChip = styled.div`
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    border-radius: 4px;
-    background: ${(props: TrusteeItemsProps) =>
-        statusColor(props.status ?? ITallyExecutionStatus.STARTED)};
-    padding: 1px 7px;
-`
-
-const StyledChipLabel = styled.div`
-    color: #fff;
-    font-family: Roboto;
-    font-size: 12px;
-    font-style: normal;
-    font-weight: 500;
-    line-height: 18px;
-`
-
 export const StatusChip: React.FC<TrusteeItemsProps> = (props) => {
     const {status} = props
 
     return (
         <StyledChips>
-            <StyledChip status={status}>
-                <StyledChipLabel>{status?.length ? status.toUpperCase() : "-"}</StyledChipLabel>
-            </StyledChip>
+            <Chip
+                sx={{
+                    backgroundColor: statusColor(props.status ?? ITallyExecutionStatus.STARTED),
+                    color: theme.palette.background.default,
+                }}
+                label={status?.length ? status.toUpperCase() : "-"}
+            />
         </StyledChips>
     )
 }

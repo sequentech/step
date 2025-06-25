@@ -2,11 +2,14 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::template_renderer::*;
+use crate::postgres::reports::{Report, ReportType};
 use crate::services::temp_path::*;
-use crate::{postgres::reports::ReportType, services::s3::get_minio_url};
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
+use sequent_core::services::pdf;
+use sequent_core::services::s3::get_minio_url;
+use sequent_core::util::temp_path::*;
 use serde::{Deserialize, Serialize};
 use std::env;
 use tracing::{info, instrument};
@@ -36,18 +39,12 @@ pub struct SystemData {
 /// Implementation of TemplateRenderer for Manual Verification
 #[derive(Debug)]
 pub struct ManualVerificationTemplate {
-    pub tenant_id: String,
-    pub election_event_id: String,
-    pub voter_id: String,
+    ids: ReportOrigins,
 }
 
 impl ManualVerificationTemplate {
-    pub fn new(tenant_id: String, election_event_id: String, voter_id: String) -> Self {
-        ManualVerificationTemplate {
-            tenant_id,
-            election_event_id,
-            voter_id,
-        }
+    pub fn new(ids: ReportOrigins) -> Self {
+        ManualVerificationTemplate { ids }
     }
 }
 
@@ -60,19 +57,23 @@ impl TemplateRenderer for ManualVerificationTemplate {
         ReportType::MANUAL_VERIFICATION
     }
     fn get_tenant_id(&self) -> String {
-        self.tenant_id.clone()
+        self.ids.tenant_id.clone()
     }
 
     fn get_election_event_id(&self) -> String {
-        self.election_event_id.clone()
+        self.ids.election_event_id.clone()
+    }
+
+    fn get_initial_template_alias(&self) -> Option<String> {
+        self.ids.template_alias.clone()
+    }
+
+    fn get_report_origin(&self) -> ReportOriginatedFrom {
+        self.ids.report_origin
     }
 
     fn get_voter_id(&self) -> Option<String> {
-        if !self.voter_id.is_empty() {
-            Some(self.voter_id.clone())
-        } else {
-            None
-        }
+        self.ids.voter_id.clone()
     }
 
     fn base_name(&self) -> String {
@@ -80,19 +81,25 @@ impl TemplateRenderer for ManualVerificationTemplate {
     }
 
     fn prefix(&self) -> String {
-        format!("manual_verification_{}", self.voter_id)
+        format!(
+            "manual_verification_{}",
+            self.ids.voter_id.clone().unwrap_or_default()
+        )
     }
 
-    #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
+    #[instrument(err, skip_all)]
     async fn prepare_user_data(
         &self,
         hasura_transaction: &Transaction<'_>,
         keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
-        let manual_verification_url =
-            get_manual_verification_url(&self.tenant_id, &self.election_event_id, &self.voter_id)
-                .await
-                .with_context(|| "Error getting manual verification URL")?;
+        let manual_verification_url = get_manual_verification_url(
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
+            &self.ids.voter_id.clone().unwrap_or_default(),
+        )
+        .await
+        .with_context(|| "Error getting manual verification URL")?;
 
         Ok(UserData {
             manual_verification_url,
@@ -109,18 +116,30 @@ impl TemplateRenderer for ManualVerificationTemplate {
         let public_asset_path = get_public_assets_path_env_var()?;
         let minio_endpoint_base =
             get_minio_url().with_context(|| "Error getting minio endpoint")?;
-
-        Ok(SystemData {
-            rendered_user_template,
-            file_logo: format!(
-                "{}/{}/{}",
-                minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_LOGO_IMG
-            ),
-            file_qrcode_lib: format!(
-                "{}/{}/{}",
-                minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_QRCODE_LIB
-            ),
-        })
+        if pdf::doc_renderer_backend() == pdf::DocRendererBackend::InPlace {
+            Ok(SystemData {
+                rendered_user_template,
+                file_logo: format!(
+                    "{}/{}/{}",
+                    minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_LOGO_IMG
+                ),
+                file_qrcode_lib: format!(
+                    "{}/{}/{}",
+                    minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_QRCODE_LIB
+                ),
+            })
+        } else {
+            // If we are rendering with a lambda, the QRCode lib is
+            // already included in the lambda container image.
+            Ok(SystemData {
+                rendered_user_template,
+                file_logo: format!(
+                    "{}/{}/{}",
+                    minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_LOGO_IMG
+                ),
+                file_qrcode_lib: "/assets/qrcode.min.js".to_string(),
+            })
+        }
     }
 }
 

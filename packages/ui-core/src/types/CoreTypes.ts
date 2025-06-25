@@ -8,6 +8,17 @@ import {IContestPresentation} from "./ContestPresentation"
 import {ICandidatePresentation} from "./CandidatePresentation"
 import {IElectionDates, IElectionPresentation} from "./ElectionPresentation"
 
+export enum EAllowTally {
+    ALLOWED = "allowed",
+    DISALLOWED = "disallowed",
+    REQUIRES_VOTING_PERIOD_END = "requires-voting-period-end",
+}
+
+export enum EInitReport {
+    ALLOWED = "allowed",
+    DISALLOWED = "disallowed",
+}
+
 export enum EVotingStatus {
     NOT_STARTED = "NOT_STARTED",
     OPEN = "OPEN",
@@ -35,6 +46,7 @@ export interface IElectionEventStatus {
 }
 
 export interface IElectionStatus {
+    is_published?: boolean
     voting_status: EVotingStatus
     kiosk_voting_status: EVotingStatus
     voting_period_dates: IPeriodDates
@@ -128,15 +140,26 @@ export interface IAuditableBallot {
     version: number
     issue_date: string
     config: IBallotStyle
-    contests: Array<string>
     ballot_hash: string
+}
+export interface IAuditableSingleBallot extends IAuditableBallot {
+    contests: Array<string>
+}
+export interface IAuditableMultiBallot extends IAuditableBallot {
+    contests: string
 }
 
 export interface IHashableBallot {
     version: number
     issue_date: string
+    config: string
+}
+export interface IHashableSingleBallot {
     contests: Array<string>
-    config: IBallotStyle
+}
+
+export interface IHashableMultiBallot {
+    contests: string
 }
 
 export enum EInvalidPlaintextErrorType {

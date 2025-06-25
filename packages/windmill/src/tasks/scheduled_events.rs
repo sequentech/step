@@ -1,4 +1,3 @@
-use crate::hasura::scheduled_event;
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
@@ -12,6 +11,7 @@ use crate::services::{
     tasks_execution::update_fail,
 };
 use crate::tasks::{
+    manage_election_allow_tally::manage_election_allow_tally,
     manage_election_dates::manage_election_date,
     manage_election_event_date::manage_election_event_date,
     manage_election_event_enrollment::manage_election_event_enrollment,
@@ -310,6 +310,52 @@ pub async fn handle_election_lockdown(
     Ok(())
 }
 
+pub async fn handle_election_allow_tally(
+    celery_app: Arc<Celery>,
+    scheduled_event: &ScheduledEvent,
+) -> Result<()> {
+    let Some(datetime) = get_datetime(scheduled_event) else {
+        return Ok(());
+    };
+    let Some(tenant_id) = scheduled_event.tenant_id.clone() else {
+        return Ok(());
+    };
+    let Some(election_event_id) = scheduled_event.election_event_id.clone() else {
+        return Ok(());
+    };
+    let Some(event_payload) = scheduled_event.event_payload.clone() else {
+        event!(Level::WARN, "Missing election_event_id");
+        return Ok(());
+    };
+    let payload: ManageAllowTallyPayload = deserialize_value(event_payload)
+        .map_err(|e| anyhow!("Error deserializing manage election date payload {}", e))?;
+    // run the actual task in a different async task
+    match payload.election_id.clone() {
+        Some(election_id) => {
+            let task = celery_app
+                .send_task(
+                    manage_election_allow_tally::new(
+                        tenant_id.clone(),
+                        election_event_id.clone(),
+                        scheduled_event.id.clone(),
+                        election_id,
+                    )
+                    .with_eta(datetime.with_timezone(&Utc))
+                    .with_expires_in(120),
+                )
+                .await
+                .map_err(|e| anyhow!("Error sending task to celery {}", e))?;
+            event!(
+                Level::INFO,
+                "Sent manage_election_allow_tally task {}",
+                task.task_id
+            );
+        }
+        None => {}
+    }
+    Ok(())
+}
+
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(time_limit = 10, max_retries = 0, expires = 30)]
@@ -379,6 +425,9 @@ pub async fn scheduled_events() -> Result<()> {
             }
             EventProcessors::START_LOCKDOWN_PERIOD | EventProcessors::END_LOCKDOWN_PERIOD => {
                 handle_election_lockdown(celery_app.clone(), scheduled_event).await?;
+            }
+            EventProcessors::ALLOW_TALLY => {
+                handle_election_allow_tally(celery_app.clone(), scheduled_event).await?;
             }
             EventProcessors::CREATE_REPORT | EventProcessors::SEND_TEMPLATE => {
                 // Nothing to do for these event processors.  Avoid a

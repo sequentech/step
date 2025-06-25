@@ -25,12 +25,12 @@ interface EditPasswordProps {
     electionEventId?: string
 }
 
-const InputLabelStyle = styled(InputLabel)<{paddingTop?: boolean}>`
+export const InputLabelStyle = styled(InputLabel)<{paddingTop?: boolean}>`
     width: 135px;
     ${({paddingTop = true}) => paddingTop && "padding-top: 15px;"}
 `
 
-const InputContainerStyle = styled(Box)`
+export const InputContainerStyle = styled(Box)`
     display: flex;
     gap: 12px;
     width: 100%;
@@ -40,10 +40,28 @@ const InputContainerStyle = styled(Box)`
     }
 `
 
-const PasswordInputStyle = styled(FormStyles.PasswordInput)`
-    flex: 1;
-    margin: 0 auto;
-`
+export const PasswordInputStyle = styled(FormStyles.PasswordInput)(({theme, error}) => {
+    return {
+        "flex": "1",
+        "margin": "0 auto",
+
+        "& .MuiFormHelperText-root.MuiFormHelperText-sizeSmall.MuiFormHelperText-contained": {
+            ...(error && {
+                borderColor: theme.palette.error.main,
+                color: theme.palette.error.main,
+            }),
+        },
+        "& .MuiOutlinedInput-root": {
+            "& fieldset": {
+                ...(error && {borderColor: theme.palette.error.main}),
+            },
+        },
+        "& .MuiInputBase-root.MuiOutlinedInput-root.MuiInputBase-colorPrimary.MuiInputBase-formControl.MuiInputBase-sizeSmall.MuiInputBase-adornedEnd":
+            {
+                "margin-block-end": "0px",
+            },
+    }
+})
 
 const EditPassword = ({open, handleClose, id, electionEventId}: EditPasswordProps) => {
     const {t} = useTranslation()
@@ -53,54 +71,69 @@ const EditPassword = ({open, handleClose, id, electionEventId}: EditPasswordProp
     const [user, setUser] = useState<IUser>({id})
     const [temporary, setTemportay] = useState<boolean>(true)
     const [edit_user] = useMutation<EditUsersInput>(EDIT_USER)
+    const [errorText, setErrorText] = useState("")
 
-    const equalToPassword = (value: any, allValues: any) => {
+    const equalToPassword = (allValues: any) => {
         if (!allValues.password || allValues.password.length == 0) {
             return
         }
-        if (value !== allValues.password) {
-            return t("usersAndRolesScreen.users.fields.passwordMismatch")
+        if (allValues.confirm_password !== allValues.password) {
+            setErrorText(t("usersAndRolesScreen.users.fields.passwordMismatch"))
+        }
+
+        if (errorText && allValues.confirm_password === allValues.password) {
+            setErrorText("")
         }
     }
 
     const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const {name, value} = e.target
-        let newUser = {...user, [name]: value}
-        setUser(newUser)
+
+        const updatedUser = {
+            ...user,
+            [name]: value,
+        }
+
+        //only run on password update
+        if (name === "confirm_password" || name === "password") {
+            equalToPassword(updatedUser)
+        }
+
+        setUser(updatedUser)
     }
 
     const validatePassword = (value: any) => {
         /*TODO: we should validate only to the extent that these policies are 
-        in place in keycloak
-        if (!value || value.length == 0) {
-            return
-        }
-     
-        const hasEnoughChars = value.length < 8
-        const hasUpperCase = /[A-Z]/.test(value)
-        const hasLowerCase = /[a-z]/.test(value)
-        const hasDigit = /\d/.test(value)
-        const hasSpecialChar = /[^a-zA-Z\d]/.test(value)
-     
-        if (hasEnoughChars) {
-            return t("usersAndRolesScreen.users.fields.passwordLengthValidate")
-        }
-     
-        if (!hasUpperCase) {
-            return t("usersAndRolesScreen.users.fields.passwordUppercaseValidate")
-        }
-     
-        if (!hasLowerCase) {
-            return t("usersAndRolesScreen.users.fields.passwordLowercaseValidate")
-        }
-     
-        if (!hasDigit) {
-            return t("usersAndRolesScreen.users.fields.passwordDigitValidate")
-        }
-     
-        if (!hasSpecialChar) {
-            return t("usersAndRolesScreen.users.fields.passwordSpecialCharValidate")
-        }*/
+		in place in keycloak
+		if (!value || value.length == 0) {
+			return
+		}
+	 
+		const hasEnoughChars = value.length < 8
+		const hasUpperCase = /[A-Z]/.test(value)
+		const hasLowerCase = /[a-z]/.test(value)
+		const hasDigit = /\d/.test(value)
+		const hasSpecialChar = /[^a-zA-Z\d]/.test(value)
+	 
+		if (hasEnoughChars) {
+			return t("usersAndRolesScreen.users.fields.passwordLengthValidate")
+		}
+	 
+		if (!hasUpperCase) {
+			return t("usersAndRolesScreen.users.fields.passwordUppercaseValidate")
+		}
+	 
+		if (!hasLowerCase) {
+			return t("usersAndRolesScreen.users.fields.passwordLowercaseValidate")
+		}
+	 
+		if (!hasDigit) {
+			return t("usersAndRolesScreen.users.fields.passwordDigitValidate")
+		}
+	 
+		if (!hasSpecialChar) {
+			return t("usersAndRolesScreen.users.fields.passwordSpecialCharValidate")
+		}*/
     }
 
     const onSubmit = async () => {
@@ -134,7 +167,7 @@ const EditPassword = ({open, handleClose, id, electionEventId}: EditPasswordProp
         >
             <>
                 <SimpleForm
-                    toolbar={<SaveButton fullWidth alwaysEnable />}
+                    toolbar={<SaveButton fullWidth alwaysEnable={!errorText} />}
                     record={user}
                     onSubmit={onSubmit}
                     sanitizeEmptyValues
@@ -149,6 +182,7 @@ const EditPassword = ({open, handleClose, id, electionEventId}: EditPasswordProp
                                 label={false}
                                 source="password"
                                 onChange={handleChange}
+                                error={!!errorText}
                             />
                         </InputContainerStyle>
                         <InputContainerStyle>
@@ -158,7 +192,8 @@ const EditPassword = ({open, handleClose, id, electionEventId}: EditPasswordProp
                             <PasswordInputStyle
                                 label={false}
                                 source="confirm_password"
-                                validate={equalToPassword}
+                                helperText={errorText}
+                                error={!!errorText}
                                 onChange={handleChange}
                             />
                         </InputContainerStyle>

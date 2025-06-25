@@ -2,9 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
-    extract_area_data, extract_election_data, extract_election_event_annotations, get_app_hash,
-    get_app_version, get_date_and_time, get_report_hash,
-    get_total_number_of_registered_voters_for_area_id, InspectorData,
+    extract_area_data, extract_election_data, extract_election_event_annotations,
+    generate_election_area_votes_data, get_app_hash, get_app_version, get_date_and_time,
+    get_report_hash, ExecutionAnnotations, InspectorData,
 };
 use super::template_renderer::*;
 use crate::postgres::area::get_areas_by_election_id;
@@ -14,7 +14,7 @@ use crate::postgres::reports::ReportType;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::cast_votes::count_ballots_by_area_id;
 use crate::services::election_dates::get_election_dates;
-use crate::services::s3::get_minio_url;
+use crate::services::temp_path::PUBLIC_ASSETS_QRCODE_LIB;
 use crate::services::temp_path::*;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
@@ -22,33 +22,35 @@ use deadpool_postgres::Transaction;
 use sequent_core::ballot::StringifiedPeriodDates;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::keycloak::get_event_realm;
-use sequent_core::{ballot::ElectionStatus, ballot::VotingStatus, types::templates::EmailConfig};
+use sequent_core::services::pdf;
+use sequent_core::services::s3::get_minio_url;
+use sequent_core::util::temp_path::*;
+use sequent_core::{ballot::ElectionStatus, ballot::VotingStatus};
 use serde::{Deserialize, Serialize};
 use serde_json::value::Value;
 use tracing::instrument;
+
 // UserData struct now contains a vector of areas
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
     pub areas: Vec<UserDataArea>,
+    pub execution_annotations: ExecutionAnnotations,
 }
 
 // UserDataArea struct holds area-specific data
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserDataArea {
-    pub date_printed: String,
     pub election_title: String,
     pub election_dates: StringifiedPeriodDates,
     pub post: String,
     pub country: String,
     pub geographical_region: String,
     pub voting_center: String,
-    pub precinct_code: String,
-    pub registered_voters: i64,
-    pub ballots_counted: i64,
+    pub station_id: String,
+    pub station_name: String,
+    pub registered_voters: Option<i64>,
+    pub ballots_counted: Option<i64>,
     pub ovcs_status: String,
-    pub report_hash: String,
-    pub ovcs_version: String,
-    pub system_hash: String,
     pub inspectors: Vec<InspectorData>,
 }
 
@@ -60,18 +62,12 @@ pub struct SystemData {
 
 #[derive(Debug)]
 pub struct StatusTemplate {
-    pub tenant_id: String,
-    pub election_event_id: String,
-    pub election_id: Option<String>,
+    ids: ReportOrigins,
 }
 
 impl StatusTemplate {
-    pub fn new(tenant_id: String, election_event_id: String, election_id: Option<String>) -> Self {
-        StatusTemplate {
-            tenant_id,
-            election_event_id,
-            election_id,
-        }
+    pub fn new(ids: ReportOrigins) -> Self {
+        StatusTemplate { ids }
     }
 }
 
@@ -89,38 +85,49 @@ impl TemplateRenderer for StatusTemplate {
     }
 
     fn prefix(&self) -> String {
-        format!("status_{}", self.election_event_id)
+        format!("status_{}", self.ids.election_event_id)
     }
 
     fn get_tenant_id(&self) -> String {
-        self.tenant_id.clone()
+        self.ids.tenant_id.clone()
     }
 
     fn get_election_event_id(&self) -> String {
-        self.election_event_id.clone()
+        self.ids.election_event_id.clone()
+    }
+
+    fn get_initial_template_alias(&self) -> Option<String> {
+        self.ids.template_alias.clone()
+    }
+
+    fn get_report_origin(&self) -> ReportOriginatedFrom {
+        self.ids.report_origin
     }
 
     fn get_election_id(&self) -> Option<String> {
-        self.election_id.clone()
+        self.ids.election_id.clone()
     }
 
-    #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
+    #[instrument(err, skip_all)]
     async fn prepare_user_data(
         &self,
         hasura_transaction: &Transaction<'_>,
         keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
-        let realm = get_event_realm(self.tenant_id.as_str(), self.election_event_id.as_str());
+        let realm = get_event_realm(
+            self.ids.tenant_id.as_str(),
+            self.ids.election_event_id.as_str(),
+        );
 
-        let Some(election_id) = &self.election_id else {
+        let Some(election_id) = &self.ids.election_id else {
             return Err(anyhow!("Empty election_id"));
         };
 
         // Fetch election event data
         let election_event = get_election_event_by_id(
             &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
         )
         .await
         .with_context(|| "Error obtaining election event")?;
@@ -133,8 +140,8 @@ impl TemplateRenderer for StatusTemplate {
         // get election instace
         let election = match get_election_by_id(
             &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
             &election_id,
         )
         .await
@@ -160,8 +167,8 @@ impl TemplateRenderer for StatusTemplate {
         // Fetch areas associated with the election
         let election_areas = get_areas_by_election_id(
             &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
             &election_id,
         )
         .await
@@ -176,8 +183,8 @@ impl TemplateRenderer for StatusTemplate {
         // Fetch election event data
         let scheduled_events = find_scheduled_event_by_election_event_id(
             &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
         )
         .await
         .map_err(|e| {
@@ -204,42 +211,40 @@ impl TemplateRenderer for StatusTemplate {
                     .await
                     .map_err(|err| anyhow!("Error extract area data {err}"))?;
 
-            let registered_voters = get_total_number_of_registered_voters_for_area_id(
-                &keycloak_transaction,
-                &realm,
+            let votes_data = generate_election_area_votes_data(
+                &hasura_transaction,
+                &self.ids.tenant_id,
+                &self.ids.election_event_id,
+                election.id.as_str(),
                 &area.id,
+                None,
             )
             .await
-            .map_err(|err| anyhow!("Error counting registered voters: {err}"))?;
+            .map_err(|e| anyhow!(format!("Error generating election area votes data {e:?}")))?;
 
             let ballots_counted = count_ballots_by_area_id(
                 &hasura_transaction,
-                &self.tenant_id,
-                &self.election_event_id,
+                &self.ids.tenant_id,
+                &self.ids.election_event_id,
                 &election_id,
                 &area.id,
             )
             .await
-            .map_err(|e| {
-                anyhow::anyhow!("Error fetching the number of ballot for election {e:?}",)
-            })?;
+            .map_err(|err| anyhow!("Error getting counted ballots: {err}"))?;
 
             // Create UserDataArea instance
             let area_data = UserDataArea {
-                date_printed: date_printed.clone(),
                 election_title: election_title.clone(),
                 election_dates: election_dates.clone(),
                 post: election_general_data.post.clone(),
                 country,
                 geographical_region: election_general_data.geographical_region.clone(),
                 voting_center: election_general_data.voting_center.clone(),
-                precinct_code: election_general_data.precinct_code.clone(),
-                registered_voters,
-                ballots_counted,
+                station_name: election_general_data.precinct_code.clone(),
+                station_id: election_general_data.pollcenter_code.clone(),
+                registered_voters: votes_data.registered_voters,
+                ballots_counted: Some(ballots_counted),
                 ovcs_status: ovcs_status.clone(),
-                report_hash: report_hash.clone(),
-                ovcs_version: app_version.clone(),
-                system_hash: app_hash.clone(),
                 inspectors: area_general_data.inspectors.clone(),
             };
 
@@ -247,25 +252,45 @@ impl TemplateRenderer for StatusTemplate {
         }
 
         // Return the UserData with areas populated
-        Ok(UserData { areas })
+        Ok(UserData {
+            areas,
+            execution_annotations: ExecutionAnnotations {
+                date_printed,
+                report_hash,
+                app_version: app_version.clone(),
+                software_version: app_version.clone(),
+                app_hash,
+                executer_username: self.ids.executer_username.clone(),
+                results_hash: None,
+            },
+        })
     }
 
-    #[instrument]
+    #[instrument(err, skip_all)]
     async fn prepare_system_data(
         &self,
         rendered_user_template: String,
     ) -> Result<Self::SystemData> {
-        let public_asset_path = get_public_assets_path_env_var()?;
-        let minio_endpoint_base =
-            get_minio_url().with_context(|| "Error getting minio endpoint")?;
+        if pdf::doc_renderer_backend() == pdf::DocRendererBackend::InPlace {
+            let public_asset_path = get_public_assets_path_env_var()?;
+            let minio_endpoint_base =
+                get_minio_url().with_context(|| "Error getting minio endpoint")?;
 
-        Ok(SystemData {
-            rendered_user_template,
-            file_qrcode_lib: format!(
-                "{}/{}/{}",
-                minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_QRCODE_LIB
-            ),
-        })
+            Ok(SystemData {
+                rendered_user_template,
+                file_qrcode_lib: format!(
+                    "{}/{}/{}",
+                    minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_QRCODE_LIB
+                ),
+            })
+        } else {
+            // If we are rendering with a lambda, the QRCode lib is
+            // already included in the lambda container image.
+            Ok(SystemData {
+                rendered_user_template,
+                file_qrcode_lib: "/assets/qrcode.min.js".to_string(),
+            })
+        }
     }
 }
 

@@ -19,7 +19,7 @@ import {
     theme,
     Dialog,
 } from "@sequentech/ui-essentials"
-import {IAuditableBallot} from "@sequentech/ui-core"
+import {IAuditableBallot, IAuditableMultiBallot, IAuditableSingleBallot} from "@sequentech/ui-core"
 import {useNavigate} from "react-router-dom"
 import {Box} from "@mui/material"
 import {IBallotService, IConfirmationBallot} from "../services/BallotService"
@@ -159,15 +159,35 @@ export const HomeScreen: React.FC<IProps> = ({
     }, [dataBallotStyles])
 
     const handleAuditableBallot = (auditableBallot: IAuditableBallot | null) => {
-        const decodedBallot =
-            (auditableBallot && ballotService.decodeAuditableBallot(auditableBallot)) || null
+        let isMultiContest = false
+        let decodedBallot = null
+        try {
+            decodedBallot =
+                (auditableBallot &&
+                    ballotService.decodeAuditableBallot(
+                        auditableBallot as IAuditableSingleBallot
+                    )) ||
+                null
+        } catch (error) {
+            const decodedMultiBallot =
+                (!decodedBallot &&
+                    auditableBallot &&
+                    ballotService.decodeAuditableMultiBallot(
+                        auditableBallot as IAuditableMultiBallot
+                    )) ||
+                null
+            isMultiContest = true
+            decodedBallot = decodedMultiBallot
+        }
         const ballotStyle = auditableBallot?.config ?? null
         if (null === auditableBallot || null === decodedBallot || null === ballotStyle) {
             setShowError(true)
             setConfirmationBallot(null)
             return
         }
-        let ballotHash = ballotService.hashBallot512(auditableBallot)
+        let ballotHash = isMultiContest
+            ? ballotService.hashMultiBallot(auditableBallot as IAuditableMultiBallot)
+            : ballotService.hashBallot512(auditableBallot as IAuditableSingleBallot)
         setConfirmationBallot({
             ballot_hash: ballotHash,
             election_config: ballotStyle,

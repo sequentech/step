@@ -4,6 +4,17 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 */
 
+#page-sidebar {
+    a[href*="applications"] {
+        display: none;
+    }
+}
+
+.pf-c-page__main .pf-c-form__group:has(input:not(:read-only)),
+.pf-c-page__main .pf-c-form__group:has(button.pf-c-select__toggle) {
+    display: none;
+}
+
 :root, .pf-c-nav, .pf-c-page {
     --pf-global--palette--black-200: #D0D5DD;
     --pf-global--palette--black-800: #191D23;
@@ -51,13 +62,13 @@ html, body {
 
 @media (min-width: 0px) {
     .pf-c-brand {
-        height: 37px;
+        height: 60px;
     }
 }
 
 @media (min-width: 970px) {
     .pf-c-brand {
-        height: 47px;
+        height: 60px;
     }
 }
 

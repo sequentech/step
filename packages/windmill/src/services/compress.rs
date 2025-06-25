@@ -2,12 +2,12 @@
 // SPDX-FileCopyrightText: 2024 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::services::temp_path::generate_temp_file;
 use crate::types::error::Result;
 use anyhow::Context;
 use flate2::read::GzDecoder;
 use flate2::write::GzEncoder;
 use flate2::Compression;
+use sequent_core::util::temp_path::generate_temp_file;
 use std::fs::File;
 use std::path::Path;
 use tempfile::{tempdir, TempDir, TempPath};
@@ -37,7 +37,7 @@ pub fn compress_folder(folder_path: &Path) -> Result<(TempPath, String, u64)> {
     // Finish writing the .tar.gz file and get the file (temporary file in this
     // case)
     let finished_file = tar_builder.into_inner()?.finish()?;
-    let file_size = finished_file.metadata().unwrap().len();
+    let file_size = finished_file.metadata()?.len();
     event!(Level::INFO, " Tar file size: {file_size}");
 
     Ok((tar_file_temp_path, tar_file_str, file_size))

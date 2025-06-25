@@ -7,16 +7,18 @@ import {RaRecord, Identifier} from "react-admin"
 import {
     Sequent_Backend_Election,
     Sequent_Backend_Results_Election,
+    Sequent_Backend_Results_Election_Area,
     Sequent_Backend_Tally_Session,
 } from "../../gql/graphql"
 import {TallyResultsContest} from "./TallyResultsContests"
 import {Box, Tab, Tabs, Typography} from "@mui/material"
 import {ReactI18NextChild, useTranslation} from "react-i18next"
-import {ExportElectionMenu} from "@/components/tally/ExportElectionMenu"
+import {ExportElectionMenu, IResultDocumentsData} from "@/components/tally/ExportElectionMenu"
 import {IResultDocuments} from "@/types/results"
 import {useAtomValue} from "jotai"
 import {tallyQueryData} from "@/atoms/tally-candidates"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
+import {useKeysPermissions} from "../ElectionEvent/useKeysPermissions"
 
 interface TallyResultsProps {
     tally: Sequent_Backend_Tally_Session | undefined
@@ -37,6 +39,8 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
         const [areasData, setAreasData] = useState<RaRecord<Identifier>[]>()
         const tallyData = useAtomValue(tallyQueryData)
 
+        const {canExportCeremony} = useKeysPermissions()
+
         const areas: Array<RaRecord<Identifier>> | undefined = useMemo(
             () => tallyData?.sequent_backend_area?.map((area): RaRecord<Identifier> => area),
             [tallyData?.sequent_backend_area]
@@ -49,6 +53,15 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
                 ),
             [electionId, tallyData?.sequent_backend_results_election]
         )
+
+        const resultsElectionArea: Array<Sequent_Backend_Results_Election_Area> | undefined =
+            useMemo(
+                () =>
+                    tallyData?.sequent_backend_results_election_area?.filter(
+                        (election) => election.election_id === electionId
+                    ),
+                [electionId, tallyData?.sequent_backend_results_election_area]
+            )
 
         const elections: Array<Sequent_Backend_Election> | undefined = useMemo(
             () =>
@@ -104,19 +117,60 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
             setValue(index)
         }
 
-        let documents: IResultDocuments | null = useMemo(
+        let documents: IResultDocumentsData | null = useMemo(() => {
+            const documents =
+                !!resultsEventId &&
+                !!electionId &&
+                !!resultsElection &&
+                resultsElection?.[0]?.results_event_id === resultsEventId &&
+                resultsElection?.[0]?.election_id === electionId &&
+                (resultsElection[0]?.documents as IResultDocuments | null)
+            return documents
+                ? {
+                      documents,
+                      name: resultsElection?.[0]?.name ?? "election",
+                      class_type: "election",
+                  }
+                : null
+        }, [resultsEventId, resultsElection, resultsElection?.[0]?.id, resultsElection?.[0]?.name])
+
+        let areasDocuments: IResultDocumentsData[] | null = useMemo(
             () =>
                 (!!resultsEventId &&
                     !!electionId &&
-                    !!resultsElection &&
-                    resultsElection?.[0]?.results_event_id === resultsEventId &&
-                    resultsElection?.[0]?.election_id === electionId &&
-                    (resultsElection[0]?.documents as IResultDocuments | null)) ||
+                    !!resultsElectionArea &&
+                    resultsElectionArea
+                        .filter(
+                            (area) =>
+                                area.results_event_id === resultsEventId &&
+                                area.election_id == electionId
+                        )
+                        ?.map((area) => {
+                            return {
+                                documents: area.documents,
+                                name: area.name ?? "area",
+                                class_type: "election",
+                                class_subtype: "election-area",
+                            }
+                        })) ||
                 null,
-            [resultsEventId, resultsElection, resultsElection?.[0]?.id]
+            [resultsEventId, resultsElectionArea]
         )
 
         const aliasRenderer = useAliasRenderer()
+
+        const documentsList: IResultDocumentsData[] | null = useMemo(() => {
+            if (documents && areasDocuments) {
+                return [documents, ...areasDocuments]
+            }
+            if (documents) {
+                return [documents]
+            }
+            if (areasDocuments) {
+                return [...areasDocuments]
+            }
+            return null
+        }, [documents, areasDocuments])
 
         return (
             <>
@@ -142,15 +196,16 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
                             />
                         ))}
                     </Tabs>
-                    {documents ? (
+                    {documentsList && canExportCeremony && tally?.id ? (
                         <ExportElectionMenu
-                            documents={documents}
+                            documentsList={documentsList}
                             electionEventId={data?.election_event_id}
                             itemName={resultsElection?.[0]?.name ?? "election"}
                             tallyType={data?.tally_type}
                             electionId={electionId}
                             onCreateTransmissionPackage={onCreateTransmissionPackage}
                             miruExportloading={loading}
+                            tallySessionId={tally.id}
                         />
                     ) : null}
                 </Box>
@@ -162,6 +217,7 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
                             electionEventId={election.election_event_id}
                             tenantId={election.tenant_id}
                             resultsEventId={resultsEventId}
+                            tallySessionId={tally?.id ?? null}
                         />
                     </CustomTabPanel>
                 ))}

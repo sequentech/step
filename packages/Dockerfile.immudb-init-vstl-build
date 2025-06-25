@@ -1,0 +1,18 @@
+# SPDX-FileCopyrightText: 2023-2024 Sequent Tech <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only 
+
+FROM immudb-init-build-dependencies
+
+COPY --from=immudb-init-compile /app/target/release/bb_helper /usr/bin
+
+# Define environment variables
+ENV IMMUDB_SERVER_URL=""
+ENV IMMUDB_USER=""
+ENV IMMUDB_PASSWORD=""
+ENV IMMUDB_INDEX_DB=""
+ENV IMMUDB_BOARD_DB_NAME=""
+ENV CACHE_DIR="/tmp/immu-board"
+
+# Set the entrypoint for running the immudb-init service
+ENTRYPOINT ["/bin/sh", "-c", "/usr/bin/bb_helper --server-url ${IMMUDB_SERVER_URL} --username ${IMMUDB_USER} --password ${IMMUDB_PASSWORD} --board-dbname ${IMMUDB_BOARD_DB_NAME} --cache-dir ${CACHE_DIR} upsert-board-db"]

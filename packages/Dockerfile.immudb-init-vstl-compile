@@ -1,0 +1,21 @@
+# SPDX-FileCopyrightText: 2023-2024 Sequent Tech <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only 
+
+FROM immudb-init-dependencies as builder
+
+# copy projects
+#TODO: Copy only necessary files
+WORKDIR /app
+COPY ./braid ./braid
+COPY ./b3 ./b3
+COPY ./board-messages ./board-messages
+COPY ./sequent-core ./sequent-core
+COPY ./immu-board ./immu-board
+COPY ./immudb-rs ./immudb-rs
+COPY ./strand ./strand
+COPY ./wrap-map-err ./wrap-map-err
+
+# build projects
+WORKDIR /app/immu-board
+RUN cargo build --release --offline

@@ -11,10 +11,6 @@ use strum_macros::{Display, EnumString};
 pub enum Permissions {
     #[strum(serialize = "admin-user")]
     ADMIN_USER,
-    #[strum(serialize = "application-read")]
-    APPLICATION_READ,
-    #[strum(serialize = "application-write")]
-    APPLICATION_WRITE,
     #[strum(serialize = "tenant-create")]
     TENANT_CREATE,
     #[strum(serialize = "tenant-read")]
@@ -119,6 +115,10 @@ pub enum Permissions {
     ADMIN_CEREMONY,
     #[strum(serialize = "admin-dashboard-view")]
     ADMIN_DASHBOARD_VIEW,
+    #[strum(serialize = "monitoring-dashboard-view-election-event")]
+    MONITORING_DASHBOARD_VIEW_ELECTION_EVENT,
+    #[strum(serialize = "monitoring-dashboard-view-election")]
+    MONITORING_DASHBOARD_VIEW_ELECTION,
     #[strum(serialize = "tally-sheet-view")]
     TALLY_SHEET_VIEW,
     #[strum(serialize = "tally-sheet-create")]
@@ -147,6 +147,8 @@ pub enum Permissions {
     MIRU_SIGN,
     #[strum(serialize = "service-account")]
     SERVICE_ACCOUNT,
+    #[strum(serialize = "datafix-account")]
+    DATAFIX_ACCOUNT,
     #[strum(serialize = "contest-write")]
     CONTEST_WRITE,
     #[strum(serialize = "contest-read")]
@@ -233,6 +235,166 @@ pub enum Permissions {
     SETTINGS_TRUSTEES_TAB,
     #[strum(serialize = "settings-countries-tab")]
     SETTINGS_COUNTRIES_TAB,
+    #[strum(serialize = "application-read")]
+    APPLICATION_READ,
+    #[strum(serialize = "application-write")]
+    APPLICATION_WRITE,
+    #[strum(serialize = "ee-voters-columns")]
+    EE_VOTERS_COLUMNS,
+    #[strum(serialize = "ee-voters-filters")]
+    EE_VOTERS_FILTERS,
+    #[strum(serialize = "ee-voters-logs")]
+    EE_VOTERS_LOGS,
+    #[strum(serialize = "voter-import")]
+    VOTER_IMPORT,
+    #[strum(serialize = "voter-export")]
+    VOTER_EXPORT,
+    #[strum(serialize = "voter-delete")]
+    VOTER_DELETE,
+    #[strum(serialize = "voter-manually-verify")]
+    VOTER_MANUALLY_VERIFY,
+    #[strum(serialize = "voter-change-password")]
+    VOTER_CHANGE_PASSWORD,
+    #[strum(serialize = "election-event-localization-selector")]
+    EE_LOCALIZATION_SELECTOR,
+    #[strum(serialize = "localization-create")]
+    LOCALIZATION_CREATE,
+    #[strum(serialize = "localization-read")]
+    LOCALIZATION_READ,
+    #[strum(serialize = "localization-write")]
+    LOCALIZATION_WRITE,
+    #[strum(serialize = "localization-delete")]
+    LOCALIZATION_DELETE,
+    #[strum(serialize = "area-create")]
+    AREA_CREATE,
+    #[strum(serialize = "area-delete")]
+    AREA_DELETE,
+    #[strum(serialize = "area-export")]
+    AREA_EXPORT,
+    #[strum(serialize = "area-import")]
+    AREA_IMPORT,
+    #[strum(serialize = "area-upsert")]
+    AREA_UPSERT,
+    #[strum(serialize = "election-event-areas-columns")]
+    EE_AREAS_COLUMNS,
+    #[strum(serialize = "election-event-areas-filters")]
+    EE_AREAS_FILTERS,
+    #[strum(serialize = "election-event-tasks-back-button")]
+    EE_TASKS_BACK_BUTTON,
+    #[strum(serialize = "election-event-tasks-columns")]
+    EE_TASKS_COLUMNS,
+    #[strum(serialize = "election-event-tasks-filters")]
+    EE_TASKS_FILTERS,
+    #[strum(serialize = "task-export")]
+    TASKS_EXPORT,
+    #[strum(serialize = "logs-export")]
+    LOGS_EXPORT,
+    #[strum(serialize = "election-event-logs-columns")]
+    EE_LOGS_COLUMNS,
+    #[strum(serialize = "election-events-logs-filters")]
+    EE_LOGS_FILTERS,
+    #[strum(serialize = "election-event-scheduled-event-columns")]
+    EE_SCHEDULED_EVENT_COLUMNS,
+    #[strum(serialize = "scheduled-event-create")]
+    SCHEDULED_EVENT_CREATE,
+    #[strum(serialize = "scheduled-event-delete")]
+    SCHEDULED_EVENT_DELETE,
+    #[strum(serialize = "election-event-reports-columns")]
+    EE_REPORTS_COLUMNS,
+    #[strum(serialize = "report-create")]
+    REPORT_CREATE,
+    #[strum(serialize = "report-delete")]
+    REPORT_DELETE,
+    #[strum(serialize = "report-generate")]
+    REPORT_GENERATE,
+    #[strum(serialize = "report-preview")]
+    REPORT_PREVIEW,
+    #[strum(serialize = "transmission-report-generate")]
+    TRANSMISSION_REPORT_GENERATE,
+    #[strum(serialize = "monitor-authenticated-voters")]
+    MONITOR_AUTHENTICATED_VOTERS,
+    #[strum(serialize = "monitor-all-approve-disapprove-voters")]
+    MONITOR_ALL_APPROVE_DISAPPROVE_VOTERS,
+    #[strum(serialize = "monitor-automatic-approve-disapprove-voters")]
+    MONITOR_AUTOMATIC_APPROVE_DISAPPROVE_VOTERS,
+    #[strum(serialize = "monitor-manually-approve-disapprove-voters")]
+    MONITOR_MANUALLY_APPROVE_DISAPPROVE_VOTERS,
+    #[strum(serialize = "monitor-enrolled-overseas-voters")]
+    MONITOR_ENROLLED_OVERSEAS_VOTERS,
+    #[strum(serialize = "monitor-posts-already-closed-voting")]
+    MONITOR_POSTS_ALREADY_CLOSED_VOTING,
+    #[strum(serialize = "monitor-posts-already-generated-election-results")]
+    MONITOR_POSTS_ALREADY_GENERATED_ELECTION_RESULTS,
+    #[strum(serialize = "monitor-posts-already-opened-voting")]
+    MONITOR_POSTS_ALREADY_OPENED_VOTING,
+    #[strum(serialize = "monitor-posts-already-started-counting-votes")]
+    MONITOR_POSTS_ALREADY_STARTED_COUNTING_VOTES,
+    #[strum(serialize = "monitor-posts-initialized-the-system")]
+    MONITOR_POSTS_INITIALIZED_THE_SYSTEM,
+    #[strum(serialize = "monitor-posts-started-voting")]
+    MONITOR_POSTS_STARTED_VOTING,
+    #[strum(serialize = "monitor-posts-transmitted-results")]
+    MONITOR_POSTS_TRANSMITTED_RESULTS,
+    #[strum(serialize = "monitor-voters-voted-test-election")]
+    MONITOR_VOTERS_VOTED_TEST_ELECTION,
+    #[strum(serialize = "application-export")]
+    APPLICATION_EXPORT,
+    #[strum(serialize = "application-import")]
+    APPLICATION_IMPORT,
+    #[strum(serialize = "monitor-voters-who-voted")]
+    MONITOR_VOTERS_WHO_VOTED,
+    #[strum(serialize = "election-event-publish-preview")]
+    EE_PUBLISH_PREVIEW,
+    #[strum(serialize = "election-event-publish-back-button")]
+    EE_PUBLISH_BACK_BUTTON,
+    #[strum(serialize = "election-event-publish-columns")]
+    EE_PUBLISH_COLUMNS,
+    #[strum(serialize = "election-event-publish-filters")]
+    EE_PUBLISH_FILTERS,
+    #[strum(serialize = "publish-create")]
+    PUBLISH_CREATE,
+    #[strum(serialize = "publish-regenerate")]
+    PUBLISH_REGENERATE,
+    #[strum(serialize = "publish-export")]
+    PUBLISH_EXPORT,
+    #[strum(serialize = "publish-start-voting")]
+    PUBLISH_START_VOTING,
+    #[strum(serialize = "publish-pause-voting")]
+    PUBLISH_PAUSE_VOTING,
+    #[strum(serialize = "publish-stop-voting")]
+    PUBLISH_STOP_VOTING,
+    #[strum(serialize = "publish-changes")]
+    PUBLISH_CHANGES,
+    #[strum(serialize = "election-event-publish-view")]
+    EE_PUBLISH_VIEW,
+    #[strum(serialize = "election-event-keys-columns")]
+    EE_KEYS_COLUMNS,
+    #[strum(serialize = "create-ceremony")]
+    CREATE_CEREMONY,
+    #[strum(serialize = "export-ceremony")]
+    EXPORT_CEREMONY,
+    #[strum(serialize = "trustees-export")]
+    TRUSTEES_EXPORT,
+    #[strum(serialize = "election-event-tally-columns")]
+    EE_TALLY_COLUMNS,
+    #[strum(serialize = "election-event-tally-back-button")]
+    EE_TALLY_BACK_BUTTON,
+    #[strum(serialize = "transmition-ceremony")]
+    TRANSMITION_CEREMONY,
+    #[strum(serialize = "admin-ip-address-view")]
+    ADMIN_IP_ADDRESS_VIEW,
+    #[strum(serialize = "election-ip-address-view")]
+    ELECTION_IP_ADDRESS_VIEW,
+    #[strum(serialize = "election-dashboard-tab")]
+    ELECTION_DASHBOARD_TAB,
+    #[strum(serialize = "user-import")]
+    USER_IMPORT,
+    // permission to edit a voter that has already cast a vote
+    #[strum(serialize = "voter-voted-edit")]
+    VOTER_VOTED_EDIT,
+    // permission to edit voter fields: email and mobile number
+    #[strum(serialize = "voter-email-tlf-edit")]
+    VOTER_EMAIL_TLF_EDIT,
 }
 
 #[allow(non_camel_case_types)]

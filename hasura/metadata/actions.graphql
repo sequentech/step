@@ -1,5 +1,7 @@
 type Mutation {
-    ConfirmApplication(body: ApplicationConfirmationBody!): String
+    ApplicationChangeStatus(
+        body: ApplicationChangeStatusBody!
+    ): ApplicationChangeStatusOutput
 }
 
 type Mutation {
@@ -8,6 +10,10 @@ type Mutation {
 
 type Mutation {
     check_private_key(object: CheckPrivateKeyInput!): CheckPrivateKeyOutput
+}
+
+type Query {
+    count_users(body: CountUsersInput!): CountUsersOutput!
 }
 
 type Mutation {
@@ -35,6 +41,7 @@ type Mutation {
     create_election(
         election_event_id: String!
         name: String!
+        presentation: jsonb
         description: String
     ): CreateElectionOutput
 }
@@ -133,6 +140,26 @@ type Mutation {
 }
 
 type Mutation {
+    encrypt_report(
+        election_event_id: String!
+        report_id: String
+        password: String!
+    ): EncryptReportOutput
+}
+
+type Mutation {
+    exportTrustees(password: String!): ExportTrusteesOutput
+}
+
+type Mutation {
+    export_application(
+        tenant_id: String!
+        election_event_id: String
+        election_id: String
+    ): ExportApplicationOutput
+}
+
+type Mutation {
     export_ballot_publication(
         tenant_id: String!
         election_event_id: String!
@@ -145,7 +172,7 @@ type Mutation {
     export_election_event(
         election_event_id: String
         export_configurations: ExportOptions
-    ): documentTaskOutput
+    ): ExportElectionEventOutput
 }
 
 type Mutation {
@@ -172,6 +199,10 @@ type Mutation {
         election_event_id: String
         election_id: String
     ): ExportTemplateOutput
+}
+
+type Mutation {
+    export_tenant_config(tenant_id: String): documentTaskOutput
 }
 
 type Mutation {
@@ -209,6 +240,24 @@ type Mutation {
     ): generateReportOutput
 }
 
+type Mutation {
+    generate_template(
+        election_event_id: String!
+        election_id: String!
+        tally_session_id: String!
+        type: String!
+    ): GenerateTemplateOutput
+}
+
+type Mutation {
+    generate_transmission_report(
+        tenant_id: String!
+        election_event_id: String!
+        election_id: String
+        tally_session_id: String
+    ): generateReportOutput
+}
+
 type Query {
     getElectionEventStats(
         object: ElectionEventStatsInput!
@@ -225,6 +274,19 @@ type Mutation {
         ballot_publication_id: uuid!
         limit: Int
     ): GetBallotPublicationChangesOutput
+}
+
+type Query {
+    get_election_event_monitoring(
+        election_event_id: uuid!
+    ): ElectionEventStatsMonitoringOutput
+}
+
+type Query {
+    get_election_monitoring(
+        election_event_id: uuid!
+        election_id: uuid!
+    ): ElectionStatsMonitoringOutput
 }
 
 type Mutation {
@@ -286,13 +348,28 @@ type Query {
 }
 
 type Mutation {
-    import_areas(election_event_id: String!, document_id: String!): OptionalId
+    import_application(
+        tenant_id: String!
+        election_event_id: String
+        election_id: String
+        document_id: String!
+        sha256: String
+    ): applicationOutput
+}
+
+type Mutation {
+    import_areas(
+        election_event_id: String!
+        document_id: String!
+        sha256: String
+    ): OptionalId
 }
 
 type Mutation {
     import_candidates(
         election_event_id: String!
         document_id: String!
+        sha256: String
     ): documentTaskOutput
 }
 
@@ -302,11 +379,25 @@ type Mutation {
         document_id: String!
         password: String
         check_only: Boolean
+        sha256: String
     ): OptionalImportEvent
 }
 
 type Mutation {
-    import_templates(tenant_id: String!, document_id: String!): templateOutput
+    import_templates(
+        tenant_id: String!
+        document_id: String!
+        sha256: String
+    ): templateOutput
+}
+
+type Mutation {
+    import_tenant_config(
+        tenant_id: String!
+        document_id: String!
+        import_configurations: ImportOptions
+        sha256: String
+    ): ImportTenantOutput
 }
 
 type Mutation {
@@ -314,6 +405,7 @@ type Mutation {
         tenant_id: String!
         election_event_id: String
         document_id: String!
+        sha256: String
     ): taskOutput
 }
 
@@ -408,6 +500,14 @@ type Mutation {
 }
 
 type Mutation {
+    render_document_pdf(
+        document_id: uuid!
+        election_event_id: uuid
+        tally_session_id: uuid
+    ): RenderDocumentPDFOutput
+}
+
+type Mutation {
     restore_private_key(
         object: RestorePrivateKeyInput!
     ): RestorePrivateKeyOutput
@@ -448,11 +548,19 @@ type Mutation {
 }
 
 type Mutation {
+    set_voter_authentication(
+        election_event_id: String!
+        enrollment: String!
+        otp: String!
+    ): SetVoterAuthenticationOutput
+}
+
+type Mutation {
     update_election_voting_status(
         election_event_id: uuid!
         election_id: uuid!
         voting_status: VotingStatus!
-        voting_channel: VotingStatusChannel!
+        voting_channels: [VotingStatusChannel]
     ): UpdateElectionVotingStatusOutput
 }
 
@@ -460,7 +568,7 @@ type Mutation {
     update_event_voting_status(
         election_event_id: uuid!
         voting_status: VotingStatus!
-        voting_channel: VotingStatusChannel!
+        voting_channels: [VotingStatusChannel]
     ): UpdateEventVotingStatusOutput
 }
 
@@ -484,6 +592,11 @@ type Mutation {
 
 type Mutation {
     upsert_areas(election_event_id: String!, document_id: String!): OptionalId
+}
+
+enum ReportEncryptionPolicy {
+    unencrypted
+    configured_password
 }
 
 enum OrderDirection {
@@ -538,8 +651,10 @@ input PgAuditOrderBy {
 
 input ElectoralLogFilter {
     id: String
-    statement_kind: String
     user_id: String
+    created: String
+    statement_timestamp: String
+    statement_kind: String
 }
 
 input ElectoralLogOrderBy {
@@ -609,6 +724,7 @@ input ElectionEventStatsInput {
     election_event_id: uuid!
     start_date: String!
     end_date: String!
+    user_timezone: String!
 }
 
 input ElectionStatsInput {
@@ -616,6 +732,7 @@ input ElectionStatsInput {
     election_id: uuid!
     start_date: String!
     end_date: String!
+    user_timezone: String!
 }
 
 input GetPrivateKeyInput {
@@ -745,7 +862,8 @@ input GetTopCastVotesByIpInput {
 }
 
 input ExportOptions {
-    password: String!
+    password: String
+    is_encrypted: Boolean
     include_voters: Boolean
     activity_logs: Boolean
     bulletin_board: Boolean
@@ -753,6 +871,8 @@ input ExportOptions {
     s3_files: Boolean
     scheduled_events: Boolean
     reports: Boolean
+    applications: Boolean
+    tally: Boolean
 }
 
 input ApplicationVerifyBody {
@@ -765,12 +885,44 @@ input ApplicationVerifyBody {
     labels: jsonb
 }
 
-input ApplicationConfirmationBody {
+input ApplicationChangeStatusBody {
     tenant_id: String
-    election_event_id: String
-    id: String
-    user_id: String
+    election_event_id: String!
+    id: String!
+    user_id: String!
     area_id: String
+    rejection_reason: String
+    rejection_message: String
+}
+
+input ElectionStatsMonitoringInput {
+    election_event_id: uuid!
+}
+
+input ImportOptions {
+    include_tenant: Boolean
+    include_keycloak: Boolean
+    include_roles: Boolean
+}
+
+input CountUsersInput {
+    tenant_id: uuid!
+    election_event_id: uuid
+    election_id: uuid
+    search: String
+    first_name: jsonb
+    last_name: jsonb
+    email: jsonb
+    username: jsonb
+    limit: Int
+    offset: Int
+    show_votes_info: Boolean
+    attributes: jsonb
+    enabled: Boolean
+    email_verified: Boolean
+    sort: jsonb
+    has_voted: Boolean
+    authorized_to_election_alias: String
 }
 
 type GetManualVerificationOutput {
@@ -1287,11 +1439,13 @@ type KeysCeremony {
     name: String
     settings: jsonb
     is_default: Boolean
+    permission_label: [String]
 }
 
 type generateReportOutput {
     document_id: String!
-    task_execution: tasks_execution_type!
+    encryption_policy: ReportEncryptionPolicy!
+    task_execution: tasks_execution_type
 }
 
 type ExportBallotPublicationOutput {
@@ -1299,6 +1453,123 @@ type ExportBallotPublicationOutput {
     task_execution: tasks_execution_type
 }
 
+type EncryptReportOutput {
+    error_msg: String
+    document_id: String
+}
+
 type GetUserTemplateOutput {
     template_hbs: String!
+    extra_config: String!
+}
+
+type ElectionStatsMonitoringOutput {
+    total_eligible_voters: Int
+    total_enrolled_voters: Int
+    total_voted: Int
+    authentication_stats: MonitoringAuthentication
+    approval_stats: MonitoringApproval
+}
+
+type MonitoringAuthentication {
+    total_authenticated: Int
+    total_not_authenticated: Int
+    total_invalid_users_errors: Int
+    total_invalid_password_errors: Int
+}
+
+type MonitoringApproval {
+    total_approved: Int
+    total_disapproved: Int
+    total_manual_approved: Int
+    total_manual_disapproved: Int
+    total_automated_approved: Int
+    total_automated_disapproved: Int
+}
+
+type MonitoringVotingSatus {
+    total_voted: Int
+    total_voted_tests_elections: Int
+}
+
+type MonitoringTransmissionStatus {
+    total_transmitted_results: Int
+    total_half_transmitted_results: Int
+    total_not_transmitted_results: Int
+}
+
+type ElectionEventStatsMonitoringOutput {
+    total_eligible_voters: Int
+    total_enrolled_voters: Int
+    total_elections: Int
+    total_started_votes: Int
+    total_not_started_votes: Int
+    total_open_votes: Int
+    total_not_open_votes: Int
+    total_closed_votes: Int
+    total_not_closed_votes: Int
+    total_start_counting_votes: Int
+    total_not_start_counting_votes: Int
+    total_initialize: Int
+    total_not_initialize: Int
+    total_genereated_tally: Int
+    total_not_genereated_tally: Int
+    authentication_stats: MonitoringAuthentication
+    voting_stats: MonitoringVotingSatus
+    approval_stats: MonitoringApproval
+    transmission_stats: MonitoringTransmissionStatus
+}
+
+type ExportApplicationOutput {
+    error_msg: String
+    document_id: String!
+    task_execution: tasks_execution_type
+}
+
+type applicationOutput {
+    error_msg: String
+    document_id: String
+    task_execution: tasks_execution_type
+}
+
+type ExportTrusteesOutput {
+    error_msg: String
+    task_execution: tasks_execution_type!
+    document_id: String!
+}
+
+type SetVoterAuthenticationOutput {
+    success: Boolean!
+    message: String
+}
+
+type ImportTenantOutput {
+    message: String
+    error: String
+    task_execution: tasks_execution_type
+}
+
+type ExportElectionEventOutput {
+    password: String
+    task_execution: tasks_execution_type!
+    document_id: String!
+}
+
+type GenerateTemplateOutput {
+    document_id: String!
+    task_execution: tasks_execution_type
+}
+
+type ApplicationChangeStatusOutput {
+    message: String
+    error: String
+}
+
+type CountUsersOutput {
+    count: Int!
+}
+
+type RenderDocumentPDFOutput {
+    document_id: String
+    task_execution: tasks_execution_type
 }

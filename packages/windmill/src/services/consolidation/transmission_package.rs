@@ -4,24 +4,27 @@
 use super::{
     acm_json::generate_acm_json,
     aes_256_cbc_encrypt::encrypt_file_aes_256_cbc,
-    ecies_encrypt::{ecies_encrypt_string, ecies_sign_data, EciesKeyPair},
-    eml_generator::{render_eml_file, MiruElectionAnnotations, MiruElectionEventAnnotations},
+    eml_generator::{
+        render_eml_file, MiruAreaAnnotations, MiruElectionAnnotations, MiruElectionEventAnnotations,
+    },
     eml_types::ACMJson,
     xz_compress::xz_compress,
     zip::compress_folder_to_zip,
 };
 use crate::services::consolidation::eml_types::ACMTrustee;
-use crate::services::temp_path::PUBLIC_ASSETS_EML_BASE_TEMPLATE;
-use crate::services::{
-    password::generate_random_string_with_charset,
-    s3::{download_s3_file_to_string, get_public_asset_file_path},
-    temp_path::{generate_temp_file, write_into_named_temp_file},
-};
+use crate::services::password::generate_random_string_with_charset;
 use anyhow::{anyhow, Context, Result};
 use base64::{engine::general_purpose, Engine as _};
 use chrono::{DateTime, Utc};
 use sequent_core::services::reports;
+use sequent_core::services::s3::{download_s3_file_to_string, get_public_asset_file_path};
+use sequent_core::signatures::ecies_encrypt::{
+    ecies_encrypt_string, ecies_sign_data, EciesKeyPair,
+};
 use sequent_core::types::date_time::TimeZone;
+use sequent_core::util::temp_path::{
+    generate_temp_file, read_temp_file, write_into_named_temp_file,
+};
 use sequent_core::{ballot::Annotations, types::ceremonies::Log};
 use serde_json::{Map, Value};
 use std::fs::File;
@@ -33,16 +36,7 @@ use tempfile::NamedTempFile;
 use tracing::{info, instrument};
 use velvet::pipes::generate_reports::ReportData;
 
-#[instrument(err)]
-pub fn read_temp_file(temp_file: &mut NamedTempFile) -> Result<Vec<u8>> {
-    // Rewind the file to the beginning to read its contents
-    temp_file.rewind()?;
-
-    // Read the file's contents into a Vec<u8>
-    let mut file_bytes = Vec::new();
-    temp_file.read_to_end(&mut file_bytes)?;
-    Ok(file_bytes)
-}
+pub const PUBLIC_ASSETS_EML_BASE_TEMPLATE: &'static str = "eml_base.hbs";
 
 // returns (base_compressed_xml, eml, eml_hash)
 #[instrument(skip_all, err)]
@@ -66,6 +60,7 @@ pub async fn generate_base_compressed_xml(
     date_time: DateTime<Utc>,
     election_event_annotations: &MiruElectionEventAnnotations,
     election_annotations: &MiruElectionAnnotations,
+    area_annotations: &MiruAreaAnnotations,
     reports: &Vec<ReportData>,
 ) -> Result<(Vec<u8>, String, String)> {
     let eml_data = render_eml_file(
@@ -75,6 +70,7 @@ pub async fn generate_base_compressed_xml(
         date_time,
         &election_event_annotations,
         &election_annotations,
+        area_annotations,
         &reports,
     )?;
     let mut variables_map: Map<String, Value> = Map::new();
@@ -157,7 +153,7 @@ pub async fn create_logs_package(
     election_annotations: &MiruElectionAnnotations,
     acm_key_pair: &EciesKeyPair,
     ccs_public_key_pem_str: &str,
-    area_station_id: &str,
+    area_annotations: &MiruAreaAnnotations,
     output_file_path: &Path,
     server_signatures: &Vec<ACMTrustee>,
     logs: &Vec<Log>,
@@ -197,13 +193,13 @@ pub async fn create_logs_package(
         date_time,
         election_event_annotations,
         election_annotations,
-        area_station_id,
+        area_annotations,
         &logs_servers,
     )?;
     generate_er_final_zip(
         exz_temp_file_bytes,
         acm_json,
-        area_station_id,
+        &area_annotations.station_id,
         output_file_path,
         true,
     )?;
@@ -221,7 +217,7 @@ pub async fn create_transmission_package(
     compressed_xml: Vec<u8>,
     acm_key_pair: &EciesKeyPair,
     ccs_public_key_pem_str: &str,
-    area_station_id: &str,
+    area_annotations: &MiruAreaAnnotations,
     output_file_path: &Path,
     server_signatures: &Vec<ACMTrustee>,
     election_annotations: &MiruElectionAnnotations,
@@ -247,13 +243,13 @@ pub async fn create_transmission_package(
         date_time,
         election_event_annotations,
         election_annotations,
-        area_station_id,
+        area_annotations,
         server_signatures,
     )?;
     generate_er_final_zip(
         exz_temp_file_bytes,
         acm_json,
-        area_station_id,
+        &area_annotations.station_id,
         output_file_path,
         false,
     )?;

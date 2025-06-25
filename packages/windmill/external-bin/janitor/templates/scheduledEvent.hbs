@@ -13,7 +13,9 @@
         "scheduled_date": "{{scheduled_date}}"
     },
     "event_payload": {
+        {{#if election_id}}
         "election_id": "{{election_id}}"
+        {{/if}}
     },
     "task_id": "tenant_{{tenant_id}}_event_{{election_event_id}}_election_{{election_id}}_{{event_processor}}"
 }

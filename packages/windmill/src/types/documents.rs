@@ -15,6 +15,11 @@ pub enum EDocuments {
     BULLETIN_BOARDS,
     PROTOCOL_MANAGER_KEYS,
     TRUSTEES_CONFIGURATION,
+    TENANT_CONFIG,
+    KEYCLOAK_CONFIG,
+    ROLES_PERMISSIONS_CONFIG,
+    PUBLICATIONS,
+    TALLY,
 }
 
 impl EDocuments {
@@ -29,6 +34,43 @@ impl EDocuments {
             EDocuments::BULLETIN_BOARDS => "export_bulletin_boards",
             EDocuments::PROTOCOL_MANAGER_KEYS => "export_protocol_manager_keys",
             EDocuments::TRUSTEES_CONFIGURATION => "trustees_configuration",
+            EDocuments::TENANT_CONFIG => "tenant_configuration",
+            EDocuments::KEYCLOAK_CONFIG => "keycloak_admin",
+            EDocuments::ROLES_PERMISSIONS_CONFIG => "export_permissions",
+            EDocuments::PUBLICATIONS => "export_publications",
+            EDocuments::TALLY => "export_tally_data",
+        }
+    }
+}
+
+pub enum ETallyDocuments {
+    TALLY_SESSION,
+    TALLY_SESSION_CONTEST,
+    TALLY_SESSION_EXECUTION,
+    RESULTS_EVENT,
+    RESULTS_ELECTION_AREA,
+    RESULTS_ELECTION,
+    RESULTS_CONTEST_CANDIDATE,
+    RESULTS_CONTEST,
+    RESULTS_AREA_CONTEST_CANDIDATE,
+    RESULTS_AREA_CONTEST,
+}
+
+impl ETallyDocuments {
+    pub fn to_file_name(&self) -> &str {
+        match self {
+            ETallyDocuments::TALLY_SESSION => "export_tally_session",
+            ETallyDocuments::TALLY_SESSION_CONTEST => "export_tally_session_contest",
+            ETallyDocuments::TALLY_SESSION_EXECUTION => "export_tally_session_execution",
+            ETallyDocuments::RESULTS_EVENT => "export_results_event",
+            ETallyDocuments::RESULTS_ELECTION_AREA => "export_results_election_area",
+            ETallyDocuments::RESULTS_ELECTION => "export_results_election",
+            ETallyDocuments::RESULTS_CONTEST_CANDIDATE => "export_results_contest_candidate",
+            ETallyDocuments::RESULTS_CONTEST => "export_results_contest",
+            ETallyDocuments::RESULTS_AREA_CONTEST_CANDIDATE => {
+                "export_results_area_contest_candidate"
+            }
+            ETallyDocuments::RESULTS_AREA_CONTEST => "export_results_area_contest",
         }
     }
 }

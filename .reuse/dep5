@@ -42,10 +42,14 @@ Files:
   packages/windmill/src/graphql/*
   packages/immudb-rs/proto/immudb/*
   packages/keycloak-extensions/message-otp-authenticator/src/main/resources/theme-resources/templates/*
+  packages/keycloak-extensions/inetum-authenticator/src/main/resources/theme-resources/resources/inetum-sdk-4.0.3/*
   packages/keycloak-extensions/inetum-authenticator/src/main/resources/theme-resources/resources/inetum-sdk-4.0.2/*
   packages/keycloak-extensions/conditional-authenticators/src/main/resources/META-INF/services/org.keycloak.protocol.ProtocolMapper
   docs/assets/*
+  docs/docusaurus/*
   .devcontainer/minio/public-assets/*
+  packages/orare/doc_renderer/assets/*
+  packages/windmill/external-bin/janitor/*.xlsx
 Copyright: 2024 Sequent Tech <legal@sequentech.io>
 License: AGPL-3.0-only
 

@@ -7,12 +7,12 @@ export const UPDATE_EVENT_VOTING_STATUS = gql`
     mutation UpdateEventVotingStatus(
         $electionEventId: uuid!
         $votingStatus: VotingStatus!
-        $votingChannel: VotingStatusChannel!
+        $votingChannel: [VotingStatusChannel]
     ) {
         update_event_voting_status(
             election_event_id: $electionEventId
             voting_status: $votingStatus
-            voting_channel: $votingChannel
+            voting_channels: $votingChannel
         ) {
             election_event_id
         }

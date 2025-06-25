@@ -11,6 +11,7 @@ import {v4 as uuidv4} from "uuid"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import ElectionHeader from "@/components/ElectionHeader"
 import DashboardElection from "@/components/dashboard/election/Dashboard"
+import MonitoringDashboardElection from "@/components/monitoring-dashboard/election/MonitoringDashboard"
 import {Sequent_Backend_Election} from "@/gql/graphql"
 
 import {Publish} from "../Publish/Publish"
@@ -20,7 +21,7 @@ import {IPermissions} from "@/types/keycloak"
 import {EditElectionEventUsers} from "../ElectionEvent/EditElectionEventUsers"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {Box, Typography} from "@mui/material"
-import {EElectionEventLockedDown} from "@sequentech/ui-core"
+import {EElectionEventLockedDown, i18n, translateElection} from "@sequentech/ui-core"
 import {EditElectionEventApprovals} from "../ElectionEvent/EditElectionEventApprovals"
 import {Tabs} from "@/components/Tabs"
 
@@ -39,7 +40,13 @@ export const ElectionTabs: React.FC = () => {
     const showDashboard = authContext.isAuthorized(
         true,
         authContext.tenantId,
-        IPermissions.ADMIN_DASHBOARD_VIEW
+        IPermissions.ELECTION_DASHBOARD_TAB
+    )
+
+    const showMonitoringDashboard = authContext.isAuthorized(
+        true,
+        authContext.tenantId,
+        IPermissions.MONITORING_DASHBOARD_VIEW_ELECTION
     )
     const showData = authContext.isAuthorized(
         true,
@@ -58,7 +65,7 @@ export const ElectionTabs: React.FC = () => {
     )
     const showApprovalsExecution =
         !isElectionEventLocked &&
-        authContext.isAuthorized(true, authContext.tenantId, IPermissions.TASKS_READ)
+        authContext.isAuthorized(true, authContext.tenantId, IPermissions.ELECTION_APPROVALS_TAB)
 
     useEffect(() => {
         if (
@@ -86,7 +93,16 @@ export const ElectionTabs: React.FC = () => {
             sx={{maxWidth: `calc(100vw - ${open ? "352px" : "96px"})`, bgcolor: "background.paper"}}
             className="election-box"
         >
-            <ElectionHeader title={record?.name} subtitle="electionScreen.common.subtitle" />
+            <ElectionHeader
+                title={
+                    translateElection(record, "alias", i18n?.language) ||
+                    translateElection(record, "name", i18n?.language) ||
+                    record?.alias ||
+                    record?.name ||
+                    "-"
+                }
+                subtitle="electionScreen.common.subtitle"
+            />
             <Tabs
                 elements={[
                     ...(showDashboard
@@ -96,6 +112,18 @@ export const ElectionTabs: React.FC = () => {
                                   component: () => (
                                       <Suspense fallback={<div>Loading Dashboard...</div>}>
                                           <DashboardElection />
+                                      </Suspense>
+                                  ),
+                              },
+                          ]
+                        : []),
+                    ...(showMonitoringDashboard
+                        ? [
+                              {
+                                  label: t("electionScreen.tabs.monitoring"),
+                                  component: () => (
+                                      <Suspense fallback={<div>Loading Dashboard...</div>}>
+                                          <MonitoringDashboardElection />
                                       </Suspense>
                                   ),
                               },
@@ -142,6 +170,12 @@ export const ElectionTabs: React.FC = () => {
                                           />
                                       </Suspense>
                                   ),
+                                  action: (index: number) => {
+                                      localStorage.setItem(
+                                          "electionPublishTabIndex",
+                                          index.toString()
+                                      )
+                                  },
                               },
                           ]
                         : []),

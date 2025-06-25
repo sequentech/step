@@ -13,7 +13,9 @@ import {
     EVotingStatus,
     IElectionEventStatus,
     isUndefined,
+    IElectionStatus,
 } from "@sequentech/ui-core"
+import {AuthContext} from "../providers/AuthContextProvider"
 import {faCircleQuestion} from "@fortawesome/free-solid-svg-icons"
 import {styled} from "@mui/material/styles"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
@@ -109,14 +111,18 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(electionId))
     const castVotes = useAppSelector(selectCastVotesByElectionId(String(electionId)))
     const [visitedBypassChooser, setVisitedBypassChooser] = useState(false)
+    const authContext = useContext(AuthContext)
+    const isKiosk = authContext.isKiosk()
 
     if (!election) {
         throw new VotingPortalError(VotingPortalErrorType.INTERNAL_ERROR)
     }
 
-    const electionStatus = election?.status as IElectionEventStatus | null
+    const electionStatus = election?.status as IElectionStatus | null
     const isVotingOpen =
-        electionStatus?.voting_status === EVotingStatus.OPEN && isElectionEventOpen(electionEvent)
+        (electionStatus?.voting_status === EVotingStatus.OPEN ||
+            (isKiosk && electionStatus?.kiosk_voting_status === EVotingStatus.OPEN)) &&
+        isElectionEventOpen(electionEvent)
     const canVote = () => {
         if (!canVoteTest && !election.name?.includes("TEST")) {
             return false
@@ -161,7 +167,6 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
             isActive={canVote()}
             isOpen={isVotingOpen}
             title={translateElection(election, "name", i18n.language) || "-"}
-            electionHomeUrl={"https://sequentech.io"}
             hasVoted={castVotes.length > 0}
             onClickToVote={canVote() ? onClickToVote : undefined}
             onClickBallotLocator={handleClickBallotLocator}

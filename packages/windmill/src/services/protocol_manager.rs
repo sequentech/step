@@ -11,13 +11,12 @@ use b3::messages::newtypes::PublicKeyHash;
 use b3::messages::newtypes::{TrusteeSet, MAX_TRUSTEES, NULL_TRUSTEE};
 use b3::messages::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
 use b3::messages::statement::StatementType;
-
+use deadpool_postgres::Transaction;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::context::Ctx;
 use strand::elgamal::Ciphertext;
 use strand::serialization::StrandDeserialize;
 use strand::serialization::StrandSerialize;
-use strand::symm::EncryptionData;
 use strand::util::StrandError;
 
 use anyhow::{anyhow, Context, Result};
@@ -35,43 +34,52 @@ pub fn get_protocol_manager_secret_path(board_name: &str) -> String {
     format!("boards/{board_name}/protocol-manager")
 }
 
-#[instrument(err)]
-pub async fn create_protocol_manager_keys(board_name: &str) -> Result<()> {
+#[instrument(skip(hasura_transaction), err)]
+pub async fn create_protocol_manager_keys(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    board_name: &str,
+) -> Result<()> {
     // create protocol manager keys
-    let protocol_manager = gen_protocol_manager::<RistrettoCtx>();
-
+    let protocol_manager = gen_protocol_manager::<RistrettoCtx>()?;
     // save protocol manager keys in vault
-    let protocol_config = serialize_protocol_manager::<RistrettoCtx>(&protocol_manager);
+    let protocol_config = serialize_protocol_manager::<RistrettoCtx>(&protocol_manager)?;
+    let protocol_key = get_protocol_manager_secret_path(board_name);
     vault::save_secret(
-        get_protocol_manager_secret_path(board_name),
-        protocol_config,
+        hasura_transaction,
+        tenant_id,
+        Some(election_event_id),
+        &protocol_key,
+        &protocol_config,
     )
     .await?;
     Ok(())
 }
 
 #[instrument]
-pub fn gen_protocol_manager<C: Ctx>() -> ProtocolManager<C> {
-    let pmkey: StrandSignatureSk = StrandSignatureSk::gen().unwrap();
+pub fn gen_protocol_manager<C: Ctx>() -> Result<ProtocolManager<C>> {
+    let pmkey: StrandSignatureSk = StrandSignatureSk::gen().map_err(|err| anyhow!("{:?}", err))?;
     let pm: ProtocolManager<C> = ProtocolManager {
         signing_key: pmkey,
         phantom: PhantomData,
     };
 
-    pm
+    Ok(pm)
 }
 
 #[instrument]
-pub fn serialize_protocol_manager<C: Ctx>(pm: &ProtocolManager<C>) -> String {
+pub fn serialize_protocol_manager<C: Ctx>(pm: &ProtocolManager<C>) -> Result<String> {
     let pmc = ProtocolManagerConfig::from(&pm);
-    toml::to_string(&pmc).unwrap()
+    toml::to_string(&pmc).map_err(|err| anyhow!("{:?}", err))
 }
 
 #[instrument]
-pub fn deserialize_protocol_manager<C: Ctx>(contents: String) -> ProtocolManager<C> {
-    let pmc: ProtocolManagerConfig = toml::from_str(&contents).unwrap();
-    let pmkey = pmc.get_signing_key().unwrap();
-    ProtocolManager::new(pmkey)
+pub fn deserialize_protocol_manager<C: Ctx>(contents: String) -> Result<ProtocolManager<C>> {
+    let pmc: ProtocolManagerConfig =
+        toml::from_str(&contents).map_err(|err| anyhow!("{:?}", err))?;
+    let pmkey = pmc.get_signing_key().map_err(|err| anyhow!("{:?}", err))?;
+    Ok(ProtocolManager::new(pmkey))
 }
 
 #[instrument(err, skip_all)]
@@ -153,7 +161,8 @@ pub async fn get_board_public_key<C: Ctx>(board_name: &str) -> Result<C::E> {
             board_name
         )
     })?;
-    let dkgpk = DkgPublicKey::<C>::strand_deserialize(&bytes).unwrap();
+    let dkgpk =
+        DkgPublicKey::<C>::strand_deserialize(&bytes).map_err(|err| anyhow!("{:?}", err))?;
     Ok(dkgpk.pk)
 }
 
@@ -237,7 +246,8 @@ pub async fn get_trustee_encrypted_private_key<C: Ctx>(
             board_name
         )
     })?;
-    let channel = Channel::<C>::strand_deserialize(&channel_bytes).unwrap();
+    let channel =
+        Channel::<C>::strand_deserialize(&channel_bytes).map_err(|err| anyhow!("{:?}", err))?;
 
     let ret = TrusteeShareData {
         channel,
@@ -257,9 +267,12 @@ pub fn get_configuration<C: Ctx>(messages: &Vec<Message>) -> Result<Configuratio
             StatementType::Configuration == message.statement.get_kind()
                 && message.artifact.is_some()
         })
-        .unwrap();
+        .ok_or(anyhow!("Can't find configuration message"))?;
     Ok(Configuration::<C>::strand_deserialize(
-        &configuration_msg.artifact.clone().unwrap(),
+        &configuration_msg
+            .artifact
+            .clone()
+            .ok_or(anyhow!("Missing artifact on configuration message"))?,
     )?)
 }
 
@@ -270,12 +283,15 @@ pub fn get_public_key_hash<C: Ctx>(messages: &Vec<Message>) -> Result<PublicKeyH
         .find(|message| {
             StatementType::PublicKey == message.statement.get_kind() && message.artifact.is_some()
         })
-        .unwrap();
-    let public_key_bytes = public_key_message.artifact.clone().unwrap();
-    let dkgpk = DkgPublicKey::<C>::strand_deserialize(&public_key_bytes).unwrap();
+        .ok_or(anyhow!("Can't find public key message"))?;
+    let public_key_bytes = public_key_message
+        .artifact
+        .clone()
+        .ok_or(anyhow!("Public key message artifact missing"))?;
+    let dkgpk = DkgPublicKey::<C>::strand_deserialize(&public_key_bytes)?;
     let pk_bytes = dkgpk.strand_serialize()?;
     let pk_h = strand::hash::hash_to_array(&pk_bytes)?;
-    Ok(PublicKeyHash(strand::util::to_u8_array(&pk_h).unwrap()))
+    Ok(PublicKeyHash(strand::util::to_u8_array(&pk_h)?))
 }
 
 #[instrument(skip_all)]
@@ -315,12 +331,22 @@ pub fn convert_b3(b3: &Vec<B3MessageRow>) -> Result<Vec<Message>> {
 }
 
 #[instrument(err)]
-pub async fn get_protocol_manager<C: Ctx>(board_name: &str) -> Result<ProtocolManager<C>> {
+pub async fn get_protocol_manager<C: Ctx>(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: Option<&str>,
+    board_name: &str,
+) -> Result<ProtocolManager<C>> {
     let protocol_manager_key = get_protocol_manager_secret_path(board_name);
-    let protocol_manager_data = vault::read_secret(protocol_manager_key)
-        .await?
-        .ok_or(anyhow!("protocol manager secret not found"))?;
-    Ok(deserialize_protocol_manager::<C>(protocol_manager_data))
+    let protocol_manager_data = vault::read_secret(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        &protocol_manager_key,
+    )
+    .await?
+    .ok_or(anyhow!("protocol manager secret not found"))?;
+    deserialize_protocol_manager::<C>(protocol_manager_data)
 }
 
 #[instrument(skip(b3_client), err)]
@@ -370,6 +396,8 @@ pub async fn add_ballots_to_board<C: Ctx>(
         return Ok(());
     }
 
+    let ballots_len = ballots.len();
+
     let message = Message::ballots_msg::<C, ProtocolManager<C>>(
         configuration,
         batch,
@@ -378,7 +406,10 @@ pub async fn add_ballots_to_board<C: Ctx>(
         public_key_hash,
         pm,
     )?;
-    info!("Adding configuration to the board..");
+    info!(
+        "Adding configuration to the board for batch {} and number of ballots {}",
+        batch, ballots_len
+    );
     b3_client.insert_ballots::<C>(board_name, message).await
 }
 
@@ -392,12 +423,6 @@ pub async fn get_board_client() -> Result<BoardClient> {
 
     Ok(board_client)
 }
-
-const PG_DATABASE: &'static str = "protocoldb";
-const PG_HOST: &'static str = "localhost";
-const PG_USER: &'static str = "postgres";
-const PG_PASSW: &'static str = "postgrespw";
-const PG_PORT: u32 = 49154;
 
 #[instrument(err)]
 pub async fn get_b3_pgsql_client() -> Result<PgsqlB3Client> {

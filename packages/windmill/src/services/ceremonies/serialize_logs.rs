@@ -120,3 +120,13 @@ pub fn append_keys_trustee_check_log(current_logs: &Vec<Log>, trustee_name: &str
     });
     sort_logs(&logs)
 }
+
+#[instrument(skip(current_logs))]
+pub fn append_tally_finished(current_logs: &Vec<Log>, election_ids: &Vec<String>) -> Vec<Log> {
+    let mut logs: Vec<Log> = current_logs.clone();
+    logs.push(Log {
+        created_date: ISO8601::to_string(&ISO8601::now()),
+        log_text: format!("Finished Tally Ceremony for election ids: {election_ids:?}"),
+    });
+    sort_logs(&logs)
+}

@@ -9,8 +9,9 @@
             "log_type": "INFO",
             "description": "Electoral log created.",
             "message": "sample message",
-            "user_id": "null"
+            "user_id": "sample-id"
         }
     ],
-    "logo": "<div class=\"logo\"></div>"
+    "electoral_log": [],
+    "logo_img": "sequent-logo.svg"
 }

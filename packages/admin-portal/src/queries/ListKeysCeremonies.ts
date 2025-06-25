@@ -21,6 +21,7 @@ export const LIST_KEYS_CEREMONY = gql`
                 name
                 settings
                 is_default
+                permission_label
             }
             total {
                 aggregate {

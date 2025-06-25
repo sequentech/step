@@ -21,7 +21,7 @@ import {ListDocument} from "./resources/Document/ListDocument"
 import {ListElection} from "./resources/Election/ListElection"
 import {ListTenant} from "./resources/Tenant/ListTenant"
 import {Messages} from "./screens/Messages"
-import {Route} from "react-router-dom"
+import {Navigate, Route, useLocation} from "react-router-dom"
 import {ShowDocument} from "./resources/Document/ShowDocument"
 import {UserAndRoles} from "./screens/UserAndRoles"
 import buildHasuraProvider from "ra-data-hasura"
@@ -29,7 +29,6 @@ import {customBuildQuery} from "./queries/customBuildQuery"
 import {fullAdminTheme} from "./services/AdminTheme"
 import {SettingsScreen} from "./screens/SettingsScreen"
 import {ListUsers} from "./resources/User/ListUsers"
-import {CreateElectionList} from "./resources/ElectionEvent/CreateElectionEvent"
 import {CustomLayout} from "./components/CustomLayout"
 import {EditBallotStyle} from "./resources/BallotStyle/EditBallotStyle"
 import {EditArea} from "./resources/Area/EditArea"
@@ -48,13 +47,14 @@ import cssInputLookAndFeel from "@/atoms/css-input-look-and-feel"
 import {Box} from "@mui/material"
 import {styled} from "@mui/material/styles"
 import {useAtomValue} from "jotai"
-import {Navigate} from "react-router-dom"
 import ListScheduledEvents from "./resources/ScheduledEvents/ListScheduledEvent"
 import Notifications from "./resources/Notifications/Notifications"
 import {TemplateEdit} from "./resources/Template/TemplateEdit"
 import {TemplateList} from "./resources/Template/TemplateList"
 import {TemplateCreate} from "./resources/Template/TemplateCreate"
 import ListReports from "./resources/Reports/ListReports"
+import {SelectTenant} from "./screens/SelectTenant"
+import {AuthContext} from "./providers/AuthContextProvider"
 
 interface AppProps {}
 
@@ -62,7 +62,7 @@ const StyledApp = styled(Box)<{css: string}>`
     ${({css}) => css}
 `
 
-const StyledAppAtom: React.FC<{children: React.ReactNode}> = ({children}) => {
+export const StyledAppAtom: React.FC<{children: React.ReactNode}> = ({children}) => {
     const css = useAtomValue(cssInputLookAndFeel)
     return (
         <StyledApp className="felix-ttt" css={css}>
@@ -77,6 +77,7 @@ const App: React.FC<AppProps> = () => {
     const {i18n, t} = useTranslation()
     adminI18nProvider.changeLocale(i18n.language)
     i18n.on("languageChanged", (lng) => adminI18nProvider.changeLocale(lng))
+    const {isAuthenticated} = useContext(AuthContext)
 
     useEffect(() => {
         const buildDataProvider = async () => {
@@ -102,20 +103,22 @@ const App: React.FC<AppProps> = () => {
                 i18nProvider={adminI18nProvider}
             >
                 <CustomRoutes>
+                    {/* Default route - redirect to election events */}
+                    <Route
+                        path="/"
+                        element={<Navigate to="/sequent_backend_election_event" replace />}
+                        index
+                    />
                     {/* <Route path="/logs" element={<Logs />} /> */}
+                    <Route path="/tenant" element={<SelectTenant />} />
                     <Route path="/user-roles" element={<UserAndRoles />} />
                     <Route path="/messages" element={<Messages />} />
                     <Route path="/settings/" element={<SettingsScreen />} />
-                    <Route
-                        path="/admin/login/*"
-                        element={<Navigate to="/sequent_backend_election_event" replace />}
-                    />
                 </CustomRoutes>
 
                 <Resource
                     name="sequent_backend_election_event"
                     list={ElectionEventList}
-                    create={CreateElectionList}
                     edit={ElectionEventBaseTabs}
                     show={ElectionEventBaseTabs}
                     options={{label: "Election Events", isMenuParent: true}}

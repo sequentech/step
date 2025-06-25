@@ -21,6 +21,7 @@ import org.keycloak.authentication.authenticators.browser.AbstractUsernameFormAu
 import org.keycloak.common.util.Time;
 import org.keycloak.events.Details;
 import org.keycloak.events.Errors;
+import org.keycloak.events.EventBuilder;
 import org.keycloak.forms.login.LoginFormsProvider;
 import org.keycloak.models.AuthenticationExecutionModel;
 import org.keycloak.models.AuthenticationExecutionModel.Requirement;
@@ -110,6 +111,9 @@ public class UsernamePasswordFormWithExpiry extends AbstractUsernameFormAuthenti
       return false;
     }
 
+    boolean hideUserNotFound =
+        Utils.getBoolean(context.getAuthenticatorConfig(), Utils.HIDE_USER_NOT_FOUND, false);
+
     if (!validateUserAndPassword(context, formData)) {
       log.info("validateForm(): invalid form");
       // We don't call context.failureChallenge() here because
@@ -127,13 +131,21 @@ public class UsernamePasswordFormWithExpiry extends AbstractUsernameFormAuthenti
 
     UserModel user = getUser(context, formData);
     if (user == null) {
-      // should not happen. We have validated the form, so we should have
-      // found both the username/email and password to be valid!
-      log.info("validateForm(): user not found - should not happen");
-      context.failureChallenge(
-          AuthenticationFlowError.INTERNAL_ERROR,
-          context.form().createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
-      return false;
+      if (!hideUserNotFound) {
+        // should not happen. We have validated the form, so we should have
+        // found both the username/email and password to be valid!
+        log.info("validateForm(): user not found - should not happen");
+        context.failureChallenge(
+            AuthenticationFlowError.INTERNAL_ERROR,
+            context.form().createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
+        return false;
+      } else {
+        String username = formData.getFirst(AuthenticationManager.FORM_USERNAME).trim();
+        EventBuilder event = context.getEvent();
+        event.clone().detail(Details.USERNAME, username).error(Errors.USER_NOT_FOUND);
+        context.clearUser();
+        context.success();
+      }
     }
 
     // get the user attribute name
@@ -179,10 +191,9 @@ public class UsernamePasswordFormWithExpiry extends AbstractUsernameFormAuthenti
         !isUserAlreadySetBeforeUsernamePasswordAuth(context);
     boolean disablePassword = getDisablePassword(context);
 
-    return user != null
+    return validateUser(context, user, inputData)
         && (disablePassword
-            || validatePassword(context, user, inputData, shouldClearUserFromCtxAfterBadPassword))
-        && validateUser(context, user, inputData);
+            || validatePassword(context, user, inputData, shouldClearUserFromCtxAfterBadPassword));
   }
 
   @Override
@@ -194,9 +205,15 @@ public class UsernamePasswordFormWithExpiry extends AbstractUsernameFormAuthenti
 
   private boolean validateUser(
       AuthenticationFlowContext context, UserModel user, MultivaluedMap<String, String> inputData) {
-    if (!enabledUser(context, user)) {
+    boolean hideUserNotFound =
+        Utils.getBoolean(context.getAuthenticatorConfig(), Utils.HIDE_USER_NOT_FOUND, false);
+    if (!hideUserNotFound && user == null) {
       return false;
     }
+    if (!hideUserNotFound && !enabledUser(context, user)) {
+      return false;
+    }
+
     String rememberMe = inputData.getFirst("rememberMe");
     boolean remember =
         context.getRealm().isRememberMe()
@@ -240,7 +257,7 @@ public class UsernamePasswordFormWithExpiry extends AbstractUsernameFormAuthenti
     }
 
     // remove leading and trailing whitespace
-    username = username.trim();
+    username = username.trim().toLowerCase();
 
     context.getEvent().detail(Details.USERNAME, username);
     context
@@ -277,7 +294,12 @@ public class UsernamePasswordFormWithExpiry extends AbstractUsernameFormAuthenti
       return user;
     }
 
-    testInvalidUser(context, user);
+    // Read our new boolean config
+    boolean hideUserNotFound =
+        Utils.getBoolean(context.getAuthenticatorConfig(), Utils.HIDE_USER_NOT_FOUND, false);
+    if (!hideUserNotFound) {
+      testInvalidUser(context, user);
+    }
     return user;
   }
 
@@ -285,6 +307,24 @@ public class UsernamePasswordFormWithExpiry extends AbstractUsernameFormAuthenti
       KeycloakSession session, RealmModel realm, String username, List<String> usernameAttributes) {
     if (usernameAttributes != null && !usernameAttributes.isEmpty()) {
       for (String attribute : usernameAttributes) {
+        // If email is one of the attributes use specific query
+        if ("email".equalsIgnoreCase(attribute) && username.indexOf('@') != -1) {
+          UserModel user = session.users().getUserByEmail(realm, username);
+          if (user != null) {
+            return user;
+          }
+          continue;
+        }
+
+        // If username is one of the attributes use specific query
+        if ("username".equalsIgnoreCase(attribute)) {
+          UserModel user = session.users().getUserByUsername(realm, username);
+          if (user != null) {
+            return user;
+          }
+          continue;
+        }
+
         UserModel user =
             session
                 .users()
@@ -298,14 +338,7 @@ public class UsernamePasswordFormWithExpiry extends AbstractUsernameFormAuthenti
       }
     }
 
-    if (realm.isLoginWithEmailAllowed() && username.indexOf('@') != -1) {
-      UserModel user = session.users().getUserByEmail(realm, username);
-      if (user != null) {
-        return user;
-      }
-    }
-
-    return session.users().getUserByUsername(realm, username);
+    return null;
   }
 
   @Override
@@ -492,6 +525,12 @@ public class UsernamePasswordFormWithExpiry extends AbstractUsernameFormAuthenti
             Utils.RECAPTCHA_ENABLED_ATTRIBUTE,
             "Enable reCAPTCHA v3",
             "",
+            ProviderConfigProperty.BOOLEAN_TYPE,
+            false),
+        new ProviderConfigProperty(
+            Utils.HIDE_USER_NOT_FOUND,
+            "Hide 'User Not Found' Error",
+            "If enabled, will show a generic error even if user does not exist, preventing user enumeration attacks.",
             ProviderConfigProperty.BOOLEAN_TYPE,
             false));
   }

@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::{
-    hasura,
     postgres::scheduled_event::{insert_new_scheduled_event, insert_scheduled_event},
     types::resources::OrderDirection,
 };
@@ -82,38 +81,4 @@ impl TryFrom<(ScheduledEvent, ElectionEvent)> for GetEventListOutput {
             id: Some(event_data.id),
         })
     }
-}
-
-#[instrument(skip(hasura_transaction), err(Debug))]
-pub async fn create_event_in_db(
-    hasura_transaction: &Transaction<'_>,
-    event: ScheduledEvent,
-) -> Result<ScheduledEvent, (Status, String)> {
-    info!("Creating event2 {:?}", event);
-    let new_event = ScheduledEvent {
-        event_payload: event.event_payload,
-        cron_config: event.cron_config,
-        id: event.id.clone(),
-        tenant_id: event.tenant_id.clone(),
-        election_event_id: event.election_event_id.clone(),
-        event_processor: event.event_processor,
-        created_at: Some(chrono::Utc::now()),
-        stopped_at: event.stopped_at,
-        archived_at: None,
-        labels: event.labels,
-        annotations: event.annotations,
-        task_id: Some(format!(
-            "tenant_{}_event_{}",
-            event.tenant_id.unwrap_or_default(),
-            event.election_event_id.unwrap_or_default(),
-        )),
-    };
-
-    let result = insert_new_scheduled_event(hasura_transaction, new_event.clone()).await;
-    result.map(|_| new_event).map_err(|err| {
-        (
-            Status::InternalServerError,
-            format!("Failed to create event: {}", err),
-        )
-    })
 }

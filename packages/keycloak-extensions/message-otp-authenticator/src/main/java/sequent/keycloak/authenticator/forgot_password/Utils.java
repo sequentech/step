@@ -48,6 +48,7 @@ public class Utils {
       Collections.unmodifiableList(Arrays.asList("username"));
   public final String ATTEMPTED_EMAIL = "ATTEMPTED_EMAIL";
   public final String DISABLE_PASSWORD_ATTRIBUTE = "disablePassword";
+  public final String HIDE_USER_NOT_FOUND = "hideUserNotFound";
   public final String PASSWORD_CHARS = "passwordChars";
   public final String PASSWORD_CHARS_DEFAULT =
       "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.-!¡?¿*:;&()=@#$%";

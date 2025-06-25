@@ -11,6 +11,10 @@ authors = [
 ]
 license = "AGPL-3.0-only"
 
+[[bin]]
+name = "generate-logs"
+path = "external-bin/generate_logs.rs"
+
 [features]
 default = ["fips_full"]
 fips_core = ["dep:postgres-openssl", "dep:openssl", "dep:ecies"]
@@ -24,7 +28,7 @@ serde_path_to_error = "0.1"
 reqwest = { version="0.12.5", features = ["multipart", "blocking", "json"] }
 handlebars = "6.1.0"
 anyhow = "1.0.75"
-tempfile = "3.8.0"
+tempfile = "3.15.0"
 fs_extra = "1.3.0"
 flate2 = "1.0.28"
 tar = "0.4.40"
@@ -34,9 +38,12 @@ strum = "0.26"
 strum_macros = "0.26"
 base64 = "0.22.1"
 celery = { git = "https://github.com/rusty-celery/rusty-celery.git", rev = "1a0168f4b4b521c891fcfc853c21fc30de12c2f2" }
+lapin = "2.5"
+rayon = "1.5"
 tokio = { version = "1.32.0", features = ["full"] }
 async-trait = "0.1.74"
 structopt = "0.3.26"
+clap = { version = "4.4", features = ["derive"] } # Added for generate_logs binary
 dotenv = "0.15.0"
 chrono = "0.4.31"
 lazy_static = "1.4.0"
@@ -52,6 +59,7 @@ zip = "2.1.6"
 
 # logging
 tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] } # Added for generate_logs binary
 thiserror = "2.0.3"
 
 # time
@@ -59,25 +67,31 @@ time = "0.3.31"
 
 # for sending emails and sms
 lettre = { version = "0.11", features = ["rustls-tls", "smtp-transport", "builder"] }
-aws-config = { version = "1.0.3", features = ["behavior-version-latest"] }
-aws-sdk-sesv2 = "1.4.0"
-aws-sdk-sns = "1.4.0"
+aws-config = { version = "1.6.0", features = ["behavior-version-latest"]}
+aws-sdk-sesv2 = { version = "1.70.0"}
+aws-sdk-sns = { version = "1.63.0"}
 # for s3
-aws-sdk-s3 = "1.11.0"
-aws-smithy-types = "1.1.1"
+aws-sdk-s3 = { version = "1.79.0"}
+aws-smithy-types = { version = "1.3.0"}
+# for secrets
+aws-sdk-secretsmanager = "1.66.0"
 
 wrap-map-err = { path = "../wrap-map-err" }
 immudb-rs = { path="../immudb-rs" }
 b3 = { path="../b3", features = ["client"] }
 electoral-log = { path="../electoral-log" }
 strand = { path="../strand" }
-sequent-core = { path="../sequent-core", features = ["reports", "keycloak", "log", "probe", "areas"] }
+sequent-core = { path="../sequent-core", features = ["reports", "s3", "keycloak", "log", "probe", "areas"] }
 velvet = { path="../velvet" }
 
 # To connect to the Database
 deadpool = { version = "0.12.1", features = ["rt_tokio_1", "serde"] }
 deadpool-postgres = { version = "0.14.0", features = ["rt_tokio_1", "serde"] }
 tokio-postgres = { version = "0.7", features = ["with-uuid-1", "with-chrono-0_4", "with-serde_json-1"] }
+tokio-stream = "0.1.17"
+tokio-util = { version = "0.7", features = ["io"] }
+rust_decimal= { version = "1.36", features = ["db-tokio-postgres"] }
+rust_decimal_macros = "1.36"
 config = "0.14.1"
 cfg-if = "1.0"
 postgres-openssl = { version = "0.5.0", optional = true }
@@ -85,7 +99,8 @@ postgres-openssl = { version = "0.5.0", optional = true }
 # https://github.com/sfackler/rust-openssl/issues/1924
 # https://www.openssl.org/docs/man3.0/man7/fips_module.html
 openssl = { version = "0.10.57", optional = true }
-aws-sdk-secretsmanager = "1.11.0"
+rusqlite = { version = "0.32", features = ["bundled"] }
+
 ecies = { version = "0.2.7", optional = true }
 
 # To import users in CSV from a file into postgres
@@ -96,7 +111,13 @@ futures = "0.3.30"
 # for hashing passwords in import users
 sha2 = "0.10"
 ring = "0.17"
+# serializing
+hex = "0.4"
+# threading
+once_cell = "1.20.3"
 
 walkdir = "2.3"
-headless_chrome = { version = "1.0.12", default-features = false}
 croner = "2.0"
+unicode-normalization = "0.1.24"
+num_cpus = "1.16.0"
+ordered-float = { version = "4.4.0", features = ["serde"] }

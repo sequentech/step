@@ -78,3 +78,8 @@ export enum ETallyType {
     ELECTORAL_RESULTS = "ELECTORAL_RESULTS",
     INITIALIZATION_REPORT = "INITIALIZATION_REPORT",
 }
+
+export enum ETallyTypeCssClass {
+    ELECTORAL_RESULTS = "electoral-results",
+    INITIALIZATION_REPORT = "init-report",
+}

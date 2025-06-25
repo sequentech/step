@@ -3,9 +3,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::render_report::render_report_task;
+use crate::services::database::get_hasura_pool;
+use crate::services::tasks_semaphore::acquire_semaphore;
 use crate::types::error::{Error, Result};
-use anyhow::anyhow;
+use anyhow::{anyhow, Context};
 use celery::error::TaskError;
+use deadpool_postgres::Client as DbClient;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use tracing::instrument;
@@ -32,21 +35,43 @@ pub async fn render_report(
     tenant_id: String,
     election_event_id: String,
 ) -> Result<()> {
+    let _permit = acquire_semaphore().await?;
     // Spawn the task using an async block
     let handle = tokio::task::spawn_blocking({
         move || {
             tokio::runtime::Handle::current().block_on(async move {
-                render_report_task(input, tenant_id, election_event_id)
+                let mut db_client: DbClient = get_hasura_pool()
                     .await
-                    .map_err(|err| anyhow!("{}", err))
+                    .get()
+                    .await
+                    .map_err(|err| format!("Error getting DB pool: {err:?}"))?;
+
+                let hasura_transaction = match db_client.transaction().await {
+                    Ok(transaction) => transaction,
+                    Err(err) => {
+                        return Err(format!("Error starting Hasura transaction: {err}"));
+                    }
+                };
+                let _ =
+                    render_report_task(&hasura_transaction, input, tenant_id, election_event_id)
+                        .await
+                        .map_err(|err| format!("{}", err))?;
+
+                match hasura_transaction.commit().await {
+                    Ok(_) => (),
+                    Err(err) => {
+                        return Err(format!("Commit failed: {}", err));
+                    }
+                };
+                Ok(())
             })
         }
     });
 
     // Await the result and handle JoinError explicitly
     match handle.await {
-        Ok(inner_result) => inner_result.map_err(|err| Error::from(err.context("Task failed"))),
-        Err(join_error) => Err(Error::from(anyhow!("Task panicked: {}", join_error))),
+        Ok(inner_result) => Ok(inner_result.map_err(|err| format!("Task failed: {err:?}"))?),
+        Err(join_error) => Err(format!("Join error. Task panicked: {:?}", join_error)),
     }?;
 
     Ok(())

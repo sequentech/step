@@ -1,0 +1,30 @@
+# SPDX-FileCopyrightText: 2023-2024 Sequent Tech <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+FROM b3-dependencies
+
+WORKDIR /app
+
+#TODO: Copy only necessary files
+COPY ./braid ./braid
+COPY ./b3 ./b3
+COPY ./electoral-log ./electoral-log
+COPY ./harvest ./harvest
+COPY ./strand ./strand
+COPY ./immu-board ./immu-board
+COPY ./immudb-rs ./immudb-rs
+COPY ./sequent-core ./sequent-core
+COPY ./velvet ./velvet
+COPY ./windmill ./windmill
+COPY ./e2e ./e2e
+COPY ./step-cli ./step-cli
+COPY ./wrap-map-err ./wrap-map-err
+COPY ./braid/scripts ./braid/scripts
+COPY ./Cargo.toml ./Cargo.toml
+COPY ./Cargo.lock ./Cargo.lock
+COPY ./.cargo ./.cargo
+
+WORKDIR /app/b3
+#RUN cargo vendor
+RUN cargo build --features=server --release --locked --frozen --offline

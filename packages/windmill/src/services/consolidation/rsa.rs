@@ -1,16 +1,10 @@
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::services::consolidation::ecies_encrypt::ECIES_TOOL_PATH;
-use crate::services::shell::run_shell_command;
-use crate::services::temp_path::generate_temp_file;
 use anyhow::{Context, Result};
-use base64::{engine::general_purpose::STANDARD, Engine};
 use openssl::rsa::{Padding, Rsa};
-use std::fs;
-use std::fs::File;
-use std::io::Write;
-use strand::hash::hash_sha256;
+use sequent_core::signatures::ecies_encrypt::ECIES_TOOL_PATH;
+use sequent_core::signatures::shell::run_shell_command;
 use tracing::{info, instrument};
 
 // Function to generate RSA public/private key pair in PEM format

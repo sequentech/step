@@ -58,13 +58,14 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
   public static final String VERIFIED_DEFAULT_ID = "sequent.read-only.id-card-number-validated";
   public static final String ID_NUMBER = "sequent.read-only.id-card-number";
   public static final String PHONE_NUMBER = "sequent.read-only.mobile-number";
-  public static final String MISSING_FIELDS = "MissingFields";
-  public static final String PASSWORD_NOT_MATCHED = "Passwords-Not-Matched";
-  public static final String PASSWORD_NOT_STRONG = "Passwords-Not-Strong-Enough";
+  public static final String MISSING_FIELDS = "Missing Fields";
+  public static final String PASSWORD_NOT_MATCHED = "Passwords not matched";
+  public static final String PASSWORD_NOT_STRONG = "Passwords not strong enough";
+  public static final String INVALID_EMAIL = "Invalid email";
+  public static final String INVALID_REGISTRATION = "Invalid registation";
+  public static final String INVALID_INPUT = "Invalid input";
 
-  public static final String MISSING_FIELDS_ERROR = "error-user-attribute-required";
-
-  // TODO fix
+  public static final String MISSING_FIELDS_ERROR = "error_user_attribute_required";
 
   @Override
   public String getHelpText() {
@@ -124,7 +125,11 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     MultivaluedMap<String, String> formData = context.getHttpRequest().getDecodedFormParameters();
     context.getEvent().detail(Details.REGISTER_METHOD, "form");
     UserProfile profile = getOrCreateUserProfile(context, formData);
-    UserModel user = Utils.lookupUserByFormData(context, searchAttributesList, formData);
+
+    UserModel user = null;
+    if (!searchAttributesList.isEmpty()) {
+      user = Utils.lookupUserByFormData(context, searchAttributesList, formData);
+    }
     buildEventDetails(formData, context, user);
     Attributes attributes = profile.getAttributes();
     String email = attributes.getFirst(UserModel.EMAIL);
@@ -140,7 +145,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
       // exception, so show invalid email error here
       if (email != null && !email.isBlank()) {
         log.info("validate: validation exception was not raised and an email was provided");
-        context.error(Errors.INVALID_EMAIL);
+        context.error(INVALID_EMAIL);
         List<FormMessage> errors = new ArrayList<>();
         errors.add(new FormMessage(RegistrationPage.FIELD_EMAIL, Messages.INVALID_EMAIL));
         context.validationError(formData, errors);
@@ -179,9 +184,9 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
         if (checkMissingFields(context, errors)) {
           log.error("some missing fields");
         } else if (!pve.hasError(Messages.EMAIL_EXISTS)) {
-          context.error(Errors.INVALID_EMAIL);
+          context.error(INVALID_EMAIL);
         } else {
-          context.error(Errors.INVALID_REGISTRATION);
+          context.error(INVALID_REGISTRATION);
         }
         log.info(errors);
         context.validationError(formData, errors);
@@ -190,60 +195,62 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     }
 
     // Lookup user by attributes using form data
-
-    if (user == null) {
-      String sessionId = context.getAuthenticationSession().getParentSession().getId();
-      log.errorv("validate(): User could not be found. Error code: {0}", sessionId);
-      // Display what the user set in formData for the search attributes
-      for (String attribute : searchAttributesList) {
-        log.errorv(
-            "validate(): Register form data {0}: {1}", attribute, formData.getFirst(attribute));
+    if (!searchAttributesList.isEmpty()) {
+      if (user == null) {
+        String sessionId = context.getAuthenticationSession().getParentSession().getId();
+        log.errorv("validate(): User could not be found. Error code: {0}", sessionId);
+        // Display what the user set in formData for the search attributes
+        for (String attribute : searchAttributesList) {
+          log.errorv(
+              "validate(): Register form data {0}: {1}", attribute, formData.getFirst(attribute));
+        }
+        context.error(Utils.ERROR_MESSAGE_USER_NOT_FOUND);
+        List<FormMessage> errors = new ArrayList<>();
+        errors.add(new FormMessage(null, Utils.ERROR_USER_NOT_FOUND, sessionId));
+        context.validationError(formData, errors);
+        return;
       }
-      context.error(Utils.ERROR_USER_NOT_FOUND);
-      List<FormMessage> errors = new ArrayList<>();
-      errors.add(new FormMessage(null, Utils.ERROR_USER_NOT_FOUND, sessionId));
-      context.validationError(formData, errors);
-      return;
-    }
 
-    // Check if the voter has already been validated
-    log.infov("validate: Is user validated id {0}", verifiedAttributeId);
-    var verifiedAttributeValue = user.getFirstAttribute(verifiedAttributeId);
+      // Check if the voter has already been validated
+      log.infov("validate: Is user validated id {0}", verifiedAttributeId);
+      var verifiedAttributeValue = user.getFirstAttribute(verifiedAttributeId);
 
-    log.infov("validate: Is user validated? {0} == {1}", VERIFIED_VALUE, verifiedAttributeValue);
-    if (VERIFIED_VALUE.equalsIgnoreCase(verifiedAttributeValue)) {
-      log.infov("validate: Is user validated? true");
-      context.getAuthenticationSession().setAuthNote(verifiedAttributeId, verifiedAttributeValue);
-      context.success();
-      return;
-    }
+      log.infov("validate: Is user validated? {0} == {1}", VERIFIED_VALUE, verifiedAttributeValue);
+      if (VERIFIED_VALUE.equalsIgnoreCase(verifiedAttributeValue)) {
+        log.infov("validate: Is user validated? true");
+        context.getAuthenticationSession().setAuthNote(verifiedAttributeId, verifiedAttributeValue);
+        context.success();
+        return;
+      }
 
-    // Check that the user doesn't have set any of the unset attributes
-    Optional<String> unsetAttributesChecked = checkUnsetAttributes(user, unsetAttributesList);
+      // Check that the user doesn't have set any of the unset attributes
+      Optional<String> unsetAttributesChecked = checkUnsetAttributes(user, unsetAttributesList);
 
-    if (unsetAttributesChecked.isPresent()) {
-      String sessionId = context.getAuthenticationSession().getParentSession().getId();
-      log.errorv("validate(): Some user unset attributes are set. Error code: {0}", sessionId);
-      context.error(Utils.ERROR_USER_ATTRIBUTES_NOT_UNSET + ": " + unsetAttributesChecked.get());
-      List<FormMessage> errors = new ArrayList<>();
-      errors.add(new FormMessage(null, Utils.ERROR_USER_ATTRIBUTES_NOT_UNSET, sessionId));
-      context.validationError(formData, errors);
-      return;
-    }
+      if (unsetAttributesChecked.isPresent()) {
+        String sessionId = context.getAuthenticationSession().getParentSession().getId();
+        log.errorv("validate(): Some user unset attributes are set. Error code: {0}", sessionId);
+        context.error(Utils.ERROR_USER_ATTRIBUTES_NOT_UNSET + ": " + unsetAttributesChecked.get());
+        List<FormMessage> errors = new ArrayList<>();
+        errors.add(new FormMessage(null, Utils.ERROR_USER_ATTRIBUTES_NOT_UNSET, sessionId));
+        context.validationError(formData, errors);
+        return;
+      }
 
-    // Verify the unique atrributes
-    Optional<String> uniqueAttributesChecked =
-        checkUniqueAttributes(context, uniqueAttributesList, formData);
+      // Verify the unique atrributes
+      Optional<String> uniqueAttributesChecked =
+          checkUniqueAttributes(context, uniqueAttributesList, formData);
 
-    if (uniqueAttributesChecked.isPresent()) {
-      String sessionId = context.getAuthenticationSession().getParentSession().getId();
-      log.errorv(
-          "validate(): Unique attributes present in more than one user. Error code: {0}",
-          sessionId);
-      context.error(Utils.ERROR_USER_ATTRIBUTES_NOT_UNIQUE + ": " + uniqueAttributesChecked.get());
-      List<FormMessage> errors = new ArrayList<>();
-      errors.add(new FormMessage(null, Utils.ERROR_USER_ATTRIBUTES_NOT_UNSET, sessionId));
-      context.validationError(formData, errors);
+      if (uniqueAttributesChecked.isPresent()) {
+        String sessionId = context.getAuthenticationSession().getParentSession().getId();
+        log.errorv(
+            "validate(): Unique attributes present in more than one user. Error code: {0}",
+            sessionId);
+        context.error(
+            Utils.ERROR_USER_ATTRIBUTES_NOT_UNIQUE + ": " + uniqueAttributesChecked.get());
+        List<FormMessage> errors = new ArrayList<>();
+        errors.add(new FormMessage(null, Utils.ERROR_USER_ATTRIBUTES_NOT_UNSET, sessionId));
+        context.validationError(formData, errors);
+      }
     }
 
     List<FormMessage> errors = new ArrayList<>();
@@ -290,7 +297,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
           log.errorv(
               "validate: confirm value invalid key:{0} values {1} != {2}",
               key, value, confirmValue);
-          context.error(Errors.INVALID_INPUT);
+          context.error(INVALID_INPUT);
           errors.add(new FormMessage(confirmKey, "invalidConfirmationValue"));
           context.validationError(formData, errors);
         }

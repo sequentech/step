@@ -2,27 +2,34 @@
 // SPDX-FileCopyrightText: 2023, 2024 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+pub mod api_datafix;
 pub mod applications;
 pub mod ballot_publication;
 pub mod create_ballot_receipt;
 pub mod custom_urls;
 pub mod delete_election_event;
 pub mod election_dates;
+pub mod election_event_monitoring;
 pub mod election_event_stats;
+pub mod election_monitoring;
 pub mod election_stats;
 pub mod elections;
 pub mod electoral_log;
 pub mod error_catchers;
+pub mod export_application;
 pub mod export_ballot_publication;
 pub mod export_election_event;
 pub mod export_election_event_logs;
 pub mod export_tasks_execution;
 pub mod export_template;
+pub mod export_tenant_config;
 pub mod fetch_document;
 pub mod immudb_log_audit;
+pub mod import_application;
 pub mod import_areas;
 pub mod import_candidates;
 pub mod import_templates;
+pub mod import_tenant_config;
 pub mod insert_cast_vote;
 pub mod insert_election_event;
 pub mod insert_tenant;
@@ -34,9 +41,11 @@ pub mod permissions;
 pub mod reports;
 pub mod roles;
 pub mod scheduled_event;
+pub mod set_voter_authentication;
 pub mod tally_ceremony;
 pub mod tally_sheets;
 pub mod templates;
+pub mod trustees;
 pub mod upload_document;
 pub mod users;
 pub mod voting_status;

@@ -1,0 +1,23 @@
+# SPDX-FileCopyrightText: 2023-2024 Sequent Tech <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+ARG SPA_NAME
+FROM ${SPA_NAME}-compile as compile
+
+FROM ${SPA_NAME}-build-dependencies
+# Remove default nginx static assets
+RUN rm -rf /usr/share/nginx/html/*
+# Copy custom NGINX config
+COPY default.conf /etc/nginx/conf.d/
+ARG SPA_NAME
+# Copy the built SPA from the 'dist' directory of the build stage to the Nginx server
+COPY --from=compile /usr/src/app/${SPA_NAME}/dist /usr/share/nginx/html
+COPY nginx-entrypoint.sh entrypoint.sh
+RUN chmod +x entrypoint.sh
+# Expose port 80 for the Nginx server
+EXPOSE 80
+# NOTE: The entrypoint script will replace the global-settings.json values with the environment variables
+#       ALL THE global-settings.json KEYS ARE AVAILABLE AS ENVIRONMENT VARIABLES
+# Replace global-setting.json values & Start Nginx in the foreground
+ENTRYPOINT [ "/entrypoint.sh" ]

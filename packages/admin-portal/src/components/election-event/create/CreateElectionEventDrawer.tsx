@@ -8,21 +8,12 @@ import {CreateElectionEventScreen} from "./CreateScreen"
 import {useCreateElectionEventStore} from "@/providers/CreateElectionEventContextProvider"
 
 interface ImportVotersTabsProps {
-    open: boolean
-    closeDrawer: () => void
+    open?: boolean
+    closeDrawer?: () => void
 }
 
 export const CreateDataDrawer: React.FC<ImportVotersTabsProps> = ({open, closeDrawer}) => {
-    const {
-        postDefaultValues,
-        handleElectionCreated,
-        handleSubmit,
-        isLoading,
-        newId,
-        tenantId,
-        createDrawer,
-        closeCreateDrawer,
-    } = useCreateElectionEventStore()
+    const {createDrawer, closeCreateDrawer} = useCreateElectionEventStore()
 
     return (
         <>

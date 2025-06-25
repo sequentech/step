@@ -9,9 +9,8 @@ extern crate lazy_static;
 #[macro_use]
 extern crate quick_error;
 
-pub mod hasura;
 pub mod postgres;
 pub mod services;
+pub mod sqlite;
 pub mod tasks;
 pub mod types;
-pub mod util;
