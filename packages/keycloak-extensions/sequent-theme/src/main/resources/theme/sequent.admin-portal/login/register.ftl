@@ -11,9 +11,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 <#import "register-commons.ftl" as registerCommons>
 <@layout.registrationLayout displayMessage=messagesPerField.exists('global') displayRequiredFields=true; section>
     <#if section = "header">
-        ${msg("registerTitle")}
+        <#if formMode?? && formMode = 'login'>
+            ${msg('loginTitle')}
+        <#else>
+            ${msg('registerTitle')}
+        </#if>
     <#elseif section = "form">
-        <form id="kc-register-form" class="${properties.kcFormClass!}" action="${url.registrationAction}" method="post">
+        <form id="kc-register-form" class="${properties.kcFormClass!}" action="<#if formMode?? && formMode = 'login'>${url.loginAction}<#else>${url.registrationAction}</#if>" method="post">
 
             <@userProfileCommons.userProfileFormFields; callback, attribute>
                 <#if callback = "afterField">
@@ -105,14 +109,21 @@ SPDX-License-Identifier: AGPL-3.0-only
             </#if>
 
             <div class="${properties.kcFormGroupClass!}">
-                <div id="kc-form-options" class="${properties.kcFormOptionsClass!}">
-                    <div class="${properties.kcFormOptionsWrapperClass!}">
-                        <span><a href="${url.loginUrl}">${kcSanitize(msg("backToLogin"))?no_esc}</a></span>
+                <#if formMode?? && (formMode!"registration") != "login">
+                    <div id="kc-form-options" class="${properties.kcFormOptionsClass!}">
+                        <div class="${properties.kcFormOptionsWrapperClass!}">
+                            <span><a href="${url.loginUrl}">${kcSanitize(msg("backToLogin"))?no_esc}</a></span>
+                        </div>
                     </div>
-                </div>
+                </#if>
 
                 <div id="kc-form-buttons" class="${properties.kcFormButtonsClass!}">
-                    <input id="termsOfServiceText" class="${properties.kcButtonClass!} ${properties.kcButtonPrimaryClass!} ${properties.kcButtonBlockClass!} ${properties.kcButtonLargeClass!}" type="submit" value="${msg("doRegister")}"/>
+                    <input
+                        id="termsOfServiceText"
+                        class="${properties.kcButtonClass!} ${properties.kcButtonPrimaryClass!} ${properties.kcButtonBlockClass!} ${properties.kcButtonLargeClass!}"
+                        type="submit"
+                        value="<#if formMode?? && formMode = 'login'>${msg("doLogin")}<#else>${msg("doRegister")}</#if>"
+                    />
                 </div>
             </div>
         </form>
