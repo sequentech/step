@@ -9,6 +9,7 @@ import static java.util.Arrays.asList;
 import com.google.auto.service.AutoService;
 import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
+import static java.util.Arrays.asList;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -103,7 +104,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
             "Show the form in Registration or Login Mode.",
             ProviderConfigProperty.LIST_TYPE,
             FormMode.REGISTRATION.name());
-    messageCourier.setOptions(
+    formMode.setOptions(
         asList(
             FormMode.REGISTRATION.name(),
             FormMode.LOGIN.name()));
@@ -156,8 +157,9 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     final String unsetAttributes = configMap.get(UNSET_ATTRIBUTES);
     final String uniqueAttributes = configMap.get(UNIQUE_ATTRIBUTES);
     final String verifiedAttributeId =
-        Optional.ofNullable(configMap.get(UNIQUE_ATTRIBUTES)).orElse(VERIFIED_DEFAULT_ID);
-    final String passwordRequired = Boolean.parseBoolean(
+        Optional.ofNullable(configMap.get(UNIQUE_ATTRIBUTES))
+        .orElse(VERIFIED_DEFAULT_ID);
+    boolean passwordRequired = Boolean.parseBoolean(
       Optional.ofNullable(configMap.get(PASSWORD_REQUIRED))
         .orElse("true")
     );
@@ -458,11 +460,12 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     // Retrieve the configuration
     AuthenticatorConfigModel config = context.getAuthenticatorConfig();
     Map<String, String> configMap = config.getConfig();
-    String passwordRequired = Boolean.parseBoolean(
+    boolean passwordRequired = Boolean.parseBoolean(
       Optional.ofNullable(configMap.get(PASSWORD_REQUIRED))
         .orElse("true")
     );
 
+    log.infov("buildPage: passwordRequired {0}", passwordRequired);
     form.setAttribute("passwordRequired", passwordRequired);
     checkNotOtherUserAuthenticating(context);
   }
