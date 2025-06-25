@@ -156,6 +156,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     final String searchAttributes = configMap.get(SEARCH_ATTRIBUTES);
     final String unsetAttributes = configMap.get(UNSET_ATTRIBUTES);
     final String uniqueAttributes = configMap.get(UNIQUE_ATTRIBUTES);
+    final String formMode = configMap.get(FORM_MODE);
     final String verifiedAttributeId =
         Optional.ofNullable(configMap.get(UNIQUE_ATTRIBUTES))
         .orElse(VERIFIED_DEFAULT_ID);
@@ -460,13 +461,14 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     // Retrieve the configuration
     AuthenticatorConfigModel config = context.getAuthenticatorConfig();
     Map<String, String> configMap = config.getConfig();
-    boolean passwordRequired = Boolean.parseBoolean(
+    final String formMode = configMap.get(FORM_MODE);
+    final boolean passwordRequired = Boolean.parseBoolean(
       Optional.ofNullable(configMap.get(PASSWORD_REQUIRED))
         .orElse("true")
     );
 
-    log.infov("buildPage: passwordRequired {0}", passwordRequired);
     form.setAttribute("passwordRequired", passwordRequired);
+    form.setAttribute("formMode", formMode);
     checkNotOtherUserAuthenticating(context);
   }
 

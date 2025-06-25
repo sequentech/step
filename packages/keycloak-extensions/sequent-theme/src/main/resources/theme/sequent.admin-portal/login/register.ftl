@@ -17,7 +17,7 @@ SPDX-License-Identifier: AGPL-3.0-only
             ${msg('registerTitle')}
         </#if>
     <#elseif section = "form">
-        <form id="kc-register-form" class="${properties.kcFormClass!}" action="${url.registrationAction}" method="post">
+        <form id="kc-register-form" class="${properties.kcFormClass!}" action="<#if formMode?? && formMode = 'login'>${url.loginAction}<#else>${url.registrationAction}</#if>" method="post">
 
             <@userProfileCommons.userProfileFormFields; callback, attribute>
                 <#if callback = "afterField">
