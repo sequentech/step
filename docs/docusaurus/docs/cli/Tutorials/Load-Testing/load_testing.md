@@ -58,7 +58,7 @@ kubectl exec -it testing-pod-6ff8c58cbc-5ps6t -n dev-apps -- /bin/bash
 This should give you a prompt very much like this:
 
 ```bash
-root@testing-pod-6ff8c58cbc-5ps6t:/usr/local/bin# 
+root@testing-pod-6ff8c58cbc-5ps6t:/# 
 ```
 
 Good! Now we are inside our windmill pod, let's install our load tool:
