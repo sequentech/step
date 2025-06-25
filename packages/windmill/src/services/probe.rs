@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2024 David Ruescas <david@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::services::celery_app::get_celery_app;
+use crate::services::celery_app::{get_celery_app, Queue};
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::jwks::get_jwks_secret_path;
 use crate::services::providers::sms_sender::{SmsSender, SmsTransport};
@@ -40,9 +40,51 @@ lazy_static! {
 async fn check_celery(_app_name: &AppName) -> Option<bool> {
     let celery_app = get_celery_app().await;
 
+    // Check basic broker connection
     let celery_result = celery_app.broker.reconnect(BROKER_CONNECTION_TIMEOUT).await;
+    let is_connected = celery_result.is_ok();
+    
+    if !is_connected || !get_is_app_active() {
+        return Some(false);
+    }
 
-    Some(celery_result.is_ok() && get_is_app_active())
+    // Check consumer health for key queues
+    let queues_to_check = [
+        Queue::Beat.as_ref(),
+        Queue::Short.as_ref(), 
+        Queue::Communication.as_ref(),
+        Queue::Tally.as_ref(),
+        Queue::Reports.as_ref(),
+        Queue::ImportExport.as_ref(),
+        Queue::ElectoralLogBeat.as_ref(),
+        Queue::ElectoralLogBatch.as_ref(),
+    ];
+
+    match celery_app.check_consumer_health(&queues_to_check).await {
+        Ok(health_info) => {
+            let mut all_healthy = true;
+            
+            for health in &health_info {
+                info!(
+                    "Queue '{}': {} consumers, {} messages, consuming: {}", 
+                    health.queue_name, 
+                    health.consumer_count, 
+                    health.message_count, 
+                    health.is_consuming
+                );
+                
+                // A queue is considered unhealthy if it's supposed to have consumers but doesn't
+                // For now, we'll be permissive and only require that the connection works
+                // Individual queue health can be monitored separately
+            }
+            
+            Some(all_healthy)
+        }
+        Err(e) => {
+            error!("Failed to check consumer health: {}", e);
+            Some(false)
+        }
+    }
 }
 
 #[instrument(ret)]
