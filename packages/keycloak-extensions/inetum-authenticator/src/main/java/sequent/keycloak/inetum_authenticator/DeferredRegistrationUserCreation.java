@@ -7,6 +7,7 @@ package sequent.keycloak.inetum_authenticator;
 import com.google.auto.service.AutoService;
 import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
+import static java.util.Arrays.asList;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -101,7 +102,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
             "Show the form in Registration or Login Mode.",
             ProviderConfigProperty.LIST_TYPE,
             FormMode.REGISTRATION.name());
-    messageCourier.setOptions(
+    formMode.setOptions(
         asList(
             FormMode.REGISTRATION.name(),
             FormMode.LOGIN.name()));
@@ -133,12 +134,6 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
             ProviderConfigProperty.STRING_TYPE,
             ""),
         new ProviderConfigProperty(
-            Utils.TEST_MODE_ATTRIBUTE,
-            "Test Mode",
-            "If true, the authenticator will skip the real OCR flow and mock the data.",
-            ProviderConfigProperty.BOOLEAN_TYPE,
-            "false"),
-        new ProviderConfigProperty(
             PASSWORD_REQUIRED,
             "Password Required",
             "Define if the password will be shown in the form.",
@@ -160,8 +155,9 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     final String unsetAttributes = configMap.get(UNSET_ATTRIBUTES);
     final String uniqueAttributes = configMap.get(UNIQUE_ATTRIBUTES);
     final String verifiedAttributeId =
-        Optional.ofNullable(configMap.get(UNIQUE_ATTRIBUTES)).orElse(VERIFIED_DEFAULT_ID);
-    final String passwordRequired = Boolean.parseBoolean(
+        Optional.ofNullable(configMap.get(UNIQUE_ATTRIBUTES))
+        .orElse(VERIFIED_DEFAULT_ID);
+    boolean passwordRequired = Boolean.parseBoolean(
       Optional.ofNullable(configMap.get(PASSWORD_REQUIRED))
         .orElse("true")
     );
@@ -444,11 +440,12 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     // Retrieve the configuration
     AuthenticatorConfigModel config = context.getAuthenticatorConfig();
     Map<String, String> configMap = config.getConfig();
-    String passwordRequired = Boolean.parseBoolean(
+    boolean passwordRequired = Boolean.parseBoolean(
       Optional.ofNullable(configMap.get(PASSWORD_REQUIRED))
         .orElse("true")
     );
 
+    log.infov("buildPage: passwordRequired {0}", passwordRequired);
     form.setAttribute("passwordRequired", passwordRequired);
     checkNotOtherUserAuthenticating(context);
   }
