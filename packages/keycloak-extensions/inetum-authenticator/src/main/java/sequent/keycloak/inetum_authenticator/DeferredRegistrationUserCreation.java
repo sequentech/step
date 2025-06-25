@@ -54,6 +54,25 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
   public static final String SEARCH_ATTRIBUTES = "search-attributes";
   public static final String UNSET_ATTRIBUTES = "unset-attributes";
   public static final String UNIQUE_ATTRIBUTES = "unique-attributes";
+  public static final String PASSWORD_REQUIRED = "password-required";
+  public static final String FORM_MODE = "form-mode";
+
+  // define the form modes as an enum with string values:
+  public enum FormMode {
+    REGISTRATION("registration"),
+    LOGIN("login");
+
+    private final String value;
+
+    FormMode(String value) {
+      this.value = value;
+    }
+
+    public String getValue() {
+      return value;
+    }
+  }
+
   public static final String VERIFIED_VALUE = "VERIFIED";
   public static final String VERIFIED_DEFAULT_ID = "sequent.read-only.id-card-number-validated";
   public static final String ID_NUMBER = "sequent.read-only.id-card-number";
@@ -74,6 +93,19 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
 
   @Override
   public List<ProviderConfigProperty> getConfigProperties() {
+
+    ProviderConfigProperty formMode =
+        new ProviderConfigProperty(
+            FORM_MODE,
+            "Form Mode",
+            "Show the form in Registration or Login Mode.",
+            ProviderConfigProperty.LIST_TYPE,
+            FormMode.REGISTRATION.name());
+    messageCourier.setOptions(
+        asList(
+            FormMode.REGISTRATION.name(),
+            FormMode.LOGIN.name()));
+
     // Define configuration properties
     return List.of(
         new ProviderConfigProperty(
@@ -99,7 +131,20 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
             "Unique Attributes",
             "Comma-separated list of attributes that should not be set to other users and otherwise the authenticator should fail.",
             ProviderConfigProperty.STRING_TYPE,
-            ""));
+            ""),
+        new ProviderConfigProperty(
+            Utils.TEST_MODE_ATTRIBUTE,
+            "Test Mode",
+            "If true, the authenticator will skip the real OCR flow and mock the data.",
+            ProviderConfigProperty.BOOLEAN_TYPE,
+            "false"),
+        new ProviderConfigProperty(
+            PASSWORD_REQUIRED,
+            "Password Required",
+            "Define if the password will be shown in the form.",
+            ProviderConfigProperty.BOOLEAN_TYPE,
+            "true"),
+        formMode);
   }
 
   @Override
@@ -108,19 +153,24 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
 
     // Retrieve the configuration
     AuthenticatorConfigModel config = context.getAuthenticatorConfig();
-    Map<String, String> configMap = config.getConfig();
+    final Map<String, String> configMap = config.getConfig();
 
     // Extract the attributes to search and update from the configuration
-    String searchAttributes = configMap.get(SEARCH_ATTRIBUTES);
-    String unsetAttributes = configMap.get(UNSET_ATTRIBUTES);
-    String uniqueAttributes = configMap.get(UNIQUE_ATTRIBUTES);
-    String verifiedAttributeId =
+    final String searchAttributes = configMap.get(SEARCH_ATTRIBUTES);
+    final String unsetAttributes = configMap.get(UNSET_ATTRIBUTES);
+    final String uniqueAttributes = configMap.get(UNIQUE_ATTRIBUTES);
+    final String verifiedAttributeId =
         Optional.ofNullable(configMap.get(UNIQUE_ATTRIBUTES)).orElse(VERIFIED_DEFAULT_ID);
+    final String passwordRequired = Boolean.parseBoolean(
+      Optional.ofNullable(configMap.get(PASSWORD_REQUIRED))
+        .orElse("true")
+    );
 
     // Parse attributes lists
     List<String> searchAttributesList = parseAttributesList(searchAttributes);
     List<String> unsetAttributesList = parseAttributesList(unsetAttributes);
     List<String> uniqueAttributesList = parseAttributesList(uniqueAttributes);
+
     // Get the form data
     MultivaluedMap<String, String> formData = context.getHttpRequest().getDecodedFormParameters();
     context.getEvent().detail(Details.REGISTER_METHOD, "form");
@@ -255,9 +305,9 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
 
     List<FormMessage> errors = new ArrayList<>();
     context.getEvent().detail(Details.REGISTER_METHOD, "form");
-    if (Validation.isBlank(formData.getFirst(RegistrationPage.FIELD_PASSWORD))) {
+    if (passwordRequired && Validation.isBlank(formData.getFirst(RegistrationPage.FIELD_PASSWORD))) {
       errors.add(new FormMessage(RegistrationPage.FIELD_PASSWORD, Messages.MISSING_PASSWORD));
-    } else if (!formData
+    } else if (passwordRequired && !formData
         .getFirst(RegistrationPage.FIELD_PASSWORD)
         .equals(formData.getFirst(RegistrationPage.FIELD_PASSWORD_CONFIRM))) {
       context.error(PASSWORD_NOT_MATCHED);
@@ -265,7 +315,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
           new FormMessage(
               RegistrationPage.FIELD_PASSWORD_CONFIRM, Messages.INVALID_PASSWORD_CONFIRM));
     }
-    if (formData.getFirst(RegistrationPage.FIELD_PASSWORD) != null) {
+    if (passwordRequired && formData.getFirst(RegistrationPage.FIELD_PASSWORD) != null) {
       PolicyError err =
           context
               .getSession()
@@ -391,7 +441,15 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
 
   @Override
   public void buildPage(FormContext context, LoginFormsProvider form) {
-    form.setAttribute("passwordRequired", true);
+    // Retrieve the configuration
+    AuthenticatorConfigModel config = context.getAuthenticatorConfig();
+    Map<String, String> configMap = config.getConfig();
+    String passwordRequired = Boolean.parseBoolean(
+      Optional.ofNullable(configMap.get(PASSWORD_REQUIRED))
+        .orElse("true")
+    );
+
+    form.setAttribute("passwordRequired", passwordRequired);
     checkNotOtherUserAuthenticating(context);
   }
 
