@@ -11,7 +11,7 @@ index 81a5abf..ffcf351 100644
  [package]
  name = "celery"
 diff --git a/src/app/mod.rs b/src/app/mod.rs
-index 83c873c..05d3eae 100644
+index 83c873c..9a40950 100644
 --- a/src/app/mod.rs
 +++ b/src/app/mod.rs
 @@ -20,7 +20,7 @@ mod trace;
@@ -28,7 +28,7 @@ index 83c873c..05d3eae 100644
  
      /// Close channels and connections.
 +    /// Check the health of consumers for the specified queues.
-+    pub async fn check_consumer_health(&self, queues: &[&str]) -> Result<Vec<ConsumerHealth>, CeleryError> {
++    pub async fn check_consumer_health(&self, queues: &Vec<String>) -> Result<Vec<ConsumerHealth>, CeleryError> {
 +        Ok(self.broker.check_consumer_health(queues).await?)
 +    }
 +
@@ -36,7 +36,7 @@ index 83c873c..05d3eae 100644
          Ok(self.broker.close().await?)
      }
 diff --git a/src/broker/amqp.rs b/src/broker/amqp.rs
-index b38c9a4..8a9351c 100644
+index b38c9a4..ed6ab42 100644
 --- a/src/broker/amqp.rs
 +++ b/src/broker/amqp.rs
 @@ -1,4 +1,6 @@
@@ -68,16 +68,16 @@ index b38c9a4..8a9351c 100644
  
 +    
 +    /// Check the health of consumers for the given queues.
-+    async fn check_consumer_health(&self, queues: &[&str]) -> Result<Vec<ConsumerHealth>, BrokerError> {
++    async fn check_consumer_health(&self, queues: &Vec<String>) -> Result<Vec<ConsumerHealth>, BrokerError> {
 +        let mut health_info = Vec::new();
 +        
 +        let consume_channel = self.consume_channel.read().await;
 +        
-+        for &queue_name in queues {
++        for queue_name in queues.clone() {
 +            // Get queue info using queue_declare with passive=true
 +            let queue_result = consume_channel
 +                .queue_declare(
-+                    queue_name,
++                    queue_name.as_str(),
 +                    QueueDeclareOptions {
 +                        passive: true,  // Dont create, just get info
 +                        durable: true,
@@ -164,7 +164,7 @@ index 37fa7fc..ec6fbc7 100644
          self
      }
 diff --git a/src/broker/mod.rs b/src/broker/mod.rs
-index 7077e59..e3df7c8 100644
+index 7077e59..9b5db5a 100644
 --- a/src/broker/mod.rs
 +++ b/src/broker/mod.rs
 @@ -23,6 +23,15 @@ pub mod mock;
@@ -189,13 +189,13 @@ index 7077e59..e3df7c8 100644
  
 +    /// Check the health of consumers for the given queues.
 +    /// Returns a vector of consumer health information.
-+    async fn check_consumer_health(&self, queues: &[&str]) -> Result<Vec<ConsumerHealth>, BrokerError>;
++    async fn check_consumer_health(&self, queues: &Vec<String>) -> Result<Vec<ConsumerHealth>, BrokerError>;
 +
      #[cfg(test)]
      fn into_any(self: Box<Self>) -> Box<dyn Any>;
  }
 diff --git a/src/broker/redis.rs b/src/broker/redis.rs
-index fcd7a04..2a4e3ce 100644
+index fcd7a04..9aec33b 100644
 --- a/src/broker/redis.rs
 +++ b/src/broker/redis.rs
 @@ -1,6 +1,7 @@
@@ -224,14 +224,14 @@ index fcd7a04..2a4e3ce 100644
 +    
 +    /// Check the health of consumers for the given queues.
 +    /// For Redis broker, this is a simple implementation that checks connection.
-+    async fn check_consumer_health(&self, queues: &[&str]) -> Result<Vec<ConsumerHealth>, BrokerError> {
++    async fn check_consumer_health(&self, queues: &Vec<String>) -> Result<Vec<ConsumerHealth>, BrokerError> {
 +        let mut health_info = Vec::new();
 +        
 +        // For Redis, we do a simple connection check for each queue
-+        for &queue_name in queues {
++        for queue_name in queues.clone() {
 +            let is_connected = true; // Simplified: assume connected if manager exists
 +            health_info.push(ConsumerHealth {
-+                queue_name: queue_name.to_string(),
++                queue_name: queue_name.clone(),
 +                consumer_count: if is_connected { 1 } else { 0 },
 +                message_count: 0, // Redis implementation doesnt easily provide this
 +                is_consuming: is_connected,

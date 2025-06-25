@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2024 David Ruescas <david@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::services::celery_app::{get_celery_app, Queue};
+use crate::services::celery_app::{get_celery_app, get_queues, Queue};
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::jwks::get_jwks_secret_path;
 use crate::services::providers::sms_sender::{SmsSender, SmsTransport};
@@ -48,17 +48,7 @@ async fn check_celery(_app_name: &AppName) -> Option<bool> {
         return Some(false);
     }
 
-    // Check consumer health for key queues
-    let queues_to_check = [
-        Queue::Beat.as_ref(),
-        Queue::Short.as_ref(), 
-        Queue::Communication.as_ref(),
-        Queue::Tally.as_ref(),
-        Queue::Reports.as_ref(),
-        Queue::ImportExport.as_ref(),
-        Queue::ElectoralLogBeat.as_ref(),
-        Queue::ElectoralLogBatch.as_ref(),
-    ];
+    let queues_to_check = get_queues();
 
     match celery_app.check_consumer_health(&queues_to_check).await {
         Ok(health_info) => {

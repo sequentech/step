@@ -89,6 +89,7 @@ static mut IS_APP_ACTIVE: bool = true;
 static mut BROKER_CONNECTION_MAX_RETRIES: u32 = 5;
 static mut HEARTBEAT_SECS: u16 = 10;
 static mut WORKER_THREADS: usize = 1;
+static mut QUEUES: Vec<String> = vec![];
 
 pub fn set_prefetch_count(new_val: u16) {
     unsafe {
@@ -118,6 +119,12 @@ pub fn set_task_max_retries(new_val: u32) {
     }
 }
 
+pub fn set_queues(new_val: Vec<String>) {
+    unsafe {
+        QUEUES = new_val;
+    }
+}
+
 #[instrument]
 pub fn set_is_app_active(new_val: bool) {
     unsafe {
@@ -139,6 +146,10 @@ pub fn set_heartbeat(new_val: u16) {
 
 pub fn get_is_app_active() -> bool {
     unsafe { IS_APP_ACTIVE }
+}
+
+pub fn get_queues() -> Vec<String> {
+    unsafe { QUEUES.clone() }
 }
 
 /// CELERY_APP holds the high-level Celery application. Note: The Celery app is
