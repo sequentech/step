@@ -463,33 +463,6 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     final boolean passwordRequired =
         Boolean.parseBoolean(Optional.ofNullable(configMap.get(PASSWORD_REQUIRED)).orElse("true"));
 
-    // When operating in LOGIN mode, we must manually construct and override the
-    // form action URL to ensure it points back to this FormAction for validation.
-    if (FormMode.LOGIN.name().equals(formMode)) {
-        AuthenticationSessionModel authSession = context.getAuthenticationSession();
-
-        // 1. Get the base URI builder from the current request context.
-        // This ensures we use the correct hostname, port, and context path.
-        UriBuilder builder = context.getUriInfo().getBaseUriBuilder()
-                .path("realms").path(context.getRealm().getName())
-                .path("login-actions/authenticate");
-
-        // 2. Add the necessary query parameters from the authentication session
-        // to route the request correctly back to this specific execution.
-        builder.queryParam("session_code", authSession.getParentSession().getId());
-        builder.queryParam("execution", context.getExecution().getId());
-        builder.queryParam("client_id", authSession.getClient().getClientId());
-        builder.queryParam("tab_id", authSession.getTabId());
-
-        // 3. Build the final URI.
-        URI actionUrl = builder.build();
-
-        // 4. Set the fully-qualified action URI on the form provider. This will
-        // override the default and be used for the form's "action" attribute.
-        form.setActionUri(actionUrl);
-    }
-    // In REGISTRATION mode, the default behavior is correct, so no override is needed.
-
     form.setAttribute("passwordRequired", passwordRequired);
     form.setAttribute("formMode", formMode);
     log.infov("buildPage(): formMode = {0}", formMode);
