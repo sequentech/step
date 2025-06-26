@@ -21,8 +21,7 @@ members = [
     "e2e/src/mock_server",
     "e2e",
     "orare",
-    "orare/doc_renderer",
-    "rusty-celery"
+    "orare/doc_renderer"
 ]
 
 [patch.crates-io]
