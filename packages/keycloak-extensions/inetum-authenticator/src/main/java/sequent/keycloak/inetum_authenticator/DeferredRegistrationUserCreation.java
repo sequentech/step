@@ -9,6 +9,8 @@ import static java.util.Arrays.asList;
 import com.google.auto.service.AutoService;
 import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
+import jakarta.ws.rs.core.UriBuilder;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -39,6 +41,7 @@ import org.keycloak.models.utils.FormMessage;
 import org.keycloak.policy.PasswordPolicyManagerProvider;
 import org.keycloak.policy.PolicyError;
 import org.keycloak.provider.ProviderConfigProperty;
+import org.keycloak.sessions.AuthenticationSessionModel;
 import org.keycloak.services.messages.Messages;
 import org.keycloak.services.validation.Validation;
 import org.keycloak.userprofile.AttributeMetadata;
@@ -459,6 +462,33 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     final String formMode = configMap.get(FORM_MODE);
     final boolean passwordRequired =
         Boolean.parseBoolean(Optional.ofNullable(configMap.get(PASSWORD_REQUIRED)).orElse("true"));
+
+    // When operating in LOGIN mode, we must manually construct and override the
+    // form action URL to ensure it points back to this FormAction for validation.
+    if (FormMode.LOGIN.name().equals(formMode)) {
+        AuthenticationSessionModel authSession = context.getAuthenticationSession();
+
+        // 1. Get the base URI builder from the current request context.
+        // This ensures we use the correct hostname, port, and context path.
+        UriBuilder builder = context.getUriInfo().getBaseUriBuilder()
+                .path("realms").path(context.getRealm().getName())
+                .path("login-actions/authenticate");
+
+        // 2. Add the necessary query parameters from the authentication session
+        // to route the request correctly back to this specific execution.
+        builder.queryParam("session_code", authSession.getParentSession().getId());
+        builder.queryParam("execution", context.getExecution().getId());
+        builder.queryParam("client_id", authSession.getClient().getClientId());
+        builder.queryParam("tab_id", authSession.getTabId());
+
+        // 3. Build the final URI.
+        URI actionUrl = builder.build();
+
+        // 4. Set the fully-qualified action URI on the form provider. This will
+        // override the default and be used for the form's "action" attribute.
+        form.setActionUri(actionUrl);
+    }
+    // In REGISTRATION mode, the default behavior is correct, so no override is needed.
 
     form.setAttribute("passwordRequired", passwordRequired);
     form.setAttribute("formMode", formMode);
