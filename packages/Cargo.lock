@@ -1592,7 +1592,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "base64 0.21.7",
- "celery-codegen",
+ "celery-codegen 0.5.5",
  "chrono",
  "colored",
  "env_logger",
@@ -1621,8 +1621,47 @@ dependencies = [
 ]
 
 [[package]]
+name = "celery"
+version = "0.5.5"
+source = "git+https://github.com/Findeton/rusty-celery.git?rev=b4145925aaaf742b7ba54499fff45313bcadfca1#b4145925aaaf742b7ba54499fff45313bcadfca1"
+dependencies = [
+ "async-trait",
+ "base64 0.21.7",
+ "celery-codegen 0.5.5 (git+https://github.com/Findeton/rusty-celery.git?rev=b4145925aaaf742b7ba54499fff45313bcadfca1)",
+ "chrono",
+ "colored",
+ "futures",
+ "futures-lite 1.13.0",
+ "globset",
+ "hostname 0.3.1",
+ "lapin",
+ "log",
+ "once_cell",
+ "rand 0.8.5",
+ "redis",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+ "tokio",
+ "tokio-executor-trait",
+ "tokio-reactor-trait",
+ "tokio-stream",
+ "uuid",
+]
+
+[[package]]
 name = "celery-codegen"
 version = "0.5.5"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
+name = "celery-codegen"
+version = "0.5.5"
+source = "git+https://github.com/Findeton/rusty-celery.git?rev=b4145925aaaf742b7ba54499fff45313bcadfca1#b4145925aaaf742b7ba54499fff45313bcadfca1"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3659,7 +3698,7 @@ dependencies = [
  "aws-sdk-s3",
  "base64 0.21.7",
  "bstr",
- "celery",
+ "celery 0.5.5 (git+https://github.com/Findeton/rusty-celery.git?rev=b4145925aaaf742b7ba54499fff45313bcadfca1)",
  "chrono",
  "deadpool-postgres",
  "dotenv",
@@ -9822,7 +9861,7 @@ dependencies = [
  "aws-smithy-types",
  "b3",
  "base64 0.21.7",
- "celery",
+ "celery 0.5.5",
  "cfg-if",
  "chrono",
  "clap 4.5.23",
