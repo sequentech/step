@@ -43,7 +43,7 @@ async fn check_celery(_app_name: &AppName) -> Option<bool> {
     // Check basic broker connection
     let celery_result = celery_app.broker.reconnect(BROKER_CONNECTION_TIMEOUT).await;
     let is_connected = celery_result.is_ok();
-    
+
     if !is_connected || !get_is_app_active() {
         return Some(false);
     }
@@ -53,21 +53,21 @@ async fn check_celery(_app_name: &AppName) -> Option<bool> {
     match celery_app.check_consumer_health(&queues_to_check).await {
         Ok(health_info) => {
             let mut all_healthy = true;
-            
+
             for health in &health_info {
                 info!(
-                    "Queue '{}': {} consumers, {} messages, consuming: {}", 
-                    health.queue_name, 
-                    health.consumer_count, 
-                    health.message_count, 
+                    "Queue '{}': {} consumers, {} messages, consuming: {}",
+                    health.queue_name,
+                    health.consumer_count,
+                    health.message_count,
                     health.is_consuming
                 );
-                
+
                 // A queue is considered unhealthy if it's supposed to have consumers but doesn't
                 // For now, we'll be permissive and only require that the connection works
                 // Individual queue health can be monitored separately
             }
-            
+
             Some(all_healthy)
         }
         Err(e) => {
