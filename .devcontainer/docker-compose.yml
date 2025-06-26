@@ -1027,4 +1027,3 @@ volumes:
   vault-volume:
   b3_db_logs:
   b3_db_data:
-  rabbitmq-conf:
