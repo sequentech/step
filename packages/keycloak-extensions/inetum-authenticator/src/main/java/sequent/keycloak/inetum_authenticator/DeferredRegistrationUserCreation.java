@@ -4,10 +4,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 package sequent.keycloak.inetum_authenticator;
 
+import static java.util.Arrays.asList;
+
 import com.google.auto.service.AutoService;
 import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
-import static java.util.Arrays.asList;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -102,10 +103,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
             "Show the form in Registration or Login Mode.",
             ProviderConfigProperty.LIST_TYPE,
             FormMode.REGISTRATION.name());
-    formMode.setOptions(
-        asList(
-            FormMode.REGISTRATION.name(),
-            FormMode.LOGIN.name()));
+    formMode.setOptions(asList(FormMode.REGISTRATION.name(), FormMode.LOGIN.name()));
 
     // Define configuration properties
     return List.of(
@@ -156,12 +154,9 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     final String uniqueAttributes = configMap.get(UNIQUE_ATTRIBUTES);
     final String formMode = configMap.get(FORM_MODE);
     final String verifiedAttributeId =
-        Optional.ofNullable(configMap.get(UNIQUE_ATTRIBUTES))
-        .orElse(VERIFIED_DEFAULT_ID);
-    boolean passwordRequired = Boolean.parseBoolean(
-      Optional.ofNullable(configMap.get(PASSWORD_REQUIRED))
-        .orElse("true")
-    );
+        Optional.ofNullable(configMap.get(UNIQUE_ATTRIBUTES)).orElse(VERIFIED_DEFAULT_ID);
+    boolean passwordRequired =
+        Boolean.parseBoolean(Optional.ofNullable(configMap.get(PASSWORD_REQUIRED)).orElse("true"));
 
     // Parse attributes lists
     List<String> searchAttributesList = parseAttributesList(searchAttributes);
@@ -302,11 +297,13 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
 
     List<FormMessage> errors = new ArrayList<>();
     context.getEvent().detail(Details.REGISTER_METHOD, "form");
-    if (passwordRequired && Validation.isBlank(formData.getFirst(RegistrationPage.FIELD_PASSWORD))) {
+    if (passwordRequired
+        && Validation.isBlank(formData.getFirst(RegistrationPage.FIELD_PASSWORD))) {
       errors.add(new FormMessage(RegistrationPage.FIELD_PASSWORD, Messages.MISSING_PASSWORD));
-    } else if (passwordRequired && !formData
-        .getFirst(RegistrationPage.FIELD_PASSWORD)
-        .equals(formData.getFirst(RegistrationPage.FIELD_PASSWORD_CONFIRM))) {
+    } else if (passwordRequired
+        && !formData
+            .getFirst(RegistrationPage.FIELD_PASSWORD)
+            .equals(formData.getFirst(RegistrationPage.FIELD_PASSWORD_CONFIRM))) {
       context.error(PASSWORD_NOT_MATCHED);
       errors.add(
           new FormMessage(
@@ -442,13 +439,12 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     AuthenticatorConfigModel config = context.getAuthenticatorConfig();
     Map<String, String> configMap = config.getConfig();
     final String formMode = configMap.get(FORM_MODE);
-    final boolean passwordRequired = Boolean.parseBoolean(
-      Optional.ofNullable(configMap.get(PASSWORD_REQUIRED))
-        .orElse("true")
-    );
+    final boolean passwordRequired =
+        Boolean.parseBoolean(Optional.ofNullable(configMap.get(PASSWORD_REQUIRED)).orElse("true"));
 
     form.setAttribute("passwordRequired", passwordRequired);
     form.setAttribute("formMode", formMode);
+    log.infov("buildPage(): formMode = {0}", formMode);
     checkNotOtherUserAuthenticating(context);
   }
 

@@ -11,13 +11,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 <#import "register-commons.ftl" as registerCommons>
 <@layout.registrationLayout displayMessage=messagesPerField.exists('global') displayRequiredFields=true; section>
     <#if section = "header">
-        <#if formMode?? && formMode = 'login'>
-            ${msg('loginTitle')}
+        <#if formMode?? && formMode = 'LOGIN'>
+            ${msg('loginTitle',(realm.displayName!''))}
         <#else>
             ${msg('registerTitle')}
         </#if>
     <#elseif section = "form">
-        <form id="kc-register-form" class="${properties.kcFormClass!}" action="<#if formMode?? && formMode = 'login'>${url.loginAction}<#else>${url.registrationAction}</#if>" method="post">
+        <form id="kc-register-form" class="${properties.kcFormClass!}" action="<#if formMode?? && formMode = 'LOGIN'>${url.loginAction}<#else>${url.registrationAction}</#if>" method="post">
 
             <@userProfileCommons.userProfileFormFields; callback, attribute>
                 <#if callback = "afterField">
@@ -109,7 +109,7 @@ SPDX-License-Identifier: AGPL-3.0-only
             </#if>
 
             <div class="${properties.kcFormGroupClass!}">
-                <#if formMode?? && (formMode!"registration") != "login">
+                <#if formMode?? && (formMode!"REGISTRATION") != "LOGIN">
                     <div id="kc-form-options" class="${properties.kcFormOptionsClass!}">
                         <div class="${properties.kcFormOptionsWrapperClass!}">
                             <span><a href="${url.loginUrl}">${kcSanitize(msg("backToLogin"))?no_esc}</a></span>
@@ -122,7 +122,7 @@ SPDX-License-Identifier: AGPL-3.0-only
                         id="termsOfServiceText"
                         class="${properties.kcButtonClass!} ${properties.kcButtonPrimaryClass!} ${properties.kcButtonBlockClass!} ${properties.kcButtonLargeClass!}"
                         type="submit"
-                        value="<#if formMode?? && formMode = 'login'>${msg("doLogin")}<#else>${msg("doRegister")}</#if>"
+                        value="<#if formMode?? && formMode = 'LOGIN'>${msg("doLogIn")}<#else>${msg("doRegister")}</#if>"
                     />
                 </div>
             </div>
