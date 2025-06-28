@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 package sequent.keycloak.conditional_authenticators;
 
 import com.google.auto.service.AutoService;
