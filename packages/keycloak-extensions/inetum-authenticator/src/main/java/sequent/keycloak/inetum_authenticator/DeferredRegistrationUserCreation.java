@@ -373,17 +373,16 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
       return;
     }
 
-    // log formMode variable:
-    log.infov(
-        "validate: formMode={0} vs FormMode.LOGIN.getValue()={1}",
-        formMode, FormMode.LOGIN.getValue());
+    //log formMode variable:
+    log.infov("validate: formMode={0} vs FormMode.LOGIN.getValue()={1}",
+      formMode, FormMode.LOGIN.getValue());
     if (formMode.equals(FormMode.LOGIN.getValue())) {
       log.info("validate: setting authenticated user " + user.getUsername());
       context.getAuthenticationSession().setAuthenticatedUser(user);
     } else {
       log.info("validate: formMode is different!");
     }
-
+  
     log.info("validate: success");
     context.success();
   }
