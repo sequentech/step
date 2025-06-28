@@ -19,6 +19,7 @@ use crate::types::documents::ETallyDocuments;
 use ::keycloak::types::{ComponentExportRepresentation, RealmRepresentation};
 use anyhow::{anyhow, Context, Result};
 use base64::encode;
+
 use chrono::format;
 use chrono::{DateTime, Utc};
 use deadpool_postgres::{Client as DbClient, Transaction};
@@ -207,7 +208,13 @@ fn generate_keycloak_rsa_keypair(realm_name: &str) -> Result<(String, String, St
     let private_key = PKey::from_rsa(rsa.clone())?;
 
     let mut x509_name = X509NameBuilder::new()?;
-    x509_name.append_entry_by_text("CN", realm_name)?;
+    // Truncate realm_name to 64 characters for ASN.1 compatibility
+    let truncated_realm_name = if realm_name.len() > 64 {
+        &realm_name[..64]
+    } else {
+        realm_name
+    };
+    x509_name.append_entry_by_text("CN", truncated_realm_name)?;
     let x509_name = x509_name.build();
 
     let mut builder = X509Builder::new()?;
@@ -235,7 +242,11 @@ fn generate_keycloak_rsa_keypair(realm_name: &str) -> Result<(String, String, St
 
     let kid = Uuid::new_v4().to_string();
 
-    Ok((encode(&private_key_pem), encode(&certificate_pem), kid))
+    Ok((
+        String::from_utf8(private_key_pem)?,
+        String::from_utf8(certificate_pem)?,
+        kid,
+    ))
 }
 
 fn replace_keycloak_keys_in_config(
