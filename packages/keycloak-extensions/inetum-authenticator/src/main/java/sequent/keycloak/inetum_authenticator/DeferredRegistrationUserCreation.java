@@ -9,8 +9,6 @@ import static java.util.Arrays.asList;
 import com.google.auto.service.AutoService;
 import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
-import jakarta.ws.rs.core.UriBuilder;
-import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -41,7 +39,6 @@ import org.keycloak.models.utils.FormMessage;
 import org.keycloak.policy.PasswordPolicyManagerProvider;
 import org.keycloak.policy.PolicyError;
 import org.keycloak.provider.ProviderConfigProperty;
-import org.keycloak.sessions.AuthenticationSessionModel;
 import org.keycloak.services.messages.Messages;
 import org.keycloak.services.validation.Validation;
 import org.keycloak.userprofile.AttributeMetadata;
@@ -373,16 +370,17 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
       return;
     }
 
-    //log formMode variable:
-    log.infov("validate: formMode={0} vs FormMode.LOGIN.getValue()={1}",
-      formMode, FormMode.LOGIN.getValue());
+    // log formMode variable:
+    log.infov(
+        "validate: formMode={0} vs FormMode.LOGIN.getValue()={1}",
+        formMode, FormMode.LOGIN.getValue());
     if (formMode.equals(FormMode.LOGIN.getValue())) {
       log.info("validate: setting authenticated user " + user.getUsername());
       context.getAuthenticationSession().setAuthenticatedUser(user);
     } else {
       log.info("validate: formMode is different!");
     }
-  
+
     log.info("validate: success");
     context.success();
   }
