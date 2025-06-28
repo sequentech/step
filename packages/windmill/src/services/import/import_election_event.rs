@@ -16,12 +16,20 @@ use crate::services::reports_vault::get_report_key_pair;
 use crate::services::tasks_execution::update_fail;
 use crate::tasks::insert_election_event::CreateElectionEventInput;
 use crate::types::documents::ETallyDocuments;
-use ::keycloak::types::RealmRepresentation;
+use ::keycloak::types::{ComponentExportRepresentation, RealmRepresentation};
 use anyhow::{anyhow, Context, Result};
+use base64::encode;
 use chrono::format;
 use chrono::{DateTime, Utc};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use futures::future::try_join_all;
+use openssl::asn1::Asn1Time;
+use openssl::bn::BigNum;
+use openssl::hash::MessageDigest;
+use openssl::pkey::PKey;
+use openssl::rsa::Rsa;
+use openssl::x509::{X509Builder, X509NameBuilder, X509};
+use rand::Rng;
 use sequent_core::ballot::AllowTallyStatus;
 use sequent_core::ballot::ElectionEventStatistics;
 use sequent_core::ballot::ElectionEventStatus;
@@ -193,6 +201,131 @@ pub async fn upsert_b3_and_elog(
 }
 
 #[instrument(err)]
+
+fn generate_keycloak_rsa_keypair(realm_name: &str) -> Result<(String, String, String)> {
+    let rsa = Rsa::generate(2048)?;
+    let private_key = PKey::from_rsa(rsa.clone())?;
+
+    let mut x509_name = X509NameBuilder::new()?;
+    x509_name.append_entry_by_text("CN", realm_name)?;
+    let x509_name = x509_name.build();
+
+    let mut builder = X509Builder::new()?;
+    builder.set_subject_name(&x509_name)?;
+    builder.set_issuer_name(&x509_name)?;
+    builder.set_pubkey(&private_key)?;
+
+    let not_before = Asn1Time::days_from_now(0)?;
+    let not_after = Asn1Time::days_from_now(365 * 10)?; // 10 years
+    builder.set_not_before(&not_before)?;
+    builder.set_not_after(&not_after)?;
+
+    // Generate random serial number
+    let mut serial_bytes = [0u8; 8];
+    rand::thread_rng().fill(&mut serial_bytes);
+    let serial = BigNum::from_slice(&serial_bytes)?;
+    let serial_asn1 = serial.to_asn1_integer()?;
+    builder.set_serial_number(&serial_asn1)?;
+
+    builder.sign(&private_key, MessageDigest::sha256())?;
+    let certificate = builder.build();
+
+    let private_key_pem = rsa.private_key_to_pem()?;
+    let certificate_pem = certificate.to_pem()?;
+
+    let kid = Uuid::new_v4().to_string();
+
+    Ok((encode(&private_key_pem), encode(&certificate_pem), kid))
+}
+
+fn replace_keycloak_keys_in_config(
+    realm: &RealmRepresentation,
+    realm_name: &str,
+) -> Result<RealmRepresentation> {
+    let mut updated_realm = realm.clone();
+
+    // Access components field - it's HashMap<String, Vec<ComponentExportRepresentation>>
+    if let Some(ref mut components) = updated_realm.components {
+        // Look for the key provider components
+        if let Some(key_providers) = components.get_mut("org.keycloak.keys.KeyProvider") {
+            // Iterate through each key provider and update it
+            for component in key_providers.iter_mut() {
+                // Check the provider type
+                if let Some(ref provider_id) = component.provider_id {
+                    match provider_id.as_str() {
+                        "rsa-generated" => {
+                            // Generate new RSA signing key
+                            let (private_key, certificate, kid) =
+                                generate_keycloak_rsa_keypair(realm_name)?;
+
+                            // Update the config - it's HashMap<String, Vec<String>>
+                            if let Some(ref mut config) = component.config {
+                                config.insert("privateKey".to_string(), vec![private_key]);
+                                config.insert("certificate".to_string(), vec![certificate]);
+                                config.insert("keyUse".to_string(), vec!["sig".to_string()]);
+                            }
+
+                            // Update the component ID to be unique
+                            component.id = Some(kid);
+                        }
+                        "rsa-enc-generated" => {
+                            // Generate new RSA encryption key
+                            let (private_key, certificate, kid) =
+                                generate_keycloak_rsa_keypair(realm_name)?;
+
+                            // Update the config
+                            if let Some(ref mut config) = component.config {
+                                config.insert("privateKey".to_string(), vec![private_key]);
+                                config.insert("certificate".to_string(), vec![certificate]);
+                                config.insert("keyUse".to_string(), vec!["enc".to_string()]);
+                            }
+
+                            // Update the component ID to be unique
+                            component.id = Some(kid);
+                        }
+                        "hmac-generated" => {
+                            // Generate new HMAC secret
+                            let mut secret = [0u8; 32];
+                            rand::thread_rng().fill(&mut secret);
+                            let secret_base64 = encode(&secret);
+                            let kid = Uuid::new_v4().to_string();
+
+                            // Update the config
+                            if let Some(ref mut config) = component.config {
+                                config.insert("secret".to_string(), vec![secret_base64]);
+                                config.insert("algorithm".to_string(), vec!["HS256".to_string()]);
+                            }
+
+                            // Update the component ID to be unique
+                            component.id = Some(kid);
+                        }
+                        "aes-generated" => {
+                            // Generate new AES secret
+                            let mut secret = [0u8; 16];
+                            rand::thread_rng().fill(&mut secret);
+                            let secret_base64 = encode(&secret);
+                            let kid = Uuid::new_v4().to_string();
+
+                            // Update the config
+                            if let Some(ref mut config) = component.config {
+                                config.insert("secret".to_string(), vec![secret_base64]);
+                            }
+
+                            // Update the component ID to be unique
+                            component.id = Some(kid);
+                        }
+                        _ => {
+                            // Leave other provider types unchanged
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(updated_realm)
+}
+
 pub fn read_default_election_event_realm() -> Result<RealmRepresentation> {
     let realm_config_path = env::var("KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH").expect(&format!(
         "KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH must be set"
@@ -210,13 +343,14 @@ pub async fn upsert_keycloak_realm(
     election_event_id: &str,
     keycloak_event_realm: Option<RealmRepresentation>,
 ) -> Result<()> {
-    let realm = if let Some(realm) = keycloak_event_realm.clone() {
+    let realm_with_keys = if let Some(realm) = keycloak_event_realm.clone() {
         realm
     } else {
         let realm = read_default_election_event_realm()?;
-        realm
+        let realm_name = get_event_realm(tenant_id, election_event_id);
+        replace_keycloak_keys_in_config(&realm, &realm_name)?
     };
-    let realm_config = serde_json::to_string(&realm)?;
+    let realm_config = serde_json::to_string(&realm_with_keys)?;
     let client = KeycloakAdminClient::new().await?;
     let realm_name = get_event_realm(tenant_id, election_event_id);
     client
