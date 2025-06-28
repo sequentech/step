@@ -64,8 +64,8 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
 
   // define the form modes as an enum with string values:
   public enum FormMode {
-    REGISTRATION("registration"),
-    LOGIN("login");
+    REGISTRATION("REGISTRATION"),
+    LOGIN("LOGIN");
 
     private final String value;
 
@@ -258,7 +258,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
         return;
       }
 
-      if (formMode == FormMode.LOGIN.getValue()) {
+      if (formMode.equals(FormMode.LOGIN.getValue())) {
         context.setUser(user);
       }
 
@@ -372,6 +372,17 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
       context.validationError(formData, errors);
       return;
     }
+
+    //log formMode variable:
+    log.infov("validate: formMode={0} vs FormMode.LOGIN.getValue()={1}",
+      formMode, FormMode.LOGIN.getValue());
+    if (formMode.equals(FormMode.LOGIN.getValue())) {
+      log.info("validate: setting authenticated user " + user.getUsername());
+      context.getAuthenticationSession().setAuthenticatedUser(user);
+    } else {
+      log.info("validate: formMode is different!");
+    }
+  
     log.info("validate: success");
     context.success();
   }
