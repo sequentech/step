@@ -903,6 +903,30 @@
             "runOn": "default"
           },
           "problemMatcher": []
+        },
+        {
+            "label": "upload.plugins",
+            "command": "devenv",
+            "args": [
+                "shell",
+                "bash",
+                "--",
+                "-c",
+                "./.devcontainer/scripts/upload_plugins_to_s3.sh"
+            ],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "isBackground": true,
+            "runOptions": {
+                "runOn": "default"
+            },
+            "problemMatcher": []
         }
     ]
 }

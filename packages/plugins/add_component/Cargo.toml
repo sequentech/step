@@ -1,0 +1,17 @@
+[package]
+name = "add_component"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+wit-bindgen-rt = { version = "0.42.1", features = ["bitflags"] }
+
+
+[package.metadata.component]
+package = "docs:adder"
+
+[package.metadata.component.target]
+path = "wit/world.wit"

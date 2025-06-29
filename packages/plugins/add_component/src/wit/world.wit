@@ -1,0 +1,7 @@
+package docs:adder@0.1.0;
+
+
+world adder {
+    export  add: func(x: u32, y: u32) -> string;
+    import exec-query: func(sql:string) -> string;
+}
