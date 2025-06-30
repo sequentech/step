@@ -1,10 +1,11 @@
 // SPDX-FileCopyrightText: 2024 Sequent Legal <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::services::plugins_manager::plugin::{HookParam, Plugin, PluginCtx};
+use crate::services::plugins_manager::plugin::{HookValue, Plugin, PluginCtx};
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use dashmap::DashMap;
+use once_cell::sync::OnceCell;
 use sequent_core::services::s3::{get_files_bytes_from_s3, get_public_bucket};
 use std::sync::Arc;
 use wasmtime::component::{Linker, Val};
@@ -34,16 +35,23 @@ impl PluginManager {
 
     pub async fn load_plugins(&self) -> Result<()> {
         let bucket = get_public_bucket().context("failed to get public S3 bucket")?;
-        let blobs = get_files_bytes_from_s3(bucket, "plugins/".into()).await?;
+        let blobs = get_files_bytes_from_s3(bucket, "plugins/".to_string()).await?;
 
         for wasm in blobs {
             let plugin =
                 Plugin::from_wasm_bytes(&self.engine, &mut self.linker.clone(), wasm).await?;
-            let plugin_name = plugin.name.clone();
+            let manifest_json: serde_json::Value = plugin.manifest.clone();
+            let hooks = manifest_json["hooks"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|h| h.as_str().unwrap().to_string())
+                .collect::<Vec<String>>();
+            for hook in hooks {
+                self.hook_index.insert(hook, plugin.name.clone());
+            }
 
-            self.hook_index
-                .insert("add".to_string(), plugin_name.clone()); // hardcoded for demo
-            self.plugins.insert(plugin_name, Arc::new(plugin));
+            self.plugins.insert(plugin.name.clone(), Arc::new(plugin));
         }
 
         Ok(())
@@ -52,35 +60,53 @@ impl PluginManager {
     pub async fn call_hook_dynamic(
         &self,
         hook: &str,
-        params: Vec<HookParam>,
-        result_count: usize,
-    ) -> Result<Vec<Val>> {
-        let plugin_name = self.hook_index.get(hook).context("hook not registered")?;
+        args: Vec<HookValue>,
+        expected_result_types: Vec<HookValue>,
+    ) -> Result<Vec<HookValue>> {
+        let plugin_name = self
+            .hook_index
+            .get(hook)
+            .context(format!("Hook '{:?}' not registered", hook))?;
+
         let plugin = self
             .plugins
             .get(plugin_name.value())
-            .context("plugin not found")?;
+            .context(format!("Plugin '{:?}' not found", plugin_name))?;
 
-        plugin.call_hook_dynamic(hook, params, result_count).await
+        plugin
+            .value()
+            .call_hook_dynamic(hook, args, expected_result_types)
+            .await
     }
 }
 
-#[async_trait]
-pub trait PluginHooks {
-    async fn add(&self, a: i32, b: i32) -> Result<i32>;
-}
+static EXT_PLUGIN_MANAGER: OnceCell<PluginManager> = OnceCell::new();
 
-#[async_trait]
-impl PluginHooks for PluginManager {
-    async fn add(&self, a: i32, b: i32) -> Result<i32> {
-        let results = self
-            .call_hook_dynamic("add", vec![a.into(), b.into()], 1)
-            .await?;
-
-        match results.get(0) {
-            Some(Val::S32(sum)) => Ok(*sum),
-            Some(Val::U32(sum)) => Ok(*sum as i32),
-            _ => Err(anyhow!("Unexpected return type from 'add'")),
+pub async fn get_plugin_manager() -> Result<&'static PluginManager> {
+    let plugin_manager = match EXT_PLUGIN_MANAGER.get() {
+        Some(manager) => manager,
+        None => {
+            let _ = init_plugin_manager()
+                .await
+                .expect("Failed to initialize PluginManager");
+            EXT_PLUGIN_MANAGER
+                .get()
+                .expect("PluginManager should be initialized now")
         }
-    }
+    };
+    Ok(plugin_manager)
 }
+
+pub async fn init_plugin_manager() -> Result<()> {
+    let plugin_manager = PluginManager::new()?;
+    plugin_manager
+        .load_plugins()
+        .await
+        .context("Failed to load plugins")?;
+
+    EXT_PLUGIN_MANAGER
+        .set(plugin_manager)
+        .map_err(|_| anyhow!("PluginManager already initialized"))
+}
+
+pub use super::plugins_hooks::PluginHooks;

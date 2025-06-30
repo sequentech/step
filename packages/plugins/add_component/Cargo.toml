@@ -1,7 +1,10 @@
+# SPDX-FileCopyrightText: 2024 Sequent Legal <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
 [package]
 name = "add_component"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
 
 [lib]
 crate-type = ["cdylib"]

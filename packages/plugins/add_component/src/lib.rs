@@ -23,6 +23,15 @@ impl Guest for Component {
         let a = x + y;
         format!("{} + {} = {}. Result: {}", x, y, a, res)
     }
+
+    fn get_manifest() -> String {
+        serde_json::json!({
+            "plugin_name": "adder",
+            "hooks": ["add"],
+            "routes": []
+        })
+        .to_string()
+    }
 }
 
 bindings::export!(Component with_types_in bindings);

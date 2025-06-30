@@ -10,7 +10,7 @@ let
 
   rustNightly = pkgs'.rust-bin.nightly.latest.default.override {
     targets    = [ "wasm32-unknown-unknown" "wasm32-wasip1" "wasm32-wasip2"];
-    extensions = [ "rust-src" ];
+    extensions = [ "rust-src" "rust-analyzer-preview" ];
   };
 
   # cargoComponent = pkgs.rustPlatform.buildRustPackage {

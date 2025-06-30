@@ -36,6 +36,32 @@ pub fn exec_query(sql: &str) -> _rt::String {
 }
 #[doc(hidden)]
 #[allow(non_snake_case)]
+pub unsafe fn _export_get_manifest_cabi<T: Guest>() -> *mut u8 {
+    #[cfg(target_arch = "wasm32")]
+    _rt::run_ctors_once();
+    let result0 = T::get_manifest();
+    let ptr1 = (&raw mut _RET_AREA.0).cast::<u8>();
+    let vec2 = (result0.into_bytes()).into_boxed_slice();
+    let ptr2 = vec2.as_ptr().cast::<u8>();
+    let len2 = vec2.len();
+    ::core::mem::forget(vec2);
+    *ptr1
+        .add(::core::mem::size_of::<*const u8>())
+        .cast::<usize>() = len2;
+    *ptr1.add(0).cast::<*mut u8>() = ptr2.cast_mut();
+    ptr1
+}
+#[doc(hidden)]
+#[allow(non_snake_case)]
+pub unsafe fn __post_return_get_manifest<T: Guest>(arg0: *mut u8) {
+    let l0 = *arg0.add(0).cast::<*mut u8>();
+    let l1 = *arg0
+        .add(::core::mem::size_of::<*const u8>())
+        .cast::<usize>();
+    _rt::cabi_dealloc(l0, l1, 1);
+}
+#[doc(hidden)]
+#[allow(non_snake_case)]
 pub unsafe fn _export_add_cabi<T: Guest>(arg0: i32, arg1: i32) -> *mut u8 {
     #[cfg(target_arch = "wasm32")]
     _rt::run_ctors_once();
@@ -61,13 +87,19 @@ pub unsafe fn __post_return_add<T: Guest>(arg0: *mut u8) {
     _rt::cabi_dealloc(l0, l1, 1);
 }
 pub trait Guest {
+    fn get_manifest() -> _rt::String;
     fn add(x: u32, y: u32) -> _rt::String;
 }
 #[doc(hidden)]
 macro_rules! __export_world_adder_cabi {
     ($ty:ident with_types_in $($path_to_types:tt)*) => {
-        const _ : () = { #[unsafe (export_name = "add")] unsafe extern "C" fn
-        export_add(arg0 : i32, arg1 : i32,) -> * mut u8 { unsafe { $($path_to_types)*::
+        const _ : () = { #[unsafe (export_name = "get-manifest")] unsafe extern "C" fn
+        export_get_manifest() -> * mut u8 { unsafe { $($path_to_types)*::
+        _export_get_manifest_cabi::<$ty > () } } #[unsafe (export_name =
+        "cabi_post_get-manifest")] unsafe extern "C" fn _post_return_get_manifest(arg0 :
+        * mut u8,) { unsafe { $($path_to_types)*:: __post_return_get_manifest::<$ty >
+        (arg0) } } #[unsafe (export_name = "add")] unsafe extern "C" fn export_add(arg0 :
+        i32, arg1 : i32,) -> * mut u8 { unsafe { $($path_to_types)*::
         _export_add_cabi::<$ty > (arg0, arg1) } } #[unsafe (export_name =
         "cabi_post_add")] unsafe extern "C" fn _post_return_add(arg0 : * mut u8,) {
         unsafe { $($path_to_types)*:: __post_return_add::<$ty > (arg0) } } };
@@ -139,12 +171,12 @@ pub(crate) use __export_adder_impl as export;
 #[unsafe(link_section = "component-type:wit-bindgen:0.41.0:docs:adder@0.1.0:adder:encoded world")]
 #[doc(hidden)]
 #[allow(clippy::octal_escapes)]
-pub static __WIT_BINDGEN_COMPONENT_TYPE: [u8; 200] = *b"\
-\0asm\x0d\0\x01\0\0\x19\x16wit-component-encoding\x04\0\x07M\x01A\x02\x01A\x04\x01\
-@\x01\x03sqls\0s\x03\0\x0aexec-query\x01\0\x01@\x02\x01xy\x01yy\0s\x04\0\x03add\x01\
-\x01\x04\0\x16docs:adder/adder@0.1.0\x04\0\x0b\x0b\x01\0\x05adder\x03\0\0\0G\x09\
-producers\x01\x0cprocessed-by\x02\x0dwit-component\x070.227.1\x10wit-bindgen-rus\
-t\x060.41.0";
+pub static __WIT_BINDGEN_COMPONENT_TYPE: [u8; 222] = *b"\
+\0asm\x0d\0\x01\0\0\x19\x16wit-component-encoding\x04\0\x07c\x01A\x02\x01A\x06\x01\
+@\x01\x03sqls\0s\x03\0\x0aexec-query\x01\0\x01@\0\0s\x04\0\x0cget-manifest\x01\x01\
+\x01@\x02\x01xy\x01yy\0s\x04\0\x03add\x01\x02\x04\0\x16docs:adder/adder@0.1.0\x04\
+\0\x0b\x0b\x01\0\x05adder\x03\0\0\0G\x09producers\x01\x0cprocessed-by\x02\x0dwit\
+-component\x070.227.1\x10wit-bindgen-rust\x060.41.0";
 #[inline(never)]
 #[doc(hidden)]
 pub fn __link_custom_section_describing_imports() {
