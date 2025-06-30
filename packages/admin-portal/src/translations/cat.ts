@@ -1092,6 +1092,11 @@ const catalanTranslation: TranslationType = {
                 kind: "Tipus d'arxiu",
                 filter: "Filtres Personalizats",
                 approve: "Aprovar",
+                continue: "Continuar",
+                logout: "Sortir",
+                selectTenant: "Seleccionar Llogater",
+                processing: "Processant...",
+                tenantName: "Nom del Llogater",
             },
             language: {
                 es: "Espanyol",
@@ -1101,6 +1106,7 @@ const catalanTranslation: TranslationType = {
                 tl: "Tagal",
                 gl: "Galego",
                 nl: "Holandés",
+                eu: "Euskera",
             },
             channel: {
                 online: "En línia",
@@ -1108,6 +1114,7 @@ const catalanTranslation: TranslationType = {
             },
             message: {
                 delete: "Estàs segur que vols esborrar aquest element?",
+                continueOrLogout: "Vols continuar conectat o sortir?",
             },
         },
         createResource: {
@@ -1881,6 +1888,10 @@ const catalanTranslation: TranslationType = {
             fields: {
                 isHidden: "Ocult",
                 publicUrl: "Enllaç públic",
+            },
+            empty: {
+                header: "Encara no hi ha material de suport",
+                action: "Genera material de suport",
             },
         },
         widget: {

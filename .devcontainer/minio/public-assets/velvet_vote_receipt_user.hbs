@@ -10,8 +10,8 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width,initial-scale=1" />
-        <title>{{extra_data.title}}</title>
-        <script src="{{extra_data.file_qrcode_lib}}"></script>
+        <title>SEQUENT ONLINE VOTING</title>
+        <script src="{{file_qrcode_lib}}"></script>
 
         <style>
             body {
@@ -217,11 +217,11 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
             <div id="dateDiv"></div>
             <div class="next-page"></div>
 
-            {{#each data.receipts}}
+            {{#each receipts}}
             <div class="ballot next-page">
                 <div class="header">
                     <div class="left">
-                        <h2>{{sanitize_html ../data.election_name}}</h2>
+                        <h2>{{sanitize_html ../election_name}}</h2>
                         <p class="ballot-no">Ballot No #{{@index}}</p>
                         <p class="instructions-header">INSTRUCTIONS FOR VOTING</p>
                         <ol>
@@ -234,8 +234,10 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
                         <div class="qr-code" id="qrcode-{{@index}}"></div>
                     </div>
                     <div class="right">
-                        <img src="https://i.imgur.com/E706UKs.png" class="comissioner-logo"
+                        sequent-logo.svg
+                        <img src="" class="comissioner-logo"
                             alt="Electoral Commission Logo" />
+                        {{/if}}
                         <div class="is-blank">
                             <span class="candidate-name">Blank vote</span>
                             {{#if this.is_blank }}
@@ -258,7 +260,7 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
                 <div class="content">
                     <div class="section">
                         <div class="section-title blue">
-                            {{sanitize_html ../data.contest.name}}
+                            {{sanitize_html ../contest.name}}
                         </div>
                         <div class="candidates">
                             {{#each this.decoded_choices}}
@@ -276,7 +278,6 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
                 </div>
                 <div class="footer">
                     FOR PARTY LIST CANDIDATES, CHECK THE BACK OF THIS BALLOT<br>
-                    Para sa mga kandidato ng Party List, tingnan ang likod ng balotang ito
                 </div>
             </div>
             {{/each}}
@@ -284,7 +285,7 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 
         <!-- QR Codes -->
         <script>
-            { { #each data.receipts } }
+            { { #each receipts } }
             new QRCode(document.getElementById("qrcode-{{@index}}"), {
                 text: '{{@index}};{{this.encoded_vote}}',
                 width: 100,

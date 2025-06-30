@@ -158,6 +158,7 @@ Environment variables to add, in production:
 - `AWS_S3_MAX_UPLOAD_BYTES`
 - `AWS_S3_UPLOAD_EXPIRATION_SECS`
 - `AWS_S3_FETCH_EXPIRATION_SECS`
+- `BALLOT_VERIFIER_URL` 
 
 Impacted services:
 
