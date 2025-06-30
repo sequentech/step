@@ -11,14 +11,18 @@ SPDX-License-Identifier: AGPL-3.0-only
 <#import "register-commons.ftl" as registerCommons>
 <@layout.registrationLayout displayMessage=messagesPerField.exists('global') displayRequiredFields=true; section>
     <#if section = "header">
-        ${msg("registerTitle")}
+        <#if formMode?? && formMode = 'LOGIN'>
+            ${msg('loginTitle',(realm.displayName!''))}
+        <#else>
+            ${msg('registerTitle')}
+        </#if>
     <#elseif section = "form">
         <form id="kc-register-form" class="${properties.kcFormClass!}" action="${url.registrationAction}" method="post">
 
             <@userProfileCommons.userProfileFormFields; callback, attribute>
                 <#if callback = "afterField">
                 <#-- render password fields just under the username or email (if used as username) -->
-                    <#if passwordRequired?? && (attribute.name == 'username' || (attribute.name == 'email' && realm.registrationEmailAsUsername)) && (attribute.annotations.showPasswordAfterThis!'true') != 'false' || (attribute.annotations.showPasswordAfterThis!'false') == 'true'>
+                    <#if passwordRequired && (attribute.name == 'username' || (attribute.name == 'email' && realm.registrationEmailAsUsername)) && (attribute.annotations.showPasswordAfterThis!'true') != 'false' || (attribute.annotations.showPasswordAfterThis!'false') == 'true'>
                         <div class="${properties.kcFormGroupClass!}">
                             <div class="${properties.kcLabelWrapperClass!}">
                                 <label for="password" class="${properties.kcLabelClass!}">${msg("password")}</label> *
@@ -105,14 +109,21 @@ SPDX-License-Identifier: AGPL-3.0-only
             </#if>
 
             <div class="${properties.kcFormGroupClass!}">
-                <div id="kc-form-options" class="${properties.kcFormOptionsClass!}">
-                    <div class="${properties.kcFormOptionsWrapperClass!}">
-                        <span><a href="${url.loginUrl}">${kcSanitize(msg("backToLogin"))?no_esc}</a></span>
+                <#if formMode?? && (formMode!"REGISTRATION") != "LOGIN">
+                    <div id="kc-form-options" class="${properties.kcFormOptionsClass!}">
+                        <div class="${properties.kcFormOptionsWrapperClass!}">
+                            <span><a href="${url.loginUrl}">${kcSanitize(msg("backToLogin"))?no_esc}</a></span>
+                        </div>
                     </div>
-                </div>
+                </#if>
 
                 <div id="kc-form-buttons" class="${properties.kcFormButtonsClass!}">
-                    <input id="termsOfServiceText" class="${properties.kcButtonClass!} ${properties.kcButtonPrimaryClass!} ${properties.kcButtonBlockClass!} ${properties.kcButtonLargeClass!}" type="submit" value="${msg("doRegister")}"/>
+                    <input
+                        id="termsOfServiceText"
+                        class="${properties.kcButtonClass!} ${properties.kcButtonPrimaryClass!} ${properties.kcButtonBlockClass!} ${properties.kcButtonLargeClass!}"
+                        type="submit"
+                        value="<#if formMode?? && formMode = 'LOGIN'>${msg("doLogIn")}<#else>${msg("doRegister")}</#if>"
+                    />
                 </div>
             </div>
         </form>
