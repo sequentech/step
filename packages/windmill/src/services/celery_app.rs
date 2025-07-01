@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use async_once::AsyncOnce;
 use celery::prelude::Task;
 use celery::Celery;
@@ -301,7 +301,10 @@ pub async fn get_celery_connection() -> Result<Arc<Connection>> {
 
     let mut last_error = None;
     for amqp_url in amqp_urls {
-        match Connection::connect(&amqp_url, ConnectionProperties::default()).await {
+        match Connection::connect(&amqp_url, ConnectionProperties::default())
+            .await
+            .with_context(|| format!("Failed to connect to any AMQP server {}", amqp_url))
+        {
             Ok(connection) => {
                 let arc_conn = Arc::new(connection);
                 // Set the global connection so it can be reused.
@@ -310,15 +313,12 @@ pub async fn get_celery_connection() -> Result<Arc<Connection>> {
             }
             Err(e) => {
                 // Log the error and try the next URL.
-                info!("Failed to connect to {}: {:?}", amqp_url, e);
+                info!("Failed to connect to AMQP server '{}': {:?}", amqp_url, e);
                 last_error = Some(e);
             }
         }
     }
 
     // If no connection was successful, return an error.
-    Err(anyhow!(
-        "Failed to connect to any AMQP server: {:?}",
-        last_error
-    ))
+    Err(last_error.unwrap())
 }
