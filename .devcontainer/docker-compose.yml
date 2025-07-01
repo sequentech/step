@@ -687,7 +687,6 @@ services:
       - immudb
       - immudb-log-audit-init-keycloak
 
-
   rabbitmq:
     profiles: ["full", "base"]
     image: rabbitmq:3.12.11-management
