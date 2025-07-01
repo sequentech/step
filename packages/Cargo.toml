@@ -25,7 +25,7 @@ members = [
 ]
 
 [patch.crates-io]
-celery = { git = "https://github.com/rusty-celery/rusty-celery.git", rev = "1a0168f4b4b521c891fcfc853c21fc30de12c2f2" }
+celery = { git = "https://github.com/Findeton/rusty-celery.git", rev = "b4145925aaaf742b7ba54499fff45313bcadfca1" }
 
 [source.crates-io]
 replace-with = "vendored-sources"
