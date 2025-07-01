@@ -526,7 +526,9 @@ function TreeMenuItem({
                 )}
                 {isOpenSidebar && (
                     <MenuStyles.StyledSideBarNavLink
-                        multiline={treeResourceNames[0] === "sequent_backend_election"}
+                        multiline={
+                            treeResourceNames[0] === "sequent_backend_election" ? "true" : undefined
+                        } // Fix here
                         onClick={() => onClick(true)}
                         title={name}
                         className={({isActive}) =>
