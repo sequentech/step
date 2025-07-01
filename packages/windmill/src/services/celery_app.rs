@@ -320,5 +320,5 @@ pub async fn get_celery_connection() -> Result<Arc<Connection>> {
     }
 
     // If no connection was successful, return an error.
-    Err(last_error.unwrap())
+    Err(last_error.unwrap_or(anyhow!("Failed to connect to any AMQP server")))
 }
