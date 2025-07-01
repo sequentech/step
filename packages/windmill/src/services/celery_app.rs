@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use async_once::AsyncOnce;
 use celery::prelude::Task;
 use celery::Celery;
@@ -13,7 +13,7 @@ use std::sync::Arc;
 use std::sync::OnceLock;
 use strum_macros::AsRefStr;
 use tokio::sync::{Mutex, RwLock};
-use tracing::{event, instrument, Level};
+use tracing::{event, info, instrument, Level};
 
 use crate::tasks::activity_logs_report::generate_activity_logs_report;
 use crate::tasks::create_ballot_receipt::create_ballot_receipt;
@@ -293,9 +293,32 @@ pub async fn get_celery_connection() -> Result<Arc<Connection>> {
         // For simplicity we assume the connection is still valid.
         return Ok(conn.clone());
     }
-    let amqp_url = std::env::var("AMQP_ADDR").unwrap_or_else(|_| "amqp://rabbitmq:5672".into());
-    let connection = Connection::connect(&amqp_url, ConnectionProperties::default()).await?;
-    let arc_conn = Arc::new(connection);
-    let _ = CELERY_CONNECTION.set(arc_conn.clone());
-    Ok(arc_conn)
+
+    let amqp_urls: Vec<String> = std::env::var("AMQP_ADDR")?
+        .split(',')
+        .map(String::from)
+        .collect();
+
+    let mut last_error = None;
+    for amqp_url in amqp_urls {
+        match Connection::connect(&amqp_url, ConnectionProperties::default()).await {
+            Ok(connection) => {
+                let arc_conn = Arc::new(connection);
+                // Set the global connection so it can be reused.
+                let _ = CELERY_CONNECTION.set(arc_conn.clone());
+                return Ok(arc_conn);
+            }
+            Err(e) => {
+                // Log the error and try the next URL.
+                info!("Failed to connect to {}: {:?}", amqp_url, e);
+                last_error = Some(e);
+            }
+        }
+    }
+
+    // If no connection was successful, return an error.
+    Err(anyhow!(
+        "Failed to connect to any AMQP server: {:?}",
+        last_error
+    ))
 }
