@@ -41,7 +41,7 @@ export const UserAndRoles: React.FC = () => {
     return (
         <>
             <ElectionHeader
-                title={t("usersAndRolesScreen.common.title")}
+                title="usersAndRolesScreen.common.title"
                 subtitle="usersAndRolesScreen.common.subtitle"
             />
             <SidebarScreenStyles.Tabs
