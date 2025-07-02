@@ -90,6 +90,12 @@ export const FormContent: React.FC<UpsertAreaProps> = (props) => {
 
     const onSubmit = async (values: any) => {
         try {
+            if (!values.name || values.name?.length == 0) {
+                if (close) {
+                    close()
+                    return
+                }
+            }
             const {data} = await upsertArea({
                 variables: {
                     id: values.id,
