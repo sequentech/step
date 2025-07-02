@@ -630,47 +630,6 @@ pub async fn get_areas_by_ids(
 }
 
 #[instrument(skip(hasura_transaction), err)]
-pub async fn insert_area_to_area_contests(
-    hasura_transaction: &Transaction<'_>,
-    tenant_id: &str,
-    election_event_id: &Uuid,
-    area_id: &str,
-    contest_ids: &[Uuid],
-) -> Result<()> {
-    // Insert new area_contests
-    for contest_id in contest_ids {
-        let id = Uuid::new_v4();
-
-        let statement = hasura_transaction
-            .prepare(
-                r#"
-                INSERT INTO sequent_backend.area_contest
-                (id, tenant_id, election_event_id, contest_id, area_id, created_at, last_updated_at)
-                VALUES
-                ($1, $2, $3, $4, $5, NOW(), NOW());
-            "#,
-            )
-            .await?;
-
-        let _rows: Vec<Row> = hasura_transaction
-            .query(
-                &statement,
-                &[
-                    &id,
-                    &Uuid::parse_str(tenant_id)?,
-                    election_event_id,
-                    contest_id,
-                    &Uuid::parse_str(area_id)?,
-                ],
-            )
-            .await
-            .map_err(|err| anyhow!("Error running the document query: {err}"))?;
-    }
-
-    Ok(())
-}
-
-#[instrument(skip(hasura_transaction), err)]
 pub async fn delete_area_contests(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,

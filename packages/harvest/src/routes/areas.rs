@@ -4,7 +4,6 @@
 
 use crate::services::authorization::authorize;
 use anyhow::{Context, Result};
-use chrono;
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
@@ -16,9 +15,9 @@ use serde_json::Value as JsonValue;
 use tracing::instrument;
 use uuid::Uuid;
 use windmill::postgres::area::{
-    delete_area_contests, insert_area, insert_area_to_area_contests,
-    update_area,
+    delete_area_contests, insert_area, update_area,
 };
+use windmill::postgres::area_contest::insert_area_to_area_contests;
 use windmill::services::database::get_hasura_pool;
 use windmill::services::import::import_election_event::upsert_b3_and_elog;
 
@@ -65,22 +64,22 @@ pub async fn upsert_area(
         .await
         .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
-    let now_local = chrono::Utc::now().with_timezone(&chrono::Local);
+    let election_event_id_str = body.election_event_id.to_string();
     let area = Area {
         id: body
             .id
             .map(|uuid| uuid.to_string())
             .unwrap_or_else(|| uuid::Uuid::new_v4().to_string()),
         tenant_id: body.tenant_id.to_string(),
-        election_event_id: body.election_event_id.to_string(),
+        election_event_id: election_event_id_str.clone(),
         labels: body.labels.clone(),
         annotations: body.annotations.clone(),
         name: Some(body.name.clone()),
         description: body.description.clone(),
         r#type: body.r#type.clone(),
         parent_id: body.parent_id.map(|uuid| uuid.to_string()),
-        created_at: Some(now_local),
-        last_updated_at: Some(now_local),
+        created_at: None,
+        last_updated_at: None,
     };
 
     // Perform insert or update based on presence of ID
@@ -93,7 +92,6 @@ pub async fn upsert_area(
             .await
             .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
     }
-    let election_event_id = body.election_event_id;
     let tenant_id = &claims.hasura_claims.tenant_id;
     delete_area_contests(
         &hasura_transaction,
@@ -112,7 +110,7 @@ pub async fn upsert_area(
     insert_area_to_area_contests(
         &hasura_transaction,
         tenant_id,
-        &election_event_id,
+        &election_event_id_str,
         &area.id,
         &body.area_contest_ids,
     )
