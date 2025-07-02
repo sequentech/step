@@ -93,6 +93,7 @@ export const FormContent: React.FC<UpsertAreaProps> = (props) => {
             if (!values.name || values.name?.length == 0) {
                 if (close) {
                     close()
+                    notify(t("areas.createAreaError"), {type: "error"})
                     return
                 }
             }

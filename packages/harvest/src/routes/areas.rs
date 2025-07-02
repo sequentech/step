@@ -16,7 +16,8 @@ use serde_json::Value as JsonValue;
 use tracing::instrument;
 use uuid::Uuid;
 use windmill::postgres::area::{
-    delete_area_contests, insert_area, insert_area_contests, update_area,
+    delete_area_contests, insert_area, insert_area_to_area_contests,
+    update_area,
 };
 use windmill::services::database::get_hasura_pool;
 use windmill::services::import::import_election_event::upsert_b3_and_elog;
@@ -108,7 +109,7 @@ pub async fn upsert_area(
         )
     })?;
 
-    insert_area_contests(
+    insert_area_to_area_contests(
         &hasura_transaction,
         tenant_id,
         &election_event_id,
