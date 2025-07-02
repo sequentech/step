@@ -99,6 +99,7 @@ const basqueTranslation: TranslationType = {
                 deleteError: "Errorea eremua ezabatzerakoan",
             },
             createAreaSuccess: "Eremua sortua",
+            updateAreaSuccess: "Eremua aldatua",
             createAreaError: "Ezin izan da Eremua sortu",
             sequent_backend_area_contest: "Lehiaketak",
             empty: {
