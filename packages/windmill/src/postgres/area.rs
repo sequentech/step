@@ -584,6 +584,51 @@ pub async fn get_areas_by_election_id(
     Ok(areas)
 }
 
+/// Returns a vector of areas per tenant and election event, filtered by a list of area_ids
+#[instrument(skip(hasura_transaction), err)]
+pub async fn get_areas_by_ids(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    area_ids: &Vec<String>,
+) -> Result<Vec<Area>> {
+    let uuid_tenant_id = Uuid::parse_str(tenant_id)?;
+    let uuid_election_event_id = Uuid::parse_str(election_event_id)?;
+    let uuid_area_ids: Vec<Uuid> = area_ids
+        .iter()
+        .map(|id| Uuid::parse_str(id))
+        .collect::<Result<_, _>>()?;
+
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+            SELECT
+                *
+            FROM
+                sequent_backend.area
+            WHERE
+                tenant_id = $1 AND
+                election_event_id = $2 AND
+                id = ANY($3);
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[&uuid_tenant_id, &uuid_election_event_id, &uuid_area_ids],
+        )
+        .await?;
+
+    let areas: Vec<Area> = rows
+        .into_iter()
+        .map(|row| row.try_into().map(|res: AreaWrapper| res.0))
+        .collect::<Result<Vec<Area>>>()?;
+
+    Ok(areas)
+}
+
 #[instrument(skip(hasura_transaction), err)]
 pub async fn insert_area_contests(
     hasura_transaction: &Transaction<'_>,

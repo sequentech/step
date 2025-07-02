@@ -1,5 +1,5 @@
 
-CREATE SCHEMA "sequent_backend";
+CREATE SCHEMA IF NOT EXISTS "sequent_backend";
 
 CREATE TABLE "sequent_backend"."tenant" (
     "id" uuid NOT NULL DEFAULT gen_random_uuid(),

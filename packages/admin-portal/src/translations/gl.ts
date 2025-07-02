@@ -1085,6 +1085,11 @@ const galegoTranslation: TranslationType = {
                 kind: "Tipo de ficheiro",
                 filter: "Filtros Personalizados",
                 approve: "Aprobar",
+                continue: "Continuar",
+                logout: "Pechar sesión",
+                selectTenant: "Seleccionar cliente",
+                processing: "Procesando...",
+                tenantName: "Nome do inquilino",
             },
             language: {
                 es: "Español",
@@ -1094,6 +1099,7 @@ const galegoTranslation: TranslationType = {
                 tl: "Tagalo",
                 gl: "Galego",
                 nl: "Holandés",
+                eu: "Euskera",
             },
             channel: {
                 online: "En Liña",
@@ -1101,6 +1107,7 @@ const galegoTranslation: TranslationType = {
             },
             message: {
                 delete: "¿Estás seguro de que queres eliminar este elemento?",
+                continueOrLogout: "¿Queres continuar ou pechar sesión?",
             },
         },
         createResource: {
@@ -1875,6 +1882,10 @@ const galegoTranslation: TranslationType = {
             fields: {
                 isHidden: "Está Oculto",
                 publicUrl: "URL Pública",
+            },
+            empty: {
+                header: "Aínda non hai material de apoio",
+                action: "Xerar material de apoio",
             },
         },
         widget: {
