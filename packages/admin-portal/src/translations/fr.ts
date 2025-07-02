@@ -1103,6 +1103,7 @@ const frenchTranslation: TranslationType = {
                 tl: "Tagalog",
                 gl: "Galego",
                 nl: "Néerlandais",
+                eu: "Euskera",
             },
             channel: {
                 online: "En ligne",
@@ -1888,6 +1889,10 @@ const frenchTranslation: TranslationType = {
             fields: {
                 isHidden: "Caché",
                 publicUrl: "Lien public",
+            },
+            empty: {
+                header: "Pas encore de matériel de support",
+                action: "Générer du matériel de support",
             },
         },
         widget: {

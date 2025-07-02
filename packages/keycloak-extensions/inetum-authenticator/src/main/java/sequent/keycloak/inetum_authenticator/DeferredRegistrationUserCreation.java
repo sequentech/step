@@ -4,6 +4,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 package sequent.keycloak.inetum_authenticator;
 
+import static java.util.Arrays.asList;
+
 import com.google.auto.service.AutoService;
 import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
@@ -54,6 +56,25 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
   public static final String SEARCH_ATTRIBUTES = "search-attributes";
   public static final String UNSET_ATTRIBUTES = "unset-attributes";
   public static final String UNIQUE_ATTRIBUTES = "unique-attributes";
+  public static final String PASSWORD_REQUIRED = "password-required";
+  public static final String FORM_MODE = "form-mode";
+
+  // define the form modes as an enum with string values:
+  public enum FormMode {
+    REGISTRATION("REGISTRATION"),
+    LOGIN("LOGIN");
+
+    private final String value;
+
+    FormMode(String value) {
+      this.value = value;
+    }
+
+    public String getValue() {
+      return value;
+    }
+  }
+
   public static final String VERIFIED_VALUE = "VERIFIED";
   public static final String VERIFIED_DEFAULT_ID = "sequent.read-only.id-card-number-validated";
   public static final String ID_NUMBER = "sequent.read-only.id-card-number";
@@ -74,6 +95,16 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
 
   @Override
   public List<ProviderConfigProperty> getConfigProperties() {
+
+    ProviderConfigProperty formMode =
+        new ProviderConfigProperty(
+            FORM_MODE,
+            "Form Mode",
+            "Show the form in Registration or Login Mode.",
+            ProviderConfigProperty.LIST_TYPE,
+            FormMode.REGISTRATION.name());
+    formMode.setOptions(asList(FormMode.REGISTRATION.name(), FormMode.LOGIN.name()));
+
     // Define configuration properties
     return List.of(
         new ProviderConfigProperty(
@@ -99,7 +130,14 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
             "Unique Attributes",
             "Comma-separated list of attributes that should not be set to other users and otherwise the authenticator should fail.",
             ProviderConfigProperty.STRING_TYPE,
-            ""));
+            ""),
+        new ProviderConfigProperty(
+            PASSWORD_REQUIRED,
+            "Password Required",
+            "Define if the password will be shown in the form.",
+            ProviderConfigProperty.BOOLEAN_TYPE,
+            "true"),
+        formMode);
   }
 
   @Override
@@ -108,19 +146,23 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
 
     // Retrieve the configuration
     AuthenticatorConfigModel config = context.getAuthenticatorConfig();
-    Map<String, String> configMap = config.getConfig();
+    final Map<String, String> configMap = config.getConfig();
 
     // Extract the attributes to search and update from the configuration
-    String searchAttributes = configMap.get(SEARCH_ATTRIBUTES);
-    String unsetAttributes = configMap.get(UNSET_ATTRIBUTES);
-    String uniqueAttributes = configMap.get(UNIQUE_ATTRIBUTES);
-    String verifiedAttributeId =
+    final String searchAttributes = configMap.get(SEARCH_ATTRIBUTES);
+    final String unsetAttributes = configMap.get(UNSET_ATTRIBUTES);
+    final String uniqueAttributes = configMap.get(UNIQUE_ATTRIBUTES);
+    final String formMode = configMap.get(FORM_MODE);
+    final String verifiedAttributeId =
         Optional.ofNullable(configMap.get(UNIQUE_ATTRIBUTES)).orElse(VERIFIED_DEFAULT_ID);
+    boolean passwordRequired =
+        Boolean.parseBoolean(Optional.ofNullable(configMap.get(PASSWORD_REQUIRED)).orElse("true"));
 
     // Parse attributes lists
     List<String> searchAttributesList = parseAttributesList(searchAttributes);
     List<String> unsetAttributesList = parseAttributesList(unsetAttributes);
     List<String> uniqueAttributesList = parseAttributesList(uniqueAttributes);
+
     // Get the form data
     MultivaluedMap<String, String> formData = context.getHttpRequest().getDecodedFormParameters();
     context.getEvent().detail(Details.REGISTER_METHOD, "form");
@@ -153,6 +195,8 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
       }
     } catch (ValidationException pve) {
 
+      log.info("validate: Entering validation errors:" + pve.getErrors());
+
       // Filter email exists and username exists - this is to be expected
       // If username is hidden ignore the missing username validation error.
       List<ValidationException.Error> filteredErrors =
@@ -160,7 +204,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
               .filter(
                   error ->
                       ((!context.getRealm().isRegistrationEmailAsUsername()
-                              || !Messages.USERNAME_EXISTS.equals(error.getMessage()))
+                              && !Messages.USERNAME_EXISTS.equals(error.getMessage()))
                           && !Messages.EMAIL_EXISTS.equals(error.getMessage())
                           // If username is hidden ignore the missing username validation error.
                           && !(Messages.MISSING_USERNAME.equals(error.getMessage())
@@ -211,6 +255,10 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
         return;
       }
 
+      if (formMode.equals(FormMode.LOGIN.getValue())) {
+        context.setUser(user);
+      }
+
       // Check if the voter has already been validated
       log.infov("validate: Is user validated id {0}", verifiedAttributeId);
       var verifiedAttributeValue = user.getFirstAttribute(verifiedAttributeId);
@@ -255,17 +303,19 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
 
     List<FormMessage> errors = new ArrayList<>();
     context.getEvent().detail(Details.REGISTER_METHOD, "form");
-    if (Validation.isBlank(formData.getFirst(RegistrationPage.FIELD_PASSWORD))) {
+    if (passwordRequired
+        && Validation.isBlank(formData.getFirst(RegistrationPage.FIELD_PASSWORD))) {
       errors.add(new FormMessage(RegistrationPage.FIELD_PASSWORD, Messages.MISSING_PASSWORD));
-    } else if (!formData
-        .getFirst(RegistrationPage.FIELD_PASSWORD)
-        .equals(formData.getFirst(RegistrationPage.FIELD_PASSWORD_CONFIRM))) {
+    } else if (passwordRequired
+        && !formData
+            .getFirst(RegistrationPage.FIELD_PASSWORD)
+            .equals(formData.getFirst(RegistrationPage.FIELD_PASSWORD_CONFIRM))) {
       context.error(PASSWORD_NOT_MATCHED);
       errors.add(
           new FormMessage(
               RegistrationPage.FIELD_PASSWORD_CONFIRM, Messages.INVALID_PASSWORD_CONFIRM));
     }
-    if (formData.getFirst(RegistrationPage.FIELD_PASSWORD) != null) {
+    if (passwordRequired && formData.getFirst(RegistrationPage.FIELD_PASSWORD) != null) {
       PolicyError err =
           context
               .getSession()
@@ -319,6 +369,18 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
       context.validationError(formData, errors);
       return;
     }
+
+    // log formMode variable:
+    log.infov(
+        "validate: formMode={0} vs FormMode.LOGIN.getValue()={1}",
+        formMode, FormMode.LOGIN.getValue());
+    if (formMode.equals(FormMode.LOGIN.getValue())) {
+      log.info("validate: setting authenticated user " + user.getUsername());
+      context.getAuthenticationSession().setAuthenticatedUser(user);
+    } else {
+      log.info("validate: formMode is different!");
+    }
+
     log.info("validate: success");
     context.success();
   }
@@ -391,20 +453,32 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
 
   @Override
   public void buildPage(FormContext context, LoginFormsProvider form) {
-    form.setAttribute("passwordRequired", true);
+    // Retrieve the configuration
+    AuthenticatorConfigModel config = context.getAuthenticatorConfig();
+    Map<String, String> configMap = config.getConfig();
+    final String formMode = configMap.get(FORM_MODE);
+    final boolean passwordRequired =
+        Boolean.parseBoolean(Optional.ofNullable(configMap.get(PASSWORD_REQUIRED)).orElse("true"));
+
+    form.setAttribute("passwordRequired", passwordRequired);
+    form.setAttribute("formMode", formMode);
+    log.infov("buildPage(): formMode = {0}", formMode);
     checkNotOtherUserAuthenticating(context);
   }
 
   @Override
   public void success(FormContext context) {
-    log.info("DeferredRegistrationUserCreation: start");
+    log.info("DeferredRegistrationUserCreation: success");
     context.getEvent().success();
-
-    checkNotOtherUserAuthenticating(context);
 
     // Retrieve the configuration
     AuthenticatorConfigModel config = context.getAuthenticatorConfig();
     Map<String, String> configMap = config.getConfig();
+    final String formMode = configMap.get(FORM_MODE);
+
+    if (!formMode.equals(FormMode.LOGIN.getValue())) {
+      checkNotOtherUserAuthenticating(context);
+    }
 
     // Extract the attributes to search and update from the configuration
     String searchAttributes = configMap.get(SEARCH_ATTRIBUTES);

@@ -1106,6 +1106,7 @@ const catalanTranslation: TranslationType = {
                 tl: "Tagal",
                 gl: "Galego",
                 nl: "Holandés",
+                eu: "Euskera",
             },
             channel: {
                 online: "En línia",
@@ -1887,6 +1888,10 @@ const catalanTranslation: TranslationType = {
             fields: {
                 isHidden: "Ocult",
                 publicUrl: "Enllaç públic",
+            },
+            empty: {
+                header: "Encara no hi ha material de suport",
+                action: "Genera material de suport",
             },
         },
         widget: {

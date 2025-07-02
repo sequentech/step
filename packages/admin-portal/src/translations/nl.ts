@@ -1093,6 +1093,7 @@ const dutchTranslation: TranslationType = {
                 tl: "Tagalog",
                 gl: "Galicisch",
                 nl: "Nederlands",
+                eu: "Euskera",
             },
             channel: {
                 online: "Online",
@@ -1878,6 +1879,10 @@ const dutchTranslation: TranslationType = {
             fields: {
                 isHidden: "Is Verborgen",
                 publicUrl: "Publieke URL",
+            },
+            empty: {
+                header: "Nog geen ondersteunend materiaal",
+                action: "Ondersteunend materiaal genereren",
             },
         },
         widget: {

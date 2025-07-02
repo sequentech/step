@@ -1098,6 +1098,7 @@ const tagalogTranslation: TranslationType = {
                 tl: "Tagalog",
                 gl: "Galego",
                 nl: "Nederlands",
+                eu: "Euskera",
             },
             channel: {
                 online: "Online",
@@ -1881,6 +1882,10 @@ const tagalogTranslation: TranslationType = {
             fields: {
                 isHidden: "Nakatago",
                 publicUrl: "Publikong URL",
+            },
+            empty: {
+                header: "Wala pang support material",
+                action: "Gumawa ng support material",
             },
         },
         widget: {

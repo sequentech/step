@@ -1096,6 +1096,7 @@ const spanishTranslation: TranslationType = {
                 tl: "Tagalo",
                 gl: "Galego",
                 nl: "Holandes",
+                eu: "Euskera",
             },
             channel: {
                 online: "En línea",
@@ -1877,6 +1878,10 @@ const spanishTranslation: TranslationType = {
             fields: {
                 isHidden: "Oculto",
                 publicUrl: "Enlace público",
+            },
+            empty: {
+                header: "Aún no hay material de soporte",
+                action: "Generar material de soporte",
             },
         },
         widget: {

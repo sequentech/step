@@ -687,7 +687,6 @@ services:
       - immudb
       - immudb-log-audit-init-keycloak
 
-
   rabbitmq:
     profiles: ["full", "base"]
     image: rabbitmq:3.12.11-management
@@ -907,6 +906,7 @@ services:
       B3_PG_PASSWORD: ${B3_PG_PASSWORD}
       B3_PG_DATABASE: ${B3_PG_DATABASE}
       DOC_RENDERER_BACKEND: ${DOC_RENDERER_BACKEND}
+      BALLOT_VERIFIER_URL: ${BALLOT_VERIFIER_URL}
 
   beat:
     profiles: ["full"]

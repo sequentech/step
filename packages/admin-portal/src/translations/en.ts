@@ -1083,6 +1083,7 @@ const englishTranslation = {
                 tl: "Tagalog",
                 gl: "Galician",
                 nl: "Dutch",
+                eu: "Euskera",
             },
             channel: {
                 online: "Online",
@@ -1860,6 +1861,10 @@ const englishTranslation = {
             fields: {
                 isHidden: "Is Hidden",
                 publicUrl: "Public URL",
+            },
+            empty: {
+                header: "No support material yet",
+                action: "Generate support material  ",
             },
         },
         widget: {
