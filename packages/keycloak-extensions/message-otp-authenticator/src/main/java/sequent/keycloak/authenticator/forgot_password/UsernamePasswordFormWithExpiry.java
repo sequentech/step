@@ -257,7 +257,7 @@ public class UsernamePasswordFormWithExpiry extends AbstractUsernameFormAuthenti
     }
 
     // remove leading and trailing whitespace
-    username = username.trim();
+    username = username.trim().toLowerCase();
 
     context.getEvent().detail(Details.USERNAME, username);
     context
@@ -307,6 +307,24 @@ public class UsernamePasswordFormWithExpiry extends AbstractUsernameFormAuthenti
       KeycloakSession session, RealmModel realm, String username, List<String> usernameAttributes) {
     if (usernameAttributes != null && !usernameAttributes.isEmpty()) {
       for (String attribute : usernameAttributes) {
+        // If email is one of the attributes use specific query
+        if ("email".equalsIgnoreCase(attribute) && username.indexOf('@') != -1) {
+          UserModel user = session.users().getUserByEmail(realm, username);
+          if (user != null) {
+            return user;
+          }
+          continue;
+        }
+
+        // If username is one of the attributes use specific query
+        if ("username".equalsIgnoreCase(attribute)) {
+          UserModel user = session.users().getUserByUsername(realm, username);
+          if (user != null) {
+            return user;
+          }
+          continue;
+        }
+
         UserModel user =
             session
                 .users()
@@ -320,14 +338,7 @@ public class UsernamePasswordFormWithExpiry extends AbstractUsernameFormAuthenti
       }
     }
 
-    if (realm.isLoginWithEmailAllowed() && username.indexOf('@') != -1) {
-      UserModel user = session.users().getUserByEmail(realm, username);
-      if (user != null) {
-        return user;
-      }
-    }
-
-    return session.users().getUserByUsername(realm, username);
+    return null;
   }
 
   @Override

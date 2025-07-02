@@ -123,35 +123,23 @@ pub async fn verify_application(
         manual_verify_reason: result.manual_verify_reason.clone(),
     };
 
+    let (mut permission_label, area_id) = get_permission_label_and_area_from_applicant_data(
+        hasura_transaction,
+        applicant_data,
+        tenant_id,
+        election_event_id,
+    )
+    .await?;
     // Add a permission label only if the embassy matches the voter in db
-    let (permission_label, area_id) = if let Some(true) = result
-        .fields_match
-        .as_ref()
-        .and_then(|value| value.get("embassy"))
-    {
-        get_permission_label_from_applicant_data(hasura_transaction, applicant_data).await?
-    } else {
-        let area_name = applicant_data
-            .get("country")
-            .and_then(|country| {
-                country
-                    .split('/')
-                    .next()
-                    .map(|country| country.to_lowercase())
-            })
-            .ok_or(anyhow!("Error with applicant country"))?;
-        let areas = get_event_areas(hasura_transaction, tenant_id, election_event_id).await?;
-        let area = areas
-            .iter()
-            .find(|area| {
-                area.name
-                    .as_ref()
-                    .map(|name| name.to_lowercase().contains(&area_name.clone()))
-                    .unwrap_or_default()
-            })
-            .ok_or(anyhow!("Error finding area"))?;
-        (None, Some(Uuid::parse_str(&area.id)?))
-    };
+    if !matches!(
+        result
+            .fields_match
+            .as_ref()
+            .and_then(|value| value.get("embassy")),
+        Some(true)
+    ) {
+        permission_label = None;
+    }
 
     let mut final_applicant_data = applicant_data.clone();
     final_applicant_data.insert("username".to_string(), result.username.clone());
@@ -175,17 +163,32 @@ pub async fn verify_application(
 }
 
 #[instrument(err, skip_all)]
-async fn get_permission_label_from_applicant_data(
+async fn get_permission_label_and_area_from_applicant_data(
     hasura_transaction: &Transaction<'_>,
     applicant_data: &HashMap<String, String>,
+    tenant_id: &str,
+    election_event_id: &str,
 ) -> Result<(Option<String>, Option<Uuid>)> {
-    let post = applicant_data
+    let post_name = applicant_data
+        .get("country")
+        .and_then(|country| country.split('/').next())
+        .ok_or(anyhow!("Error with applicant country"))?;
+
+    let post_description = applicant_data
         .get("embassy")
-        .ok_or(anyhow!("Error converting applicant_data to map"))?;
+        .ok_or(anyhow!("Error with applicant embassy"))?;
 
-    info!("Found post: {:?}", post);
+    info!("Found post: {:?}", &post_name);
+    info!("Found embassy: {:?}", &post_description);
 
-    return get_permission_label_from_post(hasura_transaction, post).await;
+    return get_permission_label_from_post(
+        hasura_transaction,
+        &post_name,
+        &post_description,
+        tenant_id,
+        election_event_id,
+    )
+    .await;
 }
 
 #[instrument(err, skip_all)]
@@ -1092,6 +1095,7 @@ pub async fn send_application_communication_response(
             let email_sender = EmailSender::new().await?;
             let sms_sender = SmsSender::new().await?;
             send_template_email_or_sms(
+                hasura_transaction,
                 user,
                 &None,
                 tenant_id,

@@ -102,7 +102,7 @@ pub async fn export_ballot_publication(
         }
     };
 
-    update_complete(&task_execution)
+    update_complete(&task_execution, Some(document_id.to_string()))
         .await
         .context("Failed to update task execution status to COMPLETED")?;
 

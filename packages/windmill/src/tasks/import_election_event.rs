@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::postgres::maintenance::vacuum_analyze_direct;
 use crate::services::providers::transactions_provider::provide_hasura_transaction;
 use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::{
@@ -51,7 +52,10 @@ pub async fn import_election_event(
 
     match &result {
         Ok(_) => {
-            let _ = update_complete(&task_execution).await;
+            // Execute database maintenance
+            info!("Performing mainteinance after election event import.");
+            vacuum_analyze_direct().await?;
+            let _ = update_complete(&task_execution, Some(object.document_id.clone())).await;
             Ok(())
         }
         Err(error) => {

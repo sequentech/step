@@ -130,7 +130,7 @@ impl TemplateRenderer for OVCSStatisticsTemplate {
         self.ids.election_id.clone()
     }
 
-    #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
+    #[instrument(err, skip_all)]
     async fn prepare_user_data(
         &self,
         hasura_transaction: &Transaction<'_>,
@@ -223,7 +223,7 @@ impl TemplateRenderer for OVCSStatisticsTemplate {
                     verified: None,
                 };
 
-                let enrolled_voters_data = get_voters_data(
+                let (enrolled_voters_data, _next_cursor) = get_voters_data(
                     &hasura_transaction,
                     &keycloak_transaction,
                     &realm,
@@ -233,6 +233,8 @@ impl TemplateRenderer for OVCSStatisticsTemplate {
                     &area.id,
                     true,
                     filtered_voters,
+                    None,
+                    None,
                 )
                 .await
                 .map_err(|err| anyhow!("Error get_voters_data {err}"))?;

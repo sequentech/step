@@ -6,12 +6,15 @@ package sequent.keycloak.inetum_authenticator;
 
 import static sequent.keycloak.authenticator.Utils.sendErrorNotificationToUser;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
-import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -36,6 +39,8 @@ public class CustomEventListenerProvider implements EventListenerProvider {
   private Connection rabbitConnection;
   private Channel rabbitChannel;
   private ConnectionFactory rabbitFactory;
+
+  private ObjectMapper om = new ObjectMapper();
 
   public CustomEventListenerProvider(KeycloakSession session) {
     this.session = session;
@@ -108,14 +113,27 @@ public class CustomEventListenerProvider implements EventListenerProvider {
     String username =
         Optional.ofNullable(event.getDetails())
             .map(details -> details.get("username"))
-            .orElse("unknown");
+            .orElseGet(
+                () -> {
+                  if (event.getUserId() != null) {
+                    var user =
+                        session
+                            .users()
+                            .getUserById(
+                                session.realms().getRealm(event.getRealmId()), event.getUserId());
+                    if (user != null) {
+                      return user.getEmail();
+                    }
+                  }
+                  return "unknown";
+                });
 
     // Prepare message body based on event type.
     String body;
     if (Utils.EVENT_TYPE_COMMUNICATIONS.equals(
         event.getDetails() != null ? event.getDetails().get("type") : null)) {
       String msgBody = Optional.ofNullable(event.getDetails().get("msgBody")).orElse("");
-      body = String.format("%s %s", Utils.EVENT_TYPE_COMMUNICATIONS, msgBody).replace("\n", " ");
+      body = String.format("%s %s", Utils.EVENT_TYPE_COMMUNICATIONS, msgBody);
     } else {
       // Use the event error (or another appropriate field) as body for non-communications events.
       body = event.getError();
@@ -143,35 +161,44 @@ public class CustomEventListenerProvider implements EventListenerProvider {
       String tenantId,
       String username) {
     log.info("logEvent: start");
-    String message =
-        String.format(
-            """
-            [
-                [],
-                {
-                    "input": {
-                        "election_event_id":"%s",
-                        "message_type":"%s",
-                        "body":"%s",
-                        "user_id":"%s",
-                        "tenant_id":"%s",
-                        "username":"%s"
-                    }
-                },
-                {
-                    "callbacks": null,
-                    "errbacks": null,
-                    "chain": null,
-                    "chord": null
-                }
-            ]
-            """,
-            Utils.escapeJson(electionEventId),
-            Utils.escapeJson(messageType),
-            Utils.escapeJson(body),
-            Utils.escapeJson(userId),
-            Utils.escapeJson(tenantId),
-            Utils.escapeJson(username));
+    log.infov(
+        "logEvent: details electionEventId: {0} messageType: {1} body: {2} userId: {3} tenantId: {4} username: {5}",
+        electionEventId, messageType, body, userId, tenantId, username);
+
+    // We make sure variables are not null otherwise log reporting will give an error when
+    // deserializing
+    electionEventId = Optional.ofNullable(electionEventId).orElse("null");
+    messageType = Optional.ofNullable(messageType).orElse("null");
+    body = Optional.ofNullable(body).orElse("null");
+    userId = Optional.ofNullable(userId).orElse("null");
+    tenantId = Optional.ofNullable(tenantId).orElse("null");
+    username = Optional.ofNullable(username).orElse("null");
+
+    // Build message object
+    List<Object> message = new ArrayList<>();
+
+    Map<String, Object> inputObject = new HashMap<>();
+
+    Map<String, String> input = new HashMap<>();
+    input.put("election_event_id", electionEventId);
+    input.put("message_type", messageType);
+    input.put("body", body);
+    input.put("user_id", userId);
+    input.put("tenant_id", tenantId);
+    input.put("username", username);
+
+    inputObject.put("input", input);
+
+    Map<String, String> annotations = new HashMap<>();
+    annotations.put("callbacks", null);
+    annotations.put("errbacks", null);
+    annotations.put("chain", null);
+    annotations.put("chord", null);
+
+    message.add(Collections.emptyList());
+    message.add(inputObject);
+    message.add(annotations);
+
     try {
       // Generate a correlation ID.
       String correlationId = UUID.randomUUID().toString();
@@ -194,7 +221,7 @@ public class CustomEventListenerProvider implements EventListenerProvider {
               .build();
 
       Channel channel = getRabbitChannel();
-      channel.basicPublish("", QUEUE_NAME, props, message.getBytes(StandardCharsets.UTF_8));
+      channel.basicPublish("", QUEUE_NAME, props, om.writeValueAsBytes(message));
       log.info("Message sent to RabbitMQ queue: " + QUEUE_NAME);
     } catch (Exception e) {
       log.error("Failed to send message to RabbitMQ queue: " + QUEUE_NAME, e);

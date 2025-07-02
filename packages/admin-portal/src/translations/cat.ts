@@ -47,10 +47,12 @@ const catalanTranslation: TranslationType = {
                 EXPORT_APPLICATION: "Exportar Sol·licituds",
                 EXPORT_TENANT_CONFIG: "Exporta la Configuració del Llogater",
                 IMPORT_TENANT_CONFIG: "Importa la Configuració del Llogater",
+                RENDER_DOCUMENT_PDF: "Generar el document PDF",
             },
             widget: {
                 taskTitle: "Tasca: {{title}}",
                 viewTask: "Veure Tasca",
+                downloadDocument: "Descarregar Fitxer",
             },
             exportTasksExecution: {
                 success: "L'exportació s'ha completat amb èxit",
@@ -417,6 +419,10 @@ const catalanTranslation: TranslationType = {
                         "La Cerimònia de Còmput no pot començar fins que no creïs una publicació a la pestanya Publicar.",
                     participateNow:
                         "Ha estat convidat a participar a una Cerimònia de Recompte. Si us plau <1>feu clic a continuació en l'acció de recompte de la cerimònia</1> per participar.",
+                    startDisabled:
+                        "No podeu continuar amb la cerimònia perquè no s'ha seleccionat cap elecció o les eleccions no estan publicades.",
+                    ceremonyDisabled:
+                        "No podeu continuar amb la cerimònia perquè la sessió de recompte no està connectada o l'inici de la cerimònia no està permès.",
                 },
             },
             importAreas: {
@@ -483,6 +489,7 @@ const catalanTranslation: TranslationType = {
                 copiedError: "Error copiant la contrasenya",
                 reports: "Informes",
                 applications: "Aplicacions",
+                tally: "Recompte",
             },
             taskNotification:
                 "{{action}} ha començat. Podeu veure el seu estat a la taula d'Execució de Tasques.",
@@ -559,6 +566,13 @@ const catalanTranslation: TranslationType = {
                 "label": "Inicialitzar política d'informes",
                 "not-required": "No requereix",
                 "required": "Requerit",
+            },
+            castVoteGoldLevelPolicy: {
+                label: "Gold level Authentication Policy",
+                options: {
+                    "gold-level": "Gold level Authentication",
+                    "no-gold-level": "No Gold level Authentication",
+                },
             },
         },
         tenantScreen: {
@@ -1078,6 +1092,11 @@ const catalanTranslation: TranslationType = {
                 kind: "Tipus d'arxiu",
                 filter: "Filtres Personalizats",
                 approve: "Aprovar",
+                continue: "Continuar",
+                logout: "Sortir",
+                selectTenant: "Seleccionar Llogater",
+                processing: "Processant...",
+                tenantName: "Nom del Llogater",
             },
             language: {
                 es: "Espanyol",
@@ -1085,6 +1104,9 @@ const catalanTranslation: TranslationType = {
                 fr: "Francès",
                 cat: "Valencià",
                 tl: "Tagal",
+                gl: "Galego",
+                nl: "Holandés",
+                eu: "Euskera",
             },
             channel: {
                 online: "En línia",
@@ -1092,6 +1114,7 @@ const catalanTranslation: TranslationType = {
             },
             message: {
                 delete: "Estàs segur que vols esborrar aquest element?",
+                continueOrLogout: "Vols continuar conectat o sortir?",
             },
         },
         createResource: {
@@ -1866,6 +1889,10 @@ const catalanTranslation: TranslationType = {
                 isHidden: "Ocult",
                 publicUrl: "Enllaç públic",
             },
+            empty: {
+                header: "Encara no hi ha material de suport",
+                action: "Genera material de suport",
+            },
         },
         widget: {
             logs: "Registres",
@@ -1923,11 +1950,11 @@ const catalanTranslation: TranslationType = {
                 rejectReason: "Motiu del rebuig",
                 messageRequired: "Es requereix un missatge de rebuig per a l'opció 'Altres'",
                 reasons: {
-                    undefined: "-",
-                    INSUFFICIENT_INFORMATION: "Données Manquantes",
-                    NO_VOTER: "Votant Non Trouvé",
-                    ALREADY_APPROVED: "Déjà Approuvé",
-                    OTHER: "Autre",
+                    "undefined": "-",
+                    "insufficient-information": "Données Manquantes",
+                    "no-matching-voter": "Votant Non Trouvé",
+                    "voter-already-approved": "Déjà Approuvé",
+                    "other": "Autre",
                 },
             },
             notifications: {

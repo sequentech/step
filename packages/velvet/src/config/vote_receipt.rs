@@ -9,6 +9,7 @@ use sequent_core::{
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::HashMap;
+use tracing::instrument;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct PipeConfigVoteReceipts {
@@ -26,10 +27,12 @@ pub struct PipeConfigVoteReceipts {
 pub const DEFAULT_MCBALLOT_TITLE: &str = "Vote receipts";
 
 impl PipeConfigVoteReceipts {
+    #[instrument(skip_all, name = "PipeConfigVoteReceipts::new")]
     pub fn new() -> Self {
         Self::default()
     }
 
+    #[instrument(skip_all, name = "PipeConfigVoteReceipts::mcballot")]
     pub fn mcballot(pipe_type: Option<VoteReceiptPipeType>) -> Self {
         let html: &str = include_str!("../resources/vote_receipt_user.hbs");
         let system_html = include_str!("../resources/vote_receipt_system.hbs");
@@ -53,6 +56,7 @@ impl PipeConfigVoteReceipts {
 }
 
 impl Default for PipeConfigVoteReceipts {
+    #[instrument(skip_all, name = "PipeConfigVoteReceipts::default")]
     fn default() -> Self {
         let html: &str = include_str!("../resources/vote_receipt_user.hbs");
         let system_html = include_str!("../resources/vote_receipt_system.hbs");

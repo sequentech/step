@@ -4,6 +4,9 @@
 
 import styled from "@emotion/styled"
 import {Paper, Box, Typography, IconButton, Table, TableCell, AccordionSummary} from "@mui/material"
+import {Button} from "react-admin"
+
+import {styled as muiStyled} from "@mui/material/styles"
 
 export const CustomAccordionSummary = styled(AccordionSummary)<{isLoading: boolean}>(
     ({theme, isLoading}) => ({
@@ -110,9 +113,10 @@ export const LogTypography = styled(Typography)({
     fontWeight: "500",
 })
 
-export const ViewTaskTypography = styled(TypeTypography)(({theme}) => ({
-    "margin": 0,
-    "padding": "3px 6px",
+export const ViewTaskTypography = muiStyled(Button)(({theme}) => ({
+    "margin": "5px",
+    "paddingLeft": "25px",
+    "backgroundColor": theme.palette.white,
     "color": theme.palette.brandColor,
     "borderRadius": "6px",
     "border": `1px solid ${theme.palette.brandColor}`,
@@ -121,8 +125,24 @@ export const ViewTaskTypography = styled(TypeTypography)(({theme}) => ({
     "alignSelf": "flex-end",
     "fontWeight": 400,
     ":hover": {
-        backgroundColor: theme.palette.brandColor,
+        backgrkoundColor: theme.palette.brandColor,
         color: theme.palette.white,
+    },
+}))
+
+export const DownloaButton = muiStyled(Button)(({theme}) => ({
+    "margin": "5px",
+    "background": theme.palette.brandColor,
+    "color": theme.palette.white,
+    "borderRadius": "6px",
+    "border": `1px solid ${theme.palette.brandColor}`,
+    "cursor": "pointer",
+    "width": "max-content",
+    "alignSelf": "flex-end",
+    "fontWeight": 400,
+    ":hover": {
+        color: theme.palette.brandColor,
+        backgroundColor: theme.palette.white,
     },
 }))
 

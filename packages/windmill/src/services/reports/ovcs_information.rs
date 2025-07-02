@@ -103,7 +103,7 @@ impl TemplateRenderer for OVCSInformationTemplate {
         )
     }
 
-    #[instrument]
+    #[instrument(err, skip_all)]
     async fn prepare_user_data(
         &self,
         hasura_transaction: &Transaction<'_>,
@@ -225,7 +225,7 @@ impl TemplateRenderer for OVCSInformationTemplate {
         })
     }
 
-    #[instrument(err, skip(self, rendered_user_template))]
+    #[instrument(err, skip_all)]
     async fn prepare_system_data(
         &self,
         rendered_user_template: String,

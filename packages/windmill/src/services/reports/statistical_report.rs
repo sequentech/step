@@ -54,7 +54,8 @@ pub struct UserDataArea {
     pub country: String,
     pub geographical_region: String,
     pub voting_center: String,
-    pub precinct_code: String,
+    pub station_id: String,
+    pub station_name: String,
     pub registered_voters: Option<i64>,
     pub ballots_counted: Option<i64>,
     pub voters_turnout: Option<f64>,
@@ -133,7 +134,7 @@ impl TemplateRenderer for StatisticalReportTemplate {
         ReportType::STATISTICAL_REPORT
     }
 
-    #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
+    #[instrument(err, skip_all)]
     async fn prepare_user_data(
         &self,
         hasura_transaction: &Transaction<'_>,
@@ -317,7 +318,8 @@ impl TemplateRenderer for StatisticalReportTemplate {
                 country: country,
                 geographical_region: election_general_data.geographical_region.clone(),
                 voting_center: election_general_data.voting_center.clone(),
-                precinct_code: election_general_data.precinct_code.clone(),
+                station_name: election_general_data.precinct_code.clone(),
+                station_id: election_general_data.pollcenter_code.clone(),
                 registered_voters: votes_data.registered_voters,
                 ballots_counted: Some(ballots_counted),
                 voters_turnout: votes_data.voters_turnout,
@@ -369,7 +371,7 @@ impl TemplateRenderer for StatisticalReportTemplate {
     }
 }
 
-#[instrument(err, skip_all)]
+#[instrument(err, skip(contest))]
 pub async fn generate_total_number_of_expected_votes_for_contest(
     contest: &Contest,
     registered_voters: &i64,
@@ -394,13 +396,15 @@ pub async fn generate_fill_up_rate(num_of_expected_votes: &i64, total_votes: &i6
 }
 
 //generate data for specific contest
-#[instrument(err)]
+#[instrument(err, skip_all)]
 pub async fn generate_contest_results_data(
     contest: &Contest,
     results_area_contest: &ResultsAreaContest,
     registered_voters: &Option<i64>,
 ) -> Result<ReportContestData> {
-    let elective_position = contest.name.clone().unwrap();
+    let Some(elective_position) = contest.name.clone() else {
+        return Err(anyhow!("Contest with empty name"));
+    };
 
     let registered_voters = match registered_voters {
         Some(voters) => *voters,

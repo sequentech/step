@@ -140,7 +140,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
                 tenantId: tenantId,
                 electionEventId: electionEventRecord?.id,
             },
-            pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+            pollInterval: globalSettings.QUERY_FAST_POLL_INTERVAL_MS,
             context: {
                 headers: {
                     "x-hasura-role": isTrustee

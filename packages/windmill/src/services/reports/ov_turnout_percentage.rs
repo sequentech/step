@@ -122,7 +122,7 @@ impl TemplateRenderer for OVTurnoutPercentageReport {
         )
     }
 
-    #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
+    #[instrument(err, skip_all)]
     async fn prepare_user_data(
         &self,
         hasura_transaction: &Transaction<'_>,
@@ -218,7 +218,7 @@ impl TemplateRenderer for OVTurnoutPercentageReport {
                 verified: None,
             };
 
-            let female_voters_data = get_voters_data(
+            let (female_voters_data, _next_cursor) = get_voters_data(
                 &hasura_transaction,
                 &keycloak_transaction,
                 &realm,
@@ -228,13 +228,15 @@ impl TemplateRenderer for OVTurnoutPercentageReport {
                 &area.id,
                 true,
                 filtered_voters.clone(),
+                None,
+                None,
             )
             .await
             .map_err(|err| anyhow!("Error get_voters_data {err}"))?;
 
             filtered_voters.voters_sex = Some(MALE_VALE.to_string());
 
-            let male_voters_data = get_voters_data(
+            let (male_voters_data, _next_cursor) = get_voters_data(
                 &hasura_transaction,
                 &keycloak_transaction,
                 &realm,
@@ -244,13 +246,15 @@ impl TemplateRenderer for OVTurnoutPercentageReport {
                 &area.id,
                 true,
                 filtered_voters.clone(),
+                None,
+                None,
             )
             .await
             .map_err(|err| anyhow!("Error get_voters_data {err}"))?;
 
             filtered_voters.voters_sex = None;
 
-            let voters_data = get_voters_data(
+            let (voters_data, _next_cursor) = get_voters_data(
                 &hasura_transaction,
                 &keycloak_transaction,
                 &realm,
@@ -260,6 +264,8 @@ impl TemplateRenderer for OVTurnoutPercentageReport {
                 &area.id,
                 true,
                 filtered_voters.clone(),
+                None,
+                None,
             )
             .await
             .map_err(|err| anyhow!("Error get_voters_data {err}"))?;

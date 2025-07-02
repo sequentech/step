@@ -18,8 +18,8 @@
     "transfer_mode": null
   },
   "report_options": {
-    "max_items_per_report": null,
-    "max_threads": null
+    "max_items_per_report": 1000,
+    "max_threads": 3
   },  
   "communication_templates": {
     "email_config": {

@@ -73,7 +73,7 @@ SPDX-License-Identifier: AGPL-3.0-only
                       <div class="voting-period">
                         Overseas Voting Period: {{datetime
                         from_rfc3339=../election_dates.scheduled_event_dates.ALLOW_INIT_REPORT.scheduled_at
-                        output_format="%d %B" with_timezone="Asia/Manila"}} - {{datetime
+                        output_format="%d %B %Y" with_timezone="Asia/Manila"}} - {{datetime
                         from_rfc3339=../election_dates.scheduled_event_dates.END_VOTING_PERIOD.scheduled_at
                         output_format="%d %B %Y"
                         with_timezone="Asia/Manila"}}
@@ -144,12 +144,20 @@ SPDX-License-Identifier: AGPL-3.0-only
                 </td>
               </tr>
               <tr>
-                <td class="key">
-                  <strong>Clustered Precinct ID:</strong>
-                </td>
-                <td class="value">
-                  {{sanitize_html (expr ../election_annotations.clustered_precint_id)}}
-                </td>
+                 <td class="key">
+                <strong>Clustered Precinct ID:</strong>
+              </td>
+              <td class="value">
+                {{sanitize_html (expr ../election_annotations.pollcenter_code)}}
+              </td>
+            </tr>
+            <tr>
+              <td class="key">
+                <strong>Precincts in the Cluster:</strong>
+              </td>
+              <td class="value">
+                {{sanitize_html (expr ../election_annotations.precinct_code)}}
+              </td>
               </tr>
             </table>
           </div>
@@ -190,7 +198,7 @@ SPDX-License-Identifier: AGPL-3.0-only
           <strong>OVERVOTE</strong>
           {{/if}}
           {{#if is_undervote}}
-          <strong>UNDERVITE</strong>
+          <strong>UNDERVOTE</strong>
           {{/if}}
         </td>
         {{/if}}
@@ -217,7 +225,6 @@ SPDX-License-Identifier: AGPL-3.0-only
             Report hash: {{sanitize_html (expr ../execution_annotations.report_hash)}}<br />
             <br />
             Software version: {{sanitize_html (expr ../execution_annotations.app_version)}}<br />
-            OVCS version: {{sanitize_html (expr ../execution_annotations.app_version)}}<br />
             System hash: {{sanitize_html (expr ../execution_annotations.app_hash)}}
           </div>
         </td>
@@ -227,8 +234,8 @@ SPDX-License-Identifier: AGPL-3.0-only
       <tr class="report-end">
         <td align="center">
           <div>
-            <hr />
             <p>End of Report</p>
+            <hr />
           </div>
         </td>
       </tr>

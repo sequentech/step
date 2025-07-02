@@ -3,20 +3,27 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::database::PgConfig;
-use crate::postgres::election_event::is_datafix_election_event;
+use crate::services::datafix::utils::{
+    is_datafix_election_event_by_id, voted_via_not_internet_channel,
+};
 use crate::services::electoral_log::ElectoralLog;
 use anyhow::{anyhow, Context, Result};
 use chrono::NaiveDate;
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Transaction;
+use futures::TryStreamExt;
 use sequent_core::types::keycloak::{User, VotesInfo};
-use sequent_core::types::keycloak::{ATTR_RESET_VALUE, VOTED_CHANNEL};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::path::PathBuf;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
+use tokio::fs::File;
+use tokio::io::{copy, AsyncWriteExt, BufWriter};
 use tokio_postgres::row::Row;
-use tracing::{info, instrument};
+use tokio_util::io::StreamReader;
+use tracing::{debug, info, instrument};
 use uuid::Uuid;
+
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct CastVote {
     pub id: String,
@@ -61,59 +68,50 @@ pub async fn find_area_ballots(
     tenant_id: &str,
     election_event_id: &str,
     area_id: &str,
-    limit: i64,
-    offset: i64,
-) -> Result<Vec<CastVote>> {
-    let tenant_uuid: uuid::Uuid = Uuid::parse_str(tenant_id)
-        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
-    let election_event_uuid: uuid::Uuid = Uuid::parse_str(election_event_id)
-        .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
-    let area_uuid: uuid::Uuid = Uuid::parse_str(area_id)
-        .map_err(|err| anyhow!("Error parsing area_id as UUID: {}", err))?;
-    let areas_statement = hasura_transaction
-        .prepare(
-            r#"
+    output_file: &PathBuf,
+) -> Result<()> {
+    // COPY does not support parameters so we have to add them using format
+    let areas_statement = format!(
+        r#"
                     SELECT DISTINCT ON (election_id, voter_id_string)
-                        id,
-                        tenant_id,
-                        election_id,
-                        area_id,
-                        created_at,
-                        last_updated_at,
-                        content,
-                        cast_ballot_signature,
                         voter_id_string,
-                        election_event_id,
-                        ballot_id
+                        election_id,
+                        content
                     FROM "sequent_backend".cast_vote
                     WHERE
-                        tenant_id = $1 AND
-                        election_event_id = $2 AND
-                        area_id = $3
+                        tenant_id = '{tenant_id}' AND
+                        election_event_id = '{election_event_id}' AND
+                        area_id = '{area_id}'
                     ORDER BY election_id, voter_id_string, created_at DESC
-                    LIMIT $4 OFFSET $5
-                "#,
-        )
-        .await?;
-    let rows: Vec<Row> = hasura_transaction
-        .query(
-            &areas_statement,
-            &[
-                &tenant_uuid,
-                &election_event_uuid,
-                &area_uuid,
-                &limit,
-                &offset,
-            ],
-        )
-        .await
-        .map_err(|err| anyhow!("Error running the areas query: {}", err))?;
-    let cast_votes = rows
-        .into_iter()
-        .map(|row| -> Result<CastVote> { row.try_into() })
-        .collect::<Result<Vec<CastVote>>>()?;
+                "#
+    );
 
-    Ok(cast_votes)
+    let tokio_temp_file = File::create(output_file)
+        .await
+        .expect("Could not create/open temporary file for tokio");
+
+    let copy_out_query = format!("COPY ({}) TO STDOUT WITH (FORMAT CSV)", areas_statement);
+    let mut writer = BufWriter::new(tokio_temp_file);
+
+    debug!("copy_out_query: {copy_out_query}");
+
+    let reader = hasura_transaction.copy_out(&copy_out_query).await?;
+
+    let adapt_pg_error_to_io_error = |pg_err: tokio_postgres::Error| {
+        std::io::Error::new(std::io::ErrorKind::Other, pg_err.to_string())
+    };
+    let io_error_stream = reader.map_err(adapt_pg_error_to_io_error);
+
+    let async_reader = StreamReader::new(io_error_stream);
+    tokio::pin!(async_reader);
+
+    let bytes_copied = copy(&mut async_reader, &mut writer).await?;
+
+    debug!("bytes_copied: {bytes_copied}");
+
+    writer.flush().await?;
+
+    Ok(())
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
@@ -284,13 +282,13 @@ pub async fn get_count_votes_per_day(
     Ok(cast_votes_by_day)
 }
 
-#[instrument(skip(hasura_transaction), err)]
+#[instrument(skip(hasura_transaction, users), err)]
 pub async fn get_users_with_vote_info(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
     election_id: Option<String>,
-    users: Vec<User>,
+    mut users: Vec<User>,
     filter_by_has_voted: Option<bool>,
 ) -> Result<Vec<User>> {
     let tenant_uuid =
@@ -299,16 +297,19 @@ pub async fn get_users_with_vote_info(
         .with_context(|| "Error parsing election_event_id as UUID")?;
 
     let election_uuid = match election_id {
-        Some(ref election_id_r) => Some(Uuid::parse_str(election_id_r.as_str())?),
+        Some(ref election_id_s) => Some(
+            Uuid::parse_str(election_id_s)
+                .with_context(|| format!("Error parsing election_id {election_id_s} as UUID"))?,
+        ),
         None => None,
     };
 
     let is_datafix_event =
-        is_datafix_election_event(hasura_transaction, tenant_id, election_event_id)
+        is_datafix_election_event_by_id(hasura_transaction, tenant_id, election_event_id)
             .await
-            .map_err(|e| anyhow!(" Error checking if is datafix election event: {:?}", e))?;
+            .with_context(|| "Error checking if is datafix election event")?;
 
-    // Prepare the list of user IDs for the query
+    // Collect user IDs (and verify all have an ID)
     let user_ids: Vec<String> = users
         .iter()
         .map(|user| {
@@ -319,27 +320,30 @@ pub async fn get_users_with_vote_info(
         .collect::<Result<Vec<String>>>()
         .with_context(|| "Error extracting user IDs")?;
 
+    // If no users, we can return early
+    if user_ids.is_empty() {
+        return Ok(vec![]);
+    }
+
     let vote_info_statement = hasura_transaction
         .prepare(
             r#"
-            SELECT 
-                v.voter_id_string AS voter_id_string, 
-                v.election_id AS election_id, 
-                COUNT(v.id) AS num_votes, 
-                MAX(v.created_at) AS last_voted_at
-            FROM 
-                sequent_backend.cast_vote v
-            WHERE 
-                v.tenant_id = $1 AND
-                v.election_event_id = $2 AND
-                v.voter_id_string = ANY($3) AND
-                (v.election_id = $4 OR $4 IS NULL)
-            GROUP BY 
-                v.voter_id_string, v.election_id;
-            "#,
+        SELECT
+            v.voter_id_string AS voter_id_string,
+            v.election_id     AS election_id,
+            COUNT(v.id)       AS num_votes,
+            MAX(v.created_at) AS last_voted_at
+        FROM sequent_backend.cast_vote v
+        WHERE
+            v.tenant_id        = $1::uuid
+            AND v.election_event_id = $2::uuid
+            AND v.voter_id_string   = ANY($3::text[])
+            AND ($4::uuid IS NULL OR v.election_id = $4::uuid)
+        GROUP BY
+            v.voter_id_string, v.election_id
+        "#,
         )
-        .await
-        .with_context(|| "Error preparing the vote info statement")?;
+        .await?;
 
     let rows = hasura_transaction
         .query(
@@ -354,17 +358,8 @@ pub async fn get_users_with_vote_info(
         .await
         .with_context(|| "Error executing the vote info query")?;
 
-    let mut user_votes_map: HashMap<String, Vec<VotesInfo>> = users
-        .iter()
-        .map(|user| {
-            let user_id = user
-                .id
-                .clone()
-                .ok_or_else(|| anyhow!("Encountered a user without an ID"))?;
-            Ok((user_id, vec![]))
-        })
-        .collect::<Result<_>>()
-        .with_context(|| "Error processing users for user_votes_map")?;
+    // Build a map from user_id -> Vec<VotesInfo> only for users who have votes
+    let mut user_votes_map = HashMap::<String, Vec<VotesInfo>>::with_capacity(rows.len());
 
     for row in rows {
         let voter_id_string: String = row
@@ -380,67 +375,56 @@ pub async fn get_users_with_vote_info(
             .try_get("last_voted_at")
             .with_context(|| "Error getting last_voted_at from row")?;
 
-        if let Some(user_votes_info) = user_votes_map.get_mut(&voter_id_string) {
-            user_votes_info.push(VotesInfo {
+        user_votes_map
+            .entry(voter_id_string)
+            .or_insert_with(Vec::new)
+            .push(VotesInfo {
                 election_id: election_id.to_string(),
                 num_votes: num_votes as usize,
                 last_voted_at: last_voted_at.to_string(),
             });
-        } else {
-            return Err(anyhow!("Not found user for voter-id={voter_id_string}"));
-        }
     }
 
-    // Construct the final Vec<User> in the same order as the input users
-    let mut filtered_users: Vec<User> = Vec::new();
-    for user in users.iter() {
+    // Attach votes_info to each user in-place. Then do datafix logic if needed.
+    // keep the same user order by iterating in place.
+    for user in &mut users {
         let user_id = user
             .id
-            .clone()
+            .as_ref()
             .ok_or_else(|| anyhow!("Encountered a user without an ID"))?;
 
-        let mut votes_info = user_votes_map
-            .get(&user_id)
-            .cloned()
-            .ok_or_else(|| anyhow!("Missing vote info for user ID {}", user_id))?;
+        // Get the collected VotesInfo from the map, or empty Vec if none
+        let mut votes_info = user_votes_map.remove(user_id).unwrap_or_default();
 
+        // If this is a "datafix" event, adjust the votes_info by checking the user's attributes
         if is_datafix_event {
-            // Checking the attribute voted-channel for each user.
-            let attributes = user.attributes.clone().unwrap_or_default();
-            // Set the num_votes ot 1 if the voter has voted through a Channel to make it appear in the Voter list as "Voted"
-            match attributes.iter().find(|tupple| tupple.0.eq(VOTED_CHANNEL)) {
-                Some((_, v)) => {
-                    match v.last() {
-                        Some(channel) if !channel.eq(ATTR_RESET_VALUE) && !channel.is_empty() => {
-                            votes_info = vec![VotesInfo {
-                                election_id: "".to_string(), // Not used for datafix
-                                num_votes: 1,
-                                last_voted_at: "".to_string(), // Not used for datafix
-                            }];
-                        }
-                        _ => {}
-                    };
+            if let Some(attributes) = &user.attributes {
+                if voted_via_not_internet_channel(&attributes) {
+                    votes_info = vec![VotesInfo {
+                        election_id: "".to_string(), // Not used for datafix
+                        num_votes: 1,
+                        last_voted_at: "".to_string(), // Not used for datafix
+                    }];
                 }
-                None => {}
             }
         }
 
-        match filter_by_has_voted {
-            Some(has_voted) => {
-                if (has_voted && votes_info.len() > 0) || (!has_voted && votes_info.len() == 0) {
-                    filtered_users.push(User {
-                        votes_info: Some(votes_info),
-                        ..user.clone()
-                    });
-                }
-            }
-            None => filtered_users.push(User {
-                votes_info: Some(votes_info),
-                ..user.clone()
-            }),
-        }
+        user.votes_info = Some(votes_info);
     }
-    Ok(filtered_users)
+
+    // filter by has_voted, if needed - keep only users with at least one vote
+    if let Some(has_voted) = filter_by_has_voted {
+        users.retain(|user| {
+            let info_count = user.votes_info.as_ref().map(|v| v.len()).unwrap_or(0);
+            if has_voted {
+                info_count > 0
+            } else {
+                info_count == 0
+            }
+        });
+    }
+
+    Ok(users)
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -732,18 +716,28 @@ pub async fn count_cast_votes_election_event(
 /// electorallog::post_voter_pk
 #[instrument(err)]
 pub async fn get_voter_signing_key(
+    hasura_transaction: &Transaction<'_>,
     elog_database: &str,
     tenant_id: &str,
     event_id: &str,
     user_id: &str,
+    area_id: &str,
 ) -> Result<StrandSignatureSk> {
     info!("Generating private signing key for voter {}", user_id);
     let sk = StrandSignatureSk::gen()?;
-    let sk_string = sk.to_der_b64_string()?;
     let pk = StrandSignaturePk::from_sk(&sk)?;
     let pk = pk.to_der_b64_string()?;
 
-    ElectoralLog::post_voter_pk(elog_database, tenant_id, event_id, user_id, &pk).await?;
+    ElectoralLog::post_voter_pk(
+        hasura_transaction,
+        elog_database,
+        tenant_id,
+        event_id,
+        user_id,
+        &pk,
+        area_id,
+    )
+    .await?;
 
     Ok(sk)
 }

@@ -2403,64 +2403,6 @@
       "clientRoles": {}
     },
     {
-      "id": "60a781c0-1e95-4bd7-b00e-16b8908f6698",
-      "name": "sbei",
-      "path": "/sbei",
-      "subGroups": [],
-      "attributes": {},
-      "realmRoles": [
-        "default-roles-electoral-process",
-        "election-dashboard-tab",
-        "communication-template-write",
-        "miru-download",
-        "miru-send",
-        "cast-vote-read",
-        "notification-send",
-        "tally-sheet-create",
-        "tally-results-read",
-        "tally-sheet-view",
-        "logs-read",
-        "election-state-write",
-        "election-approvals-tab",
-        "admin-ceremony",
-        "tally-read",
-        "area-read",
-        "trustee-ceremony",
-        "tenant-read",
-        "report-read",
-        "election-event-tally-tab",
-        "election-event-reports-tab",
-        "tally-start",
-        "admin-user",
-        "voter-write",
-        "miru-sign",
-        "tally-sheet-publish",
-        "document-upload",
-        "voter-read",
-        "election-event-logs-tab",
-        "election-voters-tab",
-        "notification-write",
-        "keys-read",
-        "publish-write",
-        "communication-template-read",
-        "election-publish-tab",
-        "document-read",
-        "notification-read",
-        "document-write",
-        "tenant-write",
-        "document-download",
-        "election-read",
-        "tasks-read",
-        "election-event-read",
-        "publish-read",
-        "export-ceremony",
-        "create-ceremony",
-        "election-event-keys-columns",
-        "application-write"
-      ],
-      "clientRoles": {}
-    },
-    {
       "id": "dbc85f9a-a33d-4b3f-9bf1-20282931130b",
       "name": "admin-light",
       "path": "/admin-light",
@@ -2584,9 +2526,7 @@
     "totpAppMicrosoftAuthenticatorName"
   ],
   "localizationTexts": {
-    "en": {
-      "loginCustomCss": ".pf-c-input-group:has(input[id=password])::after '{' content: \"<div class=\" pf-c-form__helper-text pf-c-form__helper-text-after\" id=\" form-help-text-after-registerVia\" aria-live=\" polite\">(Please ensure that the mobile no./email is active. Check both options if both mobile no. and email are available.)</div>\" '}' .col-xs-12:has(label[for=termsOfService]) '{' display: none; '}' :root '{' #kc-header-wrapper div.logo '{' background-image: url('https://i.imgur.com/LNDAELo.png') !important; height: 60px;  '}' '}' .login-pf body '{' background-image: linear-gradient(1deg, #ffffff, transparent), url('https://filipinotimes.net/wp-content/uploads/2021/08/COMELEC-scaled.jpg') !important; background-repeat: repeat-y !important; background-size: 100% auto !important; background-position: top center !important; height: 100vh !important; object-fit:cover !important; '}' #kc-title '{' color: white !important; '}'@media (max-width: 767px) '{' #kc-title '{' color: white !important; '}' '}' #kc-title '{' color: white !important; '}'@media (max-width: 767px) '{' #kc-title '{' color: white !important; '}' '}' .pf-c-check__label '{' font-size: 12px !important; '}' .pf-c-form-control '{' font-size: 12px !important; '}' input::placeholder '{' font-size: 12px !important; '}' .iti__selected-country '{' font-size: 12px !important; '}' .pf-c-form__label-text '{' font-weight: bold !important; '}' .dob-sdk-root-container '{' background-color: white !important; '}' .pf-c-form__label[for=\"sequent.read-only.id-card-number\"] '{' visibility: hidden; '}' div > div > div > div '{' color: #991b1b;'}' label '{' color: black;'}'"
-    }
+    "en": {}
   },
   "webAuthnPolicyRpEntityName": "keycloak",
   "webAuthnPolicySignatureAlgorithms": [
@@ -2618,8 +2558,8 @@
     {
       "id": "a20376d6-e53a-4edf-afc3-cc18bb8e23e5",
       "username": "admin",
-      "firstName": "Eduardo",
-      "lastName": "Robles",
+      "firstName": "Admin",
+      "lastName": "admin",
       "email": "edu@sequentech.io",
       "emailVerified": true,
       "attributes": {
@@ -2698,121 +2638,6 @@
       "notBefore": 0,
       "groups": [
         "/admin"
-      ]
-    },
-    {
-      "id": "0516ed22-3a8f-48ca-9514-83020e242159",
-      "username": "felix",
-      "emailVerified": true,
-      "attributes": {
-        "sequent.read-only.otp-method": [
-          "email-or-sms"
-        ],
-        "sequent.read-only.email-address": [
-          "edu@sequentech.io"
-        ],
-        "area-id": [
-          "2f312a36-f39c-46e4-9670-1d1ce4625745"
-        ],
-        "locale": [
-          "en"
-        ],
-        "tenant-id": [
-          "90505c8a-23a9-4cdf-a26b-4e19f6a097d5"
-        ]
-      },
-      "createdTimestamp": 1691702289318,
-      "enabled": true,
-      "totp": false,
-      "credentials": [
-        {
-          "id": "6d4932d1-daf6-4e97-ae40-29a10f241f63",
-          "type": "password",
-          "createdDate": 1691859697573,
-          "secretData": "{\"value\":\"mK/30PwVYlFEAFIKu8qUpNhOBLx79a4sbvfv44Gw9SM=\",\"salt\":\"lDLeIwt1qLrDKr2CTwJ/hw==\",\"additionalParameters\":{}}",
-          "credentialData": "{\"hashIterations\":27500,\"algorithm\":\"pbkdf2-sha256\",\"additionalParameters\":{}}"
-        }
-      ],
-      "disableableCredentialTypes": [],
-      "requiredActions": [],
-      "realmRoles": [
-        "default-roles-electoral-process"
-      ],
-      "clientRoles": {
-        "voting-portal": [
-          "user"
-        ]
-      },
-      "notBefore": 0,
-      "groups": []
-    },
-    {
-      "id": "f3ea1cd2-2eca-4b83-87d5-a013a4c12618",
-      "username": "omrio2@moveo.co.il",
-      "firstName": "Omri2",
-      "lastName": "Ovadia2",
-      "email": "omrio2@moveo.co.il",
-      "emailVerified": false,
-      "attributes": {
-        "tenant-id": [
-          "90505c8a-23a9-4cdf-a26b-4e19f6a097d5"
-        ],
-        "permission_label": [
-          "test3"
-        ]
-      },
-      "createdTimestamp": 1727800035203,
-      "enabled": true,
-      "totp": false,
-      "credentials": [],
-      "disableableCredentialTypes": [],
-      "requiredActions": [],
-      "realmRoles": [
-        "default-roles-electoral-process"
-      ],
-      "notBefore": 0,
-      "groups": [
-        "/admin-light"
-      ]
-    },
-    {
-      "id": "0a305107-2309-4ae7-b4d1-11829d6aa01a",
-      "username": "omrio@moveo.co.il",
-      "firstName": "Omri",
-      "lastName": "Ovadia",
-      "email": "omrio@moveo.co.il",
-      "emailVerified": false,
-      "attributes": {
-        "permission_labels": [
-          "election-test"
-        ],
-        "tenant-id": [
-          "90505c8a-23a9-4cdf-a26b-4e19f6a097d5"
-        ]
-      },
-      "createdTimestamp": 1727346268199,
-      "enabled": true,
-      "totp": false,
-      "credentials": [
-        {
-          "id": "8a7dc465-5578-42a9-993a-c56b25b8aa01",
-          "type": "password",
-          "userLabel": "My password",
-          "createdDate": 1727346283276,
-          "secretData": "{\"value\":\"egUjZq10BhUpvN557QNLOKAtT5w7ojfY6nk0dAHEAzhU6NXH5QAwBBZ+cq2dM0fLwUiHMmTxNrrcyHLXPOuNjg==\",\"salt\":\"+uZXi0yq2zWEJD5+0YPlaw==\",\"additionalParameters\":{}}",
-          "credentialData": "{\"hashIterations\":210000,\"algorithm\":\"pbkdf2-sha512\",\"additionalParameters\":{}}"
-        }
-      ],
-      "disableableCredentialTypes": [],
-      "requiredActions": [
-        "UPDATE_PASSWORD"
-      ],
-      "realmRoles": [
-        "default-roles-electoral-process"
-      ],
-      "notBefore": 0,
-      "groups": [
-        "/admin-light"
       ]
     },
     {
@@ -3793,18 +3618,15 @@
           "id": "6a6163f0-130f-4339-8655-89273dd3218e",
           "name": "x-hasura-tenant-id",
           "protocol": "openid-connect",
-          "protocolMapper": "oidc-hardcoded-claim-mapper",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
           "consentRequired": false,
           "config": {
-            "introspection.token.claim": "true",
-            "claim.value": "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
             "userinfo.token.claim": "true",
+            "user.attribute": "tenant-id",
             "id.token.claim": "true",
-            "lightweight.claim": "false",
             "access.token.claim": "true",
             "claim.name": "https://hasura\\.io/jwt/claims.x-hasura-tenant-id",
-            "jsonType.label": "String",
-            "access.tokenResponse.claim": "false"
+            "jsonType.label": "String"
           }
         },
         {
@@ -4783,12 +4605,6 @@
         "providerId": "aes-generated",
         "subComponents": {},
         "config": {
-          "kid": [
-            "4f316e90-47c5-4a39-be7d-9687ac6ca39a"
-          ],
-          "secret": [
-            "z-1rgNKJPcEuNxxwH4H5rg"
-          ],
           "priority": [
             "100"
           ]
@@ -4800,12 +4616,6 @@
         "providerId": "hmac-generated",
         "subComponents": {},
         "config": {
-          "kid": [
-            "24dd58d0-0e2e-43e5-81b1-676488fb80e3"
-          ],
-          "secret": [
-            "D7e_ET4HdOH4ntsWy-tyf5l_oJm5ZwhZlhkR6y8tZFqyIpuY4nc4e2qM5y0qqahhcggirCrN39LAeRBx417tQQxtF8pjVEB1MaHxFlt75O6HlF2Z1XSXEoOEwfY73udt58aNnVQzHsR3O_CLYRvq4ur4C4wMKy3zH20_W46mXk0"
-          ],
           "priority": [
             "100"
           ],
@@ -4820,12 +4630,6 @@
         "providerId": "rsa-generated",
         "subComponents": {},
         "config": {
-          "privateKey": [
-            "MIIEpQIBAAKCAQEAq8+wv/ypwU2h2PjANU2/NNQT5NNVzI8au8Nzh7SD7Va2GJ41oef0zxa5SOIipBqcnbAcX9hCSaBqjg5CbSWy6XMWky54QzjDWdGhq9sqXIA6TAf2vKsrbL5daNQsRwBLwguB9QQKw52cL7T2NcIPS+y3H1oxPTfNUA92p2K8Eg7S3UN+kzxSyoytSJsO75HW20qrOcLls9u3/2wkMxy4Dn9ves4rcAEOR6IoMZVtOyZ8UBxiF552VhF1bC9yU6WSnDWaKdhACMf4mW2nJk5IvPF16iQ/cw2YJ5ro1KSVVra5WzPCZTIPuIu1IRWnZDgASnYJdrAu/pbNLO+JlwqGuQIDAQABAoIBAAVtZuW1r04cK/Hs77NvXIwoa+V1WJdA6QUH6FEf3nADpnZyHvsZlvXov5siC5qX/Z0MmGTdscBeKSeKI0aL45I00MB+/g0PkLo4YU1Ku9SWt2C5+q0ckh9aBxzd4PUwOPRtBSKuiUGDK9Ek/AcYNX/+Pw2mPXpz1hBCoMqqV4sRcAjfbwY4s9jWtLaaflTRDkMD45YEbydWJEyAj/GQK3UinC1+M8ySwb1z3AYVglOPuCSJ8a+I9XDq0LKwzvWCfec99tZy/rjvm8NzfZuy6+xZBJLhifMBdf0S6HUh7eEqOjk03hl9nhMo3xEjU03rjaOyQhPoatmYvmt3lz7qQoUCgYEA3wSBumZe6jjaMvRnSiOapVT1ynSY5PoLtrwKqCXeh9uQbm+alS/MOGPbHywwFpi/PJgPf5oG/G2Op3p7BID4D2fCZfskZ3p5z8Id64OYlMkuqd8kYk8/+5OUT6KEJAvO6llXftUDUkNUGSakC7lTov8vXwdVy40W3I+H+NPdvyUCgYEAxTiAfQXK0hLxUeLImPP7gwFxpYTz8Zszr7GjRs1UUfs3zJHY8QL1ZFD0NCc+Jn4K6f429kc6Dn83c9Qma/2XupL4jr2bvhoWzG5rVPophesskGQkVSSeOJESICGKMsXGpsvPrMgUVM9mgkmY6DYlneeXMbHZmWMFNW8/mRvGLwUCgYEA0g5MomUJwVMLMjNBlnMylccQO0DXQdTCc7tpzjbdAtmrkFlOIHaExBhJq3LTWHVGqqwO7QEG03vdgaG7fOJ8wwXX9HY4M78IPMd5pvqsHHfhm96xRmeevDak2t0X2VvF6LV909iO6EzCSW471U8Zl80DsV4XUUHy5ovKZnQnyIECgYEAr4O9NYZ2Hcal5M4C37wiVVBvp3JO9vG8aduZB2WsaNk9q10QyExtvr0c110lPnRlmiCXIU36KPSmkPp4xxqEcZJiigXMGL53E7Ag7RtE4N2OZ2H3w543APh6PQYcS1sfk0lGpOnazi9VdxWwctfdWk3EjIFOuecZt5gt7UB+e1ECgYEAp6G1VP/Mh2d8va9h6AMBo8KbpWZ9k+kIu0y7Sr/LW3l7nZ9estHfislxingjxl4AVIbzEtOCu8gcEK2dP1CS+aEYFH8A18fKaYkIPPvfuMzGpp1I5ScoXM7YL+yxMCUntUUev41T8x+MVbzytF3FQgS15Lp1SlZQy4YMjzJi6EM="
-          ],
-          "certificate": [
-            "MIICsTCCAZkCBgGJ6hDOLTANBgkqhkiG9w0BAQsFADAcMRowGAYDVQQDDBFlbGVjdG9yYWwtcHJvY2VzczAeFw0yMzA4MTIxNDAzMzdaFw0zMzA4MTIxNDA1MTdaMBwxGjAYBgNVBAMMEWVsZWN0b3JhbC1wcm9jZXNzMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAq8+wv/ypwU2h2PjANU2/NNQT5NNVzI8au8Nzh7SD7Va2GJ41oef0zxa5SOIipBqcnbAcX9hCSaBqjg5CbSWy6XMWky54QzjDWdGhq9sqXIA6TAf2vKsrbL5daNQsRwBLwguB9QQKw52cL7T2NcIPS+y3H1oxPTfNUA92p2K8Eg7S3UN+kzxSyoytSJsO75HW20qrOcLls9u3/2wkMxy4Dn9ves4rcAEOR6IoMZVtOyZ8UBxiF552VhF1bC9yU6WSnDWaKdhACMf4mW2nJk5IvPF16iQ/cw2YJ5ro1KSVVra5WzPCZTIPuIu1IRWnZDgASnYJdrAu/pbNLO+JlwqGuQIDAQABMA0GCSqGSIb3DQEBCwUAA4IBAQCrSOi+z/AenFHHcFT+/j8NO7vepzCPAlwFB7oZuEJHJQ7P05j0Sz8S2V8zPXd8SXrU2iQIYwZH3sYoRB1bYxFAp+5AuXzzR1UKOUgme0T2cpYkmcPBY1QeWJ3URQJ3T3OsOlXGBaSRpNQg97UgsnlKfIDG8p28LgaOZLu991XttyToqMzIuix/4lyque7PZqHJ4IaLmARNgHRiTQTxW5zMw8Fi5DkCQdOStmggMgFegNeObNsbYO3TCFJN8FWQ7gQ9cSvGWXboIFUOAAT31rqZRHqv/2TTW8qq4mPZ8TH7a7PB2eKqk1cV8wpNk/tDsopWEgvj4DFj0hQUrU9D3u4l"
-          ],
           "priority": [
             "100"
           ]
@@ -4837,12 +4641,6 @@
         "providerId": "hmac-generated",
         "subComponents": {},
         "config": {
-          "kid": [
-            "fe980665-0cbf-457f-893e-25fd0cc24d2d"
-          ],
-          "secret": [
-            "2m4LfxLgYaEEiNtrYuObn-3tJYDMMiEX8m9e532plNDlvSt5eOpV7TM2JC95TFmw1nIoTywSOa3C3GjnP6Cu-rOlu-4ZU7qonEq6CgInnVDtOgpXDQoNTJhwpSrcU-PhXyfexJuZ_83OpG_CYorPkzYtJafsyPiCCdTfe1cDOIg"
-          ],
           "priority": [
             "100"
           ],
@@ -4857,12 +4655,6 @@
         "providerId": "rsa-enc-generated",
         "subComponents": {},
         "config": {
-          "privateKey": [
-            "MIIEpAIBAAKCAQEApH0OAklVfiVdC7q3Ycdr71rV8xVmdWrm1N78C6ZZMm+cWPSsbVMzWsX25gYqgQEz1/y840ZrOb/U5y3jxMZrQ2e/PhaIdUW9ypYtgPoXLNzXaXHqGuOgVgypMgZ3f6ZSP0QtgkjtQ7seTwVRm78SdxOiGNfXudF/ssDgpeGb4qKBUxLst/6XpfJzTmhZinXxyYWIvwhQvvRNZr7tYWAkkmRK3Ssp7BjTvJENyUn7gpnEcZ4Dn/ur4g1oq+UXRuM9jJQKBtU2UMXVtCn11/mhpO6oRl5MqIYtJNvt+H7GIa2Vt2EVryQekMtubSyz7dA2DYshvgJWw7xKtlVyR6DRcQIDAQABAoIBAANTqixeqlV+UPbzRFE8dNDm/+vGM4fNbTTB+8wKhcRQ4JMmA7TEWYYM+fTmDAcG7LMCIBniqzmESTyRv4kT0EiRORt63jCtA+0sg2gX5s8X+l1eGfOIRg5nfCaQXetdhE1WRitb6TyU9MR5YZCqWSfCZGVnPCw8cf4+C20fdoUrZt+VNEbUM5uoAXLWkux+F9TKEfBttB5SQDp+RV87Yq6Y1cmUjp87pgMXgWEU6Rr79SFV2JkOqJAkMrjdwrvrnvJXfbszDLec93WG8/67TIDquj19FEMI/SsvELfG1ZMcArIcMMZL5JRc3dzmz6XuxAVw5B0F1mu/PpOL03XsImkCgYEA6IipSzbJ1Rp/SwTcjc+NWhLuxLvCY8BsHAbiSQ4bcmm1vmI2gzQrxmi/YAq7+QTSf3+MLmZ668locfNyBhiGoH6LKhrKuz/QJA8edtoffA54q84M8zd5F/pfUICrdSECy5EDayIBL9HkkriFeqLS5R3axY3uJAtmxUF0XvhYsg0CgYEAtRZ+IVp8nkNKxaApogAMKdeiT0NdxNFEZJrEn2ZWxUhaRI3Q+pRWQ1vUrYjOrHhbxI0QlyaGtt1NNdz0i2Z+0vJU9KWvh8gcyiyLu7JgVHpQrk4nGeDT4B38AaOPdVKi6KRPyGSkdA5KYCTtayvQnUf35+/3uL06IVtOxkwsV/UCgYAgTHMvZlHMjtylf+xeqjiZDU4q92V904lwrygZO6NmVfaPlja6LLHz4jLK1VLcuOXAHehLvaJPQ++E/GqXHCr++fS8iXIlZiy0BYGWwp9i7OOoAXvdAJSKVxWMKgMmxsoLmn3eEKAXk1DrbEPmD925Q1dS3273hLnmpjvSwS4YtQKBgQCXvCsfw3RcIEKM6bE43xVSEi8cf3QYsMjAC7bpYZUfZYrNmo8bCCRn+JBygAm9FnS+cv0NyehjXXeOxH/cNpvaIdfxzssP2SvWdBD5y3NQFdV42F+HHY4rYrSAow5X3lBG4zc+0KXD4R2NBiQyAtqgj2c4XyiREW2d+aY+HiGh6QKBgQCOjLaWUnaERdI3WPIwkgoibdL7ETF3jsqntisK+10qkLLdo9bzELUgGMp96I/f+UlMklf3ReyznXiQVVzbTx4fLcBOLsZN6gOJKxeJhA16aPzagwwZ7P4tNYTLQBoHJ0cPj0G36nN59sq5emnTWUtHxe3lG0XK5FoDdMr3+/Dgcw=="
-          ],
-          "certificate": [
-            "MIICsTCCAZkCBgGJ6hDOuDANBgkqhkiG9w0BAQsFADAcMRowGAYDVQQDDBFlbGVjdG9yYWwtcHJvY2VzczAeFw0yMzA4MTIxNDAzMzdaFw0zMzA4MTIxNDA1MTdaMBwxGjAYBgNVBAMMEWVsZWN0b3JhbC1wcm9jZXNzMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApH0OAklVfiVdC7q3Ycdr71rV8xVmdWrm1N78C6ZZMm+cWPSsbVMzWsX25gYqgQEz1/y840ZrOb/U5y3jxMZrQ2e/PhaIdUW9ypYtgPoXLNzXaXHqGuOgVgypMgZ3f6ZSP0QtgkjtQ7seTwVRm78SdxOiGNfXudF/ssDgpeGb4qKBUxLst/6XpfJzTmhZinXxyYWIvwhQvvRNZr7tYWAkkmRK3Ssp7BjTvJENyUn7gpnEcZ4Dn/ur4g1oq+UXRuM9jJQKBtU2UMXVtCn11/mhpO6oRl5MqIYtJNvt+H7GIa2Vt2EVryQekMtubSyz7dA2DYshvgJWw7xKtlVyR6DRcQIDAQABMA0GCSqGSIb3DQEBCwUAA4IBAQAxTFwTI62E2gyDifL57k+GR+7Jp+EvQncdLs1cnG9e3RJWaKnGyets1VwpBkoHUmFZT5ebY3cmHuYX5IdAOKmTioGOO60PQZ45ToFxVLszcYPG1jSLFuIvVPKahb3hHD6KEFX8ZGcuvVDVsVNDU2WUVwu0Do19HDRAMZQmxJjiDk3LSKLcLdO8+z2iVj3p9y7TRPnSsJQKB2tqv0kEdwpjOJiXZGEnBeKFT4tGRIiphazUZf51p8HYhRuX1pRDxZ1lsEYC13NV5YuPYDkNrBf6tyaMSQVa+5MXqv+Td0JqKqNr2jpYNbD+6OQ6MY8311F+y9kk17Tkx2cmZCQ7MCgl"
-          ],
           "priority": [
             "100"
           ],

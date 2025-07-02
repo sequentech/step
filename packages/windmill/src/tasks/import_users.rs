@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::document::get_document;
+use crate::postgres::maintenance::vacuum_analyze_direct;
 use crate::services::database::get_hasura_pool;
 use crate::services::documents::get_document_as_temp_file;
 use crate::services::import::import_users::import_users_file;
@@ -10,8 +11,8 @@ use crate::services::tasks_execution::*;
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context};
 use celery::error::TaskError;
-use deadpool_postgres::Transaction;
 use deadpool_postgres::{Client as DbClient, Transaction as _};
+use deadpool_postgres::{GenericClient, Transaction};
 use sequent_core::services::keycloak::get_client_credentials;
 use sequent_core::services::s3;
 use sequent_core::services::{keycloak, reports};
@@ -145,14 +146,19 @@ pub async fn import_users(body: ImportUsersBody, task_execution: TasksExecution)
     )
     .await
     {
-        Ok(_) => (),
+        Ok(_) => {
+            // Execute database maintenance
+            info!("Performing mainteinance after users import.");
+            vacuum_analyze_direct().await?;
+            ()
+        }
         Err(err) => {
             update_fail(&task_execution, &err.to_string()).await?;
             return Err(Error::String(format!("Error importing users file: {err}")));
         }
     }
 
-    update_complete(&task_execution)
+    update_complete(&task_execution, Some(body.document_id.clone()))
         .await
         .context("Failed to update task execution status to COMPLETED")?;
 

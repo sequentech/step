@@ -27,7 +27,6 @@ export const UserAndRoles: React.FC = () => {
     }
 
     const showUsersMenu = authContext.isAuthorized(true, tenantId, IPermissions.USERS_MENU)
-    console.log("aa showUsersMenu", showUsersMenu)
 
     if ((!showUsers && !showRoles) || !showUsersMenu) {
         return (
@@ -42,7 +41,7 @@ export const UserAndRoles: React.FC = () => {
     return (
         <>
             <ElectionHeader
-                title={t("usersAndRolesScreen.common.title")}
+                title="usersAndRolesScreen.common.title"
                 subtitle="usersAndRolesScreen.common.subtitle"
             />
             <SidebarScreenStyles.Tabs

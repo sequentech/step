@@ -16,7 +16,6 @@ use sequent_core::util::integrity_check::{
 use serde::{Deserialize, Serialize};
 use tracing::{info, instrument};
 use uuid::Uuid;
-use windmill::hasura::election_event::insert_election_event::sequent_backend_election_event_insert_input as InsertElectionEventInput;
 use windmill::services;
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::database::get_hasura_pool;
@@ -26,10 +25,11 @@ use windmill::services::import::import_election_event::{
 use windmill::services::tasks_execution::*;
 use windmill::services::tasks_execution::{update_complete, update_fail};
 use windmill::tasks::import_election_event;
-use windmill::tasks::insert_election_event;
+use windmill::tasks::insert_election_event::{self, CreateElectionEventInput};
 use windmill::types::tasks::ETasksExecution;
 
 #[derive(Serialize, Deserialize, Debug)]
+
 pub struct CreateElectionEventOutput {
     id: Option<String>,
     message: Option<String>,
@@ -40,7 +40,7 @@ pub struct CreateElectionEventOutput {
 #[instrument(skip(claims))]
 #[post("/insert-election-event", format = "json", data = "<body>")]
 pub async fn insert_election_event_f(
-    body: Json<InsertElectionEventInput>,
+    body: Json<CreateElectionEventInput>,
     claims: JwtClaims,
 ) -> Result<Json<CreateElectionEventOutput>, (Status, String)> {
     authorize(
@@ -273,7 +273,9 @@ pub async fn import_election_event_f(
 
     let check_only = input.check_only.unwrap_or(false);
     if check_only {
-        let _res = update_complete(&task_execution).await;
+        let _res =
+            update_complete(&task_execution, Some(input.document_id.clone()))
+                .await;
         return Ok(Json(ImportElectionEventOutput {
             id: Some(id),
             message: Some("Import document checked".to_string()),

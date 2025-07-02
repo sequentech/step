@@ -6,6 +6,8 @@ package sequent.keycloak.protocol.oidc.mappers;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -17,6 +19,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.extern.jbosslog.JBossLog;
@@ -48,16 +51,21 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
         TokenIntrospectionTokenMapper {
 
   private String keycloakUrl = System.getenv("KEYCLOAK_URL");
-  private String tenantId = System.getenv("SUPER_ADMIN_TENANT_ID");
   private String clientId = System.getenv("KEYCLOAK_CLIENT_ID");
   private String clientSecret = System.getenv("KEYCLOAK_CLIENT_SECRET");
   private String hasuraEndpoint = System.getenv("HASURA_ENDPOINT");
+  private final HttpClient client = HttpClient.newHttpClient();
+  private final ObjectMapper objectMapper = new ObjectMapper();
 
   private static final List<ProviderConfigProperty> configProperties =
       new ArrayList<ProviderConfigProperty>();
   private static final String ARRAY_ATTRS = "use.array.attrs";
   private static final String ARRAY_ATTRS_LABEL = "JSON Array";
   private static final String ARRAY_ATTRS_HELP_TEXT = "Use a JSON array";
+
+  private static final String CACHE_EXPIRE_ATTRS = "cache.attrs";
+  private static final String CACHE_EXPIRE_LABEL = "Election Alias cache timeout";
+  private static final String CACHE_EXPIRE_HELP_TEXT = "Number of Minutes before cache invalidates";
 
   static {
     ProviderConfigProperty property;
@@ -128,13 +136,16 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
     Collection<String> attributeValue =
         KeycloakModelUtils.resolveAttribute(user, attributeName, aggregateAttrs);
 
-    log.infov("Realm id: {0}", userSession.getRealm().getName());
-    String electionEventId = userSession.getRealm().getName().split("\\-event\\-")[1];
-    log.infov("Election Event id: {0}", electionEventId);
-
     Map<String, String> electionsAliasIds;
     try {
-      electionsAliasIds = getAllElectionsFromElectionEvent(electionEventId, authenticate());
+      log.infov("Realm id: {0}", userSession.getRealm().getName());
+      String name = userSession.getRealm().getName();
+      String[] ids = name.replaceAll("tenant\\-", "").split("\\-event\\-");
+      String tenantId = ids[0];
+      String electionEventId = ids[1];
+      log.infov("Election Event id: {0}", electionEventId);
+      log.infov("Tenant Id: {0}", tenantId);
+      electionsAliasIds = getAllElectionsFromElectionEvent(electionEventId, tenantId);
     } catch (Exception e) {
       e.printStackTrace();
       return;
@@ -252,12 +263,12 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
         false);
   }
 
-  public String authenticate() {
+  public String authenticate(String tenantId) {
     HttpClient client = HttpClient.newHttpClient();
     String url =
         this.keycloakUrl
             + "/realms/"
-            + getTenantRealmName(this.tenantId)
+            + getTenantRealmName(tenantId)
             + "/protocol/openid-connect/token";
     Map<Object, Object> data = new HashMap<>();
     data.put("client_id", this.clientId);
@@ -293,71 +304,94 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
     return responseBody;
   }
 
-  private String getTenantRealmName(String realmName) {
+  private String getTenantRealmName(String tenantId) {
     return "tenant-" + tenantId;
   }
 
-  private Map<String, String> getAllElectionsFromElectionEvent(String electionEventId, String token)
-      throws IOException, InterruptedException {
-    HttpClient client = HttpClient.newHttpClient();
-    String url = this.hasuraEndpoint;
+  // Cache results for each electionEventId with expiration after 5 minutes
+  private final Cache<String, Map<String, String>> electionsCache =
+      CacheBuilder.newBuilder().expireAfterWrite(5, TimeUnit.MINUTES).build();
+
+  public Map<String, String> getAllElectionsFromElectionEvent(
+      String electionEventId, String tenantId) throws IOException, InterruptedException {
+
+    // Check cache first
+    Map<String, String> cachedResult = electionsCache.getIfPresent(electionEventId);
+    if (cachedResult != null) {
+      return cachedResult;
+    }
+
+    String token = authenticate(tenantId);
+
+    // Construct GraphQL query using a text block (Java 15+)
+    String query =
+        String.format(
+            """
+            query GetAllElectionsFromEvent {
+              sequent_backend_election(where: {election_event_id: {_eq: "%s"}, tenant_id: {_eq: "%s"}}) {
+                id
+                alias
+                name
+              }
+            }
+            """,
+            electionEventId, tenantId);
+
+    // Build the JSON request body; escape quotes in the query if necessary
     String requestBody =
         String.format(
-            "{\"query\":\"query GetAllElectionsFromEvent {\\n"
-                + //
-                "  sequent_backend_election(where: {election_event_id: {_eq: \\\"%s\\\"}}) {\\n"
-                + //
-                "    id\\n"
-                + //
-                "    alias\\n"
-                + //
-                "    name\\n"
-                + //
-                "  }\\n"
-                + //
-                "}\\n"
-                + //
-                "\",\"variables\":null,\"operationName\":\"GetAllElectionsFromEvent\"}",
-            electionEventId);
+            "{\"query\":\"%s\",\"variables\":null,\"operationName\":\"GetAllElectionsFromEvent\"}",
+            escapeJson(query));
+
+    log.infov("requestBody: {0}", requestBody);
+
     HttpRequest request =
         HttpRequest.newBuilder()
-            .uri(URI.create(url))
+            .uri(URI.create(hasuraEndpoint))
             .header("Content-Type", "application/json")
             .header("Authorization", "Bearer " + token)
             .POST(HttpRequest.BodyPublishers.ofString(requestBody))
             .build();
+
     HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+    if (response.statusCode() != 200) {
+      throw new RuntimeException(
+          "HTTP error: " + response.statusCode() + " Body: " + response.body());
+    }
 
-    String body = response.body();
+    // Parse the JSON response
+    JsonNode root = objectMapper.readTree(response.body());
+    JsonNode electionsNode = root.path("data").path("sequent_backend_election");
+    if (electionsNode.isMissingNode() || !electionsNode.isArray()) {
+      throw new RuntimeException("Unexpected JSON structure: " + response.body());
+    }
 
-    log.infov("Response: {0}", body);
-
-    ObjectMapper om = new ObjectMapper();
-    JsonNode elections = om.readTree(body);
-
+    StringBuilder keyAreaLog = new StringBuilder();
     Map<String, String> electionIds = new HashMap<>();
+    for (JsonNode election : electionsNode) {
+      String id = election.path("id").asText();
+      // Use asText(null) so that if alias is missing it returns null.
+      String alias = election.hasNonNull("alias") ? election.get("alias").asText() : null;
+      String key = (alias != null && !alias.isEmpty()) ? alias : id;
 
-    for (JsonNode election : elections.get("data").get("sequent_backend_election")) {
-      String id = election.get("id").textValue();
-      String alias = election.get("alias").textValue();
+      keyAreaLog.append(String.format("Key: %s, Id: %s, Alias: %s\t", key, id, alias));
 
-      // Make sure to populate the list with all elections even if alias is not set
-      String key = alias != null ? alias : id;
-
-      log.infov("Key: {0}", key);
-      log.infov("Id: {0}", id);
-      log.infov("Alias: {0}", alias);
-
-      // Check if two elections have the same alias and warn
-      String found = electionIds.get(alias);
-      if (found != null) {
-        log.warnv(
-            "Two elections found with the same alias: {0} id_1: {1} id_2: {2}", alias, found, id);
+      if (electionIds.containsKey(key)) {
+        log.infov(
+            "Warning: Two elections found with the same alias: {0} id_1: {1} id_2: {2}",
+            alias, electionIds.get(key), id);
       }
-
+      log.info(keyAreaLog.toString());
       electionIds.put(key, id);
     }
 
+    // Cache the result for future calls
+    electionsCache.put(electionEventId, electionIds);
     return electionIds;
+  }
+
+  // Utility method to escape double quotes in the JSON string
+  private String escapeJson(String text) {
+    return text.replace("\"", "\\\"").replace("\n", "\\n");
   }
 }

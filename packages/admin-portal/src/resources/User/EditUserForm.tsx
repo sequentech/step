@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useCallback, useContext, useEffect, useMemo, useState} from "react"
+import React, {useCallback, useContext, useEffect, useMemo, useRef, useState} from "react"
 import {
     Identifier,
     RaRecord,
@@ -9,8 +9,6 @@ import {
     SimpleForm,
     useNotify,
     useRefresh,
-    AutocompleteArrayInput,
-    ReferenceArrayInput,
     BooleanInput,
     useGetList,
 } from "react-admin"
@@ -21,15 +19,14 @@ import {useTenantStore} from "@/providers/TenantContextProvider"
 import {IRole, IUser} from "@sequentech/ui-core"
 import {
     FormControl,
-    MenuItem,
-    Select,
-    SelectChangeEvent,
     FormControlLabel,
     Checkbox,
-    InputLabel,
     FormGroup,
     FormLabel,
     Box,
+    Autocomplete,
+    Grid,
+    TextField,
 } from "@mui/material"
 import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
 import {
@@ -38,6 +35,7 @@ import {
     EditUsersInput,
     ListUserRolesQuery,
     Sequent_Backend_Cast_Vote,
+    Sequent_Backend_Election,
     SetUserRoleMutation,
     UserProfileAttribute,
 } from "@/gql/graphql"
@@ -60,11 +58,13 @@ import SelectArea from "@/components/area/SelectArea"
 import SelectActedTrustee from "./SelectActedTrustee"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
-import {useLocation} from "react-router"
 import {InputContainerStyle, InputLabelStyle, PasswordInputStyle} from "./EditPassword"
 import IconTooltip from "@/components/IconTooltip"
 import {faInfoCircle} from "@fortawesome/free-solid-svg-icons"
 import {useUsersPermissions} from "./useUsersPermissions"
+import debounce from "lodash/debounce"
+import {CustomAutocompleteArrayInput} from "@sequentech/ui-essentials"
+import {useCustomNotify} from "@/hooks/useCustomNotify"
 
 interface ListUserRolesProps {
     userId?: string
@@ -95,7 +95,7 @@ export const ListUserRoles: React.FC<ListUserRolesProps> = ({
     const [deleteUserRole] = useMutation<DeleteUserRoleMutation>(DELETE_USER_ROLE)
     const [setUserRole] = useMutation<SetUserRoleMutation>(SET_USER_ROLE)
     const refresh = useRefresh()
-    const notify = useNotify()
+    const notify = useCustomNotify()
 
     const activeRoleIds = createMode
         ? selectedRolesOnCreate
@@ -126,13 +126,13 @@ export const ListUserRoles: React.FC<ListUserRolesProps> = ({
                 },
             })
             if (errors) {
-                notify(t(`usersAndRolesScreen.roles.notifications.permissionEditError`), {
+                notify(`usersAndRolesScreen.roles.notifications.permissionEditError`, {
                     type: "error",
                 })
                 console.log(`Error editing permission: ${errors}`)
                 return
             }
-            notify(t(`usersAndRolesScreen.roles.notifications.permissionEditSuccess`), {
+            notify("usersAndRolesScreen.roles.notifications.permissionEditSuccess", {
                 type: "success",
             })
             refresh()
@@ -197,6 +197,7 @@ const convertRecordToUser = (record: RaRecord<Identifier>): IUser => {
 interface EditUserFormProps {
     id?: string
     electionEventId?: string
+    electionId?: string
     close?: () => void
     rolesList: Array<IRole>
     userAttributes: UserProfileAttribute[]
@@ -208,6 +209,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     id,
     close,
     electionEventId,
+    electionId,
     rolesList,
     userAttributes,
     createMode = false,
@@ -278,6 +280,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
             userId: id!,
             electionEventId: electionEventId,
         },
+        skip: !id || !tenantId,
     })
 
     const {data: voterCastVotes} = useGetList<Sequent_Backend_Cast_Vote>(
@@ -296,16 +299,32 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         }
     )
 
+    const {data: electionsList} = useGetList<Sequent_Backend_Election>(
+        "sequent_backend_election",
+        {
+            pagination: {page: 1, perPage: 300},
+            sort: {field: "name", order: "DESC"},
+            filter: {
+                tenant_id: tenantId,
+                election_event_id: electionEventId,
+            },
+        },
+        {
+            enabled: !!electionEventId,
+        }
+    )
+
     // true if not affected by canEditVotersWhoVoted
     // which happens if the voter has not voted
     // or if current admin user has the permission canEditVotersWhoVoted
+
+    const hasVoted = useMemo(() => {
+        return voterCastVotes ? voterCastVotes?.length > 0 : false
+    }, [voterCastVotes])
+
     const enabledByVoteNum = useMemo(() => {
-        return (
-            canEditVotersWhoVoted ||
-            !voterCastVotes ||
-            (voterCastVotes !== undefined && voterCastVotes?.length === 0)
-        )
-    }, [canEditVotersWhoVoted, voterCastVotes])
+        return canEditVotersWhoVoted || (canEditVoters && !hasVoted)
+    }, [canEditVotersWhoVoted, hasVoted])
 
     const handleSelectedRolesOnCreate = useCallback(
         (id: string) => {
@@ -439,6 +458,27 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
 
     const handleAttrChange =
         (attrName: string) => async (e: React.ChangeEvent<HTMLInputElement>) => {
+            const {name, value} = e.target
+            debouncedHandleChange(name, value)
+        }
+
+    const debouncedHandleChange = useCallback(
+        debounce((name: string, value: string) => {
+            setUser((prev) => {
+                return {
+                    ...prev,
+                    attributes: {
+                        ...(prev?.attributes ?? {}),
+                        [name]: [value],
+                    },
+                }
+            })
+        }, 300),
+        [user, equalToPassword]
+    )
+
+    const handleDateChange =
+        (attrName: string) => async (e: React.ChangeEvent<HTMLInputElement>) => {
             const {value} = e.target
             setUser((prev) => {
                 return {
@@ -451,45 +491,31 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
             })
         }
 
-    const handleSelectChange = (attrName: string) => async (e: SelectChangeEvent) => {
+    const handleSelectChange = (attrName: string) => async (e: string) => {
         setUser((prev) => {
             return {
                 ...prev,
                 attributes: {
                     ...prev?.attributes,
-                    [attrName]: [e.target.value],
+                    [attrName]: [e],
                 },
             }
         })
     }
 
-    const handleArraySelectChange = (attrName: string) => async (value: string[]) => {
+    const handleArraySelectChange = (value: string[]) => {
         setUser((prev) => {
             return {
                 ...prev,
                 attributes: {
                     ...prev?.attributes,
-                    [attrName]: value,
+                    "authorized-election-ids": value,
                 },
             }
         })
     }
 
-    const handlePermissionLabelRemoved = (value: string[]) => {
-        if (value?.length < permissionLabels?.length) {
-            setUser((prev) => {
-                return {
-                    ...prev,
-                    attributes: {
-                        ...prev?.attributes,
-                        permission_labels: value,
-                    },
-                }
-            })
-        }
-    }
-
-    const handlePermissionLabelAdded = (value: string[]) => {
+    const handlePermissionLabelChanged = (value: string[]) => {
         setUser((prev) => {
             return {
                 ...prev,
@@ -534,15 +560,17 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
 
     const aliasRenderer = useAliasRenderer()
 
+    const searched = useRef("")
+
     const electionFilterToQuery = (searchText: string) => {
-        if (!searchText || searchText.length == 0) {
-            return {name: ""}
+        if (searchText && searchText.length > 0) {
+            searched.current = searchText.trim()
         }
-        return {"name@_ilike,alias@_ilike": searchText.trim()}
+        return {"name@_ilike,alias@_ilike": searched.current}
     }
 
     const renderFormField = useCallback(
-        (attr: UserProfileAttribute) => {
+        (attr: UserProfileAttribute, index: number) => {
             if (attr.name) {
                 const isCustomAttribute = !userBasicInfo.includes(attr.name)
                 const value = isCustomAttribute
@@ -552,33 +580,66 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                 const isRequired = isFieldRequired(attr)
                 if (attr.annotations?.inputType === "select") {
                     return (
-                        <FormControl fullWidth>
-                            <InputLabel id="select-label" required={isRequired}>
-                                {getTranslationLabel(attr.name, attr.display_name, t)}
-                            </InputLabel>
-                            <Select
-                                name={displayName}
-                                defaultValue={value}
-                                labelId="select-label"
-                                label={getTranslationLabel(attr.name, attr.display_name, t)}
-                                value={value}
-                                onChange={handleSelectChange(attr.name)}
-                                required={isRequired}
-                                disabled={
-                                    !(
-                                        createMode ||
-                                        !electionEventId ||
-                                        (enabledByVoteNum && canEditVoters)
-                                    )
-                                }
-                            >
-                                {attr.validations.options?.options?.map((option: string) => (
-                                    <MenuItem key={option} value={option}>
-                                        {t(option)}
-                                    </MenuItem>
-                                ))}
-                            </Select>
-                        </FormControl>
+                        <Grid key={index} container spacing={2}>
+                            <Grid item xs={12}>
+                                <FormControl fullWidth>
+                                    <Autocomplete
+                                        defaultValue={value || null}
+                                        value={value || null}
+                                        onChange={(event, newValue) => {
+                                            const fieldName = attr.name || ""
+                                            const selectedValue = newValue || ""
+                                            handleSelectChange(fieldName)(selectedValue)
+                                        }}
+                                        options={
+                                            attr.validations.options?.options
+                                                ? [...attr.validations.options.options].sort()
+                                                : ["-"]
+                                        }
+                                        getOptionLabel={(option) => t(option) || String(option)}
+                                        renderInput={(params) => (
+                                            <TextField
+                                                {...params} // Spread all params provided by Autocomplete
+                                                label={
+                                                    `${getTranslationLabel(
+                                                        attr.name,
+                                                        attr.display_name,
+                                                        t
+                                                    )} ${isRequired ? "*" : ""}` || "-"
+                                                }
+                                                inputProps={{
+                                                    ...params.inputProps,
+                                                    id: "autocomplete-input",
+                                                    required: isRequired,
+                                                    name: displayName,
+                                                }}
+                                                disabled={
+                                                    !(
+                                                        createMode ||
+                                                        !electionEventId ||
+                                                        canEditVoters ||
+                                                        enabledByVoteNum
+                                                    )
+                                                }
+                                                fullWidth
+                                                style={{
+                                                    display: "block",
+                                                    visibility: "visible",
+                                                }}
+                                            />
+                                        )}
+                                        disabled={
+                                            !(
+                                                createMode ||
+                                                !electionEventId ||
+                                                canEditVoters ||
+                                                enabledByVoteNum
+                                            )
+                                        }
+                                    />
+                                </FormControl>
+                            </Grid>
+                        </Grid>
                     )
                 } else if (
                     attr.annotations?.inputType === "multiselect-checkboxes" &&
@@ -590,7 +651,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                         }
                     )
                     return (
-                        <FormControl component="fieldset">
+                        <FormControl key={index} component="fieldset">
                             <FormLabel component="legend" style={{margin: 0}}>
                                 {getTranslationLabel(attr.name, attr.display_name, t)}
                             </FormLabel>
@@ -605,11 +666,11 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                                         !(
                                                             createMode ||
                                                             !electionEventId ||
-                                                            (enabledByVoteNum &&
-                                                                (canEditVoters ||
-                                                                    (attr.name ===
-                                                                        "emailAndOrMobile" &&
-                                                                        canEditVotersEmailTlf)))
+                                                            canEditVoters ||
+                                                            enabledByVoteNum ||
+                                                            (!hasVoted &&
+                                                                attr.name === "emailAndOrMobile" &&
+                                                                canEditVotersEmailTlf)
                                                         )
                                                     }
                                                     checked={value && value.includes(choice.id)}
@@ -630,14 +691,16 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                 } else if (attr.annotations?.inputType === "html5-date") {
                     return (
                         <FormStyles.DateInput
+                            key={index}
                             source={`attributes.${attr.name}`}
-                            onChange={handleAttrChange(attr.name)}
+                            onChange={handleDateChange(attr.name)}
                             label={getTranslationLabel(attr.name, attr.display_name, t)}
                             disabled={
                                 !(
                                     createMode ||
                                     !electionEventId ||
-                                    (enabledByVoteNum && canEditVoters)
+                                    canEditVoters ||
+                                    enabledByVoteNum
                                 )
                             }
                         />
@@ -647,6 +710,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                 } else if (attr.name.toLowerCase().includes("mobile-number")) {
                     return (
                         <PhoneInput
+                            key={index}
                             handlePhoneNumberChange={handlePhoneNumberChange(attr.name)}
                             label={getTranslationLabel(attr.name, attr.display_name, t)}
                             fullWidth
@@ -655,14 +719,16 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                 !(
                                     createMode ||
                                     !electionEventId ||
-                                    (enabledByVoteNum && (canEditVoters || canEditVotersEmailTlf))
+                                    canEditVoters ||
+                                    enabledByVoteNum ||
+                                    (!hasVoted && canEditVotersEmailTlf)
                                 )
                             }
                         />
                     )
                 } else if (attr.name.toLowerCase().includes("trustee")) {
                     return (
-                        <FormControl fullWidth>
+                        <FormControl key={index} fullWidth>
                             <SelectActedTrustee
                                 label={t("usersAndRolesScreen.users.fields.trustee")}
                                 source={createMode ? "attributes.trustee" : "trustee"}
@@ -676,83 +742,42 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                     )
                 } else if (attr.name.toLowerCase().includes("authorized-election-ids")) {
                     return (
-                        <ReferenceArrayInput
-                            reference="sequent_backend_election"
-                            source="attributes.authorized-election-ids"
-                            filter={{
-                                tenant_id: tenantId,
-                                election_event_id: electionEventId,
-                            }}
-                            enableGetChoices={({q}) => q && q.length >= 3}
-                        >
+                        <>
                             <FormStyles.AutocompleteArrayInput
+                                key={index}
                                 label={getTranslationLabel(attr.name, attr.display_name, t)}
                                 className="elections-selector"
-                                fullWidth={true}
+                                fullWidth
+                                choices={electionsList || []}
+                                source="attributes.authorized-election-ids"
                                 optionValue="alias"
                                 optionText={aliasRenderer}
-                                filterToQuery={electionFilterToQuery}
-                                onChange={handleArraySelectChange(attr.name)}
+                                onChange={handleArraySelectChange}
                                 disabled={
                                     !(
                                         createMode ||
                                         !electionEventId ||
-                                        (enabledByVoteNum && canEditVoters)
+                                        canEditVoters ||
+                                        enabledByVoteNum
                                     )
                                 }
                             />
-                        </ReferenceArrayInput>
+                        </>
                     )
                 } else if (attr.name.toLowerCase().includes("permission_labels")) {
                     return (
-                        <AutocompleteArrayInput
-                            key={user?.id || "create"}
-                            source={`attributes.${attr.name}`}
+                        <CustomAutocompleteArrayInput
+                            key={index}
                             label={t("usersAndRolesScreen.users.fields.permissionLabel")}
                             defaultValue={permissionLabels}
-                            fullWidth
-                            onChange={handlePermissionLabelRemoved}
-                            onCreate={(newLabel) => {
-                                if (newLabel) {
-                                    const updatedChoices = [
-                                        ...choices,
-                                        {id: newLabel, name: newLabel},
-                                    ]
-                                    const updatedLabels = [...permissionLabels, newLabel]
-                                    setChoices(updatedChoices)
-                                    setPermissionLabels(updatedLabels)
-                                    handlePermissionLabelAdded(updatedLabels)
-                                    return newLabel
-                                }
-                            }}
-                            optionText="name"
+                            onChange={handlePermissionLabelChanged}
                             choices={choices}
-                            freeSolo={true}
                             disabled={
-                                !(
-                                    createMode ||
-                                    !electionEventId ||
-                                    (enabledByVoteNum && canEditVoters)
-                                )
+                                !createMode &&
+                                !electionEventId &&
+                                !canEditVoters &&
+                                !enabledByVoteNum
                             }
-                            onKeyDown={(e) => {
-                                if (e.key === "Enter") {
-                                    e.preventDefault()
-                                    const input = e.target as HTMLInputElement
-                                    const newLabel = input.value
-                                    if (newLabel) {
-                                        const updatedChoices = [
-                                            ...choices,
-                                            {id: newLabel, name: newLabel},
-                                        ]
-                                        const updatedLabels = [...permissionLabels, newLabel]
-                                        setChoices(updatedChoices)
-                                        setPermissionLabels(updatedLabels)
-                                        handlePermissionLabelAdded(updatedLabels)
-                                        input.value = ""
-                                    }
-                                }
-                            }}
                         />
                     )
                 }
@@ -760,6 +785,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                     <>
                         {isCustomAttribute ? (
                             <FormStyles.TextField
+                                key={index}
                                 label={getTranslationLabel(attr.name, attr.display_name, t)}
                                 value={value}
                                 onChange={handleAttrChange(attr.name)}
@@ -767,7 +793,11 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                     !(
                                         createMode ||
                                         !electionEventId ||
-                                        (enabledByVoteNum && canEditVoters)
+                                        canEditVoters ||
+                                        enabledByVoteNum ||
+                                        (!hasVoted &&
+                                            attr.name === "email" &&
+                                            canEditVotersEmailTlf)
                                     )
                                 }
                             />
@@ -781,10 +811,13 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                 disabled={
                                     (attr.name === "username" && !createMode) ||
                                     !(
+                                        createMode ||
                                         !electionEventId ||
-                                        (enabledByVoteNum &&
-                                            (canEditVoters ||
-                                                (attr.name === "email" && canEditVotersEmailTlf)))
+                                        canEditVoters ||
+                                        enabledByVoteNum ||
+                                        (!hasVoted &&
+                                            attr.name === "email" &&
+                                            canEditVotersEmailTlf)
                                     )
                                 }
                             />
@@ -793,7 +826,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                 )
             }
         },
-        [user, permissionLabels, choices]
+        [user, permissionLabels, choices, electionsList]
     )
 
     const isFieldRequired = (config: UserProfileAttribute): boolean => {
@@ -809,8 +842,10 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
 
     const formFields = useMemo(() => {
         // to check if fields are required
-        return userAttributes?.map((attr) => renderFormField(attr))
-    }, [userAttributes, user, permissionLabels, choices])
+        return userAttributes?.map((attr, index) => (
+            <React.Fragment key={attr.name || index}>{renderFormField(attr, index)}</React.Fragment>
+        ))
+    }, [userAttributes, user, permissionLabels, choices, electionsList])
 
     if (!user && !createMode) {
         return null
@@ -864,7 +899,8 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                     !(
                                         createMode ||
                                         !electionEventId ||
-                                        (enabledByVoteNum && canEditVoters)
+                                        canEditVoters ||
+                                        enabledByVoteNum
                                     )
                                 }
                                 checked={user?.enabled || false}
@@ -891,7 +927,8 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                     !(
                                         createMode ||
                                         !electionEventId ||
-                                        (enabledByVoteNum && canEditVoters)
+                                        canEditVoters ||
+                                        enabledByVoteNum
                                     )
                                 }
                                 customStyle={{
@@ -916,7 +953,8 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                     !(
                                         createMode ||
                                         !electionEventId ||
-                                        (enabledByVoteNum && canEditVoters)
+                                        canEditVoters ||
+                                        enabledByVoteNum
                                     )
                                 }
                             />
@@ -935,7 +973,8 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                     !(
                                         createMode ||
                                         !electionEventId ||
-                                        (enabledByVoteNum && canEditVoters)
+                                        canEditVoters ||
+                                        enabledByVoteNum
                                     )
                                 }
                             />
@@ -959,7 +998,8 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                     !(
                                         createMode ||
                                         !electionEventId ||
-                                        (enabledByVoteNum && canEditVoters)
+                                        canEditVoters ||
+                                        enabledByVoteNum
                                     )
                                 }
                             />

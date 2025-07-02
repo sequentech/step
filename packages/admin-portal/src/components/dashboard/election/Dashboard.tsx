@@ -43,9 +43,7 @@ export default function DashboardElection() {
     )
 
     // Ensure required parameters are set before running the query.
-    const canQueryStats = Boolean(
-        tenantId && record?.election_event_id && record?.id && record?.alias
-    )
+    const canQueryStats = Boolean(tenantId && record?.election_event_id && record?.id)
 
     const {loading, data: dataStats} = useQuery<GetElectionStatsQuery>(GET_ELECTION_STATS, {
         variables: {
@@ -54,7 +52,7 @@ export default function DashboardElection() {
             electionId: record?.id,
             startDate: formatDate(startDate),
             endDate: formatDate(endDate),
-            electionAlias: record?.alias,
+            electionAlias: record?.alias ?? undefined,
             userTimezone,
         },
         pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
@@ -68,7 +66,7 @@ export default function DashboardElection() {
     const stats = dataStats?.election?.[0]?.statistics as IElectionStatistics | null
 
     const metrics = {
-        eligibleVotersCount: (dataStats?.users as any)?.total?.aggregate?.count ?? "-",
+        eligibleVotersCount: (dataStats?.users as any)?.count ?? "-",
         votersCount: dataStats?.stats?.total_distinct_voters ?? "-",
         areasCount: dataStats?.stats?.total_areas ?? "-",
         emailsSentCount: stats?.num_emails_sent ?? "-",

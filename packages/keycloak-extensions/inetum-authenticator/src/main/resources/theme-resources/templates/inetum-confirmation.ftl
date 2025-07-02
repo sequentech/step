@@ -5,7 +5,7 @@
     <#import "template.ftl" as layout>
         <@layout.registrationLayout displayMessage=false displayCard=false; section>
             <#if section="head">
-                <link href="${url.resourcesPath}/inetum-sdk-4.0.2/assets/css/dob-styles.css" rel="stylesheet" />
+                <link href="${url.resourcesPath}/inetum-sdk-${sdk_version}/assets/css/dob-styles.css" rel="stylesheet" />
                 <link rel="preconnect" href="https://fonts.googleapis.com" />
                 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
                 <link

@@ -52,6 +52,8 @@ services:
 
   postgres:
     profiles: ["full", "base"]
+    # Required by VACUUM ANALYZE to work properly
+    shm_size: 256m
     image: sequentech.local/postgresql
     container_name: postgres
     build:
@@ -230,6 +232,8 @@ services:
 
   postgres-keycloak:
     profiles: ["full", "base"]
+    # Required by VACUUM ANALYZE to work properly
+    shm_size: 256m
     image: sequentech.local/postgresql
     container_name: postgres-keycloak
     restart: unless-stopped
@@ -424,7 +428,8 @@ services:
     depends_on:
       - devcontainer
     working_dir: /workspaces/step/packages/harvest
-    entrypoint: [
+    entrypoint: ["/usr/local/bin/entrypoint.sh"]
+    command: [
       "cargo",
       "watch",
       "--why",
@@ -682,7 +687,6 @@ services:
       - immudb
       - immudb-log-audit-init-keycloak
 
-
   rabbitmq:
     profiles: ["full", "base"]
     image: rabbitmq:3.12.11-management
@@ -804,7 +808,8 @@ services:
     # that we can reuse it:
     restart: always
     working_dir: /workspaces/step/packages/windmill
-    entrypoint: [
+    entrypoint: ["/usr/local/bin/entrypoint.sh"]
+    command: [
       "cargo",
       "watch",
       "--why",
@@ -812,8 +817,10 @@ services:
       # otherwise triggers a rebuild all the time (probably rust analyzer)
       "--ignore",
       "rust-local-target/",
+      "--ignore",
+      "windmill/core",
       "-x",
-      "run --bin main consume -q beat short_queue tally_queue reports_queue communication_queue import_export_queue electoral_log_batch_queue electoral_log_beat_queue"
+      "run --bin main consume -q beat short_queue tally_queue reports_queue communication_queue import_export_queue electoral_log_batch_queue electoral_log_beat_queue --prefetch-count 1"
     ]
     volumes_from:
       - devcontainer
@@ -899,6 +906,7 @@ services:
       B3_PG_PASSWORD: ${B3_PG_PASSWORD}
       B3_PG_DATABASE: ${B3_PG_DATABASE}
       DOC_RENDERER_BACKEND: ${DOC_RENDERER_BACKEND}
+      BALLOT_VERIFIER_URL: ${BALLOT_VERIFIER_URL}
 
   beat:
     profiles: ["full"]
@@ -914,7 +922,8 @@ services:
       - devcontainer
       - harvest
     working_dir: /workspaces/step/packages/windmill
-    entrypoint: [
+    entrypoint: ["/usr/local/bin/entrypoint.sh"]
+    command: [
       "cargo",
       "watch",
       "--why",

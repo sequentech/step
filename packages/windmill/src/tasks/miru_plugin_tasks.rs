@@ -60,7 +60,7 @@ pub async fn create_transmission_package_task(
         Err(join_error) => Err(Error::from(anyhow!("Task panicked: {}", join_error))),
     }?;
 
-    update_complete(&task_execution)
+    update_complete(&task_execution, None)
         .await
         .context("Failed to update task execution status to COMPLETED")?;
 

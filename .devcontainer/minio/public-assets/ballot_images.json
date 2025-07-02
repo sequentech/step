@@ -1,4 +1,6 @@
 {
+    "left_logo_img": "sequent-logo.svg",
+    "right_logo_img": "sequent-logo.svg",
     "extra_data": {
         "title": "Ballot Images"
     },
@@ -20055,7 +20057,6 @@
             }
         },
         "election_annotations": {
-            "registered_voters": "10",
             "geographical_region": "Asia/Pacific",
             "post": "Bangkok PE",
             "clustered_precint_id": "E1",

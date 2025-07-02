@@ -6,7 +6,9 @@ use super::template_renderer::*;
 use crate::postgres::reports::{Report, ReportType};
 use crate::services::database::PgConfig;
 use crate::services::documents::upload_and_return_document;
-use crate::services::electoral_log::{list_electoral_log, ElectoralLogRow, GetElectoralLogBody};
+use crate::services::electoral_log::{
+    count_electoral_log, list_electoral_log, ElectoralLogRow, GetElectoralLogBody,
+};
 use crate::services::providers::email_sender::{Attachment, EmailSender};
 use crate::services::temp_path::*;
 use crate::types::resources::DataList;
@@ -148,7 +150,74 @@ impl TemplateRenderer for ActivityLogsTemplate {
     fn prefix(&self) -> String {
         format!("activity_logs_{}", rand::random::<u64>())
     }
+    async fn count_items(&self, _hasura_transaction: &Transaction<'_>) -> Result<Option<i64>> {
+        let input = GetElectoralLogBody {
+            tenant_id: self.ids.tenant_id.clone(),
+            election_event_id: self.ids.election_event_id.clone(),
+            limit: None,
+            offset: None,
+            filter: None,
+            order_by: None,
+            area_ids: None,
+            only_with_user: None,
+            election_id: None,
+        };
+        Ok(count_electoral_log(input).await.ok())
+    }
+    #[instrument(err, skip_all)]
+    async fn prepare_user_data_batch(
+        &self,
+        _hasura_transaction: &Transaction<'_>,
+        _keycloak_transaction: &Transaction<'_>,
+        offset: &mut i64,
+        limit: i64,
+    ) -> Result<Self::UserData> {
+        let mut act_log: Vec<ActivityLogRow> = vec![];
+        let mut elect_logs: Vec<ElectoralLogRow> = vec![];
 
+        let electoral_logs: DataList<ElectoralLogRow> = list_electoral_log(GetElectoralLogBody {
+            tenant_id: self.ids.tenant_id.clone(),
+            election_event_id: self.ids.election_event_id.clone(),
+            limit: Some(limit),
+            offset: Some(*offset),
+            filter: None,
+            order_by: None,
+            area_ids: None,
+            only_with_user: None,
+            election_id: None,
+        })
+        .await
+        .map_err(|e| anyhow!("Error listing electoral logs: {e:?}"))?;
+
+        let is_empty = electoral_logs.items.is_empty();
+
+        for electoral_log in electoral_logs.items {
+            elect_logs.push(electoral_log.clone());
+            let head_data = electoral_log
+                .statement_head_data()
+                .with_context(|| "Error to get head data.")?;
+            let event_type = head_data.event_type;
+            let log_type = head_data.log_type;
+            let description = head_data.description;
+            let activity_log = electoral_log.try_into()?;
+            info!("activity_log = {activity_log:?}");
+            let activity_log = ActivityLogRow {
+                event_type,
+                log_type,
+                description,
+                ..activity_log
+            };
+            info!("activity_log = {activity_log:?}");
+            act_log.push(activity_log);
+        }
+
+        let total = electoral_logs.total.aggregate.count;
+
+        Ok(UserData {
+            act_log,
+            electoral_log: elect_logs,
+        })
+    }
     #[instrument(err, skip_all)]
     async fn prepare_user_data(
         &self,
@@ -171,6 +240,9 @@ impl TemplateRenderer for ActivityLogsTemplate {
                     offset: Some(offset),
                     filter: None,
                     order_by: None,
+                    area_ids: None,
+                    only_with_user: None,
+                    election_id: None,
                 })
                 .await
                 .map_err(|e| anyhow!("Error listing electoral logs: {e:?}"))?;
@@ -225,7 +297,7 @@ impl TemplateRenderer for ActivityLogsTemplate {
         })
     }
 
-    #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
+    #[instrument(err, skip_all)]
     async fn execute_report(
         &self,
         document_id: &str,
@@ -274,18 +346,14 @@ impl TemplateRenderer for ActivityLogsTemplate {
             let file_size =
                 get_file_size(&temp_path_string).with_context(|| "Error obtaining file size")?;
 
-            let auth_headers = keycloak::get_client_credentials()
-                .await
-                .map_err(|err| anyhow!("Error getting client credentials: {err:?}"))?;
-
             let _document = upload_and_return_document(
-                temp_path_string.clone(),
+                hasura_transaction,
+                &temp_path_string.clone(),
                 file_size,
-                "text/csv".to_string(),
-                auth_headers.clone(),
-                tenant_id.to_string(),
-                election_event_id.to_string(),
-                name.clone(),
+                "text/csv",
+                tenant_id,
+                Some(election_event_id.to_string()),
+                &name.clone(),
                 Some(document_id.to_string()),
                 false,
             )

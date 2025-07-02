@@ -118,7 +118,8 @@ pub async fn export_election_event_logs_route(
     };
 
     info!("Sent EXPORT_ELECTION_EVENT_LOGS task {task_execution:?}");
-    let _res = update_complete(&task_execution).await;
+    let _res =
+        update_complete(&task_execution, Some(document_id.clone())).await;
 
     info!("Updated task execution status to COMPLETED");
     let output = ExportElectionEventOutput {

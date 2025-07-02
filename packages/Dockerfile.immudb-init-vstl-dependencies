@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2023-2024 Sequent Tech <legal@sequentech.io>
 #
-# SPDX-License-Identifier: AGPL-3.0-only 
+# SPDX-License-Identifier: AGPL-3.0-only
 
 FROM rust:1.82.0-slim-bookworm
 
@@ -28,6 +28,7 @@ COPY ./immudb-rs/Cargo.toml ./immudb-rs/Cargo.toml
 COPY ./strand/Cargo.toml ./strand/Cargo.toml
 COPY ./wrap-map-err/Cargo.toml ./wrap-map-err/Cargo.toml
 COPY ./Cargo.lock ./Cargo.lock
+COPY ./.cargo ./.cargo
 RUN mkdir ./immu-board/src \
     && echo "// dummy file" > ./immu-board/src/lib.rs
 RUN mkdir ./immudb-rs/src \

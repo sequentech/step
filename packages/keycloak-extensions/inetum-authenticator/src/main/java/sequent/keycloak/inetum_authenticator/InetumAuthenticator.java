@@ -123,6 +123,9 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
         context.success();
       } else {
         Map<String, String> transactionData = newTransaction(configMap, context);
+        log.infov(
+            "New transaction: TOKEN_DOB: {0} USER_ID: {1}",
+            transactionData.get(Utils.FTL_TOKEN_DOB), transactionData.get(Utils.FTL_USER_ID));
 
         // Save the transaction data into the auth session
         AuthenticationSessionModel sessionModel = context.getAuthenticationSession();
@@ -1094,6 +1097,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
         .setAttribute(Utils.FTL_CLIENT_ID, configMap.get(Utils.CLIENT_ID_ATTRIBUTE))
         .setAttribute(Utils.FTL_BASE_URL, configMap.get(Utils.BASE_URL_ATTRIBUTE))
         .setAttribute(Utils.FTL_ENV_CONFIG, configMap.get(Utils.ENV_CONFIG_ATTRIBUTE))
+        .setAttribute(Utils.FTL_SDK_VERSION, configMap.get(Utils.SDK_VERSION))
         .setAttribute(Utils.FTL_DOC_ID, authNotesMap.get(Utils.FTL_DOC_ID))
         .setAttribute(Utils.FTL_DOC_ID_TYPE, authNotesMap.get(Utils.FTL_DOC_ID_TYPE));
   }
@@ -1301,6 +1305,12 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
             ProviderConfigProperty.STRING_TYPE,
             String.valueOf(Utils.DEFAULT_MAX_RETRIES)),
         new ProviderConfigProperty(
+            Utils.SDK_VERSION,
+            "The version of Inetum SDK to use",
+            "Possible options: 4.0.2 or 4.0.3 ",
+            ProviderConfigProperty.STRING_TYPE,
+            String.valueOf(Utils.DEFAULT_SDK_VERSION)),
+        new ProviderConfigProperty(
             Utils.ENV_CONFIG_ATTRIBUTE,
             "Configuration for the env_config",
             "Uses FreeMarker template, see example",
@@ -1327,7 +1337,13 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
                 	otpPhoneNumber: 'xxxxxxxx',
                 	countryCode: CountryCode.españa,
                 	applicationId: window.DOB_APP_ID,
-                	broadcast: new LocalBroadcastManager()
+                	broadcast: new LocalBroadcastManager(),
+                  customProtocol: 'https',
+                  customHost: 'des.digitalonboarding.es',
+                  customPort: '443',
+                  sequent: {
+                    disableStreaming: true
+                  }
                 }
                 				"""),
         new ProviderConfigProperty(

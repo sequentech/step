@@ -6,7 +6,24 @@
 	"name": "step",
 	"dockerComposeFile": "docker-compose.yml",
 	"service": "devcontainer",
-	"forwardPorts": [9002, 9001, 9000, 8090, 8080, 8000, 8500, 8400, 8200, 8201, 6379, 3000, 3002, 3322, 3323, 3324, 3325, 5672, 15672, 8888, 8083, 50051],
+	"forwardPorts": [
+		"minio-proxy:9002",
+		"minio:9001",
+		"minio:9000",
+		"keycloak:8090",
+		"hasura:8080",
+		"vault:8200",
+		"vault:8201",
+		"immudb:3322",
+		"immudb:3324",
+		"immudb:3325",
+		"rabbitmq:5672",
+		"rabbitmq:15672",
+		"b3:50051"
+	],
+
+
+
 
 	// Fixes usage of LOCAL_WORKSPACE_FOLDER. See:
 	// https://github.com/microsoft/vscode-remote-release/issues/6844#issuecomment-1252288457

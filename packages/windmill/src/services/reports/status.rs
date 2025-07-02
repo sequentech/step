@@ -46,7 +46,8 @@ pub struct UserDataArea {
     pub country: String,
     pub geographical_region: String,
     pub voting_center: String,
-    pub precinct_code: String,
+    pub station_id: String,
+    pub station_name: String,
     pub registered_voters: Option<i64>,
     pub ballots_counted: Option<i64>,
     pub ovcs_status: String,
@@ -107,7 +108,7 @@ impl TemplateRenderer for StatusTemplate {
         self.ids.election_id.clone()
     }
 
-    #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
+    #[instrument(err, skip_all)]
     async fn prepare_user_data(
         &self,
         hasura_transaction: &Transaction<'_>,
@@ -239,7 +240,8 @@ impl TemplateRenderer for StatusTemplate {
                 country,
                 geographical_region: election_general_data.geographical_region.clone(),
                 voting_center: election_general_data.voting_center.clone(),
-                precinct_code: election_general_data.precinct_code.clone(),
+                station_name: election_general_data.precinct_code.clone(),
+                station_id: election_general_data.pollcenter_code.clone(),
                 registered_voters: votes_data.registered_voters,
                 ballots_counted: Some(ballots_counted),
                 ovcs_status: ovcs_status.clone(),
@@ -264,7 +266,7 @@ impl TemplateRenderer for StatusTemplate {
         })
     }
 
-    #[instrument(err, skip(self, rendered_user_template))]
+    #[instrument(err, skip_all)]
     async fn prepare_system_data(
         &self,
         rendered_user_template: String,

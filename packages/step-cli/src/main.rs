@@ -1,6 +1,6 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
-//
-// SPDX-License-Identifier: AGPL-3.0-only
+// // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// //
+// // SPDX-License-Identifier: AGPL-3.0-only
 
 mod commands;
 mod tests;
@@ -36,6 +36,7 @@ enum StepCommands {
     CreateArea(commands::create_area::CreateArea),
     CreateAreaContest(commands::create_area_contest::CreateAreaContest),
     CreateVoter(commands::create_voter::CreateVoter),
+    ExportCastVotes(commands::export_cast_votes::ExportCastVotes),
     UpdateVoter(commands::update_voter::UpdateVoter),
     UpdateElectionEventStatus(commands::update_election_event_status::UpdateElectionEventStatus),
     UpdateElectionStatus(commands::update_election_status::UpdateElectionStatus),
@@ -48,6 +49,11 @@ enum StepCommands {
     UpdateTally(commands::update_tally_status::UpdateTallyStatus),
     ConfirmKeyTally(commands::confirm_tally_ceremoney_key::ConfirmKeyForTally),
     RenderTemplate(commands::render_template::RenderTemplate),
+    GenerateVoters(commands::generate_voters::GenerateVoters),
+    DuplicateVotes(commands::duplicate_votes::DuplicateVotes),
+    CreateApplications(commands::create_applications::CreateApplications),
+    CreateElectoralLogs(commands::create_electoral_logs::CreateElectoralLogs),
+    HashPassword(commands::hash_passwords::HashPasswords),
 }
 
 fn main() {
@@ -62,6 +68,7 @@ fn main() {
             StepCommands::CreateCandidate(create_candidate) => create_candidate.run(),
             StepCommands::CreateArea(create_area) => create_area.run(),
             StepCommands::CreateAreaContest(create_area_contest) => create_area_contest.run(),
+            StepCommands::ExportCastVotes(export_cast_votes) => export_cast_votes.run(),
             StepCommands::UpdateElectionEventStatus(update_event) => update_event.run(),
             StepCommands::UpdateElectionStatus(update_election) => update_election.run(),
             StepCommands::ImportElection(import) => import.run(),
@@ -75,6 +82,11 @@ fn main() {
             StepCommands::UpdateTally(update) => update.run(),
             StepCommands::ConfirmKeyTally(confirm) => confirm.run(),
             StepCommands::RenderTemplate(render) => render.run(),
+            StepCommands::GenerateVoters(render) => render.run(),
+            StepCommands::DuplicateVotes(render) => render.run(),
+            StepCommands::CreateApplications(render) => render.run(),
+            StepCommands::CreateElectoralLogs(render) => render.run(),
+            StepCommands::HashPassword(render) => render.run(),
         },
     }
 }

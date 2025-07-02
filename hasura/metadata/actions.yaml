@@ -55,6 +55,21 @@ actions:
           - role: trustee-ceremony
           - role: admin-user
       comment: check private key
+    - name: count_users
+      definition:
+          kind: ""
+          handler: http://{{HARVEST_DOMAIN}}/count-users
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input.body}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: voter-read
+          - role: user-read
+          - role: admin-user
     - name: createScheduledEvent
       definition:
           kind: synchronous
@@ -1067,6 +1082,19 @@ actions:
           - role: tally-sheet-publish
           - role: admin-user
       comment: publish_tally_sheet
+    - name: render_document_pdf
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/render-document-pdf
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: report-read
     - name: restore_private_key
       definition:
           kind: synchronous
@@ -1302,6 +1330,7 @@ custom_types:
         - name: ApplicationChangeStatusBody
         - name: ElectionStatsMonitoringInput
         - name: ImportOptions
+        - name: CountUsersInput
     objects:
         - name: GetManualVerificationOutput
         - name: CreateKeysCeremonyOutput
@@ -1403,4 +1432,6 @@ custom_types:
         - name: ExportElectionEventOutput
         - name: GenerateTemplateOutput
         - name: ApplicationChangeStatusOutput
+        - name: CountUsersOutput
+        - name: RenderDocumentPDFOutput
     scalars: []

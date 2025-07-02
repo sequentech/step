@@ -90,7 +90,7 @@ pub fn decode_jwt(token: &str) -> Result<JwtClaims> {
     Ok(claims)
 }
 
-#[instrument]
+#[instrument(skip_all, ret)]
 pub fn decode_permission_labels(claims: &JwtClaims) -> Vec<String> {
     let Some(label_str) = claims.hasura_claims.permission_labels.clone() else {
         return vec![];

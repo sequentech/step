@@ -14,7 +14,7 @@ use crate::{
     postgres::application::get_applications, services::cast_votes::count_ballots_by_area_id,
 };
 use anyhow::{anyhow, Context, Result};
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Local, Utc};
 use deadpool_postgres::Transaction;
 use sequent_core::types::hasura::core::{Application, Area};
 use sequent_core::types::keycloak::AREA_ID_ATTR_NAME;
@@ -41,7 +41,7 @@ enum VoterStatus {
     Voted,
     #[strum(to_string = "Did Not Vote")]
     NotVoted,
-    #[strum(to_string = "Did Not Pre-enrolled")]
+    #[strum(to_string = "Did Not Pre-enroll")]
     DidNotPreEnrolled,
 }
 
@@ -75,13 +75,17 @@ pub async fn get_enrolled_voters(
     election_event_id: &str,
     area_id: &str,
     filters: Option<EnrollmentFilters>,
-) -> Result<(Vec<Voter>, i64)> {
-    let applications: Vec<Application> = get_applications(
+    limit: Option<i64>,
+    offset: Option<i64>,
+) -> Result<(Vec<Voter>, i64, Option<i64>)> {
+    let (applications, next_offset) = get_applications(
         &hasura_transaction,
         &tenant_id,
         &election_event_id,
         &area_id,
         filters.as_ref(),
+        limit,
+        offset,
     )
     .await
     .map_err(|err| anyhow!("{}", err))?;
@@ -165,7 +169,7 @@ pub async fn get_enrolled_voters(
 
     let count = users.len() as i64;
 
-    Ok((users, count))
+    Ok((users, count, next_offset))
 }
 
 #[instrument(err, skip_all)]
@@ -174,7 +178,9 @@ pub async fn get_voters_by_area_id(
     realm: &str,
     area_id: &str,
     attributes: HashMap<String, AttributesFilterOption>,
-) -> Result<(Vec<Voter>, i64)> {
+    limit: Option<i64>,
+    offset: Option<i64>,
+) -> Result<(Vec<Voter>, i64, Option<i64>)> {
     let mut params: Vec<&(dyn ToSql + Sync)> = vec![&realm, &area_id];
     let mut dynamic_attr_conditions: Vec<String> = Vec::new();
 
@@ -182,7 +188,6 @@ pub async fn get_voters_by_area_id(
         let clause = attr_value.get_sql_filter_clause(params.len() + 2);
         params.push(attr_name);
         params.push(&attr_value.value);
-
         dynamic_attr_conditions.push(clause);
     }
 
@@ -192,9 +197,8 @@ pub async fn get_voters_by_area_id(
         "1=1".to_string() // Always true if no dynamic attributes are specified
     };
 
-    let statement = keycloak_transaction
-        .prepare(&format!(
-            r#"
+    let mut sql = format!(
+        r#"
         SELECT
             u.id,
             u.first_name,
@@ -225,9 +229,18 @@ pub async fn get_voters_by_area_id(
                 AND ua.value = $2
             )
             AND ({dynamic_attr_clause})
-        "#,
-        ))
-        .await?;
+        "#
+    );
+
+    // Append pagination clauses if provided.
+    if let Some(lim) = limit {
+        sql.push_str(&format!(" LIMIT {}", lim));
+    }
+    if let Some(off) = offset {
+        sql.push_str(&format!(" OFFSET {}", off));
+    }
+
+    let statement = keycloak_transaction.prepare(&sql).await?;
 
     let rows: Vec<Row> = keycloak_transaction
         .query(&statement, &params.as_slice())
@@ -243,32 +256,44 @@ pub async fn get_voters_by_area_id(
     let users = rows
         .into_iter()
         .map(|row| {
-            let validate_id = row.get("validate_id");
-            let status = match validate_id {
+            let validate_id: Option<String> = row.get("validate_id");
+            let status = match validate_id.as_deref() {
                 Some(VALIDATE_ID_REGISTERED_VOTER) => None,
                 _ => Some(VoterStatus::DidNotPreEnrolled.to_string()),
             };
-            println!("**** row: {:?}", row);
-            let user = Voter {
+            info!("Row: {:?}", row);
+            Voter {
                 id: row.get("id"),
                 middle_name: row.get("middle_name"),
                 first_name: row.get("first_name"),
                 last_name: row.get("last_name"),
                 suffix: row.get("suffix"),
                 username: row.get("username"),
-                status: status,
+                status,
                 date_voted: None,
                 enrollment_date: None,
                 verification_date: None,
                 verified_by: None,
                 disapproval_reason: None,
                 manual_verify_reason: None,
-            };
-            user
+            }
         })
         .collect::<Vec<Voter>>();
 
-    Ok((users, count))
+    // Compute next_offset only if a limit was provided.
+    let current_offset = offset.unwrap_or(0);
+    let next_offset = if let Some(lim) = limit {
+        let new_offset = current_offset + (users.len() as i64);
+        if new_offset < count {
+            Some(new_offset)
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
+    Ok((users, count, next_offset))
 }
 
 /*Fill voters with voting info */
@@ -277,6 +302,7 @@ pub async fn get_voters_with_vote_info(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
+    election_id: Option<&str>,
     users: Vec<Voter>,
     filter_by_has_voted: Option<bool>,
 ) -> Result<(Vec<Voter>, i64)> {
@@ -284,6 +310,11 @@ pub async fn get_voters_with_vote_info(
         Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
     let election_event_uuid = Uuid::parse_str(election_event_id)
         .with_context(|| "Error parsing election_event_id as UUID")?;
+
+    let election_uuid_opt = election_id
+        .clone()
+        .map(|val| Uuid::parse_str(&val))
+        .transpose()?;
 
     // Prepare the list of user IDs for the query
     let user_ids: Vec<String> = users
@@ -307,7 +338,8 @@ pub async fn get_voters_with_vote_info(
             WHERE
                 v.tenant_id = $1 AND
                 v.election_event_id = $2 AND
-                v.voter_id_string = ANY($3)
+                v.voter_id_string = ANY($3) AND
+                ($4::uuid IS NULL OR v.election_id = $4::uuid)
             GROUP BY
                 v.voter_id_string, v.election_id;
             "#,
@@ -318,7 +350,12 @@ pub async fn get_voters_with_vote_info(
     let rows = hasura_transaction
         .query(
             &vote_info_statement,
-            &[&tenant_uuid, &election_event_uuid, &user_ids],
+            &[
+                &tenant_uuid,
+                &election_event_uuid,
+                &user_ids,
+                &election_uuid_opt,
+            ],
         )
         .await
         .with_context(|| "Error executing the vote info query")?;
@@ -449,7 +486,9 @@ pub async fn get_voters_data(
     area_id: &str,
     with_vote_info: bool,
     voters_filter: FilterListVoters,
-) -> Result<VotersData> {
+    limit: Option<i64>,
+    offset: Option<i64>,
+) -> Result<(VotersData, Option<i64>)> {
     let mut attributes: HashMap<String, AttributesFilterOption> = HashMap::new();
 
     match voters_filter.voters_sex {
@@ -513,7 +552,7 @@ pub async fn get_voters_data(
         None => {}
     };
 
-    let (voters, voters_count) = match voters_filter.enrolled {
+    let (voters, voters_count, next_offset) = match voters_filter.enrolled {
         Some(_) => {
             get_enrolled_voters(
                 &hasura_transaction,
@@ -521,12 +560,22 @@ pub async fn get_voters_data(
                 &election_event_id,
                 &area_id,
                 voters_filter.enrolled,
+                limit,
+                offset,
             )
             .await?
         }
         None => {
-            get_voters_by_area_id(&keycloak_transaction, &realm, &area_id, attributes.clone())
-                .await?
+            let (voters, count, next_offset) = get_voters_by_area_id(
+                &keycloak_transaction,
+                &realm,
+                &area_id,
+                attributes.clone(),
+                limit,
+                offset,
+            )
+            .await?;
+            (voters, count, next_offset)
         }
     };
 
@@ -536,6 +585,7 @@ pub async fn get_voters_data(
                 &hasura_transaction,
                 &tenant_id,
                 &election_event_id,
+                Some(&election_id),
                 voters.clone(),
                 voters_filter.has_voted,
             )
@@ -557,13 +607,14 @@ pub async fn get_voters_data(
     sort_voters(&mut voters);
 
     let total_not_voted = voters_count - &voter_who_voted_count;
-
-    Ok(VotersData {
+    let voters_data = VotersData {
         total_voters: voters_count,
         total_voted: voter_who_voted_count,
         total_not_voted,
         voters,
-    })
+    };
+
+    Ok((voters_data, next_offset))
 }
 
 // Helper function to generate the sorting key for a voter
@@ -659,27 +710,6 @@ pub async fn count_voters_by_area_id(
     .await?;
 
     Ok(total_not_pre_enrolled)
-}
-
-#[instrument(err, skip_all)]
-pub async fn get_not_enrolled_voters_by_area_id(
-    keycloak_transaction: &Transaction<'_>,
-    realm: &str,
-    area_id: &str,
-) -> Result<Vec<Voter>> {
-    let mut attributes: HashMap<String, AttributesFilterOption> = HashMap::new();
-    attributes.insert(
-        VALIDATE_ID_ATTR_NAME.to_string(),
-        AttributesFilterOption {
-            value: VALIDATE_ID_REGISTERED_VOTER.to_string(),
-            filter_by: AttributesFilterBy::NotExist,
-        },
-    );
-
-    let (voters, _voters_count) =
-        get_voters_by_area_id(&keycloak_transaction, &realm, &area_id, attributes.clone()).await?;
-
-    Ok(voters)
 }
 
 pub struct VotersBySex {
@@ -1042,4 +1072,36 @@ pub async fn count_applications_by_status_and_roles(
         total_ofov_disapproved,
         total_sbei_disapproved,
     ))
+}
+
+#[instrument(err, skip_all)]
+pub async fn get_not_enrolled_voters_by_area_id(
+    keycloak_transaction: &Transaction<'_>,
+    realm: &str,
+    area_id: &str,
+    limit: Option<i64>,
+    offset: Option<i64>,
+) -> Result<(Vec<Voter>, Option<i64>)> {
+    let mut attributes: HashMap<String, AttributesFilterOption> = HashMap::new();
+    attributes.insert(
+        VALIDATE_ID_ATTR_NAME.to_string(),
+        AttributesFilterOption {
+            value: VALIDATE_ID_REGISTERED_VOTER.to_string(),
+            filter_by: AttributesFilterBy::NotExist,
+        },
+    );
+
+    let (mut voters, _voters_count, next_offset) = get_voters_by_area_id(
+        &keycloak_transaction,
+        &realm,
+        &area_id,
+        attributes.clone(),
+        limit,
+        offset,
+    )
+    .await?;
+
+    sort_voters(&mut voters);
+
+    Ok((voters, next_offset))
 }

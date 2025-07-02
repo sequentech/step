@@ -2,8 +2,6 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-
-use crate::hasura::keys_ceremony::{get_keys_ceremony_by_id, update_keys_ceremony_status};
 use crate::postgres::election::{
     get_election_by_id, get_elections_by_keys_ceremony_id, set_election_keys_ceremony,
 };
@@ -443,12 +441,23 @@ pub async fn create_keys_ceremony(
         .with_context(|| "missing bulletin board")?;
 
     // let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
-    let electoral_log = ElectoralLog::for_admin_user(&board_name, &tenant_id, user_id).await?;
+    let electoral_log = ElectoralLog::for_admin_user(
+        &transaction,
+        &board_name,
+        &tenant_id,
+        &election_event.id,
+        user_id,
+        Some(username.to_string()),
+        election_id.clone(),
+        None,
+    )
+    .await?;
     electoral_log
         .post_keygen(
             election_event_id.clone(),
             Some(user_id.to_string()),
             Some(username.to_string()),
+            election_id.clone(),
         )
         .await
         .with_context(|| "error posting to the electoral log")?;

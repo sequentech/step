@@ -38,7 +38,11 @@ pub async fn get_user_template(
         vec![Permissions::REPORT_READ],
     )?;
 
-    let base_name = input.template_type;
+    let base_name = if "list_of_overseas_voters" == &input.template_type {
+        "overseas_voters".to_string()
+    } else {
+        input.template_type
+    };
     let template_hbs =
         get_public_asset_template(format!("{base_name}_user.hbs").as_str())
             .await

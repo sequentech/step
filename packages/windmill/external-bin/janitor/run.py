@@ -299,23 +299,74 @@ def generate_uuid():
     return str(uuid.uuid4())
 logging.debug(f"Generated UUID: {generate_uuid()}")
 
-def get_sbei_username(user):
-    return f"sbei-{user['ID']}"
+def get_sbei_username(user, region_code):
+    return f"sbei-{region_code}-{user['ROLE']}"
 
-def get_trustee_username(user):
-    return f"trustee-{user['ID']}"  
+def get_trustee_username(user, region_code):
+    return f"trustee-{region_code}-{user['ROLE']}"  
 
-def generate_election_event(excel_data, base_context, miru_data):
+def generate_election_event(excel_data, base_context, miru_data, results):
     election_event_id = generate_uuid()
     miru_event = list(miru_data.values())[0]
 
     sbei_users = []
     sbei_users_with_permission_labels = []
+    precinct_to_region = {}
+    region_to_precincts = {}
+
+    excel_areas_by_precinct_id = set(str(area["precinct_id"]) for area in excel_data["areas"])
+
+    for row in results:
+        precinct_id = row["DB_TRANS_SOURCE_ID"]
+
+        area_context = next((area for area in excel_data["areas"] if str(area["precinct_id"]) == precinct_id), None)
+
+        region_code = str(area_context["region_code_overwrite"] if "region_code_overwrite" in area_context and area_context["region_code_overwrite"] is not None else row["pop_POLLCENTER_CODE"])
+
+        if precinct_id not in precinct_to_region:
+            precinct_to_region[precinct_id] = region_code
+        
+        if region_code not in region_to_precincts:
+            region_to_precincts[region_code] = set()
+        region_to_precincts[region_code].add(precinct_id)
+
+
+    trustees_by_region = {}
+    perm_labels_by_region = {}
+    for precinct_id in miru_data.keys():
+        if precinct_id not in excel_areas_by_precinct_id:
+            continue
+        region_code = precinct_to_region[precinct_id]
+
+        if region_code not in trustees_by_region:
+            region_precincts = region_to_precincts[region_code]
+            excel_election = next((e for e in excel_data["elections"] if str(e["precinct_id"]) in region_precincts), None)
+            if excel_election is not None:
+                election_trustees = excel_election["trustees"].split("|")
+                trustees_by_region[region_code] = election_trustees
+
+                election_permission_label = excel_election["permission_label"]
+                if election_permission_label:
+                    if region_code not in perm_labels_by_region:
+                        perm_labels_by_region[region_code] = set()
+                    perm_labels_by_region[region_code].add(election_permission_label)
+
 
     for precinct_id in miru_data.keys():
+        if precinct_id not in excel_areas_by_precinct_id:
+            continue
         precinct = miru_data[precinct_id]
         miru_election_id = "1"
-        election_permission_label = next((e["permission_label"] for e in excel_data["elections"] if str(e["precinct_id"]) == str(precinct_id)), None)
+
+        if precinct_id not in precinct_to_region:
+            raise Exception(f"precinct with 'id' = {precinct_id} not found in precinct_to_region")
+
+        region_code = precinct_to_region[precinct_id]
+        if region_code not in trustees_by_region:
+            raise Exception(f"trustees not found for region = {region_code} and 'precinct_id' = {precinct_id}")
+        election_trustees = trustees_by_region[region_code]
+
+        region_perm_labels = list(perm_labels_by_region.get(region_code, set()))
         
         for user in precinct["USERS"]:
             base_user = {
@@ -326,13 +377,19 @@ def generate_election_event(excel_data, base_context, miru_data):
             }
             for get_username in [get_sbei_username, get_trustee_username]:
                 new_user = copy.deepcopy(base_user)
-                new_user["username"] = get_username(user)
+                new_user["username"] = get_username(user, region_code)
                 sbei_users.append(new_user)
                 is_trustee = get_username == get_trustee_username
                 add_perm_label = "OFOV" if is_trustee else "SBEI"
-                perm_labels_list = (election_permission_label if election_permission_label else "").split()
-                perm_labels_list.append(add_perm_label)
-                perm_labels = "|".join(perm_labels_list)
+                user_perm_labels = region_perm_labels.copy()
+                user_perm_labels.append(add_perm_label)
+
+                perm_labels = list(set(user_perm_labels))
+
+                trustee_id = ""
+                if is_trustee and election_trustees:
+                    role_idx = int(user["ROLE"]) - 1
+                    trustee_id = election_trustees[role_idx]
 
                 sbei_users_with_permission_labels.append({
                     "permission_label": perm_labels,
@@ -341,7 +398,8 @@ def generate_election_event(excel_data, base_context, miru_data):
                     "miru_role": user["ROLE"],
                     "miru_name": user["NAME"],
                     "miru_election_id": miru_election_id,
-                    "trustee": "trustee" if is_trustee else ""
+                    "trustee": "trustee" if is_trustee else "",
+                    "trustee_id": trustee_id
                 })
 
     sbei_users_str = json.dumps(sbei_users)
@@ -363,7 +421,7 @@ def generate_election_event(excel_data, base_context, miru_data):
 
 
 # "OSAKA PCG" -> "Osaka PCG"
-# WASHINGTON DC PE -> Washington DC PE
+# WASHINGTON D.C. PE -> Washington D.C .PE
 # ISLE OF MAN -> Isle Of Man
 # HOLY SEE -> Holy See
 # NEW YORK PGC -> New York PGC
@@ -372,7 +430,7 @@ def get_embassy(embassy):
     without_parentheses = re.sub(r"\(.*?\)", "", embassy)
     words = without_parentheses.split()
 
-    special_words = ["DC", "MAN", "SEE", "SAR", "ROC"]
+    special_words = ["D.C.", "DC", "SAR", "ROC"]
     
     # Capitalize each word, and handle the last word conditionally
     formatted_words = [word.title() if word.upper() not in special_words else word.upper()  for word in words[:-1]]
@@ -605,6 +663,8 @@ def process_excel_users(users, csv_data):
         ):
             continue
 
+        # deduplicate permission labels
+        user_data["permission_labels"] = list(set(user_data["permission_labels"]))
         csv_data.append([
             user_data["enabled"],
             user_data["first_name"],
@@ -615,19 +675,16 @@ def process_excel_users(users, csv_data):
             user_data["trustee"]
         ])
 
-
 def process_sbei_users(sbei_users, csv_data):
     users_map = {}
     for user in sbei_users:
         username = user["username"]
-        if not username in users_map:
-            users_map[username] = []
-        permission_label = user["permission_label"] 
-        if permission_label:
-            users_map[username].append(permission_label)
+        users_map[username] = user
     
     for key_username in users_map.keys():
-        permission_labels = users_map[key_username]
+        # deduplicate permission labels
+        permission_labels = list(set(users_map[key_username]["permission_label"]))
+        trustee_id = users_map[key_username]["trustee_id"]
         csv_data.append([
             True,
             key_username,
@@ -635,7 +692,7 @@ def process_sbei_users(sbei_users, csv_data):
             "|".join(permission_labels),
             key_username,
             "trustee" if key_username.startswith("trustee") else "sbei",
-            "trustee" + str(int(key_username.split("-")[2])) if key_username.startswith("trustee") else "",
+            trustee_id,
         ])
 
 def create_permissions_file(data):
@@ -741,12 +798,15 @@ def gen_keycloak_context(excel_data, areas_dict):
             embassy = get_embassy(area["description"])
             embassy_set.add("\\\"" + embassy + "\\\"")
             country_set.add("\\\"" + country + "/" + embassy + "\\\"")
+
+    sorted_embassy_list = sorted(embassy_set)
+    sorted_country_list = sorted(country_set)
     
     keycloak_settings = [t for t in excel_data["parameters"] 
                          if t["type"] == "settings" and t["key"].startswith("keycloak")]
     keycloak_context = {
-        "embassy_list": ",".join(embassy_set),
-        "country_list": ",".join(country_set),
+        "embassy_list": ",".join(sorted_embassy_list),
+        "country_list": ",".join(sorted_country_list),
     }
 
     key_mappings = {
@@ -768,14 +828,16 @@ def gen_keycloak_context(excel_data, areas_dict):
         keycloak_context[context_key] = int(keycloak_settings_dict.get(settings_key, 50))
     return keycloak_context
 
-def gen_tree(excel_data, miru_data, script_idr, multiply_factor):
-    ocf_path = get_data_ocf_path(script_idr)
+def load_sqlite_query(script_dir):
+    ocf_path = get_data_ocf_path(script_dir)
     precinct_ids = list_folders(ocf_path)
 
     precinct_id = precinct_ids[0]
     sqlite_output_path = os.path.join(ocf_path, precinct_id, "db_sqlite_miru.db")
     results = get_data(sqlite_output_path, excel_data)
+    return results
 
+def gen_tree(excel_data, miru_data, results, multiply_factor):
     elections_object = {"elections": []}
 
     ccs_servers = {}
@@ -798,6 +860,7 @@ def gen_tree(excel_data, miru_data, script_idr, multiply_factor):
         if precinct_id not in miru_data:
             raise Exception(f"precinct with 'id' = {precinct_id} not found in miru acf")
         miru_precinct = miru_data[precinct_id]
+        registered_voters = miru_precinct["REGISTERED_VOTERS"]
 
         region_code = str(area_context["region_code_overwrite"] if "region_code_overwrite" in area_context and area_context["region_code_overwrite"] is not None else row["pop_POLLCENTER_CODE"])
 
@@ -832,7 +895,9 @@ def gen_tree(excel_data, miru_data, script_idr, multiply_factor):
             "miru": {
                 "ccs_servers": ccs_servers_str,
                 "sbei_ids": sbei_ids_str,
-                "country": row["DB_ALLMUN_AREA_NAME"]
+                "country": row["DB_ALLMUN_AREA_NAME"],
+                "registered_voters": registered_voters,
+                "station_name": row["DB_PRECINCT_ESTABLISHED_CODE"]
             }
         }
         if region_code not in areas:
@@ -870,7 +935,6 @@ def gen_tree(excel_data, miru_data, script_idr, multiply_factor):
         if precinct_id not in miru_data:
             raise Exception(f"precinct with 'id' = {precinct_id} not found in miru acf")
         miru_precinct = miru_data[precinct_id]
-        registered_voters = miru_precinct["REGISTERED_VOTERS"]
 
         if not election:
             contest_id = row["DB_SEAT_DISTRICTCODE"]
@@ -886,14 +950,13 @@ def gen_tree(excel_data, miru_data, script_idr, multiply_factor):
                 "contests": [],
                 "scheduled_events": [],
                 "reports": [],
-                "registered_voters": registered_voters,
                 "miru": {
                     "election_id": "1",
                     "name": miru_contest["NAME_ABBR"],
                     "post": row_election_post,
                     "geographical_region": miru_precinct["REGION"],
                     "precinct_code": row["DB_PRECINCT_ESTABLISHED_CODE"],
-                    "pollcenter_code": row["allbgy_ID_BARANGAY"]
+                    "pollcenter_code": row["DB_TRANS_SOURCE_ID"]
                 },
                 **base_context,
                 **election_context
@@ -923,11 +986,17 @@ def gen_tree(excel_data, miru_data, script_idr, multiply_factor):
             raise Exception(f"candidate with 'id' = {candidate_id} and precinct = {precinct_id} not found in miru acf")
         miru_candidate = miru_precinct["CANDIDATES"][candidate_id]
 
+        starts1 = str(miru_candidate["DISPLAY_ORDER"]) + " "
+        starts2 = str(miru_candidate["DISPLAY_ORDER"]) + ". "
+        if not (candidate_name.startswith(starts1) or candidate_name.startswith(starts2)):
+            candidate_name = str(miru_candidate["DISPLAY_ORDER"]) + ". " + candidate_name
+
         candidate = {
             "code": candidate_id,
             "name_on_ballot": candidate_name,
             "party_short_name": miru_candidate["PARTY_NAME_ABBR"],
             "party_name": miru_candidate["PARTY_NAME"],
+            "DB_CANDIDATE_NAMEONBALLOT": row["DB_CANDIDATE_NAMEONBALLOT"],
             **base_context,
             "miru": {
                 "candidate_affiliation_id": miru_candidate["PARTY_ID"],
@@ -1012,10 +1081,10 @@ def gen_tree(excel_data, miru_data, script_idr, multiply_factor):
 
     print(f"elections_object {len(elections_object['elections'])}")
 
-    return elections_object, areas, results
+    return elections_object, areas
 
-def replace_placeholder_database(excel_data, election_event_id, miru_data, script_dir, multiply_factor):
-    election_tree, areas_dict, results = gen_tree(excel_data, miru_data, script_dir, multiply_factor)
+def replace_placeholder_database(excel_data, election_event_id, miru_data, results, multiply_factor):
+    election_tree, areas_dict = gen_tree(excel_data, miru_data, results, multiply_factor)
     keycloak_context = gen_keycloak_context(excel_data, areas_dict)
 
     election_compiled = compiler.compile(election_template)
@@ -1125,7 +1194,6 @@ def replace_placeholder_database(excel_data, election_event_id, miru_data, scrip
                     "tenant_id": base_config["tenant_id"],
                     "election_event_id": election_event_id,
                     "contest_id": contest_context["UUID"],
-                    "DB_CANDIDATE_NAMEONBALLOT": candidate["name_on_ballot"],
                     "sort_oder": candidate["sort_order"],
                 }
 
@@ -1248,7 +1316,8 @@ def parse_posts(sheet):
         allowed_keys=[
             "^precinct_id$",
             "^description$",
-            "^permission_label$"
+            "^permission_label$",
+            "^trustees$",
         ]
     )
     return data
@@ -1622,11 +1691,12 @@ if args.only_voters:
     sys.exit()
 
 multiply_factor = args.multiply_elections
-election_event, election_event_id, sbei_users = generate_election_event(excel_data, base_context, miru_data)
+results = load_sqlite_query(script_dir)
+election_event, election_event_id, sbei_users = generate_election_event(excel_data, base_context, miru_data, results)
 create_tenant_files(excel_data, base_config)
 create_admins_file(sbei_users, excel_data["users"])
 
-areas, candidates, contests, area_contests, elections, keycloak, scheduled_events, reports = replace_placeholder_database(excel_data, election_event_id, miru_data, script_dir, multiply_factor)
+areas, candidates, contests, area_contests, elections, keycloak, scheduled_events, reports = replace_placeholder_database(excel_data, election_event_id, miru_data, results, multiply_factor)
 keycloak = patch_keycloak(keycloak, base_config)
 
 final_json = {

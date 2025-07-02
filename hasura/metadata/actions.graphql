@@ -12,6 +12,10 @@ type Mutation {
     check_private_key(object: CheckPrivateKeyInput!): CheckPrivateKeyOutput
 }
 
+type Query {
+    count_users(body: CountUsersInput!): CountUsersOutput!
+}
+
 type Mutation {
     createScheduledEvent(
         tenant_id: String!
@@ -496,6 +500,14 @@ type Mutation {
 }
 
 type Mutation {
+    render_document_pdf(
+        document_id: uuid!
+        election_event_id: uuid
+        tally_session_id: uuid
+    ): RenderDocumentPDFOutput
+}
+
+type Mutation {
     restore_private_key(
         object: RestorePrivateKeyInput!
     ): RestorePrivateKeyOutput
@@ -860,6 +872,7 @@ input ExportOptions {
     scheduled_events: Boolean
     reports: Boolean
     applications: Boolean
+    tally: Boolean
 }
 
 input ApplicationVerifyBody {
@@ -890,6 +903,26 @@ input ImportOptions {
     include_tenant: Boolean
     include_keycloak: Boolean
     include_roles: Boolean
+}
+
+input CountUsersInput {
+    tenant_id: uuid!
+    election_event_id: uuid
+    election_id: uuid
+    search: String
+    first_name: jsonb
+    last_name: jsonb
+    email: jsonb
+    username: jsonb
+    limit: Int
+    offset: Int
+    show_votes_info: Boolean
+    attributes: jsonb
+    enabled: Boolean
+    email_verified: Boolean
+    sort: jsonb
+    has_voted: Boolean
+    authorized_to_election_alias: String
 }
 
 type GetManualVerificationOutput {
@@ -1530,4 +1563,13 @@ type GenerateTemplateOutput {
 type ApplicationChangeStatusOutput {
     message: String
     error: String
+}
+
+type CountUsersOutput {
+    count: Int!
+}
+
+type RenderDocumentPDFOutput {
+    document_id: String
+    task_execution: tasks_execution_type
 }

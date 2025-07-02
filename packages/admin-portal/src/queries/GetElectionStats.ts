@@ -10,7 +10,7 @@ export const GET_ELECTION_STATS = gql`
         $electionId: uuid!
         $startDate: String!
         $endDate: String!
-        $electionAlias: String!
+        $electionAlias: String
         $userTimezone: String!
     ) {
         stats: getElectionStats(
@@ -29,7 +29,7 @@ export const GET_ELECTION_STATS = gql`
                 day_count
             }
         }
-        users: get_users(
+        users: count_users(
             body: {
                 tenant_id: $tenantId
                 election_event_id: $electionEventId
@@ -37,11 +37,7 @@ export const GET_ELECTION_STATS = gql`
                 authorized_to_election_alias: $electionAlias
             }
         ) {
-            total {
-                aggregate {
-                    count
-                }
-            }
+            count
         }
         election: sequent_backend_election(
             where: {

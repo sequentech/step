@@ -37,6 +37,7 @@ use crate::services::reports::{
     vote_receipt::VoteReceiptTemplate,
 };
 use crate::services::tasks_execution::update_fail;
+use crate::services::tasks_semaphore::acquire_semaphore;
 use crate::types::error::Error;
 use crate::types::error::Result;
 use anyhow::{anyhow, Context};
@@ -262,6 +263,7 @@ pub async fn generate_report(
     executer_username: Option<String>,
     tally_session_id: Option<String>,
 ) -> Result<()> {
+    let _permit = acquire_semaphore().await?;
     // Spawn the task using an async block
     let handle = tokio::task::spawn_blocking({
         move || {

@@ -10,9 +10,9 @@ info:
 
     Authentication and authorization are managed via a client-id and client-secret, sent in the Authorization header. In Swagger, you can configure these credentials using the "Authorize" button. The Sequent endpoint uses these credentials to request and manage the access token from Keycloak.
 
-    The integration environment (testing or production) is determined by the tenant_id specified in the headers, while the event_id remains static for each municipality across all environments and tenants.
+    The integration environment (testing or production) is determined by the tenant-id specified in the headers, while the event-id remains static for each municipality across all environments and tenants.
 
-    Sequent will provide the tenant_id, and the event_id corresponds to the MUNCODE configured in Datafix.
+    Sequent will provide the tenant-id, and the event-id corresponds to the MUNCODE configured in Datafix.
   version: 1.0.0
   contact:
     name: Sequent Tech Support
@@ -41,13 +41,13 @@ paths:
       tags:
         - API
       parameters:
-        - name: tenant_id
+        - name: tenant-id
           in: header
           required: true
           schema:
             type: string
           description: Realm ID for Keycloak’s endpoint
-        - name: event_id
+        - name: event-id
           in: header
           required: true
           schema:
@@ -113,13 +113,13 @@ paths:
       tags:
         - API
       parameters:
-        - name: tenant_id
+        - name: tenant-id
           in: header
           required: true
           schema:
             type: string
           description: Realm ID for Keycloak’s endpoint
-        - name: event_id
+        - name: event-id
           in: header
           required: true
           schema:
@@ -201,13 +201,13 @@ paths:
       tags:
         - API
       parameters:
-        - name: tenant_id
+        - name: tenant-id
           in: header
           required: true
           schema:
             type: string
           description: Realm ID for Keycloak’s endpoint
-        - name: event_id
+        - name: event-id
           in: header
           required: true
           schema:
@@ -289,13 +289,13 @@ paths:
       tags:
         - API
       parameters:
-        - name: tenant_id
+        - name: tenant-id
           in: header
           required: true
           schema:
             type: string
           description: Realm ID for Keycloak’s endpoint
-        - name: event_id
+        - name: event-id
           in: header
           required: true
           schema:
@@ -367,13 +367,13 @@ paths:
       tags:
         - API
       parameters:
-        - name: tenant_id
+        - name: tenant-id
           in: header
           required: true
           schema:
             type: string
           description: Realm ID for Keycloaks endpoint
-        - name: event_id
+        - name: event-id
           in: header
           required: true
           schema:
@@ -439,13 +439,13 @@ paths:
       tags:
         - API
       parameters:
-        - name: tenant_id
+        - name: tenant-id
           in: header
           required: true
           schema:
             type: string
           description: Realm ID for Keycloak’s endpoint
-        - name: event_id
+        - name: event-id
           in: header
           required: true
           schema:

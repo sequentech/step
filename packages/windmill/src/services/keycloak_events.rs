@@ -110,8 +110,14 @@ pub async fn count_keycloak_events_by_type(
     no_duplicate_user: bool,
     area_id: Option<&str>,
 ) -> Result<i64> {
+    let mut params: Vec<&(dyn ToSql + Sync)> = vec![&realm, &events_type];
+    let mut param_count = 2;
     let error_clause = match event_error {
-        Some(error) => format!("AND e.error = '{error}'"),
+        Some(_) => {
+            param_count += 1;
+            params.push(&event_error);
+            format!("AND e.error = ${param_count}")
+        }
         None => "".to_string(),
     };
 
@@ -120,14 +126,26 @@ pub async fn count_keycloak_events_by_type(
         false => "COUNT(*)",
     };
 
-    let area_id_clause = match area_id {
-        Some(area_id) => {
-            format!("
-            AND e.details_json_long_value::json ->> 'user_profile_attributes' IS NOT NULL
-            AND (e.details_json_long_value::json ->> 'user_profile_attributes')::json ->> 'area-id' = '{area_id}'"
+    let (ua_join_clause, area_id_clause) = match area_id {
+        Some(_) => {
+            let next_param_number = param_count + 1;
+            param_count += 2;
+            params.push(&AREA_ID_ATTR_NAME);
+            params.push(&area_id);
+            (
+                format!(
+                    r#"
+                INNER JOIN
+                    user_attribute AS us ON us.user_id = e.user_id"#
+                ),
+                format!(
+                    r#"
+                AND us.name = ${next_param_number}
+                AND us.value = ${param_count}"#
+                ),
             )
         }
-        None => "".to_string(),
+        None => ("".to_string(), "".to_string()),
     };
 
     let statement = keycloak_transaction
@@ -140,6 +158,7 @@ pub async fn count_keycloak_events_by_type(
                     EVENT_ENTITY as e
                 INNER JOIN
                     realm AS ra ON ra.id = e.realm_id
+                {ua_join_clause}
                 WHERE
                     ra.name = $1
                     AND e.type = $2
@@ -153,8 +172,6 @@ pub async fn count_keycloak_events_by_type(
         .map_err(|err| {
             anyhow!("Error prepare list_keycloak_events_by_type query statement: {err}")
         })?;
-
-    let params: Vec<&(dyn ToSql + Sync)> = vec![&realm, &events_type];
 
     let row: Row = keycloak_transaction
         .query_one(&statement, &params.as_slice())

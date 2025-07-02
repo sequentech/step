@@ -9,6 +9,7 @@ use crate::services::cast_votes::get_users_with_vote_info;
 use crate::services::database::PgConfig;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
+use futures::TryStreamExt;
 use keycloak::types::GroupRepresentation;
 use keycloak::KeycloakError;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
@@ -16,14 +17,18 @@ use sequent_core::services::keycloak::{KeycloakAdminClient, PubKeycloakAdmin};
 use sequent_core::types::keycloak::*;
 use serde::{Deserialize, Deserializer};
 use serde_json::Value;
+use std::path::PathBuf;
 use std::str::FromStr;
 use std::{
     collections::{HashMap, HashSet},
     convert::From,
 };
 use strum_macros::{Display, EnumString};
+use tokio::fs::File;
+use tokio::io::{copy, AsyncWriteExt, BufWriter};
 use tokio_postgres::row::Row;
 use tokio_postgres::types::ToSql;
+use tokio_util::io::StreamReader;
 use tracing::error;
 use tracing::{debug, info, instrument};
 use uuid::Uuid;
@@ -105,18 +110,13 @@ pub async fn list_keycloak_enabled_users_by_area_id(
     keycloak_transaction: &Transaction<'_>,
     realm: &str,
     area_id: &str,
-    limit: i64,
-    offset: i64,
-) -> Result<Vec<String>> {
-    let statement = keycloak_transaction
-        .prepare(
-            format!(
-                r#"
+    output_file: &PathBuf,
+) -> Result<()> {
+    // COPY does not support parameters so we have to add them using format
+    let statement = format!(
+        r#"
         SELECT
-            u.id,
-            u.enabled,
-            u.realm_id,
-            u.username
+            u.id
         FROM
             user_entity AS u
         INNER JOIN
@@ -124,31 +124,45 @@ pub async fn list_keycloak_enabled_users_by_area_id(
         INNER JOIN 
             user_attribute AS area_attr ON u.id = area_attr.user_id
         WHERE
-            ra.name = $1 AND 
+            ra.name = '{realm}' AND 
             u.enabled IS TRUE AND
             (
-                area_attr.name = $2 AND
-                area_attr.value = $3
+                area_attr.name = '{AREA_ID_ATTR_NAME}' AND
+                area_attr.value = '{area_id}'
             )
         GROUP BY
             u.id
         ORDER BY
             u.id
-        LIMIT $4 OFFSET $5;
     "#
-            )
-            .as_str(),
-        )
-        .await?;
-    let params: Vec<&(dyn ToSql + Sync)> =
-        vec![&realm, &AREA_ID_ATTR_NAME, &area_id, &limit, &offset];
-    let rows: Vec<Row> = keycloak_transaction
-        .query(&statement, &params.as_slice())
-        .await
-        .map_err(|err| anyhow!("{}", err))?;
+    );
 
-    let found_user_ids: Vec<String> = rows.into_iter().map(|row| row.get("id")).collect();
-    Ok(found_user_ids)
+    let mut tokio_temp_file = File::create(output_file)
+        .await
+        .expect("Could not create/open temporary file for tokio");
+
+    let copy_out_query = format!("COPY ({}) TO STDOUT WITH (FORMAT CSV)", statement);
+    let mut writer = BufWriter::new(tokio_temp_file);
+
+    debug!("copy_out_query: {copy_out_query}");
+
+    let reader = keycloak_transaction.copy_out(&copy_out_query).await?;
+
+    let adapt_pg_error_to_io_error = |pg_err: tokio_postgres::Error| {
+        std::io::Error::new(std::io::ErrorKind::Other, pg_err.to_string())
+    };
+    let io_error_stream = reader.map_err(adapt_pg_error_to_io_error);
+
+    let async_reader = StreamReader::new(io_error_stream);
+    tokio::pin!(async_reader);
+
+    let bytes_copied = copy(&mut async_reader, &mut writer).await?;
+
+    debug!("bytes_copied: {bytes_copied}");
+
+    writer.flush().await?;
+
+    Ok(())
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, EnumString, Display)]
@@ -402,6 +416,146 @@ fn get_sort_clause_and_field_param(
 }
 
 #[instrument(skip(hasura_transaction, keycloak_transaction), err)]
+pub async fn count_keycloak_users(
+    hasura_transaction: &Transaction<'_>,
+    keycloak_transaction: &Transaction<'_>,
+    filter: ListUsersFilter,
+) -> Result<i32> {
+    // Start by setting up the base parameters: realm and user_ids.
+    let mut params: Vec<&(dyn ToSql + Sync)> = vec![&filter.realm, &filter.user_ids];
+    let mut next_param_number = 3;
+
+    // Build filter clauses for basic fields.
+    let mut filters_clause = String::new();
+    let mut filter_params: Vec<String> = Vec::new();
+    for (col_name, filter_option) in [
+        ("email", &filter.email),
+        ("first_name", &filter.first_name),
+        ("last_name", &filter.last_name),
+        ("username", &filter.username),
+    ] {
+        if let Some(filter_obj) = filter_option {
+            let (clause, param) =
+                filter_obj.get_sql_filter_clause(col_name, next_param_number, " AND");
+            filters_clause.push_str(&clause);
+            if let Some(param) = param {
+                next_param_number += 1;
+                filter_params.push(param.to_string());
+            }
+        }
+    }
+    for filt_param in filter_params.iter() {
+        params.push(filt_param);
+    }
+
+    // Add area-related joins/filters.
+    let (area_ids, area_ids_join_clause, area_ids_where_clause) = get_area_ids(
+        hasura_transaction,
+        filter.election_id.clone(),
+        filter.area_id.clone(),
+        next_param_number,
+    )
+    .await?;
+    if let Some(area_ids) = &area_ids {
+        params.push(area_ids);
+        next_param_number += 1;
+    }
+
+    // Handle optional authorized election alias filtering.
+    let (election_alias, authorized_alias_join_clause, authorized_alias_where_clause) = match filter
+        .authorized_to_election_alias
+    {
+        Some(election_alias) => (
+            Some(election_alias),
+            format!(
+                r#"
+                    LEFT JOIN 
+                        user_attribute AS authorization_attr ON u.id = authorization_attr.user_id AND authorization_attr.name = ${}
+                    "#,
+                next_param_number
+            ),
+            format!(
+                r#"
+                    AND (authorization_attr.value = ${} OR authorization_attr.user_id IS NULL)
+                    "#,
+                next_param_number + 1
+            ),
+        ),
+        None => (None, String::new(), String::new()),
+    };
+    if election_alias.is_some() {
+        params.push(&AUTHORIZED_ELECTION_IDS_NAME);
+        params.push(&election_alias);
+        next_param_number += 2;
+    }
+
+    // Append boolean conditions.
+    let enabled_condition = get_query_bool_condition("enabled", filter.enabled);
+    let email_verified_condition =
+        get_query_bool_condition("email_verified", filter.email_verified);
+
+    // Process dynamic attribute filters if any.
+    let mut dynamic_attr_conditions: Vec<String> = Vec::new();
+    let mut dynamic_attr_params: Vec<Option<String>> = Vec::new();
+    if let Some(attributes) = &filter.attributes {
+        for (key, value) in attributes {
+            dynamic_attr_conditions.push(format!(
+                r#"EXISTS (
+                    SELECT 1 FROM user_attribute ua 
+                    WHERE ua.user_id = u.id 
+                      AND ua.name = ${} 
+                      AND UNACCENT(ua.value) ILIKE ${}
+                )"#,
+                next_param_number,
+                next_param_number + 1
+            ));
+            dynamic_attr_params.push(Some(key.trim_matches('\'').to_string()));
+            dynamic_attr_params.push(Some(format!("%{value}%")));
+            next_param_number += 2;
+        }
+    }
+    for param in &dynamic_attr_params {
+        params.push(param);
+    }
+    let dynamic_attr_clause = if dynamic_attr_conditions.is_empty() {
+        String::new()
+    } else {
+        format!("AND ({})", dynamic_attr_conditions.join(" OR "))
+    };
+
+    // Build the count query using only the necessary filtering clauses.
+    let count_query = format!(
+        r#"
+        SELECT COUNT(*) AS total_count
+        FROM user_entity AS u
+        INNER JOIN realm AS ra ON ra.id = u.realm_id
+        {area_ids_join_clause}
+        {authorized_alias_join_clause}
+        WHERE
+            ra.name = $1 AND
+            {filters_clause}
+            (u.id = ANY($2) OR $2 IS NULL)
+            {area_ids_where_clause}
+            {authorized_alias_where_clause}
+            {enabled_condition}
+            {email_verified_condition}
+            {dynamic_attr_clause}
+        "#,
+    );
+    debug!("Count query: {count_query:?}");
+
+    // Prepare and execute the count query.
+    let stmt = keycloak_transaction.prepare(&count_query).await?;
+    let row: Row = keycloak_transaction
+        .query_one(&stmt, &params)
+        .await
+        .map_err(|err| anyhow!("{}", err))?;
+    let count: i32 = row.try_get::<&str, i64>("total_count")?.try_into()?;
+    info!("Total eligible users: {count}");
+    Ok(count)
+}
+
+#[instrument(skip(hasura_transaction, keycloak_transaction), err)]
 pub async fn list_users(
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
@@ -412,18 +566,13 @@ pub async fn list_users(
     let default_sql_limit = PgConfig::from_env()?.default_sql_limit;
     let query_limit: i64 =
         std::cmp::min(low_sql_limit, filter.limit.unwrap_or(default_sql_limit)).into();
-    let query_offset: i64 = if let Some(offset_val) = filter.offset {
-        offset_val.into()
-    } else {
-        0
-    };
+    let query_offset: i64 = filter.offset.unwrap_or(0).into();
 
     let mut params: Vec<&(dyn ToSql + Sync)> = vec![&filter.realm, &filter.user_ids];
     let mut next_param_number = 3;
 
     let mut filters_clause = "".to_string();
     let mut filter_params: Vec<String> = vec![];
-
     for tuple in [
         ("email", &filter.email),
         ("first_name", &filter.first_name),
@@ -455,6 +604,7 @@ pub async fn list_users(
         next_param_number,
     )
     .await?;
+
     if let Some(area_ids) = &area_ids {
         params.push(area_ids);
         next_param_number += 1;
@@ -538,47 +688,60 @@ pub async fn list_users(
     debug!("params {:?}", params);
     let statement_str = format!(
         r#"
-    SELECT
-        u.id,
-        u.email,
-        u.email_verified,
-        u.enabled,
-        u.first_name,
-        u.last_name,
-        u.realm_id,
-        u.username,
-        u.created_timestamp,
-        COALESCE(attr_json.attributes, '{{}}'::json) AS attributes
-    FROM
-        user_entity AS u
-    INNER JOIN
-        realm AS ra ON ra.id = u.realm_id
-    {area_ids_join_clause}
-    {authorized_alias_join_clause}
-    LEFT JOIN LATERAL (
-        SELECT
-            json_object_agg(attr.name, attr.values_array) AS attributes
-        FROM (
+        WITH limited_users AS MATERIALIZED (
             SELECT
-                ua.name,
-                json_agg(ua.value) AS values_array
-            FROM user_attribute ua
-            WHERE ua.user_id = u.id
-            GROUP BY ua.name
-        ) attr
-    ) attr_json ON true
-    WHERE
-        ra.name = $1 AND
-        {filters_clause}
-        (u.id = ANY($2) OR $2 IS NULL)
-        {area_ids_where_clause}
-        {authorized_alias_where_clause}
-        {enabled_condition}
-        {email_verified_condition}
-        {dynamic_attr_clause}
-    {sort_clause}
-    LIMIT {query_limit} OFFSET {query_offset};
-    "#
+                u.id,
+                u.email,
+                u.email_verified,
+                u.enabled,
+                u.first_name,
+                u.last_name,
+                u.realm_id,
+                u.username,
+                u.created_timestamp
+            FROM
+                user_entity AS u
+            INNER JOIN
+                realm AS ra ON ra.id = u.realm_id
+            {area_ids_join_clause}
+            {authorized_alias_join_clause}
+            WHERE
+                ra.name = $1 AND
+                {filters_clause}
+                (u.id = ANY($2) OR $2 IS NULL)
+                {area_ids_where_clause}
+                {authorized_alias_where_clause}
+                {enabled_condition}
+                {email_verified_condition}
+                {dynamic_attr_clause}
+            {sort_clause}
+            LIMIT {query_limit} OFFSET {query_offset}
+        )
+        SELECT
+            lu.id,
+            lu.email,
+            lu.email_verified,
+            lu.enabled,
+            lu.first_name,
+            lu.last_name,
+            lu.realm_id,
+            lu.username,
+            lu.created_timestamp,
+            COALESCE(attr_json.attributes, '{{}}'::json) AS attributes
+        FROM limited_users lu
+        LEFT JOIN LATERAL (
+            SELECT
+                json_object_agg(attr.name, attr.values_array) AS attributes
+            FROM (
+                SELECT
+                    ua.name,
+                    json_agg(ua.value) AS values_array
+                FROM user_attribute ua
+                WHERE ua.user_id = lu.id
+                GROUP BY ua.name
+            ) attr
+        ) attr_json ON TRUE;
+        "#
     );
     debug!("statement_str {statement_str:?}");
 
@@ -672,7 +835,183 @@ pub async fn list_users(
     }
 }
 
-#[instrument(skip(hasura_transaction, keycloak_transaction), err)]
+#[instrument(skip(hasura_transaction, keycloak_transaction, filter), err)]
+pub async fn list_users_ids(
+    hasura_transaction: &Transaction<'_>,
+    keycloak_transaction: &Transaction<'_>,
+    filter: ListUsersFilter,
+) -> Result<Vec<String>> {
+    info!("filter: {filter:?}");
+    let low_sql_limit = PgConfig::from_env()?.low_sql_limit;
+    let default_sql_limit = PgConfig::from_env()?.default_sql_limit;
+    let query_limit: i64 =
+        std::cmp::min(low_sql_limit, filter.limit.unwrap_or(default_sql_limit)).into();
+    let query_offset: i64 = filter.offset.unwrap_or(0).into();
+
+    let mut params: Vec<&(dyn ToSql + Sync)> = vec![&filter.realm, &filter.user_ids];
+    let mut next_param_number = 3;
+
+    let mut filters_clause = "".to_string();
+    let mut filter_params: Vec<String> = vec![];
+    for tuple in [
+        ("email", &filter.email),
+        ("first_name", &filter.first_name),
+        ("last_name", &filter.last_name),
+        ("username", &filter.username),
+    ] {
+        let (col_name, filter_option) = tuple;
+        match filter_option {
+            Some(filter_obj) => {
+                let (clause, param) =
+                    filter_obj.get_sql_filter_clause(col_name, next_param_number, " AND");
+                filters_clause.push_str(&clause);
+                if let Some(param) = param {
+                    next_param_number += 1;
+                    filter_params.push(param.to_string());
+                }
+            }
+            None => {}
+        }
+    }
+    for filt_param in filter_params.iter() {
+        params.push(filt_param);
+    }
+
+    let (area_ids, area_ids_join_clause, area_ids_where_clause) = get_area_ids(
+        hasura_transaction,
+        filter.election_id.clone(),
+        filter.area_id.clone(),
+        next_param_number,
+    )
+    .await?;
+
+    if let Some(area_ids) = &area_ids {
+        params.push(area_ids);
+        next_param_number += 1;
+    }
+
+    let (election_alias, authorized_alias_join_clause, authorized_alias_where_clause) = match filter
+        .authorized_to_election_alias
+    {
+        Some(election_alias) => (
+            Some(election_alias),
+            format!(
+                r#"
+            LEFT JOIN 
+                user_attribute AS authorization_attr ON u.id = authorization_attr.user_id AND authorization_attr.name = ${}
+            "#,
+                next_param_number
+            ),
+            format!(
+                r#"
+            AND (
+                authorization_attr.value = ${} OR authorization_attr.user_id IS NULL
+            )
+            "#,
+                next_param_number + 1
+            ),
+        ),
+        None => (None, "".to_string(), "".to_string()),
+    };
+
+    if election_alias.is_some() {
+        params.push(&AUTHORIZED_ELECTION_IDS_NAME);
+        params.push(&election_alias);
+        next_param_number += 2;
+    }
+
+    let enabled_condition = get_query_bool_condition("enabled", filter.enabled);
+    let email_verified_condition =
+        get_query_bool_condition("email_verified", filter.email_verified);
+
+    let mut dynamic_attr_conditions: Vec<String> = Vec::new();
+    let mut dynamic_attr_params: Vec<Option<String>> = vec![];
+
+    if let Some(attributes) = &filter.attributes {
+        for (key, value) in attributes {
+            dynamic_attr_conditions.push(format!(
+                 r#"EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${} AND UNACCENT(ua.value) ILIKE ${})"#,
+                next_param_number,
+                next_param_number + 1
+            ));
+            let val = Some(format!("%{value}%"));
+            let formatted_keyy = key.trim_matches('\'').to_string();
+            dynamic_attr_params.push(Some(formatted_keyy.clone()));
+            dynamic_attr_params.push(val.clone());
+            next_param_number += 2;
+        }
+    }
+    for value in &dynamic_attr_params {
+        params.push(value);
+    }
+
+    let dynamic_attr_clause = match dynamic_attr_conditions.is_empty() {
+        true => "".to_string(),
+        false => {
+            format!(r#"AND({})"#, dynamic_attr_conditions.join(" OR "))
+        }
+    };
+
+    let mut sort_params: Vec<Option<String>> = vec![];
+    let (sort_clause, field_param) =
+        get_sort_clause_and_field_param(filter.sort, next_param_number);
+
+    if field_param.is_some() {
+        sort_params.push(field_param);
+        next_param_number += 1;
+    }
+    for value in &sort_params {
+        params.push(value);
+    }
+
+    debug!("parameters count: {}", next_param_number - 1);
+    debug!("params {:?}", params);
+    let statement_str = format!(
+        r#"
+            SELECT
+                u.id
+            FROM
+                user_entity AS u
+            INNER JOIN
+                realm AS ra ON ra.id = u.realm_id
+            {area_ids_join_clause}
+            {authorized_alias_join_clause}
+            WHERE
+                ra.name = $1 AND
+                {filters_clause}
+                (u.id = ANY($2) OR $2 IS NULL)
+                {area_ids_where_clause}
+                {authorized_alias_where_clause}
+                {enabled_condition}
+                {email_verified_condition}
+                {dynamic_attr_clause}
+            {sort_clause}
+            LIMIT {query_limit} OFFSET {query_offset}
+        "#
+    );
+    debug!("statement_str {statement_str:?}");
+
+    let statement = keycloak_transaction.prepare(statement_str.as_str()).await?;
+    let rows: Vec<Row> = keycloak_transaction
+        .query(&statement, &params.as_slice())
+        .await
+        .map_err(|err| anyhow!("{}", err))?;
+    let realm: &str = &filter.realm;
+    info!(
+        "Count rows {} for realm={realm}, query_limit={query_limit}",
+        rows.len()
+    );
+
+    // Process the users
+    let user_ids = rows
+        .into_iter()
+        .filter_map(|row| row.get("id"))
+        .collect::<Vec<String>>();
+
+    Ok(user_ids)
+}
+
+#[instrument(skip(hasura_transaction, keycloak_transaction, filter), err)]
 pub async fn list_users_with_vote_info(
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
@@ -839,6 +1178,11 @@ pub async fn lookup_users(
         ),
         score_matches AS (
             SELECT mu.id, count(*) as match_score FROM matched_ids mu
+            LEFT JOIN user_entity u ON u.id = mu.id
+            LEFT JOIN realm ra ON ra.id = u.realm_id
+            WHERE
+                ra.name = $1
+                {enabled_condition}
             GROUP BY mu.id
         )
         SELECT match_score, u.id, u.email, u.email_verified, u.enabled, u.first_name, u.last_name, u.realm_id, u.username, u.created_timestamp, COALESCE(
@@ -847,7 +1191,6 @@ pub async fn lookup_users(
         FROM
             score_matches rm
         INNER JOIN user_entity u ON u.id = rm.id
-        INNER JOIN realm ra ON ra.id = u.realm_id
         LEFT JOIN LATERAL (
             SELECT json_object_agg(attr.name, attr.values_array) AS attributes
             FROM (
@@ -863,8 +1206,6 @@ pub async fn lookup_users(
                 SELECT MAX(match_score)
                 FROM score_matches
             )
-            AND ra.name = $1
-            {enabled_condition}
         LIMIT $2
         "#
     );
@@ -1103,4 +1444,99 @@ pub async fn get_users_by_username(
         .collect::<Vec<String>>();
 
     Ok(user_ids)
+}
+
+/// Returns the username of the user id or None if it does not exist.
+#[instrument(err, skip(keycloak_transaction))]
+pub async fn get_username_by_id(
+    keycloak_transaction: &Transaction<'_>,
+    realm: &str,
+    user_id: &str,
+) -> Result<Option<String>> {
+    let params: Vec<&(dyn ToSql + Sync)> = vec![&realm, &user_id];
+
+    let statement = keycloak_transaction
+        .prepare(&format!(
+            r#"
+        SELECT
+            u.username
+        FROM
+            user_entity u
+        INNER JOIN
+            realm AS ra ON ra.id = u.realm_id
+        LEFT JOIN LATERAL (
+            SELECT
+                json_object_agg(ua.name, ua.value) AS attributes
+            FROM user_attribute ua
+            WHERE ua.user_id = u.id
+            GROUP BY ua.user_id
+        ) attr_json ON true
+        WHERE
+            ra.name = $1
+            AND u.id = $2
+        "#,
+        ))
+        .await?;
+
+    let rows: Vec<Row> = keycloak_transaction
+        .query(&statement, &params.as_slice())
+        .await
+        .map_err(|err| anyhow!("{err:?}"))?;
+
+    let user_ids = rows
+        .into_iter()
+        .filter_map(|row| row.get("username"))
+        .collect::<Vec<String>>();
+    match user_ids.is_empty() {
+        true => Ok(None),
+        false => Ok(Some(user_ids[0].clone())),
+    }
+}
+
+#[instrument(err, skip_all(keycloak_transaction))]
+pub async fn get_user_area_id(
+    keycloak_transaction: &Transaction<'_>,
+    realm: &str,
+    user_id: &str,
+) -> Result<Option<String>> {
+    let params: Vec<&(dyn ToSql + Sync)> = vec![&realm, &user_id];
+
+    let statement = keycloak_transaction
+        .prepare(&format!(
+            r#"
+        SELECT
+             attr_json.attributes ->> '{AREA_ID_ATTR_NAME}' AS area_id
+        FROM
+            user_entity u
+        INNER JOIN
+            realm AS ra ON ra.id = u.realm_id
+        LEFT JOIN LATERAL (
+            SELECT
+                json_object_agg(ua.name, ua.value) AS attributes
+            FROM
+                user_attribute ua
+            WHERE
+                ua.user_id = u.id
+            GROUP BY
+                ua.user_id
+        ) attr_json ON true
+        WHERE
+            ra.name = $1
+            AND u.id = $2
+        "#
+        ))
+        .await?;
+
+    let rows: Vec<Row> = keycloak_transaction
+        .query(&statement, &params.as_slice())
+        .await
+        .map_err(|err| anyhow!("{err:?}"))?;
+
+    // Assuming there is at most one matching row, we extract the area_id (which might be null)
+    if let Some(row) = rows.into_iter().next() {
+        let area_id: Option<String> = row.get("area_id");
+        Ok(area_id)
+    } else {
+        Ok(None)
+    }
 }

@@ -158,6 +158,7 @@ Environment variables to add, in production:
 - `AWS_S3_MAX_UPLOAD_BYTES`
 - `AWS_S3_UPLOAD_EXPIRATION_SECS`
 - `AWS_S3_FETCH_EXPIRATION_SECS`
+- `BALLOT_VERIFIER_URL` 
 
 Impacted services:
 
@@ -205,3 +206,29 @@ Steps to configure the tenant and election event:
 2. Import new client _datafix-account.json_ into Sequent Admin Portal > Clients
 
 3. Set the election event annotations column in database - Hasura - as indicated in one of the examples: _election-event-annotations-example1.json_ or _election-event-annotations-example2.json_
+
+## ✨ Postgres add indexes
+
+Look into the file [init.sh](https://github.com/sequentech/step/blame/main/.devcontainer/postgresql/init.sh) to see which indexes
+are missing and need to be deployed. It looks like this PR [added new indexes](https://github.com/sequentech/step/pull/1628):
+
+```
+-- Index on user_entity.realm_id to optimize the join with realm
+CREATE INDEX IF NOT EXISTS idx_user_entity_realm_id ON user_entity(realm_id);
+
+-- Index on user_attribute.user_id to optimize the lateral join and aggregation
+CREATE INDEX IF NOT EXISTS idx_user_attribute_user_id ON user_attribute(user_id);
+  
+-- A composite index on user_attribute for covering queries on user_id, name, and value
+CREATE INDEX IF NOT EXISTS idx_user_attribute_userid_name_value ON user_attribute(user_id, name, value);
+```
+
+## ✨ Create PostgreSQL constraint on number of allowed revotes
+A new constraint has been added to check the number of allowed revotes at SQL level that will raise the exception:
+```
+insert_failed_exceeds_allowed_revotes
+```
+
+Migration files in the folder:
+_1744797160789_add_check_revote_limit_at_trigger_to_cast_vote_
+

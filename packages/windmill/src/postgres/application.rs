@@ -14,6 +14,8 @@ use sequent_core::types::hasura::core::Application;
 use serde_json::Value;
 use tokio_postgres::row::Row;
 // use tokio_postgres::types::ToSql;
+use chrono::DateTime;
+use chrono::Local;
 use serde::Serialize;
 use serde_json::json;
 use tokio_postgres::types::{Json, ToSql};
@@ -45,10 +47,13 @@ impl TryFrom<Row> for ApplicationWrapper {
     }
 }
 
-#[instrument(err, skip_all)]
+#[instrument(err, skip(hasura_transaction))]
 pub async fn get_permission_label_from_post(
     hasura_transaction: &Transaction<'_>,
-    post: &str,
+    post_name: &str,
+    post_description: &str,
+    tenant_id: &str,
+    election_event_id: &str,
 ) -> Result<(Option<String>, Option<Uuid>)> {
     let query = r#"
         SELECT el.permission_label, a.id
@@ -57,7 +62,16 @@ pub async fn get_permission_label_from_post(
             LEFT JOIN sequent_backend.contest con ON ac.contest_id = con.id
             LEFT JOIN sequent_backend.election el ON con.election_id = el.id
         WHERE
-            a.description ILIKE $1
+            a.name ILIKE '%' || $1 || '%' AND
+            a.description ILIKE '%' || $2 || '%' AND
+            a.tenant_id = $3 AND
+            ac.tenant_id = $3 AND
+            con.tenant_id = $3 AND
+            el.tenant_id = $3 AND
+            a.election_event_id = $4 AND
+            ac.election_event_id = $4 AND
+            con.election_event_id = $4 AND
+            el.election_event_id = $4
         LIMIT 1
         "#;
 
@@ -67,7 +81,15 @@ pub async fn get_permission_label_from_post(
         .map_err(|err| anyhow!("Error preparing the application query: {err}"))?;
 
     let row = hasura_transaction
-        .query_opt(&statement, &[&post])
+        .query_opt(
+            &statement,
+            &[
+                &post_name,
+                &post_description,
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(election_event_id)?,
+            ],
+        )
         .await
         .map_err(|err| anyhow!("Error querying applications: {err}"))?;
 
@@ -177,7 +199,7 @@ pub async fn update_application_status(
         RETURNING *;
     "#;
     // Serialize group names to JSON string
-    let group_names_json = serde_json::to_string(&group_names).unwrap();
+    let group_names_json = serde_json::to_string(&group_names)?;
 
     // Build annotations update dynamically
     let annotations_update = {
@@ -271,7 +293,9 @@ pub async fn get_applications(
     election_event_id: &str,
     area_id: &str,
     filters: Option<&EnrollmentFilters>,
-) -> Result<Vec<Application>> {
+    limit: Option<i64>,
+    offset: Option<i64>,
+) -> Result<(Vec<Application>, Option<i64>)> {
     let mut query = r#"
         SELECT *
         FROM sequent_backend.applications
@@ -291,22 +315,40 @@ pub async fn get_applications(
         &parsed_election_event_id,
     ];
 
-    // Apply filters if provided
+    let mut param_index = 4;
     let status;
     let verification_type;
     if let Some(filters) = filters {
-        query.push_str(" AND status = $4");
+        query.push_str(format!(" AND status = ${}", param_index).as_str());
         status = filters.clone().status.to_string();
         params.push(&status);
+        param_index += 1;
 
         if filters.verification_type.is_some() {
-            query.push_str(" AND verification_type = $5");
-            verification_type =
-                <std::option::Option<ApplicationType> as Clone>::clone(&filters.verification_type)
-                    .unwrap()
-                    .to_string();
+            query.push_str(format!(" AND verification_type = ${}", param_index).as_str());
+            verification_type = filters
+                .verification_type
+                .clone()
+                .ok_or(anyhow!("Empty application type"))?
+                .to_string();
             params.push(&verification_type);
+            param_index += 1;
         }
+    }
+
+    query.push_str(" ORDER BY created_at ASC, id ASC");
+    let lim;
+    if let Some(limit) = limit {
+        query.push_str(&format!(" LIMIT ${}", param_index));
+        lim = limit.clone();
+        params.push(&lim);
+        param_index += 1;
+    }
+    let off;
+    if let Some(offset) = offset {
+        query.push_str(&format!(" OFFSET ${}", param_index));
+        off = offset.clone();
+        params.push(&off);
     }
 
     let statement = hasura_transaction
@@ -314,20 +356,27 @@ pub async fn get_applications(
         .await
         .map_err(|err| anyhow!("Error preparing the application query: {err}"))?;
 
-    let rows: Vec<Row> = hasura_transaction
+    let rows = hasura_transaction
         .query(&statement, &params)
         .await
         .map_err(|err| anyhow!("Error querying applications: {err}"))?;
 
     let results: Vec<Application> = rows
-        .into_iter()
-        .map(|row| -> Result<Application> {
-            row.try_into()
-                .map(|res: ApplicationWrapper| -> Application { res.0 })
+        .iter()
+        .map(|row| {
+            ApplicationWrapper::try_from(row.clone())
+                .map(|wrapper| wrapper.0)
+                .map_err(|err| anyhow!(err))
         })
         .collect::<Result<Vec<Application>>>()?;
 
-    Ok(results)
+    let last_offset = if results.is_empty() {
+        None
+    } else {
+        Some(offset.unwrap_or(0) + results.len() as i64)
+    };
+
+    Ok((results, last_offset))
 }
 
 #[instrument(err, skip_all)]
@@ -406,10 +455,11 @@ pub async fn count_applications(
         if filters.verification_type.is_some() {
             let place = current_param_place.to_string();
             query.push_str(&format!(" AND verification_type = ${place}"));
-            verification_type =
-                <std::option::Option<ApplicationType> as Clone>::clone(&filters.verification_type)
-                    .unwrap()
-                    .to_string();
+            verification_type = filters
+                .verification_type
+                .clone()
+                .ok_or(anyhow!("Empty application type"))?
+                .to_string();
             params.push(&verification_type);
         }
     }

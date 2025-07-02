@@ -5,7 +5,7 @@
     "software_version": "1.0.0",
     "app_version": "2.3.4",
     "app_hash": "z9y8x7w6v5",
-    "executer_username":"User"
+    "executer_username": "User"
   },
   "areas": [
     {
@@ -56,7 +56,8 @@
       "post": "Philippine Embassy, Washington DC",
       "country": "United States",
       "voting_center": "Washington DC Voting Center",
-      "precinct_code": "P12345",
+      "station_id": "91060001",
+      "station_name": "0034A",
       "registered_voters": 5000,
       "ballots_counted": 3500,
       "ovcs_status": "active",

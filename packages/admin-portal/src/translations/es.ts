@@ -78,12 +78,14 @@ const spanishTranslation: TranslationType = {
                 GENERATE_TRANSMISSION_REPORT: "Generar Informe de Transmisión",
                 EXPORT_TRUSTEES: "Exportar Autoridades",
                 EXPORT_APPLICATION: "Exportar Solicitudes",
-                EXPORT_TENANT_CONFIG: "Exportar Configuración del Inquilino",
-                IMPORT_TENANT_CONFIG: "Importar Configuración del Inquilino",
+                EXPORT_TENANT_CONFIG: "Exportar Configuración del Cliente",
+                IMPORT_TENANT_CONFIG: "Importar Configuración del Cliente",
+                RENDER_DOCUMENT_PDF: "Renderizar el documento PDF",
             },
             widget: {
                 taskTitle: "Tarea: {{title}}",
                 viewTask: "Ver Tarea",
+                downloadDocument: "Descargar Archivo",
             },
             exportTasksExecution: {
                 success: "La exportación se completó con éxito",
@@ -417,6 +419,10 @@ const spanishTranslation: TranslationType = {
                         "La Ceremonia de Escrutinio no puede comenzar hasta que crees una publicación en la pestaña Publicar.",
                     participateNow:
                         "Ha sido invitado a participar a una Ceremonia de Recuento. Por favor <1>haz clic abajo en la acción de llave de la ceremonia</1> para participar.",
+                    startDisabled:
+                        "No puedes continuar con la ceremonia porque no se han seleccionado elecciones o las elecciones no están publicadas.",
+                    ceremonyDisabled:
+                        "No puedes continuar con la ceremonia porque la sesión de recuento no está conectada o el inicio de la ceremonia no está permitido.",
                 },
             },
             importAreas: {
@@ -482,6 +488,7 @@ const spanishTranslation: TranslationType = {
                 copiedError: "Error al copiar la contraseña",
                 reports: "Informes",
                 applications: "Aplicaciones",
+                tally: "Recuento",
             },
             taskNotification:
                 "{{action}} ha comenzado. Puedes ver su estado en la tabla de Ejecución de Tareas.",
@@ -558,6 +565,13 @@ const spanishTranslation: TranslationType = {
                 "label": "Inicializar Política de Reportes",
                 "not-required": "No Requerido",
                 "required": "Requerido",
+            },
+            castVoteGoldLevelPolicy: {
+                label: "Gold level Authentication Policy",
+                options: {
+                    "gold-level": "Gold level Authentication",
+                    "no-gold-level": "No Gold level Authentication",
+                },
             },
         },
         tenantScreen: {
@@ -1068,6 +1082,11 @@ const spanishTranslation: TranslationType = {
                 kind: "Tipo de archivo",
                 filter: "Filtros Personalizados",
                 approve: "Aprobar",
+                continue: "Continuar",
+                logout: "Cerrar Sesión",
+                selectTenant: "Seleccionar Inquilino",
+                processing: "Procesando...",
+                tenantName: "Nombre del Inquilino",
             },
             language: {
                 es: "Español",
@@ -1075,6 +1094,9 @@ const spanishTranslation: TranslationType = {
                 fr: "Francés",
                 cat: "Valenciano",
                 tl: "Tagalo",
+                gl: "Galego",
+                nl: "Holandes",
+                eu: "Euskera",
             },
             channel: {
                 online: "En línea",
@@ -1082,6 +1104,7 @@ const spanishTranslation: TranslationType = {
             },
             message: {
                 delete: "¿Estás seguro que quieres borrar este elemento?",
+                continueOrLogout: "¿Quieres continuar o cerrar sesión?",
             },
         },
         createResource: {
@@ -1856,6 +1879,10 @@ const spanishTranslation: TranslationType = {
                 isHidden: "Oculto",
                 publicUrl: "Enlace público",
             },
+            empty: {
+                header: "Aún no hay material de soporte",
+                action: "Generar material de soporte",
+            },
         },
         widget: {
             logs: "Registros",
@@ -1913,11 +1940,11 @@ const spanishTranslation: TranslationType = {
                 rejectReason: "Motivo del rechazo",
                 messageRequired: "Se requiere un mensaje de rechazo para la opción 'Otro'",
                 reasons: {
-                    undefined: "-",
-                    INSUFFICIENT_INFORMATION: "Datos Faltantes",
-                    NO_VOTER: "Votante no Coincidente",
-                    ALREADY_APPROVED: "Ya Aprobado",
-                    OTHER: "Otro",
+                    "undefined": "-",
+                    "insufficient-information": "Datos Faltantes",
+                    "no-matching-voter": "Votante no Coincidente",
+                    "voter-already-approved": "Ya Aprobado",
+                    "other": "Otro",
                 },
             },
             notifications: {

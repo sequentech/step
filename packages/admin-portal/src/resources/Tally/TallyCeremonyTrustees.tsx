@@ -88,7 +88,9 @@ export const TallyCeremonyTrustees: React.FC = () => {
             },
         },
         {
-            refetchInterval: isTallyCompleted ? undefined : globalSettings.QUERY_POLL_INTERVAL_MS,
+            refetchInterval: isTallyCompleted
+                ? undefined
+                : globalSettings.QUERY_FAST_POLL_INTERVAL_MS,
             refetchOnWindowFocus: false,
             refetchOnReconnect: false,
             refetchOnMount: false,

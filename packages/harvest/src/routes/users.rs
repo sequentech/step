@@ -18,19 +18,28 @@ use sequent_core::types::keycloak::{
 };
 use sequent_core::types::permissions::Permissions;
 use serde::Deserialize;
+use serde::Serialize;
 use std::collections::HashMap;
 use std::env;
 use tracing::instrument;
 use uuid::Uuid;
+use windmill::postgres::election_event::{
+    get_election_event_by_id, ElectionEventDatafix,
+};
 use windmill::services::cast_votes::get_users_with_vote_info;
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
+use windmill::services::datafix;
+use windmill::services::datafix::types::SoapRequest;
+use windmill::services::datafix::utils::is_datafix_election_event;
 use windmill::services::export::export_users::{
     ExportBody, ExportTenantUsersBody, ExportUsersBody,
 };
 use windmill::services::keycloak_events::list_keycloak_events_by_type;
 use windmill::services::tasks_execution::*;
-use windmill::services::users::{list_users, list_users_with_vote_info};
+use windmill::services::users::{
+    count_keycloak_users, list_users, list_users_with_vote_info,
+};
 use windmill::services::users::{FilterOption, ListUsersFilter};
 use windmill::tasks::export_users::{self, ExportUsersOutput};
 use windmill::tasks::import_users::{self, ImportUsersOutput};
@@ -148,6 +157,106 @@ pub struct GetUsersBody {
     sort: Option<HashMap<String, String>>,
     has_voted: Option<bool>,
     authorized_to_election_alias: Option<String>,
+}
+
+#[derive(Deserialize, Debug, Serialize)]
+pub struct CountUserOutput {
+    count: i64,
+}
+
+#[instrument(skip(claims), ret)]
+#[post("/count-users", format = "json", data = "<body>")]
+pub async fn count_users(
+    claims: jwt::JwtClaims,
+    body: Json<GetUsersBody>,
+) -> Result<Json<CountUserOutput>, (Status, String)> {
+    let input = body.into_inner();
+    let required_perm: Permissions = if input.election_event_id.is_some() {
+        Permissions::VOTER_READ
+    } else {
+        Permissions::USER_READ
+    };
+    authorize(
+        &claims,
+        true,
+        Some(input.tenant_id.clone()),
+        vec![required_perm],
+    )?;
+
+    let realm = match input.election_event_id {
+        Some(ref election_event_id) => {
+            get_event_realm(&input.tenant_id, &election_event_id)
+        }
+        None => get_tenant_realm(&input.tenant_id),
+    };
+
+    let mut keycloak_db_client: DbClient =
+        get_keycloak_pool().await.get().await.map_err(|e| {
+            (
+                Status::InternalServerError,
+                format!("Error acquiring keycloak db client from pool {:?}", e),
+            )
+        })?;
+    let keycloak_transaction =
+        keycloak_db_client.transaction().await.map_err(|e| {
+            (
+                Status::InternalServerError,
+                format!("Error acquiring keycloak transaction {:?}", e),
+            )
+        })?;
+    let mut hasura_db_client: DbClient =
+        get_hasura_pool().await.get().await.map_err(|e| {
+            (
+                Status::InternalServerError,
+                format!("Error acquiring hasura db client from pool {:?}", e),
+            )
+        })?;
+    let hasura_transaction =
+        hasura_db_client.transaction().await.map_err(|e| {
+            (
+                Status::InternalServerError,
+                format!("Error acquiring hasura transaction {:?}", e),
+            )
+        })?;
+
+    let filter = ListUsersFilter {
+        tenant_id: input.tenant_id.clone(),
+        election_event_id: input.election_event_id.clone(),
+        election_id: input.election_id.clone(),
+        area_id: None,
+        realm: realm.clone(),
+        search: input.search,
+        first_name: input.first_name,
+        last_name: input.last_name,
+        username: input.username,
+        email: input.email,
+        limit: input.limit,
+        offset: input.offset,
+        user_ids: None,
+        attributes: input.attributes,
+        enabled: input.enabled,
+        email_verified: input.email_verified,
+        sort: input.sort,
+        has_voted: input.has_voted,
+        authorized_to_election_alias: input.authorized_to_election_alias,
+    };
+
+    let count = count_keycloak_users(
+        &hasura_transaction,
+        &keycloak_transaction,
+        filter,
+    )
+    .await
+    .map_err(|e| {
+        (
+            Status::InternalServerError,
+            format!("Error counting users {:?}", e),
+        )
+    })?;
+
+    Ok(Json(CountUserOutput {
+        count: count.into(),
+    }))
 }
 
 #[instrument(skip(claims), ret)]
@@ -473,27 +582,25 @@ pub async fn edit_user(
         None => get_tenant_realm(&input.tenant_id),
     };
 
+    let mut hasura_db_client: DbClient =
+        get_hasura_pool().await.get().await.map_err(|e| {
+            (
+                Status::InternalServerError,
+                format!("Error acquiring hasura db client from pool {:?}", e),
+            )
+        })?;
+
+    let hasura_transaction =
+        hasura_db_client.transaction().await.map_err(|e| {
+            (
+                Status::InternalServerError,
+                format!("Error acquiring hasura transaction {:?}", e),
+            )
+        })?;
+
     // check if the voter has voted
     if !voter_voted_edit {
         if let Some(election_event_id) = input.election_event_id.clone() {
-            let mut hasura_db_client: DbClient =
-                get_hasura_pool().await.get().await.map_err(|e| {
-                    (
-                        Status::InternalServerError,
-                        format!(
-                            "Error acquiring hasura db client from pool {:?}",
-                            e
-                        ),
-                    )
-                })?;
-
-            let hasura_transaction =
-                hasura_db_client.transaction().await.map_err(|e| {
-                    (
-                        Status::InternalServerError,
-                        format!("Error acquiring hasura transaction {:?}", e),
-                    )
-                })?;
             let mut user = User::default();
             user.id = Some(input.user_id.clone());
             let voters = get_users_with_vote_info(
@@ -552,17 +659,46 @@ pub async fn edit_user(
         .edit_user(
             &realm,
             &input.user_id,
-            input.enabled.clone(),
+            input.enabled,
             Some(new_attributes),
             input.email.clone(),
             input.first_name.clone(),
             input.last_name.clone(),
             input.username.clone(),
             input.password.clone(),
-            input.temporary.clone(),
+            input.temporary,
         )
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    // If the user is disabled via EDIT: send a SetNotVoted request to
+    // VoterView, it is a Datafix requirement
+    match (input.election_event_id, input.enabled) {
+        (Some(election_event_id), Some(enabled)) if !enabled => {
+            let election_event = get_election_event_by_id(
+                &hasura_transaction,
+                &input.tenant_id,
+                &election_event_id,
+            )
+            .await
+            .map_err(|e| {
+                (
+                    Status::InternalServerError,
+                    format!("Error get_election_event_by_id {e:?}"),
+                )
+            })?;
+            if is_datafix_election_event(&election_event) {
+                let res = datafix::voterview_requests::send(
+                    SoapRequest::SetNotVoted,
+                    ElectionEventDatafix(election_event),
+                    &user.username,
+                )
+                .await;
+                // TODO: Post the result in the electoral_log
+            }
+        }
+        _ => {}
+    }
 
     Ok(Json(user))
 }

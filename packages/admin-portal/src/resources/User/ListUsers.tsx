@@ -24,12 +24,13 @@ import {
     useUnselectAll,
     RaRecord,
     PreferencesEditorContext,
+    useListContext,
 } from "react-admin"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import UploadIcon from "@mui/icons-material/Upload"
 import {ListActions} from "@/components/ListActions"
-import {Button, Chip, Menu, MenuItem, Stack, Typography} from "@mui/material"
+import {Box, Button, Chip, Menu, MenuItem, Skeleton, Stack, Typography} from "@mui/material"
 import {Dialog, theme} from "@sequentech/ui-essentials"
 import {useTranslation} from "react-i18next"
 import {Action} from "@/components/ActionButons"
@@ -88,14 +89,17 @@ import {useUsersPermissions} from "./useUsersPermissions"
 import {Check, FilterAltOff} from "@mui/icons-material"
 import {useLocation} from "react-router"
 import {getPreferenceKey} from "@/lib/helpers"
+import {isEqual} from "lodash"
 
-const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
+const DataGridContainerStyle = styled(DatagridConfigurable, {
+    shouldForwardProp: (prop) => prop !== "isOpenSideBar", // Prevent `isOpenSideBar` from being passed to the DOM
+})<{isOpenSideBar?: boolean}>`
     @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
-        overflow-x: auto;
+        overflowx: auto;
         width: 100%;
         ${({isOpenSideBar}) =>
-            `max-width: ${isOpenSideBar ? "calc(100vw - 355px)" : "calc(100vw - 108px)"};`}
-        &  > div:first-child {
+            `maxWidth: ${isOpenSideBar ? "calc(100vw - 355px)" : "calc(100vw - 108px)"};`}
+        &  > div:first-of-type {
             position: absolute;
             width: 100%;
         }
@@ -155,6 +159,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const [deleteUsers] = useMutation<DeleteUsersMutation>(DELETE_USERS)
     const [exportUsers] = useMutation<ExportUsersMutation>(EXPORT_USERS)
     const PHONE_NUMBER_USER_ATTRIBUTE = "sequent.read-only.mobile-number"
+
     const {data: userAttributes} = useQuery<GetUserProfileAttributesQuery>(
         USER_PROFILE_ATTRIBUTES,
         {
@@ -257,8 +262,8 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
      */
 
     const handleClose = () => {
-        setOpenUsersLogsModal(false)
         setRecordIds([])
+        setOpenUsersLogsModal(false)
         setOpenSendTemplate(false)
         setOpenDeleteModal(false)
         setOpenManualVerificationModal(false)
@@ -791,7 +796,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const resetMenuItem = () => {
         // renders the reset custom menu item
         return (
-            <MenuItem onClick={() => handleApplyCustomMenu(null, null)}>
+            <MenuItem key="reset-menu-item" onClick={() => handleApplyCustomMenu(null, null)}>
                 <Stack direction="row" alignItems="center">
                     <span style={{width: "32px"}} />
                     <span>{t("electionEventScreen.common.reset")} </span>
@@ -811,7 +816,10 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             customFiltersList = customFilters.map((item: any, index: number) => {
                 const {label, filter} = item
                 return (
-                    <MenuItem key={index} onClick={() => handleApplyCustomMenu(filter, index + 1)}>
+                    <MenuItem
+                        key={`custom-filter-${index}`}
+                        onClick={() => handleApplyCustomMenu(filter, index + 1)}
+                    >
                         <Stack direction="row" alignItems="center">
                             <span style={{width: "32px"}}>
                                 {selectedCustomItemMenu && selectedCustomItemMenu === index + 1 ? (
@@ -978,6 +986,117 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             : false
     }
 
+    const CustomListBody = () => {
+        // `isLoading` => initial load, `isFetching` => subsequent loads (e.g. paging, filtering)
+        const {isLoading, isFetching, perPage, filterValues, page, data} = useListContext()
+        // Keep track of the "previous" page/filters in a ref and whether they changed
+        const prevStateRef = useRef({perPage, page, filterValues})
+        const [filtersChanged, setFiltersChanged] = useState(false)
+
+        // 1. Compare current page and filters with previous
+        //    Detect when filters/page change, and set filtersChanged=true
+        useEffect(() => {
+            const prev = prevStateRef.current
+            const changed =
+                prev.perPage !== perPage ||
+                prev.page !== page ||
+                !isEqual(prev.filterValues, filterValues)
+
+            if (changed) {
+                setFiltersChanged(true)
+            }
+
+            prevStateRef.current = {perPage, page, filterValues}
+        }, [perPage, page, filterValues])
+
+        // 2. Detect when the fetch is complete so we can reset filtersChanged if it was set
+        useEffect(() => {
+            if (!isFetching && filtersChanged) {
+                setFiltersChanged(false)
+            }
+        }, [isFetching, filtersChanged])
+
+        if (isLoading || (isFetching && filtersChanged)) {
+            return <TableSkeleton rowCount={perPage} />
+        }
+
+        return (
+            <>
+                {userAttributes?.get_user_profile_attributes && (
+                    <DataGridContainerStyle
+                        preferenceKey={getPreferenceKey(location.pathname, "voters")}
+                        omit={listFields.omitFields}
+                        isOpenSideBar={isOpenSidebar}
+                        bulkActionButtons={<BulkActions />}
+                    >
+                        <TextField source="id" sx={{display: "block", width: "280px"}} />
+                        <BooleanField
+                            source="email_verified"
+                            label={t("usersAndRolesScreen.users.fields.emailVerified")}
+                        />
+                        <BooleanField
+                            source="enabled"
+                            label={t("usersAndRolesScreen.users.fields.enabled")}
+                        />
+                        {renderFields(listFields.basicInfoFields)}
+                        {electionEventId && (
+                            <FunctionField
+                                label={t("usersAndRolesScreen.users.fields.area")}
+                                render={(record: IUser) =>
+                                    record?.area?.name ? (
+                                        <Chip label={record?.area?.name ?? ""} />
+                                    ) : (
+                                        "-"
+                                    )
+                                }
+                            />
+                        )}
+                        {renderFields(listFields.attributesFields)}
+                        {electionEventId && (
+                            <FunctionField
+                                source="has_voted"
+                                label={t("usersAndRolesScreen.users.fields.has_voted")}
+                                render={(record: IUser, source: string | undefined) => {
+                                    let newRecord = {
+                                        has_voted: checkIsVoted(record),
+                                        ...record,
+                                    }
+                                    return <BooleanField record={newRecord} source={source} />
+                                }}
+                            />
+                        )}
+                        {!canEditVoters &&
+                        !canDeleteVoters &&
+                        !canSendTemplates &&
+                        !canManuallyVerify &&
+                        !canChangePassword &&
+                        !showVotersLogs ? null : (
+                            <WrapperField source="actions" label="Actions">
+                                <ListActionsMenu actions={actions} />
+                            </WrapperField>
+                        )}
+                    </DataGridContainerStyle>
+                )}
+                {/* Custom filters menu */}
+                {showVotersFilters && (
+                    <Menu
+                        id="custom-filters-menu"
+                        anchorEl={anchorEl}
+                        open={openCustomMenu}
+                        onClose={handleCloseCustomMenu}
+                        MenuListProps={{
+                            "aria-labelledby": "basic-button",
+                        }}
+                    >
+                        {/* {customFiltersList} */}
+                        {renderMenuItems()}
+                    </Menu>
+                )}
+                {/* Custom filters menu */}
+            </>
+        )
+    }
+
     return (
         <>
             {
@@ -1028,78 +1147,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     filters={Filters}
                     disableSyncWithLocation
                 >
-                    <ResetFilters />
-                    {userAttributes?.get_user_profile_attributes && (
-                        <DataGridContainerStyle
-                            preferenceKey={getPreferenceKey(location.pathname, "voters")}
-                            omit={listFields.omitFields}
-                            isOpenSideBar={isOpenSidebar}
-                            bulkActionButtons={<BulkActions />}
-                        >
-                            <TextField source="id" sx={{display: "block", width: "280px"}} />
-                            <BooleanField
-                                source="email_verified"
-                                label={t("usersAndRolesScreen.users.fields.emailVerified")}
-                            />
-                            <BooleanField
-                                source="enabled"
-                                label={t("usersAndRolesScreen.users.fields.enabled")}
-                            />
-                            {renderFields(listFields.basicInfoFields)}
-                            {electionEventId && (
-                                <FunctionField
-                                    label={t("usersAndRolesScreen.users.fields.area")}
-                                    render={(record: IUser) =>
-                                        record?.area?.name ? (
-                                            <Chip label={record?.area?.name ?? ""} />
-                                        ) : (
-                                            "-"
-                                        )
-                                    }
-                                />
-                            )}
-                            {renderFields(listFields.attributesFields)}
-                            {electionEventId && (
-                                <FunctionField
-                                    source="has_voted"
-                                    label={t("usersAndRolesScreen.users.fields.has_voted")}
-                                    render={(record: IUser, source: string | undefined) => {
-                                        let newRecord = {
-                                            has_voted: checkIsVoted(record),
-                                            ...record,
-                                        }
-                                        return <BooleanField record={newRecord} source={source} />
-                                    }}
-                                />
-                            )}
-                            {!canEditVoters &&
-                            !canDeleteVoters &&
-                            !canSendTemplates &&
-                            !canManuallyVerify &&
-                            !canChangePassword &&
-                            !showVotersLogs ? null : (
-                                <WrapperField source="actions" label="Actions">
-                                    <ListActionsMenu actions={actions} />
-                                </WrapperField>
-                            )}
-                        </DataGridContainerStyle>
-                    )}
-                    {/* Custom filters menu */}
-                    {showVotersFilters && (
-                        <Menu
-                            id="custom-filters-menu"
-                            anchorEl={anchorEl}
-                            open={openCustomMenu}
-                            onClose={handleCloseCustomMenu}
-                            MenuListProps={{
-                                "aria-labelledby": "basic-button",
-                            }}
-                        >
-                            {/* {customFiltersList} */}
-                            {renderMenuItems()}
-                        </Menu>
-                    )}
-                    {/* Custom filters menu */}
+                    <CustomListBody />
                 </List>
             }
 
@@ -1107,6 +1155,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 <EditUser
                     id={recordIds[0] as string}
                     electionEventId={electionEventId}
+                    electionId={electionId}
                     close={handleClose}
                     rolesList={rolesList || []}
                     userAttributes={userAttributes?.get_user_profile_attributes || []}
@@ -1191,7 +1240,6 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     ) : null}
                 </FormStyles.ReservedProgressSpace>
             </Dialog>
-
             <ImportDataDrawer
                 open={openImportDrawer}
                 closeDrawer={() => setOpenImportDrawer(false)}
@@ -1201,7 +1249,6 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 doImport={handleImportVoters}
                 errors={null}
             />
-
             <Dialog
                 variant="warning"
                 open={openDeleteBulkModal}
@@ -1218,7 +1265,6 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             >
                 {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.delete.bulkBody`)}
             </Dialog>
-
             <Dialog
                 variant="info"
                 open={openExport}
@@ -1263,11 +1309,16 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 open={openUsersLogsModal}
                 handleClose={handleClose}
             >
-                <ElectoralLogList
-                    showActions={false}
-                    filterToShow={ElectoralLogFilters.USER_ID}
-                    filterValue={recordIds[0]?.toString()}
-                />
+                {/* The conditional below prevents re-rendering and data
+                refetching when closing the dialog with no id */}
+                {recordIds && recordIds.length > 0 && (
+                    <ElectoralLogList
+                        electionEventId={electionEventId}
+                        showActions={false}
+                        filterToShow={ElectoralLogFilters.USER_ID}
+                        filterValue={recordIds[0]?.toString()}
+                    />
+                )}
             </Dialog>
             {openEditPassword && (
                 <EditPassword
@@ -1278,5 +1329,31 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 />
             )}
         </>
+    )
+}
+
+interface TableSkeletonProps {
+    rowCount?: number
+    columnWidths?: string[]
+}
+
+export const TableSkeleton: React.FC<TableSkeletonProps> = ({
+    rowCount = 10,
+    columnWidths = ["10%", "20%", "20%", "10%", "15%", "25%"],
+}) => {
+    return (
+        <Box sx={{width: "100%", p: 2}}>
+            {Array.from({length: rowCount}).map((_, rowIndex) => (
+                <Box key={rowIndex} sx={{display: "flex", gap: 2, mb: 1, alignItems: "center"}}>
+                    {columnWidths.map((width, colIndex) => (
+                        <Skeleton
+                            key={`${rowIndex}-${colIndex}`}
+                            variant="text"
+                            sx={{width, height: 24}}
+                        />
+                    ))}
+                </Box>
+            ))}
+        </Box>
     )
 }

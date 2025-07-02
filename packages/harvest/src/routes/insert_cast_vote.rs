@@ -18,7 +18,7 @@ use std::time::Instant;
 use tracing::{debug, error, info, instrument};
 use windmill::services::insert_cast_vote::{
     try_insert_cast_vote, CastVoteError, InsertCastVoteInput,
-    InsertCastVoteOutput,
+    InsertCastVoteOutput, InsertCastVoteResult,
 };
 
 /// API endpoint for inserting votes. POST coming from the
@@ -54,7 +54,7 @@ pub async fn insert_cast_vote(
 
     info!("insert-cast-vote: starting");
 
-    let insert_result = retry_with_exponential_backoff(
+    let insert_result_wrapped = retry_with_exponential_backoff(
         // The closure we want to call repeatedly
         || async {
             try_insert_cast_vote(
@@ -64,7 +64,7 @@ pub async fn insert_cast_vote(
                 &area_id,
                 &voting_channel,
                 &claims.auth_time,
-                &user_info.ip.clone().map(|ip| ip.to_string()),
+                &user_info.ip.map(|ip| ip.to_string()),
                 &user_info
                     .country_code
                     .clone()
@@ -78,6 +78,19 @@ pub async fn insert_cast_vote(
         Duration::from_millis(100),
     )
     .await;
+
+    // Unwrap SkipRetryFailure into a normal Result/Error
+    let insert_result = match insert_result_wrapped {
+        Ok(insert_cv_result) => match insert_cv_result {
+            InsertCastVoteResult::Success(inserted_cast_vote) => {
+                Ok(inserted_cast_vote)
+            }
+            InsertCastVoteResult::SkipRetryFailure(cast_vote_error) => {
+                Err(cast_vote_error)
+            }
+        },
+        Err(e) => Err(e),
+    };
 
     let inserted_cast_vote = insert_result
     .map_err(|cast_vote_err| {
@@ -130,6 +143,11 @@ pub async fn insert_cast_vote(
                     ErrorCode::CheckPreviousVotesFailed,
                 )
             }
+            CastVoteError::InsertFailedExceedsAllowedRevotes => ErrorResponse::new(
+                Status::BadRequest,
+                ErrorCode::CheckPreviousVotesFailed.to_string().as_str(),
+                ErrorCode::CheckPreviousVotesFailed,
+            ),
             CastVoteError::InsertFailed(_) => ErrorResponse::new(
                 Status::InternalServerError,
                 ErrorCode::InternalServerError.to_string().as_str(),

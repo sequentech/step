@@ -15,8 +15,13 @@ use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumString};
 use tracing::instrument;
 use uuid::Uuid;
+use windmill::{postgres::reports::Report, services::tasks_execution::*};
 use windmill::{
-    postgres::reports::get_report_by_id,
+    postgres::reports::{get_report_by_type, ReportType},
+    services::reports_vault::get_report_key_pair,
+};
+use windmill::{
+    postgres::{document::get_document, reports::get_report_by_id},
     services::{
         celery_app::get_celery_app,
         database::get_hasura_pool,
@@ -25,11 +30,142 @@ use windmill::{
     tasks::generate_template::EGenerateTemplate,
     types::tasks::ETasksExecution,
 };
-use windmill::{postgres::reports::Report, services::tasks_execution::*};
-use windmill::{
-    postgres::reports::{get_report_by_type, ReportType},
-    services::reports_vault::get_report_key_pair,
-};
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct RenderDocumentPdfInput {
+    pub document_id: String,
+    pub election_event_id: Option<String>,
+    pub tally_session_id: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct RenderDocumentPdfResponse {
+    pub document_id: String,
+    pub task_execution: TasksExecution,
+}
+
+#[instrument(skip(claims))]
+#[post("/render-document-pdf", format = "json", data = "<body>")]
+pub async fn render_document_pdf(
+    claims: JwtClaims,
+    body: Json<RenderDocumentPdfInput>,
+) -> Result<Json<RenderDocumentPdfResponse>, (Status, String)> {
+    let input = body.into_inner();
+    authorize(
+        &claims,
+        true,
+        Some(claims.hasura_claims.tenant_id.clone()),
+        vec![Permissions::REPORT_READ],
+    )?;
+
+    let mut hasura_db_client: DbClient =
+        get_hasura_pool().await.get().await.map_err(|e| {
+            (
+                Status::InternalServerError,
+                format!("Error obtaining keycloak transaction: {e:?}"),
+            )
+        })?;
+    let hasura_transaction =
+        hasura_db_client.transaction().await.map_err(|e| {
+            (
+                Status::InternalServerError,
+                format!("Error obtaining hasura transaction: {e:?}"),
+            )
+        })?;
+
+    let election_event_id = input.election_event_id.clone();
+    let document_id = input.document_id.clone();
+
+    let Some(found_document) = get_document(
+        &hasura_transaction,
+        &claims.hasura_claims.tenant_id,
+        election_event_id.clone(),
+        &document_id,
+    )
+    .await
+    .map_err(|e| {
+        (
+            Status::InternalServerError,
+            format!("Error fetching document: {e:?}"),
+        )
+    })?
+    else {
+        return Err((
+            Status::NotFound,
+            format!("Document not found: {}", document_id),
+        ));
+    };
+
+    if let Some(media_type) = found_document.media_type {
+        if "text/html".to_string() != media_type {
+            return Err((
+                Status::InternalServerError,
+                format!("Invalid document type: {}", media_type),
+            ));
+        }
+    } else {
+        return Err((
+            Status::InternalServerError,
+            format!("Document {}: missing media type", document_id),
+        ));
+    };
+
+    let executer_name = claims
+        .name
+        .clone()
+        .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
+
+    let executer_username = claims
+        .preferred_username
+        .clone()
+        .unwrap_or_else(|| executer_name.clone());
+
+    let output_document_id: String = Uuid::new_v4().to_string();
+
+    let celery_app = get_celery_app().await;
+
+    // Insert the task execution record
+    let task_execution = post(
+        &claims.hasura_claims.tenant_id,
+        election_event_id.as_deref(),
+        ETasksExecution::RENDER_DOCUMENT_PDF,
+        &executer_name,
+    )
+    .await
+    .map_err(|error| {
+        (
+            Status::InternalServerError,
+            format!("Failed to insert task execution record: {error:?}"),
+        )
+    })?;
+
+    let _task = celery_app
+        .send_task(
+            windmill::tasks::render_document_pdf::render_document_pdf::new(
+                claims.hasura_claims.tenant_id.clone(),
+                document_id.clone(),
+                election_event_id.clone(),
+                task_execution.clone(),
+                Some(executer_username),
+                output_document_id.clone(),
+                input.tally_session_id.clone(),
+            ),
+        )
+        .await
+        .map_err(|e| {
+            (
+                Status::InternalServerError,
+                format!("Error publishing task render_document_pdf {e:?}"),
+            )
+        })?;
+
+    Ok(Json(RenderDocumentPdfResponse {
+        document_id: output_document_id,
+        task_execution: task_execution.clone(),
+    }))
+}
+
+////////////
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GenerateTemplateResponse {
@@ -79,15 +215,19 @@ pub async fn generate_template(
 
     let document_id: String = Uuid::new_v4().to_string();
     let celery_app = get_celery_app().await;
-    let election_id: String = match input.clone() {
-        EGenerateTemplate::BallotImages { election_id, .. } => election_id,
-        EGenerateTemplate::VoteReceipts { election_id, .. } => election_id,
+    let election_event_id: String = match input.clone() {
+        EGenerateTemplate::BallotImages {
+            election_event_id, ..
+        } => election_event_id,
+        EGenerateTemplate::VoteReceipts {
+            election_event_id, ..
+        } => election_event_id,
     };
 
     // Insert the task execution record
     let task_execution = post(
         &claims.hasura_claims.tenant_id,
-        Some(&election_id),
+        Some(&election_event_id),
         ETasksExecution::GENERATE_REPORT,
         &executer_name,
     )
@@ -259,7 +399,19 @@ pub async fn encrypt_report_route(
         vec![Permissions::REPORT_WRITE],
     )?;
 
+    let mut hasura_db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    let hasura_transaction = hasura_db_client
+        .transaction()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
     get_report_key_pair(
+        &hasura_transaction,
         tenant_id,
         body.election_event_id.clone(),
         body.report_id.clone(),
@@ -276,6 +428,11 @@ pub async fn encrypt_report_route(
         document_id,
         error_msg: None,
     };
+
+    hasura_transaction
+        .commit()
+        .await
+        .map_err(|err| (Status::InternalServerError, err.to_string()))?;
 
     Ok(Json(output))
 }

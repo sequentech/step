@@ -79,10 +79,12 @@ const englishTranslation = {
                 EXPORT_APPLICATION: "Export Applications",
                 EXPORT_TENANT_CONFIG: "Export Tenant Config",
                 IMPORT_TENANT_CONFIG: "Import Tenant Config",
+                RENDER_DOCUMENT_PDF: "Render Document PDF",
             },
             widget: {
                 taskTitle: "Task: {{title}}",
                 viewTask: "View Task",
+                downloadDocument: "Download File",
             },
             exportTasksExecution: {
                 success: "Export finished successfully",
@@ -414,6 +416,10 @@ const englishTranslation = {
                         "The Tally Ceremony cannot start until you create one publication in the Publish tab.",
                     participateNow:
                         "You have been invited to participate in a Tally ceremony. Please <1>click on the ceremony's Key Action</1> to participate.",
+                    startDisabled:
+                        "You cannot continue the ceremony because no elections are selected or the elections are not published.",
+                    ceremonyDisabled:
+                        "You cannot continue the ceremony because the tally session is not connected or the start of the ceremony is not allowed.",
                 },
             },
             importAreas: {
@@ -479,6 +485,7 @@ const englishTranslation = {
                 copiedError: "Error copying password",
                 reports: "Reports",
                 applications: "Applications",
+                tally: "Tally",
             },
             taskNotification:
                 "{{action}} has started. You can see its status at Tasks Execution table.",
@@ -555,6 +562,13 @@ const englishTranslation = {
                 "label": "Initialize Report Policy",
                 "not-required": "Not Required",
                 "required": "Required",
+            },
+            castVoteGoldLevelPolicy: {
+                label: "Gold level Authentication Policy",
+                options: {
+                    "gold-level": "Gold level Authentication",
+                    "no-gold-level": "No Gold level Authentication",
+                },
             },
         },
         tenantScreen: {
@@ -1055,6 +1069,11 @@ const englishTranslation = {
                 kind: "File type",
                 filter: "Custom Filters",
                 approve: "Approve",
+                continue: "Continue",
+                logout: "Logout",
+                selectTenant: "Select Tenant",
+                processing: "Processing...",
+                tenantName: "Tenant Name",
             },
             language: {
                 es: "Spanish",
@@ -1062,6 +1081,9 @@ const englishTranslation = {
                 fr: "French",
                 cat: "Valencian",
                 tl: "Tagalog",
+                gl: "Galician",
+                nl: "Dutch",
+                eu: "Euskera",
             },
             channel: {
                 online: "Online",
@@ -1069,6 +1091,7 @@ const englishTranslation = {
             },
             message: {
                 delete: "Are you sure you want to delete this item?",
+                continueOrLogout: "Do you want to stay connected to this tenant or logout?",
             },
         },
         createResource: {
@@ -1839,6 +1862,10 @@ const englishTranslation = {
                 isHidden: "Is Hidden",
                 publicUrl: "Public URL",
             },
+            empty: {
+                header: "No support material yet",
+                action: "Generate support material  ",
+            },
         },
         widget: {
             logs: "Logs",
@@ -1895,11 +1922,11 @@ const englishTranslation = {
                 message: "Write here the disapproval reason",
                 messageRequired: "A rejection message is required for the 'Other' option.",
                 reasons: {
-                    undefined: "-",
-                    INSUFFICIENT_INFORMATION: "Missing Data",
-                    NO_VOTER: "No Matching Voter",
-                    ALREADY_APPROVED: "Already Approved",
-                    OTHER: "Other",
+                    "undefined": "-",
+                    "insufficient-information": "Missing Data",
+                    "no-matching-voter": "No Matching Voter",
+                    "voter-already-approved": "Already Approved",
+                    "other": "Other",
                 },
             },
             notifications: {
@@ -1928,8 +1955,8 @@ const englishTranslation = {
             polls: {
                 title: "Polls",
                 initializedSystems: "Posts with Initialized Systems",
-                votingOpened: "Posts with Voting Opened",
-                votingClosed: "Posts with Voting Closed",
+                votingOpened: "Posts with Online Voting Opened",
+                votingClosed: "Posts with Both Voting Channels Closed",
                 votingStarted: "Posts with Voting Started",
                 voterTurnout: "Voter Turnout",
             },

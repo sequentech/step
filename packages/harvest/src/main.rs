@@ -2,12 +2,12 @@
 // SPDX-FileCopyrightText: 2024 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-
+#![recursion_limit = "256"]
 #[macro_use]
 extern crate rocket;
 
 use dotenv::dotenv;
-use sequent_core::services::connection::LastAccessToken;
+use sequent_core::services::connection::LastDatafixAccessToken;
 use sequent_core::util::init_log::init_log;
 use windmill::services::{
     celery_app::set_is_app_active,
@@ -78,6 +78,7 @@ async fn rocket() -> _ {
                 routes::users::delete_user,
                 routes::users::delete_users,
                 routes::users::get_users,
+                routes::users::count_users,
                 routes::users::get_user,
                 routes::users::edit_user,
                 routes::users::get_user_profile_attributes,
@@ -117,6 +118,7 @@ async fn rocket() -> _ {
                 routes::import_templates::import_templates_route,
                 routes::election_event_stats::get_election_event_top_votes_by_ip,
                 routes::export_ballot_publication::export_ballot_publication_route,
+                routes::reports::render_document_pdf,
                 routes::reports::generate_template,
                 routes::reports::generate_report,
                 routes::reports::encrypt_report_route,
@@ -132,5 +134,5 @@ async fn rocket() -> _ {
                 routes::set_voter_authentication::set_voter_authentication,
             ],
         )
-        .manage(LastAccessToken::init())
+        .manage(LastDatafixAccessToken::init())
 }

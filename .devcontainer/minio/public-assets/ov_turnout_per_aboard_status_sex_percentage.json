@@ -77,7 +77,6 @@
                 }
             },
             "election_annotations": {
-                "registered_voters": "10",
                 "geographical_region": "Asia/Pacific",
                 "post": "Bangkok PE",
                 "voting_center": "Bankok",

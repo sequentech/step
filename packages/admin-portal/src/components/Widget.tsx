@@ -5,11 +5,13 @@ import React, {useContext, useEffect, useState} from "react"
 import {
     Accordion,
     AccordionDetails,
+    Box,
     Divider,
     LinearProgress,
     TableBody,
     TableRow,
 } from "@mui/material"
+import DownloadIcon from "@mui/icons-material/Download"
 import {
     TransparentTable,
     TransparentTableCell,
@@ -24,6 +26,7 @@ import {
     LogsBox,
     CustomAccordionSummary,
     ViewTaskTypography,
+    DownloaButton,
     StatusIconsBox,
 } from "./styles/WidgetStyle"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
@@ -38,6 +41,9 @@ import {ViewTask} from "@/resources/Tasks/ViewTask"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import {GET_TASK_BY_ID} from "@/queries/GetTaskById"
 import {useQuery} from "@apollo/client"
+import {DownloadDocument} from "@/resources/User/DownloadDocument"
+import {Button} from "react-admin"
+import {GetTaskByIdQuery} from "@/gql/graphql"
 
 interface LogTableProps {
     logs: ITaskLog[]
@@ -96,6 +102,8 @@ export const Widget: React.FC<WidgetProps> = ({
     const {globalSettings} = useContext(SettingsContext)
     const [expanded, setExpanded] = useState(false)
     const [openTaskModal, setOpenTaskModal] = useState(false)
+    const [exportDocumentId, setExportDocumentId] = useState<string | undefined>(undefined)
+    const [downloading, setDownloading] = useState<boolean>(false)
     const [taskDataType, setTaskDataType] = useState<ETasksExecution | undefined>(type)
     const [taskDataStatus, setTaskDataStatus] = useState<ETaskExecutionStatus>(status)
     const [taskDataLogs, setTaskDataLogs] = useState<Array<ITaskLog>>(logs || [])
@@ -104,17 +112,21 @@ export const Widget: React.FC<WidgetProps> = ({
         {created_date: new Date().toLocaleString(), log_text: "Task started"},
     ]
 
-    const {data: taskData} = useQuery(GET_TASK_BY_ID, {
+    const {data: taskData} = useQuery<GetTaskByIdQuery>(GET_TASK_BY_ID, {
         variables: {task_id: taskId},
         skip: !taskId,
-        pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+        pollInterval: [ETaskExecutionStatus.STARTED, ETaskExecutionStatus.IN_PROGRESS].includes(
+            taskDataStatus
+        )
+            ? globalSettings.QUERY_FAST_POLL_INTERVAL_MS
+            : globalSettings.QUERY_POLL_INTERVAL_MS,
     })
 
     useEffect(() => {
         if (taskData && taskData.sequent_backend_tasks_execution.length > 0) {
             const task = taskData.sequent_backend_tasks_execution[0]
-            setTaskDataType(task.type)
-            setTaskDataStatus(task.execution_status)
+            setTaskDataType(task.type as ETasksExecution)
+            setTaskDataStatus(task.execution_status as ETaskExecutionStatus)
             setTaskDataLogs(task.logs)
         }
     }, [taskData])
@@ -132,6 +144,8 @@ export const Widget: React.FC<WidgetProps> = ({
         event.stopPropagation()
         setOpenTaskModal(!openTaskModal)
     }
+
+    const lastTask = taskData?.sequent_backend_tasks_execution?.[0]
 
     return (
         <>
@@ -192,11 +206,35 @@ export const Widget: React.FC<WidgetProps> = ({
                                 status={taskDataStatus || status}
                             />
                         </LogsBox>
-                        {taskId ? (
-                            <ViewTaskTypography className="view-icon" onClick={onSetViewTask}>
-                                {t("tasksScreen.widget.viewTask")}
-                            </ViewTaskTypography>
-                        ) : null}
+                        <Box sx={{display: "flex", flexDirection: "row-reverse"}}>
+                            {taskId ? (
+                                <>
+                                    <ViewTaskTypography
+                                        className="view-icon"
+                                        onClick={onSetViewTask}
+                                    >
+                                        {t("tasksScreen.widget.viewTask")}
+                                    </ViewTaskTypography>
+                                </>
+                            ) : null}
+                            {taskId &&
+                            lastTask?.election_event_id &&
+                            lastTask?.annotations?.document_id ? (
+                                <DownloaButton
+                                    onClick={() => {
+                                        setDownloading(true)
+                                        setExportDocumentId(lastTask?.annotations?.document_id)
+                                    }}
+                                    disabled={
+                                        downloading ||
+                                        lastTask?.execution_status !== ETaskExecutionStatus.SUCCESS
+                                    }
+                                    label={t("tasksScreen.widget.downloadDocument")}
+                                >
+                                    <DownloadIcon />
+                                </DownloaButton>
+                            ) : null}
+                        </Box>
                     </AccordionDetails>
                 </Accordion>
             </WidgetContainer>
@@ -207,6 +245,19 @@ export const Widget: React.FC<WidgetProps> = ({
                     goBack={() => setOpenTaskModal(false)}
                     isModal={true}
                 />
+            )}
+            {exportDocumentId && downloading && (
+                <>
+                    <DownloadDocument
+                        documentId={(downloading && exportDocumentId) || ""}
+                        electionEventId={lastTask?.election_event_id ?? ""}
+                        fileName={null}
+                        onDownload={() => {
+                            setDownloading(false)
+                            setExportDocumentId(undefined)
+                        }}
+                    />
+                </>
             )}
         </>
     )
