@@ -632,10 +632,10 @@ pub async fn get_areas_by_ids(
 #[instrument(skip(hasura_transaction), err)]
 pub async fn insert_area_contests(
     hasura_transaction: &Transaction<'_>,
-    area_id: &Uuid,
-    contest_ids: &[Uuid],
+    tenant_id: &str,
     election_event_id: &Uuid,
-    tenant_id: &Uuid,
+    area_id: &str,
+    contest_ids: &[Uuid],
 ) -> Result<()> {
     // Insert new area_contests
     for contest_id in contest_ids {
@@ -655,7 +655,13 @@ pub async fn insert_area_contests(
         let _rows: Vec<Row> = hasura_transaction
             .query(
                 &statement,
-                &[&id, tenant_id, election_event_id, contest_id, area_id],
+                &[
+                    &id,
+                    &Uuid::parse_str(tenant_id)?,
+                    election_event_id,
+                    contest_id,
+                    &Uuid::parse_str(area_id)?,
+                ],
             )
             .await
             .map_err(|err| anyhow!("Error running the document query: {err}"))?;
@@ -667,17 +673,17 @@ pub async fn insert_area_contests(
 #[instrument(skip(hasura_transaction), err)]
 pub async fn delete_area_contests(
     hasura_transaction: &Transaction<'_>,
-    area_id: &Uuid,
+    tenant_id: &str,
     election_event_id: &Uuid,
-    tenant_id: &Uuid,
+    area_id: &str,
 ) -> Result<()> {
     // Delete existing area_contest rows for this area
     let query: String = format!(
         r#"
             DELETE FROM sequent_backend.area_contest 
-            WHERE area_id = $1 
-            AND tenant_id = $2 
-            AND election_event_id = $3;
+            WHERE tenant_id = $1 
+            AND election_event_id = $2 
+            AND area_id = $3;
             "#
     );
 
@@ -685,7 +691,14 @@ pub async fn delete_area_contests(
     let statement = hasura_transaction.prepare(&query).await?;
 
     hasura_transaction
-        .execute(&statement, &[area_id, tenant_id, election_event_id])
+        .execute(
+            &statement,
+            &[
+                &Uuid::parse_str(tenant_id)?,
+                &election_event_id,
+                &Uuid::parse_str(area_id)?,
+            ],
+        )
         .await
         .map_err(|err| anyhow!("Error executing the delete query: {err}"))?;
 

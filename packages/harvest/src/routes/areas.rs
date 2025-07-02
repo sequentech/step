@@ -13,7 +13,7 @@ use sequent_core::types::hasura::core::Area;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
-use tracing::{event, instrument, Level};
+use tracing::instrument;
 use uuid::Uuid;
 use windmill::postgres::area::{
     delete_area_contests, insert_area, insert_area_contests, update_area,
@@ -57,12 +57,12 @@ pub async fn upsert_area(
         .await
         .get()
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     let hasura_transaction = hasura_db_client
         .transaction()
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     let now_local = chrono::Utc::now().with_timezone(&chrono::Local);
     let area = Area {
@@ -86,60 +86,40 @@ pub async fn upsert_area(
     if body.id.is_some() {
         update_area(&hasura_transaction, area.clone())
             .await
-            .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+            .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
     } else {
         insert_area(&hasura_transaction, area.clone())
             .await
-            .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+            .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
     }
-
-    // Parse UUIDs without using the ? operator
-    let area_id = match Uuid::parse_str(&area.id) {
-        Ok(id) => id,
-        Err(e) => {
-            return Err((
-                Status::InternalServerError,
-                format!("Invalid area ID: {:?}", e),
-            ))
-        }
-    };
     let election_event_id = body.election_event_id;
-    let tenant_id = match Uuid::parse_str(&claims.hasura_claims.tenant_id) {
-        Ok(id) => id,
-        Err(e) => {
-            return Err((
-                Status::InternalServerError,
-                format!("Invalid tenant ID: {:?}", e),
-            ))
-        }
-    };
-
+    let tenant_id = &claims.hasura_claims.tenant_id;
     delete_area_contests(
         &hasura_transaction,
-        &area_id,
-        &election_event_id,
-        &tenant_id,
+        tenant_id,
+        &body.election_event_id,
+        &area.id,
     )
     .await
     .map_err(|e| {
         (
             Status::InternalServerError,
-            format!("Failed to insert area_contests: {:?}", e),
+            format!("Failed to insert area_contests: {e:?}"),
         )
     })?;
 
     insert_area_contests(
         &hasura_transaction,
-        &area_id,
-        &body.area_contest_ids,
+        tenant_id,
         &election_event_id,
-        &tenant_id,
+        &area.id,
+        &body.area_contest_ids,
     )
     .await
     .map_err(|e| {
         (
             Status::InternalServerError,
-            format!("Failed to insert area_contests: {:?}", e),
+            format!("Failed to insert area_contests: {e:?}"),
         )
     })?;
 
@@ -151,13 +131,13 @@ pub async fn upsert_area(
         false,
     )
     .await
-    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     hasura_transaction
         .commit()
         .await
         .with_context(|| "error comitting transaction")
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     Ok(Json(UpsertAreaOutput { id: area.id }))
 }
