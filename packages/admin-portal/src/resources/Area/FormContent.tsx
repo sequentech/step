@@ -117,7 +117,7 @@ export const FormContent: React.FC<UpsertAreaProps> = (props) => {
         } catch (e) {
             console.log("aa error creating", e)
             refresh()
-            notify("areas.createAreaError", {type: "error"})
+            notify(t("areas.createAreaError"), {type: "error"})
             if (close) {
                 close()
             }

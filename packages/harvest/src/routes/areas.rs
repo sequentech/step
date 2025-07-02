@@ -25,7 +25,7 @@ use windmill::services::import::import_election_event::upsert_b3_and_elog;
 pub struct UpsertAreaInput {
     pub id: Option<Uuid>,
     pub name: String,
-    pub description: String,
+    pub description: Option<String>,
     pub election_event_id: Uuid,
     pub tenant_id: Uuid,
     pub parent_id: Option<Uuid>,
@@ -75,7 +75,7 @@ pub async fn upsert_area(
         labels: body.labels.clone(),
         annotations: body.annotations.clone(),
         name: Some(body.name.clone()),
-        description: Some(body.description.clone()),
+        description: body.description.clone(),
         r#type: body.r#type.clone(),
         parent_id: body.parent_id.map(|uuid| uuid.to_string()),
         created_at: Some(now_local),
