@@ -87,6 +87,7 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
     const confirmCancelCeremony = () => {}
 
     const status: IExecutionStatus = ceremony?.status
+    const orderedTrustees = status?.trustees.sort((a, b) => a.name.localeCompare(b.name))
 
     return (
         <WizardStyles.WizardContainer>
@@ -138,7 +139,7 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                                     </TableRow>
                                 </TableHead>
                                 <TableBody>
-                                    {status?.trustees?.map((trustee) => {
+                                    {orderedTrustees?.map((trustee) => {
                                         return (
                                             <TableRow
                                                 key={trustee.name as any}
