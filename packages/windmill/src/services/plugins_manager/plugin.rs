@@ -1,13 +1,20 @@
 // SPDX-FileCopyrightText: 2024 Sequent Legal <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::services::database::{get_hasura_pool, get_keycloak_pool};
+use crate::services::plugins_manager::plugin_db_manager::PluginDbManager;
 use anyhow::{anyhow, Context, Result};
+use deadpool_postgres::{Object, Transaction};
+use immudb_rs::client;
+use ouroboros::self_referencing;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use tokio_postgres::NoTls;
 use wasmtime::component::{Component, Func, Instance, Linker, ResourceTable, Val};
-use wasmtime::{Engine, Store};
+use wasmtime::{Engine, Store, StoreContextMut};
 use wasmtime_wasi::p2::{add_to_linker_sync, IoView, WasiCtx, WasiCtxBuilder, WasiView};
 
+use std::future::Future;
 #[derive(Debug)]
 pub enum HookValue {
     S32(i32),
@@ -70,18 +77,20 @@ impl HookValue {
     }
 }
 
-pub struct PluginCtx {
+pub struct PluginStore {
     pub wasi: WasiCtx,
     pub resource_table: ResourceTable,
+    pub hasura_client: Option<Arc<Mutex<PluginDbManager>>>,
+    pub keycloak_client: Option<Arc<Mutex<PluginDbManager>>>,
 }
 
-impl WasiView for PluginCtx {
+impl WasiView for PluginStore {
     fn ctx(&mut self) -> &mut WasiCtx {
         &mut self.wasi
     }
 }
 
-impl IoView for PluginCtx {
+impl IoView for PluginStore {
     fn table(&mut self) -> &mut ResourceTable {
         &mut self.resource_table
     }
@@ -91,26 +100,31 @@ impl IoView for PluginCtx {
 pub struct Plugin {
     pub name: String,
     pub component: Component,
-    pub instance: Arc<Mutex<(Store<PluginCtx>, Instance)>>,
+    pub instance: Arc<Mutex<(Store<PluginStore>, Instance)>>,
     pub manifest: serde_json::Value,
 }
 
 impl Plugin {
     pub async fn from_wasm_bytes(
         engine: &Engine,
-        linker: &mut Linker<PluginCtx>,
+        linker: &mut Linker<PluginStore>,
         wasm_bytes: Vec<u8>,
     ) -> Result<Self> {
         let component = Component::from_binary(engine, &wasm_bytes)?;
         let wasi = WasiCtxBuilder::new().inherit_stdio().build();
         add_to_linker_sync(linker)?;
 
-        let store_ctx = PluginCtx {
+        let hasura_client = Arc::new(Mutex::new(PluginDbManager::init()));
+        let keycloak_client = Arc::new(Mutex::new(PluginDbManager::init()));
+
+        let plugin_store = PluginStore {
             resource_table: ResourceTable::new(),
             wasi: wasi,
+            hasura_client: Some(hasura_client),
+            keycloak_client: Some(keycloak_client),
         };
 
-        let mut store = Store::new(engine, store_ctx);
+        let mut store = Store::new(engine, plugin_store);
         let instance = linker.instantiate_async(&mut store, &component).await?;
 
         let func_index = component
@@ -127,6 +141,53 @@ impl Plugin {
         };
         let manifest_json: serde_json::Value = serde_json::from_str(&manifest_str)?;
         let plugin_name = manifest_json["plugin_name"].as_str().unwrap().to_string();
+
+        linker.root().func_wrap_async(
+            "execute-hasura-query",
+            |mut ctx: StoreContextMut<'_, PluginStore>,
+             (sql,): (String,)|
+             -> Box<dyn Future<Output = Result<(), wasmtime::Error>> + Send> {
+                Box::new(async move {
+                    match &ctx.data().hasura_client {
+                        Some(client) => {
+                            let mut db_manager = client.lock().await;
+                            let _ = db_manager
+                                .create_hasura_transaction()
+                                .await
+                                .map_err(|e| wasmtime::Error::msg(e.to_string()))?;
+                            Ok(())
+                        }
+                        None => {
+                            return Err(wasmtime::Error::msg("Hasura transaction not initialized"));
+                        }
+                    }
+                })
+            },
+        )?;
+
+        linker.root().func_wrap_async(
+            "execute-hasura-query",
+            |mut ctx: StoreContextMut<'_, PluginStore>,
+             (sql,): (String,)|
+             -> Box<dyn Future<Output = Result<(String,), wasmtime::Error>> + Send> {
+                Box::new(async move {
+                    match &ctx.data().hasura_client {
+                        Some(client) => {
+                            let mut db_manager = client.lock().await;
+                            let res = db_manager
+                                .exec(&sql)
+                                .await
+                                .map_err(|e| wasmtime::Error::msg(e.to_string()))?;
+                            Ok((res,))
+                        }
+                        None => {
+                            return Err(wasmtime::Error::msg("Hasura transaction not initialized"));
+                        }
+                    }
+                })
+            },
+        )?;
+
         Ok(Self {
             name: plugin_name,
             component,

@@ -5,3 +5,4 @@
 pub mod plugin;
 pub mod plugin_manager;
 pub mod plugins_hooks;
+pub mod plugin_db_manager;

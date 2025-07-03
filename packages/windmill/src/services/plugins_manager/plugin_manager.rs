@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2024 Sequent Legal <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::services::plugins_manager::plugin::{HookValue, Plugin, PluginCtx};
+use crate::services::plugins_manager::plugin::{HookValue, Plugin, PluginStore};
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use dashmap::DashMap;
@@ -15,13 +15,14 @@ pub struct PluginManager {
     pub plugins: DashMap<String, Arc<Plugin>>,
     pub hook_index: DashMap<String, String>,
     pub engine: Engine,
-    pub linker: Linker<PluginCtx>,
+    pub linker: Linker<PluginStore>,
 }
 
 impl PluginManager {
     pub fn new() -> Result<Self> {
         let mut config = Config::new();
         config.wasm_component_model(true);
+        config.async_support(true);
         let engine = Engine::new(&config)?;
         let linker = Linker::new(&engine);
 

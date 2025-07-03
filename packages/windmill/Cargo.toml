@@ -126,3 +126,5 @@ croner = "2.0"
 unicode-normalization = "0.1.24"
 num_cpus = "1.16.0"
 ordered-float = { version = "4.4.0", features = ["serde"] }
+
+ouroboros = "0.18.5"
