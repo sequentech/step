@@ -36,16 +36,16 @@ root.render(
     <React.StrictMode>
         <Router>
             <SettingsWrapper>
-                <AuthContextProvider>
-                    <TenantContextProvider>
-                        <NewResourceContextProvider>
-                            <ElectionEventContextProvider>
-                                <ElectionContextProvider>
-                                    <ContestContextProvider>
-                                        <CandidateContextProvider>
-                                            <ElectionEventTallyContextProvider>
-                                                <PublishContextProvider>
-                                                    <ThemeProvider theme={fullAdminTheme}>
+                <ThemeProvider theme={fullAdminTheme}>
+                    <AuthContextProvider>
+                        <TenantContextProvider>
+                            <NewResourceContextProvider>
+                                <ElectionEventContextProvider>
+                                    <ElectionContextProvider>
+                                        <ContestContextProvider>
+                                            <CandidateContextProvider>
+                                                <ElectionEventTallyContextProvider>
+                                                    <PublishContextProvider>
                                                         <ApolloContextProvider
                                                             role={defaultApolloContextValues.role}
                                                         >
@@ -55,16 +55,16 @@ root.render(
                                                                 </WidgetsContextProvider>
                                                             </ApolloWrapper>
                                                         </ApolloContextProvider>
-                                                    </ThemeProvider>
-                                                </PublishContextProvider>
-                                            </ElectionEventTallyContextProvider>
-                                        </CandidateContextProvider>
-                                    </ContestContextProvider>
-                                </ElectionContextProvider>
-                            </ElectionEventContextProvider>
-                        </NewResourceContextProvider>
-                    </TenantContextProvider>
-                </AuthContextProvider>
+                                                    </PublishContextProvider>
+                                                </ElectionEventTallyContextProvider>
+                                            </CandidateContextProvider>
+                                        </ContestContextProvider>
+                                    </ElectionContextProvider>
+                                </ElectionEventContextProvider>
+                            </NewResourceContextProvider>
+                        </TenantContextProvider>
+                    </AuthContextProvider>
+                </ThemeProvider>
             </SettingsWrapper>
         </Router>
     </React.StrictMode>

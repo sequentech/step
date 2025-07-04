@@ -21,6 +21,7 @@ pub struct VoterInformationBody {
     pub schoolboard: Option<String>,
     pub poll: Option<String>,
     pub birthdate: Option<String>,
+    pub enabled: Option<bool>,
 }
 
 #[derive(Deserialize, Debug)]
