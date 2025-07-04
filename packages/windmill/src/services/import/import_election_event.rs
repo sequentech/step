@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::application::insert_applications;
-use crate::postgres::election_event::update_bulletin_board;
+use crate::postgres::election_event::{get_election_event_by_id_if_exist, update_bulletin_board};
 use crate::postgres::reports::insert_reports;
 use crate::postgres::reports::Report;
 use crate::postgres::trustee::get_all_trustees;
@@ -14,6 +14,7 @@ use crate::services::protocol_manager::get_event_board;
 use crate::services::reports::template_renderer::EReportEncryption;
 use crate::services::reports_vault::get_report_key_pair;
 use crate::services::tasks_execution::update_fail;
+use crate::tasks::insert_election_event::CreateElectionEventInput;
 use crate::types::documents::ETallyDocuments;
 use ::keycloak::types::RealmRepresentation;
 use anyhow::{anyhow, Context, Result};
@@ -59,9 +60,6 @@ use uuid::Uuid;
 use zip::read::ZipArchive;
 
 use super::import_users::import_users_file;
-use crate::hasura::election_event::get_election_event;
-use crate::hasura::election_event::insert_election_event as insert_election_event_hasura;
-use crate::hasura::election_event::insert_election_event::sequent_backend_election_event_insert_input as InsertElectionEventInput;
 use crate::postgres;
 use crate::postgres::area::insert_areas;
 use crate::postgres::area_contest::insert_area_contests;
@@ -73,7 +71,7 @@ use crate::postgres::keys_ceremony;
 use crate::postgres::scheduled_event::insert_scheduled_event;
 use crate::services::consolidation::aes_256_cbc_encrypt::decrypt_file_aes_256_cbc;
 use crate::services::documents;
-use crate::services::documents::upload_and_return_document_postgres;
+use crate::services::documents::upload_and_return_document;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_board::BoardSerializable;
 use crate::services::electoral_log::ElectoralLog;
@@ -235,25 +233,25 @@ pub async fn upsert_keycloak_realm(
     Ok(())
 }
 
-#[instrument(skip(auth_headers), err)]
+#[instrument(skip(hasura_transaction), err)]
 pub async fn insert_election_event_db(
-    auth_headers: &connection::AuthHeaders,
-    object: &InsertElectionEventInput,
+    hasura_transaction: &Transaction<'_>,
+    object: &CreateElectionEventInput,
 ) -> Result<()> {
-    let election_event_id = object.id.clone().unwrap();
-    let tenant_id = object.tenant_id.clone().unwrap();
+    let election_event_id = object
+        .id
+        .clone()
+        .ok_or(anyhow!("Empty election event id"))?;
+    let tenant_id = object.tenant_id.clone();
     // fetch election_event
-    let found_election_event = get_election_event(
-        auth_headers.clone(),
-        tenant_id.clone(),
-        election_event_id.clone(),
+    let found_election_event = get_election_event_by_id_if_exist(
+        hasura_transaction,
+        &tenant_id.clone(),
+        &election_event_id.clone(),
     )
-    .await?
-    .data
-    .expect("expected data".into())
-    .sequent_backend_election_event;
+    .await?;
 
-    if found_election_event.len() > 0 {
+    if found_election_event.is_some() {
         event!(
             Level::INFO,
             "Election event {} for tenant {} already exists",
@@ -263,17 +261,36 @@ pub async fn insert_election_event_db(
         return Ok(());
     }
 
-    let new_election_input = InsertElectionEventInput {
+    let new_election_input = ElectionEvent {
+        id: election_event_id.clone(),
+        tenant_id: object.tenant_id.clone(),
+        name: object.name.clone(),
+        description: object.description.clone(),
+        public_key: object.public_key.clone(),
+        status: object.status.clone(),
+        created_at: None,
+        updated_at: None,
+        labels: object.labels.clone(),
+        annotations: object.annotations.clone(),
+        presentation: object.presentation.clone(),
+        bulletin_board_reference: object.bulletin_board_reference.clone(),
+        is_archived: object.is_archived.unwrap_or(false),
+        voting_channels: object.voting_channels.clone(),
+        user_boards: object.user_boards.clone(),
+        encryption_protocol: object
+            .encryption_protocol
+            .clone()
+            .unwrap_or("RSA256".to_string()),
+        is_audit: object.is_audit.clone(),
+        audit_election_event_id: object.audit_election_event_id.clone(),
+        alias: object.alias.clone(),
         statistics: Some(json!({
             "num_emails_sent": 0,
             "num_sms_sent": 0
         })),
-        ..object.clone()
     };
 
-    let _hasura_response =
-        insert_election_event_hasura(auth_headers.clone(), new_election_input).await?;
-
+    insert_election_event(&hasura_transaction, &new_election_input).await?;
     Ok(())
 }
 
@@ -338,8 +355,7 @@ pub async fn get_document(
 
     let mut temp_file = documents::get_document_as_temp_file(&object.tenant_id, &document)
         .await
-        .map_err(|err| anyhow!("Error trying to get document as temporary file {err}"))
-        .unwrap();
+        .map_err(|err| anyhow!("Error trying to get document as temporary file {err}"))?;
 
     let document_type = document
         .clone()
@@ -471,9 +487,13 @@ pub async fn process_election_event_file(
     .await
     .with_context(|| format!("Error upserting Keycloak realm for tenant ID {tenant_id} and election event ID {election_event_id}"))?;
 
-    insert_election_event(hasura_transaction, &data)
+    insert_election_event(hasura_transaction, &data.election_event)
         .await
         .with_context(|| "Error inserting election event")?;
+
+    manage_dates(&data, hasura_transaction)
+        .await
+        .with_context(|| "Error managing dates")?;
 
     // Upsert immutable board
     let board = upsert_b3_and_elog(hasura_transaction, tenant_id.as_str(), &election_event_id, &election_ids, is_importing_keys)
@@ -739,13 +759,13 @@ pub async fn process_s3_files(
 
     let file_suffix = Path::new(&file_path_string)
         .extension()
-        .unwrap()
+        .ok_or(anyhow!("Empty extension"))?
         .to_str()
-        .unwrap();
+        .ok_or(anyhow!("Empty file suffix"))?;
     let document_type = get_mime_types(file_suffix)[0];
 
     // Upload the file and return the document
-    let _document = upload_and_return_document_postgres(
+    let _document = upload_and_return_document(
         hasura_transaction,
         &file_path_string.clone(),
         file_size,
@@ -1074,10 +1094,10 @@ pub async fn process_document(
                 let tally_file_name = file_name
                     .split("/")
                     .last()
-                    .unwrap()
+                    .ok_or(anyhow!("Unexpected, tally without filename"))?
                     .split(".")
                     .next()
-                    .unwrap();
+                    .ok_or(anyhow!("Unexpected tally without extension"))?;
                 println!("tally_file_name:: {:?}", &tally_file_name);
                 process_tally_file(
                     hasura_transaction,
@@ -1092,6 +1112,114 @@ pub async fn process_document(
             }
         }
     };
+
+    Ok(())
+}
+
+#[instrument(err, skip_all)]
+pub async fn manage_dates(
+    data: &ImportElectionEventSchema,
+    hasura_transaction: &Transaction<'_>,
+) -> Result<()> {
+    let Some(scheduled_events) = data.scheduled_events.clone() else {
+        return Ok(());
+    };
+
+    //Manage election event
+    let election_event_dates = generate_voting_period_dates(
+        scheduled_events.clone(),
+        data.tenant_id.to_string().as_str(),
+        &data.election_event.id,
+        None,
+    )?;
+    if let Some(start_date) = election_event_dates.start_date {
+        maybe_create_scheduled_event(
+            hasura_transaction,
+            data.tenant_id.to_string().as_str(),
+            &data.election_event.id,
+            EventProcessors::START_VOTING_PERIOD,
+            start_date,
+            None,
+        )
+        .await?;
+    }
+    if let Some(end_date) = election_event_dates.end_date {
+        maybe_create_scheduled_event(
+            hasura_transaction,
+            data.tenant_id.to_string().as_str(),
+            &data.election_event.id,
+            EventProcessors::END_VOTING_PERIOD,
+            end_date,
+            None,
+        )
+        .await?;
+    }
+    //Manage elections
+    let elections = &data.elections;
+    for election in elections {
+        let dates = generate_voting_period_dates(
+            scheduled_events.clone(),
+            data.tenant_id.to_string().as_str(),
+            &data.election_event.id,
+            Some(&election.id),
+        )?;
+        if let Some(start_date) = dates.start_date {
+            maybe_create_scheduled_event(
+                hasura_transaction,
+                data.tenant_id.to_string().as_str(),
+                &data.election_event.id,
+                EventProcessors::START_VOTING_PERIOD,
+                start_date,
+                Some(&election.id),
+            )
+            .await?;
+        }
+        if let Some(end_date) = dates.end_date {
+            maybe_create_scheduled_event(
+                hasura_transaction,
+                data.tenant_id.to_string().as_str(),
+                &data.election_event.id,
+                EventProcessors::END_VOTING_PERIOD,
+                end_date,
+                Some(&election.id),
+            )
+            .await?;
+        }
+    }
+    Ok(())
+}
+
+#[instrument(err, skip_all)]
+pub async fn maybe_create_scheduled_event(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    event_processor: EventProcessors,
+    start_date: String,
+    election_id: Option<&str>,
+) -> Result<()> {
+    let start_task_id =
+        generate_manage_date_task_name(tenant_id, election_event_id, election_id, &event_processor);
+    let payload = ManageElectionDatePayload {
+        election_id: match election_id {
+            Some(id) => Some(id.to_string()),
+            None => None,
+        },
+    };
+    let cron_config = CronConfig {
+        cron: None,
+        scheduled_date: Some(start_date.to_string()),
+    };
+    insert_scheduled_event(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        event_processor,
+        &start_task_id,
+        cron_config,
+        serde_json::to_value(payload)?,
+    )
+    .await?;
 
     Ok(())
 }

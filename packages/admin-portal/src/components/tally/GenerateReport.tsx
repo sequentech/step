@@ -58,7 +58,6 @@ export const GenerateReport: React.FC<GenerateReportProps> = ({
                             : "VoteReceipts",
                 },
             })
-            console.log("aa onClick data", data)
             let response = data?.generate_template
             let taskId = response?.task_execution?.id
             let generatedDocumentId = response?.document_id

@@ -513,6 +513,7 @@ async fn process_tally_session_execution_file(
             session_ids,
             status,
             results_event_id: new_results_event_id,
+            documents: None,
         };
 
         tally_session_executions.push(tally_session_execution);

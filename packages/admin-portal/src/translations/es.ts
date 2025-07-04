@@ -80,6 +80,7 @@ const spanishTranslation: TranslationType = {
                 EXPORT_APPLICATION: "Exportar Solicitudes",
                 EXPORT_TENANT_CONFIG: "Exportar Configuración del Cliente",
                 IMPORT_TENANT_CONFIG: "Importar Configuración del Cliente",
+                RENDER_DOCUMENT_PDF: "Renderizar el documento PDF",
             },
             widget: {
                 taskTitle: "Tarea: {{title}}",
@@ -1081,6 +1082,11 @@ const spanishTranslation: TranslationType = {
                 kind: "Tipo de archivo",
                 filter: "Filtros Personalizados",
                 approve: "Aprobar",
+                continue: "Continuar",
+                logout: "Cerrar Sesión",
+                selectTenant: "Seleccionar Inquilino",
+                processing: "Procesando...",
+                tenantName: "Nombre del Inquilino",
             },
             language: {
                 es: "Español",
@@ -1090,6 +1096,7 @@ const spanishTranslation: TranslationType = {
                 tl: "Tagalo",
                 gl: "Galego",
                 nl: "Holandes",
+                eu: "Euskera",
             },
             channel: {
                 online: "En línea",
@@ -1097,6 +1104,7 @@ const spanishTranslation: TranslationType = {
             },
             message: {
                 delete: "¿Estás seguro que quieres borrar este elemento?",
+                continueOrLogout: "¿Quieres continuar o cerrar sesión?",
             },
         },
         createResource: {
@@ -1870,6 +1878,10 @@ const spanishTranslation: TranslationType = {
             fields: {
                 isHidden: "Oculto",
                 publicUrl: "Enlace público",
+            },
+            empty: {
+                header: "Aún no hay material de soporte",
+                action: "Generar material de soporte",
             },
         },
         widget: {

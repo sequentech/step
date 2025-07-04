@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::tasks_execution::get_tasks_by_election_event_id;
 use crate::services::database::get_hasura_pool;
-use crate::services::documents::upload_and_return_document_postgres;
+use crate::services::documents::upload_and_return_document;
 use anyhow::{anyhow, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::services::keycloak::KeycloakAdminClient;
@@ -42,7 +42,7 @@ pub async fn write_export_document(
 
     // Using the first task to get the tenant_id and election_event_id
     if let Some(first_task) = data.first() {
-        upload_and_return_document_postgres(
+        upload_and_return_document(
             transaction,
             &temp_path_string,
             file_size,

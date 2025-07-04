@@ -339,10 +339,7 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
 
     return (
         <>
-            <ElectionHeader
-                title={t("approvalsScreen.title")}
-                subtitle="approvalsScreen.subtitle"
-            />
+            <ElectionHeader title="approvalsScreen.title" subtitle="approvalsScreen.subtitle" />
 
             <List
                 resource="user"
