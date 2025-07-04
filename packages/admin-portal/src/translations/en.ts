@@ -1862,6 +1862,10 @@ const englishTranslation = {
                 isHidden: "Is Hidden",
                 publicUrl: "Public URL",
             },
+            empty: {
+                header: "No support material yet",
+                action: "Generate support material  ",
+            },
         },
         widget: {
             logs: "Logs",

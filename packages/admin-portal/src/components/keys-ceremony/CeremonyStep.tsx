@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {Sequent_Backend_Election_Event, Sequent_Backend_Keys_Ceremony} from "@/gql/graphql"
 
-import React, {useContext, useState} from "react"
+import React, {useContext, useMemo, useState} from "react"
 import {useTranslation} from "react-i18next"
 
 import {theme, Dialog} from "@sequentech/ui-essentials"
@@ -83,6 +83,10 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
             },
         }
     )
+    const orderedTrustees = useMemo(
+        () => [...(ceremony?.status?.trustees ?? [])].sort((a, b) => a.name.localeCompare(b.name)),
+        [ceremony?.status?.trustees]
+    )
 
     const confirmCancelCeremony = () => {}
 
@@ -138,7 +142,7 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                                     </TableRow>
                                 </TableHead>
                                 <TableBody>
-                                    {status?.trustees?.map((trustee) => {
+                                    {orderedTrustees?.map((trustee) => {
                                         return (
                                             <TableRow
                                                 key={trustee.name as any}
