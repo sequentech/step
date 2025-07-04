@@ -1,0 +1,60 @@
+# SPDX-FileCopyrightText: 2023-2024 Sequent Tech <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+name: Build WASM Target
+
+on:
+  pull_request:
+  push:
+    branches: [ 'main' ]
+  release:
+    types: [published]
+
+jobs:
+  build_wasm:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Nix
+        uses: cachix/install-nix-action@v25
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+
+      - name: Check that hashes in yarn.lock are updated with the last build in the repo
+        working-directory: packages
+        run: |
+          if [ -f yarn.lock ]; then
+            hash=$(sha1sum ./ui-core/rust/sequent-core-0.1.0.tgz | awk '{printf $1}')
+            hash1=$(grep "file:./admin-portal/rust/sequent-core-" yarn.lock | awk -F# '{printf $2}' | tr -d '"')
+            hash2=$(grep "file:./ballot-verifier/rust/sequent-core-" yarn.lock | awk -F# '{printf $2}' | tr -d '"')
+            hash3=$(grep "file:./voting-portal/rust/sequent-core-" yarn.lock | awk -F# '{printf $2}' | tr -d '"')
+            echo "Hashes: |$hash| |$hash1| |$hash2| |$hash3|"
+            if ([ -n "$hash" ] && [ -n "$hash1" ] && [ -n "$hash2" ] && [ -n "$hash3" ]); then
+              if ([ "$hash" == "$hash1" ] && [ "$hash" == "$hash2" ] && [ "$hash" == "$hash3" ]); then
+                echo "The hashes are equal"
+              else
+                echo "The hashes are not equal"
+                exit 1
+              fi
+            else
+              echo "Error: unable to extract hashes from files"
+              exit 1
+            fi
+          else
+            echo "Error: one or both files do not exist"
+            exit 1
+          fi
+
+      - name: Check that WASM build works
+        working-directory: packages/sequent-core
+        run: |
+          nix develop --command wasm-pack build --mode no-install --out-name index --release --target web --features=wasmtest
+
+      - name: Check that WASM pack works
+        working-directory: packages/sequent-core
+        run: |
+          nix develop --command wasm-pack -v pack .
