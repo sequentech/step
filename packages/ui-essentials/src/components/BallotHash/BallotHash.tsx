@@ -14,7 +14,7 @@ const HashContainer = styled(Box)`
     flex-direction: row;
     padding: 10px 22px;
     color: ${({theme}) => theme.palette.green.dark};
-    background-color: ${({theme}) => theme.palette.green.light};
+    backgroundcolor: ${({theme}) => theme.palette.green.light};
     gap: 8px;
     border-radius: 4px;
     border: 1px solid ${({theme}) => theme.palette.green.dark};

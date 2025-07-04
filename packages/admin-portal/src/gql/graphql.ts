@@ -313,7 +313,6 @@ export type ElectoralLogOrderBy = {
   statement_kind?: InputMaybe<OrderDirection>;
   statement_timestamp?: InputMaybe<OrderDirection>;
   user_id?: InputMaybe<OrderDirection>;
-  username?: InputMaybe<OrderDirection>;
 };
 
 export type ElectoralLogRow = {

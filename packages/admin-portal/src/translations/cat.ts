@@ -1896,6 +1896,10 @@ const catalanTranslation: TranslationType = {
                 isHidden: "Ocult",
                 publicUrl: "Enllaç públic",
             },
+            empty: {
+                header: "Encara no hi ha material de suport",
+                action: "Genera material de suport",
+            },
         },
         widget: {
             logs: "Registres",

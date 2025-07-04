@@ -25,9 +25,11 @@ interface EditPasswordProps {
     electionEventId?: string
 }
 
-export const InputLabelStyle = styled(InputLabel)<{paddingTop?: boolean}>`
+export const InputLabelStyle = styled(InputLabel, {
+    shouldForwardProp: (prop) => prop !== "paddingTop",
+})<{paddingTop?: boolean}>`
     width: 135px;
-    ${({paddingTop = true}) => paddingTop && "padding-top: 15px;"}
+    ${({paddingTop = true}) => (paddingTop ? "padding-top: 15px;" : "padding-top: 0;")}
 `
 
 export const InputContainerStyle = styled(Box)`
@@ -58,7 +60,7 @@ export const PasswordInputStyle = styled(FormStyles.PasswordInput)(({theme, erro
         },
         "& .MuiInputBase-root.MuiOutlinedInput-root.MuiInputBase-colorPrimary.MuiInputBase-formControl.MuiInputBase-sizeSmall.MuiInputBase-adornedEnd":
             {
-                "margin-block-end": "0px",
+                marginBlockEnd: "0px",
             },
     }
 })

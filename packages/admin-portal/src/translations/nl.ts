@@ -1887,6 +1887,10 @@ const dutchTranslation: TranslationType = {
                 isHidden: "Is Verborgen",
                 publicUrl: "Publieke URL",
             },
+            empty: {
+                header: "Nog geen ondersteunend materiaal",
+                action: "Ondersteunend materiaal genereren",
+            },
         },
         widget: {
             logs: "Logs",
