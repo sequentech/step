@@ -31,8 +31,10 @@ use sequent_core::ballot::VotingStatusChannel;
 use sequent_core::serialization::base64::{Base64Deserialize, Base64Serialize};
 use sequent_core::serialization::deserialize_with_path;
 use sequent_core::services::date::ISO8601;
+use sequent_core::util::retry::retry_with_exponential_backoff;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::time::Duration;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::hash::HashWrapper;
 use strand::serialization::StrandDeserialize;
@@ -624,10 +626,20 @@ impl ElectoralLog {
         let board_message: ElectoralLogMessage = message.try_into()?;
         let ms = vec![board_message];
 
-        let mut client = get_board_client().await?;
-        client
-            .insert_electoral_log_messages(self.elog_database.as_str(), &ms)
-            .await
+        retry_with_exponential_backoff(
+            // The closure we want to call repeatedly
+            || async {
+                let mut client = get_board_client().await?;
+                client
+                    .insert_electoral_log_messages(self.elog_database.as_str(), &ms)
+                    .await
+            },
+            // Maximum number of retries:
+            5,
+            // Initial backoff:
+            Duration::from_millis(100),
+        )
+        .await
     }
 
     /// Builds a keycloak event message and returns the resulting ElectoralLogMessage.
@@ -862,7 +874,7 @@ impl GetElectoralLogBody {
                     clauses.push(format!("WHERE {}", extra_where_clauses.join(" AND ")));
                 }
                 _ => {
-                    let where_clause = clauses.pop().unwrap();
+                    let where_clause = clauses.pop().ok_or(anyhow!("Empty clause"))?;
                     clauses.push(format!(
                         "{} AND {}",
                         where_clause,
@@ -877,7 +889,7 @@ impl GetElectoralLogBody {
             let order_by_clauses: Vec<String> = self
                 .order_by
                 .as_ref()
-                .unwrap()
+                .ok_or(anyhow!("Empty order clause"))?
                 .iter()
                 .map(|(field, direction)| format!("{field} {direction}"))
                 .collect();
@@ -900,7 +912,7 @@ impl GetElectoralLogBody {
         // Handle offset
         if !to_count && self.offset.is_some() {
             let offset_param_name = String::from("offset");
-            let offset = std::cmp::max(self.offset.unwrap(), 0);
+            let offset = std::cmp::max(self.offset.unwrap_or(0), 0);
             clauses.push(format!("OFFSET @{}", offset_param_name));
             params.push(create_named_param(offset_param_name, Value::N(offset)));
         }

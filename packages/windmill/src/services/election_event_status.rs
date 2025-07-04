@@ -4,10 +4,7 @@ use std::collections::HashMap;
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::election::{get_election_by_id, get_elections, update_election_voting_status};
-use crate::postgres::election_event::{
-    get_election_event_by_id, update_election_event_status,
-    update_elections_status_by_election_event,
-};
+use crate::postgres::election_event::{get_election_event_by_id, update_election_event_status};
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::*;

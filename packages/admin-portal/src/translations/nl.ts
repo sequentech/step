@@ -79,6 +79,7 @@ const dutchTranslation: TranslationType = {
                 EXPORT_APPLICATION: "Applicaties Exporteren",
                 EXPORT_TENANT_CONFIG: "Tenantconfiguratie Exporteren",
                 IMPORT_TENANT_CONFIG: "Tenantconfiguratie Importeren",
+                RENDER_DOCUMENT_PDF: "Document als PDF renderen",
             },
             widget: {
                 taskTitle: "Taak: {{title}}",
@@ -1078,6 +1079,11 @@ const dutchTranslation: TranslationType = {
                 kind: "Bestandstype",
                 filter: "Aangepaste Filters",
                 approve: "Goedkeuren",
+                continue: "Doorgaan",
+                logout: "Uitloggen",
+                selectTenant: "Huurder selecteren",
+                processing: "Bezig met verwerken...",
+                tenantName: "Naam van de huurder",
             },
             language: {
                 es: "Spaans",
@@ -1085,7 +1091,9 @@ const dutchTranslation: TranslationType = {
                 fr: "Frans",
                 cat: "Valenciaans",
                 tl: "Tagalog",
+                gl: "Galicisch",
                 nl: "Nederlands",
+                eu: "Euskera",
             },
             channel: {
                 online: "Online",
@@ -1093,6 +1101,7 @@ const dutchTranslation: TranslationType = {
             },
             message: {
                 delete: "Weet u zeker dat u dit item wilt verwijderen?",
+                continueOrLogout: "Wil je doorgaan of uitloggen?",
             },
         },
         createResource: {
@@ -1870,6 +1879,10 @@ const dutchTranslation: TranslationType = {
             fields: {
                 isHidden: "Is Verborgen",
                 publicUrl: "Publieke URL",
+            },
+            empty: {
+                header: "Nog geen ondersteunend materiaal",
+                action: "Ondersteunend materiaal genereren",
             },
         },
         widget: {
