@@ -22,7 +22,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 			action="${url.loginAction}"
 			method="post"
 		>
-			<#list credentialOptions as key, value>
+			<#-- requiredActions is a List<String> of required action ids -->
+			<#list requiredActions as requiredActionId>
 				<div class="${properties.kcFormGroupClass!}">
 					<div
 						id="kc-form-buttons"
@@ -32,12 +33,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 							class="${properties.kcButtonClass!} ${properties.kcButtonPrimaryClass!} ${properties.kcButtonBlockClass!} ${properties.kcButtonLargeClass!}"
 							name="requiredActionName"
 							type="submit"
-							value="${value}"
+							value="${requiredActionId}"
 						>
-							${msg("requiredAction." +  value + ".label")}
+							${msg("requiredAction." +  requiredActionId + ".label")}
 						</button>
 						<p class="kc-2fa-selector-desc">
-							${msg("requiredAction." +  value + ".description")}
+							${msg("requiredAction." +  requiredActionId + ".description")}
 						</p>
 					</div>
 				</div>

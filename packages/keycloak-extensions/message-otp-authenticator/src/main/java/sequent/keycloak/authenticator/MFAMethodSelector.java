@@ -36,24 +36,25 @@ public class MFAMethodSelector implements RequiredActionFactory, RequiredActionP
 
   // map of key-value pairs:
   // - key = credential type
-  // - value = associated required action id
+  // - value = list of associated required action ids
   // {
-  //  	"otp": "CONFIGURE_TOTP",
-  // 		"message-otp": "message-otp-ra"
+  //  	"otp": ["CONFIGURE_TOTP"],
+  // 		"message-otp": ["message-otp-ra", "reset-email-otp-ra"]
   // }
-  private static final Map<String, String> credentialTypes =
+  private static final Map<String, java.util.List<String>> credentialTypes =
       Map.of(
           // Normal OTP
           OTPCredentialModel.TYPE,
-          UserModel.RequiredAction.CONFIGURE_TOTP.name(),
+          java.util.List.of(UserModel.RequiredAction.CONFIGURE_TOTP.name()),
 
-          // Message OTP
+          // Message OTP (SMS and Email)
           MessageOTPCredentialModel.TYPE,
-          ResetMessageOTPRequiredAction.PROVIDER_ID,
+          java.util.List.of(
+              ResetMessageOTPRequiredAction.PROVIDER_ID, ResetEmailOTPRequiredAction.PROVIDER_ID),
 
           // Passkeys
           WebAuthnCredentialModel.TYPE_PASSWORDLESS,
-          WebAuthnPasswordlessRegisterFactory.PROVIDER_ID);
+          java.util.List.of(WebAuthnPasswordlessRegisterFactory.PROVIDER_ID));
 
   @Override
   public InitiatedActionSupport initiatedActionSupport() {
@@ -68,8 +69,14 @@ public class MFAMethodSelector implements RequiredActionFactory, RequiredActionP
     UserModel user = context.getUser();
     AuthenticationSessionModel authSession = context.getAuthenticationSession();
 
-    if (authSession.getRequiredActions().stream().noneMatch(PROVIDER_ID::equals)
-        && credentialTypes.keySet().stream()
+    // Only add the MFA method selector required action if:
+    if (
+    // 1. The selector itself is not already in the session's required actions
+    authSession.getRequiredActions().stream().noneMatch(PROVIDER_ID::equals)
+        &&
+        // 2. The user does not have any credential of the supported types (OTP,
+        //    message-otp, passkey)
+        credentialTypes.keySet().stream()
             .noneMatch(
                 type -> {
                   boolean ret =
@@ -77,17 +84,44 @@ public class MFAMethodSelector implements RequiredActionFactory, RequiredActionP
                           .getStoredCredentialsByTypeStream(type)
                           .findAny()
                           .isPresent();
-                  // TODO: The following doesn't work, for some unknown
-                  // reason
-                  // boolean ret = user
-                  // 	.credentialManager()
-                  // 	.isConfiguredFor(type);
                   log.info(
-                      "evaluateTriggers(): credentiaTypes: type=" + type + ", userHasAny=" + ret);
+                      "evaluateTriggers(): credentialTypes: type=" + type + ", userHasAny=" + ret);
                   return ret;
                 })
-        && user.getRequiredActionsStream().noneMatch(credentialTypes::containsValue)
-        && authSession.getRequiredActions().stream().noneMatch(credentialTypes::containsValue)) {
+        &&
+        // 3. The user does not already have any of the required actions for the
+        //    supported credential types
+        user.getRequiredActionsStream()
+            .noneMatch(
+                ra -> {
+                  boolean match =
+                      credentialTypes.values().stream()
+                          .flatMap(java.util.List::stream)
+                          .anyMatch(ra::equals);
+                  log.info(
+                      "evaluateTriggers(): user requiredAction="
+                          + ra
+                          + ", isSupportedType="
+                          + match);
+                  return match;
+                })
+        &&
+        // 4. The session does not already have any of the required actions for
+        //    the supported credential types
+        authSession.getRequiredActions().stream()
+            .noneMatch(
+                ra -> {
+                  boolean match =
+                      credentialTypes.values().stream()
+                          .flatMap(java.util.List::stream)
+                          .anyMatch(ra::equals);
+                  log.info(
+                      "evaluateTriggers(): session requiredAction="
+                          + ra
+                          + ", isSupportedType="
+                          + match);
+                  return match;
+                })) {
       log.info("evaluateTriggers(): adding required action");
       authSession.addRequiredAction(PROVIDER_ID);
     }
@@ -101,25 +135,27 @@ public class MFAMethodSelector implements RequiredActionFactory, RequiredActionP
     form.setAttribute("realm", context.getRealm());
     form.setAttribute("user", context.getUser());
 
-    Map<String, String> filteredCredentialTypes =
-        credentialTypes.entrySet().stream()
+    // Flatten all required actions and filter only enabled ones
+    java.util.List<String> enabledRequiredActions =
+        credentialTypes.values().stream()
+            .flatMap(java.util.List::stream)
             .filter(
-                entry -> {
-                  String requiredActionId = entry.getValue();
-                  return context
-                      .getRealm()
-                      .getRequiredActionProvidersStream()
-                      .anyMatch(
-                          action -> {
-                            log.infov(
-                                "action.id={0}, enabled={1}",
-                                action.getAlias(), action.isEnabled());
-                            return (action.isEnabled()
-                                && action.getAlias().equals(requiredActionId));
-                          });
-                })
-            .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-    form.setAttribute("credentialOptions", filteredCredentialTypes);
+                requiredActionId ->
+                    context
+                        .getRealm()
+                        .getRequiredActionProvidersStream()
+                        .anyMatch(
+                            action -> {
+                              log.infov(
+                                  "action.id={0}, enabled={1}",
+                                  action.getAlias(), action.isEnabled());
+                              return action.isEnabled()
+                                  && action.getAlias().equals(requiredActionId);
+                            }))
+            .distinct()
+            .collect(Collectors.toList());
+
+    form.setAttribute("requiredActions", enabledRequiredActions);
     context.challenge(form.createForm(TPL_SELECTOR));
   }
 
