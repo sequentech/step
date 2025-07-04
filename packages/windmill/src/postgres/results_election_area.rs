@@ -79,7 +79,7 @@ pub async fn insert_results_election_area_documents(
             "#,
         )
         .await?;
-    let rows: Vec<Row> = hasura_transaction
+    let _rows: Vec<Row> = hasura_transaction
         .query(
             &statement,
             &[

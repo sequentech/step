@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::postgres::reports::get_reports_by_election_id;
+use crate::postgres::reports::get_reports;
 use crate::postgres::reports::ReportType;
 use crate::postgres::tally_session::get_tally_session_by_id;
 use crate::services::ceremonies::encrypter::encrypt_file;
@@ -276,7 +276,7 @@ async fn generate_template_document(
     compress_folder_to_zip(&election_path, output_zip_path)?;
 
     let election_reports =
-        get_reports_by_election_id(hasura_transaction, tenant_id, &election_id).await?;
+        get_reports(hasura_transaction, tenant_id, None, Some(&election_id)).await?;
 
     let report = election_reports
         .iter()

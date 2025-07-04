@@ -8,7 +8,7 @@ use super::encrypter::{
 use super::renamer::rename_folders;
 use crate::postgres::document::get_document;
 use crate::postgres::reports::Report;
-use crate::postgres::reports::{get_reports_by_election_event_id, ReportType};
+use crate::postgres::reports::{get_reports, ReportType};
 use crate::postgres::results_election_area::insert_results_election_area_documents;
 use crate::services::ceremonies::renamer::*;
 use crate::sqlite::results_area_contest::update_results_area_contest_documents_sqlite;
@@ -65,10 +65,9 @@ async fn generic_save_documents(
     let mut documents: ResultDocuments = Default::default();
 
     // Retrieve reports
-    let all_reports =
-        get_reports_by_election_event_id(hasura_transaction, tenant_id, election_event_id)
-            .await
-            .map_err(|err| anyhow!("Error getting reports: {err:?}"))?;
+    let all_reports = get_reports(hasura_transaction, tenant_id, Some(election_event_id), None)
+        .await
+        .map_err(|err| anyhow!("Error getting reports: {err:?}"))?;
 
     let report_type = get_file_report_type(&tally_type_enum.to_string())
         .context("Error getting file report type")?;
@@ -253,8 +252,7 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
             let contest = &self[0].reports[0].contest;
 
             let all_reports =
-                get_reports_by_election_event_id(hasura_transaction, tenant_id, election_event_id)
-                    .await?;
+                get_reports(hasura_transaction, tenant_id, Some(election_event_id), None).await?;
             let all_reports_clone = all_reports.clone();
 
             // Encrypt the tar.gz folder if necessary before uploading

@@ -10,7 +10,7 @@ use crate::postgres::contest::export_contests;
 use crate::postgres::election::export_elections;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::keys_ceremony::get_keys_ceremonies;
-use crate::postgres::reports::get_reports_by_election_event_id;
+use crate::postgres::reports::get_reports;
 use crate::postgres::trustee::get_all_trustees;
 use crate::services::database::get_hasura_pool;
 use crate::services::export::export_ballot_publication;
@@ -81,7 +81,7 @@ pub async fn read_export_data(
         export_candidates(&transaction, tenant_id, election_event_id),
         get_event_areas(&transaction, tenant_id, election_event_id),
         export_area_contests(&transaction, tenant_id, election_event_id),
-        get_reports_by_election_event_id(&transaction, tenant_id, election_event_id),
+        get_reports(&transaction, tenant_id, Some(election_event_id), None),
         get_keys_ceremonies(&transaction, tenant_id, election_event_id),
         get_all_trustees(&transaction, tenant_id),
         get_applications_by_election(&transaction, tenant_id, election_event_id, None),
@@ -278,10 +278,14 @@ pub async fn process_export_zip(
             EDocuments::REPORTS.to_file_name(),
             election_event_id
         );
-        let reports_data =
-            get_reports_by_election_event_id(&hasura_transaction, tenant_id, election_event_id)
-                .await
-                .map_err(|e| anyhow!("Error reading reports data: {e:?}"))?;
+        let reports_data = get_reports(
+            &hasura_transaction,
+            tenant_id,
+            Some(election_event_id),
+            None,
+        )
+        .await
+        .map_err(|e| anyhow!("Error reading reports data: {e:?}"))?;
 
         zip_writer
             .start_file(&reports_filename, options)

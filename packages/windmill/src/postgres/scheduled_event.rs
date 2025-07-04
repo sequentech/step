@@ -200,10 +200,13 @@ pub async fn find_scheduled_event_by_task_id(
 pub async fn stop_scheduled_event(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
+    election_event_id: &str,
     id: &str,
 ) -> Result<()> {
     let tenant_uuid: uuid::Uuid =
         Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
+    let election_event_uuid: uuid::Uuid = Uuid::parse_str(election_event_id)
+        .with_context(|| "Error parsing election_event_id as UUID")?;
     let id_uuid: uuid::Uuid =
         Uuid::parse_str(id).with_context(|| "Error parsing election_event_id as UUID")?;
 
@@ -216,14 +219,15 @@ pub async fn stop_scheduled_event(
                 stopped_at = NOW()
             WHERE
                 tenant_id = $1
-                AND id = $2
+                AND election_event_id = $2
+                AND id = $3
                 AND stopped_at IS NULL
             "#,
         )
         .await?;
 
     let _rows: Vec<Row> = hasura_transaction
-        .query(&statement, &[&tenant_uuid, &id_uuid])
+        .query(&statement, &[&tenant_uuid, &election_event_uuid, &id_uuid])
         .await
         .map_err(|err| anyhow!("Error running the stop_scheduled_event query: {err}"))?;
 
@@ -234,12 +238,15 @@ pub async fn stop_scheduled_event(
 pub async fn archive_scheduled_event(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
+    election_event_id: &str,
     id: &str,
 ) -> Result<()> {
     let tenant_uuid: uuid::Uuid =
         Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
     let id_uuid: uuid::Uuid =
         Uuid::parse_str(id).with_context(|| "Error parsing election_event_id as UUID")?;
+    let election_event_uuid: uuid::Uuid = Uuid::parse_str(election_event_id)
+        .with_context(|| "Error parsing election_event_id as UUID")?;
 
     let statement = hasura_transaction
         .prepare(
@@ -251,13 +258,14 @@ pub async fn archive_scheduled_event(
                 archived_at = NOW()
             WHERE
                 tenant_id = $1
-                AND id = $2
+                AND election_event_uuid = $2
+                AND id = $3
             "#,
         )
         .await?;
 
     let _rows: Vec<Row> = hasura_transaction
-        .query(&statement, &[&tenant_uuid, &id_uuid])
+        .query(&statement, &[&tenant_uuid, &election_event_uuid, &id_uuid])
         .await
         .map_err(|err| anyhow!("Error running the archive_scheduled_event query: {err}"))?;
 
@@ -268,6 +276,7 @@ pub async fn archive_scheduled_event(
 pub async fn update_scheduled_event(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
+    election_event_id: &str,
     id: &str,
     cron_config: CronConfig,
 ) -> Result<()> {
@@ -275,6 +284,8 @@ pub async fn update_scheduled_event(
         Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
     let id_uuid: uuid::Uuid =
         Uuid::parse_str(id).with_context(|| "Error parsing election_event_id as UUID")?;
+    let election_event_uuid: uuid::Uuid = Uuid::parse_str(election_event_id)
+        .with_context(|| "Error parsing election_event_id as UUID")?;
 
     let cron_config_js: Value = serde_json::to_value(cron_config)?;
 
@@ -287,14 +298,23 @@ pub async fn update_scheduled_event(
                 cron_config = $3
             WHERE
                 tenant_id = $1
-                AND id = $2
+                AND election_event_uuid = $2
+                AND id = $3
                 AND stopped_at IS NULL
             "#,
         )
         .await?;
 
     let _rows: Vec<Row> = hasura_transaction
-        .query(&statement, &[&tenant_uuid, &id_uuid, &cron_config_js])
+        .query(
+            &statement,
+            &[
+                &tenant_uuid,
+                &election_event_uuid,
+                &id_uuid,
+                &cron_config_js,
+            ],
+        )
         .await
         .map_err(|err| anyhow!("Error running the update_scheduled_event query: {err}"))?;
 
