@@ -128,6 +128,7 @@ async fn async_main(opt: CeleryOpt) -> Result<()> {
             if !duplicates.is_empty() {
                 return Err(anyhow!("Found duplicate queues: {:?}", duplicates));
             }
+            set_queues(queues.clone());
             set_is_app_active(true);
             celery_app.consume_from(&vec_str[..]).await?;
             set_is_app_active(false);

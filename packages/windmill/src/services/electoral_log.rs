@@ -25,7 +25,9 @@ use electoral_log::messages::statement::{StatementBody, StatementType};
 use immudb_rs::{sql_value::Value, Client, NamedParam, Row, TxMode};
 use rust_decimal::prelude::ToPrimitive;
 use sequent_core::serialization::deserialize_with_path;
+use sequent_core::util::retry::retry_with_exponential_backoff;
 use serde::{Deserialize, Serialize};
+use std::time::Duration;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::hash::HashWrapper;
 use strand::hash::STRAND_HASH_LENGTH_BYTES;
@@ -626,10 +628,20 @@ impl ElectoralLog {
         let board_message: ElectoralLogMessage = message.try_into()?;
         let ms = vec![board_message];
 
-        let mut client = get_board_client().await?;
-        client
-            .insert_electoral_log_messages(self.elog_database.as_str(), &ms)
-            .await
+        retry_with_exponential_backoff(
+            // The closure we want to call repeatedly
+            || async {
+                let mut client = get_board_client().await?;
+                client
+                    .insert_electoral_log_messages(self.elog_database.as_str(), &ms)
+                    .await
+            },
+            // Maximum number of retries:
+            5,
+            // Initial backoff:
+            Duration::from_millis(100),
+        )
+        .await
     }
 
     /// Builds a keycloak event message and returns the resulting ElectoralLogMessage.
