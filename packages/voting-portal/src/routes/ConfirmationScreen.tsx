@@ -12,6 +12,7 @@ import {
     IAuditableMultiBallot,
     IAuditableSingleBallot,
     EElectionEventContestEncryptionPolicy,
+    IElectionEventStatus,
 } from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import {faPrint, faCircleQuestion, faCheck} from "@fortawesome/free-solid-svg-icons"
@@ -38,8 +39,7 @@ import Stepper from "../components/Stepper"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import {provideBallotService} from "../services/BallotService"
 import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortalError"
-import {GetElectionsQuery} from "../gql/graphql"
-import {GET_ELECTIONS} from "../queries/GetElections"
+import {selectElections, IElectionExtended} from "../store/elections/electionsSlice"
 import {downloadUrl} from "@sequentech/ui-core"
 import {SessionBallotData} from "../store/castVotes/castVotesSlice"
 
@@ -143,18 +143,13 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
     const [openPrintDemoModal, setOpenPrintDemoModal] = useState<boolean>(false)
     const oneBallotStyle = useAppSelector(selectFirstBallotStyle)
     const isDemo = oneBallotStyle?.ballot_eml.public_key?.is_demo
+    const elections = useAppSelector(selectElections) as IElectionExtended[]
 
     let presentation = electionEvent?.presentation as IElectionEventPresentation | undefined
     const ballotStyleElectionIds = useAppSelector(selectBallotStyleElectionIds)
-    const {data: dataElections} = useQuery<GetElectionsQuery>(GET_ELECTIONS, {
-        variables: {
-            electionIds: ballotStyleElectionIds,
-        },
-        skip: globalSettings.DISABLE_AUTH, // Skip query if in demo mode
-    })
 
-    const isAnyVotingStatusOpen = dataElections?.sequent_backend_election.some(
-        (item) => item.status.voting_status === EVotingStatus.OPEN
+    const isAnyVotingStatusOpen = elections?.some(
+        (item) => (item.status as IElectionEventStatus | null)?.voting_status === EVotingStatus.OPEN
     )
 
     const onClickToScreen = useCallback(() => {

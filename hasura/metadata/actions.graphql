@@ -38,6 +38,10 @@ type Mutation {
 }
 
 type Mutation {
+    get_ballot_files_urls(election_event_id: uuid!): getBallotFilesUrlsOutput
+}
+
+type Mutation {
     create_election(
         election_event_id: String!
         name: String!
@@ -1197,6 +1201,12 @@ type createBallotReceiptOutput {
     id: uuid!
     ballot_id: String
     status: String
+}
+
+type getBallotFilesUrlsOutput {
+    election_event_url: String
+    elections_url: String
+    ballot_style_urls: [String]
 }
 
 type OptionalImportEvent {

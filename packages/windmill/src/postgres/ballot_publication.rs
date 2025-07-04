@@ -5,9 +5,7 @@
 use anyhow::Result;
 use chrono::{DateTime, Local};
 use deadpool_postgres::Transaction;
-use sequent_core::services::date::ISO8601;
 use sequent_core::types::hasura::core::BallotPublication;
-use tokio::try_join;
 use tokio_postgres::row::Row;
 use tracing::instrument;
 use uuid::Uuid;

@@ -50,4 +50,7 @@ export const selectElectionIds = (state: RootState) => {
 export const selectElectionById = (electionId: string) => (state: RootState) =>
     state.elections[electionId]
 
+export const selectElections = (state: RootState) =>
+    Object.keys(state.elections).map((electionId) => state.elections[electionId])
+
 export default electionsSlice.reducer

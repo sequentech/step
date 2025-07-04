@@ -9,10 +9,48 @@ import {IBallotStyle, setBallotStyle} from "../store/ballotStyles/ballotStylesSl
 import {resetBallotSelection} from "../store/ballotSelections/ballotSelectionsSlice"
 
 export const updateBallotStyleAndSelection = (
-    data: GetBallotStylesQuery,
+    ballotStyles: GetBallotStylesQuery,
     dispatch: AppDispatch
 ) => {
-    for (let ballotStyle of data.sequent_backend_ballot_style) {
+    for (let ballotStyle of ballotStyles.sequent_backend_ballot_style) {
+        const ballotEml = ballotStyle.ballot_eml
+        if (!isString(ballotEml)) {
+            continue
+        }
+        try {
+            const electionData: IElectionDTO = JSON.parse(ballotEml)
+            const formattedBallotStyle: IBallotStyle = {
+                id: ballotStyle.id,
+                election_id: ballotStyle.election_id,
+                election_event_id: ballotStyle.election_event_id,
+                tenant_id: ballotStyle.tenant_id,
+                ballot_eml: electionData,
+                ballot_signature: ballotStyle.ballot_signature,
+                created_at: ballotStyle.created_at,
+                area_id: ballotStyle.area_id,
+                annotations: ballotStyle.annotations,
+                labels: ballotStyle.labels,
+                last_updated_at: ballotStyle.last_updated_at,
+            }
+            dispatch(setBallotStyle(formattedBallotStyle))
+            dispatch(
+                resetBallotSelection({
+                    ballotStyle: formattedBallotStyle,
+                    force: true,
+                })
+            )
+        } catch (error) {
+            console.log(`Error loading EML: ${error}`)
+            console.log(ballotEml)
+            throw error
+        }
+    }
+}
+export const updateBallotStyleAndSelection2 = (
+    ballotStyles: IBallotStyle[],
+    dispatch: AppDispatch
+) => {
+    for (let ballotStyle of ballotStyles) {
         const ballotEml = ballotStyle.ballot_eml
         if (!isString(ballotEml)) {
             continue

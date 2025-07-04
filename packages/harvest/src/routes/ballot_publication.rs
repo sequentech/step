@@ -6,7 +6,6 @@ use anyhow::Result;
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
-use sequent_core::types::hasura;
 use sequent_core::types::permissions::Permissions;
 use sequent_core::{
     ballot::{ElectionEventPresentation, LockedDown},
@@ -15,13 +14,14 @@ use sequent_core::{
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::instrument;
-use windmill::services::providers::transactions_provider::provide_hasura_transaction;
+use windmill::services::celery_app::get_celery_app;
+use windmill::tasks::update_election_event_ballot_publication::update_election_event_ballot_publication;
 use windmill::{
     postgres::election_event::get_election_event_by_id,
     services::{
         ballot_styles::ballot_publication::{
             add_ballot_publication, get_ballot_publication_diff,
-            update_publish_ballot, PublicationDiff,
+            PublicationDiff,
         },
         database::get_hasura_pool,
     },
@@ -87,7 +87,7 @@ pub async fn generate_ballot_publication(
         {
             return Err((
                 Status::Forbidden,
-                format!("Election event is locked down"),
+                "Election event is locked down".to_string(),
             ));
         }
     }
@@ -135,35 +135,35 @@ pub async fn publish_ballot(
         vec![Permissions::PUBLISH_WRITE],
     )?;
     let input = body.into_inner();
+    let celery_app = get_celery_app().await;
+    let tenant_id = claims.hasura_claims.tenant_id.clone();
+    let user_id = claims.hasura_claims.user_id.clone();
+    let username = claims.preferred_username.unwrap_or("-".to_string());
+    let election_event_id = input.election_event_id.clone();
+    let ballot_publication_id = input.ballot_publication_id.clone();
 
-    provide_hasura_transaction(|hasura_transaction| {
-        let tenant_id = claims.hasura_claims.tenant_id.clone();
-        let user_id = claims.hasura_claims.user_id.clone();
-        let username = claims.preferred_username.unwrap_or("-".to_string());
-        let election_event_id = input.election_event_id.clone();
-        let ballot_publication_id = input.ballot_publication_id.clone();
-        Box::pin(async move {
-            update_publish_ballot(
-                hasura_transaction,
-                user_id,
-                username,
-                tenant_id,
-                election_event_id,
-                ballot_publication_id,
+    let task = celery_app
+        .send_task(update_election_event_ballot_publication::new(
+            tenant_id.clone(),
+            election_event_id.clone(),
+            ballot_publication_id.clone(),
+            user_id,
+            username,
+        ))
+        .await
+        .map_err(|error| {
+            (
+                Status::InternalServerError,
+                format!("Error sending task forpublishing ballot: {error:?}"),
             )
-            .await
-        })
-    })
-    .await
-    .map_err(|error| {
-        (
-            Status::InternalServerError,
-            format!("Error publishing ballot: {error:?}"),
-        )
-    })?;
+        })?;
+    info!(
+        "Sent update_election_event_ballot_publication task {}",
+        task.task_id
+    );
 
     Ok(Json(PublishBallotOutput {
-        ballot_publication_id: input.ballot_publication_id.clone(),
+        ballot_publication_id,
     }))
 }
 

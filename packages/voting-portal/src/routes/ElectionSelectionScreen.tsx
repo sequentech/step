@@ -3,17 +3,17 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {Box, Button, CircularProgress, Typography, Alert} from "@mui/material"
-import React, {useContext, useEffect, useMemo, useState} from "react"
+import React, {useContext, useEffect, useMemo, useState, useRef} from "react"
 import {useTranslation} from "react-i18next"
 import {Dialog, IconButton, PageLimit, SelectElection, theme} from "@sequentech/ui-essentials"
 import {
-    isString,
     stringToHtml,
     translateElection,
     EVotingStatus,
     IElectionEventStatus,
     isUndefined,
     IElectionStatus,
+    IElection,
 } from "@sequentech/ui-core"
 import {AuthContext} from "../providers/AuthContextProvider"
 import {faCircleQuestion} from "@fortawesome/free-solid-svg-icons"
@@ -24,32 +24,25 @@ import {
     selectBallotStyleByElectionId,
     selectBallotStyleElectionIds,
     selectFirstBallotStyle,
-    setBallotStyle,
 } from "../store/ballotStyles/ballotStylesSlice"
-import {resetBallotSelection} from "../store/ballotSelections/ballotSelectionsSlice"
-import {selectElectionById, setElection, selectElectionIds} from "../store/elections/electionsSlice"
-import {AppDispatch} from "../store/store"
+import {
+    selectElectionById,
+    setElection,
+    selectElectionIds,
+    selectElections,
+} from "../store/elections/electionsSlice"
 import {addCastVotes, selectCastVotesByElectionId} from "../store/castVotes/castVotesSlice"
 import {useLocation, useNavigate, useParams} from "react-router-dom"
-import {useQuery} from "@apollo/client"
-import {GET_BALLOT_STYLES} from "../queries/GetBallotStyles"
-import {
-    GetBallotStylesQuery,
-    GetCastVotesQuery,
-    GetElectionEventQuery,
-    GetElectionsQuery,
-    GetSupportMaterialsQuery,
-} from "../gql/graphql"
-import {GET_ELECTIONS} from "../queries/GetElections"
-import {ELECTIONS_LIST} from "../fixtures/election"
+import {useMutation, useQuery} from "@apollo/client"
+import {GetCastVotesQuery, GetSupportMaterialsQuery} from "../gql/graphql"
 import {SettingsContext} from "../providers/SettingsContextProvider"
-import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
 import {GET_CAST_VOTES} from "../queries/GetCastVotes"
 import {
     ElectionScreenErrorType,
     ElectionScreenMsgType,
     VotingPortalError,
     VotingPortalErrorType,
+    CastBallotsErrorType,
 } from "../services/VotingPortalError"
 import {
     IElectionEvent,
@@ -58,11 +51,14 @@ import {
 } from "../store/electionEvents/electionEventsSlice"
 import {TenantEventType} from ".."
 import Stepper from "../components/Stepper"
-import {clearIsVoted, selectBypassChooser, setBypassChooser} from "../store/extra/extraSlice"
-import {updateBallotStyleAndSelection} from "../services/BallotStyles"
+import {selectBypassChooser, setBypassChooser} from "../store/extra/extraSlice"
+import {updateBallotStyleAndSelection2} from "../services/BallotStyles"
+import {fetchJson, BallotFilesUrlsOutput} from "../services/FetchS3BallotFiles"
 import useUpdateTranslation from "../hooks/useUpdateTranslation"
 import {GET_SUPPORT_MATERIALS} from "../queries/GetSupportMaterials"
+import {GET_BALLOT_FILES_URLS} from "../queries/GetBallotFilesUrls"
 import {setSupportMaterial} from "../store/supportMaterials/supportMaterialsSlice"
+import {ApolloError} from "@apollo/client"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -175,37 +171,6 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
     )
 }
 
-const fakeUpdateBallotStyleAndSelection = (dispatch: AppDispatch) => {
-    for (let election of ELECTIONS_LIST) {
-        try {
-            const formattedBallotStyle: IBallotStyle = {
-                id: election.id,
-                election_id: election.id,
-                election_event_id: election.id,
-                tenant_id: election.id,
-                ballot_eml: election,
-                ballot_signature: null,
-                created_at: "",
-                area_id: election.id,
-                annotations: null,
-                labels: null,
-                last_updated_at: "",
-            }
-            dispatch(setElection({...election, image_document_id: ""}))
-            dispatch(setBallotStyle(formattedBallotStyle))
-            dispatch(clearIsVoted())
-            dispatch(
-                resetBallotSelection({
-                    ballotStyle: formattedBallotStyle,
-                })
-            )
-        } catch (error) {
-            console.log(`Error loading fake EML: ${error}`, election)
-            throw new VotingPortalError(VotingPortalErrorType.INTERNAL_ERROR)
-        }
-    }
-}
-
 const ElectionSelectionScreen: React.FC = () => {
     const {t} = useTranslation()
     const navigate = useNavigate()
@@ -215,7 +180,6 @@ const ElectionSelectionScreen: React.FC = () => {
     const {eventId, tenantId} = useParams<{eventId?: string; tenantId?: string}>()
     const electionEvent = useAppSelector(selectElectionEventById(eventId))
     useUpdateTranslation({electionEvent}) // Overwrite translations
-    const ballotStyleElectionIds = useAppSelector(selectBallotStyleElectionIds)
     const electionIds = useAppSelector(selectElectionIds)
     const oneBallotStyle = useAppSelector(selectFirstBallotStyle)
     const dispatch = useAppDispatch()
@@ -233,37 +197,14 @@ const ElectionSelectionScreen: React.FC = () => {
     const bypassChooser = useAppSelector(selectBypassChooser())
     const [errorMsg, setErrorMsg] = useState<VotingPortalErrorType | ElectionScreenErrorType>()
     const [alertMsg, setAlertMsg] = useState<ElectionScreenMsgType>()
-
-    const {
-        error: errorBallotStyles,
-        data: dataBallotStyles,
-        loading: loadingBallotStyles,
-    } = useQuery<GetBallotStylesQuery>(GET_BALLOT_STYLES, {
-        skip: globalSettings.DISABLE_AUTH, // Skip query if in demo mode
-    })
-
-    const {
-        error: errorElections,
-        data: dataElections,
-        loading: loadingElections,
-    } = useQuery<GetElectionsQuery>(GET_ELECTIONS, {
-        variables: {
-            electionIds: ballotStyleElectionIds,
-        },
-        skip: globalSettings.DISABLE_AUTH, // Skip query if in demo mode
-    })
-
-    const {
-        error: errorElectionEvent,
-        data: dataElectionEvent,
-        loading: loadingElectionEvent,
-    } = useQuery<GetElectionEventQuery>(GET_ELECTION_EVENT, {
-        variables: {
-            electionEventId: eventId,
-            tenantId,
-        },
-        skip: globalSettings.DISABLE_AUTH, // Skip query if in demo mode
-    })
+    const [errorCause, setErrorCause] = useState<ElectionScreenErrorType>()
+    const [getBallotFilesUrls] = useMutation(GET_BALLOT_FILES_URLS)
+    const urls = useRef<BallotFilesUrlsOutput | undefined>(undefined)
+    const requestingS3Data = useRef<boolean>(false)
+    const loadingS3Data = useRef<boolean>(true)
+    const dataFirstBallotStyle = useAppSelector(selectFirstBallotStyle)
+    const dataElections = useAppSelector(selectElections)
+    const dataElectionEvent = useAppSelector(selectElectionEventById(eventId))
 
     // Materials
     const {
@@ -286,17 +227,99 @@ const ElectionSelectionScreen: React.FC = () => {
         navigate(`/tenant/${tenantId}/event/${eventId}/materials${location.search}`)
     }
 
-    const hasNoElections = !loadingElections && dataElections?.sequent_backend_election.length === 0
-    const isPublished = useMemo(
-        () => !!dataElectionEvent?.sequent_backend_election_event[0].status?.is_published,
-        [dataElectionEvent?.sequent_backend_election_event]
+    const hasNoElections = !loadingS3Data.current && dataElections?.length === 0
+    const isVotingOpen = useMemo(
+        () =>
+            ((dataElectionEvent?.status as IElectionEventStatus | undefined)
+                ?.voting_status as EVotingStatus) == EVotingStatus.OPEN,
+        [dataElectionEvent, loadingS3Data.current]
     )
+
+    async function fetchS3Data() {
+        try {
+            const res = await getBallotFilesUrls({
+                variables: {
+                    eventId,
+                },
+            })
+
+            let dataUrls = (res.data?.get_ballot_files_urls as BallotFilesUrlsOutput) ?? null
+            if (
+                !dataUrls ||
+                !dataUrls.election_event_url ||
+                !dataUrls.elections_url ||
+                !dataUrls.ballot_style_urls
+            ) {
+                setErrorCause(ElectionScreenErrorType.UNKNOWN_ERROR)
+                loadingS3Data.current = false
+                return
+            }
+
+            urls.current = dataUrls
+            const contentElectionEvent = await fetchJson(dataUrls.election_event_url)
+            const contentElections = await fetchJson(dataUrls.elections_url)
+            const contentBallotStyles = await Promise.all(
+                dataUrls.ballot_style_urls.map(async (url) => {
+                    const content = await fetchJson(url)
+                    return content
+                })
+            )
+            if (!contentElectionEvent || !contentElections || !contentBallotStyles) {
+                setErrorCause(ElectionScreenErrorType.UNKNOWN_ERROR)
+                loadingS3Data.current = false
+                return
+            }
+            dispatch(setElectionEvent(contentElectionEvent as IElectionEvent))
+            for (let election of contentElections as IElection[]) {
+                dispatch(
+                    setElection({
+                        ...election,
+                        image_document_id: "",
+                        contests: [],
+                        description: election.description ?? undefined,
+                        alias: election.alias ?? undefined,
+                    })
+                )
+            }
+
+            try {
+                updateBallotStyleAndSelection2(
+                    (contentBallotStyles as IBallotStyle[]) || [],
+                    dispatch
+                )
+            } catch {
+                setErrorMsg(
+                    t(`electionSelectionScreen.errors.${ElectionScreenErrorType.BALLOT_STYLES_EML}`)
+                )
+            }
+        } catch (error) {
+            loadingS3Data.current = false
+            console.log("Error getting signed urls: ", error)
+            if (error instanceof ApolloError) {
+                if (error.message === ElectionScreenErrorType.PUBLICATION_NOT_FOUND) {
+                    setErrorCause(ElectionScreenErrorType.PUBLICATION_NOT_FOUND)
+                } else if (error.message === ElectionScreenErrorType.NO_AREA_CONTESTS) {
+                    setErrorCause(ElectionScreenErrorType.NO_AREA_CONTESTS)
+                } else {
+                    setErrorCause(ElectionScreenErrorType.UNKNOWN_ERROR)
+                }
+            } else {
+                setErrorCause(ElectionScreenErrorType.FETCH_DATA)
+            }
+        }
+    }
+
+    useEffect(() => {
+        if (!urls.current && eventId && !requestingS3Data.current) {
+            requestingS3Data.current = true
+            fetchS3Data()
+        }
+    }, [])
 
     useEffect(() => {
         if (!dataMaterials || globalSettings.DISABLE_AUTH || !isMaterialsActivated) {
             return
         }
-
         for (let material of dataMaterials.sequent_backend_support_material) {
             dispatch(setSupportMaterial(material))
         }
@@ -304,30 +327,25 @@ const ElectionSelectionScreen: React.FC = () => {
 
     // Errors handling
     useEffect(() => {
-        if (globalSettings.DISABLE_AUTH) {
+        if (globalSettings.DISABLE_AUTH || loadingS3Data.current) {
             return
         }
-        if (errorElections || errorElectionEvent || errorBallotStyles || errorCastVote) {
-            if (errorBallotStyles?.message.includes("x-hasura-area-id")) {
-                setErrorMsg(t(`electionSelectionScreen.errors.${ElectionScreenErrorType.NO_AREA}`))
-            } else if (
-                errorElections?.networkError ||
-                errorElectionEvent?.networkError ||
-                errorBallotStyles?.networkError ||
-                errorCastVote?.networkError
-            ) {
-                setErrorMsg(t(`electionSelectionScreen.errors.${ElectionScreenErrorType.NETWORK}`))
-            } else {
-                setErrorMsg(
-                    t(`electionSelectionScreen.errors.${ElectionScreenErrorType.FETCH_DATA}`)
-                )
-            }
-        } else if (dataElectionEvent?.sequent_backend_election_event.length === 0) {
+        if (errorCause === ElectionScreenErrorType.PUBLICATION_NOT_FOUND) {
+            setAlertMsg(t(`electionSelectionScreen.alerts.${ElectionScreenMsgType.NO_ELECTIONS}`))
+        } else if (errorCause === ElectionScreenErrorType.NO_AREA_CONTESTS) {
+            setErrorMsg(t(`electionSelectionScreen.errors.${ElectionScreenErrorType.NO_AREA}`))
+        } else if (errorCause === ElectionScreenErrorType.UNKNOWN_ERROR) {
+            setErrorMsg(
+                t(`electionSelectionScreen.errors.${ElectionScreenErrorType.BALLOT_STYLES_EML}`)
+            )
+        } else if (errorCause === ElectionScreenErrorType.FETCH_DATA) {
+            setErrorMsg(t(`electionSelectionScreen.errors.${ElectionScreenErrorType.FETCH_DATA}`))
+        } else if (!dataElectionEvent) {
             setErrorMsg(
                 t(`electionSelectionScreen.errors.${ElectionScreenErrorType.NO_ELECTION_EVENT}`)
             )
-        } else if (!isPublished) {
-            setAlertMsg(t(`electionSelectionScreen.alerts.${ElectionScreenMsgType.NOT_PUBLISHED}`))
+        } else if (!isVotingOpen && dataElectionEvent) {
+            setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.ELECTION_EVENT_NOT_OPEN}`))
         } else if (hasNoElections) {
             if (electionIds.length > 0) {
                 setErrorMsg(
@@ -346,46 +364,30 @@ const ElectionSelectionScreen: React.FC = () => {
             setErrorMsg(undefined)
         }
     }, [
-        errorBallotStyles,
         errorCastVote,
-        errorElectionEvent,
-        errorElections,
-        isPublished,
         hasNoElections,
         dataElectionEvent,
         globalSettings.DISABLE_AUTH,
+        loadingS3Data.current,
+        errorCause,
     ])
 
     useEffect(() => {
-        if (dataBallotStyles && dataBallotStyles.sequent_backend_ballot_style.length > 0) {
-            try {
-                updateBallotStyleAndSelection(dataBallotStyles, dispatch)
-            } catch {
-                setErrorMsg(
-                    t(`electionSelectionScreen.errors.${ElectionScreenErrorType.BALLOT_STYLES_EML}`)
-                )
-            }
-        } else if (globalSettings.DISABLE_AUTH) {
-            //fakeUpdateBallotStyleAndSelection(dispatch)
+        if (dataFirstBallotStyle && dataElectionEvent && dataElections) {
+            loadingS3Data.current = false
         }
-    }, [globalSettings.DISABLE_AUTH, dataBallotStyles, dispatch])
+    }, [
+        globalSettings.DISABLE_AUTH,
+        dataElectionEvent,
+        dataElections,
+        dataFirstBallotStyle,
+        dispatch,
+    ])
 
     useEffect(() => {
-        if (dataElections && dataElections.sequent_backend_election.length > 0) {
-            for (let election of dataElections.sequent_backend_election) {
-                dispatch(
-                    setElection({
-                        ...election,
-                        image_document_id: "",
-                        contests: [],
-                        description: election.description ?? undefined,
-                        alias: election.alias ?? undefined,
-                    })
-                )
-            }
-
-            let foundTestElection = dataElections.sequent_backend_election.find((election) =>
-                election.name.includes("TEST")
+        if (dataElections && dataElections.length > 0) {
+            let foundTestElection = dataElections.find((election) =>
+                election?.name?.includes("TEST")
             )
 
             if (foundTestElection) {
@@ -404,7 +406,7 @@ const ElectionSelectionScreen: React.FC = () => {
     }, [castVotesTestElection, testElectionId, setCanVoteTest])
 
     useEffect(() => {
-        const record = dataElectionEvent?.sequent_backend_election_event?.[0]
+        const record = dataElectionEvent
         if (record) {
             dispatch(setElectionEvent(record))
         }
@@ -452,7 +454,7 @@ const ElectionSelectionScreen: React.FC = () => {
         }
     }, [isDemo])
 
-    if (loadingElectionEvent || loadingElections || loadingBallotStyles) return <CircularProgress />
+    if (loadingS3Data.current) return <CircularProgress />
 
     return (
         <PageLimit maxWidth="lg" className="election-selection-screen screen">

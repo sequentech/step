@@ -2,46 +2,47 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::postgres::area::get_event_areas;
+use crate::postgres::area::{get_elections_by_area, get_event_areas};
 use crate::postgres::area_contest::export_area_contests;
 use crate::postgres::ballot_publication::{
-    get_ballot_publication_by_id, update_ballot_publication_status,
+    get_ballot_publication, get_ballot_publication_by_id, update_ballot_publication_status,
 };
-use crate::postgres::ballot_style::insert_ballot_style;
+use crate::postgres::ballot_style::{
+    get_active_ballot_styles, get_ballot_styles_by_ballot_publication_by_id, insert_ballot_style,
+};
 use crate::postgres::candidate::export_candidates;
 use crate::postgres::contest::export_contests;
-use crate::postgres::election::export_elections;
+use crate::postgres::election::{export_elections, get_election_by_id};
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::keys_ceremony::get_keys_ceremonies;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::database::get_hasura_pool;
 use crate::services::election_dates::get_election_dates;
+use crate::services::pg_lock::PgLock;
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context, Result as AnyhowResult};
-use chrono::Duration;
+use chrono::{Duration, Local};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use futures::try_join;
-use rocket::http::Status;
+use sequent_core::services::area_tree::TreeNode;
+use sequent_core::services::date::ISO8601;
+use sequent_core::services::s3;
 use sequent_core::types::hasura::core::{
     self as hasura_type, Area, AreaContest, BallotPublication, BallotStyle, Candidate, Contest,
     Election, ElectionEvent, KeysCeremony,
 };
 use sequent_core::types::scheduled_event::ScheduledEvent;
-
+use sequent_core::util::retry::retry_with_exponential_backoff;
 use std::collections::{HashMap, HashSet};
-use tracing::{event, instrument, Level};
+use std::time::Duration as StdDuration;
+use tracing::{event, info, instrument, Level};
 use uuid::Uuid;
-
-use crate::services::pg_lock::PgLock;
-use sequent_core::services::date::ISO8601;
-
-use sequent_core::services::area_tree::TreeNode;
-
 /**
  * Returns a HashMap<election_id, set<contest_id>> with all
  * the election ids and contest ids related to an area,
  * taking into consideration the parent areas as well.
  */
+#[instrument(skip_all, err)]
 pub fn get_elections_contests_map_for_area(
     area: &Area,
     areas_tree: &TreeNode,
@@ -93,6 +94,7 @@ pub fn get_elections_contests_map_for_area(
     Ok(election_contest_map)
 }
 
+#[instrument(skip_all, err)]
 pub async fn create_ballot_style_postgres(
     transaction: &Transaction<'_>,
     area: &Area,
@@ -292,7 +294,17 @@ pub async fn update_election_event_ballot_styles(
     )
     .await?;
 
+    upload_election_event_ballot_s3_files(
+        &transaction,
+        tenant_id,
+        election_event_id,
+        ballot_publication_id,
+        &election_event,
+    )
+    .await?;
+
     let _commit = transaction.commit().await.with_context(|| "Commit failed");
+
     lock.release().await?;
     Ok(())
 }
@@ -304,4 +316,186 @@ pub async fn get_ballot_styles_for_authorized_elections(
     authorized_election_ids: &Vec<String>,
 ) -> AnyhowResult<Vec<BallotStyle>> {
     todo!()
+}
+
+/// Upload the files related to this publication id into the private bucket,
+/// Under the base_path "tenant-{tenant_id}/event-{election_event_id}/publication-{ballot_publication_id}"
+/// election-event.json
+/// Under the base_path "tenant-{tenant_id}/event-{election_event_id}/area-{area_id}/publication-{ballot_publication_id}"
+/// elections.json and ballot-style-election-{election_id}.json.
+#[instrument(skip(hasura_transaction, election_event), err)]
+pub async fn upload_election_event_ballot_s3_files(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    ballot_publication_id: &str,
+    election_event: &ElectionEvent,
+) -> Result<()> {
+    let s3_bucket = s3::get_private_bucket()?;
+    // Upload election event data
+    let election_event_data = serde_json::to_string(&election_event)
+        .map_err(|err| format!("Error serializing election event to json: {err:?}"))?;
+    let election_event_path =
+        s3::get_election_event_file_path(tenant_id, election_event_id, ballot_publication_id);
+    upload_ballot_files_to_s3_with_retry(&election_event_data, &election_event_path, &s3_bucket)
+        .await?;
+
+    let ballot_styles = get_ballot_styles_by_ballot_publication_by_id(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        ballot_publication_id,
+    )
+    .await?;
+
+    // Upload ballot_style files and prepare the areas to be unique.
+    let mut areas = HashSet::new();
+    for ballot_style in &ballot_styles {
+        let area_id = ballot_style
+            .area_id
+            .as_deref()
+            .ok_or("No area_id found".to_string())?;
+        let election_id = &ballot_style.election_id;
+        areas.insert(area_id.to_string());
+
+        let ballot_style_data = serde_json::to_string(ballot_style)
+            .map_err(|err| format!("Error serializing ballot style to json: {err:?}"))?;
+
+        let ballot_style_path = s3::get_ballot_style_file_path(
+            tenant_id,
+            election_event_id,
+            area_id,
+            ballot_publication_id,
+            election_id,
+        );
+        upload_ballot_files_to_s3_with_retry(&ballot_style_data, &ballot_style_path, &s3_bucket)
+            .await?;
+    }
+
+    let election_ids_by_area_map =
+        get_elections_by_area(hasura_transaction, tenant_id, election_event_id).await?;
+
+    for area_id in &areas {
+        let election_ids = election_ids_by_area_map
+            .get(area_id)
+            .cloned()
+            .unwrap_or(vec![])
+            .iter() // Remove duplicates
+            .fold(HashSet::new(), |mut f, election_id| {
+                f.insert(election_id.clone());
+                f
+            });
+
+        info!("area_id: {area_id}, election_ids: {election_ids:?}");
+        let mut elections: Vec<Election> = vec![];
+        for election_id in &election_ids {
+            let election = get_election_by_id(
+                hasura_transaction,
+                tenant_id,
+                election_event_id,
+                election_id,
+            )
+            .await?
+            .ok_or(anyhow!("can't find election: {election_id}"))?;
+            elections.push(election);
+        }
+        let elections_data = serde_json::to_string(&elections)
+            .map_err(|err| format!("Error serializing elections to json: {err:?}"))?;
+
+        // Upload elections data belonging to this area:
+        let elections_file_path = s3::get_elections_file_path(
+            tenant_id,
+            election_event_id,
+            area_id,
+            ballot_publication_id,
+        );
+        upload_ballot_files_to_s3_with_retry(&elections_data, &elections_file_path, &s3_bucket)
+            .await?;
+    }
+
+    Ok(())
+}
+
+/// Replace ballot-publications.json files in the folder "tenant-{tenant_id}/event-{election_event_id}/area-{area_id}/"
+/// for each area. To have the active publications accessible in the private bucket.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn replace_ballot_publication_s3_files(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    ballot_publication_id: &str,
+) -> Result<()> {
+    // Set the publication id (PUB ID) in the S3 file ballot-publications.json, and the ballot style paths, to have only the publications that are still active for each area.
+    // In case of publishing from the election level: there will be only one ballot style BUT
+    // the rest of the elections (its ballot styles) are needed as well and are in previous publication id folders,
+    // so we need to write in this file all the ballot styles that are still active - that is each not deleted ballot style row.
+    let s3_bucket = s3::get_private_bucket()?;
+    let mut areas = HashSet::new();
+    let ballot_styles: Vec<BallotStyle> =
+        get_active_ballot_styles(hasura_transaction, tenant_id, election_event_id)
+            .await
+            .map_err(|err| format!("Error getting active ballot styles: {err:?}"))?;
+
+    let ballot_style_paths: Vec<String> = ballot_styles
+        .iter()
+        .map(|ballot_style| {
+            let area_id = ballot_style.area_id.as_deref().unwrap_or_default();
+            areas.insert(area_id.to_string());
+            s3::get_ballot_style_file_path(
+                tenant_id,
+                election_event_id,
+                area_id,
+                ballot_style.ballot_publication_id.as_str(),
+                ballot_style.election_id.as_str(),
+            )
+        })
+        .collect();
+
+    let bp_data = s3::BallotPublications {
+        ballot_publication_id: ballot_publication_id.to_string(),
+        ballot_style_paths,
+    };
+
+    let ballot_publication_data = serde_json::to_string(&bp_data)
+        .map_err(|err| format!("Error serializing ballot publications to json: {err:?}"))?;
+
+    for area_id in &areas {
+        // Upload ballot publications file or replace it if it exists.
+        let ballot_publication_file_path =
+            s3::get_ballot_publication_file_path(tenant_id, election_event_id, area_id);
+        upload_ballot_files_to_s3_with_retry(
+            &ballot_publication_data,
+            &ballot_publication_file_path,
+            &s3_bucket,
+        )
+        .await?;
+    }
+    Ok(())
+}
+
+#[instrument(skip(data), err)]
+pub async fn upload_ballot_files_to_s3_with_retry(
+    data: &str,
+    path: &str,
+    s3_bucket: &str,
+) -> Result<()> {
+    retry_with_exponential_backoff(
+        || async {
+            s3::upload_data_to_s3(
+                data.to_string().into_bytes().into(),
+                path.to_string(),
+                false, // False because it's windmill uploading, not a public interface
+                s3_bucket.to_string(),
+                "text/plain".to_string(),
+                None,
+                None,
+            )
+            .await
+        },
+        3,
+        StdDuration::from_millis(100),
+    )
+    .await
+    .map_err(|err| format!("Error uploading input document to S3, trying 3 times: {err:?}"))?;
+    Ok(())
 }

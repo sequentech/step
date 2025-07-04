@@ -1,0 +1,167 @@
+// SPDX-FileCopyrightText: 2023-2024 Felix Robles <felix@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+use crate::postgres::ballot_publication::{
+    get_ballot_publication_by_id, soft_delete_other_ballot_publications, update_ballot_publication,
+};
+use crate::postgres::election::update_election_status;
+use crate::postgres::election_event::{get_election_event_by_id, update_election_event_status};
+use crate::services::ballot_styles::ballot_style;
+use crate::services::database::get_hasura_pool;
+use crate::services::election_event_board::get_election_event_board;
+use crate::services::election_event_status::get_election_event_status;
+use crate::services::electoral_log::ElectoralLog;
+use crate::services::pg_lock::PgLock;
+use crate::types::error::Result;
+use celery::error::TaskError;
+use chrono::Duration;
+use deadpool_postgres::{Client as DbClient, Transaction};
+use sequent_core::ballot::ElectionEventStatus;
+use sequent_core::services::date::ISO8601;
+use tracing::instrument;
+use uuid::Uuid;
+
+#[instrument(err)]
+#[wrap_map_err::wrap_map_err(TaskError)]
+#[celery::task(max_retries = 0)]
+pub async fn update_election_event_ballot_publication(
+    tenant_id: String,
+    election_event_id: String,
+    ballot_publication_id: String,
+    user_id: String,
+    username: String,
+) -> Result<()> {
+    let lock = PgLock::acquire(
+        format!(
+            "update_ballot_publication-{tenant_id}-{election_event_id}-{ballot_publication_id}"
+        ),
+        Uuid::new_v4().to_string(),
+        ISO8601::now() + Duration::seconds(60),
+    )
+    .await?;
+    let mut hasura_db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .map_err(|e| format!("Error getting hasura db pool: {e:?}"))?;
+
+    let hasura_transaction = hasura_db_client
+        .transaction()
+        .await
+        .map_err(|e| format!("Error starting hasura transaction: {e:?}"))?;
+
+    let (is_generated, ballot_publication) = match get_ballot_publication_by_id(
+        &hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &ballot_publication_id,
+    )
+    .await
+    {
+        Ok(Some(bp)) => (bp.is_generated.clone().unwrap_or(false), bp),
+        _ => return Err(format!("Can't find ballot publication").into()),
+    };
+
+    if !is_generated {
+        return Err(format!("Ballot publication not generated yet, can't publish.").into());
+    }
+
+    if ballot_publication.published_at.is_some() {
+        return Ok(());
+    }
+
+    let _result = soft_delete_other_ballot_publications(
+        &hasura_transaction,
+        &ballot_publication_id,
+        &election_event_id,
+        &tenant_id,
+        ballot_publication.election_id.clone(),
+    )
+    .await?;
+
+    let election_event =
+        get_election_event_by_id(&hasura_transaction, &tenant_id, &election_event_id).await?;
+
+    ballot_style::replace_ballot_publication_s3_files(
+        &hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &ballot_publication.id,
+    )
+    .await?;
+
+    update_ballot_publication(
+        &hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &ballot_publication_id,
+        true,
+        Some(ISO8601::now()),
+    )
+    .await?;
+
+    let mut new_status: ElectionEventStatus =
+        get_election_event_status(election_event.status).unwrap_or(Default::default());
+    new_status.is_published = Some(true);
+    let new_status_js = serde_json::to_value(new_status)?;
+
+    update_election_event_status(
+        &hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        new_status_js,
+    )
+    .await?;
+
+    // Update elections status
+    let election_ids = ballot_publication.election_ids.clone().unwrap_or(vec![]);
+    for election_id in election_ids.clone() {
+        update_election_status(
+            &hasura_transaction,
+            &election_id,
+            &tenant_id.clone(),
+            &election_event_id.clone(),
+            true,
+        )
+        .await
+        .map_err(|e| "error updating election status")?;
+    }
+
+    let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
+        .ok_or("missing bulletin board".to_string())?;
+
+    let election_ids_str = match election_ids.len() > 1 {
+        true => None,
+        false => match election_ids.len() > 0 {
+            true => Some(election_ids[0].clone()),
+            false => None,
+        },
+    };
+
+    // let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
+    let electoral_log = ElectoralLog::for_admin_user(
+        &hasura_transaction,
+        &board_name,
+        &tenant_id,
+        &election_event.id,
+        &user_id,
+        Some(username.clone()),
+        election_ids_str.clone(),
+        None,
+    )
+    .await?;
+    electoral_log
+        .post_election_published(
+            election_event_id.clone(),
+            election_ids_str,
+            ballot_publication_id.clone(),
+            Some(user_id),
+            Some(username),
+        )
+        .await
+        .map_err(|e| "error posting to the electoral log: {e:?}")?;
+
+    lock.release().await?;
+    Ok(())
+}

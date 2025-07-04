@@ -403,5 +403,5 @@ pub enum Permissions {
 )]
 pub enum VoterPermissions {
     #[strum(serialize = "user")]
-    CAST_VOTE,
+    USER_ROLE,
 }

@@ -14,11 +14,14 @@ export enum VotingPortalErrorType {
 
 export enum ElectionScreenErrorType {
     FETCH_DATA = "unableToFetchData",
+    PUBLICATION_NOT_FOUND = "publicationNotFound",
     NO_AREA = "noVotingArea",
     NETWORK = "networkError",
     NO_ELECTION_EVENT = "noElectionEvent",
     OBTAINING_ELECTION = "obtainingElectionFromID",
     BALLOT_STYLES_EML = "ballotStylesEmlError",
+    UNKNOWN_ERROR = "unknownError",
+    NO_AREA_CONTESTS = "noAreaContests",
 }
 
 export enum ElectionScreenMsgType {

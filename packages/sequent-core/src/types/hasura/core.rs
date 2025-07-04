@@ -52,6 +52,42 @@ pub struct BallotStyle {
     pub ballot_publication_id: String,
 }
 
+impl BallotStyle {
+    pub fn new(
+        id: String,
+        tenant_id: String,
+        election_id: String,
+        area_id: Option<String>,
+        created_at: Option<DateTime<Local>>,
+        last_updated_at: Option<DateTime<Local>>,
+        labels: Option<Value>,
+        annotations: Option<Value>,
+        ballot_eml: Option<String>,
+        ballot_signature: Option<Vec<u8>>,
+        status: Option<String>,
+        election_event_id: String,
+        deleted_at: Option<DateTime<Local>>,
+        ballot_publication_id: String,
+    ) -> Self {
+        BallotStyle {
+            id,
+            tenant_id,
+            election_id,
+            area_id,
+            created_at,
+            last_updated_at,
+            labels,
+            annotations,
+            ballot_eml,
+            ballot_signature,
+            status,
+            election_event_id,
+            deleted_at,
+            ballot_publication_id,
+        }
+    }
+}
+
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct Area {
     pub id: String,

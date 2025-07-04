@@ -16,6 +16,7 @@ use aws_sdk_s3::types::{CompletedMultipartUpload, CompletedPart};
 use aws_smithy_types::byte_stream::{ByteStream, Length};
 use core::time::Duration;
 use s3::presigning::PresigningConfig;
+use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -23,8 +24,13 @@ use std::{env, error::Error};
 use tempfile::NamedTempFile;
 use tokio::io::AsyncReadExt;
 use tracing::{info, instrument};
-
 const MAX_CHUNK_SIZE: u64 = 16 * 1024 * 1024;
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct BallotPublications {
+    pub ballot_publication_id: String,
+    pub ballot_style_paths: Vec<String>,
+}
 
 #[instrument(err, skip_all)]
 pub fn get_private_bucket() -> Result<String> {
@@ -84,6 +90,69 @@ async fn create_bucket_if_not_exists(
 pub async fn get_s3_client(config: s3::Config) -> Result<s3::Client> {
     let client = s3::Client::from_conf(config);
     Ok(client)
+}
+
+#[instrument(skip_all)]
+pub fn get_ballot_publications_base_path(
+    tenant_id: &str,
+    election_event_id: &str,
+    area_id: &str,
+) -> String {
+    format!("tenant-{tenant_id}/event-{election_event_id}/area-{area_id}")
+}
+
+#[instrument(skip_all)]
+pub fn get_ballot_publication_file_path(
+    tenant_id: &str,
+    election_event_id: &str,
+    area_id: &str,
+) -> String {
+    let base_path = get_ballot_publications_base_path(
+        tenant_id,
+        election_event_id,
+        area_id,
+    );
+    format!("{base_path}/ballot-publications.json")
+}
+
+#[instrument(skip_all)]
+pub fn get_ballot_style_file_path(
+    tenant_id: &str,
+    election_event_id: &str,
+    area_id: &str,
+    ballot_publication_id: &str,
+    election_id: &str,
+) -> String {
+    let base_path = get_ballot_publications_base_path(
+        tenant_id,
+        election_event_id,
+        area_id,
+    );
+    format!("{base_path}/publication-{ballot_publication_id}/ballot-style-election-{election_id}.json")
+}
+
+#[instrument(skip_all)]
+pub fn get_election_event_file_path(
+    tenant_id: &str,
+    election_event_id: &str,
+    ballot_publication_id: &str,
+) -> String {
+    format!("tenant-{tenant_id}/event-{election_event_id}/publication-{ballot_publication_id}/election-event.json")
+}
+
+#[instrument(skip_all)]
+pub fn get_elections_file_path(
+    tenant_id: &str,
+    election_event_id: &str,
+    area_id: &str,
+    ballot_publication_id: &str,
+) -> String {
+    let base_path = get_ballot_publications_base_path(
+        tenant_id,
+        election_event_id,
+        area_id,
+    );
+    format!("{base_path}/publication-{ballot_publication_id}/elections.json")
 }
 
 #[instrument]

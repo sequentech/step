@@ -576,6 +576,7 @@ pub async fn import_users_file(
     //    together or else the temporal voters data table will be polluted
     //    with incorrectly assigned data.
     let mut owned_data: Vec<String> = Vec::new();
+    let mut it = 0;
     for result in rdr.records() {
         let record = match result {
             Ok(record) => record,
@@ -583,8 +584,11 @@ pub async fn import_users_file(
                 return Err(Error::String(format!("Error reading CSV record: {err}")));
             }
         };
+        info!("Iteration {it}, record `{record:?}`");
+        if record.iter().all(|f| f.is_empty()) {
+            break;
+        }
         owned_data.clear();
-
         let mut password_salt: Option<String> = None;
         let mut hashed_password: Option<String> = None;
         let mut num_of_iterations = *PBKDF2_ITERATIONS;
@@ -660,6 +664,7 @@ pub async fn import_users_file(
                 "Error writing to COPY IN transaction: {err}"
             )));
         }
+        it += 1;
     }
 
     if let Err(err) = writer.finish().await {

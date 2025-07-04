@@ -34,6 +34,7 @@ import {
     IAuditableMultiBallot,
     ECastVoteGoldLevelPolicy,
     EElectionEventContestEncryptionPolicy,
+    IElection,
 } from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
@@ -47,28 +48,28 @@ import {useTranslation} from "react-i18next"
 import Button from "@mui/material/Button"
 import {selectAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
 import {Question} from "../components/Question/Question"
-import {useMutation, useQuery} from "@apollo/client"
+import {useMutation} from "@apollo/client"
 import {INSERT_CAST_VOTE} from "../queries/InsertCastVote"
-import {GetElectionEventQuery, InsertCastVoteMutation, GetElectionsQuery} from "../gql/graphql"
-import {GET_ELECTIONS} from "../queries/GetElections"
+import {InsertCastVoteMutation} from "../gql/graphql"
 import {CircularProgress} from "@mui/material"
 import {provideBallotService} from "../services/BallotService"
 import {ICastVote, addCastVotes, SessionBallotData} from "../store/castVotes/castVotesSlice"
 import {TenantEventType} from ".."
 import {useRootBackLink} from "../hooks/root-back-link"
-import {
-    CastBallotsErrorType,
-    VotingPortalErrorType,
-    WasmCastBallotsErrorType,
-} from "../services/VotingPortalError"
-import {IBallotError} from "../types/errors"
-import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
+import {CastBallotsErrorType, VotingPortalErrorType} from "../services/VotingPortalError"
 import Stepper from "../components/Stepper"
 import {selectBallotSelectionByElectionId} from "../store/ballotSelections/ballotSelectionsSlice"
 import {sortContestList, hashBallot, hashMultiBallot} from "@sequentech/ui-core"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import {AuthContext} from "../providers/AuthContextProvider"
-import {useGetOne} from "react-admin"
+import {
+    IElectionEvent,
+    selectElectionEventById,
+    setElectionEvent,
+} from "../store/electionEvents/electionEventsSlice"
+import {selectElections} from "../store/elections/electionsSlice"
+import {fetchJson, BallotFilesUrlsOutput} from "../services/FetchS3BallotFiles"
+import {GET_BALLOT_FILES_URLS} from "../queries/GetBallotFilesUrls"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -161,6 +162,7 @@ const AuditBallotHelpDialog: React.FC<AuditBallotHelpDialogProps> = ({
 interface ActionButtonProps {
     ballotStyle: IBallotStyle
     auditableBallot: IAuditableBallot
+    electionEvent: IElectionEvent | undefined
     auditButtonCfg: EVotingPortalAuditButtonCfg
     castVoteConfirmModal: boolean
     ballotId: string
@@ -200,6 +202,7 @@ const LoadingOrCastButton: React.FC<LoadingOrCastButtonProps> = ({
 const ActionButtons: React.FC<ActionButtonProps> = ({
     ballotStyle,
     auditableBallot,
+    electionEvent,
     auditButtonCfg,
     castVoteConfirmModal,
     ballotId,
@@ -220,21 +223,6 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     const {globalSettings} = useContext(SettingsContext)
     const authContext = useContext(AuthContext)
     const {isGoldUser, reauthWithGold} = authContext
-
-    const {refetch: refetchElectionEvent} = useQuery<GetElectionEventQuery>(GET_ELECTION_EVENT, {
-        variables: {
-            electionEventId: eventId,
-            tenantId,
-        },
-        skip: globalSettings.DISABLE_AUTH, // Skip query if in demo mode
-        onError: (error) => {
-            if (error.networkError) {
-                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.NETWORK_ERROR}`))
-            } else {
-                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.UNABLE_TO_FETCH_DATA}`))
-            }
-        },
-    })
 
     const handleClose = (value: boolean) => {
         setAuditBallotHelp(false)
@@ -299,16 +287,13 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
         isCastingBallot.current = true
 
         try {
-            const {data} = await refetchElectionEvent()
-
-            if (!(data && data.sequent_backend_election_event.length > 0)) {
+            if (!electionEvent) {
                 isCastingBallot.current = false
                 setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.LOAD_ELECTION_EVENT}`))
                 return submit({error: errorType}, {method: "post"})
             }
 
-            const record = data?.sequent_backend_election_event?.[0]
-            const eventStatus = record?.status as IElectionEventStatus | undefined
+            const eventStatus = electionEvent?.status as IElectionEventStatus | undefined
 
             if (eventStatus?.voting_status !== EVotingStatus.OPEN) {
                 isCastingBallot.current = false
@@ -423,6 +408,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
 
 export const ReviewScreen: React.FC = () => {
     const {electionId} = useParams<{electionId?: string}>()
+    const elections = useAppSelector(selectElections) as IElection[]
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
     const location = useLocation()
     const auditableBallot = useAppSelector(selectAuditableBallot(String(electionId)))
@@ -435,6 +421,7 @@ export const ReviewScreen: React.FC = () => {
     const navigate = useNavigate()
     const submit = useSubmit()
     const {tenantId, eventId} = useParams<TenantEventType>()
+    const electionEvent = useAppSelector(selectElectionEventById(eventId))
     const [errorMsg, setErrorMsg] = useState<CastBallotsErrorType>()
     const authContext = useContext(AuthContext)
     const {isGoldUser, reauthWithGold} = authContext
@@ -442,28 +429,40 @@ export const ReviewScreen: React.FC = () => {
     const {globalSettings} = useContext(SettingsContext)
     const [insertCastVote] = useMutation<InsertCastVoteMutation>(INSERT_CAST_VOTE)
     const dispatch = useAppDispatch()
+    const [getBallotFilesUrls] = useMutation(GET_BALLOT_FILES_URLS)
+    const urls = useRef<BallotFilesUrlsOutput | undefined>(undefined)
+    const isGoldUserRef = useRef<boolean | undefined>(undefined)
+    const isGoldenPolicy = useRef<boolean | undefined>(undefined)
+    const loadingS3Data = useRef<boolean>(false)
+    const dataElectionEvent = useAppSelector(selectElectionEventById(eventId))
 
-    const {refetch: refetchElectionEvent} = useQuery<GetElectionEventQuery>(GET_ELECTION_EVENT, {
-        variables: {
-            electionEventId: eventId,
-            tenantId,
-        },
-        skip: globalSettings.DISABLE_AUTH, // Skip query if in demo mode
-        onError: (error) => {
-            if (error.networkError) {
-                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.NETWORK_ERROR}`))
-            } else {
-                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.UNABLE_TO_FETCH_DATA}`))
+    async function fetchS3Data() {
+        try {
+            const res = await getBallotFilesUrls({
+                variables: {
+                    eventId,
+                },
+            })
+
+            let dataUrls = (res.data?.get_ballot_files_urls as BallotFilesUrlsOutput) ?? null
+            if (!dataUrls || !dataUrls.election_event_url) {
+                loadingS3Data.current = false
+                throw new Error("Not enough urls")
             }
-        },
-    })
 
-    const {data: dataElections} = useQuery<GetElectionsQuery>(GET_ELECTIONS, {
-        variables: {
-            electionIds: electionId ? [electionId] : [],
-        },
-        skip: globalSettings.DISABLE_AUTH, // Skip query if in demo mode
-    })
+            urls.current = dataUrls
+            const contentElectionEvent = await fetchJson(dataUrls.election_event_url)
+
+            if (!contentElectionEvent) {
+                throw new Error("Not enough contents")
+            }
+            dispatch(setElectionEvent(contentElectionEvent as IElectionEvent))
+        } catch (error) {
+            console.log("Error getting signed urls", error)
+            setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.LOAD_ELECTION_EVENT}`))
+            loadingS3Data.current = false
+        }
+    }
 
     const fakeCastVote = (): ICastVote => ({
         id: eventId ?? "",
@@ -480,9 +479,7 @@ export const ReviewScreen: React.FC = () => {
         election_event_id: eventId ?? "",
     })
 
-    const isGoldenPolicy = dataElections?.sequent_backend_election.some(
-        (item) => item.presentation?.cast_vote_gold_level === ECastVoteGoldLevelPolicy.GOLD_LEVEL
-    )
+    const isRefreshedOrReauth = !(elections?.length > 0) && !electionEvent // When refreshing these values from Redux are lost.
 
     const auditButtonCfg =
         ballotStyle?.ballot_eml?.election_presentation?.audit_button_cfg ??
@@ -567,16 +564,13 @@ export const ReviewScreen: React.FC = () => {
         }
 
         try {
-            const {data} = await refetchElectionEvent()
-
-            if (!(data && data.sequent_backend_election_event.length > 0)) {
+            if (!dataElectionEvent) {
                 isCastingBallot.current = false
                 setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.LOAD_ELECTION_EVENT}`))
                 return submit({error: errorType}, {method: "post"})
             }
 
-            const record = data?.sequent_backend_election_event?.[0]
-            const eventStatus = record?.status as IElectionEventStatus | undefined
+            const eventStatus = dataElectionEvent?.status as IElectionEventStatus | undefined
 
             if (eventStatus?.voting_status !== EVotingStatus.OPEN) {
                 isCastingBallot.current = false
@@ -621,8 +615,25 @@ export const ReviewScreen: React.FC = () => {
     }
 
     useEffect(() => {
-        if ((!ballotStyle || !auditableBallot || !selectionState) && isGoldenPolicy) {
-            if (isGoldUser()) {
+        if (isGoldUserRef.current === undefined) {
+            isGoldUserRef.current = isGoldUser()
+        }
+
+        if (isRefreshedOrReauth && !loadingS3Data.current && isGoldUserRef.current) {
+            loadingS3Data.current = true
+            fetchS3Data() // sets dataElectionEvent, needed only in case of gold reathentication
+        }
+
+        if (dataElectionEvent) {
+            loadingS3Data.current = false
+        }
+
+        if (
+            (!ballotStyle || !auditableBallot || !selectionState || isRefreshedOrReauth) &&
+            isGoldUserRef.current !== undefined &&
+            !loadingS3Data.current
+        ) {
+            if (isGoldUserRef.current) {
                 if (!isCastingBallot.current) {
                     console.log("Gold user flow")
                     isCastingBallot.current = true
@@ -642,7 +653,7 @@ export const ReviewScreen: React.FC = () => {
         } else {
             console.log("Normal flow")
         }
-    }, [ballotStyle, selectionState, auditableBallot, isGoldenPolicy])
+    }, [ballotStyle, selectionState, auditableBallot, isGoldenPolicy, dataElectionEvent])
 
     if (!ballotStyle || !auditableBallot) {
         return errorMsg ? (
@@ -749,6 +760,7 @@ export const ReviewScreen: React.FC = () => {
                 <ActionButtons
                     ballotStyle={ballotStyle}
                     auditableBallot={auditableBallot}
+                    electionEvent={electionEvent ?? dataElectionEvent}
                     auditButtonCfg={auditButtonCfg}
                     castVoteConfirmModal={castVoteConfirmModal}
                     ballotId={ballotId ?? ""}

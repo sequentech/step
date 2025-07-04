@@ -30,7 +30,10 @@ pub enum ErrorCode {
     UuidParseFailed,
     UnknownError,
     InvalidEventProcessor,
-    // Add any other needed error codes
+    #[strum(to_string = "publicationNotFound")]
+    PublicationNotFound,
+    #[strum(to_string = "noAreaContests")]
+    NoAreaContests,
 }
 
 #[derive(Serialize)]
