@@ -899,7 +899,7 @@ async fn check_previous_votes(
         .filter_map(|cv| cv.area_id.and_then(|id| Uuid::parse_str(&id).ok()))
         .partition(|cv_area_id| cv_area_id.to_string() == area_id.to_string());
 
-    event!(Level::INFO, "get cast votes returns same: {:?}", same);
+    event!(Level::DEBUG, "get cast votes returns same: {:?}", same);
 
     // Skip max votes check if max_revotes is 0, allowing unlimited votes
     if max_revotes > 0 && same.len() >= max_revotes {

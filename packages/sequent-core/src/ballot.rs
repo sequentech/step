@@ -477,6 +477,30 @@ pub enum AuditButtonCfg {
     Display,
     Default,
 )]
+pub enum ShowCastVoteLogs {
+    #[strum(serialize = "show-logs-tab")]
+    #[serde(rename = "show-logs-tab")]
+    ShowLogsTab,
+    #[strum(serialize = "hide-logs-tab")]
+    #[serde(rename = "hide-logs-tab")]
+    #[default]
+    HideLogsTab,
+}
+
+#[derive(
+    Debug,
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+    Clone,
+    EnumString,
+    Display,
+    Default,
+)]
 pub enum ElectionsOrder {
     #[strum(serialize = "random")]
     #[serde(rename = "random")]
@@ -673,6 +697,7 @@ pub struct ElectionEventPresentation {
     pub css: Option<String>,
     pub skip_election_list: Option<bool>,
     pub show_user_profile: Option<bool>, // default is true
+    pub show_cast_vote_logs: Option<ShowCastVoteLogs>,
     pub elections_order: Option<ElectionsOrder>,
     pub voting_portal_countdown_policy: Option<VotingPortalCountdownPolicy>,
     pub custom_urls: Option<CustomUrls>,

@@ -3,8 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::{anyhow, Context, Result};
-use log::info;
-use tracing::{event, instrument, Level};
+use tracing::{info, instrument};
 
 use immudb_rs::{sql_value::Value, Client, NamedParam, Row, SqlValue, TxMode};
 use std::fmt::Debug;
@@ -353,17 +352,18 @@ impl BoardClient {
 
     /// Creates the requested immudb database, only if it doesn't exist. It also creates
     /// the requested tables if they don't exist.
+    #[instrument(skip(self))]
     async fn upsert_database(&mut self, database_name: &str, tables: &str) -> Result<()> {
         // create database if it doesn't exist
         if !self.client.has_database(database_name).await? {
             self.client.create_database(database_name).await?;
-            event!(Level::INFO, "Database created!");
+            info!("Database created!");
         };
         self.client.use_database(database_name).await?;
 
         // List tables and create them if missing
         if !self.client.has_tables().await? {
-            event!(Level::INFO, "no tables! let's create them");
+            info!("no tables! let's create them");
             self.client.sql_exec(&tables, vec![]).await?;
         }
         Ok(())

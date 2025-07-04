@@ -280,6 +280,13 @@ const basqueTranslation: TranslationType = {
                 css: "CSS Pertsonalizatua",
                 skipElectionList: "Saltatu Hauteskunde Zerrenda Pantaila",
                 showUserProfile: "Erakutsi Erabiltzaile Profila",
+                showCastVoteLogs: {
+                    policyLabel: "Erakutsi Logs Bozketa Taba",
+                    options: {
+                        "show-logs-tab": "Erakutsi Logs Bozketa Taba",
+                        "hide-logs-tab": "Ez Erakutsi Logs Bozketa Taba",
+                    },
+                },
                 lockdownState: {
                     policyLabel: "Blokeo Egoera",
                     options: {

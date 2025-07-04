@@ -279,6 +279,13 @@ const dutchTranslation: TranslationType = {
                 css: "Aangepaste CSS",
                 skipElectionList: "Scherm verkiezingslijst overslaan",
                 showUserProfile: "Gebruikersprofiel tonen",
+                showCastVoteLogs: {
+                    policyLabel: "Logboeken stemmen tonen",
+                    options: {
+                        "show-logs-tab": "Tab log stemmen tonen",
+                        "hide-logs-tab": "Tab log stemmen verbergen",
+                    },
+                },
                 lockdownState: {
                     policyLabel: "Vergrendelingsstatus",
                     options: {

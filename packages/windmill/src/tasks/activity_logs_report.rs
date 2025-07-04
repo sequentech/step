@@ -19,7 +19,7 @@ use crate::{
 use anyhow::{anyhow, Context};
 use celery::error::TaskError;
 use deadpool_postgres::Client as DbClient;
-use tracing::instrument;
+use tracing::{info, instrument};
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
@@ -68,6 +68,7 @@ pub async fn generate_activity_logs_report(
         format,
     );
 
+    info!("Generating activity logs report");
     let _ = report
         .execute_report(
             &document_id,

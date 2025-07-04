@@ -10,7 +10,7 @@ use strum_macros::Display;
 use crate::messages::newtypes::*;
 use tracing::info;
 
-#[derive(BorshSerialize, BorshDeserialize, Deserialize, Serialize, Debug)]
+#[derive(BorshSerialize, BorshDeserialize, Deserialize, Serialize, Debug, Clone)]
 pub struct Statement {
     pub head: StatementHead,
     pub body: StatementBody,
@@ -173,7 +173,7 @@ impl StatementHead {
     }
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Deserialize, Serialize, Debug)]
+#[derive(BorshSerialize, BorshDeserialize, Deserialize, Serialize, Debug, Clone)]
 pub enum StatementBody {
     // NOT IMPLEMENTED YET, but please feel free
     // "Emisión de voto (sólo como registro que el sistema almacenó correctamente el voto)
@@ -252,6 +252,7 @@ pub enum StatementBody {
     AdminPublicKey(TenantIdString, Option<String>, PublicKeyDerB64),
 }
 
+// Note: When creating new variants, consider that the length limit STATEMENT_KIND_VARCHAR_LENGTH is 40.
 #[derive(BorshSerialize, BorshDeserialize, Display, Deserialize, Serialize, Debug, Clone)]
 pub enum StatementType {
     Unknown,

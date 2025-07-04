@@ -9,20 +9,24 @@ use base64::engine::general_purpose;
 use base64::Engine;
 use clap::Args;
 use csv::WriterBuilder;
+use electoral_log::client::types::{
+    ElectoralLogVarCharColumn, SqlCompOperators, WhereClauseOrdMap,
+};
 use electoral_log::messages::message::Message;
 use electoral_log::messages::newtypes::ElectionIdString;
-use electoral_log::messages::statement::StatementBody;
+use electoral_log::messages::statement::{StatementBody, StatementType};
 use electoral_log::BoardClient;
 use sequent_core::encrypt::shorten_hash;
 use serde::Serialize;
 use serde_json::Value;
+use std::collections::BTreeMap;
+use std::collections::HashMap;
 use std::env;
 use std::fs::File;
 use strand::serialization::StrandDeserialize;
 use tokio_postgres::Transaction;
 use uuid::Uuid;
 use windmill::services::providers::transactions_provider::provide_hasura_transaction;
-
 #[derive(Serialize)]
 struct Record {
     created: i64,
@@ -77,9 +81,22 @@ impl ExportCastVotes {
             .await
             .map_err(|err| anyhow!("Failed to create the client: {:?}", err))?;
 
+        let cols_match = WhereClauseOrdMap::from(&[(
+            ElectoralLogVarCharColumn::StatementKind,
+            SqlCompOperators::Equal(StatementType::CastVote.to_string()),
+        )]);
+        let order_by: Option<HashMap<String, String>> = None;
         println!("Getting messages");
         let electoral_log_messages = client
-            .get_electoral_log_messages_filtered(&self.board_db, "CastVote", None, None, None)
+            .get_electoral_log_messages_filtered(
+                &self.board_db,
+                Some(cols_match),
+                None,
+                None,
+                None,
+                None,
+                order_by,
+            )
             .await
             .map_err(|err| anyhow!("Failed to get filtered messages: {:?}", err))?;
 

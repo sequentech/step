@@ -200,7 +200,7 @@ pub async fn update_publish_ballot(
             Some(username),
         )
         .await
-        .with_context(|| "error posting to the electoral log")?;
+        .map_err(|e| anyhow!("error posting to the electoral log: {e}"))?;
     Ok(())
 }
 

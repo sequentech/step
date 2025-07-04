@@ -2,6 +2,11 @@ use crate::postgres::application::get_applications_by_election;
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use super::export_bulletin_boards;
+use super::export_schedule_events;
+use super::export_tally;
+use super::export_users::export_users_file;
+use super::export_users::ExportBody;
 use crate::postgres::area::get_event_areas;
 use crate::postgres::area_contest::export_area_contests;
 use crate::postgres::ballot_publication::get_ballot_publication;
@@ -12,10 +17,15 @@ use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::keys_ceremony::get_keys_ceremonies;
 use crate::postgres::reports::get_reports_by_election_event_id;
 use crate::postgres::trustee::get_all_trustees;
+use crate::services::consolidation::aes_256_cbc_encrypt::encrypt_file_aes_256_cbc;
 use crate::services::database::get_hasura_pool;
+use crate::services::database::PgConfig;
+use crate::services::documents::upload_and_return_document;
+use crate::services::electoral_log::ElectoralLogRow;
 use crate::services::export::export_ballot_publication;
 use crate::services::import::import_election_event::ImportElectionEventSchema;
-use crate::services::reports::activity_log;
+use crate::services::password;
+use crate::services::reports::activity_log::{self, ActivityLogRow};
 use crate::services::reports::activity_log::{ActivityLogsTemplate, ReportFormat};
 use crate::services::reports::template_renderer::{
     ReportOriginatedFrom, ReportOrigins, TemplateRenderer,
@@ -23,7 +33,6 @@ use crate::services::reports::template_renderer::{
 use crate::services::reports_vault::get_password;
 use crate::tasks::export_election_event::ExportOptions;
 use crate::types::documents::EDocuments;
-
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use futures::try_join;
@@ -42,15 +51,6 @@ use tempfile::NamedTempFile;
 use tracing::{event, info, instrument, Level};
 use uuid::Uuid;
 use zip::write::FileOptions;
-
-use super::export_bulletin_boards;
-use super::export_schedule_events;
-use super::export_tally;
-use super::export_users::export_users_file;
-use super::export_users::ExportBody;
-use crate::services::consolidation::aes_256_cbc_encrypt::encrypt_file_aes_256_cbc;
-use crate::services::documents::upload_and_return_document;
-use crate::services::password;
 
 #[instrument(err, skip(transaction))]
 pub async fn read_export_data(
@@ -357,17 +357,11 @@ pub async fn process_export_zip(
             ReportFormat::CSV, // Assuming CSV format for this export
         );
 
-        // Prepare user data
-        let user_data = activity_logs_template
-            .prepare_user_data(&hasura_transaction, &hasura_transaction)
-            .await
-            .map_err(|e| anyhow!("Error preparing activity logs data: {e:?}"))?;
-
         // Generate the CSV file using generate_export_data
-        let temp_activity_logs_file =
-            activity_log::generate_export_data(&user_data.electoral_log, &activity_logs_filename)
-                .await
-                .map_err(|e| anyhow!("Error generating export data: {e:?}"))?;
+        let temp_activity_logs_file = activity_logs_template
+            .generate_export_csv_data(&activity_logs_filename)
+            .await
+            .map_err(|e| anyhow!("Error generating export data: {e:?}"))?;
 
         zip_writer
             .start_file(&activity_logs_filename, options)

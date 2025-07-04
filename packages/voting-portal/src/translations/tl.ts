@@ -311,6 +311,9 @@ const tagalogTranslation: TranslationType = {
             notFound: "Ang iyong ballot ID {{ballotId}} ay hindi natagpuan",
             contentDesc: "Ito ang nilalaman ng iyong balota: ",
             wrongFormatBallotId: "Mali ang format para sa Ballot ID",
+            ballotIdNotFoundAtFilter: "Hindi natagpuan ang iyong ballot ID sa filter",
+            filterByBallotId: "Tumutugma sa Ballot ID",
+            totalBallots: "Kumulang mga balota: {{total}}",
             steps: {
                 lookup: "Hanapin ang Iyong Balota",
                 result: "Resulta",
@@ -320,6 +323,16 @@ const tagalogTranslation: TranslationType = {
                 content:
                     "Sa screen na ito maaring hanapin ng botante ang kaniyang boto gamit ang Ballot ID upang matagpuan ito. Sa ganitong pamamaraan, maaring suriin kung ang balota ay nai-submit nang tama at kung ang naitalang balota ay tumutugma sa encrypted na balota na kanilang ipinadala.",
                 ok: "OK",
+            },
+            tabs: {
+                logs: "Logs",
+                ballotLocator: "Lokaliseer uw Stembiljet",
+            },
+            column: {
+                statement_kind: "Type",
+                statement_timestamp: "Tijdstip",
+                username: "Gebruikersnaam",
+                ballot_id: "Stembiljet ID",
             },
         },
     },

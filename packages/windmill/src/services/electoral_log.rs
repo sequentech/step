@@ -12,37 +12,39 @@ use crate::services::vault;
 use crate::tasks::electoral_log::{
     enqueue_electoral_log_event, LogEventInput, INTERNAL_MESSAGE_TYPE,
 };
-use crate::types::resources::{Aggregate, DataList, OrderDirection, TotalAggregate};
-use anyhow::{anyhow, Context, Result};
-use b3::messages::message::{self, Signer as _};
+use crate::types::resources::{Aggregate, DataList, TotalAggregate};
+use anyhow::{anyhow, ensure, Context, Result};
+use b3::messages::message::Signer;
 use base64::engine::general_purpose;
 use base64::Engine;
 use deadpool_postgres::Transaction;
-use electoral_log::assign_value;
-use electoral_log::messages::message::Message;
-use electoral_log::messages::message::SigningData;
-use electoral_log::messages::newtypes::ErrorMessageString;
-use electoral_log::messages::newtypes::KeycloakEventTypeString;
+use electoral_log::client::types::*;
+use electoral_log::messages::message::{Message, SigningData};
 use electoral_log::messages::newtypes::*;
-use electoral_log::messages::statement::StatementHead;
-use electoral_log::ElectoralLogMessage;
-use immudb_rs::{sql_value::Value, Client, NamedParam, Row, SqlValue, TxMode};
-use sequent_core::ballot::VotingStatusChannel;
-use sequent_core::serialization::base64::{Base64Deserialize, Base64Serialize};
+use electoral_log::messages::statement::{StatementBody, StatementType};
+use immudb_rs::{sql_value::Value, Client, NamedParam, Row, TxMode};
+use rust_decimal::prelude::ToPrimitive;
 use sequent_core::serialization::deserialize_with_path;
-use sequent_core::services::date::ISO8601;
 use sequent_core::util::retry::retry_with_exponential_backoff;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::time::Duration;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::hash::HashWrapper;
+use strand::hash::STRAND_HASH_LENGTH_BYTES;
 use strand::serialization::StrandDeserialize;
 use strand::signature::StrandSignatureSk;
-use strum_macros::{Display, EnumString, ToString};
 use tempfile::NamedTempFile;
-use tokio_stream::{Stream, StreamExt};
-use tracing::{event, info, instrument, Level};
+use tokio_stream::StreamExt;
+use tracing::{info, instrument, warn};
+
+pub const IMMUDB_ROWS_LIMIT: usize = 2500;
+pub const MAX_ROWS_PER_PAGE: usize = 50;
+
+/// Ballot_id input is the first half of the original hash which is stored in the electoral log.
+pub const BALLOT_ID_LENGTH_BYTES: usize = STRAND_HASH_LENGTH_BYTES / 2;
+/// Ballot_id input is in HEX, each byte is represented in 2 chars.
+pub const BALLOT_ID_LENGTH_CHARS: usize = BALLOT_ID_LENGTH_BYTES * 2;
+
 pub struct ElectoralLog {
     pub(crate) sd: SigningData,
     pub(crate) elog_database: String,
@@ -737,188 +739,14 @@ impl ElectoralLog {
     }
 }
 
-// Enumeration for the valid fields in the immudb table
-#[derive(Debug, Deserialize, Hash, PartialEq, Eq, EnumString, Display)]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum OrderField {
-    Id,
-    Created,
-    StatementTimestamp,
-    StatementKind,
-    Message,
-    UserId,
-    Username,
-    SenderPk,
-    LogType,
-    EventType,
-    Description,
-    Version,
-}
-
-#[derive(Deserialize, Debug)]
-pub struct GetElectoralLogBody {
-    pub tenant_id: String,
-    pub election_event_id: String,
-    pub limit: Option<i64>,
-    pub offset: Option<i64>,
-    pub filter: Option<HashMap<OrderField, String>>,
-    pub order_by: Option<HashMap<OrderField, OrderDirection>>,
-    pub election_id: Option<String>,
-    pub area_ids: Option<Vec<String>>,
-    pub only_with_user: Option<bool>,
-}
-
-impl GetElectoralLogBody {
-    // Returns the SQL clauses related to the request along with the parameters
-    #[instrument(ret)]
-    fn as_sql(&self, to_count: bool) -> Result<(String, Vec<NamedParam>)> {
-        let mut clauses = Vec::new();
-        let mut params = Vec::new();
-
-        // Handle filters
-        if let Some(filters_map) = &self.filter {
-            let mut where_clauses = Vec::new();
-
-            for (field, value) in filters_map {
-                info!("field = ?: {field}, value = ?: {value}");
-                let param_name = format!("param_{field}");
-                match field {
-                    OrderField::Id => { // sql INTEGER type
-                        let int_value: i64 = value.parse()?;
-                        where_clauses.push(format!("id = @{}", param_name));
-                        params.push(create_named_param(param_name, Value::N(int_value)));
-                    }
-                    OrderField::SenderPk | OrderField::UserId | OrderField::Username | OrderField::StatementKind | OrderField::Version => { // sql VARCHAR type
-                        where_clauses.push(format!("{field} LIKE @{}", param_name));
-                        params.push(create_named_param(param_name, Value::S(value.to_string())));
-                    }
-                    OrderField::StatementTimestamp | OrderField::Created => { // sql TIMESTAMP type
-                        // these have their own column and are inside of Message´s column as well
-                        let datetime = ISO8601::to_date_utc(&value)
-                            .map_err(|err| anyhow!("Failed to parse timestamp: {:?}", err))?;
-                        let ts: i64 = datetime.timestamp();
-                        let ts_end: i64 = ts + 60; // Search along that minute, the second is not specified by the front.
-                        let param_name_end = format!("{param_name}_end");
-                        where_clauses.push(format!("{field} >= @{} AND {field} < @{}", param_name, param_name_end));
-                        params.push(create_named_param(param_name, Value::Ts(ts)));
-                        params.push(create_named_param(param_name_end, Value::Ts(ts_end)));
-                    }
-                    OrderField::EventType | OrderField::LogType | OrderField::Description // these have no column but are inside of Message
-                    | OrderField::Message => {} // Message column is sql BLOB type and it´s encrypted so we can't search it without expensive operations
-                }
-            }
-
-            if !where_clauses.is_empty() {
-                clauses.push(format!("WHERE {}", where_clauses.join(" AND ")));
-            }
-        };
-
-        // Build a single extra clause.
-        // This clause returns rows if:
-        // - @election_filter is non-empty and matches election_id, OR
-        // - @area_filter is non-empty and matches area_id, OR
-        // - Both election_id and area_id are either '' or NULL. (General to all elections log)
-        let mut extra_where_clauses = Vec::new();
-        if self.election_id.is_some() || self.area_ids.is_some() {
-            let mut conds = Vec::new();
-
-            if let Some(election) = &self.election_id {
-                if !election.is_empty() {
-                    params.push(create_named_param(
-                        "param_election".to_string(),
-                        Value::S(election.clone()),
-                    ));
-                    conds.push("election_id LIKE @param_election".to_string());
-                }
-            }
-
-            if let Some(area_ids) = &self.area_ids {
-                if !area_ids.is_empty() {
-                    let placeholders: Vec<String> = area_ids
-                        .iter()
-                        .enumerate()
-                        .map(|(i, _)| format!("@param_area{}", i))
-                        .collect();
-                    for (i, area) in area_ids.into_iter().enumerate() {
-                        let param_name = format!("param_area{}", i);
-                        params.push(create_named_param(
-                            param_name.clone(),
-                            Value::S(area.clone()),
-                        ));
-                    }
-                    conds.push(format!(
-                        "(@param_area0 <> '' AND area_id IN ({}))",
-                        placeholders.join(", ")
-                    ));
-                }
-            }
-
-            // if neither filter matches, return logs where both fields are empty or NULL.
-            conds.push(
-                "((election_id = '' OR election_id IS NULL) AND (area_id = '' OR area_id IS NULL))"
-                    .to_string(),
-            );
-
-            extra_where_clauses.push(format!("({})", conds.join(" OR ")));
-        }
-
-        // Handle only_with_user
-        if self.only_with_user.unwrap_or(false) {
-            extra_where_clauses.push("(user_id IS NOT NULL AND user_id <> '')".to_string());
-        }
-
-        if !extra_where_clauses.is_empty() {
-            match clauses.len() {
-                0 => {
-                    clauses.push(format!("WHERE {}", extra_where_clauses.join(" AND ")));
-                }
-                _ => {
-                    let where_clause = clauses.pop().ok_or(anyhow!("Empty clause"))?;
-                    clauses.push(format!(
-                        "{} AND {}",
-                        where_clause,
-                        extra_where_clauses.join(" AND ")
-                    ));
-                }
-            }
-        }
-
-        // Handle order_by
-        if !to_count && self.order_by.is_some() {
-            let order_by_clauses: Vec<String> = self
-                .order_by
-                .as_ref()
-                .ok_or(anyhow!("Empty order clause"))?
-                .iter()
-                .map(|(field, direction)| format!("{field} {direction}"))
-                .collect();
-            if order_by_clauses.len() > 0 {
-                clauses.push(format!("ORDER BY {}", order_by_clauses.join(", ")));
-            }
-        }
-
-        // Handle limit
-        if !to_count {
-            let limit_param_name = String::from("limit");
-            let limit_value = self
-                .limit
-                .unwrap_or(PgConfig::from_env()?.default_sql_limit.into());
-            let limit = std::cmp::min(limit_value, PgConfig::from_env()?.low_sql_limit.into());
-            clauses.push(format!("LIMIT @{limit_param_name}"));
-            params.push(create_named_param(limit_param_name, Value::N(limit)));
-        }
-
-        // Handle offset
-        if !to_count && self.offset.is_some() {
-            let offset_param_name = String::from("offset");
-            let offset = std::cmp::max(self.offset.unwrap_or(0), 0);
-            clauses.push(format!("OFFSET @{}", offset_param_name));
-            params.push(create_named_param(offset_param_name, Value::N(offset)));
-        }
-
-        Ok((clauses.join(" "), params))
-    }
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct StatementHeadDataString {
+    pub event: String,
+    pub kind: String,
+    pub timestamp: i64,
+    pub event_type: String,
+    pub log_type: String,
+    pub description: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -932,14 +760,28 @@ pub struct ElectoralLogRow {
     pub user_id: Option<String>,
     pub username: Option<String>,
 }
-#[derive(Deserialize, Serialize, Debug, Clone)]
-pub struct StatementHeadDataString {
-    pub event: String,
-    pub kind: String,
-    pub timestamp: i64,
-    pub event_type: String,
-    pub log_type: String,
-    pub description: String,
+
+// Removing this step would inprove the performance, i.e. return the final type directly from ElectoralLogMessage.
+impl TryFrom<ElectoralLogMessage> for ElectoralLogRow {
+    type Error = anyhow::Error;
+
+    fn try_from(elog_msg: ElectoralLogMessage) -> Result<Self, Self::Error> {
+        let serialized = general_purpose::STANDARD_NO_PAD.encode(elog_msg.message.clone());
+        let deserialized_message = Message::strand_deserialize(&elog_msg.message)
+            .map_err(|e| anyhow!("Error deserializing message: {e:?}"))?;
+
+        Ok(ElectoralLogRow {
+            id: elog_msg.id,
+            created: elog_msg.created,
+            statement_timestamp: elog_msg.statement_timestamp,
+            statement_kind: elog_msg.statement_kind.clone(),
+            message: serde_json::to_string_pretty(&deserialized_message)
+                .with_context(|| "Error serializing message to json")?,
+            data: serialized,
+            user_id: elog_msg.user_id.clone(),
+            username: elog_msg.username.clone(),
+        })
+    }
 }
 
 impl ElectoralLogRow {
@@ -1001,175 +843,196 @@ impl ElectoralLogRow {
     }
 }
 
-impl TryFrom<&Row> for ElectoralLogRow {
-    type Error = anyhow::Error;
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct CastVoteEntry {
+    pub statement_timestamp: i64,
+    pub statement_kind: String,
+    pub ballot_id: String,
+    pub username: Option<String>,
+}
 
-    fn try_from(row: &Row) -> Result<Self, Self::Error> {
-        let mut id = 0;
-        let mut created: i64 = 0;
-        let mut sender_pk = String::from("");
-        let mut statement_timestamp: i64 = 0;
-        let mut statement_kind = String::from("");
-        let mut message = vec![];
-        let mut user_id = None;
-        let mut username = None;
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct CastVoteMessagesOutput {
+    pub list: Vec<CastVoteEntry>,
+    pub total: usize,
+}
 
-        for (column, value) in row.columns.iter().zip(row.values.iter()) {
-            match column.as_str() {
-                c if c.ends_with(".id)") => {
-                    assign_value!(Value::N, value, id)
-                }
-                c if c.ends_with(".created)") => {
-                    assign_value!(Value::Ts, value, created)
-                }
-                c if c.ends_with(".sender_pk)") => {
-                    assign_value!(Value::S, value, sender_pk)
-                }
-                c if c.ends_with(".statement_timestamp)") => {
-                    assign_value!(Value::Ts, value, statement_timestamp)
-                }
-                c if c.ends_with(".statement_kind)") => {
-                    assign_value!(Value::S, value, statement_kind)
-                }
-                c if c.ends_with(".message)") => {
-                    assign_value!(Value::Bs, value, message)
-                }
-                c if c.ends_with(".user_id)") => match value.value.as_ref() {
-                    Some(Value::S(inner)) => user_id = Some(inner.clone()),
-                    Some(Value::Null(_)) => user_id = None,
-                    None => user_id = None,
-                    _ => return Err(anyhow!("invalid column value for 'user_id'")),
-                },
-                c if c.ends_with(".username)") => match value.value.as_ref() {
-                    Some(Value::S(inner)) => username = Some(inner.clone()),
-                    Some(Value::Null(_)) => username = None,
-                    None => username = None,
-                    _ => return Err(anyhow!("invalid column value for 'username'")),
-                },
-                _ => return Err(anyhow!("invalid column found '{}'", column.as_str())),
-            }
-        }
-        let deserialized_message =
-            Message::strand_deserialize(&message).with_context(|| "Error deserializing message")?;
-        let serialized = general_purpose::STANDARD_NO_PAD.encode(message);
-        Ok(ElectoralLogRow {
-            id,
-            created,
-            statement_timestamp,
-            statement_kind,
-            message: serde_json::to_string_pretty(&deserialized_message)
-                .with_context(|| "Error serializing message to json")?,
-            data: serialized,
-            user_id,
+impl CastVoteEntry {
+    pub fn from_elog_message(
+        entry: &ElectoralLogMessage,
+        input_username: &str,
+    ) -> Result<Option<Self>, anyhow::Error> {
+        let ballot_id = entry.ballot_id.clone().unwrap_or_default();
+        let username = entry.username.clone().filter(|s| s.eq(input_username)); // Keep other usernames anonymous on the table
+        Ok(Some(CastVoteEntry {
+            statement_timestamp: entry.statement_timestamp,
+            statement_kind: StatementType::CastVote.to_string(),
+            ballot_id,
             username,
-        })
+        }))
     }
 }
 
-pub const IMMUDB_ROWS_LIMIT: usize = 25_000;
-
 #[instrument(err)]
 pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<ElectoralLogRow>> {
-    let mut client: Client = get_immudb_client().await?;
+    let mut client = get_board_client().await?;
     let board_name = get_event_board(input.tenant_id.as_str(), input.election_event_id.as_str());
+    info!("database name = {board_name}");
+    let cols_match_select = input.as_where_clause_map()?;
+    let order_by = input.order_by.clone();
+    let (min_ts, max_ts) = input.get_min_max_ts()?;
+    let limit: i64 = input.limit.unwrap_or(IMMUDB_ROWS_LIMIT as i64);
+    let offset: i64 = input.offset.unwrap_or(0);
+    let mut rows: Vec<ElectoralLogRow> = vec![];
+    let electoral_log_messages = client
+        .get_electoral_log_messages_filtered(
+            &board_name,
+            Some(cols_match_select.clone()),
+            min_ts,
+            max_ts,
+            Some(limit),
+            Some(offset),
+            order_by.clone(),
+        )
+        .await
+        .map_err(|err| anyhow!("Failed to get filtered messages: {:?}", err))?;
 
-    event!(Level::INFO, "database name = {board_name}");
-    info!("input = {:?}", input);
-    client.open_session(&board_name).await?;
-    let (clauses, params) = input.as_sql(false)?;
-    let (clauses_to_count, count_params) = input.as_sql(true)?;
-    info!("clauses ?:= {clauses}");
-    let sql = format!(
-        r#"
-        SELECT
-            id,
-            created,
-            sender_pk,
-            statement_timestamp,
-            statement_kind,
-            message,
-            user_id,
-            username
-        FROM electoral_log_messages
-        {clauses}
-        "#,
-    );
-    info!("query: {sql}");
-    let sql_query_response = client.streaming_sql_query(&sql, params).await?;
-
-    let limit: usize = input.limit.unwrap_or(IMMUDB_ROWS_LIMIT as i64).try_into()?;
-
-    let mut rows: Vec<ElectoralLogRow> = Vec::with_capacity(limit);
-    let mut resp_stream = sql_query_response.into_inner();
-    while let Some(streaming_batch) = resp_stream.next().await {
-        let items = streaming_batch?
-            .rows
-            .iter()
-            .map(ElectoralLogRow::try_from)
-            .collect::<Result<Vec<ElectoralLogRow>>>()?;
-        rows.extend(items);
+    let t_entries = electoral_log_messages.len();
+    info!("Got {t_entries} entries. Offset: {offset}, limit: {limit}");
+    for message in electoral_log_messages {
+        rows.push(message.try_into()?);
     }
 
-    let sql = format!(
-        r#"
-        SELECT
-            COUNT(*)
-        FROM electoral_log_messages
-        {clauses_to_count}
-        "#,
-    );
-    let sql_query_response = client.sql_query(&sql, count_params).await?;
-    let mut rows_iter = sql_query_response
-        .get_ref()
-        .rows
-        .iter()
-        .map(Aggregate::try_from);
-
-    let aggregate = rows_iter
-        // get the first item
-        .next()
-        // unwrap the Result and Option
-        .ok_or(anyhow!("No aggregate found"))??;
-
-    client.close_session().await?;
     Ok(DataList {
         items: rows,
         total: TotalAggregate {
-            aggregate: aggregate,
+            aggregate: Aggregate {
+                count: t_entries as i64,
+            },
         },
     })
 }
 
-#[instrument(err)]
-pub async fn count_electoral_log(input: GetElectoralLogBody) -> Result<i64> {
-    let mut client = get_immudb_client().await?;
-    let board_name = get_event_board(input.tenant_id.as_str(), input.election_event_id.as_str());
+/// Returns the entries for statement_kind = "CastVote" which ballot_id matches the input.
+/// ballot_id_filter is restricted to be an even number of characters, so thatnit can be converted
+/// to a byte array.
+#[instrument(err, skip_all)]
+pub async fn list_cast_vote_messages_and_count(
+    input: GetElectoralLogBody,
+    ballot_id_filter: &str,
+    user_id: &str,
+    username: &str,
+) -> Result<CastVoteMessagesOutput> {
+    ensure!(
+        ballot_id_filter.chars().count() % 2 == 0 && ballot_id_filter.is_ascii(),
+        "Incorrect ballot_id, the length must be an even number of characters"
+    );
+    let election_id = input.election_id.clone().unwrap_or_default();
+    let (cols_match_count, cols_match_select) =
+        input.as_cast_vote_count_and_select_clauses(&election_id, user_id, ballot_id_filter);
 
-    info!("board name: {board_name}");
-    client.open_session(&board_name).await?;
-
-    let (clauses_to_count, count_params) = input.as_sql(true)?;
-    let sql = format!(
-        r#"
-        SELECT COUNT(*)
-        FROM electoral_log_messages
-        {clauses_to_count}
-        "#,
+    let (data_res, count_res) = tokio::join!(
+        list_cast_vote_messages(
+            input.clone(),
+            ballot_id_filter,
+            user_id,
+            username,
+            cols_match_select
+        ),
+        async {
+            let mut client = get_board_client().await?;
+            let board_name =
+                get_event_board(input.tenant_id.as_str(), input.election_event_id.as_str());
+            info!("database name = {board_name}");
+            let total: usize = client
+                .count_electoral_log_messages(&board_name, Some(cols_match_count))
+                .await?
+                .to_usize()
+                .unwrap_or(0);
+            Ok(total)
+        }
     );
 
-    info!("query: {sql}");
+    let mut data = data_res.map_err(|e| anyhow!("Eror listing electoral log: {e:?}"))?;
+    data.total =
+        count_res.map_err(|e: anyhow::Error| anyhow!("Error counting electoral log: {e:?}"))?;
 
-    let sql_query_response = client.sql_query(&sql, count_params).await?;
+    Ok(data)
+}
 
-    let mut rows_iter = sql_query_response
-        .get_ref()
-        .rows
-        .iter()
-        .map(Aggregate::try_from);
-    let aggregate = rows_iter
-        .next()
-        .ok_or_else(|| anyhow!("No aggregate found"))??;
+#[instrument(err)]
+pub async fn list_cast_vote_messages(
+    input: GetElectoralLogBody,
+    ballot_id_filter: &str,
+    user_id: &str,
+    username: &str,
+    cols_match_select: WhereClauseOrdMap,
+) -> Result<CastVoteMessagesOutput> {
+    // The limits are used to cut the output after filtering the ballot id.
+    // Because ballot_id cannot be filtered at SQL level the sql limit is constant
+    let output_limit: i64 = input.limit.unwrap_or(MAX_ROWS_PER_PAGE as i64);
+    let board_name = get_event_board(input.tenant_id.as_str(), input.election_event_id.as_str());
+    info!("database name = {board_name}");
+    let order_by = input.order_by.clone();
 
-    client.close_session().await?;
-    Ok(aggregate.count as i64)
+    let limit: i64 = match ballot_id_filter.is_empty() {
+        false => IMMUDB_ROWS_LIMIT as i64, // When there is a filter, need to fetch all entries by batches.
+        true => input.limit.unwrap_or(MAX_ROWS_PER_PAGE as i64),
+    };
+    let mut offset: i64 = input.offset.unwrap_or(0);
+    let mut list: Vec<CastVoteEntry> = Vec::with_capacity(MAX_ROWS_PER_PAGE); // Filtered messages.
+
+    let mut client = get_board_client().await?;
+    let mut exit = false; // Exit at the first match if the filter is not empty or when the query returns 0 entries
+    while (list.len() as i64) < output_limit && !exit {
+        let electoral_log_messages = client
+            .get_electoral_log_messages_filtered(
+                &board_name,
+                Some(cols_match_select.clone()),
+                None,
+                None,
+                Some(limit),
+                Some(offset),
+                order_by.clone(),
+            )
+            .await
+            .map_err(|err| anyhow!("Failed to get filtered messages: {:?}", err))?;
+
+        let t_entries = electoral_log_messages.len();
+        info!("Got {t_entries} entries. Offset: {offset}, limit: {limit}");
+        for message in electoral_log_messages.iter() {
+            match CastVoteEntry::from_elog_message(&message, username)? {
+                Some(entry) if !ballot_id_filter.is_empty() => {
+                    // If there is filter exit at the first match
+                    exit = true;
+                    list.push(entry);
+                }
+                Some(entry) => {
+                    // Add all the entries till the limit, when there is no filter
+                    list.push(entry);
+                }
+                None => {}
+            }
+            if (list.len() as i64) >= output_limit || exit {
+                break;
+            }
+        }
+        exit = exit || t_entries == 0;
+        offset += limit;
+    }
+    Ok(CastVoteMessagesOutput { list, total: 0 })
+}
+
+#[instrument(err)]
+pub async fn count_electoral_log(input: GetElectoralLogBody) -> Result<i64> {
+    let mut client = get_board_client().await?;
+    let board_name = get_event_board(input.tenant_id.as_str(), input.election_event_id.as_str());
+    info!("database name = {board_name}");
+    let cols_match_count = input.as_where_clause_map()?;
+    let total = client
+        .count_electoral_log_messages(&board_name, Some(cols_match_count))
+        .await?
+        .to_u64()
+        .unwrap_or(0) as i64;
+    Ok(total)
 }

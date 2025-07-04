@@ -4,11 +4,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::authorization::authorize;
-use crate::types::resources::{
-    Aggregate, DataList, OrderDirection, TotalAggregate,
-};
+use crate::types::resources::{Aggregate, DataList, TotalAggregate};
 use anyhow::{anyhow, Context, Result};
 use electoral_log::assign_value;
+use electoral_log::client::types::OrderDirection;
 use immudb_rs::{sql_value::Value, Client, NamedParam, Row, SqlValue};
 use rocket::http::Status;
 use rocket::response::Debug;

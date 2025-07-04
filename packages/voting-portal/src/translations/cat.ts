@@ -311,6 +311,10 @@ const catalanTranslation: TranslationType = {
             notFound: "El teu ID de Papereta {{ballotId}} no ha estat localitzat",
             contentDesc: "Aquest és el contingut de la teva Papereta: ",
             wrongFormatBallotId: "Format incorrecte per l'ID de la Papereta",
+            ballotIdNotFoundAtFilter:
+                "No trobat, comprova que l'ID de la Papereta estigui correcte i pertanyi a l'usuari actual.",
+            filterByBallotId: "Filtra per ID de la Papereta",
+            totalBallots: "Paperetes: {{total}}",
             steps: {
                 lookup: "Localitza la teva Papereta",
                 result: "Resultat",
@@ -320,6 +324,16 @@ const catalanTranslation: TranslationType = {
                 content:
                     "Aquesta pantalla permet al votant trobar la seva Papereta utilitzant l'ID de la Papereta per recuperar-la. Aquest procediment permet comprovar que el seu vot va ser emès correctament i que el vot registrat coincideix amb el vot xifrat que va emetre.",
                 ok: "D'acord",
+            },
+            tabs: {
+                logs: "Logs",
+                ballotLocator: "Localitzador de la Papereta",
+            },
+            column: {
+                statement_kind: "Tipus",
+                statement_timestamp: "Marca de temps",
+                username: "Usuari",
+                ballot_id: "ID de la Papereta",
             },
         },
     },

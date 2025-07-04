@@ -133,6 +133,7 @@ pub async fn generate_report(
                 .await?;
         };
     }
+    info!("To generate report type: {report_type_str}");
     match ReportType::from_str(&report_type_str) {
         Ok(ReportType::OVCS_EVENTS) => {
             let report = OVCSEventsTemplate::new(ids);

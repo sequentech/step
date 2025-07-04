@@ -82,11 +82,16 @@ export const customBuildQuery =
                     name: resourceName,
                 },
             }
+            const builtVariables = buildVariables(introspectionResults)(
+                resource,
+                raFetchType,
+                params,
+                null
+            )
+            const finalVariables = getElectoralLogVariables(builtVariables)
             return {
                 query: getElectoralLog(params),
-                variables: getElectoralLogVariables(
-                    buildVariables(introspectionResults)(resource, raFetchType, params, null)
-                ),
+                variables: finalVariables,
                 parseResponse: (res: any) => {
                     const response = res.data.listElectoralLog
                     let output = {

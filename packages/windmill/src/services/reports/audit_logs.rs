@@ -20,8 +20,7 @@ use crate::services::database::PgConfig;
 use crate::services::documents::upload_and_return_document;
 use crate::services::election_dates::get_election_dates;
 use crate::services::electoral_log::{
-    count_electoral_log, list_electoral_log, ElectoralLogRow, GetElectoralLogBody,
-    IMMUDB_ROWS_LIMIT,
+    count_electoral_log, list_electoral_log, ElectoralLogRow, IMMUDB_ROWS_LIMIT,
 };
 use crate::services::providers::email_sender::{Attachment, EmailSender};
 use crate::services::tasks_execution::{update_complete, update_fail};
@@ -39,9 +38,9 @@ use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use chrono::{DateTime, Local};
 use deadpool_postgres::Transaction;
+use electoral_log::client::types::*;
 use futures::executor::block_on;
 use once_cell::sync::Lazy;
-use rand::seq;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use rayon::ThreadPoolBuilder;
 use sequent_core::ballot::StringifiedPeriodDates;
@@ -102,7 +101,7 @@ pub struct SystemData {
 
 #[derive(Debug)]
 pub struct AuditLogsTemplate {
-    ids: ReportOrigins,
+    ids: ReportOrigins, // TODO: It should have board_name like in ActivityLogsTemplate to use them in the traits to get the data from the electoral log
 }
 
 impl AuditLogsTemplate {
@@ -322,11 +321,14 @@ impl TemplateRenderer for AuditLogsTemplate {
     fn prefix(&self) -> String {
         format!("audit_logs_{}", self.ids.election_event_id)
     }
-    async fn count_items(&self, hasura_transaction: &Transaction<'_>) -> Result<Option<i64>> {
-        let Some(election_id) = self.get_election_id() else {
-            return Err(anyhow!("Empty election_id"));
-        };
 
+    #[instrument(err, skip_all)]
+    async fn count_items(
+        &self,
+        hasura_transaction: Option<&Transaction<'_>>,
+    ) -> Result<Option<i64>> {
+        let election_id = self.get_election_id().ok_or(anyhow!("Empty election_id"))?;
+        let hasura_transaction = hasura_transaction.ok_or(anyhow!("None hasura_transaction"))?;
         let election_areas = get_areas_by_election_id(
             &hasura_transaction,
             &self.ids.tenant_id,
@@ -348,6 +350,7 @@ impl TemplateRenderer for AuditLogsTemplate {
             area_ids: Some(area_ids),
             only_with_user: Some(true),
             election_id: Some(election_id),
+            statement_kind: None,
         };
         Ok(count_electoral_log(input).await.ok())
     }
@@ -355,8 +358,8 @@ impl TemplateRenderer for AuditLogsTemplate {
     #[instrument(err, skip_all)]
     async fn prepare_user_data_batch(
         &self,
-        hasura_transaction: &Transaction<'_>,
-        keycloak_transaction: &Transaction<'_>,
+        hasura_transaction: Option<&Transaction<'_>>,
+        keycloak_transaction: Option<&Transaction<'_>>,
         offset: &mut i64,
         limit: i64,
     ) -> Result<Self::UserData> {
@@ -364,6 +367,9 @@ impl TemplateRenderer for AuditLogsTemplate {
             "Preparing data of audit logs report with {} {} ",
             &offset, &limit
         );
+        let hasura_transaction = hasura_transaction.ok_or(anyhow!("None hasura_transaction"))?;
+        let keycloak_transaction =
+            keycloak_transaction.ok_or(anyhow!("None hasura_transaction"))?;
         let mut user_data = self
             .prepare_user_data_common(hasura_transaction, keycloak_transaction)
             .await?;
@@ -475,6 +481,7 @@ impl TemplateRenderer for AuditLogsTemplate {
                 election_id: Some(election_id.clone()),
                 area_ids: Some(area_ids.clone()),
                 only_with_user: Some(true),
+                statement_kind: None,
             };
 
             let electoral_logs_batch = list_electoral_log(input)
@@ -687,6 +694,7 @@ impl TemplateRenderer for AuditLogsTemplate {
                 area_ids: Some(area_ids.clone()),
                 only_with_user: Some(true),
                 election_id: Some(election_id.clone()),
+                statement_kind: None,
             })
             .await
             .with_context(|| "Error in fetching list of electoral logs")?;
@@ -694,8 +702,8 @@ impl TemplateRenderer for AuditLogsTemplate {
             let batch_size = electoral_logs_batch.items.len();
             offset += batch_size as i64;
             electoral_logs.items.extend(electoral_logs_batch.items);
-            electoral_logs.total.aggregate.count = electoral_logs_batch.total.aggregate.count;
             if batch_size < IMMUDB_ROWS_LIMIT {
+                electoral_logs.total.aggregate.count = electoral_logs.items.len() as i64;
                 break;
             }
         }
@@ -816,7 +824,10 @@ impl TemplateRenderer for AuditLogsTemplate {
                 anyhow!("Error providing the user template and extra config: {e:?}")
             })?;
 
-        let items_count = self.count_items(&hasura_transaction).await?.unwrap_or(0);
+        let items_count = self
+            .count_items(Some(&hasura_transaction))
+            .await?
+            .unwrap_or(0);
         let report_options = ext_cfg.report_options.clone();
         let per_report_limit = report_options
             .max_items_per_report

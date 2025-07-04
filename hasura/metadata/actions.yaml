@@ -948,6 +948,20 @@ actions:
       permissions:
           - role: cloudflare-write
           - role: admin-user
+    - name: list_cast_vote_messages
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/voting-portal/immudb/list-cast-vote-messages
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: user
+      comment: List electoral log entries of statement_kind CastVote
     - name: listElectoralLog
       definition:
           kind: ""
@@ -1347,6 +1361,8 @@ custom_types:
         - name: DataListPgAudit
         - name: TotalAggregate
         - name: ElectoralLogRow
+        - name: CastVoteEntry
+        - name: ListCastVoteMessagesOutput
         - name: DataListElectoralLog
         - name: ScheduledEventOutput2
         - name: ScheduledEventOutput3
