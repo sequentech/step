@@ -420,6 +420,7 @@ pub struct TallySessionExecution {
     pub session_ids: Option<Vec<i32>>,
     pub status: Option<Value>,
     pub results_event_id: Option<String>,
+    pub documents: Option<Value>,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]

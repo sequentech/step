@@ -1089,6 +1089,11 @@ const frenchTranslation: TranslationType = {
                 kind: "Type de fichier",
                 filter: "Filtres personnalisés",
                 approve: "Approuver",
+                continue: "Continuer",
+                logout: "Déconnexion",
+                selectTenant: "Sélectionner un locataire",
+                processing: "Traitement en cours...",
+                tenantName: "Nom du locataire",
             },
             language: {
                 es: "Espagnol",
@@ -1098,6 +1103,7 @@ const frenchTranslation: TranslationType = {
                 tl: "Tagalog",
                 gl: "Galego",
                 nl: "Néerlandais",
+                eu: "Euskera",
             },
             channel: {
                 online: "En ligne",
@@ -1105,6 +1111,7 @@ const frenchTranslation: TranslationType = {
             },
             message: {
                 delete: "Êtes-vous sûr de vouloir supprimer cet élément ?",
+                continueOrLogout: "Voulez-vous continuer ou vous déconnecter ?",
             },
         },
         createResource: {
@@ -1882,6 +1889,10 @@ const frenchTranslation: TranslationType = {
             fields: {
                 isHidden: "Caché",
                 publicUrl: "Lien public",
+            },
+            empty: {
+                header: "Pas encore de matériel de support",
+                action: "Générer du matériel de support",
             },
         },
         widget: {

@@ -15,8 +15,6 @@ impl TryFrom<Row> for DocumentWrapper {
     type Error = anyhow::Error;
 
     fn try_from(item: Row) -> Result<Self> {
-        let size: Option<i32> = item.try_get("size")?;
-
         Ok(DocumentWrapper(Document {
             id: item.try_get::<_, Uuid>("id")?.to_string(),
             tenant_id: item
@@ -27,7 +25,7 @@ impl TryFrom<Row> for DocumentWrapper {
                 .map(|val| val.to_string()),
             name: item.try_get("name")?,
             media_type: item.try_get("media_type")?,
-            size: size.map(|val| val as i64),
+            size: item.try_get("size")?,
             labels: item.try_get("labels")?,
             annotations: item.try_get("annotations")?,
             created_at: item.get("created_at"),
@@ -96,7 +94,7 @@ pub async fn insert_document(
     election_event_id: Option<String>,
     name: &str,
     media_type: &str,
-    size: i32,
+    size: i64,
     is_public: bool,
     document_id: Option<String>,
 ) -> Result<Document> {

@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2024 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-
+#![recursion_limit = "256"]
 #[macro_use]
 extern crate rocket;
 
