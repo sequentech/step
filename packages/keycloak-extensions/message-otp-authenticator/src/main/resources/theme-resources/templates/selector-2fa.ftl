@@ -9,8 +9,11 @@ SPDX-License-Identifier: AGPL-3.0-only
     <#if section = "header">
 		${msg("selector2FATitle")}
     <#elseif section = "form">
-		<p>${msg("selector2FAText")}</p>
+		<p class="text-center">${msg("selector2FAText")}</p>
 		<style>
+			.text-center {
+				text-align: center;
+			}
 			.kc-2fa-selector-desc {
 				margin-top: 10px;
 				text-align: center;
