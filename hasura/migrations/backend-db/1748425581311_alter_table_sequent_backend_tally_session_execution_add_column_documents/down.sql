@@ -1032,20 +1032,6 @@ DROP TABLE "sequent_backend"."tally_session_execution";
 -- alter table "sequent_backend"."contest" add column "winning_candidates_num" integer
 --  null;
 
-DELETE FROM "sequent_backend"."area_contest" WHERE "id" = '44a37949-1481-46bc-91fb-377fd089391c';
-
-DELETE FROM "sequent_backend"."candidate" WHERE "id" = '1822089d-ae17-4a03-8935-25164b3f2142' AND "tenant_id" = '90505c8a-23a9-4cdf-a26b-4e19f6a097d5' AND "election_event_id" = '33f18502-a67c-4853-8333-a58630663559';
-
-DELETE FROM "sequent_backend"."candidate" WHERE "id" = 'd9249345-11be-4652-ad04-298d70931610' AND "tenant_id" = '90505c8a-23a9-4cdf-a26b-4e19f6a097d5' AND "election_event_id" = '33f18502-a67c-4853-8333-a58630663559';
-
-DELETE FROM "sequent_backend"."candidate" WHERE "id" = 'a24303de-5798-47cd-9b3e-4f391d1bae7b' AND "tenant_id" = '90505c8a-23a9-4cdf-a26b-4e19f6a097d5' AND "election_event_id" = '33f18502-a67c-4853-8333-a58630663559';
-
-DELETE FROM "sequent_backend"."contest" WHERE "election_event_id" = '33f18502-a67c-4853-8333-a58630663559' AND "id" = '69f2f987-460c-48ac-ac7a-4d44d99b37e6' AND "tenant_id" = '90505c8a-23a9-4cdf-a26b-4e19f6a097d5';
-
-DELETE FROM "sequent_backend"."trustee" WHERE "id" = 'b84015c2-2efd-47de-a222-a8b7bf8d4782';
-
-DELETE FROM "sequent_backend"."trustee" WHERE "id" = '7a53083a-9284-4b1b-8db8-aadfd6bc6a02';
-
 alter table "sequent_backend"."tally_session_contest"
   add constraint "tally_contest_tally_id_tenant_id_election_event_id_fkey"
   foreign key (election_event_id, tally_id, tenant_id)
@@ -1160,16 +1146,6 @@ DROP TABLE "sequent_backend"."scheduled_event";
 alter table "sequent_backend"."document" rename to "election_document";
 
 DROP TABLE "sequent_backend"."election_document";
-
-DELETE FROM "sequent_backend"."ballot_style" WHERE "election_event_id" = '33f18502-a67c-4853-8333-a58630663559' AND "id" = '6e5bbff4-0fb8-4971-a808-37de49573f6a' AND "tenant_id" = '90505c8a-23a9-4cdf-a26b-4e19f6a097d5';
-
-DELETE FROM "sequent_backend"."election" WHERE "id" = 'f2f1065e-b784-46d1-b81a-c71bfeb9ad55' AND "tenant_id" = '90505c8a-23a9-4cdf-a26b-4e19f6a097d5' AND "election_event_id" = '33f18502-a67c-4853-8333-a58630663559';
-
-DELETE FROM "sequent_backend"."area" WHERE "id" = '2f312a36-f39c-46e4-9670-1d1ce4625745' AND "election_event_id" = '33f18502-a67c-4853-8333-a58630663559' AND "tenant_id" = '90505c8a-23a9-4cdf-a26b-4e19f6a097d5';
-
-DELETE FROM "sequent_backend"."election_event" WHERE "id" = '33f18502-a67c-4853-8333-a58630663559';
-
-DELETE FROM "sequent_backend"."tenant" WHERE "id" = '90505c8a-23a9-4cdf-a26b-4e19f6a097d5';
 
 alter table "sequent_backend"."area_contest" drop constraint "area_contest_election_event_id_tenant_id_contest_id_fkey";
 
