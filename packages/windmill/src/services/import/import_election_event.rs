@@ -204,18 +204,35 @@ pub fn read_default_election_event_realm() -> Result<RealmRepresentation> {
         .map_err(|err| anyhow!("Error parsing KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH into RealmRepresentation: {err}"))
 }
 
+#[instrument(skip(realm))]
+pub fn remove_keycloak_realm_secrets(realm: &RealmRepresentation) -> RealmRepresentation {
+    let mut realm_copy = realm.clone();
+    realm_copy.clients = realm_copy.clients.map(|clients| {
+        clients
+            .iter()
+            .map(|client| {
+                let mut client_copy = client.clone();
+                client_copy.secret = None;
+                client_copy
+            })
+            .collect()
+    });
+    realm_copy
+}
+
 #[instrument(err, skip(keycloak_event_realm))]
 pub async fn upsert_keycloak_realm(
     tenant_id: &str,
     election_event_id: &str,
     keycloak_event_realm: Option<RealmRepresentation>,
 ) -> Result<()> {
-    let realm = if let Some(realm) = keycloak_event_realm.clone() {
+    let mut realm = if let Some(realm) = keycloak_event_realm.clone() {
         realm
     } else {
         let realm = read_default_election_event_realm()?;
         realm
     };
+    realm = remove_keycloak_realm_secrets(&realm);
     let realm_config = serde_json::to_string(&realm)?;
     let client = KeycloakAdminClient::new().await?;
     let realm_name = get_event_realm(tenant_id, election_event_id);
