@@ -20,8 +20,8 @@ import sequent.keycloak.authenticator.credential.MessageOTPCredentialModel;
 import sequent.keycloak.authenticator.credential.MessageOTPCredentialProvider;
 
 /**
- * RequiredActionProvider for resetting and verifying a user's email address
- * using an OTP sent to the provided email.
+ * RequiredActionProvider for resetting and verifying a user's email address using an OTP sent to
+ * the provided email.
  *
  * <p>Flow:
  *
@@ -29,8 +29,7 @@ import sequent.keycloak.authenticator.credential.MessageOTPCredentialProvider;
  *   <li>Prompts the user to enter a new email address.
  *   <li>Sends an OTP to the entered email address.
  *   <li>Prompts the user to enter the OTP.
- *   <li>On successful verification, saves an email OTP credential and updates
- *       the user's email.
+ *   <li>On successful verification, saves an email OTP credential and updates the user's email.
  * </ol>
  *
  * <p>All state is managed via AuthenticationSessionModel notes.
@@ -45,7 +44,7 @@ public class ResetEmailOTPRequiredAction implements RequiredActionFactory, Requi
   /**
    * Session note key for the email address being verified.
    *
-   * NOTE: This NEEDS to be "email" as Utils.sendCode expects that note name.
+   * <p>NOTE: This NEEDS to be "email" as Utils.sendCode expects that note name.
    */
   public static final String NOTE_EMAIL_ADDRESS = "email";
 
@@ -55,10 +54,7 @@ public class ResetEmailOTPRequiredAction implements RequiredActionFactory, Requi
   /** Session note key for the OTP expiry timestamp. */
   public static final String NOTE_OTP_TTL = "email-otp-ttl";
 
-  /**
-   * Indicates this required action supports being initiated by the user or
-   * admin.
-   * */
+  /** Indicates this required action supports being initiated by the user or admin. */
   @Override
   public InitiatedActionSupport initiatedActionSupport() {
     return InitiatedActionSupport.SUPPORTED;
@@ -67,9 +63,7 @@ public class ResetEmailOTPRequiredAction implements RequiredActionFactory, Requi
   @Override
   public void evaluateTriggers(RequiredActionContext context) {}
 
-  /**
-   * Presents the appropriate challenge to the user: email entry or OTP entry.
-   */
+  /** Presents the appropriate challenge to the user: email entry or OTP entry. */
   @Override
   public void requiredActionChallenge(RequiredActionContext context) {
     AuthenticationSessionModel authSession = context.getAuthenticationSession();
@@ -84,8 +78,8 @@ public class ResetEmailOTPRequiredAction implements RequiredActionFactory, Requi
   }
 
   /**
-   * Handles form submissions for both email entry and OTP entry. Delegates to
-   * separate methods for clarity.
+   * Handles form submissions for both email entry and OTP entry. Delegates to separate methods for
+   * clarity.
    */
   @Override
   public void processAction(RequiredActionContext context) {
@@ -101,10 +95,7 @@ public class ResetEmailOTPRequiredAction implements RequiredActionFactory, Requi
     }
   }
 
-  /** 
-   * Handles the email entry step: validates, stores, and sends OTP to the
-   * email.
-   */
+  /** Handles the email entry step: validates, stores, and sends OTP to the email. */
   private void handleEmailEntry(RequiredActionContext context) {
     log.info("ResetEmailOTPRequiredAction.handleEmailEntry() called");
     AuthenticationSessionModel authSession = context.getAuthenticationSession();
@@ -143,8 +134,8 @@ public class ResetEmailOTPRequiredAction implements RequiredActionFactory, Requi
   }
 
   /**
-   * Handles the OTP entry step: validates the code and updates the user if
-   * correct. Also allows the user to go back and change the email address.
+   * Handles the OTP entry step: validates the code and updates the user if correct. Also allows the
+   * user to go back and change the email address.
    */
   private void handleOtpEntry(RequiredActionContext context, String email) {
     AuthenticationSessionModel authSession = context.getAuthenticationSession();
@@ -250,7 +241,8 @@ public class ResetEmailOTPRequiredAction implements RequiredActionFactory, Requi
     AuthenticationSessionModel authSession = context.getAuthenticationSession();
     AuthenticatorConfigModel config = Utils.getConfig(context.getRealm()).orElse(null);
     String codeLength = config != null ? config.getConfig().get(Utils.CODE_LENGTH) : "6";
-    String resendTimer = config != null ? config.getConfig().get(Utils.RESEND_ACTIVATION_TIMER) : "60";
+    String resendTimer =
+        config != null ? config.getConfig().get(Utils.RESEND_ACTIVATION_TIMER) : "60";
 
     form.setAttribute("email", authSession.getAuthNote(NOTE_EMAIL_ADDRESS));
     form.setAttribute("codeLength", codeLength);
@@ -265,8 +257,8 @@ public class ResetEmailOTPRequiredAction implements RequiredActionFactory, Requi
   }
 
   /**
-   * Generates and sends an OTP to the given email address, storing the code and
-   * expiry in the session.
+   * Generates and sends an OTP to the given email address, storing the code and expiry in the
+   * session.
    *
    * @deprecated Use Utils.sendCode instead for consistency.
    */
