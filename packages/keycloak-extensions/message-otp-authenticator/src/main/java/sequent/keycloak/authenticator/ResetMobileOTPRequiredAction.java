@@ -12,27 +12,29 @@ import org.keycloak.authentication.RequiredActionFactory;
 import org.keycloak.authentication.RequiredActionProvider;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.sessions.AuthenticationSessionModel;
+import org.keycloak.models.AuthenticatorConfigModel;
 
 /**
- * RequiredActionProvider for resetting and verifying a user's email address using an OTP sent to
- * the provided email.
+ * RequiredActionProvider for resetting and verifying a user's mobile number using an OTP sent via
+ * SMS.
  *
  * <p>Flow:
  *
  * <ol>
- *   <li>Prompts the user to enter a new email address.
- *   <li>Sends an OTP to the entered email address.
+ *   <li>Prompts the user to enter a new mobile number.
+ *   <li>Sends an OTP to the entered mobile number via SMS.
  *   <li>Prompts the user to enter the OTP.
- *   <li>On successful verification, saves an email OTP credential and updates the user's email.
+ *   <li>On successful verification, saves an SMS OTP credential and updates the user's mobile
+ *       number.
  * </ol>
  *
  * <p>All state is managed via AuthenticationSessionModel notes.
  */
 @AutoService(RequiredActionFactory.class)
 @JBossLog
-public class ResetEmailOTPRequiredAction extends BaseResetMessageOTPRequiredAction
+public class ResetMobileOTPRequiredAction extends BaseResetMessageOTPRequiredAction
     implements RequiredActionFactory {
-  public static final String PROVIDER_ID = "email-otp-ra";
+  public static final String PROVIDER_ID = "mobile-otp-ra";
 
   @Override
   protected String getProviderId() {
@@ -41,26 +43,33 @@ public class ResetEmailOTPRequiredAction extends BaseResetMessageOTPRequiredActi
 
   @Override
   protected String getNoteKey(AuthenticationSessionModel authSession) {
-    return "email";
+    AuthenticatorConfigModel config = Utils.getConfig(authSession.getRealm()).orElse(null);
+    if (config == null) {
+      log.error("No configuration found for ResetMobileOTPRequiredAction");
+      return "mobile";
+    }
+    String mobileNumberAttribute = config.getConfig().get(Utils.TEL_USER_ATTRIBUTE);
+    if (mobileNumberAttribute != null && !mobileNumberAttribute.isEmpty()) {
+      return mobileNumberAttribute;
+    }
+    return "mobile";
   }
 
   @Override
   protected Utils.MessageCourier getCourier() {
-    return Utils.MessageCourier.EMAIL;
+    return Utils.MessageCourier.SMS;
   }
 
   @Override
   protected String getI18nPrefix() {
-    return "emailOtp";
+    return "mobileOtp";
   }
 
   @Override
   protected void saveVerifiedValue(RequiredActionContext context, String value) {
-    context.getUser().setEmail(value);
-    context.getUser().setEmailVerified(true);
+    context.getUser().setAttribute("mobile", java.util.Collections.singletonList(value));
   }
 
-  /** Indicates this required action supports being initiated by the user or admin. */
   @Override
   public InitiatedActionSupport initiatedActionSupport() {
     return InitiatedActionSupport.SUPPORTED;
@@ -71,7 +80,7 @@ public class ResetEmailOTPRequiredAction extends BaseResetMessageOTPRequiredActi
 
   @Override
   public String getDisplayText() {
-    return "Reset and Configure Email OTP";
+    return "Reset and Configure Mobile OTP";
   }
 
   @Override

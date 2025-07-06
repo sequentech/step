@@ -39,7 +39,7 @@ public class MFAMethodSelector implements RequiredActionFactory, RequiredActionP
   // - value = list of associated required action ids
   // {
   //  	"otp": ["CONFIGURE_TOTP"],
-  // 		"message-otp": ["message-otp-ra", "reset-email-otp-ra"]
+  // 		"message-otp": ["message-otp-ra", "email-otp-ra", "mobile-otp-ra"]
   // }
   private static final Map<String, java.util.List<String>> credentialTypes =
       Map.of(
@@ -50,7 +50,9 @@ public class MFAMethodSelector implements RequiredActionFactory, RequiredActionP
           // Message OTP (SMS and Email)
           MessageOTPCredentialModel.TYPE,
           java.util.List.of(
-              ResetMessageOTPRequiredAction.PROVIDER_ID, ResetEmailOTPRequiredAction.PROVIDER_ID),
+              ResetMessageOTPRequiredAction.PROVIDER_ID,
+              ResetEmailOTPRequiredAction.PROVIDER_ID,
+              ResetMobileOTPRequiredAction.PROVIDER_ID),
 
           // Passkeys
           WebAuthnCredentialModel.TYPE_PASSWORDLESS,
