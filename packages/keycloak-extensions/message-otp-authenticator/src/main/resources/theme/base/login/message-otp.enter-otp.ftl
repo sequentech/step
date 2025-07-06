@@ -18,11 +18,6 @@ SPDX-License-Identifier: AGPL-3.0-only
                     ${msg(i18nPrefix + ".auth.changeContact")}
                 </button>
             </div>
-            <#if error??>
-                <div class="error ${properties.kcFormGroupClass!} otp-error">
-                    ${msg(i18nPrefix + ".auth." + error)}
-                </div>
-            </#if>
             <div class="${properties.kcFormGroupClass!} otp-input-row">
                 <div class="otp-container" id="otp-inputs">
                     <#assign otpLength = codeLength?number>

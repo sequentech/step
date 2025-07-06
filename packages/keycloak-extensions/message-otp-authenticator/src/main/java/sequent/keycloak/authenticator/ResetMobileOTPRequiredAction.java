@@ -67,7 +67,18 @@ public class ResetMobileOTPRequiredAction extends BaseResetMessageOTPRequiredAct
 
   @Override
   protected void saveVerifiedValue(RequiredActionContext context, String value) {
-    context.getUser().setAttribute("mobile", java.util.Collections.singletonList(value));
+    AuthenticationSessionModel authSession = context.getAuthenticationSession();
+    if (authSession == null) {
+      log.error("Authentication session is null in ResetMobileOTPRequiredAction");
+      return;
+    }
+    AuthenticatorConfigModel config = Utils.getConfig(authSession.getRealm()).orElse(null);
+    if (config == null) {
+      log.error("No configuration found for ResetMobileOTPRequiredAction");
+      return;
+    }
+    String mobileNumberAttribute = config.getConfig().get(Utils.TEL_USER_ATTRIBUTE);
+    context.getUser().setAttribute(mobileNumberAttribute, java.util.Collections.singletonList(value));
   }
 
   @Override

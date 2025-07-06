@@ -306,11 +306,11 @@ public abstract class BaseResetMessageOTPRequiredAction implements RequiredActio
 
   /** Enum for error types, serialized to string for FTL template usage. */
   protected enum ErrorType {
-    INVALID_INPUT("invalidInput"),
-    SEND_ERROR("sendError"),
-    RESEND_TIMER("resendTimer"),
-    CODE_EXPIRED("codeExpired"),
-    CODE_INVALID("codeInvalid");
+    INVALID_INPUT("messageOtp.auth.invalidInput"),
+    SEND_ERROR("messageOtp.auth.sendError"),
+    RESEND_TIMER("messageOtp.auth.resendTimer"),
+    CODE_EXPIRED("messageOtp.auth.codeExpired"),
+    CODE_INVALID("messageOtp.auth.codeInvalid");
 
     private final String value;
 
