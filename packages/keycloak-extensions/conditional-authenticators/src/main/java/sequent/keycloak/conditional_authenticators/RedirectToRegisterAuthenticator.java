@@ -11,51 +11,49 @@ import java.net.URI;
 import java.util.Collections;
 import java.util.List;
 import org.jboss.logging.Logger;
-import org.keycloak.models.Constants;
-import org.keycloak.models.ClientModel;
-import org.keycloak.sessions.AuthenticationSessionModel;
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.Authenticator;
-import org.keycloak.authentication.AuthenticationProcessor;
 import org.keycloak.authentication.AuthenticatorFactory;
 import org.keycloak.authentication.ConfigurableAuthenticatorFactory;
 import org.keycloak.models.AuthenticationExecutionModel;
+import org.keycloak.models.ClientModel;
+import org.keycloak.models.Constants;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.services.Urls;
+import org.keycloak.sessions.AuthenticationSessionModel;
 
 /**
- * Authenticator that transparently redirects users from login to registration
- * flow. This authenticator intercepts the login process and redirects the user
- * to the registration page instead, making it appear seamless to the user.
+ * Authenticator that transparently redirects users from login to registration flow. This
+ * authenticator intercepts the login process and redirects the user to the registration page
+ * instead, making it appear seamless to the user.
  */
 public class RedirectToRegisterAuthenticator implements Authenticator {
 
   public static final String PROVIDER_ID = "redirect-to-register";
   private static final Logger log = Logger.getLogger(RedirectToRegisterAuthenticator.class);
 
+  /**
+   * Prepare base uri builder for later use
+   *
+   * @return base uri builder
+   */
+  protected UriBuilder prepareBaseUriBuilder(final AuthenticationFlowContext context) {
+    final String requestURI = context.getUriInfo().getBaseUri().getPath();
+    final UriBuilder uriBuilder = UriBuilder.fromUri(requestURI);
+    final ClientModel client = context.getAuthenticationSession().getClient();
+    final AuthenticationSessionModel authenticationSession = context.getAuthenticationSession();
 
-    /**
-     * Prepare base uri builder for later use
-     *
-     * @return base uri builder
-     */
-    protected UriBuilder prepareBaseUriBuilder(final AuthenticationFlowContext context) {
-        final String requestURI = context.getUriInfo().getBaseUri().getPath();
-        final UriBuilder uriBuilder = UriBuilder.fromUri(requestURI);
-        final ClientModel client = context.getAuthenticationSession().getClient();
-        final AuthenticationSessionModel authenticationSession = context.getAuthenticationSession();
-
-        if (client != null) {
-            uriBuilder.queryParam(Constants.CLIENT_ID, client.getClientId());
-        }
-        if (authenticationSession != null) {
-            uriBuilder.queryParam(Constants.TAB_ID, authenticationSession.getTabId());
-        }
-        return uriBuilder;
+    if (client != null) {
+      uriBuilder.queryParam(Constants.CLIENT_ID, client.getClientId());
     }
+    if (authenticationSession != null) {
+      uriBuilder.queryParam(Constants.TAB_ID, authenticationSession.getTabId());
+    }
+    return uriBuilder;
+  }
 
   public void authenticate(final AuthenticationFlowContext context) {
     try {
@@ -72,9 +70,8 @@ public class RedirectToRegisterAuthenticator implements Authenticator {
       final URI registrationUri = Urls.realmRegisterPage(baseUri, realmName);
 
       // Perform the redirect using a 302 Found response.
-      final Response response = Response
-        .status(Response.Status.FOUND)
-        .location(registrationUri).build();
+      final Response response =
+          Response.status(Response.Status.FOUND).location(registrationUri).build();
 
       context.challenge(response);
     } catch (Exception e) {
