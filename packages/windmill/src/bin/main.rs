@@ -7,6 +7,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 extern crate lazy_static;
+use lazy_static::lazy_static;
 
 use anyhow::{anyhow, Result};
 use celery::Celery;
@@ -20,6 +21,17 @@ use windmill::services::celery_app::*;
 use windmill::services::probe::{setup_probe, AppName};
 use windmill::services::tasks_semaphore::init_semaphore;
 
+lazy_static! {
+    static ref BEAT_QUEUE_NAME: String = Queue::Beat.queue_name();
+    static ref SHORT_QUEUE_NAME: String = Queue::Short.queue_name();
+    static ref ELECTORAL_LOG_BEAT_QUEUE_NAME: String = Queue::ElectoralLogBeat.queue_name();
+    static ref COMMUNICATION_QUEUE_NAME: String = Queue::Communication.queue_name();
+    static ref TALLY_QUEUE_NAME: String = Queue::Tally.queue_name();
+    static ref REPORTS_QUEUE_NAME: String = Queue::Reports.queue_name();
+    static ref IMPORT_EXPORT_QUEUE_NAME: String = Queue::ImportExport.queue_name();
+    static ref ELECTORAL_LOG_BATCH_QUEUE_NAME: String = Queue::ElectoralLogBatch.queue_name();
+}
+
 #[derive(Debug, StructOpt, Clone)]
 #[structopt(
     name = "windmill",
@@ -29,15 +41,15 @@ use windmill::services::tasks_semaphore::init_semaphore;
 enum CeleryOpt {
     Consume {
         #[structopt(short, long, possible_values = &[
-            Queue::Short.as_ref(),
-            Queue::Beat.as_ref(),
-            Queue::ElectoralLogBeat.as_ref(),
-            Queue::Communication.as_ref(),
-            Queue::Tally.as_ref(),
-            Queue::Reports.as_ref(),
-            Queue::ImportExport.as_ref(),
-            Queue::ElectoralLogBatch.as_ref(),
-        ], default_value = Queue::Beat.as_ref())]
+            &*SHORT_QUEUE_NAME,
+            &*BEAT_QUEUE_NAME,
+            &*ELECTORAL_LOG_BEAT_QUEUE_NAME,
+            &*COMMUNICATION_QUEUE_NAME,
+            &*TALLY_QUEUE_NAME,
+            &*REPORTS_QUEUE_NAME,
+            &*IMPORT_EXPORT_QUEUE_NAME,
+            &*ELECTORAL_LOG_BATCH_QUEUE_NAME,
+        ], default_value = &*BEAT_QUEUE_NAME)]
         queues: Vec<String>,
         #[structopt(short, long, default_value = "100")]
         prefetch_count: u16,
