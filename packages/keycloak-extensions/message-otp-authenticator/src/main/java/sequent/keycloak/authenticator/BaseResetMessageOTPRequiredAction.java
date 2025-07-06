@@ -62,7 +62,10 @@ public abstract class BaseResetMessageOTPRequiredAction implements RequiredActio
   /** Returns the required action provider ID (e.g., "email-otp-ra"). */
   protected abstract String getProviderId();
 
-  /** Returns the session note key for the contact value (e.g., "email" or "mobile"). Now takes authSession for dynamic keys. */
+  /**
+   * Returns the session note key for the contact value (e.g., "email" or "mobile"). Now takes
+   * authSession for dynamic keys.
+   */
   protected abstract String getNoteKey(AuthenticationSessionModel authSession);
 
   /** Returns the message courier type (EMAIL or SMS). */
@@ -128,14 +131,16 @@ public abstract class BaseResetMessageOTPRequiredAction implements RequiredActio
    * Handles the contact entry step: validates, stores, and sends OTP to the contact value. Shows
    * error if invalid or sending fails.
    */
-  private void handleEntry(RequiredActionContext context, AuthenticatorConfigModel config, String noteKey) {
+  private void handleEntry(
+      RequiredActionContext context, AuthenticatorConfigModel config, String noteKey) {
     AuthenticationSessionModel authSession = context.getAuthenticationSession();
     KeycloakSession session = context.getSession();
-    String enteredValue =
-        context.getHttpRequest().getDecodedFormParameters().getFirst("contact");
+    String enteredValue = context.getHttpRequest().getDecodedFormParameters().getFirst("contact");
     if (!isValidInput(enteredValue)) {
       // Invalid input: show error
-      context.challenge(createEntryForm(context, form -> form.setError(ErrorType.INVALID_INPUT.toString()), config));
+      context.challenge(
+          createEntryForm(
+              context, form -> form.setError(ErrorType.INVALID_INPUT.toString()), config));
       return;
     }
     authSession.setAuthNote(noteKey, enteredValue);
@@ -153,7 +158,8 @@ public abstract class BaseResetMessageOTPRequiredAction implements RequiredActio
           context);
     } catch (Exception e) {
       // Sending failed: show error
-      context.challenge(createEntryForm(context, form -> form.setError(ErrorType.SEND_ERROR.toString()), config));
+      context.challenge(
+          createEntryForm(context, form -> form.setError(ErrorType.SEND_ERROR.toString()), config));
       return;
     }
     // Show OTP entry form
@@ -164,7 +170,11 @@ public abstract class BaseResetMessageOTPRequiredAction implements RequiredActio
    * Handles the OTP entry step: validates the code and updates the user if correct. Also allows the
    * user to go back and change the contact value, or resend the code.
    */
-  private void handleOtpEntry(RequiredActionContext context, String value, AuthenticatorConfigModel config, String noteKey) {
+  private void handleOtpEntry(
+      RequiredActionContext context,
+      String value,
+      AuthenticatorConfigModel config,
+      String noteKey) {
     AuthenticationSessionModel authSession = context.getAuthenticationSession();
     KeycloakSession session = context.getSession();
     String change = context.getHttpRequest().getDecodedFormParameters().getFirst("changeValue");
@@ -194,7 +204,9 @@ public abstract class BaseResetMessageOTPRequiredAction implements RequiredActio
               : 0;
       long now = System.currentTimeMillis();
       if (now - lastSent < resendTimer) {
-        context.challenge(createOTPForm(context, form -> form.setError(ErrorType.RESEND_TIMER.toString()), config));
+        context.challenge(
+            createOTPForm(
+                context, form -> form.setError(ErrorType.RESEND_TIMER.toString()), config));
         return;
       }
       try {
@@ -210,7 +222,8 @@ public abstract class BaseResetMessageOTPRequiredAction implements RequiredActio
             new String[0],
             context);
       } catch (Exception e) {
-        context.challenge(createOTPForm(context, form -> form.setError(ErrorType.SEND_ERROR.toString()), config));
+        context.challenge(
+            createOTPForm(context, form -> form.setError(ErrorType.SEND_ERROR.toString()), config));
         return;
       }
       context.challenge(createOTPForm(context, null, config));
@@ -225,7 +238,9 @@ public abstract class BaseResetMessageOTPRequiredAction implements RequiredActio
     if (isValid) {
       // Check if code is expired
       if (Long.parseLong(ttl) < System.currentTimeMillis()) {
-        context.challenge(createOTPForm(context, form -> form.setError(ErrorType.CODE_EXPIRED.toString()), config));
+        context.challenge(
+            createOTPForm(
+                context, form -> form.setError(ErrorType.CODE_EXPIRED.toString()), config));
         return;
       }
       // Save credential and update user
@@ -240,7 +255,8 @@ public abstract class BaseResetMessageOTPRequiredAction implements RequiredActio
       context.success();
     } else {
       // Invalid code: show error
-      context.challenge(createOTPForm(context, form -> form.setError(ErrorType.CODE_INVALID.toString()), config));
+      context.challenge(
+          createOTPForm(context, form -> form.setError(ErrorType.CODE_INVALID.toString()), config));
     }
   }
 
@@ -254,7 +270,9 @@ public abstract class BaseResetMessageOTPRequiredAction implements RequiredActio
 
   /** Creates the contact entry form, setting the i18nPrefix for the template. */
   protected Response createEntryForm(
-      RequiredActionContext context, Consumer<LoginFormsProvider> formConsumer, AuthenticatorConfigModel config) {
+      RequiredActionContext context,
+      Consumer<LoginFormsProvider> formConsumer,
+      AuthenticatorConfigModel config) {
     LoginFormsProvider form = context.form();
     form.setAttribute("i18nPrefix", getI18nPrefix());
     if (formConsumer != null) {
@@ -265,7 +283,9 @@ public abstract class BaseResetMessageOTPRequiredAction implements RequiredActio
 
   /** Creates the OTP entry form, setting all required attributes for the template. */
   protected Response createOTPForm(
-      RequiredActionContext context, Consumer<LoginFormsProvider> formConsumer, AuthenticatorConfigModel config) {
+      RequiredActionContext context,
+      Consumer<LoginFormsProvider> formConsumer,
+      AuthenticatorConfigModel config) {
     LoginFormsProvider form = context.form();
     AuthenticationSessionModel authSession = context.getAuthenticationSession();
     String noteKey = getNoteKey(authSession);
@@ -284,9 +304,7 @@ public abstract class BaseResetMessageOTPRequiredAction implements RequiredActio
     return form.createForm(getOtpFtl());
   }
 
-  /**
-   * Enum for error types, serialized to string for FTL template usage.
-   */
+  /** Enum for error types, serialized to string for FTL template usage. */
   protected enum ErrorType {
     INVALID_INPUT("invalidInput"),
     SEND_ERROR("sendError"),
@@ -295,8 +313,15 @@ public abstract class BaseResetMessageOTPRequiredAction implements RequiredActio
     CODE_INVALID("codeInvalid");
 
     private final String value;
-    ErrorType(String value) { this.value = value; }
-    @Override public String toString() { return value; }
+
+    ErrorType(String value) {
+      this.value = value;
+    }
+
+    @Override
+    public String toString() {
+      return value;
+    }
   }
 
   @Override

@@ -10,9 +10,9 @@ import org.keycloak.authentication.InitiatedActionSupport;
 import org.keycloak.authentication.RequiredActionContext;
 import org.keycloak.authentication.RequiredActionFactory;
 import org.keycloak.authentication.RequiredActionProvider;
+import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.sessions.AuthenticationSessionModel;
-import org.keycloak.models.AuthenticatorConfigModel;
 
 /**
  * RequiredActionProvider for resetting and verifying a user's mobile number using an OTP sent via
