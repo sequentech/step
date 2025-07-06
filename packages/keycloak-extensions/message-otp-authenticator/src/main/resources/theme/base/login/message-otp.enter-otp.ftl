@@ -173,6 +173,9 @@ SPDX-License-Identifier: AGPL-3.0-only
             </#noparse>
         </script>
         <style>
+            .alert-error {
+                margin-bottom: 2em;
+            }
             .otp-container {
                 display: flex;
                 justify-content: center;
