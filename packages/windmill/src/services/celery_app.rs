@@ -84,7 +84,7 @@ pub enum Queue {
 
 impl Queue {
     pub fn queue_name(&self) -> String {
-        let slug = std::env::var("ENV_SLUG").unwrap_or("dev".to_string());
+        let slug = std::env::var("ENV_SLUG").unwra();
         format!("{}_{}", slug, self.as_ref())
     }
 }

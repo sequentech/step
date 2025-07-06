@@ -461,26 +461,28 @@ pub fn create_named_param(name: String, value: Value) -> NamedParam {
 }
 
 pub fn get_event_board(tenant_id: &str, election_event_id: &str) -> String {
+    let slug = std::env::var("ENV_SLUG").unwra();
     let tenant: String = tenant_id
         .to_string()
         .chars()
         .filter(|&c| c != '-')
         .take(17)
         .collect();
-    format!("tenant{}event{}", tenant, election_event_id)
+    format!("{}tenant{}event{}", slug, tenant, election_event_id)
         .chars()
         .filter(|&c| c != '-')
         .collect()
 }
 
 pub fn get_election_board(tenant_id: &str, election_id: &str) -> String {
+    let slug = std::env::var("ENV_SLUG").unwra();
     let tenant: String = tenant_id
         .to_string()
         .chars()
         .filter(|&c| c != '-')
         .take(17)
         .collect();
-    format!("tenant{}election{}", tenant, election_id)
+    format!("{}tenant{}election{}", slug, tenant, election_id)
         .chars()
         .filter(|&c| c != '-')
         .collect()
