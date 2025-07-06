@@ -206,6 +206,8 @@ pub fn read_default_election_event_realm() -> Result<RealmRepresentation> {
 
 #[instrument(skip(realm))]
 pub fn remove_keycloak_realm_secrets(realm: &RealmRepresentation) -> RealmRepresentation {
+    // we remove secrets and certs so that keycloak regenerates them
+    // remove client secrets
     let mut realm_copy = realm.clone();
     realm_copy.clients = realm_copy.clients.map(|clients| {
         clients
@@ -217,6 +219,7 @@ pub fn remove_keycloak_realm_secrets(realm: &RealmRepresentation) -> RealmRepres
             })
             .collect()
     });
+    // remove certificates, only leaving their algorithm/priority
     let valid_keys: Vec<String> = vec!["priority".to_string(), "algorithm".to_string()];
     if let Some(components) = realm_copy.components.clone() {
         let mut newcomponents = components.clone();
