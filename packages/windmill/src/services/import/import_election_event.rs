@@ -16,7 +16,7 @@ use crate::services::reports_vault::get_report_key_pair;
 use crate::services::tasks_execution::update_fail;
 use crate::tasks::insert_election_event::CreateElectionEventInput;
 use crate::types::documents::ETallyDocuments;
-use ::keycloak::types::RealmRepresentation;
+use ::keycloak::types::{ComponentExportRepresentation, RealmRepresentation};
 use anyhow::{anyhow, Context, Result};
 use chrono::format;
 use chrono::{DateTime, Utc};
@@ -217,6 +217,32 @@ pub fn remove_keycloak_realm_secrets(realm: &RealmRepresentation) -> RealmRepres
             })
             .collect()
     });
+    let valid_keys: Vec<String> = vec!["priority".to_string(), "algorithm".to_string()];
+    if let Some(components) = realm_copy.components.clone() {
+        let mut newcomponents = components.clone();
+        let key: &'static str = "org.keycloak.keys.KeyProvider";
+        if let Some(val) = components.get(key) {
+            let newval: Vec<ComponentExportRepresentation> = val
+                .iter()
+                .map(|el| {
+                    let mut elnew = el.clone();
+                    if let Some(config) = elnew.config.clone() {
+                        let mut newconfig = config.clone();
+                        for k in config.keys() {
+                            if !valid_keys.contains(&k) {
+                                info!("Removing key {} from {}", k, key);
+                                newconfig.remove(k);
+                            }
+                        }
+                        elnew.config = Some(newconfig);
+                    }
+                    elnew
+                })
+                .collect();
+            newcomponents.insert(key.to_string(), newval.clone());
+        }
+        realm_copy.components = Some(newcomponents);
+    }
     realm_copy
 }
 
