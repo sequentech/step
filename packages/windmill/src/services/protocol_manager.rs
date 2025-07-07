@@ -475,7 +475,7 @@ pub fn get_event_board(tenant_id: &str, election_event_id: &str) -> String {
 }
 
 pub fn get_election_board(tenant_id: &str, election_id: &str) -> String {
-    let slug = std::env::var("ENV_SLUG").unwra();
+    let slug = std::env::var("ENV_SLUG").unwrap();
     let tenant: String = tenant_id
         .to_string()
         .chars()
