@@ -23,6 +23,7 @@ import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.services.Urls;
+import org.keycloak.services.resources.LoginActionsService;
 import org.keycloak.sessions.AuthenticationSessionModel;
 
 /**
@@ -41,8 +42,12 @@ public class RedirectToRegisterAuthenticator implements Authenticator {
    * @return base uri builder
    */
   protected UriBuilder prepareBaseUriBuilder(final AuthenticationFlowContext context) {
-    final String requestURI = context.getUriInfo().getBaseUri().getPath();
-    final UriBuilder uriBuilder = UriBuilder.fromUri(requestURI);
+    final URI baseUriOriginal = context.getUriInfo().getBaseUri();
+    final URI baseUri = UriBuilder.fromUri(baseUriOriginal).path("/").build();
+    log.info("baseUri = " + baseUri);
+
+    final UriBuilder uriBuilder =
+        Urls.loginActionsBase(baseUri).path(LoginActionsService.class, "registerPage");
     final ClientModel client = context.getAuthenticationSession().getClient();
     final AuthenticationSessionModel authenticationSession = context.getAuthenticationSession();
 
@@ -62,12 +67,11 @@ public class RedirectToRegisterAuthenticator implements Authenticator {
       // and most importantly, the 'execution' ID which maintains the
       // authentication flow state.
       final UriBuilder builder = prepareBaseUriBuilder(context);
-      final URI baseUri = builder.build();
 
       // The name of the current realm.
       final String realmName = context.getRealm().getName();
 
-      final URI registrationUri = Urls.realmRegisterPage(baseUri, realmName);
+      final URI registrationUri = builder.build(realmName);
 
       // Perform the redirect using a 302 Found response.
       final Response response =
