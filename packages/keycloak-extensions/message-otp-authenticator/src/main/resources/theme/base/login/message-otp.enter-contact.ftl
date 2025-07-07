@@ -18,13 +18,13 @@ SPDX-License-Identifier: AGPL-3.0-only
           method="post"
         >
             <div class="${properties.kcFormGroupClass!}">
-                <#if i18nPrefix == "emailOtp">
+                <#if i18nPrefix == "resetEmailOtp">
                   <div class="${properties.kcLabelWrapperClass!}">
                     <label
                       for="email"
                       class="${properties.kcLabelClass!}"
                     >
-                      ${msg("emailOtp.auth.enterEmailLabel")}
+                      ${msg("resetEmailOtp.auth.enterEmailLabel")}
                     </label>
                   </div>
                   <div class="${properties.kcInputWrapperClass!}">
@@ -41,16 +41,16 @@ SPDX-License-Identifier: AGPL-3.0-only
                       class="help-message ${properties.kcInputHelperTextAfterClass!}"
                       style="margin: 8px 0 16px 0; color: #555;"
                     >
-                      ${msg("emailOtp.auth.enterEmailHelp")}
+                      ${msg("resetEmailOtp.auth.enterEmailHelp")}
                     </div>
                 </div>
-                <#elseif i18nPrefix == "mobileOtp">
+                <#elseif i18nPrefix == "resetMobileOtp">
                     <div class="${properties.kcLabelWrapperClass!}">
                         <label
                           for="contact"
                           class="${properties.kcLabelClass!}"
                         >
-                          ${msg("mobileOtp.auth.enterMobileLabel")}
+                          ${msg("resetMobileOtp.auth.enterMobileLabel")}
                         </label>
                     </div>
                     <div class="${properties.kcInputWrapperClass!}">
@@ -59,7 +59,7 @@ SPDX-License-Identifier: AGPL-3.0-only
                         class="help-message ${properties.kcInputHelperTextAfterClass!}"
                         style="margin: 8px 0 16px 0; color: #555;"
                       >
-                        ${msg("mobileOtp.auth.enterMobileHelp")}
+                        ${msg("resetMobileOtp.auth.enterMobileHelp")}
                       </div>
                     </div>
                 <#else>
@@ -68,7 +68,7 @@ SPDX-License-Identifier: AGPL-3.0-only
             </div>
             <#if error??>
                 <div class="error ${properties.kcFormGroupClass!}">
-                  ${msg(i18nPrefix + ".auth." + error)}
+                  ${msg(error)}
                 </div>
             </#if>
             <div class="${properties.kcFormGroupClass!}">

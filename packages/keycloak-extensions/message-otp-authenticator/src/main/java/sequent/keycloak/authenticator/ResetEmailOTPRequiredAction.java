@@ -51,7 +51,7 @@ public class ResetEmailOTPRequiredAction extends BaseResetMessageOTPRequiredActi
 
   @Override
   protected String getI18nPrefix() {
-    return "emailOtp";
+    return "resetEmailOtp";
   }
 
   @Override

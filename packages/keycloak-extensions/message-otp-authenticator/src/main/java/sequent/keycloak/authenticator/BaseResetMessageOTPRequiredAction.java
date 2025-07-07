@@ -140,7 +140,7 @@ public abstract class BaseResetMessageOTPRequiredAction implements RequiredActio
       // Invalid input: show error
       context.challenge(
           createEntryForm(
-              context, form -> form.setError(ErrorType.INVALID_INPUT.toString()), config));
+              context, form -> form.setError(ErrorType.INVALID_INPUT.toString(getI18nPrefix())), config));
       return;
     }
     authSession.setAuthNote(noteKey, enteredValue);
@@ -159,7 +159,7 @@ public abstract class BaseResetMessageOTPRequiredAction implements RequiredActio
     } catch (Exception e) {
       // Sending failed: show error
       context.challenge(
-          createEntryForm(context, form -> form.setError(ErrorType.SEND_ERROR.toString()), config));
+          createEntryForm(context, form -> form.setError(ErrorType.SEND_ERROR.toString(getI18nPrefix())), config));
       return;
     }
     // Show OTP entry form
@@ -206,7 +206,7 @@ public abstract class BaseResetMessageOTPRequiredAction implements RequiredActio
       if (now - lastSent < resendTimer) {
         context.challenge(
             createOTPForm(
-                context, form -> form.setError(ErrorType.RESEND_TIMER.toString()), config));
+                context, form -> form.setError(ErrorType.RESEND_TIMER.toString(getI18nPrefix())), config));
         return;
       }
       try {
@@ -223,7 +223,7 @@ public abstract class BaseResetMessageOTPRequiredAction implements RequiredActio
             context);
       } catch (Exception e) {
         context.challenge(
-            createOTPForm(context, form -> form.setError(ErrorType.SEND_ERROR.toString()), config));
+            createOTPForm(context, form -> form.setError(ErrorType.SEND_ERROR.toString(getI18nPrefix())), config));
         return;
       }
       context.challenge(createOTPForm(context, null, config));
@@ -240,7 +240,7 @@ public abstract class BaseResetMessageOTPRequiredAction implements RequiredActio
       if (Long.parseLong(ttl) < System.currentTimeMillis()) {
         context.challenge(
             createOTPForm(
-                context, form -> form.setError(ErrorType.CODE_EXPIRED.toString()), config));
+                context, form -> form.setError(ErrorType.CODE_EXPIRED.toString(getI18nPrefix())), config));
         return;
       }
       // Save credential and update user
@@ -256,7 +256,7 @@ public abstract class BaseResetMessageOTPRequiredAction implements RequiredActio
     } else {
       // Invalid code: show error
       context.challenge(
-          createOTPForm(context, form -> form.setError(ErrorType.CODE_INVALID.toString()), config));
+          createOTPForm(context, form -> form.setError(ErrorType.CODE_INVALID.toString(getI18nPrefix())), config));
     }
   }
 
@@ -306,11 +306,11 @@ public abstract class BaseResetMessageOTPRequiredAction implements RequiredActio
 
   /** Enum for error types, serialized to string for FTL template usage. */
   protected enum ErrorType {
-    INVALID_INPUT("messageOtp.auth.invalidInput"),
-    SEND_ERROR("messageOtp.auth.sendError"),
-    RESEND_TIMER("messageOtp.auth.resendTimer"),
-    CODE_EXPIRED("messageOtp.auth.codeExpired"),
-    CODE_INVALID("messageOtp.auth.codeInvalid");
+    INVALID_INPUT(".auth.error.invalidInput"),
+    SEND_ERROR(".auth.error.sendError"),
+    RESEND_TIMER(".auth.error.resendTimer"),
+    CODE_EXPIRED(".auth.error.codeExpired"),
+    CODE_INVALID(".auth.error.codeInvalid");
 
     private final String value;
 
@@ -318,9 +318,8 @@ public abstract class BaseResetMessageOTPRequiredAction implements RequiredActio
       this.value = value;
     }
 
-    @Override
-    public String toString() {
-      return value;
+    public String toString(String prefix) {
+      return prefix + value;
     }
   }
 

@@ -62,7 +62,7 @@ public class ResetMobileOTPRequiredAction extends BaseResetMessageOTPRequiredAct
 
   @Override
   protected String getI18nPrefix() {
-    return "mobileOtp";
+    return "resetMobileOtp";
   }
 
   @Override
