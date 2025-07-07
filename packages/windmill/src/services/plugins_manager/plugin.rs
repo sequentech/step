@@ -2,11 +2,15 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
-use crate::services::plugins_manager::plugin_db_manager::PluginDbManager;
+use crate::services::plugins_manager::plugin_db_manager::{
+    add_transaction_component, PluginDbManager,
+};
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Object, Transaction};
+use futures::TryFutureExt;
 use immudb_rs::client;
 use ouroboros::self_referencing;
+use std::future::Future;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio_postgres::NoTls;
@@ -14,7 +18,8 @@ use wasmtime::component::{Component, Func, Instance, Linker, ResourceTable, Val}
 use wasmtime::{Engine, Store, StoreContextMut};
 use wasmtime_wasi::p2::{add_to_linker_sync, IoView, WasiCtx, WasiCtxBuilder, WasiView};
 
-use std::future::Future;
+use crate::services::plugins_manager::transaction_component::{self, *};
+
 #[derive(Debug)]
 pub enum HookValue {
     S32(i32),
@@ -80,8 +85,8 @@ impl HookValue {
 pub struct PluginStore {
     pub wasi: WasiCtx,
     pub resource_table: ResourceTable,
-    pub hasura_client: Option<Arc<Mutex<PluginDbManager>>>,
-    pub keycloak_client: Option<Arc<Mutex<PluginDbManager>>>,
+    pub hasura_manager: Arc<Mutex<PluginDbManager>>,
+    pub keycloak_manager: Arc<Mutex<PluginDbManager>>,
 }
 
 impl WasiView for PluginStore {
@@ -114,18 +119,23 @@ impl Plugin {
         let wasi = WasiCtxBuilder::new().inherit_stdio().build();
         add_to_linker_sync(linker)?;
 
-        let hasura_client = Arc::new(Mutex::new(PluginDbManager::init()));
-        let keycloak_client = Arc::new(Mutex::new(PluginDbManager::init()));
+        let hasura_manager = Arc::new(Mutex::new(PluginDbManager::init()));
+        let keycloak_manager = Arc::new(Mutex::new(PluginDbManager::init()));
 
         let plugin_store = PluginStore {
             resource_table: ResourceTable::new(),
             wasi: wasi,
-            hasura_client: Some(hasura_client),
-            keycloak_client: Some(keycloak_client),
+            hasura_manager,
+            keycloak_manager,
         };
 
         let mut store = Store::new(engine, plugin_store);
         let instance = linker.instantiate_async(&mut store, &component).await?;
+
+        // transaction_component
+        add_transaction_component(linker)
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to add transaction component to linker: {}", e))?;
 
         let func_index = component
             .get_export_index(None, "get-manifest")
@@ -141,52 +151,6 @@ impl Plugin {
         };
         let manifest_json: serde_json::Value = serde_json::from_str(&manifest_str)?;
         let plugin_name = manifest_json["plugin_name"].as_str().unwrap().to_string();
-
-        linker.root().func_wrap_async(
-            "execute-hasura-query",
-            |mut ctx: StoreContextMut<'_, PluginStore>,
-             (sql,): (String,)|
-             -> Box<dyn Future<Output = Result<(), wasmtime::Error>> + Send> {
-                Box::new(async move {
-                    match &ctx.data().hasura_client {
-                        Some(client) => {
-                            let mut db_manager = client.lock().await;
-                            let _ = db_manager
-                                .create_hasura_transaction()
-                                .await
-                                .map_err(|e| wasmtime::Error::msg(e.to_string()))?;
-                            Ok(())
-                        }
-                        None => {
-                            return Err(wasmtime::Error::msg("Hasura transaction not initialized"));
-                        }
-                    }
-                })
-            },
-        )?;
-
-        linker.root().func_wrap_async(
-            "execute-hasura-query",
-            |mut ctx: StoreContextMut<'_, PluginStore>,
-             (sql,): (String,)|
-             -> Box<dyn Future<Output = Result<(String,), wasmtime::Error>> + Send> {
-                Box::new(async move {
-                    match &ctx.data().hasura_client {
-                        Some(client) => {
-                            let mut db_manager = client.lock().await;
-                            let res = db_manager
-                                .exec(&sql)
-                                .await
-                                .map_err(|e| wasmtime::Error::msg(e.to_string()))?;
-                            Ok((res,))
-                        }
-                        None => {
-                            return Err(wasmtime::Error::msg("Hasura transaction not initialized"));
-                        }
-                    }
-                })
-            },
-        )?;
 
         Ok(Self {
             name: plugin_name,
