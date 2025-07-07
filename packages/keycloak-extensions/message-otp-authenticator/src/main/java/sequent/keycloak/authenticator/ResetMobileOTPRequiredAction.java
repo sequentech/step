@@ -78,7 +78,9 @@ public class ResetMobileOTPRequiredAction extends BaseResetMessageOTPRequiredAct
       return;
     }
     String mobileNumberAttribute = config.getConfig().get(Utils.TEL_USER_ATTRIBUTE);
-    context.getUser().setAttribute(mobileNumberAttribute, java.util.Collections.singletonList(value));
+    context
+        .getUser()
+        .setAttribute(mobileNumberAttribute, java.util.Collections.singletonList(value));
   }
 
   @Override

@@ -1,4 +1,9 @@
 <#--
+SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
+
+SPDX-License-Identifier: AGPL-3.0-only
+-->
+<#--
 Reusable partial for rendering a phone input with intl-tel-input in Keycloak forms.
 Usage: <#include "intl-tel-input.ftl"> and call renderIntlTelInput(id, name, value)
 -->
