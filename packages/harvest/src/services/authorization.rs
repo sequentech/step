@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use anyhow::Context;
 use rocket::http::Status;
 use rocket::response::status::Unauthorized;
 use sequent_core::ballot::{VotingStatus, VotingStatusChannel};
@@ -27,7 +28,12 @@ pub fn authorize(
 
         (_, true) => {
             let super_admin_tenant_id = env::var("SUPER_ADMIN_TENANT_ID")
-                .expect(&format!("SUPER_ADMIN_TENANT_ID must be set"));
+                .map_err(|_| {
+                    (
+                        Status::Unauthorized,
+                        format!("SUPER_ADMIN_TENANT_ID must be set"),
+                    )
+                })?;
             info!("super_admin_tenant_id: {super_admin_tenant_id}");
             super_admin_tenant_id == claims.hasura_claims.tenant_id // is super admin?
         }
