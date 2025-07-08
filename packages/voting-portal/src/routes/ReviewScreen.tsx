@@ -207,6 +207,11 @@ const LoadingOrCastButton: React.FC<LoadingOrCastButtonProps> = ({
     )
 }
 
+const removeBallotDataFromSessionStorage = () => {
+    sessionStorage.removeItem("ballotData")
+    sessionStorage.removeItem("ballotDataExpiration")
+}
+
 const ActionButtons: React.FC<ActionButtonProps> = ({
     ballotStyle,
     auditableBallot,
@@ -310,7 +315,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                     return submit(null, {method: "post"})
                 } catch (error) {
                     // Clean up session storage on error
-                    sessionStorage.removeItem("ballotData")
+                    removeBallotDataFromSessionStorage()
                     console.error("Re-authentication failed:", error)
                     return submit({error: errorType}, {method: "post"})
                 }
@@ -374,8 +379,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                     return submit(null, {method: "post"})
                 } catch (error) {
                     // Clean up session storage on error
-                    sessionStorage.removeItem("ballotData")
-                    sessionStorage.removeItem("ballotDataExpiration")
+                    removeBallotDataFromSessionStorage()
                     console.error("Re-authentication failed:", error)
                     setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.REAUTH_FAILED}`))
                     return submit({error: errorType}, {method: "post"})
@@ -605,8 +609,7 @@ export const ReviewScreen: React.FC = () => {
 
             if (expirationTime && Date.now() > expirationTime) {
                 // Data has expired, clean up and return error
-                sessionStorage.removeItem("ballotData")
-                sessionStorage.removeItem("ballotDataExpiration")
+                removeBallotDataFromSessionStorage()
                 isCastingBallot.current = false
                 setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.SESSION_EXPIRED}`))
                 return submit({error: errorType}, {method: "post"})
@@ -627,16 +630,14 @@ export const ReviewScreen: React.FC = () => {
                 !ballotData.electionId ||
                 !ballotData.ballot
             ) {
-                sessionStorage.removeItem("ballotData")
-                sessionStorage.removeItem("ballotDataExpiration")
+                removeBallotDataFromSessionStorage()
                 isCastingBallot.current = false
                 setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.UNABLE_TO_FETCH_DATA}`))
                 return submit({error: errorType}, {method: "post"})
             }
         } catch (error) {
             // Handle JSON parsing errors
-            sessionStorage.removeItem("ballotData")
-            sessionStorage.removeItem("ballotDataExpiration")
+            removeBallotDataFromSessionStorage()
             isCastingBallot.current = false
             setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.UNABLE_TO_FETCH_DATA}`))
             return submit({error: errorType}, {method: "post"})
@@ -691,8 +692,7 @@ export const ReviewScreen: React.FC = () => {
             }
 
             // Clear the stored ballot data after successful casting
-            sessionStorage.removeItem("ballotData")
-            sessionStorage.removeItem("ballotDataExpiration")
+            removeBallotDataFromSessionStorage()
             return submit(null, {method: "post"})
         } catch (error) {
             isCastingBallot.current = false
@@ -717,8 +717,7 @@ export const ReviewScreen: React.FC = () => {
                 isGoldUser()
             )
         ) {
-            sessionStorage.removeItem("ballotData")
-            sessionStorage.removeItem("ballotDataExpiration")
+            removeBallotDataFromSessionStorage()
         }
     }, [])
 
@@ -731,8 +730,7 @@ export const ReviewScreen: React.FC = () => {
                     try {
                         automaticCastBallot()
                     } catch (error) {
-                        sessionStorage.removeItem("ballotData")
-                        sessionStorage.removeItem("ballotDataExpiration")
+                        removeBallotDataFromSessionStorage()
                         console.error("Error casting ballot:", error)
                         setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.REAUTH_FAILED}`))
                     }
