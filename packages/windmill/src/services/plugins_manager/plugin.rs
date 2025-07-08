@@ -18,8 +18,6 @@ use wasmtime::component::{Component, Func, Instance, Linker, ResourceTable, Val}
 use wasmtime::{Engine, Store, StoreContextMut};
 use wasmtime_wasi::p2::{add_to_linker_sync, IoView, WasiCtx, WasiCtxBuilder, WasiView};
 
-use crate::services::plugins_manager::transaction_component::{self, *};
-
 #[derive(Debug)]
 pub enum HookValue {
     S32(i32),

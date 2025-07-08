@@ -23,6 +23,7 @@ wasmtime::component::bindgen!({
     world: "transactions-manager",
     async: true,
 });
+
 use docs::transactions_manager::transaction::{add_to_linker, Host};
 #[ouroboros::self_referencing]
 pub struct PluginDbManager {

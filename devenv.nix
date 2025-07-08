@@ -13,19 +13,6 @@ let
     extensions = [ "rust-src" "rust-analyzer-preview" ];
   };
 
-  # cargoComponent = pkgs.rustPlatform.buildRustPackage {
-  #   pname = "cargo-component";
-  #   version = "0.21.1";
-
-  #   src = pkgs.fetchFromGitHub {
-  #     owner = "bytecodealliance";
-  #     repo = "cargo-component";
-  #     rev = "v0.21.1"; # use latest release tag
-  #     hash = "sha256-Tlx14q/2k/0jZZ1nECX7zF/xNTeMCZg/fN+fhRM4uhc=";  # get real value after first build
-  #   };
-
-  #   # cargoHash = "sha256-lmoKsJaQj2socXuq7vISw/tjNfcuo7Hsxbu65hLvrXg=";
-  # };
 in
 {
   # https://devenv.sh/basics/
@@ -122,7 +109,7 @@ in
     export PATH=/workspaces/step/packages/step-cli/rust-local-target/release:$PATH
     set +a
 
-    export RUSTC=${rustNightly}/bin/rustc
+    export RUST_SRC_PATH=${rustNightly}/bin/rustc
   '';
 
 
