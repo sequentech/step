@@ -247,7 +247,6 @@ pub async fn try_insert_cast_vote(
         false
     };
 
-    // verify ballot_id vs content
     verify_ballot_id_matches_content(&input, is_multi_contest).map_err(|e| e)?;
 
     let (pseudonym_h, vote_h) = if is_multi_contest {
@@ -977,33 +976,20 @@ pub fn verify_ballot_id_matches_content(
     input: &InsertCastVoteInput,
     is_multi_contest: bool,
 ) -> Result<(), CastVoteError> {
-    // Calculate the expected hash based on content
-    // Computes the hash of the ballot content based on the contest type.
-    //
-    // If `is_multi_contest` is `true`, the function deserializes the input content as a `HashableMultiBallot`
-    // and computes its hash using `hash_multi_ballot`. Otherwise, it deserializes the content as a `HashableBallot`
-    // and computes its hash using `hash_ballot`.
-    //
-    // Returns a result containing the computed hash or a `CastVoteError` if deserialization or hashing fails.
     let computed_hash = if is_multi_contest {
-        // Deserialize content as HashableMultiBallot
         let hashable_ballot: HashableMultiBallot = deserialize_str(&input.content)
             .map_err(|e| CastVoteError::DeserializeBallotFailed(e.to_string()))?;
 
-        // Hash the ballot using the imported function
         hash_multi_ballot(&hashable_ballot)
             .map_err(|e| CastVoteError::SerializeBallotFailed(e.to_string()))?
     } else {
-        // Deserialize content as HashableBallot
         let hashable_ballot: HashableBallot = deserialize_str(&input.content)
             .map_err(|e| CastVoteError::DeserializeBallotFailed(e.to_string()))?;
 
-        // Hash the ballot using the imported function
         hash_ballot(&hashable_ballot)
             .map_err(|e| CastVoteError::SerializeBallotFailed(e.to_string()))?
     };
 
-    // Verify that the computed hash matches the provided ballot_id
     if computed_hash != input.ballot_id {
         return Err(CastVoteError::BallotIdMismatch(format!(
             "Expected {} but got {}",

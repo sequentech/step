@@ -342,15 +342,9 @@ const VotingScreen: React.FC = () => {
                 ballotStyle.ballot_eml.election_event_presentation?.contest_encryption_policy ==
                 EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
 
-            // console.log("aa selectionState", selectionState)
-            // console.log("aa ballotStyle.ballot_eml", ballotStyle.ballot_eml)
-            // console.log("aa ballotStyle.ballot_eml", ballotStyle.ballot_eml)
-
             const auditableBallot = isMultiContest
                 ? encryptMultiBallotSelection(selectionState, ballotStyle.ballot_eml)
                 : encryptBallotSelection(selectionState, ballotStyle.ballot_eml)
-
-            console.log("aa auditableBallot", auditableBallot)
 
             dispatch(
                 setAuditableBallot({
@@ -362,8 +356,6 @@ const VotingScreen: React.FC = () => {
             let decodedSelectionState = isMultiContest
                 ? decodeAuditableMultiBallot(auditableBallot as IAuditableMultiBallot)
                 : decodeAuditableBallot(auditableBallot as IAuditableSingleBallot)
-
-            console.log("aa decodedSelectionState   ", decodedSelectionState)
 
             if (null !== decodedSelectionState) {
                 dispatch(
