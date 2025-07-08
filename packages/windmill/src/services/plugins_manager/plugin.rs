@@ -2,9 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
-use crate::services::plugins_manager::plugin_db_manager::{
-    add_transaction_component, PluginDbManager,
-};
+use crate::services::plugins_manager::plugin_db_manager::PluginDbManager;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Object, Transaction};
 use futures::TryFutureExt;
@@ -17,6 +15,8 @@ use tokio_postgres::NoTls;
 use wasmtime::component::{Component, Func, Instance, Linker, ResourceTable, Val};
 use wasmtime::{Engine, Store, StoreContextMut};
 use wasmtime_wasi::p2::{add_to_linker_sync, IoView, WasiCtx, WasiCtxBuilder, WasiView};
+
+pub use super::plugin_db_manager::docs::transactions_manager::transaction::add_to_linker;
 
 #[derive(Debug)]
 pub enum HookValue {
@@ -130,10 +130,7 @@ impl Plugin {
         let mut store = Store::new(engine, plugin_store);
         let instance = linker.instantiate_async(&mut store, &component).await?;
 
-        // transaction_component
-        add_transaction_component(linker)
-            .await
-            .map_err(|e| anyhow::anyhow!("Failed to add transaction component to linker: {}", e))?;
+        add_to_linker(linker, |store: &mut PluginStore| store)?;
 
         let func_index = component
             .get_export_index(None, "get-manifest")

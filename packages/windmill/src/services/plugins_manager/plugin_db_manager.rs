@@ -3,28 +3,17 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::plugins_manager::plugin::PluginStore;
-// use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Object, Transaction};
-use immudb_rs::client;
-use ouroboros::self_referencing;
 use std::future::Future;
 use std::pin::Pin;
-use std::sync::Arc;
-use tokio::sync::Mutex;
-use tokio_postgres::NoTls;
-use wasmtime::component::{Component, Func, Instance, Linker, ResourceTable, Val};
-use wasmtime::{Engine, Store, StoreContextMut};
-use wasmtime_wasi::p2::{
-    add_to_linker_async, add_to_linker_sync, IoView, WasiCtx, WasiCtxBuilder, WasiView,
-};
-
+use wasmtime::component::Linker;
 wasmtime::component::bindgen!({
     path: "src/services/plugins_manager/wit/transaction.wit",
     world: "transactions-manager",
     async: true,
 });
 
-use docs::transactions_manager::transaction::{add_to_linker, Host};
+use docs::transactions_manager::transaction::Host;
 #[ouroboros::self_referencing]
 pub struct PluginDbManager {
     client: Option<Object>,
@@ -43,8 +32,9 @@ impl PluginDbManager {
 }
 
 // Implement the generated trait for TransactionHost
+
 impl Host for PluginStore {
-    async fn create_hasura_transaction(&mut self) -> Result<(), String> {
+    async fn create_hasura_transaction(&mut self) -> Result<String, String> {
         let hasura_client = get_hasura_pool()
             .await
             .get()
@@ -81,7 +71,7 @@ impl Host for PluginStore {
         .map_err(|e| format!("{e}"))?;
 
         *self.hasura_manager.lock().await = new_self;
-        Ok(())
+        Ok("Hasura transaction created".to_string())
     }
 
     async fn create_keycloak_transaction(&mut self) -> Result<(), String> {
@@ -159,10 +149,4 @@ impl Host for PluginStore {
         keycloak_transaction.commit().await;
         Ok(())
     }
-}
-
-pub async fn add_transaction_component(linker: &mut Linker<PluginStore>) -> Result<(), String> {
-    add_to_linker(linker, |store: &mut PluginStore| store)
-        .map_err(|e| format!("Failed to add transaction component to linker: {}", e))?;
-    Ok(())
 }

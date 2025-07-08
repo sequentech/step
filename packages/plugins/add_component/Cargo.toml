@@ -18,3 +18,6 @@ package = "docs:adder"
 
 [package.metadata.component.target]
 path = "wit/world.wit"
+
+[package.metadata.component.target.dependencies]
+"docs:transactions-manager" = { path = "../../windmill/src/services/plugins_manager/wit/transaction.wit" }

@@ -36,6 +36,10 @@ use windmill::services::export::export_users::{
     ExportBody, ExportTenantUsersBody, ExportUsersBody,
 };
 use windmill::services::keycloak_events::list_keycloak_events_by_type;
+use windmill::services::plugins_manager::plugin::HookValue;
+use windmill::services::plugins_manager::plugin_manager::{
+    self, get_plugin_manager,
+};
 use windmill::services::tasks_execution::*;
 use windmill::services::users::{
     count_keycloak_users, list_users, list_users_with_vote_info,
@@ -313,6 +317,29 @@ pub async fn get_users(
                 format!("Error acquiring hasura transaction {:?}", e),
             )
         })?;
+
+    let plugin_manager = get_plugin_manager().await.map_err(|e| {
+        (
+            Status::InternalServerError,
+            format!("Error getting plugin manager: {:?}", e),
+        )
+    })?;
+
+    let res = plugin_manager
+        .call_hook_dynamic(
+            "add",
+            vec![HookValue::S32(0), HookValue::S32(0)],
+            vec![HookValue::String("".to_string())],
+        )
+        .await
+        .map_err(|e| {
+            (
+                Status::InternalServerError,
+                format!("Error calling before_get_users hook: {:?}", e),
+            )
+        })?;
+
+    println!("Hook result: {:?}", res);
 
     let filter = ListUsersFilter {
         tenant_id: input.tenant_id.clone(),

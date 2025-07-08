@@ -4,17 +4,24 @@
 #[allow(warnings)]
 mod bindings;
 
-use crate::bindings::exec_query;
+use crate::bindings::docs::transactions_manager::transaction::{
+    commit_hasura_transaction, create_hasura_transaction, execute_hasura_query,
+};
 use bindings::Guest;
 
 struct Component;
 
 impl Guest for Component {
     fn add(x: u32, y: u32) -> String {
-        let sql = format!("INSERT INTO logs (message) VALUES ('test');");
-        let res = exec_query(&sql);
+        let sql = format!("INSERT INTO sequent_backend.document (name) VALUES ('test');");
+        let _ = create_hasura_transaction();
+        let exec_query = match execute_hasura_query(&sql) {
+            Ok(result) => result,
+            Err(e) => format!("Error executing query: {}", e),
+        };
+        let _ = commit_hasura_transaction();
         let a = x + y;
-        format!("{} + {} = {}. Result: {}", x, y, a, res)
+        format!("{} + {} = {}. Result: {}", x, y, a, exec_query)
     }
 
     fn get_manifest() -> String {
