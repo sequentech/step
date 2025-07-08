@@ -82,11 +82,11 @@ export const canVoteSomeElection =
         })
     }
 
-    export const BALLOT_DATA_KEY = "ballotData"
-    export const BALLOT_DATA_EXPIRATION_KEY = "ballotDataExpiration"
-    export const clearSessionStorageBallotData = () => {
-        sessionStorage.removeItem(BALLOT_DATA_KEY)
-        sessionStorage.removeItem(BALLOT_DATA_EXPIRATION_KEY)
-    }
+export const BALLOT_DATA_KEY = "ballotData"
+export const BALLOT_DATA_EXPIRATION_KEY = "ballotDataExpiration"
+export const clearSessionStorageBallotData = () => {
+    sessionStorage.removeItem(BALLOT_DATA_KEY)
+    sessionStorage.removeItem(BALLOT_DATA_EXPIRATION_KEY)
+}
 
 export default castVotesSlice.reducer

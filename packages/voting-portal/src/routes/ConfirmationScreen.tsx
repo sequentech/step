@@ -41,7 +41,11 @@ import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortal
 import {GetElectionsQuery} from "../gql/graphql"
 import {GET_ELECTIONS} from "../queries/GetElections"
 import {downloadUrl} from "@sequentech/ui-core"
-import {SessionBallotData, clearSessionStorageBallotData, BALLOT_DATA_KEY} from "../store/castVotes/castVotesSlice"
+import {
+    SessionBallotData,
+    clearSessionStorageBallotData,
+    BALLOT_DATA_KEY,
+} from "../store/castVotes/castVotesSlice"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;

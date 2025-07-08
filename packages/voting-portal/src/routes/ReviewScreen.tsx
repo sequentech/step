@@ -70,7 +70,12 @@ import {selectBallotSelectionByElectionId} from "../store/ballotSelections/ballo
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import {AuthContext} from "../providers/AuthContextProvider"
 import {useGetOne} from "react-admin"
-import {SessionBallotData, clearSessionStorageBallotData, BALLOT_DATA_KEY, BALLOT_DATA_EXPIRATION_KEY} from "../store/castVotes/castVotesSlice"
+import {
+    SessionBallotData,
+    clearSessionStorageBallotData,
+    BALLOT_DATA_KEY,
+    BALLOT_DATA_EXPIRATION_KEY,
+} from "../store/castVotes/castVotesSlice"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -695,7 +700,7 @@ export const ReviewScreen: React.FC = () => {
     // Selectively clear ballot-related session data when component mounts
     useEffect(() => {
         // Only clear session data if we're not in the middle of a golden policy flow
-        if ( !isGoldUser() && !ballotStyle && !auditableBallot && !selectionState ) {
+        if (!isGoldUser() && !ballotStyle && !auditableBallot && !selectionState) {
             clearSessionStorageBallotData()
         }
     }, [])
