@@ -42,10 +42,9 @@ import {GetElectionsQuery} from "../gql/graphql"
 import {GET_ELECTIONS} from "../queries/GetElections"
 import {downloadUrl} from "@sequentech/ui-core"
 import {
-    SessionBallotData,
-    clearSessionStorageBallotData,
-    BALLOT_DATA_KEY,
-} from "../store/castVotes/castVotesSlice"
+    ConfirmationScreenData,
+    selectConfirmationScreenData,
+} from "../store/castVotes/confirmationScreenDataSlice"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -280,6 +279,7 @@ const ConfirmationScreen: React.FC = () => {
     const {tenantId, eventId} = useParams<TenantEventType>()
     const {electionId} = useParams<{electionId?: string}>()
     const auditableBallot = useAppSelector(selectAuditableBallot(String(electionId)))
+    const confirmationScreenData = useAppSelector(selectConfirmationScreenData(String(electionId)))
     const {t} = useTranslation()
     const [openBallotIdHelp, setOpenBallotIdHelp] = useState(false)
     const [openConfirmationHelp, setOpenConfirmationHelp] = useState(false)
@@ -292,14 +292,14 @@ const ConfirmationScreen: React.FC = () => {
         isDemoStored: boolean | undefined
     } => {
         if (!auditableBallot) {
-            const ballotData = JSON.parse(
-                sessionStorage.getItem(BALLOT_DATA_KEY) ?? "{}"
-            ) as SessionBallotData
-            if (Object.keys(ballotData).length === 0) {
-                console.log("ballotData not found in sessionStorage")
+            if (!confirmationScreenData) {
+                console.log("confirmationScreenData not found in redux")
                 return {ballotIdStored: undefined, isDemoStored: undefined}
             } else {
-                return {ballotIdStored: ballotData.ballotId, isDemoStored: ballotData.isDemo}
+                return {
+                    ballotIdStored: confirmationScreenData.ballotId,
+                    isDemoStored: confirmationScreenData.isDemo,
+                }
             }
         } else {
             console.log("auditableBallot normal flow")
@@ -337,7 +337,6 @@ const ConfirmationScreen: React.FC = () => {
         if (!gotData.current) {
             gotData.current = true
             const {ballotIdStored, isDemoStored} = getBallotId()
-            clearSessionStorageBallotData()
             if (!ballotIdStored) {
                 console.log("No stored ballot found, navigating to the election-chooser page.")
                 navigate(`/tenant/${tenantId}/event/${eventId}/election-chooser`)

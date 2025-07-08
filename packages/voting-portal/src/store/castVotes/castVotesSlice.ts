@@ -5,14 +5,6 @@ import {createSlice, PayloadAction} from "@reduxjs/toolkit"
 import {RootState} from "../store"
 import {isUndefined} from "@sequentech/ui-core"
 
-export interface SessionBallotData {
-    ballotId: string
-    electionId: string
-    isDemo: boolean
-    ballot: string
-    timestamp?: number
-}
-
 export interface ICastVote {
     id: string
     tenant_id: string
@@ -81,12 +73,5 @@ export const canVoteSomeElection =
             return electionCastVotes.length < numAllowedRevotes
         })
     }
-
-export const BALLOT_DATA_KEY = "ballotData"
-export const BALLOT_DATA_EXPIRATION_KEY = "ballotDataExpiration"
-export const clearSessionStorageBallotData = () => {
-    sessionStorage.removeItem(BALLOT_DATA_KEY)
-    sessionStorage.removeItem(BALLOT_DATA_EXPIRATION_KEY)
-}
 
 export default castVotesSlice.reducer

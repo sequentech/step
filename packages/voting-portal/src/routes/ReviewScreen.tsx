@@ -75,7 +75,8 @@ import {
     clearSessionStorageBallotData,
     BALLOT_DATA_KEY,
     BALLOT_DATA_EXPIRATION_KEY,
-} from "../store/castVotes/castVotesSlice"
+} from "../store/castVotes/sessionBallotData"
+import {setConfirmationScreenData} from "../store/castVotes/confirmationScreenDataSlice"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -682,7 +683,18 @@ export const ReviewScreen: React.FC = () => {
             if (newCastVote) {
                 dispatch(addCastVotes([newCastVote]))
             }
+            // set ConfirmationScreenData (ballotId and isDemo) to a new object in redux state, so it can be read later on from the confirmation screen
+            dispatch(
+                setConfirmationScreenData({
+                    electionId: ballotData.electionId,
+                    confirmationScreenData: {
+                        ballotId: ballotData.ballotId,
+                        isDemo: ballotData.isDemo,
+                    },
+                })
+            )
 
+            clearSessionStorageBallotData()
             return submit(null, {method: "post"})
         } catch (error) {
             isCastingBallot.current = false
