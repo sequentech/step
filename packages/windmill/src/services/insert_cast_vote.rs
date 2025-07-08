@@ -247,7 +247,12 @@ pub async fn try_insert_cast_vote(
         false
     };
 
-    verify_ballot_id_matches_content(&input, is_multi_contest).map_err(|e| e)?;
+    match verify_ballot_id_matches_content(&input, is_multi_contest).map_err(|e| e) {
+        Ok(()) => {}
+        Err(cv_err) => {
+            return Ok(InsertCastVoteResult::SkipRetryFailure(cv_err));
+        }
+    }
 
     let (pseudonym_h, vote_h) = if is_multi_contest {
         deserialize_and_check_multi_ballot(&input.content, voter_id)?
