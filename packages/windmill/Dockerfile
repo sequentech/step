@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-FROM rust:nightly-2025-06-03-slim
+FROM rust:1.86.0-slim-bookworm AS builder
 
 WORKDIR /app
 COPY ./immu-board ./immu-board
@@ -16,9 +16,6 @@ COPY ./velvet ./velvet
 
 RUN cp /app/windmill/external-bin/ecies-tool.jar /usr/local/bin/
 
-RUN rustup toolchain install nightly-2024-09-01 \
-    && rustup default nightly-2024-09-01
-
 RUN apt-get update && apt-get install -y chromium protobuf-compiler libprotobuf-dev wget software-properties-common \
     wget https://download.java.net/java/GA/jdk22.0.2/c9ecb94cd31b495da20a27d4581645e8/9/GPL/openjdk-22.0.2_linux-x64_bin.tar.gz \
     && tar xvf openjdk-22.0.2_linux-x64_bin.tar.gz \
@@ -26,8 +23,9 @@ RUN apt-get update && apt-get install -y chromium protobuf-compiler libprotobuf-
     && update-alternatives --install /usr/bin/java java /usr/local/jdk-22.0.2/bin/java 1 \
     && update-alternatives --install /usr/bin/javac javac /usr/local/jdk-22.0.2/bin/javac 1
 
+RUN rustup toolchain install nightly && rustup default nightly
+
 # java -jar ecies-tool.jar create-keys public.pem private.pem
-RUN rustup default nightly
 
 WORKDIR /app/windmill
 RUN cargo build
