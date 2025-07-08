@@ -41,7 +41,7 @@ import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortal
 import {GetElectionsQuery} from "../gql/graphql"
 import {GET_ELECTIONS} from "../queries/GetElections"
 import {downloadUrl} from "@sequentech/ui-core"
-import {SessionBallotData} from "../store/castVotes/castVotesSlice"
+import {SessionBallotData, clearSessionStorageBallotData, BALLOT_DATA_KEY} from "../store/castVotes/castVotesSlice"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -183,7 +183,6 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
             return
         }
         if (!documentId) {
-            console.log("createBallotReceipt")
             const res = await createBallotReceipt({
                 variables: {
                     ballot_id: ballotId,
@@ -290,7 +289,7 @@ const ConfirmationScreen: React.FC = () => {
     } => {
         if (!auditableBallot) {
             const ballotData = JSON.parse(
-                sessionStorage.getItem("ballotData") ?? "{}"
+                sessionStorage.getItem(BALLOT_DATA_KEY) ?? "{}"
             ) as SessionBallotData
             if (Object.keys(ballotData).length === 0) {
                 console.log("ballotData not found in sessionStorage")
@@ -299,11 +298,7 @@ const ConfirmationScreen: React.FC = () => {
                 return {ballotIdStored: ballotData.ballotId, isDemoStored: ballotData.isDemo}
             }
         } else {
-            if (!auditableBallot) {
-                console.log("auditableBallot is not there")
-                return {ballotIdStored: undefined, isDemoStored: undefined}
-            }
-            console.log("auditableBallot is there")
+            console.log("auditableBallot normal flow")
             const isMultiContest =
                 auditableBallot?.config.election_event_presentation?.contest_encryption_policy ==
                 EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
@@ -338,7 +333,7 @@ const ConfirmationScreen: React.FC = () => {
         if (!gotData.current) {
             gotData.current = true
             const {ballotIdStored, isDemoStored} = getBallotId()
-            sessionStorage.removeItem("ballotData")
+            clearSessionStorageBallotData()
             if (!ballotIdStored) {
                 console.log("No stored ballot found, navigating to the election-chooser page.")
                 navigate(`/tenant/${tenantId}/event/${eventId}/election-chooser`)
