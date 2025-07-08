@@ -150,10 +150,8 @@ const basqueTranslation: TranslationType = {
                     "Errorea izan da. Mesedez, saiatu berriro geroago edo jarri harremanetan laguntzarekin.",
                 REAUTH_FAILED:
                     "Autentifikazioak huts egin du. Saiatu berriro edo jarri harremanetan laguntza-zerbitzuarekin laguntza jasotzeko.",
-                SESSION_EXPIRED:
-                    "Zure saioa iraungi da. Saiatu berriro hasieratik.",
-                CAST_VOTE_BallotIdMismatch:
-                    "Boto-paperaren IDa ez dator bat emandako botoarekin.",
+                SESSION_EXPIRED: "Zure saioa iraungi da. Saiatu berriro hasieratik.",
+                CAST_VOTE_BallotIdMismatch: "Boto-paperaren IDa ez dator bat emandako botoarekin.",
             },
         },
         confirmationScreen: {

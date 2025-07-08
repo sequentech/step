@@ -86,8 +86,7 @@ const englishTranslation = {
                     "There was a network problem. Please try again later or contact support for assistance.",
                 UNABLE_TO_FETCH_DATA:
                     "There was a problem fetching the data. Please try again later or contact support for assistance.",
-                LOAD_ELECTION_EVENT:
-                    "Cannot load election event. Please try again later.",
+                LOAD_ELECTION_EVENT: "Cannot load election event. Please try again later.",
                 CAST_VOTE:
                     "There was an unknown error while casting the vote. Please try again later or contact support for assistance.",
                 CAST_VOTE_AreaNotFound:
