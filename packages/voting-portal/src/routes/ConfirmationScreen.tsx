@@ -47,9 +47,7 @@ import {
     ConfirmationScreenData,
     selectConfirmationScreenData,
 } from "../store/castVotes/confirmationScreenDataSlice"
-import {
-    GetCastVotesQuery,
-} from "../gql/graphql"
+import {GetCastVotesQuery} from "../gql/graphql"
 import {GET_CAST_VOTES} from "../queries/GetCastVotes"
 
 const StyledTitle = styled(Typography)`
@@ -135,7 +133,12 @@ interface ActionButtonsProps {
     isGoldenAuth: boolean
 }
 
-const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, electionId, ballotId, isGoldenAuth}) => {
+const ActionButtons: React.FC<ActionButtonsProps> = ({
+    ballotTrackerUrl,
+    electionId,
+    ballotId,
+    isGoldenAuth,
+}) => {
     const {logout} = useContext(AuthContext)
     const {t} = useTranslation()
     const {tenantId, eventId} = useParams<TenantEventType>()
@@ -158,7 +161,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
     const ballotStyleElectionIds = useAppSelector(selectBallotStyleElectionIds)
     const {data: dataElections} = useQuery<GetElectionsQuery>(GET_ELECTIONS, {
         variables: {
-            electionIds: ballotStyleElectionIds?.length ? ballotStyleElectionIds :  [electionId],
+            electionIds: ballotStyleElectionIds?.length ? ballotStyleElectionIds : [electionId],
         },
         skip: globalSettings.DISABLE_AUTH, // Skip query if in demo mode
     })
@@ -171,14 +174,17 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
         skip: globalSettings.DISABLE_AUTH || !isGoldenAuth,
     })
 
-
     function isAllowedToCastVote() {
-
         if (isGoldenAuth) {
             // Can´t use canVote when isGoldenAuth because the state in redux was removed at logout.
-            const election = dataElections?.sequent_backend_election.filter((item) => item.id === electionId)[0]
+            const election = dataElections?.sequent_backend_election.filter(
+                (item) => item.id === electionId
+            )[0]
             const numAllowedRevotes = election?.num_allowed_revotes ?? 1
-            const electionCastVotes = castVotes?.sequent_backend_cast_vote.filter((castVote) => castVote.election_id === electionId) ?? []
+            const electionCastVotes =
+                castVotes?.sequent_backend_cast_vote.filter(
+                    (castVote) => castVote.election_id === electionId
+                ) ?? []
             console.log(numAllowedRevotes, electionCastVotes, election?.id, electionId, castVotes)
             if (numAllowedRevotes === 0) {
                 return true
@@ -191,9 +197,14 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
     }
 
     const onClickFinishButton = useCallback(() => {
-
-        console.log('isGoldenAuth: ', isGoldenAuth)
-        console.log('onClickFinishButton', isAnyVotingStatusOpen, isAllowedToCastVote(), canVote, globalSettings.DISABLE_AUTH)
+        console.log("isGoldenAuth: ", isGoldenAuth)
+        console.log(
+            "onClickFinishButton",
+            isAnyVotingStatusOpen,
+            isAllowedToCastVote(),
+            canVote,
+            globalSettings.DISABLE_AUTH
+        )
         if ((isAnyVotingStatusOpen && isAllowedToCastVote()) || globalSettings.DISABLE_AUTH) {
             navigate(`/tenant/${tenantId}/event/${eventId}/election-chooser${location.search}`)
         } else {
