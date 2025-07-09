@@ -5,9 +5,8 @@
 package sequent.keycloak.authenticator;
 
 import jakarta.ws.rs.core.Response;
-import java.util.stream.Stream;
-import java.util.Set;
-import java.util.HashSet;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.function.Consumer;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.authentication.RequiredActionContext;
@@ -261,10 +260,13 @@ public abstract class BaseResetMessageOTPRequiredAction implements RequiredActio
       }
 
       // Check MAX_RECEIVER_REUSE limit
-      String maxReuseStr = config != null ? config.getConfig().get(Utils.MAX_RECEIVER_REUSE) : "1";
+      String maxReuseStr = config != null ? config.getConfig().get(Utils.MAX_RECEIVER_REUSE) : null;
+      if (maxReuseStr == null || maxReuseStr.trim().isEmpty()) {
+        maxReuseStr = "1"; // Default value
+      }
       int maxReuse = Integer.parseInt(maxReuseStr);
       if (maxReuse > 0) {
-        int currentUsersWithSameValue = countUsersWithSameValue(context, value);
+        int currentUsersWithSameValue = countUsersWithSameValue(context, value, getCourier());
         if (currentUsersWithSameValue >= maxReuse) {
           context.challenge(
               createOTPForm(
@@ -304,21 +306,44 @@ public abstract class BaseResetMessageOTPRequiredAction implements RequiredActio
   }
 
   /**
-   * Counts the number of users in the realm that have the same contact value
-   * (email or phone number) as the provided value.
-   * 
+   * Counts the number of users in the realm that have the same contact value (email or phone
+   * number) as the provided value.
+   *
    * @param context The required action context
    * @param value The contact value to check for
    * @return The number of users with the same contact value
    */
-  private int countUsersWithSameValue(RequiredActionContext context, String value) {
-    Set<String> userIds = new HashSet<>();
-    
-    context.getSession().users()
-        .searchForUserByUserAttributeStream(context.getRealm(), Utils.PHONE_NUMBER_ATTRIBUTE, value)
-        .forEach(user -> userIds.add(user.getId()));
-    
-    return userIds.size();
+  private int countUsersWithSameValue(
+      RequiredActionContext context, String value, Utils.MessageCourier courier) {
+    int count = 0;
+
+    if (courier == Utils.MessageCourier.EMAIL || courier == Utils.MessageCourier.BOTH) {
+      // Search for users and filter by email match
+      Map<String, String> params = new HashMap<>();
+      params.put(UserModel.SEARCH, value);
+
+      count +=
+          (int)
+              context
+                  .getSession()
+                  .users()
+                  .searchForUserStream(context.getRealm(), params, null, null)
+                  .filter(user -> value.equals(user.getEmail()))
+                  .count();
+    }
+
+    if (courier == Utils.MessageCourier.SMS || courier == Utils.MessageCourier.BOTH) {
+      count +=
+          (int)
+              context
+                  .getSession()
+                  .users()
+                  .searchForUserByUserAttributeStream(
+                      context.getRealm(), Utils.PHONE_NUMBER_ATTRIBUTE, value)
+                  .count();
+    }
+
+    return count;
   }
 
   /** Creates the contact entry form, setting the i18nPrefix for the template. */
