@@ -16,8 +16,8 @@ impl Guest for Component {
         let sql = format!("INSERT INTO sequent_backend.document (name) VALUES ('test');");
         let _ = create_hasura_transaction();
         let exec_query = match execute_hasura_query(&sql) {
-            Ok(result) => result,
-            Err(e) => format!("Error executing query: {}", e),
+            Ok(r) => r,
+            Err(e) => e,
         };
         let _ = commit_hasura_transaction();
         let a = x + y;

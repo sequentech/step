@@ -1,22 +1,16 @@
 // SPDX-FileCopyrightText: 2024 Sequent Legal <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::services::database::{get_hasura_pool, get_keycloak_pool};
-use crate::services::plugins_manager::plugin_db_manager::PluginDbManager;
+pub use super::plugin_db_manager::docs::transactions_manager::transaction::add_to_linker as add_transaction_linker;
+use crate::services::plugins_manager::plugin_db_manager::{
+    PluginDbManager, PluginTransactionsManager,
+};
 use anyhow::{anyhow, Context, Result};
-use deadpool_postgres::{Object, Transaction};
-use futures::TryFutureExt;
-use immudb_rs::client;
-use ouroboros::self_referencing;
-use std::future::Future;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use tokio_postgres::NoTls;
 use wasmtime::component::{Component, Func, Instance, Linker, ResourceTable, Val};
-use wasmtime::{Engine, Store, StoreContextMut};
+use wasmtime::{Engine, Store};
 use wasmtime_wasi::p2::{add_to_linker_sync, IoView, WasiCtx, WasiCtxBuilder, WasiView};
-
-pub use super::plugin_db_manager::docs::transactions_manager::transaction::add_to_linker;
 
 #[derive(Debug)]
 pub enum HookValue {
@@ -79,12 +73,10 @@ impl HookValue {
         }
     }
 }
-
 pub struct PluginStore {
     pub wasi: WasiCtx,
     pub resource_table: ResourceTable,
-    pub hasura_manager: Arc<Mutex<PluginDbManager>>,
-    pub keycloak_manager: Arc<Mutex<PluginDbManager>>,
+    pub transactions_manager: PluginTransactionsManager,
 }
 
 impl WasiView for PluginStore {
@@ -113,24 +105,27 @@ impl Plugin {
         linker: &mut Linker<PluginStore>,
         wasm_bytes: Vec<u8>,
     ) -> Result<Self> {
-        let component = Component::from_binary(engine, &wasm_bytes)?;
-        let wasi = WasiCtxBuilder::new().inherit_stdio().build();
+        let component = Component::new(&engine, wasm_bytes)?;
+        let wasi: WasiCtx = WasiCtxBuilder::new().inherit_stdio().build();
         add_to_linker_sync(linker)?;
 
         let hasura_manager = Arc::new(Mutex::new(PluginDbManager::init()));
         let keycloak_manager = Arc::new(Mutex::new(PluginDbManager::init()));
 
+        let transactions_manager =
+            PluginTransactionsManager::new(hasura_manager.clone(), keycloak_manager.clone());
+
         let plugin_store = PluginStore {
             resource_table: ResourceTable::new(),
             wasi: wasi,
-            hasura_manager,
-            keycloak_manager,
+            transactions_manager,
         };
 
         let mut store = Store::new(engine, plugin_store);
-        let instance = linker.instantiate_async(&mut store, &component).await?;
 
-        add_to_linker(linker, |store: &mut PluginStore| store)?;
+        add_transaction_linker(linker, |s: &mut PluginStore| &mut s.transactions_manager)?;
+
+        let instance = linker.instantiate_async(&mut store, &component).await?;
 
         let func_index = component
             .get_export_index(None, "get-manifest")
@@ -144,6 +139,7 @@ impl Plugin {
             Val::String(s) => s.clone(),
             _ => return Err(anyhow!("get-manifest did not return a string")),
         };
+        func.post_return_async(&mut store).await?;
         let manifest_json: serde_json::Value = serde_json::from_str(&manifest_str)?;
         let plugin_name = manifest_json["plugin_name"].as_str().unwrap().to_string();
 
@@ -161,28 +157,31 @@ impl Plugin {
         args: Vec<HookValue>,
         expected_result_types: Vec<HookValue>,
     ) -> Result<Vec<HookValue>> {
-        let (ref mut store, ref instance) = *self.instance.lock().await;
+        let mut guard = self.instance.lock().await;
+        let (store, instance) = &mut *guard;
 
         let func_index = self
             .component
             .get_export_index(None, hook)
             .context(format!("Export '{}' not found in component", hook))?;
 
-        let func = instance
+        let func: Func = instance
             .get_func(&mut *store, &func_index)
             .context(format!("Function '{}' not found in instance", hook))?;
 
         let wasm_args: Vec<_> = args.into_iter().map(|arg| arg.to_val()).collect();
-        let mut result_placeholders: Vec<_> = expected_result_types
+        let mut results: Vec<Val> = expected_result_types
             .iter()
-            .map(|expected| expected.to_val())
+            .map(|expected| expected.to_val()) // These are placeholders, their *type* is important.
             .collect();
 
-        func.call_async(store, &wasm_args, &mut result_placeholders)
+        func.call_async(&mut *store, &wasm_args, results.as_mut_slice())
             .await
             .context(format!("Failed to call hook '{}'", hook))?;
 
-        result_placeholders
+        func.post_return_async(&mut *store).await?;
+
+        results
             .into_iter()
             .map(HookValue::from_val)
             .collect::<Result<Vec<_>>>()

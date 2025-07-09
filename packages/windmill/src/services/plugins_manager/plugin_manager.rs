@@ -3,17 +3,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::plugins_manager::plugin::{HookValue, Plugin, PluginStore};
 use anyhow::{anyhow, Context, Result};
-use async_trait::async_trait;
 use dashmap::DashMap;
 use once_cell::sync::OnceCell;
 use sequent_core::services::s3::{get_files_bytes_from_s3, get_public_bucket};
 use std::sync::Arc;
-use wasmtime::component::{Linker, Val};
+use wasmtime::component::Linker;
 use wasmtime::{Config, Engine};
 
 pub struct PluginManager {
     pub plugins: DashMap<String, Arc<Plugin>>,
-    pub hook_index: DashMap<String, String>,
+    pub hooks: DashMap<String, String>,
     pub engine: Engine,
     pub linker: Linker<PluginStore>,
 }
@@ -21,14 +20,14 @@ pub struct PluginManager {
 impl PluginManager {
     pub fn new() -> Result<Self> {
         let mut config = Config::new();
-        config.wasm_component_model(true);
+        // config.wasm_component_model(true);
         config.async_support(true);
         let engine = Engine::new(&config)?;
-        let linker = Linker::new(&engine);
+        let linker = Linker::<PluginStore>::new(&engine);
 
         Ok(Self {
             plugins: DashMap::new(),
-            hook_index: DashMap::new(),
+            hooks: DashMap::new(),
             engine,
             linker,
         })
@@ -49,9 +48,8 @@ impl PluginManager {
                 .map(|h| h.as_str().unwrap().to_string())
                 .collect::<Vec<String>>();
             for hook in hooks {
-                self.hook_index.insert(hook, plugin.name.clone());
+                self.hooks.insert(hook, plugin.name.clone());
             }
-
             self.plugins.insert(plugin.name.clone(), Arc::new(plugin));
         }
 
@@ -65,7 +63,7 @@ impl PluginManager {
         expected_result_types: Vec<HookValue>,
     ) -> Result<Vec<HookValue>> {
         let plugin_name = self
-            .hook_index
+            .hooks
             .get(hook)
             .context(format!("Hook '{:?}' not registered", hook))?;
 

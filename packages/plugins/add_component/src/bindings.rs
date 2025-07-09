@@ -90,7 +90,7 @@ pub mod docs {
             static __FORCE_SECTION_REF: fn() = super::super::super::__link_custom_section_describing_imports;
             use super::super::super::_rt;
             #[allow(unused_unsafe, clippy::all)]
-            pub fn create_hasura_transaction() -> Result<(), _rt::String> {
+            pub fn create_hasura_transaction() -> Result<_rt::String, _rt::String> {
                 unsafe {
                     #[cfg_attr(target_pointer_width = "64", repr(align(8)))]
                     #[cfg_attr(target_pointer_width = "32", repr(align(4)))]
@@ -116,12 +116,8 @@ pub mod docs {
                     }
                     unsafe { wit_import1(ptr0) };
                     let l2 = i32::from(*ptr0.add(0).cast::<u8>());
-                    let result6 = match l2 {
+                    let result9 = match l2 {
                         0 => {
-                            let e = ();
-                            Ok(e)
-                        }
-                        1 => {
                             let e = {
                                 let l3 = *ptr0
                                     .add(::core::mem::size_of::<*const u8>())
@@ -137,11 +133,29 @@ pub mod docs {
                                 );
                                 _rt::string_lift(bytes5)
                             };
+                            Ok(e)
+                        }
+                        1 => {
+                            let e = {
+                                let l6 = *ptr0
+                                    .add(::core::mem::size_of::<*const u8>())
+                                    .cast::<*mut u8>();
+                                let l7 = *ptr0
+                                    .add(2 * ::core::mem::size_of::<*const u8>())
+                                    .cast::<usize>();
+                                let len8 = l7;
+                                let bytes8 = _rt::Vec::from_raw_parts(
+                                    l6.cast(),
+                                    len8,
+                                    len8,
+                                );
+                                _rt::string_lift(bytes8)
+                            };
                             Err(e)
                         }
                         _ => _rt::invalid_enum_discriminant(),
                     };
-                    result6
+                    result9
                 }
             }
             #[allow(unused_unsafe, clippy::all)]
@@ -521,18 +535,18 @@ macro_rules! __export_adder_impl {
 #[doc(inline)]
 pub(crate) use __export_adder_impl as export;
 #[cfg(target_arch = "wasm32")]
-#[unsafe(link_section = "component-type:wit-bindgen:0.41.0:docs:adder@0.1.0:adder:encoded world")]
+#[unsafe(link_section = "component-type:wit-bindgen:0.41.0:docs:adder:adder:encoded world")]
 #[doc(hidden)]
 #[allow(clippy::octal_escapes)]
-pub static __WIT_BINDGEN_COMPONENT_TYPE: [u8; 445] = *b"\
-\0asm\x0d\0\x01\0\0\x19\x16wit-component-encoding\x04\0\x07\xc1\x02\x01A\x02\x01\
-A\x06\x01B\x0a\x01j\0\x01s\x01@\0\0\0\x04\0\x19create-hasura-transaction\x01\x01\
-\x04\0\x1bcreate-keycloak-transaction\x01\x01\x01j\x01s\x01s\x01@\x01\x03sqls\0\x02\
-\x04\0\x14execute-hasura-query\x01\x03\x04\0\x16execute-keycloak-query\x01\x03\x04\
-\0\x19commit-hasura-transaction\x01\x01\x04\0\x1bcommit-keycloak-transaction\x01\
-\x01\x03\0%docs:transactions-manager/transaction\x05\0\x01@\0\0s\x04\0\x0cget-ma\
-nifest\x01\x01\x01@\x02\x01xy\x01yy\0s\x04\0\x03add\x01\x02\x04\0\x16docs:adder/\
-adder@0.1.0\x04\0\x0b\x0b\x01\0\x05adder\x03\0\0\0G\x09producers\x01\x0cprocesse\
+pub static __WIT_BINDGEN_COMPONENT_TYPE: [u8; 444] = *b"\
+\0asm\x0d\0\x01\0\0\x19\x16wit-component-encoding\x04\0\x07\xc0\x02\x01A\x02\x01\
+A\x06\x01B\x0b\x01j\x01s\x01s\x01@\0\0\0\x04\0\x19create-hasura-transaction\x01\x01\
+\x01j\0\x01s\x01@\0\0\x02\x04\0\x1bcreate-keycloak-transaction\x01\x03\x01@\x01\x03\
+sqls\0\0\x04\0\x14execute-hasura-query\x01\x04\x04\0\x16execute-keycloak-query\x01\
+\x04\x04\0\x19commit-hasura-transaction\x01\x03\x04\0\x1bcommit-keycloak-transac\
+tion\x01\x03\x03\0%docs:transactions-manager/transaction\x05\0\x01@\0\0s\x04\0\x0c\
+get-manifest\x01\x01\x01@\x02\x01xy\x01yy\0s\x04\0\x03add\x01\x02\x04\0\x10docs:\
+adder/adder\x04\0\x0b\x0b\x01\0\x05adder\x03\0\0\0G\x09producers\x01\x0cprocesse\
 d-by\x02\x0dwit-component\x070.227.1\x10wit-bindgen-rust\x060.41.0";
 #[inline(never)]
 #[doc(hidden)]

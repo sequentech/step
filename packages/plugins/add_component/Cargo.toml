@@ -17,7 +17,7 @@ serde_json = "1.0.105"
 package = "docs:adder"
 
 [package.metadata.component.target]
-path = "wit/world.wit"
+path = "./wit/world.wit"
 
 [package.metadata.component.target.dependencies]
 "docs:transactions-manager" = { path = "../../windmill/src/services/plugins_manager/wit/transaction.wit" }
