@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {Box, CircularProgress, Typography} from "@mui/material"
-import React, {useState, useEffect, useContext, useCallback, useRef} from "react"
+import React, {useState, useEffect, useContext, useCallback, useRef, useMemo} from "react"
 import {useTranslation} from "react-i18next"
 import {PageLimit, Icon, IconButton, theme, QRCode, Dialog} from "@sequentech/ui-essentials"
 import {
@@ -12,6 +12,7 @@ import {
     IAuditableMultiBallot,
     IAuditableSingleBallot,
     EElectionEventContestEncryptionPolicy,
+    IElection,
 } from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import {faPrint, faCircleQuestion, faCheck} from "@fortawesome/free-solid-svg-icons"
@@ -23,6 +24,7 @@ import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {selectAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
 import {canVoteSomeElection} from "../store/castVotes/castVotesSlice"
 import {selectElectionEventById} from "../store/electionEvents/electionEventsSlice"
+import {IElectionExtended} from "../store/elections/electionsSlice"
 import {TenantEventType} from ".."
 import {clearBallot} from "../store/ballotSelections/ballotSelectionsSlice"
 import {
@@ -45,6 +47,10 @@ import {
     ConfirmationScreenData,
     selectConfirmationScreenData,
 } from "../store/castVotes/confirmationScreenDataSlice"
+import {
+    GetCastVotesQuery,
+} from "../gql/graphql"
+import {GET_CAST_VOTES} from "../queries/GetCastVotes"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -126,9 +132,10 @@ interface ActionButtonsProps {
     electionId?: string
     ballotTrackerUrl?: string
     ballotId: string
+    isGoldenAuth: boolean
 }
 
-const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, electionId, ballotId}) => {
+const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, electionId, ballotId, isGoldenAuth}) => {
     const {logout} = useContext(AuthContext)
     const {t} = useTranslation()
     const {tenantId, eventId} = useParams<TenantEventType>()
@@ -151,7 +158,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
     const ballotStyleElectionIds = useAppSelector(selectBallotStyleElectionIds)
     const {data: dataElections} = useQuery<GetElectionsQuery>(GET_ELECTIONS, {
         variables: {
-            electionIds: ballotStyleElectionIds,
+            electionIds: ballotStyleElectionIds?.length ? ballotStyleElectionIds :  [electionId],
         },
         skip: globalSettings.DISABLE_AUTH, // Skip query if in demo mode
     })
@@ -160,8 +167,34 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
         (item) => item.status.voting_status === EVotingStatus.OPEN
     )
 
-    const onClickToScreen = useCallback(() => {
-        if ((isAnyVotingStatusOpen && canVote) || globalSettings.DISABLE_AUTH) {
+    const {data: castVotes, error: errorCastVote} = useQuery<GetCastVotesQuery>(GET_CAST_VOTES, {
+        skip: globalSettings.DISABLE_AUTH || !isGoldenAuth,
+    })
+
+
+    function isAllowedToCastVote() {
+
+        if (isGoldenAuth) {
+            // Can´t use canVote when isGoldenAuth because the state in redux was removed at logout.
+            const election = dataElections?.sequent_backend_election.filter((item) => item.id === electionId)[0]
+            const numAllowedRevotes = election?.num_allowed_revotes ?? 1
+            const electionCastVotes = castVotes?.sequent_backend_cast_vote.filter((castVote) => castVote.election_id === electionId) ?? []
+            console.log(numAllowedRevotes, electionCastVotes, election?.id, electionId, castVotes)
+            if (numAllowedRevotes === 0) {
+                return true
+            }
+
+            return electionCastVotes.length < numAllowedRevotes
+        } else {
+            return canVote
+        }
+    }
+
+    const onClickFinishButton = useCallback(() => {
+
+        console.log('isGoldenAuth: ', isGoldenAuth)
+        console.log('onClickFinishButton', isAnyVotingStatusOpen, isAllowedToCastVote(), canVote, globalSettings.DISABLE_AUTH)
+        if ((isAnyVotingStatusOpen && isAllowedToCastVote()) || globalSettings.DISABLE_AUTH) {
             navigate(`/tenant/${tenantId}/event/${eventId}/election-chooser${location.search}`)
         } else {
             logout(presentation?.redirect_finish_url ?? undefined)
@@ -246,7 +279,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
                 </StyledButton>
                 <StyledButton
                     className="finish-button"
-                    onClick={onClickToScreen}
+                    onClick={onClickFinishButton}
                     sx={{width: {xs: "100%", sm: "200px"}}}
                 >
                     <Box>{t("confirmationScreen.finishButton")}</Box>
@@ -471,6 +504,7 @@ const ConfirmationScreen: React.FC = () => {
                 ballotTrackerUrl={ballotTrackerUrl}
                 electionId={electionId}
                 ballotId={ballotId.current ?? ""}
+                isGoldenAuth={confirmationScreenData ? true : false}
             />
         </PageLimit>
     )
