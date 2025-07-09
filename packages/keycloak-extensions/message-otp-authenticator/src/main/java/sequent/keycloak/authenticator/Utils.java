@@ -116,6 +116,7 @@ public class Utils {
   public static final String EVENT_TYPE_COMMUNICATIONS = "communications";
   public static final String TEST_MODE_ATTRIBUTE = "test-mode";
   public static final String TEST_MODE_CODE_ATTRIBUTE = "test-mode-code";
+  public static final String MAX_RECEIVER_REUSE = "max-receiver-reuse";
 
   public enum MessageCourier {
     SMS,
