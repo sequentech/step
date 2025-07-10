@@ -6,6 +6,7 @@ package sequent.keycloak.authenticator;
 
 import jakarta.ws.rs.core.Response;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 import lombok.extern.jbosslog.JBossLog;
@@ -16,6 +17,8 @@ import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.UserModel;
 import org.keycloak.sessions.AuthenticationSessionModel;
+
+import sequent.keycloak.authenticator.Utils.MessageCourier;
 import sequent.keycloak.authenticator.credential.MessageOTPCredentialModel;
 import sequent.keycloak.authenticator.credential.MessageOTPCredentialProvider;
 
@@ -130,6 +133,29 @@ public abstract class BaseResetMessageOTPRequiredAction implements RequiredActio
     }
   }
 
+  private boolean isValidMobileNumber(
+    String phoneNumber,
+    AuthenticatorConfigModel config
+  ) {
+    List<String> validCountryCodes =
+      Utils.getMultivalueString(
+          config,
+          Utils.VALID_COUNTRY_CODES,
+          Utils.VALID_COUNTRY_CODES_DEFAULT);
+    if (null == phoneNumber) {
+      return false;
+    }
+    if (null == validCountryCodes || validCountryCodes.isEmpty()) {
+      return true;
+    }
+
+    String trimmedPhoneNumber = phoneNumber.trim();
+
+    return validCountryCodes
+      .stream()
+      .anyMatch(countryCode -> trimmedPhoneNumber.startsWith(countryCode));
+  }
+
   /**
    * Handles the contact entry step: validates, stores, and sends OTP to the contact value. Shows
    * error if invalid or sending fails.
@@ -149,15 +175,30 @@ public abstract class BaseResetMessageOTPRequiredAction implements RequiredActio
       return;
     }
     authSession.setAuthNote(noteKey, enteredValue);
+
     try {
+      UserModel user = context.getUser();
+      boolean deferredUser = true;
+      MessageCourier courier = getCourier();
+      if (MessageCourier.SMS == courier || MessageCourier.BOTH == courier) {
+        String mobileNumber = Utils.getMobileNumber(config, user, authSession, deferredUser);
+        if (!isValidMobileNumber(mobileNumber, config)) {
+          context.challenge(
+              createOTPForm(
+                  context,
+                  form -> form.setError(ErrorType.INVALID_COUNTRY.toString(getI18nPrefix())),
+                  config));
+          return;
+        }
+      }
       // Send OTP code to the contact value
       Utils.sendCode(
           config,
           session,
-          context.getUser(),
+          user,
           authSession,
-          getCourier(),
-          /*deferredUser*/ true,
+          courier,
+          deferredUser,
           /*isOtl*/ false,
           new String[0],
           context);
@@ -174,10 +215,6 @@ public abstract class BaseResetMessageOTPRequiredAction implements RequiredActio
     context.challenge(createOTPForm(context, null, config));
   }
 
-  /**
-   * Handles the OTP entry step: validates the code and updates the user if correct. Also allows the
-   * user to go back and change the contact value, or resend the code.
-   */
   private void handleOtpEntry(
       RequiredActionContext context,
       String value,
@@ -220,14 +257,26 @@ public abstract class BaseResetMessageOTPRequiredAction implements RequiredActio
         return;
       }
       try {
+        UserModel user = context.getUser();
+        boolean deferredUser = true;
+        MessageCourier courier = getCourier();
+        String mobileNumber = Utils.getMobileNumber(config, user, authSession, deferredUser);
+        if (!isValidMobileNumber(mobileNumber, config)) {
+          context.challenge(
+              createOTPForm(
+                  context,
+                  form -> form.setError(ErrorType.INVALID_COUNTRY.toString(getI18nPrefix())),
+                  config));
+          return;
+        }
         // Resend OTP code
         Utils.sendCode(
             config,
             session,
-            context.getUser(),
+            user,
             authSession,
-            getCourier(),
-            /*deferredUser*/ true,
+            courier,
+            deferredUser,
             /*isOtl*/ false,
             new String[0],
             context);
@@ -389,7 +438,8 @@ public abstract class BaseResetMessageOTPRequiredAction implements RequiredActio
     RESEND_TIMER(".auth.error.resendTimer"),
     CODE_EXPIRED(".auth.error.codeExpired"),
     CODE_INVALID(".auth.error.codeInvalid"),
-    MAX_RECEIVER_REUSE(".auth.error.maxReceiverReuse");
+    MAX_RECEIVER_REUSE(".auth.error.maxReceiverReuse"),
+    INVALID_COUNTRY(".auth.error.invalidCountry");
 
     private final String value;
 
