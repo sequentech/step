@@ -317,7 +317,7 @@ pub async fn restore_private_key(
         is_valid,
     );
 
-    let _commit = hasura_transaction.commit().await.map_err(|err| {
+    hasura_transaction.commit().await.map_err(|err| {
         (Status::InternalServerError, format!("Commit failed: {err}"))
     })?;
     Ok(Json(SetPrivateKeyOutput { is_valid }))

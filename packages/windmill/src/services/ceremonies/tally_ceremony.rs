@@ -7,8 +7,6 @@ use crate::postgres::ballot_style::get_ballot_styles_by_elections;
 use crate::postgres::contest::export_contests;
 use crate::postgres::election::{export_elections, get_election_by_id};
 use crate::postgres::election_event::get_election_event_by_id;
-use crate::postgres::keys_ceremony;
-use crate::postgres::keys_ceremony::get_keys_ceremonies;
 use crate::postgres::keys_ceremony::get_keys_ceremony_by_id;
 use crate::postgres::tally_session::{
     get_tally_session_by_id, insert_tally_session,
@@ -27,19 +25,16 @@ use crate::services::ceremonies::serialize_logs::{
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_status::get_election_status;
 use crate::services::electoral_log::ElectoralLog;
-use crate::services::tally_sheets::tally;
+use crate::services::protocol_manager::get_event_board;
 use anyhow::{anyhow, Context, Result};
 use b3::messages::newtypes::BatchNumber;
 use deadpool_postgres::Transaction;
 use futures::try_join;
-use sequent_core::ballot::ElectionStatus;
 use sequent_core::ballot::{AllowTallyStatus, ContestEncryptionPolicy};
 use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::area_tree::ContestsData;
 use sequent_core::services::area_tree::TreeNode;
-use sequent_core::services::connection;
 use sequent_core::services::jwt::JwtClaims;
-use sequent_core::services::keycloak;
 use sequent_core::types::ceremonies::*;
 use sequent_core::types::hasura::core::KeysCeremony;
 use sequent_core::types::hasura::core::{AreaContest, TallySessionConfiguration};
@@ -200,7 +195,7 @@ fn generate_initial_tally_status(
     }
 }
 
-#[instrument(err)]
+#[instrument(err, skip(hasura_transaction))]
 pub async fn insert_tally_session_contests(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -277,7 +272,7 @@ fn get_area_contests_for_election_ids(
     area_contests_tree.get_contest_matches(&contest_ids)
 }
 
-#[instrument(err)]
+#[instrument(err, skip(transaction))]
 pub async fn create_tally_ceremony(
     transaction: &Transaction<'_>,
     tenant_id: String,
@@ -472,7 +467,7 @@ pub async fn create_tally_ceremony(
     Ok(tally_session_id.clone())
 }
 
-#[instrument(err)]
+#[instrument(err, skip(hasura_transaction))]
 pub async fn update_tally_ceremony(
     hasura_transaction: &Transaction<'_>,
     tenant_id: String,
@@ -553,44 +548,42 @@ pub async fn update_tally_ceremony(
     )
     .await?;
 
-    let election_event =
-        get_election_event_by_id(&hasura_transaction, &tenant_id, &election_event_id).await?;
+    if new_execution_status == TallyExecutionStatus::STARTED {
+        let tally_elections_ids = tally_session
+            .election_ids
+            .clone()
+            .unwrap_or_default()
+            .join(", ");
 
-    let tally_elections_ids = tally_session
-        .election_ids
-        .clone()
-        .unwrap_or_default()
-        .join(", ");
-
-    // Save this in the electoral log
-    let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
-        .with_context(|| "missing bulletin board")?;
-
-    let electoral_log = ElectoralLog::for_admin_user(
-        &hasura_transaction,
-        board_name.as_str(),
-        &tenant_id,
-        &election_event_id,
-        &user_id,
-        Some(username.clone()),
-        None,
-        None,
-    )
-    .await?;
-    electoral_log
-        .post_tally_open(
-            election_event_id.to_string(),
-            Some(tally_elections_ids),
-            Some(user_id),
-            Some(username),
+        // Save this in the electoral log
+        let board_name: String = get_event_board(&tenant_id, &election_event_id);
+        let electoral_log = ElectoralLog::for_admin_user(
+            &hasura_transaction,
+            board_name.as_str(),
+            &tenant_id,
+            &election_event_id,
+            &user_id,
+            Some(username.clone()),
+            None,
+            None,
         )
-        .await
-        .with_context(|| "error posting to the electoral log")?;
+        .await?;
+
+        electoral_log
+            .post_tally_open(
+                election_event_id.to_string(),
+                Some(tally_elections_ids),
+                Some(user_id),
+                Some(username),
+            )
+            .await
+            .with_context(|| "error posting to the electoral log")?;
+    }
 
     Ok(())
 }
 
-#[instrument(err)]
+#[instrument(err, skip(transaction))]
 pub async fn set_private_key(
     transaction: &Transaction<'_>,
     claims: &JwtClaims,
@@ -775,7 +768,7 @@ pub async fn set_private_key(
     Ok(true)
 }
 
-#[instrument(err)]
+#[instrument(err, skip(hasura_transaction))]
 pub async fn set_tally_session_completed(
     hasura_transaction: &Transaction<'_>,
     tenant_id: String,

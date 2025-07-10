@@ -142,7 +142,7 @@ impl ElectoralLog {
     /// We need to pass in the log database because the vault
     /// will post a public key message if it needs to generates
     /// a signing key.
-    #[instrument(err)]
+    #[instrument(err, skip(hasura_transaction))]
     pub async fn for_admin_user(
         hasura_transaction: &Transaction<'_>,
         elog_database: &str,
