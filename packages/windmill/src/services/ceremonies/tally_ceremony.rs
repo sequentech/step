@@ -548,7 +548,7 @@ pub async fn update_tally_ceremony(
     )
     .await?;
 
-    if new_execution_status == TallyExecutionStatus::STARTED {
+    if new_execution_status == TallyExecutionStatus::IN_PROGRESS {
         let tally_elections_ids = tally_session
             .election_ids
             .clone()
