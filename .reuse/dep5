@@ -77,6 +77,23 @@ Copyright:
 License: MIT
 
 Files:
+  packages/ui-essentials/storybook-static/*
+Copyright: 2024 Sequent Tech <legal@sequentech.io>
+License: AGPL-3.0-only
+
+Files:
+  packages/ui-essentials/storybook-static/8253.b43d0aa3.iframe.bundle.js.LICENSE.txt
+  packages/ui-essentials/storybook-static/8179.6645e101.iframe.bundle.js.LICENSE.txt
+  packages/ui-essentials/storybook-static/sb-addons/essentials-controls-1/manager-bundle.js.LEGAL.txt
+Copyright: 2024 Sequent Tech <legal@sequentech.io>
+License: ISC
+
+Files:
+  packages/ui-essentials/.storybook/main.ts
+Copyright: 2022 Félix Robles <felix@sequentech.io>
+License: AGPL-3.0-only
+
+Files:
   packages/keycloak-extensions/sequent-theme/src/main/resources/theme/sequent.admin-portal/login/resources/js/jquery-3.7.1.slim.min.js
 Copyright:
   OpenJS Foundation and other contributors, https://openjsf.org/

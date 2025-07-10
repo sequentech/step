@@ -56,5 +56,8 @@ module.exports = function (env, argv) {
             }),
             new CleanWebpackPlugin(),
         ],
+        experiments: {
+            asyncWebAssembly: true,
+        },
     }
 }

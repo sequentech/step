@@ -73,25 +73,6 @@ const tagalogTranslation = {
             contestNotFound: "Paligsahan hindi natagpuan: {{contestId}}",
         },
         poweredBy: "Pinapagana ng",
-        errors: {
-            encoding: {
-                notEnoughChoices: "Hindi sapat na mga pagpipilian upang ma-decode",
-                writeInChoiceOutOfRange: "Pagpipilian ng write-in labas ng saklaw: {{index}}",
-                writeInNotEndInZero: "Ang write-in ay hindi nagtatapos sa 0",
-                bytesToUtf8Conversion:
-                    "Error sa pag-convert ng write-in mula sa bytes papuntang UTF-8 string: {{errorMessage}}",
-                ballotTooLarge: "Ang balota ay mas malaki kaysa sa inaasahan",
-            },
-            implicit: {
-                selectedMax: "Bilang ng mga napili {{numSelected}} ay higit sa maximum {{max}}",
-                selectedMin:
-                    "Bilang ng mga napili {{numSelected}} ay mas mababa sa minimum {{min}}",
-            },
-            explicit: {
-                notAllowed:
-                    "Ang balota ay minarkahan nang tahasan bilang hindi wasto ngunit hindi ito pinapayagan ng tanong",
-            },
-        },
     },
 }
 

@@ -41,7 +41,7 @@ const defaultSettingsValues: SettingsContextValues = {
         BALLOT_VERIFIER_URL: "http://127.0.0.1:3001/",
         PUBLIC_BUCKET_URL: "http://127.0.0.1:9002/public/",
         KEYCLOAK_ACCESS_TOKEN_LIFESPAN_SECS: 900,
-        POLLING_DURATION_TIMEOUT: 12000,
+        POLLING_DURATION_TIMEOUT: 12000000,
     },
     setDisableAuth: () => {},
 }

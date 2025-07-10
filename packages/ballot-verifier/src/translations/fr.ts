@@ -75,26 +75,6 @@ const frenchTranslation: TranslationType = {
             contestNotFound: "Question non trouvée : {{contestId}}",
         },
         "poweredBy": "Propulsé par",
-        "errors": {
-            encoding: {
-                notEnoughChoices: "Il n'y a pas assez d'options pour décoder",
-                writeInChoiceOutOfRange: "Option de vote écrite hors de portée : {{index}}",
-                writeInNotEndInZero: "Option de vote écrite ne finit pas en 0",
-                bytesToUtf8Conversion:
-                    "Erreur de conversion des octets de l'option de vote écrite en chaîne UTF-8 : {{errorMessage}}",
-                ballotTooLarge: "Vote plus grand que prévu",
-            },
-            implicit: {
-                selectedMax:
-                    "Le nombre d'options sélectionnées {{numSelected}} est supérieur au maximum {{max}}",
-                selectedMin:
-                    "Le nombre d'options sélectionnées {{numSelected}} est inférieur au minimum {{min}}",
-            },
-            explicit: {
-                notAllowed:
-                    "Vote marqué explicitement comme invalide mais la question ne le permet pas",
-            },
-        },
     },
 }
 

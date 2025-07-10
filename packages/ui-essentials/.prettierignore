@@ -1,16 +1,20 @@
-# SPDX-FileCopyrightText: 2022 Felix Robles <felix@sequentech.io>
-#
-# SPDX-License-Identifier: AGPL-3.0-only
-.prettierrc
-*.json
-*.md
-*.mdx
-*.html
-*.css
-*.yml
-node_modules/
+// SPDX-FileCopyrightText: 2025 Enric Badia <enric@xtremis.com>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+# Ignore storybook-static directory (generated files)
+storybook-static/
+
+# Ignore build output
 dist/
-target/
-pkg/
 build/
-.github
+lib/
+
+# Ignore node_modules
+node_modules/
+
+# Ignore coverage reports
+coverage/
+
+# Ignore other common generated files
+.cache/

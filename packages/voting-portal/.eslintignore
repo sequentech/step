@@ -7,3 +7,4 @@ target/
 pkg/
 build/
 src/gql/
+storybook-static/

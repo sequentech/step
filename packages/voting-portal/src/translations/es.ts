@@ -260,34 +260,6 @@ const spanishTranslation: TranslationType = {
             },
         },
         errors: {
-            encoding: {
-                notEnoughChoices: "No hay suficientes opciones para decodificar",
-                writeInChoiceOutOfRange: "Opción de voto escrita fuera de rango: {{index}}",
-                writeInNotEndInZero: "Opción de voto escrita no finaliza en 0",
-                writeInCharsExceeded:
-                    "Opción de voto escrita excede el número de caracters por {{numCharsExceeded}} caracteres. Requiere arreglo.",
-                bytesToUtf8Conversion:
-                    "Error convirtiendo bytes de opción de voto escrita a cadena UTF-8: {{errorMessage}}",
-                ballotTooLarge: "Voto más grande de lo esperado",
-            },
-            implicit: {
-                selectedMax:
-                    "Sobrevoto: El número de opciones seleccionadas {{numSelected}} es mayor que el máximo {{max}}",
-                selectedMin:
-                    "El número de opciones seleccionadas {{numSelected}} es menor que el máximo {{min}}",
-                maxSelectionsPerType:
-                    "El número de opciones seleccionadas {{numSelected}} para la lista {{type}} es mayor que el máximo {{max}}",
-                underVote:
-                    "Subvoto: El número de opciones seleccionadas {{numSelected}} es menor que el máximo permitido de {{max}}",
-                overVoteDisabled:
-                    "Máximo alcanzado: Has seleccionado el máximo de {{numSelected}} opciones. Para cambiar tu selección, por favor, desmarca primero otra opción.",
-                blankVote: "Voto en Blanco: 0 opciones seleccionadas",
-            },
-            explicit: {
-                notAllowed:
-                    "Voto marcado explícitamente como inválido pero la pregunta no lo permite",
-                alert: "La selección marcada será considerada voto inválido.",
-            },
             page: {
                 oopsWithStatus: "¡Vaya! {{status}}",
                 oopsWithoutStatus: "¡Vaya! Error Inesperado",

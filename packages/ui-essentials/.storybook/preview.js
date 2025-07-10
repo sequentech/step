@@ -4,10 +4,11 @@
 import {theme} from "../src/index"
 import {ThemeProvider} from "@mui/material"
 import {INITIAL_VIEWPORTS} from "@storybook/addon-viewport"
-import React, {Suspense, useEffect} from "react"
+import React, {Suspense, useEffect, useState} from "react"
 import {I18nextProvider} from "react-i18next"
 import LanguageSetter from "../src/components/LanguageSetter/LanguageSetter"
 import i18n, {initializeLanguages} from "../src/services/i18n"
+import {initCore} from "@sequentech/ui-core"
 
 initializeLanguages({})
 
@@ -71,4 +72,20 @@ const withI18next = (Story, context) => {
     )
 }
 
-export const decorators = [MuiDecorator, withI18next]
+// 🚨 Key part: wait for Wasm before rendering anything
+const withCoreInit = (Story) => {
+    const [ready, setReady] = useState(false)
+
+    useEffect(() => {
+        initCore()
+            .then(() => setReady(true))
+            .catch((err) => {
+                console.error("Wasm init failed", err)
+            })
+    }, [])
+
+    if (!ready) return <div>Loading core...</div>
+    return <Story />
+}
+
+export const decorators = [withCoreInit, MuiDecorator, withI18next]

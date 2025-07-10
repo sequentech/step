@@ -1,7 +1,18 @@
-// SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {
+    toHashableBallot,
+    toHashableMultiBallot,
+    hashBallot,
+    encryptBallotSelection,
+    encryptMultiBallotSelection,
+    interpretContestSelection,
+    interpretMultiContestSelection,
+    getWriteInAvailableCharacters,
+    IHashableSingleBallot,
+    IHashableMultiBallot,
+    BallotSelection,
     hashMultiBallot,
     hashBallot512,
     decodeAuditableBallot,
@@ -14,7 +25,6 @@ import {
     IDecodedVoteChoice,
     IBallotStyle,
     IContest,
-    IAuditableBallot,
     IAuditableSingleBallot,
     IContestLayoutProperties,
     IAuditableMultiBallot,
@@ -27,7 +37,30 @@ export interface IConfirmationBallot {
 }
 
 export interface IBallotService {
+    toHashableBallot: (auditableBallot: IAuditableSingleBallot) => IHashableSingleBallot
+    toHashableMultiBallot: (auditableBallot: IAuditableMultiBallot) => IHashableMultiBallot
+    hashBallot: (auditableBallot: IAuditableSingleBallot) => string
     hashMultiBallot: (auditableBallot: IAuditableMultiBallot) => string
+    encryptBallotSelection: (
+        ballotSelection: BallotSelection,
+        election: IBallotStyle
+    ) => IAuditableSingleBallot
+    encryptMultiBallotSelection: (
+        ballotSelection: BallotSelection,
+        election: IBallotStyle
+    ) => IAuditableMultiBallot
+    interpretContestSelection: (
+        contestSelection: Array<IDecodedVoteContest>,
+        election: IBallotStyle
+    ) => Array<IDecodedVoteContest>
+    interpretMultiContestSelection: (
+        contestSelections: Array<IDecodedVoteContest>,
+        election: IBallotStyle
+    ) => Array<IDecodedVoteContest>
+    getWriteInAvailableCharacters: (
+        contestSelection: IDecodedVoteContest,
+        election: IBallotStyle
+    ) => number
     hashBallot512: (auditableBallot: IAuditableSingleBallot) => string
     decodeAuditableBallot: (
         auditableBallot: IAuditableSingleBallot
@@ -42,12 +75,20 @@ export interface IBallotService {
 }
 
 export const provideBallotService = (): IBallotService => ({
+    toHashableBallot,
+    toHashableMultiBallot,
+    hashBallot,
     hashMultiBallot,
-    hashBallot512,
+    encryptBallotSelection,
+    encryptMultiBallotSelection,
+    interpretContestSelection,
+    interpretMultiContestSelection,
+    getWriteInAvailableCharacters,
     decodeAuditableBallot,
     decodeAuditableMultiBallot,
+    checkIsBlank,
+    hashBallot512,
     getLayoutProperties,
     getPoints,
     generateSampleAuditableBallot,
-    checkIsBlank,
 })

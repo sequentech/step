@@ -56,9 +56,12 @@ export type {
 
 export type BallotSelection = Array<IDecodedVoteContest>
 
-export const initCore = () => {
+export const initCore = async () => {
     try {
-        SequentCoreLibInit().then(set_hooks)
+        // SequentCoreLibInit().then(set_hooks)
+        const wasmModule = await SequentCoreLibInit()
+        set_hooks()
+        return wasmModule
     } catch (error) {
         console.error("Error initializing SequentCoreLib:", error)
         throw error

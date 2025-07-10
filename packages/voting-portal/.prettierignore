@@ -16,3 +16,4 @@ pkg/
 build/
 src/gql/
 .github
+storybook-static/

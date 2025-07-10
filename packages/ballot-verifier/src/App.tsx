@@ -66,6 +66,7 @@ const App = () => {
     const [ballotId, setBallotId] = useState<string>("")
     const [fileName, setFileName] = useState("")
     const ballotService = provideBallotService()
+    const ballotStyle = useAppSelector(selectFirstBallotStyle)
 
     useEffect(() => {
         if (globalSettings.DISABLE_AUTH) {
@@ -129,9 +130,9 @@ const App = () => {
                                 <ApolloContextProvider>
                                     <ApolloWrapper>
                                         <ConfirmationScreen
+                                            ballotStyle={ballotStyle}
                                             confirmationBallot={confirmationBallot}
                                             ballotId={ballotId}
-                                            ballotService={ballotService}
                                         />
                                     </ApolloWrapper>
                                 </ApolloContextProvider>

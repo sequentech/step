@@ -72,7 +72,6 @@ type ConfirmationScreenProps = React.ComponentProps<typeof ConfirmationScreen>
 const Template: ComponentStory<React.FC<TemplateProps & ConfirmationScreenProps>> = ({
     language,
     ordered,
-    ballotService: _ballotService,
     ...args
 }) => {
     const [service, setService] = useState(getBallotServiceProvider(ordered))
@@ -83,7 +82,7 @@ const Template: ComponentStory<React.FC<TemplateProps & ConfirmationScreenProps>
     return (
         <Container style={{backgroundColor: "white"}}>
             <LanguageSetter language={language}>
-                <ConfirmationScreen ballotService={service} {...args} />
+                <ConfirmationScreen {...args} />
             </LanguageSetter>
         </Container>
     )

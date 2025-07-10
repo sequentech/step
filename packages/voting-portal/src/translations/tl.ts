@@ -259,34 +259,6 @@ const tagalogTranslation: TranslationType = {
             },
         },
         errors: {
-            encoding: {
-                notEnoughChoices: "Hindi sapat ang mga pagpipilian para ma-decode",
-                writeInChoiceOutOfRange: "Write-in na napili ay wala sa saklaw: {{index}}",
-                writeInNotEndInZero: "Ang Write-in ay hindi nagtatapos sa 0",
-                writeInCharsExceeded:
-                    "Ang Write-in ay lumampas ng {{numCharsExceeded}} sa maximum na bilang ng mga karakter. Kailangang ayusin.",
-                bytesToUtf8Conversion:
-                    "Error sa pag-convert ng write-in mula bytes patungong UTF-8 na string: {{errorMessage}}",
-                ballotTooLarge: "Ang balota ay mas malaki kaysa sa inaasahan",
-            },
-            implicit: {
-                selectedMax:
-                    "Overvote: Ang bilang ng mga napili {{numSelected}} ay higit sa maximum na {{max}}",
-                selectedMin:
-                    "Ang bilang ng mga napili {{numSelected}} ay mas mababa sa minimum na {{min}}",
-                maxSelectionsPerType:
-                    "Ang bilang ng mga napili {{numSelected}} para sa listahan {{type}} ay higit sa maximum na {{max}}",
-                underVote:
-                    "Undervote: Ang bilang ng mga napili {{numSelected}} ay mas mababa sa maximum na {{max}}",
-                overVoteDisabled:
-                    "Naabot na ang maximum: Napili mo na ang maximum na {{numSelected}} na mga opsyon. Upang baguhin ang iyong pagpili, mangyaring alisin muna ang isa pang opsyon.",
-                blankVote: "Blank Vote: Walang pinili",
-            },
-            explicit: {
-                notAllowed:
-                    "Ang balota ay tahasang minarkahan upang mapawalang-bisa ngunit hindi ito pinapayagan ng tanong",
-                alert: "An seleksyon na minarkahan ibibilang na bakong balidong boto.",
-            },
             page: {
                 oopsWithStatus: "Oops! {{status}}",
                 oopsWithoutStatus: "Oops! Hindi inaasahang Error",

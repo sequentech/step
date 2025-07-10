@@ -1,0 +1,347 @@
+(self.webpackChunk_sequentech_ui_essentials =
+    self.webpackChunk_sequentech_ui_essentials || []).push([
+    [5898, 6054],
+    {
+        "../node_modules/@mdx-js/react/lib/index.js": function (
+            __unused_webpack_module,
+            __webpack_exports__,
+            __webpack_require__
+        ) {
+            __webpack_require__.d(__webpack_exports__, {
+                NF: function () {
+                    return withMDXComponents
+                },
+                Zo: function () {
+                    return MDXProvider
+                },
+                ah: function () {
+                    return useMDXComponents
+                },
+                pC: function () {
+                    return MDXContext
+                },
+            })
+            var react__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(
+                "../node_modules/react/index.js"
+            )
+            const MDXContext = react__WEBPACK_IMPORTED_MODULE_0__.createContext({})
+            function withMDXComponents(Component) {
+                return function boundMDXComponent(props) {
+                    const allComponents = useMDXComponents(props.components)
+                    return react__WEBPACK_IMPORTED_MODULE_0__.createElement(Component, {
+                        ...props,
+                        allComponents: allComponents,
+                    })
+                }
+            }
+            function useMDXComponents(components) {
+                const contextComponents = react__WEBPACK_IMPORTED_MODULE_0__.useContext(MDXContext)
+                return react__WEBPACK_IMPORTED_MODULE_0__.useMemo(
+                    () =>
+                        "function" == typeof components
+                            ? components(contextComponents)
+                            : {...contextComponents, ...components},
+                    [contextComponents, components]
+                )
+            }
+            const emptyObject = {}
+            function MDXProvider({components, children, disableParentContext}) {
+                let allComponents
+                return (
+                    (allComponents = disableParentContext
+                        ? "function" == typeof components
+                            ? components({})
+                            : components || emptyObject
+                        : useMDXComponents(components)),
+                    react__WEBPACK_IMPORTED_MODULE_0__.createElement(
+                        MDXContext.Provider,
+                        {value: allComponents},
+                        children
+                    )
+                )
+            }
+        },
+        "./src/components/WarnBox/__stories__/WarnBox.mdx": function (
+            __unused_webpack_module,
+            __webpack_exports__,
+            __webpack_require__
+        ) {
+            __webpack_require__.r(__webpack_exports__)
+            __webpack_require__("../node_modules/react/index.js")
+            var react_jsx_runtime__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(
+                    "../node_modules/react/jsx-runtime.js"
+                ),
+                _storybook_addon_essentials_docs_mdx_react_shim__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(
+                    "../node_modules/@mdx-js/react/lib/index.js"
+                ),
+                _storybook_blocks__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(
+                    "../node_modules/@storybook/blocks/dist/index.mjs"
+                ),
+                _WarnBox_stories__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(
+                    "./src/components/WarnBox/__stories__/WarnBox.stories.tsx"
+                )
+            function _createMdxContent(props) {
+                const _components = Object.assign(
+                    {h1: "h1", p: "p", h2: "h2"},
+                    (0,
+                    _storybook_addon_essentials_docs_mdx_react_shim__WEBPACK_IMPORTED_MODULE_3__.ah)(),
+                    props.components
+                )
+                return (0, react_jsx_runtime__WEBPACK_IMPORTED_MODULE_1__.jsxs)(
+                    react_jsx_runtime__WEBPACK_IMPORTED_MODULE_1__.Fragment,
+                    {
+                        children: [
+                            (0, react_jsx_runtime__WEBPACK_IMPORTED_MODULE_1__.jsx)(
+                                _storybook_blocks__WEBPACK_IMPORTED_MODULE_4__.h_,
+                                {
+                                    of: _WarnBox_stories__WEBPACK_IMPORTED_MODULE_2__,
+                                    title: "components/WarnBox",
+                                }
+                            ),
+                            "\n",
+                            (0, react_jsx_runtime__WEBPACK_IMPORTED_MODULE_1__.jsx)(
+                                _components.h1,
+                                {id: "warnbox", children: "WarnBox"}
+                            ),
+                            "\n",
+                            (0, react_jsx_runtime__WEBPACK_IMPORTED_MODULE_1__.jsx)(_components.p, {
+                                children:
+                                    "A WarnBox is the box at the top of every screen. It includes the logo, the\nsoftware version, language toggle and an optional button to log out.",
+                            }),
+                            "\n",
+                            (0, react_jsx_runtime__WEBPACK_IMPORTED_MODULE_1__.jsx)(
+                                _components.h2,
+                                {id: "desktop", children: "Desktop"}
+                            ),
+                            "\n",
+                            (0,
+                            react_jsx_runtime__WEBPACK_IMPORTED_MODULE_1__.jsx)(
+                                _storybook_blocks__WEBPACK_IMPORTED_MODULE_4__.Xz,
+                                {of: _WarnBox_stories__WEBPACK_IMPORTED_MODULE_2__.Primary}
+                            ),
+                        ],
+                    }
+                )
+            }
+            __webpack_exports__.default = function MDXContent(props = {}) {
+                const {wrapper: MDXLayout} = Object.assign(
+                    {},
+                    (0,
+                    _storybook_addon_essentials_docs_mdx_react_shim__WEBPACK_IMPORTED_MODULE_3__.ah)(),
+                    props.components
+                )
+                return MDXLayout
+                    ? (0, react_jsx_runtime__WEBPACK_IMPORTED_MODULE_1__.jsx)(
+                          MDXLayout,
+                          Object.assign({}, props, {
+                              children: (0, react_jsx_runtime__WEBPACK_IMPORTED_MODULE_1__.jsx)(
+                                  _createMdxContent,
+                                  props
+                              ),
+                          })
+                      )
+                    : _createMdxContent(props)
+            }
+        },
+        "./src/components/WarnBox/__stories__/WarnBox.stories.tsx": function (
+            __unused_webpack_module,
+            __webpack_exports__,
+            __webpack_require__
+        ) {
+            __webpack_require__.r(__webpack_exports__),
+                __webpack_require__.d(__webpack_exports__, {
+                    Primary: function () {
+                        return Primary
+                    },
+                    PrimaryMobile: function () {
+                        return PrimaryMobile
+                    },
+                    __namedExportsOrder: function () {
+                        return __namedExportsOrder
+                    },
+                })
+            var _Primary$parameters,
+                _Primary$parameters2,
+                _Primary$parameters2$,
+                _PrimaryMobile$parame,
+                _PrimaryMobile$parame2,
+                _PrimaryMobile$parame3,
+                _workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(
+                    "../node_modules/@babel/runtime/helpers/esm/objectSpread2.js"
+                ),
+                _WarnBox__WEBPACK_IMPORTED_MODULE_1__ =
+                    (__webpack_require__("../node_modules/react/index.js"),
+                    __webpack_require__("./src/components/WarnBox/WarnBox.tsx")),
+                _VerticalBox_VerticalBox__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(
+                    "./src/components/VerticalBox/VerticalBox.tsx"
+                ),
+                _storybook_addon_viewport__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(
+                    "../node_modules/@storybook/addon-viewport/dist/index.mjs"
+                ),
+                react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(
+                    "../node_modules/react/jsx-runtime.js"
+                ),
+                meta = {
+                    title: "components/WarnBox",
+                    component: function WarnBoxExample() {
+                        return (0, react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsxs)(
+                            _VerticalBox_VerticalBox__WEBPACK_IMPORTED_MODULE_2__.Z,
+                            {
+                                children: [
+                                    (0, react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsxs)(
+                                        _WarnBox__WEBPACK_IMPORTED_MODULE_1__.Z,
+                                        {
+                                            variant: "error",
+                                            onClose: function onClose() {},
+                                            children: [
+                                                (0,
+                                                react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)(
+                                                    "b",
+                                                    {children: "Question / Contest Title 2:"}
+                                                ),
+                                                " You have chosen more than the allowed selecitons on this contest/office.",
+                                            ],
+                                        }
+                                    ),
+                                    (0, react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsxs)(
+                                        _WarnBox__WEBPACK_IMPORTED_MODULE_1__.Z,
+                                        {
+                                            variant: "success",
+                                            onClose: function onClose() {},
+                                            children: [
+                                                (0,
+                                                react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)(
+                                                    "b",
+                                                    {children: "Question / Contest Title 2:"}
+                                                ),
+                                                " You have chosen more than the allowed selecitons on this contest/office.",
+                                            ],
+                                        }
+                                    ),
+                                    (0, react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsxs)(
+                                        _WarnBox__WEBPACK_IMPORTED_MODULE_1__.Z,
+                                        {
+                                            variant: "warning",
+                                            onClose: function onClose() {},
+                                            children: [
+                                                (0,
+                                                react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)(
+                                                    "b",
+                                                    {children: "Question / Contest Title 2:"}
+                                                ),
+                                                " You have chosen more than the allowed selecitons on this contest/office.",
+                                            ],
+                                        }
+                                    ),
+                                    (0, react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsxs)(
+                                        _WarnBox__WEBPACK_IMPORTED_MODULE_1__.Z,
+                                        {
+                                            variant: "info",
+                                            onClose: function onClose() {},
+                                            children: [
+                                                (0,
+                                                react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)(
+                                                    "b",
+                                                    {children: "Question / Contest Title 2:"}
+                                                ),
+                                                " You have chosen more than the allowed selecitons on this contest/office.",
+                                            ],
+                                        }
+                                    ),
+                                ],
+                            }
+                        )
+                    },
+                    parameters: {
+                        backgrounds: {default: "white"},
+                        viewport: {
+                            viewports: _storybook_addon_viewport__WEBPACK_IMPORTED_MODULE_3__.p,
+                            defaultViewport: "iphone6",
+                        },
+                    },
+                }
+            __webpack_exports__.default = meta
+            var Primary = {args: {}, parameters: {viewport: {disable: !0}}},
+                PrimaryMobile = {args: {}, parameters: {viewport: {defaultViewport: "iphone6"}}}
+            ;(Primary.parameters = (0,
+            _workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_5__.Z)(
+                (0,
+                _workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_5__.Z)(
+                    {},
+                    Primary.parameters
+                ),
+                {},
+                {
+                    docs: (0,
+                    _workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_5__.Z)(
+                        (0,
+                        _workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_5__.Z)(
+                            {},
+                            null === (_Primary$parameters = Primary.parameters) ||
+                                void 0 === _Primary$parameters
+                                ? void 0
+                                : _Primary$parameters.docs
+                        ),
+                        {},
+                        {
+                            source: (0,
+                            _workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_5__.Z)(
+                                {
+                                    originalSource:
+                                        "{\n  // More on args: https://storybook.js.org/docs/react/writing-stories/args\n  args: {},\n  parameters: {\n    viewport: {\n      disable: true\n    }\n  }\n}",
+                                },
+                                null === (_Primary$parameters2 = Primary.parameters) ||
+                                    void 0 === _Primary$parameters2 ||
+                                    null === (_Primary$parameters2$ = _Primary$parameters2.docs) ||
+                                    void 0 === _Primary$parameters2$
+                                    ? void 0
+                                    : _Primary$parameters2$.source
+                            ),
+                        }
+                    ),
+                }
+            )),
+                (PrimaryMobile.parameters = (0,
+                _workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_5__.Z)(
+                    (0,
+                    _workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_5__.Z)(
+                        {},
+                        PrimaryMobile.parameters
+                    ),
+                    {},
+                    {
+                        docs: (0,
+                        _workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_5__.Z)(
+                            (0,
+                            _workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_5__.Z)(
+                                {},
+                                null === (_PrimaryMobile$parame = PrimaryMobile.parameters) ||
+                                    void 0 === _PrimaryMobile$parame
+                                    ? void 0
+                                    : _PrimaryMobile$parame.docs
+                            ),
+                            {},
+                            {
+                                source: (0,
+                                _workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_5__.Z)(
+                                    {
+                                        originalSource:
+                                            '{\n  // More on args: https://storybook.js.org/docs/react/writing-stories/args\n  args: {},\n  parameters: {\n    viewport: {\n      defaultViewport: "iphone6"\n    }\n  }\n}',
+                                    },
+                                    null === (_PrimaryMobile$parame2 = PrimaryMobile.parameters) ||
+                                        void 0 === _PrimaryMobile$parame2 ||
+                                        null ===
+                                            (_PrimaryMobile$parame3 =
+                                                _PrimaryMobile$parame2.docs) ||
+                                        void 0 === _PrimaryMobile$parame3
+                                        ? void 0
+                                        : _PrimaryMobile$parame3.source
+                                ),
+                            }
+                        ),
+                    }
+                ))
+            var __namedExportsOrder = ["Primary", "PrimaryMobile"]
+        },
+    },
+])

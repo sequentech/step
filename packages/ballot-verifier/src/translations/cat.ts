@@ -77,25 +77,6 @@ const catalanTranslation: TranslationType = {
             contestNotFound: "Pregunta no trobada: {{contestId}}",
         },
         "poweredBy": "Funciona amb",
-        "errors": {
-            encoding: {
-                notEnoughChoices: "No hi ha prou opcions per a descodificar",
-                writeInChoiceOutOfRange: "Opció de vot escrita fora de rang: {{index}}",
-                writeInNotEndInZero: "Opció de vot escrita no finalitza en 0",
-                bytesToUtf8Conversion:
-                    "Error convertint bytes de l'opció de vot escrita a cadena UTF-8: {{errorMessage}}",
-                ballotTooLarge: "Vot més gran de l'esperat",
-            },
-            implicit: {
-                selectedMax:
-                    "El nombre d'opcions seleccionades {{numSelected}} és major que el màxim {{max}}",
-                selectedMin:
-                    "El nombre d'opcions seleccionades {{numSelected}} és menor que el mínim {{min}}",
-            },
-            explicit: {
-                notAllowed: "Vot marcat explícitament com a invàlid però la pregunta no ho permet",
-            },
-        },
     },
 }
 

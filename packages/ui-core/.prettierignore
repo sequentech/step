@@ -14,3 +14,4 @@ target/
 pkg/
 build/
 .github
+storybook-static/

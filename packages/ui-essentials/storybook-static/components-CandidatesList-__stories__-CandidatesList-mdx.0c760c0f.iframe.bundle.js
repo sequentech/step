@@ -1,0 +1,440 @@
+(self.webpackChunk_sequentech_ui_essentials =
+    self.webpackChunk_sequentech_ui_essentials || []).push([
+    [1801, 242],
+    {
+        "../node_modules/@mdx-js/react/lib/index.js": function (
+            __unused_webpack_module,
+            __webpack_exports__,
+            __webpack_require__
+        ) {
+            __webpack_require__.d(__webpack_exports__, {
+                NF: function () {
+                    return withMDXComponents
+                },
+                Zo: function () {
+                    return MDXProvider
+                },
+                ah: function () {
+                    return useMDXComponents
+                },
+                pC: function () {
+                    return MDXContext
+                },
+            })
+            var react__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(
+                "../node_modules/react/index.js"
+            )
+            const MDXContext = react__WEBPACK_IMPORTED_MODULE_0__.createContext({})
+            function withMDXComponents(Component) {
+                return function boundMDXComponent(props) {
+                    const allComponents = useMDXComponents(props.components)
+                    return react__WEBPACK_IMPORTED_MODULE_0__.createElement(Component, {
+                        ...props,
+                        allComponents: allComponents,
+                    })
+                }
+            }
+            function useMDXComponents(components) {
+                const contextComponents = react__WEBPACK_IMPORTED_MODULE_0__.useContext(MDXContext)
+                return react__WEBPACK_IMPORTED_MODULE_0__.useMemo(
+                    () =>
+                        "function" == typeof components
+                            ? components(contextComponents)
+                            : {...contextComponents, ...components},
+                    [contextComponents, components]
+                )
+            }
+            const emptyObject = {}
+            function MDXProvider({components, children, disableParentContext}) {
+                let allComponents
+                return (
+                    (allComponents = disableParentContext
+                        ? "function" == typeof components
+                            ? components({})
+                            : components || emptyObject
+                        : useMDXComponents(components)),
+                    react__WEBPACK_IMPORTED_MODULE_0__.createElement(
+                        MDXContext.Provider,
+                        {value: allComponents},
+                        children
+                    )
+                )
+            }
+        },
+        "./src/components/CandidatesList/__stories__/CandidatesList.mdx": function (
+            __unused_webpack_module,
+            __webpack_exports__,
+            __webpack_require__
+        ) {
+            __webpack_require__.r(__webpack_exports__)
+            __webpack_require__("../node_modules/react/index.js")
+            var react_jsx_runtime__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(
+                    "../node_modules/react/jsx-runtime.js"
+                ),
+                _storybook_addon_essentials_docs_mdx_react_shim__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(
+                    "../node_modules/@mdx-js/react/lib/index.js"
+                ),
+                _storybook_blocks__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(
+                    "../node_modules/@storybook/blocks/dist/index.mjs"
+                ),
+                _CandidatesList_stories__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(
+                    "./src/components/CandidatesList/__stories__/CandidatesList.stories.tsx"
+                )
+            function _createMdxContent(props) {
+                const _components = Object.assign(
+                    {h1: "h1", p: "p", h2: "h2"},
+                    (0,
+                    _storybook_addon_essentials_docs_mdx_react_shim__WEBPACK_IMPORTED_MODULE_3__.ah)(),
+                    props.components
+                )
+                return (0, react_jsx_runtime__WEBPACK_IMPORTED_MODULE_1__.jsxs)(
+                    react_jsx_runtime__WEBPACK_IMPORTED_MODULE_1__.Fragment,
+                    {
+                        children: [
+                            (0, react_jsx_runtime__WEBPACK_IMPORTED_MODULE_1__.jsx)(
+                                _storybook_blocks__WEBPACK_IMPORTED_MODULE_4__.h_,
+                                {
+                                    of: _CandidatesList_stories__WEBPACK_IMPORTED_MODULE_2__,
+                                    title: "components/CandidatesList",
+                                }
+                            ),
+                            "\n",
+                            (0, react_jsx_runtime__WEBPACK_IMPORTED_MODULE_1__.jsx)(
+                                _components.h1,
+                                {id: "candidateslist", children: "CandidatesList"}
+                            ),
+                            "\n",
+                            (0, react_jsx_runtime__WEBPACK_IMPORTED_MODULE_1__.jsx)(_components.p, {
+                                children:
+                                    "A CandidatesList is a container for a list of candidates. It may be checkable or\nnot, and the candidates may or not be checkable.",
+                            }),
+                            "\n",
+                            (0, react_jsx_runtime__WEBPACK_IMPORTED_MODULE_1__.jsx)(
+                                _components.h2,
+                                {id: "primary", children: "Primary"}
+                            ),
+                            "\n",
+                            (0,
+                            react_jsx_runtime__WEBPACK_IMPORTED_MODULE_1__.jsx)(
+                                _storybook_blocks__WEBPACK_IMPORTED_MODULE_4__.Xz,
+                                {of: _CandidatesList_stories__WEBPACK_IMPORTED_MODULE_2__.Primary}
+                            ),
+                            "\n",
+                            (0, react_jsx_runtime__WEBPACK_IMPORTED_MODULE_1__.jsx)(
+                                _components.h2,
+                                {id: "not-checkable", children: "Not Checkable"}
+                            ),
+                            "\n",
+                            (0, react_jsx_runtime__WEBPACK_IMPORTED_MODULE_1__.jsx)(
+                                _storybook_blocks__WEBPACK_IMPORTED_MODULE_4__.Xz,
+                                {
+                                    of:
+                                        _CandidatesList_stories__WEBPACK_IMPORTED_MODULE_2__.NotCheckable,
+                                }
+                            ),
+                            "\n",
+                            (0, react_jsx_runtime__WEBPACK_IMPORTED_MODULE_1__.jsx)(
+                                _components.h2,
+                                {id: "not-active", children: "Not Active"}
+                            ),
+                            "\n",
+                            (0,
+                            react_jsx_runtime__WEBPACK_IMPORTED_MODULE_1__.jsx)(
+                                _storybook_blocks__WEBPACK_IMPORTED_MODULE_4__.Xz,
+                                {of: _CandidatesList_stories__WEBPACK_IMPORTED_MODULE_2__.NotActive}
+                            ),
+                        ],
+                    }
+                )
+            }
+            __webpack_exports__.default = function MDXContent(props = {}) {
+                const {wrapper: MDXLayout} = Object.assign(
+                    {},
+                    (0,
+                    _storybook_addon_essentials_docs_mdx_react_shim__WEBPACK_IMPORTED_MODULE_3__.ah)(),
+                    props.components
+                )
+                return MDXLayout
+                    ? (0, react_jsx_runtime__WEBPACK_IMPORTED_MODULE_1__.jsx)(
+                          MDXLayout,
+                          Object.assign({}, props, {
+                              children: (0, react_jsx_runtime__WEBPACK_IMPORTED_MODULE_1__.jsx)(
+                                  _createMdxContent,
+                                  props
+                              ),
+                          })
+                      )
+                    : _createMdxContent(props)
+            }
+        },
+        "./src/components/CandidatesList/__stories__/CandidatesList.stories.tsx": function (
+            __unused_webpack_module,
+            __webpack_exports__,
+            __webpack_require__
+        ) {
+            __webpack_require__.r(__webpack_exports__),
+                __webpack_require__.d(__webpack_exports__, {
+                    NotActive: function () {
+                        return NotActive
+                    },
+                    NotCheckable: function () {
+                        return NotCheckable
+                    },
+                    Primary: function () {
+                        return Primary
+                    },
+                    __namedExportsOrder: function () {
+                        return __namedExportsOrder
+                    },
+                })
+            var _Primary$parameters,
+                _Primary$parameters2,
+                _Primary$parameters2$,
+                _NotCheckable$paramet,
+                _NotCheckable$paramet2,
+                _NotCheckable$paramet3,
+                _NotActive$parameters,
+                _NotActive$parameters2,
+                _NotActive$parameters3,
+                _workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(
+                    "../node_modules/@babel/runtime/helpers/esm/objectSpread2.js"
+                ),
+                _workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectWithoutProperties_js__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(
+                    "../node_modules/@babel/runtime/helpers/esm/objectWithoutProperties.js"
+                ),
+                _CandidatesList__WEBPACK_IMPORTED_MODULE_1__ =
+                    (__webpack_require__("../node_modules/react/index.js"),
+                    __webpack_require__("./src/components/CandidatesList/CandidatesList.tsx")),
+                _storybook_addon_viewport__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(
+                    "../node_modules/@storybook/addon-viewport/dist/index.mjs"
+                ),
+                _mui_material__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(
+                    "../node_modules/@mui/material/Box/Box.js"
+                ),
+                mui_image__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(
+                    "../node_modules/mui-image/es/index.js"
+                ),
+                _public_example_candidate_jpg__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(
+                    "./public/example_candidate.jpg"
+                ),
+                _Candidate_Candidate__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(
+                    "./src/components/Candidate/Candidate.tsx"
+                ),
+                react_jsx_runtime__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(
+                    "../node_modules/react/jsx-runtime.js"
+                ),
+                _excluded = ["className", "isActive"],
+                SimpleCandidate = function SimpleCandidate(_ref) {
+                    var isActive = _ref.isActive
+                    return (0, react_jsx_runtime__WEBPACK_IMPORTED_MODULE_6__.jsx)(
+                        _Candidate_Candidate__WEBPACK_IMPORTED_MODULE_5__.Z,
+                        {
+                            title: "Micky Mouse",
+                            description: "Candidate Description",
+                            isActive: isActive,
+                            hasCategory: !0,
+                            url: "https://google.com",
+                            shouldDisable: !1,
+                            children: (0, react_jsx_runtime__WEBPACK_IMPORTED_MODULE_6__.jsx)(
+                                mui_image__WEBPACK_IMPORTED_MODULE_3__.Z,
+                                {
+                                    src: _public_example_candidate_jpg__WEBPACK_IMPORTED_MODULE_4__,
+                                    duration: 100,
+                                }
+                            ),
+                        }
+                    )
+                },
+                meta = {
+                    title: "components/CandidatesList",
+                    component: function CandidatesListWrapper(_ref2) {
+                        var className = _ref2.className,
+                            isActive = _ref2.isActive,
+                            props = (0,
+                            _workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectWithoutProperties_js__WEBPACK_IMPORTED_MODULE_7__.Z)(
+                                _ref2,
+                                _excluded
+                            )
+                        return (0, react_jsx_runtime__WEBPACK_IMPORTED_MODULE_6__.jsx)(
+                            _mui_material__WEBPACK_IMPORTED_MODULE_8__.Z,
+                            {
+                                className: className,
+                                children: (0, react_jsx_runtime__WEBPACK_IMPORTED_MODULE_6__.jsxs)(
+                                    _CandidatesList__WEBPACK_IMPORTED_MODULE_1__.Z,
+                                    (0,
+                                    _workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_9__.Z)(
+                                        (0,
+                                        _workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_9__.Z)(
+                                            {isActive: isActive},
+                                            props
+                                        ),
+                                        {},
+                                        {
+                                            children: [
+                                                (0,
+                                                react_jsx_runtime__WEBPACK_IMPORTED_MODULE_6__.jsx)(
+                                                    SimpleCandidate,
+                                                    {isActive: isActive}
+                                                ),
+                                                (0,
+                                                react_jsx_runtime__WEBPACK_IMPORTED_MODULE_6__.jsx)(
+                                                    SimpleCandidate,
+                                                    {isActive: isActive}
+                                                ),
+                                            ],
+                                        }
+                                    )
+                                ),
+                            }
+                        )
+                    },
+                    parameters: {
+                        backgrounds: {default: "white"},
+                        viewport: {
+                            viewports: _storybook_addon_viewport__WEBPACK_IMPORTED_MODULE_2__.p,
+                            defaultViewport: "iphone6",
+                        },
+                    },
+                }
+            __webpack_exports__.default = meta
+            var Primary = {
+                    args: {title: "Category A", isActive: !0, isCheckable: !0},
+                    parameters: {viewport: {disable: !0}},
+                },
+                NotCheckable = {
+                    args: {title: "Category A", isActive: !0},
+                    parameters: {viewport: {disable: !0}},
+                },
+                NotActive = {
+                    args: {title: "Category A", isActive: !1},
+                    parameters: {viewport: {disable: !0}},
+                }
+            ;(Primary.parameters = (0,
+            _workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_9__.Z)(
+                (0,
+                _workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_9__.Z)(
+                    {},
+                    Primary.parameters
+                ),
+                {},
+                {
+                    docs: (0,
+                    _workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_9__.Z)(
+                        (0,
+                        _workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_9__.Z)(
+                            {},
+                            null === (_Primary$parameters = Primary.parameters) ||
+                                void 0 === _Primary$parameters
+                                ? void 0
+                                : _Primary$parameters.docs
+                        ),
+                        {},
+                        {
+                            source: (0,
+                            _workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_9__.Z)(
+                                {
+                                    originalSource:
+                                        '{\n  args: {\n    title: "Category A",\n    isActive: true,\n    isCheckable: true\n  },\n  parameters: {\n    viewport: {\n      disable: true\n    }\n  }\n}',
+                                },
+                                null === (_Primary$parameters2 = Primary.parameters) ||
+                                    void 0 === _Primary$parameters2 ||
+                                    null === (_Primary$parameters2$ = _Primary$parameters2.docs) ||
+                                    void 0 === _Primary$parameters2$
+                                    ? void 0
+                                    : _Primary$parameters2$.source
+                            ),
+                        }
+                    ),
+                }
+            )),
+                (NotCheckable.parameters = (0,
+                _workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_9__.Z)(
+                    (0,
+                    _workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_9__.Z)(
+                        {},
+                        NotCheckable.parameters
+                    ),
+                    {},
+                    {
+                        docs: (0,
+                        _workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_9__.Z)(
+                            (0,
+                            _workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_9__.Z)(
+                                {},
+                                null === (_NotCheckable$paramet = NotCheckable.parameters) ||
+                                    void 0 === _NotCheckable$paramet
+                                    ? void 0
+                                    : _NotCheckable$paramet.docs
+                            ),
+                            {},
+                            {
+                                source: (0,
+                                _workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_9__.Z)(
+                                    {
+                                        originalSource:
+                                            '{\n  args: {\n    title: "Category A",\n    isActive: true\n  },\n  parameters: {\n    viewport: {\n      disable: true\n    }\n  }\n}',
+                                    },
+                                    null === (_NotCheckable$paramet2 = NotCheckable.parameters) ||
+                                        void 0 === _NotCheckable$paramet2 ||
+                                        null ===
+                                            (_NotCheckable$paramet3 =
+                                                _NotCheckable$paramet2.docs) ||
+                                        void 0 === _NotCheckable$paramet3
+                                        ? void 0
+                                        : _NotCheckable$paramet3.source
+                                ),
+                            }
+                        ),
+                    }
+                )),
+                (NotActive.parameters = (0,
+                _workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_9__.Z)(
+                    (0,
+                    _workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_9__.Z)(
+                        {},
+                        NotActive.parameters
+                    ),
+                    {},
+                    {
+                        docs: (0,
+                        _workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_9__.Z)(
+                            (0,
+                            _workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_9__.Z)(
+                                {},
+                                null === (_NotActive$parameters = NotActive.parameters) ||
+                                    void 0 === _NotActive$parameters
+                                    ? void 0
+                                    : _NotActive$parameters.docs
+                            ),
+                            {},
+                            {
+                                source: (0,
+                                _workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_9__.Z)(
+                                    {
+                                        originalSource:
+                                            '{\n  args: {\n    title: "Category A",\n    isActive: false\n  },\n  parameters: {\n    viewport: {\n      disable: true\n    }\n  }\n}',
+                                    },
+                                    null === (_NotActive$parameters2 = NotActive.parameters) ||
+                                        void 0 === _NotActive$parameters2 ||
+                                        null ===
+                                            (_NotActive$parameters3 =
+                                                _NotActive$parameters2.docs) ||
+                                        void 0 === _NotActive$parameters3
+                                        ? void 0
+                                        : _NotActive$parameters3.source
+                                ),
+                            }
+                        ),
+                    }
+                ))
+            var __namedExportsOrder = ["Primary", "NotCheckable", "NotActive"]
+        },
+        "./public/example_candidate.jpg": function (
+            module,
+            __unused_webpack_exports,
+            __webpack_require__
+        ) {
+            module.exports = __webpack_require__.p + "c9db05ee3210e07b4630.jpg"
+        },
+    },
+])

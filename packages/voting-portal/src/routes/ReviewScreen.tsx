@@ -22,6 +22,7 @@ import {
     BallotHash,
     Dialog,
     WarnBox,
+    ContestDisplay,
 } from "@sequentech/ui-essentials"
 import {
     stringToHtml,
@@ -46,10 +47,14 @@ import {
 import {useTranslation} from "react-i18next"
 import Button from "@mui/material/Button"
 import {selectAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
-import {Question} from "../components/Question/Question"
 import {useMutation, useQuery} from "@apollo/client"
 import {INSERT_CAST_VOTE} from "../queries/InsertCastVote"
-import {GetElectionEventQuery, InsertCastVoteMutation, GetElectionsQuery} from "../gql/graphql"
+import {
+    GetElectionEventQuery,
+    InsertCastVoteMutation,
+    GetElectionsQuery,
+    Sequent_Backend_Results_Contest_Candidate_Constraint,
+} from "../gql/graphql"
 import {GET_ELECTIONS} from "../queries/GetElections"
 import {CircularProgress} from "@mui/material"
 import {provideBallotService} from "../services/BallotService"
@@ -64,11 +69,14 @@ import {
 import {IBallotError} from "../types/errors"
 import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
 import Stepper from "../components/Stepper"
-import {selectBallotSelectionByElectionId} from "../store/ballotSelections/ballotSelectionsSlice"
+import {
+    selectBallotSelectionByElectionId,
+    selectBallotSelectionQuestion,
+} from "../store/ballotSelections/ballotSelectionsSlice"
 import {sortContestList, hashBallot, hashMultiBallot} from "@sequentech/ui-core"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import {AuthContext} from "../providers/AuthContextProvider"
-import {useGetOne} from "react-admin"
+import {isVotedByElectionId} from "../store/extra/extraSlice"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -424,6 +432,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
 export const ReviewScreen: React.FC = () => {
     const {electionId} = useParams<{electionId?: string}>()
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
+
     const location = useLocation()
     const auditableBallot = useAppSelector(selectAuditableBallot(String(electionId)))
     const [auditBallotHelp, setAuditBallotHelp] = useState<boolean>(false)
@@ -504,6 +513,7 @@ export const ReviewScreen: React.FC = () => {
     const selectionState = useAppSelector(
         selectBallotSelectionByElectionId(ballotStyle?.election_id ?? "")
     )
+    const isVotedState = useAppSelector(isVotedByElectionId?.(ballotStyle?.election_id))
 
     const errorSelectionState = useMemo(() => {
         if (!selectionState || !ballotStyle) {
@@ -734,17 +744,22 @@ export const ReviewScreen: React.FC = () => {
                         : t("reviewScreen.description")
                 )}
             </Typography>
-            {contests.map((question, index) => (
-                <Box key={question.id} className={`contest-${index}`}>
-                    <Question
-                        ballotStyle={ballotStyle}
-                        question={question}
-                        isReview={true}
-                        setDecodedContests={() => undefined}
-                        errorSelectionState={errorSelectionState}
-                    />
-                </Box>
-            ))}
+            {contests.map((question, index) => {
+                return (
+                    <Box key={question.id} className={`contest-${index}`}>
+                        <ContestDisplay
+                            ballotStyle={ballotStyle}
+                            question={question}
+                            questionPlaintext={selectionState?.find(
+                                (a) => a.contest_id === question.id
+                            )}
+                            isReview={true}
+                            errorSelectionState={errorSelectionState}
+                            isVotedState={isVotedState}
+                        />
+                    </Box>
+                )
+            })}
             {!isCastingBallot.current && (
                 <ActionButtons
                     ballotStyle={ballotStyle}

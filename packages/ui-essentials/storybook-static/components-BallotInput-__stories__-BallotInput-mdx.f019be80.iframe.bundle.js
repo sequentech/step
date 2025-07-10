@@ -1,0 +1,368 @@
+(self.webpackChunk_sequentech_ui_essentials =
+    self.webpackChunk_sequentech_ui_essentials || []).push([
+    [628, 2381],
+    {
+        "../node_modules/@mdx-js/react/lib/index.js": function (
+            __unused_webpack_module,
+            __webpack_exports__,
+            __webpack_require__
+        ) {
+            __webpack_require__.d(__webpack_exports__, {
+                NF: function () {
+                    return withMDXComponents
+                },
+                Zo: function () {
+                    return MDXProvider
+                },
+                ah: function () {
+                    return useMDXComponents
+                },
+                pC: function () {
+                    return MDXContext
+                },
+            })
+            var react__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(
+                "../node_modules/react/index.js"
+            )
+            const MDXContext = react__WEBPACK_IMPORTED_MODULE_0__.createContext({})
+            function withMDXComponents(Component) {
+                return function boundMDXComponent(props) {
+                    const allComponents = useMDXComponents(props.components)
+                    return react__WEBPACK_IMPORTED_MODULE_0__.createElement(Component, {
+                        ...props,
+                        allComponents: allComponents,
+                    })
+                }
+            }
+            function useMDXComponents(components) {
+                const contextComponents = react__WEBPACK_IMPORTED_MODULE_0__.useContext(MDXContext)
+                return react__WEBPACK_IMPORTED_MODULE_0__.useMemo(
+                    () =>
+                        "function" == typeof components
+                            ? components(contextComponents)
+                            : {...contextComponents, ...components},
+                    [contextComponents, components]
+                )
+            }
+            const emptyObject = {}
+            function MDXProvider({components, children, disableParentContext}) {
+                let allComponents
+                return (
+                    (allComponents = disableParentContext
+                        ? "function" == typeof components
+                            ? components({})
+                            : components || emptyObject
+                        : useMDXComponents(components)),
+                    react__WEBPACK_IMPORTED_MODULE_0__.createElement(
+                        MDXContext.Provider,
+                        {value: allComponents},
+                        children
+                    )
+                )
+            }
+        },
+        "./src/components/BallotInput/__stories__/BallotInput.mdx": function (
+            __unused_webpack_module,
+            __webpack_exports__,
+            __webpack_require__
+        ) {
+            __webpack_require__.r(__webpack_exports__)
+            __webpack_require__("../node_modules/react/index.js")
+            var react_jsx_runtime__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(
+                    "../node_modules/react/jsx-runtime.js"
+                ),
+                _storybook_addon_essentials_docs_mdx_react_shim__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(
+                    "../node_modules/@mdx-js/react/lib/index.js"
+                ),
+                _storybook_blocks__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(
+                    "../node_modules/@storybook/blocks/dist/index.mjs"
+                ),
+                _BallotInput_stories__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(
+                    "./src/components/BallotInput/__stories__/BallotInput.stories.tsx"
+                )
+            function _createMdxContent(props) {
+                const _components = Object.assign(
+                    {h1: "h1", p: "p", h2: "h2"},
+                    (0,
+                    _storybook_addon_essentials_docs_mdx_react_shim__WEBPACK_IMPORTED_MODULE_3__.ah)(),
+                    props.components
+                )
+                return (0, react_jsx_runtime__WEBPACK_IMPORTED_MODULE_1__.jsxs)(
+                    react_jsx_runtime__WEBPACK_IMPORTED_MODULE_1__.Fragment,
+                    {
+                        children: [
+                            (0, react_jsx_runtime__WEBPACK_IMPORTED_MODULE_1__.jsx)(
+                                _storybook_blocks__WEBPACK_IMPORTED_MODULE_4__.h_,
+                                {
+                                    of: _BallotInput_stories__WEBPACK_IMPORTED_MODULE_2__,
+                                    title: "components/BallotInput",
+                                }
+                            ),
+                            "\n",
+                            (0, react_jsx_runtime__WEBPACK_IMPORTED_MODULE_1__.jsx)(
+                                _components.h1,
+                                {id: "ballotinput", children: "BallotInput"}
+                            ),
+                            "\n",
+                            (0, react_jsx_runtime__WEBPACK_IMPORTED_MODULE_1__.jsx)(_components.p, {
+                                children:
+                                    "A BallotInput is a component that shows the hash of a ballot.",
+                            }),
+                            "\n",
+                            (0, react_jsx_runtime__WEBPACK_IMPORTED_MODULE_1__.jsx)(
+                                _components.h2,
+                                {id: "primary", children: "Primary"}
+                            ),
+                            "\n",
+                            (0,
+                            react_jsx_runtime__WEBPACK_IMPORTED_MODULE_1__.jsx)(
+                                _storybook_blocks__WEBPACK_IMPORTED_MODULE_4__.Xz,
+                                {of: _BallotInput_stories__WEBPACK_IMPORTED_MODULE_2__.Primary}
+                            ),
+                        ],
+                    }
+                )
+            }
+            __webpack_exports__.default = function MDXContent(props = {}) {
+                const {wrapper: MDXLayout} = Object.assign(
+                    {},
+                    (0,
+                    _storybook_addon_essentials_docs_mdx_react_shim__WEBPACK_IMPORTED_MODULE_3__.ah)(),
+                    props.components
+                )
+                return MDXLayout
+                    ? (0, react_jsx_runtime__WEBPACK_IMPORTED_MODULE_1__.jsx)(
+                          MDXLayout,
+                          Object.assign({}, props, {
+                              children: (0, react_jsx_runtime__WEBPACK_IMPORTED_MODULE_1__.jsx)(
+                                  _createMdxContent,
+                                  props
+                              ),
+                          })
+                      )
+                    : _createMdxContent(props)
+            }
+        },
+        "./src/components/BallotInput/__stories__/BallotInput.stories.tsx": function (
+            __unused_webpack_module,
+            __webpack_exports__,
+            __webpack_require__
+        ) {
+            __webpack_require__.r(__webpack_exports__),
+                __webpack_require__.d(__webpack_exports__, {
+                    NoBack: function () {
+                        return NoBack
+                    },
+                    Primary: function () {
+                        return Primary
+                    },
+                    __namedExportsOrder: function () {
+                        return __namedExportsOrder
+                    },
+                })
+            var _Primary$parameters,
+                _Primary$parameters2,
+                _Primary$parameters2$,
+                _NoBack$parameters,
+                _NoBack$parameters2,
+                _NoBack$parameters2$d,
+                _workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(
+                    "../node_modules/@babel/runtime/helpers/esm/objectSpread2.js"
+                ),
+                _workspaces_step_packages_node_modules_babel_runtime_helpers_esm_slicedToArray_js__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(
+                    "../node_modules/@babel/runtime/helpers/esm/slicedToArray.js"
+                ),
+                react__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(
+                    "../node_modules/react/index.js"
+                ),
+                _BallotInput__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(
+                    "./src/components/BallotInput/BallotInput.tsx"
+                ),
+                _storybook_addon_viewport__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(
+                    "../node_modules/@storybook/addon-viewport/dist/index.mjs"
+                ),
+                react_router_dom__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(
+                    "../node_modules/react-router-dom/node_modules/react-router/dist/index.js"
+                ),
+                react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(
+                    "../node_modules/react/jsx-runtime.js"
+                ),
+                meta = {
+                    title: "components/BallotInput",
+                    component: _BallotInput__WEBPACK_IMPORTED_MODULE_1__.Z,
+                    parameters: {
+                        backgrounds: {default: "white"},
+                        viewport: {
+                            viewports: _storybook_addon_viewport__WEBPACK_IMPORTED_MODULE_2__.p,
+                            defaultViewport: "iphone6",
+                        },
+                    },
+                }
+            __webpack_exports__.default = meta
+            var BallotExample = function BallotExample(args) {
+                    var _useState = (0, react__WEBPACK_IMPORTED_MODULE_0__.useState)(""),
+                        _useState2 = (0,
+                        _workspaces_step_packages_node_modules_babel_runtime_helpers_esm_slicedToArray_js__WEBPACK_IMPORTED_MODULE_4__.Z)(
+                            _useState,
+                            2
+                        ),
+                        value = _useState2[0],
+                        setValue = _useState2[1]
+                    return (0, react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)(
+                        react_router_dom__WEBPACK_IMPORTED_MODULE_5__.VA,
+                        {
+                            initialEntries: ["/tenant/1/event/2/election-chooser"],
+                            children: (0, react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)(
+                                _BallotInput__WEBPACK_IMPORTED_MODULE_1__.Z,
+                                (0,
+                                _workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_6__.Z)(
+                                    {
+                                        value: value,
+                                        doChange: function doChange(e) {
+                                            return setValue(e.target.value)
+                                        },
+                                    },
+                                    args
+                                )
+                            ),
+                        }
+                    )
+                },
+                Primary = {
+                    render: function render(args) {
+                        return (0, react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)(
+                            BallotExample,
+                            (0,
+                            _workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_6__.Z)(
+                                {},
+                                args
+                            )
+                        )
+                    },
+                    args: {
+                        title: "Ballot ID",
+                        subTitle: "Enter your ballot identifier",
+                        label: "Ballot ID",
+                        error: "Invalid ballot ID",
+                        placeholder: "e.g. 1234abcd",
+                        captureEnterAction: function captureEnterAction(e) {
+                            "Enter" === e.key && alert("Enter pressed!")
+                        },
+                        labelProps: {shrink: !0},
+                        helpText: "Your ballot ID is provided on your voting card.",
+                        dialogTitle: "What is a Ballot ID?",
+                        dialogOk: "OK",
+                        backButtonText: "Back",
+                        ballotStyle: void 0,
+                    },
+                    parameters: {viewport: {disable: !0}},
+                },
+                NoBack = {
+                    render: function render(args) {
+                        return (0, react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)(
+                            BallotExample,
+                            (0,
+                            _workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_6__.Z)(
+                                {},
+                                args
+                            )
+                        )
+                    },
+                    args: {
+                        title: "Ballot ID",
+                        subTitle: "Enter your ballot identifier",
+                        label: "Ballot ID",
+                        error: "Invalid ballot ID",
+                        placeholder: "e.g. 1234abcd",
+                        captureEnterAction: function captureEnterAction(e) {
+                            "Enter" === e.key && alert("Enter pressed!")
+                        },
+                        labelProps: {shrink: !0},
+                        helpText: "Your ballot ID is provided on your voting card.",
+                        dialogTitle: "What is a Ballot ID?",
+                        dialogOk: "OK",
+                        ballotStyle: void 0,
+                    },
+                    parameters: {viewport: {disable: !0}},
+                }
+            ;(Primary.parameters = (0,
+            _workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_6__.Z)(
+                (0,
+                _workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_6__.Z)(
+                    {},
+                    Primary.parameters
+                ),
+                {},
+                {
+                    docs: (0,
+                    _workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_6__.Z)(
+                        (0,
+                        _workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_6__.Z)(
+                            {},
+                            null === (_Primary$parameters = Primary.parameters) ||
+                                void 0 === _Primary$parameters
+                                ? void 0
+                                : _Primary$parameters.docs
+                        ),
+                        {},
+                        {
+                            source: (0,
+                            _workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_6__.Z)(
+                                {
+                                    originalSource:
+                                        '{\n  render: args => <BallotExample {...args} />,\n  args: {\n    title: "Ballot ID",\n    subTitle: "Enter your ballot identifier",\n    label: "Ballot ID",\n    error: "Invalid ballot ID",\n    placeholder: "e.g. 1234abcd",\n    captureEnterAction: e => {\n      if (e.key === "Enter") alert("Enter pressed!");\n    },\n    labelProps: {\n      shrink: true\n    },\n    helpText: "Your ballot ID is provided on your voting card.",\n    dialogTitle: "What is a Ballot ID?",\n    dialogOk: "OK",\n    backButtonText: "Back",\n    ballotStyle: undefined\n  },\n  parameters: {\n    viewport: {\n      disable: true\n    }\n  }\n}',
+                                },
+                                null === (_Primary$parameters2 = Primary.parameters) ||
+                                    void 0 === _Primary$parameters2 ||
+                                    null === (_Primary$parameters2$ = _Primary$parameters2.docs) ||
+                                    void 0 === _Primary$parameters2$
+                                    ? void 0
+                                    : _Primary$parameters2$.source
+                            ),
+                        }
+                    ),
+                }
+            )),
+                (NoBack.parameters = (0,
+                _workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_6__.Z)(
+                    (0,
+                    _workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_6__.Z)(
+                        {},
+                        NoBack.parameters
+                    ),
+                    {},
+                    {
+                        docs: (0,
+                        _workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_6__.Z)(
+                            (0,
+                            _workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_6__.Z)(
+                                {},
+                                null === (_NoBack$parameters = NoBack.parameters) ||
+                                    void 0 === _NoBack$parameters
+                                    ? void 0
+                                    : _NoBack$parameters.docs
+                            ),
+                            {},
+                            {
+                                source: (0,
+                                _workspaces_step_packages_node_modules_babel_runtime_helpers_esm_objectSpread2_js__WEBPACK_IMPORTED_MODULE_6__.Z)(
+                                    {
+                                        originalSource:
+                                            '{\n  render: args => <BallotExample {...args} />,\n  args: {\n    title: "Ballot ID",\n    subTitle: "Enter your ballot identifier",\n    label: "Ballot ID",\n    error: "Invalid ballot ID",\n    placeholder: "e.g. 1234abcd",\n    captureEnterAction: e => {\n      if (e.key === "Enter") alert("Enter pressed!");\n    },\n    labelProps: {\n      shrink: true\n    },\n    helpText: "Your ballot ID is provided on your voting card.",\n    dialogTitle: "What is a Ballot ID?",\n    dialogOk: "OK",\n    // backButtonText: "Back",\n    ballotStyle: undefined\n  },\n  parameters: {\n    viewport: {\n      disable: true\n    }\n  }\n}',
+                                    },
+                                    null === (_NoBack$parameters2 = NoBack.parameters) ||
+                                        void 0 === _NoBack$parameters2 ||
+                                        null ===
+                                            (_NoBack$parameters2$d = _NoBack$parameters2.docs) ||
+                                        void 0 === _NoBack$parameters2$d
+                                        ? void 0
+                                        : _NoBack$parameters2$d.source
+                                ),
+                            }
+                        ),
+                    }
+                ))
+            var __namedExportsOrder = ["Primary", "NoBack"]
+        },
+    },
+])

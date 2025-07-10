@@ -1,6 +1,9 @@
 // SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+const webpack = require("webpack")
+const path = require("path")
+
 module.exports = {
     stories: ["../src/**/*.mdx", "../src/**/*.stories.mdx", "../src/**/*.stories.@(js|jsx|ts|tsx)"],
     addons: [
@@ -23,5 +26,15 @@ module.exports = {
     port: 9009,
     docs: {
         autodocs: true,
+    },
+
+    // 🧩 Add this to enable WebAssembly
+    webpackFinal: async (config) => {
+        config.experiments = {
+            ...config.experiments,
+            asyncWebAssembly: true,
+        }
+
+        return config
     },
 }

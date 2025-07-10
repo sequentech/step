@@ -73,25 +73,6 @@ const englishTranslation = {
             contestNotFound: "Contest not found: {{contestId}}",
         },
         poweredBy: "Powered by",
-        errors: {
-            encoding: {
-                notEnoughChoices: "Not enough choices to decode",
-                writeInChoiceOutOfRange: "Write-in choice out of range: {{index}}",
-                writeInNotEndInZero: "Write in doesn't end on 0",
-                bytesToUtf8Conversion:
-                    "Error converting write-in from bytes to UTF-8 string: {{errorMessage}}",
-                ballotTooLarge: "Ballot larger than expected",
-            },
-            implicit: {
-                selectedMax:
-                    "Number of selected choices {{numSelected}} is more than the maximum {{max}}",
-                selectedMin:
-                    "Number of selected choices {{numSelected}} is less than the minimum {{min}}",
-            },
-            explicit: {
-                notAllowed: "Ballot marked explicitly invalid but question doesn't allow it",
-            },
-        },
     },
 }
 
