@@ -399,7 +399,11 @@ public abstract class BaseResetMessageOTPRequiredAction implements RequiredActio
       Consumer<LoginFormsProvider> formConsumer,
       AuthenticatorConfigModel config) {
     LoginFormsProvider form = context.form();
+    List<String> validCountryCodes =
+      Utils.getMultivalueString(
+          config, Utils.VALID_COUNTRY_CODES, Utils.VALID_COUNTRY_CODES_DEFAULT);
     form.setAttribute("i18nPrefix", getI18nPrefix());
+    form.setAttribute("validCountryCodes", validCountryCodes);
     if (formConsumer != null) {
       formConsumer.accept(form);
     }
