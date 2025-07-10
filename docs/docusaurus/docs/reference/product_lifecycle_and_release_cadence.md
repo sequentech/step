@@ -24,12 +24,12 @@ LTS releases are enterprise-grade releases designed for production environments
 requiring maximum stability and extended support.
 
 - **Cadence**: Every 6 months (March and September)
-- **Last LTS**: None
-- **Next LTS**: Version 9.0.0 (September 1st, 2025)
 - **Standard Long Term Support (SLTS)**: 12 months from release date
 - **Legacy Long Term Support (LLTS)**: Additional 12 months after standard support
   ends
 - **Total LTS Lifecycle**: 24 months (2 years)
+- **Currently Supported LTS Releases**: None
+- **Next LTS Release**: Version 9.0.0 (September 1st, 2025)
 
 ### Rolling Releases
 
@@ -42,6 +42,8 @@ required in a short period of time.
 - **Legacy Rolling Release Support (LRRS)**: Additional 6 months after standard
   support ends
 - **Total Rolling Release Lifecycle**: 8 months
+- **Currently Supported Rolling Releases**: None
+- **Next Rolling Release**: Version 8.5.0 (August 1st, 2025)
 
 ### Emergency Production Releases (EPR)
 
