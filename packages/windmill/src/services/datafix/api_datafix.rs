@@ -182,7 +182,7 @@ pub async fn update_datafix_voter(
         .edit_user(
             &realm,
             &user_id,
-            None,
+            voter_info.enabled,
             attributes,
             None,
             None,
