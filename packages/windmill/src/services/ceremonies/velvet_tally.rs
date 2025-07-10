@@ -41,7 +41,7 @@ use std::fs::{self, File, OpenOptions};
 use std::io::Write;
 use std::path::PathBuf;
 use strand::{backend::ristretto::RistrettoCtx, context::Ctx};
-use tracing::{event, instrument, warn, Level};
+use tracing::{event, info, instrument, warn, Level};
 use uuid::Uuid;
 use velvet::cli::state::State;
 use velvet::cli::CliRun;
@@ -642,7 +642,7 @@ async fn build_reports_pipe_config(
     ]);
 
     Ok(PipeConfigGenerateReports {
-        enable_pdfs: true,
+        enable_pdfs: false,
         report_content_template,
         execution_annotations,
         system_template: report_system_template,
@@ -680,6 +680,8 @@ pub async fn create_config_file(
         tally_type,
     )
     .await?;
+
+    info!("FFF enable pdfs: {}", gen_report_pipe_config.enable_pdfs);
 
     let stages_def = {
         let mut map = HashMap::new();

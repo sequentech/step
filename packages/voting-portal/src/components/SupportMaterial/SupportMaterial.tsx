@@ -95,7 +95,6 @@ export const SupportMaterial: React.FC<SupportMaterialProps> = ({
     const [openPreview, openPreviewSet] = React.useState<boolean>(false)
     const {getDocumentUrl} = useGetPublicDocumentUrl()
     const videoRef = React.useRef<HTMLIFrameElement>(null)
-    const {globalSettings} = useContext(SettingsContext)
 
     const imageData = useAppSelector(selectDocumentById(String(documentId)))
 

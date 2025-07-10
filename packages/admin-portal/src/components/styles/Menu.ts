@@ -159,12 +159,17 @@ export const MenuStyles = {
     HowToVoteStyledIcon: styled(HowToVoteIcon)`
         color: ${adminTheme.palette.brandColor};
     `,
-    TreeMenuIconContaier: styled.div`
+    TreeMenuIconContaier: styled("div")<{isActive: boolean}>`
         ${divContainer}
-        cursor: pointer;
+        cursor: ${({isActive}) => (isActive ? "pointer" : "auto")};
         color: black;
+        border-radius: 4px;
+        &:hover {
+            background-color: ${({isActive}) =>
+                isActive ? "oklch(0.967 0.003 264.542)" : "white"};
+        }
     `,
-    StyledSideBarNavLink: styled(NavLink)<{multiline?: boolean}>`
+    StyledSideBarNavLink: styled(NavLink)<{multiline?: string | undefined}>`
         flex-grow: 1;
         padding-top: 0.375rem;
         padding-bottom: 0.375rem;
@@ -172,7 +177,7 @@ export const MenuStyles = {
         border-bottom: 2px solid white;
         cursor: pointer;
         ${(data) =>
-            data.multiline
+            data.multiline && data.multiline === "true"
                 ? `
             /* Allow up to two lines of text */
             display: -webkit-box;

@@ -9,7 +9,7 @@ import {Checkbox} from "@mui/material"
 import emotionStyled from "@emotion/styled"
 
 const ListContainer = styled(Box)<{isactive: string}>`
-    background-color: ${({theme}) => theme.palette.lightBackground};
+    backgroundcolor: ${({theme}) => theme.palette.lightBackground};
     padding: 0 14px 20px 16px;
     box-shadow: 0 4px 4px rgba(0, 0, 0, 0.25);
     border-radius: 5px;

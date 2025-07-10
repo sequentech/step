@@ -2,7 +2,6 @@
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::hasura;
 use crate::postgres;
 use crate::postgres::area::get_area_by_id;
 use crate::postgres::election::get_election_by_id;
@@ -11,6 +10,7 @@ use crate::postgres::election_event::{get_election_event_by_id, ElectionEventDat
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::cast_votes::get_voter_signing_key;
 use crate::services::cast_votes::CastVote;
+use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::datafix;
 use crate::services::datafix::types::SoapRequest;
 use crate::services::datafix::utils::is_datafix_election_event;
@@ -19,10 +19,6 @@ use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::protocol_manager::get_protocol_manager;
 use crate::services::users::{get_username_by_id, list_users, ListUsersFilter};
-use crate::{
-    hasura::election_event::get_election_event::GetElectionEventSequentBackendElectionEvent,
-    services::database::{get_hasura_pool, get_keycloak_pool},
-};
 use anyhow::{anyhow, Context, Result};
 use b3::messages::message::Signer;
 use chrono::{DateTime, Duration, Local};
@@ -46,7 +42,6 @@ use sequent_core::encrypt::DEFAULT_PLAINTEXT_LABEL;
 use sequent_core::multi_ballot::HashableMultiBallot;
 use sequent_core::multi_ballot::HashableMultiBallotContests;
 use sequent_core::serialization::deserialize_with_path::*;
-use sequent_core::services::connection::AuthHeaders;
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::keycloak::KeycloakAdminClient;
@@ -61,6 +56,7 @@ use strand::serialization::StrandSerialize;
 use strand::signature::StrandSignatureSk;
 use strand::util::StrandError;
 use strand::zkp::Zkp;
+use strum_macros::Display;
 use tracing::info;
 use tracing::{error, event, instrument, Level};
 use uuid::Uuid;
@@ -115,6 +111,11 @@ impl InsertCastVoteInput {
 
 pub type InsertCastVoteOutput = CastVote;
 
+pub enum InsertCastVoteResult {
+    Success(InsertCastVoteOutput),
+    SkipRetryFailure(CastVoteError),
+}
+
 #[derive(Debug)]
 struct CastVoteIds<'a> {
     election_event_id: &'a str,
@@ -123,7 +124,7 @@ struct CastVoteIds<'a> {
     area_id: &'a str,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Display)]
 pub enum CastVoteError {
     #[serde(rename = "voting_channel_not_enabled")]
     VotingChannelNotEnabled(String),
@@ -141,6 +142,9 @@ pub enum CastVoteError {
     CheckPreviousVotesFailed(String),
     #[serde(rename = "insert_failed")]
     InsertFailed(String),
+    #[serde(rename = "insert_failed_exceeds_allowed_revotes")]
+    #[strum(to_string = "insert_failed_exceeds_allowed_revotes")]
+    InsertFailedExceedsAllowedRevotes,
     #[serde(rename = "commit_failed")]
     CommitFailed(String),
     #[serde(rename = "get_db_client_failed")]
@@ -171,12 +175,6 @@ pub enum CastVoteError {
     UnknownError(String),
 }
 
-impl core::fmt::Display for CastVoteError {
-    fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::result::Result<(), core::fmt::Error> {
-        write!(fmt, "{self:?}")
-    }
-}
-
 impl CastVoteError {
     pub fn new(error: anyhow::Error) -> Self {
         match error.downcast::<CastVoteError>() {
@@ -196,7 +194,7 @@ pub async fn try_insert_cast_vote(
     auth_time: &Option<i64>,
     voter_ip: &Option<String>,
     voter_country: &Option<String>,
-) -> Result<InsertCastVoteOutput, CastVoteError> {
+) -> Result<InsertCastVoteResult, CastVoteError> {
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
         .get()
@@ -409,7 +407,7 @@ pub async fn try_insert_cast_vote(
                 Ok(electoral_log) => electoral_log,
                 Err(err) => {
                     error!("Error posting to the electoral log {:?}", err);
-                    return Ok(inserted_cast_vote);
+                    return Ok(InsertCastVoteResult::Success(inserted_cast_vote));
                 }
             };
 
@@ -430,17 +428,18 @@ pub async fn try_insert_cast_vote(
             if let Err(log_err) = log_result {
                 error!("Error posting to the electoral log {:?}", log_err);
             }
-            Ok(inserted_cast_vote)
-        } // End of is_datafix_election_event
-        Err(err) => {
-            error!(err=?err);
+            Ok(InsertCastVoteResult::Success(inserted_cast_vote))
+        }
+        Err(cast_vote_err) => {
+            error!(err=?cast_vote_err);
+
             let log_result = electoral_log
                 .post_cast_vote_error(
                     tenant_id.to_string(),
                     election_event_id.to_string(),
                     Some(election_id_string),
                     pseudonym_h,
-                    err.to_string(),
+                    cast_vote_err.to_string(),
                     ip,
                     country,
                     voter_id.to_string(),
@@ -452,7 +451,13 @@ pub async fn try_insert_cast_vote(
             if let Err(log_err) = log_result {
                 error!("Error posting error to the electoral log {:?}", log_err);
             }
-            Err(err)
+
+            match cast_vote_err {
+                CastVoteError::InsertFailedExceedsAllowedRevotes => {
+                    Ok(InsertCastVoteResult::SkipRetryFailure(cast_vote_err))
+                }
+                _ => Err(cast_vote_err),
+            }
         }
     }
 }
@@ -611,9 +616,18 @@ pub async fn insert_cast_vote_and_commit<'a>(
         &voter_country,
     );
 
-    let cast_vote = insert
-        .await
-        .map_err(|e| CastVoteError::InsertFailed(e.to_string()))?;
+    let cast_vote = insert.await.map_err(|e| {
+        let err_str = e.to_string();
+        if err_str.contains(
+            CastVoteError::InsertFailedExceedsAllowedRevotes
+                .to_string()
+                .as_str(),
+        ) {
+            CastVoteError::InsertFailedExceedsAllowedRevotes
+        } else {
+            CastVoteError::InsertFailed(err_str)
+        }
+    })?;
 
     hasura_transaction
         .commit()
@@ -656,29 +670,6 @@ async fn get_electoral_log(
     .await;
 
     Ok((electoral_log?, sk.clone()))
-}
-
-#[instrument(skip_all, err)]
-async fn get_election_event(
-    auth_headers: &AuthHeaders,
-    tenant_id: &str,
-    election_event_id: &str,
-) -> Result<GetElectionEventSequentBackendElectionEvent> {
-    let hasura_response = hasura::election_event::get_election_event(
-        auth_headers.clone(),
-        tenant_id.to_string(),
-        election_event_id.to_string(),
-    )
-    .await
-    .context("Cannot retrieve election event data")?;
-
-    // TODO expect
-    let election_event = &hasura_response
-        .data
-        .expect("expected data".into())
-        .sequent_backend_election_event[0];
-
-    Ok(election_event.clone())
 }
 
 #[instrument(skip_all, err)]

@@ -166,13 +166,6 @@ export const TallyCeremony: React.FC = () => {
         "tally-results-results": true,
     })
 
-    const [expandedExports, setExpandedDataExports] = useState<IExpanded>({
-        "tally-miru-upload": true,
-        "tally-miru-signatures": false,
-        "tally-download-package": false,
-        "tally-miru-servers": false,
-    })
-
     const {data: tallySession, refetch: refetchTallySession} =
         useGetOne<Sequent_Backend_Tally_Session>(
             "sequent_backend_tally_session",
@@ -187,6 +180,7 @@ export const TallyCeremony: React.FC = () => {
                 refetchOnWindowFocus: false,
                 refetchOnReconnect: false,
                 refetchOnMount: false,
+                enabled: !!localTallyId || !!tallyId,
             }
         )
 
@@ -272,6 +266,7 @@ export const TallyCeremony: React.FC = () => {
             refetchOnWindowFocus: false,
             refetchOnReconnect: false,
             refetchOnMount: false,
+            enabled: !!tallyId && !!tenantId,
         }
     )
 
@@ -324,6 +319,7 @@ export const TallyCeremony: React.FC = () => {
             refetchOnWindowFocus: false,
             refetchOnReconnect: false,
             refetchOnMount: false,
+            enabled: !!tenantId && record?.id && !!resultsEventId,
         }
     )
 
@@ -381,7 +377,7 @@ export const TallyCeremony: React.FC = () => {
         if (page === WizardSteps.Start) {
             let is_published = elections?.every(
                 (election) =>
-                    !selectedElections.includes(election.id) || election.status.is_published
+                    !selectedElections.includes(election.id) || election.status?.is_published
             )
             let newIsButtonDisabled =
                 (page === WizardSteps.Start && selectedElections.length === 0 ? true : false) ||
@@ -710,6 +706,19 @@ export const TallyCeremony: React.FC = () => {
         [tallySessionData, tally]
     )
 
+    const sortedKeysCeremonies = useMemo(() => {
+        // Ensure keysCeremonies and its nested properties exist
+        const items = keysCeremonies?.list_keys_ceremony?.items
+        if (!items) return []
+
+        // Create a shallow copy and sort it
+        return [...items].sort((a, b) => {
+            if (!a?.name || !b?.name) return 0
+            return a.name.localeCompare(b.name)
+        })
+        // Dependency array: re-run only when the original items array changes
+    }, [keysCeremonies?.list_keys_ceremony?.items])
+
     return (
         <TallyStyles.WizardContainer>
             <TallyStyles.ContentWrapper>
@@ -788,16 +797,11 @@ export const TallyCeremony: React.FC = () => {
                                         setKeysCeremonyId(props?.target?.value)
                                     }}
                                 >
-                                    {[...(keysCeremonies?.list_keys_ceremony?.items ?? [])]
-                                        .sort((a, b) => {
-                                            if (!a?.name || !b?.name) return 0
-                                            return a.name.localeCompare(b.name)
-                                        })
-                                        .map((keysCeremony) => (
-                                            <MenuItem key={keysCeremony.id} value={keysCeremony.id}>
-                                                {keysCeremony?.name}
-                                            </MenuItem>
-                                        ))}
+                                    {sortedKeysCeremonies.map((keysCeremony) => (
+                                        <MenuItem key={keysCeremony.id} value={keysCeremony.id}>
+                                            {keysCeremony?.name}
+                                        </MenuItem>
+                                    ))}
                                 </Select>
                             </FormControl>
                         </>
@@ -815,7 +819,7 @@ export const TallyCeremony: React.FC = () => {
                             */}
                             {isButtonDisabled && (
                                 <Alert severity="warning">
-                                    {t("electionEventScreen.tally.notify.cerermonyDisabled")}
+                                    {t("electionEventScreen.tally.notify.ceremonyDisabled")}
                                 </Alert>
                             )}
                             <TallyElectionsList
@@ -1010,17 +1014,35 @@ export const TallyCeremony: React.FC = () => {
                             <Accordion
                                 sx={{width: "100%"}}
                                 expanded={expandedResults["tally-results-results"]}
-                                onChange={() =>
-                                    setExpandedResults((prev: IExpanded) => ({
-                                        ...prev,
-                                        "tally-results-results": !prev["tally-results-results"],
-                                    }))
-                                }
+                                onChange={() => {}}
                             >
                                 <AccordionSummary
-                                    expandIcon={<ExpandMoreIcon id="tally-data-results" />}
+                                    expandIcon={
+                                        <div
+                                            onClick={(e) => {
+                                                e.stopPropagation()
+                                                setExpandedResults((prev: IExpanded) => ({
+                                                    ...prev,
+                                                    "tally-results-results":
+                                                        !prev["tally-results-results"],
+                                                }))
+                                            }}
+                                        >
+                                            <ExpandMoreIcon id="tally-data-results" />
+                                        </div>
+                                    }
+                                    onClick={(e) => e.stopPropagation()}
                                 >
-                                    <WizardStyles.AccordionTitle>
+                                    <WizardStyles.AccordionTitle
+                                        onClick={(e) => {
+                                            e.stopPropagation()
+                                            setExpandedResults((prev: IExpanded) => ({
+                                                ...prev,
+                                                "tally-results-results":
+                                                    !prev["tally-results-results"],
+                                            }))
+                                        }}
+                                    >
                                         {t("tally.resultsTitle")}
                                     </WizardStyles.AccordionTitle>
                                     <TallyStyles.StyledSpacing>

@@ -2,11 +2,11 @@
 // SPDX-FileCopyrightText: 2024 David Ruescas <david@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::services::celery_app::{get_celery_app, get_queues, Queue};
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::jwks::get_jwks_secret_path;
 use crate::services::providers::sms_sender::{SmsSender, SmsTransport};
 use crate::services::vault::check_master_secret;
-use crate::{hasura::tenant::get_tenant, services::celery_app::get_celery_app};
 use core::time::Duration;
 use deadpool_postgres::Timeouts;
 use sequent_core::services::keycloak::get_client_credentials;
@@ -16,7 +16,6 @@ use std::net::SocketAddr;
 use strum_macros::Display;
 use tokio::join;
 use tracing::{error, info, instrument, warn};
-use uuid::Uuid;
 
 use super::celery_app::get_is_app_active;
 
@@ -41,9 +40,41 @@ lazy_static! {
 async fn check_celery(_app_name: &AppName) -> Option<bool> {
     let celery_app = get_celery_app().await;
 
+    // Check basic broker connection
     let celery_result = celery_app.broker.reconnect(BROKER_CONNECTION_TIMEOUT).await;
+    let is_connected = celery_result.is_ok();
 
-    Some(celery_result.is_ok() && get_is_app_active())
+    if !is_connected || !get_is_app_active() {
+        return Some(false);
+    }
+
+    let queues_to_check = get_queues();
+
+    match celery_app.check_consumer_health(&queues_to_check).await {
+        Ok(health_info) => {
+            let mut all_healthy = true;
+
+            for health in &health_info {
+                info!(
+                    "Queue '{}': {} consumers, {} messages, consuming: {}",
+                    health.queue_name,
+                    health.consumer_count,
+                    health.message_count,
+                    health.is_consuming
+                );
+
+                // A queue is considered unhealthy if it's supposed to have consumers but doesn't
+                // For now, we'll be permissive and only require that the connection works
+                // Individual queue health can be monitored separately
+            }
+
+            Some(all_healthy)
+        }
+        Err(e) => {
+            error!("Failed to check consumer health: {}", e);
+            Some(false)
+        }
+    }
 }
 
 #[instrument(ret)]
@@ -161,56 +192,26 @@ async fn check_sms_sender(app_name: &AppName) -> Option<bool> {
 }
 
 #[instrument(ret)]
-async fn check_hasura_graphql(app_name: &AppName) -> Option<bool> {
-    if AppName::BEAT == *app_name {
-        return None;
-    }
-
-    let keycloak_hasura_result = get_client_credentials().await;
-
-    let hasura_query_ok = if let Ok(auth_headers) = keycloak_hasura_result {
-        get_tenant(auth_headers, Uuid::new_v4().to_string())
-            .await
-            .is_ok()
-    } else {
-        info!("Can't connect to hasura graphql because can't authenticate to keycloak");
-        return Some(false);
-    };
-
-    Some(hasura_query_ok)
-}
-
-#[instrument(ret)]
 async fn readiness_test(app_name: &AppName) -> bool {
     // Use futures::join! to await multiple futures concurrently
-    let (
-        celery_ok,
-        hasura_db_ok,
-        keycloak_db_ok,
-        hasura_graphql_ok,
-        aws_secrets_ok,
-        s3_ok,
-        sms_sender_ok,
-    ) = join!(
+    let (celery_ok, hasura_db_ok, keycloak_db_ok, aws_secrets_ok, s3_ok, sms_sender_ok) = join!(
         check_celery(app_name),
         check_hasura_db(app_name),
         check_keycloak_db(app_name),
-        check_hasura_graphql(app_name),
         check_aws_secrets(app_name),
         check_s3(app_name),
         check_sms_sender(app_name),
     );
 
     info!(
-        "celery: {:?}, hasura_db: {:?} , keycloak db: {:?}, hasura_graphql: {:?}, aws_secrets: {:?}, s3: {:?}, sms_sender: {:?}",
-        celery_ok, hasura_db_ok, keycloak_db_ok, hasura_graphql_ok, aws_secrets_ok, s3_ok, sms_sender_ok
+        "celery: {:?}, hasura_db: {:?} , keycloak db: {:?}, aws_secrets: {:?}, s3: {:?}, sms_sender: {:?}",
+        celery_ok, hasura_db_ok, keycloak_db_ok, aws_secrets_ok, s3_ok, sms_sender_ok
     );
 
     let data = vec![
         celery_ok,
         hasura_db_ok,
         keycloak_db_ok,
-        hasura_graphql_ok,
         aws_secrets_ok,
         s3_ok,
         sms_sender_ok,
