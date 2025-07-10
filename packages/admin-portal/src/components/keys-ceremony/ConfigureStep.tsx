@@ -148,6 +148,18 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
         Sequent_Backend_Trustee[] | undefined
     >()
 
+    const filteredTrusteesSorted = useMemo(
+        () =>
+            [...(filteredTrustees ?? [])]?.sort((a, b) =>
+                (a.name ?? "").localeCompare(b.name ?? "")
+            ),
+        [filteredTrustees]
+    )
+    const trusteeListSorted = useMemo(
+        () => [...(trusteeList ?? [])]?.sort((a, b) => (a.name ?? "").localeCompare(b.name ?? "")),
+        [trusteeList]
+    )
+
     useEffect(() => {
         setFilteredTrustees(
             trusteeList?.filter((trustee: Sequent_Backend_Trustee) =>
@@ -375,7 +387,7 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                                     validate={validateTrusteeList}
                                     label=""
                                     source="trusteeNames"
-                                    choices={filteredTrustees || trusteeList}
+                                    choices={filteredTrusteesSorted || trusteeListSorted}
                                     translateChoice={false}
                                     optionText="name"
                                     optionValue="name"

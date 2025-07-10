@@ -1,1 +1,0 @@
-ALTER TABLE "sequent_backend"."secret" DROP COLUMN "created_at";

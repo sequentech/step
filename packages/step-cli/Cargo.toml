@@ -37,5 +37,5 @@ ring = "0.17"
 sha2 = "0.10"
 base64 = "0.21.0"
 [[bin]]
-name = "seq"
+name = "step-cli"
 path = "src/main.rs"

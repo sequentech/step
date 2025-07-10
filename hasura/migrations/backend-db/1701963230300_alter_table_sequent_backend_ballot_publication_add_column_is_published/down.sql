@@ -1,4 +1,0 @@
--- Could not auto-generate a down migration.
--- Please write an appropriate down migration for the SQL below:
--- alter table "sequent_backend"."ballot_publication" add column "is_published" boolean
---  not null default 'false';
