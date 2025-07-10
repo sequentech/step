@@ -150,10 +150,10 @@ public class MessageOTPAuthenticatorFactory
             "1"),
         new ProviderConfigProperty(
             Utils.VALID_COUNTRY_CODES,
-            "Valid country codes",
-            "List of prefixes/country codes that are valid. If empty, all will be valid. User won't be able to send OTP messages to phone numbers from other countries.",
-            ProviderConfigProperty.MULTIVALUED_STRING_TYPE,
-            "1"),
+            "Valid country codes, separated by comma",
+            "List of prefixes/country codes that are valid, separated by comma. For example '+1,+44'. If empty, all will be valid. User won't be able to send OTP messages to phone numbers from other countries.",
+            ProviderConfigProperty.STRING_TYPE,
+            ""),
         messageCourier);
   }
 

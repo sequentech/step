@@ -185,9 +185,9 @@ public class Utils {
 
   public List<String> getMultivalueString(
       AuthenticatorConfigModel config, String configKey, List<String> defaultValue) {
-    log.debugv("getMultivalueString(configKey={0}, defaultValue={1})", configKey, defaultValue);
+    log.infov("getMultivalueString(configKey={0}, defaultValue={1})", configKey, defaultValue);
     if (config == null) {
-      log.debugv("getMultivalueString(): NULL config={0}", config);
+      log.infov("getMultivalueString(): NULL config={0}", config);
       return defaultValue;
     }
 
@@ -195,13 +195,13 @@ public class Utils {
     if (mapConfig == null
         || !mapConfig.containsKey(configKey)
         || mapConfig.get(configKey).strip().length() == 0) {
-      log.debugv("getMultivalueString(): NullOrNotFound mapConfig={0}", mapConfig);
+      log.infov("getMultivalueString(): NullOrNotFound mapConfig={0}", mapConfig);
       return defaultValue;
     }
 
-    log.debugv("getMultivalueString(): value={0}", mapConfig.get(configKey));
+    log.infov("getMultivalueString(): value={0}", mapConfig.get(configKey));
 
-    return Arrays.asList(mapConfig.get(configKey).split("##"));
+    return Arrays.asList(mapConfig.get(configKey).split(","));
   }
 
   String getMobileNumber(
