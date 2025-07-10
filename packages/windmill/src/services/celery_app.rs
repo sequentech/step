@@ -152,9 +152,9 @@ pub fn get_queues() -> Vec<String> {
     unsafe { QUEUES.clone() }
 }
 
-/// CELERY_APP holds the high-level Celery application. Note: The Celery app is
-/// built separately from the Broker because it handles task routing/scheduling.
 lazy_static! {
+    /// CELERY_APP holds the high-level Celery application. Note: The Celery app is
+    /// built separately from the Broker because it handles task routing/scheduling.
     static ref CELERY_APP: AsyncOnce<Arc<Celery>> =
         AsyncOnce::new(async { generate_celery_app().await });
 }
