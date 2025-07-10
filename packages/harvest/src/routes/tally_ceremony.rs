@@ -214,7 +214,7 @@ pub async fn update_tally_ceremony(
         }
     });
 
-    if (!is_tally_allowed) {
+    if !is_tally_allowed {
         return Err((
             Status::InternalServerError,
             format!(
@@ -241,7 +241,7 @@ pub async fn update_tally_ceremony(
         )
     })?;
 
-    let _commit = hasura_transaction.commit().await.map_err(|err| {
+    hasura_transaction.commit().await.map_err(|err| {
         (Status::InternalServerError, format!("Commit failed: {err}"))
     })?;
 
