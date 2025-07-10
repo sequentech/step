@@ -5,6 +5,8 @@
 package sequent.keycloak.authenticator;
 
 import jakarta.ws.rs.core.Response;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.function.Consumer;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.authentication.RequiredActionContext;
@@ -12,6 +14,7 @@ import org.keycloak.authentication.RequiredActionProvider;
 import org.keycloak.forms.login.LoginFormsProvider;
 import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.KeycloakSession;
+import org.keycloak.models.UserModel;
 import org.keycloak.sessions.AuthenticationSessionModel;
 import sequent.keycloak.authenticator.credential.MessageOTPCredentialModel;
 import sequent.keycloak.authenticator.credential.MessageOTPCredentialProvider;
@@ -255,6 +258,25 @@ public abstract class BaseResetMessageOTPRequiredAction implements RequiredActio
                 config));
         return;
       }
+
+      // Check MAX_RECEIVER_REUSE limit
+      String maxReuseStr = config != null ? config.getConfig().get(Utils.MAX_RECEIVER_REUSE) : null;
+      if (maxReuseStr == null || maxReuseStr.trim().isEmpty()) {
+        maxReuseStr = "1"; // Default value
+      }
+      int maxReuse = Integer.parseInt(maxReuseStr);
+      if (maxReuse > 0) {
+        int currentUsersWithSameValue = countUsersWithSameValue(context, value, getCourier());
+        if (currentUsersWithSameValue >= maxReuse) {
+          context.challenge(
+              createOTPForm(
+                  context,
+                  form -> form.setError(ErrorType.MAX_RECEIVER_REUSE.toString(getI18nPrefix())),
+                  config));
+          return;
+        }
+      }
+
       // Save credential and update user
       MessageOTPCredentialProvider credentialProvider = new MessageOTPCredentialProvider(session);
       credentialProvider.createCredential(
@@ -281,6 +303,47 @@ public abstract class BaseResetMessageOTPRequiredAction implements RequiredActio
    */
   protected boolean isValidInput(String value) {
     return value != null && !value.trim().isEmpty();
+  }
+
+  /**
+   * Counts the number of users in the realm that have the same contact value (email or phone
+   * number) as the provided value.
+   *
+   * @param context The required action context
+   * @param value The contact value to check for
+   * @return The number of users with the same contact value
+   */
+  private int countUsersWithSameValue(
+      RequiredActionContext context, String value, Utils.MessageCourier courier) {
+    int count = 0;
+
+    if (courier == Utils.MessageCourier.EMAIL || courier == Utils.MessageCourier.BOTH) {
+      // Search for users and filter by email match
+      Map<String, String> params = new HashMap<>();
+      params.put(UserModel.SEARCH, value);
+
+      count +=
+          (int)
+              context
+                  .getSession()
+                  .users()
+                  .searchForUserStream(context.getRealm(), params, null, null)
+                  .filter(user -> value.equals(user.getEmail()))
+                  .count();
+    }
+
+    if (courier == Utils.MessageCourier.SMS || courier == Utils.MessageCourier.BOTH) {
+      count +=
+          (int)
+              context
+                  .getSession()
+                  .users()
+                  .searchForUserByUserAttributeStream(
+                      context.getRealm(), Utils.PHONE_NUMBER_ATTRIBUTE, value)
+                  .count();
+    }
+
+    return count;
   }
 
   /** Creates the contact entry form, setting the i18nPrefix for the template. */
@@ -325,7 +388,8 @@ public abstract class BaseResetMessageOTPRequiredAction implements RequiredActio
     SEND_ERROR(".auth.error.sendError"),
     RESEND_TIMER(".auth.error.resendTimer"),
     CODE_EXPIRED(".auth.error.codeExpired"),
-    CODE_INVALID(".auth.error.codeInvalid");
+    CODE_INVALID(".auth.error.codeInvalid"),
+    MAX_RECEIVER_REUSE(".auth.error.maxReceiverReuse");
 
     private final String value;
 
