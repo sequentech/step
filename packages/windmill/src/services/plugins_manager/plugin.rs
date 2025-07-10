@@ -100,14 +100,11 @@ pub struct Plugin {
 }
 
 impl Plugin {
-    pub async fn from_wasm_bytes(
-        engine: &Engine,
-        linker: &mut Linker<PluginStore>,
-        wasm_bytes: Vec<u8>,
-    ) -> Result<Self> {
+    pub async fn init_plugin_from_wasm_bytes(engine: &Engine, wasm_bytes: Vec<u8>) -> Result<Self> {
+        let mut linker = Linker::<PluginStore>::new(&engine);
         let component = Component::new(&engine, wasm_bytes)?;
         let wasi: WasiCtx = WasiCtxBuilder::new().inherit_stdio().build();
-        add_to_linker_sync(linker)?;
+        add_to_linker_sync(&mut linker)?;
 
         let hasura_manager = Arc::new(Mutex::new(PluginDbManager::init()));
         let keycloak_manager = Arc::new(Mutex::new(PluginDbManager::init()));
@@ -123,7 +120,9 @@ impl Plugin {
 
         let mut store = Store::new(engine, plugin_store);
 
-        add_transaction_linker(linker, |s: &mut PluginStore| &mut s.transactions_manager)?;
+        add_transaction_linker(&mut linker, |s: &mut PluginStore| {
+            &mut s.transactions_manager
+        })?;
 
         let instance = linker.instantiate_async(&mut store, &component).await?;
 

@@ -53,9 +53,38 @@ pub unsafe fn __post_return_add<T: Guest>(arg0: *mut u8) {
         .cast::<usize>();
     _rt::cabi_dealloc(l0, l1, 1);
 }
+#[doc(hidden)]
+#[allow(non_snake_case)]
+pub unsafe fn _export_add_route_cabi<T: Guest>(arg0: *mut u8, arg1: usize) -> *mut u8 {
+    #[cfg(target_arch = "wasm32")]
+    _rt::run_ctors_once();
+    let len0 = arg1;
+    let bytes0 = _rt::Vec::from_raw_parts(arg0.cast(), len0, len0);
+    let result1 = T::add_route(_rt::string_lift(bytes0));
+    let ptr2 = (&raw mut _RET_AREA.0).cast::<u8>();
+    let vec3 = (result1.into_bytes()).into_boxed_slice();
+    let ptr3 = vec3.as_ptr().cast::<u8>();
+    let len3 = vec3.len();
+    ::core::mem::forget(vec3);
+    *ptr2
+        .add(::core::mem::size_of::<*const u8>())
+        .cast::<usize>() = len3;
+    *ptr2.add(0).cast::<*mut u8>() = ptr3.cast_mut();
+    ptr2
+}
+#[doc(hidden)]
+#[allow(non_snake_case)]
+pub unsafe fn __post_return_add_route<T: Guest>(arg0: *mut u8) {
+    let l0 = *arg0.add(0).cast::<*mut u8>();
+    let l1 = *arg0
+        .add(::core::mem::size_of::<*const u8>())
+        .cast::<usize>();
+    _rt::cabi_dealloc(l0, l1, 1);
+}
 pub trait Guest {
     fn get_manifest() -> _rt::String;
     fn add(x: u32, y: u32) -> _rt::String;
+    fn add_route(data: _rt::String) -> _rt::String;
 }
 #[doc(hidden)]
 macro_rules! __export_world_adder_cabi {
@@ -69,7 +98,13 @@ macro_rules! __export_world_adder_cabi {
         i32, arg1 : i32,) -> * mut u8 { unsafe { $($path_to_types)*::
         _export_add_cabi::<$ty > (arg0, arg1) } } #[unsafe (export_name =
         "cabi_post_add")] unsafe extern "C" fn _post_return_add(arg0 : * mut u8,) {
-        unsafe { $($path_to_types)*:: __post_return_add::<$ty > (arg0) } } };
+        unsafe { $($path_to_types)*:: __post_return_add::<$ty > (arg0) } } #[unsafe
+        (export_name = "add-route")] unsafe extern "C" fn export_add_route(arg0 : * mut
+        u8, arg1 : usize,) -> * mut u8 { unsafe { $($path_to_types)*::
+        _export_add_route_cabi::<$ty > (arg0, arg1) } } #[unsafe (export_name =
+        "cabi_post_add-route")] unsafe extern "C" fn _post_return_add_route(arg0 : * mut
+        u8,) { unsafe { $($path_to_types)*:: __post_return_add_route::<$ty > (arg0) } }
+        };
     };
 }
 #[doc(hidden)]
@@ -538,16 +573,17 @@ pub(crate) use __export_adder_impl as export;
 #[unsafe(link_section = "component-type:wit-bindgen:0.41.0:docs:adder:adder:encoded world")]
 #[doc(hidden)]
 #[allow(clippy::octal_escapes)]
-pub static __WIT_BINDGEN_COMPONENT_TYPE: [u8; 444] = *b"\
-\0asm\x0d\0\x01\0\0\x19\x16wit-component-encoding\x04\0\x07\xc0\x02\x01A\x02\x01\
-A\x06\x01B\x0b\x01j\x01s\x01s\x01@\0\0\0\x04\0\x19create-hasura-transaction\x01\x01\
+pub static __WIT_BINDGEN_COMPONENT_TYPE: [u8; 469] = *b"\
+\0asm\x0d\0\x01\0\0\x19\x16wit-component-encoding\x04\0\x07\xd9\x02\x01A\x02\x01\
+A\x08\x01B\x0b\x01j\x01s\x01s\x01@\0\0\0\x04\0\x19create-hasura-transaction\x01\x01\
 \x01j\0\x01s\x01@\0\0\x02\x04\0\x1bcreate-keycloak-transaction\x01\x03\x01@\x01\x03\
 sqls\0\0\x04\0\x14execute-hasura-query\x01\x04\x04\0\x16execute-keycloak-query\x01\
 \x04\x04\0\x19commit-hasura-transaction\x01\x03\x04\0\x1bcommit-keycloak-transac\
 tion\x01\x03\x03\0%docs:transactions-manager/transaction\x05\0\x01@\0\0s\x04\0\x0c\
-get-manifest\x01\x01\x01@\x02\x01xy\x01yy\0s\x04\0\x03add\x01\x02\x04\0\x10docs:\
-adder/adder\x04\0\x0b\x0b\x01\0\x05adder\x03\0\0\0G\x09producers\x01\x0cprocesse\
-d-by\x02\x0dwit-component\x070.227.1\x10wit-bindgen-rust\x060.41.0";
+get-manifest\x01\x01\x01@\x02\x01xy\x01yy\0s\x04\0\x03add\x01\x02\x01@\x01\x04da\
+tas\0s\x04\0\x09add-route\x01\x03\x04\0\x10docs:adder/adder\x04\0\x0b\x0b\x01\0\x05\
+adder\x03\0\0\0G\x09producers\x01\x0cprocessed-by\x02\x0dwit-component\x070.227.\
+1\x10wit-bindgen-rust\x060.41.0";
 #[inline(never)]
 #[doc(hidden)]
 pub fn __link_custom_section_describing_imports() {

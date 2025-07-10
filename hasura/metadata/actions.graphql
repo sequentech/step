@@ -9,6 +9,10 @@ type Mutation {
 }
 
 type Mutation {
+    call_plugin_route(path: String!, data: jsonb!): PluginsRouteOutput!
+}
+
+type Mutation {
     check_private_key(object: CheckPrivateKeyInput!): CheckPrivateKeyOutput
 }
 
@@ -1572,4 +1576,8 @@ type CountUsersOutput {
 type RenderDocumentPDFOutput {
     document_id: String
     task_execution: tasks_execution_type
+}
+
+type PluginsRouteOutput {
+    data: jsonb
 }

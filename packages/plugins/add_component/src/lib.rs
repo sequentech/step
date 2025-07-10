@@ -24,11 +24,24 @@ impl Guest for Component {
         format!("{} + {} = {}. Result: {}", x, y, a, exec_query)
     }
 
+    fn add_route(data: String) -> String {
+        serde_json::json!({
+            "data": data,
+            "res": "Route called successfully!"
+        })
+        .to_string()
+    }
+
     fn get_manifest() -> String {
         serde_json::json!({
             "plugin_name": "adder",
             "hooks": ["add"],
-            "routes": []
+            "routes": [
+                {
+                    "path": "/adder/add",
+                    "handler": "add-route", // This is the name of the function that will handle the route as written in the .wit file
+                }
+            ]
         })
         .to_string()
     }

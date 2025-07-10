@@ -36,10 +36,6 @@ use windmill::services::export::export_users::{
     ExportBody, ExportTenantUsersBody, ExportUsersBody,
 };
 use windmill::services::keycloak_events::list_keycloak_events_by_type;
-use windmill::services::plugins_manager::plugin::HookValue;
-use windmill::services::plugins_manager::plugin_manager::{
-    self, get_plugin_manager,
-};
 use windmill::services::tasks_execution::*;
 use windmill::services::users::{
     count_keycloak_users, list_users, list_users_with_vote_info,

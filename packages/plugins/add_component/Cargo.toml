@@ -12,6 +12,7 @@ crate-type = ["cdylib"]
 [dependencies]
 wit-bindgen-rt = { version = "0.42.1", features = ["bitflags"] }
 serde_json = "1.0.105"
+serde = "1.0.152"
 
 [package.metadata.component]
 package = "docs:adder"
