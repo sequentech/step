@@ -294,7 +294,7 @@ pub fn format_u64(
 ) -> HelperResult {
     let unformatted_val = helper
         .param(0)
-        .ok_or(RenderErrorReason::ParamNotFoundForIndex("format_i64", 0))?
+        .ok_or(RenderErrorReason::ParamNotFoundForIndex("format_u64", 0))?
         .value();
     let unformatted_number: u64 = parse_u64_value(unformatted_val)?;
 
