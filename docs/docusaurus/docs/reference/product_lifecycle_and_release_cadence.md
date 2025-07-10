@@ -24,9 +24,10 @@ LTS releases are enterprise-grade releases designed for production environments
 requiring maximum stability and extended support.
 
 - **Cadence**: Every 6 months (March and September)
-- **First LTS**: Version 9.0.0 (September 1st, 2025)
-- **Standard Support**: 12 months from release date
-- **Legacy LTS Support (LLTS)**: Additional 12 months after standard support
+- **Last LTS**: None
+- **Next LTS**: Version 9.0.0 (September 1st, 2025)
+- **Standard Long Term Support (SLTS)**: 12 months from release date
+- **Legacy Long Term Support (LLTS)**: Additional 12 months after standard support
   ends
 - **Total LTS Lifecycle**: 24 months (2 years)
 
@@ -36,14 +37,14 @@ Rolling releases provide the latest features and improvements for development
 and testing environments.
 
 - **Cadence**: Monthly releases
-- **Standard Support**: 2 months from release date
+- **Standard Rolling Release Support (SRRS)**: 2 months from release date
 - **Legacy Rolling Release Support (LRRS)**: Additional 6 months after standard
   support ends
 - **Total Rolling Release Lifecycle**: 8 months
 
 ## Release Schedule Table
 
-| Version    | Release Date | Type    | Standard Support Until | Legacy Support Until | Total Support |
+| Version    | Release Date | Release Type | Standard Support Until | Legacy Support Until | Total Support |
 |------------|-------------|---------|-----------------------|---------------------|---------------|
 | **9.0.0**  | Sep 1, 2025 | **LTS** | Sep 1, 2026           | Sep 1, 2027         | **24 months** |
 | 9.1.0      | Oct 1, 2025 | Rolling | Dec 1, 2025           | Jun 1, 2026         | 8 months      |
@@ -67,13 +68,15 @@ and testing environments.
 
 ## Support Levels
 
-### Standard Support
+### Standard Support (SLTS, SRRS)
+
 - Security patches and critical bug fixes
 - Technical support through official channels
 - Documentation updates
 - Community support
 
-### Legacy Support (LRRS/LLTS)
+### Legacy Support (LLTS, LRRS)
+
 - Critical security patches only
 - Limited technical support
 - Extended maintenance for enterprise customers
@@ -84,7 +87,6 @@ and testing environments.
 ```mermaid
 ---
 config:
-  logLevel: 'debug'
   theme: 'default'
   themeVariables:
     cScale0: '#0f054c'
@@ -107,31 +109,99 @@ timeline
 ```
 
 ## Support Lifecycle Visualization
-
 ### LTS Release Support Timeline
 
 ```mermaid
+---
+displayMode: compact
+config:
+    logLevel: 'debug'
+    theme: 'default'
+    themeCSS: " \n
+        .taskText { font-size: 16px; }
+        rect[id^=slts_] { fill: #0f054c; stroke-width: 4px; }
+        text[id^=slts_] { fill: white !important; font-size: 24px; }
+        rect[id^=llts_] { fill: #2de8b9; stroke-width: 4px; }
+        text[id^=llts_] { fill: #0f054c !important; font-size: 24px; }
+        .sectionTitle { stroke: white; paint-order: stroke fill; fill: #0f054c; stroke-width: 8px; }
+        g[class=tick] text { font-size: 24px; height: 50px; }
+        .vertText {  transform: translate(-90px, -450px); font-size: 24px; }
+
+        /*** section backgrounds: ***/
+
+        /* - under legacy support only */
+        .section0 { fill: #fff400; opacity: 0.2; stroke: none; }
+
+        /* - under standard support */
+        .section1 { fill: #6666ff7d; }
+        .section2 { fill: #6666ff7d; }
+
+        
+        /* out of support: */
+        #slts_900 { stroke: red; fill: #0f054c; opacity: 0.2; }
+        #slts_900-text { fill: #0f054c !important; }
+
+        /* under legacy support: */
+        #llts_900 { stroke: #0f054c; }
+
+        /* under standard support: */
+        #slts_1000 { stroke: #0f054c; }
+        #llts_1000 { stroke: #0f054c; }
+        #slts_1100 { stroke: #0f054c; }
+        #llts_1100 { stroke: #0f054c; }
+
+        /* not yet released: */
+        #llts_1200 { stroke: #2de8b9; opacity: 0.4; }
+        #slts_1200 { stroke: #2de8b9; opacity: 0.4; }
+    "
+---
+%%{init:
+    {
+        "gantt": {
+            "sectionFontSize": 24,
+            "fontSize": 36,
+            "barGap": 40,
+            "barHeight": 50,
+            "topPadding": 80
+        }
+    }
+}%%
 gantt
-    title LTS Release Support Lifecycle
+    todayMarker off
     dateFormat YYYY-MM-DD
-    axisFormat %Y-%m
-    
+    axisFormat %b %Y
+    tickInterval 6month
+
     section 9.0.0 LTS
-    Standard Support    :active, 2025-09-01, 2028-03-01
-    Legacy Support      :2028-03-01, 2029-03-01
+        Standard Support    :done, slts_900, 2025-09-01, 365d
+        Legacy Support      :active, llts_900, after slts_900, 365d
     
-    section 10.0.0 LTS  
-    Standard Support    :active, 2026-03-01, 2028-09-01
-    Legacy Support      :2028-09-01, 2029-09-01
+    section 10.0.0 LTS
+        Standard Support    :done, slts_1000, 2026-03-01, 365d
+        Legacy Support      :active, llts_1000, after slts_1000, 365d
     
     section 11.0.0 LTS
-    Standard Support    :active, 2026-09-01, 2029-03-01
-    Legacy Support      :2029-03-01, 2030-03-01
+        Standard Support    :done, slts_1100, 2026-09-01, 365d
+        Legacy Support      :active, llts_1100, after slts_1100, 365d
     
     section 12.0.0 LTS
-    Standard Support    :active, 2027-03-01, 2029-09-01
-    Legacy Support      :2029-09-01, 2030-09-01
+        Standard Support    :done, slts_1200, 2027-03-01, 365d
+        Legacy Support      :active, llts_1200, after slts_1200, 365d
+
+    Current Date            : vert, current, 2026-11-01, 1d
 ```
+
+In the example shown in the diagram (with `Current date` set to November 1,
+2026):
+- **Version 9.0.0 LTS** (released September 1, 2025, section in <span style={{backgroundColor: '#fdf6d1'}}>yellow background</span>): Currently in **Legacy LTS Support** phase, having completed its 12-month standard support period. Legacy support continues until September 1, 2027.
+- **Version 10.0.0 LTS** (released March 1, 2026, section in <span style={{backgroundColor: '#eee8f7'}}>blue background</span>): Currently in **Standard LTS Support** phase, receiving full security patches, bug fixes, and technical support until March 1, 2027.
+- **Version 11.0.0 LTS** (released September 1, 2026, section in <span style={{backgroundColor: '#eee8f7'}}>blue background</span>): Recently released and in **Standard LTS Support** phase, with full support continuing until September 1, 2027.
+- **Version 12.0.0 LTS** (release scheduled for March 1, 2027, section in white background): Future release shown with reduced opacity, representing the planned next LTS version.
+
+The diagram illustrates the overlapping support windows that provide enterprise
+customers with migration flexibility. Notice how version 10.0.0 and 11.0.0 are
+both under standard support simultaneously, giving organizations a 6-month
+window to plan and execute upgrades between LTS versions.
 
 ### Rolling Release Support Timeline
 
