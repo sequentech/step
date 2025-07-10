@@ -482,7 +482,6 @@ pub async fn update_tally_ceremony(
     user_id: String,
     username: String,
 ) -> Result<()> {
-    let auth_headers = keycloak::get_client_credentials().await?;
     let current_status = tally_session
         .execution_status
         .map(|value| {
@@ -554,36 +553,8 @@ pub async fn update_tally_ceremony(
     )
     .await?;
 
-    /*
-        if TallyExecutionStatus::IN_PROGRESS == new_execution_status {
-            let trustee_names: Vec<String> = status
-                .trustees
-                .iter()
-                .map(|trustee| trustee.name.clone())
-                .collect();
-
-            for tally_session_contest in &tally_session_contests {
-                let task = celery_app
-                    .send_task(insert_ballots::new(
-                        InsertBallotsPayload {
-                            trustee_names: trustee_names.clone(),
-                        },
-                        tenant_id.clone(),
-                        election_event_id.clone(),
-                        tally_session.id.clone(),
-                        tally_session_contest.id.clone(),
-                    ))
-                    .await?;
-                event!(Level::INFO, "Sent INSERT_BALLOTS task {}", task.task_id);
-            }
-    */
-    // get the election event
-    let election_event = get_election_event_helper(
-        auth_headers.clone(),
-        tenant_id.to_string(),
-        election_event_id.to_string(),
-    )
-    .await?;
+    let election_event =
+        get_election_event_by_id(&hasura_transaction, &tenant_id, &election_event_id).await?;
 
     let tally_elections_ids = tally_session
         .election_ids
