@@ -137,6 +137,7 @@ module.exports = {
       },
       items:[
         'reference/glossary',
+        'reference/product_lifecycle_and_release_cadence',
         {
           type: 'category',
           label: 'Tally Deep Dive',

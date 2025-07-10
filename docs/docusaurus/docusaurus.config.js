@@ -37,6 +37,12 @@ const config = {
     ],
   ],
 
+  themes: ['@docusaurus/theme-mermaid'],
+
+  markdown: {
+    mermaid: true,
+  },
+
   themeConfig:
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
     ({
@@ -67,6 +73,9 @@ const config = {
       scripts: [
         '/js/custom-home-highlight.js',
       ],
+      mermaid: {
+        theme: {light: 'neutral', dark: 'dark'},
+      },
     }),
 };
 
