@@ -43,6 +43,23 @@ required in a short period of time.
   support ends
 - **Total Rolling Release Lifecycle**: 8 months
 
+### Emergency Production Releases (EPR)
+
+Emergency Production Releases are exceptional releases created for critical production deployments when standard release schedules cannot accommodate urgent requirements, typically for major elections or high-profile voting events.
+
+- **Trigger**: Critical client requirements, major election events, or urgent security needs
+- **Source**: Release candidates from upcoming LTS or rolling releases
+- **Approval**: Requires executive approval and risk assessment
+- **Emergency Production Support (EPS)**: 6 months from release date with full support scope
+- **Post-Emergency Legacy Support (PELS)**: Additional 6 months with security-only support
+- **Total EPR Lifecycle**: 12 months
+
+**Important Notes:**
+- EPRs are based on existing release candidates, not new development
+- They receive the same support level as LTS releases during their EPS phase
+- Migration path to the next planned LTS release is provided
+- Usage is tracked and reported for future planning
+
 ## Release Schedule Table
 
 | Version    | Release Date | Release Type | Standard Support Until | Legacy Support Until | Total Support |
@@ -70,19 +87,27 @@ required in a short period of time.
 
 ## Support Levels
 
-### Standard Support (SLTS, SRRS)
+### Standard Support (SLTS, SRRS, EPS)
 
 - Security patches and critical bug fixes
 - Technical support through official channels
 - Documentation updates
 - Community support
 
-### Legacy Support (LLTS, LRRS)
+### Legacy Support (LLTS, LRRS, PELS)
 
 - Critical security patches only
 - Limited technical support
 - Extended maintenance for enterprise customers
 - Migration assistance to newer versions
+
+### Emergency Production Support (EPS)
+
+- **Full production-grade support** equivalent to LTS standard support
+- **Priority technical support** with dedicated channels
+- **Accelerated patch delivery** within 24-48 hours for critical issues
+- **Migration planning assistance** to transition to next planned LTS
+- **Risk monitoring and reporting** throughout the emergency support period
 
 ## Release Timeline Visualization
 
@@ -390,9 +415,14 @@ Each feature release follows this schedule:
 
 ## Enterprise Support
 
+## Enterprise Support
+
+All support levels are for enterprise customers. Free community support is
+available via GitHub tickets and our Discord channel, with no SLA guarantees.
+
 Enterprise customers receive:
 - Priority support during standard support period
-- Extended legacy support options
+- Standard and Legacy support options
 - Migration assistance between major versions
 - Custom support agreements for extended lifecycles
 - Dedicated support channels
@@ -410,17 +440,23 @@ Enterprise customers receive:
 - Maintain separate environments for different release tracks
 
 ### Migration Strategy
-- Begin testing new LTS releases 3 months before your current LTS loses standard support
+- Begin testing new LTS releases 3 months before your current LTS loses standard
+  support
 - Use the 6-month LTS overlap period for gradual migration
 - Consider Legacy LTS Support for additional migration time if needed
 
 ---
 
-*This release schedule is subject to change based on security requirements, critical bug fixes, or significant architectural updates. Any changes will be communicated at least 60 days in advance.*
+*This release schedule is subject to change based on security requirements,
+critical bug fixes, or significant architectural updates. Any changes will be
+communicated at least 60 days in advance.*
 
 ## Minor Version Release Lifecycle
 
-Each minor version follows a structured release process that includes pre-releases, the final release, and subsequent patch releases during its support lifecycle. This section illustrates the complete lifecycle of a single minor version from initial development to end of support.
+Each minor version follows a structured release process that includes
+pre-releases, the final release, and subsequent patch releases during its
+support lifecycle. This section illustrates the complete lifecycle of a single
+minor version from initial development to end of support.
 
 ### Version 11.0.x Series Release Timeline (Example)
 
@@ -559,3 +595,148 @@ flowchart TD
 3. **No Direct-to-Production**: All LTS releases must go through at least one release candidate phase.
 
 4. **Emergency Exception Process**: In case of critical security vulnerabilities, the 2-week period may be shortened to 1 week with explicit approval from the security team and release management.
+
+## Emergency Production Releases (EPR)
+
+In exceptional circumstances, the Sequent Voting Platform may require immediate deployment of features or fixes that cannot wait for the standard release schedule. Emergency Production Releases provide a controlled mechanism for addressing critical business needs while maintaining stability and support standards.
+
+### When EPRs Are Used
+
+Emergency Production Releases are reserved for situations such as:
+
+- **Major Election Events**: Large-scale elections requiring specific features
+- **Critical Client Requirements**: High-profile deployments with immovable deadlines
+- **Security Emergencies**: Urgent security fixes that cannot wait for scheduled releases
+- **Regulatory Compliance**: Last-minute regulatory changes requiring immediate implementation
+
+### EPR Creation Process
+
+```mermaid
+---
+config:
+    logLevel: 'debug'
+    theme: 'default'
+    themeVariables:
+        cScale0: '#0f054c'
+        cScale1: '#2de8b9'
+---
+flowchart TD
+    A[Critical Need Identified] --> B[Executive Approval Required]
+    B --> C[Risk Assessment & Impact Analysis]
+    C --> D[Select Source Release Candidate]
+    D --> E[Emergency Testing & Validation]
+    E --> F[EPR Release Creation]
+    F --> G[Production Deployment]
+    G --> H[Emergency Production Support Begins]
+    H --> I[Migration Planning to LTS]
+    
+    style A fill:#e63946,stroke:#d62828,color:#fff
+    style B fill:#ff9500,stroke:#cc7700,color:#fff
+    style C fill:#ff9500,stroke:#cc7700,color:#fff
+    style D fill:#ff9500,stroke:#cc7700,color:#fff
+    style E fill:#8338ec,stroke:#6c28cc,color:#fff
+    style F fill:#0f054c,stroke:#0a0339,color:#fff
+    style G fill:#2de8b9,stroke:#24c7a0,color:#0f054c
+    style H fill:#2de8b9,stroke:#24c7a0,color:#0f054c
+    style I fill:#fff400,stroke:#e6d200,color:#0f054c
+```
+
+### EPR Support Timeline Example
+
+```mermaid
+---
+displayMode: compact
+config:
+    logLevel: 'debug'
+    theme: 'default'
+    themeCSS: " \n
+        .taskText { font-size: 16px; }
+        rect[id^=eps_] { fill: #e63946; stroke-width: 4px; stroke: #d62828; }
+        text[id^=eps_] { fill: white !important; font-size: 24px; }
+        rect[id^=pels_] { fill: #ff9500; stroke-width: 4px; stroke: #cc7700; }
+        text[id^=pels_] { fill: white !important; font-size: 24px; }
+        .sectionTitle { stroke: white; paint-order: stroke fill; fill: #0f054c; stroke-width: 8px; }
+        g[class=tick] text { font-size: 20px; }
+
+        /*** section backgrounds ***/
+        .section0 { fill: #ff6b6b; opacity: 0.3; stroke: #e63946; stroke-width: 2px; }
+        .section1 { fill: #fff2e6; opacity: 0.3; stroke: #ff9500; stroke-width: 2px; }
+        .section2 { fill: #6666ff7d; opacity: 0.3; }
+    "
+---
+%%{init:
+    {
+        "gantt": {
+            "sectionFontSize": 24,
+            "fontSize": 32,
+            "barGap": 40,
+            "barHeight": 50,
+            "topPadding": 80
+        }
+    }
+}%%
+gantt
+    todayMarker off
+    dateFormat YYYY-MM-DD
+    axisFormat %b %Y
+    tickInterval 3month
+
+    section EPR 10.2.1-epr.1
+        Emergency Production Support  :eps_1021, 2026-03-15, 182d
+        Post-Emergency Legacy Support :pels_1021, after eps_1021, 182d
+    
+    section EPR 11.1.0-epr.1
+        Emergency Production Support  :eps_1110, 2026-11-01, 182d
+        Post-Emergency Legacy Support :pels_1110, after eps_1110, 182d
+
+    section LTS 11.0.0 (Reference)
+        Standard Support              :done, ref_1100, 2026-09-01, 365d
+        Legacy Support                :active, ref_1100_legacy, after ref_1100, 365d
+
+    Current Date                      : vert, current, 2027-01-15, 1d
+```
+
+### EPR Naming Convention
+
+Emergency Production Releases follow a specific naming pattern:
+- **Format**: `{MAJOR}.{MINOR}.{PATCH}-epr.{EPR_NUMBER}`
+- **Examples**:
+  - `10.2.1-epr.1` - First EPR based on version 10.2.1 release candidate
+  - `11.1.0-epr.1` - First EPR based on version 11.1.0 release candidate
+  - `11.1.0-epr.2` - Second EPR based on version 11.1.0 (rare, requires additional approval)
+
+### EPR Support Lifecycle
+
+| Phase | Duration | Support Level | Description |
+|-------|----------|---------------|-------------|
+| **Emergency Production Support (EPS)** | 6 months | Full LTS-equivalent | Complete technical support, security patches, bug fixes, priority handling |
+| **Post-Emergency Legacy Support (PELS)** | 6 months | Security-only | Critical security patches, migration assistance, limited technical support |
+| **End of Life** | - | None | Support ends, migration to LTS required |
+
+### Approval Process
+
+1. **Business Justification**: Detailed business case with timeline constraints
+2. **Technical Assessment**: Engineering review of release candidate readiness
+3. **Risk Analysis**: Security and stability impact evaluation
+4. **Executive Sign-off**: C-level approval for EPR creation and support commitment
+5. **Client Agreement**: Formal acceptance of EPR limitations and migration timeline
+
+### EPR Limitations and Considerations
+
+- **No Feature Development**: EPRs are based on existing release candidates only
+- **Limited Scope**: Only critical fixes and security patches during EPS phase
+- **Migration Requirement**: Clients must migrate to the next LTS within 12 months
+- **Cost Implications**: EPRs may incur additional support costs for enterprise clients
+- **Documentation**: Reduced documentation scope compared to full LTS releases
+
+### Migration from EPR to LTS
+
+All EPR deployments must have a defined migration path:
+
+1. **Migration Planning** begins immediately after EPR deployment
+2. **Testing Phase** with next LTS release candidates (months 3-4)
+3. **Migration Window** during months 4-6 of EPS phase
+4. **Transition Support** continues through PELS phase
+5. **Mandatory Migration** completed before EPR end-of-life
+
+Emergency Production Releases provide essential flexibility for critical business needs while maintaining the integrity and predictability of the standard release process. They should be used judiciously and always with a clear path back to the standard LTS release track.
