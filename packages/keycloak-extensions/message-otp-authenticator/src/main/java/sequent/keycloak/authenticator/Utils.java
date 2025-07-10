@@ -208,8 +208,8 @@ public class Utils {
       AuthenticatorConfigModel config,
       UserModel user,
       AuthenticationSessionModel authSession,
-      boolean deferredUser
-  ) throws IOException {
+      boolean deferredUser)
+      throws IOException {
     String mobileNumber = null;
 
     // Handle deferred user
@@ -224,10 +224,8 @@ public class Utils {
   }
 
   String getEmailAddress(
-      UserModel user,
-      AuthenticationSessionModel authSession,
-      boolean deferredUser
-  ) throws IOException {
+      UserModel user, AuthenticationSessionModel authSession, boolean deferredUser)
+      throws IOException {
     String emailAddress = null;
 
     // Handle deferred user
@@ -256,7 +254,7 @@ public class Utils {
     String mobileNumber = Utils.getMobileNumber(config, user, authSession, deferredUser);
     String emailAddress = Utils.getEmailAddress(user, authSession, deferredUser);
     String code = null;
-    
+
     log.infov("sendCode(): mobileNumber=`{0}`", mobileNumber);
     log.infov("sendCode(): emailAddress=`{0}`", emailAddress);
 

@@ -17,7 +17,6 @@ import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.UserModel;
 import org.keycloak.sessions.AuthenticationSessionModel;
-
 import sequent.keycloak.authenticator.Utils.MessageCourier;
 import sequent.keycloak.authenticator.credential.MessageOTPCredentialModel;
 import sequent.keycloak.authenticator.credential.MessageOTPCredentialProvider;
@@ -133,15 +132,10 @@ public abstract class BaseResetMessageOTPRequiredAction implements RequiredActio
     }
   }
 
-  private boolean isValidMobileNumber(
-    String phoneNumber,
-    AuthenticatorConfigModel config
-  ) {
+  private boolean isValidMobileNumber(String phoneNumber, AuthenticatorConfigModel config) {
     List<String> validCountryCodes =
-      Utils.getMultivalueString(
-          config,
-          Utils.VALID_COUNTRY_CODES,
-          Utils.VALID_COUNTRY_CODES_DEFAULT);
+        Utils.getMultivalueString(
+            config, Utils.VALID_COUNTRY_CODES, Utils.VALID_COUNTRY_CODES_DEFAULT);
     if (null == phoneNumber) {
       return false;
     }
@@ -151,9 +145,8 @@ public abstract class BaseResetMessageOTPRequiredAction implements RequiredActio
 
     String trimmedPhoneNumber = phoneNumber.trim();
 
-    return validCountryCodes
-      .stream()
-      .anyMatch(countryCode -> trimmedPhoneNumber.startsWith(countryCode));
+    return validCountryCodes.stream()
+        .anyMatch(countryCode -> trimmedPhoneNumber.startsWith(countryCode));
   }
 
   /**
