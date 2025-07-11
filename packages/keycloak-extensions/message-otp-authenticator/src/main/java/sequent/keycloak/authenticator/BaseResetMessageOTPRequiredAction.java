@@ -267,7 +267,7 @@ public abstract class BaseResetMessageOTPRequiredAction implements RequiredActio
           return;
         }
         // Resend OTP code
-      log.info("FFFF BaseResetMessageOTPRequiredAction::handleOtpEntry sendCode");
+        log.info("FFFF BaseResetMessageOTPRequiredAction::handleOtpEntry sendCode");
         Utils.sendCode(
             config,
             session,
@@ -400,8 +400,8 @@ public abstract class BaseResetMessageOTPRequiredAction implements RequiredActio
       AuthenticatorConfigModel config) {
     LoginFormsProvider form = context.form();
     List<String> validCountryCodes =
-      Utils.getMultivalueString(
-          config, Utils.VALID_COUNTRY_CODES, Utils.VALID_COUNTRY_CODES_DEFAULT);
+        Utils.getMultivalueString(
+            config, Utils.VALID_COUNTRY_CODES, Utils.VALID_COUNTRY_CODES_DEFAULT);
     form.setAttribute("i18nPrefix", getI18nPrefix());
     form.setAttribute("validCountryCodes", validCountryCodes);
     if (formConsumer != null) {
