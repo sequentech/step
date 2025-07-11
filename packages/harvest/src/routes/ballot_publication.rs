@@ -6,8 +6,7 @@ use anyhow::Result;
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
-use sequent_core::serialization::*;
-use sequent_core::types::hasura;
+use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::types::permissions::Permissions;
 use sequent_core::{
     ballot::{ElectionEventPresentation, LockedDown},
