@@ -5,7 +5,7 @@ const config = {
   title: 'Sequent Online Voting',
   tagline: 'End-to-end verifiable and transparent online voting',
   url: 'https://your-docusaurus-site.example.com',
-  baseUrl: '/',
+  baseUrl: process.env.BASE_URL || '/',
   favicon: 'img/favicon.ico',
 
   onBrokenLinks: 'throw',
