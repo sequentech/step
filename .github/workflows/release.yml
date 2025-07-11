@@ -69,7 +69,7 @@ jobs:
         git config --local user.name "GitHub Action"
 
     - name: Install release-it
-      run: npm install --global release-it
+      run: npm install --global release-it@19.0.3
 
     - name: Create Release Branch if required
       id: CreateReleaseBranch
