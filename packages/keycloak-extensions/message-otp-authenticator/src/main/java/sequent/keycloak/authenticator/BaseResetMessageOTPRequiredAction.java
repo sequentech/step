@@ -179,8 +179,10 @@ public abstract class BaseResetMessageOTPRequiredAction implements RequiredActio
       if (MessageCourier.SMS == courier || MessageCourier.BOTH == courier) {
         String mobileNumber = Utils.getMobileNumber(config, user, authSession, deferredUser);
         if (!isValidMobileNumber(mobileNumber, config)) {
+          authSession.removeAuthNote(noteKey);
+
           context.challenge(
-              createOTPForm(
+              createEntryForm(
                   context,
                   form -> form.setError(ErrorType.INVALID_COUNTRY.toString(getI18nPrefix())),
                   config));
@@ -258,8 +260,9 @@ public abstract class BaseResetMessageOTPRequiredAction implements RequiredActio
         MessageCourier courier = getCourier();
         String mobileNumber = Utils.getMobileNumber(config, user, authSession, deferredUser);
         if (!isValidMobileNumber(mobileNumber, config)) {
+          authSession.removeAuthNote(noteKey);
           context.challenge(
-              createOTPForm(
+              createEntryForm(
                   context,
                   form -> form.setError(ErrorType.INVALID_COUNTRY.toString(getI18nPrefix())),
                   config));
