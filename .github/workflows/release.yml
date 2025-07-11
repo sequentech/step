@@ -187,8 +187,6 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        echo "Release Version (is prerelease: ${{ inputs.preRelease }}): ${{ steps.Release.outputs.VERSION }}"
-
         # If the new release branch is not created, then increment the patch version
         if [ "${{ needs.create-release-branch.outputs.NEW_RELEASE_BRANCH }}" == "" ]; then
           if [ "${{ github.event.inputs.preRelease }}" = "true" ]; then
@@ -217,6 +215,7 @@ jobs:
         # Tags SHA are not inmutable, so we need to get the commit SHA that contains all the changes to be deployed of the tag/release
         # Get the commit hash from the .release-commit file. Get the first 8 characters of the commit SHA
         echo HASH=$(cat .release-commit | cut -c1-8) | tee -a $GITHUB_ENV $GITHUB_OUTPUT
+        echo "Release Version (is prerelease: ${{ inputs.preRelease }}): $VERSION"
 
   # Build & Push the images
 
