@@ -133,11 +133,11 @@ public abstract class BaseResetMessageOTPRequiredAction implements RequiredActio
   }
 
   private boolean isValidMobileNumber(String phoneNumber, AuthenticatorConfigModel config) {
-    log.info("FFFF isValidMobileNumber phoneNumber = " + phoneNumber);
+    log.info("isValidMobileNumber phoneNumber = " + phoneNumber);
     List<String> validCountryCodes =
         Utils.getMultivalueString(
             config, Utils.VALID_COUNTRY_CODES, Utils.VALID_COUNTRY_CODES_DEFAULT);
-    log.info("FFFF isValidMobileNumber validCountryCodes = " + validCountryCodes);
+    log.info("isValidMobileNumber validCountryCodes = " + validCountryCodes);
     if (null == phoneNumber) {
       return false;
     }
@@ -175,12 +175,14 @@ public abstract class BaseResetMessageOTPRequiredAction implements RequiredActio
       UserModel user = context.getUser();
       boolean deferredUser = true;
       MessageCourier courier = getCourier();
-      log.info("FFFF courier" + courier);
+      log.info("handleEntry courier" + courier);
       if (MessageCourier.SMS == courier || MessageCourier.BOTH == courier) {
         String mobileNumber = Utils.getMobileNumber(config, user, authSession, deferredUser);
         if (!isValidMobileNumber(mobileNumber, config)) {
+          authSession.removeAuthNote(noteKey);
+
           context.challenge(
-              createOTPForm(
+              createEntryForm(
                   context,
                   form -> form.setError(ErrorType.INVALID_COUNTRY.toString(getI18nPrefix())),
                   config));
@@ -188,7 +190,6 @@ public abstract class BaseResetMessageOTPRequiredAction implements RequiredActio
         }
       }
       // Send OTP code to the contact value
-      log.info("FFFF BaseResetMessageOTPRequiredAction sendCode");
       Utils.sendCode(
           config,
           session,
@@ -259,15 +260,15 @@ public abstract class BaseResetMessageOTPRequiredAction implements RequiredActio
         MessageCourier courier = getCourier();
         String mobileNumber = Utils.getMobileNumber(config, user, authSession, deferredUser);
         if (!isValidMobileNumber(mobileNumber, config)) {
+          authSession.removeAuthNote(noteKey);
           context.challenge(
-              createOTPForm(
+              createEntryForm(
                   context,
                   form -> form.setError(ErrorType.INVALID_COUNTRY.toString(getI18nPrefix())),
                   config));
           return;
         }
         // Resend OTP code
-        log.info("FFFF BaseResetMessageOTPRequiredAction::handleOtpEntry sendCode");
         Utils.sendCode(
             config,
             session,
@@ -399,11 +400,7 @@ public abstract class BaseResetMessageOTPRequiredAction implements RequiredActio
       Consumer<LoginFormsProvider> formConsumer,
       AuthenticatorConfigModel config) {
     LoginFormsProvider form = context.form();
-    List<String> validCountryCodes =
-        Utils.getMultivalueString(
-            config, Utils.VALID_COUNTRY_CODES, Utils.VALID_COUNTRY_CODES_DEFAULT);
     form.setAttribute("i18nPrefix", getI18nPrefix());
-    form.setAttribute("validCountryCodes", validCountryCodes);
     if (formConsumer != null) {
       formConsumer.accept(form);
     }
