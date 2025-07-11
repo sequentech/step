@@ -143,7 +143,6 @@ public class VerifyOTPEmailRequiredAction implements RequiredActionFactory, Requ
 
     try {
       UserModel user = context.getUser();
-      log.info("FFFF VerifyOTPEmailRequiredAction sendCode");
       Utils.sendCode(
           config,
           session,
