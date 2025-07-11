@@ -286,7 +286,6 @@ public class MessageOTPAuthenticator
 
       if ((!resend && ((code == null && !isOtl) || ttl == null)) || (resend && allowResend)) {
         log.info("Send code from InitiateForm");
-        log.info("FFFF MessageOTPAuthenticator sendCode");
         Utils.sendCode(
             config,
             session,
