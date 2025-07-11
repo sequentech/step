@@ -29,7 +29,7 @@ use electoral_log::ElectoralLogMessage;
 use immudb_rs::{sql_value::Value, Client, NamedParam, Row, SqlValue, TxMode};
 use sequent_core::ballot::VotingStatusChannel;
 use sequent_core::serialization::base64::{Base64Deserialize, Base64Serialize};
-use sequent_core::serialization::deserialize_with_path;
+use sequent_core::serialization::*;
 use sequent_core::services::date::ISO8601;
 use sequent_core::util::retry::retry_with_exponential_backoff;
 use serde::{Deserialize, Serialize};

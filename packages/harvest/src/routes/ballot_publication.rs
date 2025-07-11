@@ -6,6 +6,7 @@ use anyhow::Result;
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
+use sequent_core::serialization::*;
 use sequent_core::types::hasura;
 use sequent_core::types::permissions::Permissions;
 use sequent_core::{
@@ -78,7 +79,7 @@ pub async fn generate_ballot_publication(
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
     if let Some(election_event_presentation) = election_event.presentation {
-        if serde_json::from_value::<ElectionEventPresentation>(
+        if deserialize_value::<ElectionEventPresentation>(
             election_event_presentation,
         )
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?
