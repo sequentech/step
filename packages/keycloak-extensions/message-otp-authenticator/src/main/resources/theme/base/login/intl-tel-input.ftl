@@ -74,7 +74,7 @@ Usage: <#include "intl-tel-input.ftl"> and call renderIntlTelInput(id, name, val
                 },
             };
 
-            if (onlyCountriesValue) {
+            if (onlyCountriesValue && onlyCountriesValue.length) {
                 data.onlyCountries = onlyCountriesValue;
             }
 
