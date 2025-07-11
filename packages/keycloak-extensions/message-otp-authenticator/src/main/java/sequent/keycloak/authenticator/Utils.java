@@ -14,6 +14,7 @@ import jakarta.ws.rs.core.UriInfo;
 import java.io.IOException;
 import java.net.URI;
 import java.text.MessageFormat;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -117,6 +118,9 @@ public class Utils {
   public static final String TEST_MODE_ATTRIBUTE = "test-mode";
   public static final String TEST_MODE_CODE_ATTRIBUTE = "test-mode-code";
   public static final String MAX_RECEIVER_REUSE = "max-receiver-reuse";
+  public static final String VALID_COUNTRY_CODES = "valid-country-codes";
+  public static final List<String> VALID_COUNTRY_CODES_DEFAULT =
+      Collections.unmodifiableList(Arrays.asList());
 
   public enum MessageCourier {
     SMS,
@@ -179,6 +183,61 @@ public class Utils {
     }
   }
 
+  public List<String> getMultivalueString(
+      AuthenticatorConfigModel config, String configKey, List<String> defaultValue) {
+    log.infov("getMultivalueString(configKey={0}, defaultValue={1})", configKey, defaultValue);
+    if (config == null) {
+      log.infov("getMultivalueString(): NULL config={0}", config);
+      return defaultValue;
+    }
+
+    Map<String, String> mapConfig = config.getConfig();
+    if (mapConfig == null
+        || !mapConfig.containsKey(configKey)
+        || mapConfig.get(configKey).strip().length() == 0) {
+      log.infov("getMultivalueString(): NullOrNotFound mapConfig={0}", mapConfig);
+      return defaultValue;
+    }
+
+    log.infov("getMultivalueString(): value={0}", mapConfig.get(configKey));
+
+    return Arrays.asList(mapConfig.get(configKey).split(","));
+  }
+
+  String getMobileNumber(
+      AuthenticatorConfigModel config,
+      UserModel user,
+      AuthenticationSessionModel authSession,
+      boolean deferredUser)
+      throws IOException {
+    String mobileNumber = null;
+
+    // Handle deferred user
+    if (deferredUser) {
+      String mobileNumberAttribute = config.getConfig().get(Utils.TEL_USER_ATTRIBUTE);
+      mobileNumber = authSession.getAuthNote(mobileNumberAttribute);
+    } else {
+      mobileNumber = Utils.getMobile(config, user);
+    }
+
+    return mobileNumber;
+  }
+
+  String getEmailAddress(
+      UserModel user, AuthenticationSessionModel authSession, boolean deferredUser)
+      throws IOException {
+    String emailAddress = null;
+
+    // Handle deferred user
+    if (deferredUser) {
+      emailAddress = authSession.getAuthNote("email");
+    } else {
+      emailAddress = user.getEmail();
+    }
+
+    return emailAddress;
+  }
+
   /** Sends code and also sets the auth notes related to the code */
   void sendCode(
       AuthenticatorConfigModel config,
@@ -192,19 +251,10 @@ public class Utils {
       Object context)
       throws IOException, EmailException {
     log.info("sendCode(): start");
-    String mobileNumber = null;
-    String emailAddress = null;
+    String mobileNumber = Utils.getMobileNumber(config, user, authSession, deferredUser);
+    String emailAddress = Utils.getEmailAddress(user, authSession, deferredUser);
     String code = null;
 
-    // Handle deferred user
-    if (deferredUser) {
-      String mobileNumberAttribute = config.getConfig().get(Utils.TEL_USER_ATTRIBUTE);
-      mobileNumber = authSession.getAuthNote(mobileNumberAttribute);
-      emailAddress = authSession.getAuthNote("email");
-    } else {
-      mobileNumber = Utils.getMobile(config, user);
-      emailAddress = user.getEmail();
-    }
     log.infov("sendCode(): mobileNumber=`{0}`", mobileNumber);
     log.infov("sendCode(): emailAddress=`{0}`", emailAddress);
 
