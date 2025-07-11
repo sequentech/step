@@ -159,7 +159,7 @@ jobs:
 
     - name: Install release tools
       run: |
-        npm install --global release-it@19.0.3
+        npm install --global release-it@16.2.1
 
     - name: Check if the latest tag is a pre-release
       id: CheckLatestRelease
