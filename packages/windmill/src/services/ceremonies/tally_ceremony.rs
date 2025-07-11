@@ -9,8 +9,6 @@ use crate::postgres::election::{
     export_elections, get_election_by_id, set_election_initialization_report_generated,
 };
 use crate::postgres::election_event::get_election_event_by_id;
-use crate::postgres::keys_ceremony;
-use crate::postgres::keys_ceremony::get_keys_ceremonies;
 use crate::postgres::keys_ceremony::get_keys_ceremony_by_id;
 use crate::postgres::tally_session::{
     get_tally_session_by_id, get_tally_session_status, insert_tally_session,
@@ -29,19 +27,16 @@ use crate::services::ceremonies::serialize_logs::{
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_status::get_election_status;
 use crate::services::electoral_log::ElectoralLog;
-use crate::services::tally_sheets::tally;
+use crate::services::protocol_manager::get_event_board;
 use anyhow::{anyhow, Context, Result};
 use b3::messages::newtypes::BatchNumber;
 use deadpool_postgres::Transaction;
 use futures::try_join;
-use sequent_core::ballot::ElectionStatus;
 use sequent_core::ballot::{AllowTallyStatus, ContestEncryptionPolicy};
 use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::area_tree::ContestsData;
 use sequent_core::services::area_tree::TreeNode;
-use sequent_core::services::connection;
 use sequent_core::services::jwt::JwtClaims;
-use sequent_core::services::keycloak;
 use sequent_core::types::ceremonies::*;
 use sequent_core::types::hasura::core::KeysCeremony;
 use sequent_core::types::hasura::core::{AreaContest, TallySessionConfiguration};
@@ -832,7 +827,7 @@ pub async fn set_tally_session_completed(
     info!("current_execution_status: {:?}", current_execution_status);
 
     if current_execution_status != TallyExecutionStatus::CANCELLED {
-        let is_updated = match set_tally_session_completed_in_db(
+        set_tally_session_completed_in_db(
             hasura_transaction,
             &tenant_id,
             &election_event_id,
@@ -840,33 +835,20 @@ pub async fn set_tally_session_completed(
             execution_status,
         )
         .await
-        {
-            Ok(_) => true,
-            Err(_) => false,
-        };
+        .map_err(|e| anyhow!("Error in set_tally_session_completed_in_db: {e:?}"))?;
+        let board_name = get_event_board(&tenant_id, &election_event_id);
+        let electoral_log = ElectoralLog::new(
+            hasura_transaction,
+            &tenant_id,
+            Some(&election_event_id),
+            board_name.as_str(),
+        )
+        .await?;
 
-        if is_updated {
-            let election_event =
-                get_election_event_by_id(hasura_transaction, &tenant_id, &election_event_id)
-                    .await?;
-
-            let board_name =
-                get_election_event_board(election_event.bulletin_board_reference.clone())
-                    .with_context(|| "missing bulletin board")?;
-
-            let electoral_log = ElectoralLog::new(
-                hasura_transaction,
-                &tenant_id,
-                Some(&election_event_id),
-                board_name.as_str(),
-            )
-            .await?;
-
-            electoral_log
-                .post_tally_close(election_event_id.to_string(), None, None, None)
-                .await
-                .with_context(|| "error posting to the electoral log")?;
-        }
+        electoral_log
+            .post_tally_close(election_event_id.to_string(), None, None, None)
+            .await
+            .with_context(|| "error posting to the electoral log")?;
     }
 
     Ok(())
