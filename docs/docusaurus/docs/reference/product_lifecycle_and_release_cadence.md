@@ -132,6 +132,7 @@ timeline
 ```
 
 ## Support Lifecycle Visualization
+
 ### Major Release Support Timeline
 
 ```mermaid
@@ -145,47 +146,29 @@ config:
         rect[id^=smrs_] { fill: #0f054c; stroke-width: 4px; }
         text[id^=smrs_] { fill: white !important; font-size: 24px; }
         rect[id^=emrs_] { fill: #4a90e2; stroke-width: 4px; }
-        text[id^=emrs_] { fill: white !important; font-size: 24px; }
+        text[id^=emrs_] { fill: #0f054c !important; font-size: 24px; }
         rect[id^=lmrs_] { fill: #2de8b9; stroke-width: 4px; }
         text[id^=lmrs_] { fill: #0f054c !important; font-size: 24px; }
         .sectionTitle { stroke: white; paint-order: stroke fill; fill: #0f054c; stroke-width: 8px; }
         g[class=tick] text { font-size: 24px; height: 50px; }
-        .vertText {  transform: translate(-90px, -450px); font-size: 24px; }
+        .vertText {  transform: translate(-90px, -650px); font-size: 24px; fill: red !important; }
+        .task.vert { stroke: red; fill: red !important; }
 
         /*** section backgrounds: ***/
 
-        /* - under legacy support only */
-        .section0 { fill: #fff400; opacity: 0.2; stroke: none; }
+        /* - under extended or legacy support only */
+        .section0, .section1, .section2, .section3 { fill: #fff400; opacity: 0.2; stroke: none; }
 
         /* - under standard support */
-        .section1 { fill: #6666ff7d; }
-        .section2 { fill: #6666ff7d; }
+        .section4 { fill: #6666ff7d; }
+        #smrs_2512 { stroke: #0f054c; }
 
-        
         /* out of support: */
-        #smrs_2509 { stroke: red; fill: #0f054c; opacity: 0.2; }
-        #smrs_2509-text { fill: #0f054c !important; }
-        #emrs_2509 { stroke: red; fill: #4a90e2; opacity: 0.2; }
-        #emrs_2509-text { fill: #4a90e2 !important; }
+        #smrs_2508, #smrs_2509, #smrs_2510, #smrs_2511 { stroke: red; fill: #0f054c; opacity: 0.2; }
+        #smrs_2508-text, #smrs_2509-text, #smrs_2510-text, #smrs_2511-text { fill: #0f054c !important; }
 
-        /* under legacy support: */
-        #lmrs_2509 { stroke: #0f054c; }
-
-        /* under extended support: */
-        #smrs_2603 { stroke: red; fill: #0f054c; opacity: 0.2; }
-        #smrs_2603-text { fill: #0f054c !important; }
-        #emrs_2603 { stroke: #0f054c; }
-        #lmrs_2603 { stroke: #0f054c; }
-
-        /* under standard support: */
-        #smrs_2609 { stroke: #0f054c; }
-        #emrs_2609 { stroke: #0f054c; }
-        #lmrs_2609 { stroke: #0f054c; }
-
-        /* not yet released: */
-        #smrs_2703 { stroke: #2de8b9; opacity: 0.4; }
-        #emrs_2703 { stroke: #2de8b9; opacity: 0.4; }
-        #lmrs_2703 { stroke: #2de8b9; opacity: 0.4; }
+        /* under legacy or extended support: */
+        #lmrs_2508, #lmrs_2509, #emrs_2509, #lmrs_2510, #lmrs_2511, #lmrs_2512 { stroke: #0f054c; }
     "
 ---
 %%{init:
@@ -195,7 +178,7 @@ config:
             "fontSize": 36,
             "barGap": 40,
             "barHeight": 50,
-            "topPadding": 80
+            "topPadding": 40
         }
     }
 }%%
@@ -205,27 +188,28 @@ gantt
     axisFormat %b %Y
     tickInterval 6month
 
-    section 25.09 Major
-        SMRS    :done, smrs_2509, 2025-09-01, 61d
-        EMRS    :done, emrs_2509, after smrs_2509, 122d
-        LMRS    :active, lmrs_2509, after emrs_2509, 183d
-    
-    section 26.03 Major
-        SMRS    :done, smrs_2603, 2026-03-01, 61d
-        EMRS    :done, emrs_2603, after smrs_2603, 122d
-        LMRS    :active, lmrs_2603, after emrs_2603, 183d
-    
-    section 26.09 Major
-        SMRS    :done, smrs_2609, 2026-09-01, 61d
-        EMRS    :done, emrs_2609, after smrs_2609, 122d
-        LMRS    :active, lmrs_2609, after emrs_2609, 183d
-    
-    section 27.03 Major
-        SMRS    :done, smrs_2703, 2027-03-01, 61d
-        EMRS    :done, emrs_2703, after smrs_2703, 122d
-        LMRS    :active, lmrs_2703, after emrs_2703, 183d
+    section 25.08
+        Standard :done, smrs_2508, 2025-09-01, 61d
+        Legacy   :done, lmrs_2508, after smrs_2508, 122d
 
-    Current Date            : vert, current, 2026-11-01, 1d
+    section 25.09 Major
+        Standard :done, smrs_2509, 2025-09-01, 61d
+        Extended :done, emrs_2509, after smrs_2509, 122d
+        Legacy   :active, lmrs_2509, after emrs_2509, 183d
+
+    section 25.10
+        Standard :done, smrs_2510, 2025-10-01, 61d
+        Legacy   :done, lmrs_2510, after smrs_2510, 122d
+
+    section 25.11
+        Standard :done, smrs_2511, 2025-11-01, 61d
+        Legacy   :done, lmrs_2511, after smrs_2511, 122d
+
+    section 25.12
+        Standard :done, smrs_2512, 2025-12-01, 61d
+        Legacy   :done, lmrs_2512, after smrs_2512, 122d
+
+    Current Date : vert, current, 2026-01-10, 1d
 ```
 
 In the example shown in the diagram (with `Current date` set to November 1,
