@@ -236,7 +236,7 @@ gantt
 In the example shown in the diagram (with `Current date` set to January 17, 2026):
 
 **Major Releases:**
-- **Version 25.09 Major** (released September 1, 2025): Currently in **Legacy Major Release Support** phase, having completed both its 2-month standard support and 4-month extended support periods. Legacy support continues until September 1, 2026.
+- **Version 25.09 Major** (released September 1, 2025): Currently in **Extended Major Release Support** phase, having completed its 2-month standard support in November 1, 2025. Extended supports continues until March 1, 2025. Legacy support continues until September 1, 2026.
 
 **Minor Releases:**
 - **Version 25.08 Minor** (released August 1, 2025): Currently in **Extended Minor Release Support** phase, having completed its 2-month standard support period. Extended support continues until February 1, 2026.
@@ -308,25 +308,28 @@ config:
 gantt
     dateFormat  YYYY-MM-DD
     axisFormat  %b %Y
-    tickInterval 2month
+    tickInterval 3month
     
     section Pre-Release Phase
-    Release Candidate 0     :done, rc0, 2026-07-01, 30d
-    Release Candidate 1     :done, rc1, after rc0, 15d
-    Release Candidate 2     :done, rc2, after rc1, 15d
-    Final Release           :done, final_release, after rc2, 7d
+    Release Candidate 0     :done, rc_0, 2026-07-01, 30d
+    Release Candidate 1     :done, rc_1, after rc_0, 15d
+    Release Candidate 2     :done, rc_2, after rc_1, 15d
+    Final Release           :done, final_release, after rc_2, 7d
 
     section Standard Support Phase
     Version 26.09.0         :milestone, 2026-09-02, 0d
-    Bugfix Release 26.09.1  :done, patch1, 2026-10-15, 1d
-    RC for 26.09.2          :active, rc_sec, 2027-01-15, 7d
-    Security Release 26.09.2 :crit, sec2, after rc_sec, 7d
-    Critical Patch 26.09.3   :crit, patch3, 2027-06-01, 1d
-    Final Patch 26.09.4      :active, patch4, 2027-08-15, 1d
+    Bugfix Release 26.09.1  :done, patch_1, 2026-10-15, 1d
+    Final Standard Patch 26.09.2 :active, patch_2, 2026-10-30, 1d
+    
+    section Extended Support Phase
+    Security Release 26.09.3 :crit, sec3, 2026-12-15, 1d
+    Critical Patch 26.09.4   :crit, patch_4, 2027-01-15, 1d
+    Final Extended Patch 26.09.5 :active, patch_5, 2027-02-15, 1d
     
     section Legacy Support Phase
-    Security Only 26.09.5    :crit, sec5, 2028-02-01, 1d
-    EOL Security 26.09.6     :crit, sec6, 2028-07-01, 1d
+    Security Only 26.09.6    :crit, sec6, 2027-05-01, 1d
+    Legacy Security 26.09.7   :crit, sec7, 2027-07-01, 1d
+    EOL Security 26.09.8     :crit, sec8, 2027-08-15, 1d
 ```
 
 ### Release Details Table (Example)
@@ -337,13 +340,14 @@ gantt
 | **26.09.0-rc.1** | Aug 1, 2026 | Release Candidate | Second release candidate addressing critical bugs found in rc.0. Database migration optimizations and API refinements. |
 | **26.09.0-rc.2** | Aug 15, 2026 | Release Candidate | Third release candidate for final testing. Documentation finalization and UI/UX polish. Performance benchmarking completed. |
 | **26.09.0** | Sep 1, 2026 | **Major Final** | **Official Major release**. All quality gates passed. Production-ready with full documentation, security audit completed. |
-| **26.09.1** | Oct 15, 2026 | Bugfix Patch | Address non-critical bugs reported in production: memory leak in vote processing, timezone handling issues, minor UI inconsistencies. |
-| **26.09.2-rc.1** | Jan 15, 2027 | Pre-release | Release candidate for upcoming security patch. Testing compatibility with new authentication systems and database performance improvements. |
-| **26.09.2** | Jan 22, 2027 | Security Patch | **Critical security update**: Fix for privilege escalation vulnerability (CVE-2027-0234), updated cryptographic libraries, enhanced input validation. |
-| **26.09.3** | Jun 1, 2027 | Critical Patch | Emergency fix for vote tallying algorithm edge case discovered in large-scale elections. Includes performance optimizations for high-concurrency scenarios. |
-| **26.09.4** | Aug 15, 2027 | Final Standard Patch | Last scheduled patch during standard support. Includes final compatibility updates, documentation improvements, and minor stability enhancements. |
-| **26.09.5** | Feb 1, 2028 | Legacy Security | **Legacy support phase**: Security-only patch addressing newly discovered authentication bypass vulnerability. Limited support scope. |
-| **26.09.6** | Jul 1, 2028 | End-of-Life Security | **Final security patch** before end-of-life. Critical security fix for zero-day vulnerability. End of support announced for Sep 1, 2028. |
+| **26.09.1** | Oct 15, 2026 | Bugfix Patch | **Standard Support Phase**: Address non-critical bugs reported in production: memory leak in vote processing, timezone handling issues, minor UI inconsistencies. |
+| **26.09.2** | Oct 30, 2026 | Final Standard Patch | **Standard Support Phase**: Last scheduled patch during standard support. Includes final compatibility updates and minor stability enhancements before transitioning to Extended Support. |
+| **26.09.3** | Dec 15, 2026 | Security Patch | **Extended Support Phase**: Critical security update addressing privilege escalation vulnerability. Updated cryptographic libraries and enhanced input validation. |
+| **26.09.4** | Jan 15, 2027 | Critical Patch | **Extended Support Phase**: Emergency fix for vote tallying algorithm edge case discovered in large-scale elections. Includes performance optimizations for high-concurrency scenarios. |
+| **26.09.5** | Feb 15, 2027 | Final Extended Patch | **Extended Support Phase**: Last scheduled patch during extended support. Final compatibility updates and documentation improvements before transitioning to Legacy Support. |
+| **26.09.6** | May 1, 2027 | Legacy Security | **Legacy Support Phase**: Security-only patch addressing newly discovered authentication bypass vulnerability. Limited support scope, security patches only. |
+| **26.09.7** | Jul 1, 2027 | Legacy Security | **Legacy Support Phase**: Critical security fix for zero-day vulnerability affecting authentication systems. Enterprise migration assistance provided. |
+| **26.09.8** | Aug 15, 2027 | End-of-Life Security | **Legacy Support Phase**: Final security patch before end-of-life. Last critical security fix. End of support announced for Sep 1, 2027. |
 
 ### Release Process Timeline
 
