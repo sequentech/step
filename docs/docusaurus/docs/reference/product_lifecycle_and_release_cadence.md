@@ -9,6 +9,10 @@ The Sequent Voting Platform follows a predictable release cadence designed to
 provide stability for enterprise deployments while enabling continuous
 innovation and security updates.
 
+*This release schedule is subject to change based on security requirements,
+critical bug fixes, or significant architectural updates. Any changes will be
+communicated in advance to enterprise customers.*
+
 ## Release Philosophy
 
 SVP uses **YY.MM versioning** format for all releases:
@@ -45,7 +49,7 @@ required in a short period of time. **Minor releases are backward compatible** a
 - **Numbering**: YY.MM format (e.g., 25.08 for August 2025)
 - **Backward Compatibility**: All changes are backward compatible
 - **Standard Minor Release Support (SMRS)**: 2 months from release date
-- **Legacy Minor Release Support (LMRS)**: Additional 4 months after standard
+- **Extended Minor Release Support (EMRS)**: Additional 4 months after standard
   support ends
 - **Total Minor Release Lifecycle**: 6 months
 - **Currently Supported Minor Releases**: None
@@ -57,37 +61,60 @@ required in a short period of time. **Minor releases are backward compatible** a
 
 | Version    | Release Date | Release Type | Standard Support Until | Extended Support Until | Legacy Support Until | Total Support |
 |------------|-------------|---------|-----------------------|------------------------|---------------------|---------------|
-| 25.08      | Aug 1, 2025 | Minor   | Oct 1, 2025           | -                      | Feb 1, 2026         | 6 months      |
+| 25.08      | Aug 1, 2025 | Minor   | Oct 1, 2025           | Feb 1, 2026            | -                   | 6 months      |
 | **25.09**  | Sep 1, 2025 | **Major** | Nov 1, 2025           | Mar 1, 2026            | Sep 1, 2026         | **12 months** |
-| 25.10      | Oct 1, 2025 | Minor   | Dec 1, 2025           | -                      | Apr 1, 2026         | 6 months      |
-| 25.11      | Nov 1, 2025 | Minor   | Jan 1, 2026           | -                      | May 1, 2026         | 6 months      |
-| 25.12      | Dec 1, 2025 | Minor   | Feb 1, 2026           | -                      | Jun 1, 2026         | 6 months      |
-| 26.01      | Jan 1, 2026 | Minor   | Mar 1, 2026           | -                      | Jul 1, 2026         | 6 months      |
-| 26.02      | Feb 1, 2026 | Minor   | Apr 1, 2026           | -                      | Aug 1, 2026         | 6 months      |
+| 25.10      | Oct 1, 2025 | Minor   | Dec 1, 2025           | Apr 1, 2026            | -                   | 6 months      |
+| 25.11      | Nov 1, 2025 | Minor   | Jan 1, 2026           | May 1, 2026            | -                   | 6 months      |
+| 25.12      | Dec 1, 2025 | Minor   | Feb 1, 2026           | Jun 1, 2026            | -                   | 6 months      |
+| 26.01      | Jan 1, 2026 | Minor   | Mar 1, 2026           | Jul 1, 2026            | -                   | 6 months      |
+| 26.02      | Feb 1, 2026 | Minor   | Apr 1, 2026           | Aug 1, 2026            | -                   | 6 months      |
 | **26.03**  | Mar 1, 2026 | **Major** | May 1, 2026           | Sep 1, 2026            | Mar 1, 2027         | **12 months** |
-| 26.04      | Apr 1, 2026 | Minor   | Jun 1, 2026           | -                      | Oct 1, 2026         | 6 months      |
-| 26.05      | May 1, 2026 | Minor   | Jul 1, 2026           | -                      | Nov 1, 2026         | 6 months      |
-| 26.06      | Jun 1, 2026 | Minor   | Aug 1, 2026           | -                      | Dec 1, 2026         | 6 months      |
-| 26.07      | Jul 1, 2026 | Minor   | Sep 1, 2026           | -                      | Jan 1, 2027         | 6 months      |
-| 26.08      | Aug 1, 2026 | Minor   | Oct 1, 2026           | -                      | Feb 1, 2027         | 6 months      |
+| 26.04      | Apr 1, 2026 | Minor   | Jun 1, 2026           | Oct 1, 2026            | -                   | 6 months      |
+| 26.05      | May 1, 2026 | Minor   | Jul 1, 2026           | Nov 1, 2026            | -                   | 6 months      |
+| 26.06      | Jun 1, 2026 | Minor   | Aug 1, 2026           | Dec 1, 2026            | -                   | 6 months      |
+| 26.07      | Jul 1, 2026 | Minor   | Sep 1, 2026           | Jan 1, 2027            | -                   | 6 months      |
+| 26.08      | Aug 1, 2026 | Minor   | Oct 1, 2026           | Feb 1, 2027            | -                   | 6 months      |
 | **26.09**  | Sep 1, 2026 | **Major** | Nov 1, 2026           | Mar 1, 2027            | Sep 1, 2027         | **12 months** |
-| 26.10      | Oct 1, 2026 | Minor   | Dec 1, 2026           | -                      | Apr 1, 2027         | 6 months      |
-| 26.11      | Nov 1, 2026 | Minor   | Jan 1, 2027           | -                      | May 1, 2027         | 6 months      |
-| 26.12      | Dec 1, 2026 | Minor   | Feb 1, 2027           | -                      | Jun 1, 2027         | 6 months      |
-| 27.01      | Jan 1, 2027 | Minor   | Mar 1, 2027           | -                      | Jul 1, 2027         | 6 months      |
-| 27.02      | Feb 1, 2027 | Minor   | Apr 1, 2027           | -                      | Aug 1, 2027         | 6 months      |
+| 26.10      | Oct 1, 2026 | Minor   | Dec 1, 2026           | Apr 1, 2027            | -                   | 6 months      |
+| 26.11      | Nov 1, 2026 | Minor   | Jan 1, 2027           | May 1, 2027            | -                   | 6 months      |
+| 26.12      | Dec 1, 2026 | Minor   | Feb 1, 2027           | Jun 1, 2027            | -                   | 6 months      |
+| 27.01      | Jan 1, 2027 | Minor   | Mar 1, 2027           | Jul 1, 2027            | -                   | 6 months      |
+| 27.02      | Feb 1, 2027 | Minor   | Apr 1, 2027           | Aug 1, 2027            | -                   | 6 months      |
 | **27.03**  | Mar 1, 2027 | **Major** | May 1, 2027           | Sep 1, 2027            | Mar 1, 2028         | **12 months** |
 
 ## Support Levels
 
-### Standard Support (SMRS)
+### Community Support
+
+Free community support is available via GitHub tickets and our Discord channel,
+with no SLA guarantees and absolutely no warranty.
+
+### Enterprise Support
+
+Enterprise customers receive:
+- Priority support during standard support period
+- Standard, Extended and Legacy support options
+- Migration assistance between major and minor versions
+- Custom support agreements for extended lifecycles
+- Dedicated support channels
+
+#### Standard Support (SMRS)
 
 - Security patches and critical bug fixes
 - Technical support through official channels
 - Documentation updates
 - Community support
 
-### Extended Support (EMRS)
+#### Extended Support (EMRS)
+
+*Available for all releases*
+
+- Security patches and critical bug fixes
+- Limited technical support through official channels
+- Extended maintenance for enterprise customers
+- Migration assistance to newer versions
+
+#### Legacy Support (LMRS)
 
 *Available for Major releases only*
 
@@ -95,13 +122,6 @@ required in a short period of time. **Minor releases are backward compatible** a
 - Limited technical support through official channels
 - Priority migration assistance to newer Major versions
 - Extended maintenance for enterprise customers
-
-### Legacy Support (LMRS)
-
-- Critical security patches only
-- Limited technical support
-- Extended maintenance for enterprise customers
-- Migration assistance to newer versions
 
 
 
@@ -145,9 +165,9 @@ config:
         .taskText { font-size: 16px; }
         rect[id^=smrs_] { fill: #0f054c; stroke-width: 4px; }
         text[id^=smrs_] { fill: white !important; font-size: 24px; }
-        rect[id^=emrs_] { fill: #4a90e2; stroke-width: 4px; }
+        rect[id^=emrs_] { fill: #2de8b9; stroke-width: 4px; }
         text[id^=emrs_] { fill: #0f054c !important; font-size: 24px; }
-        rect[id^=lmrs_] { fill: #2de8b9; stroke-width: 4px; }
+        rect[id^=lmrs_] { fill: #bec7ff; stroke-width: 4px; }
         text[id^=lmrs_] { fill: #0f054c !important; font-size: 24px; }
         .sectionTitle { stroke: white; paint-order: stroke fill; fill: #0f054c; stroke-width: 8px; }
         g[class=tick] text { font-size: 24px; height: 50px; }
@@ -169,7 +189,7 @@ config:
         #smrs_2508-text, #smrs_2509-text, #smrs_2510-text, #smrs_2511-text { fill: #0f054c !important; }
 
         /* under legacy or extended support: */
-        #lmrs_2508, #lmrs_2509, #emrs_2509, #lmrs_2510, #lmrs_2511, #lmrs_2512 { stroke: #0f054c; }
+        #emrs_2508, #emrs_2509, #lmrs_2509, #emrs_2510, #emrs_2511, #emrs_2512 { stroke: #0f054c; }
     "
 ---
 %%{init:
@@ -191,7 +211,7 @@ gantt
 
     section 25.08
         Standard :done, smrs_2508, 2025-08-01, 61d
-        Legacy   :done, lmrs_2508, after smrs_2508, 122d
+        Extended :done, emrs_2508, after smrs_2508, 122d
 
     section 25.09 Major
         Standard :done, smrs_2509, 2025-09-01, 61d
@@ -200,15 +220,15 @@ gantt
 
     section 25.10
         Standard :done, smrs_2510, 2025-10-01, 61d
-        Legacy   :done, lmrs_2510, after smrs_2510, 122d
+        Extended :done, emrs_2510, after smrs_2510, 122d
 
     section 25.11
         Standard :done, smrs_2511, 2025-11-01, 61d
-        Legacy   :done, lmrs_2511, after smrs_2511, 122d
+        Extended :done, emrs_2511, after smrs_2511, 122d
 
     section 25.12
         Standard :done, smrs_2512, 2025-12-01, 61d
-        Legacy   :done, lmrs_2512, after smrs_2512, 122d
+        Extended :done, emrs_2512, after smrs_2512, 122d
 
     Current Date : vert, current, 2026-01-17, 1d
 ```
@@ -216,15 +236,15 @@ gantt
 In the example shown in the diagram (with `Current date` set to January 17, 2026):
 
 **Major Releases:**
-- **Version 25.09 Major** (released September 1, 2025): Currently in **Extended Major Release Support** phase, having completed both its 2-month standard support and within the 4-month extended support periods. Legacy support continues until September 1, 2026.
+- **Version 25.09 Major** (released September 1, 2025): Currently in **Legacy Major Release Support** phase, having completed both its 2-month standard support and 4-month extended support periods. Legacy support continues until September 1, 2026.
 
 **Minor Releases:**
-- **Version 25.08 Minor** (released August 1, 2025): Currently in **Legacy Minor Release Support** phase, having completed its 2-month standard support period. Legacy support continues until February 1, 2026.
-- **Version 25.10 Minor** (released October 1, 2025): Currently in **Legacy Minor Release Support** phase, having completed its 2-month standard support period. Legacy support continues until April 1, 2026.
-- **Version 25.11 Minor** (released November 1, 2025): Currently in **Legacy Minor Release Support** phase, having completed its 2-month standard support period. Legacy support continues until May 1, 2026.
-- **Version 25.12 Minor** (released December 1, 2025): Currently in **Standard Minor Release Support** phase, with full support continuing until February 1, 2026, then legacy support until June 1, 2026.
+- **Version 25.08 Minor** (released August 1, 2025): Currently in **Extended Minor Release Support** phase, having completed its 2-month standard support period. Extended support continues until February 1, 2026.
+- **Version 25.10 Minor** (released October 1, 2025): Currently in **Extended Minor Release Support** phase, having completed its 2-month standard support period. Extended support continues until April 1, 2026.
+- **Version 25.11 Minor** (released November 1, 2025): Currently in **Extended Minor Release Support** phase, having completed its 2-month standard support period. Extended support continues until May 1, 2026.
+- **Version 25.12 Minor** (released December 1, 2025): Currently in **Standard Minor Release Support** phase, with full support continuing until February 1, 2026, then extended support until June 1, 2026.
 
-The diagram illustrates the overlapping support windows that provide enterprise customers with migration flexibility. Major releases have a three-tier support model (Standard → Extended → Legacy) with 12 months of total support coverage, while Minor releases have a two-tier model (Standard → Legacy) with 6 months of total support coverage.
+The diagram illustrates the overlapping support windows that provide enterprise customers with migration flexibility. Major releases have a three-tier support model (Standard → Extended → Legacy) with 12 months of total support coverage, while Minor releases have a two-tier model (Standard → Extended) with 6 months of total support coverage.
 
 ## Feature Release Process
 
@@ -241,44 +261,6 @@ Each feature release follows this schedule:
 - **Regular patches**: Bi-weekly review cycle for dependencies
 - **Emergency patches**: Released within 24-48 hours for critical security issues
 
-## Enterprise Support
-
-## Enterprise Support
-
-All support levels are for enterprise customers. Free community support is
-available via GitHub tickets and our Discord channel, with no SLA guarantees.
-
-Enterprise customers receive:
-- Priority support during standard support period
-- Standard and Legacy support options
-- Migration assistance between major versions
-- Custom support agreements for extended lifecycles
-- Dedicated support channels
-
-## Recommendations
-
-### For Production Environments
-- Use **Major releases** for maximum stability
-- Plan upgrades during the 6-month overlap between Major versions
-- Subscribe to security update notifications
-
-### For Development and Testing
-- Use **Minor releases** for latest features
-- Test on Minor releases before deploying to Major in production
-- Maintain separate environments for different release tracks
-
-### Migration Strategy
-- Begin testing new Major releases during the Extended Support phase of your current Major (4-6 months after release)
-- Use the overlapping Standard and Extended Support periods for gradual migration
-- Consider Legacy Major Release Support for additional migration time if needed
-- Plan for more frequent updates when using Minor releases due to their shorter 6-month lifecycle
-
----
-
-*This release schedule is subject to change based on security requirements,
-critical bug fixes, or significant architectural updates. Any changes will be
-communicated at least 60 days in advance.*
-
 ## Minor Version Release Lifecycle
 
 Each minor version follows a structured release process that includes
@@ -290,25 +272,24 @@ minor version from initial development to end of support.
 
 ```mermaid
 ---
-displayMode: compact
 config:
     logLevel: 'debug'
     theme: 'default'
     themeCSS: " \n
         .taskText { font-size: 14px; font-weight: 500; }
         rect[id^=rc_] { fill: #ff9500; stroke-width: 3px; stroke: #cc7700; }
-        text[id^=rc_] { fill: white !important; font-size: 20px; font-weight: 600; }
+        text[id^=rc_] { fill: #0f054c !important; font-size: 20px; font-weight: 600; }
         rect[id^=final_] { fill: #0f054c; stroke-width: 4px; stroke: #0a0339; }
-        text[id^=final_] { fill: white !important; font-size: 22px; font-weight: 700; }
+        text[id^=final_] { fill: #0f054c !important; font-size: 22px; font-weight: 700; }
         rect[id^=patch_] { fill: #2de8b9; stroke-width: 3px; stroke: #24c7a0; }
         text[id^=patch_] { fill: #0f054c !important; font-size: 20px; font-weight: 600; }
         rect[id^=security_] { fill: #e63946; stroke-width: 4px; stroke: #d62828; }
-        text[id^=security_] { fill: white !important; font-size: 20px; font-weight: 700; }
+        text[id^=security_] { fill: #0f054c !important; font-size: 20px; font-weight: 700; }
         .sectionTitle { stroke: white; paint-order: stroke fill; fill: #0f054c; stroke-width: 8px; font-size: 28px; }
         g[class=tick] text { font-size: 18px; }
 
         /*** section backgrounds ***/
-        .section0 { fill: #fff2e6; opacity: 0.3; stroke: #ff9500; stroke-width: 2px; }
+        .section0 { fill: #fff2e6; opacity: 0.3; }
         .section1 { fill: #6666ff7d; opacity: 0.5; }
         .section2 { fill: #fff400; opacity: 0.2; stroke: none; }
     "
@@ -317,7 +298,7 @@ config:
     {
         "gantt": {
             "sectionFontSize": 26,
-            "fontSize": 32,
+            "fontSize": 24,
             "barGap": 35,
             "barHeight": 45,
             "topPadding": 70
@@ -325,30 +306,27 @@ config:
     }
 }%%
 gantt
-    todayMarker off
-    dateFormat YYYY-MM-DD
-    axisFormat %b %Y
+    dateFormat  YYYY-MM-DD
+    axisFormat  %b %Y
     tickInterval 2month
-
-    section Pre-Release Phase
-        Release Candidate 0     :rc_0, 2026-07-01, 30d
-        Release Candidate 1     :rc_1, after rc_0, 15d
-        Release Candidate 2     :rc_2, after rc_1, 15d
-        Final Release          :final_2609, after rc_2, 7d
     
+    section Pre-Release Phase
+    Release Candidate 0     :done, rc0, 2026-07-01, 30d
+    Release Candidate 1     :done, rc1, after rc0, 15d
+    Release Candidate 2     :done, rc2, after rc1, 15d
+    Final Release           :done, final_release, after rc2, 7d
+
     section Standard Support Phase
-        Version 26.09.0         :milestone, milestone_2609, after final_2609, 1d
-        Bugfix Release 26.09.1  :patch_2609_1, 2026-10-15, 1d
-        RC 26.09.2-rc.1         :rc_2609_2, 2027-01-15, 7d
-        Security Release 26.09.2 :security_2609_2, after rc_2609_2, 7d
-        Critical Patch 26.09.3   :patch_2609_3, 2027-06-01, 1d
-        Final Patch 26.09.4      :patch_2609_4, 2027-08-15, 1d
+    Version 26.09.0         :milestone, 2026-09-02, 0d
+    Bugfix Release 26.09.1  :done, patch1, 2026-10-15, 1d
+    RC for 26.09.2          :active, rc_sec, 2027-01-15, 7d
+    Security Release 26.09.2 :crit, sec2, after rc_sec, 7d
+    Critical Patch 26.09.3   :crit, patch3, 2027-06-01, 1d
+    Final Patch 26.09.4      :active, patch4, 2027-08-15, 1d
     
     section Legacy Support Phase
-        Security Only 26.09.5    :security_2609_5, 2028-02-01, 1d
-        EOL Security 26.09.6     :security_2609_6, 2028-07-01, 1d
-
-    Current Date               : vert, current, 2027-03-01, 1d
+    Security Only 26.09.5    :crit, sec5, 2028-02-01, 1d
+    EOL Security 26.09.6     :crit, sec6, 2028-07-01, 1d
 ```
 
 ### Release Details Table (Example)
