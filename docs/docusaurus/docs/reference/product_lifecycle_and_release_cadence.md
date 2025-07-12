@@ -42,7 +42,7 @@ requiring maximum stability and extended support. **Major releases may contain b
 ### Minor Releases
 
 Minor releases provide the latest features and improvements for development
-and testing environments, and can be also in special cases where a feature is
+and testing environments, and can also be used in special cases where a feature is
 required in a short period of time. **Minor releases are backward compatible** and do not contain breaking changes.
 
 - **Cadence**: Monthly releases
@@ -236,7 +236,7 @@ gantt
 In the example shown in the diagram (with `Current date` set to January 17, 2026):
 
 **Major Releases:**
-- **Version 25.09 Major** (released September 1, 2025): Currently in **Extended Major Release Support** phase, having completed its 2-month standard support in November 1, 2025. Extended supports continues until March 1, 2025. Legacy support continues until September 1, 2026.
+- **Version 25.09 Major** (released September 1, 2025): Currently in **Extended Major Release Support** phase, having completed its 2-month standard support in November 1, 2025. Extended support continues until March 1, 2026. Legacy support continues until September 1, 2026.
 
 **Minor Releases:**
 - **Version 25.08 Minor** (released August 1, 2025): Currently in **Extended Minor Release Support** phase, having completed its 2-month standard support period. Extended support continues until February 1, 2026.
@@ -248,12 +248,14 @@ The diagram illustrates the overlapping support windows that provide enterprise 
 
 ## Feature Release Process
 
-Each feature release follows this schedule:
+Each release follows this general schedule:
 
-1. **Feature Freeze**: 1 month before release date
-2. **Beta Release**: 2 weeks before release date  
-3. **Release Candidate**: 1 week before release date
+1. **Feature Development**: Active development phase (Major releases only)
+2. **Feature Freeze**: 1 month before release date
+3. **Release Candidate**: 1-2 weeks before release date  
 4. **Final Release**: On scheduled date
+
+*Note: Major releases follow a more detailed process with multiple release candidates and mandatory stabilization periods, as detailed in the Major Version Release Lifecycle section.*
 
 ## Security and Patch Updates
 
@@ -261,12 +263,12 @@ Each feature release follows this schedule:
 - **Regular patches**: Bi-weekly review cycle for dependencies
 - **Emergency patches**: Released within 24-48 hours for critical security issues
 
-## Minor Version Release Lifecycle
+## Major Version Release Lifecycle
 
-Each minor version follows a structured release process that includes
+Each major version follows a structured release process that includes
 pre-releases, the final release, and subsequent patch releases during its
 support lifecycle. This section illustrates the complete lifecycle of a single
-minor version from initial development to end of support.
+major version from initial development to end of support.
 
 ### Version 26.09.x Series Release Timeline (Example)
 
@@ -361,7 +363,7 @@ gantt
 
 ### Release Process Timeline
 
-Before diving into a specific example, it's important to understand the conceptual framework that governs all minor version releases. This process ensures quality, stability, and predictable timing for enterprise customers.
+Before diving into a specific example, it's important to understand the conceptual framework that governs all major version releases. This process ensures quality, stability, and predictable timing for enterprise customers.
 
 #### Mandatory Release Process Flow
 
