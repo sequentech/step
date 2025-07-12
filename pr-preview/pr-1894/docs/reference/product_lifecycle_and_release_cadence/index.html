@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.8.1">
 <title data-rh="true">Product lifecycle and release cadence | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://your-docusaurus-site.example.com/pr-preview/pr-1894/docs/reference/product_lifecycle_and_release_cadence"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Product lifecycle and release cadence | Sequent Online Voting"><meta data-rh="true" name="description" content="The Sequent Voting Platform follows a predictable release cadence designed to"><meta data-rh="true" property="og:description" content="The Sequent Voting Platform follows a predictable release cadence designed to"><link data-rh="true" rel="icon" href="/pr-preview/pr-1894/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://your-docusaurus-site.example.com/pr-preview/pr-1894/docs/reference/product_lifecycle_and_release_cadence"><link data-rh="true" rel="alternate" href="https://your-docusaurus-site.example.com/pr-preview/pr-1894/docs/reference/product_lifecycle_and_release_cadence" hreflang="en"><link data-rh="true" rel="alternate" href="https://your-docusaurus-site.example.com/pr-preview/pr-1894/docs/reference/product_lifecycle_and_release_cadence" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Reference","item":"https://your-docusaurus-site.example.com/pr-preview/pr-1894/docs/reference/"},{"@type":"ListItem","position":2,"name":"Product lifecycle and release cadence","item":"https://your-docusaurus-site.example.com/pr-preview/pr-1894/docs/reference/product_lifecycle_and_release_cadence"}]}</script><link rel="stylesheet" href="/pr-preview/pr-1894/assets/css/styles.d3b4cfa7.css">
-<script src="/pr-preview/pr-1894/assets/js/runtime~main.186f258b.js" defer="defer"></script>
+<script src="/pr-preview/pr-1894/assets/js/runtime~main.fa42d5cf.js" defer="defer"></script>
 <script src="/pr-preview/pr-1894/assets/js/main.dfe9eadd.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -16,126 +16,108 @@
 provide stability for enterprise deployments while enabling continuous
 innovation and security updates.</p>
 <h2 class="anchor anchorWithStickyNavbar_LWe7" id="release-philosophy">Release Philosophy<a href="#release-philosophy" class="hash-link" aria-label="Direct link to Release Philosophy" title="Direct link to Release Philosophy">​</a></h2>
-<p>SVP uses <strong>semantic versioning</strong> (SemVer) with the format <code>MAJOR.MINOR.PATCH</code>:</p>
+<p>SVP uses <strong>YY.MM versioning</strong> format for all releases:</p>
 <ul>
-<li><strong>MAJOR</strong>: Breaking changes or significant architectural updates</li>
-<li><strong>MINOR</strong>: New features that are backward compatible</li>
-<li><strong>PATCH</strong>: Bug fixes and security updates</li>
+<li><strong>YY</strong>: Two-digit year (e.g., 25 for 2025)</li>
+<li><strong>MM</strong>: Two-digit month (e.g., 09 for September)</li>
+<li><strong>PATCH</strong>: Patch number for bug fixes and security updates (e.g., 25.09.1)</li>
 </ul>
+<p>Major releases may contain breaking changes or significant architectural updates, while Minor releases are backward compatible feature additions. All releases follow the same YY.MM numbering scheme, with the release type determined by the release month and cadence.</p>
 <h2 class="anchor anchorWithStickyNavbar_LWe7" id="release-types">Release Types<a href="#release-types" class="hash-link" aria-label="Direct link to Release Types" title="Direct link to Release Types">​</a></h2>
-<h3 class="anchor anchorWithStickyNavbar_LWe7" id="long-term-support-lts-releases">Long Term Support (LTS) Releases<a href="#long-term-support-lts-releases" class="hash-link" aria-label="Direct link to Long Term Support (LTS) Releases" title="Direct link to Long Term Support (LTS) Releases">​</a></h3>
-<p>LTS releases are enterprise-grade releases designed for production environments
-requiring maximum stability and extended support.</p>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="major-releases">Major Releases<a href="#major-releases" class="hash-link" aria-label="Direct link to Major Releases" title="Direct link to Major Releases">​</a></h3>
+<p>Major releases are enterprise-grade releases designed for production environments
+requiring maximum stability and extended support. <strong>Major releases may contain breaking changes</strong> that require careful migration planning and testing.</p>
 <ul>
 <li><strong>Cadence</strong>: Every 6 months (March and September)</li>
-<li><strong>Standard Long Term Support (SLTS)</strong>: 12 months from release date</li>
-<li><strong>Legacy Long Term Support (LLTS)</strong>: Additional 12 months after standard support
-ends</li>
-<li><strong>Total LTS Lifecycle</strong>: 24 months (2 years)</li>
-<li><strong>Currently Supported LTS Releases</strong>: None</li>
-<li><strong>Next LTS Release</strong>: Version 9.0.0 (September 1st, 2025)</li>
+<li><strong>Numbering</strong>: YY.MM format (e.g., 25.09 for September 2025)</li>
+<li><strong>Breaking Changes</strong>: May include API changes, database schema updates, or architectural modifications</li>
+<li><strong>Standard Major Release Support (SMRS)</strong>: 2 months from release date</li>
+<li><strong>Extended Major Release Support (EMRS)</strong>: Additional 4 months after standard support ends</li>
+<li><strong>Legacy Major Release Support (LMRS)</strong>: Additional 6 months after extended support ends</li>
+<li><strong>Total Major Release Lifecycle</strong>: 12 months (1 year)</li>
+<li><strong>Currently Supported Major Releases</strong>: None</li>
+<li><strong>Next Major Release</strong>: Version 25.09 (September 1st, 2025)</li>
 </ul>
-<h3 class="anchor anchorWithStickyNavbar_LWe7" id="rolling-releases">Rolling Releases<a href="#rolling-releases" class="hash-link" aria-label="Direct link to Rolling Releases" title="Direct link to Rolling Releases">​</a></h3>
-<p>Rolling releases provide the latest features and improvements for development
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="minor-releases">Minor Releases<a href="#minor-releases" class="hash-link" aria-label="Direct link to Minor Releases" title="Direct link to Minor Releases">​</a></h3>
+<p>Minor releases provide the latest features and improvements for development
 and testing environments, and can be also in special cases where a feature is
-required in a short period of time.</p>
+required in a short period of time. <strong>Minor releases are backward compatible</strong> and do not contain breaking changes.</p>
 <ul>
 <li><strong>Cadence</strong>: Monthly releases</li>
-<li><strong>Standard Rolling Release Support (SRRS)</strong>: 2 months from release date</li>
-<li><strong>Legacy Rolling Release Support (LRRS)</strong>: Additional 6 months after standard
+<li><strong>Numbering</strong>: YY.MM format (e.g., 25.08 for August 2025)</li>
+<li><strong>Backward Compatibility</strong>: All changes are backward compatible</li>
+<li><strong>Standard Minor Release Support (SMRS)</strong>: 2 months from release date</li>
+<li><strong>Legacy Minor Release Support (LMRS)</strong>: Additional 4 months after standard
 support ends</li>
-<li><strong>Total Rolling Release Lifecycle</strong>: 8 months</li>
-<li><strong>Currently Supported Rolling Releases</strong>: None</li>
-<li><strong>Next Rolling Release</strong>: Version 8.5.0 (August 1st, 2025)</li>
-</ul>
-<h3 class="anchor anchorWithStickyNavbar_LWe7" id="emergency-production-releases-epr">Emergency Production Releases (EPR)<a href="#emergency-production-releases-epr" class="hash-link" aria-label="Direct link to Emergency Production Releases (EPR)" title="Direct link to Emergency Production Releases (EPR)">​</a></h3>
-<p>Emergency Production Releases are exceptional releases created for critical production deployments when standard release schedules cannot accommodate urgent requirements, typically for major elections or high-profile voting events.</p>
-<ul>
-<li><strong>Trigger</strong>: Critical client requirements, major election events, or urgent security needs</li>
-<li><strong>Source</strong>: Release candidates from upcoming LTS or rolling releases</li>
-<li><strong>Approval</strong>: Requires executive approval and risk assessment</li>
-<li><strong>Emergency Production Support (EPS)</strong>: 6 months from release date with full support scope</li>
-<li><strong>Post-Emergency Legacy Support (PELS)</strong>: Additional 6 months with security-only support</li>
-<li><strong>Total EPR Lifecycle</strong>: 12 months</li>
-</ul>
-<p><strong>Important Notes:</strong></p>
-<ul>
-<li>EPRs are based on existing release candidates, not new development</li>
-<li>They receive the same support level as LTS releases during their EPS phase</li>
-<li>Migration path to the next planned LTS release is provided</li>
-<li>Usage is tracked and reported for future planning</li>
+<li><strong>Total Minor Release Lifecycle</strong>: 6 months</li>
+<li><strong>Currently Supported Minor Releases</strong>: None</li>
+<li><strong>Next Minor Release</strong>: Version 25.08 (August 1st, 2025)</li>
 </ul>
 <h2 class="anchor anchorWithStickyNavbar_LWe7" id="release-schedule-table">Release Schedule Table<a href="#release-schedule-table" class="hash-link" aria-label="Direct link to Release Schedule Table" title="Direct link to Release Schedule Table">​</a></h2>
-<table><thead><tr><th>Version</th><th>Release Date</th><th>Release Type</th><th>Standard Support Until</th><th>Legacy Support Until</th><th>Total Support</th></tr></thead><tbody><tr><td>8.5.0</td><td>Aug 1, 2025</td><td>Rolling</td><td>Oct 1, 2025</td><td>Apr 1, 2026</td><td>8 months</td></tr><tr><td><strong>9.0.0</strong></td><td>Sep 1, 2025</td><td><strong>LTS</strong></td><td>Sep 1, 2026</td><td>Sep 1, 2027</td><td><strong>24 months</strong></td></tr><tr><td>9.1.0</td><td>Oct 1, 2025</td><td>Rolling</td><td>Dec 1, 2025</td><td>Jun 1, 2026</td><td>8 months</td></tr><tr><td>9.2.0</td><td>Nov 1, 2025</td><td>Rolling</td><td>Jan 1, 2026</td><td>Jul 1, 2026</td><td>8 months</td></tr><tr><td>9.3.0</td><td>Dec 1, 2025</td><td>Rolling</td><td>Feb 1, 2026</td><td>Aug 1, 2026</td><td>8 months</td></tr><tr><td>9.4.0</td><td>Jan 1, 2026</td><td>Rolling</td><td>Mar 1, 2026</td><td>Sep 1, 2026</td><td>8 months</td></tr><tr><td>9.5.0</td><td>Feb 1, 2026</td><td>Rolling</td><td>Apr 1, 2026</td><td>Oct 1, 2026</td><td>8 months</td></tr><tr><td><strong>10.0.0</strong></td><td>Mar 1, 2026</td><td><strong>LTS</strong></td><td>Mar 1, 2027</td><td>Mar 1, 2028</td><td><strong>24 months</strong></td></tr><tr><td>10.1.0</td><td>Apr 1, 2026</td><td>Rolling</td><td>Jun 1, 2026</td><td>Dec 1, 2026</td><td>8 months</td></tr><tr><td>10.2.0</td><td>May 1, 2026</td><td>Rolling</td><td>Jul 1, 2026</td><td>Jan 1, 2027</td><td>8 months</td></tr><tr><td>10.3.0</td><td>Jun 1, 2026</td><td>Rolling</td><td>Aug 1, 2026</td><td>Feb 1, 2027</td><td>8 months</td></tr><tr><td>10.4.0</td><td>Jul 1, 2026</td><td>Rolling</td><td>Sep 1, 2026</td><td>Mar 1, 2027</td><td>8 months</td></tr><tr><td>10.5.0</td><td>Aug 1, 2026</td><td>Rolling</td><td>Oct 1, 2026</td><td>Apr 1, 2027</td><td>8 months</td></tr><tr><td><strong>11.0.0</strong></td><td>Sep 1, 2026</td><td><strong>LTS</strong></td><td>Sep 1, 2027</td><td>Sep 1, 2028</td><td><strong>24 months</strong></td></tr><tr><td>11.1.0</td><td>Oct 1, 2026</td><td>Rolling</td><td>Dec 1, 2026</td><td>Jun 1, 2027</td><td>8 months</td></tr><tr><td>11.2.0</td><td>Nov 1, 2026</td><td>Rolling</td><td>Jan 1, 2027</td><td>Jul 1, 2027</td><td>8 months</td></tr><tr><td>11.3.0</td><td>Dec 1, 2026</td><td>Rolling</td><td>Feb 1, 2027</td><td>Aug 1, 2027</td><td>8 months</td></tr><tr><td>11.4.0</td><td>Jan 1, 2027</td><td>Rolling</td><td>Mar 1, 2027</td><td>Sep 1, 2027</td><td>8 months</td></tr><tr><td>11.5.0</td><td>Feb 1, 2027</td><td>Rolling</td><td>Apr 1, 2027</td><td>Oct 1, 2027</td><td>8 months</td></tr><tr><td><strong>12.0.0</strong></td><td>Mar 1, 2027</td><td><strong>LTS</strong></td><td>Mar 1, 2028</td><td>Mar 1, 2029</td><td><strong>24 months</strong></td></tr></tbody></table>
+<table><thead><tr><th>Version</th><th>Release Date</th><th>Release Type</th><th>Standard Support Until</th><th>Extended Support Until</th><th>Legacy Support Until</th><th>Total Support</th></tr></thead><tbody><tr><td>25.08</td><td>Aug 1, 2025</td><td>Minor</td><td>Oct 1, 2025</td><td>-</td><td>Feb 1, 2026</td><td>6 months</td></tr><tr><td><strong>25.09</strong></td><td>Sep 1, 2025</td><td><strong>Major</strong></td><td>Nov 1, 2025</td><td>Mar 1, 2026</td><td>Sep 1, 2026</td><td><strong>12 months</strong></td></tr><tr><td>25.10</td><td>Oct 1, 2025</td><td>Minor</td><td>Dec 1, 2025</td><td>-</td><td>Apr 1, 2026</td><td>6 months</td></tr><tr><td>25.11</td><td>Nov 1, 2025</td><td>Minor</td><td>Jan 1, 2026</td><td>-</td><td>May 1, 2026</td><td>6 months</td></tr><tr><td>25.12</td><td>Dec 1, 2025</td><td>Minor</td><td>Feb 1, 2026</td><td>-</td><td>Jun 1, 2026</td><td>6 months</td></tr><tr><td>26.01</td><td>Jan 1, 2026</td><td>Minor</td><td>Mar 1, 2026</td><td>-</td><td>Jul 1, 2026</td><td>6 months</td></tr><tr><td>26.02</td><td>Feb 1, 2026</td><td>Minor</td><td>Apr 1, 2026</td><td>-</td><td>Aug 1, 2026</td><td>6 months</td></tr><tr><td><strong>26.03</strong></td><td>Mar 1, 2026</td><td><strong>Major</strong></td><td>May 1, 2026</td><td>Sep 1, 2026</td><td>Mar 1, 2027</td><td><strong>12 months</strong></td></tr><tr><td>26.04</td><td>Apr 1, 2026</td><td>Minor</td><td>Jun 1, 2026</td><td>-</td><td>Oct 1, 2026</td><td>6 months</td></tr><tr><td>26.05</td><td>May 1, 2026</td><td>Minor</td><td>Jul 1, 2026</td><td>-</td><td>Nov 1, 2026</td><td>6 months</td></tr><tr><td>26.06</td><td>Jun 1, 2026</td><td>Minor</td><td>Aug 1, 2026</td><td>-</td><td>Dec 1, 2026</td><td>6 months</td></tr><tr><td>26.07</td><td>Jul 1, 2026</td><td>Minor</td><td>Sep 1, 2026</td><td>-</td><td>Jan 1, 2027</td><td>6 months</td></tr><tr><td>26.08</td><td>Aug 1, 2026</td><td>Minor</td><td>Oct 1, 2026</td><td>-</td><td>Feb 1, 2027</td><td>6 months</td></tr><tr><td><strong>26.09</strong></td><td>Sep 1, 2026</td><td><strong>Major</strong></td><td>Nov 1, 2026</td><td>Mar 1, 2027</td><td>Sep 1, 2027</td><td><strong>12 months</strong></td></tr><tr><td>26.10</td><td>Oct 1, 2026</td><td>Minor</td><td>Dec 1, 2026</td><td>-</td><td>Apr 1, 2027</td><td>6 months</td></tr><tr><td>26.11</td><td>Nov 1, 2026</td><td>Minor</td><td>Jan 1, 2027</td><td>-</td><td>May 1, 2027</td><td>6 months</td></tr><tr><td>26.12</td><td>Dec 1, 2026</td><td>Minor</td><td>Feb 1, 2027</td><td>-</td><td>Jun 1, 2027</td><td>6 months</td></tr><tr><td>27.01</td><td>Jan 1, 2027</td><td>Minor</td><td>Mar 1, 2027</td><td>-</td><td>Jul 1, 2027</td><td>6 months</td></tr><tr><td>27.02</td><td>Feb 1, 2027</td><td>Minor</td><td>Apr 1, 2027</td><td>-</td><td>Aug 1, 2027</td><td>6 months</td></tr><tr><td><strong>27.03</strong></td><td>Mar 1, 2027</td><td><strong>Major</strong></td><td>May 1, 2027</td><td>Sep 1, 2027</td><td>Mar 1, 2028</td><td><strong>12 months</strong></td></tr></tbody></table>
 <h2 class="anchor anchorWithStickyNavbar_LWe7" id="support-levels">Support Levels<a href="#support-levels" class="hash-link" aria-label="Direct link to Support Levels" title="Direct link to Support Levels">​</a></h2>
-<h3 class="anchor anchorWithStickyNavbar_LWe7" id="standard-support-slts-srrs-eps">Standard Support (SLTS, SRRS, EPS)<a href="#standard-support-slts-srrs-eps" class="hash-link" aria-label="Direct link to Standard Support (SLTS, SRRS, EPS)" title="Direct link to Standard Support (SLTS, SRRS, EPS)">​</a></h3>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="standard-support-smrs">Standard Support (SMRS)<a href="#standard-support-smrs" class="hash-link" aria-label="Direct link to Standard Support (SMRS)" title="Direct link to Standard Support (SMRS)">​</a></h3>
 <ul>
 <li>Security patches and critical bug fixes</li>
 <li>Technical support through official channels</li>
 <li>Documentation updates</li>
 <li>Community support</li>
 </ul>
-<h3 class="anchor anchorWithStickyNavbar_LWe7" id="legacy-support-llts-lrrs-pels">Legacy Support (LLTS, LRRS, PELS)<a href="#legacy-support-llts-lrrs-pels" class="hash-link" aria-label="Direct link to Legacy Support (LLTS, LRRS, PELS)" title="Direct link to Legacy Support (LLTS, LRRS, PELS)">​</a></h3>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="extended-support-emrs">Extended Support (EMRS)<a href="#extended-support-emrs" class="hash-link" aria-label="Direct link to Extended Support (EMRS)" title="Direct link to Extended Support (EMRS)">​</a></h3>
+<p><em>Available for Major releases only</em></p>
+<ul>
+<li>Security patches and critical bug fixes</li>
+<li>Limited technical support through official channels</li>
+<li>Priority migration assistance to newer Major versions</li>
+<li>Extended maintenance for enterprise customers</li>
+</ul>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="legacy-support-lmrs">Legacy Support (LMRS)<a href="#legacy-support-lmrs" class="hash-link" aria-label="Direct link to Legacy Support (LMRS)" title="Direct link to Legacy Support (LMRS)">​</a></h3>
 <ul>
 <li>Critical security patches only</li>
 <li>Limited technical support</li>
 <li>Extended maintenance for enterprise customers</li>
 <li>Migration assistance to newer versions</li>
 </ul>
-<h3 class="anchor anchorWithStickyNavbar_LWe7" id="emergency-production-support-eps">Emergency Production Support (EPS)<a href="#emergency-production-support-eps" class="hash-link" aria-label="Direct link to Emergency Production Support (EPS)" title="Direct link to Emergency Production Support (EPS)">​</a></h3>
-<ul>
-<li><strong>Full production-grade support</strong> equivalent to LTS standard support</li>
-<li><strong>Priority technical support</strong> with dedicated channels</li>
-<li><strong>Accelerated patch delivery</strong> within 24-48 hours for critical issues</li>
-<li><strong>Migration planning assistance</strong> to transition to next planned LTS</li>
-<li><strong>Risk monitoring and reporting</strong> throughout the emergency support period</li>
-</ul>
 <h2 class="anchor anchorWithStickyNavbar_LWe7" id="release-timeline-visualization">Release Timeline Visualization<a href="#release-timeline-visualization" class="hash-link" aria-label="Direct link to Release Timeline Visualization" title="Direct link to Release Timeline Visualization">​</a></h2>
 <!-- -->
 <h2 class="anchor anchorWithStickyNavbar_LWe7" id="support-lifecycle-visualization">Support Lifecycle Visualization<a href="#support-lifecycle-visualization" class="hash-link" aria-label="Direct link to Support Lifecycle Visualization" title="Direct link to Support Lifecycle Visualization">​</a></h2>
-<h3 class="anchor anchorWithStickyNavbar_LWe7" id="lts-release-support-timeline">LTS Release Support Timeline<a href="#lts-release-support-timeline" class="hash-link" aria-label="Direct link to LTS Release Support Timeline" title="Direct link to LTS Release Support Timeline">​</a></h3>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="major-release-support-timeline">Major Release Support Timeline<a href="#major-release-support-timeline" class="hash-link" aria-label="Direct link to Major Release Support Timeline" title="Direct link to Major Release Support Timeline">​</a></h3>
 <!-- -->
 <p>In the example shown in the diagram (with <code>Current date</code> set to November 1,
 2026):</p>
 <ul>
-<li><strong>Version 9.0.0 LTS</strong> (released September 1, 2025, section in <span style="background-color:#fdf6d1">yellow background</span>): Currently in <strong>Legacy LTS Support</strong> phase, having completed its 12-month standard support period. Legacy support continues until September 1, 2027.</li>
-<li><strong>Version 10.0.0 LTS</strong> (released March 1, 2026, section in <span style="background-color:#eee8f7">blue background</span>): Currently in <strong>Standard LTS Support</strong> phase, receiving full security patches, bug fixes, and technical support until March 1, 2027.</li>
-<li><strong>Version 11.0.0 LTS</strong> (released September 1, 2026, section in <span style="background-color:#eee8f7">blue background</span>): Recently released and in <strong>Standard LTS Support</strong> phase, with full support continuing until September 1, 2027.</li>
-<li><strong>Version 12.0.0 LTS</strong> (release scheduled for March 1, 2027, section in white background): Future release shown with reduced opacity, representing the planned next LTS version.</li>
+<li><strong>Version 25.09 Major</strong> (released September 1, 2025, section in <span style="background-color:#fdf6d1">yellow background</span>): Currently in <strong>Legacy Major Release Support</strong> phase, having completed both its 2-month standard support and 4-month extended support periods. Legacy support continues until September 1, 2026.</li>
+<li><strong>Version 26.03 Major</strong> (released March 1, 2026, section in <span style="background-color:#eee8f7">blue background</span>): Currently in <strong>Extended Major Release Support</strong> phase, having completed its 2-month standard support period in May 2026. Extended support continues until September 1, 2026, followed by legacy support until March 1, 2027.</li>
+<li><strong>Version 26.09 Major</strong> (released September 1, 2026, section in <span style="background-color:#eee8f7">blue background</span>): Recently released and in <strong>Standard Major Release Support</strong> phase, with full support continuing until November 1, 2026, then extended support until March 1, 2027.</li>
+<li><strong>Version 27.03 Major</strong> (release scheduled for March 1, 2027, section in white background): Future release shown with reduced opacity, representing the planned next Major version.</li>
 </ul>
 <p>The diagram illustrates the overlapping support windows that provide enterprise
-customers with migration flexibility. Notice how version 10.0.0 and 11.0.0 are
-both under standard support simultaneously, giving organizations a 6-month
-window to plan and execute upgrades between LTS versions.</p>
-<h3 class="anchor anchorWithStickyNavbar_LWe7" id="rolling-release-support-timeline">Rolling Release Support Timeline<a href="#rolling-release-support-timeline" class="hash-link" aria-label="Direct link to Rolling Release Support Timeline" title="Direct link to Rolling Release Support Timeline">​</a></h3>
+customers with migration flexibility. The three-tier support model (Standard → Extended → Legacy) allows organizations multiple opportunities to plan and execute upgrades between Major versions, with a total of 12 months of support coverage for each Major release.</p>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="minor-release-support-timeline">Minor Release Support Timeline<a href="#minor-release-support-timeline" class="hash-link" aria-label="Direct link to Minor Release Support Timeline" title="Direct link to Minor Release Support Timeline">​</a></h3>
 <!-- -->
 <p>In the example shown in the diagram (with <code>Current date</code> set to November 1, 2026):</p>
 <p><strong>Versions Out of Support</strong> (sections in <span style="background-color:#ffe8e8">red background</span>):</p>
 <ul>
-<li><strong>Versions 9.1.0 through 9.4.0</strong>: These rolling releases have completed both their 2-month standard support and 6-month legacy support phases. No security patches or support are provided for these versions.</li>
+<li><strong>Versions 25.10 through 26.02</strong>: These minor releases have completed both their 2-month standard support and 4-month legacy support phases. No security patches or support are provided for these versions.</li>
+<li><strong>Version 26.04</strong> (released April 1, 2026): Both standard and legacy support phases completed by October 1, 2026.</li>
 </ul>
 <p><strong>Versions Under Legacy Support Only</strong> (sections in <span style="background-color:#fdf6d1">yellow background</span>):</p>
 <ul>
-<li><strong>Version 9.5.0</strong> (released February 1, 2026): Standard support ended April 1, 2026. Currently receiving only critical security patches through Legacy Rolling Release Support (LRRS) until October 1, 2026.</li>
-<li><strong>Version 10.1.0</strong> (released April 1, 2026): Standard support ended June 1, 2026. Currently in LRRS phase until December 1, 2026.</li>
+<li><strong>Version 26.05</strong> (released May 1, 2026): Standard support ended July 1, 2026. Currently receiving only critical security patches through Legacy Minor Release Support (LMRS) until November 1, 2026.</li>
+<li><strong>Version 26.06</strong> (released June 1, 2026): Standard support ended August 1, 2026. Currently in LMRS phase until December 1, 2026.</li>
+<li><strong>Version 26.07</strong> (released July 1, 2026): Standard support ended September 1, 2026. Currently in LMRS phase until January 1, 2027.</li>
 </ul>
 <p><strong>Versions Under Standard Support</strong> (sections in <span style="background-color:#eee8f7">blue background</span>):</p>
 <ul>
-<li><strong>Version 10.2.0</strong> (released May 1, 2026): Currently receiving full standard support until January 1, 2027, then legacy support until July 1, 2027.</li>
-<li><strong>Version 10.3.0</strong> (released June 1, 2026): Standard support active until February 1, 2027, then legacy support until August 1, 2027.</li>
-<li><strong>Version 10.4.0</strong> (released July 1, 2026): Standard support continues until March 1, 2027, then legacy support until September 1, 2027.</li>
+<li><strong>Version 26.08</strong> (released August 1, 2026): Currently receiving full standard support until October 1, 2026, then legacy support until February 1, 2027.</li>
 </ul>
-<p><strong>Future Release</strong> (section in white background):</p>
-<ul>
-<li><strong>Version 10.5.0</strong> (released August 1, 2026): Recently released, shown with reduced opacity as it represents the latest rolling release available.</li>
-</ul>
-<p>The rolling release model provides a much shorter support lifecycle compared to LTS releases, with rapid iteration and feature updates. Development teams typically use these releases for testing new features before they&#x27;re incorporated into the next LTS release. The short support windows encourage frequent updates and prevent organizations from becoming dependent on outdated rolling releases for production environments.</p>
+<p>The minor release model provides a much shorter support lifecycle compared to Major releases, with rapid iteration and feature updates. Development teams typically use these releases for testing new features before they&#x27;re incorporated into the next Major release. The shorter 6-month support windows encourage frequent updates and prevent organizations from becoming dependent on outdated minor releases for production environments.</p>
 <p><strong>Legend:</strong></p>
 <ul>
 <li>🔵 <strong>Blue bars</strong> = Future releases (not yet released)</li>
 <li>🟢 <strong>Green bars</strong> = Currently under support</li>
 <li>🔴 <strong>Red bars</strong> = Out of support</li>
-<li>🟡 <strong>Yellow bars</strong> = Legacy support (LRRS)</li>
+<li>🟡 <strong>Yellow bars</strong> = Legacy support (LMRS)</li>
 <li>⚫ <strong>Black markers</strong> = Release dates</li>
 <li>🟢 <strong>Green vertical line</strong> = Current date (July 9, 2025)</li>
 </ul>
@@ -168,22 +150,22 @@ available via GitHub tickets and our Discord channel, with no SLA guarantees.</p
 <h2 class="anchor anchorWithStickyNavbar_LWe7" id="recommendations">Recommendations<a href="#recommendations" class="hash-link" aria-label="Direct link to Recommendations" title="Direct link to Recommendations">​</a></h2>
 <h3 class="anchor anchorWithStickyNavbar_LWe7" id="for-production-environments">For Production Environments<a href="#for-production-environments" class="hash-link" aria-label="Direct link to For Production Environments" title="Direct link to For Production Environments">​</a></h3>
 <ul>
-<li>Use <strong>LTS releases</strong> for maximum stability</li>
-<li>Plan upgrades during the 6-month overlap between LTS versions</li>
+<li>Use <strong>Major releases</strong> for maximum stability</li>
+<li>Plan upgrades during the 6-month overlap between Major versions</li>
 <li>Subscribe to security update notifications</li>
 </ul>
 <h3 class="anchor anchorWithStickyNavbar_LWe7" id="for-development-and-testing">For Development and Testing<a href="#for-development-and-testing" class="hash-link" aria-label="Direct link to For Development and Testing" title="Direct link to For Development and Testing">​</a></h3>
 <ul>
-<li>Use <strong>Rolling releases</strong> for latest features</li>
-<li>Test on rolling releases before deploying to LTS in production</li>
+<li>Use <strong>Minor releases</strong> for latest features</li>
+<li>Test on Minor releases before deploying to Major in production</li>
 <li>Maintain separate environments for different release tracks</li>
 </ul>
 <h3 class="anchor anchorWithStickyNavbar_LWe7" id="migration-strategy">Migration Strategy<a href="#migration-strategy" class="hash-link" aria-label="Direct link to Migration Strategy" title="Direct link to Migration Strategy">​</a></h3>
 <ul>
-<li>Begin testing new LTS releases 3 months before your current LTS loses standard
-support</li>
-<li>Use the 6-month LTS overlap period for gradual migration</li>
-<li>Consider Legacy LTS Support for additional migration time if needed</li>
+<li>Begin testing new Major releases during the Extended Support phase of your current Major (4-6 months after release)</li>
+<li>Use the overlapping Standard and Extended Support periods for gradual migration</li>
+<li>Consider Legacy Major Release Support for additional migration time if needed</li>
+<li>Plan for more frequent updates when using Minor releases due to their shorter 6-month lifecycle</li>
 </ul>
 <hr>
 <p><em>This release schedule is subject to change based on security requirements,
@@ -194,20 +176,20 @@ communicated at least 60 days in advance.</em></p>
 pre-releases, the final release, and subsequent patch releases during its
 support lifecycle. This section illustrates the complete lifecycle of a single
 minor version from initial development to end of support.</p>
-<h3 class="anchor anchorWithStickyNavbar_LWe7" id="version-110x-series-release-timeline-example">Version 11.0.x Series Release Timeline (Example)<a href="#version-110x-series-release-timeline-example" class="hash-link" aria-label="Direct link to Version 11.0.x Series Release Timeline (Example)" title="Direct link to Version 11.0.x Series Release Timeline (Example)">​</a></h3>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="version-2609x-series-release-timeline-example">Version 26.09.x Series Release Timeline (Example)<a href="#version-2609x-series-release-timeline-example" class="hash-link" aria-label="Direct link to Version 26.09.x Series Release Timeline (Example)" title="Direct link to Version 26.09.x Series Release Timeline (Example)">​</a></h3>
 <!-- -->
 <h3 class="anchor anchorWithStickyNavbar_LWe7" id="release-details-table-example">Release Details Table (Example)<a href="#release-details-table-example" class="hash-link" aria-label="Direct link to Release Details Table (Example)" title="Direct link to Release Details Table (Example)">​</a></h3>
-<table><thead><tr><th>Release</th><th>Release Date</th><th>Type</th><th>Purpose &amp; Rationale</th></tr></thead><tbody><tr><td><strong>11.0.0-rc.0</strong></td><td>Jul 1, 2026</td><td>Release Candidate</td><td>Initial release candidate for community testing. Major features freeze completed. Focus on stability testing and performance validation.</td></tr><tr><td><strong>11.0.0-rc.1</strong></td><td>Aug 1, 2026</td><td>Release Candidate</td><td>Second release candidate addressing critical bugs found in rc.0. Database migration optimizations and API refinements.</td></tr><tr><td><strong>11.0.0-rc.2</strong></td><td>Aug 15, 2026</td><td>Release Candidate</td><td>Third release candidate for final testing. Documentation finalization and UI/UX polish. Performance benchmarking completed.</td></tr><tr><td><strong>11.0.0</strong></td><td>Sep 1, 2026</td><td><strong>LTS Final</strong></td><td><strong>Official LTS release</strong>. All quality gates passed. Production-ready with full documentation, security audit completed.</td></tr><tr><td><strong>11.0.1</strong></td><td>Oct 15, 2026</td><td>Bugfix Patch</td><td>Address non-critical bugs reported in production: memory leak in vote processing, timezone handling issues, minor UI inconsistencies.</td></tr><tr><td><strong>11.0.2-rc.1</strong></td><td>Jan 15, 2027</td><td>Pre-release</td><td>Release candidate for upcoming security patch. Testing compatibility with new authentication systems and database performance improvements.</td></tr><tr><td><strong>11.0.2</strong></td><td>Jan 22, 2027</td><td>Security Patch</td><td><strong>Critical security update</strong>: Fix for privilege escalation vulnerability (CVE-2027-0234), updated cryptographic libraries, enhanced input validation.</td></tr><tr><td><strong>11.0.3</strong></td><td>Jun 1, 2027</td><td>Critical Patch</td><td>Emergency fix for vote tallying algorithm edge case discovered in large-scale elections. Includes performance optimizations for high-concurrency scenarios.</td></tr><tr><td><strong>11.0.4</strong></td><td>Aug 15, 2027</td><td>Final Standard Patch</td><td>Last scheduled patch during standard support. Includes final compatibility updates, documentation improvements, and minor stability enhancements.</td></tr><tr><td><strong>11.0.5</strong></td><td>Feb 1, 2028</td><td>Legacy Security</td><td><strong>Legacy support phase</strong>: Security-only patch addressing newly discovered authentication bypass vulnerability. Limited support scope.</td></tr><tr><td><strong>11.0.6</strong></td><td>Jul 1, 2028</td><td>End-of-Life Security</td><td><strong>Final security patch</strong> before end-of-life. Critical security fix for zero-day vulnerability. End of support announced for Sep 1, 2028.</td></tr></tbody></table>
+<table><thead><tr><th>Release</th><th>Release Date</th><th>Type</th><th>Purpose &amp; Rationale</th></tr></thead><tbody><tr><td><strong>26.09.0-rc.0</strong></td><td>Jul 1, 2026</td><td>Release Candidate</td><td>Initial release candidate for community testing. Major features freeze completed. Focus on stability testing and performance validation.</td></tr><tr><td><strong>26.09.0-rc.1</strong></td><td>Aug 1, 2026</td><td>Release Candidate</td><td>Second release candidate addressing critical bugs found in rc.0. Database migration optimizations and API refinements.</td></tr><tr><td><strong>26.09.0-rc.2</strong></td><td>Aug 15, 2026</td><td>Release Candidate</td><td>Third release candidate for final testing. Documentation finalization and UI/UX polish. Performance benchmarking completed.</td></tr><tr><td><strong>26.09.0</strong></td><td>Sep 1, 2026</td><td><strong>Major Final</strong></td><td><strong>Official Major release</strong>. All quality gates passed. Production-ready with full documentation, security audit completed.</td></tr><tr><td><strong>26.09.1</strong></td><td>Oct 15, 2026</td><td>Bugfix Patch</td><td>Address non-critical bugs reported in production: memory leak in vote processing, timezone handling issues, minor UI inconsistencies.</td></tr><tr><td><strong>26.09.2-rc.1</strong></td><td>Jan 15, 2027</td><td>Pre-release</td><td>Release candidate for upcoming security patch. Testing compatibility with new authentication systems and database performance improvements.</td></tr><tr><td><strong>26.09.2</strong></td><td>Jan 22, 2027</td><td>Security Patch</td><td><strong>Critical security update</strong>: Fix for privilege escalation vulnerability (CVE-2027-0234), updated cryptographic libraries, enhanced input validation.</td></tr><tr><td><strong>26.09.3</strong></td><td>Jun 1, 2027</td><td>Critical Patch</td><td>Emergency fix for vote tallying algorithm edge case discovered in large-scale elections. Includes performance optimizations for high-concurrency scenarios.</td></tr><tr><td><strong>26.09.4</strong></td><td>Aug 15, 2027</td><td>Final Standard Patch</td><td>Last scheduled patch during standard support. Includes final compatibility updates, documentation improvements, and minor stability enhancements.</td></tr><tr><td><strong>26.09.5</strong></td><td>Feb 1, 2028</td><td>Legacy Security</td><td><strong>Legacy support phase</strong>: Security-only patch addressing newly discovered authentication bypass vulnerability. Limited support scope.</td></tr><tr><td><strong>26.09.6</strong></td><td>Jul 1, 2028</td><td>End-of-Life Security</td><td><strong>Final security patch</strong> before end-of-life. Critical security fix for zero-day vulnerability. End of support announced for Sep 1, 2028.</td></tr></tbody></table>
 <h3 class="anchor anchorWithStickyNavbar_LWe7" id="release-process-timeline">Release Process Timeline<a href="#release-process-timeline" class="hash-link" aria-label="Direct link to Release Process Timeline" title="Direct link to Release Process Timeline">​</a></h3>
 <p>Before diving into a specific example, it&#x27;s important to understand the conceptual framework that governs all minor version releases. This process ensures quality, stability, and predictable timing for enterprise customers.</p>
 <h4 class="anchor anchorWithStickyNavbar_LWe7" id="mandatory-release-process-flow">Mandatory Release Process Flow<a href="#mandatory-release-process-flow" class="hash-link" aria-label="Direct link to Mandatory Release Process Flow" title="Direct link to Mandatory Release Process Flow">​</a></h4>
 <!-- -->
 <h4 class="anchor anchorWithStickyNavbar_LWe7" id="timing-requirements">Timing Requirements<a href="#timing-requirements" class="hash-link" aria-label="Direct link to Timing Requirements" title="Direct link to Timing Requirements">​</a></h4>
-<table><thead><tr><th>Phase</th><th>Duration</th><th>Description</th><th>Mandatory Wait</th></tr></thead><tbody><tr><td><strong>Feature Freeze to RC.0</strong></td><td>2-4 weeks</td><td>Code stabilization, initial testing</td><td>No mandatory wait</td></tr><tr><td><strong>Between Release Candidates</strong></td><td>1-2 weeks</td><td>Bug fixes, regression testing</td><td>Minimum 1 week</td></tr><tr><td><strong>Final RC to LTS Release</strong></td><td><strong>2 weeks</strong></td><td><strong>Mandatory stabilization period</strong></td><td><strong>Exactly 2 weeks</strong></td></tr><tr><td><strong>Post-Release Monitoring</strong></td><td>2-4 weeks</td><td>Production stability validation</td><td>N/A</td></tr></tbody></table>
+<table><thead><tr><th>Phase</th><th>Duration</th><th>Description</th><th>Mandatory Wait</th></tr></thead><tbody><tr><td><strong>Feature Freeze to RC.0</strong></td><td>2-4 weeks</td><td>Code stabilization, initial testing</td><td>No mandatory wait</td></tr><tr><td><strong>Between Release Candidates</strong></td><td>1-2 weeks</td><td>Bug fixes, regression testing</td><td>Minimum 1 week</td></tr><tr><td><strong>Final RC to Major Release</strong></td><td><strong>2 weeks</strong></td><td><strong>Mandatory stabilization period</strong></td><td><strong>Exactly 2 weeks</strong></td></tr><tr><td><strong>Post-Release Monitoring</strong></td><td>2-4 weeks</td><td>Production stability validation</td><td>N/A</td></tr></tbody></table>
 <h4 class="anchor anchorWithStickyNavbar_LWe7" id="critical-rules">Critical Rules<a href="#critical-rules" class="hash-link" aria-label="Direct link to Critical Rules" title="Direct link to Critical Rules">​</a></h4>
 <ol>
 <li>
-<p><strong>Mandatory 2-Week Period</strong>: There must be exactly 2 weeks between the final release candidate and the LTS release. This is non-negotiable and allows for:</p>
+<p><strong>Mandatory 2-Week Period</strong>: There must be exactly 2 weeks between the final release candidate and the Major release. This is non-negotiable and allows for:</p>
 <ul>
 <li>Final security audits</li>
 <li>Documentation review and finalization</li>
@@ -219,65 +201,11 @@ minor version from initial development to end of support.</p>
 <p><strong>Release Candidate Progression</strong>: Each release candidate must be available for at least 1 week before the next RC or final release.</p>
 </li>
 <li>
-<p><strong>No Direct-to-Production</strong>: All LTS releases must go through at least one release candidate phase.</p>
+<p><strong>No Direct-to-Production</strong>: All Major releases must go through at least one release candidate phase.</p>
 </li>
 <li>
 <p><strong>Emergency Exception Process</strong>: In case of critical security vulnerabilities, the 2-week period may be shortened to 1 week with explicit approval from the security team and release management.</p>
 </li>
-</ol>
-<h2 class="anchor anchorWithStickyNavbar_LWe7" id="emergency-production-releases-epr-1">Emergency Production Releases (EPR)<a href="#emergency-production-releases-epr-1" class="hash-link" aria-label="Direct link to Emergency Production Releases (EPR)" title="Direct link to Emergency Production Releases (EPR)">​</a></h2>
-<p>In exceptional circumstances, the Sequent Voting Platform may require immediate deployment of features or fixes that cannot wait for the standard release schedule. Emergency Production Releases provide a controlled mechanism for addressing critical business needs while maintaining stability and support standards.</p>
-<h3 class="anchor anchorWithStickyNavbar_LWe7" id="when-eprs-are-used">When EPRs Are Used<a href="#when-eprs-are-used" class="hash-link" aria-label="Direct link to When EPRs Are Used" title="Direct link to When EPRs Are Used">​</a></h3>
-<p>Emergency Production Releases are reserved for situations such as:</p>
-<ul>
-<li><strong>Major Election Events</strong>: Large-scale elections requiring specific features</li>
-<li><strong>Critical Client Requirements</strong>: High-profile deployments with immovable deadlines</li>
-<li><strong>Security Emergencies</strong>: Urgent security fixes that cannot wait for scheduled releases</li>
-<li><strong>Regulatory Compliance</strong>: Last-minute regulatory changes requiring immediate implementation</li>
-</ul>
-<h3 class="anchor anchorWithStickyNavbar_LWe7" id="epr-creation-process">EPR Creation Process<a href="#epr-creation-process" class="hash-link" aria-label="Direct link to EPR Creation Process" title="Direct link to EPR Creation Process">​</a></h3>
-<!-- -->
-<h3 class="anchor anchorWithStickyNavbar_LWe7" id="epr-support-timeline-example">EPR Support Timeline Example<a href="#epr-support-timeline-example" class="hash-link" aria-label="Direct link to EPR Support Timeline Example" title="Direct link to EPR Support Timeline Example">​</a></h3>
-<!-- -->
-<h3 class="anchor anchorWithStickyNavbar_LWe7" id="epr-naming-convention">EPR Naming Convention<a href="#epr-naming-convention" class="hash-link" aria-label="Direct link to EPR Naming Convention" title="Direct link to EPR Naming Convention">​</a></h3>
-<p>Emergency Production Releases follow a specific naming pattern:</p>
-<ul>
-<li><strong>Format</strong>: <code>{MAJOR}.{MINOR}.{PATCH}-epr.{EPR_NUMBER}</code></li>
-<li><strong>Examples</strong>:<!-- -->
-<ul>
-<li><code>10.2.1-epr.1</code> - First EPR based on version 10.2.1 release candidate</li>
-<li><code>11.1.0-epr.1</code> - First EPR based on version 11.1.0 release candidate</li>
-<li><code>11.1.0-epr.2</code> - Second EPR based on version 11.1.0 (rare, requires additional approval)</li>
-</ul>
-</li>
-</ul>
-<h3 class="anchor anchorWithStickyNavbar_LWe7" id="epr-support-lifecycle">EPR Support Lifecycle<a href="#epr-support-lifecycle" class="hash-link" aria-label="Direct link to EPR Support Lifecycle" title="Direct link to EPR Support Lifecycle">​</a></h3>
-<table><thead><tr><th>Phase</th><th>Duration</th><th>Support Level</th><th>Description</th></tr></thead><tbody><tr><td><strong>Emergency Production Support (EPS)</strong></td><td>6 months</td><td>Full LTS-equivalent</td><td>Complete technical support, security patches, bug fixes, priority handling</td></tr><tr><td><strong>Post-Emergency Legacy Support (PELS)</strong></td><td>6 months</td><td>Security-only</td><td>Critical security patches, migration assistance, limited technical support</td></tr><tr><td><strong>End of Life</strong></td><td>-</td><td>None</td><td>Support ends, migration to LTS required</td></tr></tbody></table>
-<h3 class="anchor anchorWithStickyNavbar_LWe7" id="approval-process">Approval Process<a href="#approval-process" class="hash-link" aria-label="Direct link to Approval Process" title="Direct link to Approval Process">​</a></h3>
-<ol>
-<li><strong>Business Justification</strong>: Detailed business case with timeline constraints</li>
-<li><strong>Technical Assessment</strong>: Engineering review of release candidate readiness</li>
-<li><strong>Risk Analysis</strong>: Security and stability impact evaluation</li>
-<li><strong>Executive Sign-off</strong>: C-level approval for EPR creation and support commitment</li>
-<li><strong>Client Agreement</strong>: Formal acceptance of EPR limitations and migration timeline</li>
-</ol>
-<h3 class="anchor anchorWithStickyNavbar_LWe7" id="epr-limitations-and-considerations">EPR Limitations and Considerations<a href="#epr-limitations-and-considerations" class="hash-link" aria-label="Direct link to EPR Limitations and Considerations" title="Direct link to EPR Limitations and Considerations">​</a></h3>
-<ul>
-<li><strong>No Feature Development</strong>: EPRs are based on existing release candidates only</li>
-<li><strong>Limited Scope</strong>: Only critical fixes and security patches during EPS phase</li>
-<li><strong>Migration Requirement</strong>: Clients must migrate to the next LTS within 12 months</li>
-<li><strong>Cost Implications</strong>: EPRs may incur additional support costs for enterprise clients</li>
-<li><strong>Documentation</strong>: Reduced documentation scope compared to full LTS releases</li>
-</ul>
-<h3 class="anchor anchorWithStickyNavbar_LWe7" id="migration-from-epr-to-lts">Migration from EPR to LTS<a href="#migration-from-epr-to-lts" class="hash-link" aria-label="Direct link to Migration from EPR to LTS" title="Direct link to Migration from EPR to LTS">​</a></h3>
-<p>All EPR deployments must have a defined migration path:</p>
-<ol>
-<li><strong>Migration Planning</strong> begins immediately after EPR deployment</li>
-<li><strong>Testing Phase</strong> with next LTS release candidates (months 3-4)</li>
-<li><strong>Migration Window</strong> during months 4-6 of EPS phase</li>
-<li><strong>Transition Support</strong> continues through PELS phase</li>
-<li><strong>Mandatory Migration</strong> completed before EPR end-of-life</li>
-</ol>
-<p>Emergency Production Releases provide essential flexibility for critical business needs while maintaining the integrity and predictability of the standard release process. They should be used judiciously and always with a clear path back to the standard LTS release track.</p></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col"><a href="https://github.com/sequentech/step/docs/docusaurus/docs/reference/product_lifecycle_and_release_cadence.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/pr-preview/pr-1894/docs/reference/glossary"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">Glossary</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/pr-preview/pr-1894/docs/reference/Tally Deep Dive/tally_deep_dive"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">Tally Deep Dive</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#release-philosophy" class="table-of-contents__link toc-highlight">Release Philosophy</a></li><li><a href="#release-types" class="table-of-contents__link toc-highlight">Release Types</a><ul><li><a href="#long-term-support-lts-releases" class="table-of-contents__link toc-highlight">Long Term Support (LTS) Releases</a></li><li><a href="#rolling-releases" class="table-of-contents__link toc-highlight">Rolling Releases</a></li><li><a href="#emergency-production-releases-epr" class="table-of-contents__link toc-highlight">Emergency Production Releases (EPR)</a></li></ul></li><li><a href="#release-schedule-table" class="table-of-contents__link toc-highlight">Release Schedule Table</a></li><li><a href="#support-levels" class="table-of-contents__link toc-highlight">Support Levels</a><ul><li><a href="#standard-support-slts-srrs-eps" class="table-of-contents__link toc-highlight">Standard Support (SLTS, SRRS, EPS)</a></li><li><a href="#legacy-support-llts-lrrs-pels" class="table-of-contents__link toc-highlight">Legacy Support (LLTS, LRRS, PELS)</a></li><li><a href="#emergency-production-support-eps" class="table-of-contents__link toc-highlight">Emergency Production Support (EPS)</a></li></ul></li><li><a href="#release-timeline-visualization" class="table-of-contents__link toc-highlight">Release Timeline Visualization</a></li><li><a href="#support-lifecycle-visualization" class="table-of-contents__link toc-highlight">Support Lifecycle Visualization</a><ul><li><a href="#lts-release-support-timeline" class="table-of-contents__link toc-highlight">LTS Release Support Timeline</a></li><li><a href="#rolling-release-support-timeline" class="table-of-contents__link toc-highlight">Rolling Release Support Timeline</a></li></ul></li><li><a href="#feature-release-process" class="table-of-contents__link toc-highlight">Feature Release Process</a></li><li><a href="#security-and-patch-updates" class="table-of-contents__link toc-highlight">Security and Patch Updates</a></li><li><a href="#enterprise-support" class="table-of-contents__link toc-highlight">Enterprise Support</a></li><li><a href="#enterprise-support-1" class="table-of-contents__link toc-highlight">Enterprise Support</a></li><li><a href="#recommendations" class="table-of-contents__link toc-highlight">Recommendations</a><ul><li><a href="#for-production-environments" class="table-of-contents__link toc-highlight">For Production Environments</a></li><li><a href="#for-development-and-testing" class="table-of-contents__link toc-highlight">For Development and Testing</a></li><li><a href="#migration-strategy" class="table-of-contents__link toc-highlight">Migration Strategy</a></li></ul></li><li><a href="#minor-version-release-lifecycle" class="table-of-contents__link toc-highlight">Minor Version Release Lifecycle</a><ul><li><a href="#version-110x-series-release-timeline-example" class="table-of-contents__link toc-highlight">Version 11.0.x Series Release Timeline (Example)</a></li><li><a href="#release-details-table-example" class="table-of-contents__link toc-highlight">Release Details Table (Example)</a></li><li><a href="#release-process-timeline" class="table-of-contents__link toc-highlight">Release Process Timeline</a></li></ul></li><li><a href="#emergency-production-releases-epr-1" class="table-of-contents__link toc-highlight">Emergency Production Releases (EPR)</a><ul><li><a href="#when-eprs-are-used" class="table-of-contents__link toc-highlight">When EPRs Are Used</a></li><li><a href="#epr-creation-process" class="table-of-contents__link toc-highlight">EPR Creation Process</a></li><li><a href="#epr-support-timeline-example" class="table-of-contents__link toc-highlight">EPR Support Timeline Example</a></li><li><a href="#epr-naming-convention" class="table-of-contents__link toc-highlight">EPR Naming Convention</a></li><li><a href="#epr-support-lifecycle" class="table-of-contents__link toc-highlight">EPR Support Lifecycle</a></li><li><a href="#approval-process" class="table-of-contents__link toc-highlight">Approval Process</a></li><li><a href="#epr-limitations-and-considerations" class="table-of-contents__link toc-highlight">EPR Limitations and Considerations</a></li><li><a href="#migration-from-epr-to-lts" class="table-of-contents__link toc-highlight">Migration from EPR to LTS</a></li></ul></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2025 Sequent</div></div></div></footer></div>
+</ol></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col"><a href="https://github.com/sequentech/step/docs/docusaurus/docs/reference/product_lifecycle_and_release_cadence.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/pr-preview/pr-1894/docs/reference/glossary"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">Glossary</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/pr-preview/pr-1894/docs/reference/Tally Deep Dive/tally_deep_dive"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">Tally Deep Dive</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#release-philosophy" class="table-of-contents__link toc-highlight">Release Philosophy</a></li><li><a href="#release-types" class="table-of-contents__link toc-highlight">Release Types</a><ul><li><a href="#major-releases" class="table-of-contents__link toc-highlight">Major Releases</a></li><li><a href="#minor-releases" class="table-of-contents__link toc-highlight">Minor Releases</a></li></ul></li><li><a href="#release-schedule-table" class="table-of-contents__link toc-highlight">Release Schedule Table</a></li><li><a href="#support-levels" class="table-of-contents__link toc-highlight">Support Levels</a><ul><li><a href="#standard-support-smrs" class="table-of-contents__link toc-highlight">Standard Support (SMRS)</a></li><li><a href="#extended-support-emrs" class="table-of-contents__link toc-highlight">Extended Support (EMRS)</a></li><li><a href="#legacy-support-lmrs" class="table-of-contents__link toc-highlight">Legacy Support (LMRS)</a></li></ul></li><li><a href="#release-timeline-visualization" class="table-of-contents__link toc-highlight">Release Timeline Visualization</a></li><li><a href="#support-lifecycle-visualization" class="table-of-contents__link toc-highlight">Support Lifecycle Visualization</a><ul><li><a href="#major-release-support-timeline" class="table-of-contents__link toc-highlight">Major Release Support Timeline</a></li><li><a href="#minor-release-support-timeline" class="table-of-contents__link toc-highlight">Minor Release Support Timeline</a></li></ul></li><li><a href="#feature-release-process" class="table-of-contents__link toc-highlight">Feature Release Process</a></li><li><a href="#security-and-patch-updates" class="table-of-contents__link toc-highlight">Security and Patch Updates</a></li><li><a href="#enterprise-support" class="table-of-contents__link toc-highlight">Enterprise Support</a></li><li><a href="#enterprise-support-1" class="table-of-contents__link toc-highlight">Enterprise Support</a></li><li><a href="#recommendations" class="table-of-contents__link toc-highlight">Recommendations</a><ul><li><a href="#for-production-environments" class="table-of-contents__link toc-highlight">For Production Environments</a></li><li><a href="#for-development-and-testing" class="table-of-contents__link toc-highlight">For Development and Testing</a></li><li><a href="#migration-strategy" class="table-of-contents__link toc-highlight">Migration Strategy</a></li></ul></li><li><a href="#minor-version-release-lifecycle" class="table-of-contents__link toc-highlight">Minor Version Release Lifecycle</a><ul><li><a href="#version-2609x-series-release-timeline-example" class="table-of-contents__link toc-highlight">Version 26.09.x Series Release Timeline (Example)</a></li><li><a href="#release-details-table-example" class="table-of-contents__link toc-highlight">Release Details Table (Example)</a></li><li><a href="#release-process-timeline" class="table-of-contents__link toc-highlight">Release Process Timeline</a></li></ul></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2025 Sequent</div></div></div></footer></div>
 </body>
 </html>
