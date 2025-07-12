@@ -277,6 +277,9 @@ config:
     theme: 'default'
     themeCSS: " \n
         .taskText { font-size: 14px; font-weight: 500; }
+        rect[id^=feat_dev] { fill: #2de8b9; stroke-width: 3px; stroke: #2de8b9; }
+        text[id^=feat_dev] { fill: #0f054c !important; font-size: 20px; font-weight: 600; }
+        text[id^=feat_blank] { opacity: 0; }
         rect[id^=rc_] { fill: #ff9500; stroke-width: 3px; stroke: #cc7700; }
         text[id^=rc_] { fill: #0f054c !important; font-size: 20px; font-weight: 600; }
         rect[id^=final_] { fill: #0f054c; stroke-width: 4px; stroke: #0a0339; }
@@ -289,9 +292,11 @@ config:
         g[class=tick] text { font-size: 18px; }
 
         /*** section backgrounds ***/
-        .section0 { fill: #fff2e6; opacity: 0.3; }
-        .section1 { fill: #6666ff7d; opacity: 0.5; }
-        .section2 { fill: #fff400; opacity: 0.2; stroke: none; }
+        .section0 { fill: #2de8b9; opacity: 0.2; }
+        .section1 { fill: #ff9500; opacity: 0.2; }
+        .section2 { fill: #6666ff7d; opacity: 0.5; }
+        .section3 { fill: #fff400; opacity: 0.2; stroke: none; }
+        .section4 { fill: #ffcccc; opacity: 0.3; }
     "
 ---
 %%{init:
@@ -310,7 +315,11 @@ gantt
     axisFormat  %b %Y
     tickInterval 3month
     
-    section Pre-Release Phase
+    section Feature Development Phase
+    Feature Development     :done, feat_dev, 2026-04-01, 90d
+    _                        :done, feat_blank, 2026-04-01, 0
+    
+    section Feature Freeze Phase
     Release Candidate 0     :done, rc_0, 2026-07-01, 30d
     Release Candidate 1     :done, rc_1, after rc_0, 15d
     Release Candidate 2     :done, rc_2, after rc_1, 15d
@@ -336,9 +345,10 @@ gantt
 
 | Release | Release Date | Type | Purpose & Rationale |
 |---------|-------------|------|-------------------|
-| **26.09.0-rc.0** | Jul 1, 2026 | Release Candidate | Initial release candidate for community testing. Major features freeze completed. Focus on stability testing and performance validation. |
-| **26.09.0-rc.1** | Aug 1, 2026 | Release Candidate | Second release candidate addressing critical bugs found in rc.0. Database migration optimizations and API refinements. |
-| **26.09.0-rc.2** | Aug 15, 2026 | Release Candidate | Third release candidate for final testing. Documentation finalization and UI/UX polish. Performance benchmarking completed. |
+| **Feature Development** | Apr 1 - Jun 30, 2026 | Development Phase | Active feature development period for Major release 26.09. New features, API enhancements, and architectural improvements. Breaking changes allowed during this phase. |
+| **26.09.0-rc.0** | Jul 1, 2026 | Release Candidate | **Feature Freeze Phase**: Initial release candidate for community testing. Major features freeze completed. Focus on stability testing and performance validation. |
+| **26.09.0-rc.1** | Aug 1, 2026 | Release Candidate | **Feature Freeze Phase**: Second release candidate addressing critical bugs found in rc.0. Database migration optimizations and API refinements. |
+| **26.09.0-rc.2** | Aug 15, 2026 | Release Candidate | **Feature Freeze Phase**: Third release candidate for final testing. Documentation finalization and UI/UX polish. Performance benchmarking completed. |
 | **26.09.0** | Sep 1, 2026 | **Major Final** | **Official Major release**. All quality gates passed. Production-ready with full documentation, security audit completed. |
 | **26.09.1** | Oct 15, 2026 | Bugfix Patch | **Standard Support Phase**: Address non-critical bugs reported in production: memory leak in vote processing, timezone handling issues, minor UI inconsistencies. |
 | **26.09.2** | Oct 30, 2026 | Final Standard Patch | **Standard Support Phase**: Last scheduled patch during standard support. Includes final compatibility updates and minor stability enhancements before transitioning to Extended Support. |
@@ -365,28 +375,31 @@ config:
         cScale1: '#2de8b9'
 ---
 flowchart TD
-    A[Feature Freeze] --> B[Release Candidate 0]
-    B --> C{Testing & <br/>Bug Fixes}
-    C -->|Major Issues Found| D[Release Candidate N+1]
-    D --> C
-    C -->|Ready for Release| E[Final Release Candidate]
-    E --> F[2 Week Mandatory<br/>Stabilization Period]
-    F --> G[Major Final Release]
-    G --> H[Production Support Begins]
+    A[Feature Development] --> B[Feature Freeze]
+    B --> C[Release Candidate 0]
+    C --> D{Testing & <br/>Bug Fixes}
+    D -->|Major Issues Found| E[Release Candidate N+1]
+    E --> D
+    D -->|Ready for Release| F[Final Release Candidate]
+    F --> G[2 Week Mandatory<br/>Stabilization Period]
+    G --> H[Major Final Release]
+    H --> I[Production Support Begins]
     
-    style A fill:#ff9500,stroke:#cc7700,color:#fff
+    style A fill:#4a90e2,stroke:#3a7bc8,color:#fff
     style B fill:#ff9500,stroke:#cc7700,color:#fff
-    style D fill:#ff9500,stroke:#cc7700,color:#fff
+    style C fill:#ff9500,stroke:#cc7700,color:#fff
     style E fill:#ff9500,stroke:#cc7700,color:#fff
-    style F fill:#e63946,stroke:#d62828,color:#fff
-    style G fill:#0f054c,stroke:#0a0339,color:#fff
-    style H fill:#2de8b9,stroke:#24c7a0,color:#0f054c
+    style F fill:#ff9500,stroke:#cc7700,color:#fff
+    style G fill:#e63946,stroke:#d62828,color:#fff
+    style H fill:#0f054c,stroke:#0a0339,color:#fff
+    style I fill:#2de8b9,stroke:#24c7a0,color:#0f054c
 ```
 
 #### Timing Requirements
 
 | Phase | Duration | Description | Mandatory Wait |
 |-------|----------|-------------|----------------|
+| **Feature Development** | 3-6 months | Active development, new features, breaking changes allowed | No mandatory wait |
 | **Feature Freeze to RC.0** | 2-4 weeks | Code stabilization, initial testing | No mandatory wait |
 | **Between Release Candidates** | 1-2 weeks | Bug fixes, regression testing | Minimum 1 week |
 | **Final RC to Major Release** | **2 weeks** | **Mandatory stabilization period** | **Exactly 2 weeks** |
@@ -394,7 +407,11 @@ flowchart TD
 
 #### Critical Rules
 
-1. **Mandatory 2-Week Period**: There must be exactly 2 weeks between the final release candidate and the Major release. This is non-negotiable and allows for:
+1. **Feature Development Phase**: During this phase, new features are actively developed and breaking changes are allowed. This phase typically lasts 3-6 months depending on the scope of the Major release.
+
+2. **Feature Freeze**: All new features must be code-complete and merged before the feature freeze deadline. Only bug fixes and stabilization work are allowed after this point.
+
+3. **Mandatory 2-Week Period**: There must be exactly 2 weeks between the final release candidate and the Major release. This is non-negotiable and allows for:
    - Final security audits
    - Documentation review and finalization
    - Community feedback integration
