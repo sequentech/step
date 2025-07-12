@@ -158,6 +158,7 @@ config:
 
         /* - under extended or legacy support only */
         .section0, .section1, .section2, .section3 { fill: #fff400; opacity: 0.2; stroke: none; }
+        .section0:nth-last-child(-n + 2) { fill: transparent; }
 
         /* - under standard support */
         .section4 { fill: #6666ff7d; }
