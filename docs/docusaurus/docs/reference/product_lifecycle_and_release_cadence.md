@@ -133,7 +133,7 @@ timeline
 
 ## Support Lifecycle Visualization
 
-### Major Release Support Timeline
+### Release Support Timeline
 
 ```mermaid
 ---
@@ -187,10 +187,10 @@ gantt
     todayMarker off
     dateFormat YYYY-MM-DD
     axisFormat %b %Y
-    tickInterval 6month
+    tickInterval 3month
 
     section 25.08
-        Standard :done, smrs_2508, 2025-09-01, 61d
+        Standard :done, smrs_2508, 2025-08-01, 61d
         Legacy   :done, lmrs_2508, after smrs_2508, 122d
 
     section 25.09 Major
@@ -210,188 +210,21 @@ gantt
         Standard :done, smrs_2512, 2025-12-01, 61d
         Legacy   :done, lmrs_2512, after smrs_2512, 122d
 
-    Current Date : vert, current, 2026-01-10, 1d
+    Current Date : vert, current, 2026-01-17, 1d
 ```
 
-In the example shown in the diagram (with `Current date` set to November 1,
-2026):
-- **Version 25.09 Major** (released September 1, 2025, section in <span style={{backgroundColor: '#fdf6d1'}}>yellow background</span>): Currently in **Legacy Major Release Support** phase, having completed both its 2-month standard support and 4-month extended support periods. Legacy support continues until September 1, 2026.
-- **Version 26.03 Major** (released March 1, 2026, section in <span style={{backgroundColor: '#eee8f7'}}>blue background</span>): Currently in **Extended Major Release Support** phase, having completed its 2-month standard support period in May 2026. Extended support continues until September 1, 2026, followed by legacy support until March 1, 2027.
-- **Version 26.09 Major** (released September 1, 2026, section in <span style={{backgroundColor: '#eee8f7'}}>blue background</span>): Recently released and in **Standard Major Release Support** phase, with full support continuing until November 1, 2026, then extended support until March 1, 2027.
-- **Version 27.03 Major** (release scheduled for March 1, 2027, section in white background): Future release shown with reduced opacity, representing the planned next Major version.
+In the example shown in the diagram (with `Current date` set to January 17, 2026):
 
-The diagram illustrates the overlapping support windows that provide enterprise
-customers with migration flexibility. The three-tier support model (Standard → Extended → Legacy) allows organizations multiple opportunities to plan and execute upgrades between Major versions, with a total of 12 months of support coverage for each Major release.
+**Major Releases:**
+- **Version 25.09 Major** (released September 1, 2025): Currently in **Extended Major Release Support** phase, having completed both its 2-month standard support and within the 4-month extended support periods. Legacy support continues until September 1, 2026.
 
-### Minor Release Support Timeline
+**Minor Releases:**
+- **Version 25.08 Minor** (released August 1, 2025): Currently in **Legacy Minor Release Support** phase, having completed its 2-month standard support period. Legacy support continues until February 1, 2026.
+- **Version 25.10 Minor** (released October 1, 2025): Currently in **Legacy Minor Release Support** phase, having completed its 2-month standard support period. Legacy support continues until April 1, 2026.
+- **Version 25.11 Minor** (released November 1, 2025): Currently in **Legacy Minor Release Support** phase, having completed its 2-month standard support period. Legacy support continues until May 1, 2026.
+- **Version 25.12 Minor** (released December 1, 2025): Currently in **Standard Minor Release Support** phase, with full support continuing until February 1, 2026, then legacy support until June 1, 2026.
 
-```mermaid
----
-displayMode: compact
-config:
-    logLevel: 'debug'
-    theme: 'default'
-    themeCSS: " \n
-        .taskText { font-size: 16px; }
-        rect[id^=smrs_] { fill: #0f054c; stroke-width: 4px; }
-        text[id^=smrs_] { fill: white !important; font-size: 24px; }
-        rect[id^=lmrs_] { fill: #2de8b9; stroke-width: 4px; }
-        text[id^=lmrs_] { fill: #0f054c !important; font-size: 24px; }
-        .sectionTitle { stroke: white; paint-order: stroke fill; fill: #0f054c; stroke-width: 8px; }
-        g[class=tick] text { font-size: 24px; height: 50px; }
-        .vertText {  transform: translate(-90px, -450px); font-size: 24px; }
-
-        /*** section backgrounds: ***/
-
-        /* - out of support (no longer receiving any support) */
-        .section0 { fill: #ff4444; opacity: 0.2; stroke: none; }
-        .section1 { fill: #ff4444; opacity: 0.2; stroke: none; }
-        .section2 { fill: #ff4444; opacity: 0.2; stroke: none; }
-        .section3 { fill: #ff4444; opacity: 0.2; stroke: none; }
-        .section4 { fill: #ff4444; opacity: 0.2; stroke: none; }
-        .section5 { fill: #ff4444; opacity: 0.2; stroke: none; }
-
-        /* - under legacy support only */
-        .section6 { fill: #fff400; opacity: 0.2; stroke: none; }
-        .section7 { fill: #fff400; opacity: 0.2; stroke: none; }
-        .section8 { fill: #fff400; opacity: 0.2; stroke: none; }
-
-        /* - under standard support */
-        .section9 { fill: #6666ff7d; }
-
-        
-        /* out of support: */
-        #smrs_2510 { stroke: red; fill: #0f054c; opacity: 0.2; }
-        #smrs_2510-text { fill: #0f054c !important; }
-        #lmrs_2510 { stroke: red; fill: #2de8b9; opacity: 0.2; }
-        #lmrs_2510-text { fill: #0f054c !important; }
-
-        #smrs_2511 { stroke: red; fill: #0f054c; opacity: 0.2; }
-        #smrs_2511-text { fill: #0f054c !important; }
-        #lmrs_2511 { stroke: red; fill: #2de8b9; opacity: 0.2; }
-        #lmrs_2511-text { fill: #0f054c !important; }
-
-        #smrs_2512 { stroke: red; fill: #0f054c; opacity: 0.2; }
-        #smrs_2512-text { fill: #0f054c !important; }
-        #lmrs_2512 { stroke: red; fill: #2de8b9; opacity: 0.2; }
-        #lmrs_2512-text { fill: #0f054c !important; }
-
-        #smrs_2601 { stroke: red; fill: #0f054c; opacity: 0.2; }
-        #smrs_2601-text { fill: #0f054c !important; }
-        #lmrs_2601 { stroke: red; fill: #2de8b9; opacity: 0.2; }
-        #lmrs_2601-text { fill: #0f054c !important; }
-
-        #smrs_2602 { stroke: red; fill: #0f054c; opacity: 0.2; }
-        #smrs_2602-text { fill: #0f054c !important; }
-        #lmrs_2602 { stroke: red; fill: #2de8b9; opacity: 0.2; }
-        #lmrs_2602-text { fill: #0f054c !important; }
-
-        #smrs_2604 { stroke: red; fill: #0f054c; opacity: 0.2; }
-        #smrs_2604-text { fill: #0f054c !important; }
-        #lmrs_2604 { stroke: red; fill: #2de8b9; opacity: 0.2; }
-        #lmrs_2604-text { fill: #0f054c !important; }
-
-        /* under legacy support: */
-        #smrs_2605 { stroke: red; fill: #0f054c; opacity: 0.2; }
-        #smrs_2605-text { fill: #0f054c !important; }
-        #lmrs_2605 { stroke: #0f054c; }
-
-        #smrs_2606 { stroke: red; fill: #0f054c; opacity: 0.2; }
-        #smrs_2606-text { fill: #0f054c !important; }
-        #lmrs_2606 { stroke: #0f054c; }
-
-        #smrs_2607 { stroke: red; fill: #0f054c; opacity: 0.2; }
-        #smrs_2607-text { fill: #0f054c !important; }
-        #lmrs_2607 { stroke: #0f054c; }
-
-        /* under standard support: */
-        #smrs_2608 { stroke: #0f054c; }
-        #lmrs_2608 { stroke: #0f054c; }
-    "
----
-%%{init:
-    {
-        "gantt": {
-            "sectionFontSize": 24,
-            "fontSize": 36,
-            "barGap": 40,
-            "barHeight": 50,
-            "topPadding": 80
-        }
-    }
-}%%
-gantt
-    todayMarker off
-    dateFormat YYYY-MM-DD
-    axisFormat %b %Y
-    tickInterval 3month
-
-    section 25.10 Minor
-        SMRS    :done, smrs_2510, 2025-10-01, 61d
-        LMRS    :done, lmrs_2510, after smrs_2510, 122d
-    
-    section 25.11 Minor
-        SMRS    :done, smrs_2511, 2025-11-01, 61d
-        LMRS    :done, lmrs_2511, after smrs_2511, 122d
-
-    section 25.12 Minor
-        SMRS    :done, smrs_2512, 2025-12-01, 61d
-        LMRS    :done, lmrs_2512, after smrs_2512, 122d
-
-    section 26.01 Minor
-        SMRS    :done, smrs_2601, 2026-01-01, 61d
-        LMRS    :done, lmrs_2601, after smrs_2601, 122d
-
-    section 26.02 Minor
-        SMRS    :done, smrs_2602, 2026-02-01, 61d
-        LMRS    :done, lmrs_2602, after smrs_2602, 122d
-    
-    section 26.04 Minor
-        SMRS    :done, smrs_2604, 2026-04-01, 61d
-        LMRS    :done, lmrs_2604, after smrs_2604, 122d
-
-    section 26.05 Minor
-        SMRS    :done, smrs_2605, 2026-05-01, 61d
-        LMRS    :active, lmrs_2605, after smrs_2605, 122d
-
-    section 26.06 Minor
-        SMRS    :done, smrs_2606, 2026-06-01, 61d
-        LMRS    :active, lmrs_2606, after smrs_2606, 122d
-
-    section 26.07 Minor
-        SMRS    :done, smrs_2607, 2026-07-01, 61d
-        LMRS    :active, lmrs_2607, after smrs_2607, 122d
-
-    section 26.08 Minor
-        SMRS    :done, smrs_2608, 2026-08-01, 61d
-        LMRS    :active, lmrs_2608, after smrs_2608, 122d
-
-    Current Date            : vert, current, 2026-11-01, 1d
-```
-
-In the example shown in the diagram (with `Current date` set to November 1, 2026):
-
-**Versions Out of Support** (sections in <span style={{backgroundColor: '#ffe8e8'}}>red background</span>):
-- **Versions 25.10 through 26.02**: These minor releases have completed both their 2-month standard support and 4-month legacy support phases. No security patches or support are provided for these versions.
-- **Version 26.04** (released April 1, 2026): Both standard and legacy support phases completed by October 1, 2026.
-
-**Versions Under Legacy Support Only** (sections in <span style={{backgroundColor: '#fdf6d1'}}>yellow background</span>):
-- **Version 26.05** (released May 1, 2026): Standard support ended July 1, 2026. Currently receiving only critical security patches through Legacy Minor Release Support (LMRS) until November 1, 2026.
-- **Version 26.06** (released June 1, 2026): Standard support ended August 1, 2026. Currently in LMRS phase until December 1, 2026.
-- **Version 26.07** (released July 1, 2026): Standard support ended September 1, 2026. Currently in LMRS phase until January 1, 2027.
-
-**Versions Under Standard Support** (sections in <span style={{backgroundColor: '#eee8f7'}}>blue background</span>):
-- **Version 26.08** (released August 1, 2026): Currently receiving full standard support until October 1, 2026, then legacy support until February 1, 2027.
-
-The minor release model provides a much shorter support lifecycle compared to Major releases, with rapid iteration and feature updates. Development teams typically use these releases for testing new features before they're incorporated into the next Major release. The shorter 6-month support windows encourage frequent updates and prevent organizations from becoming dependent on outdated minor releases for production environments.
-
-**Legend:**
-- 🔵 **Blue bars** = Future releases (not yet released)
-- 🟢 **Green bars** = Currently under support  
-- 🔴 **Red bars** = Out of support
-- 🟡 **Yellow bars** = Legacy support (LMRS)
-- ⚫ **Black markers** = Release dates
-- 🟢 **Green vertical line** = Current date (July 9, 2025)
+The diagram illustrates the overlapping support windows that provide enterprise customers with migration flexibility. Major releases have a three-tier support model (Standard → Extended → Legacy) with 12 months of total support coverage, while Minor releases have a two-tier model (Standard → Legacy) with 6 months of total support coverage.
 
 ## Feature Release Process
 
