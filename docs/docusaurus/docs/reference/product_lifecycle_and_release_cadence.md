@@ -178,25 +178,30 @@ config:
         text[id^=lrs_] { fill: #0f054c !important; font-size: 24px; }
         .sectionTitle { stroke: white; paint-order: stroke fill; fill: #0f054c; stroke-width: 8px; }
         g[class=tick] text { font-size: 24px; height: 50px; }
-        .vertText {  transform: translate(-90px, -650px); font-size: 24px; fill: red !important; }
+        .vertText {  transform: translate(-90px, -920px); font-size: 24px; fill: red !important; }
         .task.vert { stroke: red; fill: red !important; }
 
         /*** section backgrounds: ***/
 
         /* - under extended or legacy support only */
         .section0, .section1, .section2, .section3 { fill: #2de8b9; opacity: 0.2; stroke: none; }
-        .section0:nth-last-child(-n + 2) { fill: transparent; }
+        .section:nth-last-child(-n + 3) { fill: transparent; }
+        .section:nth-last-child(-n + 1) { fill: yellow; opacity: 0.2;; }
+
 
         /* - under standard support */
         .section4 { fill: #6666ff7d; }
-        #srs_2512 { stroke: #0f054c; }
+        #srs_2512, #srs_2601 { stroke: #0f054c; }
 
         /* out of support: */
         #srs_2508, #srs_2509, #srs_2510, #srs_2511 { stroke: red; fill: #0f054c; opacity: 0.2; }
         #srs_2508-text, #srs_2509-text, #srs_2510-text, #srs_2511-text { fill: #0f054c !important; }
 
         /* under legacy or extended support: */
-        #ers_2508, #ers_2509, #lrs_2509, #ers_2510, #ers_2511, #ers_2512 { stroke: #0f054c; }
+        #ers_2508, #ers_2509, #lrs_2509, #ers_2510, #ers_2511, #ers_2512, #ers_2601 { stroke: #0f054c; }
+
+        /* unreleased: */
+        #srs_2602, #ers_2602 { opacity: 0.3; }
     "
 ---
 %%{init:
@@ -237,6 +242,14 @@ gantt
         Standard :done, srs_2512, 2025-12-01, 61d
         Extended :done, ers_2512, after srs_2512, 122d
 
+    section 26.01
+        Standard :done, srs_2601, 2026-01-01, 61d
+        Extended :done, ers_2601, after srs_2601, 122d
+
+    section 26.02
+        Standard :done, srs_2602, 2026-02-01, 61d
+        Extended :done, ers_2602, after srs_2602, 122d
+
     Current Date : vert, current, 2026-01-17, 1d
 ```
 
@@ -269,6 +282,11 @@ In the example shown in the diagram (with `Current date` set to January 17, 2026
   style={{color: "#fff",  backgroundColor: "#0f054c", borderRadius: "10px",
   padding: "3px 10px"}}>Standard Release Support</span> phase, with full support
   continuing until February 1, 2026, then extended support until June 1, 2026.
+- **Version 26.01 Minor** (released January 1, 2025): Currently in <span
+  style={{color: "#fff",  backgroundColor: "#0f054c", borderRadius: "10px",
+  padding: "3px 10px"}}>Standard Release Support</span> phase, with full support
+  continuing until March 1, 2026, then extended support until July 1, 2026.
+- **Version 26.02 Minor** (to be released February 1, 2025): Unreleased.
 
 The diagram illustrates the overlapping support windows that provide enterprise
 customers with migration flexibility. Major releases have a three-tier support
