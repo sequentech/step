@@ -20,36 +20,43 @@ SVP uses **YY.MM versioning** format for all releases:
 - **MM**: Two-digit month (e.g., 09 for September)
 - **PATCH**: Patch number for bug fixes and security updates (e.g., 25.09.1)
 
-Major releases may contain breaking changes or significant architectural updates, while Minor releases are backward compatible feature additions. All releases follow the same YY.MM numbering scheme, with the release type determined by the release month and cadence.
+Major releases may contain breaking changes or significant architectural
+updates, while Minor releases are backward compatible feature additions. All
+releases follow the same YY.MM numbering scheme, with the release type
+determined by the release month and cadence.
 
 ## Release Types
 
 ### Major Releases
 
-Major releases are enterprise-grade releases designed for production environments
-requiring maximum stability and extended support. **Major releases may contain breaking changes** that require careful migration planning and testing.
+Major releases are enterprise-grade releases designed for production
+environments requiring maximum stability and extended support. **Major releases
+may contain breaking changes** that require careful migration planning and
+testing.
 
 - **Cadence**: Every 6 months (March and September)
 - **Numbering**: YY.MM format (e.g., 25.09 for September 2025)
-- **Breaking Changes**: May include API changes, database schema updates, or architectural modifications
-- **Standard Major Release Support (SMRS)**: 2 months from release date
-- **Extended Major Release Support (EMRS)**: Additional 4 months after standard support ends
-- **Legacy Major Release Support (LMRS)**: Additional 6 months after extended support ends
+- **Breaking Changes**: May include API changes, database schema updates, or
+  architectural modifications
+- **Standard Release Support (SRS)**: 2 months from release date
+- **Extended Release Support (ERS)**: Additional 4 months after standard support ends
+- **Legacy Release Support (LRS)**: Additional 6 months after extended support ends
 - **Total Major Release Lifecycle**: 12 months (1 year)
 - **Currently Supported Major Releases**: None
 - **Next Major Release**: Version 25.09 (September 1st, 2025)
 
 ### Minor Releases
 
-Minor releases provide the latest features and improvements for development
-and testing environments, and can also be used in special cases where a feature is
-required in a short period of time. **Minor releases are backward compatible** and do not contain breaking changes.
+Minor releases provide the latest features and improvements for development and
+testing environments, and can also be used in special cases where a feature is
+required in a short period of time. **Minor releases are backward compatible**
+and do not contain breaking changes.
 
 - **Cadence**: Monthly releases
 - **Numbering**: YY.MM format (e.g., 25.08 for August 2025)
 - **Backward Compatibility**: All changes are backward compatible
-- **Standard Minor Release Support (SMRS)**: 2 months from release date
-- **Extended Minor Release Support (EMRS)**: Additional 4 months after standard
+- **Standard Release Support (SRS)**: 2 months from release date
+- **Extended Release Support (ERS)**: Additional 4 months after standard
   support ends
 - **Total Minor Release Lifecycle**: 6 months
 - **Currently Supported Minor Releases**: None
@@ -98,14 +105,14 @@ Enterprise customers receive:
 - Custom support agreements for extended lifecycles
 - Dedicated support channels
 
-#### Standard Support (SMRS)
+#### Standard Support (SRS)
 
 - Security patches and critical bug fixes
 - Technical support through official channels
 - Documentation updates
 - Community support
 
-#### Extended Support (EMRS)
+#### Extended Support (ERS)
 
 *Available for all releases*
 
@@ -114,7 +121,7 @@ Enterprise customers receive:
 - Extended maintenance for enterprise customers
 - Migration assistance to newer versions
 
-#### Legacy Support (LMRS)
+#### Legacy Support (LRS)
 
 *Available for Major releases only*
 
@@ -163,12 +170,12 @@ config:
     theme: 'default'
     themeCSS: " \n
         .taskText { font-size: 16px; }
-        rect[id^=smrs_] { fill: #0f054c; stroke-width: 4px; }
-        text[id^=smrs_] { fill: white !important; font-size: 24px; }
-        rect[id^=emrs_] { fill: #2de8b9; stroke-width: 4px; }
-        text[id^=emrs_] { fill: #0f054c !important; font-size: 24px; }
-        rect[id^=lmrs_] { fill: #bec7ff; stroke-width: 4px; }
-        text[id^=lmrs_] { fill: #0f054c !important; font-size: 24px; }
+        rect[id^=srs_] { fill: #0f054c; stroke-width: 4px; }
+        text[id^=srs_] { fill: white !important; font-size: 24px; }
+        rect[id^=ers_] { fill: #2de8b9; stroke-width: 4px; }
+        text[id^=ers_] { fill: #0f054c !important; font-size: 24px; }
+        rect[id^=lrs_] { fill: #bec7ff; stroke-width: 4px; }
+        text[id^=lrs_] { fill: #0f054c !important; font-size: 24px; }
         .sectionTitle { stroke: white; paint-order: stroke fill; fill: #0f054c; stroke-width: 8px; }
         g[class=tick] text { font-size: 24px; height: 50px; }
         .vertText {  transform: translate(-90px, -650px); font-size: 24px; fill: red !important; }
@@ -177,19 +184,19 @@ config:
         /*** section backgrounds: ***/
 
         /* - under extended or legacy support only */
-        .section0, .section1, .section2, .section3 { fill: #fff400; opacity: 0.2; stroke: none; }
+        .section0, .section1, .section2, .section3 { fill: #2de8b9; opacity: 0.2; stroke: none; }
         .section0:nth-last-child(-n + 2) { fill: transparent; }
 
         /* - under standard support */
         .section4 { fill: #6666ff7d; }
-        #smrs_2512 { stroke: #0f054c; }
+        #srs_2512 { stroke: #0f054c; }
 
         /* out of support: */
-        #smrs_2508, #smrs_2509, #smrs_2510, #smrs_2511 { stroke: red; fill: #0f054c; opacity: 0.2; }
-        #smrs_2508-text, #smrs_2509-text, #smrs_2510-text, #smrs_2511-text { fill: #0f054c !important; }
+        #srs_2508, #srs_2509, #srs_2510, #srs_2511 { stroke: red; fill: #0f054c; opacity: 0.2; }
+        #srs_2508-text, #srs_2509-text, #srs_2510-text, #srs_2511-text { fill: #0f054c !important; }
 
         /* under legacy or extended support: */
-        #emrs_2508, #emrs_2509, #lmrs_2509, #emrs_2510, #emrs_2511, #emrs_2512 { stroke: #0f054c; }
+        #ers_2508, #ers_2509, #lrs_2509, #ers_2510, #ers_2511, #ers_2512 { stroke: #0f054c; }
     "
 ---
 %%{init:
@@ -210,25 +217,25 @@ gantt
     tickInterval 3month
 
     section 25.08
-        Standard :done, smrs_2508, 2025-08-01, 61d
-        Extended :done, emrs_2508, after smrs_2508, 122d
+        Standard :done, srs_2508, 2025-08-01, 61d
+        Extended :done, ers_2508, after srs_2508, 122d
 
     section 25.09 Major
-        Standard :done, smrs_2509, 2025-09-01, 61d
-        Extended :done, emrs_2509, after smrs_2509, 122d
-        Legacy   :active, lmrs_2509, after emrs_2509, 183d
+        Standard :done, srs_2509, 2025-09-01, 61d
+        Extended :done, ers_2509, after srs_2509, 122d
+        Legacy   :active, lrs_2509, after ers_2509, 183d
 
     section 25.10
-        Standard :done, smrs_2510, 2025-10-01, 61d
-        Extended :done, emrs_2510, after smrs_2510, 122d
+        Standard :done, srs_2510, 2025-10-01, 61d
+        Extended :done, ers_2510, after srs_2510, 122d
 
     section 25.11
-        Standard :done, smrs_2511, 2025-11-01, 61d
-        Extended :done, emrs_2511, after smrs_2511, 122d
+        Standard :done, srs_2511, 2025-11-01, 61d
+        Extended :done, ers_2511, after srs_2511, 122d
 
     section 25.12
-        Standard :done, smrs_2512, 2025-12-01, 61d
-        Extended :done, emrs_2512, after smrs_2512, 122d
+        Standard :done, srs_2512, 2025-12-01, 61d
+        Extended :done, ers_2512, after srs_2512, 122d
 
     Current Date : vert, current, 2026-01-17, 1d
 ```
@@ -236,17 +243,40 @@ gantt
 In the example shown in the diagram (with `Current date` set to January 17, 2026):
 
 **Major Releases:**
-- **Version 25.09 Major** (released September 1, 2025): Currently in **Extended Major Release Support** phase, having completed its 2-month standard support in November 1, 2025. Extended support continues until March 1, 2026. Legacy support continues until September 1, 2026.
+- **Version 25.09 Major** (released September 1, 2025): Currently in <span
+  style={{color: "#0f054c",  backgroundColor: "#2de8b9", borderRadius: "10px",
+  padding: "3px 10px"}}>Extended Release Support</span> phase, having completed
+  its 2-month standard support in November 1, 2025. Extended support continues
+  until March 1, 2026. Legacy support continues until September 1, 2026.
 
 **Minor Releases:**
-- **Version 25.08 Minor** (released August 1, 2025): Currently in **Extended Minor Release Support** phase, having completed its 2-month standard support period. Extended support continues until February 1, 2026.
-- **Version 25.10 Minor** (released October 1, 2025): Currently in **Extended Minor Release Support** phase, having completed its 2-month standard support period. Extended support continues until April 1, 2026.
-- **Version 25.11 Minor** (released November 1, 2025): Currently in **Extended Minor Release Support** phase, having completed its 2-month standard support period. Extended support continues until May 1, 2026.
-- **Version 25.12 Minor** (released December 1, 2025): Currently in **Standard Minor Release Support** phase, with full support continuing until February 1, 2026, then extended support until June 1, 2026.
+- **Version 25.08 Minor** (released August 1, 2025): Currently in <span
+  style={{color: "#0f054c",  backgroundColor: "#2de8b9", borderRadius: "10px",
+  padding: "3px 10px"}}>Extended Release Support</span> phase, having completed
+  its 2-month standard support period. Extended support continues until February
+  1, 2026.
+- **Version 25.10 Minor** (released October 1, 2025): Currently in <span
+  style={{color: "#0f054c",  backgroundColor: "#2de8b9", borderRadius: "10px",
+  padding: "3px 10px"}}>Extended Release Support</span> phase, having completed
+  its 2-month standard support period. Extended support continues until April 1,
+  2026.
+- **Version 25.11 Minor** (released November 1, 2025): Currently in <span
+  style={{color: "#0f054c",  backgroundColor: "#2de8b9", borderRadius: "10px",
+  padding: "3px 10px"}}>Extended Release Support</span> phase, having completed
+  its 2-month standard support period. Extended support continues until May 1,
+  2026.
+- **Version 25.12 Minor** (released December 1, 2025): Currently in <span
+  style={{color: "#fff",  backgroundColor: "#0f054c", borderRadius: "10px",
+  padding: "3px 10px"}}>Standard Release Support</span> phase, with full support
+  continuing until February 1, 2026, then extended support until June 1, 2026.
 
-The diagram illustrates the overlapping support windows that provide enterprise customers with migration flexibility. Major releases have a three-tier support model (Standard → Extended → Legacy) with 12 months of total support coverage, while Minor releases have a two-tier model (Standard → Extended) with 6 months of total support coverage.
+The diagram illustrates the overlapping support windows that provide enterprise
+customers with migration flexibility. Major releases have a three-tier support
+model (Standard → Extended → Legacy) with 12 months of total support coverage,
+while Minor releases have a two-tier model (Standard → Extended) with 6 months
+of total support coverage.
 
-## Feature Release Process
+## Major & Minor Release Process
 
 Each release follows this general schedule:
 
@@ -255,17 +285,16 @@ Each release follows this general schedule:
 3. **Release Candidate**: 1-2 weeks before release date  
 4. **Final Release**: On scheduled date
 
-*Note: Major releases follow a more detailed process with multiple release candidates and mandatory stabilization periods, as detailed in the Major Version Release Lifecycle section.*
-
 ## Security and Patch Updates
 
 - **Security patches**: Released as needed for all supported versions
 - **Regular patches**: Bi-weekly review cycle for dependencies
-- **Emergency patches**: Released within 24-48 hours for critical security issues
+- **Emergency patches**: Released within 24-48 hours for critical security
+  issues
 
-## Major Version Release Lifecycle
+## Major & Minor Version Release Lifecycle
 
-Each major version follows a structured release process that includes
+Each major and minor versions follows a structured release process that includes
 pre-releases, the final release, and subsequent patch releases during its
 support lifecycle. This section illustrates the complete lifecycle of a single
 major version from initial development to end of support.
@@ -348,10 +377,10 @@ gantt
 | Release | Release Date | Type | Purpose & Rationale |
 |---------|-------------|------|-------------------|
 | **Feature Development** | Apr 1 - Jun 30, 2026 | Development Phase | Active feature development period for Major release 26.09. New features, API enhancements, and architectural improvements. Breaking changes allowed during this phase. |
-| **26.09.0-rc.0** | Jul 1, 2026 | Release Candidate | **Feature Freeze Phase**: Initial release candidate for community testing. Major features freeze completed. Focus on stability testing and performance validation. |
+| **26.09.0-rc.0** | Jul 1, 2026 | Release Candidate | <p>**Feature Freeze Phase**: Initial release candidate for community testing. Major features freeze completed. Focus on stability testing and performance validation. </p><p>Sometimes used by customers depending on the new breaking changes and features for early testing and integration work.</p> |
 | **26.09.0-rc.1** | Aug 1, 2026 | Release Candidate | **Feature Freeze Phase**: Second release candidate addressing critical bugs found in rc.0. Database migration optimizations and API refinements. |
 | **26.09.0-rc.2** | Aug 15, 2026 | Release Candidate | **Feature Freeze Phase**: Third release candidate for final testing. Documentation finalization and UI/UX polish. Performance benchmarking completed. |
-| **26.09.0** | Sep 1, 2026 | **Major Final** | **Official Major release**. All quality gates passed. Production-ready with full documentation, security audit completed. |
+| **26.09.0** | Sep 1, 2026 | **Major Final** | **Official Major release**. All quality gates passed. Production-ready with full documentation, often-times a security audit completed. |
 | **26.09.1** | Oct 15, 2026 | Bugfix Patch | **Standard Support Phase**: Address non-critical bugs reported in production: memory leak in vote processing, timezone handling issues, minor UI inconsistencies. |
 | **26.09.2** | Oct 30, 2026 | Final Standard Patch | **Standard Support Phase**: Last scheduled patch during standard support. Includes final compatibility updates and minor stability enhancements before transitioning to Extended Support. |
 | **26.09.3** | Dec 15, 2026 | Security Patch | **Extended Support Phase**: Critical security update addressing privilege escalation vulnerability. Updated cryptographic libraries and enhanced input validation. |
@@ -363,9 +392,11 @@ gantt
 
 ### Release Process Timeline
 
-Before diving into a specific example, it's important to understand the conceptual framework that governs all major version releases. This process ensures quality, stability, and predictable timing for enterprise customers.
+Before diving into a specific example, it's important to understand the
+conceptual framework that governs all major version releases. This process
+ensures quality, stability, and predictable timing for enterprise customers.
 
-#### Mandatory Release Process Flow
+#### Typical Release Process Flow
 
 ```mermaid
 ---
@@ -401,7 +432,7 @@ flowchart TD
 
 | Phase | Duration | Description | Mandatory Wait |
 |-------|----------|-------------|----------------|
-| **Feature Development** | 3-6 months | Active development, new features, breaking changes allowed | No mandatory wait |
+| **Feature Development** | 1-3 months | Active development, new features, breaking changes allowed | No mandatory wait |
 | **Feature Freeze to RC.0** | 2-4 weeks | Code stabilization, initial testing | No mandatory wait |
 | **Between Release Candidates** | 1-2 weeks | Bug fixes, regression testing | Minimum 1 week |
 | **Final RC to Major Release** | **2 weeks** | **Mandatory stabilization period** | **Exactly 2 weeks** |
@@ -409,19 +440,29 @@ flowchart TD
 
 #### Critical Rules
 
-1. **Feature Development Phase**: During this phase, new features are actively developed and breaking changes are allowed. This phase typically lasts 3-6 months depending on the scope of the Major release.
+1. **Feature Development Phase**: During this phase, new features are actively
+   developed and breaking changes are allowed. This phase typically lasts 1-3
+   months depending on the scope of the Major release.
 
-2. **Feature Freeze**: All new features must be code-complete and merged before the feature freeze deadline. Only bug fixes and stabilization work are allowed after this point.
+2. **Feature Freeze**: All new features must be code-complete and merged before
+   the feature freeze deadline. Only bug fixes and stabilization work are
+   allowed after this point.
 
-3. **Mandatory 2-Week Period**: There must be exactly 2 weeks between the final release candidate and the Major release. This is non-negotiable and allows for:
+3. **Mandatory 2-Week Period**: There must be exactly 2 weeks between the final
+   release candidate and the Major release. This is non-negotiable and allows
+   for:
    - Final security audits
    - Documentation review and finalization
    - Community feedback integration
    - Infrastructure preparation for release
 
-2. **Release Candidate Progression**: Each release candidate must be available for at least 1 week before the next RC or final release.
+2. **Release Candidate Progression**: Each release candidate must be available
+   for at least 1 week before the next RC or final release.
 
-3. **No Direct-to-Production**: All Major releases must go through at least one release candidate phase.
+3. **No Direct-to-Production**: All Major releases must go through at least one
+   release candidate phase.
 
-4. **Emergency Exception Process**: In case of critical security vulnerabilities, the 2-week period may be shortened to 1 week with explicit approval from the security team and release management.
+4. **Emergency Exception Process**: In case of critical security
+   vulnerabilities, the 2-week period may be shortened to 1 week with explicit
+   approval from the security team and release management.
 
