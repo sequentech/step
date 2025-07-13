@@ -264,8 +264,9 @@ In the example shown in the diagram (with `Example Current date` set to January 
 - **Version 25.09 Major** (released September 1, 2025): Currently in <span
   style={{color: "#0f054c",  backgroundColor: "#bec7ff", borderRadius: "10px",
   padding: "3px 10px"}}>Legacy Release Support</span> phase, having completed
-  its 2-month standard support in November 1, 2025.and it's Extended support
-  in January 1, 2026. Legacy support continues until May 1, 2026.
+  its 2-month standard support in November 1, 2025, and having also completed
+  it's 2-month extended support in January 1, 2026. Legacy support continues
+  until May 1, 2026.
 
 **Minor Releases:**
 - **Version 25.08 Minor** (released August 1, 2025): <span
