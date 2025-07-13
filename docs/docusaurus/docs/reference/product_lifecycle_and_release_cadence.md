@@ -262,15 +262,16 @@ In the example shown in the diagram (with `Example Current date` set to January 
 
 **Major Releases:**
 - **Version 25.09 Major** (released September 1, 2025): Currently in <span
-  style={{color: "#0f054c",  backgroundColor: "#2de8b9", borderRadius: "10px",
-  padding: "3px 10px"}}>Extended Release Support</span> phase, having completed
-  its 2-month standard support in November 1, 2025. Extended support continues
-  until January 1, 2026. Legacy support continues until May 1, 2026.
+  style={{color: "#0f054c",  backgroundColor: "#bec7ff", borderRadius: "10px",
+  padding: "3px 10px"}}>Legacy Release Support</span> phase, having completed
+  its 2-month standard support in November 1, 2025.and it's Extended support
+  in January 1, 2026. Legacy support continues until May 1, 2026.
 
 **Minor Releases:**
 - **Version 25.08 Minor** (released August 1, 2025): <span
   style={{color: "#fff",  backgroundColor: "#ff6600", borderRadius: "10px",
-  padding: "3px 10px"}}>End of Support</span> - All support ended December 1, 2025. This release is no longer supported.
+  padding: "3px 10px"}}>End of Support</span> - All support ended December 1, 
+  2025. This release is no longer supported.
 - **Version 25.10 Minor** (released October 1, 2025): Currently in <span
   style={{color: "#0f054c",  backgroundColor: "#2de8b9", borderRadius: "10px",
   padding: "3px 10px"}}>Extended Release Support</span> phase, having completed
