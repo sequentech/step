@@ -253,14 +253,14 @@ gantt
         Standard :done, srs_2601, 2026-01-01, 61d
         Extended :done, ers_2601, after srs_2601, 61d
 
-    section 26.02 (unreleased)
+    section 26.02 (Unreleased)
         Standard :done, srs_2602, 2026-02-01, 61d
         Extended :done, ers_2602, after srs_2602, 61d
 
     Example Current Date : vert, current, 2026-01-17, 1d
 ```
 
-In the example shown in the diagram (with `Example Current date` set to January 17, 2026):
+In the example shown in the diagram (with `Example Current Date` set to January 17, 2026):
 
 **Major Releases:**
 - **Version 25.09 Major** (released September 1, 2025): Currently in <span
@@ -367,6 +367,7 @@ config:
     }
 }%%
 gantt
+    todayMarker off
     dateFormat  YYYY-MM-DD
     axisFormat  %b %Y
     tickInterval 3month
