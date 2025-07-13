@@ -137,10 +137,13 @@ Enterprise customers receive:
 ```mermaid
 ---
 config:
-  theme: 'default'
-  themeVariables:
-    cScale0: '#0f054c'
-    cScale1: '#2de8b9'
+    theme: 'default'
+    themeVariables:
+        cScale0: '#0f054c'
+        cScale1: '#2de8b9'
+    themeCSS: " \n
+        .timeline-node tspan { font-size: 24px; }
+    "
 ---
 timeline
     title SVP Release Schedule
@@ -178,7 +181,7 @@ config:
         text[id^=lrs_] { fill: #0f054c !important; font-size: 24px; }
         .sectionTitle { stroke: white; paint-order: stroke fill; fill: #0f054c; stroke-width: 8px; }
         g[class=tick] text { font-size: 24px; height: 50px; }
-        .vertText {  transform: translate(-83px, -900px); font-size: 24px; fill: red !important; }
+        .vertText {  transform: translate(-133px, -900px); font-size: 24px; fill: red !important; }
         .task.vert { stroke: red; fill: red !important; }
 
         /*** section backgrounds: ***/
@@ -252,10 +255,10 @@ gantt
         Standard :done, srs_2602, 2026-02-01, 61d
         Extended :done, ers_2602, after srs_2602, 61d
 
-    Current Date : vert, current, 2026-01-17, 1d
+    Example Current Date : vert, current, 2026-01-17, 1d
 ```
 
-In the example shown in the diagram (with `Current date` set to January 17, 2026):
+In the example shown in the diagram (with `Example Current date` set to January 17, 2026):
 
 **Major Releases:**
 - **Version 25.09 Major** (released September 1, 2025): Currently in <span
