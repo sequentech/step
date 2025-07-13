@@ -12,7 +12,7 @@ use wasmtime::component::{Component, Func, Instance, Linker, ResourceTable, Val}
 use wasmtime::{Engine, Store};
 use wasmtime_wasi::p2::{add_to_linker_sync, IoView, WasiCtx, WasiCtxBuilder, WasiView};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum HookValue {
     S32(i32),
     U32(u32),

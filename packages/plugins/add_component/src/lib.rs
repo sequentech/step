@@ -32,6 +32,24 @@ impl Guest for Component {
         .to_string()
     }
 
+    fn add_task(data: String) {
+        let json_data: serde_json::Value = serde_json::from_str(&data).unwrap_or_default();
+        let x: i32 = json_data.get("x").and_then(|v| v.as_i64()).unwrap_or(0) as i32;
+        let y: i32 = json_data.get("y").and_then(|v| v.as_i64()).unwrap_or(0) as i32;
+        let a = x + y;
+
+        let _ = create_hasura_transaction();
+        let sql = format!(
+            "INSERT INTO sequent_backend.document (name) VALUES ('{}');",
+            a
+        );
+        let _ = match execute_hasura_query(&sql) {
+            Ok(r) => r,
+            Err(e) => e,
+        };
+        let _ = commit_hasura_transaction();
+    }
+
     fn get_manifest() -> String {
         serde_json::json!({
             "plugin_name": "adder",
@@ -41,7 +59,8 @@ impl Guest for Component {
                     "path": "/adder/add",
                     "handler": "add-route", // This is the name of the function that will handle the route as written in the .wit file
                 }
-            ]
+            ],
+            "tasks": ["add-task"]
         })
         .to_string()
     }

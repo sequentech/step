@@ -81,10 +81,20 @@ pub unsafe fn __post_return_add_route<T: Guest>(arg0: *mut u8) {
         .cast::<usize>();
     _rt::cabi_dealloc(l0, l1, 1);
 }
+#[doc(hidden)]
+#[allow(non_snake_case)]
+pub unsafe fn _export_add_task_cabi<T: Guest>(arg0: *mut u8, arg1: usize) {
+    #[cfg(target_arch = "wasm32")]
+    _rt::run_ctors_once();
+    let len0 = arg1;
+    let bytes0 = _rt::Vec::from_raw_parts(arg0.cast(), len0, len0);
+    T::add_task(_rt::string_lift(bytes0));
+}
 pub trait Guest {
     fn get_manifest() -> _rt::String;
     fn add(x: u32, y: u32) -> _rt::String;
     fn add_route(data: _rt::String) -> _rt::String;
+    fn add_task(data: _rt::String) -> ();
 }
 #[doc(hidden)]
 macro_rules! __export_world_adder_cabi {
@@ -104,7 +114,9 @@ macro_rules! __export_world_adder_cabi {
         _export_add_route_cabi::<$ty > (arg0, arg1) } } #[unsafe (export_name =
         "cabi_post_add-route")] unsafe extern "C" fn _post_return_add_route(arg0 : * mut
         u8,) { unsafe { $($path_to_types)*:: __post_return_add_route::<$ty > (arg0) } }
-        };
+        #[unsafe (export_name = "add-task")] unsafe extern "C" fn export_add_task(arg0 :
+        * mut u8, arg1 : usize,) { unsafe { $($path_to_types)*::
+        _export_add_task_cabi::<$ty > (arg0, arg1) } } };
     };
 }
 #[doc(hidden)]
@@ -573,17 +585,17 @@ pub(crate) use __export_adder_impl as export;
 #[unsafe(link_section = "component-type:wit-bindgen:0.41.0:docs:adder:adder:encoded world")]
 #[doc(hidden)]
 #[allow(clippy::octal_escapes)]
-pub static __WIT_BINDGEN_COMPONENT_TYPE: [u8; 469] = *b"\
-\0asm\x0d\0\x01\0\0\x19\x16wit-component-encoding\x04\0\x07\xd9\x02\x01A\x02\x01\
-A\x08\x01B\x0b\x01j\x01s\x01s\x01@\0\0\0\x04\0\x19create-hasura-transaction\x01\x01\
+pub static __WIT_BINDGEN_COMPONENT_TYPE: [u8; 493] = *b"\
+\0asm\x0d\0\x01\0\0\x19\x16wit-component-encoding\x04\0\x07\xf1\x02\x01A\x02\x01\
+A\x0a\x01B\x0b\x01j\x01s\x01s\x01@\0\0\0\x04\0\x19create-hasura-transaction\x01\x01\
 \x01j\0\x01s\x01@\0\0\x02\x04\0\x1bcreate-keycloak-transaction\x01\x03\x01@\x01\x03\
 sqls\0\0\x04\0\x14execute-hasura-query\x01\x04\x04\0\x16execute-keycloak-query\x01\
 \x04\x04\0\x19commit-hasura-transaction\x01\x03\x04\0\x1bcommit-keycloak-transac\
 tion\x01\x03\x03\0%docs:transactions-manager/transaction\x05\0\x01@\0\0s\x04\0\x0c\
 get-manifest\x01\x01\x01@\x02\x01xy\x01yy\0s\x04\0\x03add\x01\x02\x01@\x01\x04da\
-tas\0s\x04\0\x09add-route\x01\x03\x04\0\x10docs:adder/adder\x04\0\x0b\x0b\x01\0\x05\
-adder\x03\0\0\0G\x09producers\x01\x0cprocessed-by\x02\x0dwit-component\x070.227.\
-1\x10wit-bindgen-rust\x060.41.0";
+tas\0s\x04\0\x09add-route\x01\x03\x01@\x01\x04datas\x01\0\x04\0\x08add-task\x01\x04\
+\x04\0\x10docs:adder/adder\x04\0\x0b\x0b\x01\0\x05adder\x03\0\0\0G\x09producers\x01\
+\x0cprocessed-by\x02\x0dwit-component\x070.227.1\x10wit-bindgen-rust\x060.41.0";
 #[inline(never)]
 #[doc(hidden)]
 pub fn __link_custom_section_describing_imports() {
