@@ -6,8 +6,10 @@ use crate::postgres::template::insert_templates;
 use crate::types::error::{Error, Result};
 use crate::{postgres::document::get_document, services::documents::get_document_as_temp_file};
 use deadpool_postgres::Transaction;
+use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::types::hasura::core::Template;
 use sequent_core::util::integrity_check::integrity_check;
+
 use std::io::Seek;
 use tracing::{info, instrument};
 use uuid::Uuid;
@@ -72,7 +74,7 @@ pub async fn import_templates_task(
         templates.push(Template {
             alias: template_alias.to_string(),
             tenant_id: tenant_id_parsed,
-            template: serde_json::from_str(template_content).unwrap_or_default(),
+            template: deserialize_str(template_content).unwrap_or_default(),
             created_by: created_by.to_string(),
             labels: Some(serde_json::Value::String(labels.to_string())),
             annotations: Some(serde_json::Value::String(annotations.to_string())),

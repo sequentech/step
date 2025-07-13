@@ -1316,6 +1316,8 @@ const tagalogTranslation: TranslationType = {
                         "Ikaw ay malapit nang lumikha ng Seremonya ng Mga Susi. Ang aksyong ito ay magpapadala ng abiso sa mga Trustee upang lumahok sa paglikha at pamamahagi ng Mga Susi ng Kaganapan sa Halalan.",
                 },
                 filterTrustees: "I-filter ang mga trustee",
+                errorPermisionLabels:
+                    "Hindi maipagawa ang keys ceremony: may nawawala sa isa o higit pang permission label.",
             },
             ceremonyStep: {
                 cancel: "Kanselahin ang Seremonya ng Mga Susi",
