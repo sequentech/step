@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::postgres::election_event::delete_election_event;
+use crate::postgres::election_event::delete_election_event as delete_election_event_postgres;
 use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::{
     services::{
@@ -15,10 +15,28 @@ use crate::{
 };
 use anyhow::{anyhow, Result as AnyhowResult};
 use celery::error::TaskError;
+use futures::try_join;
 use sequent_core::types::hasura::core::TasksExecution;
-use tracing::{info, instrument};
+use tracing::instrument;
 
-async fn delete_election_event_(
+async fn delete_election_event_related_data(
+    tenant_id: &str,
+    election_event_id: &str,
+    realm: &str,
+) -> Result<()> {
+    let immudb_future = delete_election_event_immudb(tenant_id, election_event_id);
+
+    let documents_future = delete_election_event_related_documents(tenant_id, election_event_id);
+
+    let keycloak_future = delete_keycloak_realm(realm);
+
+    let (_immudb_result, _documents_result, _keycloak_result) =
+        try_join!(immudb_future, documents_future, keycloak_future)?;
+
+    Ok(())
+}
+
+async fn delete_election_event(
     tenant_id: String,
     election_event_id: String,
     realm: String,
@@ -31,27 +49,18 @@ async fn delete_election_event_(
                 .await
                 .map_err(|err| anyhow!("Error deleting election event from hasura db: {err}"))?;
 
-            delete_election_event(&hasura_transaction, &tenant_id, &election_event_id).await
+            delete_election_event_postgres(&hasura_transaction, &tenant_id, &election_event_id)
+                .await
         })
     })
     .await;
 
     match &results {
         Ok(_) => {
-            let immudb_result = delete_election_event_immudb(&tenant_id, &election_event_id)
-                .await
-                .map_err(|err| anyhow!("Error deleting election event immudb database: {err}"));
-            info!("immudb result: {:?}", immudb_result);
-            let documents_result =
-                delete_election_event_related_documents(&tenant_id, &election_event_id)
-                    .await
-                    .map_err(|err| {
-                        anyhow!("Error deleting election event related documents: {err}")
-                    });
-            info!("documents result: {:?}", documents_result);
-            delete_keycloak_realm(&realm)
-                .await
-                .map_err(|err| anyhow!("Error deleting election event keycloak realm: {err}"))?;
+            match delete_election_event_related_data(&tenant_id, &election_event_id, &realm).await {
+                Ok(_) => (),
+                Err(e) => return Err(anyhow!("Error deleting related data: {e}")),
+            }
         }
         Err(err) => {
             let error = format!("Error deleting election event: {err}");
@@ -70,7 +79,7 @@ pub async fn delete_election_event_t(
     realm: String,
     task_execution: TasksExecution,
 ) -> Result<()> {
-    let res = delete_election_event_(tenant_id, election_event_id, realm).await;
+    let res = delete_election_event(tenant_id, election_event_id, realm).await;
 
     let _ = match res {
         Ok(_) => {

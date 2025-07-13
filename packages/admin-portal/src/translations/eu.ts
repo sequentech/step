@@ -81,6 +81,7 @@ const basqueTranslation: TranslationType = {
                 EXPORT_TENANT_CONFIG: "Esportatu Maizter Konfigurazioa",
                 IMPORT_TENANT_CONFIG: "Inportatu Maizter Konfigurazioa",
                 RENDER_DOCUMENT_PDF: "Errendatu Dokumentu PDFa",
+                DELETE_ELECTION_EVENT: "Ezabatu Hauteskunde Gertaera",
             },
             widget: {
                 taskTitle: "Ataza: {{title}}",
