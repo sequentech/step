@@ -165,6 +165,8 @@ timeline
 
 ### Release Support Timeline
 
+*Note: The diagram below shows an example timeline with a hypothetical current date of January 17, 2026, to illustrate how different releases would be in various support phases.*
+
 ```mermaid
 ---
 displayMode: compact
@@ -265,7 +267,7 @@ In the example shown in the diagram (with `Example Current date` set to January 
   style={{color: "#0f054c",  backgroundColor: "#bec7ff", borderRadius: "10px",
   padding: "3px 10px"}}>Legacy Release Support</span> phase, having completed
   its 2-month standard support in November 1, 2025, and having also completed
-  it's 2-month extended support in January 1, 2026. Legacy support continues
+  its 2-month extended support in January 1, 2026. Legacy support continues
   until May 1, 2026.
 
 **Minor Releases:**
@@ -402,7 +404,7 @@ gantt
 | **25.09.0-rc.0** | Jul 1, 2025 | Release Candidate | <p>**Feature Freeze Phase**: Initial release candidate for community testing. Major features freeze completed. Focus on stability testing and performance validation. </p><p>Sometimes used by customers depending on the new breaking changes and features for early testing and integration work.</p> |
 | **25.09.0-rc.1** | Aug 1, 2025 | Release Candidate | **Feature Freeze Phase**: Second release candidate addressing critical bugs found in rc.0. Database migration optimizations and API refinements. |
 | **25.09.0-rc.2** | Aug 15, 2025 | Release Candidate | **Feature Freeze Phase**: Third release candidate for final testing. Documentation finalization and UI/UX polish. Performance benchmarking completed. |
-| **25.09.0** | Sep 1, 2025 | **Major Final** | **Official Major release**. All quality gates passed. Production-ready with full documentation, often-times a security audit completed. |
+| **25.09.0** | Sep 1, 2025 | **Major Final** | **Official Major release**. All quality gates passed. Production-ready with full documentation and often, a security audit is also completed too. |
 | **25.09.1** | Oct 15, 2025 | Bugfix Patch | **Standard Support Phase**: Address non-critical bugs reported in production: memory leak in vote processing, timezone handling issues, minor UI inconsistencies. |
 | **25.09.2** | Oct 30, 2025 | Final Standard Patch | **Standard Support Phase**: Last scheduled patch during standard support. Includes final compatibility updates and minor stability enhancements before transitioning to Extended Support. |
 | **25.09.3** | Dec 15, 2025 | Security Patch | **Extended Support Phase**: Critical security update addressing privilege escalation vulnerability. Updated cryptographic libraries and enhanced input validation. |
