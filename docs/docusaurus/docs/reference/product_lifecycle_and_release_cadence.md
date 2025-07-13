@@ -99,38 +99,23 @@ with no SLA guarantees and absolutely no warranty.
 ### Enterprise Support
 
 Enterprise customers receive:
-- Priority support during standard support period
+- Dedicated support channels
+- Security patches and critical bug fixes
 - Standard, Extended and Legacy support options
 - Migration assistance between major and minor versions
 - Custom support agreements for extended lifecycles
-- Dedicated support channels
-
-#### Standard Support (SRS)
-
-- Security patches and critical bug fixes
-- Technical support through official channels
 - Documentation updates
-- Community support
 
-#### Extended Support (ERS)
-
-*Available for all releases*
-
-- Security patches and critical bug fixes
-- Limited technical support through official channels
-- Extended maintenance for enterprise customers
-- Migration assistance to newer versions
-
-#### Legacy Support (LRS)
-
-*Available for Major releases only*
-
-- Security patches and critical bug fixes
-- Limited technical support through official channels
-- Priority migration assistance to newer Major versions
-- Extended maintenance for enterprise customers
-
-
+Enterprise Support Plans:
+- **Standard Support** (SRS):
+  - Available for all releases
+  - 2 months from release date
+- **Extended Support** (ERS):
+  - Available for all releases
+  - Additional 2 months after Standard Support ends
+- **Legacy Support** (LRS):
+  - Available for Major releases only
+  - Additional 2 months after Extended Support ends
 
 ## Release Timeline Visualization
 
