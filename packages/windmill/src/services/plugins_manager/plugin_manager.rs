@@ -123,13 +123,13 @@ impl PluginManager {
         hook: &str,
         args: Vec<HookValue>,
         expected_result_types: Vec<HookValue>,
-    ) -> Result<Vec<HookValue>> {
+    ) -> Result<Vec<Vec<HookValue>>> {
         let plugin_names = self
             .hooks
             .get(hook)
             .context(format!("Hook '{:?}' not registered by any plugin", hook))?;
 
-        let mut all_results: Vec<HookValue> = Vec::new();
+        let mut all_results: Vec<Vec<HookValue>> = Vec::new();
 
         for plugin_name in plugin_names.value() {
             let plugin = self.plugins.get(plugin_name).context(format!(
@@ -150,7 +150,7 @@ impl PluginManager {
                     )
                 })?;
 
-            all_results.extend(results);
+            all_results.push(results);
         }
 
         Ok(all_results)
@@ -166,7 +166,7 @@ impl PluginManager {
                 .context(format!("Plugin '{}' not found for route", plugin_name))?;
 
             // Call the route handler, routes should always receive and return a string of json response
-            let results = plugin
+            let results: Vec<HookValue> = plugin
                 .value()
                 .call_hook_dynamic(
                     handler,
