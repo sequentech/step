@@ -22,6 +22,33 @@ impl TryFrom<Row> for AreaContestWrapper {
     }
 }
 
+#[instrument(skip(hasura_transaction), err)]
+pub async fn insert_area_to_area_contests(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    area_id: &str,
+    contest_ids: &[Uuid],
+) -> Result<()> {
+    let area_contests: Vec<AreaContest> = contest_ids
+        .iter()
+        .map(|contest_id| AreaContest {
+            id: Uuid::new_v4().to_string(),
+            area_id: area_id.to_string(),
+            contest_id: contest_id.to_string(),
+        })
+        .collect();
+
+    insert_area_contests(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        &area_contests,
+    )
+    .await?;
+    Ok(())
+}
+
 #[instrument(err, skip_all)]
 pub async fn insert_area_contests(
     hasura_transaction: &Transaction<'_>,

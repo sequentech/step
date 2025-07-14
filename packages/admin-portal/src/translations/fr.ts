@@ -100,6 +100,7 @@ const frenchTranslation: TranslationType = {
                 deleteError: "Erreur lors de la suppression de la Zone",
             },
             createAreaSuccess: "Zone créée",
+            updateAreaSuccess: "Zone mise à jour",
             createAreaError: "Erreur lors de la création de la zone",
             sequent_backend_area_contest: "Questions de la Zone",
             empty: {
@@ -1324,6 +1325,8 @@ const frenchTranslation: TranslationType = {
                         "Vous êtes sur le point de Créer une Cérémonie de Clés. Cette action notifiera aux Autorités de participer à la création et distribution des Clés de l'Événement Électoral.",
                 },
                 filterTrustees: "Filtre des Autorités",
+                errorPermisionLabels:
+                    "Impossible de créer la cérémonie de clés : une ou plusieurs étiquettes d’autorisations sont manquantes.",
             },
             ceremonyStep: {
                 cancel: "Annuler la Cérémonie de Clés",

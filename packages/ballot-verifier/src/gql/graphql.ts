@@ -174,6 +174,7 @@ export type CreateKeysCeremonyInput = {
 
 export type CreateKeysCeremonyOutput = {
     __typename?: "CreateKeysCeremonyOutput"
+    error_message?: Maybe<Scalars["String"]["output"]>
     keys_ceremony_id: Scalars["String"]["output"]
 }
 
@@ -915,6 +916,11 @@ export type UpdateElectionVotingStatusOutput = {
 export type UpdateEventVotingStatusOutput = {
     __typename?: "UpdateEventVotingStatusOutput"
     election_event_id?: Maybe<Scalars["uuid"]["output"]>
+}
+
+export type UpsertAreaOutput = {
+    __typename?: "UpsertAreaOutput"
+    id: Scalars["String"]["output"]
 }
 
 export type UserProfileAttribute = {
@@ -1713,6 +1719,7 @@ export type Mutation_Root = {
     >
     update_tally_ceremony?: Maybe<StartTallyOutput>
     upload_signature?: Maybe<OptionalId>
+    upsert_area?: Maybe<UpsertAreaOutput>
     /** upsert_areas */
     upsert_areas?: Maybe<OptionalId>
 }
@@ -4003,6 +4010,20 @@ export type Mutation_RootUpload_SignatureArgs = {
     election_id: Scalars["uuid"]["input"]
     password: Scalars["String"]["input"]
     tally_session_id: Scalars["uuid"]["input"]
+}
+
+/** mutation root */
+export type Mutation_RootUpsert_AreaArgs = {
+    annotations?: InputMaybe<Scalars["jsonb"]["input"]>
+    area_contest_ids?: InputMaybe<Array<InputMaybe<Scalars["String"]["input"]>>>
+    description?: InputMaybe<Scalars["String"]["input"]>
+    election_event_id: Scalars["String"]["input"]
+    id?: InputMaybe<Scalars["String"]["input"]>
+    labels?: InputMaybe<Scalars["jsonb"]["input"]>
+    name: Scalars["String"]["input"]
+    parent_id?: InputMaybe<Scalars["String"]["input"]>
+    tenant_id: Scalars["String"]["input"]
+    type?: InputMaybe<Scalars["String"]["input"]>
 }
 
 /** mutation root */

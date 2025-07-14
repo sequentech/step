@@ -99,6 +99,7 @@ const englishTranslation = {
                 deleteError: "Error deleting area",
             },
             createAreaSuccess: "Area created",
+            updateAreaSuccess: "Area updated",
             createAreaError: "Could not create Area",
             sequent_backend_area_contest: "Contests",
             empty: {
@@ -1300,6 +1301,8 @@ const englishTranslation = {
                         "You are about to Create Keys Ceremony. This action will notify the Trustees to participate in the creation and distribution of the Election Event Keys.",
                 },
                 filterTrustees: "Filter Trustees",
+                errorPermisionLabels:
+                    "Cannot create keys ceremony: one or more permission labels are missing.",
             },
             ceremonyStep: {
                 cancel: "Cancel Keys Ceremony",

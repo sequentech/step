@@ -69,7 +69,7 @@ jobs:
         git config --local user.name "GitHub Action"
 
     - name: Install release-it
-      run: npm install --global release-it
+      run: npm install --global release-it@19.0.3
 
     - name: Create Release Branch if required
       id: CreateReleaseBranch
@@ -155,11 +155,11 @@ jobs:
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '18'
+        node-version: '24'
 
     - name: Install release tools
       run: |
-        npm install --global release-it
+        npm install --global release-it@16.2.1
 
     - name: Check if the latest tag is a pre-release
       id: CheckLatestRelease
@@ -188,25 +188,34 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         # If the new release branch is not created, then increment the patch version
+        echo "Release 1.0.0"
         if [ "${{ needs.create-release-branch.outputs.NEW_RELEASE_BRANCH }}" == "" ]; then
+          echo "Release 1.1.0"
           if [ "${{ github.event.inputs.preRelease }}" = "true" ]; then
+            echo "Release 1.1.1"
             # Check if the latest tag is a pre-release
             if [ "${{ steps.CheckLatestRelease.outputs.latestReleaseIsPreRelease }}" = "true" ]; then
+              echo "Release 1.1.1.1"
               # Then increment the pre-release version
-              release-it --ci --increment=pre --preRelease=rc
+              release-it --ci --increment=pre --preRelease=rc  --verbose
             else
-              release-it --ci --increment=patch --preRelease=rc
+              echo "Release 1.1.1.2"
+              release-it --ci --increment=patch --preRelease=rc  --verbose
             fi
           else
-            release-it --ci --increment=patch
+            echo "Release 1.1.2"
+            release-it --ci --increment=patch  --verbose
           fi
         else
+          echo "Release 1.2.0"
           # If the new release branch is created, then increment the minor or major version
           # Currently, no pre-release is supported for major or minor releases from the main branch
           if [ "${{ github.event.inputs.createMajorReleaseBranch }}" = "true" ]; then
-            release-it --ci --increment=major --git.tagMatch=v[0-9]*\.[0-9]*\.[0-9]* --git.getLatestTagFromAllRefs
+            echo "Release 1.2.1"
+            release-it --ci --increment=major --git.tagMatch=v[0-9]*\.[0-9]*\.[0-9]* --git.getLatestTagFromAllRefs  --verbose
           elif [ "${{ github.event.inputs.createMinorReleaseBranch }}" = "true" ]; then
-            release-it --ci --increment=minor --git.tagMatch=v[0-9]*\.[0-9]*\.[0-9]* --git.getLatestTagFromAllRefs
+            echo "Release 1.2.2"
+            release-it --ci --increment=minor --git.tagMatch=v[0-9]*\.[0-9]*\.[0-9]* --git.getLatestTagFromAllRefs  --verbose
           fi
         fi
 
