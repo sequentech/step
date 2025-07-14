@@ -10,6 +10,7 @@ pub mod pipe_name;
 pub mod decode_ballots;
 pub mod do_tally;
 pub mod generate_reports;
+pub mod generate_db;
 pub mod mark_winners;
 pub mod vote_receipts;
 

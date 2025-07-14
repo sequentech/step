@@ -19,6 +19,7 @@ pub enum PipeName {
     DoTally,
     MarkWinners,
     GenerateReports,
+    GenerateDatabase,
 }
 
 struct PipeNameVisitor;
