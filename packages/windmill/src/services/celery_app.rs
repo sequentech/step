@@ -15,7 +15,7 @@ use strum_macros::AsRefStr;
 use tokio::sync::{Mutex, RwLock};
 use tracing::{event, instrument, Level};
 
-use crate::services::plugins_manager::plugin_manager::get_plugin_manager;
+use crate::services::plugins_manager::plugin_manager::init_plugin_manager;
 use crate::tasks::activity_logs_report::generate_activity_logs_report;
 use crate::tasks::create_ballot_receipt::create_ballot_receipt;
 use crate::tasks::create_keys::create_keys;
@@ -187,7 +187,10 @@ pub async fn generate_celery_app() -> Arc<Celery> {
         acks_late
     );
 
-    get_plugin_manager();
+    init_plugin_manager().await.map_err(|e| {
+        event!(Level::ERROR, "Failed to initialize plugin manager: {}", e);
+        e
+    })?;
 
     celery::app!(
         broker = AMQPBroker { std::env::var("AMQP_ADDR").unwrap_or_else(|_| "amqp://rabbitmq:5672".into()) },

@@ -235,6 +235,9 @@ pub async fn get_plugin_manager() -> Result<&'static PluginManager> {
 }
 
 pub async fn init_plugin_manager() -> Result<()> {
+    if PLUGIN_MANAGER.get().is_some() {
+        return Ok(());
+    }
     let plugin_manager = PluginManager::new()?;
     plugin_manager
         .load_plugins()
@@ -248,7 +251,7 @@ pub async fn init_plugin_manager() -> Result<()> {
 
 pub use super::plugins_hooks::PluginHooks;
 
-//How to call hook:
+// How to call hook:
 /*
 use windmill::services::plugins_manager::plugin_manager::{self,PluginHooks,PluginManager};
 ....
