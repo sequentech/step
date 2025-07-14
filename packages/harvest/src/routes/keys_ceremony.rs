@@ -13,10 +13,13 @@ use sequent_core::services::jwt::{decode_permission_labels, JwtClaims};
 use sequent_core::types::hasura::core::KeysCeremony;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
-use tracing::{event, instrument, Level};
+use strum_macros::Display;
+use tracing::{error, event, instrument, Level};
 use windmill::postgres;
 use windmill::postgres::election::get_elections;
-use windmill::services::ceremonies::keys_ceremony;
+use windmill::services::ceremonies::keys_ceremony::{
+    self, validate_permission_labels,
+};
 use windmill::services::database::get_hasura_pool;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -173,9 +176,16 @@ pub struct CreateKeysCeremonyInput {
     name: Option<String>,
 }
 
+#[derive(Debug, Display)]
+pub enum CreateKeysError {
+    #[strum(serialize = "permission-labels")]
+    PermissionLabels,
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CreateKeysCeremonyOutput {
     keys_ceremony_id: String,
+    error_message: Option<String>,
 }
 
 // The main function to start a key ceremony
@@ -194,6 +204,8 @@ pub async fn create_keys_ceremony(
     let input = body.into_inner();
     let tenant_id = claims.hasura_claims.tenant_id.clone();
     let user_id = claims.hasura_claims.user_id;
+    let user_permission_labels = claims.hasura_claims.permission_labels;
+
     let username = claims.preferred_username.unwrap_or("-".to_string());
 
     let mut hasura_db_client: DbClient = get_hasura_pool()
@@ -206,6 +218,29 @@ pub async fn create_keys_ceremony(
         .transaction()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    let valid_permissions_label = validate_permission_labels(
+        &hasura_transaction,
+        &tenant_id,
+        &input.election_event_id,
+        input.election_id.clone(),
+        user_permission_labels,
+    )
+    .await
+    .map_err(|e| {
+        (
+            Status::BadRequest,
+            format!("Error validating permission labels: {:?}", e),
+        )
+    })?;
+
+    if !valid_permissions_label {
+        error!("User does not have permission labels");
+        return Ok(Json(CreateKeysCeremonyOutput {
+            keys_ceremony_id: "".to_string(),
+            error_message: Some(CreateKeysError::PermissionLabels.to_string()),
+        }));
+    }
 
     let keys_ceremony_id = keys_ceremony::create_keys_ceremony(
         &hasura_transaction,
@@ -234,7 +269,10 @@ pub async fn create_keys_ceremony(
         keys_ceremony_id,
         input.election_id,
     );
-    Ok(Json(CreateKeysCeremonyOutput { keys_ceremony_id }))
+    Ok(Json(CreateKeysCeremonyOutput {
+        keys_ceremony_id,
+        error_message: None,
+    }))
 }
 
 #[derive(Serialize, Deserialize, Debug)]
