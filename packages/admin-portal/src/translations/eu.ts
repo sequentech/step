@@ -1311,6 +1311,8 @@ const basqueTranslation: TranslationType = {
                         "Giltzen Zeremonia sortzear zaude. Ekintza honek Fideikomisarioei jakinaraziko die Hauteskunde Gertaera Giltzen sorkuntzan eta banaketan parte har dezaten.",
                 },
                 filterTrustees: "Iragazi Fideikomisarioak",
+                errorPermisionLabels:
+                    "Errorea Giltzen Zeremonia sortzerakoan: Gutxienez baimen-etiketa bat falta da.",
             },
             ceremonyStep: {
                 cancel: "Ezeztatu Giltzen Zeremonia",

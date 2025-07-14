@@ -1323,6 +1323,8 @@ const catalanTranslation: TranslationType = {
                         "Estàs a punt de Crear una Cerimònia de Claus. Aquesta acció notificarà a les Autoritats per participar en la creació i distribució de les Claus de l'Esdeveniment Electoral.",
                 },
                 filterTrustees: "Filtrar Autoritats",
+                errorPermisionLabels:
+                    "No es pot crear la cerimònia de claus: falta almenys una etiqueta de permís.",
             },
             ceremonyStep: {
                 cancel: "Cancel·lar Cerimònia de Claus",

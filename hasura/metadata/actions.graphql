@@ -947,6 +947,7 @@ type GetManualVerificationOutput {
 
 type CreateKeysCeremonyOutput {
     keys_ceremony_id: String!
+    error_message: String
 }
 
 type GetPrivateKeyOutput {
